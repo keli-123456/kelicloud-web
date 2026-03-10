@@ -11,20 +11,25 @@ import {
   Checkbox,
   Text,
   Badge,
+  Card,
   Dialog,
   IconButton,
   TextArea,
   SegmentedControl,
 } from "@radix-ui/themes";
 import {
+  Activity,
   CircleDollarSign,
   Copy,
   Download,
+  HardDrive,
   MenuIcon,
   Pencil,
   Plus,
+  Server,
   Terminal,
   Trash2Icon,
+  Wifi,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import {
@@ -147,6 +152,112 @@ const normalizeLiveSnapshot = (value: any): NodeLiveSnapshot => {
   };
 };
 
+const ProbeOverview = ({
+  nodes,
+  liveByNode,
+  liveLoaded,
+  liveError,
+}: {
+  nodes: NodeDetail[];
+  liveByNode: Record<string, NodeLiveSnapshot>;
+  liveLoaded: boolean;
+  liveError: string | null;
+}) => {
+  let onlineCount = 0;
+  let totalUploadSpeed = 0;
+  let totalDownloadSpeed = 0;
+  let totalMemory = 0;
+  let totalDisk = 0;
+
+  nodes.forEach((node) => {
+    const live = liveByNode[node.uuid];
+    if (live?.online) {
+      onlineCount += 1;
+    }
+    totalUploadSpeed += live?.record.network.up ?? 0;
+    totalDownloadSpeed += live?.record.network.down ?? 0;
+    totalMemory += node.mem_total || 0;
+    totalDisk += node.disk_total || 0;
+  });
+
+  const offlineCount = nodes.length - onlineCount;
+
+  const stats = [
+    {
+      label: "节点总数",
+      value: String(nodes.length),
+      hint: liveError
+        ? "实时状态同步失败"
+        : liveLoaded
+          ? `${onlineCount} 在线 / ${offlineCount} 离线`
+          : "正在同步探针状态",
+      icon: Server,
+      iconClass: "bg-slate-900 text-white",
+    },
+    {
+      label: "实时网速",
+      value: `↑ ${formatBytes(totalUploadSpeed)}/s`,
+      hint: `↓ ${formatBytes(totalDownloadSpeed)}/s`,
+      icon: Wifi,
+      iconClass: "bg-emerald-500/15 text-emerald-700",
+    },
+    {
+      label: "总配置",
+      value: formatBytes(totalMemory),
+      hint: `${formatBytes(totalDisk)} 磁盘`,
+      icon: HardDrive,
+      iconClass: "bg-sky-500/15 text-sky-700",
+    },
+    {
+      label: "探针状态",
+      value: liveError
+        ? "同步异常"
+        : liveLoaded
+          ? (offlineCount > 0 ? "需要处理" : "状态健康")
+          : "加载中",
+      hint: liveError
+        ? "保留上一次有效状态，等待下一轮同步"
+        : liveLoaded
+          ? `${offlineCount} 个节点需要关注`
+          : "正在轮询最新指标",
+      icon: Activity,
+      iconClass: liveError
+        ? "bg-rose-500/15 text-rose-700"
+        : offlineCount > 0
+          ? "bg-amber-500/15 text-amber-700"
+          : "bg-violet-500/15 text-violet-700",
+    },
+  ];
+
+  return (
+    <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+      {stats.map((item) => (
+        <Card
+          key={item.label}
+          className="border border-white/60 bg-white/80 p-5 shadow-[0_18px_45px_rgba(15,23,42,0.08)] backdrop-blur-xl"
+        >
+          <div className="flex items-start justify-between gap-4">
+            <div className="space-y-2">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-500">
+                {item.label}
+              </p>
+              <p className="text-2xl font-semibold tracking-tight text-slate-900">
+                {item.value}
+              </p>
+              <p className="text-sm text-slate-500">{item.hint}</p>
+            </div>
+            <div
+              className={`flex size-11 items-center justify-center rounded-2xl shadow-sm ${item.iconClass}`}
+            >
+              <item.icon size={20} />
+            </div>
+          </div>
+        </Card>
+      ))}
+    </div>
+  );
+};
+
 const Layout = () => {
   const { nodeDetail, isLoading, error, refresh } = useNodeDetails();
   const { call } = useRPC2Call();
@@ -155,13 +266,15 @@ const Layout = () => {
   const [liveByNode, setLiveByNode] = useState<Record<string, NodeLiveSnapshot>>(
     {}
   );
-  const filteredNodes = Array.isArray(nodeDetail)
-    ? nodeDetail
-        .filter((node) =>
-          node.name.toLowerCase().includes(searchTerm.toLowerCase())
-        )
-        .sort((a, b) => a.weight - b.weight)
+  const [liveLoaded, setLiveLoaded] = useState(false);
+  const [liveError, setLiveError] = useState<string | null>(null);
+  const allNodes = Array.isArray(nodeDetail)
+    ? [...nodeDetail].sort((a, b) => a.weight - b.weight)
     : [];
+  const filteredNodes = allNodes
+    .filter((node) =>
+      node.name.toLowerCase().includes(searchTerm.toLowerCase())
+    );
 
   useEffect(() => {
     const interval = window.setInterval(() => {
@@ -188,8 +301,11 @@ const Layout = () => {
           nextState[uuid] = normalizeLiveSnapshot(value);
         });
         setLiveByNode(nextState);
+        setLiveLoaded(true);
+        setLiveError(null);
       } catch (pollError) {
         console.error("Failed to fetch node live data:", pollError);
+        setLiveError("Failed to fetch node live data");
       } finally {
         running = false;
         if (!stopped) {
@@ -212,11 +328,31 @@ const Layout = () => {
   if (error) return <div>{error}</div>;
 
   return (
-    <Flex direction="column" gap="4" p="4">
+    <div
+      className="relative overflow-hidden rounded-[32px] border border-white/60 bg-[linear-gradient(135deg,rgba(19,70,134,0.10),rgba(255,255,255,0.94)_34%,rgba(89,172,119,0.10))] p-4 shadow-[0_28px_80px_rgba(15,23,42,0.08)] md:p-6"
+      style={{
+        fontFamily:
+          '"Manrope","Noto Sans SC","PingFang SC","Microsoft YaHei",sans-serif',
+      }}
+    >
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(19,70,134,0.16),transparent_34%),radial-gradient(circle_at_bottom_right,rgba(89,172,119,0.14),transparent_28%)]" />
+      <div className="relative flex flex-col gap-5">
       <Header
+        nodes={allNodes}
+        liveByNode={liveByNode}
+        liveLoaded={liveLoaded}
+        liveError={liveError}
         searchTerm={searchTerm}
         setSearchTerm={setSearchTerm}
         selectedNodes={selectedNodes}
+        setSelectedNodes={setSelectedNodes}
+      />
+
+      <ProbeOverview
+        nodes={allNodes}
+        liveByNode={liveByNode}
+        liveLoaded={liveLoaded}
+        liveError={liveError}
       />
 
       <NodeTable
@@ -225,24 +361,41 @@ const Layout = () => {
         selectedNodes={selectedNodes}
         setSelectedNodes={setSelectedNodes}
       />
-    </Flex>
+      </div>
+    </div>
   );
 };
 
 const Header = ({
+  nodes,
+  liveByNode,
+  liveLoaded,
+  liveError,
   searchTerm,
   setSearchTerm,
   selectedNodes,
+  setSelectedNodes,
 }: {
+  nodes: NodeDetail[];
+  liveByNode: Record<string, NodeLiveSnapshot>;
+  liveLoaded: boolean;
+  liveError: string | null;
   searchTerm: string;
   setSearchTerm: (term: string) => void;
   selectedNodes: string[];
+  setSelectedNodes: (nodes: string[]) => void;
 }) => {
   const { t } = useTranslation();
   const { refresh } = useNodeDetails();
   const [loading, setLoading] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [cleanupOpen, setCleanupOpen] = useState(false);
+  const [cleanupLoading, setCleanupLoading] = useState(false);
   const inputRef = React.useRef<HTMLInputElement>(null);
+  const offlineNodes = nodes.filter((node) => {
+    const live = liveByNode[node.uuid];
+    return live ? !live.online : false;
+  });
   const handleAddNode = async (name: string | undefined) => {
     setDialogOpen(true);
     setLoading(true);
@@ -264,60 +417,167 @@ const Header = ({
       setDialogOpen(false);
     }
   };
+  const handleDeleteOffline = async () => {
+    if (offlineNodes.length === 0) return;
+
+    setCleanupLoading(true);
+    try {
+      const results = await Promise.allSettled(
+        offlineNodes.map(async (node) => {
+          const response = await fetch(`/api/admin/client/${node.uuid}/remove`, {
+            method: "POST",
+          });
+          if (!response.ok) {
+            throw new Error(`Delete failed for ${node.name} (${response.status})`);
+          }
+          return node.uuid;
+        })
+      );
+      const failed = results.filter((result) => result.status === "rejected");
+      const deletedIds = results
+        .filter((result): result is PromiseFulfilledResult<string> => result.status === "fulfilled")
+        .map((result) => result.value);
+      setSelectedNodes(
+        selectedNodes.filter((id) => !deletedIds.includes(id))
+      );
+      await refresh();
+      setCleanupOpen(false);
+      if (failed.length > 0) {
+        toast.error(`Failed to delete ${failed.length} offline node(s)`);
+      } else {
+        toast.success(`Deleted ${offlineNodes.length} offline node(s)`);
+      }
+    } catch (cleanupError) {
+      toast.error(
+        cleanupError instanceof Error ? cleanupError.message : String(cleanupError)
+      );
+    } finally {
+      setCleanupLoading(false);
+    }
+  };
   return (
-    <Flex justify="between" align="center" gap="4" wrap="wrap">
-      <Flex gap="2" align="center">
-        <Text size="5" weight="bold">
-          {t("admin.nodeTable.nodeList")}
-        </Text>
-        {selectedNodes.length > 0 && (
-          <Text size="2">({selectedNodes.length} selected)</Text>
-        )}
-      </Flex>
-      <Flex gap="2">
-        <TextField.Root
-          placeholder={t("admin.nodeTable.searchByName")}
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-        />
-        <Dialog.Root open={dialogOpen} onOpenChange={setDialogOpen}>
-          <Dialog.Trigger>
-            <Button onClick={() => setDialogOpen(true)}>
-              <Plus size={16} />
-              {t("admin.nodeTable.addNode")}
-            </Button>
-          </Dialog.Trigger>
-          <Dialog.Content>
-            <Dialog.Title>{t("admin.nodeTable.addNode")}</Dialog.Title>
-            <TextField.Root
-              ref={inputRef}
-              placeholder={t("admin.nodeTable.nameOptional")}
-            />
-            <Flex justify="end" gap="2" mt="4">
-              <Button
-                onClick={() => handleAddNode(inputRef.current?.value)}
-                disabled={loading}
-              >
+    <Card className="border border-white/65 bg-white/72 p-5 shadow-[0_22px_60px_rgba(15,23,42,0.08)] backdrop-blur-xl md:p-6">
+      <div className="flex flex-col gap-5">
+        <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+          <div className="space-y-3">
+            <div className="inline-flex items-center rounded-full border border-slate-200/80 bg-white/85 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-500 shadow-sm">
+              Probe Console
+            </div>
+            <div className="space-y-1">
+              <Text className="text-3xl font-semibold tracking-tight text-slate-900 md:text-4xl">
+                {t("admin.nodeTable.nodeList")}
+              </Text>
+              <Text className="text-sm text-slate-500 md:text-base">
+                在一个页面里查看节点 IP、实时网速、硬件配置，并批量清理离线节点。
+              </Text>
+            </div>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <Badge variant="soft" color="blue" className="rounded-full px-3 py-1">
+              {nodes.length} total
+            </Badge>
+            <Badge variant="soft" color="gray" className="rounded-full px-3 py-1">
+              {selectedNodes.length} selected
+            </Badge>
+            <Badge
+              variant="soft"
+              color={liveError ? "red" : offlineNodes.length > 0 ? "amber" : "green"}
+              className="rounded-full px-3 py-1"
+            >
+              {liveError
+                ? "sync error"
+                : liveLoaded
+                  ? `${offlineNodes.length} offline`
+                  : "syncing"}
+            </Badge>
+          </div>
+        </div>
+
+        <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto]">
+          <TextField.Root
+            size="3"
+            className="rounded-2xl border border-slate-200/80 bg-white/90 shadow-sm"
+            placeholder={t("admin.nodeTable.searchByName")}
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
+          <div className="flex flex-wrap gap-2">
+            <Dialog.Root open={cleanupOpen} onOpenChange={setCleanupOpen}>
+              <Dialog.Trigger>
+                <Button
+                  variant="soft"
+                  color="red"
+                  disabled={
+                    !liveLoaded ||
+                    Boolean(liveError) ||
+                    offlineNodes.length === 0 ||
+                    cleanupLoading
+                  }
+                  className="rounded-2xl"
+                >
+                  <Trash2Icon size={16} />
+                  删除离线节点
+                </Button>
+              </Dialog.Trigger>
+              <Dialog.Content>
+                <Dialog.Title>删除离线节点</Dialog.Title>
+                <Dialog.Description>
+                  将删除当前已确认离线的 {offlineNodes.length} 个节点。这个操作不可撤销。
+                </Dialog.Description>
+                <Flex justify="end" gap="2" mt="4">
+                  <Dialog.Trigger>
+                    <Button variant="soft">取消</Button>
+                  </Dialog.Trigger>
+                  <Button
+                    color="red"
+                    disabled={cleanupLoading || offlineNodes.length === 0}
+                    onClick={handleDeleteOffline}
+                  >
+                    确认删除
+                  </Button>
+                </Flex>
+              </Dialog.Content>
+            </Dialog.Root>
+            <Dialog.Root open={dialogOpen} onOpenChange={setDialogOpen}>
+              <Dialog.Trigger>
+                <Button onClick={() => setDialogOpen(true)} className="rounded-2xl bg-slate-900 text-white">
+                  <Plus size={16} />
+                  {t("admin.nodeTable.addNode")}
+                </Button>
+              </Dialog.Trigger>
+              <Dialog.Content>
+                <Dialog.Title>{t("admin.nodeTable.addNode")}</Dialog.Title>
+                <TextField.Root
+                  ref={inputRef}
+                  placeholder={t("admin.nodeTable.nameOptional")}
+                />
+                <Flex justify="end" gap="2" mt="4">
+                  <Button
+                    onClick={() => handleAddNode(inputRef.current?.value)}
+                    disabled={loading}
+                  >
                 {t("admin.nodeTable.addNode")}
-              </Button>
-            </Flex>
-          </Dialog.Content>
-        </Dialog.Root>
-      </Flex>
-    </Flex>
+                  </Button>
+                </Flex>
+              </Dialog.Content>
+            </Dialog.Root>
+          </div>
+        </div>
+      </div>
+    </Card>
   );
 };
 
 const ConfigSummary = ({ node }: { node: NodeDetail }) => {
   return (
     <Flex direction="column" gap="1" className="min-w-[220px]">
-      <Text size="2" weight="bold">
+      <Text size="2" weight="bold" className="text-slate-900">
         {[node.os, node.arch].filter(Boolean).join(" / ") || "-"}
       </Text>
-      <Text size="2" color="gray" title={node.cpu_name || "-"}>
+      <Text size="2" color="gray" title={node.cpu_name || "-"} className="text-slate-600">
         {(node.cpu_name || "-") + ` · ${node.cpu_cores || 0} Cores`}
       </Text>
-      <Text size="1" color="gray">
+      <Text size="1" color="gray" className="text-slate-500">
         {formatBytes(node.mem_total || 0)} RAM · {formatBytes(node.disk_total || 0)} Disk
       </Text>
     </Flex>
@@ -331,16 +591,16 @@ const NetworkSummary = ({ live }: { live?: NodeLiveSnapshot }) => {
   return (
     <Flex direction="column" gap="1" className="min-w-[180px]">
       <Flex align="center" gap="2">
-        <Badge color={live?.online ? "green" : "gray"} variant="soft">
+        <Badge color={live?.online ? "green" : "gray"} variant="soft" className="rounded-full px-2.5 py-1">
           {live?.online
             ? t("nodeCard.online", "在线")
             : t("nodeCard.offline", "离线")}
         </Badge>
       </Flex>
-      <Text size="2">
+      <Text size="2" className="font-medium text-slate-900">
         ↑ {formatBytes(snapshot.network.up)}/s · ↓ {formatBytes(snapshot.network.down)}/s
       </Text>
-      <Text size="1" color="gray">
+      <Text size="1" color="gray" className="text-slate-500">
         {t("nodeCard.totalTraffic", "总流量")} ↑ {formatBytes(snapshot.network.totalUp)} · ↓{" "}
         {formatBytes(snapshot.network.totalDown)}
       </Text>
@@ -374,7 +634,11 @@ const SortableRow = ({
     toast.success(t("copy_success"));
   }
   return (
-    <TableRow ref={setNodeRef} style={style} className="hover:bg-accent-a2">
+    <TableRow
+      ref={setNodeRef}
+      style={style}
+      className="border-b border-slate-200/70 bg-white/60 transition-colors hover:bg-slate-50/85"
+    >
       <TableCell>
         <div
           {...attributes}
@@ -410,7 +674,7 @@ const SortableRow = ({
           {node.ipv4 && (
             <Text size="2" className="flex items-center gap-1">
               {node.ipv4}
-              <IconButton variant="ghost" onClick={() => copy(node.ipv4)}>
+              <IconButton variant="ghost" onClick={() => copy(node.ipv4)} className="text-slate-500">
                 <Copy size="16" />
               </IconButton>
             </Text>
@@ -431,7 +695,7 @@ const SortableRow = ({
                       : node.ipv6;
                   })()
                 : node.ipv6}
-              <IconButton variant="ghost" onClick={() => copy(node.ipv6)}>
+              <IconButton variant="ghost" onClick={() => copy(node.ipv6)} className="text-slate-500">
                 <Copy size="16" />
               </IconButton>
             </Text>
@@ -568,7 +832,7 @@ const NodeTable = ({
   };
   return (
     <div
-      className={`rounded-md overflow-hidden ${
+      className={`overflow-hidden rounded-[28px] border border-white/65 bg-white/78 shadow-[0_24px_60px_rgba(15,23,42,0.08)] backdrop-blur-xl ${
         isDragging ? "select-none" : ""
       }`}
     >
@@ -579,7 +843,7 @@ const NodeTable = ({
         onDragEnd={handleDragEnd}
       >
         <Table>
-          <TableHeader style={{ backgroundColor: "var(--accent-4)" }}>
+          <TableHeader className="bg-[linear-gradient(135deg,rgba(19,70,134,0.10),rgba(255,255,255,0.92),rgba(89,172,119,0.10))]">
             <TableRow>
               <TableHead></TableHead>
               <TableHead>
