@@ -18,18 +18,14 @@ import {
   SegmentedControl,
 } from "@radix-ui/themes";
 import {
-  Activity,
   CircleDollarSign,
   Copy,
   Download,
-  HardDrive,
   MenuIcon,
   Pencil,
   Plus,
-  Server,
   Terminal,
   Trash2Icon,
-  Wifi,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import {
@@ -152,112 +148,6 @@ const normalizeLiveSnapshot = (value: any): NodeLiveSnapshot => {
   };
 };
 
-const ProbeOverview = ({
-  nodes,
-  liveByNode,
-  liveLoaded,
-  liveError,
-}: {
-  nodes: NodeDetail[];
-  liveByNode: Record<string, NodeLiveSnapshot>;
-  liveLoaded: boolean;
-  liveError: string | null;
-}) => {
-  let onlineCount = 0;
-  let totalUploadSpeed = 0;
-  let totalDownloadSpeed = 0;
-  let totalMemory = 0;
-  let totalDisk = 0;
-
-  nodes.forEach((node) => {
-    const live = liveByNode[node.uuid];
-    if (live?.online) {
-      onlineCount += 1;
-    }
-    totalUploadSpeed += live?.record.network.up ?? 0;
-    totalDownloadSpeed += live?.record.network.down ?? 0;
-    totalMemory += node.mem_total || 0;
-    totalDisk += node.disk_total || 0;
-  });
-
-  const offlineCount = nodes.length - onlineCount;
-
-  const stats = [
-    {
-      label: "节点总数",
-      value: String(nodes.length),
-      hint: liveError
-        ? "实时状态同步失败"
-        : liveLoaded
-          ? `${onlineCount} 在线 / ${offlineCount} 离线`
-          : "正在同步探针状态",
-      icon: Server,
-      iconClass: "bg-slate-900 text-white",
-    },
-    {
-      label: "实时网速",
-      value: `↑ ${formatBytes(totalUploadSpeed)}/s`,
-      hint: `↓ ${formatBytes(totalDownloadSpeed)}/s`,
-      icon: Wifi,
-      iconClass: "bg-emerald-500/15 text-emerald-700",
-    },
-    {
-      label: "总配置",
-      value: formatBytes(totalMemory),
-      hint: `${formatBytes(totalDisk)} 磁盘`,
-      icon: HardDrive,
-      iconClass: "bg-sky-500/15 text-sky-700",
-    },
-    {
-      label: "探针状态",
-      value: liveError
-        ? "同步异常"
-        : liveLoaded
-          ? (offlineCount > 0 ? "需要处理" : "状态健康")
-          : "加载中",
-      hint: liveError
-        ? "保留上一次有效状态，等待下一轮同步"
-        : liveLoaded
-          ? `${offlineCount} 个节点需要关注`
-          : "正在轮询最新指标",
-      icon: Activity,
-      iconClass: liveError
-        ? "bg-rose-500/15 text-rose-700"
-        : offlineCount > 0
-          ? "bg-amber-500/15 text-amber-700"
-          : "bg-violet-500/15 text-violet-700",
-    },
-  ];
-
-  return (
-    <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-      {stats.map((item) => (
-        <Card
-          key={item.label}
-          className="border border-white/60 bg-white/80 p-5 shadow-[0_18px_45px_rgba(15,23,42,0.08)] backdrop-blur-xl"
-        >
-          <div className="flex items-start justify-between gap-4">
-            <div className="space-y-2">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-500">
-                {item.label}
-              </p>
-              <p className="text-2xl font-semibold tracking-tight text-slate-900">
-                {item.value}
-              </p>
-              <p className="text-sm text-slate-500">{item.hint}</p>
-            </div>
-            <div
-              className={`flex size-11 items-center justify-center rounded-2xl shadow-sm ${item.iconClass}`}
-            >
-              <item.icon size={20} />
-            </div>
-          </div>
-        </Card>
-      ))}
-    </div>
-  );
-};
-
 const Layout = () => {
   const { nodeDetail, isLoading, error, refresh } = useNodeDetails();
   const { call } = useRPC2Call();
@@ -329,14 +219,12 @@ const Layout = () => {
 
   return (
     <div
-      className="relative overflow-hidden rounded-[32px] border border-white/60 bg-[linear-gradient(135deg,rgba(19,70,134,0.10),rgba(255,255,255,0.94)_34%,rgba(89,172,119,0.10))] p-4 shadow-[0_28px_80px_rgba(15,23,42,0.08)] md:p-6"
+      className="flex flex-col gap-4"
       style={{
         fontFamily:
           '"Manrope","Noto Sans SC","PingFang SC","Microsoft YaHei",sans-serif',
       }}
     >
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(19,70,134,0.16),transparent_34%),radial-gradient(circle_at_bottom_right,rgba(89,172,119,0.14),transparent_28%)]" />
-      <div className="relative flex flex-col gap-5">
       <Header
         nodes={allNodes}
         liveByNode={liveByNode}
@@ -348,20 +236,12 @@ const Layout = () => {
         setSelectedNodes={setSelectedNodes}
       />
 
-      <ProbeOverview
-        nodes={allNodes}
-        liveByNode={liveByNode}
-        liveLoaded={liveLoaded}
-        liveError={liveError}
-      />
-
       <NodeTable
         nodes={filteredNodes}
         liveByNode={liveByNode}
         selectedNodes={selectedNodes}
         setSelectedNodes={setSelectedNodes}
       />
-      </div>
     </div>
   );
 };
@@ -387,6 +267,7 @@ const Header = ({
 }) => {
   const { t } = useTranslation();
   const { refresh } = useNodeDetails();
+  const { settings } = useSettings();
   const [loading, setLoading] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [cleanupOpen, setCleanupOpen] = useState(false);
@@ -456,52 +337,50 @@ const Header = ({
     }
   };
   return (
-    <Card className="border border-white/65 bg-white/72 p-5 shadow-[0_22px_60px_rgba(15,23,42,0.08)] backdrop-blur-xl md:p-6">
-      <div className="flex flex-col gap-5">
-        <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
-          <div className="space-y-3">
-            <div className="inline-flex items-center rounded-full border border-slate-200/80 bg-white/85 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-500 shadow-sm">
-              Probe Console
-            </div>
-            <div className="space-y-1">
-              <Text className="text-3xl font-semibold tracking-tight text-slate-900 md:text-4xl">
-                {t("admin.nodeTable.nodeList")}
-              </Text>
-              <Text className="text-sm text-slate-500 md:text-base">
-                在一个页面里查看节点 IP、实时网速、硬件配置，并批量清理离线节点。
-              </Text>
-            </div>
-          </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <Badge variant="soft" color="blue" className="rounded-full px-3 py-1">
-              {nodes.length} total
-            </Badge>
-            <Badge variant="soft" color="gray" className="rounded-full px-3 py-1">
-              {selectedNodes.length} selected
-            </Badge>
-            <Badge
-              variant="soft"
-              color={liveError ? "red" : offlineNodes.length > 0 ? "amber" : "green"}
-              className="rounded-full px-3 py-1"
-            >
-              {liveError
-                ? "sync error"
-                : liveLoaded
-                  ? `${offlineNodes.length} offline`
-                  : "syncing"}
-            </Badge>
-          </div>
+    <Card className="border border-slate-200/70 bg-white/92 p-4 shadow-[0_12px_32px_rgba(15,23,42,0.06)]">
+      <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
+        <div className="flex flex-wrap items-center gap-2">
+          <Text className="text-xl font-semibold tracking-tight text-slate-900">
+            {t("admin.nodeTable.nodeList")}
+          </Text>
+          <Badge variant="soft" color="blue" className="rounded-full px-3 py-1">
+            {nodes.length} 节点
+          </Badge>
+          <Badge variant="soft" color="gray" className="rounded-full px-3 py-1">
+            {selectedNodes.length} 已选
+          </Badge>
+          <Badge
+            variant="soft"
+            color={liveError ? "red" : offlineNodes.length > 0 ? "amber" : "green"}
+            className="rounded-full px-3 py-1"
+          >
+            {liveError
+              ? "同步异常"
+              : liveLoaded
+                ? `${offlineNodes.length} 离线`
+                : "状态同步中"}
+          </Badge>
+          {liveError && (
+            <Text size="2" className="text-rose-600">
+              实时状态接口异常，已暂停批量删除。
+            </Text>
+          )}
         </div>
 
-        <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto]">
+        <div className="flex flex-col gap-3 xl:flex-row xl:items-center">
           <TextField.Root
             size="3"
-            className="rounded-2xl border border-slate-200/80 bg-white/90 shadow-sm"
+            className="min-w-[260px] rounded-2xl border border-slate-200/80 bg-white shadow-sm"
             placeholder={t("admin.nodeTable.searchByName")}
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
           <div className="flex flex-wrap gap-2">
+            <GenerateCommandButton
+              nodes={nodes}
+              settings={settings}
+              toolbar
+            />
             <Dialog.Root open={cleanupOpen} onOpenChange={setCleanupOpen}>
               <Dialog.Trigger>
                 <Button
@@ -556,7 +435,7 @@ const Header = ({
                     onClick={() => handleAddNode(inputRef.current?.value)}
                     disabled={loading}
                   >
-                {t("admin.nodeTable.addNode")}
+                    {t("admin.nodeTable.addNode")}
                   </Button>
                 </Flex>
               </Dialog.Content>
@@ -569,17 +448,29 @@ const Header = ({
 };
 
 const ConfigSummary = ({ node }: { node: NodeDetail }) => {
+  const summary = [
+    `${node.cpu_cores || 0}C`,
+    formatBytes(node.mem_total || 0),
+    formatBytes(node.disk_total || 0),
+  ];
+
   return (
-    <Flex direction="column" gap="1" className="min-w-[220px]">
+    <Flex direction="column" gap="1" className="min-w-[180px]">
       <Text size="2" weight="bold" className="text-slate-900">
         {[node.os, node.arch].filter(Boolean).join(" / ") || "-"}
       </Text>
-      <Text size="2" color="gray" title={node.cpu_name || "-"} className="text-slate-600">
-        {(node.cpu_name || "-") + ` · ${node.cpu_cores || 0} Cores`}
-      </Text>
-      <Text size="1" color="gray" className="text-slate-500">
-        {formatBytes(node.mem_total || 0)} RAM · {formatBytes(node.disk_total || 0)} Disk
-      </Text>
+      <div className="flex flex-wrap gap-1.5">
+        {summary.map((item) => (
+          <Badge
+            key={item}
+            variant="soft"
+            color="gray"
+            className="rounded-full px-2.5 py-0.5 text-[11px] font-medium"
+          >
+            {item}
+          </Badge>
+        ))}
+      </div>
     </Flex>
   );
 };
@@ -892,7 +783,7 @@ type Platform = "linux" | "windows" | "macos";
 const ActionButtons = ({ node, settings }: { node: NodeDetail, settings: any }) => {
   const { t } = useTranslation();
   return (
-    <div className="flex items-center gap-4">
+    <div className="flex items-center gap-2">
       <GenerateCommandButton node={node} settings={settings} />
       <IconButton
         title={t("terminal.title")}
@@ -970,7 +861,21 @@ type InstallOptions = {
   includeMountpoints: string;
   monthRotate: string;
 };
-function GenerateCommandButton({ node, settings }: { node: NodeDetail, settings: any }) {
+function GenerateCommandButton({
+  node,
+  nodes,
+  settings,
+  toolbar = false,
+}: {
+  node?: NodeDetail;
+  nodes?: NodeDetail[];
+  settings: any;
+  toolbar?: boolean;
+}) {
+  const availableNodes = nodes ?? (node ? [node] : []);
+  const [selectedNodeId, setSelectedNodeId] = React.useState(
+    node?.uuid ?? availableNodes[0]?.uuid ?? ""
+  );
   const [selectedPlatform, setSelectedPlatform] =
     React.useState<Platform>("linux");
   const [installOptions, setInstallOptions] = React.useState<InstallOptions>({
@@ -996,8 +901,28 @@ function GenerateCommandButton({ node, settings }: { node: NodeDetail, settings:
   const [enableIncludeMountpoints, setEnableIncludeMountpoints] =
     React.useState(false);
   const [enableMonthRotate, setEnableMonthRotate] = React.useState(false);
+  const activeNode =
+    node ??
+    availableNodes.find((item) => item.uuid === selectedNodeId) ??
+    availableNodes[0];
+
+  React.useEffect(() => {
+    if (node?.uuid) {
+      setSelectedNodeId(node.uuid);
+      return;
+    }
+
+    if (
+      availableNodes.length > 0 &&
+      !availableNodes.some((item) => item.uuid === selectedNodeId)
+    ) {
+      setSelectedNodeId(availableNodes[0].uuid);
+    }
+  }, [availableNodes, node?.uuid, selectedNodeId]);
 
   const generateCommand = () => {
+    if (!activeNode) return "";
+
     const host = function () {
       if (!settings.script_domain) {
         return window.location.origin;
@@ -1007,7 +932,7 @@ function GenerateCommandButton({ node, settings }: { node: NodeDetail, settings:
       }
       return `http://${settings.script_domain.replace(/\/+$/, "")}`;
     }();
-    const token = node.token || "";
+    const token = activeNode.token || "";
     let args = ["-e", host, "-t", token];
     // 根据安装选项生成参数
     if (installOptions.disableWebSsh) {
@@ -1110,15 +1035,45 @@ function GenerateCommandButton({ node, settings }: { node: NodeDetail, settings:
   return (
     <Dialog.Root>
       <Dialog.Trigger>
+        {toolbar ? (
+          <Button
+            variant="soft"
+            color="blue"
+            className="rounded-2xl"
+            disabled={availableNodes.length === 0}
+          >
+            <Download size={16} />
+            一键安装命令
+          </Button>
+        ) : (
         <IconButton variant="ghost" title={t("admin.nodeTable.installCommand")}>
           <Download size="18" />
         </IconButton>
+        )}
       </Dialog.Trigger>
       <Dialog.Content>
         <Dialog.Title>
-          {t("admin.nodeTable.installCommand", "一键部署指令")}
+          {node
+            ? `${t("admin.nodeTable.installCommand", "一键部署指令")} · ${activeNode?.name || "-"}`
+            : t("admin.nodeTable.installCommand", "一键部署指令")}
         </Dialog.Title>
         <div className="flex flex-col gap-4">
+          {!node && availableNodes.length > 0 && (
+            <div className="flex flex-col gap-2">
+              <label className="text-base font-bold">选择节点</label>
+              <select
+                className="h-10 rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none"
+                value={selectedNodeId}
+                onChange={(event) => setSelectedNodeId(event.target.value)}
+              >
+                {availableNodes.map((item) => (
+                  <option key={item.uuid} value={item.uuid}>
+                    {item.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
           <SegmentedControl.Root
             value={selectedPlatform}
             onValueChange={(value) => setSelectedPlatform(value as Platform)}
@@ -1565,6 +1520,7 @@ function GenerateCommandButton({ node, settings }: { node: NodeDetail, settings:
           <Flex justify="center">
             <Button
               style={{ width: "100%" }}
+              disabled={!activeNode}
               onClick={() => copyToClipboard(generateCommand())}
             >
               <Copy size={16} />

@@ -24,7 +24,7 @@ import LoginDialog from "../Login";
 import { useAccount } from "@/contexts/AccountContext";
 import { usePublicInfo } from "@/contexts/PublicInfoContext";
 import Tips from "../ui/tips";
-import { CircleFadingArrowUp } from "lucide-react";
+import { CircleFadingArrowUp, PanelLeftClose, PanelLeftOpen } from "lucide-react";
 import { useRPC2Call } from "@/contexts/RPC2Context";
 import { resolveI18nText } from "@/utils/i18nText";
 
@@ -43,6 +43,10 @@ interface AdminPanelBarProps {
 const AdminPanelBar = ({ content }: AdminPanelBarProps) => {
   const { call } = useRPC2Call();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
+    if (typeof window === "undefined") return false;
+    return window.localStorage.getItem("admin-sidebar-collapsed") === "1";
+  });
   const [openSubMenus, setOpenSubMenus] = useState<{ [key: string]: boolean }>({
     // 默认所有子菜单关闭
   });
@@ -209,11 +213,22 @@ const AdminPanelBar = ({ content }: AdminPanelBarProps) => {
   }, [publicInfo, versionInfo]);
   // Handle responsive behavior
   useEffect(() => {
-    const handleResize = () => setSidebarOpen(!isMobile);
+    const handleResize = () => {
+      setSidebarOpen(!isMobile);
+    };
     handleResize();
     window.addEventListener("resize", handleResize);
     return () => window.removeEventListener("resize", handleResize);
   }, [isMobile]);
+
+  useEffect(() => {
+    if (!isMobile) {
+      window.localStorage.setItem(
+        "admin-sidebar-collapsed",
+        sidebarCollapsed ? "1" : "0",
+      );
+    }
+  }, [isMobile, sidebarCollapsed]);
 
   // 根据路径自动展开子菜单（包含动态扩展项）
   useEffect(() => {
@@ -233,8 +248,8 @@ const AdminPanelBar = ({ content }: AdminPanelBarProps) => {
 
   // 侧边栏动画变体
   const sidebarVariants = {
-    open: {
-      width: isMobile ? "100vw" : "240px",
+    desktopOpen: {
+      width: "240px",
       opacity: 1,
       transition: {
         type: "spring",
@@ -242,9 +257,27 @@ const AdminPanelBar = ({ content }: AdminPanelBarProps) => {
         damping: 30,
       },
     },
-    closed: {
+    desktopCollapsed: {
+      width: "84px",
+      opacity: 1,
+      transition: {
+        type: "spring",
+        stiffness: 300,
+        damping: 30,
+      },
+    },
+    mobileOpen: {
+      width: "100vw",
+      opacity: 1,
+      transition: {
+        type: "spring",
+        stiffness: 300,
+        damping: 30,
+      },
+    },
+    mobileClosed: {
       width: 0,
-      opacity: isMobile ? 0 : 1, // 移动端完全透明
+      opacity: 0,
       transition: {
         type: "spring",
         stiffness: 300,
@@ -270,6 +303,14 @@ const AdminPanelBar = ({ content }: AdminPanelBarProps) => {
       },
     },
   };
+  const sidebarState = isMobile
+    ? sidebarOpen
+      ? "mobileOpen"
+      : "mobileClosed"
+    : sidebarCollapsed
+      ? "desktopCollapsed"
+      : "desktopOpen";
+  const isDesktopCollapsed = !isMobile && sidebarCollapsed;
 
   function logout() {
     window.open("/api/logout", "_self");
@@ -277,7 +318,7 @@ const AdminPanelBar = ({ content }: AdminPanelBarProps) => {
   return (
     <>
       <Grid
-        columns={{ initial: "1fr", md: sidebarOpen ? "240px 1fr" : "0px 1fr" }} // 动态调整网格列
+        columns={{ initial: "1fr", md: sidebarCollapsed ? "84px 1fr" : "240px 1fr" }}
         rows={{ initial: "auto 1fr", md: "auto 1fr" }}
         style={{
           height: "100vh",
@@ -303,13 +344,32 @@ const AdminPanelBar = ({ content }: AdminPanelBarProps) => {
             <Flex gap="3" align="center">
               <IconButton
                 variant="ghost"
-                onClick={() => setSidebarOpen(!sidebarOpen)}
+                onClick={() => {
+                  if (isMobile) {
+                    setSidebarOpen(!sidebarOpen);
+                    return;
+                  }
+                  setSidebarCollapsed((prev) => !prev);
+                }}
                 style={{
                   display: isMobile && sidebarOpen ? "none" : "flex",
                   color: "var(--gray-11)",
                 }}
+                title={
+                  isMobile
+                    ? "切换菜单"
+                    : sidebarCollapsed
+                      ? "展开菜单"
+                      : "折叠菜单"
+                }
               >
-                <TablerMenu2 />
+                {isMobile ? (
+                  <TablerMenu2 />
+                ) : sidebarCollapsed ? (
+                  <PanelLeftOpen size={18} />
+                ) : (
+                  <PanelLeftClose size={18} />
+                )}
               </IconButton>
               <a href="/" target="_blank" rel="noopener noreferrer">
                 <label className="text-xl font-bold">Komari</label>
@@ -407,9 +467,9 @@ const AdminPanelBar = ({ content }: AdminPanelBarProps) => {
         <AnimatePresence>
           <motion.div
             variants={sidebarVariants}
-            initial="closed"
-            animate={sidebarOpen ? "open" : "closed"}
-            exit="closed"
+            initial={isMobile ? "mobileClosed" : "desktopOpen"}
+            animate={sidebarState}
+            exit={isMobile ? "mobileClosed" : "desktopCollapsed"}
             style={{
               backgroundColor: "var(--accent-1)",
               height: "100%",
@@ -424,8 +484,11 @@ const AdminPanelBar = ({ content }: AdminPanelBarProps) => {
               className="p-2 border-r-1"
               direction="column"
               justify="start"
-              align="start"
-              style={{ height: "100%", minWidth: "240px" }}
+              align={isDesktopCollapsed ? "center" : "start"}
+              style={{
+                height: "100%",
+                minWidth: isDesktopCollapsed ? "84px" : "240px",
+              }}
             >
               {/* 关闭按钮 */}
               <IconButton
@@ -449,6 +512,13 @@ const AdminPanelBar = ({ content }: AdminPanelBarProps) => {
                   (item: ExtendedMenuItem) => {
                     // 支持 icon 为 URL/相对路径
                     const isOpen = openSubMenus[item.path];
+                    const isParentActive = Boolean(
+                      item.children?.some(
+                        (child: MenuItem) =>
+                          location.pathname === child.path ||
+                          location.pathname.startsWith(child.path),
+                      ),
+                    );
                     const renderIcon = (
                       icon: string,
                       labelKey: string,
@@ -501,6 +571,32 @@ const AdminPanelBar = ({ content }: AdminPanelBarProps) => {
                       );
                     };
                     if (item.children && item.children.length) {
+                      if (isDesktopCollapsed) {
+                        return (
+                          <button
+                            key={item.path}
+                            type="button"
+                            title={item.rawLabel || t(item.labelKey)}
+                            onClick={() => setSidebarCollapsed(false)}
+                            className="flex w-full items-center justify-center rounded-xl px-3 py-3 transition-colors hover:bg-accent-3"
+                            style={{
+                              backgroundColor: isParentActive
+                                ? "var(--accent-4)"
+                                : "transparent",
+                              color: isParentActive
+                                ? "var(--accent-10)"
+                                : "inherit",
+                            }}
+                          >
+                            {renderIcon(
+                              item.icon,
+                              item.labelKey,
+                              "flex h-5 w-5 items-center justify-center",
+                              isParentActive,
+                            )}
+                          </button>
+                        );
+                      }
                       return (
                         <div key={item.path}>
                           <Flex
@@ -588,6 +684,7 @@ const AdminPanelBar = ({ content }: AdminPanelBarProps) => {
                                     isMobile && setSidebarOpen(false)
                                   }
                                   newTab={child.newTab}
+                                  collapsed={false}
                                 />
                               ))}
                             </Flex>
@@ -607,6 +704,7 @@ const AdminPanelBar = ({ content }: AdminPanelBarProps) => {
                         children={item.rawLabel || t(item.labelKey)}
                         onClick={() => isMobile && setSidebarOpen(false)}
                         newTab={item.newTab}
+                        collapsed={isDesktopCollapsed}
                       />
                     );
                   },
@@ -619,7 +717,7 @@ const AdminPanelBar = ({ content }: AdminPanelBarProps) => {
         {/* Main Content */}
         <motion.div
           variants={contentVariants}
-          animate={sidebarOpen ? "open" : "closed"}
+          animate={isMobile && sidebarOpen ? "open" : "closed"}
           style={{
             backgroundColor: "var(--accent-3)",
             display: isMobile && sidebarOpen ? "none" : "block",
@@ -673,12 +771,14 @@ const SidebarItem = ({
   icon,
   children,
   newTab,
+  collapsed = false,
 }: {
   to: string;
   onClick: () => void;
   icon: ReactNode;
   children: ReactNode;
   newTab?: boolean;
+  collapsed?: boolean;
 }) => {
   const location = useLocation();
   const isExternalLink = to.startsWith("http://") || to.startsWith("https://");
@@ -697,9 +797,10 @@ const SidebarItem = ({
         target="_blank"
         rel="noopener noreferrer"
         className="group transition-colors duration-200 hover:bg-accent-3 rounded-md"
+        title={collapsed ? String(children) : undefined}
       >
         <Flex
-          className="p-2 gap-2 h-full"
+          className={`h-full p-2 ${collapsed ? "justify-center" : "gap-2"}`}
           align="center"
           style={{
             borderLeft: "4px solid transparent",
@@ -718,9 +819,11 @@ const SidebarItem = ({
           >
             {icon}
           </span>
-          <Text className="text-base" weight="medium" style={{ flex: 1 }}>
-            {children}
-          </Text>
+          {!collapsed && (
+            <Text className="text-base" weight="medium" style={{ flex: 1 }}>
+              {children}
+            </Text>
+          )}
         </Flex>
       </a>
     );
@@ -731,9 +834,10 @@ const SidebarItem = ({
       to={to}
       onClick={onClick}
       className="group transition-colors duration-200 hover:bg-accent-3 rounded-md"
+      title={collapsed ? String(children) : undefined}
     >
       <Flex
-        className="p-2 gap-2"
+        className={`p-2 ${collapsed ? "justify-center" : "gap-2"}`}
         align="center"
         style={{
           borderLeft: isActive
@@ -754,13 +858,15 @@ const SidebarItem = ({
         >
           {icon}
         </span>
-        <Text
-          className="text-base"
-          weight={isActive ? "bold" : "medium"}
-          style={{ flex: 1 }}
-        >
-          {children}
-        </Text>
+        {!collapsed && (
+          <Text
+            className="text-base"
+            weight={isActive ? "bold" : "medium"}
+            style={{ flex: 1 }}
+          >
+            {children}
+          </Text>
+        )}
       </Flex>
     </Link>
   );
