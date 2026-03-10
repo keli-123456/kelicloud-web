@@ -21,28 +21,12 @@ import {
   CircleDollarSign,
   Copy,
   Download,
-  MenuIcon,
   Pencil,
   Plus,
   Terminal,
   Trash2Icon,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import {
-  DndContext,
-  closestCenter,
-  useSensor,
-  useSensors,
-  TouchSensor,
-  MouseSensor,
-  KeyboardSensor,
-} from "@dnd-kit/core";
-import {
-  SortableContext,
-  useSortable,
-  verticalListSortingStrategy,
-} from "@dnd-kit/sortable";
-import { CSS } from "@dnd-kit/utilities";
 import { toast } from "sonner";
 import Flag from "@/components/Flag";
 import {
@@ -53,17 +37,6 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { useIsMobile } from "@/hooks/use-mobile";
-import {
-  Drawer,
-  DrawerClose,
-  DrawerContent,
-  DrawerDescription,
-  DrawerFooter,
-  DrawerHeader,
-  DrawerTitle,
-  DrawerTrigger,
-} from "@/components/ui/drawer";
 import { formatBytes, stringToBytes } from "@/utils/unitHelper";
 import Loading from "@/components/loading";
 import Tips from "@/components/ui/tips";
@@ -77,7 +50,6 @@ import { useSettings } from "@/lib/api";
 import { SelectOrInput } from "@/components/ui/select-or-input";
 import { useRPC2Call } from "@/contexts/RPC2Context";
 import type { Record as LiveRecord } from "@/types/LiveData";
-import { formatUptime } from "@/components/Node";
 
 
 const NodeDetailsPage = () => {
@@ -152,7 +124,6 @@ const Layout = () => {
   const { nodeDetail, isLoading, error, refresh } = useNodeDetails();
   const { call } = useRPC2Call();
   const [searchTerm, setSearchTerm] = useState("");
-  const [selectedNodes, setSelectedNodes] = useState<string[]>([]);
   const [liveByNode, setLiveByNode] = useState<Record<string, NodeLiveSnapshot>>(
     {}
   );
@@ -232,15 +203,11 @@ const Layout = () => {
         liveError={liveError}
         searchTerm={searchTerm}
         setSearchTerm={setSearchTerm}
-        selectedNodes={selectedNodes}
-        setSelectedNodes={setSelectedNodes}
       />
 
       <NodeTable
         nodes={filteredNodes}
         liveByNode={liveByNode}
-        selectedNodes={selectedNodes}
-        setSelectedNodes={setSelectedNodes}
       />
     </div>
   );
@@ -253,8 +220,6 @@ const Header = ({
   liveError,
   searchTerm,
   setSearchTerm,
-  selectedNodes,
-  setSelectedNodes,
 }: {
   nodes: NodeDetail[];
   liveByNode: Record<string, NodeLiveSnapshot>;
@@ -262,8 +227,6 @@ const Header = ({
   liveError: string | null;
   searchTerm: string;
   setSearchTerm: (term: string) => void;
-  selectedNodes: string[];
-  setSelectedNodes: (nodes: string[]) => void;
 }) => {
   const { t } = useTranslation();
   const { refresh } = useNodeDetails();
@@ -323,12 +286,6 @@ const Header = ({
         })
       );
       const failed = results.filter((result) => result.status === "rejected");
-      const deletedIds = results
-        .filter((result): result is PromiseFulfilledResult<string> => result.status === "fulfilled")
-        .map((result) => result.value);
-      setSelectedNodes(
-        selectedNodes.filter((id) => !deletedIds.includes(id))
-      );
       await refresh();
       setCleanupOpen(false);
       if (failed.length > 0) {
@@ -353,9 +310,6 @@ const Header = ({
           </Text>
           <Badge variant="soft" color="blue" className="rounded-full px-3 py-1">
             {nodes.length} 节点
-          </Badge>
-          <Badge variant="soft" color="gray" className="rounded-full px-3 py-1">
-            {selectedNodes.length} 已选
           </Badge>
           <Badge
             variant="soft"
@@ -464,23 +418,17 @@ const clampPercent = (value: number) =>
   Math.max(0, Math.min(100, Number.isFinite(value) ? value : 0));
 
 const UsageBar = ({
-  label,
   percent,
   colorClass,
 }: {
-  label: string;
   percent: number;
   colorClass: string;
 }) => {
   const safePercent = clampPercent(percent);
 
   return (
-    <div className="min-w-[130px] space-y-1">
-      <div className="flex items-center justify-between text-xs text-slate-500">
-        <span>{label}</span>
-        <span className="font-medium text-slate-700">{safePercent.toFixed(0)}%</span>
-      </div>
-      <div className="h-2 overflow-hidden rounded-full bg-slate-100">
+    <div className="min-w-[96px]">
+      <div className="h-1.5 overflow-hidden rounded-full bg-slate-100">
         <div
           className={`h-full rounded-full transition-all ${colorClass}`}
           style={{ width: `${safePercent}%` }}
@@ -491,35 +439,25 @@ const UsageBar = ({
 };
 
 const StatusSummary = ({
-  node,
   live,
 }: {
-  node: NodeDetail;
   live?: NodeLiveSnapshot;
 }) => (
-  <div className="min-w-[96px] space-y-1">
+  <div className="min-w-[72px]">
     <Badge
       color={live?.online ? "green" : "gray"}
       variant="soft"
-      className="rounded-full px-2.5 py-1"
+      className="rounded-full px-2 py-0.5 text-[11px]"
     >
       {live?.online ? "在线" : "离线"}
     </Badge>
-    <Text size="1" className="block text-slate-500">
-      {node.group || "默认分组"}
-    </Text>
   </div>
 );
 
 const ExitIpSummary = ({ node }: { node: NodeDetail }) => (
-  <div className="min-w-[180px] space-y-1">
-    <DetailView node={node} />
-    <Text size="2" className="block text-slate-700">
-      {node.ipv4 || node.ipv6 || "-"}
-    </Text>
-    <Text size="1" className="block text-slate-500">
-      {[node.os, node.arch].filter(Boolean).join(" / ") || "-"}
-    </Text>
+  <div className="flex min-w-[132px] items-center gap-2 text-[12px] text-slate-700">
+    <Flag flag={node.region} size="4" />
+    <span className="truncate">{node.ipv4 || node.ipv6 || "-"}</span>
   </div>
 );
 
@@ -527,11 +465,11 @@ const RateSummary = ({ live }: { live?: NodeLiveSnapshot }) => {
   const snapshot = live?.record || createEmptyLiveRecord();
 
   return (
-    <div className="min-w-[150px] space-y-1">
-      <Text size="2" className="block font-medium text-slate-900">
+    <div className="min-w-[120px] space-y-0.5">
+      <Text size="1" className="block text-[12px] font-medium text-slate-900">
         ↑ {formatBytes(snapshot.network.up)}/s
       </Text>
-      <Text size="2" className="block text-slate-600">
+      <Text size="1" className="block text-[12px] text-slate-600">
         ↓ {formatBytes(snapshot.network.down)}/s
       </Text>
     </div>
@@ -542,11 +480,11 @@ const TrafficSummary = ({ live }: { live?: NodeLiveSnapshot }) => {
   const snapshot = live?.record || createEmptyLiveRecord();
 
   return (
-    <div className="min-w-[170px] space-y-1">
-      <Text size="2" className="block text-slate-700">
+    <div className="min-w-[132px] space-y-0.5">
+      <Text size="1" className="block text-[12px] text-slate-700">
         ↑ {formatBytes(snapshot.network.totalUp)}
       </Text>
-      <Text size="2" className="block text-slate-700">
+      <Text size="1" className="block text-[12px] text-slate-700">
         ↓ {formatBytes(snapshot.network.totalDown)}
       </Text>
     </div>
@@ -554,11 +492,18 @@ const TrafficSummary = ({ live }: { live?: NodeLiveSnapshot }) => {
 };
 
 const UptimeSummary = ({ live }: { live?: NodeLiveSnapshot }) => {
-  const { t } = useTranslation();
+  const seconds = Math.max(0, Math.floor(live?.record.uptime ?? 0));
+  const days = Math.floor(seconds / 86400);
+  const hours = Math.floor((seconds % 86400) / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
 
   return (
-    <Text size="2" className="block min-w-[120px] text-slate-700">
-      {formatUptime(live?.record.uptime ?? 0, t)}
+    <Text size="1" className="block min-w-[72px] text-[12px] text-slate-700">
+      {days > 0
+        ? `${days}d ${hours}h`
+        : hours > 0
+          ? `${hours}h ${minutes}m`
+          : `${minutes}m`}
     </Text>
   );
 };
@@ -566,77 +511,21 @@ const UptimeSummary = ({ live }: { live?: NodeLiveSnapshot }) => {
 const SortableRow = ({
   node,
   live,
-  selectedNodes,
-  handleSelectNode,
   settings
 }: {
   node: NodeDetail;
   live?: NodeLiveSnapshot;
-  selectedNodes: string[];
-  handleSelectNode: (uuid: string, checked: boolean) => void;
   settings: any;
 }) => {
-  const { attributes, listeners, setNodeRef, transform, transition } =
-    useSortable({ id: node.uuid });
-  const { t } = useTranslation();
-  const isMobile = useIsMobile();
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-  };
-  function copy(text: string) {
-    navigator.clipboard.writeText(text);
-    toast.success(t("copy_success"));
-  }
   return (
     <TableRow
-      ref={setNodeRef}
-      style={style}
-      className="border-b border-slate-200/70 bg-white/60 transition-colors hover:bg-slate-50/85"
+      className="border-b border-slate-200/70 bg-white/60 text-[12px] transition-colors hover:bg-slate-50/85"
     >
       <TableCell>
-        <div
-          {...attributes}
-          {...listeners}
-          className={`cursor-move p-2 rounded hover:bg-accent-a3 transition-colors ${
-            isMobile ? "touch-manipulation select-none" : ""
-          }`}
-          style={{
-            touchAction: "none", // 禁用移动端的默认手势
-            WebkitUserSelect: "none",
-            userSelect: "none",
-          }}
-          title={
-            isMobile
-              ? t("admin.nodeTable.dragToReorder", "长按拖拽重新排序")
-              : undefined
-          }
-        >
-          <MenuIcon size={isMobile ? 18 : 16} color={"var(--gray-8)"} />
-        </div>
+        <StatusSummary live={live} />
       </TableCell>
       <TableCell>
-        <Checkbox
-          checked={selectedNodes.includes(node.uuid)}
-          onCheckedChange={(checked) => handleSelectNode(node.uuid, !!checked)}
-        />
-      </TableCell>
-      <TableCell>
-        <StatusSummary node={node} live={live} />
-      </TableCell>
-      <TableCell>
-        <div className="flex items-start gap-1">
-          <ExitIpSummary node={node} />
-          {(node.ipv4 || node.ipv6) && (
-            <IconButton
-              variant="ghost"
-              onClick={() => copy(node.ipv4 || node.ipv6 || "")}
-              className="mt-0.5 text-slate-500"
-            >
-              <Copy size="16" />
-            </IconButton>
-          )}
-        </div>
+        <ExitIpSummary node={node} />
       </TableCell>
       <TableCell>
         <RateSummary live={live} />
@@ -649,14 +538,12 @@ const SortableRow = ({
       </TableCell>
       <TableCell>
         <UsageBar
-          label="CPU"
           percent={live?.record.cpu.usage ?? 0}
           colorClass="bg-sky-500"
         />
       </TableCell>
       <TableCell>
         <UsageBar
-          label="RAM"
           percent={
             node.mem_total
               ? ((live?.record.ram.used ?? 0) / node.mem_total) * 100
@@ -667,7 +554,6 @@ const SortableRow = ({
       </TableCell>
       <TableCell>
         <UsageBar
-          label="DISK"
           percent={
             node.disk_total
               ? ((live?.record.disk.used ?? 0) / node.disk_total) * 100
@@ -686,116 +572,16 @@ const SortableRow = ({
 const NodeTable = ({
   nodes,
   liveByNode,
-  selectedNodes,
-  setSelectedNodes,
 }: {
   nodes: NodeDetail[];
   liveByNode: Record<string, NodeLiveSnapshot>;
-  selectedNodes: string[];
-  setSelectedNodes: (nodes: string[]) => void;
 }) => {
-  const sensors = useSensors(
-    useSensor(MouseSensor, {
-      // 需要按住 10px 距离才开始拖拽，避免与点击冲突
-      activationConstraint: {
-        distance: 10,
-      },
-    }),
-    useSensor(TouchSensor, {
-      // 移动端需要按住 5px 距离才开始拖拽，并且延迟 200ms，避免与滚动冲突
-      activationConstraint: {
-        delay: 200,
-        tolerance: 5,
-      },
-    }),
-    useSensor(KeyboardSensor, {})
-  );
-  // 添加 localNodes 状态，实现即时 UI 更新
-  const [localNodes, setLocalNodes] = useState<NodeDetail[]>(nodes);
-  const [isDragging, setIsDragging] = useState(false);
   const { settings } = useSettings();
-  React.useEffect(() => {
-    setLocalNodes(nodes);
-  }, [nodes]);
-  const handleDragStart = () => {
-    setIsDragging(true);
-    if ("vibrate" in navigator) {
-      navigator.vibrate(50);
-    }
-  };
-
-  const handleDragEnd = async (event: any) => {
-    setIsDragging(false);
-    const { active, over } = event;
-    if (!over || active.id === over.id) return;
-
-    const oldIndex = localNodes.findIndex((node) => node.uuid === active.id);
-    const newIndex = localNodes.findIndex((node) => node.uuid === over.id);
-    const reorderedNodes = Array.from(localNodes);
-    const [reorderedItem] = reorderedNodes.splice(oldIndex, 1);
-    reorderedNodes.splice(newIndex, 0, reorderedItem);
-
-    // 立即更新 UI
-    setLocalNodes(reorderedNodes);
-
-    if ("vibrate" in navigator) {
-      navigator.vibrate([30, 10, 30]);
-    }
-
-    try {
-      const orderData = reorderedNodes.reduce((acc, node, index) => {
-        acc[node.uuid] = index;
-        return acc;
-      }, {} as Record<string, number>);
-
-      await fetch("/api/admin/client/order", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(orderData),
-      });
-      // 不再调用 refresh，以免覆盖本地排序
-    } catch (error) {
-      toast.error("Order Failed");
-    }
-  };
-
-  // 更新全选逻辑，使用 localNodes
-  const handleSelectAll = (checked: boolean) => {
-    setSelectedNodes(checked ? localNodes.map((node) => node.uuid) : []);
-  };
-
-  const handleSelectNode = (uuid: string, checked: boolean) => {
-    setSelectedNodes(
-      checked
-        ? [...selectedNodes, uuid]
-        : selectedNodes.filter((id) => id !== uuid)
-    );
-  };
   return (
-    <div
-      className={`overflow-hidden rounded-[28px] border border-white/65 bg-white/78 shadow-[0_24px_60px_rgba(15,23,42,0.08)] backdrop-blur-xl ${
-        isDragging ? "select-none" : ""
-      }`}
-    >
-      <DndContext
-        sensors={sensors}
-        collisionDetection={closestCenter}
-        onDragStart={handleDragStart}
-        onDragEnd={handleDragEnd}
-      >
+    <div className="overflow-hidden rounded-[28px] border border-white/65 bg-white/78 shadow-[0_24px_60px_rgba(15,23,42,0.08)] backdrop-blur-xl">
         <Table>
           <TableHeader className="bg-[linear-gradient(135deg,rgba(19,70,134,0.10),rgba(255,255,255,0.92),rgba(89,172,119,0.10))]">
             <TableRow>
-              <TableHead></TableHead>
-              <TableHead>
-                <Checkbox
-                  checked={
-                    selectedNodes.length === localNodes.length &&
-                    localNodes.length > 0
-                  }
-                  onCheckedChange={handleSelectAll}
-                />
-              </TableHead>
               <TableHead>状态</TableHead>
               <TableHead>出口 IP</TableHead>
               <TableHead>速率</TableHead>
@@ -808,24 +594,16 @@ const NodeTable = ({
             </TableRow>
           </TableHeader>
           <TableBody>
-            <SortableContext
-              items={localNodes.map((node) => node.uuid)}
-              strategy={verticalListSortingStrategy}
-            >
-              {localNodes.map((node) => (
+              {nodes.map((node) => (
                 <SortableRow
                   key={node.uuid}
                   node={node}
                   live={liveByNode[node.uuid]}
-                  selectedNodes={selectedNodes}
-                  handleSelectNode={handleSelectNode}
                   settings={settings}
                 />
               ))}
-            </SortableContext>
           </TableBody>
         </Table>
-      </DndContext>
     </div>
   );
 };
@@ -1781,241 +1559,6 @@ function EditButton({ node }: { node: NodeDetail }) {
         </Flex>
       </Dialog.Content>
     </Dialog.Root>
-  );
-}
-
-function DetailView({ node }: { node: NodeDetail }) {
-  const { t } = useTranslation();
-  const isMobile = useIsMobile();
-
-  return (
-    <Drawer direction={isMobile ? "bottom" : "right"}>
-      <DrawerTrigger asChild>
-        <div className="h-8 flex items-center hover:underline cursor-pointer font-bold text-base">
-          <Flag flag={node.region} size="6" />
-          {node.name.length > 25 ? node.name.slice(0, 25) + "..." : node.name}
-        </div>
-      </DrawerTrigger>
-      <DrawerContent>
-        <DrawerHeader className="gap-1">
-          <DrawerTitle>{node.name}</DrawerTitle>
-          <DrawerDescription>
-            {t("admin.nodeDetail.machineDetail", "机器详细信息")}
-          </DrawerDescription>
-        </DrawerHeader>
-        <div className="flex flex-col gap-4 overflow-y-auto px-4 text-sm">
-          <form className="flex flex-col gap-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="flex flex-col gap-3">
-                <label htmlFor="detail-ip">
-                  {t("admin.nodeDetail.ipAddress", "IP 地址")}
-                </label>
-                <div className="flex flex-col gap-1">
-                  {node.ipv4 && (
-                    <div className="flex items-center gap-1">
-                      <span
-                        id="detail-ipv4"
-                        className="bg-muted px-3 py-2 rounded border flex-1 min-w-0 select-text"
-                      >
-                        {node.ipv4}
-                      </span>
-                      <IconButton
-                        variant="ghost"
-                        className="size-5"
-                        type="button"
-                        onClick={() => {
-                          navigator.clipboard.writeText(node.ipv4!);
-                        }}
-                      >
-                        <Copy size={16} />
-                      </IconButton>
-                    </div>
-                  )}
-                  {node.ipv6 && (
-                    <div className="flex items-center gap-1">
-                      <span
-                        id="detail-ipv6"
-                        className="bg-muted px-3 py-2 rounded border flex-1 min-w-0 select-text"
-                      >
-                        {node.ipv6}
-                      </span>
-                      <IconButton
-                        variant="ghost"
-                        className="size-5"
-                        type="button"
-                        onClick={() => {
-                          navigator.clipboard.writeText(node.ipv6!);
-                        }}
-                      >
-                        <Copy size={16} />
-                      </IconButton>
-                    </div>
-                  )}
-                </div>
-              </div>
-              <div className="flex flex-col gap-3">
-                <label htmlFor="detail-version">
-                  {t("admin.nodeDetail.clientVersion", "客户端版本")}
-                </label>
-                <span
-                  id="detail-version"
-                  className="bg-muted px-3 py-2 rounded border select-text"
-                >
-                  {node.version || (
-                    <span className="text-muted-foreground">-</span>
-                  )}
-                </span>
-              </div>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="flex flex-col gap-3">
-                <label htmlFor="detail-os">
-                  {t("admin.nodeDetail.os", "操作系统")}
-                </label>
-                <span
-                  id="detail-os"
-                  className="bg-muted px-3 py-2 rounded border select-text"
-                >
-                  {node.os || <span className="text-muted-foreground">-</span>}
-                </span>
-              </div>
-              <div className="flex flex-col gap-3">
-                <label htmlFor="detail-arch">
-                  {t("admin.nodeDetail.arch", "架构")}
-                </label>
-                <span
-                  id="detail-arch"
-                  className="bg-muted px-3 py-2 rounded border select-text"
-                >
-                  {node.arch || (
-                    <span className="text-muted-foreground">-</span>
-                  )}
-                </span>
-              </div>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="flex flex-col gap-3">
-                <label htmlFor="detail-cpu_name">
-                  {t("admin.nodeDetail.cpu", "CPU")}
-                </label>
-                <span
-                  id="detail-cpu_name"
-                  className="bg-muted px-3 py-2 rounded border select-text"
-                >
-                  {node.cpu_name || (
-                    <span className="text-muted-foreground">-</span>
-                  )}
-                </span>
-              </div>
-              <div className="flex flex-col gap-3">
-                <label htmlFor="detail-cpu_cores">
-                  {t("admin.nodeDetail.cpuCores", "CPU 核心数")}
-                </label>
-                <span
-                  id="detail-cpu_cores"
-                  className="bg-muted px-3 py-2 rounded border select-text"
-                >
-                  {node.cpu_cores?.toString() || (
-                    <span className="text-muted-foreground">-</span>
-                  )}
-                </span>
-              </div>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="flex flex-col gap-3">
-                <label htmlFor="detail-mem_total">
-                  {t("admin.nodeDetail.memTotal", "总内存 (Bytes)")}
-                </label>
-                <span
-                  id="detail-mem_total"
-                  className="bg-muted px-3 py-2 rounded border select-text"
-                  title={
-                    node.mem_total ? String(node.mem_total) + " Bytes" : "-"
-                  }
-                >
-                  {formatBytes(node.mem_total)}
-                </span>
-              </div>
-              <div className="flex flex-col gap-3">
-                <label htmlFor="detail-disk_total">
-                  {t("admin.nodeDetail.diskTotal", "总磁盘空间 (Bytes)")}
-                </label>
-                <span
-                  id="detail-disk_total"
-                  className="bg-muted px-3 py-2 rounded border select-text"
-                  title={
-                    node.disk_total ? String(node.disk_total) + " Bytes" : "-"
-                  }
-                >
-                  {formatBytes(node.disk_total)}
-                </span>
-              </div>
-            </div>
-            <div className="flex flex-col gap-3">
-              <label htmlFor="detail-gpu_name">
-                {t("admin.nodeDetail.gpu", "GPU")}
-              </label>
-              <span
-                id="detail-gpu_name"
-                className="bg-muted px-3 py-2 rounded border select-text"
-              >
-                {node.gpu_name || (
-                  <span className="text-muted-foreground">-</span>
-                )}
-              </span>
-            </div>
-            <div className="flex flex-col gap-3">
-              <label htmlFor="detail-uuid">
-                {t("admin.nodeDetail.uuid", "UUID")}
-              </label>
-              <span
-                id="detail-uuid"
-                className="bg-muted px-3 py-2 rounded border select-text"
-              >
-                {node.uuid || <span className="text-muted-foreground">-</span>}
-              </span>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="flex flex-col gap-3">
-                <label htmlFor="detail-createdAt">
-                  {t("admin.nodeDetail.createdAt", "创建时间")}
-                </label>
-                <span
-                  id="detail-createdAt"
-                  className="bg-muted px-3 py-2 rounded border select-text"
-                >
-                  {node.created_at ? (
-                    new Date(node.created_at).toLocaleString()
-                  ) : (
-                    <span className="text-muted-foreground">-</span>
-                  )}
-                </span>
-              </div>
-              <div className="flex flex-col gap-3">
-                <label htmlFor="detail-updatedAt">
-                  {t("admin.nodeDetail.updatedAt", "更新时间")}
-                </label>
-                <span
-                  id="detail-updatedAt"
-                  className="bg-muted px-3 py-2 rounded border select-text"
-                >
-                  {node.updated_at ? (
-                    new Date(node.updated_at).toLocaleString()
-                  ) : (
-                    <span className="text-muted-foreground">-</span>
-                  )}
-                </span>
-              </div>
-            </div>
-          </form>
-        </div>
-        <DrawerFooter>
-          <DrawerClose asChild>
-            <Button>{t("admin.nodeDetail.done", "完成")}</Button>
-          </DrawerClose>
-        </DrawerFooter>
-      </DrawerContent>
-    </Drawer>
   );
 }
 
