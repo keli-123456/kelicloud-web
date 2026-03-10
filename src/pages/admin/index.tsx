@@ -730,12 +730,17 @@ function GenerateCommandButton({
   const [enableIncludeMountpoints, setEnableIncludeMountpoints] =
     React.useState(false);
   const [enableMonthRotate, setEnableMonthRotate] = React.useState(false);
+  const autoDiscoveryKey = String(settings?.auto_discovery_key || "").trim();
+  const useAutoDiscovery = autoDiscoveryKey.length >= 12;
   const activeNode =
     node ??
     availableNodes.find((item) => item.uuid === selectedNodeId) ??
     availableNodes[0];
 
   React.useEffect(() => {
+    if (useAutoDiscovery) {
+      return;
+    }
     if (node?.uuid) {
       setSelectedNodeId(node.uuid);
       return;
@@ -747,10 +752,10 @@ function GenerateCommandButton({
     ) {
       setSelectedNodeId(availableNodes[0].uuid);
     }
-  }, [availableNodes, node?.uuid, selectedNodeId]);
+  }, [availableNodes, node?.uuid, selectedNodeId, useAutoDiscovery]);
 
   const generateCommand = () => {
-    if (!activeNode) return "";
+    if (!useAutoDiscovery && !activeNode) return "";
 
     const host = function () {
       if (!settings.script_domain) {
@@ -761,8 +766,13 @@ function GenerateCommandButton({
       }
       return `http://${settings.script_domain.replace(/\/+$/, "")}`;
     }();
-    const token = activeNode.token || "";
-    let args = ["-e", host, "-t", token];
+    let args = ["-e", host];
+    if (useAutoDiscovery) {
+      args.push("--auto-discovery", autoDiscoveryKey);
+    } else {
+      const token = activeNode?.token || "";
+      args.push("-t", token);
+    }
     // 根据安装选项生成参数
     if (installOptions.disableWebSsh) {
       args.push("--disable-web-ssh");
@@ -869,7 +879,6 @@ function GenerateCommandButton({
             variant="soft"
             color="blue"
             className="rounded-2xl"
-            disabled={availableNodes.length === 0}
           >
             <Download size={16} />
             一键安装命令
@@ -882,12 +891,19 @@ function GenerateCommandButton({
       </Dialog.Trigger>
       <Dialog.Content>
         <Dialog.Title>
-          {node
-            ? `${t("admin.nodeTable.installCommand", "一键部署指令")} · ${activeNode?.name || "-"}`
-            : t("admin.nodeTable.installCommand", "一键部署指令")}
+          {useAutoDiscovery
+            ? `${t("admin.nodeTable.installCommand", "一键部署指令")} · 自动接入`
+            : node
+              ? `${t("admin.nodeTable.installCommand", "一键部署指令")} · ${activeNode?.name || "-"}`
+              : t("admin.nodeTable.installCommand", "一键部署指令")}
         </Dialog.Title>
         <div className="flex flex-col gap-4">
-          {!node && availableNodes.length > 0 && (
+          {useAutoDiscovery && (
+            <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
+              当前使用通用自动接入命令。任意服务器执行后会自动注册到你的面板。
+            </div>
+          )}
+          {!useAutoDiscovery && !node && availableNodes.length > 0 && (
             <div className="flex flex-col gap-2">
               <label className="text-base font-bold">选择节点</label>
               <select
@@ -901,6 +917,11 @@ function GenerateCommandButton({
                   </option>
                 ))}
               </select>
+            </div>
+          )}
+          {!useAutoDiscovery && toolbar && (
+            <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-700">
+              当前还没启用自动发现密钥，所以这里仍是旧的单节点模式。到“系统设置 &gt; 通用”里设置自动发现密钥后，这里会变成通用接入命令。
             </div>
           )}
           <SegmentedControl.Root
@@ -1349,7 +1370,7 @@ function GenerateCommandButton({
           <Flex justify="center">
             <Button
               style={{ width: "100%" }}
-              disabled={!activeNode}
+              disabled={!useAutoDiscovery && !activeNode}
               onClick={() => copyToClipboard(generateCommand())}
             >
               <Copy size={16} />
