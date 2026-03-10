@@ -10,6 +10,7 @@ import {
   Button,
   Checkbox,
   Text,
+  Badge,
   Dialog,
   IconButton,
   TextArea,
@@ -74,6 +75,8 @@ import {
 } from "@/components/admin/SettingCard";
 import { useSettings } from "@/lib/api";
 import { SelectOrInput } from "@/components/ui/select-or-input";
+import { useRPC2Call } from "@/contexts/RPC2Context";
+import type { Record as LiveRecord } from "@/types/LiveData";
 
 
 const NodeDetailsPage = () => {
@@ -84,10 +87,74 @@ const NodeDetailsPage = () => {
   );
 };
 
+type NodeLiveSnapshot = {
+  online: boolean;
+  record: LiveRecord;
+};
+
+const createEmptyLiveRecord = (): LiveRecord => ({
+  cpu: { usage: 0 },
+  ram: { used: 0 },
+  swap: { used: 0 },
+  load: { load1: 0, load5: 0, load15: 0 },
+  disk: { used: 0 },
+  network: { up: 0, down: 0, totalUp: 0, totalDown: 0 },
+  connections: { tcp: 0, udp: 0 },
+  uptime: 0,
+  process: 0,
+  message: "",
+  updated_at: "",
+});
+
+const normalizeLiveSnapshot = (value: any): NodeLiveSnapshot => {
+  const fallback = createEmptyLiveRecord();
+
+  if (!value || typeof value !== "object") {
+    return { online: false, record: fallback };
+  }
+
+  return {
+    online: Boolean(value.online),
+    record: {
+      cpu: { usage: typeof value.cpu === "number" ? value.cpu : 0 },
+      ram: { used: value.ram ?? 0 },
+      swap: { used: value.swap ?? 0 },
+      load: {
+        load1: value.load ?? 0,
+        load5: value.load5 ?? 0,
+        load15: value.load15 ?? 0,
+      },
+      disk: { used: value.disk ?? 0 },
+      network: {
+        up: value.net_out ?? 0,
+        down: value.net_in ?? 0,
+        totalUp: value.net_total_out ?? value.net_total_up ?? 0,
+        totalDown: value.net_total_in ?? value.net_total_down ?? 0,
+      },
+      connections: {
+        tcp: value.connections ?? 0,
+        udp: value.connections_udp ?? 0,
+      },
+      gpu:
+        value.gpu !== undefined
+          ? { count: 0, average_usage: value.gpu, detailed_info: [] }
+          : undefined,
+      uptime: value.uptime ?? 0,
+      process: value.process ?? 0,
+      message: "",
+      updated_at: value.time ?? "",
+    },
+  };
+};
+
 const Layout = () => {
   const { nodeDetail, isLoading, error, refresh } = useNodeDetails();
+  const { call } = useRPC2Call();
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedNodes, setSelectedNodes] = useState<string[]>([]);
+  const [liveByNode, setLiveByNode] = useState<Record<string, NodeLiveSnapshot>>(
+    {}
+  );
   const filteredNodes = Array.isArray(nodeDetail)
     ? nodeDetail
         .filter((node) =>
@@ -95,12 +162,52 @@ const Layout = () => {
         )
         .sort((a, b) => a.weight - b.weight)
     : [];
-  
+
   useEffect(() => {
-    const interval = setInterval(() => { refresh() }, 5000);
-    return () => clearInterval(interval);
-  }, [nodeDetail]);
-  
+    const interval = window.setInterval(() => {
+      refresh();
+    }, 5000);
+    return () => window.clearInterval(interval);
+  }, [refresh]);
+
+  useEffect(() => {
+    let timer: number | undefined;
+    let stopped = false;
+    let running = false;
+
+    const pollLiveData = async () => {
+      if (running) return;
+      running = true;
+
+      try {
+        const result: Record<string, any> = await call("common:getNodesLatestStatus");
+        if (stopped) return;
+
+        const nextState: Record<string, NodeLiveSnapshot> = {};
+        Object.entries(result || {}).forEach(([uuid, value]) => {
+          nextState[uuid] = normalizeLiveSnapshot(value);
+        });
+        setLiveByNode(nextState);
+      } catch (pollError) {
+        console.error("Failed to fetch node live data:", pollError);
+      } finally {
+        running = false;
+        if (!stopped) {
+          timer = window.setTimeout(pollLiveData, 3000);
+        }
+      }
+    };
+
+    pollLiveData();
+
+    return () => {
+      stopped = true;
+      if (timer) {
+        window.clearTimeout(timer);
+      }
+    };
+  }, [call]);
+
   if (isLoading) return <Loading text="" />;
   if (error) return <div>{error}</div>;
 
@@ -114,6 +221,7 @@ const Layout = () => {
 
       <NodeTable
         nodes={filteredNodes}
+        liveByNode={liveByNode}
         selectedNodes={selectedNodes}
         setSelectedNodes={setSelectedNodes}
       />
@@ -200,13 +308,55 @@ const Header = ({
   );
 };
 
+const ConfigSummary = ({ node }: { node: NodeDetail }) => {
+  return (
+    <Flex direction="column" gap="1" className="min-w-[220px]">
+      <Text size="2" weight="bold">
+        {[node.os, node.arch].filter(Boolean).join(" / ") || "-"}
+      </Text>
+      <Text size="2" color="gray" title={node.cpu_name || "-"}>
+        {(node.cpu_name || "-") + ` · ${node.cpu_cores || 0} Cores`}
+      </Text>
+      <Text size="1" color="gray">
+        {formatBytes(node.mem_total || 0)} RAM · {formatBytes(node.disk_total || 0)} Disk
+      </Text>
+    </Flex>
+  );
+};
+
+const NetworkSummary = ({ live }: { live?: NodeLiveSnapshot }) => {
+  const { t } = useTranslation();
+  const snapshot = live?.record || createEmptyLiveRecord();
+
+  return (
+    <Flex direction="column" gap="1" className="min-w-[180px]">
+      <Flex align="center" gap="2">
+        <Badge color={live?.online ? "green" : "gray"} variant="soft">
+          {live?.online
+            ? t("nodeCard.online", "在线")
+            : t("nodeCard.offline", "离线")}
+        </Badge>
+      </Flex>
+      <Text size="2">
+        ↑ {formatBytes(snapshot.network.up)}/s · ↓ {formatBytes(snapshot.network.down)}/s
+      </Text>
+      <Text size="1" color="gray">
+        {t("nodeCard.totalTraffic", "总流量")} ↑ {formatBytes(snapshot.network.totalUp)} · ↓{" "}
+        {formatBytes(snapshot.network.totalDown)}
+      </Text>
+    </Flex>
+  );
+};
+
 const SortableRow = ({
   node,
+  live,
   selectedNodes,
   handleSelectNode,
   settings
 }: {
   node: NodeDetail;
+  live?: NodeLiveSnapshot;
   selectedNodes: string[];
   handleSelectNode: (uuid: string, checked: boolean) => void;
   settings: any;
@@ -288,6 +438,12 @@ const SortableRow = ({
           )}
         </Flex>
       </TableCell>
+      <TableCell>
+        <ConfigSummary node={node} />
+      </TableCell>
+      <TableCell>
+        <NetworkSummary live={live} />
+      </TableCell>
       <TableCell>{node.version}</TableCell>
       <TableCell>
         <Text
@@ -323,10 +479,12 @@ const SortableRow = ({
 
 const NodeTable = ({
   nodes,
+  liveByNode,
   selectedNodes,
   setSelectedNodes,
 }: {
   nodes: NodeDetail[];
+  liveByNode: Record<string, NodeLiveSnapshot>;
   selectedNodes: string[];
   setSelectedNodes: (nodes: string[]) => void;
 }) => {
@@ -435,6 +593,8 @@ const NodeTable = ({
               </TableHead>
               <TableHead>{t("admin.nodeTable.name")}</TableHead>
               <TableHead>{t("admin.nodeTable.ipAddress")}</TableHead>
+              <TableHead>{t("admin.nodeTable.configSummary", "配置")}</TableHead>
+              <TableHead>{t("admin.nodeTable.networkSpeed", "网速")}</TableHead>
               <TableHead>{t("admin.nodeTable.clientVersion")}</TableHead>
               <TableHead>{t("admin.nodeEdit.remark")}</TableHead>
               <TableHead>{t("admin.nodeTable.billing")}</TableHead>
@@ -450,6 +610,7 @@ const NodeTable = ({
                 <SortableRow
                   key={node.uuid}
                   node={node}
+                  live={liveByNode[node.uuid]}
                   selectedNodes={selectedNodes}
                   handleSelectNode={handleSelectNode}
                   settings={settings}
