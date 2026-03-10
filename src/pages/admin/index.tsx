@@ -429,8 +429,15 @@ const shellQuote = (value: string) => `'${value.replace(/'/g, `'\"'\"'`)}'`;
 
 const powershellQuote = (value: string) => `'${value.replace(/'/g, "''")}'`;
 
+const encodeBase64Url = (value: string) => {
+  const binary = Array.from(new TextEncoder().encode(value), (byte) =>
+    String.fromCharCode(byte)
+  ).join("");
+  return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
+};
+
 const encodeScopedAutoDiscoveryKey = (key: string, group: string) =>
-  group ? `${key}::group=${encodeURIComponent(group)}` : key;
+  group ? `${key}::group-b64=${encodeBase64Url(group)}` : key;
 
 const UsageBar = ({
   percent,
