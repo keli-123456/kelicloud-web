@@ -65,7 +65,6 @@ import {
   DrawerTrigger,
 } from "@/components/ui/drawer";
 import { formatBytes, stringToBytes } from "@/utils/unitHelper";
-import PriceTags from "@/components/PriceTags";
 import Loading from "@/components/loading";
 import Tips from "@/components/ui/tips";
 import {
@@ -78,6 +77,7 @@ import { useSettings } from "@/lib/api";
 import { SelectOrInput } from "@/components/ui/select-or-input";
 import { useRPC2Call } from "@/contexts/RPC2Context";
 import type { Record as LiveRecord } from "@/types/LiveData";
+import { formatUptime } from "@/components/Node";
 
 
 const NodeDetailsPage = () => {
@@ -277,6 +277,14 @@ const Header = ({
     const live = liveByNode[node.uuid];
     return live ? !live.online : false;
   });
+  const totalUploadSpeed = nodes.reduce(
+    (sum, node) => sum + (liveByNode[node.uuid]?.record.network.up ?? 0),
+    0
+  );
+  const totalDownloadSpeed = nodes.reduce(
+    (sum, node) => sum + (liveByNode[node.uuid]?.record.network.down ?? 0),
+    0
+  );
   const handleAddNode = async (name: string | undefined) => {
     setDialogOpen(true);
     setLoading(true);
@@ -368,6 +376,11 @@ const Header = ({
         </div>
 
         <div className="flex flex-col gap-3 xl:flex-row xl:items-center">
+          <div className="flex items-center gap-3 rounded-2xl border border-slate-200/80 bg-slate-50 px-4 py-2 text-sm text-slate-600">
+            <span className="font-medium text-slate-900">总速率</span>
+            <span>↑ {formatBytes(totalUploadSpeed)}/s</span>
+            <span>↓ {formatBytes(totalDownloadSpeed)}/s</span>
+          </div>
           <TextField.Root
             size="3"
             className="min-w-[260px] rounded-2xl border border-slate-200/80 bg-white shadow-sm"
@@ -447,55 +460,106 @@ const Header = ({
   );
 };
 
-const ConfigSummary = ({ node }: { node: NodeDetail }) => {
-  const summary = [
-    `${node.cpu_cores || 0}C`,
-    formatBytes(node.mem_total || 0),
-    formatBytes(node.disk_total || 0),
-  ];
+const clampPercent = (value: number) =>
+  Math.max(0, Math.min(100, Number.isFinite(value) ? value : 0));
+
+const UsageBar = ({
+  label,
+  percent,
+  colorClass,
+}: {
+  label: string;
+  percent: number;
+  colorClass: string;
+}) => {
+  const safePercent = clampPercent(percent);
 
   return (
-    <Flex direction="column" gap="1" className="min-w-[180px]">
-      <Text size="2" weight="bold" className="text-slate-900">
-        {[node.os, node.arch].filter(Boolean).join(" / ") || "-"}
-      </Text>
-      <div className="flex flex-wrap gap-1.5">
-        {summary.map((item) => (
-          <Badge
-            key={item}
-            variant="soft"
-            color="gray"
-            className="rounded-full px-2.5 py-0.5 text-[11px] font-medium"
-          >
-            {item}
-          </Badge>
-        ))}
+    <div className="min-w-[130px] space-y-1">
+      <div className="flex items-center justify-between text-xs text-slate-500">
+        <span>{label}</span>
+        <span className="font-medium text-slate-700">{safePercent.toFixed(0)}%</span>
       </div>
-    </Flex>
+      <div className="h-2 overflow-hidden rounded-full bg-slate-100">
+        <div
+          className={`h-full rounded-full transition-all ${colorClass}`}
+          style={{ width: `${safePercent}%` }}
+        />
+      </div>
+    </div>
   );
 };
 
-const NetworkSummary = ({ live }: { live?: NodeLiveSnapshot }) => {
-  const { t } = useTranslation();
+const StatusSummary = ({
+  node,
+  live,
+}: {
+  node: NodeDetail;
+  live?: NodeLiveSnapshot;
+}) => (
+  <div className="min-w-[96px] space-y-1">
+    <Badge
+      color={live?.online ? "green" : "gray"}
+      variant="soft"
+      className="rounded-full px-2.5 py-1"
+    >
+      {live?.online ? "在线" : "离线"}
+    </Badge>
+    <Text size="1" className="block text-slate-500">
+      {node.group || "默认分组"}
+    </Text>
+  </div>
+);
+
+const ExitIpSummary = ({ node }: { node: NodeDetail }) => (
+  <div className="min-w-[180px] space-y-1">
+    <DetailView node={node} />
+    <Text size="2" className="block text-slate-700">
+      {node.ipv4 || node.ipv6 || "-"}
+    </Text>
+    <Text size="1" className="block text-slate-500">
+      {[node.os, node.arch].filter(Boolean).join(" / ") || "-"}
+    </Text>
+  </div>
+);
+
+const RateSummary = ({ live }: { live?: NodeLiveSnapshot }) => {
   const snapshot = live?.record || createEmptyLiveRecord();
 
   return (
-    <Flex direction="column" gap="1" className="min-w-[180px]">
-      <Flex align="center" gap="2">
-        <Badge color={live?.online ? "green" : "gray"} variant="soft" className="rounded-full px-2.5 py-1">
-          {live?.online
-            ? t("nodeCard.online", "在线")
-            : t("nodeCard.offline", "离线")}
-        </Badge>
-      </Flex>
-      <Text size="2" className="font-medium text-slate-900">
-        ↑ {formatBytes(snapshot.network.up)}/s · ↓ {formatBytes(snapshot.network.down)}/s
+    <div className="min-w-[150px] space-y-1">
+      <Text size="2" className="block font-medium text-slate-900">
+        ↑ {formatBytes(snapshot.network.up)}/s
       </Text>
-      <Text size="1" color="gray" className="text-slate-500">
-        {t("nodeCard.totalTraffic", "总流量")} ↑ {formatBytes(snapshot.network.totalUp)} · ↓{" "}
-        {formatBytes(snapshot.network.totalDown)}
+      <Text size="2" className="block text-slate-600">
+        ↓ {formatBytes(snapshot.network.down)}/s
       </Text>
-    </Flex>
+    </div>
+  );
+};
+
+const TrafficSummary = ({ live }: { live?: NodeLiveSnapshot }) => {
+  const snapshot = live?.record || createEmptyLiveRecord();
+
+  return (
+    <div className="min-w-[170px] space-y-1">
+      <Text size="2" className="block text-slate-700">
+        ↑ {formatBytes(snapshot.network.totalUp)}
+      </Text>
+      <Text size="2" className="block text-slate-700">
+        ↓ {formatBytes(snapshot.network.totalDown)}
+      </Text>
+    </div>
+  );
+};
+
+const UptimeSummary = ({ live }: { live?: NodeLiveSnapshot }) => {
+  const { t } = useTranslation();
+
+  return (
+    <Text size="2" className="block min-w-[120px] text-slate-700">
+      {formatUptime(live?.record.uptime ?? 0, t)}
+    </Text>
   );
 };
 
@@ -558,71 +622,58 @@ const SortableRow = ({
         />
       </TableCell>
       <TableCell>
-        <DetailView node={node} />
+        <StatusSummary node={node} live={live} />
       </TableCell>
       <TableCell>
-        <Flex direction="column">
-          {node.ipv4 && (
-            <Text size="2" className="flex items-center gap-1">
-              {node.ipv4}
-              <IconButton variant="ghost" onClick={() => copy(node.ipv4)} className="text-slate-500">
-                <Copy size="16" />
-              </IconButton>
-            </Text>
-          )}
-          {node.ipv6 && (
-            <Text
-              size="2"
-              className="flex items-center gap-1"
-              title={node.ipv6}
+        <div className="flex items-start gap-1">
+          <ExitIpSummary node={node} />
+          {(node.ipv4 || node.ipv6) && (
+            <IconButton
+              variant="ghost"
+              onClick={() => copy(node.ipv4 || node.ipv6 || "")}
+              className="mt-0.5 text-slate-500"
             >
-              {node.ipv6.length > 20
-                ? (() => {
-                    const segments = node.ipv6.split(":");
-                    return segments.length > 3
-                      ? `${segments.slice(0, 2).join(":")}:...${
-                          segments[segments.length - 1]
-                        }`
-                      : node.ipv6;
-                  })()
-                : node.ipv6}
-              <IconButton variant="ghost" onClick={() => copy(node.ipv6)} className="text-slate-500">
-                <Copy size="16" />
-              </IconButton>
-            </Text>
+              <Copy size="16" />
+            </IconButton>
           )}
-        </Flex>
+        </div>
       </TableCell>
       <TableCell>
-        <ConfigSummary node={node} />
+        <RateSummary live={live} />
       </TableCell>
       <TableCell>
-        <NetworkSummary live={live} />
-      </TableCell>
-      <TableCell>{node.version}</TableCell>
-      <TableCell>
-        <Text
-          size="2"
-          title={node.remark}
-          style={{
-            maxWidth: "150px",
-            overflow: "hidden",
-            textOverflow: "ellipsis",
-            whiteSpace: "nowrap",
-          }}
-        >
-          {node.remark && node.remark.length > 10
-            ? `${node.remark.slice(0, 10)}...`
-            : node.remark}
-        </Text>
+        <UptimeSummary live={live} />
       </TableCell>
       <TableCell>
-        <PriceTags
-          price={node.price}
-          billing_cycle={node.billing_cycle}
-          expired_at={node.expired_at}
-          currency={node.currency}
-          tags={node.tags || ""}
+        <TrafficSummary live={live} />
+      </TableCell>
+      <TableCell>
+        <UsageBar
+          label="CPU"
+          percent={live?.record.cpu.usage ?? 0}
+          colorClass="bg-sky-500"
+        />
+      </TableCell>
+      <TableCell>
+        <UsageBar
+          label="RAM"
+          percent={
+            node.mem_total
+              ? ((live?.record.ram.used ?? 0) / node.mem_total) * 100
+              : 0
+          }
+          colorClass="bg-emerald-500"
+        />
+      </TableCell>
+      <TableCell>
+        <UsageBar
+          label="DISK"
+          percent={
+            node.disk_total
+              ? ((live?.record.disk.used ?? 0) / node.disk_total) * 100
+              : 0
+          }
+          colorClass="bg-amber-500"
         />
       </TableCell>
       <TableCell>
@@ -643,7 +694,6 @@ const NodeTable = ({
   selectedNodes: string[];
   setSelectedNodes: (nodes: string[]) => void;
 }) => {
-  const { t } = useTranslation();
   const sensors = useSensors(
     useSensor(MouseSensor, {
       // 需要按住 10px 距离才开始拖拽，避免与点击冲突
@@ -746,13 +796,14 @@ const NodeTable = ({
                   onCheckedChange={handleSelectAll}
                 />
               </TableHead>
-              <TableHead>{t("admin.nodeTable.name")}</TableHead>
-              <TableHead>{t("admin.nodeTable.ipAddress")}</TableHead>
-              <TableHead>{t("admin.nodeTable.configSummary", "配置")}</TableHead>
-              <TableHead>{t("admin.nodeTable.networkSpeed", "网速")}</TableHead>
-              <TableHead>{t("admin.nodeTable.clientVersion")}</TableHead>
-              <TableHead>{t("admin.nodeEdit.remark")}</TableHead>
-              <TableHead>{t("admin.nodeTable.billing")}</TableHead>
+              <TableHead>状态</TableHead>
+              <TableHead>出口 IP</TableHead>
+              <TableHead>速率</TableHead>
+              <TableHead>开机时长</TableHead>
+              <TableHead>流量</TableHead>
+              <TableHead>CPU</TableHead>
+              <TableHead>RAM</TableHead>
+              <TableHead>存储</TableHead>
               <TableHead></TableHead>
             </TableRow>
           </TableHeader>
