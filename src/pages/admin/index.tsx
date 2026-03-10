@@ -630,6 +630,22 @@ type NodeGroupBucket = {
   totalDownloadTraffic: number;
 };
 
+const NodeTableColumns = () => (
+  <TableHeader className="bg-[linear-gradient(135deg,rgba(19,70,134,0.10),rgba(255,255,255,0.92),rgba(89,172,119,0.10))]">
+    <TableRow>
+      <TableHead>状态</TableHead>
+      <TableHead>出口 IP</TableHead>
+      <TableHead>速率</TableHead>
+      <TableHead>开机时长</TableHead>
+      <TableHead>流量</TableHead>
+      <TableHead className="w-[190px]">CPU</TableHead>
+      <TableHead className="w-[190px]">RAM</TableHead>
+      <TableHead className="w-[190px]">存储</TableHead>
+      <TableHead className="w-[150px]">操作</TableHead>
+    </TableRow>
+  </TableHeader>
+);
+
 const NodeTable = ({
   nodes,
   liveByNode,
@@ -674,80 +690,67 @@ const NodeTable = ({
   }, [liveByNode, nodes]);
 
   return (
-    <div className="overflow-hidden rounded-[28px] border border-white/65 bg-white/78 shadow-[0_24px_60px_rgba(15,23,42,0.08)] backdrop-blur-xl">
-        <Table>
-          <TableHeader className="bg-[linear-gradient(135deg,rgba(19,70,134,0.10),rgba(255,255,255,0.92),rgba(89,172,119,0.10))]">
-            <TableRow>
-              <TableHead>状态</TableHead>
-              <TableHead>出口 IP</TableHead>
-              <TableHead>速率</TableHead>
-              <TableHead>开机时长</TableHead>
-              <TableHead>流量</TableHead>
-              <TableHead className="w-[190px]">CPU</TableHead>
-              <TableHead className="w-[190px]">RAM</TableHead>
-              <TableHead className="w-[190px]">存储</TableHead>
-              <TableHead className="w-[150px]">操作</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-              {groupedNodes.length === 0 && (
-                <TableRow>
-                  <TableCell colSpan={9} className="py-8 text-center text-sm text-slate-500">
-                    当前没有匹配的节点
-                  </TableCell>
-                </TableRow>
-              )}
-              {groupedNodes.map((group) => (
-                <React.Fragment key={group.label}>
-                  <TableRow className="border-b border-slate-200/70 bg-slate-50/90">
-                    <TableCell colSpan={9} className="px-4 py-3">
-                      <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <Text className="text-sm font-semibold text-slate-900">
-                            {group.label}
-                          </Text>
-                        </div>
-                        <div className="flex flex-wrap items-center gap-4 text-xs text-slate-600">
-                          <span>
-                            <span className="font-medium text-slate-900">总速率</span>
-                            {" "}
-                            ↑ {formatBytes(group.totalUploadSpeed)}/s
-                            {" "}
-                            ↓ {formatBytes(group.totalDownloadSpeed)}/s
-                          </span>
-                          <span>
-                            <span className="font-medium text-slate-900">总流量</span>
-                            {" "}
-                            ↑ {formatBytes(group.totalUploadTraffic)}
-                            {" "}
-                            ↓ {formatBytes(group.totalDownloadTraffic)}
-                          </span>
-                          <span>
-                            <span className="font-medium text-slate-900">在线数</span>
-                            {" "}
-                            {group.onlineCount}
-                          </span>
-                          <span>
-                            <span className="font-medium text-slate-900">机器数</span>
-                            {" "}
-                            {group.nodes.length}
-                          </span>
-                        </div>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                  {group.nodes.map((node) => (
-                    <SortableRow
-                      key={node.uuid}
-                      node={node}
-                      live={liveByNode[node.uuid]}
-                      settings={settings}
-                    />
-                  ))}
-                </React.Fragment>
+    <div className="flex flex-col gap-4">
+      {groupedNodes.length === 0 && (
+        <div className="rounded-[28px] border border-white/65 bg-white/78 px-6 py-8 text-center text-sm text-slate-500 shadow-[0_24px_60px_rgba(15,23,42,0.08)] backdrop-blur-xl">
+          当前没有匹配的节点
+        </div>
+      )}
+      {groupedNodes.map((group) => (
+        <div
+          key={group.label}
+          className="overflow-hidden rounded-[28px] border border-white/65 bg-white/78 shadow-[0_24px_60px_rgba(15,23,42,0.08)] backdrop-blur-xl"
+        >
+          <div className="border-b border-slate-200/70 bg-slate-50/90 px-4 py-3">
+            <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+              <div className="flex flex-wrap items-center gap-2">
+                <Text className="text-sm font-semibold text-slate-900">
+                  {group.label}
+                </Text>
+              </div>
+              <div className="flex flex-wrap items-center gap-4 text-xs text-slate-600">
+                <span>
+                  <span className="font-medium text-slate-900">总速率</span>
+                  {" "}
+                  ↑ {formatBytes(group.totalUploadSpeed)}/s
+                  {" "}
+                  ↓ {formatBytes(group.totalDownloadSpeed)}/s
+                </span>
+                <span>
+                  <span className="font-medium text-slate-900">总流量</span>
+                  {" "}
+                  ↑ {formatBytes(group.totalUploadTraffic)}
+                  {" "}
+                  ↓ {formatBytes(group.totalDownloadTraffic)}
+                </span>
+                <span>
+                  <span className="font-medium text-slate-900">在线数</span>
+                  {" "}
+                  {group.onlineCount}
+                </span>
+                <span>
+                  <span className="font-medium text-slate-900">机器数</span>
+                  {" "}
+                  {group.nodes.length}
+                </span>
+              </div>
+            </div>
+          </div>
+          <Table>
+            <NodeTableColumns />
+            <TableBody>
+              {group.nodes.map((node) => (
+                <SortableRow
+                  key={node.uuid}
+                  node={node}
+                  live={liveByNode[node.uuid]}
+                  settings={settings}
+                />
               ))}
-          </TableBody>
-        </Table>
+            </TableBody>
+          </Table>
+        </div>
+      ))}
     </div>
   );
 };
