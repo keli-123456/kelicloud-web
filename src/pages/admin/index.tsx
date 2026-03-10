@@ -65,6 +65,13 @@ type NodeLiveSnapshot = {
   record: LiveRecord;
 };
 
+const DEFAULT_GROUP_NAME = "默认分组";
+
+const getNodeGroupLabel = (node: NodeDetail) => {
+  const groupName = String(node.group || "").trim();
+  return groupName || DEFAULT_GROUP_NAME;
+};
+
 const createEmptyLiveRecord = (): LiveRecord => ({
   cpu: { usage: 0 },
   ram: { used: 0 },
@@ -132,10 +139,18 @@ const Layout = () => {
   const allNodes = Array.isArray(nodeDetail)
     ? [...nodeDetail].sort((a, b) => a.weight - b.weight)
     : [];
-  const filteredNodes = allNodes
-    .filter((node) =>
-      node.name.toLowerCase().includes(searchTerm.toLowerCase())
+  const normalizedSearchTerm = searchTerm.trim().toLowerCase();
+  const filteredNodes = allNodes.filter((node) => {
+    if (!normalizedSearchTerm) return true;
+    return [
+      node.name,
+      node.ipv4,
+      node.ipv6,
+      getNodeGroupLabel(node),
+    ].some((value) =>
+      String(value || "").toLowerCase().includes(normalizedSearchTerm)
     );
+  });
 
   useEffect(() => {
     const interval = window.setInterval(() => {
@@ -338,7 +353,7 @@ const Header = ({
           <TextField.Root
             size="3"
             className="min-w-[260px] rounded-2xl border border-slate-200/80 bg-white shadow-sm"
-            placeholder={t("admin.nodeTable.searchByName")}
+            placeholder="搜索 IP / 分组"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
@@ -605,6 +620,14 @@ const SortableRow = ({
   );
 };
 
+type NodeGroupBucket = {
+  label: string;
+  nodes: NodeDetail[];
+  onlineCount: number;
+  totalUploadTraffic: number;
+  totalDownloadTraffic: number;
+};
+
 const NodeTable = ({
   nodes,
   liveByNode,
@@ -613,6 +636,37 @@ const NodeTable = ({
   liveByNode: Record<string, NodeLiveSnapshot>;
 }) => {
   const { settings } = useSettings();
+  const groupedNodes = React.useMemo(() => {
+    const groups = new Map<string, NodeGroupBucket>();
+
+    nodes.forEach((node) => {
+      const label = getNodeGroupLabel(node);
+      const existing = groups.get(label) ?? {
+        label,
+        nodes: [],
+        onlineCount: 0,
+        totalUploadTraffic: 0,
+        totalDownloadTraffic: 0,
+      };
+      const live = liveByNode[node.uuid];
+      existing.nodes.push(node);
+      existing.onlineCount += live?.online ? 1 : 0;
+      existing.totalUploadTraffic += live?.record.network.totalUp ?? 0;
+      existing.totalDownloadTraffic += live?.record.network.totalDown ?? 0;
+      groups.set(label, existing);
+    });
+
+    return Array.from(groups.values()).sort((left, right) => {
+      if (left.label === DEFAULT_GROUP_NAME && right.label !== DEFAULT_GROUP_NAME) {
+        return 1;
+      }
+      if (left.label !== DEFAULT_GROUP_NAME && right.label === DEFAULT_GROUP_NAME) {
+        return -1;
+      }
+      return left.label.localeCompare(right.label, "zh-CN");
+    });
+  }, [liveByNode, nodes]);
+
   return (
     <div className="overflow-hidden rounded-[28px] border border-white/65 bg-white/78 shadow-[0_24px_60px_rgba(15,23,42,0.08)] backdrop-blur-xl">
         <Table>
@@ -630,13 +684,50 @@ const NodeTable = ({
             </TableRow>
           </TableHeader>
           <TableBody>
-              {nodes.map((node) => (
-                <SortableRow
-                  key={node.uuid}
-                  node={node}
-                  live={liveByNode[node.uuid]}
-                  settings={settings}
-                />
+              {groupedNodes.length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={9} className="py-8 text-center text-sm text-slate-500">
+                    当前没有匹配的节点
+                  </TableCell>
+                </TableRow>
+              )}
+              {groupedNodes.map((group) => (
+                <React.Fragment key={group.label}>
+                  <TableRow className="border-b border-slate-200/70 bg-slate-50/90">
+                    <TableCell colSpan={9} className="px-4 py-3">
+                      <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <Text className="text-sm font-semibold text-slate-900">
+                            {group.label}
+                          </Text>
+                          <Badge variant="soft" color="blue" className="rounded-full px-2.5 py-0.5">
+                            {group.nodes.length} 台
+                          </Badge>
+                          <Badge
+                            variant="soft"
+                            color={group.onlineCount > 0 ? "green" : "gray"}
+                            className="rounded-full px-2.5 py-0.5"
+                          >
+                            {group.onlineCount} 在线
+                          </Badge>
+                        </div>
+                        <div className="flex flex-wrap items-center gap-3 text-xs text-slate-600">
+                          <span className="font-medium text-slate-900">总流量</span>
+                          <span>↑ {formatBytes(group.totalUploadTraffic)}</span>
+                          <span>↓ {formatBytes(group.totalDownloadTraffic)}</span>
+                        </div>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                  {group.nodes.map((node) => (
+                    <SortableRow
+                      key={node.uuid}
+                      node={node}
+                      live={liveByNode[node.uuid]}
+                      settings={settings}
+                    />
+                  ))}
+                </React.Fragment>
               ))}
           </TableBody>
         </Table>
