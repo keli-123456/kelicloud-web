@@ -624,6 +624,8 @@ type NodeGroupBucket = {
   label: string;
   nodes: NodeDetail[];
   onlineCount: number;
+  totalUploadSpeed: number;
+  totalDownloadSpeed: number;
   totalUploadTraffic: number;
   totalDownloadTraffic: number;
 };
@@ -645,12 +647,16 @@ const NodeTable = ({
         label,
         nodes: [],
         onlineCount: 0,
+        totalUploadSpeed: 0,
+        totalDownloadSpeed: 0,
         totalUploadTraffic: 0,
         totalDownloadTraffic: 0,
       };
       const live = liveByNode[node.uuid];
       existing.nodes.push(node);
       existing.onlineCount += live?.online ? 1 : 0;
+      existing.totalUploadSpeed += live?.record.network.up ?? 0;
+      existing.totalDownloadSpeed += live?.record.network.down ?? 0;
       existing.totalUploadTraffic += live?.record.network.totalUp ?? 0;
       existing.totalDownloadTraffic += live?.record.network.totalDown ?? 0;
       groups.set(label, existing);
@@ -700,21 +706,32 @@ const NodeTable = ({
                           <Text className="text-sm font-semibold text-slate-900">
                             {group.label}
                           </Text>
-                          <Badge variant="soft" color="blue" className="rounded-full px-2.5 py-0.5">
-                            {group.nodes.length} 台
-                          </Badge>
-                          <Badge
-                            variant="soft"
-                            color={group.onlineCount > 0 ? "green" : "gray"}
-                            className="rounded-full px-2.5 py-0.5"
-                          >
-                            {group.onlineCount} 在线
-                          </Badge>
                         </div>
-                        <div className="flex flex-wrap items-center gap-3 text-xs text-slate-600">
-                          <span className="font-medium text-slate-900">总流量</span>
-                          <span>↑ {formatBytes(group.totalUploadTraffic)}</span>
-                          <span>↓ {formatBytes(group.totalDownloadTraffic)}</span>
+                        <div className="flex flex-wrap items-center gap-4 text-xs text-slate-600">
+                          <span>
+                            <span className="font-medium text-slate-900">总速率</span>
+                            {" "}
+                            ↑ {formatBytes(group.totalUploadSpeed)}/s
+                            {" "}
+                            ↓ {formatBytes(group.totalDownloadSpeed)}/s
+                          </span>
+                          <span>
+                            <span className="font-medium text-slate-900">总流量</span>
+                            {" "}
+                            ↑ {formatBytes(group.totalUploadTraffic)}
+                            {" "}
+                            ↓ {formatBytes(group.totalDownloadTraffic)}
+                          </span>
+                          <span>
+                            <span className="font-medium text-slate-900">在线数</span>
+                            {" "}
+                            {group.onlineCount}
+                          </span>
+                          <span>
+                            <span className="font-medium text-slate-900">机器数</span>
+                            {" "}
+                            {group.nodes.length}
+                          </span>
                         </div>
                       </div>
                     </TableCell>
