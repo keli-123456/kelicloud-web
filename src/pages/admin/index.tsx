@@ -439,6 +439,17 @@ const encodeBase64Url = (value: string) => {
 const encodeScopedAutoDiscoveryKey = (key: string, group: string) =>
   group ? `${key}::group-b64=${encodeBase64Url(group)}` : key;
 
+const getDefaultInstallDir = (platform: Platform) => {
+  switch (platform) {
+    case "windows":
+      return "$Env:ProgramFiles\\Komari";
+    case "macos":
+      return "/usr/local/komari";
+    default:
+      return "/opt/komari";
+  }
+};
+
 const UsageBar = ({
   percent,
   colorClass,
@@ -868,6 +879,10 @@ function GenerateCommandButton({
       args.push(`--month-rotate`);
       args.push(rotateVal);
     }
+    const effectiveInstallDir =
+      enableCustomDir && installOptions.dir.trim()
+        ? installOptions.dir.trim()
+        : getDefaultInstallDir(selectedPlatform);
     let scriptFile = "install.sh";
     if (selectedPlatform === "windows") {
       scriptFile = "install.ps1";
@@ -892,12 +907,23 @@ function GenerateCommandButton({
     switch (selectedPlatform) {
       case "linux":
         finalCommand =
+          groupMode && useAutoDiscovery
+            ? `AUTO_DISCOVERY_FILE=${shellQuote(`${effectiveInstallDir}/auto-discovery.json`)}; if [ -f "$AUTO_DISCOVERY_FILE" ]; then if [ -r /dev/tty ]; then printf '%s' '检测到当前机器已绑定到旧节点。输入 y 清理旧绑定并重新接入新分组，其他任意键保持原绑定: ' > /dev/tty; read -r KS_RESET < /dev/tty || KS_RESET=''; else KS_RESET='y'; fi; if [ "$KS_RESET" = 'y' ] || [ "$KS_RESET" = 'Y' ]; then sudo rm -f "$AUTO_DISCOVERY_FILE"; fi; fi; ` +
+              `wget -qO- ${shellQuote(scriptUrl)} | sudo bash -s -- ${shellArgs}`
+            :
           `wget -qO- ${shellQuote(scriptUrl)} | sudo bash -s -- ` + shellArgs;
         break;
       case "windows":
-        finalCommand =
-          `powershell.exe -NoProfile -ExecutionPolicy Bypass -Command ` +
-          `"iwr ${powershellQuote(scriptUrl)}` +
+        finalCommand = `powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "`;
+        if (groupMode && useAutoDiscovery) {
+          const windowsInstallDir =
+            enableCustomDir && installOptions.dir.trim()
+              ? powershellQuote(installOptions.dir.trim())
+              : "$Env:ProgramFiles\\Komari";
+          finalCommand += `$ksBindFile = Join-Path ${windowsInstallDir} 'auto-discovery.json'; if (Test-Path $ksBindFile) { $ksReset = Read-Host 'Detected existing binding. Enter y to clear it and rebind to the new group'; if ($ksReset -match '^(?i)y(?:es)?$') { Remove-Item $ksBindFile -Force } }; `;
+        }
+        finalCommand +=
+          `iwr ${powershellQuote(scriptUrl)}` +
           ` -UseBasicParsing -OutFile 'install.ps1'; &` +
           ` '.\\install.ps1'`;
         args.forEach((arg) => {
@@ -906,7 +932,18 @@ function GenerateCommandButton({
         finalCommand += `"`;
         break;
       case "macos":
-        finalCommand = `zsh <(curl -sL ${shellQuote(scriptUrl)}) ` + shellArgs;
+        if (groupMode && useAutoDiscovery) {
+          const macInstallDir =
+            enableCustomDir && installOptions.dir.trim()
+              ? shellQuote(installOptions.dir.trim())
+              : `$(if [ "$(id -u)" -eq 0 ] || [ -w /usr/local ]; then printf %s /usr/local/komari; else printf %s "$HOME/.komari"; fi)`;
+          finalCommand =
+            `AUTO_DISCOVERY_DIR=${macInstallDir}; AUTO_DISCOVERY_FILE="$AUTO_DISCOVERY_DIR/auto-discovery.json"; ` +
+            `if [ -f "$AUTO_DISCOVERY_FILE" ]; then if [ -r /dev/tty ]; then printf '%s' '检测到当前机器已绑定到旧节点。输入 y 清理旧绑定并重新接入新分组，其他任意键保持原绑定: ' > /dev/tty; read -r KS_RESET < /dev/tty || KS_RESET=''; else KS_RESET='y'; fi; if [ "$KS_RESET" = 'y' ] || [ "$KS_RESET" = 'Y' ]; then rm -f "$AUTO_DISCOVERY_FILE"; fi; fi; ` +
+            `zsh <(curl -sL ${shellQuote(scriptUrl)}) ${shellArgs}`;
+        } else {
+          finalCommand = `zsh <(curl -sL ${shellQuote(scriptUrl)}) ` + shellArgs;
+        }
         break;
     }
     return finalCommand;
@@ -961,7 +998,7 @@ function GenerateCommandButton({
           )}
           {groupMode && useAutoDiscovery && (
             <div className="rounded-xl border border-sky-200 bg-sky-50 px-3 py-2 text-sm text-sky-700">
-              输入分组名称后，复制这条命令到任意服务器执行，节点会自动注册并归入该分组。
+              输入分组名称后，复制这条命令到任意服务器执行，节点会自动注册并归入该分组。已绑定过的机器再次执行时，会先提示是否清理旧绑定。
             </div>
           )}
           {groupMode && (
