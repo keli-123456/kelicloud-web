@@ -348,6 +348,12 @@ const Header = ({
               settings={settings}
               toolbar
             />
+            <GenerateCommandButton
+              nodes={nodes}
+              settings={settings}
+              toolbar
+              groupMode
+            />
             <Dialog.Root open={cleanupOpen} onOpenChange={setCleanupOpen}>
               <Dialog.Trigger>
                 <Button
@@ -417,6 +423,15 @@ const Header = ({
 const clampPercent = (value: number) =>
   Math.max(0, Math.min(100, Number.isFinite(value) ? value : 0));
 
+const formatPercent = (value: number) => `${Math.round(clampPercent(value))}%`;
+
+const shellQuote = (value: string) => `'${value.replace(/'/g, `'\"'\"'`)}'`;
+
+const powershellQuote = (value: string) => `'${value.replace(/'/g, "''")}'`;
+
+const encodeScopedAutoDiscoveryKey = (key: string, group: string) =>
+  group ? `${key}::group=${encodeURIComponent(group)}` : key;
+
 const UsageBar = ({
   percent,
   colorClass,
@@ -427,12 +442,15 @@ const UsageBar = ({
   const safePercent = clampPercent(percent);
 
   return (
-    <div className="min-w-[96px]">
-      <div className="h-1.5 overflow-hidden rounded-full bg-slate-100">
+    <div className="min-w-[164px]">
+      <div className="relative h-6 overflow-hidden rounded-full border border-slate-200/80 bg-slate-100">
         <div
-          className={`h-full rounded-full transition-all ${colorClass}`}
+          className={`h-full rounded-full transition-all duration-300 ${colorClass}`}
           style={{ width: `${safePercent}%` }}
         />
+        <div className="absolute inset-0 flex items-center justify-center text-[11px] font-semibold tracking-tight text-slate-700">
+          {formatPercent(safePercent)}
+        </div>
       </div>
     </div>
   );
@@ -587,10 +605,10 @@ const NodeTable = ({
               <TableHead>速率</TableHead>
               <TableHead>开机时长</TableHead>
               <TableHead>流量</TableHead>
-              <TableHead>CPU</TableHead>
-              <TableHead>RAM</TableHead>
-              <TableHead>存储</TableHead>
-              <TableHead></TableHead>
+              <TableHead className="w-[190px]">CPU</TableHead>
+              <TableHead className="w-[190px]">RAM</TableHead>
+              <TableHead className="w-[190px]">存储</TableHead>
+              <TableHead className="w-[150px]">操作</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -695,11 +713,13 @@ function GenerateCommandButton({
   nodes,
   settings,
   toolbar = false,
+  groupMode = false,
 }: {
   node?: NodeDetail;
   nodes?: NodeDetail[];
   settings: any;
   toolbar?: boolean;
+  groupMode?: boolean;
 }) {
   const availableNodes = nodes ?? (node ? [node] : []);
   const [selectedNodeId, setSelectedNodeId] = React.useState(
@@ -730,15 +750,32 @@ function GenerateCommandButton({
   const [enableIncludeMountpoints, setEnableIncludeMountpoints] =
     React.useState(false);
   const [enableMonthRotate, setEnableMonthRotate] = React.useState(false);
+  const [groupName, setGroupName] = React.useState("");
   const autoDiscoveryKey = String(settings?.auto_discovery_key || "").trim();
   const useAutoDiscovery = autoDiscoveryKey.length >= 12;
+  const normalizedGroupName = groupName.trim();
+  const scopedAutoDiscoveryKey = encodeScopedAutoDiscoveryKey(
+    autoDiscoveryKey,
+    normalizedGroupName
+  );
+  const availableGroups = React.useMemo(
+    () =>
+      Array.from(
+        new Set(
+          availableNodes
+            .map((item) => String(item.group || "").trim())
+            .filter(Boolean)
+        )
+      ).sort((left, right) => left.localeCompare(right)),
+    [availableNodes]
+  );
   const activeNode =
     node ??
     availableNodes.find((item) => item.uuid === selectedNodeId) ??
     availableNodes[0];
 
   React.useEffect(() => {
-    if (useAutoDiscovery) {
+    if (useAutoDiscovery || groupMode) {
       return;
     }
     if (node?.uuid) {
@@ -752,9 +789,10 @@ function GenerateCommandButton({
     ) {
       setSelectedNodeId(availableNodes[0].uuid);
     }
-  }, [availableNodes, node?.uuid, selectedNodeId, useAutoDiscovery]);
+  }, [availableNodes, groupMode, node?.uuid, selectedNodeId, useAutoDiscovery]);
 
   const generateCommand = () => {
+    if (groupMode && (!useAutoDiscovery || !normalizedGroupName)) return "";
     if (!useAutoDiscovery && !activeNode) return "";
 
     const host = function () {
@@ -768,7 +806,10 @@ function GenerateCommandButton({
     }();
     let args = ["-e", host];
     if (useAutoDiscovery) {
-      args.push("--auto-discovery", autoDiscoveryKey);
+      args.push(
+        "--auto-discovery",
+        groupMode ? scopedAutoDiscoveryKey : autoDiscoveryKey
+      );
     } else {
       const token = activeNode?.token || "";
       args.push("-t", token);
@@ -840,23 +881,25 @@ function GenerateCommandButton({
       }
     }
     let finalCommand = "";
+    const shellArgs = args.map(shellQuote).join(" ");
     switch (selectedPlatform) {
       case "linux":
-        finalCommand = `wget -qO- ${scriptUrl} | sudo bash -s -- ` + args.join(" ");
+        finalCommand =
+          `wget -qO- ${shellQuote(scriptUrl)} | sudo bash -s -- ` + shellArgs;
         break;
       case "windows":
         finalCommand =
           `powershell.exe -NoProfile -ExecutionPolicy Bypass -Command ` +
-          `"iwr '${scriptUrl}'` +
+          `"iwr ${powershellQuote(scriptUrl)}` +
           ` -UseBasicParsing -OutFile 'install.ps1'; &` +
           ` '.\\install.ps1'`;
         args.forEach((arg) => {
-          finalCommand += ` '${arg}'`;
+          finalCommand += ` ${powershellQuote(arg)}`;
         });
         finalCommand += `"`;
         break;
       case "macos":
-        finalCommand = `zsh <(curl -sL ${scriptUrl}) ` + args.join(" ");
+        finalCommand = `zsh <(curl -sL ${shellQuote(scriptUrl)}) ` + shellArgs;
         break;
     }
     return finalCommand;
@@ -871,17 +914,21 @@ function GenerateCommandButton({
     }
   };
   const { t } = useTranslation();
+  const copyDisabled = groupMode
+    ? !useAutoDiscovery || !normalizedGroupName
+    : !useAutoDiscovery && !activeNode;
+
   return (
     <Dialog.Root>
       <Dialog.Trigger>
         {toolbar ? (
           <Button
             variant="soft"
-            color="blue"
+            color={groupMode ? "green" : "blue"}
             className="rounded-2xl"
           >
             <Download size={16} />
-            一键安装命令
+            {groupMode ? "创建分组" : "一键安装命令"}
           </Button>
         ) : (
         <IconButton variant="ghost" title={t("admin.nodeTable.installCommand")}>
@@ -891,19 +938,61 @@ function GenerateCommandButton({
       </Dialog.Trigger>
       <Dialog.Content>
         <Dialog.Title>
-          {useAutoDiscovery
+          {groupMode
+            ? "创建分组安装命令"
+            : useAutoDiscovery
             ? `${t("admin.nodeTable.installCommand", "一键部署指令")} · 自动接入`
             : node
               ? `${t("admin.nodeTable.installCommand", "一键部署指令")} · ${activeNode?.name || "-"}`
               : t("admin.nodeTable.installCommand", "一键部署指令")}
         </Dialog.Title>
         <div className="flex flex-col gap-4">
-          {useAutoDiscovery && (
+          {useAutoDiscovery && !groupMode && (
             <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
               当前使用通用自动接入命令。任意服务器执行后会自动注册到你的面板。
             </div>
           )}
-          {!useAutoDiscovery && !node && availableNodes.length > 0 && (
+          {groupMode && useAutoDiscovery && (
+            <div className="rounded-xl border border-sky-200 bg-sky-50 px-3 py-2 text-sm text-sky-700">
+              输入分组名称后，复制这条命令到任意服务器执行，节点会自动注册并归入该分组。
+            </div>
+          )}
+          {groupMode && (
+            <div className="flex flex-col gap-3 rounded-2xl border border-slate-200/80 bg-slate-50 px-4 py-4">
+              <div className="flex flex-col gap-2">
+                <label className="text-base font-bold text-slate-900">
+                  分组名称
+                </label>
+                <TextField.Root
+                  placeholder="例如：香港 / 日本 / 生产环境"
+                  value={groupName}
+                  onChange={(event) => setGroupName(event.target.value)}
+                />
+              </div>
+              {availableGroups.length > 0 && (
+                <div className="flex flex-wrap gap-2">
+                  {availableGroups.map((group) => (
+                    <button
+                      key={group}
+                      type="button"
+                      className={`rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
+                        normalizedGroupName === group
+                          ? "border-sky-300 bg-sky-100 text-sky-700"
+                          : "border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:text-slate-900"
+                      }`}
+                      onClick={() => setGroupName(group)}
+                    >
+                      {group}
+                    </button>
+                  ))}
+                </div>
+              )}
+              <Text size="1" className="text-slate-500">
+                分组在首台服务器执行命令后会自动创建，不需要先手动建空分组。
+              </Text>
+            </div>
+          )}
+          {!groupMode && !useAutoDiscovery && !node && availableNodes.length > 0 && (
             <div className="flex flex-col gap-2">
               <label className="text-base font-bold">选择节点</label>
               <select
@@ -919,9 +1008,14 @@ function GenerateCommandButton({
               </select>
             </div>
           )}
-          {!useAutoDiscovery && toolbar && (
+          {!useAutoDiscovery && toolbar && !groupMode && (
             <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-700">
               当前还没启用自动发现密钥，所以这里仍是旧的单节点模式。到“系统设置 &gt; 通用”里设置自动发现密钥后，这里会变成通用接入命令。
+            </div>
+          )}
+          {!useAutoDiscovery && groupMode && (
+            <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-700">
+              先到“系统设置 &gt; 通用”里设置自动发现密钥，创建分组命令才会生效。
             </div>
           )}
           <SegmentedControl.Root
@@ -1370,7 +1464,7 @@ function GenerateCommandButton({
           <Flex justify="center">
             <Button
               style={{ width: "100%" }}
-              disabled={!useAutoDiscovery && !activeNode}
+              disabled={copyDisabled}
               onClick={() => copyToClipboard(generateCommand())}
             >
               <Copy size={16} />
