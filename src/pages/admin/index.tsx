@@ -468,14 +468,16 @@ const getDefaultInstallDir = (platform: Platform) => {
 const UsageBar = ({
   percent,
   colorClass,
+  title,
 }: {
   percent: number;
   colorClass: string;
+  title?: string;
 }) => {
   const safePercent = clampPercent(percent);
 
   return (
-    <div className="min-w-[164px]">
+    <div className="min-w-[164px] cursor-help" title={title}>
       <div className="relative h-6 overflow-hidden rounded-full border border-slate-200/80 bg-slate-100">
         <div
           className={`h-full rounded-full transition-all duration-300 ${colorClass}`}
@@ -559,6 +561,31 @@ const UptimeSummary = ({ live }: { live?: NodeLiveSnapshot }) => {
   );
 };
 
+const buildNodeConfigTooltip = ({
+  node,
+  live,
+}: {
+  node: NodeDetail;
+  live?: NodeLiveSnapshot;
+}) => {
+  const memoryUsed = live?.record.ram.used ?? 0;
+  const diskUsed = live?.record.disk.used ?? 0;
+  const lines = [
+    `系统: ${node.os || "-"}`,
+    `架构: ${node.arch || "-"}`,
+    `CPU: ${node.cpu_name || "-"} / ${node.cpu_cores || 0} 核`,
+    `内存: ${formatBytes(memoryUsed)} / ${formatBytes(node.mem_total || 0)}`,
+    `存储: ${formatBytes(diskUsed)} / ${formatBytes(node.disk_total || 0)}`,
+    `出口 IP: ${node.ipv4 || node.ipv6 || "-"}`,
+  ];
+
+  if (node.virtualization) {
+    lines.splice(2, 0, `虚拟化: ${node.virtualization}`);
+  }
+
+  return lines.join("\n");
+};
+
 const SortableRow = ({
   node,
   live,
@@ -568,6 +595,8 @@ const SortableRow = ({
   live?: NodeLiveSnapshot;
   settings: any;
 }) => {
+  const configTooltip = buildNodeConfigTooltip({ node, live });
+
   return (
     <TableRow
       className="border-b border-slate-200/70 bg-white/60 text-[12px] transition-colors hover:bg-slate-50/85"
@@ -591,6 +620,7 @@ const SortableRow = ({
         <UsageBar
           percent={live?.record.cpu.usage ?? 0}
           colorClass="bg-sky-500"
+          title={configTooltip}
         />
       </TableCell>
       <TableCell>
@@ -601,6 +631,7 @@ const SortableRow = ({
               : 0
           }
           colorClass="bg-emerald-500"
+          title={configTooltip}
         />
       </TableCell>
       <TableCell>
@@ -611,6 +642,7 @@ const SortableRow = ({
               : 0
           }
           colorClass="bg-amber-500"
+          title={configTooltip}
         />
       </TableCell>
       <TableCell>
