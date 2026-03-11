@@ -16,6 +16,7 @@ import {
   IconButton,
   TextArea,
   SegmentedControl,
+  Switch,
 } from "@/components/ui/compat";
 import {
   CircleDollarSign,
@@ -40,12 +41,6 @@ import {
 import { formatBytes, stringToBytes } from "@/utils/unitHelper";
 import Loading from "@/components/loading";
 import Tips from "@/components/ui/tips";
-import {
-  SettingCardCollapse,
-  SettingCardSelect,
-  SettingCardShortTextInput,
-  SettingCardSwitch,
-} from "@/components/admin/SettingCard";
 import { useSettings } from "@/lib/api";
 import { SelectOrInput } from "@/components/ui/select-or-input";
 import { useRPC2Call } from "@/contexts/RPC2Context";
@@ -108,6 +103,17 @@ const formatNodeIp = (value?: string) => {
   const normalized = String(value || "").trim();
   return normalized || "-";
 };
+
+const NODE_DIALOG_CONTENT_CLASS =
+  "max-h-[85vh] overflow-y-auto rounded-2xl border-slate-200/80 p-5 sm:p-6";
+const NODE_DIALOG_SECTION_CLASS =
+  "rounded-xl border border-slate-200/80 bg-slate-50/60 p-4";
+const NODE_DIALOG_LABEL_CLASS = "text-[13px] font-medium text-slate-700";
+const NODE_DIALOG_HINT_CLASS = "text-[13px] leading-6 text-slate-500";
+const NODE_DIALOG_FOOTER_CLASS =
+  "mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end";
+const NODE_INPUT_CLASS =
+  "rounded-xl border-slate-200 bg-white text-[14px] shadow-none";
 
 const normalizeLiveSnapshot = (value: any): NodeLiveSnapshot => {
   const fallback = createEmptyLiveRecord();
@@ -349,7 +355,7 @@ const Header = ({
   };
   return (
     <Card className="border border-slate-200/70 bg-white/92 p-4 shadow-[0_12px_32px_rgba(15,23,42,0.06)]">
-      <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
+      <div className="flex flex-col gap-4 2xl:flex-row 2xl:items-start 2xl:justify-between">
         <div className="flex flex-wrap items-center gap-2">
           <Text className="text-xl font-semibold tracking-tight text-slate-900">
             {t("admin.nodeTable.nodeList")}
@@ -375,8 +381,8 @@ const Header = ({
           )}
         </div>
 
-        <div className="flex flex-col gap-3 xl:flex-row xl:items-center">
-          <div className="flex flex-wrap items-center gap-2">
+        <div className="flex min-w-0 flex-col gap-3 xl:flex-row xl:items-center xl:justify-end">
+          <div className="flex min-w-0 flex-wrap items-center gap-2">
             <div className="flex shrink-0 items-center gap-3 whitespace-nowrap rounded-2xl border border-slate-200/80 bg-slate-50 px-4 py-2 text-sm text-slate-600">
               <span className="font-medium text-slate-900">总速率</span>
               <span>↑ {formatBytes(totalUploadSpeed)}/s</span>
@@ -390,12 +396,12 @@ const Header = ({
           </div>
           <TextField.Root
             size="3"
-            className="min-w-[260px] rounded-2xl border border-slate-200/80 bg-white shadow-sm"
+            className="w-full min-w-0 rounded-2xl border border-slate-200/80 bg-white shadow-sm xl:w-[280px]"
             placeholder="搜索 IP / 分组"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap gap-2 xl:justify-end">
             <GenerateCommandButton
               nodes={nodes}
               settings={settings}
@@ -424,23 +430,33 @@ const Header = ({
                   删除离线节点
                 </Button>
               </Dialog.Trigger>
-              <Dialog.Content>
+              <Dialog.Content
+                className={NODE_DIALOG_CONTENT_CLASS}
+                maxWidth={460}
+              >
                 <Dialog.Title>删除离线节点</Dialog.Title>
-                <Dialog.Description>
+                <Dialog.Description className="mt-2">
                   将删除当前已确认离线的 {offlineNodes.length} 个节点。这个操作不可撤销。
                 </Dialog.Description>
-                <Flex justify="end" gap="2" mt="4">
-                  <Dialog.Trigger>
-                    <Button variant="soft">取消</Button>
-                  </Dialog.Trigger>
+                <div className={NODE_DIALOG_FOOTER_CLASS}>
+                  <Dialog.Close>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="w-full sm:w-auto"
+                    >
+                      取消
+                    </Button>
+                  </Dialog.Close>
                   <Button
                     color="red"
                     disabled={cleanupLoading || offlineNodes.length === 0}
                     onClick={handleDeleteOffline}
+                    className="w-full sm:w-auto"
                   >
                     确认删除
                   </Button>
-                </Flex>
+                </div>
               </Dialog.Content>
             </Dialog.Root>
             <Dialog.Root open={dialogOpen} onOpenChange={setDialogOpen}>
@@ -450,20 +466,37 @@ const Header = ({
                   {t("admin.nodeTable.addNode")}
                 </Button>
               </Dialog.Trigger>
-              <Dialog.Content>
+              <Dialog.Content
+                className={NODE_DIALOG_CONTENT_CLASS}
+                maxWidth={480}
+              >
                 <Dialog.Title>{t("admin.nodeTable.addNode")}</Dialog.Title>
+                <Dialog.Description className="mt-2">
+                  创建新节点后，可以继续编辑分组、备注和账单信息。
+                </Dialog.Description>
                 <TextField.Root
                   ref={inputRef}
+                  className="mt-4 rounded-xl border-slate-200 bg-white text-[14px] shadow-none"
                   placeholder={t("admin.nodeTable.nameOptional")}
                 />
-                <Flex justify="end" gap="2" mt="4">
+                <div className={NODE_DIALOG_FOOTER_CLASS}>
+                  <Dialog.Close>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="w-full sm:w-auto"
+                    >
+                      取消
+                    </Button>
+                  </Dialog.Close>
                   <Button
+                    className="w-full sm:w-auto"
                     onClick={() => handleAddNode(inputRef.current?.value)}
                     disabled={loading}
                   >
                     {t("admin.nodeTable.addNode")}
                   </Button>
-                </Flex>
+                </div>
               </Dialog.Content>
             </Dialog.Root>
           </div>
@@ -710,6 +743,32 @@ type NodeGroupBucket = {
   totalDownloadTraffic: number;
 };
 
+function DialogSwitchRow({
+  title,
+  description,
+  checked,
+  onCheckedChange,
+}: {
+  title: string;
+  description?: string;
+  checked: boolean;
+  onCheckedChange: (checked: boolean) => void;
+}) {
+  return (
+    <div className="flex items-start justify-between gap-4 rounded-xl border border-slate-200/80 bg-white px-4 py-3">
+      <div className="min-w-0">
+        <div className="text-[14px] font-medium text-slate-900">{title}</div>
+        {description ? (
+          <div className="mt-1 text-[13px] leading-6 text-slate-500">
+            {description}
+          </div>
+        ) : null}
+      </div>
+      <Switch checked={checked} onCheckedChange={onCheckedChange} />
+    </div>
+  );
+}
+
 const NodeTableColumns = () => (
   <TableHeader className="bg-[linear-gradient(135deg,rgba(19,70,134,0.10),rgba(255,255,255,0.92),rgba(89,172,119,0.10))]">
     <TableRow>
@@ -776,13 +835,18 @@ const NodeTable = ({
           当前没有匹配的节点
         </div>
       )}
+      {groupedNodes.length > 0 && (
+        <div className="sm:hidden rounded-xl border border-slate-200/80 bg-slate-50/80 px-3 py-2 text-[12px] text-slate-500">
+          节点表格支持横向滚动，左右滑动可查看 IPv6、总流量和操作列。
+        </div>
+      )}
       {groupedNodes.map((group) => (
         <div
           key={group.label}
           className="overflow-hidden rounded-[28px] border border-white/65 bg-white/78 shadow-[0_24px_60px_rgba(15,23,42,0.08)] backdrop-blur-xl"
         >
           <div className="border-b border-slate-200/70 bg-slate-50/90 px-4 py-3">
-            <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+            <div className="flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
               <div className="flex flex-wrap items-center gap-2">
                 <Text className="text-sm font-semibold text-slate-900">
                   {group.label}
@@ -798,33 +862,35 @@ const NodeTable = ({
                   />
                 )}
               </div>
-              <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-[13px] text-slate-600">
-                <span className="inline-flex items-center gap-1 whitespace-nowrap">
-                  <span className="font-medium text-slate-900">总速率</span>
-                  ↑ {formatBytes(group.totalUploadSpeed)}/s
-                  ↓ {formatBytes(group.totalDownloadSpeed)}/s
-                </span>
-                <span className="inline-flex items-center gap-1 whitespace-nowrap">
-                  <span className="font-medium text-slate-900">总流量</span>
-                  ↑ {formatBytes(group.totalUploadTraffic)}
-                  ↓ {formatBytes(group.totalDownloadTraffic)}
-                </span>
-                <span className="inline-flex items-center gap-1 whitespace-nowrap">
-                  <span className="font-medium text-emerald-700">在线</span>
-                  {group.onlineCount}
-                </span>
-                <span className="inline-flex items-center gap-1 whitespace-nowrap">
-                  <span className="font-medium text-rose-700">离线</span>
-                  {group.nodes.length - group.onlineCount}
-                </span>
-                <span className="inline-flex items-center gap-1 whitespace-nowrap">
-                  <span className="font-medium text-slate-900">机器数</span>
-                  {group.nodes.length}
-                </span>
+              <div className="min-w-0 overflow-x-auto pb-1 xl:pb-0">
+                <div className="flex min-w-max items-center gap-x-4 gap-y-2 text-[13px] text-slate-600">
+                  <span className="inline-flex items-center gap-1 whitespace-nowrap">
+                    <span className="font-medium text-slate-900">总速率</span>
+                    ↑ {formatBytes(group.totalUploadSpeed)}/s
+                    ↓ {formatBytes(group.totalDownloadSpeed)}/s
+                  </span>
+                  <span className="inline-flex items-center gap-1 whitespace-nowrap">
+                    <span className="font-medium text-slate-900">总流量</span>
+                    ↑ {formatBytes(group.totalUploadTraffic)}
+                    ↓ {formatBytes(group.totalDownloadTraffic)}
+                  </span>
+                  <span className="inline-flex items-center gap-1 whitespace-nowrap">
+                    <span className="font-medium text-emerald-700">在线</span>
+                    {group.onlineCount}
+                  </span>
+                  <span className="inline-flex items-center gap-1 whitespace-nowrap">
+                    <span className="font-medium text-rose-700">离线</span>
+                    {group.nodes.length - group.onlineCount}
+                  </span>
+                  <span className="inline-flex items-center gap-1 whitespace-nowrap">
+                    <span className="font-medium text-slate-900">机器数</span>
+                    {group.nodes.length}
+                  </span>
+                </div>
               </div>
             </div>
           </div>
-          <Table>
+          <Table className="min-w-[1360px]">
             <NodeTableColumns />
             <TableBody>
               {group.nodes.map((node) => (
@@ -844,14 +910,110 @@ const NodeTable = ({
 };
 
 type Platform = "linux" | "windows" | "macos";
+type GenerateCommandPreferences = {
+  selectedPlatform: Platform;
+  installOptions: InstallOptions;
+  enableGhproxy: boolean;
+  enableCustomDir: boolean;
+  enableCustomServiceName: boolean;
+  enableIncludeNics: boolean;
+  enableExcludeNics: boolean;
+  enableIncludeMountpoints: boolean;
+  enableMonthRotate: boolean;
+};
+
+const INSTALL_COMMAND_PREFERENCES_STORAGE_KEY =
+  "komari-node-install-command-preferences-v1";
+
+const DEFAULT_INSTALL_OPTIONS: InstallOptions = {
+  disableWebSsh: false,
+  disableAutoUpdate: false,
+  ignoreUnsafeCert: false,
+  memoryIncludeCache: false,
+  ghproxy: "",
+  dir: "",
+  serviceName: "",
+  includeNics: "",
+  excludeNics: "",
+  includeMountpoints: "",
+  monthRotate: "",
+};
+
+const DEFAULT_GENERATE_COMMAND_PREFERENCES: GenerateCommandPreferences = {
+  selectedPlatform: "linux",
+  installOptions: DEFAULT_INSTALL_OPTIONS,
+  enableGhproxy: false,
+  enableCustomDir: false,
+  enableCustomServiceName: false,
+  enableIncludeNics: false,
+  enableExcludeNics: false,
+  enableIncludeMountpoints: false,
+  enableMonthRotate: false,
+};
+
+let cachedGenerateCommandPreferences: GenerateCommandPreferences | null = null;
+
+const loadGenerateCommandPreferences = (): GenerateCommandPreferences => {
+  if (cachedGenerateCommandPreferences) {
+    return cachedGenerateCommandPreferences;
+  }
+
+  if (typeof window === "undefined") {
+    return DEFAULT_GENERATE_COMMAND_PREFERENCES;
+  }
+
+  try {
+    const raw = window.localStorage.getItem(
+      INSTALL_COMMAND_PREFERENCES_STORAGE_KEY
+    );
+    if (!raw) {
+      cachedGenerateCommandPreferences = DEFAULT_GENERATE_COMMAND_PREFERENCES;
+      return DEFAULT_GENERATE_COMMAND_PREFERENCES;
+    }
+
+    const parsed = JSON.parse(raw) as Partial<GenerateCommandPreferences>;
+    const next: GenerateCommandPreferences = {
+      ...DEFAULT_GENERATE_COMMAND_PREFERENCES,
+      ...parsed,
+      selectedPlatform:
+        parsed.selectedPlatform === "windows" ||
+        parsed.selectedPlatform === "macos" ||
+        parsed.selectedPlatform === "linux"
+          ? parsed.selectedPlatform
+          : "linux",
+      installOptions: {
+        ...DEFAULT_INSTALL_OPTIONS,
+        ...(parsed.installOptions || {}),
+      },
+    };
+    cachedGenerateCommandPreferences = next;
+    return next;
+  } catch {
+    cachedGenerateCommandPreferences = DEFAULT_GENERATE_COMMAND_PREFERENCES;
+    return DEFAULT_GENERATE_COMMAND_PREFERENCES;
+  }
+};
+
+const saveGenerateCommandPreferences = (
+  preferences: GenerateCommandPreferences
+) => {
+  cachedGenerateCommandPreferences = preferences;
+  if (typeof window === "undefined") return;
+  window.localStorage.setItem(
+    INSTALL_COMMAND_PREFERENCES_STORAGE_KEY,
+    JSON.stringify(preferences)
+  );
+};
+
 const ActionButtons = ({ node, settings }: { node: NodeDetail, settings: any }) => {
   const { t } = useTranslation();
   return (
-    <div className="flex items-center gap-2">
+    <div className="flex min-w-max items-center gap-1.5">
       <GenerateCommandButton node={node} settings={settings} />
       <IconButton
         title={t("terminal.title")}
         variant="ghost"
+        className="h-8 w-8 rounded-lg"
         onClick={() => {
           window.open(`/terminal?uuid=${node.uuid}`, "_blank");
         }}
@@ -891,23 +1053,39 @@ function DeleteButton({ node }: { node: NodeDetail }) {
   return (
     <Dialog.Root open={open} onOpenChange={setOpen}>
       <Dialog.Trigger>
-        <IconButton variant="ghost" color="red" title={t("delete")}>
+        <IconButton
+          variant="ghost"
+          color="red"
+          title={t("delete")}
+          className="h-8 w-8 rounded-lg"
+        >
           <Trash2Icon size="18" />
         </IconButton>
       </Dialog.Trigger>
-      <Dialog.Content>
+      <Dialog.Content className={NODE_DIALOG_CONTENT_CLASS} maxWidth={420}>
         <Dialog.Title>{t("delete")}</Dialog.Title>
-        <Dialog.Description>
+        <Dialog.Description className="mt-2">
           {t("admin.nodeTable.confirmDelete")}
         </Dialog.Description>
-        <Flex justify="end" gap="2" mt="4">
-          <Dialog.Trigger>
-            <Button variant="soft">{t("admin.nodeTable.cancel")}</Button>
-          </Dialog.Trigger>
-          <Button disabled={deleting} color="red" onClick={handleDelete}>
+        <div className={NODE_DIALOG_FOOTER_CLASS}>
+          <Dialog.Close>
+            <Button
+              type="button"
+              variant="outline"
+              className="w-full sm:w-auto"
+            >
+              {t("admin.nodeTable.cancel")}
+            </Button>
+          </Dialog.Close>
+          <Button
+            disabled={deleting}
+            color="red"
+            onClick={handleDelete}
+            className="w-full sm:w-auto"
+          >
             {t("admin.nodeTable.confirmDelete")}
           </Button>
-        </Flex>
+        </div>
       </Dialog.Content>
     </Dialog.Root>
   );
@@ -943,34 +1121,39 @@ function GenerateCommandButton({
   toolbarLabel?: string;
 }) {
   const availableNodes = nodes ?? (node ? [node] : []);
+  const initialPreferences = React.useMemo(
+    () => loadGenerateCommandPreferences(),
+    []
+  );
   const [selectedNodeId, setSelectedNodeId] = React.useState(
     node?.uuid ?? availableNodes[0]?.uuid ?? ""
   );
-  const [selectedPlatform, setSelectedPlatform] =
-    React.useState<Platform>("linux");
-  const [installOptions, setInstallOptions] = React.useState<InstallOptions>({
-    disableWebSsh: false,
-    disableAutoUpdate: false,
-    ignoreUnsafeCert: false,
-    memoryIncludeCache: false,
-    ghproxy: "",
-    dir: "",
-    serviceName: "",
-    includeNics: "",
-    excludeNics: "",
-    includeMountpoints: "",
-    monthRotate: "",
-  });
+  const [selectedPlatform, setSelectedPlatform] = React.useState<Platform>(
+    initialPreferences.selectedPlatform
+  );
+  const [installOptions, setInstallOptions] = React.useState<InstallOptions>(
+    initialPreferences.installOptions
+  );
 
-  const [enableGhproxy, setEnableGhproxy] = React.useState(false);
-  const [enableCustomDir, setEnableCustomDir] = React.useState(false);
+  const [enableGhproxy, setEnableGhproxy] = React.useState(
+    initialPreferences.enableGhproxy
+  );
+  const [enableCustomDir, setEnableCustomDir] = React.useState(
+    initialPreferences.enableCustomDir
+  );
   const [enableCustomServiceName, setEnableCustomServiceName] =
-    React.useState(false);
-  const [enableIncludeNics, setEnableIncludeNics] = React.useState(false);
-  const [enableExcludeNics, setEnableExcludeNics] = React.useState(false);
+    React.useState(initialPreferences.enableCustomServiceName);
+  const [enableIncludeNics, setEnableIncludeNics] = React.useState(
+    initialPreferences.enableIncludeNics
+  );
+  const [enableExcludeNics, setEnableExcludeNics] = React.useState(
+    initialPreferences.enableExcludeNics
+  );
   const [enableIncludeMountpoints, setEnableIncludeMountpoints] =
-    React.useState(false);
-  const [enableMonthRotate, setEnableMonthRotate] = React.useState(false);
+    React.useState(initialPreferences.enableIncludeMountpoints);
+  const [enableMonthRotate, setEnableMonthRotate] = React.useState(
+    initialPreferences.enableMonthRotate
+  );
   const scopedGroupName =
     groupMode && presetGroupName && presetGroupName !== DEFAULT_GROUP_NAME
       ? presetGroupName.trim()
@@ -998,11 +1181,41 @@ function GenerateCommandButton({
     node ??
     availableNodes.find((item) => item.uuid === selectedNodeId) ??
     availableNodes[0];
+  const hasMountedPreferenceSync = React.useRef(false);
 
   React.useEffect(() => {
     if (!groupMode) return;
     setGroupName(scopedGroupName);
   }, [groupMode, scopedGroupName]);
+
+  React.useEffect(() => {
+    if (!hasMountedPreferenceSync.current) {
+      hasMountedPreferenceSync.current = true;
+      return;
+    }
+
+    saveGenerateCommandPreferences({
+      selectedPlatform,
+      installOptions,
+      enableGhproxy,
+      enableCustomDir,
+      enableCustomServiceName,
+      enableIncludeNics,
+      enableExcludeNics,
+      enableIncludeMountpoints,
+      enableMonthRotate,
+    });
+  }, [
+    enableCustomDir,
+    enableCustomServiceName,
+    enableExcludeNics,
+    enableGhproxy,
+    enableIncludeMountpoints,
+    enableIncludeNics,
+    enableMonthRotate,
+    installOptions,
+    selectedPlatform,
+  ]);
 
   React.useEffect(() => {
     if (useAutoDiscovery || groupMode) {
@@ -1181,18 +1394,25 @@ function GenerateCommandButton({
           <Button
             variant="soft"
             color={groupMode ? "green" : "blue"}
-            className="rounded-2xl"
+            className="shrink-0 rounded-2xl"
           >
             <Download size={16} />
             {toolbarLabel || (groupMode ? "创建分组" : "一键安装命令")}
           </Button>
         ) : (
-        <IconButton variant="ghost" title={t("admin.nodeTable.installCommand")}>
+        <IconButton
+          variant="ghost"
+          title={t("admin.nodeTable.installCommand")}
+          className="h-8 w-8 rounded-lg"
+        >
           <Download size="18" />
         </IconButton>
         )}
       </Dialog.Trigger>
-      <Dialog.Content>
+      <Dialog.Content
+        className={NODE_DIALOG_CONTENT_CLASS}
+        maxWidth={1040}
+      >
         <Dialog.Title>
           {groupMode
             ? scopedGroupName
@@ -1204,7 +1424,10 @@ function GenerateCommandButton({
               ? `${t("admin.nodeTable.installCommand", "一键部署指令")} · ${activeNode?.name || "-"}`
               : t("admin.nodeTable.installCommand", "一键部署指令")}
         </Dialog.Title>
-        <div className="flex flex-col gap-4">
+        <Dialog.Description className="mt-2">
+          平台选择和安装参数会自动记住，下次打开会沿用上一次的设置。
+        </Dialog.Description>
+        <div className="mt-4 flex flex-col gap-4">
           {useAutoDiscovery && !groupMode && (
             <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
               当前使用通用自动接入命令。任意服务器执行后会自动注册到你的面板。
@@ -1216,12 +1439,13 @@ function GenerateCommandButton({
             </div>
           )}
           {groupMode && (
-            <div className="flex flex-col gap-3 rounded-2xl border border-slate-200/80 bg-slate-50 px-4 py-4">
+            <div className={`${NODE_DIALOG_SECTION_CLASS} flex flex-col gap-3`}>
               <div className="flex flex-col gap-2">
-                <label className="text-base font-bold text-slate-900">
+                <label className="text-[14px] font-semibold text-slate-900">
                   分组名称
                 </label>
                 <TextField.Root
+                  className={NODE_INPUT_CLASS}
                   placeholder="例如：香港 / 日本 / 生产环境"
                   value={groupName}
                   onChange={(event) => setGroupName(event.target.value)}
@@ -1251,10 +1475,12 @@ function GenerateCommandButton({
             </div>
           )}
           {!groupMode && !useAutoDiscovery && !node && availableNodes.length > 0 && (
-            <div className="flex flex-col gap-2">
-              <label className="text-base font-bold">选择节点</label>
+            <div className={NODE_DIALOG_SECTION_CLASS}>
+              <label className="text-[14px] font-semibold text-slate-900">
+                选择节点
+              </label>
               <select
-                className="h-10 rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none"
+                className="mt-3 h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none"
                 value={selectedNodeId}
                 onChange={(event) => setSelectedNodeId(event.target.value)}
               >
@@ -1276,22 +1502,31 @@ function GenerateCommandButton({
               先到“系统设置 &gt; 通用”里设置自动发现密钥，创建分组命令才会生效。
             </div>
           )}
-          <SegmentedControl.Root
-            value={selectedPlatform}
-            onValueChange={(value) => setSelectedPlatform(value as Platform)}
-          >
-            <SegmentedControl.Item value="linux">Linux</SegmentedControl.Item>
-            <SegmentedControl.Item value="windows">
-              Windows
-            </SegmentedControl.Item>
-            <SegmentedControl.Item value="macos">macOS</SegmentedControl.Item>
-          </SegmentedControl.Root>
+          <div className="grid gap-4 xl:grid-cols-[minmax(0,1.3fr)_minmax(320px,0.9fr)]">
+            <div className="flex flex-col gap-4">
+              <div className={NODE_DIALOG_SECTION_CLASS}>
+                <label className="text-[14px] font-semibold text-slate-900">
+                  安装平台
+                </label>
+                <div className="mt-3">
+                  <SegmentedControl.Root
+                    value={selectedPlatform}
+                    onValueChange={(value) => setSelectedPlatform(value as Platform)}
+                  >
+                    <SegmentedControl.Item value="linux">Linux</SegmentedControl.Item>
+                    <SegmentedControl.Item value="windows">
+                      Windows
+                    </SegmentedControl.Item>
+                    <SegmentedControl.Item value="macos">macOS</SegmentedControl.Item>
+                  </SegmentedControl.Root>
+                </div>
+              </div>
 
-          <Flex direction="column" gap="2">
-            <label className="text-base font-bold">
-              {t("admin.nodeTable.installOptions", "安装选项")}
-            </label>
-            <div className="grid grid-cols-2 gap-2">
+              <div className={NODE_DIALOG_SECTION_CLASS}>
+                <label className="text-[14px] font-semibold text-slate-900">
+                  {t("admin.nodeTable.installOptions", "安装选项")}
+                </label>
+                <div className="mt-3 grid gap-3 md:grid-cols-2">
               <Flex gap="2" align="center">
                 <Checkbox
                   checked={installOptions.disableWebSsh}
@@ -1383,8 +1618,14 @@ function GenerateCommandButton({
                   {t("admin.nodeTable.memoryModeAvailable_tip")}
                 </Tips>
               </Flex>
-            </div>
-            <Flex direction="column" gap="2">
+                </div>
+              </div>
+
+              <div className={NODE_DIALOG_SECTION_CLASS}>
+                <label className="text-[14px] font-semibold text-slate-900">
+                  高级参数
+                </label>
+                <div className="mt-3 flex flex-col gap-3">
               <Flex gap="2" align="center">
                 <Checkbox
                   checked={enableGhproxy}
@@ -1420,6 +1661,7 @@ function GenerateCommandButton({
                   //   "GitHub 代理，为空则不使用代理"
                   // )}
                   placeholder="https://ghfast.top/"
+                  className={NODE_INPUT_CLASS}
                   value={installOptions.ghproxy}
                   onChange={(e) =>
                     setInstallOptions((prev) => ({
@@ -1460,6 +1702,7 @@ function GenerateCommandButton({
               </Flex>
               {enableCustomDir && (
                 <TextField.Root
+                  className={NODE_INPUT_CLASS}
                   placeholder={t(
                     "admin.nodeTable.install_dir_placeholder",
                     "安装目录，为空则使用默认目录(/opt/komari-agent)"
@@ -1504,6 +1747,7 @@ function GenerateCommandButton({
               </Flex>
               {enableCustomServiceName && (
                 <TextField.Root
+                  className={NODE_INPUT_CLASS}
                   placeholder={t(
                     "admin.nodeTable.serviceName_placeholder",
                     "服务名称，为空则使用默认名称(komari-agent)"
@@ -1547,6 +1791,7 @@ function GenerateCommandButton({
               </Flex>
               {enableIncludeNics && (
                 <TextField.Root
+                  className={NODE_INPUT_CLASS}
                   // placeholder={t(
                   //   "admin.nodeTable.includeNics_placeholder",
                   //   "多个网卡使用逗号隔开"
@@ -1591,6 +1836,7 @@ function GenerateCommandButton({
               </Flex>
               {enableExcludeNics && (
                 <TextField.Root
+                  className={NODE_INPUT_CLASS}
                   // placeholder={t(
                   //   "admin.nodeTable.excludeNics_placeholder",
                   //   "多个网卡使用逗号隔开"
@@ -1635,6 +1881,7 @@ function GenerateCommandButton({
               </Flex>
               {enableIncludeMountpoints && (
                 <TextField.Root
+                  className={NODE_INPUT_CLASS}
                   placeholder="/;/home;/var"
                   value={installOptions.includeMountpoints}
                   onChange={(e) =>
@@ -1691,6 +1938,7 @@ function GenerateCommandButton({
               </Flex>
               {enableMonthRotate && (
                 <TextField.Root
+                  className={NODE_INPUT_CLASS}
                   placeholder="1"
                   type="number"
                   min="1"
@@ -1704,31 +1952,48 @@ function GenerateCommandButton({
                   }
                 />
               )}
-            </Flex>
-          </Flex>
-          <Flex direction="column" gap="2">
-            <label className="text-base font-bold">
-              {t("admin.nodeTable.generatedCommand", "生成的指令")}
-            </label>
-            <div className="relative">
-              <TextArea
-                disabled
-                className="w-full"
-                style={{ minHeight: "80px" }}
-                value={generateCommand()}
-              />
+                </div>
+              </div>
             </div>
-          </Flex>
-          <Flex justify="center">
-            <Button
-              style={{ width: "100%" }}
-              disabled={copyDisabled}
-              onClick={() => copyToClipboard(generateCommand())}
-            >
-              <Copy size={16} />
-              {t("copy")}
-            </Button>
-          </Flex>
+
+            <div className="flex flex-col gap-4">
+              <div className={NODE_DIALOG_SECTION_CLASS}>
+                <label className="text-[14px] font-semibold text-slate-900">
+                  {t("admin.nodeTable.generatedCommand", "生成的指令")}
+                </label>
+                <p className={`mt-1 ${NODE_DIALOG_HINT_CLASS}`}>
+                  复制后直接在目标服务器执行即可。
+                </p>
+                <div className="relative mt-3">
+                  <TextArea
+                    disabled
+                    className="min-h-[220px] w-full rounded-xl border border-slate-200 bg-white font-mono text-[13px] leading-6 text-slate-700"
+                    value={generateCommand()}
+                  />
+                </div>
+              </div>
+
+              <div className={NODE_DIALOG_FOOTER_CLASS}>
+                <Dialog.Close>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="w-full sm:w-auto"
+                  >
+                    关闭
+                  </Button>
+                </Dialog.Close>
+                <Button
+                  className="w-full sm:w-auto"
+                  disabled={copyDisabled}
+                  onClick={() => copyToClipboard(generateCommand())}
+                >
+                  <Copy size={16} />
+                  {t("copy")}
+                </Button>
+              </div>
+            </div>
+          </div>
         </div>
       </Dialog.Content>
     </Dialog.Root>
@@ -1789,139 +2054,173 @@ function EditButton({ node }: { node: NodeDetail }) {
         <IconButton
           variant="ghost"
           title={t("admin.nodeEdit.editInfo", "编辑信息")}
+          className="h-8 w-8 rounded-lg"
         >
           <Pencil size="18" />
         </IconButton>
       </Dialog.Trigger>
-      <Dialog.Content>
+      <Dialog.Content className={NODE_DIALOG_CONTENT_CLASS} maxWidth={780}>
         <Dialog.Title>{t("admin.nodeEdit.editInfo", "编辑信息")}</Dialog.Title>
-        <div className="flex flex-col gap-4">
-          <div>
-            <label className="block mb-1 text-sm font-medium text-muted-foreground">
-              {t("admin.nodeEdit.name", "名称")}
-            </label>
-            <TextField.Root
-              defaultValue={node.name}
-              placeholder={t("admin.nodeEdit.namePlaceholder", "请输入名称")}
-              ref={nameRef}
-            />
+        <Dialog.Description className="mt-2">
+          调整节点名称、分组、备注和流量限制。
+        </Dialog.Description>
+        <div className="mt-4 grid gap-4 lg:grid-cols-[minmax(0,1fr)_280px]">
+          <div className="flex flex-col gap-4">
+            <div className={NODE_DIALOG_SECTION_CLASS}>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div>
+                  <label className={`mb-2 block ${NODE_DIALOG_LABEL_CLASS}`}>
+                    {t("admin.nodeEdit.name", "名称")}
+                  </label>
+                  <TextField.Root
+                    className={NODE_INPUT_CLASS}
+                    defaultValue={node.name}
+                    placeholder={t("admin.nodeEdit.namePlaceholder", "请输入名称")}
+                    ref={nameRef}
+                  />
+                </div>
+                <div>
+                  <label className={`mb-2 block ${NODE_DIALOG_LABEL_CLASS}`}>
+                    {t("common.group")}
+                  </label>
+                  <TextField.Root
+                    className={NODE_INPUT_CLASS}
+                    defaultValue={node.group}
+                    ref={groupRef}
+                  />
+                </div>
+                <div className="sm:col-span-2">
+                  <label className={`mb-2 flex items-center gap-1 ${NODE_DIALOG_LABEL_CLASS}`}>
+                    <span>{t("common.tags")}</span>
+                    <span className="text-[12px] font-normal text-slate-500">
+                      {t("common.tagsDescription")}
+                    </span>
+                    <Tips>
+                      <span
+                        dangerouslySetInnerHTML={{ __html: t("common.tagsTips") }}
+                      />
+                    </Tips>
+                  </label>
+                  <TextField.Root
+                    className={NODE_INPUT_CLASS}
+                    defaultValue={node.tags}
+                    ref={tagsRef}
+                  />
+                </div>
+                <div className="sm:col-span-2">
+                  <label className={`mb-2 block ${NODE_DIALOG_LABEL_CLASS}`}>
+                    {t("admin.nodeEdit.token", "Token 令牌")}
+                  </label>
+                  <TextField.Root
+                    className={`${NODE_INPUT_CLASS} font-mono text-[13px]`}
+                    value={node.token}
+                    placeholder={t("admin.nodeEdit.tokenPlaceholder", "请输入 Token")}
+                    readOnly
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className={NODE_DIALOG_SECTION_CLASS}>
+              <div className="grid gap-4">
+                <div>
+                  <label className={`mb-2 block ${NODE_DIALOG_LABEL_CLASS}`}>
+                    {t("admin.nodeEdit.remark", "私有备注")}
+                  </label>
+                  <TextArea
+                    className="min-h-[120px] rounded-xl border border-slate-200 bg-white text-[14px] leading-6"
+                    defaultValue={node.remark}
+                    ref={privateRemarkRef}
+                    resize={"vertical"}
+                    placeholder={t(
+                      "admin.nodeEdit.remarkPlaceholder",
+                      "请输入私有备注"
+                    )}
+                  />
+                </div>
+                <div>
+                  <label className={`mb-2 block ${NODE_DIALOG_LABEL_CLASS}`}>
+                    {t("admin.nodeEdit.publicRemark", "公开备注")}
+                  </label>
+                  <TextArea
+                    className="min-h-[120px] rounded-xl border border-slate-200 bg-white text-[14px] leading-6"
+                    defaultValue={node.public_remark}
+                    resize={"vertical"}
+                    placeholder={t(
+                      "admin.nodeEdit.publicRemarkPlaceholder",
+                      "请输入公开备注"
+                    )}
+                    ref={publicRemarkRef}
+                  />
+                </div>
+              </div>
+            </div>
           </div>
-          <div>
-            <label className="block mb-1 text-sm font-medium text-muted-foreground">
-              {t("admin.nodeEdit.token", "Token 令牌")}
-            </label>
-            <TextField.Root
-              value={node.token}
-              placeholder={t("admin.nodeEdit.tokenPlaceholder", "请输入 Token")}
-              readOnly
-            />
-          </div>
-          <div>
-            <label className="mb-1 text-sm font-medium text-muted-foreground flex items-center">
-              {t("common.tags")}
-              <label className="text-muted-foreground ml-1 text-[13px] self-end">
-                {t("common.tagsDescription")}
+
+          <div className="flex flex-col gap-4">
+            <div className={NODE_DIALOG_SECTION_CLASS}>
+              <label className="text-[14px] font-semibold text-slate-900">
+                {t("admin.nodeEdit.trafficLimit")}
               </label>
-              <Tips>
-                <span
-                  dangerouslySetInnerHTML={{ __html: t("common.tagsTips") }}
-                />
-              </Tips>
-            </label>
-            <TextField.Root defaultValue={node.tags} ref={tagsRef} />
-          </div>
-          <div>
-            <label className="block mb-1 text-sm font-medium text-muted-foreground">
-              {t("common.group")}
-            </label>
-            <TextField.Root defaultValue={node.group} ref={groupRef} />
-          </div>
-          <div>
-            <label className="block mb-1 text-sm font-medium text-muted-foreground">
-              {t("admin.nodeEdit.remark", "私有备注")}
-            </label>
-            <TextArea
-              defaultValue={node.remark}
-              ref={privateRemarkRef}
-              resize={"vertical"}
-              placeholder={t(
-                "admin.nodeEdit.remarkPlaceholder",
-                "请输入私有备注"
-              )}
-            />
-          </div>
-          <div>
-            <label className="block mb-1 text-sm font-medium text-muted-foreground">
-              {t("admin.nodeEdit.publicRemark", "公开备注")}
-            </label>
-            <TextArea
-              defaultValue={node.public_remark}
-              resize={"vertical"}
-              placeholder={t(
-                "admin.nodeEdit.publicRemarkPlaceholder",
-                "请输入公开备注"
-              )}
-              ref={publicRemarkRef}
-            />
-          </div>
-          <div>
-            <SettingCardSwitch
+              <p className={`mt-1 ${NODE_DIALOG_HINT_CLASS}`}>
+                {t("admin.nodeEdit.trafficLimit_description")}
+              </p>
+              <div className="mt-4 space-y-4">
+                <div>
+                  <label className={`mb-2 block ${NODE_DIALOG_LABEL_CLASS}`}>
+                    {t("admin.nodeEdit.trafficLimitType")}
+                  </label>
+                  <select
+                    className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none"
+                    value={traffic_limit_type}
+                    onChange={(event) => setTrafficLimitType(event.target.value)}
+                  >
+                    <option value="sum">{t("admin.nodeEdit.trafficLimitType_sum")}</option>
+                    <option value="max">{t("admin.nodeEdit.trafficLimitType_max")}</option>
+                    <option value="min">{t("admin.nodeEdit.trafficLimitType_min")}</option>
+                    <option value="up">{t("admin.nodeEdit.trafficLimitType_up")}</option>
+                    <option value="down">{t("admin.nodeEdit.trafficLimitType_down")}</option>
+                  </select>
+                </div>
+                <div>
+                  <label className={`mb-2 block ${NODE_DIALOG_LABEL_CLASS}`}>
+                    {t("admin.nodeEdit.trafficLimit")}
+                  </label>
+                  <TextField.Root
+                    className={NODE_INPUT_CLASS}
+                    defaultValue={formatBytes(traffic_limit || 0)}
+                    onChange={(e) => {
+                      setTrafficLimit(stringToBytes(e.currentTarget.value));
+                    }}
+                    onBlur={(e) => {
+                      e.currentTarget.value = formatBytes(traffic_limit);
+                    }}
+                  />
+                </div>
+              </div>
+            </div>
+
+            <DialogSwitchRow
               title={t("admin.nodeEdit.hidden")}
               description={t("admin.nodeEdit.hidden_description")}
-              defaultChecked={hidden}
-              onChange={setHidden}
+              checked={hidden}
+              onCheckedChange={setHidden}
             />
           </div>
-          <SettingCardCollapse title={t("admin.nodeEdit.trafficLimit")}>
-            <SettingCardSelect
-              bordless
-              title={t("admin.nodeEdit.trafficLimitType")}
-              defaultValue={node.traffic_limit_type || "max"}
-              options={[
-                {
-                  label: t("admin.nodeEdit.trafficLimitType_sum"),
-                  value: "sum",
-                },
-                {
-                  label: t("admin.nodeEdit.trafficLimitType_max"),
-                  value: "max",
-                },
-                {
-                  label: t("admin.nodeEdit.trafficLimitType_min"),
-                  value: "min",
-                },
-                {
-                  label: t("admin.nodeEdit.trafficLimitType_up"),
-                  value: "up",
-                },
-                {
-                  label: t("admin.nodeEdit.trafficLimitType_down"),
-                  value: "down",
-                },
-              ]}
-              OnSave={(value) => {
-                setTrafficLimitType(value);
-              }}
-            />
-            <SettingCardShortTextInput
-              bordless
-              title={t("admin.nodeEdit.trafficLimit")}
-              description={t("admin.nodeEdit.trafficLimit_description")}
-              defaultValue={formatBytes(traffic_limit || 0)}
-              showSaveButton={false}
-              onChange={(e) => {
-                setTrafficLimit(stringToBytes(e.currentTarget.value));
-              }}
-              onBlur={(e) => {
-                e.currentTarget.value = formatBytes(traffic_limit);
-              }}
-            ></SettingCardShortTextInput>
-          </SettingCardCollapse>
         </div>
-        <Flex gap="2" justify={"end"} className="mt-4">
+        <div className={NODE_DIALOG_FOOTER_CLASS}>
+          <Dialog.Close>
+            <Button
+              type="button"
+              variant="outline"
+              className="w-full sm:w-auto"
+            >
+              {t("admin.nodeTable.cancel")}
+            </Button>
+          </Dialog.Close>
           <Button
             type="submit"
-            className="w-full"
+            className="w-full sm:w-auto"
             disabled={saving}
             onClick={save}
           >
@@ -1929,7 +2228,7 @@ function EditButton({ node }: { node: NodeDetail }) {
               ? t("admin.nodeEdit.waiting", "等待...")
               : t("save", "保存")}
           </Button>
-        </Flex>
+        </div>
       </Dialog.Content>
     </Dialog.Root>
   );
@@ -1995,98 +2294,139 @@ function BillingButton({ node }: { node: NodeDetail }) {
         <IconButton
           variant="ghost"
           title={t("admin.nodeTable.billing", "账单")}
+          className="h-8 w-8 rounded-lg"
         >
           <CircleDollarSign size="18" />
         </IconButton>
       </Dialog.Trigger>
-      <Dialog.Content>
+      <Dialog.Content className={NODE_DIALOG_CONTENT_CLASS} maxWidth={680}>
         <Dialog.Title>{t("admin.nodeTable.billing", "账单")}</Dialog.Title>
+        <Dialog.Description className="mt-2">
+          配置当前节点的价格、周期、到期时间和自动续费状态。
+        </Dialog.Description>
         <form onSubmit={handleSave}>
-          <Flex direction="column" gap="2">
-            <label className="font-bold">
-              <label>{t("admin.nodeTable.price")}</label>
-              <label className="text-muted-foreground text-sm ml-1 font-medium">
-                {t("admin.nodeTable.priceTips")}
-              </label>
-            </label>
-            <TextField.Root name="price" defaultValue={node.price} />
+          <div className="mt-4 flex flex-col gap-4">
+            <div className={NODE_DIALOG_SECTION_CLASS}>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div>
+                  <label className={`mb-2 block ${NODE_DIALOG_LABEL_CLASS}`}>
+                    {t("admin.nodeTable.price")}
+                    <span className="ml-1 text-[12px] font-normal text-slate-500">
+                      {t("admin.nodeTable.priceTips")}
+                    </span>
+                  </label>
+                  <TextField.Root
+                    className={NODE_INPUT_CLASS}
+                    name="price"
+                    defaultValue={node.price}
+                  />
+                </div>
 
-            <label className="font-bold">
-              <label>{t("admin.nodeTable.currency", "货币")}</label>
-              <label className="text-muted-foreground text-sm ml-1 font-medium">
-                {t("admin.nodeTable.currencyTips")}
-              </label>
-            </label>
-            <TextField.Root
-              name="currency"
-              defaultValue={currency}
-              onChange={(e) => setCurrency(e.target.value)}
-            />
+                <div>
+                  <label className={`mb-2 block ${NODE_DIALOG_LABEL_CLASS}`}>
+                    {t("admin.nodeTable.currency", "货币")}
+                    <span className="ml-1 text-[12px] font-normal text-slate-500">
+                      {t("admin.nodeTable.currencyTips")}
+                    </span>
+                  </label>
+                  <TextField.Root
+                    className={NODE_INPUT_CLASS}
+                    name="currency"
+                    defaultValue={currency}
+                    onChange={(e) => setCurrency(e.target.value)}
+                  />
+                </div>
 
-            <label className="font-bold flex items-center gap-1">
-              {t("admin.nodeTable.billingCycle")} <Tips><span dangerouslySetInnerHTML={{ __html: t("admin.nodeTable.billingCycleTips") }}></span></Tips>
-            </label>
-            <SelectOrInput
-            options={[
-              { label: t("common.monthly"), value: "30" },
-              { label: t("common.quarterly"), value: "92" },
-              { label: t("common.semi_annual"), value: "184" },
-              { label: t("common.annual"), value: "365" },
-              { label: t("common.biennial"), value: "730" },
-              { label: t("common.triennial"), value: "1095" },
-              { label: t("common.quinquennial"), value: "1825" },
-              { label: t("common.once"), value: "-1" },
-            ]}
-            type="number"
-            name="billingCycle"
-            value={billingCycle === "0" ? "" : billingCycle}
-            onChange={setBillingCycle}
-          />
+                <div>
+                  <label className={`mb-2 flex items-center gap-1 ${NODE_DIALOG_LABEL_CLASS}`}>
+                    {t("admin.nodeTable.billingCycle")}
+                    <Tips>
+                      <span
+                        dangerouslySetInnerHTML={{
+                          __html: t("admin.nodeTable.billingCycleTips"),
+                        }}
+                      />
+                    </Tips>
+                  </label>
+                  <SelectOrInput
+                    className={NODE_INPUT_CLASS}
+                    options={[
+                      { label: t("common.monthly"), value: "30" },
+                      { label: t("common.quarterly"), value: "92" },
+                      { label: t("common.semi_annual"), value: "184" },
+                      { label: t("common.annual"), value: "365" },
+                      { label: t("common.biennial"), value: "730" },
+                      { label: t("common.triennial"), value: "1095" },
+                      { label: t("common.quinquennial"), value: "1825" },
+                      { label: t("common.once"), value: "-1" },
+                    ]}
+                    type="number"
+                    name="billingCycle"
+                    value={billingCycle === "0" ? "" : billingCycle}
+                    onChange={setBillingCycle}
+                  />
+                </div>
 
-            <Flex gap="2" align="center">
-              <label className="font-bold">
-                {t("admin.nodeTable.expiredAt")}
-              </label>
-            </Flex>
-            <TextField.Root
-              name="expiredAt"
-              defaultValue={
-                node.expired_at
-                  ? new Date(node.expired_at).toISOString().slice(0, 10)
-                  : "0001-01-01"
-              }
-              type="date"
-            >
-              <TextField.Slot side="right">
-                <Button
-                  type="button"
-                  variant="ghost"
-                  onClick={() => {
-                    const dateInput = document.querySelector(
-                      'input[name="expiredAt"]'
-                    ) as HTMLInputElement;
-                    if (dateInput) {
-                      const futureDate = new Date();
-                      futureDate.setFullYear(futureDate.getFullYear() + 200);
-                      dateInput.value = futureDate.toISOString().slice(0, 10);
+                <div>
+                  <label className={`mb-2 block ${NODE_DIALOG_LABEL_CLASS}`}>
+                    {t("admin.nodeTable.expiredAt")}
+                  </label>
+                  <TextField.Root
+                    className={NODE_INPUT_CLASS}
+                    name="expiredAt"
+                    defaultValue={
+                      node.expired_at
+                        ? new Date(node.expired_at).toISOString().slice(0, 10)
+                        : "0001-01-01"
                     }
-                  }}
-                >
-                  {t("admin.nodeTable.setToLongTerm", "设置为长期")}
-                </Button>
-              </TextField.Slot>
-            </TextField.Root>
-            <Flex gap="2" align="center"></Flex>
-            <SettingCardSwitch
+                    type="date"
+                  >
+                    <TextField.Slot side="right">
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        className="h-8 rounded-lg text-[13px]"
+                        onClick={() => {
+                          const dateInput = document.querySelector(
+                            'input[name="expiredAt"]'
+                          ) as HTMLInputElement;
+                          if (dateInput) {
+                            const futureDate = new Date();
+                            futureDate.setFullYear(futureDate.getFullYear() + 200);
+                            dateInput.value = futureDate.toISOString().slice(0, 10);
+                          }
+                        }}
+                      >
+                        {t("admin.nodeTable.setToLongTerm", "设置为长期")}
+                      </Button>
+                    </TextField.Slot>
+                  </TextField.Root>
+                </div>
+              </div>
+            </div>
+
+            <DialogSwitchRow
               title={t("admin.nodeTable.autoRenewal")}
               description={t("admin.nodeTable.autoRenewalDescription")}
-              defaultChecked={node.auto_renewal || false}
-              onChange={setAutoRenewal}
+              checked={autoRenewal}
+              onCheckedChange={setAutoRenewal}
             />
-            <Button type="submit" disabled={saving}>
-              {t("save")}
-            </Button>
-          </Flex>
+
+            <div className={NODE_DIALOG_FOOTER_CLASS}>
+              <Dialog.Close>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="w-full sm:w-auto"
+                >
+                  {t("admin.nodeTable.cancel")}
+                </Button>
+              </Dialog.Close>
+              <Button type="submit" disabled={saving} className="w-full sm:w-auto">
+                {t("save")}
+              </Button>
+            </div>
+          </div>
         </form>
       </Dialog.Content>
     </Dialog.Root>
