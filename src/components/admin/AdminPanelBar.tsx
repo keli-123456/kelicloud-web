@@ -321,25 +321,25 @@ const AdminPanelBar = ({ content }: AdminPanelBarProps) => {
         columns={{ initial: "1fr", md: sidebarCollapsed ? "84px 1fr" : "240px 1fr" }}
         rows={{ initial: "auto 1fr", md: "auto 1fr" }}
         style={{
-          height: "100vh",
+          minHeight: "100vh",
           width: "100vw",
-          overflow: "auto",
-          backgroundColor: "var(--accent-1)",
+          overflow: "hidden",
+          background:
+            "linear-gradient(180deg, rgba(243,248,255,1) 0%, rgba(236,246,255,1) 46%, rgba(245,250,246,1) 100%)",
         }}
       >
         {/* Navbar */}
         <motion.nav
-          className="col-span-2"
+          className="col-span-2 px-2 pt-2 md:px-4 md:pt-4"
           initial={{ y: 0 }}
           animate={{ y: 0 }}
           transition={{ duration: 0.5, ease: "easeOut" }}
         >
           <Flex
             gap="3"
-            p="2"
             justify="between"
             align="center"
-            className="border-b-1"
+            className="rounded-[28px] border border-white/70 bg-white/82 px-3 py-3 shadow-[0_18px_45px_rgba(15,23,42,0.08)] backdrop-blur-xl md:px-4"
           >
             <Flex gap="3" align="center">
               <IconButton
@@ -372,7 +372,9 @@ const AdminPanelBar = ({ content }: AdminPanelBarProps) => {
                 )}
               </IconButton>
               <a href="/" target="_blank" rel="noopener noreferrer">
-                <label className="text-xl font-bold">Komari</label>
+                <label className="text-xl font-semibold tracking-tight text-slate-900">
+                  Komari
+                </label>
               </a>
               {updateAvailable && releasesSince.length > 0 && (
                 <Tips
@@ -471,17 +473,18 @@ const AdminPanelBar = ({ content }: AdminPanelBarProps) => {
             animate={sidebarState}
             exit={isMobile ? "mobileClosed" : "desktopCollapsed"}
             style={{
-              backgroundColor: "var(--accent-1)",
               height: "100%",
               position: isMobile ? "absolute" : "relative",
               zIndex: isMobile ? 10 : 1,
               overflowY: "auto",
               overflowX: "hidden",
+              boxSizing: "border-box",
+              padding: isMobile ? "0 8px 8px 8px" : "0 0 16px 16px",
             }}
           >
             <Flex
               gap="3"
-              className="p-2 border-r-1"
+              className="rounded-[28px] border border-white/70 bg-white/78 p-3 shadow-[0_24px_60px_rgba(15,23,42,0.08)] backdrop-blur-xl"
               direction="column"
               justify="start"
               align={isDesktopCollapsed ? "center" : "start"}
@@ -719,18 +722,18 @@ const AdminPanelBar = ({ content }: AdminPanelBarProps) => {
           variants={contentVariants}
           animate={isMobile && sidebarOpen ? "open" : "closed"}
           style={{
-            backgroundColor: "var(--accent-3)",
             display: isMobile && sidebarOpen ? "none" : "block",
-            height: "100%", // Ensure the container takes full height
-            overflow: "hidden", // Prevent this container from scrolling
+            height: "100%",
+            overflow: "hidden",
+            boxSizing: "border-box",
+            padding: isMobile ? "0 8px 8px 8px" : "0 16px 16px 16px",
           }}
         >
           <div
+            className="h-full rounded-[32px] border border-white/70 bg-[radial-gradient(circle_at_top_left,rgba(224,242,254,0.65),transparent_34%),radial-gradient(circle_at_bottom_right,rgba(220,252,231,0.55),transparent_32%),linear-gradient(180deg,rgba(255,255,255,0.78),rgba(248,251,255,0.96))] shadow-[0_28px_70px_rgba(15,23,42,0.08)] backdrop-blur-xl"
             style={{
-              backgroundColor: "var(--accent-1)",
               height: "100%",
-              borderRadius: "0",
-              padding: isMobile ? "8px" : "16px",
+              padding: isMobile ? "10px" : "18px",
               overflowY: "auto",
               boxSizing: "border-box",
             }}

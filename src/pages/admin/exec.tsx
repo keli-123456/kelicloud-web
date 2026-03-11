@@ -4,17 +4,19 @@ import { NodeDetailsProvider, useNodeDetails } from "@/contexts/NodeDetailsConte
 import { useTranslation } from "react-i18next";
 import {
     Button,
-    Card,
     Flex,
     TextField,
     Text,
-    Separator,
     Badge
 } from "@radix-ui/themes";
 import { Play, Terminal, AlertCircle, CheckCircle2, Copy, Clock } from "lucide-react";
 import { toast } from "sonner";
 import NodeSelector from "@/components/NodeSelector";
 import { SettingCardCollapse } from "@/components/admin/SettingCard";
+import {
+    AdminPageShell,
+    AdminSurface,
+} from "@/components/admin/AdminPageShell";
 
 interface TaskResult {
     task_id: string;
@@ -246,23 +248,37 @@ const ExecContent = () => {
         return { status: "failed", color: "red" as const, text: t("common.error") };
     };
 
+    const completedResults = results.filter((result) => result.finished_at !== null).length;
+
     return (
-        <div className="p-4 flex flex-col gap-3">
-            {/* 页面标题 */}
-            <div>
-                <h1 className="text-2xl font-bold">{t("exec.title")}</h1>
-                <Text size="2" color="gray" className="mt-1">
-                    {t("exec.description")}
-                </Text>
-            </div>
-
-            <Separator size="4" />
-
-            {/* 命令输入区域 */}
-            <Card className="p-6">
+        <AdminPageShell
+            eyebrow={t("exec.title")}
+            title="批量命令执行"
+            description={t("exec.description")}
+            stats={[
+                {
+                    label: "目标节点",
+                    value: `${selectedNodes.length}`,
+                    hint: selectedNodes.length > 0 ? getSelectedNodeNames() : "尚未选择节点。",
+                    tone: "blue",
+                },
+                {
+                    label: "执行状态",
+                    value: executing ? t("exec.executing") : polling ? "轮询中" : "待执行",
+                    hint: taskId ? `Task ID: ${taskId}` : "提交后会自动轮询结果。",
+                    tone: polling ? "amber" : "emerald",
+                },
+                {
+                    label: "结果进度",
+                    value: `${completedResults} / ${results.length || 0}`,
+                    hint: results.length > 0 ? "按节点维度汇总执行结果。" : "暂无执行结果。",
+                    tone: results.length > 0 ? "slate" : "amber",
+                },
+            ]}
+        >
+            <AdminSurface className="p-6">
                 <Flex direction="column" gap="4">
-
-                    <label className="text-xl font-bold">
+                    <label className="text-xl font-semibold tracking-tight text-slate-900">
                         {t("exec.command")}
                     </label>
                     <TextField.Root
@@ -270,6 +286,7 @@ const ExecContent = () => {
                         onChange={(e) => setCommand(e.target.value)}
                         placeholder={t("exec.commandPlaceholder")}
                         size="3"
+                        className="rounded-xl border border-slate-200/80 bg-white shadow-sm"
                     >
                         <TextField.Slot>
                             <Terminal size={16} />
@@ -296,6 +313,7 @@ const ExecContent = () => {
                         <Button
                             onClick={executeCommand}
                             disabled={executing || !command.trim() || selectedNodes.length === 0}
+                            className="rounded-xl"
                         >
                             {executing ? (
                                 <>
@@ -311,11 +329,11 @@ const ExecContent = () => {
                         </Button>
                     </Flex>
                 </Flex>
-            </Card>
+            </AdminSurface>
 
             {/* 执行结果区域 */}
             {results.length > 0 && (
-                <Card className="p-6">
+                <AdminSurface className="p-6">
                     <Flex direction="column" gap="4">
                         <Flex justify="between" align="center">
                             <Text size="4" weight="medium">
@@ -332,10 +350,13 @@ const ExecContent = () => {
                             {results.map((result) => {
                                 const status = getTaskStatus(result);
                                 return (
-                                    <Card key={result.client} className="p-4">
+                                    <div
+                                        key={result.client}
+                                        className="rounded-[24px] border border-slate-200/80 bg-slate-50/75 p-4 shadow-sm"
+                                    >
                                         <Flex direction="column" gap="3">
                                             {/* 节点信息和状态 */}
-                                            <label className="text-xl font-medium">
+                                            <label className="text-xl font-medium text-slate-900">
                                                 {nodeDetail.find(n => n.uuid === result.client)?.name || result.client}
                                             </label>
                                             <Flex justify="between" align="center">
@@ -379,6 +400,7 @@ const ExecContent = () => {
                                                         variant="ghost"
                                                         size="1"
                                                         onClick={() => copyOutput(result.result)}
+                                                        className="rounded-xl"
                                                     >
                                                         <Copy size={14} />
                                                     </Button>
@@ -399,12 +421,12 @@ const ExecContent = () => {
 
                                             {/* 输出内容 */}
                                             {result.result && (
-                                                <div className="bg-[var(--gray-2)] rounded-md p-3 font-mono text-sm overflow-x-auto">
+                                                <div className="rounded-xl border border-slate-200/80 bg-white p-3 font-mono text-sm overflow-x-auto">
                                                     <pre className="whitespace-pre-wrap">{result.result}</pre>
                                                 </div>
                                             )}
                                         </Flex>
-                                    </Card>
+                                    </div>
                                 );
                             })}
                         </div>
@@ -422,15 +444,16 @@ const ExecContent = () => {
                                     variant="soft"
                                     size="1"
                                     onClick={clearPolling}
+                                    className="rounded-xl"
                                 >
                                     停止轮询
                                 </Button>
                             </Flex>
                         )}
                     </Flex>
-                </Card>
+                </AdminSurface>
             )}
-        </div>
+        </AdminPageShell>
     );
 };
 

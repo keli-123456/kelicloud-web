@@ -8,6 +8,10 @@ import { SquareArrowOutUpRight } from "lucide-react";
 import { SegmentedControl } from "@radix-ui/themes";
 import { Apache2_LICENSE, Eula, MIT_LICENSE } from "@/utils/field";
 import { SettingCardCollapse } from "@/components/admin/SettingCard";
+import {
+  AdminPageShell,
+  AdminSurface,
+} from "@/components/admin/AdminPageShell";
 
 export default function AboutPage() {
   const [markdown, setMarkdown] = useState("");
@@ -120,90 +124,112 @@ export default function AboutPage() {
   );
 
   return (
-    <div className="flex flex-col gap-4">
-      <h1 className="text-2xl font-bold text-foreground">{t("about.title")}</h1>
-      <SegmentedControl.Root defaultValue={view} onValueChange={setView}>
-        <SegmentedControl.Item value="open_source">
-          {t("about.open_source_title")}
-        </SegmentedControl.Item>
-        <SegmentedControl.Item value="eula">
-          法律声明与合规指引
-        </SegmentedControl.Item>
-        <SegmentedControl.Item value="readme">Readme</SegmentedControl.Item>
-      </SegmentedControl.Root>
-      {(() => {
-        switch (view) {
-          case "eula":
-            return (
-              <>
-                <div className="license-text mb-4 p-4 border rounded-md bg-accent-1 flex flex-col gap-2">
-                  <pre className="text-wrap">{Eula}</pre>
+    <AdminPageShell
+      eyebrow={t("about.title")}
+      title="关于 Komari"
+      description="查看开源许可、法律声明与项目说明文档。"
+      stats={[
+        {
+          label: "内容分区",
+          value: "3",
+          hint: "开源许可、EULA 与 README 三个版块。",
+          tone: "blue",
+        },
+        {
+          label: "依赖许可证",
+          value: `${sortedLicenses.length}`,
+          hint: "按许可证类别汇总第三方依赖。",
+          tone: "emerald",
+        },
+      ]}
+    >
+      <AdminSurface className="flex flex-col gap-4">
+        <SegmentedControl.Root defaultValue={view} onValueChange={setView}>
+          <SegmentedControl.Item value="open_source">
+            {t("about.open_source_title")}
+          </SegmentedControl.Item>
+          <SegmentedControl.Item value="eula">
+            法律声明与合规指引
+          </SegmentedControl.Item>
+          <SegmentedControl.Item value="readme">Readme</SegmentedControl.Item>
+        </SegmentedControl.Root>
+
+        {(() => {
+          switch (view) {
+            case "eula":
+              return (
+                <div className="license-text rounded-[24px] border border-slate-200/80 bg-slate-50/80 p-5">
+                  <pre className="text-wrap text-sm leading-6 text-slate-700">
+                    {Eula}
+                  </pre>
                 </div>
-              </>
-            );
-          case "open_source":
-            return (
-              <>
-                <div className="text-foreground flex flex-col gap-4">
-                  <SettingCardCollapse
-                    title="MIT License"
-                    description="Copyright (C) 2025 Komari Monitor"
-                  >
-                    <pre className="text-wrap">{MIT_LICENSE}</pre>
-                  </SettingCardCollapse>
-                  <SettingCardCollapse
-                    title="Apache License"
-                    description="Version 2.0, January 2004"
-                  >
-                    <pre className="text-wrap">{Apache2_LICENSE}</pre>
-                  </SettingCardCollapse>
-                </div>
-                <h2 className="text-xl font-semibold text-foreground">
-                  {t("about.open_source")}
-                </h2>
-                <div className="copyright text-sm text-gray-500 dark:text-gray-400">
-                  {sortedLicenses.map(([license, libs]) => (
-                    <div key={license} className="mb-2">
-                      <h3 className="font-black text-lg text-foreground">
-                        {license}
-                      </h3>
-                      <ul className="list-disc list-inside">
-                        {libs.sort().map((lib) => (
-                          <li key={lib}>{lib}</li>
-                        ))}
-                      </ul>
+              );
+            case "open_source":
+              return (
+                <div className="flex flex-col gap-4">
+                  <div className="text-foreground flex flex-col gap-4">
+                    <SettingCardCollapse
+                      title="MIT License"
+                      description="Copyright (C) 2025 Komari Monitor"
+                    >
+                      <pre className="text-wrap">{MIT_LICENSE}</pre>
+                    </SettingCardCollapse>
+                    <SettingCardCollapse
+                      title="Apache License"
+                      description="Version 2.0, January 2004"
+                    >
+                      <pre className="text-wrap">{Apache2_LICENSE}</pre>
+                    </SettingCardCollapse>
+                  </div>
+                  <div className="rounded-[24px] border border-slate-200/80 bg-slate-50/80 p-5">
+                    <h2 className="text-xl font-semibold text-foreground">
+                      {t("about.open_source")}
+                    </h2>
+                    <div className="copyright mt-4 text-sm text-gray-500 dark:text-gray-400">
+                      {sortedLicenses.map(([license, libs]) => (
+                        <div key={license} className="mb-3">
+                          <h3 className="font-black text-lg text-foreground">
+                            {license}
+                          </h3>
+                          <ul className="list-disc list-inside">
+                            {libs.sort().map((lib) => (
+                              <li key={lib}>{lib}</li>
+                            ))}
+                          </ul>
+                        </div>
+                      ))}
+                      {t("about.ai")}
                     </div>
-                  ))}
-                  {t("about.ai")}
+                  </div>
                 </div>
-              </>
-            );
-          case "readme":
-            return (
-              <>
-                <div className="markdown-body border border-muted/20 rounded-md">
-                  {markdown ? (
-                    <ReactMarkdown
-                      remarkPlugins={[remarkGfm]}
-                      children={markdown}
-                    />
-                  ) : (
-                    <Loading />
-                  )}
+              );
+            case "readme":
+              return (
+                <div className="flex flex-col gap-4">
+                  <div className="markdown-body rounded-[24px] border border-slate-200/80 bg-white p-5">
+                    {markdown ? (
+                      <ReactMarkdown
+                        remarkPlugins={[remarkGfm]}
+                        children={markdown}
+                      />
+                    ) : (
+                      <Loading />
+                    )}
+                  </div>
+                  <a
+                    href="https://github.com/komari-monitor/komari/blob/main/README.md"
+                    target="_blank"
+                    rel="noreferrer"
+                    className="flex flex-row gap-2 text-sm items-center text-slate-600"
+                  >
+                    {t("about.readme_open_in_new_tab")}
+                    <SquareArrowOutUpRight size="16" />
+                  </a>
                 </div>
-                <a
-                  href="https://github.com/komari-monitor/komari/blob/main/README.md"
-                  target="_blank"
-                  rel="noreferrer"
-                  className="flex flex-row gap-2 text-sm items-center"
-                >
-                  {t("about.readme_open_in_new_tab")}
-                  <SquareArrowOutUpRight size="16"></SquareArrowOutUpRight>
-                </a>
-              </>
-            );
-        }
-      })()}
-    </div>
+              );
+          }
+        })()}
+      </AdminSurface>
+    </AdminPageShell>
   );
 }

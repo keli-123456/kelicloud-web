@@ -13,6 +13,10 @@ import {
 } from "@radix-ui/themes";
 import { Github, Globe, User } from "lucide-react";
 import Loading from "@/components/loading";
+import {
+  AdminPageShell,
+  AdminSurface,
+} from "@/components/admin/AdminPageShell";
 
 const Account = () => {
   return (
@@ -181,149 +185,220 @@ const InnerLayout = () => {
       toast.error(t("account_settings.sso_auth_failed"));
     }
   };
+
+  const ssoInfo = getSSOInfo();
+  const boundProvider = ssoInfo?.isBound
+    ? getSSODisplayName(ssoInfo.platform)
+    : t("account_settings.sso_unbound");
+  const providerIcon = ssoInfo?.isBound ? (
+    getSSOIcon(ssoInfo.platform)
+  ) : (
+    <User className="size-5" />
+  );
+
   return (
-    <Flex gap="4" direction="column" align="start">
-      <Flex gap="4" direction="row" className="p-4" wrap="wrap">
-        <Flex gap="2" direction="column" className="w-full">
-          <label className="text-2xl font-bold">{t("account.title")}</label>
-          <label className="text-lg">
-            {t("account.greeting", { username: account?.username })}
-          </label>
+    <AdminPageShell
+      eyebrow={t("account.title")}
+      title={t("account.greeting", { username: account?.username })}
+      description="集中管理管理员身份、密码、双重验证与第三方登录绑定。"
+      stats={[
+        {
+          label: "当前用户",
+          value: account?.username || "-",
+          hint: `UUID: ${account?.uuid || "-"}`,
+          tone: "blue",
+        },
+        {
+          label: "2FA",
+          value: account?.["2fa_enabled"]
+            ? t("account.2fa_enabled")
+            : t("account.2fa_disabled"),
+          hint: account?.["2fa_enabled"]
+            ? "双重验证已启用。"
+            : "建议开启双重验证提升后台安全性。",
+          tone: account?.["2fa_enabled"] ? "emerald" : "amber",
+        },
+        {
+          label: "SSO",
+          value: boundProvider,
+          hint: ssoInfo?.isBound ? `已绑定 ${boundProvider}` : "尚未绑定第三方登录账号。",
+          tone: ssoInfo?.isBound ? "blue" : "slate",
+        },
+      ]}
+    >
+      <div className="grid gap-4 xl:grid-cols-[minmax(0,1.25fr)_minmax(320px,0.95fr)]">
+        <AdminSurface className="flex flex-col gap-6">
+          <div className="space-y-2">
+            <label className="text-xl font-semibold tracking-tight text-slate-900">
+              账户资料
+            </label>
+            <p className="text-sm leading-6 text-slate-500">
+              更新用户名和登录密码。密码更新成功后会重新跳转回首页。
+            </p>
+          </div>
           <form
-            className="flex gap-2 flex-col"
+            className="flex gap-3 flex-col"
             onSubmit={handleSubmitUsernameChange}
           >
-            <label className="font-bold" htmlFor="username">
+            <label className="text-sm font-medium text-slate-700" htmlFor="username">
               {t("account.change_username_title")}
             </label>
 
             <TextField.Root
-              className="max-w-128"
+              className="max-w-xl rounded-xl border border-slate-200/80 bg-white shadow-sm"
               id="username"
               name="username"
               defaultValue={account?.username}
-            ></TextField.Root>
+            />
             <div>
-              <Button disabled={usernameSaving} type="submit">
+              <Button disabled={usernameSaving} type="submit" className="rounded-xl">
                 {t("account.change_username_button")}
               </Button>
             </div>
           </form>
-          <form onSubmit={changePassword} className="flex flex-col gap-2">
-            <label className="font-bold" htmlFor="old_password">
+
+          <div className="h-px bg-[linear-gradient(90deg,rgba(148,163,184,0.10),rgba(148,163,184,0.65),rgba(148,163,184,0.10))]" />
+
+          <form onSubmit={changePassword} className="flex flex-col gap-3">
+            <label className="text-sm font-medium text-slate-700" htmlFor="old_password">
               {t("account.change_password_title")}
             </label>
-            <label htmlFor="password">{t("account.new_password")}</label>
+            <label className="text-sm text-slate-600" htmlFor="password">
+              {t("account.new_password")}
+            </label>
             <TextField.Root
-              className="max-w-128"
+              className="max-w-xl rounded-xl border border-slate-200/80 bg-white shadow-sm"
               id="password"
               name="password"
               type="password"
-            ></TextField.Root>
+            />
             <label htmlFor="password_repeat">
               {t("account.new_password_repeat")}
             </label>
             <TextField.Root
-              className="max-w-128"
+              className="max-w-xl rounded-xl border border-slate-200/80 bg-white shadow-sm"
               id="password_repeat"
               name="password_repeat"
               type="password"
-            ></TextField.Root>
+            />
             <div>
-              <Button disabled={passwordSaving} type="submit">
+              <Button disabled={passwordSaving} type="submit" className="rounded-xl">
                 {t("account.change_password_button")}
               </Button>
             </div>
           </form>
-        </Flex>
-        <Flex direction="column" className="gap-2">
-          <label className="font-bold text-2xl">2FA</label>
-          {account?.["2fa_enabled"] ? (
-            <TwoFactorEnabled />
-          ) : (
-            <TwoFactorDisabled></TwoFactorDisabled>
-          )}
-          <label className="font-bold text-2xl mt-2">
-            {t("settings.sso.title")}
-          </label>
+        </AdminSurface>
 
-          {/* SSO账户绑定/解绑 */}
-          <div className="mb-8 flex flex-col gap-4 ">
-            {(() => {
-              const ssoInfo = getSSOInfo();
-              const platform = ssoInfo?.platform || '';
-              const displayName = getSSODisplayName(platform);
-              const icon = getSSOIcon(platform);
-              
-              return (
-                <>
-                  <label className="text-xl font-semibold flex items-center gap-2">
-                    {ssoInfo?.isBound ? icon : <User className="size-5" />}
-                    {ssoInfo?.isBound ? `${displayName}账户` : t("account_settings.sso_account")}
-                  </label>
-                  <div className="p-4 bg-[var(--accent-2)] rounded-lg">
-                    <p>
-                      {ssoInfo?.isBound ? (
-                        <div className="flex items-center gap-2">
-                          <Badge color="green">
-                            {t("account_settings.sso_bound")}
-                          </Badge>
-                          {displayName} ID: {ssoInfo.uniqueId}
-                        </div>
-                      ) : (
-                        <div className="flex items-center gap-2">
-                          <Badge color="gray">
-                            {t("account_settings.sso_unbound")}
-                          </Badge>
-                          {t("account_settings.sso_not_bound")}
-                        </div>
-                      )}
-                    </p>
-                  </div>
-                  <div>
-                    {ssoInfo?.isBound ? (
-                      <Dialog.Root>
-                        <Dialog.Trigger>
-                          <Button>{t("account_settings.unbind_sso", { provider: displayName })}</Button>
-                        </Dialog.Trigger>
-                        <Dialog.Content>
-                          <Dialog.Title>
-                            {t("account_settings.confirm_unbind")}
-                          </Dialog.Title>
-                          <Dialog.Description>
-                            {t("account_settings.unbind_sso_warning", { provider: displayName })}
-                          </Dialog.Description>
-                          <Flex gap="2" justify="end" className="mt-4">
-                            <Dialog.Close>
-                              <Button variant="soft">
-                                {t("account_settings.cancel")}
-                              </Button>
-                            </Dialog.Close>
-                            <Button color="red" onClick={handleSSOAuth}>
-                              {t("account_settings.confirm_unbind")}
-                            </Button>
-                          </Flex>
-                        </Dialog.Content>
-                      </Dialog.Root>
-                    ) : (
-                      <Button onClick={handleSSOAuth}>
-                        <User className="size-4" />
-                        {t("account_settings.bind_sso")}
-                      </Button>
-                    )}
-                  </div>
-                </>
-              );
-            })()}
+        <AdminSurface className="flex flex-col gap-6">
+          <div className="flex items-start justify-between gap-3">
+            <div className="space-y-2">
+              <label className="text-xl font-semibold tracking-tight text-slate-900">
+                安全与登录
+              </label>
+              <p className="text-sm leading-6 text-slate-500">
+                统一管理双重验证与单点登录绑定状态。
+              </p>
+            </div>
+            <Badge
+              color={account?.["2fa_enabled"] ? "green" : "amber"}
+              variant="soft"
+              className="rounded-full px-3 py-1"
+            >
+              {account?.["2fa_enabled"] ? "Protected" : "Pending"}
+            </Badge>
           </div>
-          <Flex gap="4" align="center" justify="start">
-            <label className="text-muted-foreground text-sm">
-              {t("account_settings.looking_for_backup")}
+
+          <div className="space-y-3">
+            <label className="text-sm font-medium uppercase tracking-[0.18em] text-slate-500">
+              2FA
             </label>
-          </Flex>
-        </Flex>
-      </Flex>
-    </Flex>
+            {account?.["2fa_enabled"] ? (
+              <TwoFactorEnabled />
+            ) : (
+              <TwoFactorDisabled />
+            )}
+          </div>
+
+          <div className="h-px bg-[linear-gradient(90deg,rgba(148,163,184,0.10),rgba(148,163,184,0.65),rgba(148,163,184,0.10))]" />
+
+          <div className="space-y-4">
+            <label className="text-sm font-medium uppercase tracking-[0.18em] text-slate-500">
+              {t("settings.sso.title")}
+            </label>
+            <div className="rounded-[24px] border border-slate-200/80 bg-slate-50/80 p-4">
+              <div className="flex items-start gap-3">
+                <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-white text-slate-700 shadow-sm">
+                  {providerIcon}
+                </div>
+                <div className="flex-1 space-y-2">
+                  <label className="flex items-center gap-2 text-base font-semibold text-slate-900">
+                    {ssoInfo?.isBound
+                      ? `${boundProvider} 账户`
+                      : t("account_settings.sso_account")}
+                  </label>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Badge
+                      color={ssoInfo?.isBound ? "green" : "gray"}
+                      className="rounded-full px-3 py-1"
+                    >
+                      {ssoInfo?.isBound
+                        ? t("account_settings.sso_bound")
+                        : t("account_settings.sso_unbound")}
+                    </Badge>
+                    <span className="text-sm text-slate-600">
+                      {ssoInfo?.isBound
+                        ? `${boundProvider} ID: ${ssoInfo.uniqueId}`
+                        : t("account_settings.sso_not_bound")}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div>
+              {ssoInfo?.isBound ? (
+                <Dialog.Root>
+                  <Dialog.Trigger>
+                    <Button className="rounded-xl">
+                      {t("account_settings.unbind_sso", { provider: boundProvider })}
+                    </Button>
+                  </Dialog.Trigger>
+                  <Dialog.Content>
+                    <Dialog.Title>
+                      {t("account_settings.confirm_unbind")}
+                    </Dialog.Title>
+                    <Dialog.Description>
+                      {t("account_settings.unbind_sso_warning", {
+                        provider: boundProvider,
+                      })}
+                    </Dialog.Description>
+                    <Flex gap="2" justify="end" className="mt-4">
+                      <Dialog.Close>
+                        <Button variant="soft" className="rounded-xl">
+                          {t("account_settings.cancel")}
+                        </Button>
+                      </Dialog.Close>
+                      <Button color="red" onClick={handleSSOAuth} className="rounded-xl">
+                        {t("account_settings.confirm_unbind")}
+                      </Button>
+                    </Flex>
+                  </Dialog.Content>
+                </Dialog.Root>
+              ) : (
+                <Button onClick={handleSSOAuth} className="rounded-xl">
+                  <User className="size-4" />
+                  {t("account_settings.bind_sso")}
+                </Button>
+              )}
+            </div>
+          </div>
+
+          <div className="rounded-[24px] border border-sky-200 bg-sky-50/80 px-4 py-3 text-sm text-sky-800">
+            {t("account_settings.looking_for_backup")}
+          </div>
+        </AdminSurface>
+      </div>
+    </AdminPageShell>
   );
 };
 const TwoFactorDisabled = () => {
@@ -388,7 +463,7 @@ const TwoFactorDisabled = () => {
       <Dialog.Root open={isOpen} onOpenChange={setIsOpen}>
         <Dialog.Trigger>
           <div>
-            <Button className="w-full">{t("account.enable_2fa")}</Button>
+            <Button className="w-full rounded-xl">{t("account.enable_2fa")}</Button>
           </div>
         </Dialog.Trigger>
         <Dialog.Content>
@@ -411,7 +486,7 @@ const TwoFactorDisabled = () => {
                 value={code}
                 onChange={(e) => setCode((e.target as HTMLInputElement).value)}
               />
-              <Button disabled={saving} type="submit">
+              <Button disabled={saving} type="submit" className="rounded-xl">
                 {t("account.enable_2fa")}
               </Button>
             </form>
@@ -457,7 +532,7 @@ const TwoFactorEnabled = () => {
       <div>
         <Dialog.Root open={isOpen} onOpenChange={setIsOpen}>
           <Dialog.Trigger>
-            <Button className="ml-2" color="red">
+            <Button className="ml-2 rounded-xl" color="red">
               {t("account.disable_2fa")}
             </Button>
           </Dialog.Trigger>
@@ -467,10 +542,15 @@ const TwoFactorEnabled = () => {
               {t("account.disable_2fa_confirmation")}
             </Dialog.Description>
             <Flex gap="2" justify="end" className="mt-4">
-              <Button variant="soft" onClick={() => setIsOpen(false)}>
+              <Button variant="soft" onClick={() => setIsOpen(false)} className="rounded-xl">
                 {t("common.cancel")}
               </Button>
-              <Button disabled={saving} color="red" onClick={disable2fa}>
+              <Button
+                disabled={saving}
+                color="red"
+                onClick={disable2fa}
+                className="rounded-xl"
+              >
                 {t("common.confirm")}
               </Button>
             </Flex>

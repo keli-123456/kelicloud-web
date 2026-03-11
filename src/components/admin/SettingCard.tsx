@@ -12,6 +12,8 @@ import { useTranslation } from "react-i18next";
 import { ChevronDownIcon } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion"; // 引入 Framer Motion
 
+import { cn } from "@/lib/utils";
+
 interface SettingCardProps {
   title?: string | React.ReactNode;
   description?: string | React.ReactNode;
@@ -43,34 +45,34 @@ export function SettingCard({
     <Flex
       direction={direction}
       justify="between"
-      align="center"
+      align="start"
       wrap="wrap"
-      style={{ borderColor: "var(--gray-a5)" }}
-      className={
+      className={cn(
         bordless
-          ? "border-0"
-          : "border-1 rounded-md py-2 px-4 bg-transparent  min-h-8" + className
-      }
+          ? "border-0 bg-transparent p-0 shadow-none"
+          : "min-h-8 rounded-[24px] border border-white/70 bg-white/80 px-5 py-4 shadow-[0_18px_40px_rgba(15,23,42,0.06)] backdrop-blur-xl",
+        className,
+      )}
     >
       <Flex
-        className="w-full"
+        className="w-full gap-4"
         direction="row"
         justify="between"
-        align="center"
+        align="start"
         wrap="nowrap"
         onClick={onHeaderClick}
       >
         <Flex
           direction="column"
           gap="1"
-          className="min-h-10"
+          className="min-h-10 flex-1"
           justify={"center"}
         >
-          <label className="text-base font-medium" style={{ fontWeight: 600 }}>
+          <label className="text-base font-semibold tracking-tight text-slate-900">
             {title}
           </label>
           {description && (
-            <label className="text-sm text-muted-foreground">
+            <label className="text-sm leading-6 text-slate-500">
               {description}
             </label>
           )}
@@ -131,8 +133,8 @@ export function SettingCardSwitch({
     <SettingCard {...props} direction="column">
       <SettingCard.Action>
         <Flex direction="row" gap="2" align="center">
-          <label>{label}</label>
-          <Switch
+            <label>{label}</label>
+            <Switch
             ref={switchRef}
             checked={checked}
             onCheckedChange={handleChange}
@@ -177,7 +179,12 @@ export function SettingCardButton({
         <Flex>
           <Flex direction="row" gap="2" align="center">
             <label>{label}</label>
-            <Button onClick={handleClick} variant={variant} disabled={disabled}>
+            <Button
+              onClick={handleClick}
+              variant={variant}
+              disabled={disabled}
+              className="rounded-xl"
+            >
               {children}
             </Button>
           </Flex>
@@ -224,6 +231,7 @@ export function SettingCardIconButton({
               onClick={handleClick}
               variant={variant}
               disabled={disabled}
+              className="rounded-xl"
             >
               {children}
             </IconButton>
@@ -361,7 +369,10 @@ export function SettingCardShortTextInput({
       <Flex direction="column" className="w-full mt-1" gap="2" align="start">
         <TextField.Root
           {...restProps}
-          className={className}
+          className={cn(
+            "w-full rounded-xl border border-slate-200/80 bg-white shadow-sm",
+            className,
+          )}
           value={value !== undefined ? value : internalValue}
           defaultValue={value === undefined ? defaultValue : undefined}
           placeholder={placeholder}
@@ -388,6 +399,7 @@ export function SettingCardShortTextInput({
           variant="solid"
           hidden={!showSaveButton}
           disabled={savingState}
+          className="rounded-xl"
         >
           {label}
         </Button>
@@ -455,7 +467,7 @@ export function SettingCardLongTextInput({
     <SettingCard title={title} description={description} bordless={bordless}>
       <Flex direction="column" className="w-full mt-1" gap="2" align="start">
         <TextArea
-          className="w-full"
+          className="w-full rounded-xl border border-slate-200/80 bg-white shadow-sm"
           defaultValue={defaultValue}
           resize="vertical"
           value={value}
@@ -468,6 +480,7 @@ export function SettingCardLongTextInput({
             onClick={handleSave}
             variant="solid"
             disabled={savingState}
+            className="rounded-xl"
           >
             {label}
           </Button>
@@ -559,7 +572,7 @@ export function SettingCardSelect({
           <Flex direction="row" gap="2" align="center">
             <DropdownMenu.Root>
               <DropdownMenu.Trigger disabled={savingState}>
-                <Button variant="soft" ref={buttonRef}>
+                <Button variant="soft" ref={buttonRef} className="rounded-xl">
                   {getDisplayText()}
                   <DropdownMenu.TriggerIcon />
                 </Button>
@@ -591,9 +604,12 @@ export function SettingCardLabel({
   children: React.ReactNode | null;
 }) {
   return (
-    <label className="text-xl font-bold" style={{ fontWeight: 600 }}>
-      {children}
-    </label>
+    <div className="inline-flex items-center gap-3 rounded-full border border-white/75 bg-white/80 px-4 py-2 shadow-[0_10px_28px_rgba(15,23,42,0.05)] backdrop-blur">
+      <span className="h-2.5 w-2.5 rounded-full bg-[linear-gradient(135deg,#0f172a,#0ea5e9,#10b981)]" />
+      <label className="text-sm font-semibold tracking-[0.16em] text-slate-600">
+        {children}
+      </label>
+    </div>
   );
 }
 
@@ -625,6 +641,7 @@ export function SettingCardCollapse({
           onClick={() => setOpen(!open)}
           aria-expanded={open}
           aria-controls="collapsible-content"
+          className="rounded-xl"
         >
           <motion.div
             initial={{ rotate: 0, scale: 1 }}
@@ -647,7 +664,7 @@ export function SettingCardCollapse({
             style={{ overflow: "hidden" }} // Prevents content clipping during animation
             id="collapsible-content"
           >
-            <div className="border-t-1 my-2" />
+            <div className="my-3 h-px bg-[linear-gradient(90deg,rgba(148,163,184,0.10),rgba(148,163,184,0.65),rgba(148,163,184,0.10))]" />
             {children}
           </motion.div>
         )}
