@@ -59,7 +59,7 @@ export default function GeneralSettings() {
         {t("settings.general.auto_discovery")}
       </SettingCardLabel>
       <ApiCard settings={settings} />
-      <label className="pt-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+      <label className="pt-1 text-[12px] font-semibold uppercase tracking-[0.14em] text-slate-500">
         {t("settings.geoip.title")}
       </label>
       <SettingCardSwitch
@@ -143,7 +143,7 @@ export default function GeneralSettings() {
           </Flex>
         </Flex>
       </SettingCardCollapse>
-      <label className="pt-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+      <label className="pt-1 text-[12px] font-semibold uppercase tracking-[0.14em] text-slate-500">
         {t("settings.record.title")}
       </label>
       <SettingCardSwitch

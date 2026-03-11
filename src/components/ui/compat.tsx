@@ -159,11 +159,11 @@ function mapButtonSize(size?: string | number) {
 function mapTextSize(size?: string | number) {
   switch (String(size ?? "")) {
     case "1":
-      return "text-xs"
+      return "text-[13px]"
     case "2":
       return "text-sm"
     case "3":
-      return "text-base"
+      return "text-[15px]"
     case "4":
       return "text-lg"
     case "5":

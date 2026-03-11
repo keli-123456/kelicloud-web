@@ -483,7 +483,7 @@ const UsageBar = ({
           className={`h-full rounded-full transition-all duration-300 ${colorClass}`}
           style={{ width: `${safePercent}%` }}
         />
-        <div className="absolute inset-0 flex items-center justify-center text-[11px] font-semibold tracking-tight text-slate-700">
+        <div className="absolute inset-0 flex items-center justify-center text-[12px] font-semibold tracking-tight text-slate-700">
           {formatPercent(safePercent)}
         </div>
       </div>
@@ -500,7 +500,7 @@ const StatusSummary = ({
     <Badge
       color={live?.online ? "green" : "gray"}
       variant="soft"
-      className="rounded-full px-2 py-0.5 text-[11px]"
+      className="rounded-full px-2 py-0.5 text-[12px]"
     >
       {live?.online ? "在线" : "离线"}
     </Badge>
@@ -508,7 +508,7 @@ const StatusSummary = ({
 );
 
 const ExitIpSummary = ({ node }: { node: NodeDetail }) => (
-  <div className="flex min-w-[132px] items-center gap-2 text-[12px] text-slate-700">
+  <div className="flex min-w-[132px] items-center gap-2 text-[13px] text-slate-700">
     <Flag flag={node.region} size="4" />
     <span className="truncate">{node.ipv4 || node.ipv6 || "-"}</span>
   </div>
@@ -519,10 +519,10 @@ const RateSummary = ({ live }: { live?: NodeLiveSnapshot }) => {
 
   return (
     <div className="min-w-[120px] space-y-0.5">
-      <Text size="1" className="block text-[12px] font-medium text-slate-900">
+      <Text size="1" className="block text-[13px] font-medium text-slate-900">
         ↑ {formatBytes(snapshot.network.up)}/s
       </Text>
-      <Text size="1" className="block text-[12px] text-slate-600">
+      <Text size="1" className="block text-[13px] text-slate-600">
         ↓ {formatBytes(snapshot.network.down)}/s
       </Text>
     </div>
@@ -534,10 +534,10 @@ const TrafficSummary = ({ live }: { live?: NodeLiveSnapshot }) => {
 
   return (
     <div className="min-w-[132px] space-y-0.5">
-      <Text size="1" className="block text-[12px] text-slate-700">
+      <Text size="1" className="block text-[13px] text-slate-700">
         ↑ {formatBytes(snapshot.network.totalUp)}
       </Text>
-      <Text size="1" className="block text-[12px] text-slate-700">
+      <Text size="1" className="block text-[13px] text-slate-700">
         ↓ {formatBytes(snapshot.network.totalDown)}
       </Text>
     </div>
@@ -551,7 +551,7 @@ const UptimeSummary = ({ live }: { live?: NodeLiveSnapshot }) => {
   const minutes = Math.floor((seconds % 3600) / 60);
 
   return (
-    <Text size="1" className="block min-w-[72px] text-[12px] text-slate-700">
+    <Text size="1" className="block min-w-[72px] text-[13px] text-slate-700">
       {days > 0
         ? `${days}d ${hours}h`
         : hours > 0
@@ -599,7 +599,7 @@ const SortableRow = ({
 
   return (
     <TableRow
-      className="border-b border-slate-200/70 bg-white/60 text-[12px] transition-colors hover:bg-slate-50/85"
+      className="border-b border-slate-200/70 bg-white/60 text-[13px] transition-colors hover:bg-slate-50/85"
     >
       <TableCell>
         <StatusSummary live={live} />
@@ -740,7 +740,7 @@ const NodeTable = ({
                   {group.label}
                 </Text>
               </div>
-              <div className="flex flex-wrap items-center gap-4 text-xs text-slate-600">
+              <div className="flex flex-wrap items-center gap-4 text-[13px] text-slate-600">
                 <span>
                   <span className="font-medium text-slate-900">总速率</span>
                   {" "}
@@ -1162,7 +1162,7 @@ function GenerateCommandButton({
                     <button
                       key={group}
                       type="button"
-                      className={`rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
+                      className={`rounded-full border px-3 py-1 text-[13px] font-medium transition-colors ${
                         normalizedGroupName === group
                           ? "border-sky-300 bg-sky-100 text-sky-700"
                           : "border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:text-slate-900"
@@ -1748,7 +1748,7 @@ function EditButton({ node }: { node: NodeDetail }) {
           <div>
             <label className="mb-1 text-sm font-medium text-muted-foreground flex items-center">
               {t("common.tags")}
-              <label className="text-muted-foreground ml-1 text-xs self-end">
+              <label className="text-muted-foreground ml-1 text-[13px] self-end">
                 {t("common.tagsDescription")}
               </label>
               <Tips>

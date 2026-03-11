@@ -157,7 +157,7 @@ const ServerRow: React.FC<{
                   getLabel={(task) => (
                     <span className="text-sm">
                       {task.name}
-                      <span className="ml-2 text-xs text-gray-500">
+                      <span className="ml-2 text-[13px] text-gray-500">
                         {task.type}/{task.interval}s
                       </span>
                     </span>

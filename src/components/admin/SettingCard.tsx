@@ -68,11 +68,11 @@ export function SettingCard({
           className="min-h-0 flex-1"
           justify={"center"}
         >
-          <label className="text-[13px] font-medium tracking-tight text-slate-900">
+          <label className="text-[14px] font-medium tracking-tight text-slate-900">
             {title}
           </label>
           {description && (
-            <label className="text-[12px] leading-5 text-slate-500">
+            <label className="text-[13px] leading-5 text-slate-500">
               {description}
             </label>
           )}
@@ -133,7 +133,7 @@ export function SettingCardSwitch({
     <SettingCard {...props} direction="column">
       <SettingCard.Action>
         <Flex direction="row" gap="2" align="center">
-          <label className="text-[12px] text-slate-600">{label}</label>
+          <label className="text-[13px] text-slate-600">{label}</label>
           <Switch
             ref={switchRef}
             checked={checked}
@@ -178,13 +178,13 @@ export function SettingCardButton({
       <SettingCard.Action>
         <Flex>
           <Flex direction="row" gap="2" align="center">
-            <label className="text-[12px] text-slate-600">{label}</label>
+            <label className="text-[13px] text-slate-600">{label}</label>
             <Button
               onClick={handleClick}
               variant={variant}
               disabled={disabled}
               size="1"
-              className="rounded-md text-[12px]"
+              className="rounded-md text-[13px]"
             >
               {children}
             </Button>
@@ -227,7 +227,7 @@ export function SettingCardIconButton({
       <SettingCard.Action>
         <Flex>
           <Flex direction="row" gap="2" align="center">
-            <label className="text-[12px] text-slate-600">{label}</label>
+            <label className="text-[13px] text-slate-600">{label}</label>
             <IconButton
               onClick={handleClick}
               variant={variant}
@@ -373,7 +373,7 @@ export function SettingCardShortTextInput({
           {...restProps}
           size="1"
           className={cn(
-            "w-full rounded-md border border-slate-200/80 bg-white text-[12px]",
+            "w-full rounded-md border border-slate-200/80 bg-white text-[13px]",
             className,
           )}
           value={value !== undefined ? value : internalValue}
@@ -403,7 +403,7 @@ export function SettingCardShortTextInput({
           hidden={!showSaveButton}
           disabled={savingState}
           size="1"
-          className="rounded-md text-[12px]"
+          className="rounded-md text-[13px]"
         >
           {label}
         </Button>
@@ -471,7 +471,7 @@ export function SettingCardLongTextInput({
     <SettingCard title={title} description={description} bordless={bordless}>
       <Flex direction="column" className="mt-0.5 w-full" gap="1" align="start">
         <TextArea
-          className="w-full rounded-md border border-slate-200/80 bg-white text-[12px] leading-5"
+          className="w-full rounded-md border border-slate-200/80 bg-white text-[13px] leading-6"
           defaultValue={defaultValue}
           resize="vertical"
           value={value}
@@ -485,7 +485,7 @@ export function SettingCardLongTextInput({
             variant="solid"
             disabled={savingState}
             size="1"
-            className="rounded-md text-[12px]"
+            className="rounded-md text-[13px]"
           >
             {label}
           </Button>
@@ -581,7 +581,7 @@ export function SettingCardSelect({
                   variant="soft"
                   size="1"
                   ref={buttonRef}
-                  className="rounded-md text-[12px]"
+                  className="rounded-md text-[13px]"
                 >
                   {getDisplayText()}
                   <DropdownMenu.TriggerIcon />
@@ -614,7 +614,7 @@ export function SettingCardLabel({
   children: React.ReactNode | null;
 }) {
   return (
-    <label className="pt-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+    <label className="pt-1 text-[12px] font-semibold uppercase tracking-[0.14em] text-slate-500">
       {children}
     </label>
   );

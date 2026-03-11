@@ -348,7 +348,7 @@ export default function AdminPanelBar({ content }: AdminPanelBarProps) {
                       {release.name || release.tag_name}
                     </div>
                     {release.published_at && (
-                      <div className="text-xs text-muted-foreground">
+                      <div className="text-[13px] text-muted-foreground">
                         {new Date(release.published_at).toLocaleString()}
                       </div>
                     )}
@@ -525,7 +525,7 @@ export default function AdminPanelBar({ content }: AdminPanelBarProps) {
                   <div className="text-lg font-semibold tracking-tight text-slate-900">
                     Komari
                   </div>
-                  <div className="block text-xs text-slate-500">
+                  <div className="block text-[13px] text-slate-500">
                     管理后台导航
                   </div>
                 </div>

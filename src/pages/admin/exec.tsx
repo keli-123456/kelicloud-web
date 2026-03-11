@@ -451,10 +451,10 @@ const ExecContent = () => {
                     <section className="min-w-0 border-b border-slate-200/80 pb-4 xl:border-b-0 xl:border-r xl:pb-0 xl:pr-5">
                         <div className="mb-3 flex items-center justify-between gap-3">
                             <div className="min-w-0">
-                                <p className="block text-[13px] font-medium text-slate-900">
+                                <p className="block text-[14px] font-medium text-slate-900">
                                     {t("exec.selectNodes")}
                                 </p>
-                                <p className="block text-[12px] text-slate-500">
+                                <p className="block text-[13px] text-slate-500">
                                     {t("exec.selectedNodes", {
                                         defaultValue: "已选择节点",
                                     })}: {selectedNodes.length}
@@ -469,7 +469,7 @@ const ExecContent = () => {
                             />
                         </div>
                         {selectedNodes.length > 0 && (
-                            <p className="mt-2 block text-[12px] leading-5 text-slate-500">
+                            <p className="mt-2 block text-[13px] leading-6 text-slate-500">
                                 {t("exec.selectedNodes", "已选择节点")}: {getSelectedNodeNames()}
                             </p>
                         )}
@@ -480,11 +480,11 @@ const ExecContent = () => {
                             <div className="space-y-1">
                                 <div className="flex items-center gap-2">
                                     <Terminal size={15} className="text-slate-500" />
-                                    <p className="text-[13px] font-medium text-slate-900">
+                                    <p className="text-[14px] font-medium text-slate-900">
                                         {t("exec.command")}
                                     </p>
                                 </div>
-                                <p className="block text-[12px] leading-5 text-slate-500">
+                                <p className="block text-[13px] leading-6 text-slate-500">
                                     {taskId
                                         ? `Task ID: ${taskId}`
                                         : t("exec.commandEditorHint", {
@@ -498,12 +498,12 @@ const ExecContent = () => {
                                 onChange={(e) => setCommand(e.target.value)}
                                 placeholder={t("exec.commandPlaceholder")}
                                 rows={7}
-                                className="min-h-[180px] rounded-lg border-slate-200 bg-white text-[13px] leading-5 shadow-none focus-visible:ring-slate-200"
+                                className="min-h-[180px] rounded-lg border-slate-200 bg-white text-[14px] leading-6 shadow-none focus-visible:ring-slate-200"
                             />
 
                             <div className="flex flex-col gap-2 border-b border-slate-200/80 pb-4 sm:flex-row sm:items-end">
                                 <div className="min-w-0 flex-1">
-                                    <p className="mb-1 block text-[12px] text-slate-500">
+                                    <p className="mb-1 block text-[13px] text-slate-500">
                                         {t("exec.savedCommandName", {
                                             defaultValue: "命令名称",
                                         })}
@@ -514,7 +514,7 @@ const ExecContent = () => {
                                         placeholder={t("exec.savedCommandNamePlaceholder", {
                                             defaultValue: "留空时自动取命令首行",
                                         })}
-                                        className="h-9 rounded-lg border-slate-200 bg-white text-[13px] shadow-none focus-visible:ring-slate-200"
+                                        className="h-9 rounded-lg border-slate-200 bg-white text-[14px] shadow-none focus-visible:ring-slate-200"
                                     />
                                 </div>
 
@@ -523,7 +523,7 @@ const ExecContent = () => {
                                     size="sm"
                                     onClick={saveCurrentCommand}
                                     disabled={!command.trim()}
-                                    className="rounded-lg border-slate-200 bg-white text-[12px] shadow-none hover:bg-slate-50"
+                                    className="rounded-lg border-slate-200 bg-white text-[13px] shadow-none hover:bg-slate-50"
                                 >
                                     <Save size={15} />
                                     {t("exec.saveCommand", {
@@ -535,7 +535,7 @@ const ExecContent = () => {
                                     onClick={executeCommand}
                                     disabled={executing || !command.trim() || selectedNodes.length === 0}
                                     size="sm"
-                                    className="rounded-lg text-[12px]"
+                                    className="rounded-lg text-[13px]"
                                 >
                                     {executing ? (
                                         <>
@@ -554,26 +554,26 @@ const ExecContent = () => {
                             <div className="space-y-3">
                                 <div className="flex items-center justify-between">
                                     <div>
-                                        <p className="block text-[13px] font-medium text-slate-900">
+                                        <p className="block text-[14px] font-medium text-slate-900">
                                             {t("exec.savedCommands", {
                                                 defaultValue: "已保存命令",
                                             })}
                                         </p>
-                                        <p className="block text-[12px] text-slate-500">
+                                        <p className="block text-[13px] text-slate-500">
                                             {t("exec.savedCommandsHint", {
                                                 defaultValue: "仅保存在当前浏览器，可一键回填。",
                                             })}
                                         </p>
                                     </div>
                                     {savedCommands.length > 0 && (
-                                        <span className="text-[12px] text-slate-400">
+                                        <span className="text-[13px] text-slate-400">
                                             {savedCommands.length}
                                         </span>
                                     )}
                                 </div>
 
                                 {savedCommands.length === 0 ? (
-                                    <div className="border border-dashed border-slate-200/80 px-3 py-4 text-[12px] text-slate-500">
+                                    <div className="border border-dashed border-slate-200/80 px-3 py-4 text-[13px] text-slate-500">
                                         {t("exec.savedCommandsEmpty", {
                                             defaultValue: "还没有保存的命令。",
                                         })}
@@ -586,10 +586,10 @@ const ExecContent = () => {
                                                 className="flex flex-col gap-2 py-3 md:flex-row md:items-center md:justify-between"
                                             >
                                                 <div className="min-w-0">
-                                                    <p className="block text-[13px] font-medium text-slate-900">
+                                                    <p className="block text-[14px] font-medium text-slate-900">
                                                         {preset.name}
                                                     </p>
-                                                    <p className="block text-[12px] leading-5 text-slate-500">
+                                                    <p className="block text-[13px] leading-6 text-slate-500">
                                                         {getCommandPreview(preset.command)}
                                                     </p>
                                                 </div>
@@ -599,7 +599,7 @@ const ExecContent = () => {
                                                         variant="ghost"
                                                         size="sm"
                                                         onClick={() => applySavedCommand(preset)}
-                                                        className="rounded-md text-[12px]"
+                                                        className="rounded-md text-[13px]"
                                                     >
                                                         {t("exec.useSavedCommand", {
                                                             defaultValue: "使用",
@@ -633,7 +633,7 @@ const ExecContent = () => {
                                 {t("exec.results", "执行结果")}
                             </p>
                             {taskId && (
-                                <span className="text-[12px] text-slate-500">
+                                <span className="text-[13px] text-slate-500">
                                     Task ID: {taskId}
                                 </span>
                             )}
@@ -684,7 +684,7 @@ const ExecContent = () => {
                                                         )}
                                                     </Badge>
                                                     {result.exit_code !== null && (
-                                                        <span className="text-[12px] text-slate-500">
+                                                        <span className="text-[13px] text-slate-500">
                                                             Exit Code: {result.exit_code}
                                                         </span>
                                                     )}
@@ -731,7 +731,7 @@ const ExecContent = () => {
                             <div className="flex flex-col gap-3 text-sm text-gray-500 md:flex-row md:items-center md:justify-between">
                                 <div className="flex items-center gap-2">
                                     <div className="animate-spin rounded-full h-4 w-4 border-2 border-current border-t-transparent" />
-                                    <span className="text-[12px] text-slate-500">
+                                    <span className="text-[13px] text-slate-500">
                                         正在获取最新执行状态...
                                     </span>
                                 </div>
@@ -739,7 +739,7 @@ const ExecContent = () => {
                                     variant="outline"
                                     size="sm"
                                     onClick={clearPolling}
-                                    className="rounded-lg border-slate-200 bg-white text-[12px] shadow-none hover:bg-slate-50"
+                                    className="rounded-lg border-slate-200 bg-white text-[13px] shadow-none hover:bg-slate-50"
                                 >
                                     停止轮询
                                 </Button>
