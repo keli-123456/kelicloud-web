@@ -50,7 +50,7 @@ export function SettingCard({
       className={cn(
         bordless
           ? "border-0 bg-transparent p-0 shadow-none"
-          : "min-h-8 rounded-[24px] border border-white/70 bg-white/80 px-5 py-4 shadow-[0_18px_40px_rgba(15,23,42,0.06)] backdrop-blur-xl",
+          : "min-h-8 border-b border-slate-200/70 px-0 py-4",
         className,
       )}
     >
@@ -133,8 +133,8 @@ export function SettingCardSwitch({
     <SettingCard {...props} direction="column">
       <SettingCard.Action>
         <Flex direction="row" gap="2" align="center">
-            <label>{label}</label>
-            <Switch
+          <label>{label}</label>
+          <Switch
             ref={switchRef}
             checked={checked}
             onCheckedChange={handleChange}
@@ -370,7 +370,7 @@ export function SettingCardShortTextInput({
         <TextField.Root
           {...restProps}
           className={cn(
-            "w-full rounded-xl border border-slate-200/80 bg-white shadow-sm",
+            "w-full rounded-lg border border-slate-200/80 bg-white",
             className,
           )}
           value={value !== undefined ? value : internalValue}
@@ -467,7 +467,7 @@ export function SettingCardLongTextInput({
     <SettingCard title={title} description={description} bordless={bordless}>
       <Flex direction="column" className="w-full mt-1" gap="2" align="start">
         <TextArea
-          className="w-full rounded-xl border border-slate-200/80 bg-white shadow-sm"
+          className="w-full rounded-lg border border-slate-200/80 bg-white"
           defaultValue={defaultValue}
           resize="vertical"
           value={value}
@@ -604,12 +604,9 @@ export function SettingCardLabel({
   children: React.ReactNode | null;
 }) {
   return (
-    <div className="inline-flex items-center gap-3 rounded-full border border-white/75 bg-white/80 px-4 py-2 shadow-[0_10px_28px_rgba(15,23,42,0.05)] backdrop-blur">
-      <span className="h-2.5 w-2.5 rounded-full bg-[linear-gradient(135deg,#0f172a,#0ea5e9,#10b981)]" />
-      <label className="text-sm font-semibold tracking-[0.16em] text-slate-600">
-        {children}
-      </label>
-    </div>
+    <label className="pt-2 text-sm font-semibold uppercase tracking-[0.18em] text-slate-500">
+      {children}
+    </label>
   );
 }
 
@@ -637,11 +634,11 @@ export function SettingCardCollapse({
     >
       <SettingCard.Action>
         <IconButton
-          variant="soft"
+          variant="ghost"
           onClick={() => setOpen(!open)}
           aria-expanded={open}
           aria-controls="collapsible-content"
-          className="rounded-xl"
+          className="rounded-lg"
         >
           <motion.div
             initial={{ rotate: 0, scale: 1 }}
@@ -655,16 +652,16 @@ export function SettingCardCollapse({
       <AnimatePresence>
         {open && (
           <motion.div
-            className="w-full p-0 md:p-1" // Ensures the content takes full width
+            className="w-full pt-3"
             layout // Smoothly handles height changes
             initial={{ height: 0, opacity: 0, y: -10 }}
             animate={{ height: "auto", opacity: 1, y: 0 }}
             exit={{ height: 0, opacity: 0, y: -10 }}
             transition={{ duration: 0.25, ease: [0.4, 0, 0.2, 1] }}
-            style={{ overflow: "hidden" }} // Prevents content clipping during animation
+            style={{ overflow: "hidden" }}
             id="collapsible-content"
           >
-            <div className="my-3 h-px bg-[linear-gradient(90deg,rgba(148,163,184,0.10),rgba(148,163,184,0.65),rgba(148,163,184,0.10))]" />
+            <div className="mb-3 h-px bg-slate-200/80" />
             {children}
           </motion.div>
         )}
