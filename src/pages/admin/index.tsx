@@ -86,6 +86,29 @@ const createEmptyLiveRecord = (): LiveRecord => ({
   updated_at: "",
 });
 
+const formatUptimeLabel = (secondsValue?: number) => {
+  const seconds = Math.max(0, Math.floor(secondsValue ?? 0));
+  const days = Math.floor(seconds / 86400);
+  const hours = Math.floor((seconds % 86400) / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+
+  if (days > 0) {
+    return `${days}天 ${hours}小时`;
+  }
+  if (hours > 0) {
+    return `${hours}小时 ${minutes}分钟`;
+  }
+  if (minutes > 0) {
+    return `${minutes}分钟`;
+  }
+  return "刚启动";
+};
+
+const formatNodeIp = (value?: string) => {
+  const normalized = String(value || "").trim();
+  return normalized || "-";
+};
+
 const normalizeLiveSnapshot = (value: any): NodeLiveSnapshot => {
   const fallback = createEmptyLiveRecord();
 
@@ -263,6 +286,14 @@ const Header = ({
     (sum, node) => sum + (liveByNode[node.uuid]?.record.network.down ?? 0),
     0
   );
+  const totalUploadTraffic = nodes.reduce(
+    (sum, node) => sum + (liveByNode[node.uuid]?.record.network.totalUp ?? 0),
+    0
+  );
+  const totalDownloadTraffic = nodes.reduce(
+    (sum, node) => sum + (liveByNode[node.uuid]?.record.network.totalDown ?? 0),
+    0
+  );
   const handleAddNode = async (name: string | undefined) => {
     setDialogOpen(true);
     setLoading(true);
@@ -345,10 +376,17 @@ const Header = ({
         </div>
 
         <div className="flex flex-col gap-3 xl:flex-row xl:items-center">
-          <div className="flex items-center gap-3 rounded-2xl border border-slate-200/80 bg-slate-50 px-4 py-2 text-sm text-slate-600">
-            <span className="font-medium text-slate-900">总速率</span>
-            <span>↑ {formatBytes(totalUploadSpeed)}/s</span>
-            <span>↓ {formatBytes(totalDownloadSpeed)}/s</span>
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="flex shrink-0 items-center gap-3 whitespace-nowrap rounded-2xl border border-slate-200/80 bg-slate-50 px-4 py-2 text-sm text-slate-600">
+              <span className="font-medium text-slate-900">总速率</span>
+              <span>↑ {formatBytes(totalUploadSpeed)}/s</span>
+              <span>↓ {formatBytes(totalDownloadSpeed)}/s</span>
+            </div>
+            <div className="flex shrink-0 items-center gap-3 whitespace-nowrap rounded-2xl border border-slate-200/80 bg-slate-50 px-4 py-2 text-sm text-slate-600">
+              <span className="font-medium text-slate-900">总流量</span>
+              <span>↑ {formatBytes(totalUploadTraffic)}</span>
+              <span>↓ {formatBytes(totalDownloadTraffic)}</span>
+            </div>
           </div>
           <TextField.Root
             size="3"
@@ -495,22 +533,40 @@ const StatusSummary = ({
   live,
 }: {
   live?: NodeLiveSnapshot;
-}) => (
-  <div className="min-w-[72px]">
-    <Badge
-      color={live?.online ? "green" : "gray"}
-      variant="soft"
-      className="rounded-full px-2 py-0.5 text-[12px]"
-    >
-      {live?.online ? "在线" : "离线"}
-    </Badge>
-  </div>
-);
+}) => {
+  const online = Boolean(live?.online);
+
+  return (
+    <div className="min-w-[72px]">
+      <Badge
+        variant="soft"
+        className={
+          online
+            ? "rounded-full border border-emerald-200 bg-emerald-100 px-2 py-0.5 text-[12px] text-emerald-700"
+            : "rounded-full border border-rose-200 bg-rose-100 px-2 py-0.5 text-[12px] text-rose-700"
+        }
+      >
+        {online ? "在线" : "离线"}
+      </Badge>
+    </div>
+  );
+};
 
 const ExitIpSummary = ({ node }: { node: NodeDetail }) => (
-  <div className="flex min-w-[132px] items-center gap-2 text-[13px] text-slate-700">
-    <Flag flag={node.region} size="4" />
-    <span className="truncate">{node.ipv4 || node.ipv6 || "-"}</span>
+  <div className="flex min-w-[200px] items-start gap-2 text-[13px] text-slate-700">
+    <div className="pt-0.5">
+      <Flag flag={node.region} size="4" />
+    </div>
+    <div className="min-w-0 space-y-0.5">
+      <div className="truncate">
+        <span className="mr-1 text-slate-400">IPv4</span>
+        {formatNodeIp(node.ipv4)}
+      </div>
+      <div className="truncate">
+        <span className="mr-1 text-slate-400">IPv6</span>
+        {formatNodeIp(node.ipv6)}
+      </div>
+    </div>
   </div>
 );
 
@@ -545,18 +601,9 @@ const TrafficSummary = ({ live }: { live?: NodeLiveSnapshot }) => {
 };
 
 const UptimeSummary = ({ live }: { live?: NodeLiveSnapshot }) => {
-  const seconds = Math.max(0, Math.floor(live?.record.uptime ?? 0));
-  const days = Math.floor(seconds / 86400);
-  const hours = Math.floor((seconds % 86400) / 3600);
-  const minutes = Math.floor((seconds % 3600) / 60);
-
   return (
     <Text size="1" className="block min-w-[72px] text-[13px] text-slate-700">
-      {days > 0
-        ? `${days}d ${hours}h`
-        : hours > 0
-          ? `${hours}h ${minutes}m`
-          : `${minutes}m`}
+      {formatUptimeLabel(live?.record.uptime)}
     </Text>
   );
 };
@@ -576,7 +623,8 @@ const buildNodeConfigTooltip = ({
     `CPU: ${node.cpu_name || "-"} / ${node.cpu_cores || 0} 核`,
     `内存: ${formatBytes(memoryUsed)} / ${formatBytes(node.mem_total || 0)}`,
     `存储: ${formatBytes(diskUsed)} / ${formatBytes(node.disk_total || 0)}`,
-    `出口 IP: ${node.ipv4 || node.ipv6 || "-"}`,
+    `IPv4: ${formatNodeIp(node.ipv4)}`,
+    `IPv6: ${formatNodeIp(node.ipv6)}`,
   ];
 
   if (node.virtualization) {
@@ -666,10 +714,10 @@ const NodeTableColumns = () => (
   <TableHeader className="bg-[linear-gradient(135deg,rgba(19,70,134,0.10),rgba(255,255,255,0.92),rgba(89,172,119,0.10))]">
     <TableRow>
       <TableHead>状态</TableHead>
-      <TableHead>出口 IP</TableHead>
+      <TableHead className="w-[240px]">出口 IP</TableHead>
       <TableHead>速率</TableHead>
       <TableHead>开机时长</TableHead>
-      <TableHead>流量</TableHead>
+      <TableHead>总流量</TableHead>
       <TableHead className="w-[190px]">CPU</TableHead>
       <TableHead className="w-[190px]">RAM</TableHead>
       <TableHead className="w-[190px]">存储</TableHead>
@@ -734,35 +782,43 @@ const NodeTable = ({
           className="overflow-hidden rounded-[28px] border border-white/65 bg-white/78 shadow-[0_24px_60px_rgba(15,23,42,0.08)] backdrop-blur-xl"
         >
           <div className="border-b border-slate-200/70 bg-slate-50/90 px-4 py-3">
-            <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+            <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
               <div className="flex flex-wrap items-center gap-2">
                 <Text className="text-sm font-semibold text-slate-900">
                   {group.label}
                 </Text>
+                {group.label !== DEFAULT_GROUP_NAME && (
+                  <GenerateCommandButton
+                    nodes={group.nodes}
+                    settings={settings}
+                    toolbar
+                    groupMode
+                    presetGroupName={group.label}
+                    toolbarLabel="一键对接"
+                  />
+                )}
               </div>
-              <div className="flex flex-wrap items-center gap-4 text-[13px] text-slate-600">
-                <span>
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-[13px] text-slate-600">
+                <span className="inline-flex items-center gap-1 whitespace-nowrap">
                   <span className="font-medium text-slate-900">总速率</span>
-                  {" "}
                   ↑ {formatBytes(group.totalUploadSpeed)}/s
-                  {" "}
                   ↓ {formatBytes(group.totalDownloadSpeed)}/s
                 </span>
-                <span>
+                <span className="inline-flex items-center gap-1 whitespace-nowrap">
                   <span className="font-medium text-slate-900">总流量</span>
-                  {" "}
                   ↑ {formatBytes(group.totalUploadTraffic)}
-                  {" "}
                   ↓ {formatBytes(group.totalDownloadTraffic)}
                 </span>
-                <span>
-                  <span className="font-medium text-slate-900">在线数</span>
-                  {" "}
+                <span className="inline-flex items-center gap-1 whitespace-nowrap">
+                  <span className="font-medium text-emerald-700">在线</span>
                   {group.onlineCount}
                 </span>
-                <span>
+                <span className="inline-flex items-center gap-1 whitespace-nowrap">
+                  <span className="font-medium text-rose-700">离线</span>
+                  {group.nodes.length - group.onlineCount}
+                </span>
+                <span className="inline-flex items-center gap-1 whitespace-nowrap">
                   <span className="font-medium text-slate-900">机器数</span>
-                  {" "}
                   {group.nodes.length}
                 </span>
               </div>
@@ -875,12 +931,16 @@ function GenerateCommandButton({
   settings,
   toolbar = false,
   groupMode = false,
+  presetGroupName,
+  toolbarLabel,
 }: {
   node?: NodeDetail;
   nodes?: NodeDetail[];
   settings: any;
   toolbar?: boolean;
   groupMode?: boolean;
+  presetGroupName?: string;
+  toolbarLabel?: string;
 }) {
   const availableNodes = nodes ?? (node ? [node] : []);
   const [selectedNodeId, setSelectedNodeId] = React.useState(
@@ -911,7 +971,11 @@ function GenerateCommandButton({
   const [enableIncludeMountpoints, setEnableIncludeMountpoints] =
     React.useState(false);
   const [enableMonthRotate, setEnableMonthRotate] = React.useState(false);
-  const [groupName, setGroupName] = React.useState("");
+  const scopedGroupName =
+    groupMode && presetGroupName && presetGroupName !== DEFAULT_GROUP_NAME
+      ? presetGroupName.trim()
+      : "";
+  const [groupName, setGroupName] = React.useState(scopedGroupName);
   const autoDiscoveryKey = String(settings?.auto_discovery_key || "").trim();
   const useAutoDiscovery = autoDiscoveryKey.length >= 12;
   const normalizedGroupName = groupName.trim();
@@ -934,6 +998,11 @@ function GenerateCommandButton({
     node ??
     availableNodes.find((item) => item.uuid === selectedNodeId) ??
     availableNodes[0];
+
+  React.useEffect(() => {
+    if (!groupMode) return;
+    setGroupName(scopedGroupName);
+  }, [groupMode, scopedGroupName]);
 
   React.useEffect(() => {
     if (useAutoDiscovery || groupMode) {
@@ -1115,7 +1184,7 @@ function GenerateCommandButton({
             className="rounded-2xl"
           >
             <Download size={16} />
-            {groupMode ? "创建分组" : "一键安装命令"}
+            {toolbarLabel || (groupMode ? "创建分组" : "一键安装命令")}
           </Button>
         ) : (
         <IconButton variant="ghost" title={t("admin.nodeTable.installCommand")}>
@@ -1126,7 +1195,9 @@ function GenerateCommandButton({
       <Dialog.Content>
         <Dialog.Title>
           {groupMode
-            ? "创建分组安装命令"
+            ? scopedGroupName
+              ? `${t("admin.nodeTable.installCommand", "一键部署指令")} · ${scopedGroupName}`
+              : "创建分组安装命令"
             : useAutoDiscovery
             ? `${t("admin.nodeTable.installCommand", "一键部署指令")} · 自动接入`
             : node
