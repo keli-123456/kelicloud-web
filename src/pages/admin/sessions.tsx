@@ -176,7 +176,7 @@ export default function Sessions() {
       ]}
     >
       <AdminSurface className="overflow-hidden p-0">
-        <div className="border-b border-slate-200/70 bg-slate-50/85 px-5 py-4">
+        <div className="border-b border-slate-200/70 px-1 py-3">
           <div className="flex flex-col gap-1">
             <label className="text-lg font-semibold tracking-tight text-slate-900">
               会话明细
@@ -211,7 +211,7 @@ export default function Sessions() {
                 return (
                   <TableRow
                     key={session.uuid}
-                    className="bg-white/55 transition-colors hover:bg-slate-50/80"
+                    className="transition-colors hover:bg-slate-50/60"
                   >
                     <TableCell>
                       <Dialog.Root>

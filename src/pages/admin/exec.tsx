@@ -276,7 +276,7 @@ const ExecContent = () => {
                 },
             ]}
         >
-            <AdminSurface className="p-6">
+            <AdminSurface className="py-2">
                 <Flex direction="column" gap="4">
                     <label className="text-xl font-semibold tracking-tight text-slate-900">
                         {t("exec.command")}
@@ -333,7 +333,7 @@ const ExecContent = () => {
 
             {/* 执行结果区域 */}
             {results.length > 0 && (
-                <AdminSurface className="p-6">
+                <AdminSurface className="py-2">
                     <Flex direction="column" gap="4">
                         <Flex justify="between" align="center">
                             <Text size="4" weight="medium">
@@ -352,7 +352,7 @@ const ExecContent = () => {
                                 return (
                                     <div
                                         key={result.client}
-                                        className="rounded-[24px] border border-slate-200/80 bg-slate-50/75 p-4 shadow-sm"
+                                        className="border-b border-slate-200/70 py-4 last:border-b-0"
                                     >
                                         <Flex direction="column" gap="3">
                                             {/* 节点信息和状态 */}
@@ -421,7 +421,7 @@ const ExecContent = () => {
 
                                             {/* 输出内容 */}
                                             {result.result && (
-                                                <div className="rounded-xl border border-slate-200/80 bg-white p-3 font-mono text-sm overflow-x-auto">
+                                                <div className="border-l-2 border-slate-200 pl-4 font-mono text-sm overflow-x-auto">
                                                     <pre className="whitespace-pre-wrap">{result.result}</pre>
                                                 </div>
                                             )}

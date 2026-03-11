@@ -158,7 +158,7 @@ export default function AboutPage() {
           switch (view) {
             case "eula":
               return (
-                <div className="license-text rounded-[24px] border border-slate-200/80 bg-slate-50/80 p-5">
+                <div className="license-text border-l-2 border-slate-200 pl-4">
                   <pre className="text-wrap text-sm leading-6 text-slate-700">
                     {Eula}
                   </pre>
@@ -181,7 +181,7 @@ export default function AboutPage() {
                       <pre className="text-wrap">{Apache2_LICENSE}</pre>
                     </SettingCardCollapse>
                   </div>
-                  <div className="rounded-[24px] border border-slate-200/80 bg-slate-50/80 p-5">
+                  <div className="border-t border-slate-200/80 pt-4">
                     <h2 className="text-xl font-semibold text-foreground">
                       {t("about.open_source")}
                     </h2>
@@ -206,7 +206,7 @@ export default function AboutPage() {
             case "readme":
               return (
                 <div className="flex flex-col gap-4">
-                  <div className="markdown-body rounded-[24px] border border-slate-200/80 bg-white p-5">
+                  <div className="markdown-body border-t border-slate-200/80 pt-4">
                     {markdown ? (
                       <ReactMarkdown
                         remarkPlugins={[remarkGfm]}

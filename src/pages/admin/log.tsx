@@ -116,7 +116,7 @@ const LogPage = () => {
         },
       ]}
       actions={
-        <div className="flex items-center gap-2 rounded-full border border-white/75 bg-white/85 px-3 py-2 text-sm shadow-sm">
+        <div className="flex items-center gap-2 text-sm text-slate-600">
           <span className="text-slate-500">Limit</span>
           <NumberPicker
             defaultValue={limit}
@@ -131,7 +131,7 @@ const LogPage = () => {
       }
     >
       <AdminSurface className="overflow-hidden p-0">
-        <div className="border-b border-slate-200/70 bg-slate-50/85 px-5 py-4">
+        <div className="border-b border-slate-200/70 px-1 py-3">
           <div className="flex flex-col gap-1">
             <label className="text-lg font-semibold tracking-tight text-slate-900">
               日志明细
@@ -159,10 +159,7 @@ const LogPage = () => {
             </TableHeader>
             <TableBody>
               {logs.map((log) => (
-                <TableRow
-                  key={log.id}
-                  className="bg-white/55 transition-colors hover:bg-slate-50/80"
-                >
+                <TableRow key={log.id} className="transition-colors hover:bg-slate-50/60">
                   <TableCell>
                     <Dialog.Root>
                       <Dialog.Trigger>

@@ -325,9 +325,9 @@ const InnerLayout = () => {
             <label className="text-sm font-medium uppercase tracking-[0.18em] text-slate-500">
               {t("settings.sso.title")}
             </label>
-            <div className="rounded-[24px] border border-slate-200/80 bg-slate-50/80 p-4">
+            <div className="border-l-2 border-slate-200 pl-4">
               <div className="flex items-start gap-3">
-                <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-white text-slate-700 shadow-sm">
+                <div className="flex h-11 w-11 items-center justify-center text-slate-700">
                   {providerIcon}
                 </div>
                 <div className="flex-1 space-y-2">
@@ -393,7 +393,7 @@ const InnerLayout = () => {
             </div>
           </div>
 
-          <div className="rounded-[24px] border border-sky-200 bg-sky-50/80 px-4 py-3 text-sm text-sky-800">
+          <div className="border-l-2 border-sky-300 pl-4 text-sm text-sky-800">
             {t("account_settings.looking_for_backup")}
           </div>
         </AdminSurface>
