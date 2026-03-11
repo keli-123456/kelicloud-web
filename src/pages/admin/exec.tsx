@@ -3,14 +3,6 @@ import Loading from "@/components/loading";
 import { NodeDetailsProvider, useNodeDetails } from "@/contexts/NodeDetailsContext";
 import { useTranslation } from "react-i18next";
 import {
-    Button,
-    Flex,
-    TextField,
-    Text,
-    Badge,
-    TextArea,
-} from "@radix-ui/themes";
-import {
     Play,
     Terminal,
     AlertCircle,
@@ -26,6 +18,10 @@ import {
     AdminPageShell,
     AdminSurface,
 } from "@/components/admin/AdminPageShell";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 
 interface TaskResult {
     task_id: string;
@@ -395,15 +391,31 @@ const ExecContent = () => {
 
     const getTaskStatus = (result: TaskResult) => {
         if (result.finished_at === null) {
-            return { status: "running", color: "blue" as const, text: t("exec.status.running") };
+            return {
+                status: "running",
+                variant: "info" as const,
+                text: t("exec.status.running"),
+            };
         }
         if (result.result === "执行超时") {
-            return { status: "timeout", color: "orange" as const, text: t("exec.status.timeout", "超时") };
+            return {
+                status: "timeout",
+                variant: "warning" as const,
+                text: t("exec.status.timeout", "超时"),
+            };
         }
         if (result.exit_code === 0) {
-            return { status: "success", color: "green" as const, text: t("common.success") };
+            return {
+                status: "success",
+                variant: "success" as const,
+                text: t("common.success"),
+            };
         }
-        return { status: "failed", color: "red" as const, text: t("common.error") };
+        return {
+            status: "failed",
+            variant: "destructive" as const,
+            text: t("common.error"),
+        };
     };
 
     const completedResults = results.filter((result) => result.finished_at !== null).length;
@@ -439,14 +451,14 @@ const ExecContent = () => {
                     <section className="min-w-0 border-b border-slate-200/80 pb-4 xl:border-b-0 xl:border-r xl:pb-0 xl:pr-5">
                         <div className="mb-3 flex items-center justify-between gap-3">
                             <div className="min-w-0">
-                                <Text className="block text-[13px] font-medium text-slate-900">
+                                <p className="block text-[13px] font-medium text-slate-900">
                                     {t("exec.selectNodes")}
-                                </Text>
-                                <Text className="block text-[12px] text-slate-500">
+                                </p>
+                                <p className="block text-[12px] text-slate-500">
                                     {t("exec.selectedNodes", {
                                         defaultValue: "已选择节点",
                                     })}: {selectedNodes.length}
-                                </Text>
+                                </p>
                             </div>
                         </div>
                         <div className="min-h-[320px]">
@@ -457,67 +469,61 @@ const ExecContent = () => {
                             />
                         </div>
                         {selectedNodes.length > 0 && (
-                            <Text
-                                size="2"
-                                color="gray"
-                                className="mt-2 block text-[12px] leading-5"
-                            >
+                            <p className="mt-2 block text-[12px] leading-5 text-slate-500">
                                 {t("exec.selectedNodes", "已选择节点")}: {getSelectedNodeNames()}
-                            </Text>
+                            </p>
                         )}
                     </section>
 
                     <section className="min-w-0">
-                        <Flex direction="column" gap="4">
+                        <div className="flex flex-col gap-4">
                             <div className="space-y-1">
                                 <div className="flex items-center gap-2">
                                     <Terminal size={15} className="text-slate-500" />
-                                    <Text className="text-[13px] font-medium text-slate-900">
+                                    <p className="text-[13px] font-medium text-slate-900">
                                         {t("exec.command")}
-                                    </Text>
+                                    </p>
                                 </div>
-                                <Text className="block text-[12px] leading-5 text-slate-500">
+                                <p className="block text-[12px] leading-5 text-slate-500">
                                     {taskId
                                         ? `Task ID: ${taskId}`
                                         : t("exec.commandEditorHint", {
                                             defaultValue: "支持保存常用命令，并对选中节点批量执行。",
                                         })}
-                                </Text>
+                                </p>
                             </div>
 
-                            <TextArea
+                            <Textarea
                                 value={command}
                                 onChange={(e) => setCommand(e.target.value)}
                                 placeholder={t("exec.commandPlaceholder")}
-                                size="2"
                                 rows={7}
-                                className="min-h-[180px] rounded-lg border border-slate-200/80 bg-white text-[13px] leading-5 shadow-none"
+                                className="min-h-[180px] rounded-lg border-slate-200 bg-white text-[13px] leading-5 shadow-none focus-visible:ring-slate-200"
                             />
 
                             <div className="flex flex-col gap-2 border-b border-slate-200/80 pb-4 sm:flex-row sm:items-end">
                                 <div className="min-w-0 flex-1">
-                                    <Text className="mb-1 block text-[12px] text-slate-500">
+                                    <p className="mb-1 block text-[12px] text-slate-500">
                                         {t("exec.savedCommandName", {
                                             defaultValue: "命令名称",
                                         })}
-                                    </Text>
-                                    <TextField.Root
+                                    </p>
+                                    <Input
                                         value={commandName}
                                         onChange={(e) => setCommandName(e.target.value)}
                                         placeholder={t("exec.savedCommandNamePlaceholder", {
                                             defaultValue: "留空时自动取命令首行",
                                         })}
-                                        size="2"
-                                        className="rounded-lg text-[13px]"
+                                        className="h-9 rounded-lg border-slate-200 bg-white text-[13px] shadow-none focus-visible:ring-slate-200"
                                     />
                                 </div>
 
                                 <Button
-                                    variant="soft"
-                                    size="2"
+                                    variant="outline"
+                                    size="sm"
                                     onClick={saveCurrentCommand}
                                     disabled={!command.trim()}
-                                    className="rounded-lg text-[12px]"
+                                    className="rounded-lg border-slate-200 bg-white text-[12px] shadow-none hover:bg-slate-50"
                                 >
                                     <Save size={15} />
                                     {t("exec.saveCommand", {
@@ -528,7 +534,8 @@ const ExecContent = () => {
                                 <Button
                                     onClick={executeCommand}
                                     disabled={executing || !command.trim() || selectedNodes.length === 0}
-                                    className="rounded-lg"
+                                    size="sm"
+                                    className="rounded-lg text-[12px]"
                                 >
                                     {executing ? (
                                         <>
@@ -545,25 +552,25 @@ const ExecContent = () => {
                             </div>
 
                             <div className="space-y-3">
-                                <Flex align="center" justify="between">
+                                <div className="flex items-center justify-between">
                                     <div>
-                                        <Text className="block text-[13px] font-medium text-slate-900">
+                                        <p className="block text-[13px] font-medium text-slate-900">
                                             {t("exec.savedCommands", {
                                                 defaultValue: "已保存命令",
                                             })}
-                                        </Text>
-                                        <Text className="block text-[12px] text-slate-500">
+                                        </p>
+                                        <p className="block text-[12px] text-slate-500">
                                             {t("exec.savedCommandsHint", {
                                                 defaultValue: "仅保存在当前浏览器，可一键回填。",
                                             })}
-                                        </Text>
+                                        </p>
                                     </div>
                                     {savedCommands.length > 0 && (
-                                        <Text className="text-[12px] text-slate-400">
+                                        <span className="text-[12px] text-slate-400">
                                             {savedCommands.length}
-                                        </Text>
+                                        </span>
                                     )}
-                                </Flex>
+                                </div>
 
                                 {savedCommands.length === 0 ? (
                                     <div className="border border-dashed border-slate-200/80 px-3 py-4 text-[12px] text-slate-500">
@@ -579,18 +586,18 @@ const ExecContent = () => {
                                                 className="flex flex-col gap-2 py-3 md:flex-row md:items-center md:justify-between"
                                             >
                                                 <div className="min-w-0">
-                                                    <Text className="block text-[13px] font-medium text-slate-900">
+                                                    <p className="block text-[13px] font-medium text-slate-900">
                                                         {preset.name}
-                                                    </Text>
-                                                    <Text className="block text-[12px] leading-5 text-slate-500">
+                                                    </p>
+                                                    <p className="block text-[12px] leading-5 text-slate-500">
                                                         {getCommandPreview(preset.command)}
-                                                    </Text>
+                                                    </p>
                                                 </div>
 
                                                 <div className="flex shrink-0 items-center gap-1">
                                                     <Button
                                                         variant="ghost"
-                                                        size="1"
+                                                        size="sm"
                                                         onClick={() => applySavedCommand(preset)}
                                                         className="rounded-md text-[12px]"
                                                     >
@@ -600,10 +607,9 @@ const ExecContent = () => {
                                                     </Button>
                                                     <Button
                                                         variant="ghost"
-                                                        color="red"
-                                                        size="1"
+                                                        size="icon"
                                                         onClick={() => removeSavedCommand(preset.id)}
-                                                        className="rounded-md"
+                                                        className="h-8 w-8 rounded-md text-red-600 hover:bg-red-50 hover:text-red-700"
                                                     >
                                                         <Trash2 size={14} />
                                                     </Button>
@@ -613,7 +619,7 @@ const ExecContent = () => {
                                     </div>
                                 )}
                             </div>
-                        </Flex>
+                        </div>
                     </section>
                 </div>
             </AdminSurface>
@@ -621,17 +627,17 @@ const ExecContent = () => {
             {/* 执行结果区域 */}
             {results.length > 0 && (
                 <AdminSurface className="py-2">
-                    <Flex direction="column" gap="4">
-                        <Flex justify="between" align="center">
-                            <Text size="4" weight="medium">
+                    <div className="flex flex-col gap-4">
+                        <div className="flex items-center justify-between gap-3">
+                            <p className="text-sm font-medium text-slate-900">
                                 {t("exec.results", "执行结果")}
-                            </Text>
+                            </p>
                             {taskId && (
-                                <Text size="2" color="gray">
+                                <span className="text-[12px] text-slate-500">
                                     Task ID: {taskId}
-                                </Text>
+                                </span>
                             )}
-                        </Flex>
+                        </div>
 
                         <div className="space-y-4">
                             {results.map((result) => {
@@ -641,17 +647,19 @@ const ExecContent = () => {
                                         key={result.client}
                                         className="border-b border-slate-200/70 py-4 last:border-b-0"
                                     >
-                                        <Flex direction="column" gap="3">
+                                        <div className="flex flex-col gap-3">
                                             {/* 节点信息和状态 */}
-                                            <label className="text-xl font-medium text-slate-900">
+                                            <p className="text-base font-medium text-slate-900">
                                                 {nodeDetail.find(n => n.uuid === result.client)?.name || result.client}
-                                            </label>
-                                            <Flex justify="between" align="center">
-                                                <Flex align="center" gap="2">
-                                                    <Text weight="medium">{result.client_info.name}</Text>
+                                            </p>
+                                            <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                                                <div className="flex flex-wrap items-center gap-2">
+                                                    <span className="text-sm font-medium text-slate-900">
+                                                        {result.client_info.name}
+                                                    </span>
                                                     <Badge
-                                                        color={status.color}
-                                                        variant="soft"
+                                                        variant={status.variant}
+                                                        className="rounded-md"
                                                     >
                                                         {status.status === "running" ? (
                                                             <>
@@ -676,23 +684,23 @@ const ExecContent = () => {
                                                         )}
                                                     </Badge>
                                                     {result.exit_code !== null && (
-                                                        <Text size="1" color="gray">
+                                                        <span className="text-[12px] text-slate-500">
                                                             Exit Code: {result.exit_code}
-                                                        </Text>
+                                                        </span>
                                                     )}
-                                                </Flex>
+                                                </div>
 
                                                 {result.result && (
                                                     <Button
                                                         variant="ghost"
-                                                        size="1"
+                                                        size="icon"
                                                         onClick={() => copyOutput(result.result)}
-                                                        className="rounded-xl"
+                                                        className="h-8 w-8 rounded-md"
                                                     >
                                                         <Copy size={14} />
                                                     </Button>
                                                 )}
-                                            </Flex>
+                                            </div>
 
                                             {/* 时间信息 */}
                                             {/* <Flex gap="4" className="text-sm text-gray-500">
@@ -712,7 +720,7 @@ const ExecContent = () => {
                                                     <pre className="whitespace-pre-wrap">{result.result}</pre>
                                                 </div>
                                             )}
-                                        </Flex>
+                                        </div>
                                     </div>
                                 );
                             })}
@@ -720,24 +728,24 @@ const ExecContent = () => {
 
                         {/* 轮询状态提示 */}
                         {polling && (
-                            <Flex align="center" justify="between" className="text-sm text-gray-500">
-                                <Flex align="center" gap="2">
+                            <div className="flex flex-col gap-3 text-sm text-gray-500 md:flex-row md:items-center md:justify-between">
+                                <div className="flex items-center gap-2">
                                     <div className="animate-spin rounded-full h-4 w-4 border-2 border-current border-t-transparent" />
-                                    <Text size="2" color="gray">
+                                    <span className="text-[12px] text-slate-500">
                                         正在获取最新执行状态...
-                                    </Text>
-                                </Flex>
+                                    </span>
+                                </div>
                                 <Button
-                                    variant="soft"
-                                    size="1"
+                                    variant="outline"
+                                    size="sm"
                                     onClick={clearPolling}
-                                    className="rounded-xl"
+                                    className="rounded-lg border-slate-200 bg-white text-[12px] shadow-none hover:bg-slate-50"
                                 >
                                     停止轮询
                                 </Button>
-                            </Flex>
+                            </div>
                         )}
-                    </Flex>
+                    </div>
                 </AdminSurface>
             )}
         </AdminPageShell>

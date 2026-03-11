@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { AnimatePresence, motion } from "framer-motion";
-import { Button, Callout, IconButton, Text } from "@radix-ui/themes";
 import {
   ChevronDown,
   ChevronRight,
@@ -21,6 +20,7 @@ import Tips from "../ui/tips";
 import { useAccount } from "@/contexts/AccountContext";
 import { usePublicInfo } from "@/contexts/PublicInfoContext";
 import { useRPC2Call } from "@/contexts/RPC2Context";
+import { Button } from "@/components/ui/button";
 import { resolveI18nText } from "@/utils/i18nText";
 import { iconMap } from "@/utils/iconHelper";
 import { cn } from "@/lib/utils";
@@ -368,13 +368,20 @@ export default function AdminPanelBar({ content }: AdminPanelBarProps) {
             </div>
           </div>
           <div className="flex justify-end">
-            <a
-              href={latestRelease.html_url}
-              target="_blank"
-              rel="noopener noreferrer"
+            <Button
+              asChild
+              variant="outline"
+              size="sm"
+              className="border-slate-200 bg-white shadow-none hover:bg-slate-50"
             >
-              <Button variant="soft">Github</Button>
-            </a>
+              <a
+                href={latestRelease.html_url}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                Github
+              </a>
+            </Button>
           </div>
         </div>
       </Tips>
@@ -386,24 +393,25 @@ export default function AdminPanelBar({ content }: AdminPanelBarProps) {
         <header className="border-b border-slate-200/80 bg-white py-3 md:py-4">
           <div className="flex items-center gap-3">
             <div className="flex min-w-0 items-center gap-3">
-              <IconButton
+              <Button
                 variant="ghost"
-                className="md:hidden"
+                size="icon"
+                className="h-8 w-8 md:hidden"
                 onClick={() => setMobileMenuOpen(true)}
               >
                 <Menu size={18} />
-              </IconButton>
+              </Button>
               <a href="/" target="_blank" rel="noopener noreferrer">
-                <label className="text-xl font-semibold tracking-tight text-slate-900">
+                <span className="text-xl font-semibold tracking-tight text-slate-900">
                   Komari
-                </label>
+                </span>
               </a>
               {renderUpdateTrigger}
-              <label className="hidden text-sm text-muted-foreground xl:block">
+              <span className="hidden text-sm text-muted-foreground xl:block">
                 {(publicInfo as any)?.version ||
                   (versionInfo &&
                     `${versionInfo.version} (${versionInfo.hash})`)}
-              </label>
+              </span>
             </div>
 
             <nav className="hidden min-w-0 flex-1 items-center gap-4 overflow-x-auto px-3 md:flex">
@@ -436,9 +444,14 @@ export default function AdminPanelBar({ content }: AdminPanelBarProps) {
               <ThemeSwitch />
               <ColorSwitch />
               <LanguageSwitch />
-              <IconButton variant="soft" color="orange" onClick={logout}>
+              <Button
+                variant="outline"
+                size="icon"
+                className="h-8 w-8 border-slate-200 bg-white text-slate-600 shadow-none hover:bg-slate-50"
+                onClick={logout}
+              >
                 <LogOut size={16} />
-              </IconButton>
+              </Button>
             </div>
           </div>
         </header>
@@ -467,25 +480,22 @@ export default function AdminPanelBar({ content }: AdminPanelBarProps) {
 
           <main className="min-w-0 flex-1 overflow-hidden">
             <div className="h-full overflow-y-auto py-1 md:py-2">
-              <Callout.Root mb="2" hidden={ishttps} color="red">
-                <Callout.Icon>
+              {!ishttps && (
+                <div className="mb-3 flex items-start gap-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-red-700">
                   <svg
                     xmlns="http://www.w3.org/2000/svg"
-                    width="24"
+                    width="18"
                     viewBox="0 0 24 24"
+                    className="mt-0.5 shrink-0"
                   >
                     <path
                       fill="currentColor"
                       d="M10.03 3.659c.856-1.548 3.081-1.548 3.937 0l7.746 14.001c.83 1.5-.255 3.34-1.969 3.34H4.254c-1.715 0-2.8-1.84-1.97-3.34zM12.997 17A.999.999 0 1 0 11 17a.999.999 0 0 0 1.997 0m-.259-7.853a.75.75 0 0 0-1.493.103l.004 4.501l.007.102a.75.75 0 0 0 1.493-.103l-.004-4.502z"
                     />
                   </svg>
-                </Callout.Icon>
-                <Callout.Text>
-                  <Text size="2" weight="medium">
-                    {t("warn_https")}
-                  </Text>
-                </Callout.Text>
-              </Callout.Root>
+                  <span className="text-sm font-medium">{t("warn_https")}</span>
+                </div>
+              )}
 
               {content}
             </div>
@@ -512,16 +522,21 @@ export default function AdminPanelBar({ content }: AdminPanelBarProps) {
             >
               <div className="flex items-center justify-between border-b border-slate-200/70 px-4 py-4">
                 <div>
-                  <Text className="text-lg font-semibold tracking-tight text-slate-900">
+                  <div className="text-lg font-semibold tracking-tight text-slate-900">
                     Komari
-                  </Text>
-                  <Text className="block text-xs text-slate-500">
+                  </div>
+                  <div className="block text-xs text-slate-500">
                     管理后台导航
-                  </Text>
+                  </div>
                 </div>
-                <IconButton variant="ghost" onClick={() => setMobileMenuOpen(false)}>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8"
+                  onClick={() => setMobileMenuOpen(false)}
+                >
                   <X size={18} />
-                </IconButton>
+                </Button>
               </div>
 
               <div className="flex-1 overflow-y-auto px-3 py-3">
