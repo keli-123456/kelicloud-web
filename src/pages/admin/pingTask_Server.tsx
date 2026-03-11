@@ -8,7 +8,7 @@ import {
 } from "@/components/ui/table";
 import { useNodeDetails } from "@/contexts/NodeDetailsContext";
 import { usePingTask, type PingTask } from "@/contexts/PingTaskContext";
-import { Button, Dialog, Flex, IconButton } from "@radix-ui/themes";
+import { Button, Dialog, Flex, IconButton } from "@/components/ui/compat";
 import { MoreHorizontal } from "lucide-react";
 import React from "react";
 import { useTranslation } from "react-i18next";

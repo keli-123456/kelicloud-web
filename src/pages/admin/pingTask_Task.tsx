@@ -16,7 +16,7 @@ import {
   IconButton,
   Select,
   TextField,
-} from "@radix-ui/themes";
+} from "@/components/ui/compat";
 import { MoreHorizontal, Pencil, Trash } from "lucide-react";
 import React from "react";
 import { useTranslation } from "react-i18next";

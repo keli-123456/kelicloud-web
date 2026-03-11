@@ -1,4 +1,4 @@
-import { DropdownMenu, IconButton } from "@radix-ui/themes";
+import { DropdownMenu, IconButton } from "@/components/ui/compat";
 import { type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { resources } from "../i18n/config";

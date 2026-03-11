@@ -27,7 +27,7 @@ import {
   IconButton,
   Switch,
   TextField,
-} from "@radix-ui/themes";
+} from "@/components/ui/compat";
 import { toast } from "sonner";
 import Loading from "@/components/loading";
 import Tips from "@/components/ui/tips";

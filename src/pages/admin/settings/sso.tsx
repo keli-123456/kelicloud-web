@@ -5,7 +5,7 @@ import {
 } from "@/components/admin/SettingCard";
 import Loading from "@/components/loading";
 import { updateSettingsWithToast, useSettings } from "@/lib/api";
-import { Text } from "@radix-ui/themes";
+import { Text } from "@/components/ui/compat";
 import { useTranslation } from "react-i18next";
 
 export default function SsoSettings() {

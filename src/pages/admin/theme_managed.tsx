@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Flex, Heading, Callout, Separator, Button } from "@radix-ui/themes";
+import { Flex, Heading, Callout, Separator, Button } from "@/components/ui/compat";
 import { usePublicInfo } from "@/contexts/PublicInfoContext";
 import {
   SettingCardSelect,

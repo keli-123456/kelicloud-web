@@ -16,7 +16,7 @@ import {
   IconButton,
   TextArea,
   SegmentedControl,
-} from "@radix-ui/themes";
+} from "@/components/ui/compat";
 import {
   CircleDollarSign,
   Copy,

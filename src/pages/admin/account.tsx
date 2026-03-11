@@ -10,7 +10,7 @@ import {
   Flex,
   Skeleton,
   TextField,
-} from "@radix-ui/themes";
+} from "@/components/ui/compat";
 import { Github, Globe, User } from "lucide-react";
 import Loading from "@/components/loading";
 import {

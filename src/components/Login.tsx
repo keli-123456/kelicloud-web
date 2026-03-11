@@ -7,7 +7,7 @@ import {
   Button,
   Box,
   IconButton,
-} from "@radix-ui/themes";
+} from "@/components/ui/compat";
 import { useTranslation } from "react-i18next";
 import { TablerSettings } from "./Icones/Tabler";
 import { AccountProvider, useAccount } from "@/contexts/AccountContext";

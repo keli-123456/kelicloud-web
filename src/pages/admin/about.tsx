@@ -5,7 +5,7 @@ import "github-markdown-css/github-markdown.css";
 import Loading from "@/components/loading";
 import { useTranslation } from "react-i18next";
 import { SquareArrowOutUpRight } from "lucide-react";
-import { SegmentedControl } from "@radix-ui/themes";
+import { SegmentedControl } from "@/components/ui/compat";
 import { Apache2_LICENSE, Eula, MIT_LICENSE } from "@/utils/field";
 import { SettingCardCollapse } from "@/components/admin/SettingCard";
 import {

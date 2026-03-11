@@ -1,4 +1,4 @@
-import { DropdownMenu, IconButton } from "@radix-ui/themes";
+import { DropdownMenu, IconButton } from "@/components/ui/compat";
 import { useContext, type ReactNode } from "react";
 import { ThemeContext } from "../contexts/ThemeContext";
 import { SunIcon } from "@radix-ui/react-icons";

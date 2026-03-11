@@ -1,5 +1,5 @@
 import React from "react";
-import { Button, Flex, TextField, TextArea } from "@radix-ui/themes";
+import { Button, Flex, TextField, TextArea } from "@/components/ui/compat";
 import { useTranslation } from "react-i18next";
 import { SettingCardCollapse } from "./SettingCard";
 

@@ -1,6 +1,6 @@
-import { Flex } from "@radix-ui/themes";
+import { Flex } from "@/components/ui/compat";
 import { useTranslation } from "react-i18next";
-import { Text } from "@radix-ui/themes";
+import { Text } from "@/components/ui/compat";
 import { updateSettingsWithToast, useSettings } from "@/lib/api";
 import Loading from "@/components/loading";
 import {

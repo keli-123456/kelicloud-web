@@ -5,7 +5,7 @@ import {
   SettingCardSwitch,
 } from "@/components/admin/SettingCard";
 import { updateSettingsWithToast, useSettings } from "@/lib/api";
-import { Button, Text } from "@radix-ui/themes";
+import { Button, Text } from "@/components/ui/compat";
 import { useTranslation } from "react-i18next";
 import Loading from "@/components/loading";
 import React from "react";

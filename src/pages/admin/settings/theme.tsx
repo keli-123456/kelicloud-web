@@ -12,7 +12,7 @@ import {
   TextField,
   Callout,
   Separator,
-} from "@radix-ui/themes";
+} from "@/components/ui/compat";
 import { useState, useEffect } from "react";
 import {
   Upload,

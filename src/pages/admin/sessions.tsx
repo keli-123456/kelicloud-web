@@ -10,7 +10,7 @@ import {
   TableCell,
 } from "@/components/ui/table";
 import { useTranslation } from "react-i18next";
-import { Dialog, Flex, Button, Badge } from "@radix-ui/themes";
+import { Dialog, Flex, Button, Badge } from "@/components/ui/compat";
 
 import { UserAgentHelper } from "@/utils/UserAgentHelper";
 import Loading from "@/components/loading";

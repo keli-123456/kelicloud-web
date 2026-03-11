@@ -15,7 +15,7 @@ import {
   SegmentedControl,
   TextArea,
   TextField,
-} from "@radix-ui/themes";
+} from "@/components/ui/compat";
 import { toast } from "sonner";
 
 async function removeClient(uuid: string) {

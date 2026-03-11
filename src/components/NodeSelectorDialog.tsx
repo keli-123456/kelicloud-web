@@ -1,5 +1,5 @@
 import React from "react";
-import { Dialog, Button, Flex } from "@radix-ui/themes";
+import { Dialog, Button, Flex } from "@/components/ui/compat";
 import NodeSelector from "./NodeSelector";
 import { useTranslation } from "react-i18next";
 

@@ -8,7 +8,7 @@ import { DataTableRefreshContext } from "@/components/admin/NodeTable/schema/Dat
 import { Pencil } from "lucide-react";
 import { t } from "i18next";
 import { toast } from "sonner";
-import { Button, Dialog, Flex, IconButton, TextField } from "@radix-ui/themes";
+import { Button, Dialog, Flex, IconButton, TextField } from "@/components/ui/compat";
 
 export function EditDialog({ item }: { item: z.infer<typeof schema> }) {
   const [form, setForm] = React.useState<ClientFormData & { weight: number }>({

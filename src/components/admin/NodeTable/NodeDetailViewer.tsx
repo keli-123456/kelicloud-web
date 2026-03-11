@@ -14,7 +14,7 @@ import {
 import { Label } from "@/components/ui/label";
 import { Copy } from "lucide-react";
 import { t } from "i18next";
-import { Button, IconButton } from "@radix-ui/themes";
+import { Button, IconButton } from "@/components/ui/compat";
 
 function formatBytes(bytes?: number | string): string {
   if (!bytes || isNaN(Number(bytes))) return "-";

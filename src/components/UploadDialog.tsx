@@ -1,5 +1,5 @@
 import React, { useRef } from "react";
-import { Dialog, Box, Flex, Button, Text, Card } from "@radix-ui/themes";
+import { Dialog, Box, Flex, Button, Text, Card } from "@/components/ui/compat";
 import { Upload as UploadIcon } from "lucide-react";
 
 export type UploadDialogProps = {

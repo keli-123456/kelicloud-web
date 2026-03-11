@@ -6,7 +6,7 @@ import {
   Switch,
   TextArea,
   TextField,
-} from "@radix-ui/themes";
+} from "@/components/ui/compat";
 import React from "react";
 import { useTranslation } from "react-i18next";
 import { ChevronDownIcon } from "lucide-react";

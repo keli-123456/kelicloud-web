@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from "react";
-import { Checkbox, TextField } from "@radix-ui/themes";
+import { Checkbox, TextField } from "@/components/ui/compat";
 import { Search } from "lucide-react";
 import {
   Table,

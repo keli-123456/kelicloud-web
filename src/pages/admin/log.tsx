@@ -8,7 +8,7 @@ import {
   TableHead,
   TableCell,
 } from "@/components/ui/table";
-import { Button, Dialog, Flex } from "@radix-ui/themes";
+import { Button, Dialog, Flex } from "@/components/ui/compat";
 import { useTranslation } from "react-i18next";
 
 import NumberPicker from "@/components/ui/number-picker";

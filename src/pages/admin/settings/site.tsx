@@ -1,5 +1,5 @@
 import { useTranslation } from "react-i18next";
-import { Button, Dialog, Flex, Text } from "@radix-ui/themes";
+import { Button, Dialog, Flex, Text } from "@/components/ui/compat";
 import { updateSettingsWithToast, useSettings } from "@/lib/api";
 import {
   SettingCardButton,
