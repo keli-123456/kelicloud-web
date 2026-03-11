@@ -7,12 +7,21 @@ import {
     Flex,
     TextField,
     Text,
-    Badge
+    Badge,
+    TextArea,
 } from "@radix-ui/themes";
-import { Play, Terminal, AlertCircle, CheckCircle2, Copy, Clock } from "lucide-react";
+import {
+    Play,
+    Terminal,
+    AlertCircle,
+    CheckCircle2,
+    Copy,
+    Clock,
+    Save,
+    Trash2,
+} from "lucide-react";
 import { toast } from "sonner";
 import NodeSelector from "@/components/NodeSelector";
-import { SettingCardCollapse } from "@/components/admin/SettingCard";
 import {
     AdminPageShell,
     AdminSurface,
@@ -53,6 +62,15 @@ interface TaskResultResponse {
     data?: TaskResult[];
 }
 
+interface SavedCommandPreset {
+    id: string;
+    name: string;
+    command: string;
+    updatedAt: number;
+}
+
+const SAVED_COMMANDS_STORAGE_KEY = "komari.admin.exec.savedCommands";
+
 const ExecPage = () => {
     return (
         <NodeDetailsProvider>
@@ -65,11 +83,13 @@ const ExecContent = () => {
     const { t } = useTranslation();
     const { nodeDetail, isLoading, error } = useNodeDetails();
     const [command, setCommand] = useState("");
+    const [commandName, setCommandName] = useState("");
     const [selectedNodes, setSelectedNodes] = useState<string[]>([]);
     const [executing, setExecuting] = useState(false);
     const [results, setResults] = useState<TaskResult[]>([]);
     const [taskId, setTaskId] = useState<string | null>(null);
     const [polling, setPolling] = useState(false);
+    const [savedCommands, setSavedCommands] = useState<SavedCommandPreset[]>([]);
 
     // 使用 useRef 来保存轮询相关的引用
     const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -93,6 +113,36 @@ const ExecContent = () => {
         return () => {
             clearPolling();
         };
+    }, []);
+
+    useEffect(() => {
+        if (typeof window === "undefined") {
+            return;
+        }
+
+        try {
+            const raw = window.localStorage.getItem(SAVED_COMMANDS_STORAGE_KEY);
+            if (!raw) {
+                return;
+            }
+
+            const parsed = JSON.parse(raw);
+            if (!Array.isArray(parsed)) {
+                return;
+            }
+
+            setSavedCommands(
+                parsed.filter(
+                    (item): item is SavedCommandPreset =>
+                        typeof item?.id === "string" &&
+                        typeof item?.name === "string" &&
+                        typeof item?.command === "string" &&
+                        typeof item?.updatedAt === "number",
+                ),
+            );
+        } catch (storageError) {
+            console.warn("加载已保存命令失败:", storageError);
+        }
     }, []);
 
     if (isLoading) {
@@ -228,6 +278,114 @@ const ExecContent = () => {
         toast.success(t("common.success"));
     };
 
+    const syncSavedCommands = (nextCommands: SavedCommandPreset[]) => {
+        setSavedCommands(nextCommands);
+
+        if (typeof window === "undefined") {
+            return;
+        }
+
+        window.localStorage.setItem(
+            SAVED_COMMANDS_STORAGE_KEY,
+            JSON.stringify(nextCommands),
+        );
+    };
+
+    const getDefaultCommandName = () => {
+        const explicitName = commandName.trim();
+        if (explicitName) {
+            return explicitName;
+        }
+
+        const firstLine = command
+            .split("\n")
+            .map((line) => line.trim())
+            .find(Boolean);
+
+        if (!firstLine) {
+            return t("exec.savedCommandUntitled", {
+                defaultValue: "未命名命令",
+            });
+        }
+
+        return firstLine.length > 32 ? `${firstLine.slice(0, 32)}...` : firstLine;
+    };
+
+    const getCommandPreview = (value: string) => {
+        const lines = value
+            .split("\n")
+            .map((line) => line.trim())
+            .filter(Boolean);
+
+        if (lines.length === 0) {
+            return "";
+        }
+
+        const preview = lines[0];
+        if (lines.length > 1 || preview.length > 72) {
+            return `${preview.slice(0, 72)}...`;
+        }
+        return preview;
+    };
+
+    const saveCurrentCommand = () => {
+        const trimmedCommand = command.trim();
+        if (!trimmedCommand) {
+            toast.error(t("exec.errors.emptyCommand"));
+            return;
+        }
+
+        const resolvedName = getDefaultCommandName();
+        const currentTimestamp = Date.now();
+        const existingPreset = savedCommands.find(
+            (item) => item.name === resolvedName,
+        );
+
+        const nextPreset: SavedCommandPreset = {
+            id: existingPreset?.id ?? `${currentTimestamp}`,
+            name: resolvedName,
+            command: trimmedCommand,
+            updatedAt: currentTimestamp,
+        };
+
+        const nextCommands = [
+            nextPreset,
+            ...savedCommands.filter((item) => item.id !== existingPreset?.id),
+        ].slice(0, 12);
+
+        syncSavedCommands(nextCommands);
+        setCommandName(resolvedName);
+        toast.success(
+            existingPreset
+                ? t("exec.savedCommandUpdated", {
+                    defaultValue: "已更新保存命令",
+                })
+                : t("exec.savedCommandSaved", {
+                    defaultValue: "命令已保存",
+                }),
+        );
+    };
+
+    const applySavedCommand = (preset: SavedCommandPreset) => {
+        setCommand(preset.command);
+        setCommandName(preset.name);
+        toast.success(
+            t("exec.savedCommandApplied", {
+                defaultValue: "已填充保存命令",
+            }),
+        );
+    };
+
+    const removeSavedCommand = (presetId: string) => {
+        const nextCommands = savedCommands.filter((item) => item.id !== presetId);
+        syncSavedCommands(nextCommands);
+        toast.success(
+            t("exec.savedCommandDeleted", {
+                defaultValue: "已删除保存命令",
+            }),
+        );
+    };
+
     const getSelectedNodeNames = () => {
         return selectedNodes.map(uuid => {
             const node = nodeDetail.find(n => n.uuid === uuid);
@@ -277,58 +435,187 @@ const ExecContent = () => {
             ]}
         >
             <AdminSurface className="py-2">
-                <Flex direction="column" gap="4">
-                    <label className="text-xl font-semibold tracking-tight text-slate-900">
-                        {t("exec.command")}
-                    </label>
-                    <TextField.Root
-                        value={command}
-                        onChange={(e) => setCommand(e.target.value)}
-                        placeholder={t("exec.commandPlaceholder")}
-                        size="3"
-                        className="rounded-xl border border-slate-200/80 bg-white shadow-sm"
-                    >
-                        <TextField.Slot>
-                            <Terminal size={16} />
-                        </TextField.Slot>
-                    </TextField.Root>
-
-
-                    <div>
-                        <SettingCardCollapse title={t("exec.selectNodes")} defaultOpen>
+                <div className="grid gap-5 xl:grid-cols-[minmax(320px,360px)_minmax(0,1fr)]">
+                    <section className="min-w-0 border-b border-slate-200/80 pb-4 xl:border-b-0 xl:border-r xl:pb-0 xl:pr-5">
+                        <div className="mb-3 flex items-center justify-between gap-3">
+                            <div className="min-w-0">
+                                <Text className="block text-[13px] font-medium text-slate-900">
+                                    {t("exec.selectNodes")}
+                                </Text>
+                                <Text className="block text-[12px] text-slate-500">
+                                    {t("exec.selectedNodes", {
+                                        defaultValue: "已选择节点",
+                                    })}: {selectedNodes.length}
+                                </Text>
+                            </div>
+                        </div>
+                        <div className="min-h-[320px]">
                             <NodeSelector
                                 value={selectedNodes}
                                 onChange={setSelectedNodes}
-                                className="min-h-[200px]"
+                                className="min-h-[320px]"
                             />
-                        </SettingCardCollapse>
+                        </div>
                         {selectedNodes.length > 0 && (
-                            <Text size="2" color="gray" className="mt-2">
+                            <Text
+                                size="2"
+                                color="gray"
+                                className="mt-2 block text-[12px] leading-5"
+                            >
                                 {t("exec.selectedNodes", "已选择节点")}: {getSelectedNodeNames()}
                             </Text>
                         )}
-                    </div>
+                    </section>
 
-                    <Flex justify="end" gap="2">
-                        <Button
-                            onClick={executeCommand}
-                            disabled={executing || !command.trim() || selectedNodes.length === 0}
-                            className="rounded-xl"
-                        >
-                            {executing ? (
-                                <>
-                                    <div className="animate-spin rounded-full h-4 w-4 border-2 border-current border-t-transparent" />
-                                    {t("exec.executing")}
-                                </>
-                            ) : (
-                                <>
-                                    <Play size={16} />
-                                    {t("exec.execute")}
-                                </>
-                            )}
-                        </Button>
-                    </Flex>
-                </Flex>
+                    <section className="min-w-0">
+                        <Flex direction="column" gap="4">
+                            <div className="space-y-1">
+                                <div className="flex items-center gap-2">
+                                    <Terminal size={15} className="text-slate-500" />
+                                    <Text className="text-[13px] font-medium text-slate-900">
+                                        {t("exec.command")}
+                                    </Text>
+                                </div>
+                                <Text className="block text-[12px] leading-5 text-slate-500">
+                                    {taskId
+                                        ? `Task ID: ${taskId}`
+                                        : t("exec.commandEditorHint", {
+                                            defaultValue: "支持保存常用命令，并对选中节点批量执行。",
+                                        })}
+                                </Text>
+                            </div>
+
+                            <TextArea
+                                value={command}
+                                onChange={(e) => setCommand(e.target.value)}
+                                placeholder={t("exec.commandPlaceholder")}
+                                size="2"
+                                rows={7}
+                                className="min-h-[180px] rounded-lg border border-slate-200/80 bg-white text-[13px] leading-5 shadow-none"
+                            />
+
+                            <div className="flex flex-col gap-2 border-b border-slate-200/80 pb-4 sm:flex-row sm:items-end">
+                                <div className="min-w-0 flex-1">
+                                    <Text className="mb-1 block text-[12px] text-slate-500">
+                                        {t("exec.savedCommandName", {
+                                            defaultValue: "命令名称",
+                                        })}
+                                    </Text>
+                                    <TextField.Root
+                                        value={commandName}
+                                        onChange={(e) => setCommandName(e.target.value)}
+                                        placeholder={t("exec.savedCommandNamePlaceholder", {
+                                            defaultValue: "留空时自动取命令首行",
+                                        })}
+                                        size="2"
+                                        className="rounded-lg text-[13px]"
+                                    />
+                                </div>
+
+                                <Button
+                                    variant="soft"
+                                    size="2"
+                                    onClick={saveCurrentCommand}
+                                    disabled={!command.trim()}
+                                    className="rounded-lg text-[12px]"
+                                >
+                                    <Save size={15} />
+                                    {t("exec.saveCommand", {
+                                        defaultValue: "保存命令",
+                                    })}
+                                </Button>
+
+                                <Button
+                                    onClick={executeCommand}
+                                    disabled={executing || !command.trim() || selectedNodes.length === 0}
+                                    className="rounded-lg"
+                                >
+                                    {executing ? (
+                                        <>
+                                            <div className="animate-spin rounded-full h-4 w-4 border-2 border-current border-t-transparent" />
+                                            {t("exec.executing")}
+                                        </>
+                                    ) : (
+                                        <>
+                                            <Play size={16} />
+                                            {t("exec.execute")}
+                                        </>
+                                    )}
+                                </Button>
+                            </div>
+
+                            <div className="space-y-3">
+                                <Flex align="center" justify="between">
+                                    <div>
+                                        <Text className="block text-[13px] font-medium text-slate-900">
+                                            {t("exec.savedCommands", {
+                                                defaultValue: "已保存命令",
+                                            })}
+                                        </Text>
+                                        <Text className="block text-[12px] text-slate-500">
+                                            {t("exec.savedCommandsHint", {
+                                                defaultValue: "仅保存在当前浏览器，可一键回填。",
+                                            })}
+                                        </Text>
+                                    </div>
+                                    {savedCommands.length > 0 && (
+                                        <Text className="text-[12px] text-slate-400">
+                                            {savedCommands.length}
+                                        </Text>
+                                    )}
+                                </Flex>
+
+                                {savedCommands.length === 0 ? (
+                                    <div className="border border-dashed border-slate-200/80 px-3 py-4 text-[12px] text-slate-500">
+                                        {t("exec.savedCommandsEmpty", {
+                                            defaultValue: "还没有保存的命令。",
+                                        })}
+                                    </div>
+                                ) : (
+                                    <div className="divide-y divide-slate-200/70 border-t border-slate-200/80">
+                                        {savedCommands.map((preset) => (
+                                            <div
+                                                key={preset.id}
+                                                className="flex flex-col gap-2 py-3 md:flex-row md:items-center md:justify-between"
+                                            >
+                                                <div className="min-w-0">
+                                                    <Text className="block text-[13px] font-medium text-slate-900">
+                                                        {preset.name}
+                                                    </Text>
+                                                    <Text className="block text-[12px] leading-5 text-slate-500">
+                                                        {getCommandPreview(preset.command)}
+                                                    </Text>
+                                                </div>
+
+                                                <div className="flex shrink-0 items-center gap-1">
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="1"
+                                                        onClick={() => applySavedCommand(preset)}
+                                                        className="rounded-md text-[12px]"
+                                                    >
+                                                        {t("exec.useSavedCommand", {
+                                                            defaultValue: "使用",
+                                                        })}
+                                                    </Button>
+                                                    <Button
+                                                        variant="ghost"
+                                                        color="red"
+                                                        size="1"
+                                                        onClick={() => removeSavedCommand(preset.id)}
+                                                        className="rounded-md"
+                                                    >
+                                                        <Trash2 size={14} />
+                                                    </Button>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                        </Flex>
+                    </section>
+                </div>
             </AdminSurface>
 
             {/* 执行结果区域 */}
