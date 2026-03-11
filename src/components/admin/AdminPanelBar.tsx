@@ -47,6 +47,12 @@ interface GithubReleaseInfo {
   prerelease?: boolean;
 }
 
+const hiddenAdminMenuPaths = new Set([
+  "/admin/about",
+  "/",
+  "https://komari-document.pages.dev/",
+]);
+
 const isPathActive = (target: string, pathname: string) => {
   if (!target || target.startsWith("http://") || target.startsWith("https://")) {
     return false;
@@ -220,26 +226,21 @@ export default function AdminPanelBar({ content }: AdminPanelBarProps) {
     [extraMenuItems],
   );
 
+  const visibleMenuItems = useMemo(
+    () =>
+      combinedMenuItems.filter((item) => !hiddenAdminMenuPaths.has(item.path)),
+    [combinedMenuItems],
+  );
+
   const internalTopItems = useMemo(
     () =>
-      combinedMenuItems.filter(
+      visibleMenuItems.filter(
         (item) =>
           !item.newTab &&
           !String(item.path || "").startsWith("http://") &&
           !String(item.path || "").startsWith("https://"),
       ),
-    [combinedMenuItems],
-  );
-
-  const externalQuickLinks = useMemo(
-    () =>
-      combinedMenuItems.filter(
-        (item) =>
-          item.newTab ||
-          String(item.path || "").startsWith("http://") ||
-          String(item.path || "").startsWith("https://"),
-      ),
-    [combinedMenuItems],
+    [visibleMenuItems],
   );
 
   const activeTopItem = useMemo(() => {
@@ -383,7 +384,7 @@ export default function AdminPanelBar({ content }: AdminPanelBarProps) {
     <div className="min-h-screen bg-white">
       <div className="flex min-h-screen flex-col px-3 md:px-6">
         <header className="border-b border-slate-200/80 bg-white py-3 md:py-4">
-          <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
             <div className="flex min-w-0 items-center gap-3">
               <IconButton
                 variant="ghost"
@@ -398,32 +399,14 @@ export default function AdminPanelBar({ content }: AdminPanelBarProps) {
                 </label>
               </a>
               {renderUpdateTrigger}
-              <label className="hidden text-sm text-muted-foreground md:block">
+              <label className="hidden text-sm text-muted-foreground xl:block">
                 {(publicInfo as any)?.version ||
                   (versionInfo &&
                     `${versionInfo.version} (${versionInfo.hash})`)}
               </label>
             </div>
 
-            <div className="flex items-center gap-2 overflow-x-auto">
-              {account && !account.logged_in && (
-                <LoginDialog
-                  autoOpen
-                  showSettings={false}
-                  onLoginSuccess={() => window.location.reload()}
-                />
-              )}
-              <ThemeSwitch />
-              <ColorSwitch />
-              <LanguageSwitch />
-              <IconButton variant="soft" color="orange" onClick={logout}>
-                <LogOut size={16} />
-              </IconButton>
-            </div>
-          </div>
-
-          <div className="mt-3 hidden items-center justify-between gap-4 border-t border-slate-200/70 pt-3 md:flex">
-            <nav className="flex min-w-0 flex-1 items-center gap-5 overflow-x-auto">
+            <nav className="hidden min-w-0 flex-1 items-center gap-4 overflow-x-auto px-3 md:flex">
               {internalTopItems.map((item) => {
                 const active =
                   item.children?.some((child) =>
@@ -442,14 +425,20 @@ export default function AdminPanelBar({ content }: AdminPanelBarProps) {
               })}
             </nav>
 
-            <div className="flex items-center gap-2">
-              {externalQuickLinks.map((item) => (
-                <QuickLink
-                  key={item.path}
-                  href={item.path}
-                  label={getMenuLabel(item)}
+            <div className="ml-auto flex items-center gap-2 overflow-x-auto">
+              {account && !account.logged_in && (
+                <LoginDialog
+                  autoOpen
+                  showSettings={false}
+                  onLoginSuccess={() => window.location.reload()}
                 />
-              ))}
+              )}
+              <ThemeSwitch />
+              <ColorSwitch />
+              <LanguageSwitch />
+              <IconButton variant="soft" color="orange" onClick={logout}>
+                <LogOut size={16} />
+              </IconButton>
             </div>
           </div>
         </header>
@@ -623,15 +612,6 @@ export default function AdminPanelBar({ content }: AdminPanelBarProps) {
                   })}
                 </div>
 
-                <div className="mt-4 flex flex-wrap gap-2">
-                  {externalQuickLinks.map((item) => (
-                    <QuickLink
-                      key={item.path}
-                      href={item.path}
-                      label={getMenuLabel(item)}
-                    />
-                  ))}
-                </div>
               </div>
             </motion.div>
           </>
@@ -719,19 +699,5 @@ function SubmenuItem({
       <span className="flex h-4 w-4 items-center justify-center">{icon}</span>
       <span className="flex-1">{label}</span>
     </Link>
-  );
-}
-
-function QuickLink({ href, label }: { href: string; label: ReactNode }) {
-  return (
-    <a
-      href={href}
-      target="_blank"
-      rel="noopener noreferrer"
-      className="inline-flex items-center gap-2 border-b border-transparent px-1 py-2 text-sm font-medium text-slate-500 transition-colors hover:border-slate-300 hover:text-slate-900"
-    >
-      <span>{label}</span>
-      <ExternalLink size={14} />
-    </a>
   );
 }
