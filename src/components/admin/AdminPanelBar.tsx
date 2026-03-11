@@ -446,15 +446,7 @@ export default function AdminPanelBar({ content }: AdminPanelBarProps) {
         <div className="flex min-h-0 flex-1 gap-6 py-5">
           {currentSubmenuItems.length > 0 && (
             <aside className="hidden w-60 shrink-0 flex-col border-r border-slate-200/80 pr-5 md:flex">
-              <div className="border-b border-slate-200/70 pb-4">
-                <Text className="text-[11px] uppercase tracking-[0.24em] text-slate-500">
-                  {getMenuLabel(activeTopItem!)}
-                </Text>
-                <Text className="mt-2 block text-base font-semibold tracking-tight text-slate-900">
-                  页面导航
-                </Text>
-              </div>
-              <nav className="flex flex-col gap-1 py-3">
+              <nav className="flex flex-col gap-1 py-1">
                 {currentSubmenuItems.map((item) => (
                   <SubmenuItem
                     key={item.path}
