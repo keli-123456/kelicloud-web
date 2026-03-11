@@ -2,6 +2,7 @@
 import { lazy } from "react";
 import type { RouteObject } from "react-router-dom";
 import React from "react";
+import { Navigate } from "react-router-dom";
 
 const Index = lazy(() => import("./pages/Index"));
 const AdminLayout = lazy(() => import("./pages/admin/_layout"));
@@ -50,6 +51,13 @@ export const routes: RouteObject[] = [
         ),
         children: [
           {
+            index: true,
+            element: React.createElement(Navigate, {
+              to: "site",
+              replace: true,
+            }),
+          },
+          {
             path: "site",
             element: React.createElement(
               lazy(() => import("./pages/admin/settings/site"))
@@ -90,6 +98,13 @@ export const routes: RouteObject[] = [
       {
         path: "notification",
         children: [
+          {
+            index: true,
+            element: React.createElement(Navigate, {
+              to: "general",
+              replace: true,
+            }),
+          },
           {
             path: "offline",
             element: React.createElement(

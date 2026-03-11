@@ -1,140 +1,162 @@
-import { Cross1Icon, ExitIcon } from "@radix-ui/react-icons";
-import {
-  Button,
-  Callout,
-  Flex,
-  Grid,
-  IconButton,
-  Text,
-} from "@radix-ui/themes";
-import { AnimatePresence, motion } from "framer-motion"; // 引入 Framer Motion
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { Link, useLocation } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import { Link, useLocation /*useNavigate*/ } from "react-router-dom";
+import { AnimatePresence, motion } from "framer-motion";
+import { Button, Callout, IconButton, Text } from "@radix-ui/themes";
+import {
+  ChevronDown,
+  ChevronRight,
+  CircleFadingArrowUp,
+  ExternalLink,
+  LogOut,
+  Menu,
+  X,
+} from "lucide-react";
+
 import ColorSwitch from "../ColorSwitch";
 import LanguageSwitch from "../Language";
 import ThemeSwitch from "../ThemeSwitch";
-import { useIsMobile } from "@/hooks/use-mobile";
-import menuConfig from "../../config/menuConfig.json";
-import type { MenuItem } from "../../types/menu";
-import { iconMap } from "../../utils/iconHelper";
-import { ChevronDownIcon } from "@radix-ui/react-icons";
-import { TablerMenu2 } from "../Icones/Tabler";
 import LoginDialog from "../Login";
+import Tips from "../ui/tips";
 import { useAccount } from "@/contexts/AccountContext";
 import { usePublicInfo } from "@/contexts/PublicInfoContext";
-import Tips from "../ui/tips";
-import { CircleFadingArrowUp, PanelLeftClose, PanelLeftOpen } from "lucide-react";
 import { useRPC2Call } from "@/contexts/RPC2Context";
 import { resolveI18nText } from "@/utils/i18nText";
+import { iconMap } from "@/utils/iconHelper";
+import { cn } from "@/lib/utils";
+import type { MenuItem } from "@/types/menu";
+import menuConfig from "@/config/menuConfig.json";
 
-// 将JSON配置转换为类型安全的菜单项数组 (基础静态菜单)
 const baseMenuItems = (menuConfig as { menu: MenuItem[] }).menu;
 
-// 扩展的菜单项类型（允许直接提供 rawLabel 而不是多语言 key）
 interface ExtendedMenuItem extends MenuItem {
-  rawLabel?: string; // 不走 i18n，直接显示
+  rawLabel?: string;
 }
 
 interface AdminPanelBarProps {
   content: ReactNode;
 }
 
-const AdminPanelBar = ({ content }: AdminPanelBarProps) => {
+interface GithubReleaseInfo {
+  tag_name: string;
+  name?: string;
+  body?: string;
+  html_url: string;
+  published_at?: string;
+  draft?: boolean;
+  prerelease?: boolean;
+}
+
+const isPathActive = (target: string, pathname: string) => {
+  if (!target || target.startsWith("http://") || target.startsWith("https://")) {
+    return false;
+  }
+  if (target === "/admin") {
+    return pathname === "/admin";
+  }
+  return pathname === target || pathname.startsWith(`${target}/`);
+};
+
+const parseSemver = (input?: string | null): number[] | null => {
+  if (!input) return null;
+  const normalized = String(input).trim().replace(/^v/i, "");
+  const match = normalized.match(/^(\d+)\.(\d+)\.(\d+)/);
+  if (!match) return null;
+  return [Number(match[1]), Number(match[2]), Number(match[3])];
+};
+
+const isNewerVersion = (latest?: string | null, current?: string | null) => {
+  const left = parseSemver(latest);
+  const right = parseSemver(current);
+  if (!left || !right) return false;
+  for (let index = 0; index < 3; index += 1) {
+    if (left[index] > right[index]) return true;
+    if (left[index] < right[index]) return false;
+  }
+  return false;
+};
+
+export default function AdminPanelBar({ content }: AdminPanelBarProps) {
   const { call } = useRPC2Call();
-  const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
-    if (typeof window === "undefined") return false;
-    return window.localStorage.getItem("admin-sidebar-collapsed") === "1";
-  });
-  const [openSubMenus, setOpenSubMenus] = useState<{ [key: string]: boolean }>({
-    // 默认所有子菜单关闭
-  });
   const { account } = useAccount();
-  const isMobile = useIsMobile();
+  const { publicInfo } = usePublicInfo();
+  const location = useLocation();
   const ishttps = window.location.protocol === "https:";
   const [t, i18n] = useTranslation();
-  const location = useLocation();
-  const { publicInfo } = usePublicInfo();
-  //const navigate = useNavigate();
-  // 获取版本信息
+
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [mobileExpanded, setMobileExpanded] = useState<Record<string, boolean>>(
+    {},
+  );
   const [versionInfo, setVersionInfo] = useState<{
     hash: string;
     version: string;
   } | null>(null);
-  const currentLanguage =
-    i18n.resolvedLanguage ||
-    i18n.language ||
-    (typeof navigator !== "undefined" ? navigator.language : "");
-  // GitHub 最新发布信息与更新检测
-  interface GithubReleaseInfo {
-    tag_name: string;
-    name?: string;
-    body?: string;
-    html_url: string;
-    published_at?: string;
-    draft?: boolean;
-    prerelease?: boolean;
-  }
+  const [extraMenuItems, setExtraMenuItems] = useState<ExtendedMenuItem[]>([]);
   const [latestRelease, setLatestRelease] = useState<GithubReleaseInfo | null>(
     null,
   );
   const [updateAvailable, setUpdateAvailable] = useState(false);
   const [releasesSince, setReleasesSince] = useState<GithubReleaseInfo[]>([]);
 
+  const currentLanguage =
+    i18n.resolvedLanguage ||
+    i18n.language ||
+    (typeof navigator !== "undefined" ? navigator.language : "");
   const currentTheme = publicInfo?.theme;
-
-  // 动态扩展菜单
-  const [extraMenuItems, setExtraMenuItems] = useState<ExtendedMenuItem[]>([]);
 
   useEffect(() => {
     let ignore = false;
+
     async function loadThemeMenu() {
-      // 仅当 theme 存在且不等于 default 时扩展
       if (!currentTheme) {
         setExtraMenuItems([]);
         return;
       }
+
       try {
-        const resp = await fetch(`/themes/${currentTheme}/komari-theme.json`, {
+        const response = await fetch(`/themes/${currentTheme}/komari-theme.json`, {
           cache: "no-cache",
         });
-        if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-        const data = await resp.json();
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        const data = await response.json();
         if (ignore) return;
-        const cfg = data?.configuration;
-        if (!cfg) {
-          // 没有 configuration 字段则不扩展
+
+        const config = data?.configuration;
+        if (!config) {
           setExtraMenuItems([]);
           return;
         }
-        const rawLabel: string =
-          resolveI18nText(cfg.name, currentLanguage) ??
+
+        const rawLabel =
+          resolveI18nText(config.name, currentLanguage) ??
           t("theme.manage_with_name", {
             name: currentTheme === "default" ? "" : currentTheme,
           });
-        const icon: string = cfg.icon || "Palette"; // fallback icon
-        const item: ExtendedMenuItem = {
-          labelKey: rawLabel,
-          rawLabel,
-          path: "/admin/theme_managed",
-          icon,
-        };
-        setExtraMenuItems([item]);
-      } catch (e) {
-        console.warn("加载主题配置失败，将不扩展主题菜单:", e);
+
+        setExtraMenuItems([
+          {
+            labelKey: rawLabel,
+            rawLabel,
+            path: "/admin/theme_managed",
+            icon: config.icon || "Palette",
+          },
+        ]);
+      } catch (error) {
+        console.warn("加载主题配置失败，将不扩展主题菜单:", error);
         if (!ignore) setExtraMenuItems([]);
       }
     }
+
     loadThemeMenu();
     return () => {
       ignore = true;
     };
-  }, [currentTheme]);
+  }, [currentLanguage, currentTheme, t]);
+
   useEffect(() => {
     const fetchVersionInfo = async () => {
       try {
-        //const response = await fetch("/api/version");
         const data = await call("common:getVersion");
         setVersionInfo({
           hash: data.hash?.slice(0, 7),
@@ -146,29 +168,8 @@ const AdminPanelBar = ({ content }: AdminPanelBarProps) => {
     };
 
     fetchVersionInfo();
-  }, []);
+  }, [call]);
 
-  // 规范化版本为 [major, minor, patch] 数组，忽略前缀 v 和后缀
-  function parseSemver(input?: string | null): number[] | null {
-    if (!input) return null;
-    const s = String(input).trim().replace(/^v/i, "");
-    const match = s.match(/^(\d+)\.(\d+)\.(\d+)/);
-    if (!match) return null;
-    return [Number(match[1]), Number(match[2]), Number(match[3])];
-  }
-
-  function isNewerVersion(latest?: string | null, current?: string | null) {
-    const a = parseSemver(latest);
-    const b = parseSemver(current);
-    if (!a || !b) return false;
-    for (let i = 0; i < 3; i++) {
-      if (a[i] > b[i]) return true;
-      if (a[i] < b[i]) return false;
-    }
-    return false;
-  }
-
-  // 获取 GitHub releases 列表，并筛选出“比当前版本新的所有 release”
   useEffect(() => {
     let ignore = false;
     const currentVersion = (publicInfo as any)?.version || versionInfo?.version;
@@ -176,7 +177,7 @@ const AdminPanelBar = ({ content }: AdminPanelBarProps) => {
 
     async function loadReleases() {
       try {
-        const resp = await fetch(
+        const response = await fetch(
           "https://api.github.com/repos/komari-monitor/komari/releases?per_page=100",
           {
             headers: {
@@ -185,19 +186,21 @@ const AdminPanelBar = ({ content }: AdminPanelBarProps) => {
             cache: "no-cache",
           },
         );
-        if (!resp.ok) throw new Error(`GitHub HTTP ${resp.status}`);
-        const data: GithubReleaseInfo[] = await resp.json();
+        if (!response.ok) throw new Error(`GitHub HTTP ${response.status}`);
+        const data: GithubReleaseInfo[] = await response.json();
         if (ignore) return;
+
         const valid = (data || [])
-          .filter((r) => !r.draft && !r.prerelease)
-          .filter((r) =>
-            isNewerVersion(r?.tag_name || r?.name, currentVersion),
+          .filter((release) => !release.draft && !release.prerelease)
+          .filter((release) =>
+            isNewerVersion(release?.tag_name || release?.name, currentVersion),
           );
+
         setReleasesSince(valid);
         setLatestRelease(valid.length ? valid[0] : null);
         setUpdateAvailable(valid.length > 0);
-      } catch (e) {
-        console.warn("加载 GitHub 最新发布失败:", e);
+      } catch (error) {
+        console.warn("加载 GitHub 最新发布失败:", error);
         if (!ignore) {
           setLatestRelease(null);
           setReleasesSince([]);
@@ -211,666 +214,527 @@ const AdminPanelBar = ({ content }: AdminPanelBarProps) => {
       ignore = true;
     };
   }, [publicInfo, versionInfo]);
-  // Handle responsive behavior
-  useEffect(() => {
-    const handleResize = () => {
-      setSidebarOpen(!isMobile);
-    };
-    handleResize();
-    window.addEventListener("resize", handleResize);
-    return () => window.removeEventListener("resize", handleResize);
-  }, [isMobile]);
 
-  useEffect(() => {
-    if (!isMobile) {
-      window.localStorage.setItem(
-        "admin-sidebar-collapsed",
-        sidebarCollapsed ? "1" : "0",
-      );
-    }
-  }, [isMobile, sidebarCollapsed]);
+  const combinedMenuItems = useMemo<ExtendedMenuItem[]>(
+    () => [...baseMenuItems, ...extraMenuItems],
+    [extraMenuItems],
+  );
 
-  // 根据路径自动展开子菜单（包含动态扩展项）
-  useEffect(() => {
-    const newState: { [key: string]: boolean } = {};
-    const combined: ExtendedMenuItem[] = [...baseMenuItems, ...extraMenuItems];
-    combined.forEach((item) => {
-      if (item.children) {
-        newState[item.path] = item.children.some(
-          (child: MenuItem) =>
-            location.pathname === child.path ||
-            location.pathname.startsWith(child.path),
+  const internalTopItems = useMemo(
+    () =>
+      combinedMenuItems.filter(
+        (item) =>
+          !item.newTab &&
+          !String(item.path || "").startsWith("http://") &&
+          !String(item.path || "").startsWith("https://"),
+      ),
+    [combinedMenuItems],
+  );
+
+  const externalQuickLinks = useMemo(
+    () =>
+      combinedMenuItems.filter(
+        (item) =>
+          item.newTab ||
+          String(item.path || "").startsWith("http://") ||
+          String(item.path || "").startsWith("https://"),
+      ),
+    [combinedMenuItems],
+  );
+
+  const activeTopItem = useMemo(() => {
+    const active = internalTopItems.find((item) => {
+      if (item.children?.length) {
+        return item.children.some((child) =>
+          isPathActive(child.path, location.pathname),
         );
       }
+      return isPathActive(item.path, location.pathname);
     });
-    setOpenSubMenus(newState);
-  }, [location.pathname, extraMenuItems]);
+    return active || internalTopItems[0] || null;
+  }, [internalTopItems, location.pathname]);
 
-  // 侧边栏动画变体
-  const sidebarVariants = {
-    desktopOpen: {
-      width: "240px",
-      opacity: 1,
-      transition: {
-        type: "spring",
-        stiffness: 300,
-        damping: 30,
-      },
-    },
-    desktopCollapsed: {
-      width: "84px",
-      opacity: 1,
-      transition: {
-        type: "spring",
-        stiffness: 300,
-        damping: 30,
-      },
-    },
-    mobileOpen: {
-      width: "100vw",
-      opacity: 1,
-      transition: {
-        type: "spring",
-        stiffness: 300,
-        damping: 30,
-      },
-    },
-    mobileClosed: {
-      width: 0,
-      opacity: 0,
-      transition: {
-        type: "spring",
-        stiffness: 300,
-        damping: 30,
-      },
-    },
-  };
+  const currentSubmenuItems = activeTopItem?.children || [];
 
-  // 内容区域动画变体
-  const contentVariants = {
-    open: {
-      opacity: isMobile ? 0 : 1,
-      x: isMobile ? "100%" : 0,
-      transition: {
-        duration: 0.3,
-      },
-    },
-    closed: {
-      opacity: 1,
-      x: 0,
-      transition: {
-        duration: 0.3,
-      },
-    },
-  };
-  const sidebarState = isMobile
-    ? sidebarOpen
-      ? "mobileOpen"
-      : "mobileClosed"
-    : sidebarCollapsed
-      ? "desktopCollapsed"
-      : "desktopOpen";
-  const isDesktopCollapsed = !isMobile && sidebarCollapsed;
+  useEffect(() => {
+    if (!activeTopItem?.path || !activeTopItem.children?.length) return;
+    setMobileExpanded((prev) => ({
+      ...prev,
+      [activeTopItem.path]: true,
+    }));
+  }, [activeTopItem]);
 
-  function logout() {
+  const logout = () => {
     window.open("/api/logout", "_self");
-  }
-  return (
-    <>
-      <Grid
-        columns={{ initial: "1fr", md: sidebarCollapsed ? "84px 1fr" : "240px 1fr" }}
-        rows={{ initial: "auto 1fr", md: "auto 1fr" }}
+  };
+
+  const getMenuLabel = (item: ExtendedMenuItem | MenuItem) =>
+    (item as ExtendedMenuItem).rawLabel || t(item.labelKey);
+
+  const renderMenuIcon = (
+    icon: string,
+    labelKey: string,
+    active = false,
+    className?: string,
+  ) => {
+    const isLink = /^(https?:\/\/|\/|\.\/|\.\.\/)/.test(icon);
+    if (isLink) {
+      return (
+        <img
+          src={icon}
+          alt={t(labelKey)}
+          className={className}
+          style={{
+            width: 16,
+            height: 16,
+            objectFit: "contain",
+            opacity: active ? 1 : 0.7,
+          }}
+          loading="lazy"
+        />
+      );
+    }
+
+    const IconComponent = iconMap[icon];
+    if (!IconComponent) {
+      return (
+        <span
+          className={className}
+          style={{
+            width: 16,
+            height: 16,
+            display: "inline-block",
+            borderRadius: 4,
+            background: "var(--accent-8)",
+          }}
+        />
+      );
+    }
+
+    return (
+      <IconComponent
+        className={className}
         style={{
-          minHeight: "100vh",
-          width: "100vw",
-          overflow: "hidden",
-          background:
-            "linear-gradient(180deg, rgba(243,248,255,1) 0%, rgba(236,246,255,1) 46%, rgba(245,250,246,1) 100%)",
+          color: active ? "var(--accent-10)" : "var(--gray-11)",
         }}
+      />
+    );
+  };
+
+  const renderUpdateTrigger = updateAvailable &&
+    latestRelease &&
+    releasesSince.length > 0 && (
+      <Tips
+        mode="dialog"
+        trigger={<CircleFadingArrowUp color="#FB4141" size="16" />}
       >
-        {/* Navbar */}
-        <motion.nav
-          className="col-span-2 px-2 pt-2 md:px-4 md:pt-4"
-          initial={{ y: 0 }}
-          animate={{ y: 0 }}
-          transition={{ duration: 0.5, ease: "easeOut" }}
-        >
-          <Flex
-            gap="3"
-            justify="between"
-            align="center"
-            className="rounded-[28px] border border-white/70 bg-white/82 px-3 py-3 shadow-[0_18px_45px_rgba(15,23,42,0.08)] backdrop-blur-xl md:px-4"
-          >
-            <Flex gap="3" align="center">
+        <div className="flex max-w-[80vw] flex-col gap-2 md:max-w-[720px]">
+          <label className="font-bold">{t("common.update_available")}</label>
+          <div className="text-sm text-muted-foreground">
+            <span style={{ marginRight: 8 }}>
+              {(publicInfo as any)?.version || versionInfo?.version}
+            </span>
+            <span>{"> "}</span>
+            <span>{(latestRelease?.tag_name || latestRelease?.name) ?? ""}</span>
+          </div>
+
+          <div className="max-h-80 overflow-auto rounded-md p-2">
+            <div className="flex flex-col gap-4 text-sm">
+              {releasesSince.map((release) => (
+                <div key={release.html_url} className="flex flex-col gap-2">
+                  <div className="flex items-center justify-between">
+                    <div className="font-medium">
+                      {release.name || release.tag_name}
+                    </div>
+                    {release.published_at && (
+                      <div className="text-xs text-muted-foreground">
+                        {new Date(release.published_at).toLocaleString()}
+                      </div>
+                    )}
+                  </div>
+                  <div className="whitespace-pre-wrap break-words">
+                    {release.body || ""}
+                  </div>
+                  <div
+                    style={{
+                      height: 1,
+                      background: "var(--accent-5)",
+                      opacity: 0.5,
+                    }}
+                  />
+                </div>
+              ))}
+            </div>
+          </div>
+          <div className="flex justify-end">
+            <a
+              href={latestRelease.html_url}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              <Button variant="soft">Github</Button>
+            </a>
+          </div>
+        </div>
+      </Tips>
+    );
+
+  return (
+    <div className="min-h-screen bg-[linear-gradient(180deg,rgba(243,248,255,1)_0%,rgba(236,246,255,1)_46%,rgba(245,250,246,1)_100%)]">
+      <div className="flex min-h-screen flex-col px-2 pb-2 pt-2 md:px-4 md:pb-4 md:pt-4">
+        <header className="rounded-[28px] border border-white/70 bg-white/82 px-3 py-3 shadow-[0_18px_45px_rgba(15,23,42,0.08)] backdrop-blur-xl md:px-5">
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex min-w-0 items-center gap-3">
               <IconButton
                 variant="ghost"
-                onClick={() => {
-                  if (isMobile) {
-                    setSidebarOpen(!sidebarOpen);
-                    return;
-                  }
-                  setSidebarCollapsed((prev) => !prev);
-                }}
-                style={{
-                  display: isMobile && sidebarOpen ? "none" : "flex",
-                  color: "var(--gray-11)",
-                }}
-                title={
-                  isMobile
-                    ? "切换菜单"
-                    : sidebarCollapsed
-                      ? "展开菜单"
-                      : "折叠菜单"
-                }
+                className="md:hidden"
+                onClick={() => setMobileMenuOpen(true)}
               >
-                {isMobile ? (
-                  <TablerMenu2 />
-                ) : sidebarCollapsed ? (
-                  <PanelLeftOpen size={18} />
-                ) : (
-                  <PanelLeftClose size={18} />
-                )}
+                <Menu size={18} />
               </IconButton>
               <a href="/" target="_blank" rel="noopener noreferrer">
                 <label className="text-xl font-semibold tracking-tight text-slate-900">
                   Komari
                 </label>
               </a>
-              {updateAvailable && releasesSince.length > 0 && (
-                <Tips
-                  mode="dialog"
-                  className="check-update"
-                  trigger={<CircleFadingArrowUp color="#FB4141" size="16" />}
-                >
-                  <div className="flex flex-col gap-2 max-w-[80vw] md:max-w-[720px]">
-                    <label className="font-bold">
-                      {t("common.update_available")}
-                    </label>
-                    <div className="text-sm text-muted-foreground">
-                      <span style={{ marginRight: 8 }}>
-                        {(publicInfo as any)?.version || versionInfo?.version}
-                      </span>
-                      <span>{"> "}</span>
-                      <span>
-                        {(latestRelease?.tag_name || latestRelease?.name) ?? ""}
-                      </span>
-                    </div>
-
-                    <div className="rounded-md p-2 overflow-auto max-h-80">
-                      <div className="flex flex-col gap-4 text-sm">
-                        {releasesSince.map((r) => (
-                          <div key={r.html_url} className="flex flex-col gap-2">
-                            <div className="flex items-center justify-between">
-                              <div className="font-medium">
-                                {r.name || r.tag_name}
-                              </div>
-                              {r.published_at && (
-                                <div className="text-xs text-muted-foreground">
-                                  {new Date(r.published_at).toLocaleString()}
-                                </div>
-                              )}
-                            </div>
-                            <div className="whitespace-pre-wrap break-words">
-                              {r.body || ""}
-                            </div>
-                            <div
-                              style={{
-                                height: 1,
-                                background: "var(--accent-5)",
-                                opacity: 0.5,
-                              }}
-                            />
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                    <div className="flex justify-end">
-                      <a
-                        href={latestRelease?.html_url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                      >
-                        <Button variant="soft">Github</Button>
-                      </a>
-                    </div>
-                  </div>
-                </Tips>
-              )}
-              <label
-                className="text-sm text-muted-foreground self-end overflow-hidden"
-                hidden={isMobile}
-              >
+              {renderUpdateTrigger}
+              <label className="hidden text-sm text-muted-foreground md:block">
                 {(publicInfo as any)?.version ||
                   (versionInfo &&
                     `${versionInfo.version} (${versionInfo.hash})`)}
               </label>
-            </Flex>
-            <Flex gap="3" align="center" overflowX="auto">
+            </div>
+
+            <div className="flex items-center gap-2 overflow-x-auto">
               {account && !account.logged_in && (
                 <LoginDialog
-                  autoOpen={true}
+                  autoOpen
                   showSettings={false}
-                  onLoginSuccess={() => {
-                    window.location.reload();
-                  }}
+                  onLoginSuccess={() => window.location.reload()}
                 />
               )}
               <ThemeSwitch />
               <ColorSwitch />
               <LanguageSwitch />
               <IconButton variant="soft" color="orange" onClick={logout}>
-                <ExitIcon />
+                <LogOut size={16} />
               </IconButton>
-            </Flex>
-          </Flex>
-        </motion.nav>
+            </div>
+          </div>
 
-        {/* Sidebar */}
-        <AnimatePresence>
-          <motion.div
-            variants={sidebarVariants}
-            initial={isMobile ? "mobileClosed" : "desktopOpen"}
-            animate={sidebarState}
-            exit={isMobile ? "mobileClosed" : "desktopCollapsed"}
-            style={{
-              height: "100%",
-              position: isMobile ? "absolute" : "relative",
-              zIndex: isMobile ? 10 : 1,
-              overflowY: "auto",
-              overflowX: "hidden",
-              boxSizing: "border-box",
-              padding: isMobile ? "0 8px 8px 8px" : "0 0 16px 16px",
-            }}
-          >
-            <Flex
-              gap="3"
-              className="rounded-[28px] border border-white/70 bg-white/78 p-3 shadow-[0_24px_60px_rgba(15,23,42,0.08)] backdrop-blur-xl"
-              direction="column"
-              justify="start"
-              align={isDesktopCollapsed ? "center" : "start"}
-              style={{
-                height: "100%",
-                minWidth: isDesktopCollapsed ? "84px" : "240px",
-              }}
+          <div className="mt-4 hidden items-center justify-between gap-4 md:flex">
+            <nav className="flex min-w-0 flex-1 items-center gap-2 overflow-x-auto pb-1">
+              {internalTopItems.map((item) => {
+                const active =
+                  item.children?.some((child) =>
+                    isPathActive(child.path, location.pathname),
+                  ) || isPathActive(item.path, location.pathname);
+
+                return (
+                  <TopNavItem
+                    key={item.path}
+                    href={item.path}
+                    active={active}
+                    label={getMenuLabel(item)}
+                    icon={renderMenuIcon(item.icon, item.labelKey, active)}
+                  />
+                );
+              })}
+            </nav>
+
+            <div className="flex items-center gap-2">
+              {externalQuickLinks.map((item) => (
+                <QuickLink
+                  key={item.path}
+                  href={item.path}
+                  label={getMenuLabel(item)}
+                />
+              ))}
+            </div>
+          </div>
+        </header>
+
+        <div className="mt-4 flex min-h-0 flex-1 gap-4">
+          {currentSubmenuItems.length > 0 && (
+            <aside className="hidden w-64 shrink-0 flex-col rounded-[28px] border border-white/70 bg-white/78 shadow-[0_24px_60px_rgba(15,23,42,0.08)] backdrop-blur-xl md:flex">
+              <div className="border-b border-slate-200/70 px-5 py-5">
+                <Text className="text-[11px] uppercase tracking-[0.24em] text-slate-500">
+                  {getMenuLabel(activeTopItem!)}
+                </Text>
+                <Text className="mt-2 block text-lg font-semibold tracking-tight text-slate-900">
+                  页面导航
+                </Text>
+              </div>
+              <nav className="flex flex-col gap-1 p-3">
+                {currentSubmenuItems.map((item) => (
+                  <SubmenuItem
+                    key={item.path}
+                    href={item.path}
+                    active={isPathActive(item.path, location.pathname)}
+                    label={getMenuLabel(item)}
+                    icon={renderMenuIcon(
+                      item.icon,
+                      item.labelKey,
+                      isPathActive(item.path, location.pathname),
+                    )}
+                    newTab={item.newTab}
+                  />
+                ))}
+              </nav>
+            </aside>
+          )}
+
+          <main className="min-w-0 flex-1 overflow-hidden rounded-[32px] border border-white/70 bg-[radial-gradient(circle_at_top_left,rgba(224,242,254,0.65),transparent_34%),radial-gradient(circle_at_bottom_right,rgba(220,252,231,0.55),transparent_32%),linear-gradient(180deg,rgba(255,255,255,0.78),rgba(248,251,255,0.96))] shadow-[0_28px_70px_rgba(15,23,42,0.08)] backdrop-blur-xl">
+            <div className="h-full overflow-y-auto p-3 md:p-5">
+              <Callout.Root mb="2" hidden={ishttps} color="red">
+                <Callout.Icon>
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    width="24"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      fill="currentColor"
+                      d="M10.03 3.659c.856-1.548 3.081-1.548 3.937 0l7.746 14.001c.83 1.5-.255 3.34-1.969 3.34H4.254c-1.715 0-2.8-1.84-1.97-3.34zM12.997 17A.999.999 0 1 0 11 17a.999.999 0 0 0 1.997 0m-.259-7.853a.75.75 0 0 0-1.493.103l.004 4.501l.007.102a.75.75 0 0 0 1.493-.103l-.004-4.502z"
+                    />
+                  </svg>
+                </Callout.Icon>
+                <Callout.Text>
+                  <Text size="2" weight="medium">
+                    {t("warn_https")}
+                  </Text>
+                </Callout.Text>
+              </Callout.Root>
+
+              {content}
+            </div>
+          </main>
+        </div>
+      </div>
+
+      <AnimatePresence>
+        {mobileMenuOpen && (
+          <>
+            <motion.div
+              className="fixed inset-0 z-40 bg-slate-950/40 backdrop-blur-sm"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setMobileMenuOpen(false)}
+            />
+            <motion.div
+              className="fixed inset-y-0 left-0 z-50 flex w-[88vw] max-w-[360px] flex-col border-r border-white/60 bg-white/95 shadow-2xl backdrop-blur-xl"
+              initial={{ x: "-100%" }}
+              animate={{ x: 0 }}
+              exit={{ x: "-100%" }}
+              transition={{ type: "spring", stiffness: 320, damping: 32 }}
             >
-              {/* 关闭按钮 */}
-              <IconButton
-                variant="soft"
-                style={{
-                  display: isMobile ? "flex" : "none",
-                  margin: "8px 0px 0px 8px",
-                }}
-                onClick={() => setSidebarOpen(false)}
-              >
-                <Cross1Icon />
-              </IconButton>
-              {/* 侧边连链接 */}
-              <Flex
-                direction="column"
-                gap="1"
-                className="h-full md:mt-0 mt-6"
-                style={{ width: "100%" }}
-              >
-                {[...baseMenuItems, ...extraMenuItems].map(
-                  (item: ExtendedMenuItem) => {
-                    // 支持 icon 为 URL/相对路径
-                    const isOpen = openSubMenus[item.path];
-                    const isParentActive = Boolean(
-                      item.children?.some(
-                        (child: MenuItem) =>
-                          location.pathname === child.path ||
-                          location.pathname.startsWith(child.path),
-                      ),
-                    );
-                    const renderIcon = (
-                      icon: string,
-                      labelKey: string,
-                      className?: string,
-                      active?: boolean,
-                    ) => {
-                      const link = /^(https?:\/\/|\/|\.\/|\.\.\/)/.test(icon);
-                      if (link) {
-                        return (
-                          <img
-                            src={icon}
-                            alt={t(labelKey)}
-                            style={{
-                              width: 16,
-                              height: 16,
-                              objectFit: "contain",
-                              opacity: active ? 1 : 0.7,
-                              filter: active ? "none" : "grayscale(20%)",
-                            }}
-                            className={className}
-                            loading="lazy"
-                          />
-                        );
-                      }
-                      const Cmp = iconMap[icon];
-                      if (Cmp) {
-                        return (
-                          <Cmp
-                            className={className}
-                            style={{
-                              color: active
-                                ? "var(--accent-10)"
-                                : "var(--gray11)",
-                            }}
-                          />
-                        );
-                      }
-                      // fallback: simple dot
+              <div className="flex items-center justify-between border-b border-slate-200/70 px-4 py-4">
+                <div>
+                  <Text className="text-lg font-semibold tracking-tight text-slate-900">
+                    Komari
+                  </Text>
+                  <Text className="block text-xs text-slate-500">
+                    管理后台导航
+                  </Text>
+                </div>
+                <IconButton variant="ghost" onClick={() => setMobileMenuOpen(false)}>
+                  <X size={18} />
+                </IconButton>
+              </div>
+
+              <div className="flex-1 overflow-y-auto px-3 py-3">
+                <div className="flex flex-col gap-2">
+                  {internalTopItems.map((item) => {
+                    const active =
+                      item.children?.some((child) =>
+                        isPathActive(child.path, location.pathname),
+                      ) || isPathActive(item.path, location.pathname);
+                    const expanded = Boolean(mobileExpanded[item.path]);
+
+                    if (!item.children?.length) {
                       return (
-                        <span
-                          className={className}
-                          style={{
-                            width: 16,
-                            height: 16,
-                            display: "inline-block",
-                            borderRadius: 4,
-                            background: "var(--accent-8)",
-                          }}
+                        <TopNavItem
+                          key={item.path}
+                          href={item.path}
+                          active={active}
+                          label={getMenuLabel(item)}
+                          icon={renderMenuIcon(item.icon, item.labelKey, active)}
+                          mobile
+                          onNavigate={() => setMobileMenuOpen(false)}
                         />
                       );
-                    };
-                    if (item.children && item.children.length) {
-                      if (isDesktopCollapsed) {
-                        return (
-                          <button
-                            key={item.path}
-                            type="button"
-                            title={item.rawLabel || t(item.labelKey)}
-                            onClick={() => setSidebarCollapsed(false)}
-                            className="flex w-full items-center justify-center rounded-xl px-3 py-3 transition-colors hover:bg-accent-3"
-                            style={{
-                              backgroundColor: isParentActive
-                                ? "var(--accent-4)"
-                                : "transparent",
-                              color: isParentActive
-                                ? "var(--accent-10)"
-                                : "inherit",
-                            }}
-                          >
-                            {renderIcon(
-                              item.icon,
-                              item.labelKey,
-                              "flex h-5 w-5 items-center justify-center",
-                              isParentActive,
-                            )}
-                          </button>
-                        );
-                      }
-                      return (
-                        <div key={item.path}>
-                          <Flex
-                            className="p-2 gap-2 border-l-[4px] border-transparent cursor-pointer hover:bg-accent-3 rounded-md"
-                            align="center"
-                            onClick={() => {
-                              //const currentlyOpen = openSubMenus[item.path];
-                              // 检查当前路径是否已经在该父菜单的子菜单中
-                              //const isCurrentlyInThisMenu = item.children?.some(
-                              //  (child) =>
-                              //    location.pathname === child.path ||
-                              //    location.pathname.startsWith(child.path)
-                              //);
-
-                              // 切换子菜单的展开状态
-                              setOpenSubMenus((prev) => ({
-                                ...prev,
-                                [item.path]: !prev[item.path],
-                              }));
-
-                              //// 只有在非展开状态且不在当前菜单组中时才导航到第一个子菜单项
-                              //if (
-                              //  !currentlyOpen &&
-                              //  !isCurrentlyInThisMenu &&
-                              //  item.children &&
-                              //  item.children.length > 0
-                              //) {
-                              //  //navigate(item.children[0].path);
-                              //  // 如果是移动端，关闭侧边栏
-                              //  if (isMobile) {
-                              //    setSidebarOpen(false);
-                              //  }
-                              //}
-                            }}
-                          >
-                            {renderIcon(
-                              item.icon,
-                              item.labelKey,
-                              "flex w-4 h-5 items-center justify-center",
-                            )}
-                            <Text
-                              className="text-base"
-                              weight="medium"
-                              style={{
-                                flex: 1,
-                              }}
-                            >
-                              {item.rawLabel || t(item.labelKey)}
-                            </Text>
-
-                            <ChevronDownIcon
-                              style={{
-                                transform: isOpen
-                                  ? "rotate(180deg)"
-                                  : "rotate(0deg)",
-                                transition: "transform 0.2s",
-                              }}
-                            />
-                          </Flex>
-                          <motion.div
-                            initial={{ height: 0, opacity: 0 }}
-                            animate={
-                              isOpen
-                                ? { height: "auto", opacity: 1 }
-                                : { height: 0, opacity: 0 }
-                            }
-                            transition={{ duration: 0.2 }}
-                            style={{ overflow: "hidden" }}
-                          >
-                            <Flex direction="column" className="ml-4 gap-1">
-                              {item.children.map((child: MenuItem) => (
-                                <SidebarItem
-                                  key={child.path}
-                                  to={child.path}
-                                  icon={renderIcon(
-                                    child.icon,
-                                    child.labelKey,
-                                    "flex w-4 h-5 items-center justify-center",
-                                  )}
-                                  children={
-                                    (child as ExtendedMenuItem).rawLabel ||
-                                    t(child.labelKey)
-                                  }
-                                  onClick={() =>
-                                    isMobile && setSidebarOpen(false)
-                                  }
-                                  newTab={child.newTab}
-                                  collapsed={false}
-                                />
-                              ))}
-                            </Flex>
-                          </motion.div>
-                        </div>
-                      );
                     }
+
                     return (
-                      <SidebarItem
+                      <div
                         key={item.path}
-                        to={item.path}
-                        icon={renderIcon(
-                          item.icon,
-                          item.labelKey,
-                          "flex w-4 h-5 items-center justify-center",
-                        )}
-                        children={item.rawLabel || t(item.labelKey)}
-                        onClick={() => isMobile && setSidebarOpen(false)}
-                        newTab={item.newTab}
-                        collapsed={isDesktopCollapsed}
-                      />
+                        className="overflow-hidden rounded-[22px] border border-slate-200/75 bg-slate-50/70"
+                      >
+                        <button
+                          type="button"
+                          className="flex w-full items-center justify-between px-4 py-3 text-left"
+                          onClick={() =>
+                            setMobileExpanded((prev) => ({
+                              ...prev,
+                              [item.path]: !prev[item.path],
+                            }))
+                          }
+                        >
+                          <div className="flex items-center gap-3">
+                            {renderMenuIcon(item.icon, item.labelKey, active)}
+                            <span className="font-medium text-slate-900">
+                              {getMenuLabel(item)}
+                            </span>
+                          </div>
+                          {expanded ? (
+                            <ChevronDown size={16} className="text-slate-500" />
+                          ) : (
+                            <ChevronRight size={16} className="text-slate-500" />
+                          )}
+                        </button>
+                        <AnimatePresence initial={false}>
+                          {expanded && (
+                            <motion.div
+                              initial={{ height: 0, opacity: 0 }}
+                              animate={{ height: "auto", opacity: 1 }}
+                              exit={{ height: 0, opacity: 0 }}
+                              className="overflow-hidden"
+                            >
+                              <div className="border-t border-slate-200/70 px-2 py-2">
+                                {item.children.map((child) => (
+                                  <SubmenuItem
+                                    key={child.path}
+                                    href={child.path}
+                                    active={isPathActive(child.path, location.pathname)}
+                                    label={getMenuLabel(child)}
+                                    icon={renderMenuIcon(
+                                      child.icon,
+                                      child.labelKey,
+                                      isPathActive(child.path, location.pathname),
+                                    )}
+                                    newTab={child.newTab}
+                                    onNavigate={() => setMobileMenuOpen(false)}
+                                  />
+                                ))}
+                              </div>
+                            </motion.div>
+                          )}
+                        </AnimatePresence>
+                      </div>
                     );
-                  },
-                )}
-              </Flex>
-            </Flex>
-          </motion.div>
-        </AnimatePresence>
+                  })}
+                </div>
 
-        {/* Main Content */}
-        <motion.div
-          variants={contentVariants}
-          animate={isMobile && sidebarOpen ? "open" : "closed"}
-          style={{
-            display: isMobile && sidebarOpen ? "none" : "block",
-            height: "100%",
-            overflow: "hidden",
-            boxSizing: "border-box",
-            padding: isMobile ? "0 8px 8px 8px" : "0 16px 16px 16px",
-          }}
-        >
-          <div
-            className="h-full rounded-[32px] border border-white/70 bg-[radial-gradient(circle_at_top_left,rgba(224,242,254,0.65),transparent_34%),radial-gradient(circle_at_bottom_right,rgba(220,252,231,0.55),transparent_32%),linear-gradient(180deg,rgba(255,255,255,0.78),rgba(248,251,255,0.96))] shadow-[0_28px_70px_rgba(15,23,42,0.08)] backdrop-blur-xl"
-            style={{
-              height: "100%",
-              padding: isMobile ? "10px" : "18px",
-              overflowY: "auto",
-              boxSizing: "border-box",
-            }}
-          >
-            <Callout.Root mb="2" hidden={ishttps} color="red">
-              <Callout.Icon>
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  width="24"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    fill="currentColor"
-                    d="M10.03 3.659c.856-1.548 3.081-1.548 3.937 0l7.746 14.001c.83 1.5-.255 3.34-1.969 3.34H4.254c-1.715 0-2.8-1.84-1.97-3.34zM12.997 17A.999.999 0 1 0 11 17a.999.999 0 0 0 1.997 0m-.259-7.853a.75.75 0 0 0-1.493.103l.004 4.501l.007.102a.75.75 0 0 0 1.493-.103l-.004-4.502z"
-                  />
-                </svg>
-              </Callout.Icon>
-              <Callout.Text>
-                <Text size="2" weight="medium">
-                  {t("warn_https")}
-                </Text>
-              </Callout.Text>
-            </Callout.Root>
-            {content}
-          </div>
-        </motion.div>
-      </Grid>
-    </>
+                <div className="mt-4 flex flex-wrap gap-2">
+                  {externalQuickLinks.map((item) => (
+                    <QuickLink
+                      key={item.path}
+                      href={item.path}
+                      label={getMenuLabel(item)}
+                    />
+                  ))}
+                </div>
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+    </div>
   );
-};
+}
 
-export default AdminPanelBar;
-
-// 侧边栏项目组件
-const SidebarItem = ({
-  to,
-  onClick,
+function TopNavItem({
+  href,
+  label,
   icon,
-  children,
-  newTab,
-  collapsed = false,
+  active,
+  mobile = false,
+  onNavigate,
 }: {
-  to: string;
-  onClick: () => void;
+  href: string;
+  label: ReactNode;
   icon: ReactNode;
-  children: ReactNode;
-  newTab?: boolean;
-  collapsed?: boolean;
-}) => {
-  const location = useLocation();
-  const isExternalLink = to.startsWith("http://") || to.startsWith("https://");
-  const isActive =
-    !isExternalLink &&
-    to !== "/" &&
-    (location.pathname === to ||
-      (to !== "/admin" && location.pathname.startsWith(to)));
-  const openInNewTab = newTab === true || (isExternalLink && newTab !== false);
+  active: boolean;
+  mobile?: boolean;
+  onNavigate?: () => void;
+}) {
+  return (
+    <Link
+      to={href}
+      onClick={onNavigate}
+      className={cn(
+        "inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-medium transition-all",
+        mobile
+          ? "w-full rounded-[18px] border-transparent bg-white px-4 py-3 text-slate-700 shadow-sm"
+          : "shrink-0",
+        active
+          ? "border-slate-900 bg-slate-900 text-white shadow-[0_12px_24px_rgba(15,23,42,0.18)]"
+          : "border-slate-200/80 bg-white/80 text-slate-600 hover:border-slate-300 hover:bg-slate-50 hover:text-slate-900",
+      )}
+    >
+      <span className="flex h-4 w-4 items-center justify-center">{icon}</span>
+      <span>{label}</span>
+    </Link>
+  );
+}
 
-  if (openInNewTab) {
+function SubmenuItem({
+  href,
+  label,
+  icon,
+  active,
+  newTab,
+  onNavigate,
+}: {
+  href: string;
+  label: ReactNode;
+  icon: ReactNode;
+  active: boolean;
+  newTab?: boolean;
+  onNavigate?: () => void;
+}) {
+  const className = cn(
+    "flex items-center gap-3 rounded-[18px] px-4 py-3 text-sm transition-colors",
+    active
+      ? "bg-slate-900 text-white shadow-[0_14px_28px_rgba(15,23,42,0.18)]"
+      : "text-slate-600 hover:bg-slate-100 hover:text-slate-900",
+  );
+
+  if (newTab) {
     return (
       <a
-        href={to}
-        onClick={onClick}
+        href={href}
         target="_blank"
         rel="noopener noreferrer"
-        className="group transition-colors duration-200 hover:bg-accent-3 rounded-md"
-        title={collapsed ? String(children) : undefined}
+        className={className}
+        onClick={onNavigate}
       >
-        <Flex
-          className={`h-full p-2 ${collapsed ? "justify-center" : "gap-2"}`}
-          align="center"
-          style={{
-            borderLeft: "4px solid transparent",
-            borderRadius: "6px",
-            backgroundColor: "transparent",
-            color: "inherit",
-            transition: "background-color 0.2s, border-color 0.2s",
-          }}
-        >
-          <span
-            style={{
-              color: "inherit",
-              opacity: 0.7,
-            }}
-            className="flex w-4 h-5 items-center justify-center"
-          >
-            {icon}
-          </span>
-          {!collapsed && (
-            <Text className="text-base" weight="medium" style={{ flex: 1 }}>
-              {children}
-            </Text>
-          )}
-        </Flex>
+        <span className="flex h-4 w-4 items-center justify-center">{icon}</span>
+        <span className="flex-1">{label}</span>
+        <ExternalLink size={14} />
       </a>
     );
   }
 
   return (
-    <Link
-      to={to}
-      onClick={onClick}
-      className="group transition-colors duration-200 hover:bg-accent-3 rounded-md"
-      title={collapsed ? String(children) : undefined}
-    >
-      <Flex
-        className={`p-2 ${collapsed ? "justify-center" : "gap-2"}`}
-        align="center"
-        style={{
-          borderLeft: isActive
-            ? "4px solid var(--accent-8)"
-            : "4px solid transparent",
-          borderRadius: "6px",
-          backgroundColor: isActive ? "var(--accent-4)" : "transparent",
-          color: isActive ? "var(--accent-10)" : "inherit",
-          transition: "background-color 0.2s, border-color 0.2s",
-        }}
-      >
-        <span
-          style={{
-            color: isActive ? "var(--accent-10)" : "inherit",
-            opacity: isActive ? 1 : 0.7,
-          }}
-          className="flex w-4 h-5 items-center justify-center"
-        >
-          {icon}
-        </span>
-        {!collapsed && (
-          <Text
-            className="text-base"
-            weight={isActive ? "bold" : "medium"}
-            style={{ flex: 1 }}
-          >
-            {children}
-          </Text>
-        )}
-      </Flex>
+    <Link to={href} onClick={onNavigate} className={className}>
+      <span className="flex h-4 w-4 items-center justify-center">{icon}</span>
+      <span className="flex-1">{label}</span>
     </Link>
   );
-};
+}
+
+function QuickLink({ href, label }: { href: string; label: ReactNode }) {
+  return (
+    <a
+      href={href}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="inline-flex items-center gap-2 rounded-full border border-slate-200/80 bg-white/80 px-3 py-2 text-sm font-medium text-slate-600 transition-colors hover:border-slate-300 hover:bg-slate-50 hover:text-slate-900"
+    >
+      <span>{label}</span>
+      <ExternalLink size={14} />
+    </a>
+  );
+}
