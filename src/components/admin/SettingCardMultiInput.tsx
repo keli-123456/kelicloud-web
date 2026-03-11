@@ -77,13 +77,13 @@ export function SettingCardMultiInputCollapse({
         }
         return null;
       })}
-      <Flex direction="column" gap="2" className="w-full">
+      <Flex direction="column" gap="1" className="w-full">
         {items.map((item) => (
           <React.Fragment key={item.tag}>
-            <label className="text-sm font-medium text-slate-700">{item.label}</label>
+            <label className="text-[12px] font-medium text-slate-700">{item.label}</label>
             {item.type === "long" ? (
               <TextArea
-                className="w-full rounded-lg border border-slate-200/80 bg-white"
+                className="w-full rounded-md border border-slate-200/80 bg-white text-[12px] leading-5"
                 defaultValue={item.defaultValue}
                 value={values[item.tag]}
                 placeholder={item.placeholder}
@@ -94,7 +94,8 @@ export function SettingCardMultiInputCollapse({
               />
             ) : (
               <TextField.Root
-                className="w-full rounded-lg border border-slate-200/80 bg-white"
+                size="1"
+                className="w-full rounded-md border border-slate-200/80 bg-white text-[12px]"
                 defaultValue={item.defaultValue}
                 value={values[item.tag]}
                 placeholder={item.placeholder}
@@ -121,7 +122,8 @@ export function SettingCardMultiInputCollapse({
         <div>
           <Button
             variant="solid"
-            className="mt-2 rounded-lg"
+            size="1"
+            className="mt-1 rounded-md text-[12px]"
             onClick={handleSave}
             disabled={savingState}
           >

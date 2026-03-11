@@ -175,7 +175,7 @@ export default function SiteSettings() {
         title={t("settings.site.tempory_share")}
         description={t("settings.site.tempory_share_description")}
       >
-        <div className="flex w-full flex-col gap-4">
+        <div className="flex w-full flex-col gap-2">
           <SettingCardShortTextInput
             title={t("settings.site.tempory_share_current_link")}
             value={

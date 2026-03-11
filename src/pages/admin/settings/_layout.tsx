@@ -43,6 +43,7 @@ export default function SettingLayout() {
       eyebrow={t("settings.title", { defaultValue: "系统设置" })}
       title={t(currentSection.labelKey)}
       description={currentSection.description}
+      contentClassName="gap-2"
       stats={[
         {
           label: "配置分区",
@@ -64,7 +65,7 @@ export default function SettingLayout() {
         },
       ]}
     >
-      <div className="flex flex-col gap-4">
+      <div className="flex flex-col gap-2">
         <Outlet />
       </div>
     </AdminPageShell>

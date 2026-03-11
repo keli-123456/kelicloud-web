@@ -50,12 +50,12 @@ export function SettingCard({
       className={cn(
         bordless
           ? "border-0 bg-transparent p-0 shadow-none"
-          : "min-h-8 border-b border-slate-200/70 px-0 py-4",
+          : "min-h-0 border-b border-slate-200/70 px-0 py-2.5",
         className,
       )}
     >
       <Flex
-        className="w-full gap-4"
+        className="w-full gap-3"
         direction="row"
         justify="between"
         align="start"
@@ -65,14 +65,14 @@ export function SettingCard({
         <Flex
           direction="column"
           gap="1"
-          className="min-h-10 flex-1"
+          className="min-h-0 flex-1"
           justify={"center"}
         >
-          <label className="text-base font-semibold tracking-tight text-slate-900">
+          <label className="text-[13px] font-medium tracking-tight text-slate-900">
             {title}
           </label>
           {description && (
-            <label className="text-sm leading-6 text-slate-500">
+            <label className="text-[12px] leading-5 text-slate-500">
               {description}
             </label>
           )}
@@ -133,7 +133,7 @@ export function SettingCardSwitch({
     <SettingCard {...props} direction="column">
       <SettingCard.Action>
         <Flex direction="row" gap="2" align="center">
-          <label>{label}</label>
+          <label className="text-[12px] text-slate-600">{label}</label>
           <Switch
             ref={switchRef}
             checked={checked}
@@ -178,12 +178,13 @@ export function SettingCardButton({
       <SettingCard.Action>
         <Flex>
           <Flex direction="row" gap="2" align="center">
-            <label>{label}</label>
+            <label className="text-[12px] text-slate-600">{label}</label>
             <Button
               onClick={handleClick}
               variant={variant}
               disabled={disabled}
-              className="rounded-xl"
+              size="1"
+              className="rounded-md text-[12px]"
             >
               {children}
             </Button>
@@ -226,12 +227,13 @@ export function SettingCardIconButton({
       <SettingCard.Action>
         <Flex>
           <Flex direction="row" gap="2" align="center">
-            <label>{label}</label>
+            <label className="text-[12px] text-slate-600">{label}</label>
             <IconButton
               onClick={handleClick}
               variant={variant}
               disabled={disabled}
-              className="rounded-xl"
+              size="1"
+              className="rounded-md"
             >
               {children}
             </IconButton>
@@ -366,11 +368,12 @@ export function SettingCardShortTextInput({
 
   return (
     <SettingCard title={title} description={description} bordless={bordless}>
-      <Flex direction="column" className="w-full mt-1" gap="2" align="start">
+      <Flex direction="column" className="mt-0.5 w-full" gap="1" align="start">
         <TextField.Root
           {...restProps}
+          size="1"
           className={cn(
-            "w-full rounded-lg border border-slate-200/80 bg-white",
+            "w-full rounded-md border border-slate-200/80 bg-white text-[12px]",
             className,
           )}
           value={value !== undefined ? value : internalValue}
@@ -399,7 +402,8 @@ export function SettingCardShortTextInput({
           variant="solid"
           hidden={!showSaveButton}
           disabled={savingState}
-          className="rounded-xl"
+          size="1"
+          className="rounded-md text-[12px]"
         >
           {label}
         </Button>
@@ -465,9 +469,9 @@ export function SettingCardLongTextInput({
 
   return (
     <SettingCard title={title} description={description} bordless={bordless}>
-      <Flex direction="column" className="w-full mt-1" gap="2" align="start">
+      <Flex direction="column" className="mt-0.5 w-full" gap="1" align="start">
         <TextArea
-          className="w-full rounded-lg border border-slate-200/80 bg-white"
+          className="w-full rounded-md border border-slate-200/80 bg-white text-[12px] leading-5"
           defaultValue={defaultValue}
           resize="vertical"
           value={value}
@@ -480,7 +484,8 @@ export function SettingCardLongTextInput({
             onClick={handleSave}
             variant="solid"
             disabled={savingState}
-            className="rounded-xl"
+            size="1"
+            className="rounded-md text-[12px]"
           >
             {label}
           </Button>
@@ -572,7 +577,12 @@ export function SettingCardSelect({
           <Flex direction="row" gap="2" align="center">
             <DropdownMenu.Root>
               <DropdownMenu.Trigger disabled={savingState}>
-                <Button variant="soft" ref={buttonRef} className="rounded-xl">
+                <Button
+                  variant="soft"
+                  size="1"
+                  ref={buttonRef}
+                  className="rounded-md text-[12px]"
+                >
                   {getDisplayText()}
                   <DropdownMenu.TriggerIcon />
                 </Button>
@@ -604,7 +614,7 @@ export function SettingCardLabel({
   children: React.ReactNode | null;
 }) {
   return (
-    <label className="pt-2 text-sm font-semibold uppercase tracking-[0.18em] text-slate-500">
+    <label className="pt-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
       {children}
     </label>
   );
@@ -635,6 +645,7 @@ export function SettingCardCollapse({
       <SettingCard.Action>
         <IconButton
           variant="ghost"
+          size="1"
           onClick={() => setOpen(!open)}
           aria-expanded={open}
           aria-controls="collapsible-content"
@@ -652,7 +663,7 @@ export function SettingCardCollapse({
       <AnimatePresence>
         {open && (
           <motion.div
-            className="w-full pt-3"
+            className="w-full pt-2"
             layout // Smoothly handles height changes
             initial={{ height: 0, opacity: 0, y: -10 }}
             animate={{ height: "auto", opacity: 1, y: 0 }}
@@ -661,7 +672,7 @@ export function SettingCardCollapse({
             style={{ overflow: "hidden" }}
             id="collapsible-content"
           >
-            <div className="mb-3 h-px bg-slate-200/80" />
+            <div className="mb-2 h-px bg-slate-200/80" />
             {children}
           </motion.div>
         )}
