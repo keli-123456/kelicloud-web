@@ -380,9 +380,9 @@ export default function AdminPanelBar({ content }: AdminPanelBarProps) {
     );
 
   return (
-    <div className="min-h-screen bg-[linear-gradient(180deg,rgba(243,248,255,1)_0%,rgba(236,246,255,1)_46%,rgba(245,250,246,1)_100%)]">
-      <div className="flex min-h-screen flex-col px-2 pb-2 pt-2 md:px-4 md:pb-4 md:pt-4">
-        <header className="rounded-[28px] border border-white/70 bg-white/82 px-3 py-3 shadow-[0_18px_45px_rgba(15,23,42,0.08)] backdrop-blur-xl md:px-5">
+    <div className="min-h-screen bg-white">
+      <div className="flex min-h-screen flex-col px-3 md:px-6">
+        <header className="border-b border-slate-200/80 bg-white py-3 md:py-4">
           <div className="flex items-center justify-between gap-3">
             <div className="flex min-w-0 items-center gap-3">
               <IconButton
@@ -422,8 +422,8 @@ export default function AdminPanelBar({ content }: AdminPanelBarProps) {
             </div>
           </div>
 
-          <div className="mt-4 hidden items-center justify-between gap-4 md:flex">
-            <nav className="flex min-w-0 flex-1 items-center gap-2 overflow-x-auto pb-1">
+          <div className="mt-3 hidden items-center justify-between gap-4 border-t border-slate-200/70 pt-3 md:flex">
+            <nav className="flex min-w-0 flex-1 items-center gap-5 overflow-x-auto">
               {internalTopItems.map((item) => {
                 const active =
                   item.children?.some((child) =>
@@ -454,18 +454,18 @@ export default function AdminPanelBar({ content }: AdminPanelBarProps) {
           </div>
         </header>
 
-        <div className="mt-4 flex min-h-0 flex-1 gap-4">
+        <div className="flex min-h-0 flex-1 gap-6 py-5">
           {currentSubmenuItems.length > 0 && (
-            <aside className="hidden w-64 shrink-0 flex-col rounded-[28px] border border-white/70 bg-white/78 shadow-[0_24px_60px_rgba(15,23,42,0.08)] backdrop-blur-xl md:flex">
-              <div className="border-b border-slate-200/70 px-5 py-5">
+            <aside className="hidden w-60 shrink-0 flex-col border-r border-slate-200/80 pr-5 md:flex">
+              <div className="border-b border-slate-200/70 pb-4">
                 <Text className="text-[11px] uppercase tracking-[0.24em] text-slate-500">
                   {getMenuLabel(activeTopItem!)}
                 </Text>
-                <Text className="mt-2 block text-lg font-semibold tracking-tight text-slate-900">
+                <Text className="mt-2 block text-base font-semibold tracking-tight text-slate-900">
                   页面导航
                 </Text>
               </div>
-              <nav className="flex flex-col gap-1 p-3">
+              <nav className="flex flex-col gap-1 py-3">
                 {currentSubmenuItems.map((item) => (
                   <SubmenuItem
                     key={item.path}
@@ -484,8 +484,8 @@ export default function AdminPanelBar({ content }: AdminPanelBarProps) {
             </aside>
           )}
 
-          <main className="min-w-0 flex-1 overflow-hidden rounded-[32px] border border-white/70 bg-[radial-gradient(circle_at_top_left,rgba(224,242,254,0.65),transparent_34%),radial-gradient(circle_at_bottom_right,rgba(220,252,231,0.55),transparent_32%),linear-gradient(180deg,rgba(255,255,255,0.78),rgba(248,251,255,0.96))] shadow-[0_28px_70px_rgba(15,23,42,0.08)] backdrop-blur-xl">
-            <div className="h-full overflow-y-auto p-3 md:p-5">
+          <main className="min-w-0 flex-1 overflow-hidden">
+            <div className="h-full overflow-y-auto py-1 md:py-2">
               <Callout.Root mb="2" hidden={ishttps} color="red">
                 <Callout.Icon>
                   <svg
@@ -523,7 +523,7 @@ export default function AdminPanelBar({ content }: AdminPanelBarProps) {
               onClick={() => setMobileMenuOpen(false)}
             />
             <motion.div
-              className="fixed inset-y-0 left-0 z-50 flex w-[88vw] max-w-[360px] flex-col border-r border-white/60 bg-white/95 shadow-2xl backdrop-blur-xl"
+              className="fixed inset-y-0 left-0 z-50 flex w-[88vw] max-w-[360px] flex-col border-r border-slate-200 bg-white"
               initial={{ x: "-100%" }}
               animate={{ x: 0 }}
               exit={{ x: "-100%" }}
@@ -567,10 +567,7 @@ export default function AdminPanelBar({ content }: AdminPanelBarProps) {
                     }
 
                     return (
-                      <div
-                        key={item.path}
-                        className="overflow-hidden rounded-[22px] border border-slate-200/75 bg-slate-50/70"
-                      >
+                      <div key={item.path} className="overflow-hidden border-b border-slate-200/70">
                         <button
                           type="button"
                           className="flex w-full items-center justify-between px-4 py-3 text-left"
@@ -664,13 +661,13 @@ function TopNavItem({
       to={href}
       onClick={onNavigate}
       className={cn(
-        "inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-medium transition-all",
+        "inline-flex items-center gap-2 border-b-2 px-1 py-2 text-sm font-medium transition-colors",
         mobile
-          ? "w-full rounded-[18px] border-transparent bg-white px-4 py-3 text-slate-700 shadow-sm"
+          ? "w-full border-b border-transparent px-4 py-3 text-slate-700"
           : "shrink-0",
         active
-          ? "border-slate-900 bg-slate-900 text-white shadow-[0_12px_24px_rgba(15,23,42,0.18)]"
-          : "border-slate-200/80 bg-white/80 text-slate-600 hover:border-slate-300 hover:bg-slate-50 hover:text-slate-900",
+          ? "border-slate-900 text-slate-900"
+          : "border-transparent text-slate-500 hover:border-slate-300 hover:text-slate-900",
       )}
     >
       <span className="flex h-4 w-4 items-center justify-center">{icon}</span>
@@ -695,10 +692,10 @@ function SubmenuItem({
   onNavigate?: () => void;
 }) {
   const className = cn(
-    "flex items-center gap-3 rounded-[18px] px-4 py-3 text-sm transition-colors",
+    "flex items-center gap-3 border-l-2 px-3 py-2 text-sm transition-colors",
     active
-      ? "bg-slate-900 text-white shadow-[0_14px_28px_rgba(15,23,42,0.18)]"
-      : "text-slate-600 hover:bg-slate-100 hover:text-slate-900",
+      ? "border-slate-900 text-slate-900"
+      : "border-transparent text-slate-500 hover:border-slate-300 hover:text-slate-900",
   );
 
   if (newTab) {
@@ -731,7 +728,7 @@ function QuickLink({ href, label }: { href: string; label: ReactNode }) {
       href={href}
       target="_blank"
       rel="noopener noreferrer"
-      className="inline-flex items-center gap-2 rounded-full border border-slate-200/80 bg-white/80 px-3 py-2 text-sm font-medium text-slate-600 transition-colors hover:border-slate-300 hover:bg-slate-50 hover:text-slate-900"
+      className="inline-flex items-center gap-2 border-b border-transparent px-1 py-2 text-sm font-medium text-slate-500 transition-colors hover:border-slate-300 hover:text-slate-900"
     >
       <span>{label}</span>
       <ExternalLink size={14} />
