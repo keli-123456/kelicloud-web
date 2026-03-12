@@ -42,6 +42,7 @@ import {
   deleteDigitalOceanToken,
   getDigitalOceanAccount,
   getDigitalOceanCatalog,
+  getDigitalOceanDropletPassword,
   getDigitalOceanManagedSSHKey,
   getDigitalOceanTokens,
   listDigitalOceanDroplets,
@@ -52,6 +53,7 @@ import {
   type DigitalOceanAccount,
   type DigitalOceanCatalog,
   type DigitalOceanDroplet,
+  type DigitalOceanDropletPassword,
   type DigitalOceanImage,
   type DigitalOceanManagedSSHKeyMaterial,
   type DigitalOceanTokenInput,
@@ -68,6 +70,13 @@ type DropletAccessSecrets = {
   rootPassword: string;
   passwordMode: "custom" | "random";
   managedSSHKey: DigitalOceanManagedSSHKeyMaterial | null;
+  passwordSaved: boolean;
+  passwordSaveError: string;
+};
+
+type SavedDropletPasswordState = {
+  droplet: DigitalOceanDroplet;
+  credential: DigitalOceanDropletPassword;
 };
 
 const initialCreateForm: CreateDropletFormState = {
@@ -272,6 +281,9 @@ export default function CloudPage() {
     React.useState<DigitalOceanManagedSSHKeyMaterial | null>(null);
   const [managedKeyLoading, setManagedKeyLoading] = React.useState(false);
   const [accessSecrets, setAccessSecrets] = React.useState<DropletAccessSecrets | null>(null);
+  const [savedDropletPassword, setSavedDropletPassword] =
+    React.useState<SavedDropletPasswordState | null>(null);
+  const [dropletPasswordLoading, setDropletPasswordLoading] = React.useState(false);
   const [error, setError] = React.useState("");
   const [createOpen, setCreateOpen] = React.useState(false);
   const [createSubmitting, setCreateSubmitting] = React.useState(false);
@@ -392,6 +404,7 @@ export default function CloudPage() {
 
   const activeToken = getActiveToken(tokenPool);
   const connected = Boolean(account && activeToken);
+  const passwordStorageEnabled = Boolean(tokenPool?.password_storage_enabled);
   const runningCount = droplets.filter((droplet) => droplet.status === "active").length;
 
   const handleImportTokens = async () => {
@@ -495,6 +508,18 @@ export default function CloudPage() {
     }
   };
 
+  const handleViewDropletPassword = async (droplet: DigitalOceanDroplet) => {
+    setDropletPasswordLoading(true);
+    try {
+      const credential = await getDigitalOceanDropletPassword(droplet.id);
+      setSavedDropletPassword({ droplet, credential });
+    } catch (viewError) {
+      toast.error(toErrorMessage(viewError));
+    } finally {
+      setDropletPasswordLoading(false);
+    }
+  };
+
   const handleCreateDroplet = async () => {
     setCreateSubmitting(true);
     try {
@@ -528,7 +553,12 @@ export default function CloudPage() {
           rootPassword,
           passwordMode,
           managedSSHKey: result.managed_ssh_key,
+          passwordSaved: result.password_saved,
+          passwordSaveError: result.password_save_error,
         });
+        if (result.password_save_error) {
+          toast.error(result.password_save_error);
+        }
       } else {
         setAccessSecrets(null);
       }
@@ -641,6 +671,15 @@ export default function CloudPage() {
       {error ? (
         <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
           {error}
+        </div>
+      ) : null}
+
+      {tokenPool && !passwordStorageEnabled ? (
+        <div className="rounded-2xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800">
+          {t(
+            "cloud.password.storage_disabled_help",
+            "Set KOMARI_CLOUD_SECRET_KEY on the server to save root passwords for later viewing in the Droplet list.",
+          )}
         </div>
       ) : null}
 
@@ -843,6 +882,7 @@ export default function CloudPage() {
               <TableHead>{t("cloud.table.size", "Size")}</TableHead>
               <TableHead>{t("cloud.table.image", "Image")}</TableHead>
               <TableHead>{t("cloud.table.price", "Monthly")}</TableHead>
+              <TableHead>{t("cloud.table.password", "Root Password")}</TableHead>
               <TableHead>{t("cloud.table.created_at", "Created")}</TableHead>
               <TableHead className="text-right">
                 {t("common.action", "Action")}
@@ -852,7 +892,7 @@ export default function CloudPage() {
           <TableBody>
             {droplets.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={9} className="h-24 text-center text-slate-500">
+                <TableCell colSpan={10} className="h-24 text-center text-slate-500">
                   {panelLoading
                     ? t("cloud.loading", "Loading cloud resources...")
                     : hasActiveToken(tokenPool)
@@ -882,9 +922,42 @@ export default function CloudPage() {
                   <TableCell>{droplet.size_slug || droplet.size?.slug || "-"}</TableCell>
                   <TableCell>{getImageLabel(droplet.image)}</TableCell>
                   <TableCell>{formatMonthlyPrice(droplet)}</TableCell>
+                  <TableCell>
+                    {droplet.saved_root_password ? (
+                      <div className="space-y-1">
+                        <Badge color={passwordStorageEnabled ? "green" : "amber"}>
+                          {passwordStorageEnabled
+                            ? t("cloud.password.saved", "Saved")
+                            : t("cloud.password.locked", "Locked")}
+                        </Badge>
+                        {droplet.saved_root_password_updated_at ? (
+                          <div className="text-xs text-slate-500">
+                            {formatDateTime(droplet.saved_root_password_updated_at)}
+                          </div>
+                        ) : null}
+                      </div>
+                    ) : (
+                      <span className="text-sm text-slate-400">
+                        {passwordStorageEnabled
+                          ? t("cloud.password.not_saved", "Not saved")
+                          : t("cloud.password.disabled_short", "Vault off")}
+                      </span>
+                    )}
+                  </TableCell>
                   <TableCell>{formatDateTime(droplet.created_at)}</TableCell>
                   <TableCell className="text-right">
                     <Flex justify="end" gap="2" wrap="wrap">
+                      <Button
+                        variant="soft"
+                        size="1"
+                        disabled={!droplet.saved_root_password || !passwordStorageEnabled || dropletPasswordLoading}
+                        onClick={() => {
+                          void handleViewDropletPassword(droplet);
+                        }}
+                      >
+                        <KeyRound className="mr-1 h-3.5 w-3.5" />
+                        {t("cloud.password.view", "View Password")}
+                      </Button>
                       {droplet.status === "active" ? (
                         <Button
                           variant="soft"
@@ -1310,6 +1383,26 @@ export default function CloudPage() {
                 label={t("cloud.table.created_at", "Created")}
                 value={formatDateTime(detailDroplet.created_at)}
               />
+              <DetailItem
+                label={t("cloud.table.password", "Root Password")}
+                value={
+                  detailDroplet.saved_root_password ? (
+                    <Button
+                      variant="soft"
+                      size="1"
+                      disabled={!passwordStorageEnabled || dropletPasswordLoading}
+                      onClick={() => {
+                        void handleViewDropletPassword(detailDroplet);
+                      }}
+                    >
+                      <KeyRound className="mr-1 h-3.5 w-3.5" />
+                      {t("cloud.password.view", "View Password")}
+                    </Button>
+                  ) : (
+                    t("cloud.password.not_saved", "Not saved")
+                  )
+                }
+              />
               <DetailItem label={t("cloud.detail.memory", "Memory")} value={`${detailDroplet.memory} MB`} />
               <DetailItem label={t("cloud.detail.vcpus", "vCPUs")} value={detailDroplet.vcpus} />
               <DetailItem label={t("cloud.detail.disk", "Disk")} value={`${detailDroplet.disk} GB`} />
@@ -1415,6 +1508,77 @@ export default function CloudPage() {
       </Dialog.Root>
 
       <Dialog.Root
+        open={Boolean(savedDropletPassword)}
+        onOpenChange={(open) => {
+          if (!open) {
+            setSavedDropletPassword(null);
+          }
+        }}
+      >
+        <Dialog.Content className="max-h-[85vh] overflow-y-auto">
+          <Dialog.Title>{t("cloud.password.dialog_title", "Saved Root Password")}</Dialog.Title>
+          <Dialog.Description>
+            {t(
+              "cloud.password.dialog_description",
+              "View the saved root password for this Droplet from the current active token.",
+            )}
+          </Dialog.Description>
+
+          {savedDropletPassword ? (
+            <div className="mt-4 flex flex-col gap-4">
+              <DetailItem label={t("cloud.table.name", "Name")} value={savedDropletPassword.droplet.name} />
+              <DetailItem
+                label={t("cloud.table.ip", "Public IP")}
+                value={getDropletPrimaryIp(savedDropletPassword.droplet)}
+              />
+              <DetailItem
+                label={t("cloud.password.username", "Username")}
+                value={savedDropletPassword.credential.username || "root"}
+              />
+              <DetailItem
+                label={t("cloud.password.mode", "Password Mode")}
+                value={
+                  savedDropletPassword.credential.password_mode
+                    ? t(
+                        `cloud.form.root_access_modes.${savedDropletPassword.credential.password_mode}`,
+                        savedDropletPassword.credential.password_mode,
+                      )
+                    : "-"
+                }
+              />
+              <DetailItem
+                label={t("cloud.password.saved_at", "Saved At")}
+                value={formatDateTime(savedDropletPassword.credential.updated_at)}
+              />
+              <div className="rounded-xl border border-slate-200 bg-white px-4 py-3">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="text-sm font-medium text-slate-800">
+                    {t("cloud.access.root_password", "Root Password")}
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="1"
+                    onClick={() => {
+                      void copyText(savedDropletPassword.credential.root_password);
+                    }}
+                  >
+                    <Copy className="mr-1 h-3.5 w-3.5" />
+                    {t("copy", "Copy")}
+                  </Button>
+                </div>
+                <TextField.Root
+                  className="mt-3"
+                  readOnly
+                  type="text"
+                  value={savedDropletPassword.credential.root_password}
+                />
+              </div>
+            </div>
+          ) : null}
+        </Dialog.Content>
+      </Dialog.Root>
+
+      <Dialog.Root
         open={Boolean(accessSecrets)}
         onOpenChange={(open) => {
           if (!open) {
@@ -1433,6 +1597,29 @@ export default function CloudPage() {
 
           {accessSecrets ? (
             <div className="mt-4 flex flex-col gap-4">
+              {accessSecrets.passwordSaved ? (
+                <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+                  {t(
+                    "cloud.password.create_saved",
+                    "This root password has been encrypted and saved. You can reopen it later from the Droplet list.",
+                  )}
+                </div>
+              ) : (
+                <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+                  {t(
+                    "cloud.password.create_unsaved",
+                    "This root password was not saved on the server. Save it now if you still need it later.",
+                  )}
+                  {accessSecrets.passwordSaveError ? (
+                    <div className="mt-2">
+                      {t("cloud.password.create_unsaved_reason", {
+                        reason: accessSecrets.passwordSaveError,
+                        defaultValue: `Password save failed: ${accessSecrets.passwordSaveError}`,
+                      })}
+                    </div>
+                  ) : null}
+                </div>
+              )}
               <DetailItem label={t("cloud.table.name", "Name")} value={accessSecrets.droplet.name} />
               <DetailItem label={t("cloud.table.ip", "Public IP")} value={getDropletPrimaryIp(accessSecrets.droplet)} />
 

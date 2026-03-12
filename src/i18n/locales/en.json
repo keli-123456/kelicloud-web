@@ -276,7 +276,24 @@
       "size": "Size",
       "image": "Image",
       "price": "Monthly",
+      "password": "Root Password",
       "created_at": "Created"
+    },
+    "password": {
+      "view": "View Password",
+      "saved": "Saved",
+      "locked": "Locked",
+      "not_saved": "Not Saved",
+      "disabled_short": "Vault Off",
+      "storage_disabled_help": "Set KOMARI_CLOUD_SECRET_KEY on the server to encrypt and save root passwords for later viewing in the Droplet list.",
+      "dialog_title": "Saved Root Password",
+      "dialog_description": "View the saved root password for this Droplet from the current active token.",
+      "username": "Username",
+      "mode": "Password Mode",
+      "saved_at": "Saved At",
+      "create_saved": "This root password has been encrypted and saved. You can reopen it later from the Droplet list.",
+      "create_unsaved": "This root password was not saved on the server. Save it now if you still need it later.",
+      "create_unsaved_reason": "Password save failed: {{reason}}"
     },
     "form": {
       "name": "Name",

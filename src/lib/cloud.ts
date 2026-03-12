@@ -56,6 +56,7 @@ export type DigitalOceanTokenRecord = {
 
 export type DigitalOceanTokenPool = {
   active_token_id: string;
+  password_storage_enabled: boolean;
   tokens: DigitalOceanTokenRecord[];
 };
 
@@ -146,6 +147,17 @@ export type DigitalOceanDroplet = {
     v4: DigitalOceanNetworkV4[];
     v6: DigitalOceanNetworkV6[];
   };
+  saved_root_password: boolean;
+  saved_root_password_updated_at: string;
+};
+
+export type DigitalOceanDropletPassword = {
+  droplet_id: number;
+  droplet_name: string;
+  username: string;
+  password_mode: string;
+  root_password: string;
+  updated_at: string;
 };
 
 export type DigitalOceanAction = {
@@ -185,6 +197,8 @@ export type CreateDigitalOceanDropletResult = {
   droplet: DigitalOceanDroplet;
   generated_password: string;
   managed_ssh_key: DigitalOceanManagedSSHKeyMaterial | null;
+  password_saved: boolean;
+  password_save_error: string;
 };
 
 function normalizeStringArray(value: unknown): string[] {
@@ -322,6 +336,23 @@ function normalizeDroplet(droplet: Partial<DigitalOceanDroplet> | null | undefin
         type: String(network?.type || ""),
       })),
     },
+    saved_root_password: Boolean((droplet as { saved_root_password?: unknown } | null | undefined)?.saved_root_password),
+    saved_root_password_updated_at: String(
+      (droplet as { saved_root_password_updated_at?: unknown } | null | undefined)?.saved_root_password_updated_at || "",
+    ),
+  };
+}
+
+function normalizeDropletPassword(
+  password: Partial<DigitalOceanDropletPassword> | null | undefined,
+): DigitalOceanDropletPassword {
+  return {
+    droplet_id: Number(password?.droplet_id || 0),
+    droplet_name: String(password?.droplet_name || ""),
+    username: String(password?.username || "root"),
+    password_mode: String(password?.password_mode || ""),
+    root_password: String(password?.root_password || ""),
+    updated_at: String(password?.updated_at || ""),
   };
 }
 
@@ -388,6 +419,7 @@ export async function getDigitalOceanTokens(): Promise<DigitalOceanTokenPool> {
 
   return {
     active_token_id: String(data?.active_token_id || ""),
+    password_storage_enabled: Boolean(data?.password_storage_enabled),
     tokens: Array.isArray(data?.tokens) ? data.tokens.map(normalizeTokenRecord) : [],
   };
 }
@@ -411,6 +443,7 @@ export async function saveDigitalOceanTokens(
 
   return {
     active_token_id: String(data?.active_token_id || ""),
+    password_storage_enabled: Boolean(data?.password_storage_enabled),
     tokens: Array.isArray(data?.tokens) ? data.tokens.map(normalizeTokenRecord) : [],
   };
 }
@@ -429,6 +462,7 @@ export async function setDigitalOceanActiveToken(tokenId: string): Promise<Digit
 
   return {
     active_token_id: String(data?.active_token_id || ""),
+    password_storage_enabled: Boolean(data?.password_storage_enabled),
     tokens: Array.isArray(data?.tokens) ? data.tokens.map(normalizeTokenRecord) : [],
   };
 }
@@ -447,6 +481,7 @@ export async function checkDigitalOceanTokens(tokenIds?: string[]): Promise<Digi
 
   return {
     active_token_id: String(data?.active_token_id || ""),
+    password_storage_enabled: Boolean(data?.password_storage_enabled),
     tokens: Array.isArray(data?.tokens) ? data.tokens.map(normalizeTokenRecord) : [],
   };
 }
@@ -461,6 +496,7 @@ export async function deleteDigitalOceanToken(tokenId: string): Promise<DigitalO
 
   return {
     active_token_id: String(data?.active_token_id || ""),
+    password_storage_enabled: Boolean(data?.password_storage_enabled),
     tokens: Array.isArray(data?.tokens) ? data.tokens.map(normalizeTokenRecord) : [],
   };
 }
@@ -501,6 +537,8 @@ export async function createDigitalOceanDroplet(
     droplet?: Partial<DigitalOceanDroplet> | null;
     generated_password?: string;
     managed_ssh_key?: Partial<DigitalOceanManagedSSHKeyMaterial> | null;
+    password_saved?: boolean;
+    password_save_error?: string;
   }>(
     "/api/admin/cloud/digitalocean/droplets",
     {
@@ -516,7 +554,18 @@ export async function createDigitalOceanDroplet(
     droplet: normalizeDroplet(data?.droplet),
     generated_password: String(data?.generated_password || ""),
     managed_ssh_key: data?.managed_ssh_key ? normalizeManagedSSHKey(data.managed_ssh_key) : null,
+    password_saved: Boolean(data?.password_saved),
+    password_save_error: String(data?.password_save_error || ""),
   };
+}
+
+export async function getDigitalOceanDropletPassword(
+  dropletId: number,
+): Promise<DigitalOceanDropletPassword> {
+  const data = await requestCloud<Partial<DigitalOceanDropletPassword>>(
+    `/api/admin/cloud/digitalocean/droplets/${dropletId}/password`,
+  );
+  return normalizeDropletPassword(data);
 }
 
 export async function deleteDigitalOceanDroplet(dropletId: number): Promise<void> {

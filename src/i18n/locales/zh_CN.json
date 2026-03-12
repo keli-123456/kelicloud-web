@@ -276,7 +276,24 @@
       "size": "规格",
       "image": "镜像",
       "price": "月费",
+      "password": "Root 密码",
       "created_at": "创建时间"
+    },
+    "password": {
+      "view": "查看密码",
+      "saved": "已保存",
+      "locked": "已锁定",
+      "not_saved": "未保存",
+      "disabled_short": "保险箱未启用",
+      "storage_disabled_help": "在服务端设置 KOMARI_CLOUD_SECRET_KEY 后，Komari 才会把 root 密码加密保存，后续可在 Droplet 列表里查看。",
+      "dialog_title": "已保存的 Root 密码",
+      "dialog_description": "查看当前激活令牌下这台 Droplet 已保存的 root 密码。",
+      "username": "用户名",
+      "mode": "密码模式",
+      "saved_at": "保存时间",
+      "create_saved": "这次创建使用的 root 密码已经加密保存，后续可以在 Droplet 列表里重新查看。",
+      "create_unsaved": "这次创建使用的 root 密码没有保存到服务器，请现在自行保管。",
+      "create_unsaved_reason": "密码保存失败：{{reason}}"
     },
     "form": {
       "name": "名称",
