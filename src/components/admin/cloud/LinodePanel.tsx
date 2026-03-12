@@ -361,10 +361,6 @@ export default function LinodePanel() {
     }
   }, [tokenPool]);
 
-  if (initializing) {
-    return <Loading text="" />;
-  }
-
   const activeToken = getActiveToken(tokenPool);
   const connected = Boolean(account && activeToken);
   const passwordStorageEnabled = Boolean(tokenPool?.password_storage_enabled);
@@ -615,6 +611,10 @@ export default function LinodePanel() {
       toast.error(toErrorMessage(deleteError));
     }
   };
+
+  if (initializing) {
+    return <Loading text="" />;
+  }
 
   return (
     <AdminPageShell

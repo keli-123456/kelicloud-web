@@ -444,10 +444,6 @@ export default function AWSPanel() {
     }
   }, [credentialPool]);
 
-  if (initializing) {
-    return <Loading text="" />;
-  }
-
   const activeCredential = getActiveCredential(credentialPool);
   const connected = Boolean(account && activeCredential);
   const runningCount = instances.filter((instance) => instance.state === "running").length;
@@ -789,6 +785,10 @@ export default function AWSPanel() {
       toast.error(toErrorMessage(deleteError));
     }
   };
+
+  if (initializing) {
+    return <Loading text="" />;
+  }
 
   return (
     <AdminPageShell
