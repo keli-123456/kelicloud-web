@@ -129,6 +129,55 @@ export type LinodeInstancePassword = {
   updated_at: string;
 };
 
+export type LinodeDisk = {
+  id: number;
+  label: string;
+  status: string;
+  size: number;
+  filesystem: string;
+  created: string;
+  updated: string;
+};
+
+export type LinodeConfig = {
+  id: number;
+  label: string;
+  kernel: string;
+  root_device: string;
+  run_level: string;
+  memory_limit: number;
+  comments: string;
+};
+
+export type LinodeBackup = {
+  id: number;
+  label: string;
+  type: string;
+  status: string;
+  created: string;
+  updated: string;
+  finished: string;
+};
+
+export type LinodeBackups = {
+  enabled: boolean;
+  available: boolean;
+  schedule: {
+    day: string;
+    window: string;
+  };
+  last_successful: string;
+  snapshot: LinodeBackup | null;
+  automatic: LinodeBackup[];
+};
+
+export type LinodeInstanceDetail = {
+  instance: LinodeInstance;
+  disks: LinodeDisk[];
+  configs: LinodeConfig[];
+  backups: LinodeBackups | null;
+};
+
 export type LinodeCatalog = {
   regions: LinodeRegion[];
   types: LinodeType[];
@@ -155,6 +204,27 @@ export type CreateLinodeInstanceResult = {
   generated_password: string;
   password_saved: boolean;
   password_save_error: string;
+};
+
+export type LinodeInstanceActionInput = {
+  type: string;
+  target_type?: string;
+  image?: string;
+  root_password_mode?: "custom" | "random";
+  root_password?: string;
+  authorized_keys?: string[];
+  booted?: boolean;
+  user_data?: string;
+};
+
+export type LinodeInstanceActionResult = {
+  type: string;
+  resource_id: number;
+  status: string;
+  generated_password: string;
+  password_saved: boolean;
+  password_save_error: string;
+  instance: LinodeInstance | null;
 };
 
 function normalizeStringArray(value: unknown): string[] {
@@ -291,6 +361,73 @@ function normalizeInstancePassword(
     password_mode: String(password?.password_mode || ""),
     root_password: String(password?.root_password || ""),
     updated_at: String(password?.updated_at || ""),
+  };
+}
+
+function normalizeBackup(backup: Partial<LinodeBackup> | null | undefined): LinodeBackup {
+  return {
+    id: Number(backup?.id || 0),
+    label: String(backup?.label || ""),
+    type: String(backup?.type || ""),
+    status: String(backup?.status || ""),
+    created: String(backup?.created || ""),
+    updated: String(backup?.updated || ""),
+    finished: String(backup?.finished || ""),
+  };
+}
+
+function normalizeDisk(disk: Partial<LinodeDisk> | null | undefined): LinodeDisk {
+  return {
+    id: Number(disk?.id || 0),
+    label: String(disk?.label || ""),
+    status: String(disk?.status || ""),
+    size: Number(disk?.size || 0),
+    filesystem: String(disk?.filesystem || ""),
+    created: String(disk?.created || ""),
+    updated: String(disk?.updated || ""),
+  };
+}
+
+function normalizeConfig(config: Partial<LinodeConfig> | null | undefined): LinodeConfig {
+  return {
+    id: Number(config?.id || 0),
+    label: String(config?.label || ""),
+    kernel: String(config?.kernel || ""),
+    root_device: String(config?.root_device || ""),
+    run_level: String(config?.run_level || ""),
+    memory_limit: Number(config?.memory_limit || 0),
+    comments: String(config?.comments || ""),
+  };
+}
+
+function normalizeBackups(
+  backups: Partial<LinodeBackups> | null | undefined,
+): LinodeBackups | null {
+  if (!backups) return null;
+  const schedule = (backups.schedule as Partial<LinodeBackups["schedule"]> | undefined) || {};
+  return {
+    enabled: Boolean(backups.enabled),
+    available: Boolean(backups.available),
+    schedule: {
+      day: String(schedule.day || ""),
+      window: String(schedule.window || ""),
+    },
+    last_successful: String(backups.last_successful || ""),
+    snapshot: backups.snapshot ? normalizeBackup(backups.snapshot) : null,
+    automatic: Array.isArray(backups.automatic)
+      ? backups.automatic.map(normalizeBackup)
+      : [],
+  };
+}
+
+function normalizeInstanceDetail(
+  detail: Partial<LinodeInstanceDetail> | null | undefined,
+): LinodeInstanceDetail {
+  return {
+    instance: normalizeInstance(detail?.instance),
+    disks: Array.isArray(detail?.disks) ? detail.disks.map(normalizeDisk) : [],
+    configs: Array.isArray(detail?.configs) ? detail.configs.map(normalizeConfig) : [],
+    backups: normalizeBackups(detail?.backups),
   };
 }
 
@@ -449,6 +586,15 @@ export async function getLinodeInstancePassword(
   return normalizeInstancePassword(data);
 }
 
+export async function getLinodeInstanceDetail(
+  instanceId: number,
+): Promise<LinodeInstanceDetail> {
+  const data = await requestCloud<Partial<LinodeInstanceDetail>>(
+    `/api/admin/cloud/linode/instances/${instanceId}`,
+  );
+  return normalizeInstanceDetail(data);
+}
+
 export async function deleteLinodeInstance(instanceId: number): Promise<void> {
   await requestCloud(`/api/admin/cloud/linode/instances/${instanceId}`, {
     method: "DELETE",
@@ -457,13 +603,22 @@ export async function deleteLinodeInstance(instanceId: number): Promise<void> {
 
 export async function postLinodeInstanceAction(
   instanceId: number,
-  type: string,
-): Promise<void> {
-  await requestCloud(`/api/admin/cloud/linode/instances/${instanceId}/actions`, {
+  input: string | LinodeInstanceActionInput,
+): Promise<LinodeInstanceActionResult> {
+  const data = await requestCloud<Partial<LinodeInstanceActionResult>>(`/api/admin/cloud/linode/instances/${instanceId}/actions`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({ type }),
+    body: JSON.stringify(typeof input === "string" ? { type: input } : input),
   });
+  return {
+    type: String(data?.type || ""),
+    resource_id: Number(data?.resource_id || 0),
+    status: String(data?.status || ""),
+    generated_password: String(data?.generated_password || ""),
+    password_saved: Boolean(data?.password_saved),
+    password_save_error: String(data?.password_save_error || ""),
+    instance: data?.instance ? normalizeInstance(data.instance) : null,
+  };
 }

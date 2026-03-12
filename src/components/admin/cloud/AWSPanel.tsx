@@ -39,14 +39,21 @@ import {
 import {
   checkAWSCredentials,
   createAWSInstance,
+  createAWSLightsailInstance,
   deleteAWSInstance,
   deleteAWSCredential,
+  deleteAWSLightsailInstance,
   getAWSAccount,
   getAWSCatalog,
   getAWSCredentialSecret,
   getAWSCredentials,
+  getAWSInstanceDetail,
+  getAWSLightsailCatalog,
+  getAWSLightsailInstanceDetail,
   listAWSInstances,
+  listAWSLightsailInstances,
   postAWSInstanceAction,
+  postAWSLightsailInstanceAction,
   saveAWSCredentials,
   setAWSActiveCredential,
   setAWSActiveRegion,
@@ -56,14 +63,24 @@ import {
   type AWSCredentialPool,
   type AWSCredentialRecord,
   type AWSCredentialSecret,
+  type AWSElasticAddress,
   type AWSImage,
   type AWSInstance,
+  type AWSInstanceDetail,
+  type AWSLightsailCatalog,
+  type AWSLightsailInstance,
+  type AWSLightsailInstanceDetail,
   type AWSSubnet,
   type AWSTag,
   type CreateAWSInstanceInput,
+  type CreateAWSLightsailInstanceInput,
 } from "@/lib/cloudAws";
 
 type CreateFormState = Omit<CreateAWSInstanceInput, "tags"> & {
+  tagsText: string;
+};
+
+type LightsailCreateFormState = Omit<CreateAWSLightsailInstanceInput, "tags"> & {
   tagsText: string;
 };
 
@@ -83,6 +100,32 @@ const initialCreateForm: CreateFormState = {
   user_data: "",
   assign_public_ip: true,
   tagsText: "",
+};
+
+const initialLightsailCreateForm: LightsailCreateFormState = {
+  name: "",
+  availability_zone: "",
+  blueprint_id: "",
+  bundle_id: "",
+  key_pair_name: "",
+  user_data: "",
+  ip_address_type: "dualstack",
+  tagsText: "",
+};
+
+type Ec2DetailActionFormState = {
+  imageName: string;
+  imageDescription: string;
+  noReboot: boolean;
+  instanceType: string;
+  tagsText: string;
+  allocationId: string;
+  privateIp: string;
+};
+
+type LightsailDetailActionFormState = {
+  snapshotName: string;
+  staticIpName: string;
 };
 
 function toErrorMessage(error: unknown) {
@@ -214,10 +257,22 @@ function getImageLabel(image: AWSImage) {
   return image.name || image.image_id || "-";
 }
 
+function formatTagMap(tags: Record<string, string>) {
+  const entries = Object.entries(tags || {});
+  if (!entries.length) return "";
+  return entries.map(([key, value]) => `${key}=${value}`).join("\n");
+}
+
+function formatElasticAddress(address: AWSElasticAddress) {
+  const parts = [address.public_ip, address.allocation_id].filter(Boolean);
+  return parts.join(" / ") || "-";
+}
+
 export default function AWSPanel() {
   const { t } = useTranslation();
 
   const [panelSection, setPanelSection] = React.useState<"instances" | "credentials">("instances");
+  const [instanceView, setInstanceView] = React.useState<"ec2" | "lightsail">("ec2");
   const [initializing, setInitializing] = React.useState(true);
   const [panelLoading, setPanelLoading] = React.useState(false);
   const [credentialSaving, setCredentialSaving] = React.useState(false);
@@ -227,19 +282,51 @@ export default function AWSPanel() {
   const [credentialPool, setCredentialPool] = React.useState<AWSCredentialPool | null>(null);
   const [account, setAccount] = React.useState<AWSAccount | null>(null);
   const [catalog, setCatalog] = React.useState<AWSCatalog | null>(null);
+  const [lightsailCatalog, setLightsailCatalog] = React.useState<AWSLightsailCatalog | null>(null);
   const [instances, setInstances] = React.useState<AWSInstance[]>([]);
+  const [lightsailInstances, setLightsailInstances] = React.useState<AWSLightsailInstance[]>([]);
   const [detailInstance, setDetailInstance] = React.useState<AWSInstance | null>(null);
+  const [detailData, setDetailData] = React.useState<AWSInstanceDetail | null>(null);
+  const [detailLoading, setDetailLoading] = React.useState(false);
+  const [detailActionLoading, setDetailActionLoading] = React.useState(false);
+  const [detailActionForm, setDetailActionForm] = React.useState<Ec2DetailActionFormState>({
+    imageName: "",
+    imageDescription: "",
+    noReboot: true,
+    instanceType: "",
+    tagsText: "",
+    allocationId: "",
+    privateIp: "",
+  });
+  const [lightsailDetailInstance, setLightsailDetailInstance] = React.useState<AWSLightsailInstance | null>(null);
+  const [lightsailDetailData, setLightsailDetailData] = React.useState<AWSLightsailInstanceDetail | null>(null);
+  const [lightsailDetailLoading, setLightsailDetailLoading] = React.useState(false);
+  const [lightsailActionLoading, setLightsailActionLoading] = React.useState(false);
+  const [lightsailDetailActionForm, setLightsailDetailActionForm] = React.useState<LightsailDetailActionFormState>({
+    snapshotName: "",
+    staticIpName: "",
+  });
   const [credentialSecret, setCredentialSecret] = React.useState<CredentialSecretState | null>(null);
   const [credentialSecretLoading, setCredentialSecretLoading] = React.useState(false);
   const [error, setError] = React.useState("");
   const [createOpen, setCreateOpen] = React.useState(false);
   const [createSubmitting, setCreateSubmitting] = React.useState(false);
   const [createForm, setCreateForm] = React.useState<CreateFormState>(initialCreateForm);
+  const [lightsailCreateOpen, setLightsailCreateOpen] = React.useState(false);
+  const [lightsailCreateSubmitting, setLightsailCreateSubmitting] = React.useState(false);
+  const [lightsailCreateForm, setLightsailCreateForm] = React.useState<LightsailCreateFormState>(
+    initialLightsailCreateForm,
+  );
+  const activeRegion = credentialPool?.active_region || account?.region || "us-east-1";
 
   const clearPanelState = React.useCallback(() => {
     setAccount(null);
     setCatalog(null);
+    setLightsailCatalog(null);
     setInstances([]);
+    setLightsailInstances([]);
+    setDetailData(null);
+    setLightsailDetailData(null);
     setError("");
   }, []);
 
@@ -264,19 +351,25 @@ export default function AWSPanel() {
   const loadPanelData = React.useCallback(async () => {
     setPanelLoading(true);
     try {
-      const [nextAccount, nextCatalog, nextInstances] = await Promise.all([
+      const [nextAccount, nextCatalog, nextInstances, nextLightsailCatalog, nextLightsailInstances] = await Promise.all([
         getAWSAccount(),
         getAWSCatalog(),
         listAWSInstances(),
+        getAWSLightsailCatalog(),
+        listAWSLightsailInstances(),
       ]);
       setAccount(nextAccount);
       setCatalog(nextCatalog);
       setInstances(nextInstances);
+      setLightsailCatalog(nextLightsailCatalog);
+      setLightsailInstances(nextLightsailInstances);
       setError("");
     } catch (panelError) {
       setAccount(null);
       setCatalog(null);
+      setLightsailCatalog(null);
       setInstances([]);
+      setLightsailInstances([]);
       setError(toErrorMessage(panelError));
     } finally {
       setPanelLoading(false);
@@ -332,6 +425,20 @@ export default function AWSPanel() {
   }, [catalog]);
 
   React.useEffect(() => {
+    if (!lightsailCatalog) return;
+    setLightsailCreateForm((previous) => ({
+      ...previous,
+      availability_zone:
+        previous.availability_zone ||
+        lightsailCatalog.regions.find((region) => region.name === activeRegion)?.availability_zones[0]?.name ||
+        lightsailCatalog.regions[0]?.availability_zones[0]?.name ||
+        "",
+      blueprint_id: previous.blueprint_id || lightsailCatalog.blueprints[0]?.blueprint_id || "",
+      bundle_id: previous.bundle_id || lightsailCatalog.bundles[0]?.bundle_id || "",
+    }));
+  }, [activeRegion, lightsailCatalog]);
+
+  React.useEffect(() => {
     if (!hasActiveCredential(credentialPool)) {
       setPanelSection("credentials");
     }
@@ -343,8 +450,8 @@ export default function AWSPanel() {
 
   const activeCredential = getActiveCredential(credentialPool);
   const connected = Boolean(account && activeCredential);
-  const activeRegion = credentialPool?.active_region || account?.region || "us-east-1";
   const runningCount = instances.filter((instance) => instance.state === "running").length;
+  const lightsailRunningCount = lightsailInstances.filter((instance) => instance.state === "running").length;
   const selectedSubnetVpcId = getSubnetVpcId(catalog?.subnets || [], createForm.subnet_id);
   const filteredSecurityGroups = (catalog?.security_groups || []).filter((group) =>
     selectedSubnetVpcId ? group.vpc_id === selectedSubnetVpcId : true,
@@ -504,13 +611,146 @@ export default function AWSPanel() {
     }
   };
 
+  const handleCreateLightsailInstance = async () => {
+    setLightsailCreateSubmitting(true);
+    try {
+      const payload: CreateAWSLightsailInstanceInput = {
+        name: lightsailCreateForm.name,
+        availability_zone: lightsailCreateForm.availability_zone,
+        blueprint_id: lightsailCreateForm.blueprint_id,
+        bundle_id: lightsailCreateForm.bundle_id,
+        key_pair_name: lightsailCreateForm.key_pair_name || "",
+        user_data: lightsailCreateForm.user_data || "",
+        ip_address_type: lightsailCreateForm.ip_address_type || "dualstack",
+        tags: parseTags(lightsailCreateForm.tagsText),
+      };
+      await createAWSLightsailInstance(payload);
+      toast.success(t("cloud.providers.aws.lightsail_create_success", "Lightsail instance launch submitted"));
+      setLightsailCreateOpen(false);
+      setLightsailCreateForm((previous) => ({
+        ...initialLightsailCreateForm,
+        availability_zone: previous.availability_zone,
+        blueprint_id: previous.blueprint_id,
+        bundle_id: previous.bundle_id,
+      }));
+      await loadPanelData();
+    } catch (createError) {
+      toast.error(toErrorMessage(createError));
+    } finally {
+      setLightsailCreateSubmitting(false);
+    }
+  };
+
   const handleInstanceAction = async (instance: AWSInstance, type: string) => {
     try {
-      await postAWSInstanceAction(instance.instance_id, type);
+      await postAWSInstanceAction(instance.instance_id, { type });
       toast.success(t("cloud.action_success", "Operation submitted"));
       await loadPanelData();
     } catch (actionError) {
       toast.error(toErrorMessage(actionError));
+    }
+  };
+
+  const loadInstanceDetail = React.useCallback(async (instance: AWSInstance) => {
+    setDetailInstance(instance);
+    setDetailLoading(true);
+    setDetailData(null);
+    try {
+      const detail = await getAWSInstanceDetail(instance.instance_id);
+      setDetailData(detail);
+      setDetailActionForm({
+        imageName: `${instance.name || instance.instance_id}-ami-${Date.now()}`,
+        imageDescription: "",
+        noReboot: true,
+        instanceType: detail.instance.instance_type || "",
+        tagsText: formatTagMap(detail.instance.tags),
+        allocationId: "",
+        privateIp: detail.instance.private_ip || "",
+      });
+    } catch (detailError) {
+      toast.error(toErrorMessage(detailError));
+    } finally {
+      setDetailLoading(false);
+    }
+  }, []);
+
+  const handleDetailedEc2Action = async (
+    input: {
+      type: string;
+      name?: string;
+      description?: string;
+      no_reboot?: boolean;
+      instance_type?: string;
+      tags?: AWSTag[];
+      allocation_id?: string;
+      association_id?: string;
+      private_ip?: string;
+    },
+  ) => {
+    if (!detailInstance) return;
+    setDetailActionLoading(true);
+    try {
+      await postAWSInstanceAction(detailInstance.instance_id, input);
+      toast.success(t("cloud.action_success", "Operation submitted"));
+      await loadPanelData();
+      await loadInstanceDetail({
+        ...detailInstance,
+        instance_type: input.instance_type || detailInstance.instance_type,
+      });
+    } catch (actionError) {
+      toast.error(toErrorMessage(actionError));
+    } finally {
+      setDetailActionLoading(false);
+    }
+  };
+
+  const handleLightsailInstanceAction = async (instance: AWSLightsailInstance, type: string) => {
+    try {
+      await postAWSLightsailInstanceAction(instance.name, { type });
+      toast.success(t("cloud.action_success", "Operation submitted"));
+      await loadPanelData();
+    } catch (actionError) {
+      toast.error(toErrorMessage(actionError));
+    }
+  };
+
+  const loadLightsailDetail = React.useCallback(async (instance: AWSLightsailInstance) => {
+    setLightsailDetailInstance(instance);
+    setLightsailDetailLoading(true);
+    setLightsailDetailData(null);
+    try {
+      const detail = await getAWSLightsailInstanceDetail(instance.name);
+      setLightsailDetailData(detail);
+      setLightsailDetailActionForm({
+        snapshotName: `${instance.name}-${Date.now()}`,
+        staticIpName: `${instance.name}-ip-${Date.now()}`,
+      });
+    } catch (detailError) {
+      toast.error(toErrorMessage(detailError));
+    } finally {
+      setLightsailDetailLoading(false);
+    }
+  }, []);
+
+  const handleDetailedLightsailAction = async (
+    input: {
+      type: string;
+      snapshot_name?: string;
+      static_ip_name?: string;
+      tags?: AWSTag[];
+    },
+  ) => {
+    if (!lightsailDetailInstance) return;
+    setLightsailActionLoading(true);
+    try {
+      await postAWSLightsailInstanceAction(lightsailDetailInstance.name, input);
+      toast.success(t("cloud.action_success", "Operation submitted"));
+      await loadPanelData();
+      await loadLightsailDetail(lightsailDetailInstance);
+    } catch (actionError) {
+      toast.error(toErrorMessage(actionError));
+    } finally {
+      setLightsailActionLoading(false);
     }
   };
 
@@ -532,13 +772,31 @@ export default function AWSPanel() {
     }
   };
 
+  const handleDeleteLightsailInstance = async (instance: AWSLightsailInstance) => {
+    const confirmed = window.confirm(
+      t("cloud.delete_confirm", {
+        name: instance.name,
+        defaultValue: `Delete instance "${instance.name}"? This action cannot be undone.`,
+      }),
+    );
+    if (!confirmed) return;
+
+    try {
+      await deleteAWSLightsailInstance(instance.name);
+      toast.success(t("cloud.delete_success", "Droplet deleted"));
+      await loadPanelData();
+    } catch (deleteError) {
+      toast.error(toErrorMessage(deleteError));
+    }
+  };
+
   return (
     <AdminPageShell
       eyebrow="AWS EC2"
       title={t("cloud.providers.aws.title", "AWS EC2")}
       description={t(
         "cloud.providers.aws.description",
-        "Manage multiple AWS credentials, switch the active region, and launch or operate EC2 instances from one panel.",
+        "Manage multiple AWS credentials, switch the active region, and operate both EC2 and Lightsail instances from one panel.",
       )}
       actions={
         <>
@@ -553,9 +811,21 @@ export default function AWSPanel() {
             <RefreshCw className="mr-2 h-4 w-4" />
             {t("cloud.refresh", "Refresh")}
           </Button>
-          <Button size="1" onClick={() => setCreateOpen(true)} disabled={!connected || !catalog}>
+          <Button
+            size="1"
+            onClick={() => {
+              if (instanceView === "lightsail") {
+                setLightsailCreateOpen(true);
+                return;
+              }
+              setCreateOpen(true);
+            }}
+            disabled={!connected || (instanceView === "lightsail" ? !lightsailCatalog : !catalog)}
+          >
             <Plus className="mr-2 h-4 w-4" />
-            {t("cloud.providers.aws.create", "Launch EC2")}
+            {instanceView === "lightsail"
+              ? t("cloud.providers.aws.lightsail_create", "Create Lightsail")
+              : t("cloud.providers.aws.create", "Launch EC2")}
           </Button>
         </>
       }
@@ -578,7 +848,7 @@ export default function AWSPanel() {
         },
         {
           label: t("cloud.stats.running", "Running"),
-          value: runningCount,
+          value: instanceView === "lightsail" ? lightsailRunningCount : runningCount,
         },
       ]}
     >
@@ -642,132 +912,254 @@ export default function AWSPanel() {
         </div>
 
         <Tabs.Content value="instances">
-          <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
-            <div className="border-b border-slate-200 px-5 py-4">
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <div>
-                  <div className="text-sm font-medium text-slate-900">
-                    {t("cloud.providers.aws.instance_list", "EC2 Instances")}
+          <Tabs.Root value={instanceView} onValueChange={(value) => setInstanceView(value as "ec2" | "lightsail")}>
+            <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
+              <div className="border-b border-slate-200 px-5 py-4">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div>
+                    <div className="text-sm font-medium text-slate-900">
+                      {t("cloud.providers.aws.compute", "Compute")}
+                    </div>
+                    <div className="mt-1 text-sm text-slate-500">
+                      {t(
+                        "cloud.providers.aws.instance_list_description",
+                        "The list is scoped to the active credential and active region.",
+                      )}
+                    </div>
                   </div>
-                  <div className="mt-1 text-sm text-slate-500">
-                    {t(
-                      "cloud.providers.aws.instance_list_description",
-                      "The list is scoped to the active credential and active region.",
-                    )}
-                  </div>
+                  <Flex gap="2" wrap="wrap" align="center">
+                    <Tabs.List>
+                      <Tabs.Trigger value="ec2">
+                        {t("cloud.providers.aws.instance_list", "EC2 Instances")} ({instances.length})
+                      </Tabs.Trigger>
+                      <Tabs.Trigger value="lightsail">
+                        {t("cloud.providers.aws.lightsail_instances", "Lightsail")} ({lightsailInstances.length})
+                      </Tabs.Trigger>
+                    </Tabs.List>
+                    <Button variant="outline" size="1" onClick={() => setPanelSection("credentials")}>
+                      <Server className="mr-2 h-4 w-4" />
+                      {t("cloud.providers.aws.credentials", "Credentials")}
+                    </Button>
+                  </Flex>
                 </div>
-                <Button variant="outline" size="1" onClick={() => setPanelSection("credentials")}>
-                  <Server className="mr-2 h-4 w-4" />
-                  {t("cloud.providers.aws.credentials", "Credentials")}
-                </Button>
               </div>
-            </div>
 
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>{t("cloud.table.name", "Name")}</TableHead>
-                  <TableHead>{t("cloud.table.status", "Status")}</TableHead>
-                  <TableHead>{t("cloud.providers.aws.az", "AZ")}</TableHead>
-                  <TableHead>{t("cloud.table.ip", "Public IP")}</TableHead>
-                  <TableHead>{t("cloud.table.size", "Size")}</TableHead>
-                  <TableHead>{t("cloud.table.image", "Image")}</TableHead>
-                  <TableHead>{t("cloud.providers.aws.key_pair", "Key Pair")}</TableHead>
-                  <TableHead>{t("cloud.table.created_at", "Created")}</TableHead>
-                  <TableHead className="text-right">{t("common.action", "Action")}</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {instances.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={9} className="h-24 text-center text-slate-500">
-                      {panelLoading
-                        ? t("cloud.loading", "Loading cloud resources...")
-                        : hasActiveCredential(credentialPool)
-                          ? t("cloud.providers.aws.empty", "No EC2 instances found in this region")
-                          : t("cloud.providers.aws.no_active_credential", "Select an active AWS credential first")}
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  instances.map((instance) => (
-                    <TableRow key={instance.instance_id}>
-                      <TableCell className="font-medium text-slate-900">
-                        <button
-                          type="button"
-                          className="text-left text-blue-700 hover:text-blue-800 hover:underline"
-                          onClick={() => setDetailInstance(instance)}
-                        >
-                          {instance.name || instance.instance_id}
-                        </button>
-                      </TableCell>
-                      <TableCell>
-                        <Badge color={getInstanceStateColor(instance.state)}>{instance.state || "-"}</Badge>
-                      </TableCell>
-                      <TableCell>{instance.availability_zone || "-"}</TableCell>
-                      <TableCell>{instance.public_ip || instance.private_ip || "-"}</TableCell>
-                      <TableCell>{instance.instance_type || "-"}</TableCell>
-                      <TableCell>{instance.image_id || "-"}</TableCell>
-                      <TableCell>{instance.key_name || "-"}</TableCell>
-                      <TableCell>{formatDateTime(instance.launch_time)}</TableCell>
-                      <TableCell className="text-right">
-                        <Flex justify="end" gap="2" wrap="wrap">
-                          {instance.state === "running" ? (
-                            <Button
-                              variant="soft"
-                              size="1"
-                              color="amber"
-                              onClick={() => {
-                                void handleInstanceAction(instance, "stop");
-                              }}
-                            >
-                              <PowerOff className="mr-1 h-3.5 w-3.5" />
-                              {t("cloud.power_off", "Power Off")}
-                            </Button>
-                          ) : (
-                            <Button
-                              variant="soft"
-                              size="1"
-                              color="green"
-                              disabled={instance.state === "terminated"}
-                              onClick={() => {
-                                void handleInstanceAction(instance, "start");
-                              }}
-                            >
-                              <Power className="mr-1 h-3.5 w-3.5" />
-                              {t("cloud.power_on", "Power On")}
-                            </Button>
-                          )}
-                          <Button
-                            variant="soft"
-                            size="1"
-                            disabled={instance.state === "terminated"}
-                            onClick={() => {
-                              void handleInstanceAction(instance, "reboot");
-                            }}
-                          >
-                            <RotateCcw className="mr-1 h-3.5 w-3.5" />
-                            {t("cloud.reboot", "Reboot")}
-                          </Button>
-                          <Button
-                            variant="soft"
-                            size="1"
-                            color="red"
-                            disabled={instance.state === "terminated"}
-                            onClick={() => {
-                              void handleDeleteInstance(instance);
-                            }}
-                          >
-                            <Trash2 className="mr-1 h-3.5 w-3.5" />
-                            {t("cloud.delete", "Delete")}
-                          </Button>
-                        </Flex>
-                      </TableCell>
+              <Tabs.Content value="ec2">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>{t("cloud.table.name", "Name")}</TableHead>
+                      <TableHead>{t("cloud.table.status", "Status")}</TableHead>
+                      <TableHead>{t("cloud.providers.aws.az", "AZ")}</TableHead>
+                      <TableHead>{t("cloud.table.ip", "Public IP")}</TableHead>
+                      <TableHead>{t("cloud.table.size", "Size")}</TableHead>
+                      <TableHead>{t("cloud.table.image", "Image")}</TableHead>
+                      <TableHead>{t("cloud.providers.aws.key_pair", "Key Pair")}</TableHead>
+                      <TableHead>{t("cloud.table.created_at", "Created")}</TableHead>
+                      <TableHead className="text-right">{t("common.action", "Action")}</TableHead>
                     </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          </div>
+                  </TableHeader>
+                  <TableBody>
+                    {instances.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={9} className="h-24 text-center text-slate-500">
+                          {panelLoading
+                            ? t("cloud.loading", "Loading cloud resources...")
+                            : hasActiveCredential(credentialPool)
+                              ? t("cloud.providers.aws.empty", "No EC2 instances found in this region")
+                              : t("cloud.providers.aws.no_active_credential", "Select an active AWS credential first")}
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      instances.map((instance) => (
+                        <TableRow key={instance.instance_id}>
+                          <TableCell className="font-medium text-slate-900">
+                            <button
+                              type="button"
+                              className="text-left text-blue-700 hover:text-blue-800 hover:underline"
+                              onClick={() => {
+                                void loadInstanceDetail(instance);
+                              }}
+                            >
+                              {instance.name || instance.instance_id}
+                            </button>
+                          </TableCell>
+                          <TableCell>
+                            <Badge color={getInstanceStateColor(instance.state)}>{instance.state || "-"}</Badge>
+                          </TableCell>
+                          <TableCell>{instance.availability_zone || "-"}</TableCell>
+                          <TableCell>{instance.public_ip || instance.private_ip || "-"}</TableCell>
+                          <TableCell>{instance.instance_type || "-"}</TableCell>
+                          <TableCell>{instance.image_id || "-"}</TableCell>
+                          <TableCell>{instance.key_name || "-"}</TableCell>
+                          <TableCell>{formatDateTime(instance.launch_time)}</TableCell>
+                          <TableCell className="text-right">
+                            <Flex justify="end" gap="2" wrap="wrap">
+                              {instance.state === "running" ? (
+                                <Button
+                                  variant="soft"
+                                  size="1"
+                                  color="amber"
+                                  onClick={() => {
+                                    void handleInstanceAction(instance, "stop");
+                                  }}
+                                >
+                                  <PowerOff className="mr-1 h-3.5 w-3.5" />
+                                  {t("cloud.power_off", "Power Off")}
+                                </Button>
+                              ) : (
+                                <Button
+                                  variant="soft"
+                                  size="1"
+                                  color="green"
+                                  disabled={instance.state === "terminated"}
+                                  onClick={() => {
+                                    void handleInstanceAction(instance, "start");
+                                  }}
+                                >
+                                  <Power className="mr-1 h-3.5 w-3.5" />
+                                  {t("cloud.power_on", "Power On")}
+                                </Button>
+                              )}
+                              <Button
+                                variant="soft"
+                                size="1"
+                                disabled={instance.state === "terminated"}
+                                onClick={() => {
+                                  void handleInstanceAction(instance, "reboot");
+                                }}
+                              >
+                                <RotateCcw className="mr-1 h-3.5 w-3.5" />
+                                {t("cloud.reboot", "Reboot")}
+                              </Button>
+                              <Button
+                                variant="soft"
+                                size="1"
+                                color="red"
+                                disabled={instance.state === "terminated"}
+                                onClick={() => {
+                                  void handleDeleteInstance(instance);
+                                }}
+                              >
+                                <Trash2 className="mr-1 h-3.5 w-3.5" />
+                                {t("cloud.delete", "Delete")}
+                              </Button>
+                            </Flex>
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )}
+                  </TableBody>
+                </Table>
+              </Tabs.Content>
+
+              <Tabs.Content value="lightsail">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>{t("cloud.table.name", "Name")}</TableHead>
+                      <TableHead>{t("cloud.table.status", "Status")}</TableHead>
+                      <TableHead>{t("cloud.providers.aws.az", "AZ")}</TableHead>
+                      <TableHead>{t("cloud.table.ip", "Public IP")}</TableHead>
+                      <TableHead>{t("cloud.table.size", "Size")}</TableHead>
+                      <TableHead>{t("cloud.table.image", "Image")}</TableHead>
+                      <TableHead>{t("cloud.providers.aws.static_ip", "Static IP")}</TableHead>
+                      <TableHead>{t("cloud.table.created_at", "Created")}</TableHead>
+                      <TableHead className="text-right">{t("common.action", "Action")}</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {lightsailInstances.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={9} className="h-24 text-center text-slate-500">
+                          {panelLoading
+                            ? t("cloud.loading", "Loading cloud resources...")
+                            : hasActiveCredential(credentialPool)
+                              ? t("cloud.providers.aws.lightsail_empty", "No Lightsail instances found in this region")
+                              : t("cloud.providers.aws.no_active_credential", "Select an active AWS credential first")}
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      lightsailInstances.map((instance) => (
+                        <TableRow key={instance.name}>
+                          <TableCell className="font-medium text-slate-900">
+                            <button
+                              type="button"
+                              className="text-left text-blue-700 hover:text-blue-800 hover:underline"
+                              onClick={() => {
+                                void loadLightsailDetail(instance);
+                              }}
+                            >
+                              {instance.name}
+                            </button>
+                          </TableCell>
+                          <TableCell>
+                            <Badge color={getInstanceStateColor(instance.state)}>{instance.state || "-"}</Badge>
+                          </TableCell>
+                          <TableCell>{instance.availability_zone || "-"}</TableCell>
+                          <TableCell>{instance.public_ip || instance.private_ip || "-"}</TableCell>
+                          <TableCell>{instance.bundle_id || "-"}</TableCell>
+                          <TableCell>{instance.blueprint_name || instance.blueprint_id || "-"}</TableCell>
+                          <TableCell>{instance.is_static_ip ? t("common.yes", "Yes") : "-"}</TableCell>
+                          <TableCell>{formatDateTime(instance.created_at)}</TableCell>
+                          <TableCell className="text-right">
+                            <Flex justify="end" gap="2" wrap="wrap">
+                              {instance.state === "running" ? (
+                                <Button
+                                  variant="soft"
+                                  size="1"
+                                  color="amber"
+                                  onClick={() => {
+                                    void handleLightsailInstanceAction(instance, "stop");
+                                  }}
+                                >
+                                  <PowerOff className="mr-1 h-3.5 w-3.5" />
+                                  {t("cloud.power_off", "Power Off")}
+                                </Button>
+                              ) : (
+                                <Button
+                                  variant="soft"
+                                  size="1"
+                                  color="green"
+                                  onClick={() => {
+                                    void handleLightsailInstanceAction(instance, "start");
+                                  }}
+                                >
+                                  <Power className="mr-1 h-3.5 w-3.5" />
+                                  {t("cloud.power_on", "Power On")}
+                                </Button>
+                              )}
+                              <Button
+                                variant="soft"
+                                size="1"
+                                onClick={() => {
+                                  void handleLightsailInstanceAction(instance, "reboot");
+                                }}
+                              >
+                                <RotateCcw className="mr-1 h-3.5 w-3.5" />
+                                {t("cloud.reboot", "Reboot")}
+                              </Button>
+                              <Button
+                                variant="soft"
+                                size="1"
+                                color="red"
+                                onClick={() => {
+                                  void handleDeleteLightsailInstance(instance);
+                                }}
+                              >
+                                <Trash2 className="mr-1 h-3.5 w-3.5" />
+                                {t("cloud.delete", "Delete")}
+                              </Button>
+                            </Flex>
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )}
+                  </TableBody>
+                </Table>
+              </Tabs.Content>
+            </div>
+          </Tabs.Root>
         </Tabs.Content>
 
         <Tabs.Content value="credentials">
@@ -1163,7 +1555,185 @@ export default function AWSPanel() {
         </Dialog.Content>
       </Dialog.Root>
 
-      <Dialog.Root open={Boolean(detailInstance)} onOpenChange={(open) => !open && setDetailInstance(null)}>
+      <Dialog.Root open={lightsailCreateOpen} onOpenChange={setLightsailCreateOpen}>
+        <Dialog.Content className="max-h-[85vh] overflow-y-auto">
+          <Dialog.Title>{t("cloud.providers.aws.lightsail_create", "Create Lightsail")}</Dialog.Title>
+          <Dialog.Description>
+            {t(
+              "cloud.providers.aws.lightsail_create_description",
+              "Create a Lightsail instance in the active region using a blueprint and bundle.",
+            )}
+          </Dialog.Description>
+
+          <div className="mt-4 flex flex-col gap-4">
+            <label className="text-sm font-medium text-slate-800">
+              {t("cloud.form.name", "Name")}
+            </label>
+            <TextField.Root
+              value={lightsailCreateForm.name}
+              placeholder="lightsail-web-01"
+              onChange={(event) =>
+                setLightsailCreateForm((previous) => ({ ...previous, name: event.target.value }))
+              }
+            />
+
+            <label className="text-sm font-medium text-slate-800">
+              {t("cloud.providers.aws.az", "AZ")}
+            </label>
+            <Select.Root
+              value={lightsailCreateForm.availability_zone}
+              onValueChange={(value) =>
+                setLightsailCreateForm((previous) => ({ ...previous, availability_zone: value }))
+              }
+            >
+              <Select.Trigger placeholder={t("cloud.providers.aws.az", "AZ")} />
+              <Select.Content>
+                {(lightsailCatalog?.regions.find((region) => region.name === activeRegion)?.availability_zones
+                  || lightsailCatalog?.regions[0]?.availability_zones
+                  || []).map((zone) => (
+                  <Select.Item key={zone.name} value={zone.name}>
+                    {zone.name} / {zone.state || "-"}
+                  </Select.Item>
+                ))}
+              </Select.Content>
+            </Select.Root>
+
+            <label className="text-sm font-medium text-slate-800">
+              {t("cloud.form.image", "Image")}
+            </label>
+            <Select.Root
+              value={lightsailCreateForm.blueprint_id}
+              onValueChange={(value) =>
+                setLightsailCreateForm((previous) => ({ ...previous, blueprint_id: value }))
+              }
+            >
+              <Select.Trigger placeholder={t("cloud.form.image_placeholder", "Select an image")} />
+              <Select.Content>
+                {(lightsailCatalog?.blueprints || []).map((blueprint) => (
+                  <Select.Item key={blueprint.blueprint_id} value={blueprint.blueprint_id}>
+                    {blueprint.platform ? `${blueprint.platform} / ` : ""}
+                    {blueprint.name || blueprint.blueprint_id}
+                  </Select.Item>
+                ))}
+              </Select.Content>
+            </Select.Root>
+
+            <label className="text-sm font-medium text-slate-800">
+              {t("cloud.form.size", "Size")}
+            </label>
+            <Select.Root
+              value={lightsailCreateForm.bundle_id}
+              onValueChange={(value) =>
+                setLightsailCreateForm((previous) => ({ ...previous, bundle_id: value }))
+              }
+            >
+              <Select.Trigger placeholder={t("cloud.form.size_placeholder", "Select a size")} />
+              <Select.Content>
+                {(lightsailCatalog?.bundles || []).map((bundle) => (
+                  <Select.Item key={bundle.bundle_id} value={bundle.bundle_id}>
+                    {bundle.bundle_id} / {bundle.cpu_count} vCPU / {bundle.ram_size_in_gb} GB / ${bundle.price.toFixed(2)}
+                  </Select.Item>
+                ))}
+              </Select.Content>
+            </Select.Root>
+
+            <label className="text-sm font-medium text-slate-800">
+              {t("cloud.providers.aws.key_pair", "Key Pair")}
+            </label>
+            <Select.Root
+              value={lightsailCreateForm.key_pair_name || SELECT_NONE}
+              onValueChange={(value) =>
+                setLightsailCreateForm((previous) => ({
+                  ...previous,
+                  key_pair_name: value === SELECT_NONE ? "" : value,
+                }))
+              }
+            >
+              <Select.Trigger placeholder={t("cloud.providers.aws.key_pair_optional", "Optional")} />
+              <Select.Content>
+                <Select.Item value={SELECT_NONE}>{t("cloud.providers.aws.none", "None")}</Select.Item>
+                {(lightsailCatalog?.key_pairs || []).map((keyPair) => (
+                  <Select.Item key={keyPair.name} value={keyPair.name}>
+                    {keyPair.name}
+                  </Select.Item>
+                ))}
+              </Select.Content>
+            </Select.Root>
+
+            <label className="text-sm font-medium text-slate-800">
+              {t("cloud.providers.aws.ip_address_type", "IP Address Type")}
+            </label>
+            <Select.Root
+              value={lightsailCreateForm.ip_address_type || "dualstack"}
+              onValueChange={(value) =>
+                setLightsailCreateForm((previous) => ({ ...previous, ip_address_type: value }))
+              }
+            >
+              <Select.Trigger placeholder={t("cloud.providers.aws.ip_address_type", "IP Address Type")} />
+              <Select.Content>
+                <Select.Item value="dualstack">dualstack</Select.Item>
+                <Select.Item value="ipv4">ipv4</Select.Item>
+                <Select.Item value="ipv6">ipv6</Select.Item>
+              </Select.Content>
+            </Select.Root>
+
+            <label className="text-sm font-medium text-slate-800">
+              {t("cloud.form.tags", "Tags")}
+            </label>
+            <TextArea
+              rows={4}
+              value={lightsailCreateForm.tagsText}
+              placeholder={"env=prod\nservice=web"}
+              onChange={(event) =>
+                setLightsailCreateForm((previous) => ({ ...previous, tagsText: event.target.value }))
+              }
+            />
+
+            <label className="text-sm font-medium text-slate-800">
+              {t("cloud.form.user_data", "Cloud-Init / User Data")}
+            </label>
+            <TextArea
+              rows={6}
+              value={lightsailCreateForm.user_data || ""}
+              placeholder="#!/bin/bash"
+              onChange={(event) =>
+                setLightsailCreateForm((previous) => ({ ...previous, user_data: event.target.value }))
+              }
+            />
+
+            <Flex justify="end" gap="2">
+              <Button variant="outline" onClick={() => setLightsailCreateOpen(false)} disabled={lightsailCreateSubmitting}>
+                {t("common.cancel", "Cancel")}
+              </Button>
+              <Button
+                onClick={() => {
+                  void handleCreateLightsailInstance();
+                }}
+                disabled={
+                  lightsailCreateSubmitting ||
+                  !lightsailCreateForm.name ||
+                  !lightsailCreateForm.availability_zone ||
+                  !lightsailCreateForm.blueprint_id ||
+                  !lightsailCreateForm.bundle_id
+                }
+              >
+                {lightsailCreateSubmitting
+                  ? t("cloud.creating", "Creating...")
+                  : t("cloud.providers.aws.lightsail_create", "Create Lightsail")}
+              </Button>
+            </Flex>
+          </div>
+        </Dialog.Content>
+      </Dialog.Root>
+
+      <Dialog.Root
+        open={Boolean(detailInstance)}
+        onOpenChange={(open) => {
+          if (open) return;
+          setDetailInstance(null);
+          setDetailData(null);
+        }}
+      >
         <Dialog.Content className="max-h-[85vh] overflow-y-auto">
           <Dialog.Title>{detailInstance?.name || detailInstance?.instance_id || "EC2"}</Dialog.Title>
           <Dialog.Description>
@@ -1173,24 +1743,515 @@ export default function AWSPanel() {
             )}
           </Dialog.Description>
 
-          {detailInstance ? (
-            <div className="mt-4 grid gap-3 sm:grid-cols-2">
-              <DetailItem label={t("cloud.detail.id", "Droplet ID")} value={detailInstance.instance_id} />
-              <DetailItem label={t("cloud.table.status", "Status")} value={detailInstance.state || "-"} />
-              <DetailItem label={t("cloud.providers.aws.az", "AZ")} value={detailInstance.availability_zone || "-"} />
-              <DetailItem label={t("cloud.table.ip", "Public IP")} value={detailInstance.public_ip || detailInstance.private_ip || "-"} />
-              <DetailItem label={t("cloud.table.size", "Size")} value={detailInstance.instance_type || "-"} />
-              <DetailItem label={t("cloud.table.image", "Image")} value={detailInstance.image_id || "-"} />
-              <DetailItem label={t("cloud.providers.aws.key_pair", "Key Pair")} value={detailInstance.key_name || "-"} />
-              <DetailItem label={t("cloud.table.created_at", "Created")} value={formatDateTime(detailInstance.launch_time)} />
-              <DetailItem
-                label={t("cloud.detail.tags", "Tags")}
-                value={
-                  Object.keys(detailInstance.tags).length
-                    ? Object.entries(detailInstance.tags).map(([key, value]) => `${key}=${value}`).join(", ")
-                    : "-"
-                }
-              />
+          {detailLoading ? (
+            <div className="mt-4 text-sm text-slate-500">{t("cloud.loading", "Loading cloud resources...")}</div>
+          ) : detailData ? (
+            <div className="mt-4 flex flex-col gap-4">
+              <div className="grid gap-3 sm:grid-cols-2">
+                <DetailItem label={t("cloud.detail.id", "Droplet ID")} value={detailData.instance.instance_id} />
+                <DetailItem label={t("cloud.table.status", "Status")} value={detailData.instance.state || "-"} />
+                <DetailItem label={t("cloud.providers.aws.az", "AZ")} value={detailData.instance.availability_zone || "-"} />
+                <DetailItem label={t("cloud.table.ip", "Public IP")} value={detailData.instance.public_ip || detailData.instance.private_ip || "-"} />
+                <DetailItem label={t("cloud.table.size", "Size")} value={detailData.instance.instance_type || "-"} />
+                <DetailItem label={t("cloud.table.image", "Image")} value={detailData.instance.image_id || "-"} />
+                <DetailItem label={t("cloud.providers.aws.key_pair", "Key Pair")} value={detailData.instance.key_name || "-"} />
+                <DetailItem label={t("cloud.table.created_at", "Created")} value={formatDateTime(detailData.instance.launch_time)} />
+                <DetailItem label={t("cloud.providers.aws.vpc", "VPC")} value={detailData.vpc_id || "-"} />
+                <DetailItem label={t("cloud.providers.aws.subnet", "Subnet")} value={detailData.subnet_id || "-"} />
+                <DetailItem label={t("cloud.providers.aws.monitoring", "Monitoring")} value={detailData.monitoring_state || "-"} />
+                <DetailItem label={t("cloud.providers.aws.architecture", "Architecture")} value={detailData.architecture || "-"} />
+                <DetailItem label={t("cloud.providers.aws.public_dns", "Public DNS")} value={detailData.public_dns_name || "-"} />
+                <DetailItem label={t("cloud.providers.aws.private_dns", "Private DNS")} value={detailData.private_dns_name || "-"} />
+              </div>
+
+              <div className="rounded-xl border border-slate-200 bg-white px-4 py-3">
+                <div className="text-sm font-medium text-slate-900">
+                  {t("cloud.detail.tags", "Tags")}
+                </div>
+                <TextArea
+                  className="mt-3 min-h-28"
+                  value={detailActionForm.tagsText}
+                  onChange={(event) =>
+                    setDetailActionForm((previous) => ({ ...previous, tagsText: event.target.value }))
+                  }
+                />
+                <Flex justify="end" gap="2" className="mt-3">
+                  <Button
+                    size="1"
+                    disabled={detailActionLoading}
+                    onClick={() => {
+                      void handleDetailedEc2Action({
+                        type: "sync_tags",
+                        tags: parseTags(detailActionForm.tagsText),
+                      });
+                    }}
+                  >
+                    {t("cloud.providers.aws.sync_tags", "Sync Tags")}
+                  </Button>
+                </Flex>
+              </div>
+
+              <div className="rounded-xl border border-slate-200 bg-white px-4 py-3">
+                <div className="text-sm font-medium text-slate-900">
+                  {t("cloud.providers.aws.storage", "Volumes")}
+                </div>
+                <div className="mt-3 flex flex-col gap-2">
+                  {detailData.volumes.length ? detailData.volumes.map((volume) => (
+                    <div key={volume.volume_id} className="rounded-lg border border-slate-200 px-3 py-2 text-sm">
+                      <div className="font-medium text-slate-900">{volume.device_name || volume.volume_id}</div>
+                      <div className="text-slate-500">
+                        {volume.size_gib} GiB / {volume.volume_type} / {volume.state}
+                      </div>
+                    </div>
+                  )) : (
+                    <div className="text-sm text-slate-500">-</div>
+                  )}
+                </div>
+                <Flex justify="end" gap="2" className="mt-3">
+                  <Button
+                    size="1"
+                    disabled={detailActionLoading || !detailData.volumes.length}
+                    onClick={() => {
+                      void handleDetailedEc2Action({
+                        type: "create_snapshots",
+                        description: `Snapshots for ${detailData.instance.instance_id}`,
+                      });
+                    }}
+                  >
+                    {t("cloud.providers.aws.create_snapshots", "Create Snapshots")}
+                  </Button>
+                </Flex>
+              </div>
+
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="rounded-xl border border-slate-200 bg-white px-4 py-3">
+                  <div className="text-sm font-medium text-slate-900">
+                    {t("cloud.providers.aws.change_type", "Change Instance Type")}
+                  </div>
+                  <Select.Root
+                    value={detailActionForm.instanceType || SELECT_NONE}
+                    onValueChange={(value) =>
+                      setDetailActionForm((previous) => ({
+                        ...previous,
+                        instanceType: value === SELECT_NONE ? "" : value,
+                      }))
+                    }
+                  >
+                    <Select.Trigger className="mt-3" placeholder={t("cloud.providers.aws.instance_type", "Instance Type")} />
+                    <Select.Content>
+                      <Select.Item value={SELECT_NONE}>{t("cloud.providers.aws.none", "None")}</Select.Item>
+                      {(catalog?.instance_types || []).map((instanceType) => (
+                        <Select.Item key={instanceType.name} value={instanceType.name}>
+                          {instanceType.name}
+                        </Select.Item>
+                      ))}
+                    </Select.Content>
+                  </Select.Root>
+                  <Flex justify="end" gap="2" className="mt-3">
+                    <Button
+                      size="1"
+                      disabled={detailActionLoading || !detailActionForm.instanceType}
+                      onClick={() => {
+                        void handleDetailedEc2Action({
+                          type: "change_type",
+                          instance_type: detailActionForm.instanceType,
+                        });
+                      }}
+                    >
+                      {t("cloud.providers.aws.change_type", "Change Instance Type")}
+                    </Button>
+                  </Flex>
+                </div>
+
+                <div className="rounded-xl border border-slate-200 bg-white px-4 py-3">
+                  <div className="text-sm font-medium text-slate-900">
+                    {t("cloud.providers.aws.monitoring", "Monitoring")}
+                  </div>
+                  <div className="mt-2 text-sm text-slate-500">{detailData.monitoring_state || "-"}</div>
+                  <Flex justify="end" gap="2" className="mt-3">
+                    <Button
+                      size="1"
+                      disabled={detailActionLoading}
+                      onClick={() => {
+                        void handleDetailedEc2Action({
+                          type: detailData.monitoring_state === "enabled" ? "disable_monitoring" : "enable_monitoring",
+                        });
+                      }}
+                    >
+                      {detailData.monitoring_state === "enabled"
+                        ? t("cloud.providers.aws.disable_monitoring", "Disable Monitoring")
+                        : t("cloud.providers.aws.enable_monitoring", "Enable Monitoring")}
+                    </Button>
+                  </Flex>
+                </div>
+              </div>
+
+              <div className="rounded-xl border border-slate-200 bg-white px-4 py-3">
+                <div className="text-sm font-medium text-slate-900">
+                  {t("cloud.providers.aws.machine_image", "Machine Image")}
+                </div>
+                <TextField.Root
+                  className="mt-3"
+                  value={detailActionForm.imageName}
+                  placeholder="komari-ami"
+                  onChange={(event) =>
+                    setDetailActionForm((previous) => ({ ...previous, imageName: event.target.value }))
+                  }
+                />
+                <TextField.Root
+                  className="mt-3"
+                  value={detailActionForm.imageDescription}
+                  placeholder={t("cloud.providers.aws.description_optional", "Description")}
+                  onChange={(event) =>
+                    setDetailActionForm((previous) => ({ ...previous, imageDescription: event.target.value }))
+                  }
+                />
+                <label className="mt-3 flex items-center gap-2 text-sm text-slate-700">
+                  <Checkbox
+                    checked={detailActionForm.noReboot}
+                    onCheckedChange={(checked) =>
+                      setDetailActionForm((previous) => ({ ...previous, noReboot: Boolean(checked) }))
+                    }
+                  />
+                  {t("cloud.providers.aws.no_reboot", "Create image without reboot")}
+                </label>
+                <Flex justify="end" gap="2" className="mt-3">
+                  <Button
+                    size="1"
+                    disabled={detailActionLoading || !detailActionForm.imageName}
+                    onClick={() => {
+                      void handleDetailedEc2Action({
+                        type: "create_image",
+                        name: detailActionForm.imageName,
+                        description: detailActionForm.imageDescription,
+                        no_reboot: detailActionForm.noReboot,
+                      });
+                    }}
+                  >
+                    {t("cloud.providers.aws.create_image", "Create AMI")}
+                  </Button>
+                </Flex>
+              </div>
+
+              <div className="rounded-xl border border-slate-200 bg-white px-4 py-3">
+                <div className="text-sm font-medium text-slate-900">
+                  {t("cloud.providers.aws.elastic_ip", "Elastic IP")}
+                </div>
+                <div className="mt-3 flex flex-col gap-2">
+                  {detailData.addresses.length ? detailData.addresses.map((address) => (
+                    <div key={address.allocation_id || address.public_ip} className="rounded-lg border border-slate-200 px-3 py-2 text-sm">
+                      <div className="font-medium text-slate-900">{formatElasticAddress(address)}</div>
+                      <div className="mt-2 flex flex-wrap gap-2">
+                        {address.association_id ? (
+                          <Button
+                            variant="soft"
+                            size="1"
+                            disabled={detailActionLoading}
+                            onClick={() => {
+                              void handleDetailedEc2Action({
+                                type: "disassociate_address",
+                                association_id: address.association_id,
+                              });
+                            }}
+                          >
+                            {t("cloud.providers.aws.disassociate", "Disassociate")}
+                          </Button>
+                        ) : null}
+                        {address.allocation_id ? (
+                          <Button
+                            variant="soft"
+                            size="1"
+                            color="red"
+                            disabled={detailActionLoading}
+                            onClick={() => {
+                              void handleDetailedEc2Action({
+                                type: "release_address",
+                                allocation_id: address.allocation_id,
+                              });
+                            }}
+                          >
+                            {t("cloud.providers.aws.release", "Release")}
+                          </Button>
+                        ) : null}
+                      </div>
+                    </div>
+                  )) : (
+                    <div className="text-sm text-slate-500">-</div>
+                  )}
+                </div>
+                <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                  <Select.Root
+                    value={detailActionForm.allocationId || SELECT_NONE}
+                    onValueChange={(value) =>
+                      setDetailActionForm((previous) => ({
+                        ...previous,
+                        allocationId: value === SELECT_NONE ? "" : value,
+                      }))
+                    }
+                  >
+                    <Select.Trigger placeholder={t("cloud.providers.aws.elastic_ip_existing", "Existing Elastic IP")} />
+                    <Select.Content>
+                      <Select.Item value={SELECT_NONE}>{t("cloud.providers.aws.none", "None")}</Select.Item>
+                      {(catalog?.elastic_addresses || [])
+                        .filter((address) => !address.association_id)
+                        .map((address) => (
+                          <Select.Item key={address.allocation_id} value={address.allocation_id}>
+                            {formatElasticAddress(address)}
+                          </Select.Item>
+                        ))}
+                    </Select.Content>
+                  </Select.Root>
+                  <TextField.Root
+                    value={detailActionForm.privateIp}
+                    placeholder={t("cloud.providers.aws.private_ip_optional", "Optional private IP")}
+                    onChange={(event) =>
+                      setDetailActionForm((previous) => ({ ...previous, privateIp: event.target.value }))
+                    }
+                  />
+                </div>
+                <Flex justify="end" gap="2" className="mt-3">
+                  <Button
+                    size="1"
+                    disabled={detailActionLoading}
+                    onClick={() => {
+                      void handleDetailedEc2Action({
+                        type: "allocate_address",
+                        private_ip: detailActionForm.privateIp,
+                      });
+                    }}
+                  >
+                    {t("cloud.providers.aws.allocate_attach", "Allocate and Attach")}
+                  </Button>
+                  <Button
+                    size="1"
+                    variant="outline"
+                    disabled={detailActionLoading || !detailActionForm.allocationId}
+                    onClick={() => {
+                      void handleDetailedEc2Action({
+                        type: "associate_address",
+                        allocation_id: detailActionForm.allocationId,
+                        private_ip: detailActionForm.privateIp,
+                      });
+                    }}
+                  >
+                    {t("cloud.providers.aws.attach_existing", "Attach Existing")}
+                  </Button>
+                </Flex>
+              </div>
+
+              {detailData.security_groups.length ? (
+                <div className="rounded-xl border border-slate-200 bg-white px-4 py-3">
+                  <div className="text-sm font-medium text-slate-900">
+                    {t("cloud.providers.aws.security_groups", "Security Groups")}
+                  </div>
+                  <div className="mt-3 flex flex-col gap-2">
+                    {detailData.security_groups.map((group) => (
+                      <div key={group.group_id} className="rounded-lg border border-slate-200 px-3 py-2 text-sm">
+                        <div className="font-medium text-slate-900">{group.group_name || group.group_id}</div>
+                        <div className="text-slate-500">{group.group_id}</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
+
+              {detailData.console_output ? (
+                <div className="rounded-xl border border-slate-200 bg-white px-4 py-3">
+                  <div className="text-sm font-medium text-slate-900">
+                    {t("cloud.providers.aws.console_output", "Console Output")}
+                  </div>
+                  <TextArea className="mt-3 min-h-40 font-mono text-xs" readOnly value={detailData.console_output} />
+                </div>
+              ) : null}
+            </div>
+          ) : null}
+        </Dialog.Content>
+      </Dialog.Root>
+
+      <Dialog.Root
+        open={Boolean(lightsailDetailInstance)}
+        onOpenChange={(open) => {
+          if (open) return;
+          setLightsailDetailInstance(null);
+          setLightsailDetailData(null);
+        }}
+      >
+        <Dialog.Content className="max-h-[85vh] overflow-y-auto">
+          <Dialog.Title>{lightsailDetailInstance?.name || "Lightsail"}</Dialog.Title>
+          <Dialog.Description>
+            {t(
+              "cloud.providers.aws.lightsail_detail_description",
+              "View the selected Lightsail instance details from the current active credential and region.",
+            )}
+          </Dialog.Description>
+
+          {lightsailDetailLoading ? (
+            <div className="mt-4 text-sm text-slate-500">{t("cloud.loading", "Loading cloud resources...")}</div>
+          ) : lightsailDetailData ? (
+            <div className="mt-4 flex flex-col gap-4">
+              <div className="grid gap-3 sm:grid-cols-2">
+                <DetailItem label={t("cloud.table.name", "Name")} value={lightsailDetailData.instance.name} />
+                <DetailItem label={t("cloud.table.status", "Status")} value={lightsailDetailData.instance.state || "-"} />
+                <DetailItem label={t("cloud.providers.aws.az", "AZ")} value={lightsailDetailData.instance.availability_zone || "-"} />
+                <DetailItem label={t("cloud.table.ip", "Public IP")} value={lightsailDetailData.instance.public_ip || lightsailDetailData.instance.private_ip || "-"} />
+                <DetailItem label={t("cloud.table.size", "Size")} value={lightsailDetailData.instance.bundle_id || "-"} />
+                <DetailItem label={t("cloud.table.image", "Image")} value={lightsailDetailData.instance.blueprint_name || lightsailDetailData.instance.blueprint_id || "-"} />
+                <DetailItem label={t("cloud.providers.aws.key_pair", "Key Pair")} value={lightsailDetailData.instance.ssh_key_name || "-"} />
+                <DetailItem label={t("cloud.table.created_at", "Created")} value={formatDateTime(lightsailDetailData.instance.created_at)} />
+              </div>
+
+              <div className="rounded-xl border border-slate-200 bg-white px-4 py-3">
+                <div className="text-sm font-medium text-slate-900">
+                  {t("cloud.providers.aws.ports", "Firewall Ports")}
+                </div>
+                <div className="mt-3 flex flex-col gap-2">
+                  {lightsailDetailData.ports.length ? lightsailDetailData.ports.map((port) => (
+                    <div key={`${port.protocol}-${port.from_port}-${port.to_port}`} className="rounded-lg border border-slate-200 px-3 py-2 text-sm">
+                      <div className="font-medium text-slate-900">
+                        {port.common_name || `${port.protocol}:${port.from_port}-${port.to_port}`}
+                      </div>
+                      <div className="text-slate-500">
+                        {port.access_type || "-"} / {port.access_from || "-"} / {(port.cidrs || []).join(", ") || "-"}
+                      </div>
+                    </div>
+                  )) : (
+                    <div className="text-sm text-slate-500">-</div>
+                  )}
+                </div>
+              </div>
+
+              <div className="rounded-xl border border-slate-200 bg-white px-4 py-3">
+                <div className="text-sm font-medium text-slate-900">
+                  {t("cloud.providers.aws.static_ip", "Static IP")}
+                </div>
+                <div className="mt-3 flex flex-col gap-2">
+                  {lightsailDetailData.static_ips.length ? lightsailDetailData.static_ips.map((staticIP) => (
+                    <div key={staticIP.name} className="rounded-lg border border-slate-200 px-3 py-2 text-sm">
+                      <div className="font-medium text-slate-900">{staticIP.name}</div>
+                      <div className="text-slate-500">
+                        {staticIP.ip_address || "-"} / {staticIP.attached_to || "-"}
+                      </div>
+                      <div className="mt-2 flex flex-wrap gap-2">
+                        {staticIP.attached_to === lightsailDetailData.instance.name ? (
+                          <Button
+                            variant="soft"
+                            size="1"
+                            disabled={lightsailActionLoading}
+                            onClick={() => {
+                              void handleDetailedLightsailAction({
+                                type: "detach_static_ip",
+                                static_ip_name: staticIP.name,
+                              });
+                            }}
+                          >
+                            {t("cloud.providers.aws.disassociate", "Disassociate")}
+                          </Button>
+                        ) : !staticIP.is_attached ? (
+                          <Button
+                            variant="soft"
+                            size="1"
+                            disabled={lightsailActionLoading}
+                            onClick={() => {
+                              void handleDetailedLightsailAction({
+                                type: "attach_static_ip",
+                                static_ip_name: staticIP.name,
+                              });
+                            }}
+                          >
+                            {t("cloud.providers.aws.attach_existing", "Attach Existing")}
+                          </Button>
+                        ) : null}
+                        {!staticIP.is_attached ? (
+                          <Button
+                            variant="soft"
+                            size="1"
+                            color="red"
+                            disabled={lightsailActionLoading}
+                            onClick={() => {
+                              void handleDetailedLightsailAction({
+                                type: "release_static_ip",
+                                static_ip_name: staticIP.name,
+                              });
+                            }}
+                          >
+                            {t("cloud.providers.aws.release", "Release")}
+                          </Button>
+                        ) : null}
+                      </div>
+                    </div>
+                  )) : (
+                    <div className="text-sm text-slate-500">-</div>
+                  )}
+                </div>
+                <TextField.Root
+                  className="mt-3"
+                  value={lightsailDetailActionForm.staticIpName}
+                  placeholder={t("cloud.providers.aws.static_ip_name", "Static IP name")}
+                  onChange={(event) =>
+                    setLightsailDetailActionForm((previous) => ({
+                      ...previous,
+                      staticIpName: event.target.value,
+                    }))
+                  }
+                />
+                <Flex justify="end" gap="2" className="mt-3">
+                  <Button
+                    size="1"
+                    disabled={lightsailActionLoading || !lightsailDetailActionForm.staticIpName}
+                    onClick={() => {
+                      void handleDetailedLightsailAction({
+                        type: "allocate_static_ip",
+                        static_ip_name: lightsailDetailActionForm.staticIpName,
+                      });
+                    }}
+                  >
+                    {t("cloud.providers.aws.allocate_static_ip", "Allocate Static IP")}
+                  </Button>
+                </Flex>
+              </div>
+
+              <div className="rounded-xl border border-slate-200 bg-white px-4 py-3">
+                <div className="text-sm font-medium text-slate-900">
+                  {t("cloud.providers.aws.snapshots", "Snapshots")}
+                </div>
+                <div className="mt-3 flex flex-col gap-2">
+                  {lightsailDetailData.snapshots.length ? lightsailDetailData.snapshots.map((snapshot) => (
+                    <div key={snapshot.name} className="rounded-lg border border-slate-200 px-3 py-2 text-sm">
+                      <div className="font-medium text-slate-900">{snapshot.name}</div>
+                      <div className="text-slate-500">
+                        {snapshot.state || "-"} / {snapshot.size_in_gb} GB / {formatDateTime(snapshot.created_at)}
+                      </div>
+                    </div>
+                  )) : (
+                    <div className="text-sm text-slate-500">-</div>
+                  )}
+                </div>
+                <TextField.Root
+                  className="mt-3"
+                  value={lightsailDetailActionForm.snapshotName}
+                  placeholder={t("cloud.providers.aws.snapshot_name", "Snapshot name")}
+                  onChange={(event) =>
+                    setLightsailDetailActionForm((previous) => ({
+                      ...previous,
+                      snapshotName: event.target.value,
+                    }))
+                  }
+                />
+                <Flex justify="end" gap="2" className="mt-3">
+                  <Button
+                    size="1"
+                    disabled={lightsailActionLoading || !lightsailDetailActionForm.snapshotName}
+                    onClick={() => {
+                      void handleDetailedLightsailAction({
+                        type: "create_snapshot",
+                        snapshot_name: lightsailDetailActionForm.snapshotName,
+                      });
+                    }}
+                  >
+                    {t("cloud.providers.aws.create_snapshot", "Create Snapshot")}
+                  </Button>
+                </Flex>
+              </div>
             </div>
           ) : null}
         </Dialog.Content>

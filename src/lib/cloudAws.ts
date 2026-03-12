@@ -114,6 +114,15 @@ export type AWSSecurityGroup = {
   vpc_id: string;
 };
 
+export type AWSElasticAddress = {
+  allocation_id: string;
+  association_id: string;
+  public_ip: string;
+  private_ip: string;
+  domain: string;
+  network_interface_id: string;
+};
+
 export type AWSInstance = {
   instance_id: string;
   name: string;
@@ -128,9 +137,148 @@ export type AWSInstance = {
   tags: Record<string, string>;
 };
 
+export type AWSVolume = {
+  volume_id: string;
+  device_name: string;
+  size_gib: number;
+  volume_type: string;
+  state: string;
+  delete_on_termination: boolean;
+  encrypted: boolean;
+  iops: number;
+  throughput: number;
+  snapshot_id: string;
+  created_at: string;
+};
+
+export type AWSInstanceDetail = {
+  instance: AWSInstance;
+  vpc_id: string;
+  subnet_id: string;
+  architecture: string;
+  platform_details: string;
+  virtualization_type: string;
+  root_device_name: string;
+  monitoring_state: string;
+  state_reason: string;
+  public_dns_name: string;
+  private_dns_name: string;
+  security_groups: AWSSecurityGroup[];
+  volumes: AWSVolume[];
+  addresses: AWSElasticAddress[];
+  console_output: string;
+};
+
 export type AWSTag = {
   key: string;
   value: string;
+};
+
+export type AWSLightsailAvailabilityZone = {
+  name: string;
+  state: string;
+};
+
+export type AWSLightsailRegion = {
+  name: string;
+  display_name: string;
+  description: string;
+  availability_zones: AWSLightsailAvailabilityZone[];
+};
+
+export type AWSLightsailBundle = {
+  bundle_id: string;
+  name: string;
+  price: number;
+  ram_size_in_gb: number;
+  disk_size_in_gb: number;
+  transfer_per_month_in_gb: number;
+  cpu_count: number;
+  is_active: boolean;
+};
+
+export type AWSLightsailBlueprint = {
+  blueprint_id: string;
+  name: string;
+  description: string;
+  group: string;
+  platform: string;
+  is_active: boolean;
+};
+
+export type AWSLightsailKeyPair = {
+  name: string;
+  fingerprint: string;
+  created_at: string;
+};
+
+export type AWSLightsailStaticIP = {
+  name: string;
+  ip_address: string;
+  attached_to: string;
+  is_attached: boolean;
+  created_at: string;
+};
+
+export type AWSLightsailDisk = {
+  name: string;
+  path: string;
+  size_in_gb: number;
+  is_system: boolean;
+  attached_to: string;
+  state: string;
+};
+
+export type AWSLightsailInstance = {
+  name: string;
+  state: string;
+  blueprint_id: string;
+  blueprint_name: string;
+  bundle_id: string;
+  public_ip: string;
+  private_ip: string;
+  ipv6_addresses: string[];
+  username: string;
+  ssh_key_name: string;
+  availability_zone: string;
+  region: string;
+  is_static_ip: boolean;
+  created_at: string;
+  cpu_count: number;
+  ram_size_in_gb: number;
+  disks: AWSLightsailDisk[];
+  tags: Record<string, string>;
+};
+
+export type AWSLightsailPort = {
+  from_port: number;
+  to_port: number;
+  protocol: string;
+  access_from: string;
+  access_type: string;
+  cidrs: string[];
+  ipv6_cidrs: string[];
+  cidr_aliases: string[];
+  common_name: string;
+  access_direction: string;
+};
+
+export type AWSLightsailSnapshot = {
+  name: string;
+  from_instance_name: string;
+  from_blueprint_id: string;
+  from_bundle_id: string;
+  state: string;
+  size_in_gb: number;
+  is_auto: boolean;
+  created_at: string;
+};
+
+export type AWSLightsailInstanceDetail = {
+  instance: AWSLightsailInstance;
+  ports: AWSLightsailPort[];
+  static_ips: AWSLightsailStaticIP[];
+  snapshots: AWSLightsailSnapshot[];
 };
 
 export type AWSCatalog = {
@@ -141,6 +289,7 @@ export type AWSCatalog = {
   key_pairs: AWSKeyPair[];
   subnets: AWSSubnet[];
   security_groups: AWSSecurityGroup[];
+  elastic_addresses: AWSElasticAddress[];
 };
 
 export type CreateAWSInstanceInput = {
@@ -157,6 +306,45 @@ export type CreateAWSInstanceInput = {
 
 export type CreateAWSInstanceResult = {
   instance: AWSInstance;
+};
+
+export type CreateAWSInstanceActionInput = {
+  type: string;
+  name?: string;
+  description?: string;
+  no_reboot?: boolean;
+  instance_type?: string;
+  tags?: AWSTag[];
+  allocation_id?: string;
+  association_id?: string;
+  private_ip?: string;
+};
+
+export type CreateAWSLightsailInstanceInput = {
+  name: string;
+  availability_zone: string;
+  blueprint_id: string;
+  bundle_id: string;
+  key_pair_name?: string;
+  user_data?: string;
+  ip_address_type?: string;
+  tags?: AWSTag[];
+};
+
+export type AWSLightsailCatalog = {
+  active_region: string;
+  regions: AWSLightsailRegion[];
+  bundles: AWSLightsailBundle[];
+  blueprints: AWSLightsailBlueprint[];
+  key_pairs: AWSLightsailKeyPair[];
+  static_ips: AWSLightsailStaticIP[];
+};
+
+export type AWSLightsailInstanceActionInput = {
+  type: string;
+  snapshot_name?: string;
+  static_ip_name?: string;
+  tags?: AWSTag[];
 };
 
 function normalizeStringArray(value: unknown): string[] {
@@ -266,6 +454,19 @@ function normalizeSecurityGroup(
   };
 }
 
+function normalizeElasticAddress(
+  address: Partial<AWSElasticAddress> | null | undefined,
+): AWSElasticAddress {
+  return {
+    allocation_id: String(address?.allocation_id || ""),
+    association_id: String(address?.association_id || ""),
+    public_ip: String(address?.public_ip || ""),
+    private_ip: String(address?.private_ip || ""),
+    domain: String(address?.domain || ""),
+    network_interface_id: String(address?.network_interface_id || ""),
+  };
+}
+
 function normalizeInstance(
   instance: Partial<AWSInstance> | null | undefined,
 ): AWSInstance {
@@ -282,6 +483,206 @@ function normalizeInstance(
     availability_zone: String(instance?.availability_zone || ""),
     launch_time: String(instance?.launch_time || ""),
     tags,
+  };
+}
+
+function normalizeVolume(volume: Partial<AWSVolume> | null | undefined): AWSVolume {
+  return {
+    volume_id: String(volume?.volume_id || ""),
+    device_name: String(volume?.device_name || ""),
+    size_gib: Number(volume?.size_gib || 0),
+    volume_type: String(volume?.volume_type || ""),
+    state: String(volume?.state || ""),
+    delete_on_termination: Boolean(volume?.delete_on_termination),
+    encrypted: Boolean(volume?.encrypted),
+    iops: Number(volume?.iops || 0),
+    throughput: Number(volume?.throughput || 0),
+    snapshot_id: String(volume?.snapshot_id || ""),
+    created_at: String(volume?.created_at || ""),
+  };
+}
+
+function normalizeInstanceDetail(
+  detail: Partial<AWSInstanceDetail> | null | undefined,
+): AWSInstanceDetail {
+  return {
+    instance: normalizeInstance(detail?.instance),
+    vpc_id: String(detail?.vpc_id || ""),
+    subnet_id: String(detail?.subnet_id || ""),
+    architecture: String(detail?.architecture || ""),
+    platform_details: String(detail?.platform_details || ""),
+    virtualization_type: String(detail?.virtualization_type || ""),
+    root_device_name: String(detail?.root_device_name || ""),
+    monitoring_state: String(detail?.monitoring_state || ""),
+    state_reason: String(detail?.state_reason || ""),
+    public_dns_name: String(detail?.public_dns_name || ""),
+    private_dns_name: String(detail?.private_dns_name || ""),
+    security_groups: Array.isArray(detail?.security_groups)
+      ? detail.security_groups.map(normalizeSecurityGroup)
+      : [],
+    volumes: Array.isArray(detail?.volumes) ? detail.volumes.map(normalizeVolume) : [],
+    addresses: Array.isArray(detail?.addresses)
+      ? detail.addresses.map(normalizeElasticAddress)
+      : [],
+    console_output: String(detail?.console_output || ""),
+  };
+}
+
+function normalizeLightsailAvailabilityZone(
+  zone: Partial<AWSLightsailAvailabilityZone> | null | undefined,
+): AWSLightsailAvailabilityZone {
+  return {
+    name: String(zone?.name || ""),
+    state: String(zone?.state || ""),
+  };
+}
+
+function normalizeLightsailRegion(
+  region: Partial<AWSLightsailRegion> | null | undefined,
+): AWSLightsailRegion {
+  return {
+    name: String(region?.name || ""),
+    display_name: String(region?.display_name || ""),
+    description: String(region?.description || ""),
+    availability_zones: Array.isArray(region?.availability_zones)
+      ? region.availability_zones.map(normalizeLightsailAvailabilityZone)
+      : [],
+  };
+}
+
+function normalizeLightsailBundle(
+  bundle: Partial<AWSLightsailBundle> | null | undefined,
+): AWSLightsailBundle {
+  return {
+    bundle_id: String(bundle?.bundle_id || ""),
+    name: String(bundle?.name || ""),
+    price: Number(bundle?.price || 0),
+    ram_size_in_gb: Number(bundle?.ram_size_in_gb || 0),
+    disk_size_in_gb: Number(bundle?.disk_size_in_gb || 0),
+    transfer_per_month_in_gb: Number(bundle?.transfer_per_month_in_gb || 0),
+    cpu_count: Number(bundle?.cpu_count || 0),
+    is_active: Boolean(bundle?.is_active),
+  };
+}
+
+function normalizeLightsailBlueprint(
+  blueprint: Partial<AWSLightsailBlueprint> | null | undefined,
+): AWSLightsailBlueprint {
+  return {
+    blueprint_id: String(blueprint?.blueprint_id || ""),
+    name: String(blueprint?.name || ""),
+    description: String(blueprint?.description || ""),
+    group: String(blueprint?.group || ""),
+    platform: String(blueprint?.platform || ""),
+    is_active: Boolean(blueprint?.is_active),
+  };
+}
+
+function normalizeLightsailKeyPair(
+  keyPair: Partial<AWSLightsailKeyPair> | null | undefined,
+): AWSLightsailKeyPair {
+  return {
+    name: String(keyPair?.name || ""),
+    fingerprint: String(keyPair?.fingerprint || ""),
+    created_at: String(keyPair?.created_at || ""),
+  };
+}
+
+function normalizeLightsailStaticIP(
+  staticIP: Partial<AWSLightsailStaticIP> | null | undefined,
+): AWSLightsailStaticIP {
+  return {
+    name: String(staticIP?.name || ""),
+    ip_address: String(staticIP?.ip_address || ""),
+    attached_to: String(staticIP?.attached_to || ""),
+    is_attached: Boolean(staticIP?.is_attached),
+    created_at: String(staticIP?.created_at || ""),
+  };
+}
+
+function normalizeLightsailDisk(
+  disk: Partial<AWSLightsailDisk> | null | undefined,
+): AWSLightsailDisk {
+  return {
+    name: String(disk?.name || ""),
+    path: String(disk?.path || ""),
+    size_in_gb: Number(disk?.size_in_gb || 0),
+    is_system: Boolean(disk?.is_system),
+    attached_to: String(disk?.attached_to || ""),
+    state: String(disk?.state || ""),
+  };
+}
+
+function normalizeLightsailInstance(
+  instance: Partial<AWSLightsailInstance> | null | undefined,
+): AWSLightsailInstance {
+  const tags = ((instance?.tags as Record<string, string> | null | undefined) || {});
+  return {
+    name: String(instance?.name || ""),
+    state: String(instance?.state || ""),
+    blueprint_id: String(instance?.blueprint_id || ""),
+    blueprint_name: String(instance?.blueprint_name || ""),
+    bundle_id: String(instance?.bundle_id || ""),
+    public_ip: String(instance?.public_ip || ""),
+    private_ip: String(instance?.private_ip || ""),
+    ipv6_addresses: normalizeStringArray(instance?.ipv6_addresses),
+    username: String(instance?.username || ""),
+    ssh_key_name: String(instance?.ssh_key_name || ""),
+    availability_zone: String(instance?.availability_zone || ""),
+    region: String(instance?.region || ""),
+    is_static_ip: Boolean(instance?.is_static_ip),
+    created_at: String(instance?.created_at || ""),
+    cpu_count: Number(instance?.cpu_count || 0),
+    ram_size_in_gb: Number(instance?.ram_size_in_gb || 0),
+    disks: Array.isArray(instance?.disks) ? instance.disks.map(normalizeLightsailDisk) : [],
+    tags,
+  };
+}
+
+function normalizeLightsailPort(
+  port: Partial<AWSLightsailPort> | null | undefined,
+): AWSLightsailPort {
+  return {
+    from_port: Number(port?.from_port || 0),
+    to_port: Number(port?.to_port || 0),
+    protocol: String(port?.protocol || ""),
+    access_from: String(port?.access_from || ""),
+    access_type: String(port?.access_type || ""),
+    cidrs: normalizeStringArray(port?.cidrs),
+    ipv6_cidrs: normalizeStringArray(port?.ipv6_cidrs),
+    cidr_aliases: normalizeStringArray(port?.cidr_aliases),
+    common_name: String(port?.common_name || ""),
+    access_direction: String(port?.access_direction || ""),
+  };
+}
+
+function normalizeLightsailSnapshot(
+  snapshot: Partial<AWSLightsailSnapshot> | null | undefined,
+): AWSLightsailSnapshot {
+  return {
+    name: String(snapshot?.name || ""),
+    from_instance_name: String(snapshot?.from_instance_name || ""),
+    from_blueprint_id: String(snapshot?.from_blueprint_id || ""),
+    from_bundle_id: String(snapshot?.from_bundle_id || ""),
+    state: String(snapshot?.state || ""),
+    size_in_gb: Number(snapshot?.size_in_gb || 0),
+    is_auto: Boolean(snapshot?.is_auto),
+    created_at: String(snapshot?.created_at || ""),
+  };
+}
+
+function normalizeLightsailInstanceDetail(
+  detail: Partial<AWSLightsailInstanceDetail> | null | undefined,
+): AWSLightsailInstanceDetail {
+  return {
+    instance: normalizeLightsailInstance(detail?.instance),
+    ports: Array.isArray(detail?.ports) ? detail.ports.map(normalizeLightsailPort) : [],
+    static_ips: Array.isArray(detail?.static_ips)
+      ? detail.static_ips.map(normalizeLightsailStaticIP)
+      : [],
+    snapshots: Array.isArray(detail?.snapshots)
+      ? detail.snapshots.map(normalizeLightsailSnapshot)
+      : [],
   };
 }
 
@@ -447,6 +848,9 @@ export async function getAWSCatalog(): Promise<AWSCatalog> {
     security_groups: Array.isArray(data?.security_groups)
       ? data.security_groups.map(normalizeSecurityGroup)
       : [],
+    elastic_addresses: Array.isArray(data?.elastic_addresses)
+      ? data.elastic_addresses.map(normalizeElasticAddress)
+      : [],
   };
 }
 
@@ -455,6 +859,13 @@ export async function listAWSInstances(): Promise<AWSInstance[]> {
     "/api/admin/cloud/aws/instances",
   );
   return Array.isArray(data) ? data.map(normalizeInstance) : [];
+}
+
+export async function getAWSInstanceDetail(instanceId: string): Promise<AWSInstanceDetail> {
+  const data = await requestCloud<Partial<AWSInstanceDetail>>(
+    `/api/admin/cloud/aws/instances/${instanceId}`,
+  );
+  return normalizeInstanceDetail(data);
 }
 
 export async function createAWSInstance(
@@ -482,13 +893,78 @@ export async function deleteAWSInstance(instanceId: string): Promise<void> {
 
 export async function postAWSInstanceAction(
   instanceId: string,
-  type: string,
+  input: string | CreateAWSInstanceActionInput,
 ): Promise<void> {
   await requestCloud(`/api/admin/cloud/aws/instances/${instanceId}/actions`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({ type }),
+    body: JSON.stringify(typeof input === "string" ? { type: input } : input),
+  });
+}
+
+export async function getAWSLightsailCatalog(): Promise<AWSLightsailCatalog> {
+  const data = await requestCloud<Partial<AWSLightsailCatalog>>(
+    "/api/admin/cloud/aws/lightsail/catalog",
+  );
+  return {
+    active_region: String(data?.active_region || "us-east-1"),
+    regions: Array.isArray(data?.regions) ? data.regions.map(normalizeLightsailRegion) : [],
+    bundles: Array.isArray(data?.bundles) ? data.bundles.map(normalizeLightsailBundle) : [],
+    blueprints: Array.isArray(data?.blueprints)
+      ? data.blueprints.map(normalizeLightsailBlueprint)
+      : [],
+    key_pairs: Array.isArray(data?.key_pairs) ? data.key_pairs.map(normalizeLightsailKeyPair) : [],
+    static_ips: Array.isArray(data?.static_ips)
+      ? data.static_ips.map(normalizeLightsailStaticIP)
+      : [],
+  };
+}
+
+export async function listAWSLightsailInstances(): Promise<AWSLightsailInstance[]> {
+  const data = await requestCloud<Partial<AWSLightsailInstance>[]>(
+    "/api/admin/cloud/aws/lightsail/instances",
+  );
+  return Array.isArray(data) ? data.map(normalizeLightsailInstance) : [];
+}
+
+export async function getAWSLightsailInstanceDetail(
+  instanceName: string,
+): Promise<AWSLightsailInstanceDetail> {
+  const data = await requestCloud<Partial<AWSLightsailInstanceDetail>>(
+    `/api/admin/cloud/aws/lightsail/instances/${encodeURIComponent(instanceName)}`,
+  );
+  return normalizeLightsailInstanceDetail(data);
+}
+
+export async function createAWSLightsailInstance(
+  input: CreateAWSLightsailInstanceInput,
+): Promise<void> {
+  await requestCloud("/api/admin/cloud/aws/lightsail/instances", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(input),
+  });
+}
+
+export async function deleteAWSLightsailInstance(instanceName: string): Promise<void> {
+  await requestCloud(`/api/admin/cloud/aws/lightsail/instances/${encodeURIComponent(instanceName)}`, {
+    method: "DELETE",
+  });
+}
+
+export async function postAWSLightsailInstanceAction(
+  instanceName: string,
+  input: string | AWSLightsailInstanceActionInput,
+): Promise<void> {
+  await requestCloud(`/api/admin/cloud/aws/lightsail/instances/${encodeURIComponent(instanceName)}/actions`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(typeof input === "string" ? { type: input } : input),
   });
 }

@@ -44,6 +44,7 @@ import {
   deleteLinodeToken,
   getLinodeAccount,
   getLinodeCatalog,
+  getLinodeInstanceDetail,
   getLinodeInstancePassword,
   getLinodeTokenSecret,
   getLinodeTokens,
@@ -54,6 +55,10 @@ import {
   type CreateLinodeInstanceInput,
   type LinodeAccount,
   type LinodeCatalog,
+  type LinodeConfig,
+  type LinodeDisk,
+  type LinodeInstanceActionInput,
+  type LinodeInstanceDetail,
   type LinodeImage,
   type LinodeInstance,
   type LinodeInstancePassword,
@@ -82,6 +87,13 @@ type CreatedPasswordState = {
   passwordMode: "custom" | "random";
   passwordSaved: boolean;
   passwordSaveError: string;
+};
+
+const SELECT_NONE = "__none__";
+
+type DetailActionPasswordState = {
+  mode: "custom" | "random";
+  password: string;
 };
 
 const initialCreateForm: CreateFormState = {
@@ -226,6 +238,17 @@ export default function LinodePanel() {
   const [catalog, setCatalog] = React.useState<LinodeCatalog | null>(null);
   const [instances, setInstances] = React.useState<LinodeInstance[]>([]);
   const [detailInstance, setDetailInstance] = React.useState<LinodeInstance | null>(null);
+  const [detailData, setDetailData] = React.useState<LinodeInstanceDetail | null>(null);
+  const [detailLoading, setDetailLoading] = React.useState(false);
+  const [detailActionLoading, setDetailActionLoading] = React.useState(false);
+  const [resizeTargetType, setResizeTargetType] = React.useState("");
+  const [detailPasswordState, setDetailPasswordState] = React.useState<DetailActionPasswordState>({
+    mode: "random",
+    password: "",
+  });
+  const [rebuildImage, setRebuildImage] = React.useState("");
+  const [rebuildUserData, setRebuildUserData] = React.useState("");
+  const [rebuildBooted, setRebuildBooted] = React.useState(true);
   const [tokenSecret, setTokenSecret] = React.useState<TokenSecretState | null>(null);
   const [tokenSecretLoading, setTokenSecretLoading] = React.useState(false);
   const [savedPassword, setSavedPassword] = React.useState<SavedPasswordState | null>(null);
@@ -240,6 +263,7 @@ export default function LinodePanel() {
     setAccount(null);
     setCatalog(null);
     setInstances([]);
+    setDetailData(null);
     setError("");
   }, []);
 
@@ -470,6 +494,28 @@ export default function LinodePanel() {
     }
   };
 
+  const loadInstanceDetail = React.useCallback(async (instance: LinodeInstance) => {
+    setDetailInstance(instance);
+    setDetailLoading(true);
+    setDetailData(null);
+    try {
+      const detail = await getLinodeInstanceDetail(instance.id);
+      setDetailData(detail);
+      setResizeTargetType(detail.instance.type || "");
+      setDetailPasswordState({
+        mode: "random",
+        password: "",
+      });
+      setRebuildImage(detail.instance.image || catalog?.images[0]?.id || "");
+      setRebuildUserData("");
+      setRebuildBooted(detail.instance.status === "running");
+    } catch (detailError) {
+      toast.error(toErrorMessage(detailError));
+    } finally {
+      setDetailLoading(false);
+    }
+  }, [catalog?.images]);
+
   const handleCreateInstance = async () => {
     setCreateSubmitting(true);
     try {
@@ -518,11 +564,37 @@ export default function LinodePanel() {
 
   const handleInstanceAction = async (instance: LinodeInstance, type: string) => {
     try {
-      await postLinodeInstanceAction(instance.id, type);
+      await postLinodeInstanceAction(instance.id, { type });
       toast.success(t("cloud.action_success", "Operation submitted"));
       await loadPanelData();
     } catch (actionError) {
       toast.error(toErrorMessage(actionError));
+    }
+  };
+
+  const handleDetailInstanceAction = async (input: LinodeInstanceActionInput) => {
+    if (!detailInstance) return;
+    setDetailActionLoading(true);
+    try {
+      const result = await postLinodeInstanceAction(detailInstance.id, input);
+      toast.success(t("cloud.action_success", "Operation submitted"));
+      if (result.generated_password) {
+        setCreatedPassword({
+          instance: result.instance || detailInstance,
+          rootPassword: result.generated_password,
+          passwordMode: (input.root_password_mode || "random") as "custom" | "random",
+          passwordSaved: result.password_saved,
+          passwordSaveError: result.password_save_error,
+        });
+      } else if (result.password_save_error) {
+        toast.error(result.password_save_error);
+      }
+      await loadPanelData();
+      await loadInstanceDetail(detailInstance);
+    } catch (actionError) {
+      toast.error(toErrorMessage(actionError));
+    } finally {
+      setDetailActionLoading(false);
     }
   };
 
@@ -691,7 +763,9 @@ export default function LinodePanel() {
                           <button
                             type="button"
                             className="text-left text-blue-700 hover:text-blue-800 hover:underline"
-                            onClick={() => setDetailInstance(instance)}
+                            onClick={() => {
+                              void loadInstanceDetail(instance);
+                            }}
                           >
                             {instance.label}
                           </button>
@@ -1206,7 +1280,14 @@ export default function LinodePanel() {
         </Dialog.Content>
       </Dialog.Root>
 
-      <Dialog.Root open={Boolean(detailInstance)} onOpenChange={(open) => !open && setDetailInstance(null)}>
+      <Dialog.Root
+        open={Boolean(detailInstance)}
+        onOpenChange={(open) => {
+          if (open) return;
+          setDetailInstance(null);
+          setDetailData(null);
+        }}
+      >
         <Dialog.Content className="max-h-[85vh] overflow-y-auto">
           <Dialog.Title>{detailInstance?.label || t("cloud.detail.title", "Droplet Details")}</Dialog.Title>
           <Dialog.Description>
@@ -1216,39 +1297,283 @@ export default function LinodePanel() {
             )}
           </Dialog.Description>
 
-          {detailInstance ? (
-            <div className="mt-4 grid gap-3 sm:grid-cols-2">
-              <DetailItem label={t("cloud.detail.id", "Droplet ID")} value={detailInstance.id} />
-              <DetailItem label={t("cloud.table.status", "Status")} value={detailInstance.status || "-"} />
-              <DetailItem label={t("cloud.table.region", "Region")} value={detailInstance.region || "-"} />
-              <DetailItem label={t("cloud.table.ip", "Public IP")} value={detailInstance.ipv4[0] || detailInstance.ipv6 || "-"} />
-              <DetailItem label={t("cloud.table.size", "Size")} value={detailInstance.type || "-"} />
-              <DetailItem label={t("cloud.table.image", "Image")} value={detailInstance.image || "-"} />
-              <DetailItem label={t("cloud.table.created_at", "Created")} value={formatDateTime(detailInstance.created)} />
-              <DetailItem
-                label={t("cloud.table.password", "Root Password")}
-                value={
-                  detailInstance.saved_root_password ? (
+          {detailLoading ? (
+            <div className="mt-4 text-sm text-slate-500">{t("cloud.loading", "Loading cloud resources...")}</div>
+          ) : detailData ? (
+            <div className="mt-4 flex flex-col gap-4">
+              <div className="grid gap-3 sm:grid-cols-2">
+                <DetailItem label={t("cloud.detail.id", "Droplet ID")} value={detailData.instance.id} />
+                <DetailItem label={t("cloud.table.status", "Status")} value={detailData.instance.status || "-"} />
+                <DetailItem label={t("cloud.table.region", "Region")} value={detailData.instance.region || "-"} />
+                <DetailItem label={t("cloud.table.ip", "Public IP")} value={detailData.instance.ipv4[0] || detailData.instance.ipv6 || "-"} />
+                <DetailItem label={t("cloud.table.size", "Size")} value={detailData.instance.type || "-"} />
+                <DetailItem label={t("cloud.table.image", "Image")} value={detailData.instance.image || "-"} />
+                <DetailItem label={t("cloud.table.created_at", "Created")} value={formatDateTime(detailData.instance.created)} />
+                <DetailItem label={t("cloud.detail.memory", "Memory")} value={`${detailData.instance.specs.memory} MB`} />
+                <DetailItem label={t("cloud.detail.vcpus", "vCPUs")} value={detailData.instance.specs.vcpus} />
+                <DetailItem label={t("cloud.detail.disk", "Disk")} value={`${detailData.instance.specs.disk} GB`} />
+                <DetailItem label={t("cloud.detail.tags", "Tags")} value={formatList(detailData.instance.tags)} />
+                <DetailItem
+                  label={t("cloud.table.password", "Root Password")}
+                  value={
+                    detailData.instance.saved_root_password ? (
+                      <Button
+                        variant="soft"
+                        size="1"
+                        disabled={!passwordStorageEnabled || passwordLoading}
+                        onClick={() => {
+                          void handleViewPassword(detailData.instance);
+                        }}
+                      >
+                        <KeyRound className="mr-1 h-3.5 w-3.5" />
+                        {t("cloud.password.view", "View Password")}
+                      </Button>
+                    ) : (
+                      t("cloud.password.not_saved", "Not saved")
+                    )
+                  }
+                />
+              </div>
+
+              <div className="rounded-xl border border-slate-200 bg-white px-4 py-3">
+                <div className="text-sm font-medium text-slate-900">
+                  {t("cloud.providers.linode.disks", "Disks")}
+                </div>
+                <div className="mt-3 flex flex-col gap-2">
+                  {detailData.disks.length ? detailData.disks.map((disk: LinodeDisk) => (
+                    <div key={disk.id} className="rounded-lg border border-slate-200 px-3 py-2 text-sm">
+                      <div className="font-medium text-slate-900">{disk.label || `Disk ${disk.id}`}</div>
+                      <div className="text-slate-500">
+                        {disk.size} MB / {disk.filesystem || "-"} / {disk.status || "-"}
+                      </div>
+                    </div>
+                  )) : (
+                    <div className="text-sm text-slate-500">-</div>
+                  )}
+                </div>
+              </div>
+
+              <div className="rounded-xl border border-slate-200 bg-white px-4 py-3">
+                <div className="text-sm font-medium text-slate-900">
+                  {t("cloud.providers.linode.configs", "Configs")}
+                </div>
+                <div className="mt-3 flex flex-col gap-2">
+                  {detailData.configs.length ? detailData.configs.map((config: LinodeConfig) => (
+                    <div key={config.id} className="rounded-lg border border-slate-200 px-3 py-2 text-sm">
+                      <div className="font-medium text-slate-900">{config.label || `Config ${config.id}`}</div>
+                      <div className="text-slate-500">
+                        {config.kernel || "-"} / {config.root_device || "-"} / {config.run_level || "-"}
+                      </div>
+                    </div>
+                  )) : (
+                    <div className="text-sm text-slate-500">-</div>
+                  )}
+                </div>
+              </div>
+
+              <div className="rounded-xl border border-slate-200 bg-white px-4 py-3">
+                <div className="text-sm font-medium text-slate-900">
+                  {t("cloud.providers.linode.backups", "Backups")}
+                </div>
+                {detailData.backups ? (
+                  <div className="mt-3 space-y-2 text-sm text-slate-700">
+                    <div>
+                      {t("cloud.form.backups", "Enable backups")}: {detailData.backups.enabled ? t("common.yes", "Yes") : t("common.no", "No")}
+                    </div>
+                    <div>
+                      {t("cloud.providers.linode.last_successful", "Last Successful")}: {formatDateTime(detailData.backups.last_successful)}
+                    </div>
+                    <div>
+                      {t("cloud.providers.linode.backup_schedule", "Schedule")}: {detailData.backups.schedule.day || "-"} / {detailData.backups.schedule.window || "-"}
+                    </div>
+                    <div>
+                      {t("cloud.providers.linode.backup_automatic", "Automatic")}: {detailData.backups.automatic.length}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="mt-3 text-sm text-slate-500">-</div>
+                )}
+                <Flex justify="end" gap="2" className="mt-3">
+                  <Button
+                    size="1"
+                    disabled={detailActionLoading}
+                    onClick={() => {
+                      void handleDetailInstanceAction({ type: "snapshot" });
+                    }}
+                  >
+                    {t("cloud.providers.linode.create_snapshot", "Create Snapshot")}
+                  </Button>
+                </Flex>
+              </div>
+
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="rounded-xl border border-slate-200 bg-white px-4 py-3">
+                  <div className="text-sm font-medium text-slate-900">
+                    {t("cloud.providers.linode.resize", "Resize")}
+                  </div>
+                  <Select.Root value={resizeTargetType || SELECT_NONE} onValueChange={(value) => setResizeTargetType(value === SELECT_NONE ? "" : value)}>
+                    <Select.Trigger className="mt-3" placeholder={t("cloud.form.size_placeholder", "Select a size")} />
+                    <Select.Content>
+                      <Select.Item value={SELECT_NONE}>{t("cloud.providers.aws.none", "None")}</Select.Item>
+                      {(catalog?.types || []).map((type) => (
+                        <Select.Item key={type.id} value={type.id}>
+                          {type.id} / {type.vcpus} vCPU / {(type.memory / 1024).toFixed(1)} GB
+                        </Select.Item>
+                      ))}
+                    </Select.Content>
+                  </Select.Root>
+                  <Flex justify="end" gap="2" className="mt-3">
                     <Button
-                      variant="soft"
                       size="1"
-                      disabled={!passwordStorageEnabled || passwordLoading}
+                      disabled={detailActionLoading || !resizeTargetType}
                       onClick={() => {
-                        void handleViewPassword(detailInstance);
+                        void handleDetailInstanceAction({
+                          type: "resize",
+                          target_type: resizeTargetType,
+                        });
                       }}
                     >
-                      <KeyRound className="mr-1 h-3.5 w-3.5" />
-                      {t("cloud.password.view", "View Password")}
+                      {t("cloud.providers.linode.resize", "Resize")}
                     </Button>
-                  ) : (
-                    t("cloud.password.not_saved", "Not saved")
-                  )
-                }
-              />
-              <DetailItem label={t("cloud.detail.memory", "Memory")} value={`${detailInstance.specs.memory} MB`} />
-              <DetailItem label={t("cloud.detail.vcpus", "vCPUs")} value={detailInstance.specs.vcpus} />
-              <DetailItem label={t("cloud.detail.disk", "Disk")} value={`${detailInstance.specs.disk} GB`} />
-              <DetailItem label={t("cloud.detail.tags", "Tags")} value={formatList(detailInstance.tags)} />
+                  </Flex>
+                </div>
+
+                <div className="rounded-xl border border-slate-200 bg-white px-4 py-3">
+                  <div className="text-sm font-medium text-slate-900">
+                    {t("cloud.providers.linode.reset_password", "Reset Root Password")}
+                  </div>
+                  <Select.Root
+                    value={detailPasswordState.mode}
+                    onValueChange={(value) =>
+                      setDetailPasswordState((previous) => ({
+                        ...previous,
+                        mode: value as "custom" | "random",
+                        password: value === "custom" ? previous.password : "",
+                      }))
+                    }
+                  >
+                    <Select.Trigger className="mt-3" placeholder={t("cloud.form.root_access_placeholder", "Select access mode")} />
+                    <Select.Content>
+                      <Select.Item value="custom">
+                        {t("cloud.form.root_access_modes.custom", "Custom root password")}
+                      </Select.Item>
+                      <Select.Item value="random">
+                        {t("cloud.form.root_access_modes.random", "Random root password")}
+                      </Select.Item>
+                    </Select.Content>
+                  </Select.Root>
+                  {detailPasswordState.mode === "custom" ? (
+                    <TextField.Root
+                      className="mt-3"
+                      type="password"
+                      value={detailPasswordState.password}
+                      placeholder={t("cloud.form.root_password_placeholder", "Enter a root password")}
+                      onChange={(event) =>
+                        setDetailPasswordState((previous) => ({
+                          ...previous,
+                          password: event.target.value,
+                        }))
+                      }
+                    />
+                  ) : null}
+                  <Flex justify="end" gap="2" className="mt-3">
+                    <Button
+                      size="1"
+                      disabled={detailActionLoading || (detailPasswordState.mode === "custom" && !detailPasswordState.password)}
+                      onClick={() => {
+                        void handleDetailInstanceAction({
+                          type: "reset_root_password",
+                          root_password_mode: detailPasswordState.mode,
+                          root_password: detailPasswordState.password,
+                        });
+                      }}
+                    >
+                      {t("cloud.providers.linode.reset_password", "Reset Root Password")}
+                    </Button>
+                  </Flex>
+                </div>
+              </div>
+
+              <div className="rounded-xl border border-slate-200 bg-white px-4 py-3">
+                <div className="text-sm font-medium text-slate-900">
+                  {t("cloud.providers.linode.rebuild", "Rebuild")}
+                </div>
+                <div className="grid gap-3 sm:grid-cols-2 mt-3">
+                  <Select.Root value={rebuildImage || SELECT_NONE} onValueChange={(value) => setRebuildImage(value === SELECT_NONE ? "" : value)}>
+                    <Select.Trigger placeholder={t("cloud.form.image_placeholder", "Select an image")} />
+                    <Select.Content>
+                      <Select.Item value={SELECT_NONE}>{t("cloud.providers.aws.none", "None")}</Select.Item>
+                      {(catalog?.images || []).map((image: LinodeImage) => (
+                        <Select.Item key={image.id} value={image.id}>
+                          {image.vendor ? `${image.vendor} / ` : ""}{image.label}
+                        </Select.Item>
+                      ))}
+                    </Select.Content>
+                  </Select.Root>
+                  <Select.Root
+                    value={detailPasswordState.mode}
+                    onValueChange={(value) =>
+                      setDetailPasswordState((previous) => ({
+                        ...previous,
+                        mode: value as "custom" | "random",
+                        password: value === "custom" ? previous.password : "",
+                      }))
+                    }
+                  >
+                    <Select.Trigger placeholder={t("cloud.form.root_access_placeholder", "Select access mode")} />
+                    <Select.Content>
+                      <Select.Item value="custom">
+                        {t("cloud.form.root_access_modes.custom", "Custom root password")}
+                      </Select.Item>
+                      <Select.Item value="random">
+                        {t("cloud.form.root_access_modes.random", "Random root password")}
+                      </Select.Item>
+                    </Select.Content>
+                  </Select.Root>
+                </div>
+                {detailPasswordState.mode === "custom" ? (
+                  <TextField.Root
+                    className="mt-3"
+                    type="password"
+                    value={detailPasswordState.password}
+                    placeholder={t("cloud.form.root_password_placeholder", "Enter a root password")}
+                    onChange={(event) =>
+                      setDetailPasswordState((previous) => ({
+                        ...previous,
+                        password: event.target.value,
+                      }))
+                    }
+                  />
+                ) : null}
+                <TextArea
+                  className="mt-3 min-h-28"
+                  value={rebuildUserData}
+                  placeholder="#!/bin/bash"
+                  onChange={(event) => setRebuildUserData(event.target.value)}
+                />
+                <label className="mt-3 flex items-center gap-2 text-sm text-slate-700">
+                  <Checkbox checked={rebuildBooted} onCheckedChange={(checked) => setRebuildBooted(Boolean(checked))} />
+                  {t("cloud.providers.linode.booted", "Boot after creation")}
+                </label>
+                <Flex justify="end" gap="2" className="mt-3">
+                  <Button
+                    size="1"
+                    disabled={detailActionLoading || !rebuildImage || (detailPasswordState.mode === "custom" && !detailPasswordState.password)}
+                    onClick={() => {
+                      void handleDetailInstanceAction({
+                        type: "rebuild",
+                        image: rebuildImage,
+                        root_password_mode: detailPasswordState.mode,
+                        root_password: detailPasswordState.password,
+                        booted: rebuildBooted,
+                        user_data: rebuildUserData,
+                      });
+                    }}
+                  >
+                    {t("cloud.providers.linode.rebuild", "Rebuild")}
+                  </Button>
+                </Flex>
+              </div>
             </div>
           ) : null}
         </Dialog.Content>
