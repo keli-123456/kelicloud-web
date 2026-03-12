@@ -25,7 +25,29 @@ import { PWAUpdatePrompt } from "./components/PWAUpdatePrompt";
 import { OfflineIndicator } from "./components/OfflineIndicator";
 import { Toaster } from "./components/ui/sonner";
 import { RPC2Provider } from "./contexts/RPC2Context";
+
+const SW_RECOVERY_VERSION = "2026-03-12-cloud-api-recovery-1";
+
 const App = () => {
+  React.useEffect(() => {
+    if (!("serviceWorker" in navigator) || !("caches" in window)) return;
+    if (window.localStorage.getItem("komari-sw-recovery") === SW_RECOVERY_VERSION) return;
+
+    void (async () => {
+      try {
+        const registrations = await navigator.serviceWorker.getRegistrations();
+        await Promise.all(registrations.map((registration) => registration.unregister().catch(() => false)));
+
+        const cacheKeys = await caches.keys();
+        await Promise.all(cacheKeys.map((key) => caches.delete(key).catch(() => false)));
+
+        window.localStorage.setItem("komari-sw-recovery", SW_RECOVERY_VERSION);
+      } catch {
+        // Ignore cleanup failures. The app can still continue without the recovery marker.
+      }
+    })();
+  }, []);
+
   React.useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const tempKey = params.get("temp_key");
