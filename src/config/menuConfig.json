@@ -6,6 +6,11 @@
       "icon": "Server"
     },
     {
+      "labelKey": "cloud.title",
+      "path": "/admin/cloud",
+      "icon": "Cloud"
+    },
+    {
       "labelKey": "settings.title",
       "path": "/admin/settings",
       "icon": "Bolt",

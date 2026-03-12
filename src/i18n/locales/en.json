@@ -198,6 +198,15 @@
     "usage": "Usage",
     "volatility": "Vol"
   },
+  "cloud": {
+    "title": "Cloud",
+    "providers": {
+      "digitalocean": {
+        "token": "Access Token",
+        "token_help": "Create a DigitalOcean Personal Access Token with Droplet read/write permissions."
+      }
+    }
+  },
   "close": "Close",
   "color": {
     "amber": "Amber",

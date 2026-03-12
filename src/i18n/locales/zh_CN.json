@@ -198,6 +198,15 @@
     "usage": "使用率",
     "volatility": "波动"
   },
+  "cloud": {
+    "title": "云服务器",
+    "providers": {
+      "digitalocean": {
+        "token": "访问令牌",
+        "token_help": "在 DigitalOcean 中创建 Personal Access Token，并授予 Droplet 读写权限。"
+      }
+    }
+  },
   "close": "关闭",
   "color": {
     "amber": "琥珀色",

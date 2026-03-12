@@ -45,6 +45,10 @@ export const routes: RouteObject[] = [
         ),
       },
       {
+        path: "cloud",
+        element: React.createElement(lazy(() => import("./pages/admin/cloud"))),
+      },
+      {
         path: "settings",
         element: React.createElement(
           lazy(() => import("./pages/admin/settings/_layout"))
