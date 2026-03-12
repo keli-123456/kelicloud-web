@@ -247,6 +247,14 @@
       "active_success": "Using token {{name}}",
       "empty": "No DigitalOcean tokens saved yet",
       "droplet_limit": "Droplet limit {{count}}",
+      "managed_key_ready": "Managed SSH key: {{name}}",
+      "view_key": "View Key",
+      "managed_key_dialog_title": "Managed SSH Key",
+      "managed_key_dialog_description": "This is the managed SSH key Komari uses as a safe fallback when creating Droplets with root password mode.",
+      "managed_key_name": "Key Name",
+      "managed_key_fingerprint": "Fingerprint",
+      "public_key": "Public Key",
+      "private_key": "Private Key",
       "table": {
         "name": "Name",
         "token": "Token",
@@ -281,6 +289,14 @@
       "tags": "Tags",
       "vpc_uuid": "VPC UUID",
       "vpc_uuid_placeholder": "Optional",
+      "root_access": "Root Access",
+      "root_access_placeholder": "Select access mode",
+      "root_access_ssh_help": "Use your selected SSH keys only. DigitalOcean will not set a custom root password through the panel.",
+      "root_access_password_help": "Komari will ensure a managed SSH key exists for this token, attach it to the Droplet, and run a startup script to set the root password and enable password login.",
+      "root_password": "Root Password",
+      "root_password_placeholder": "Enter a root password",
+      "root_password_random_help": "A random root password will be generated on the server and shown once after creation succeeds.",
+      "user_data_password_help": "When root password mode is enabled, this field is appended as shell commands. #cloud-config is not supported in this mode.",
       "user_data": "Cloud-Init / User Data",
       "options": "Options",
       "backups": "Enable backups",
@@ -288,7 +304,12 @@
       "monitoring": "Enable monitoring",
       "ssh_keys": "SSH Keys",
       "ssh_keys_description": "Attach existing account SSH keys to the new Droplet.",
-      "ssh_keys_empty": "No SSH keys found in this account"
+      "ssh_keys_empty": "No SSH keys found in this account",
+      "root_access_modes": {
+        "ssh": "SSH key only",
+        "custom": "Custom root password",
+        "random": "Random root password"
+      }
     },
     "detail": {
       "title": "Droplet Details",
@@ -305,6 +326,23 @@
       "volume_ids": "Volume IDs",
       "ipv4": "IPv4 Networks",
       "ipv6": "IPv6 Networks"
+    },
+    "access": {
+      "title": "Access Details",
+      "description": "Save these credentials now. The generated password is only shown here once, and the managed SSH key is your fallback access method.",
+      "root_password": "Root Password",
+      "private_key": "Managed Private Key",
+      "ssh_hint": "SSH Login Example"
+    },
+    "region_countries": {
+      "au": "Australia",
+      "ca": "Canada",
+      "de": "Germany",
+      "gb": "United Kingdom",
+      "in": "India",
+      "nl": "Netherlands",
+      "sg": "Singapore",
+      "us": "United States"
     },
     "providers": {
       "digitalocean": {

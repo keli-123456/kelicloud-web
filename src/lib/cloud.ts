@@ -48,12 +48,25 @@ export type DigitalOceanTokenRecord = {
   last_status: string;
   last_error: string;
   last_checked_at: string;
+  managed_ssh_key_name: string;
+  managed_ssh_key_fingerprint: string;
+  managed_ssh_key_ready: boolean;
   is_active: boolean;
 };
 
 export type DigitalOceanTokenPool = {
   active_token_id: string;
   tokens: DigitalOceanTokenRecord[];
+};
+
+export type DigitalOceanManagedSSHKeyMaterial = {
+  token_id: string;
+  token_name: string;
+  key_id: number;
+  name: string;
+  fingerprint: string;
+  public_key: string;
+  private_key: string;
 };
 
 export type DigitalOceanRegion = {
@@ -164,6 +177,14 @@ export type CreateDigitalOceanDropletInput = {
   tags: string[];
   user_data: string;
   vpc_uuid: string;
+  root_password_mode: "ssh" | "custom" | "random";
+  root_password: string;
+};
+
+export type CreateDigitalOceanDropletResult = {
+  droplet: DigitalOceanDroplet;
+  generated_password: string;
+  managed_ssh_key: DigitalOceanManagedSSHKeyMaterial | null;
 };
 
 function normalizeStringArray(value: unknown): string[] {
@@ -184,7 +205,24 @@ function normalizeTokenRecord(
     last_status: String(token?.last_status || "unknown"),
     last_error: String(token?.last_error || ""),
     last_checked_at: String(token?.last_checked_at || ""),
+    managed_ssh_key_name: String(token?.managed_ssh_key_name || ""),
+    managed_ssh_key_fingerprint: String(token?.managed_ssh_key_fingerprint || ""),
+    managed_ssh_key_ready: Boolean(token?.managed_ssh_key_ready),
     is_active: Boolean(token?.is_active),
+  };
+}
+
+function normalizeManagedSSHKey(
+  key: Partial<DigitalOceanManagedSSHKeyMaterial> | null | undefined,
+): DigitalOceanManagedSSHKeyMaterial {
+  return {
+    token_id: String(key?.token_id || ""),
+    token_name: String(key?.token_name || ""),
+    key_id: Number(key?.key_id || 0),
+    name: String(key?.name || ""),
+    fingerprint: String(key?.fingerprint || ""),
+    public_key: String(key?.public_key || ""),
+    private_key: String(key?.private_key || ""),
   };
 }
 
@@ -427,6 +465,15 @@ export async function deleteDigitalOceanToken(tokenId: string): Promise<DigitalO
   };
 }
 
+export async function getDigitalOceanManagedSSHKey(
+  tokenId: string,
+): Promise<DigitalOceanManagedSSHKeyMaterial> {
+  const data = await requestCloud<Partial<DigitalOceanManagedSSHKeyMaterial>>(
+    `/api/admin/cloud/digitalocean/tokens/${tokenId}/managed-ssh-key`,
+  );
+  return normalizeManagedSSHKey(data);
+}
+
 export async function getDigitalOceanCatalog(): Promise<DigitalOceanCatalog> {
   const data = await requestCloud<Partial<DigitalOceanCatalog>>(
     "/api/admin/cloud/digitalocean/catalog",
@@ -449,8 +496,12 @@ export async function listDigitalOceanDroplets(): Promise<DigitalOceanDroplet[]>
 
 export async function createDigitalOceanDroplet(
   input: CreateDigitalOceanDropletInput,
-): Promise<DigitalOceanDroplet> {
-  return requestCloud<DigitalOceanDroplet>(
+): Promise<CreateDigitalOceanDropletResult> {
+  const data = await requestCloud<{
+    droplet?: Partial<DigitalOceanDroplet> | null;
+    generated_password?: string;
+    managed_ssh_key?: Partial<DigitalOceanManagedSSHKeyMaterial> | null;
+  }>(
     "/api/admin/cloud/digitalocean/droplets",
     {
       method: "POST",
@@ -460,6 +511,12 @@ export async function createDigitalOceanDroplet(
       body: JSON.stringify(input),
     },
   );
+
+  return {
+    droplet: normalizeDroplet(data?.droplet),
+    generated_password: String(data?.generated_password || ""),
+    managed_ssh_key: data?.managed_ssh_key ? normalizeManagedSSHKey(data.managed_ssh_key) : null,
+  };
 }
 
 export async function deleteDigitalOceanDroplet(dropletId: number): Promise<void> {

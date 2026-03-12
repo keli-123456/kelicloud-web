@@ -3,6 +3,8 @@ import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import {
   CheckCircle2,
+  Copy,
+  KeyRound,
   Plus,
   Power,
   PowerOff,
@@ -40,6 +42,7 @@ import {
   deleteDigitalOceanToken,
   getDigitalOceanAccount,
   getDigitalOceanCatalog,
+  getDigitalOceanManagedSSHKey,
   getDigitalOceanTokens,
   listDigitalOceanDroplets,
   postDigitalOceanDropletAction,
@@ -50,6 +53,7 @@ import {
   type DigitalOceanCatalog,
   type DigitalOceanDroplet,
   type DigitalOceanImage,
+  type DigitalOceanManagedSSHKeyMaterial,
   type DigitalOceanTokenInput,
   type DigitalOceanTokenPool,
   type DigitalOceanTokenRecord,
@@ -57,6 +61,13 @@ import {
 
 type CreateDropletFormState = Omit<CreateDigitalOceanDropletInput, "tags"> & {
   tagsText: string;
+};
+
+type DropletAccessSecrets = {
+  droplet: DigitalOceanDroplet;
+  rootPassword: string;
+  passwordMode: "custom" | "random";
+  managedSSHKey: DigitalOceanManagedSSHKeyMaterial | null;
 };
 
 const initialCreateForm: CreateDropletFormState = {
@@ -70,7 +81,22 @@ const initialCreateForm: CreateDropletFormState = {
   monitoring: true,
   user_data: "",
   vpc_uuid: "",
+  root_password_mode: "ssh",
+  root_password: "",
   tagsText: "",
+};
+
+const DIGITALOCEAN_REGION_COUNTRIES: Record<string, string> = {
+  ams: "nl",
+  atl: "us",
+  blr: "in",
+  fra: "de",
+  lon: "gb",
+  nyc: "us",
+  sfo: "us",
+  sgp: "sg",
+  syd: "au",
+  tor: "ca",
 };
 
 function toErrorMessage(error: unknown) {
@@ -148,6 +174,26 @@ function formatList(values: Array<string | number>) {
   return values.join(", ");
 }
 
+function getRegionPrefix(slug: string) {
+  return slug.toLowerCase().replace(/[0-9]+$/, "");
+}
+
+function getRegionCountryLabel(slug: string, t: ReturnType<typeof useTranslation>["t"]) {
+  const countryCode = DIGITALOCEAN_REGION_COUNTRIES[getRegionPrefix(slug)];
+  if (!countryCode) return "";
+  return t(`cloud.region_countries.${countryCode}`, countryCode.toUpperCase());
+}
+
+function getRegionOptionLabel(
+  region: { slug: string; name: string } | null | undefined,
+  t: ReturnType<typeof useTranslation>["t"],
+) {
+  if (!region?.slug) return region?.name || "-";
+  const country = getRegionCountryLabel(region.slug, t);
+  if (!country) return `${region.slug} / ${region.name}`;
+  return `${region.slug} (${country}) / ${region.name}`;
+}
+
 function findImportSeparator(line: string) {
   for (const separator of ["|", ",", "\t", ":"]) {
     if (line.includes(separator)) {
@@ -222,6 +268,10 @@ export default function CloudPage() {
   const [catalog, setCatalog] = React.useState<DigitalOceanCatalog | null>(null);
   const [droplets, setDroplets] = React.useState<DigitalOceanDroplet[]>([]);
   const [detailDroplet, setDetailDroplet] = React.useState<DigitalOceanDroplet | null>(null);
+  const [managedKeyMaterial, setManagedKeyMaterial] =
+    React.useState<DigitalOceanManagedSSHKeyMaterial | null>(null);
+  const [managedKeyLoading, setManagedKeyLoading] = React.useState(false);
+  const [accessSecrets, setAccessSecrets] = React.useState<DropletAccessSecrets | null>(null);
   const [error, setError] = React.useState("");
   const [createOpen, setCreateOpen] = React.useState(false);
   const [createSubmitting, setCreateSubmitting] = React.useState(false);
@@ -234,6 +284,18 @@ export default function CloudPage() {
     setDroplets([]);
     setError("");
   }, []);
+
+  const copyText = React.useCallback(
+    async (text: string) => {
+      try {
+        await navigator.clipboard.writeText(text);
+        toast.success(t("copy_success", "Copied!"));
+      } catch (copyError) {
+        toast.error(toErrorMessage(copyError));
+      }
+    },
+    [t],
+  );
 
   const loadTokenPool = React.useCallback(async () => {
     const nextPool = await getDigitalOceanTokens();
@@ -421,9 +483,22 @@ export default function CloudPage() {
     }
   };
 
+  const handleViewManagedKey = async (token: DigitalOceanTokenRecord) => {
+    setManagedKeyLoading(true);
+    try {
+      const material = await getDigitalOceanManagedSSHKey(token.id);
+      setManagedKeyMaterial(material);
+    } catch (viewError) {
+      toast.error(toErrorMessage(viewError));
+    } finally {
+      setManagedKeyLoading(false);
+    }
+  };
+
   const handleCreateDroplet = async () => {
     setCreateSubmitting(true);
     try {
+      const passwordMode = createForm.root_password_mode;
       const payload: CreateDigitalOceanDropletInput = {
         name: createForm.name,
         region: createForm.region,
@@ -436,13 +511,27 @@ export default function CloudPage() {
         tags: parseTags(createForm.tagsText),
         user_data: createForm.user_data,
         vpc_uuid: createForm.vpc_uuid,
+        root_password_mode: passwordMode,
+        root_password: createForm.root_password,
       };
 
-      await createDigitalOceanDroplet(payload);
+      const result = await createDigitalOceanDroplet(payload);
       toast.success(
         t("cloud.create_success", "Droplet creation request submitted"),
       );
       setCreateOpen(false);
+      if (passwordMode !== "ssh") {
+        const rootPassword =
+          passwordMode === "random" ? result.generated_password : createForm.root_password;
+        setAccessSecrets({
+          droplet: result.droplet,
+          rootPassword,
+          passwordMode,
+          managedSSHKey: result.managed_ssh_key,
+        });
+      } else {
+        setAccessSecrets(null);
+      }
       setCreateForm((previous) => ({
         ...initialCreateForm,
         region: previous.region,
@@ -664,6 +753,14 @@ export default function CloudPage() {
                         })}
                       </div>
                     ) : null}
+                    {token.managed_ssh_key_ready ? (
+                      <div className="mt-1 text-xs text-slate-500">
+                        {t("cloud.tokens.managed_key_ready", {
+                          name: token.managed_ssh_key_name || "Komari Managed Key",
+                          defaultValue: `Managed SSH key: ${token.managed_ssh_key_name || "Komari Managed Key"}`,
+                        })}
+                      </div>
+                    ) : null}
                   </TableCell>
                   <TableCell>
                     <Badge color={getTokenStatusColor(token.last_status)}>
@@ -691,6 +788,17 @@ export default function CloudPage() {
                         {token.is_active
                           ? t("cloud.tokens.current", "Current")
                           : t("cloud.tokens.use", "Use")}
+                      </Button>
+                      <Button
+                        variant="soft"
+                        size="1"
+                        disabled={!token.managed_ssh_key_ready || managedKeyLoading}
+                        onClick={() => {
+                          void handleViewManagedKey(token);
+                        }}
+                      >
+                        <KeyRound className="mr-1 h-3.5 w-3.5" />
+                        {t("cloud.tokens.view_key", "View Key")}
                       </Button>
                       <Button
                         variant="soft"
@@ -769,7 +877,7 @@ export default function CloudPage() {
                       {droplet.status}
                     </Badge>
                   </TableCell>
-                  <TableCell>{droplet.region?.slug || "-"}</TableCell>
+                  <TableCell>{getRegionOptionLabel(droplet.region, t)}</TableCell>
                   <TableCell>{getDropletPrimaryIp(droplet)}</TableCell>
                   <TableCell>{droplet.size_slug || droplet.size?.slug || "-"}</TableCell>
                   <TableCell>{getImageLabel(droplet.image)}</TableCell>
@@ -872,7 +980,7 @@ export default function CloudPage() {
               <Select.Content>
                 {regions.map((region) => (
                   <Select.Item key={region.slug} value={region.slug}>
-                    {region.slug} / {region.name}
+                    {getRegionOptionLabel(region, t)}
                   </Select.Item>
                 ))}
               </Select.Content>
@@ -922,6 +1030,75 @@ export default function CloudPage() {
             </Select.Root>
 
             <label className="text-sm font-medium text-slate-800">
+              {t("cloud.form.root_access", "Root Access")}
+            </label>
+            <Select.Root
+              value={createForm.root_password_mode}
+              onValueChange={(value) =>
+                setCreateForm((previous) => ({
+                  ...previous,
+                  root_password_mode: value as "ssh" | "custom" | "random",
+                  root_password: value === "custom" ? previous.root_password : "",
+                }))
+              }
+            >
+              <Select.Trigger
+                placeholder={t("cloud.form.root_access_placeholder", "Select access mode")}
+              />
+              <Select.Content>
+                <Select.Item value="ssh">
+                  {t("cloud.form.root_access_modes.ssh", "SSH key only")}
+                </Select.Item>
+                <Select.Item value="custom">
+                  {t("cloud.form.root_access_modes.custom", "Custom root password")}
+                </Select.Item>
+                <Select.Item value="random">
+                  {t("cloud.form.root_access_modes.random", "Random root password")}
+                </Select.Item>
+              </Select.Content>
+            </Select.Root>
+
+            <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
+              {createForm.root_password_mode === "ssh"
+                ? t(
+                    "cloud.form.root_access_ssh_help",
+                    "Use your selected SSH keys only. DigitalOcean will not set a custom root password through the panel.",
+                  )
+                : t(
+                    "cloud.form.root_access_password_help",
+                    "Komari will ensure a managed SSH key exists for this token, attach it to the Droplet, and run a startup script to set the root password and enable password login.",
+                  )}
+            </div>
+
+            {createForm.root_password_mode === "custom" ? (
+              <>
+                <label className="text-sm font-medium text-slate-800">
+                  {t("cloud.form.root_password", "Root Password")}
+                </label>
+                <TextField.Root
+                  type="password"
+                  value={createForm.root_password}
+                  placeholder={t("cloud.form.root_password_placeholder", "Enter a root password")}
+                  onChange={(event) =>
+                    setCreateForm((previous) => ({
+                      ...previous,
+                      root_password: event.target.value,
+                    }))
+                  }
+                />
+              </>
+            ) : null}
+
+            {createForm.root_password_mode === "random" ? (
+              <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+                {t(
+                  "cloud.form.root_password_random_help",
+                  "A random root password will be generated on the server and shown once after creation succeeds.",
+                )}
+              </div>
+            ) : null}
+
+            <label className="text-sm font-medium text-slate-800">
               {t("cloud.form.tags", "Tags")}
             </label>
             <TextField.Root
@@ -952,6 +1129,14 @@ export default function CloudPage() {
             <label className="text-sm font-medium text-slate-800">
               {t("cloud.form.user_data", "Cloud-Init / User Data")}
             </label>
+            {createForm.root_password_mode !== "ssh" ? (
+              <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+                {t(
+                  "cloud.form.user_data_password_help",
+                  "When root password mode is enabled, this field is appended as shell commands. #cloud-config is not supported in this mode.",
+                )}
+              </div>
+            ) : null}
             <TextArea
               rows={6}
               value={createForm.user_data}
@@ -1074,7 +1259,8 @@ export default function CloudPage() {
                   !createForm.name ||
                   !createForm.region ||
                   !createForm.size ||
-                  !createForm.image
+                  !createForm.image ||
+                  (createForm.root_password_mode === "custom" && !createForm.root_password)
                 }
               >
                 {createSubmitting
@@ -1107,7 +1293,10 @@ export default function CloudPage() {
             <div className="mt-4 grid gap-3 sm:grid-cols-2">
               <DetailItem label={t("cloud.detail.id", "Droplet ID")} value={detailDroplet.id} />
               <DetailItem label={t("cloud.table.status", "Status")} value={detailDroplet.status || "-"} />
-              <DetailItem label={t("cloud.table.region", "Region")} value={detailDroplet.region?.slug || "-"} />
+              <DetailItem
+                label={t("cloud.table.region", "Region")}
+                value={getRegionOptionLabel(detailDroplet.region, t)}
+              />
               <DetailItem label={t("cloud.table.ip", "Public IP")} value={getDropletPrimaryIp(detailDroplet)} />
               <DetailItem
                 label={t("cloud.table.size", "Size")}
@@ -1154,6 +1343,153 @@ export default function CloudPage() {
                   ? detailDroplet.networks.v6.map((network) => `${network.type}: ${network.ip_address}`).join(" | ")
                   : "-"}
               />
+            </div>
+          ) : null}
+        </Dialog.Content>
+      </Dialog.Root>
+
+      <Dialog.Root
+        open={Boolean(managedKeyMaterial)}
+        onOpenChange={(open) => {
+          if (!open) {
+            setManagedKeyMaterial(null);
+          }
+        }}
+      >
+        <Dialog.Content className="max-h-[85vh] overflow-y-auto">
+          <Dialog.Title>{t("cloud.tokens.managed_key_dialog_title", "Managed SSH Key")}</Dialog.Title>
+          <Dialog.Description>
+            {t(
+              "cloud.tokens.managed_key_dialog_description",
+              "This is the managed SSH key Komari uses as a safe fallback when creating Droplets with root password mode.",
+            )}
+          </Dialog.Description>
+
+          {managedKeyMaterial ? (
+            <div className="mt-4 flex flex-col gap-4">
+              <DetailItem label={t("cloud.tokens.table.name", "Name")} value={managedKeyMaterial.token_name} />
+              <DetailItem label={t("cloud.tokens.managed_key_name", "Key Name")} value={managedKeyMaterial.name} />
+              <DetailItem
+                label={t("cloud.tokens.managed_key_fingerprint", "Fingerprint")}
+                value={managedKeyMaterial.fingerprint || "-"}
+              />
+              <div className="rounded-xl border border-slate-200 bg-white px-4 py-3">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="text-sm font-medium text-slate-800">
+                    {t("cloud.tokens.public_key", "Public Key")}
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="1"
+                    onClick={() => {
+                      void copyText(managedKeyMaterial.public_key);
+                    }}
+                  >
+                    <Copy className="mr-1 h-3.5 w-3.5" />
+                    {t("copy", "Copy")}
+                  </Button>
+                </div>
+                <TextArea className="mt-3 min-h-24 font-mono text-xs" readOnly value={managedKeyMaterial.public_key} />
+              </div>
+              <div className="rounded-xl border border-slate-200 bg-white px-4 py-3">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="text-sm font-medium text-slate-800">
+                    {t("cloud.tokens.private_key", "Private Key")}
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="1"
+                    onClick={() => {
+                      void copyText(managedKeyMaterial.private_key);
+                    }}
+                  >
+                    <Copy className="mr-1 h-3.5 w-3.5" />
+                    {t("copy", "Copy")}
+                  </Button>
+                </div>
+                <TextArea className="mt-3 min-h-40 font-mono text-xs" readOnly value={managedKeyMaterial.private_key} />
+              </div>
+            </div>
+          ) : null}
+        </Dialog.Content>
+      </Dialog.Root>
+
+      <Dialog.Root
+        open={Boolean(accessSecrets)}
+        onOpenChange={(open) => {
+          if (!open) {
+            setAccessSecrets(null);
+          }
+        }}
+      >
+        <Dialog.Content className="max-h-[85vh] overflow-y-auto">
+          <Dialog.Title>{t("cloud.access.title", "Access Details")}</Dialog.Title>
+          <Dialog.Description>
+            {t(
+              "cloud.access.description",
+              "Save these credentials now. The generated password is only shown here once, and the managed SSH key is your fallback access method.",
+            )}
+          </Dialog.Description>
+
+          {accessSecrets ? (
+            <div className="mt-4 flex flex-col gap-4">
+              <DetailItem label={t("cloud.table.name", "Name")} value={accessSecrets.droplet.name} />
+              <DetailItem label={t("cloud.table.ip", "Public IP")} value={getDropletPrimaryIp(accessSecrets.droplet)} />
+
+              <div className="rounded-xl border border-slate-200 bg-white px-4 py-3">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="text-sm font-medium text-slate-800">
+                    {t("cloud.access.root_password", "Root Password")}
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="1"
+                    onClick={() => {
+                      void copyText(accessSecrets.rootPassword);
+                    }}
+                  >
+                    <Copy className="mr-1 h-3.5 w-3.5" />
+                    {t("copy", "Copy")}
+                  </Button>
+                </div>
+                <TextField.Root
+                  className="mt-3"
+                  readOnly
+                  type="text"
+                  value={accessSecrets.rootPassword}
+                />
+              </div>
+
+              {accessSecrets.managedSSHKey ? (
+                <>
+                  <div className="rounded-xl border border-slate-200 bg-white px-4 py-3">
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="text-sm font-medium text-slate-800">
+                        {t("cloud.access.private_key", "Managed Private Key")}
+                      </div>
+                      <Button
+                        variant="outline"
+                        size="1"
+                        onClick={() => {
+                          void copyText(accessSecrets.managedSSHKey?.private_key || "");
+                        }}
+                      >
+                        <Copy className="mr-1 h-3.5 w-3.5" />
+                        {t("copy", "Copy")}
+                      </Button>
+                    </div>
+                    <TextArea
+                      className="mt-3 min-h-40 font-mono text-xs"
+                      readOnly
+                      value={accessSecrets.managedSSHKey.private_key}
+                    />
+                  </div>
+                  <DetailItem
+                    label={t("cloud.access.ssh_hint", "SSH Login Example")}
+                    value={`ssh -i ./id_ed25519 root@${getDropletPrimaryIp(accessSecrets.droplet)}`}
+                  />
+                </>
+              ) : null}
             </div>
           ) : null}
         </Dialog.Content>

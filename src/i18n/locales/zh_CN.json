@@ -247,6 +247,14 @@
       "active_success": "已切换到令牌 {{name}}",
       "empty": "当前还没有保存任何 DigitalOcean 令牌",
       "droplet_limit": "Droplet 配额 {{count}}",
+      "managed_key_ready": "托管 SSH 密钥：{{name}}",
+      "view_key": "查看密钥",
+      "managed_key_dialog_title": "托管 SSH 密钥",
+      "managed_key_dialog_description": "当你用 root 密码模式创建 Droplet 时，Komari 会使用这把托管 SSH 密钥作为保底登录方式。",
+      "managed_key_name": "密钥名称",
+      "managed_key_fingerprint": "指纹",
+      "public_key": "公钥",
+      "private_key": "私钥",
       "table": {
         "name": "名称",
         "token": "令牌",
@@ -281,6 +289,14 @@
       "tags": "标签",
       "vpc_uuid": "VPC UUID",
       "vpc_uuid_placeholder": "可选",
+      "root_access": "Root 访问方式",
+      "root_access_placeholder": "选择访问方式",
+      "root_access_ssh_help": "只使用你当前选择的 SSH 密钥。面板不会为你额外设置 root 密码。",
+      "root_access_password_help": "Komari 会先确保当前令牌存在一把托管 SSH 密钥，把它挂载到 Droplet 上，再通过开机脚本设置 root 密码并开启密码登录。",
+      "root_password": "Root 密码",
+      "root_password_placeholder": "输入 root 密码",
+      "root_password_random_help": "系统会在后端随机生成一个 root 密码，并在创建成功后只展示一次。",
+      "user_data_password_help": "启用 root 密码模式后，这里的内容会作为 shell 命令追加执行，不支持 #cloud-config。",
       "user_data": "Cloud-Init / User Data",
       "options": "附加选项",
       "backups": "启用备份",
@@ -288,7 +304,12 @@
       "monitoring": "启用监控",
       "ssh_keys": "SSH 密钥",
       "ssh_keys_description": "将账户下已有的 SSH 公钥挂载到新 Droplet。",
-      "ssh_keys_empty": "当前账户下没有 SSH 密钥"
+      "ssh_keys_empty": "当前账户下没有 SSH 密钥",
+      "root_access_modes": {
+        "ssh": "仅 SSH 密钥",
+        "custom": "自定义 root 密码",
+        "random": "随机 root 密码"
+      }
     },
     "detail": {
       "title": "Droplet 详情",
@@ -305,6 +326,23 @@
       "volume_ids": "卷 ID",
       "ipv4": "IPv4 网络",
       "ipv6": "IPv6 网络"
+    },
+    "access": {
+      "title": "登录凭据",
+      "description": "请立即保存这些信息。随机生成的密码只会展示一次，托管 SSH 密钥是你的保底登录方式。",
+      "root_password": "Root 密码",
+      "private_key": "托管私钥",
+      "ssh_hint": "SSH 登录示例"
+    },
+    "region_countries": {
+      "au": "澳大利亚",
+      "ca": "加拿大",
+      "de": "德国",
+      "gb": "英国",
+      "in": "印度",
+      "nl": "荷兰",
+      "sg": "新加坡",
+      "us": "美国"
     },
     "providers": {
       "digitalocean": {
