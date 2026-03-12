@@ -260,6 +260,7 @@
       "droplet_limit": "Droplet limit {{count}}",
       "managed_key_ready": "Managed SSH key: {{name}}",
       "view_token": "View Token",
+      "view_droplets": "View Droplets",
       "view_key": "View Key",
       "view_managed_key": "View Managed Key",
       "token_dialog_title": "Token Details",

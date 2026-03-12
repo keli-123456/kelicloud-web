@@ -260,6 +260,7 @@
       "droplet_limit": "Droplet 配额 {{count}}",
       "managed_key_ready": "托管 SSH 密钥：{{name}}",
       "view_token": "查看令牌",
+      "view_droplets": "查看实例",
       "view_key": "查看密钥",
       "view_managed_key": "查看托管密钥",
       "token_dialog_title": "令牌详情",

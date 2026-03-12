@@ -358,6 +358,16 @@ export default function CloudPage() {
     clearPanelState();
   }, [clearPanelState, loadPanelData, loadTokenPool]);
 
+  const handlePanelSectionChange = React.useCallback(
+    (nextSection: "droplets" | "tokens") => {
+      setPanelSection(nextSection);
+      if (nextSection === "droplets" && hasActiveToken(tokenPool)) {
+        void loadPanelData();
+      }
+    },
+    [loadPanelData, tokenPool],
+  );
+
   React.useEffect(() => {
     let cancelled = false;
 
@@ -475,7 +485,7 @@ export default function CloudPage() {
     }
   };
 
-  const handleSelectToken = async (token: DigitalOceanTokenRecord) => {
+  const handleSelectToken = async (token: DigitalOceanTokenRecord, options?: { loadResources?: boolean; openDroplets?: boolean }) => {
     try {
       const nextPool = await setDigitalOceanActiveToken(token.id);
       setTokenPool(nextPool);
@@ -485,7 +495,12 @@ export default function CloudPage() {
           defaultValue: `Using token ${token.name}`,
         }),
       );
-      await loadPanelData();
+      if (options?.openDroplets) {
+        handlePanelSectionChange("droplets");
+      }
+      if (options?.loadResources) {
+        await loadPanelData();
+      }
     } catch (selectError) {
       toast.error(toErrorMessage(selectError));
     }
@@ -525,6 +540,13 @@ export default function CloudPage() {
     } finally {
       setManagedKeyLoading(false);
     }
+  };
+
+  const handleOpenDropletsForToken = async (token: DigitalOceanTokenRecord) => {
+    await handleSelectToken(token, {
+      loadResources: true,
+      openDroplets: true,
+    });
   };
 
   const handleViewTokenSecret = async (token: DigitalOceanTokenRecord) => {
@@ -716,7 +738,7 @@ export default function CloudPage() {
 
       <Tabs.Root
         value={panelSection}
-        onValueChange={(value) => setPanelSection(value as "droplets" | "tokens")}
+        onValueChange={(value) => handlePanelSectionChange(value as "droplets" | "tokens")}
       >
         <div className="rounded-2xl border border-slate-200 bg-white px-5 py-4">
           <div className="flex flex-wrap items-center justify-between gap-3">
@@ -760,7 +782,7 @@ export default function CloudPage() {
                 <Button
                   variant="outline"
                   size="1"
-                  onClick={() => setPanelSection("tokens")}
+                  onClick={() => handlePanelSectionChange("tokens")}
                 >
                   <Server className="mr-2 h-4 w-4" />
                   {t("cloud.tokens.open_manager", "Manage Tokens")}
@@ -940,7 +962,7 @@ export default function CloudPage() {
                   <Button
                     variant="outline"
                     size="1"
-                    onClick={() => setPanelSection("droplets")}
+                    onClick={() => handlePanelSectionChange("droplets")}
                   >
                     <Server className="mr-2 h-4 w-4" />
                     {t("cloud.sections.droplets", "Droplet List")}
@@ -1040,6 +1062,16 @@ export default function CloudPage() {
                               {token.is_active
                                 ? t("cloud.tokens.current", "Current")
                                 : t("cloud.tokens.use", "Use")}
+                            </Button>
+                            <Button
+                              variant="soft"
+                              size="1"
+                              onClick={() => {
+                                void handleOpenDropletsForToken(token);
+                              }}
+                            >
+                              <Server className="mr-1 h-3.5 w-3.5" />
+                              {t("cloud.tokens.view_droplets", "View Droplets")}
                             </Button>
                             <Button
                               variant="soft"
