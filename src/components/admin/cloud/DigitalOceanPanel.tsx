@@ -211,6 +211,26 @@ function getRegionOptionLabel(
   return `${region.slug} (${country}) / ${region.name}`;
 }
 
+function getDefaultDigitalOceanSSHKeyIds(catalog: DigitalOceanCatalog | null | undefined) {
+  const ids = (catalog?.ssh_keys || [])
+    .map((sshKey) => sshKey.id)
+    .filter((id) => Number.isFinite(id));
+  return Array.from(new Set(ids));
+}
+
+function normalizeDigitalOceanSSHKeySelection(
+  selectedIds: number[],
+  catalog: DigitalOceanCatalog | null | undefined,
+) {
+  const availableIds = new Set(getDefaultDigitalOceanSSHKeyIds(catalog));
+  if (!availableIds.size) return [];
+
+  const nextSelectedIds = selectedIds.filter((id) => availableIds.has(id));
+  if (nextSelectedIds.length) return nextSelectedIds;
+
+  return Array.from(availableIds);
+}
+
 function findImportSeparator(line: string) {
   for (const separator of ["|", ",", "\t", ":"]) {
     if (line.includes(separator)) {
@@ -417,6 +437,7 @@ export default function DigitalOceanPanel() {
         previous.image ||
         (catalog.images[0] ? getImageValue(catalog.images[0]) : "") ||
         "",
+      ssh_keys: normalizeDigitalOceanSSHKeySelection(previous.ssh_keys, catalog),
     }));
   }, [catalog]);
 
@@ -620,6 +641,7 @@ export default function DigitalOceanPanel() {
         region: previous.region,
         size: previous.size,
         image: previous.image,
+        ssh_keys: getDefaultDigitalOceanSSHKeyIds(catalog),
       }));
       await loadPanelData();
     } catch (createError) {
@@ -667,6 +689,14 @@ export default function DigitalOceanPanel() {
   const sshKeys = catalog?.ssh_keys ?? [];
   const tokenRows = tokenPool?.tokens ?? [];
 
+  const handleOpenCreateDialog = () => {
+    setCreateForm((previous) => ({
+      ...previous,
+      ssh_keys: normalizeDigitalOceanSSHKeySelection(previous.ssh_keys, catalog),
+    }));
+    setCreateOpen(true);
+  };
+
   return (
     <AdminPageShell
       eyebrow="DigitalOcean"
@@ -690,7 +720,7 @@ export default function DigitalOceanPanel() {
           </Button>
           <Button
             size="1"
-            onClick={() => setCreateOpen(true)}
+            onClick={handleOpenCreateDialog}
             disabled={!connected || !catalog}
           >
             <Plus className="mr-2 h-4 w-4" />

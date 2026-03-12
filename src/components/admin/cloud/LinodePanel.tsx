@@ -181,6 +181,46 @@ function formatList(values: Array<string | number>) {
   return values.join(", ");
 }
 
+function getLinodeCountryLabel(
+  region: Pick<LinodeCatalog["regions"][number], "country"> | null | undefined,
+  t: ReturnType<typeof useTranslation>["t"],
+) {
+  const rawCountry = region?.country?.trim();
+  if (!rawCountry) return "";
+
+  const normalizedCountry = rawCountry.toLowerCase();
+  if (/^[a-z]{2,3}$/.test(normalizedCountry)) {
+    return t(`cloud.region_countries.${normalizedCountry}`, rawCountry.toUpperCase());
+  }
+
+  return rawCountry;
+}
+
+function getLinodeRegionOptionLabel(
+  region: LinodeCatalog["regions"][number] | null | undefined,
+  t: ReturnType<typeof useTranslation>["t"],
+) {
+  if (!region?.id) return region?.label || "-";
+  const country = getLinodeCountryLabel(region, t);
+  if (!country) return `${region.id} / ${region.label}`;
+  return `${region.id} (${country}) / ${region.label}`;
+}
+
+function getLinodeTypeOptionLabel(type: LinodeCatalog["types"][number] | null | undefined) {
+  if (!type?.id) return "-";
+
+  const details = [
+    type.id,
+    type.label,
+    `${type.vcpus} vCPU`,
+    `${(type.memory / 1024).toFixed(1)} GB RAM`,
+    `${type.disk} GB SSD`,
+    `$${type.price.monthly.toFixed(2)}/mo`,
+  ].filter(Boolean);
+
+  return details.join(" / ");
+}
+
 function getStatusColor(status: string) {
   switch (status) {
     case "running":
@@ -1089,7 +1129,7 @@ export default function LinodePanel() {
               <Select.Content>
                 {(catalog?.regions || []).map((region) => (
                   <Select.Item key={region.id} value={region.id}>
-                    {region.id} / {region.label}
+                    {getLinodeRegionOptionLabel(region, t)}
                   </Select.Item>
                 ))}
               </Select.Content>
@@ -1106,7 +1146,7 @@ export default function LinodePanel() {
               <Select.Content>
                 {(catalog?.types || []).map((type) => (
                   <Select.Item key={type.id} value={type.id}>
-                    {type.id} / {type.vcpus} vCPU / {(type.memory / 1024).toFixed(1)} GB / ${type.price.monthly.toFixed(2)}
+                    {getLinodeTypeOptionLabel(type)}
                   </Select.Item>
                 ))}
               </Select.Content>
@@ -1152,6 +1192,12 @@ export default function LinodePanel() {
                 </Select.Item>
               </Select.Content>
             </Select.Root>
+            <div className="rounded-xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-900">
+              {t(
+                "cloud.providers.linode.root_access_help",
+                "Linode can create the instance directly with a root password. SSH keys are optional and only add extra login methods.",
+              )}
+            </div>
 
             {createForm.root_password_mode === "custom" ? (
               <>
@@ -1217,7 +1263,13 @@ export default function LinodePanel() {
 
             <div className="rounded-xl border border-slate-200 bg-white px-4 py-3">
               <div className="text-sm font-medium text-slate-800">
-                {t("cloud.form.ssh_keys", "SSH Keys")}
+                {t("cloud.providers.linode.ssh_keys_optional", "SSH Keys (Optional)")}
+              </div>
+              <div className="mt-1 text-xs text-slate-500">
+                {t(
+                  "cloud.providers.linode.ssh_keys_optional_description",
+                  "You can leave this empty. The selected keys are only attached as additional login methods.",
+                )}
               </div>
               <div className="mt-3 flex max-h-48 flex-col gap-2 overflow-y-auto">
                 {(catalog?.ssh_keys || []).length ? (
@@ -1417,7 +1469,7 @@ export default function LinodePanel() {
                       <Select.Item value={SELECT_NONE}>{t("cloud.providers.aws.none", "None")}</Select.Item>
                       {(catalog?.types || []).map((type) => (
                         <Select.Item key={type.id} value={type.id}>
-                          {type.id} / {type.vcpus} vCPU / {(type.memory / 1024).toFixed(1)} GB
+                          {getLinodeTypeOptionLabel(type)}
                         </Select.Item>
                       ))}
                     </Select.Content>
