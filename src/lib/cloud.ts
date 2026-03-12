@@ -32,6 +32,30 @@ export type DigitalOceanAccount = {
   status_message: string;
 };
 
+export type DigitalOceanTokenInput = {
+  id?: string;
+  name: string;
+  token: string;
+};
+
+export type DigitalOceanTokenRecord = {
+  id: string;
+  name: string;
+  masked_token: string;
+  account_email: string;
+  account_uuid: string;
+  droplet_limit: number;
+  last_status: string;
+  last_error: string;
+  last_checked_at: string;
+  is_active: boolean;
+};
+
+export type DigitalOceanTokenPool = {
+  active_token_id: string;
+  tokens: DigitalOceanTokenRecord[];
+};
+
 export type DigitalOceanRegion = {
   name: string;
   slug: string;
@@ -145,6 +169,23 @@ export type CreateDigitalOceanDropletInput = {
 function normalizeStringArray(value: unknown): string[] {
   if (!Array.isArray(value)) return [];
   return value.filter((item): item is string => typeof item === "string");
+}
+
+function normalizeTokenRecord(
+  token: Partial<DigitalOceanTokenRecord> | null | undefined,
+): DigitalOceanTokenRecord {
+  return {
+    id: String(token?.id || ""),
+    name: String(token?.name || ""),
+    masked_token: String(token?.masked_token || ""),
+    account_email: String(token?.account_email || ""),
+    account_uuid: String(token?.account_uuid || ""),
+    droplet_limit: Number(token?.droplet_limit || 0),
+    last_status: String(token?.last_status || "unknown"),
+    last_error: String(token?.last_error || ""),
+    last_checked_at: String(token?.last_checked_at || ""),
+    is_active: Boolean(token?.is_active),
+  };
 }
 
 function normalizeNumberArray(value: unknown): number[] {
@@ -300,6 +341,90 @@ export async function saveCloudProviderValues(
 
 export async function getDigitalOceanAccount(): Promise<DigitalOceanAccount> {
   return requestCloud<DigitalOceanAccount>("/api/admin/cloud/digitalocean/account");
+}
+
+export async function getDigitalOceanTokens(): Promise<DigitalOceanTokenPool> {
+  const data = await requestCloud<Partial<DigitalOceanTokenPool>>(
+    "/api/admin/cloud/digitalocean/tokens",
+  );
+
+  return {
+    active_token_id: String(data?.active_token_id || ""),
+    tokens: Array.isArray(data?.tokens) ? data.tokens.map(normalizeTokenRecord) : [],
+  };
+}
+
+export async function saveDigitalOceanTokens(
+  input: {
+    tokens: DigitalOceanTokenInput[];
+    active_token_id?: string;
+  },
+): Promise<DigitalOceanTokenPool> {
+  const data = await requestCloud<Partial<DigitalOceanTokenPool>>(
+    "/api/admin/cloud/digitalocean/tokens",
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(input),
+    },
+  );
+
+  return {
+    active_token_id: String(data?.active_token_id || ""),
+    tokens: Array.isArray(data?.tokens) ? data.tokens.map(normalizeTokenRecord) : [],
+  };
+}
+
+export async function setDigitalOceanActiveToken(tokenId: string): Promise<DigitalOceanTokenPool> {
+  const data = await requestCloud<Partial<DigitalOceanTokenPool>>(
+    "/api/admin/cloud/digitalocean/tokens/active",
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ token_id: tokenId }),
+    },
+  );
+
+  return {
+    active_token_id: String(data?.active_token_id || ""),
+    tokens: Array.isArray(data?.tokens) ? data.tokens.map(normalizeTokenRecord) : [],
+  };
+}
+
+export async function checkDigitalOceanTokens(tokenIds?: string[]): Promise<DigitalOceanTokenPool> {
+  const data = await requestCloud<Partial<DigitalOceanTokenPool>>(
+    "/api/admin/cloud/digitalocean/tokens/check",
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(tokenIds?.length ? { token_ids: tokenIds } : {}),
+    },
+  );
+
+  return {
+    active_token_id: String(data?.active_token_id || ""),
+    tokens: Array.isArray(data?.tokens) ? data.tokens.map(normalizeTokenRecord) : [],
+  };
+}
+
+export async function deleteDigitalOceanToken(tokenId: string): Promise<DigitalOceanTokenPool> {
+  const data = await requestCloud<Partial<DigitalOceanTokenPool>>(
+    `/api/admin/cloud/digitalocean/tokens/${tokenId}`,
+    {
+      method: "DELETE",
+    },
+  );
+
+  return {
+    active_token_id: String(data?.active_token_id || ""),
+    tokens: Array.isArray(data?.tokens) ? data.tokens.map(normalizeTokenRecord) : [],
+  };
 }
 
 export async function getDigitalOceanCatalog(): Promise<DigitalOceanCatalog> {

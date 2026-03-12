@@ -2,17 +2,19 @@ import React from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import {
+  CheckCircle2,
   Plus,
   Power,
   PowerOff,
   RefreshCw,
   RotateCcw,
+  Server,
+  ShieldCheck,
   Trash2,
 } from "lucide-react";
 
 import { AdminPageShell } from "@/components/admin/AdminPageShell";
 import Loading from "@/components/loading";
-import { renderProviderInputs } from "@/utils/renderProviders";
 import {
   Badge,
   Button,
@@ -32,24 +34,26 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import {
-  CloudApiError,
+  checkDigitalOceanTokens,
   createDigitalOceanDroplet,
   deleteDigitalOceanDroplet,
-  getCloudProviderValues,
-  getCloudProviders,
+  deleteDigitalOceanToken,
   getDigitalOceanAccount,
   getDigitalOceanCatalog,
+  getDigitalOceanTokens,
   listDigitalOceanDroplets,
   postDigitalOceanDropletAction,
-  saveCloudProviderValues,
+  saveDigitalOceanTokens,
+  setDigitalOceanActiveToken,
   type CreateDigitalOceanDropletInput,
   type DigitalOceanAccount,
   type DigitalOceanCatalog,
   type DigitalOceanDroplet,
   type DigitalOceanImage,
+  type DigitalOceanTokenInput,
+  type DigitalOceanTokenPool,
+  type DigitalOceanTokenRecord,
 } from "@/lib/cloud";
-
-const DIGITALOCEAN_PROVIDER = "digitalocean";
 
 type CreateDropletFormState = Omit<CreateDigitalOceanDropletInput, "tags"> & {
   tagsText: string;
@@ -74,8 +78,8 @@ function toErrorMessage(error: unknown) {
   return "Unknown error";
 }
 
-function hasDigitalOceanToken(values: Record<string, unknown>) {
-  return typeof values.token === "string" && values.token.trim().length > 0;
+function hasActiveToken(pool: DigitalOceanTokenPool | null) {
+  return Boolean(pool?.active_token_id);
 }
 
 function parseTags(tagsText: string) {
@@ -105,6 +109,17 @@ function getDropletStatusColor(status: string) {
   }
 }
 
+function getTokenStatusColor(status: string) {
+  switch (status) {
+    case "healthy":
+      return "green";
+    case "error":
+      return "red";
+    default:
+      return "gray";
+  }
+}
+
 function formatMonthlyPrice(droplet: DigitalOceanDroplet) {
   const monthly = droplet.size?.price_monthly ?? 0;
   return `$${monthly.toFixed(2)}`;
@@ -121,47 +136,112 @@ function getImageLabel(image: DigitalOceanImage) {
   return name || distro || image.slug || String(image.id);
 }
 
+function formatDateTime(value: string) {
+  if (!value) return "-";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toLocaleString();
+}
+
+function formatList(values: Array<string | number>) {
+  if (!values.length) return "-";
+  return values.join(", ");
+}
+
+function findImportSeparator(line: string) {
+  for (const separator of ["|", ",", "\t", ":"]) {
+    if (line.includes(separator)) {
+      return separator;
+    }
+  }
+  return "";
+}
+
+function parseTokenImports(text: string): DigitalOceanTokenInput[] {
+  const lines = text.split(/\r?\n/);
+  const tokens: DigitalOceanTokenInput[] = [];
+  const seen = new Set<string>();
+
+  for (const rawLine of lines) {
+    const line = rawLine.trim();
+    if (!line || line.startsWith("#")) continue;
+
+    const separator = findImportSeparator(line);
+    let name = "";
+    let token = line;
+
+    if (separator) {
+      const index = line.indexOf(separator);
+      name = line.slice(0, index).trim();
+      token = line.slice(index + separator.length).trim();
+    }
+
+    if (!token || seen.has(token)) continue;
+    seen.add(token);
+
+    tokens.push({
+      name: name || `Token ${tokens.length + 1}`,
+      token,
+    });
+  }
+
+  return tokens;
+}
+
+function getActiveToken(pool: DigitalOceanTokenPool | null) {
+  return pool?.tokens.find((token) => token.id === pool.active_token_id) || null;
+}
+
+function DetailItem({
+  label,
+  value,
+}: {
+  label: string;
+  value: React.ReactNode;
+}) {
+  return (
+    <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
+      <div className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">
+        {label}
+      </div>
+      <div className="mt-1 break-all text-sm text-slate-900">{value}</div>
+    </div>
+  );
+}
+
 export default function CloudPage() {
   const { t } = useTranslation();
 
   const [initializing, setInitializing] = React.useState(true);
   const [panelLoading, setPanelLoading] = React.useState(false);
-  const [providerDefs, setProviderDefs] = React.useState<Record<string, any[]>>(
-    {},
-  );
-  const [providerValues, setProviderValues] = React.useState<Record<string, unknown>>(
-    {},
-  );
+  const [tokenSaving, setTokenSaving] = React.useState(false);
+  const [tokenChecking, setTokenChecking] = React.useState(false);
+  const [tokenImportText, setTokenImportText] = React.useState("");
+  const [tokenPool, setTokenPool] = React.useState<DigitalOceanTokenPool | null>(null);
   const [account, setAccount] = React.useState<DigitalOceanAccount | null>(null);
   const [catalog, setCatalog] = React.useState<DigitalOceanCatalog | null>(null);
   const [droplets, setDroplets] = React.useState<DigitalOceanDroplet[]>([]);
+  const [detailDroplet, setDetailDroplet] = React.useState<DigitalOceanDroplet | null>(null);
   const [error, setError] = React.useState("");
   const [createOpen, setCreateOpen] = React.useState(false);
   const [createSubmitting, setCreateSubmitting] = React.useState(false);
   const [createForm, setCreateForm] =
     React.useState<CreateDropletFormState>(initialCreateForm);
 
-  const loadProviderState = async () => {
-    const defs = await getCloudProviders();
-    setProviderDefs(defs);
+  const clearPanelState = React.useCallback(() => {
+    setAccount(null);
+    setCatalog(null);
+    setDroplets([]);
+    setError("");
+  }, []);
 
-    try {
-      const values = await getCloudProviderValues(DIGITALOCEAN_PROVIDER);
-      setProviderValues(values);
-      return values;
-    } catch (providerError) {
-      if (
-        providerError instanceof CloudApiError &&
-        providerError.status === 404
-      ) {
-        setProviderValues({});
-        return {};
-      }
-      throw providerError;
-    }
-  };
+  const loadTokenPool = React.useCallback(async () => {
+    const nextPool = await getDigitalOceanTokens();
+    setTokenPool(nextPool);
+    return nextPool;
+  }, []);
 
-  const loadPanelData = async () => {
+  const loadPanelData = React.useCallback(async () => {
     setPanelLoading(true);
     try {
       const [nextAccount, nextCatalog, nextDroplets] = await Promise.all([
@@ -181,21 +261,30 @@ export default function CloudPage() {
     } finally {
       setPanelLoading(false);
     }
-  };
+  }, []);
+
+  const refreshAll = React.useCallback(async () => {
+    const nextPool = await loadTokenPool();
+    if (hasActiveToken(nextPool)) {
+      await loadPanelData();
+      return;
+    }
+    clearPanelState();
+  }, [clearPanelState, loadPanelData, loadTokenPool]);
 
   React.useEffect(() => {
     let cancelled = false;
 
     (async () => {
       try {
-        const values = await loadProviderState();
-        if (!cancelled && hasDigitalOceanToken(values)) {
+        const nextPool = await getDigitalOceanTokens();
+        if (cancelled) return;
+
+        setTokenPool(nextPool);
+        if (hasActiveToken(nextPool)) {
           await loadPanelData();
-        } else if (!cancelled) {
-          setAccount(null);
-          setCatalog(null);
-          setDroplets([]);
-          setError("");
+        } else {
+          clearPanelState();
         }
       } catch (bootstrapError) {
         if (!cancelled) {
@@ -211,7 +300,7 @@ export default function CloudPage() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [clearPanelState, loadPanelData]);
 
   React.useEffect(() => {
     if (!catalog) return;
@@ -239,29 +328,97 @@ export default function CloudPage() {
     return <Loading text="" />;
   }
 
-  const connected = Boolean(account);
+  const activeToken = getActiveToken(tokenPool);
+  const connected = Boolean(account && activeToken);
   const runningCount = droplets.filter((droplet) => droplet.status === "active").length;
 
-  const refreshAll = async () => {
-    const values = await loadProviderState();
-    if (hasDigitalOceanToken(values)) {
-      await loadPanelData();
+  const handleImportTokens = async () => {
+    const tokens = parseTokenImports(tokenImportText);
+    if (!tokens.length) {
+      toast.error(t("cloud.tokens.import_empty", "No valid tokens found"));
       return;
     }
 
-    setAccount(null);
-    setCatalog(null);
-    setDroplets([]);
-    setError("");
+    setTokenSaving(true);
+    try {
+      const nextPool = await saveDigitalOceanTokens({
+        tokens,
+        active_token_id: tokenPool?.active_token_id || undefined,
+      });
+      setTokenPool(nextPool);
+      setTokenImportText("");
+      toast.success(
+        t("cloud.tokens.import_success", { count: tokens.length, defaultValue: `Imported ${tokens.length} tokens` }),
+      );
+
+      if (hasActiveToken(nextPool)) {
+        await loadPanelData();
+      } else {
+        clearPanelState();
+      }
+    } catch (saveError) {
+      toast.error(toErrorMessage(saveError));
+    } finally {
+      setTokenSaving(false);
+    }
   };
 
-  const handleProviderSave = async (values: Record<string, unknown>) => {
-    await saveCloudProviderValues(DIGITALOCEAN_PROVIDER, values);
-    setProviderValues(values);
-    toast.success(
-      t("settings.settings_saved", "Settings saved"),
+  const handleCheckTokens = async () => {
+    setTokenChecking(true);
+    try {
+      const nextPool = await checkDigitalOceanTokens();
+      setTokenPool(nextPool);
+      toast.success(t("cloud.tokens.check_success", "Token health check finished"));
+      if (hasActiveToken(nextPool)) {
+        await loadPanelData();
+      } else {
+        clearPanelState();
+      }
+    } catch (checkError) {
+      toast.error(toErrorMessage(checkError));
+    } finally {
+      setTokenChecking(false);
+    }
+  };
+
+  const handleSelectToken = async (token: DigitalOceanTokenRecord) => {
+    try {
+      const nextPool = await setDigitalOceanActiveToken(token.id);
+      setTokenPool(nextPool);
+      toast.success(
+        t("cloud.tokens.active_success", {
+          name: token.name,
+          defaultValue: `Using token ${token.name}`,
+        }),
+      );
+      await loadPanelData();
+    } catch (selectError) {
+      toast.error(toErrorMessage(selectError));
+    }
+  };
+
+  const handleDeleteToken = async (token: DigitalOceanTokenRecord) => {
+    const confirmed = window.confirm(
+      t("cloud.tokens.delete_confirm", {
+        name: token.name,
+        defaultValue: `Delete token "${token.name}"?`,
+      }),
     );
-    await refreshAll();
+    if (!confirmed) return;
+
+    try {
+      const nextPool = await deleteDigitalOceanToken(token.id);
+      setTokenPool(nextPool);
+      toast.success(t("cloud.tokens.delete_success", "Token deleted"));
+
+      if (hasActiveToken(nextPool)) {
+        await loadPanelData();
+      } else {
+        clearPanelState();
+      }
+    } catch (deleteError) {
+      toast.error(toErrorMessage(deleteError));
+    }
   };
 
   const handleCreateDroplet = async () => {
@@ -336,6 +493,7 @@ export default function CloudPage() {
   const sizes = catalog?.sizes ?? [];
   const images = catalog?.images ?? [];
   const sshKeys = catalog?.ssh_keys ?? [];
+  const tokenRows = tokenPool?.tokens ?? [];
 
   return (
     <AdminPageShell
@@ -343,7 +501,7 @@ export default function CloudPage() {
       title={t("cloud.title", "Cloud")}
       description={t(
         "cloud.description",
-        "Configure a DigitalOcean token once, then query resources, create Droplets, and perform common power operations from one panel.",
+        "Manage a pool of DigitalOcean tokens, switch the active token for operations, bulk check token health, and operate Droplets from one panel.",
       )}
       actions={
         <>
@@ -353,7 +511,7 @@ export default function CloudPage() {
             onClick={() => {
               void refreshAll();
             }}
-            disabled={panelLoading}
+            disabled={panelLoading || tokenChecking}
           >
             <RefreshCw className="mr-2 h-4 w-4" />
             {t("cloud.refresh", "Refresh")}
@@ -374,8 +532,12 @@ export default function CloudPage() {
           value: "DigitalOcean",
         },
         {
+          label: t("cloud.stats.tokens", "Tokens"),
+          value: tokenRows.length,
+        },
+        {
           label: t("cloud.stats.account", "Account"),
-          value: account?.email || "-",
+          value: account?.email || activeToken?.account_email || "-",
         },
         {
           label: t("cloud.stats.droplets", "Droplets"),
@@ -393,20 +555,162 @@ export default function CloudPage() {
         </div>
       ) : null}
 
-      {renderProviderInputs({
-        currentProvider: DIGITALOCEAN_PROVIDER,
-        providerDefs,
-        providerValues,
-        translationPrefix: "cloud.providers.digitalocean",
-        title: t("cloud.connection_title", "Connection"),
-        description: t(
-          "cloud.connection_description",
-        "Save a Personal Access Token with Droplet read/write permissions. The panel will use the official DigitalOcean v2 API on your behalf.",
-      ),
-        setProviderValues,
-        handleSave: handleProviderSave,
-        t,
-      })}
+      <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
+        <div className="border-b border-slate-200 px-5 py-4">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <div className="text-sm font-medium text-slate-900">
+                {t("cloud.tokens.title", "Token Pool")}
+              </div>
+              <div className="mt-1 text-sm text-slate-500">
+                {t(
+                  "cloud.tokens.description",
+                  "Batch import DigitalOcean tokens into the database, choose the active token for panel operations, and bulk check whether tokens are still valid.",
+                )}
+              </div>
+            </div>
+            <Flex gap="2" wrap="wrap">
+              <Button
+                variant="outline"
+                size="1"
+                onClick={() => {
+                  void handleCheckTokens();
+                }}
+                disabled={tokenChecking || tokenRows.length === 0}
+              >
+                <ShieldCheck className="mr-2 h-4 w-4" />
+                {t("cloud.tokens.check_all", "Check All Tokens")}
+              </Button>
+              <Button
+                size="1"
+                onClick={() => {
+                  void handleImportTokens();
+                }}
+                disabled={tokenSaving}
+              >
+                <CheckCircle2 className="mr-2 h-4 w-4" />
+                {t("cloud.tokens.import", "Import Tokens")}
+              </Button>
+            </Flex>
+          </div>
+        </div>
+
+        <div className="border-b border-slate-200 px-5 py-4">
+          <label className="text-sm font-medium text-slate-800">
+            {t("cloud.tokens.import_label", "Batch Import")}
+          </label>
+          <div className="mt-1 text-sm text-slate-500">
+            {t(
+              "cloud.tokens.import_hint",
+              "One line per token. Supported formats: name,token ; name|token ; or token only.",
+            )}
+          </div>
+          <TextArea
+            className="mt-3 min-h-32"
+            value={tokenImportText}
+            placeholder={t(
+              "cloud.tokens.import_placeholder",
+              "prod-account,dop_v1_xxx\nbackup-account|dop_v1_yyy\ndop_v1_zzz",
+            )}
+            onChange={(event) => setTokenImportText(event.target.value)}
+          />
+        </div>
+
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>{t("cloud.tokens.table.name", "Name")}</TableHead>
+              <TableHead>{t("cloud.tokens.table.token", "Token")}</TableHead>
+              <TableHead>{t("cloud.tokens.table.account", "Account")}</TableHead>
+              <TableHead>{t("cloud.tokens.table.status", "Status")}</TableHead>
+              <TableHead>{t("cloud.tokens.table.checked_at", "Last Checked")}</TableHead>
+              <TableHead className="text-right">
+                {t("common.action", "Action")}
+              </TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {tokenRows.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={6} className="h-24 text-center text-slate-500">
+                  {t("cloud.tokens.empty", "No DigitalOcean tokens saved yet")}
+                </TableCell>
+              </TableRow>
+            ) : (
+              tokenRows.map((token) => (
+                <TableRow key={token.id}>
+                  <TableCell className="font-medium text-slate-900">
+                    <div className="flex items-center gap-2">
+                      <span>{token.name}</span>
+                      {token.is_active ? (
+                        <Badge color="blue">
+                          {t("cloud.tokens.active", "Active")}
+                        </Badge>
+                      ) : null}
+                    </div>
+                  </TableCell>
+                  <TableCell className="font-mono text-xs text-slate-600">
+                    {token.masked_token || "-"}
+                  </TableCell>
+                  <TableCell>
+                    <div className="text-sm text-slate-900">
+                      {token.account_email || "-"}
+                    </div>
+                    {token.droplet_limit ? (
+                      <div className="text-xs text-slate-500">
+                        {t("cloud.tokens.droplet_limit", {
+                          count: token.droplet_limit,
+                          defaultValue: `Droplet limit ${token.droplet_limit}`,
+                        })}
+                      </div>
+                    ) : null}
+                  </TableCell>
+                  <TableCell>
+                    <Badge color={getTokenStatusColor(token.last_status)}>
+                      {t(`cloud.tokens.status.${token.last_status}`, token.last_status || "unknown")}
+                    </Badge>
+                    {token.last_error ? (
+                      <div className="mt-1 max-w-64 text-xs text-red-600">
+                        {token.last_error}
+                      </div>
+                    ) : null}
+                  </TableCell>
+                  <TableCell>{formatDateTime(token.last_checked_at)}</TableCell>
+                  <TableCell className="text-right">
+                    <Flex justify="end" gap="2" wrap="wrap">
+                      <Button
+                        variant="soft"
+                        size="1"
+                        color={token.is_active ? "blue" : undefined}
+                        disabled={token.is_active}
+                        onClick={() => {
+                          void handleSelectToken(token);
+                        }}
+                      >
+                        <Server className="mr-1 h-3.5 w-3.5" />
+                        {token.is_active
+                          ? t("cloud.tokens.current", "Current")
+                          : t("cloud.tokens.use", "Use")}
+                      </Button>
+                      <Button
+                        variant="soft"
+                        size="1"
+                        color="red"
+                        onClick={() => {
+                          void handleDeleteToken(token);
+                        }}
+                      >
+                        <Trash2 className="mr-1 h-3.5 w-3.5" />
+                        {t("cloud.tokens.delete", "Delete")}
+                      </Button>
+                    </Flex>
+                  </TableCell>
+                </TableRow>
+              ))
+            )}
+          </TableBody>
+        </Table>
+      </div>
 
       <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
         <div className="border-b border-slate-200 px-5 py-4">
@@ -416,7 +720,7 @@ export default function CloudPage() {
           <div className="mt-1 text-sm text-slate-500">
             {t(
               "cloud.droplet_list_description",
-              "List existing Droplets and execute common lifecycle operations.",
+              "Click a Droplet name to view details, and use the current active token to perform lifecycle actions.",
             )}
           </div>
         </div>
@@ -443,14 +747,22 @@ export default function CloudPage() {
                 <TableCell colSpan={9} className="h-24 text-center text-slate-500">
                   {panelLoading
                     ? t("cloud.loading", "Loading cloud resources...")
-                    : t("cloud.empty", "No Droplets found")}
+                    : hasActiveToken(tokenPool)
+                      ? t("cloud.empty", "No Droplets found")
+                      : t("cloud.no_active_token", "Select an active token to load DigitalOcean resources")}
                 </TableCell>
               </TableRow>
             ) : (
               droplets.map((droplet) => (
                 <TableRow key={droplet.id}>
                   <TableCell className="font-medium text-slate-900">
-                    {droplet.name}
+                    <button
+                      type="button"
+                      className="text-left text-blue-700 hover:text-blue-800 hover:underline"
+                      onClick={() => setDetailDroplet(droplet)}
+                    >
+                      {droplet.name}
+                    </button>
                   </TableCell>
                   <TableCell>
                     <Badge color={getDropletStatusColor(droplet.status)}>
@@ -462,11 +774,7 @@ export default function CloudPage() {
                   <TableCell>{droplet.size_slug || droplet.size?.slug || "-"}</TableCell>
                   <TableCell>{getImageLabel(droplet.image)}</TableCell>
                   <TableCell>{formatMonthlyPrice(droplet)}</TableCell>
-                  <TableCell>
-                    {droplet.created_at
-                      ? new Date(droplet.created_at).toLocaleString()
-                      : "-"}
-                  </TableCell>
+                  <TableCell>{formatDateTime(droplet.created_at)}</TableCell>
                   <TableCell className="text-right">
                     <Flex justify="end" gap="2" wrap="wrap">
                       {droplet.status === "active" ? (
@@ -562,10 +870,10 @@ export default function CloudPage() {
                 placeholder={t("cloud.form.region_placeholder", "Select a region")}
               />
               <Select.Content>
-                  {regions.map((region) => (
-                    <Select.Item key={region.slug} value={region.slug}>
-                      {region.slug} / {region.name}
-                    </Select.Item>
+                {regions.map((region) => (
+                  <Select.Item key={region.slug} value={region.slug}>
+                    {region.slug} / {region.name}
+                  </Select.Item>
                 ))}
               </Select.Content>
             </Select.Root>
@@ -763,7 +1071,7 @@ export default function CloudPage() {
                 }}
                 disabled={
                   createSubmitting ||
-                  !createForm.name.trim() ||
+                  !createForm.name ||
                   !createForm.region ||
                   !createForm.size ||
                   !createForm.image
@@ -775,6 +1083,79 @@ export default function CloudPage() {
               </Button>
             </Flex>
           </div>
+        </Dialog.Content>
+      </Dialog.Root>
+
+      <Dialog.Root
+        open={Boolean(detailDroplet)}
+        onOpenChange={(open) => {
+          if (!open) {
+            setDetailDroplet(null);
+          }
+        }}
+      >
+        <Dialog.Content className="max-h-[85vh] overflow-y-auto">
+          <Dialog.Title>{detailDroplet?.name || t("cloud.detail.title", "Droplet Details")}</Dialog.Title>
+          <Dialog.Description>
+            {t(
+              "cloud.detail.description",
+              "View the selected DigitalOcean Droplet details from the current active token.",
+            )}
+          </Dialog.Description>
+
+          {detailDroplet ? (
+            <div className="mt-4 grid gap-3 sm:grid-cols-2">
+              <DetailItem label={t("cloud.detail.id", "Droplet ID")} value={detailDroplet.id} />
+              <DetailItem label={t("cloud.table.status", "Status")} value={detailDroplet.status || "-"} />
+              <DetailItem label={t("cloud.table.region", "Region")} value={detailDroplet.region?.slug || "-"} />
+              <DetailItem label={t("cloud.table.ip", "Public IP")} value={getDropletPrimaryIp(detailDroplet)} />
+              <DetailItem
+                label={t("cloud.table.size", "Size")}
+                value={detailDroplet.size_slug || detailDroplet.size?.slug || "-"}
+              />
+              <DetailItem
+                label={t("cloud.table.image", "Image")}
+                value={getImageLabel(detailDroplet.image)}
+              />
+              <DetailItem
+                label={t("cloud.table.created_at", "Created")}
+                value={formatDateTime(detailDroplet.created_at)}
+              />
+              <DetailItem label={t("cloud.detail.memory", "Memory")} value={`${detailDroplet.memory} MB`} />
+              <DetailItem label={t("cloud.detail.vcpus", "vCPUs")} value={detailDroplet.vcpus} />
+              <DetailItem label={t("cloud.detail.disk", "Disk")} value={`${detailDroplet.disk} GB`} />
+              <DetailItem label={t("cloud.detail.vpc_uuid", "VPC UUID")} value={detailDroplet.vpc_uuid || "-"} />
+              <DetailItem label={t("cloud.detail.tags", "Tags")} value={formatList(detailDroplet.tags)} />
+              <DetailItem
+                label={t("cloud.detail.features", "Features")}
+                value={formatList(detailDroplet.features)}
+              />
+              <DetailItem
+                label={t("cloud.detail.backup_ids", "Backup IDs")}
+                value={formatList(detailDroplet.backup_ids)}
+              />
+              <DetailItem
+                label={t("cloud.detail.snapshot_ids", "Snapshot IDs")}
+                value={formatList(detailDroplet.snapshot_ids)}
+              />
+              <DetailItem
+                label={t("cloud.detail.volume_ids", "Volume IDs")}
+                value={formatList(detailDroplet.volume_ids)}
+              />
+              <DetailItem
+                label={t("cloud.detail.ipv4", "IPv4 Networks")}
+                value={detailDroplet.networks.v4.length
+                  ? detailDroplet.networks.v4.map((network) => `${network.type}: ${network.ip_address}`).join(" | ")
+                  : "-"}
+              />
+              <DetailItem
+                label={t("cloud.detail.ipv6", "IPv6 Networks")}
+                value={detailDroplet.networks.v6.length
+                  ? detailDroplet.networks.v6.map((network) => `${network.type}: ${network.ip_address}`).join(" | ")
+                  : "-"}
+              />
+            </div>
+          ) : null}
         </Dialog.Content>
       </Dialog.Root>
     </AdminPageShell>

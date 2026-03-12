@@ -200,7 +200,7 @@
   },
   "cloud": {
     "title": "云服务器",
-    "description": "配置好 DigitalOcean 令牌后，就可以直接在面板里查询资源、创建 Droplet，并执行常用电源操作。",
+    "description": "把 DigitalOcean 令牌批量存进数据库后，可以切换当前操作令牌、批量测活，并在同一面板里管理 Droplet。",
     "refresh": "刷新",
     "create": "创建 Droplet",
     "creating": "创建中...",
@@ -213,17 +213,52 @@
     "power_on": "开机",
     "power_off": "关机",
     "reboot": "重启",
+    "no_active_token": "请先选择一个当前操作令牌，再加载 DigitalOcean 资源",
     "connection_title": "连接配置",
     "connection_description": "保存拥有 Droplet 读写权限的 Personal Access Token。面板将通过 DigitalOcean 官方 v2 API 进行操作。",
     "droplet_list": "Droplet 列表",
-    "droplet_list_description": "查看已有 Droplet，并执行常见生命周期操作。",
+    "droplet_list_description": "点击实例名称可查看详情，并使用当前激活令牌执行常见生命周期操作。",
     "loading": "正在加载云资源...",
     "empty": "当前没有 Droplet",
     "stats": {
       "provider": "服务商",
+      "tokens": "令牌数",
       "account": "账户",
       "droplets": "Droplet 数量",
       "running": "运行中"
+    },
+    "tokens": {
+      "title": "令牌池",
+      "description": "把多个 DigitalOcean 令牌批量保存到数据库里，选择当前用于操作的令牌，并批量检测令牌是否仍然可用。",
+      "import": "导入令牌",
+      "import_label": "批量导入",
+      "import_hint": "每行一个令牌。支持 name,token、name|token，或者只填 token。",
+      "import_placeholder": "生产账号,dop_v1_xxx\n备用账号|dop_v1_yyy\ndop_v1_zzz",
+      "import_empty": "没有识别到可用令牌",
+      "import_success": "已导入 {{count}} 个令牌",
+      "check_all": "批量测活",
+      "check_success": "令牌测活完成",
+      "active": "当前",
+      "current": "当前使用中",
+      "use": "切换使用",
+      "delete": "删除",
+      "delete_success": "令牌已删除",
+      "delete_confirm": "确定删除令牌 \"{{name}}\"？",
+      "active_success": "已切换到令牌 {{name}}",
+      "empty": "当前还没有保存任何 DigitalOcean 令牌",
+      "droplet_limit": "Droplet 配额 {{count}}",
+      "table": {
+        "name": "名称",
+        "token": "令牌",
+        "account": "账户",
+        "status": "状态",
+        "checked_at": "最近测活"
+      },
+      "status": {
+        "healthy": "可用",
+        "error": "异常",
+        "unknown": "未检测"
+      }
     },
     "table": {
       "name": "名称",
@@ -254,6 +289,22 @@
       "ssh_keys": "SSH 密钥",
       "ssh_keys_description": "将账户下已有的 SSH 公钥挂载到新 Droplet。",
       "ssh_keys_empty": "当前账户下没有 SSH 密钥"
+    },
+    "detail": {
+      "title": "Droplet 详情",
+      "description": "查看当前激活令牌下所选 Droplet 的详细信息。",
+      "id": "Droplet ID",
+      "memory": "内存",
+      "vcpus": "vCPU",
+      "disk": "磁盘",
+      "vpc_uuid": "VPC UUID",
+      "tags": "标签",
+      "features": "特性",
+      "backup_ids": "备份 ID",
+      "snapshot_ids": "快照 ID",
+      "volume_ids": "卷 ID",
+      "ipv4": "IPv4 网络",
+      "ipv6": "IPv6 网络"
     },
     "providers": {
       "digitalocean": {

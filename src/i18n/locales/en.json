@@ -200,7 +200,7 @@
   },
   "cloud": {
     "title": "Cloud",
-    "description": "Configure a DigitalOcean token, then query resources, create Droplets, and execute common power actions directly from the panel.",
+    "description": "Manage a pool of DigitalOcean tokens, switch the active token for operations, bulk check token health, and operate Droplets from one panel.",
     "refresh": "Refresh",
     "create": "Create Droplet",
     "creating": "Creating...",
@@ -213,17 +213,52 @@
     "power_on": "Power On",
     "power_off": "Power Off",
     "reboot": "Reboot",
+    "no_active_token": "Select an active token to load DigitalOcean resources",
     "connection_title": "Connection",
     "connection_description": "Save a Personal Access Token with Droplet read/write permissions. The panel uses the official DigitalOcean v2 API.",
     "droplet_list": "Droplet List",
-    "droplet_list_description": "View existing Droplets and perform common lifecycle operations.",
+    "droplet_list_description": "Click a Droplet name to view details, and use the current active token to perform lifecycle actions.",
     "loading": "Loading cloud resources...",
     "empty": "No Droplets found",
     "stats": {
       "provider": "Provider",
+      "tokens": "Tokens",
       "account": "Account",
       "droplets": "Droplets",
       "running": "Running"
+    },
+    "tokens": {
+      "title": "Token Pool",
+      "description": "Batch import DigitalOcean tokens into the database, choose the active token for panel operations, and bulk check whether tokens are still valid.",
+      "import": "Import Tokens",
+      "import_label": "Batch Import",
+      "import_hint": "One line per token. Supported formats: name,token ; name|token ; or token only.",
+      "import_placeholder": "prod-account,dop_v1_xxx\nbackup-account|dop_v1_yyy\ndop_v1_zzz",
+      "import_empty": "No valid tokens found",
+      "import_success": "Imported {{count}} tokens",
+      "check_all": "Check All Tokens",
+      "check_success": "Token health check finished",
+      "active": "Active",
+      "current": "Current",
+      "use": "Use",
+      "delete": "Delete",
+      "delete_success": "Token deleted",
+      "delete_confirm": "Delete token \"{{name}}\"?",
+      "active_success": "Using token {{name}}",
+      "empty": "No DigitalOcean tokens saved yet",
+      "droplet_limit": "Droplet limit {{count}}",
+      "table": {
+        "name": "Name",
+        "token": "Token",
+        "account": "Account",
+        "status": "Status",
+        "checked_at": "Last Checked"
+      },
+      "status": {
+        "healthy": "Healthy",
+        "error": "Error",
+        "unknown": "Unknown"
+      }
     },
     "table": {
       "name": "Name",
@@ -254,6 +289,22 @@
       "ssh_keys": "SSH Keys",
       "ssh_keys_description": "Attach existing account SSH keys to the new Droplet.",
       "ssh_keys_empty": "No SSH keys found in this account"
+    },
+    "detail": {
+      "title": "Droplet Details",
+      "description": "View the selected DigitalOcean Droplet details from the current active token.",
+      "id": "Droplet ID",
+      "memory": "Memory",
+      "vcpus": "vCPUs",
+      "disk": "Disk",
+      "vpc_uuid": "VPC UUID",
+      "tags": "Tags",
+      "features": "Features",
+      "backup_ids": "Backup IDs",
+      "snapshot_ids": "Snapshot IDs",
+      "volume_ids": "Volume IDs",
+      "ipv4": "IPv4 Networks",
+      "ipv6": "IPv6 Networks"
     },
     "providers": {
       "digitalocean": {
