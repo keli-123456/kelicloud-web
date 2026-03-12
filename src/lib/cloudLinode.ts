@@ -432,11 +432,19 @@ function normalizeInstanceDetail(
 }
 
 async function requestCloud<T>(path: string, init?: RequestInit): Promise<T> {
-  const response = await fetch(path, {
+  const method = (init?.method || "GET").toUpperCase();
+  const requestUrl =
+    method === "GET"
+      ? `${path}${path.includes("?") ? "&" : "?"}__ts=${Date.now()}`
+      : path;
+
+  const response = await fetch(requestUrl, {
     credentials: "same-origin",
     cache: "no-store",
     headers: {
       Accept: "application/json",
+      "Cache-Control": "no-cache, no-store, max-age=0",
+      Pragma: "no-cache",
       "X-Requested-With": "XMLHttpRequest",
       ...(init?.headers || {}),
     },
