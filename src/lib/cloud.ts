@@ -70,6 +70,14 @@ export type DigitalOceanManagedSSHKeyMaterial = {
   private_key: string;
 };
 
+export type DigitalOceanTokenSecret = {
+  token_id: string;
+  token_name: string;
+  token: string;
+  masked_token: string;
+  account_email: string;
+};
+
 export type DigitalOceanRegion = {
   name: string;
   slug: string;
@@ -237,6 +245,18 @@ function normalizeManagedSSHKey(
     fingerprint: String(key?.fingerprint || ""),
     public_key: String(key?.public_key || ""),
     private_key: String(key?.private_key || ""),
+  };
+}
+
+function normalizeTokenSecret(
+  token: Partial<DigitalOceanTokenSecret> | null | undefined,
+): DigitalOceanTokenSecret {
+  return {
+    token_id: String(token?.token_id || ""),
+    token_name: String(token?.token_name || ""),
+    token: String(token?.token || ""),
+    masked_token: String(token?.masked_token || ""),
+    account_email: String(token?.account_email || ""),
   };
 }
 
@@ -508,6 +528,15 @@ export async function getDigitalOceanManagedSSHKey(
     `/api/admin/cloud/digitalocean/tokens/${tokenId}/managed-ssh-key`,
   );
   return normalizeManagedSSHKey(data);
+}
+
+export async function getDigitalOceanTokenSecret(
+  tokenId: string,
+): Promise<DigitalOceanTokenSecret> {
+  const data = await requestCloud<Partial<DigitalOceanTokenSecret>>(
+    `/api/admin/cloud/digitalocean/tokens/${tokenId}/secret`,
+  );
+  return normalizeTokenSecret(data);
 }
 
 export async function getDigitalOceanCatalog(): Promise<DigitalOceanCatalog> {

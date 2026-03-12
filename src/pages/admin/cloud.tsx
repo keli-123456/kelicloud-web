@@ -4,6 +4,7 @@ import { toast } from "sonner";
 import {
   CheckCircle2,
   Copy,
+  Eye,
   KeyRound,
   Plus,
   Power,
@@ -26,6 +27,7 @@ import {
   Select,
   TextArea,
   TextField,
+  Tabs,
 } from "@/components/ui/compat";
 import {
   Table,
@@ -44,6 +46,7 @@ import {
   getDigitalOceanCatalog,
   getDigitalOceanDropletPassword,
   getDigitalOceanManagedSSHKey,
+  getDigitalOceanTokenSecret,
   getDigitalOceanTokens,
   listDigitalOceanDroplets,
   postDigitalOceanDropletAction,
@@ -56,6 +59,7 @@ import {
   type DigitalOceanDropletPassword,
   type DigitalOceanImage,
   type DigitalOceanManagedSSHKeyMaterial,
+  type DigitalOceanTokenSecret,
   type DigitalOceanTokenInput,
   type DigitalOceanTokenPool,
   type DigitalOceanTokenRecord,
@@ -77,6 +81,10 @@ type DropletAccessSecrets = {
 type SavedDropletPasswordState = {
   droplet: DigitalOceanDroplet;
   credential: DigitalOceanDropletPassword;
+};
+
+type TokenSecretState = {
+  secret: DigitalOceanTokenSecret;
 };
 
 const initialCreateForm: CreateDropletFormState = {
@@ -267,10 +275,12 @@ function DetailItem({
 export default function CloudPage() {
   const { t } = useTranslation();
 
+  const [panelSection, setPanelSection] = React.useState<"droplets" | "tokens">("droplets");
   const [initializing, setInitializing] = React.useState(true);
   const [panelLoading, setPanelLoading] = React.useState(false);
   const [tokenSaving, setTokenSaving] = React.useState(false);
   const [tokenChecking, setTokenChecking] = React.useState(false);
+  const [tokenImportOpen, setTokenImportOpen] = React.useState(false);
   const [tokenImportText, setTokenImportText] = React.useState("");
   const [tokenPool, setTokenPool] = React.useState<DigitalOceanTokenPool | null>(null);
   const [account, setAccount] = React.useState<DigitalOceanAccount | null>(null);
@@ -280,6 +290,8 @@ export default function CloudPage() {
   const [managedKeyMaterial, setManagedKeyMaterial] =
     React.useState<DigitalOceanManagedSSHKeyMaterial | null>(null);
   const [managedKeyLoading, setManagedKeyLoading] = React.useState(false);
+  const [tokenSecret, setTokenSecret] = React.useState<TokenSecretState | null>(null);
+  const [tokenSecretLoading, setTokenSecretLoading] = React.useState(false);
   const [accessSecrets, setAccessSecrets] = React.useState<DropletAccessSecrets | null>(null);
   const [savedDropletPassword, setSavedDropletPassword] =
     React.useState<SavedDropletPasswordState | null>(null);
@@ -398,6 +410,12 @@ export default function CloudPage() {
     }));
   }, [catalog]);
 
+  React.useEffect(() => {
+    if (!hasActiveToken(tokenPool)) {
+      setPanelSection("tokens");
+    }
+  }, [tokenPool]);
+
   if (initializing) {
     return <Loading text="" />;
   }
@@ -422,6 +440,7 @@ export default function CloudPage() {
       });
       setTokenPool(nextPool);
       setTokenImportText("");
+      setTokenImportOpen(false);
       toast.success(
         t("cloud.tokens.import_success", { count: tokens.length, defaultValue: `Imported ${tokens.length} tokens` }),
       );
@@ -505,6 +524,18 @@ export default function CloudPage() {
       toast.error(toErrorMessage(viewError));
     } finally {
       setManagedKeyLoading(false);
+    }
+  };
+
+  const handleViewTokenSecret = async (token: DigitalOceanTokenRecord) => {
+    setTokenSecretLoading(true);
+    try {
+      const secret = await getDigitalOceanTokenSecret(token.id);
+      setTokenSecret({ secret });
+    } catch (viewError) {
+      toast.error(toErrorMessage(viewError));
+    } finally {
+      setTokenSecretLoading(false);
     }
   };
 
@@ -683,335 +714,430 @@ export default function CloudPage() {
         </div>
       ) : null}
 
-      <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
-        <div className="border-b border-slate-200 px-5 py-4">
+      <Tabs.Root
+        value={panelSection}
+        onValueChange={(value) => setPanelSection(value as "droplets" | "tokens")}
+      >
+        <div className="rounded-2xl border border-slate-200 bg-white px-5 py-4">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <div className="text-sm font-medium text-slate-900">
-                {t("cloud.tokens.title", "Token Pool")}
+                {t("cloud.panel_title", "Panel View")}
               </div>
               <div className="mt-1 text-sm text-slate-500">
                 {t(
-                  "cloud.tokens.description",
-                  "Batch import DigitalOcean tokens into the database, choose the active token for panel operations, and bulk check whether tokens are still valid.",
+                  "cloud.panel_description",
+                  "Switch between Droplet operations and token management to keep the page compact when you store many credentials.",
                 )}
               </div>
             </div>
-            <Flex gap="2" wrap="wrap">
+            <Tabs.List>
+              <Tabs.Trigger value="droplets">
+                {t("cloud.sections.droplets", "Droplet List")} ({droplets.length})
+              </Tabs.Trigger>
+              <Tabs.Trigger value="tokens">
+                {t("cloud.sections.tokens", "Token Management")} ({tokenRows.length})
+              </Tabs.Trigger>
+            </Tabs.List>
+          </div>
+        </div>
+
+        <Tabs.Content value="droplets">
+          <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
+            <div className="border-b border-slate-200 px-5 py-4">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <div className="text-sm font-medium text-slate-900">
+                    {t("cloud.droplet_list", "Droplet List")}
+                  </div>
+                  <div className="mt-1 text-sm text-slate-500">
+                    {t(
+                      "cloud.droplet_list_description",
+                      "Click a Droplet name to view details, and use the current active token to perform lifecycle actions.",
+                    )}
+                  </div>
+                </div>
+                <Button
+                  variant="outline"
+                  size="1"
+                  onClick={() => setPanelSection("tokens")}
+                >
+                  <Server className="mr-2 h-4 w-4" />
+                  {t("cloud.tokens.open_manager", "Manage Tokens")}
+                </Button>
+              </div>
+            </div>
+
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>{t("cloud.table.name", "Name")}</TableHead>
+                  <TableHead>{t("cloud.table.status", "Status")}</TableHead>
+                  <TableHead>{t("cloud.table.region", "Region")}</TableHead>
+                  <TableHead>{t("cloud.table.ip", "Public IP")}</TableHead>
+                  <TableHead>{t("cloud.table.size", "Size")}</TableHead>
+                  <TableHead>{t("cloud.table.image", "Image")}</TableHead>
+                  <TableHead>{t("cloud.table.price", "Monthly")}</TableHead>
+                  <TableHead>{t("cloud.table.password", "Root Password")}</TableHead>
+                  <TableHead>{t("cloud.table.created_at", "Created")}</TableHead>
+                  <TableHead className="text-right">
+                    {t("common.action", "Action")}
+                  </TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {droplets.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={10} className="h-24 text-center text-slate-500">
+                      {panelLoading
+                        ? t("cloud.loading", "Loading cloud resources...")
+                        : hasActiveToken(tokenPool)
+                          ? t("cloud.empty", "No Droplets found")
+                          : t("cloud.no_active_token", "Select an active token to load DigitalOcean resources")}
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  droplets.map((droplet) => (
+                    <TableRow key={droplet.id}>
+                      <TableCell className="font-medium text-slate-900">
+                        <button
+                          type="button"
+                          className="text-left text-blue-700 hover:text-blue-800 hover:underline"
+                          onClick={() => setDetailDroplet(droplet)}
+                        >
+                          {droplet.name}
+                        </button>
+                      </TableCell>
+                      <TableCell>
+                        <Badge color={getDropletStatusColor(droplet.status)}>
+                          {droplet.status}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>{getRegionOptionLabel(droplet.region, t)}</TableCell>
+                      <TableCell>{getDropletPrimaryIp(droplet)}</TableCell>
+                      <TableCell>{droplet.size_slug || droplet.size?.slug || "-"}</TableCell>
+                      <TableCell>{getImageLabel(droplet.image)}</TableCell>
+                      <TableCell>{formatMonthlyPrice(droplet)}</TableCell>
+                      <TableCell>
+                        {droplet.saved_root_password ? (
+                          <div className="space-y-1">
+                            <Badge color={passwordStorageEnabled ? "green" : "amber"}>
+                              {passwordStorageEnabled
+                                ? t("cloud.password.saved", "Saved")
+                                : t("cloud.password.locked", "Locked")}
+                            </Badge>
+                            {droplet.saved_root_password_updated_at ? (
+                              <div className="text-xs text-slate-500">
+                                {formatDateTime(droplet.saved_root_password_updated_at)}
+                              </div>
+                            ) : null}
+                          </div>
+                        ) : (
+                          <span className="text-sm text-slate-400">
+                            {passwordStorageEnabled
+                              ? t("cloud.password.not_saved", "Not saved")
+                              : t("cloud.password.disabled_short", "Vault off")}
+                          </span>
+                        )}
+                      </TableCell>
+                      <TableCell>{formatDateTime(droplet.created_at)}</TableCell>
+                      <TableCell className="text-right">
+                        <Flex justify="end" gap="2" wrap="wrap">
+                          <Button
+                            variant="soft"
+                            size="1"
+                            disabled={!droplet.saved_root_password || !passwordStorageEnabled || dropletPasswordLoading}
+                            onClick={() => {
+                              void handleViewDropletPassword(droplet);
+                            }}
+                          >
+                            <KeyRound className="mr-1 h-3.5 w-3.5" />
+                            {t("cloud.password.view", "View Password")}
+                          </Button>
+                          {droplet.status === "active" ? (
+                            <Button
+                              variant="soft"
+                              size="1"
+                              color="amber"
+                              onClick={() => {
+                                void handleDropletAction(droplet.id, "power_off");
+                              }}
+                            >
+                              <PowerOff className="mr-1 h-3.5 w-3.5" />
+                              {t("cloud.power_off", "Power Off")}
+                            </Button>
+                          ) : (
+                            <Button
+                              variant="soft"
+                              size="1"
+                              color="green"
+                              onClick={() => {
+                                void handleDropletAction(droplet.id, "power_on");
+                              }}
+                            >
+                              <Power className="mr-1 h-3.5 w-3.5" />
+                              {t("cloud.power_on", "Power On")}
+                            </Button>
+                          )}
+                          <Button
+                            variant="soft"
+                            size="1"
+                            onClick={() => {
+                              void handleDropletAction(droplet.id, "reboot");
+                            }}
+                          >
+                            <RotateCcw className="mr-1 h-3.5 w-3.5" />
+                            {t("cloud.reboot", "Reboot")}
+                          </Button>
+                          <Button
+                            variant="soft"
+                            size="1"
+                            color="red"
+                            onClick={() => {
+                              void handleDeleteDroplet(droplet);
+                            }}
+                          >
+                            <Trash2 className="mr-1 h-3.5 w-3.5" />
+                            {t("cloud.delete", "Delete")}
+                          </Button>
+                        </Flex>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </div>
+        </Tabs.Content>
+
+        <Tabs.Content value="tokens">
+          <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
+            <div className="border-b border-slate-200 px-5 py-4">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <div className="text-sm font-medium text-slate-900">
+                    {t("cloud.tokens.title", "Token Pool")}
+                  </div>
+                  <div className="mt-1 text-sm text-slate-500">
+                    {t(
+                      "cloud.tokens.description_compact",
+                      "Save multiple DigitalOcean tokens, switch the active one, check token health in bulk, and inspect stored credentials when needed.",
+                    )}
+                  </div>
+                </div>
+                <Flex gap="2" wrap="wrap">
+                  <Button
+                    variant="outline"
+                    size="1"
+                    onClick={() => {
+                      void handleCheckTokens();
+                    }}
+                    disabled={tokenChecking || tokenRows.length === 0}
+                  >
+                    <ShieldCheck className="mr-2 h-4 w-4" />
+                    {t("cloud.tokens.check_all", "Check All Tokens")}
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="1"
+                    onClick={() => setPanelSection("droplets")}
+                  >
+                    <Server className="mr-2 h-4 w-4" />
+                    {t("cloud.sections.droplets", "Droplet List")}
+                  </Button>
+                  <Button
+                    size="1"
+                    onClick={() => setTokenImportOpen(true)}
+                  >
+                    <CheckCircle2 className="mr-2 h-4 w-4" />
+                    {t("cloud.tokens.import", "Import Tokens")}
+                  </Button>
+                </Flex>
+              </div>
+            </div>
+
+            <div className="max-h-[560px] overflow-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>{t("cloud.tokens.table.name", "Name")}</TableHead>
+                    <TableHead>{t("cloud.tokens.table.token", "Token")}</TableHead>
+                    <TableHead>{t("cloud.tokens.table.account", "Account")}</TableHead>
+                    <TableHead>{t("cloud.tokens.table.status", "Status")}</TableHead>
+                    <TableHead>{t("cloud.tokens.table.checked_at", "Last Checked")}</TableHead>
+                    <TableHead className="text-right">
+                      {t("common.action", "Action")}
+                    </TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {tokenRows.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={6} className="h-24 text-center text-slate-500">
+                        {t("cloud.tokens.empty", "No DigitalOcean tokens saved yet")}
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    tokenRows.map((token) => (
+                      <TableRow key={token.id}>
+                        <TableCell className="font-medium text-slate-900">
+                          <div className="flex items-center gap-2">
+                            <span className="max-w-44 truncate">{token.name}</span>
+                            {token.is_active ? (
+                              <Badge color="blue">
+                                {t("cloud.tokens.active", "Active")}
+                              </Badge>
+                            ) : null}
+                          </div>
+                        </TableCell>
+                        <TableCell className="max-w-44 truncate font-mono text-xs text-slate-600">
+                          {token.masked_token || "-"}
+                        </TableCell>
+                        <TableCell>
+                          <div className="text-sm text-slate-900">
+                            {token.account_email || "-"}
+                          </div>
+                          {token.droplet_limit ? (
+                            <div className="text-xs text-slate-500">
+                              {t("cloud.tokens.droplet_limit", {
+                                count: token.droplet_limit,
+                                defaultValue: `Droplet limit ${token.droplet_limit}`,
+                              })}
+                            </div>
+                          ) : null}
+                          {token.managed_ssh_key_ready ? (
+                            <div className="mt-1 truncate text-xs text-slate-500">
+                              {t("cloud.tokens.managed_key_ready", {
+                                name: token.managed_ssh_key_name || "Komari Managed Key",
+                                defaultValue: `Managed SSH key: ${token.managed_ssh_key_name || "Komari Managed Key"}`,
+                              })}
+                            </div>
+                          ) : null}
+                        </TableCell>
+                        <TableCell>
+                          <Badge color={getTokenStatusColor(token.last_status)}>
+                            {t(`cloud.tokens.status.${token.last_status}`, token.last_status || "unknown")}
+                          </Badge>
+                          {token.last_error ? (
+                            <div className="mt-1 max-w-64 text-xs text-red-600">
+                              {token.last_error}
+                            </div>
+                          ) : null}
+                        </TableCell>
+                        <TableCell>{formatDateTime(token.last_checked_at)}</TableCell>
+                        <TableCell className="text-right">
+                          <Flex justify="end" gap="2" wrap="wrap">
+                            <Button
+                              variant="soft"
+                              size="1"
+                              color={token.is_active ? "blue" : undefined}
+                              disabled={token.is_active}
+                              onClick={() => {
+                                void handleSelectToken(token);
+                              }}
+                            >
+                              <Server className="mr-1 h-3.5 w-3.5" />
+                              {token.is_active
+                                ? t("cloud.tokens.current", "Current")
+                                : t("cloud.tokens.use", "Use")}
+                            </Button>
+                            <Button
+                              variant="soft"
+                              size="1"
+                              disabled={tokenSecretLoading}
+                              onClick={() => {
+                                void handleViewTokenSecret(token);
+                              }}
+                            >
+                              <Eye className="mr-1 h-3.5 w-3.5" />
+                              {t("cloud.tokens.view_token", "View Token")}
+                            </Button>
+                            <Button
+                              variant="soft"
+                              size="1"
+                              disabled={!token.managed_ssh_key_ready || managedKeyLoading}
+                              onClick={() => {
+                                void handleViewManagedKey(token);
+                              }}
+                            >
+                              <KeyRound className="mr-1 h-3.5 w-3.5" />
+                              {t("cloud.tokens.view_managed_key", "View Managed Key")}
+                            </Button>
+                            <Button
+                              variant="soft"
+                              size="1"
+                              color="red"
+                              onClick={() => {
+                                void handleDeleteToken(token);
+                              }}
+                            >
+                              <Trash2 className="mr-1 h-3.5 w-3.5" />
+                              {t("cloud.tokens.delete", "Delete")}
+                            </Button>
+                          </Flex>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+          </div>
+        </Tabs.Content>
+      </Tabs.Root>
+
+      <Dialog.Root open={tokenImportOpen} onOpenChange={setTokenImportOpen}>
+        <Dialog.Content className="max-h-[85vh] overflow-y-auto">
+          <Dialog.Title>{t("cloud.tokens.import_dialog_title", "Batch Import Tokens")}</Dialog.Title>
+          <Dialog.Description>
+            {t(
+              "cloud.tokens.import_dialog_description",
+              "One line per token. Supported formats: name,token ; name|token ; or token only.",
+            )}
+          </Dialog.Description>
+
+          <div className="mt-4 flex flex-col gap-4">
+            <label className="text-sm font-medium text-slate-800">
+              {t("cloud.tokens.import_label", "Batch Import")}
+            </label>
+            <TextArea
+              className="min-h-40"
+              value={tokenImportText}
+              placeholder={t(
+                "cloud.tokens.import_placeholder",
+                "prod-account,dop_v1_xxx\nbackup-account|dop_v1_yyy\ndop_v1_zzz",
+              )}
+              onChange={(event) => setTokenImportText(event.target.value)}
+            />
+            <div className="text-sm text-slate-500">
+              {t(
+                "cloud.tokens.import_hint",
+                "One line per token. Supported formats: name,token ; name|token ; or token only.",
+              )}
+            </div>
+            <Flex justify="end" gap="2">
               <Button
                 variant="outline"
-                size="1"
-                onClick={() => {
-                  void handleCheckTokens();
-                }}
-                disabled={tokenChecking || tokenRows.length === 0}
+                onClick={() => setTokenImportOpen(false)}
+                disabled={tokenSaving}
               >
-                <ShieldCheck className="mr-2 h-4 w-4" />
-                {t("cloud.tokens.check_all", "Check All Tokens")}
+                {t("common.cancel", "Cancel")}
               </Button>
               <Button
-                size="1"
                 onClick={() => {
                   void handleImportTokens();
                 }}
                 disabled={tokenSaving}
               >
                 <CheckCircle2 className="mr-2 h-4 w-4" />
-                {t("cloud.tokens.import", "Import Tokens")}
+                {tokenSaving
+                  ? t("cloud.tokens.importing", "Importing...")
+                  : t("cloud.tokens.import", "Import Tokens")}
               </Button>
             </Flex>
           </div>
-        </div>
-
-        <div className="border-b border-slate-200 px-5 py-4">
-          <label className="text-sm font-medium text-slate-800">
-            {t("cloud.tokens.import_label", "Batch Import")}
-          </label>
-          <div className="mt-1 text-sm text-slate-500">
-            {t(
-              "cloud.tokens.import_hint",
-              "One line per token. Supported formats: name,token ; name|token ; or token only.",
-            )}
-          </div>
-          <TextArea
-            className="mt-3 min-h-32"
-            value={tokenImportText}
-            placeholder={t(
-              "cloud.tokens.import_placeholder",
-              "prod-account,dop_v1_xxx\nbackup-account|dop_v1_yyy\ndop_v1_zzz",
-            )}
-            onChange={(event) => setTokenImportText(event.target.value)}
-          />
-        </div>
-
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>{t("cloud.tokens.table.name", "Name")}</TableHead>
-              <TableHead>{t("cloud.tokens.table.token", "Token")}</TableHead>
-              <TableHead>{t("cloud.tokens.table.account", "Account")}</TableHead>
-              <TableHead>{t("cloud.tokens.table.status", "Status")}</TableHead>
-              <TableHead>{t("cloud.tokens.table.checked_at", "Last Checked")}</TableHead>
-              <TableHead className="text-right">
-                {t("common.action", "Action")}
-              </TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {tokenRows.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={6} className="h-24 text-center text-slate-500">
-                  {t("cloud.tokens.empty", "No DigitalOcean tokens saved yet")}
-                </TableCell>
-              </TableRow>
-            ) : (
-              tokenRows.map((token) => (
-                <TableRow key={token.id}>
-                  <TableCell className="font-medium text-slate-900">
-                    <div className="flex items-center gap-2">
-                      <span>{token.name}</span>
-                      {token.is_active ? (
-                        <Badge color="blue">
-                          {t("cloud.tokens.active", "Active")}
-                        </Badge>
-                      ) : null}
-                    </div>
-                  </TableCell>
-                  <TableCell className="font-mono text-xs text-slate-600">
-                    {token.masked_token || "-"}
-                  </TableCell>
-                  <TableCell>
-                    <div className="text-sm text-slate-900">
-                      {token.account_email || "-"}
-                    </div>
-                    {token.droplet_limit ? (
-                      <div className="text-xs text-slate-500">
-                        {t("cloud.tokens.droplet_limit", {
-                          count: token.droplet_limit,
-                          defaultValue: `Droplet limit ${token.droplet_limit}`,
-                        })}
-                      </div>
-                    ) : null}
-                    {token.managed_ssh_key_ready ? (
-                      <div className="mt-1 text-xs text-slate-500">
-                        {t("cloud.tokens.managed_key_ready", {
-                          name: token.managed_ssh_key_name || "Komari Managed Key",
-                          defaultValue: `Managed SSH key: ${token.managed_ssh_key_name || "Komari Managed Key"}`,
-                        })}
-                      </div>
-                    ) : null}
-                  </TableCell>
-                  <TableCell>
-                    <Badge color={getTokenStatusColor(token.last_status)}>
-                      {t(`cloud.tokens.status.${token.last_status}`, token.last_status || "unknown")}
-                    </Badge>
-                    {token.last_error ? (
-                      <div className="mt-1 max-w-64 text-xs text-red-600">
-                        {token.last_error}
-                      </div>
-                    ) : null}
-                  </TableCell>
-                  <TableCell>{formatDateTime(token.last_checked_at)}</TableCell>
-                  <TableCell className="text-right">
-                    <Flex justify="end" gap="2" wrap="wrap">
-                      <Button
-                        variant="soft"
-                        size="1"
-                        color={token.is_active ? "blue" : undefined}
-                        disabled={token.is_active}
-                        onClick={() => {
-                          void handleSelectToken(token);
-                        }}
-                      >
-                        <Server className="mr-1 h-3.5 w-3.5" />
-                        {token.is_active
-                          ? t("cloud.tokens.current", "Current")
-                          : t("cloud.tokens.use", "Use")}
-                      </Button>
-                      <Button
-                        variant="soft"
-                        size="1"
-                        disabled={!token.managed_ssh_key_ready || managedKeyLoading}
-                        onClick={() => {
-                          void handleViewManagedKey(token);
-                        }}
-                      >
-                        <KeyRound className="mr-1 h-3.5 w-3.5" />
-                        {t("cloud.tokens.view_key", "View Key")}
-                      </Button>
-                      <Button
-                        variant="soft"
-                        size="1"
-                        color="red"
-                        onClick={() => {
-                          void handleDeleteToken(token);
-                        }}
-                      >
-                        <Trash2 className="mr-1 h-3.5 w-3.5" />
-                        {t("cloud.tokens.delete", "Delete")}
-                      </Button>
-                    </Flex>
-                  </TableCell>
-                </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
-      </div>
-
-      <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
-        <div className="border-b border-slate-200 px-5 py-4">
-          <div className="text-sm font-medium text-slate-900">
-            {t("cloud.droplet_list", "Droplet List")}
-          </div>
-          <div className="mt-1 text-sm text-slate-500">
-            {t(
-              "cloud.droplet_list_description",
-              "Click a Droplet name to view details, and use the current active token to perform lifecycle actions.",
-            )}
-          </div>
-        </div>
-
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>{t("cloud.table.name", "Name")}</TableHead>
-              <TableHead>{t("cloud.table.status", "Status")}</TableHead>
-              <TableHead>{t("cloud.table.region", "Region")}</TableHead>
-              <TableHead>{t("cloud.table.ip", "Public IP")}</TableHead>
-              <TableHead>{t("cloud.table.size", "Size")}</TableHead>
-              <TableHead>{t("cloud.table.image", "Image")}</TableHead>
-              <TableHead>{t("cloud.table.price", "Monthly")}</TableHead>
-              <TableHead>{t("cloud.table.password", "Root Password")}</TableHead>
-              <TableHead>{t("cloud.table.created_at", "Created")}</TableHead>
-              <TableHead className="text-right">
-                {t("common.action", "Action")}
-              </TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {droplets.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={10} className="h-24 text-center text-slate-500">
-                  {panelLoading
-                    ? t("cloud.loading", "Loading cloud resources...")
-                    : hasActiveToken(tokenPool)
-                      ? t("cloud.empty", "No Droplets found")
-                      : t("cloud.no_active_token", "Select an active token to load DigitalOcean resources")}
-                </TableCell>
-              </TableRow>
-            ) : (
-              droplets.map((droplet) => (
-                <TableRow key={droplet.id}>
-                  <TableCell className="font-medium text-slate-900">
-                    <button
-                      type="button"
-                      className="text-left text-blue-700 hover:text-blue-800 hover:underline"
-                      onClick={() => setDetailDroplet(droplet)}
-                    >
-                      {droplet.name}
-                    </button>
-                  </TableCell>
-                  <TableCell>
-                    <Badge color={getDropletStatusColor(droplet.status)}>
-                      {droplet.status}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>{getRegionOptionLabel(droplet.region, t)}</TableCell>
-                  <TableCell>{getDropletPrimaryIp(droplet)}</TableCell>
-                  <TableCell>{droplet.size_slug || droplet.size?.slug || "-"}</TableCell>
-                  <TableCell>{getImageLabel(droplet.image)}</TableCell>
-                  <TableCell>{formatMonthlyPrice(droplet)}</TableCell>
-                  <TableCell>
-                    {droplet.saved_root_password ? (
-                      <div className="space-y-1">
-                        <Badge color={passwordStorageEnabled ? "green" : "amber"}>
-                          {passwordStorageEnabled
-                            ? t("cloud.password.saved", "Saved")
-                            : t("cloud.password.locked", "Locked")}
-                        </Badge>
-                        {droplet.saved_root_password_updated_at ? (
-                          <div className="text-xs text-slate-500">
-                            {formatDateTime(droplet.saved_root_password_updated_at)}
-                          </div>
-                        ) : null}
-                      </div>
-                    ) : (
-                      <span className="text-sm text-slate-400">
-                        {passwordStorageEnabled
-                          ? t("cloud.password.not_saved", "Not saved")
-                          : t("cloud.password.disabled_short", "Vault off")}
-                      </span>
-                    )}
-                  </TableCell>
-                  <TableCell>{formatDateTime(droplet.created_at)}</TableCell>
-                  <TableCell className="text-right">
-                    <Flex justify="end" gap="2" wrap="wrap">
-                      <Button
-                        variant="soft"
-                        size="1"
-                        disabled={!droplet.saved_root_password || !passwordStorageEnabled || dropletPasswordLoading}
-                        onClick={() => {
-                          void handleViewDropletPassword(droplet);
-                        }}
-                      >
-                        <KeyRound className="mr-1 h-3.5 w-3.5" />
-                        {t("cloud.password.view", "View Password")}
-                      </Button>
-                      {droplet.status === "active" ? (
-                        <Button
-                          variant="soft"
-                          size="1"
-                          color="amber"
-                          onClick={() => {
-                            void handleDropletAction(droplet.id, "power_off");
-                          }}
-                        >
-                          <PowerOff className="mr-1 h-3.5 w-3.5" />
-                          {t("cloud.power_off", "Power Off")}
-                        </Button>
-                      ) : (
-                        <Button
-                          variant="soft"
-                          size="1"
-                          color="green"
-                          onClick={() => {
-                            void handleDropletAction(droplet.id, "power_on");
-                          }}
-                        >
-                          <Power className="mr-1 h-3.5 w-3.5" />
-                          {t("cloud.power_on", "Power On")}
-                        </Button>
-                      )}
-                      <Button
-                        variant="soft"
-                        size="1"
-                        onClick={() => {
-                          void handleDropletAction(droplet.id, "reboot");
-                        }}
-                      >
-                        <RotateCcw className="mr-1 h-3.5 w-3.5" />
-                        {t("cloud.reboot", "Reboot")}
-                      </Button>
-                      <Button
-                        variant="soft"
-                        size="1"
-                        color="red"
-                        onClick={() => {
-                          void handleDeleteDroplet(droplet);
-                        }}
-                      >
-                        <Trash2 className="mr-1 h-3.5 w-3.5" />
-                        {t("cloud.delete", "Delete")}
-                      </Button>
-                    </Flex>
-                  </TableCell>
-                </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
-      </div>
+        </Dialog.Content>
+      </Dialog.Root>
 
       <Dialog.Root open={createOpen} onOpenChange={setCreateOpen}>
         <Dialog.Content className="max-h-[85vh] overflow-y-auto">
@@ -1436,6 +1562,57 @@ export default function CloudPage() {
                   ? detailDroplet.networks.v6.map((network) => `${network.type}: ${network.ip_address}`).join(" | ")
                   : "-"}
               />
+            </div>
+          ) : null}
+        </Dialog.Content>
+      </Dialog.Root>
+
+      <Dialog.Root
+        open={Boolean(tokenSecret)}
+        onOpenChange={(open) => {
+          if (!open) {
+            setTokenSecret(null);
+          }
+        }}
+      >
+        <Dialog.Content className="max-h-[85vh] overflow-y-auto">
+          <Dialog.Title>{t("cloud.tokens.token_dialog_title", "Token Details")}</Dialog.Title>
+          <Dialog.Description>
+            {t(
+              "cloud.tokens.token_dialog_description",
+              "View the full DigitalOcean token only when you need to copy or verify it.",
+            )}
+          </Dialog.Description>
+
+          {tokenSecret ? (
+            <div className="mt-4 flex flex-col gap-4">
+              <DetailItem label={t("cloud.tokens.table.name", "Name")} value={tokenSecret.secret.token_name} />
+              <DetailItem
+                label={t("cloud.tokens.table.account", "Account")}
+                value={tokenSecret.secret.account_email || "-"}
+              />
+              <DetailItem
+                label={t("cloud.tokens.masked_token", "Masked Token")}
+                value={tokenSecret.secret.masked_token || "-"}
+              />
+              <div className="rounded-xl border border-slate-200 bg-white px-4 py-3">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="text-sm font-medium text-slate-800">
+                    {t("cloud.tokens.full_token", "Full Token")}
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="1"
+                    onClick={() => {
+                      void copyText(tokenSecret.secret.token);
+                    }}
+                  >
+                    <Copy className="mr-1 h-3.5 w-3.5" />
+                    {t("copy", "Copy")}
+                  </Button>
+                </div>
+                <TextArea className="mt-3 min-h-24 font-mono text-xs" readOnly value={tokenSecret.secret.token} />
+              </div>
             </div>
           ) : null}
         </Dialog.Content>
