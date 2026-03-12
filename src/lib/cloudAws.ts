@@ -689,7 +689,29 @@ function normalizeLightsailInstanceDetail(
 async function requestCloud<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(path, init);
   const text = await response.text();
-  const payload = text ? (JSON.parse(text) as ApiEnvelope<T>) : null;
+  const contentType = response.headers.get("content-type") || "";
+  const trimmed = text.trim();
+  let payload: ApiEnvelope<T> | null = null;
+
+  if (trimmed) {
+    const looksLikeJson =
+      contentType.includes("application/json")
+      || trimmed.startsWith("{")
+      || trimmed.startsWith("[");
+
+    if (!looksLikeJson) {
+      throw new CloudApiError(
+        `Expected JSON from ${path}, but received HTML or another unexpected response. Check whether the backend route exists and whether /api is proxied to Komari.`,
+        response.status,
+      );
+    }
+
+    try {
+      payload = JSON.parse(trimmed) as ApiEnvelope<T>;
+    } catch {
+      throw new CloudApiError(`Invalid JSON response from ${path}`, response.status);
+    }
+  }
 
   if (!response.ok || payload?.status === "error") {
     throw new CloudApiError(payload?.message || `HTTP ${response.status}`, response.status);

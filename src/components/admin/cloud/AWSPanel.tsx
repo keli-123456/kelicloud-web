@@ -309,6 +309,7 @@ export default function AWSPanel() {
   const [credentialSecret, setCredentialSecret] = React.useState<CredentialSecretState | null>(null);
   const [credentialSecretLoading, setCredentialSecretLoading] = React.useState(false);
   const [error, setError] = React.useState("");
+  const [lightsailError, setLightsailError] = React.useState("");
   const [createOpen, setCreateOpen] = React.useState(false);
   const [createSubmitting, setCreateSubmitting] = React.useState(false);
   const [createForm, setCreateForm] = React.useState<CreateFormState>(initialCreateForm);
@@ -328,6 +329,7 @@ export default function AWSPanel() {
     setDetailData(null);
     setLightsailDetailData(null);
     setError("");
+    setLightsailError("");
   }, []);
 
   const copyText = React.useCallback(
@@ -348,22 +350,35 @@ export default function AWSPanel() {
     return nextPool;
   }, []);
 
+  const loadLightsailData = React.useCallback(async () => {
+    try {
+      const [nextLightsailCatalog, nextLightsailInstances] = await Promise.all([
+        getAWSLightsailCatalog(),
+        listAWSLightsailInstances(),
+      ]);
+      setLightsailCatalog(nextLightsailCatalog);
+      setLightsailInstances(nextLightsailInstances);
+      setLightsailError("");
+    } catch (lightsailLoadError) {
+      setLightsailCatalog(null);
+      setLightsailInstances([]);
+      setLightsailError(toErrorMessage(lightsailLoadError));
+    }
+  }, []);
+
   const loadPanelData = React.useCallback(async () => {
     setPanelLoading(true);
     try {
-      const [nextAccount, nextCatalog, nextInstances, nextLightsailCatalog, nextLightsailInstances] = await Promise.all([
+      const [nextAccount, nextCatalog, nextInstances] = await Promise.all([
         getAWSAccount(),
         getAWSCatalog(),
         listAWSInstances(),
-        getAWSLightsailCatalog(),
-        listAWSLightsailInstances(),
       ]);
       setAccount(nextAccount);
       setCatalog(nextCatalog);
       setInstances(nextInstances);
-      setLightsailCatalog(nextLightsailCatalog);
-      setLightsailInstances(nextLightsailInstances);
       setError("");
+      await loadLightsailData();
     } catch (panelError) {
       setAccount(null);
       setCatalog(null);
@@ -371,10 +386,11 @@ export default function AWSPanel() {
       setInstances([]);
       setLightsailInstances([]);
       setError(toErrorMessage(panelError));
+      setLightsailError("");
     } finally {
       setPanelLoading(false);
     }
-  }, []);
+  }, [loadLightsailData]);
 
   const refreshAll = React.useCallback(async () => {
     const nextPool = await loadCredentialPool();
@@ -793,7 +809,7 @@ export default function AWSPanel() {
   return (
     <AdminPageShell
       eyebrow="AWS EC2"
-      title={t("cloud.providers.aws.title", "AWS EC2")}
+      title={t("cloud.providers.aws.title", "AWS EC2 / Lightsail")}
       description={t(
         "cloud.providers.aws.description",
         "Manage multiple AWS credentials, switch the active region, and operate both EC2 and Lightsail instances from one panel.",
@@ -832,7 +848,7 @@ export default function AWSPanel() {
       stats={[
         {
           label: t("cloud.stats.provider", "Provider"),
-          value: "AWS EC2",
+          value: "AWS EC2 / Lightsail",
         },
         {
           label: t("cloud.providers.aws.credentials", "Credentials"),
@@ -1054,6 +1070,11 @@ export default function AWSPanel() {
               </Tabs.Content>
 
               <Tabs.Content value="lightsail">
+                {lightsailError ? (
+                  <div className="border-b border-amber-200 bg-amber-50 px-5 py-3 text-sm text-amber-800">
+                    {lightsailError}
+                  </div>
+                ) : null}
                 <Table>
                   <TableHeader>
                     <TableRow>

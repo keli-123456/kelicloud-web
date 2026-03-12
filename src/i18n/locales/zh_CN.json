@@ -417,8 +417,8 @@
         "create_snapshot": "创建快照"
       },
       "aws": {
-        "title": "AWS EC2",
-        "description": "管理多个 AWS 凭证、切换当前区域，并在同一面板里查询、创建和操作 EC2 实例。",
+        "title": "AWS EC2 / Lightsail",
+        "description": "管理多个 AWS 凭证、切换当前区域，并在同一面板里查询、创建和操作 EC2 与 Lightsail 实例。",
         "panel_description": "把 AWS 凭证管理和 EC2 实例操作拆开显示，让账号切换和区域切换更清晰。",
         "credentials": "凭证管理",
         "credentials_description": "保存多个 AWS 账号凭证，选择当前操作账号，并批量检测是否仍可访问 EC2 和 STS。",
