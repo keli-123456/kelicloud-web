@@ -11,12 +11,14 @@ import {
   PowerOff,
   RefreshCw,
   RotateCcw,
+  Share2,
   Server,
   ShieldCheck,
   Trash2,
 } from "lucide-react";
 
 import { AdminPageShell } from "@/components/admin/AdminPageShell";
+import CloudInstanceShareDialog, { type CloudInstanceShareTarget } from "@/components/admin/cloud/CloudInstanceShareDialog";
 import Loading from "@/components/loading";
 import {
   Badge,
@@ -64,6 +66,13 @@ import {
   type DigitalOceanTokenPool,
   type DigitalOceanTokenRecord,
 } from "@/lib/cloud";
+import {
+  buildCloudInstanceShareUrl,
+  deleteCloudInstanceShare,
+  getCloudInstanceShare,
+  saveCloudInstanceShare,
+  type CloudInstanceShareRecord,
+} from "@/lib/cloudShare";
 
 type CreateDropletFormState = Omit<CreateDigitalOceanDropletInput, "tags"> & {
   tagsText: string;
@@ -315,6 +324,16 @@ export default function DigitalOceanPanel() {
   const [accessSecrets, setAccessSecrets] = React.useState<DropletAccessSecrets | null>(null);
   const [savedDropletPassword, setSavedDropletPassword] =
     React.useState<SavedDropletPasswordState | null>(null);
+  const [shareOpen, setShareOpen] = React.useState(false);
+  const [shareTarget, setShareTarget] = React.useState<CloudInstanceShareTarget | null>(null);
+  const [shareRecord, setShareRecord] = React.useState<CloudInstanceShareRecord | null>(null);
+  const [shareLoading, setShareLoading] = React.useState(false);
+  const [shareSaving, setShareSaving] = React.useState(false);
+  const [shareDeleting, setShareDeleting] = React.useState(false);
+  const [shareTitle, setShareTitle] = React.useState("");
+  const [shareNote, setShareNote] = React.useState("");
+  const [sharePassword, setSharePassword] = React.useState(false);
+  const [shareManagedSSHKey, setShareManagedSSHKey] = React.useState(false);
   const [dropletPasswordLoading, setDropletPasswordLoading] = React.useState(false);
   const [error, setError] = React.useState("");
   const [createOpen, setCreateOpen] = React.useState(false);
@@ -591,6 +610,102 @@ export default function DigitalOceanPanel() {
       toast.error(toErrorMessage(viewError));
     } finally {
       setDropletPasswordLoading(false);
+    }
+  };
+
+  const handleOpenShareDialog = async (droplet: DigitalOceanDroplet) => {
+    const nextTarget: CloudInstanceShareTarget = {
+      provider: "digitalocean",
+      resourceType: "droplet",
+      resourceId: String(droplet.id),
+      resourceName: droplet.name || String(droplet.id),
+      providerLabel: "DigitalOcean",
+      credentialName: activeToken?.name || activeToken?.account_email || "",
+      region: getRegionOptionLabel(droplet.region, t),
+      primaryAddress: getDropletPrimaryIp(droplet),
+      canSharePassword: Boolean(droplet.saved_root_password),
+      canShareManagedSSHKey: Boolean(activeToken?.managed_ssh_key_ready),
+    };
+
+    setShareTarget(nextTarget);
+    setShareRecord(null);
+    setShareTitle(droplet.name || "");
+    setShareNote("");
+    setSharePassword(false);
+    setShareManagedSSHKey(false);
+    setShareOpen(true);
+    setShareLoading(true);
+
+    try {
+      const nextShare = await getCloudInstanceShare("digitalocean", "droplet", String(droplet.id));
+      setShareRecord(nextShare.token ? nextShare : null);
+      setShareTitle(nextShare.title || droplet.name || "");
+      setShareNote(nextShare.note || "");
+      setSharePassword(Boolean(nextShare.share_password && nextTarget.canSharePassword));
+      setShareManagedSSHKey(Boolean(nextShare.share_managed_ssh_key && nextTarget.canShareManagedSSHKey));
+    } catch (shareError) {
+      toast.error(toErrorMessage(shareError));
+    } finally {
+      setShareLoading(false);
+    }
+  };
+
+  const handleSaveShare = async () => {
+    if (!shareTarget) return;
+
+    setShareSaving(true);
+    try {
+      const nextShare = await saveCloudInstanceShare(
+        shareTarget.provider,
+        shareTarget.resourceType,
+        shareTarget.resourceId,
+        {
+          title: shareTitle,
+          note: shareNote,
+          share_password: sharePassword,
+          share_managed_ssh_key: shareManagedSSHKey,
+        },
+      );
+      setShareRecord(nextShare);
+      setShareTitle(nextShare.title || shareTarget.resourceName);
+      setShareNote(nextShare.note || "");
+      setSharePassword(Boolean(nextShare.share_password));
+      setShareManagedSSHKey(Boolean(nextShare.share_managed_ssh_key));
+      toast.success(t("cloud.share.save_success", "Share link saved"));
+    } catch (shareError) {
+      toast.error(toErrorMessage(shareError));
+    } finally {
+      setShareSaving(false);
+    }
+  };
+
+  const handleDeleteShare = async () => {
+    if (!shareTarget) return;
+
+    const confirmed = window.confirm(
+      t("cloud.share.delete_confirm", {
+        name: shareTarget.resourceName,
+        defaultValue: `Revoke the share link for "${shareTarget.resourceName}"?`,
+      }),
+    );
+    if (!confirmed) return;
+
+    setShareDeleting(true);
+    try {
+      await deleteCloudInstanceShare(
+        shareTarget.provider,
+        shareTarget.resourceType,
+        shareTarget.resourceId,
+      );
+      setShareRecord(null);
+      setShareNote("");
+      setSharePassword(false);
+      setShareManagedSSHKey(false);
+      toast.success(t("cloud.share.delete_success", "Share link revoked"));
+    } catch (shareError) {
+      toast.error(toErrorMessage(shareError));
+    } finally {
+      setShareDeleting(false);
     }
   };
 
@@ -940,6 +1055,16 @@ export default function DigitalOceanPanel() {
                           >
                             <RotateCcw className="mr-1 h-3.5 w-3.5" />
                             {t("cloud.reboot", "Reboot")}
+                          </Button>
+                          <Button
+                            variant="soft"
+                            size="1"
+                            onClick={() => {
+                              void handleOpenShareDialog(droplet);
+                            }}
+                          >
+                            <Share2 className="mr-1 h-3.5 w-3.5" />
+                            {t("cloud.share.action", "Share")}
                           </Button>
                           <Button
                             variant="soft"
@@ -1679,6 +1804,44 @@ export default function DigitalOceanPanel() {
           ) : null}
         </Dialog.Content>
       </Dialog.Root>
+
+      <CloudInstanceShareDialog
+        open={shareOpen}
+        onOpenChange={(open) => {
+          setShareOpen(open);
+          if (!open) {
+            setShareTarget(null);
+            setShareRecord(null);
+            setShareLoading(false);
+            setShareSaving(false);
+            setShareDeleting(false);
+          }
+        }}
+        target={shareTarget}
+        share={shareRecord}
+        loading={shareLoading}
+        saving={shareSaving}
+        deleting={shareDeleting}
+        title={shareTitle}
+        note={shareNote}
+        sharePassword={sharePassword}
+        shareManagedSSHKey={shareManagedSSHKey}
+        shareUrl={shareRecord?.token ? buildCloudInstanceShareUrl(shareRecord.token) : ""}
+        onTitleChange={setShareTitle}
+        onNoteChange={setShareNote}
+        onSharePasswordChange={setSharePassword}
+        onShareManagedSSHKeyChange={setShareManagedSSHKey}
+        onCopyLink={() => {
+          if (!shareRecord?.token) return;
+          void copyText(buildCloudInstanceShareUrl(shareRecord.token));
+        }}
+        onSave={() => {
+          void handleSaveShare();
+        }}
+        onDelete={() => {
+          void handleDeleteShare();
+        }}
+      />
 
       <Dialog.Root
         open={Boolean(managedKeyMaterial)}

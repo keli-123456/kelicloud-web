@@ -10,12 +10,14 @@ import {
   PowerOff,
   RefreshCw,
   RotateCcw,
+  Share2,
   Server,
   ShieldCheck,
   Trash2,
 } from "lucide-react";
 
 import { AdminPageShell } from "@/components/admin/AdminPageShell";
+import CloudInstanceShareDialog, { type CloudInstanceShareTarget } from "@/components/admin/cloud/CloudInstanceShareDialog";
 import Loading from "@/components/loading";
 import {
   Badge,
@@ -75,6 +77,13 @@ import {
   type CreateAWSInstanceInput,
   type CreateAWSLightsailInstanceInput,
 } from "@/lib/cloudAws";
+import {
+  buildCloudInstanceShareUrl,
+  deleteCloudInstanceShare,
+  getCloudInstanceShare,
+  saveCloudInstanceShare,
+  type CloudInstanceShareRecord,
+} from "@/lib/cloudShare";
 
 type CreateFormState = Omit<CreateAWSInstanceInput, "tags"> & {
   tagsText: string;
@@ -308,6 +317,14 @@ export default function AWSPanel() {
   });
   const [credentialSecret, setCredentialSecret] = React.useState<CredentialSecretState | null>(null);
   const [credentialSecretLoading, setCredentialSecretLoading] = React.useState(false);
+  const [shareOpen, setShareOpen] = React.useState(false);
+  const [shareTarget, setShareTarget] = React.useState<CloudInstanceShareTarget | null>(null);
+  const [shareRecord, setShareRecord] = React.useState<CloudInstanceShareRecord | null>(null);
+  const [shareLoading, setShareLoading] = React.useState(false);
+  const [shareSaving, setShareSaving] = React.useState(false);
+  const [shareDeleting, setShareDeleting] = React.useState(false);
+  const [shareTitle, setShareTitle] = React.useState("");
+  const [shareNote, setShareNote] = React.useState("");
   const [error, setError] = React.useState("");
   const [lightsailError, setLightsailError] = React.useState("");
   const [createOpen, setCreateOpen] = React.useState(false);
@@ -802,6 +819,85 @@ export default function AWSPanel() {
     }
   };
 
+  const handleOpenShareDialog = async (target: CloudInstanceShareTarget) => {
+    setShareTarget(target);
+    setShareRecord(null);
+    setShareTitle(target.resourceName);
+    setShareNote("");
+    setShareOpen(true);
+    setShareLoading(true);
+
+    try {
+      const nextShare = await getCloudInstanceShare(
+        target.provider,
+        target.resourceType,
+        target.resourceId,
+      );
+      setShareRecord(nextShare.token ? nextShare : null);
+      setShareTitle(nextShare.title || target.resourceName);
+      setShareNote(nextShare.note || "");
+    } catch (shareError) {
+      toast.error(toErrorMessage(shareError));
+    } finally {
+      setShareLoading(false);
+    }
+  };
+
+  const handleSaveShare = async () => {
+    if (!shareTarget) return;
+
+    setShareSaving(true);
+    try {
+      const nextShare = await saveCloudInstanceShare(
+        shareTarget.provider,
+        shareTarget.resourceType,
+        shareTarget.resourceId,
+        {
+          title: shareTitle,
+          note: shareNote,
+          share_password: false,
+          share_managed_ssh_key: false,
+        },
+      );
+      setShareRecord(nextShare);
+      setShareTitle(nextShare.title || shareTarget.resourceName);
+      setShareNote(nextShare.note || "");
+      toast.success(t("cloud.share.save_success", "Share link saved"));
+    } catch (shareError) {
+      toast.error(toErrorMessage(shareError));
+    } finally {
+      setShareSaving(false);
+    }
+  };
+
+  const handleDeleteShare = async () => {
+    if (!shareTarget) return;
+
+    const confirmed = window.confirm(
+      t("cloud.share.delete_confirm", {
+        name: shareTarget.resourceName,
+        defaultValue: `Revoke the share link for "${shareTarget.resourceName}"?`,
+      }),
+    );
+    if (!confirmed) return;
+
+    setShareDeleting(true);
+    try {
+      await deleteCloudInstanceShare(
+        shareTarget.provider,
+        shareTarget.resourceType,
+        shareTarget.resourceId,
+      );
+      setShareRecord(null);
+      setShareNote("");
+      toast.success(t("cloud.share.delete_success", "Share link revoked"));
+    } catch (shareError) {
+      toast.error(toErrorMessage(shareError));
+    } finally {
+      setShareDeleting(false);
+    }
+  };
+
   if (initializing) {
     return <Loading text="" />;
   }
@@ -1051,6 +1147,27 @@ export default function AWSPanel() {
                               <Button
                                 variant="soft"
                                 size="1"
+                                onClick={() => {
+                                  void handleOpenShareDialog({
+                                    provider: "aws",
+                                    resourceType: "ec2",
+                                    resourceId: instance.instance_id,
+                                    resourceName: instance.name || instance.instance_id,
+                                    providerLabel: "AWS EC2",
+                                    credentialName: getActiveCredential(credentialPool)?.name || "",
+                                    region: activeRegion,
+                                    primaryAddress: instance.public_ip || instance.private_ip || "",
+                                    canSharePassword: false,
+                                    canShareManagedSSHKey: false,
+                                  });
+                                }}
+                              >
+                                <Share2 className="mr-1 h-3.5 w-3.5" />
+                                {t("cloud.share.action", "Share")}
+                              </Button>
+                              <Button
+                                variant="soft"
+                                size="1"
                                 color="red"
                                 disabled={instance.state === "terminated"}
                                 onClick={() => {
@@ -1159,6 +1276,27 @@ export default function AWSPanel() {
                               >
                                 <RotateCcw className="mr-1 h-3.5 w-3.5" />
                                 {t("cloud.reboot", "Reboot")}
+                              </Button>
+                              <Button
+                                variant="soft"
+                                size="1"
+                                onClick={() => {
+                                  void handleOpenShareDialog({
+                                    provider: "aws",
+                                    resourceType: "lightsail",
+                                    resourceId: instance.name,
+                                    resourceName: instance.name,
+                                    providerLabel: "AWS Lightsail",
+                                    credentialName: getActiveCredential(credentialPool)?.name || "",
+                                    region: activeRegion,
+                                    primaryAddress: instance.public_ip || instance.private_ip || "",
+                                    canSharePassword: false,
+                                    canShareManagedSSHKey: false,
+                                  });
+                                }}
+                              >
+                                <Share2 className="mr-1 h-3.5 w-3.5" />
+                                {t("cloud.share.action", "Share")}
                               </Button>
                               <Button
                                 variant="soft"
@@ -2277,6 +2415,44 @@ export default function AWSPanel() {
           ) : null}
         </Dialog.Content>
       </Dialog.Root>
+
+      <CloudInstanceShareDialog
+        open={shareOpen}
+        onOpenChange={(open) => {
+          setShareOpen(open);
+          if (!open) {
+            setShareTarget(null);
+            setShareRecord(null);
+            setShareLoading(false);
+            setShareSaving(false);
+            setShareDeleting(false);
+          }
+        }}
+        target={shareTarget}
+        share={shareRecord}
+        loading={shareLoading}
+        saving={shareSaving}
+        deleting={shareDeleting}
+        title={shareTitle}
+        note={shareNote}
+        sharePassword={false}
+        shareManagedSSHKey={false}
+        shareUrl={shareRecord?.token ? buildCloudInstanceShareUrl(shareRecord.token) : ""}
+        onTitleChange={setShareTitle}
+        onNoteChange={setShareNote}
+        onSharePasswordChange={() => {}}
+        onShareManagedSSHKeyChange={() => {}}
+        onCopyLink={() => {
+          if (!shareRecord?.token) return;
+          void copyText(buildCloudInstanceShareUrl(shareRecord.token));
+        }}
+        onSave={() => {
+          void handleSaveShare();
+        }}
+        onDelete={() => {
+          void handleDeleteShare();
+        }}
+      />
 
       <Dialog.Root open={Boolean(credentialSecret)} onOpenChange={(open) => !open && setCredentialSecret(null)}>
         <Dialog.Content className="max-h-[85vh] overflow-y-auto">

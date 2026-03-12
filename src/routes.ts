@@ -19,6 +19,10 @@ export const routes: RouteObject[] = [
         path: "instance/:uuid",
         element: React.createElement(lazy(() => import("./pages/instance"))),
       },
+      {
+        path: "cloud/share/:token",
+        element: React.createElement(lazy(() => import("./pages/cloudShare"))),
+      },
     ],
   },
   {

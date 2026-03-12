@@ -11,12 +11,14 @@ import {
   PowerOff,
   RefreshCw,
   RotateCcw,
+  Share2,
   Server,
   ShieldCheck,
   Trash2,
 } from "lucide-react";
 
 import { AdminPageShell } from "@/components/admin/AdminPageShell";
+import CloudInstanceShareDialog, { type CloudInstanceShareTarget } from "@/components/admin/cloud/CloudInstanceShareDialog";
 import Loading from "@/components/loading";
 import {
   Badge,
@@ -67,6 +69,13 @@ import {
   type LinodeTokenRecord,
   type LinodeTokenSecret,
 } from "@/lib/cloudLinode";
+import {
+  buildCloudInstanceShareUrl,
+  deleteCloudInstanceShare,
+  getCloudInstanceShare,
+  saveCloudInstanceShare,
+  type CloudInstanceShareRecord,
+} from "@/lib/cloudShare";
 
 type CreateFormState = Omit<CreateLinodeInstanceInput, "tags"> & {
   tagsText: string;
@@ -292,6 +301,15 @@ export default function LinodePanel() {
   const [tokenSecret, setTokenSecret] = React.useState<TokenSecretState | null>(null);
   const [tokenSecretLoading, setTokenSecretLoading] = React.useState(false);
   const [savedPassword, setSavedPassword] = React.useState<SavedPasswordState | null>(null);
+  const [shareOpen, setShareOpen] = React.useState(false);
+  const [shareTarget, setShareTarget] = React.useState<CloudInstanceShareTarget | null>(null);
+  const [shareRecord, setShareRecord] = React.useState<CloudInstanceShareRecord | null>(null);
+  const [shareLoading, setShareLoading] = React.useState(false);
+  const [shareSaving, setShareSaving] = React.useState(false);
+  const [shareDeleting, setShareDeleting] = React.useState(false);
+  const [shareTitle, setShareTitle] = React.useState("");
+  const [shareNote, setShareNote] = React.useState("");
+  const [sharePassword, setSharePassword] = React.useState(false);
   const [passwordLoading, setPasswordLoading] = React.useState(false);
   const [createdPassword, setCreatedPassword] = React.useState<CreatedPasswordState | null>(null);
   const [error, setError] = React.useState("");
@@ -527,6 +545,98 @@ export default function LinodePanel() {
       toast.error(toErrorMessage(viewError));
     } finally {
       setPasswordLoading(false);
+    }
+  };
+
+  const handleOpenShareDialog = async (instance: LinodeInstance) => {
+    const nextTarget: CloudInstanceShareTarget = {
+      provider: "linode",
+      resourceType: "instance",
+      resourceId: String(instance.id),
+      resourceName: instance.label || String(instance.id),
+      providerLabel: "Linode",
+      credentialName: activeToken?.name || activeToken?.profile_email || "",
+      region: instance.region || "",
+      primaryAddress: instance.ipv4[0] || instance.ipv6 || "",
+      canSharePassword: Boolean(instance.saved_root_password),
+      canShareManagedSSHKey: false,
+    };
+
+    setShareTarget(nextTarget);
+    setShareRecord(null);
+    setShareTitle(instance.label || "");
+    setShareNote("");
+    setSharePassword(false);
+    setShareOpen(true);
+    setShareLoading(true);
+
+    try {
+      const nextShare = await getCloudInstanceShare("linode", "instance", String(instance.id));
+      setShareRecord(nextShare.token ? nextShare : null);
+      setShareTitle(nextShare.title || instance.label || "");
+      setShareNote(nextShare.note || "");
+      setSharePassword(Boolean(nextShare.share_password && nextTarget.canSharePassword));
+    } catch (shareError) {
+      toast.error(toErrorMessage(shareError));
+    } finally {
+      setShareLoading(false);
+    }
+  };
+
+  const handleSaveShare = async () => {
+    if (!shareTarget) return;
+
+    setShareSaving(true);
+    try {
+      const nextShare = await saveCloudInstanceShare(
+        shareTarget.provider,
+        shareTarget.resourceType,
+        shareTarget.resourceId,
+        {
+          title: shareTitle,
+          note: shareNote,
+          share_password: sharePassword,
+          share_managed_ssh_key: false,
+        },
+      );
+      setShareRecord(nextShare);
+      setShareTitle(nextShare.title || shareTarget.resourceName);
+      setShareNote(nextShare.note || "");
+      setSharePassword(Boolean(nextShare.share_password));
+      toast.success(t("cloud.share.save_success", "Share link saved"));
+    } catch (shareError) {
+      toast.error(toErrorMessage(shareError));
+    } finally {
+      setShareSaving(false);
+    }
+  };
+
+  const handleDeleteShare = async () => {
+    if (!shareTarget) return;
+
+    const confirmed = window.confirm(
+      t("cloud.share.delete_confirm", {
+        name: shareTarget.resourceName,
+        defaultValue: `Revoke the share link for "${shareTarget.resourceName}"?`,
+      }),
+    );
+    if (!confirmed) return;
+
+    setShareDeleting(true);
+    try {
+      await deleteCloudInstanceShare(
+        shareTarget.provider,
+        shareTarget.resourceType,
+        shareTarget.resourceId,
+      );
+      setShareRecord(null);
+      setShareNote("");
+      setSharePassword(false);
+      toast.success(t("cloud.share.delete_success", "Share link revoked"));
+    } catch (shareError) {
+      toast.error(toErrorMessage(shareError));
+    } finally {
+      setShareDeleting(false);
     }
   };
 
@@ -890,6 +1000,16 @@ export default function LinodePanel() {
                             >
                               <RotateCcw className="mr-1 h-3.5 w-3.5" />
                               {t("cloud.reboot", "Reboot")}
+                            </Button>
+                            <Button
+                              variant="soft"
+                              size="1"
+                              onClick={() => {
+                                void handleOpenShareDialog(instance);
+                              }}
+                            >
+                              <Share2 className="mr-1 h-3.5 w-3.5" />
+                              {t("cloud.share.action", "Share")}
                             </Button>
                             <Button
                               variant="soft"
@@ -1662,6 +1782,44 @@ export default function LinodePanel() {
           ) : null}
         </Dialog.Content>
       </Dialog.Root>
+
+      <CloudInstanceShareDialog
+        open={shareOpen}
+        onOpenChange={(open) => {
+          setShareOpen(open);
+          if (!open) {
+            setShareTarget(null);
+            setShareRecord(null);
+            setShareLoading(false);
+            setShareSaving(false);
+            setShareDeleting(false);
+          }
+        }}
+        target={shareTarget}
+        share={shareRecord}
+        loading={shareLoading}
+        saving={shareSaving}
+        deleting={shareDeleting}
+        title={shareTitle}
+        note={shareNote}
+        sharePassword={sharePassword}
+        shareManagedSSHKey={false}
+        shareUrl={shareRecord?.token ? buildCloudInstanceShareUrl(shareRecord.token) : ""}
+        onTitleChange={setShareTitle}
+        onNoteChange={setShareNote}
+        onSharePasswordChange={setSharePassword}
+        onShareManagedSSHKeyChange={() => {}}
+        onCopyLink={() => {
+          if (!shareRecord?.token) return;
+          void copyText(buildCloudInstanceShareUrl(shareRecord.token));
+        }}
+        onSave={() => {
+          void handleSaveShare();
+        }}
+        onDelete={() => {
+          void handleDeleteShare();
+        }}
+      />
 
       <Dialog.Root open={Boolean(savedPassword)} onOpenChange={(open) => !open && setSavedPassword(null)}>
         <Dialog.Content className="max-h-[85vh] overflow-y-auto">
