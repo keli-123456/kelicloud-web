@@ -74,6 +74,10 @@ function toErrorMessage(error: unknown) {
   return "Unknown error";
 }
 
+function hasDigitalOceanToken(values: Record<string, unknown>) {
+  return typeof values.token === "string" && values.token.trim().length > 0;
+}
+
 function parseTags(tagsText: string) {
   return tagsText
     .split(/[\n,]/)
@@ -144,13 +148,14 @@ export default function CloudPage() {
     try {
       const values = await getCloudProviderValues(DIGITALOCEAN_PROVIDER);
       setProviderValues(values);
+      return values;
     } catch (providerError) {
       if (
         providerError instanceof CloudApiError &&
         providerError.status === 404
       ) {
         setProviderValues({});
-        return;
+        return {};
       }
       throw providerError;
     }
@@ -183,9 +188,14 @@ export default function CloudPage() {
 
     (async () => {
       try {
-        await loadProviderState();
-        if (!cancelled) {
+        const values = await loadProviderState();
+        if (!cancelled && hasDigitalOceanToken(values)) {
           await loadPanelData();
+        } else if (!cancelled) {
+          setAccount(null);
+          setCatalog(null);
+          setDroplets([]);
+          setError("");
         }
       } catch (bootstrapError) {
         if (!cancelled) {
@@ -233,8 +243,16 @@ export default function CloudPage() {
   const runningCount = droplets.filter((droplet) => droplet.status === "active").length;
 
   const refreshAll = async () => {
-    await loadProviderState();
-    await loadPanelData();
+    const values = await loadProviderState();
+    if (hasDigitalOceanToken(values)) {
+      await loadPanelData();
+      return;
+    }
+
+    setAccount(null);
+    setCatalog(null);
+    setDroplets([]);
+    setError("");
   };
 
   const handleProviderSave = async (values: Record<string, unknown>) => {
@@ -296,10 +314,10 @@ export default function CloudPage() {
 
   const handleDeleteDroplet = async (droplet: DigitalOceanDroplet) => {
     const confirmed = window.confirm(
-      t(
-        "cloud.delete_confirm",
-        `Delete droplet "${droplet.name}"? This action cannot be undone.`,
-      ),
+      t("cloud.delete_confirm", {
+        name: droplet.name,
+        defaultValue: `Delete droplet "${droplet.name}"? This action cannot be undone.`,
+      }),
     );
     if (!confirmed) return;
 
@@ -313,6 +331,11 @@ export default function CloudPage() {
       toast.error(toErrorMessage(deleteError));
     }
   };
+
+  const regions = catalog?.regions ?? [];
+  const sizes = catalog?.sizes ?? [];
+  const images = catalog?.images ?? [];
+  const sshKeys = catalog?.ssh_keys ?? [];
 
   return (
     <AdminPageShell
@@ -378,8 +401,8 @@ export default function CloudPage() {
         title: t("cloud.connection_title", "Connection"),
         description: t(
           "cloud.connection_description",
-          "Save a Personal Access Token with Droplet read/write permissions. The panel will use the official DigitalOcean v2 API on your behalf.",
-        ),
+        "Save a Personal Access Token with Droplet read/write permissions. The panel will use the official DigitalOcean v2 API on your behalf.",
+      ),
         setProviderValues,
         handleSave: handleProviderSave,
         t,
@@ -539,10 +562,10 @@ export default function CloudPage() {
                 placeholder={t("cloud.form.region_placeholder", "Select a region")}
               />
               <Select.Content>
-                {catalog?.regions.map((region) => (
-                  <Select.Item key={region.slug} value={region.slug}>
-                    {region.slug} / {region.name}
-                  </Select.Item>
+                  {regions.map((region) => (
+                    <Select.Item key={region.slug} value={region.slug}>
+                      {region.slug} / {region.name}
+                    </Select.Item>
                 ))}
               </Select.Content>
             </Select.Root>
@@ -560,7 +583,7 @@ export default function CloudPage() {
                 placeholder={t("cloud.form.size_placeholder", "Select a size")}
               />
               <Select.Content>
-                {catalog?.sizes.map((size) => (
+                {sizes.map((size) => (
                   <Select.Item key={size.slug} value={size.slug}>
                     {size.slug} / {size.vcpus} vCPU / {(size.memory / 1024).toFixed(0)} GB / $
                     {size.price_monthly.toFixed(2)}
@@ -582,7 +605,7 @@ export default function CloudPage() {
                 placeholder={t("cloud.form.image_placeholder", "Select an image")}
               />
               <Select.Content>
-                {catalog?.images.map((image) => (
+                {images.map((image) => (
                   <Select.Item key={`${image.id}-${image.slug}`} value={getImageValue(image)}>
                     {getImageLabel(image)}
                   </Select.Item>
@@ -688,8 +711,8 @@ export default function CloudPage() {
                 )}
               </div>
               <div className="mt-3 flex max-h-48 flex-col gap-2 overflow-y-auto">
-                {catalog?.ssh_keys.length ? (
-                  catalog.ssh_keys.map((sshKey) => {
+                {sshKeys.length ? (
+                  sshKeys.map((sshKey) => {
                     const checked = createForm.ssh_keys.includes(sshKey.id);
                     return (
                       <label

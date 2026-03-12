@@ -118,7 +118,7 @@ export const renderProviderInputs = ({
                     title={fieldTitle}
                     description={fieldDescription}
                     options={f.options.split(",").map((opt: string) => ({ value: opt, label: opt }))}
-                    defaultValue={fieldValue}
+                    value={String(fieldValue)}
                     OnSave={(val: string) => {
                         updateLocalValue(f.name, val);
                     }}
@@ -131,7 +131,7 @@ export const renderProviderInputs = ({
             return (
                 <SettingCardSwitch
                     bordless
-                    key={f.name}
+                    key={`${f.name}:${String(fieldValue)}`}
                     title={fieldTitle}
                     description={fieldDescription}
                     defaultChecked={fieldValue !== undefined ? !!fieldValue : (f.default === "true" || f.default === true)}
@@ -170,7 +170,7 @@ export const renderProviderInputs = ({
                 bordless
                 title={fieldTitle}
                 description={fieldDescription}
-                defaultValue={String(fieldValue)}
+                value={String(fieldValue)}
                 type={isNumber ? "number" : "text"}
                 showSaveButton={false}
                 onChange={(e: React.ChangeEvent<HTMLInputElement>) => {

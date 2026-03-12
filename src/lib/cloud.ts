@@ -142,6 +142,110 @@ export type CreateDigitalOceanDropletInput = {
   vpc_uuid: string;
 };
 
+function normalizeStringArray(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  return value.filter((item): item is string => typeof item === "string");
+}
+
+function normalizeNumberArray(value: unknown): number[] {
+  if (!Array.isArray(value)) return [];
+  return value.filter((item): item is number => typeof item === "number");
+}
+
+function normalizeRegion(region: Partial<DigitalOceanRegion> | null | undefined): DigitalOceanRegion {
+  return {
+    name: String(region?.name || ""),
+    slug: String(region?.slug || ""),
+    available: Boolean(region?.available),
+    features: normalizeStringArray(region?.features),
+    sizes: normalizeStringArray(region?.sizes),
+  };
+}
+
+function normalizeSize(size: Partial<DigitalOceanSize> | null | undefined): DigitalOceanSize {
+  return {
+    slug: String(size?.slug || ""),
+    memory: Number(size?.memory || 0),
+    vcpus: Number(size?.vcpus || 0),
+    disk: Number(size?.disk || 0),
+    transfer: Number(size?.transfer || 0),
+    price_monthly: Number(size?.price_monthly || 0),
+    price_hourly: Number(size?.price_hourly || 0),
+    available: Boolean(size?.available),
+    regions: normalizeStringArray(size?.regions),
+    description: String(size?.description || ""),
+  };
+}
+
+function normalizeImage(image: Partial<DigitalOceanImage> | null | undefined): DigitalOceanImage {
+  return {
+    id: Number(image?.id || 0),
+    name: String(image?.name || ""),
+    type: String(image?.type || ""),
+    distribution: String(image?.distribution || ""),
+    slug: String(image?.slug || ""),
+    public: Boolean(image?.public),
+    regions: normalizeStringArray(image?.regions),
+    min_disk_size: Number(image?.min_disk_size || 0),
+    description: String(image?.description || ""),
+  };
+}
+
+function normalizeSSHKey(key: Partial<DigitalOceanSSHKey> | null | undefined): DigitalOceanSSHKey {
+  return {
+    id: Number(key?.id || 0),
+    name: String(key?.name || ""),
+    fingerprint: String(key?.fingerprint || ""),
+    public_key: String(key?.public_key || ""),
+  };
+}
+
+function normalizeDroplet(droplet: Partial<DigitalOceanDroplet> | null | undefined): DigitalOceanDroplet {
+  const networks = (droplet?.networks as
+    | {
+        v4?: Array<Partial<DigitalOceanNetworkV4> | null | undefined>;
+        v6?: Array<Partial<DigitalOceanNetworkV6> | null | undefined>;
+      }
+    | undefined) || {};
+  const rawV4 = Array.isArray(networks.v4) ? networks.v4 : [];
+  const rawV6 = Array.isArray(networks.v6) ? networks.v6 : [];
+
+  return {
+    id: Number(droplet?.id || 0),
+    name: String(droplet?.name || ""),
+    memory: Number(droplet?.memory || 0),
+    vcpus: Number(droplet?.vcpus || 0),
+    disk: Number(droplet?.disk || 0),
+    locked: Boolean(droplet?.locked),
+    status: String(droplet?.status || ""),
+    created_at: String(droplet?.created_at || ""),
+    features: normalizeStringArray(droplet?.features),
+    backup_ids: normalizeNumberArray(droplet?.backup_ids),
+    snapshot_ids: normalizeNumberArray(droplet?.snapshot_ids),
+    size_slug: String(droplet?.size_slug || ""),
+    volume_ids: normalizeStringArray(droplet?.volume_ids),
+    vpc_uuid: String(droplet?.vpc_uuid || ""),
+    tags: normalizeStringArray(droplet?.tags),
+    image: normalizeImage(droplet?.image),
+    region: normalizeRegion(droplet?.region),
+    size: normalizeSize(droplet?.size),
+    networks: {
+      v4: rawV4.map((network: Partial<DigitalOceanNetworkV4> | null | undefined) => ({
+        ip_address: String(network?.ip_address || ""),
+        netmask: String(network?.netmask || ""),
+        gateway: String(network?.gateway || ""),
+        type: String(network?.type || ""),
+      })),
+      v6: rawV6.map((network: Partial<DigitalOceanNetworkV6> | null | undefined) => ({
+        ip_address: String(network?.ip_address || ""),
+        netmask: Number(network?.netmask || 0),
+        gateway: String(network?.gateway || ""),
+        type: String(network?.type || ""),
+      })),
+    },
+  };
+}
+
 async function requestCloud<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(path, init);
   const text = await response.text();
@@ -172,7 +276,8 @@ export async function getCloudProviderValues(
     return {};
   }
 
-  return JSON.parse(data.addition) as Record<string, unknown>;
+  const parsed = JSON.parse(data.addition) as Record<string, unknown> | null;
+  return parsed && typeof parsed === "object" ? parsed : {};
 }
 
 export async function saveCloudProviderValues(
@@ -198,11 +303,23 @@ export async function getDigitalOceanAccount(): Promise<DigitalOceanAccount> {
 }
 
 export async function getDigitalOceanCatalog(): Promise<DigitalOceanCatalog> {
-  return requestCloud<DigitalOceanCatalog>("/api/admin/cloud/digitalocean/catalog");
+  const data = await requestCloud<Partial<DigitalOceanCatalog>>(
+    "/api/admin/cloud/digitalocean/catalog",
+  );
+
+  return {
+    regions: Array.isArray(data?.regions) ? data.regions.map(normalizeRegion) : [],
+    sizes: Array.isArray(data?.sizes) ? data.sizes.map(normalizeSize) : [],
+    images: Array.isArray(data?.images) ? data.images.map(normalizeImage) : [],
+    ssh_keys: Array.isArray(data?.ssh_keys) ? data.ssh_keys.map(normalizeSSHKey) : [],
+  };
 }
 
 export async function listDigitalOceanDroplets(): Promise<DigitalOceanDroplet[]> {
-  return requestCloud<DigitalOceanDroplet[]>("/api/admin/cloud/digitalocean/droplets");
+  const data = await requestCloud<Partial<DigitalOceanDroplet>[]>(
+    "/api/admin/cloud/digitalocean/droplets",
+  );
+  return Array.isArray(data) ? data.map(normalizeDroplet) : [];
 }
 
 export async function createDigitalOceanDroplet(
