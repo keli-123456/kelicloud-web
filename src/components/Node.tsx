@@ -30,6 +30,54 @@ export function formatUptime(seconds: number, t: TFunction): string {
   return parts.join(" ");
 }
 
+function buildCNConnectivityBadge(
+  connectivity: NonNullable<Record["cn_connectivity"]>,
+  t: TFunction
+) {
+  const latencyLabel =
+    typeof connectivity.latency === "number" && connectivity.latency > 0
+      ? ` ${connectivity.latency}ms`
+      : "";
+  const titleParts = [
+    connectivity.target
+      ? `${t("settings.general.cn_connectivity_target")}: ${connectivity.target}`
+      : "",
+    connectivity.message || "",
+  ].filter(Boolean);
+  const title = titleParts.join("\n");
+
+  switch (connectivity.status) {
+    case "ok":
+      return {
+        label: `${t("admin.nodeTable.cnConnectivityOk")}${latencyLabel}`,
+        className:
+          "rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[11px] text-emerald-700",
+        title,
+      };
+    case "blocked_suspected":
+      return {
+        label: t("admin.nodeTable.cnConnectivityBlocked"),
+        className:
+          "rounded-full border border-rose-200 bg-rose-50 px-2 py-0.5 text-[11px] text-rose-700",
+        title,
+      };
+    case "degraded":
+      return {
+        label: t("admin.nodeTable.cnConnectivityDegraded"),
+        className:
+          "rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[11px] text-amber-700",
+        title,
+      };
+    default:
+      return {
+        label: t("admin.nodeTable.cnConnectivityUnknown"),
+        className:
+          "rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-[11px] text-slate-600",
+        title,
+      };
+  }
+}
+
 interface NodeProps {
   basic: NodeBasicInfo;
   live: Record | undefined;
@@ -59,6 +107,9 @@ const Node = React.memo(({ basic, live, online }: NodeProps) => {
   const downloadSpeed = formatBytes(liveData.network.down);
   const totalUpload = formatBytes(liveData.network.totalUp);
   const totalDownload = formatBytes(liveData.network.totalDown);
+  const cnConnectivityBadge = liveData.cn_connectivity?.status
+    ? buildCNConnectivityBadge(liveData.cn_connectivity, t)
+    : null;
   //const totalTraffic = formatBytes(liveData.network.totalUp + liveData.network.totalDown);
   return (
     <Card
@@ -130,6 +181,15 @@ const Node = React.memo(({ basic, live, online }: NodeProps) => {
                 </IconButton>
               }
             />
+            {cnConnectivityBadge ? (
+              <Badge
+                variant="soft"
+                className={cnConnectivityBadge.className}
+                title={cnConnectivityBadge.title}
+              >
+                {cnConnectivityBadge.label}
+              </Badge>
+            ) : null}
             <Badge color={online ? "green" : "red"} variant="soft">
               {online ? t("nodeCard.online") : t("nodeCard.offline")}
             </Badge>

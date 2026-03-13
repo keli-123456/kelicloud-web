@@ -303,6 +303,10 @@ const Header = ({
     (sum, node) => sum + (liveByNode[node.uuid]?.record.network.totalDown ?? 0),
     0
   );
+  const cnConnectivityEnabled = Boolean(settings?.cn_connectivity_enabled);
+  const cnConnectivityTarget = String(settings?.cn_connectivity_target || "").trim();
+  const cnConnectivityConfigured =
+    cnConnectivityEnabled && cnConnectivityTarget !== "";
   const handleAddNode = async (name: string | undefined) => {
     setDialogOpen(true);
     setLoading(true);
@@ -505,6 +509,27 @@ const Header = ({
           </div>
         </div>
       </div>
+      <div className="mt-4 flex flex-col gap-3 rounded-2xl border border-slate-200/80 bg-slate-50/80 px-4 py-3 text-sm text-slate-700 lg:flex-row lg:items-center lg:justify-between">
+        <div className="space-y-1">
+          <div className="font-medium text-slate-900">国内连通探测</div>
+          <div>
+            {cnConnectivityConfigured
+              ? `当前探测目标：${cnConnectivityTarget}`
+              : cnConnectivityEnabled
+                ? "已启用国内连通探测，但还没有填写探测目标 IP / 域名。"
+                : "国内连通探测当前未启用。"}
+          </div>
+        </div>
+        <Button
+          variant="outline"
+          className="rounded-2xl"
+          onClick={() => {
+            window.location.assign("/admin/settings/general");
+          }}
+        >
+          前往设置
+        </Button>
+      </div>
     </Card>
   );
 };
@@ -574,7 +599,7 @@ const StatusSummary = ({
   const online = Boolean(live?.online);
   const connectivity = live?.record.cn_connectivity;
   const cnBadge =
-    online && connectivity && connectivity.status
+    connectivity && connectivity.status
       ? buildCNConnectivityBadge(connectivity, t)
       : null;
 

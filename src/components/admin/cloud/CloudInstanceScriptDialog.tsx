@@ -1,5 +1,13 @@
 import React from "react";
-import { AlertCircle, Play, RefreshCw, Terminal } from "lucide-react";
+import {
+  AlertCircle,
+  CheckCircle2,
+  Clock3,
+  Play,
+  RefreshCw,
+  Terminal,
+  XCircle,
+} from "lucide-react";
 import { toast } from "sonner";
 import { useTranslation } from "react-i18next";
 
@@ -15,6 +23,33 @@ type ExecResponse = {
   data?: {
     task_id?: string;
   };
+};
+
+type TaskResult = {
+  task_id: string;
+  client: string;
+  result: string;
+  exit_code: number | null;
+  finished_at: string | null;
+  created_at: string;
+};
+
+type TaskResultResponse = {
+  success?: boolean;
+  results?: TaskResult[];
+  message?: string;
+  status?: string;
+  data?: TaskResult[];
+};
+
+type ExecutionStatus = "idle" | "running" | "success" | "failed" | "timeout";
+
+type ExecutionState = {
+  taskId: string;
+  scriptId: number;
+  scriptName: string;
+  status: ExecutionStatus;
+  result: TaskResult | null;
 };
 
 export type CloudInstanceScriptTarget = {
@@ -94,6 +129,9 @@ export default function CloudInstanceScriptDialog({
     refresh,
   } = useNodeDetails();
   const [executingCommandId, setExecutingCommandId] = React.useState<number | null>(null);
+  const [executionState, setExecutionState] = React.useState<ExecutionState | null>(null);
+  const pollingIntervalRef = React.useRef<number | null>(null);
+  const pollingTimeoutRef = React.useRef<number | null>(null);
 
   const matchedNode = React.useMemo(
     () => findNodeMatch(nodeDetail, target),
@@ -113,11 +151,124 @@ export default function CloudInstanceScriptDialog({
     [target],
   );
 
+  const clearPolling = React.useCallback(() => {
+    if (pollingIntervalRef.current !== null) {
+      window.clearInterval(pollingIntervalRef.current);
+      pollingIntervalRef.current = null;
+    }
+    if (pollingTimeoutRef.current !== null) {
+      window.clearTimeout(pollingTimeoutRef.current);
+      pollingTimeoutRef.current = null;
+    }
+  }, []);
+
   React.useEffect(() => {
     if (!open) {
       setExecutingCommandId(null);
+      setExecutionState(null);
+      clearPolling();
     }
-  }, [open]);
+  }, [clearPolling, open]);
+
+  React.useEffect(() => {
+    return () => {
+      clearPolling();
+    };
+  }, [clearPolling]);
+
+  const pollTaskResult = React.useCallback(
+    async (taskId: string, clientId: string, scriptName: string) => {
+      const response = await fetch(`/api/admin/task/${taskId}/result`);
+      const payload = (await response.json().catch(() => ({}))) as TaskResultResponse;
+      if (!response.ok || payload.status === "error") {
+        throw new Error(payload.message || `HTTP ${response.status}`);
+      }
+
+      const results = payload.results || payload.data || [];
+      const matchedResult =
+        results.find((item) => item.client === clientId) ||
+        results[0] ||
+        null;
+
+      setExecutionState((previous) => {
+        if (!previous || previous.taskId !== taskId) {
+          return previous;
+        }
+
+        if (!matchedResult) {
+          return previous;
+        }
+
+        if (!matchedResult.finished_at) {
+          return {
+            ...previous,
+            status: "running",
+            result: matchedResult,
+          };
+        }
+
+        return {
+          ...previous,
+          status: matchedResult.exit_code === 0 ? "success" : "failed",
+          result: matchedResult,
+        };
+      });
+
+      if (matchedResult?.finished_at) {
+        clearPolling();
+        if (matchedResult.exit_code === 0) {
+          toast.success(
+            t("cloud.script.completed", {
+              script: scriptName || taskId,
+              defaultValue: `脚本执行成功：${scriptName || taskId}`,
+            }),
+          );
+        } else {
+          toast.error(
+            t("cloud.script.failed", {
+              script: scriptName || taskId,
+              defaultValue: `脚本执行失败：${scriptName || taskId}`,
+            }),
+          );
+        }
+      }
+    },
+    [clearPolling, t],
+  );
+
+  const startPolling = React.useCallback(
+    (taskId: string, clientId: string, scriptName: string) => {
+      clearPolling();
+
+      const run = () => {
+        void pollTaskResult(taskId, clientId, scriptName).catch((error) => {
+          clearPolling();
+          toast.error(error instanceof Error ? error.message : t("common.error", "Error"));
+          setExecutionState((previous) =>
+            previous && previous.taskId === taskId
+              ? { ...previous, status: "failed" }
+              : previous,
+          );
+        });
+      };
+
+      run();
+
+      pollingIntervalRef.current = window.setInterval(run, 2000);
+      pollingTimeoutRef.current = window.setTimeout(() => {
+        clearPolling();
+        setExecutionState((previous) =>
+          previous && previous.taskId === taskId
+            ? { ...previous, status: "timeout" }
+            : previous,
+        );
+        toast.warning(
+          t("cloud.script.timeout", "脚本执行超时，请稍后手动刷新任务结果。"),
+        );
+      }, 60000);
+    },
+    [clearPolling, pollTaskResult, t],
+  );
 
   const handleRunCommand = async (commandId: number, scriptName: string, scriptText: string) => {
     if (!matchedNode) {
@@ -130,7 +281,15 @@ export default function CloudInstanceScriptDialog({
       return;
     }
 
-    setExecutingCommandId(commandId)
+    clearPolling();
+    setExecutingCommandId(commandId);
+    setExecutionState({
+      taskId: "",
+      scriptId: commandId,
+      scriptName,
+      status: "running",
+      result: null,
+    });
     try {
       const response = await fetch("/api/admin/task/exec", {
         method: "POST",
@@ -149,6 +308,18 @@ export default function CloudInstanceScriptDialog({
       }
 
       const taskId = payload.data?.task_id || payload.task_id || "";
+      if (!taskId) {
+        throw new Error(t("cloud.script.no_task_id", "没有返回任务 ID"));
+      }
+
+      setExecutionState({
+        taskId,
+        scriptId: commandId,
+        scriptName,
+        status: "running",
+        result: null,
+      });
+
       toast.success(
         t("cloud.script.submitted", {
           node: matchedNode.name || matchedNode.uuid,
@@ -156,13 +327,54 @@ export default function CloudInstanceScriptDialog({
           defaultValue: `脚本 ${scriptName} 已下发到 ${matchedNode.name || matchedNode.uuid}${taskId ? `（任务 ${taskId}）` : ""}`,
         }),
       );
-      onOpenChange(false);
+      startPolling(taskId, matchedNode.uuid, scriptName);
     } catch (error) {
+      setExecutionState((previous) =>
+        previous
+          ? {
+            ...previous,
+            status: "failed",
+          }
+          : null,
+      );
       toast.error(error instanceof Error ? error.message : t("common.error", "Error"));
     } finally {
       setExecutingCommandId(null);
     }
   };
+
+  const executionBadge = React.useMemo(() => {
+    if (!executionState) return null;
+
+    switch (executionState.status) {
+      case "success":
+        return {
+          icon: <CheckCircle2 className="h-4 w-4" />,
+          className: "border-emerald-200 bg-emerald-50 text-emerald-700",
+          label: t("cloud.script.status_success", "执行成功"),
+        };
+      case "failed":
+        return {
+          icon: <XCircle className="h-4 w-4" />,
+          className: "border-rose-200 bg-rose-50 text-rose-700",
+          label: t("cloud.script.status_failed", "执行失败"),
+        };
+      case "timeout":
+        return {
+          icon: <AlertCircle className="h-4 w-4" />,
+          className: "border-amber-200 bg-amber-50 text-amber-700",
+          label: t("cloud.script.status_timeout", "执行超时"),
+        };
+      default:
+        return {
+          icon: <Clock3 className="h-4 w-4" />,
+          className: "border-blue-200 bg-blue-50 text-blue-700",
+          label: t("cloud.script.status_running", "执行中"),
+        };
+    }
+  }, [executionState, t]);
+
+  const outputText = executionState?.result?.result || "";
 
   return (
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
@@ -240,6 +452,87 @@ export default function CloudInstanceScriptDialog({
             )}
           </div>
 
+          {executionState ? (
+            <div className="rounded-xl border border-slate-200 bg-white px-4 py-3">
+              <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                <div>
+                  <div className="text-sm font-medium text-slate-900">
+                    {t("cloud.script.latest_task", "本次执行状态")}
+                  </div>
+                  <div className="mt-1 text-xs text-slate-500">
+                    {executionState.scriptName}
+                    {executionState.taskId
+                      ? ` / ${t("cloud.script.task_id", "任务 ID")}: ${executionState.taskId}`
+                      : ""}
+                  </div>
+                </div>
+                {executionBadge ? (
+                  <div
+                    className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-medium ${executionBadge.className}`}
+                  >
+                    {executionBadge.icon}
+                    {executionBadge.label}
+                  </div>
+                ) : null}
+              </div>
+
+              <div className="mt-3 grid gap-3 md:grid-cols-2">
+                <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700">
+                  <div className="text-xs text-slate-500">
+                    {t("cloud.script.exit_code", "退出码")}
+                  </div>
+                  <div className="mt-1 font-medium text-slate-900">
+                    {executionState.result?.exit_code ?? "-"}
+                  </div>
+                </div>
+                <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700">
+                  <div className="text-xs text-slate-500">
+                    {t("cloud.script.finished_at", "完成时间")}
+                  </div>
+                  <div className="mt-1 font-medium text-slate-900">
+                    {executionState.result?.finished_at
+                      ? new Date(executionState.result.finished_at).toLocaleString()
+                      : t("cloud.script.pending", "等待回传")}
+                  </div>
+                </div>
+              </div>
+
+              <div className="mt-3">
+                <div className="mb-2 text-xs text-slate-500">
+                  {t("cloud.script.output", "输出")}
+                </div>
+                <textarea
+                  readOnly
+                  value={outputText}
+                  placeholder={t("cloud.script.output_placeholder", "任务输出会显示在这里。")}
+                  className="min-h-32 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 font-mono text-xs text-slate-700 outline-none"
+                />
+              </div>
+
+              {executionState.taskId ? (
+                <div className="mt-3 flex justify-end">
+                  <Button
+                    variant="outline"
+                    size="1"
+                    onClick={() => {
+                      if (!matchedNode) return;
+                      void pollTaskResult(
+                        executionState.taskId,
+                        matchedNode.uuid,
+                        executionState.scriptName,
+                      ).catch((error) => {
+                        toast.error(error instanceof Error ? error.message : t("common.error", "Error"));
+                      });
+                    }}
+                  >
+                    <RefreshCw className="mr-1 h-3.5 w-3.5" />
+                    {t("cloud.script.refresh_status", "刷新状态")}
+                  </Button>
+                </div>
+              ) : null}
+            </div>
+          ) : null}
+
           <div className="rounded-xl border border-slate-200 bg-white px-4 py-3">
             <div className="mb-3 flex items-center gap-2 text-sm font-medium text-slate-900">
               <Terminal className="h-4 w-4 text-slate-500" />
@@ -281,13 +574,14 @@ export default function CloudInstanceScriptDialog({
                       </div>
                       <Button
                         size="1"
-                        disabled={!matchedNode || executingCommandId !== null}
+                        disabled={!matchedNode || executionState?.status === "running" || executingCommandId !== null}
                         onClick={() => {
                           void handleRunCommand(command.id, command.name, command.text);
                         }}
                       >
                         <Play className="mr-1 h-3.5 w-3.5" />
-                        {executingCommandId === command.id
+                        {executingCommandId === command.id ||
+                        (executionState?.status === "running" && executionState.scriptId === command.id)
                           ? t("cloud.script.running", "执行中...")
                           : t("cloud.script.run", "执行")}
                       </Button>
