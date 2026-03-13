@@ -184,7 +184,7 @@ export default function AdminPanelBar({ content }: AdminPanelBarProps) {
     async function loadReleases() {
       try {
         const response = await fetch(
-          "https://api.github.com/repos/komari-monitor/komari/releases?per_page=100",
+          "https://api.github.com/repos/keli-123456/kelicloud/releases?per_page=100",
           {
             headers: {
               Accept: "application/vnd.github+json",

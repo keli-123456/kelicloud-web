@@ -1,5 +1,5 @@
 const DEFAULT_AGENT_INSTALL_SCRIPT_BASE =
-  "https://raw.githubusercontent.com/komari-monitor/komari-agent/refs/heads/main";
+  "https://raw.githubusercontent.com/keli-123456/kelicloud-agent/refs/heads/main";
 
 function trimTrailingSlash(value: string) {
   return value.replace(/\/+$/, "");
