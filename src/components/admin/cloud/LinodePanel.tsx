@@ -255,6 +255,10 @@ function getTokenStatusColor(status: string) {
   }
 }
 
+function isRestrictedLinodeToken(token: LinodeTokenRecord) {
+  return token.last_status === "error" && token.last_error.toLowerCase().includes("restricted");
+}
+
 function DetailItem({
   label,
   value,
@@ -804,7 +808,14 @@ export default function LinodePanel() {
         },
         {
           label: t("cloud.stats.account", "Account"),
-          value: account?.email || activeToken?.profile_email || "-",
+          value: (
+            <span className="inline-flex items-center gap-2">
+              <span>{account?.email || activeToken?.profile_email || "-"}</span>
+              {account?.restricted ? (
+                <Badge color="red">{t("cloud.providers.linode.restricted", "Restricted")}</Badge>
+              ) : null}
+            </span>
+          ),
         },
         {
           label: t("cloud.providers.linode.instances", "Instances"),
@@ -819,6 +830,15 @@ export default function LinodePanel() {
       {error ? (
         <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
           {error}
+        </div>
+      ) : null}
+
+      {account?.restricted ? (
+        <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+          {t(
+            "cloud.providers.linode.restricted_account_help",
+            "This Linode account is currently restricted. New health checks and instance operations may continue to fail until Linode removes the restriction.",
+          )}
         </div>
       ) : null}
 
@@ -1111,6 +1131,11 @@ export default function LinodePanel() {
                           </div>
                           {token.account_company ? (
                             <div className="text-xs text-slate-500">{token.account_company}</div>
+                          ) : null}
+                          {isRestrictedLinodeToken(token) ? (
+                            <div className="mt-1">
+                              <Badge color="red">{t("cloud.providers.linode.restricted", "Restricted")}</Badge>
+                            </div>
                           ) : null}
                         </TableCell>
                         <TableCell>
@@ -1405,7 +1430,7 @@ export default function LinodePanel() {
                           onCheckedChange={(nextChecked) =>
                             setCreateForm((previous) => ({
                               ...previous,
-                              authorized_keys: Boolean(nextChecked)
+                              authorized_keys: nextChecked === true
                                 ? [...previous.authorized_keys, sshKey.ssh_key]
                                 : previous.authorized_keys.filter((value) => value !== sshKey.ssh_key),
                             }))

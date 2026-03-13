@@ -65,6 +65,7 @@ import {
   type AWSCredentialPool,
   type AWSCredentialRecord,
   type AWSCredentialSecret,
+  type AWSEC2Quota,
   type AWSElasticAddress,
   type AWSImage,
   type AWSInstance,
@@ -238,6 +239,84 @@ function getInstanceStateColor(state: string) {
     default:
       return "gray";
   }
+}
+
+function getEC2QuotaItems(
+  quota: AWSEC2Quota | null | undefined,
+  t: ReturnType<typeof useTranslation>["t"],
+) {
+  if (!quota) return [];
+
+  return [
+    {
+      key: "max_instances",
+      label: t("cloud.providers.aws.max_instances", "Max instances"),
+      value: quota.max_instances,
+    },
+    {
+      key: "max_elastic_ips",
+      label: t("cloud.providers.aws.max_elastic_ips", "Elastic IPs"),
+      value: quota.max_elastic_ips,
+    },
+    {
+      key: "vpc_max_elastic_ips",
+      label: t("cloud.providers.aws.vpc_max_elastic_ips", "VPC EIPs"),
+      value: quota.vpc_max_elastic_ips,
+    },
+    {
+      key: "vpc_max_security_groups_per_interface",
+      label: t("cloud.providers.aws.max_security_groups_per_interface", "SGs / ENI"),
+      value: quota.vpc_max_security_groups_per_interface,
+    },
+  ].filter((item) => item.value > 0);
+}
+
+function AWSQuotaSummary({
+  quota,
+  error,
+  t,
+  compact = false,
+}: {
+  quota: AWSEC2Quota | null | undefined;
+  error?: string;
+  t: ReturnType<typeof useTranslation>["t"];
+  compact?: boolean;
+}) {
+  const items = getEC2QuotaItems(quota, t);
+
+  if (!items.length && !error) {
+    return <span className="text-sm text-slate-400">-</span>;
+  }
+
+  return (
+    <div className="space-y-2">
+      {items.length ? (
+        <div className="flex flex-wrap gap-2">
+          {items.map((item) => (
+            <span
+              key={item.key}
+              className={
+                compact
+                  ? "rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-medium text-slate-700"
+                  : "rounded-full bg-slate-100 px-3 py-1.5 text-xs font-medium text-slate-700"
+              }
+            >
+              {item.label}: {item.value}
+            </span>
+          ))}
+        </div>
+      ) : null}
+      {quota?.region ? (
+        <div className="text-xs text-slate-500">
+          {t("cloud.providers.aws.quota_region", {
+            region: quota.region,
+            defaultValue: `Quota region: ${quota.region}`,
+          })}
+        </div>
+      ) : null}
+      {error ? <div className="text-xs text-amber-700">{error}</div> : null}
+    </div>
+  );
 }
 
 function DetailItem({
@@ -479,6 +558,8 @@ export default function AWSPanel() {
 
   const activeCredential = getActiveCredential(credentialPool);
   const connected = Boolean(account && activeCredential);
+  const activeQuota = account?.ec2_quota || activeCredential?.ec2_quota || null;
+  const activeQuotaError = account?.ec2_quota_error || activeCredential?.ec2_quota_error || "";
   const runningCount = instances.filter((instance) => instance.state === "running").length;
   const lightsailRunningCount = lightsailInstances.filter((instance) => instance.state === "running").length;
   const selectedSubnetVpcId = getSubnetVpcId(catalog?.subnets || [], createForm.subnet_id);
@@ -970,30 +1051,82 @@ export default function AWSPanel() {
         </div>
       ) : null}
 
-      <div className="rounded-2xl border border-slate-200 bg-white px-5 py-4">
-        <div className="flex flex-wrap items-center justify-between gap-4">
-          <div>
-            <div className="text-sm font-medium text-slate-900">
-              {t("cloud.providers.aws.active_region", "Active Region")}
+      {activeQuotaError ? (
+        <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+          {t(
+            "cloud.providers.aws.quota_warning",
+            "AWS credentials are valid, but Komari could not read EC2 account quotas for the active region.",
+          )}{" "}
+          {activeQuotaError}
+        </div>
+      ) : null}
+
+      <div className="grid gap-4 xl:grid-cols-[minmax(0,1.05fr)_minmax(0,1fr)]">
+        <div className="rounded-2xl border border-slate-200 bg-white px-5 py-4">
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <div>
+              <div className="text-sm font-medium text-slate-900">
+                {t("cloud.providers.aws.active_region", "Active Region")}
+              </div>
+              <div className="mt-1 text-sm text-slate-500">
+                {t(
+                  "cloud.providers.aws.active_region_description",
+                  "EC2 instances, AMIs, key pairs, subnets, and security groups are all loaded from the currently selected AWS region.",
+                )}
+              </div>
             </div>
-            <div className="mt-1 text-sm text-slate-500">
-              {t(
-                "cloud.providers.aws.active_region_description",
-                "EC2 instances, AMIs, key pairs, subnets, and security groups are all loaded from the currently selected AWS region.",
-              )}
+            <div className="min-w-56">
+              <Select.Root value={activeRegion} onValueChange={(value) => { void handleRegionChange(value); }}>
+                <Select.Trigger placeholder={t("cloud.providers.aws.active_region", "Active Region")} />
+                <Select.Content>
+                  {(catalog?.regions || []).map((region) => (
+                    <Select.Item key={region.name} value={region.name}>
+                      {region.name}
+                    </Select.Item>
+                  ))}
+                </Select.Content>
+              </Select.Root>
             </div>
           </div>
-          <div className="min-w-56">
-            <Select.Root value={activeRegion} onValueChange={(value) => { void handleRegionChange(value); }}>
-              <Select.Trigger placeholder={t("cloud.providers.aws.active_region", "Active Region")} />
-              <Select.Content>
-                {(catalog?.regions || []).map((region) => (
-                  <Select.Item key={region.name} value={region.name}>
-                    {region.name}
-                  </Select.Item>
-                ))}
-              </Select.Content>
-            </Select.Root>
+        </div>
+
+        <div className="rounded-2xl border border-slate-200 bg-white px-5 py-4">
+          <div className="text-sm font-medium text-slate-900">
+            {t("cloud.providers.aws.account_snapshot", "Account Snapshot")}
+          </div>
+          <div className="mt-1 text-sm text-slate-500">
+            {t(
+              "cloud.providers.aws.account_snapshot_description",
+              "Review the active account identity and the EC2 quotas Komari can currently read for this region.",
+            )}
+          </div>
+
+          <div className="mt-4 grid gap-3 sm:grid-cols-2">
+            <DetailItem
+              label={t("cloud.tokens.table.account", "Account")}
+              value={account?.account_id || activeCredential?.account_id || "-"}
+            />
+            <DetailItem
+              label={t("cloud.providers.aws.user_id", "User ID")}
+              value={account?.user_id || activeCredential?.user_id || "-"}
+            />
+            <DetailItem
+              label={t("cloud.providers.aws.arn", "ARN")}
+              value={account?.arn || activeCredential?.arn || "-"}
+            />
+            <DetailItem
+              label={t("cloud.providers.aws.quota_scope", "Quota Scope")}
+              value={activeQuota?.region || activeRegion}
+            />
+          </div>
+
+          <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
+            <div className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">
+              {t("cloud.providers.aws.ec2_quota", "EC2 Quota")}
+            </div>
+            <div className="mt-2">
+              <AWSQuotaSummary quota={activeQuota} error={activeQuotaError} t={t} />
+            </div>
           </div>
         </div>
       </div>
@@ -1368,6 +1501,7 @@ export default function AWSPanel() {
                     <TableHead>{t("cloud.providers.aws.access_key", "Access Key")}</TableHead>
                     <TableHead>{t("cloud.tokens.table.account", "Account")}</TableHead>
                     <TableHead>{t("cloud.providers.aws.default_region", "Default Region")}</TableHead>
+                    <TableHead>{t("cloud.providers.aws.ec2_quota", "EC2 Quota")}</TableHead>
                     <TableHead>{t("cloud.tokens.table.status", "Status")}</TableHead>
                     <TableHead>{t("cloud.tokens.table.checked_at", "Last Checked")}</TableHead>
                     <TableHead className="text-right">{t("common.action", "Action")}</TableHead>
@@ -1376,7 +1510,7 @@ export default function AWSPanel() {
                 <TableBody>
                   {!credentialPool?.credentials.length ? (
                     <TableRow>
-                      <TableCell colSpan={7} className="h-24 text-center text-slate-500">
+                      <TableCell colSpan={8} className="h-24 text-center text-slate-500">
                         {t("cloud.providers.aws.credentials_empty", "No AWS credentials saved yet")}
                       </TableCell>
                     </TableRow>
@@ -1401,6 +1535,14 @@ export default function AWSPanel() {
                           ) : null}
                         </TableCell>
                         <TableCell>{credential.default_region || "-"}</TableCell>
+                        <TableCell className="min-w-64">
+                          <AWSQuotaSummary
+                            quota={credential.ec2_quota}
+                            error={credential.ec2_quota_error}
+                            t={t}
+                            compact
+                          />
+                        </TableCell>
                         <TableCell>
                           <Badge color={getCredentialStatusColor(credential.last_status)}>
                             {t(`cloud.tokens.status.${credential.last_status}`, credential.last_status || "unknown")}
@@ -1640,7 +1782,7 @@ export default function AWSPanel() {
                           onCheckedChange={(nextChecked) =>
                             setCreateForm((previous) => ({
                               ...previous,
-                              security_group_ids: Boolean(nextChecked)
+                              security_group_ids: nextChecked === true
                                 ? [...previous.security_group_ids, group.group_id]
                                 : previous.security_group_ids.filter((value) => value !== group.group_id),
                             }))
@@ -2470,6 +2612,20 @@ export default function AWSPanel() {
               <DetailItem label={t("cloud.providers.aws.default_region", "Default Region")} value={credentialSecret.secret.default_region || "-"} />
               <DetailItem label={t("cloud.tokens.table.account", "Account")} value={credentialSecret.secret.account_id || "-"} />
               <DetailItem label={t("cloud.providers.aws.access_key", "Access Key")} value={credentialSecret.secret.access_key_id || "-"} />
+              {(credentialSecret.secret.ec2_quota || credentialSecret.secret.ec2_quota_error) ? (
+                <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
+                  <div className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">
+                    {t("cloud.providers.aws.ec2_quota", "EC2 Quota")}
+                  </div>
+                  <div className="mt-2">
+                    <AWSQuotaSummary
+                      quota={credentialSecret.secret.ec2_quota}
+                      error={credentialSecret.secret.ec2_quota_error}
+                      t={t}
+                    />
+                  </div>
+                </div>
+              ) : null}
               <div className="rounded-xl border border-slate-200 bg-white px-4 py-3">
                 <div className="flex items-center justify-between gap-3">
                   <div className="text-sm font-medium text-slate-800">

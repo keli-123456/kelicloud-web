@@ -1,5 +1,10 @@
 import { useState, useRef, useEffect } from "react";
 import Loading from "@/components/loading";
+import {
+    CommandClipboardProvider,
+    type CommandClipboard,
+    useCommandClipboard,
+} from "@/contexts/CommandClipboardContext";
 import { NodeDetailsProvider, useNodeDetails } from "@/contexts/NodeDetailsContext";
 import { useTranslation } from "react-i18next";
 import {
@@ -58,19 +63,12 @@ interface TaskResultResponse {
     data?: TaskResult[];
 }
 
-interface SavedCommandPreset {
-    id: string;
-    name: string;
-    command: string;
-    updatedAt: number;
-}
-
-const SAVED_COMMANDS_STORAGE_KEY = "komari.admin.exec.savedCommands";
-
 const ExecPage = () => {
     return (
         <NodeDetailsProvider>
-            <ExecContent />
+            <CommandClipboardProvider>
+                <ExecContent />
+            </CommandClipboardProvider>
         </NodeDetailsProvider>
     );
 };
@@ -78,6 +76,14 @@ const ExecPage = () => {
 const ExecContent = () => {
     const { t } = useTranslation();
     const { nodeDetail, isLoading, error } = useNodeDetails();
+    const {
+        commands: savedCommands,
+        loading: savedCommandsLoading,
+        error: savedCommandsError,
+        addCommand,
+        updateCommand,
+        deleteCommand,
+    } = useCommandClipboard();
     const [command, setCommand] = useState("");
     const [commandName, setCommandName] = useState("");
     const [selectedNodes, setSelectedNodes] = useState<string[]>([]);
@@ -85,7 +91,8 @@ const ExecContent = () => {
     const [results, setResults] = useState<TaskResult[]>([]);
     const [taskId, setTaskId] = useState<string | null>(null);
     const [polling, setPolling] = useState(false);
-    const [savedCommands, setSavedCommands] = useState<SavedCommandPreset[]>([]);
+    const [savingCommand, setSavingCommand] = useState(false);
+    const [removingCommandId, setRemovingCommandId] = useState<number | null>(null);
 
     // 使用 useRef 来保存轮询相关的引用
     const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -109,36 +116,6 @@ const ExecContent = () => {
         return () => {
             clearPolling();
         };
-    }, []);
-
-    useEffect(() => {
-        if (typeof window === "undefined") {
-            return;
-        }
-
-        try {
-            const raw = window.localStorage.getItem(SAVED_COMMANDS_STORAGE_KEY);
-            if (!raw) {
-                return;
-            }
-
-            const parsed = JSON.parse(raw);
-            if (!Array.isArray(parsed)) {
-                return;
-            }
-
-            setSavedCommands(
-                parsed.filter(
-                    (item): item is SavedCommandPreset =>
-                        typeof item?.id === "string" &&
-                        typeof item?.name === "string" &&
-                        typeof item?.command === "string" &&
-                        typeof item?.updatedAt === "number",
-                ),
-            );
-        } catch (storageError) {
-            console.warn("加载已保存命令失败:", storageError);
-        }
     }, []);
 
     if (isLoading) {
@@ -213,8 +190,10 @@ const ExecContent = () => {
         }, 60000);
     };
 
-    const executeCommand = async () => {
-        if (!command.trim()) {
+    const executeCommand = async (commandOverride?: string) => {
+        const commandToRun = (commandOverride ?? command).trim();
+
+        if (!commandToRun) {
             toast.error(t("exec.errors.emptyCommand"));
             return;
         }
@@ -238,7 +217,7 @@ const ExecContent = () => {
                     "Content-Type": "application/json",
                 },
                 body: JSON.stringify({
-                    command: command.trim(),
+                    command: commandToRun,
                     clients: selectedNodes,
                 }),
             });
@@ -272,19 +251,6 @@ const ExecContent = () => {
     const copyOutput = (output: string) => {
         navigator.clipboard.writeText(output);
         toast.success(t("common.success"));
-    };
-
-    const syncSavedCommands = (nextCommands: SavedCommandPreset[]) => {
-        setSavedCommands(nextCommands);
-
-        if (typeof window === "undefined") {
-            return;
-        }
-
-        window.localStorage.setItem(
-            SAVED_COMMANDS_STORAGE_KEY,
-            JSON.stringify(nextCommands),
-        );
     };
 
     const getDefaultCommandName = () => {
@@ -324,7 +290,7 @@ const ExecContent = () => {
         return preview;
     };
 
-    const saveCurrentCommand = () => {
+    const saveCurrentCommand = async () => {
         const trimmedCommand = command.trim();
         if (!trimmedCommand) {
             toast.error(t("exec.errors.emptyCommand"));
@@ -332,54 +298,71 @@ const ExecContent = () => {
         }
 
         const resolvedName = getDefaultCommandName();
-        const currentTimestamp = Date.now();
         const existingPreset = savedCommands.find(
             (item) => item.name === resolvedName,
         );
 
-        const nextPreset: SavedCommandPreset = {
-            id: existingPreset?.id ?? `${currentTimestamp}`,
-            name: resolvedName,
-            command: trimmedCommand,
-            updatedAt: currentTimestamp,
-        };
+        setSavingCommand(true);
+        try {
+            if (existingPreset) {
+                await updateCommand(
+                    existingPreset.id,
+                    resolvedName,
+                    trimmedCommand,
+                    existingPreset.remark,
+                    existingPreset.weight,
+                );
+            } else {
+                await addCommand(resolvedName, trimmedCommand, "", 0);
+            }
 
-        const nextCommands = [
-            nextPreset,
-            ...savedCommands.filter((item) => item.id !== existingPreset?.id),
-        ].slice(0, 12);
-
-        syncSavedCommands(nextCommands);
-        setCommandName(resolvedName);
-        toast.success(
-            existingPreset
-                ? t("exec.savedCommandUpdated", {
-                    defaultValue: "已更新保存命令",
-                })
-                : t("exec.savedCommandSaved", {
-                    defaultValue: "命令已保存",
-                }),
-        );
+            setCommandName(resolvedName);
+            toast.success(
+                existingPreset
+                    ? t("exec.savedCommandUpdated", {
+                        defaultValue: "已更新保存脚本",
+                    })
+                    : t("exec.savedCommandSaved", {
+                        defaultValue: "脚本已保存到脚本库",
+                    }),
+            );
+        } catch (err) {
+            toast.error(err instanceof Error ? err.message : "保存脚本失败");
+        } finally {
+            setSavingCommand(false);
+        }
     };
 
-    const applySavedCommand = (preset: SavedCommandPreset) => {
-        setCommand(preset.command);
+    const applySavedCommand = (preset: CommandClipboard) => {
+        setCommand(preset.text);
         setCommandName(preset.name);
         toast.success(
             t("exec.savedCommandApplied", {
-                defaultValue: "已填充保存命令",
+                defaultValue: "已回填脚本内容",
             }),
         );
     };
 
-    const removeSavedCommand = (presetId: string) => {
-        const nextCommands = savedCommands.filter((item) => item.id !== presetId);
-        syncSavedCommands(nextCommands);
-        toast.success(
-            t("exec.savedCommandDeleted", {
-                defaultValue: "已删除保存命令",
-            }),
-        );
+    const runSavedCommand = async (preset: CommandClipboard) => {
+        setCommand(preset.text);
+        setCommandName(preset.name);
+        await executeCommand(preset.text);
+    };
+
+    const removeSavedCommand = async (preset: CommandClipboard) => {
+        setRemovingCommandId(preset.id);
+        try {
+            await deleteCommand(preset.id);
+            toast.success(
+                t("exec.savedCommandDeleted", {
+                    defaultValue: "脚本已删除",
+                }),
+            );
+        } catch (err) {
+            toast.error(err instanceof Error ? err.message : "删除脚本失败");
+        } finally {
+            setRemovingCommandId(null);
+        }
     };
 
     const getSelectedNodeNames = () => {
@@ -419,6 +402,12 @@ const ExecContent = () => {
     };
 
     const completedResults = results.filter((result) => result.finished_at !== null).length;
+    const orderedCommands = [...savedCommands].sort((left, right) => {
+        if (right.weight !== left.weight) {
+            return right.weight - left.weight;
+        }
+        return right.id - left.id;
+    });
 
     return (
         <AdminPageShell
@@ -521,18 +510,18 @@ const ExecContent = () => {
                                 <Button
                                     variant="outline"
                                     size="sm"
-                                    onClick={saveCurrentCommand}
-                                    disabled={!command.trim()}
+                                    onClick={() => { void saveCurrentCommand(); }}
+                                    disabled={!command.trim() || savingCommand}
                                     className="rounded-lg border-slate-200 bg-white text-[13px] shadow-none hover:bg-slate-50"
                                 >
                                     <Save size={15} />
                                     {t("exec.saveCommand", {
-                                        defaultValue: "保存命令",
+                                        defaultValue: savingCommand ? "保存中..." : "保存到脚本库",
                                     })}
                                 </Button>
 
                                 <Button
-                                    onClick={executeCommand}
+                                    onClick={() => { void executeCommand(); }}
                                     disabled={executing || !command.trim() || selectedNodes.length === 0}
                                     size="sm"
                                     className="rounded-lg text-[13px]"
@@ -556,31 +545,39 @@ const ExecContent = () => {
                                     <div>
                                         <p className="block text-[14px] font-medium text-slate-900">
                                             {t("exec.savedCommands", {
-                                                defaultValue: "已保存命令",
+                                                defaultValue: "脚本库",
                                             })}
                                         </p>
                                         <p className="block text-[13px] text-slate-500">
                                             {t("exec.savedCommandsHint", {
-                                                defaultValue: "仅保存在当前浏览器，可一键回填。",
+                                                defaultValue: "脚本保存在数据库里，可一键回填或直接执行。",
                                             })}
                                         </p>
                                     </div>
-                                    {savedCommands.length > 0 && (
+                                    {orderedCommands.length > 0 && (
                                         <span className="text-[13px] text-slate-400">
-                                            {savedCommands.length}
+                                            {orderedCommands.length}
                                         </span>
                                     )}
                                 </div>
 
-                                {savedCommands.length === 0 ? (
+                                {savedCommandsError ? (
+                                    <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-4 text-[13px] text-red-700">
+                                        {savedCommandsError.message}
+                                    </div>
+                                ) : savedCommandsLoading ? (
+                                    <div className="border border-dashed border-slate-200/80 px-3 py-4 text-[13px] text-slate-500">
+                                        {t("loading", "加载中...")}
+                                    </div>
+                                ) : orderedCommands.length === 0 ? (
                                     <div className="border border-dashed border-slate-200/80 px-3 py-4 text-[13px] text-slate-500">
                                         {t("exec.savedCommandsEmpty", {
-                                            defaultValue: "还没有保存的命令。",
+                                            defaultValue: "还没有保存的脚本。",
                                         })}
                                     </div>
                                 ) : (
                                     <div className="divide-y divide-slate-200/70 border-t border-slate-200/80">
-                                        {savedCommands.map((preset) => (
+                                        {orderedCommands.map((preset) => (
                                             <div
                                                 key={preset.id}
                                                 className="flex flex-col gap-2 py-3 md:flex-row md:items-center md:justify-between"
@@ -590,11 +587,16 @@ const ExecContent = () => {
                                                         {preset.name}
                                                     </p>
                                                     <p className="block text-[13px] leading-6 text-slate-500">
-                                                        {getCommandPreview(preset.command)}
+                                                        {getCommandPreview(preset.text)}
                                                     </p>
+                                                    {preset.remark ? (
+                                                        <p className="block text-[12px] leading-5 text-slate-400">
+                                                            {preset.remark}
+                                                        </p>
+                                                    ) : null}
                                                 </div>
 
-                                                <div className="flex shrink-0 items-center gap-1">
+                                                <div className="flex shrink-0 flex-wrap items-center gap-1">
                                                     <Button
                                                         variant="ghost"
                                                         size="sm"
@@ -607,8 +609,20 @@ const ExecContent = () => {
                                                     </Button>
                                                     <Button
                                                         variant="ghost"
+                                                        size="sm"
+                                                        onClick={() => { void runSavedCommand(preset); }}
+                                                        disabled={executing || selectedNodes.length === 0}
+                                                        className="rounded-md text-[13px]"
+                                                    >
+                                                        {t("exec.runSavedCommand", {
+                                                            defaultValue: "执行",
+                                                        })}
+                                                    </Button>
+                                                    <Button
+                                                        variant="ghost"
                                                         size="icon"
-                                                        onClick={() => removeSavedCommand(preset.id)}
+                                                        onClick={() => { void removeSavedCommand(preset); }}
+                                                        disabled={removingCommandId === preset.id}
                                                         className="h-8 w-8 rounded-md text-red-600 hover:bg-red-50 hover:text-red-700"
                                                     >
                                                         <Trash2 size={14} />

@@ -19,6 +19,7 @@ export type LinodeAccount = {
   email: string;
   company: string;
   balance: number;
+  restricted: boolean;
 };
 
 export type LinodeTokenInput = {
@@ -230,6 +231,16 @@ export type LinodeInstanceActionResult = {
 function normalizeStringArray(value: unknown): string[] {
   if (!Array.isArray(value)) return [];
   return value.filter((item): item is string => typeof item === "string");
+}
+
+function normalizeAccount(account: Partial<LinodeAccount> | null | undefined): LinodeAccount {
+  return {
+    username: String(account?.username || ""),
+    email: String(account?.email || ""),
+    company: String(account?.company || ""),
+    balance: Number(account?.balance || 0),
+    restricted: Boolean(account?.restricted),
+  };
 }
 
 function normalizeTokenRecord(
@@ -483,7 +494,8 @@ async function requestCloud<T>(path: string, init?: RequestInit): Promise<T> {
 }
 
 export async function getLinodeAccount(): Promise<LinodeAccount> {
-  return requestCloud<LinodeAccount>("/api/admin/cloud/linode/account");
+  const data = await requestCloud<Partial<LinodeAccount>>("/api/admin/cloud/linode/account");
+  return normalizeAccount(data);
 }
 
 export async function getLinodeTokens(): Promise<LinodeTokenPool> {

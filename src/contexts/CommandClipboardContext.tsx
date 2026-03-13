@@ -6,8 +6,8 @@ export type CommandClipboard = {
   name: string;
   remark: string;
   weight: number;
-  createdAt: string;
-  updatedAt: string;
+  created_at: string;
+  updated_at: string;
 };
 
 interface CommandClipboardContextType {
@@ -30,7 +30,11 @@ export const CommandClipboardProvider: React.FC<{
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState<Error | null>(null);
   const [commands, setCommands] = React.useState<CommandClipboard[]>([]);
-  const refresh = async () => {
+
+  const toError = (error: unknown, fallback: string) =>
+    error instanceof Error ? error : new Error(fallback);
+
+  const refresh = React.useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
@@ -45,12 +49,16 @@ export const CommandClipboardProvider: React.FC<{
         setCommands([]);
       }
     } catch (err) {
-      setError(err as Error);
+      const nextError = toError(err, "Failed to fetch commands");
+      setError(nextError);
+      throw nextError;
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
   const addCommand = async (name: string, text: string, remark: string, weight: number) => {
+    setLoading(true);
+    setError(null);
     try {
       const response = await fetch("/api/admin/clipboard", {
         method: "POST",
@@ -62,9 +70,11 @@ export const CommandClipboardProvider: React.FC<{
       if (!response.ok) {
         throw new Error("Failed to add command");
       }
-      refresh();
+      await refresh();
     } catch (err) {
-      setError(err as Error);
+      const nextError = toError(err, "Failed to add command");
+      setError(nextError);
+      throw nextError;
     } finally {
       setLoading(false);
     }
@@ -77,6 +87,8 @@ export const CommandClipboardProvider: React.FC<{
     remark: string,
     weight: number
   ) => {
+    setLoading(true);
+    setError(null);
     try {
       const response = await fetch(`/api/admin/clipboard/${id}`, {
         method: "POST",
@@ -88,15 +100,19 @@ export const CommandClipboardProvider: React.FC<{
       if (!response.ok) {
         throw new Error("Failed to update command");
       }
-      refresh();
+      await refresh();
     } catch (err) {
-      setError(err as Error);
+      const nextError = toError(err, "Failed to update command");
+      setError(nextError);
+      throw nextError;
     } finally {
       setLoading(false);
     }
   };
 
   const deleteCommand = async (id: number) => {
+    setLoading(true);
+    setError(null);
     try {
       const response = await fetch(`/api/admin/clipboard/${id}/remove`, {
         method: "POST",
@@ -104,17 +120,19 @@ export const CommandClipboardProvider: React.FC<{
       if (!response.ok) {
         throw new Error("Failed to delete command");
       }
-      refresh();
+      await refresh();
     } catch (err) {
-      setError(err as Error);
+      const nextError = toError(err, "Failed to delete command");
+      setError(nextError);
+      throw nextError;
     } finally {
       setLoading(false);
     }
   };
 
   React.useEffect(() => {
-    refresh();
-  }, []);
+    void refresh();
+  }, [refresh]);
   return (
     <CommandClipboardContext.Provider
       value={{

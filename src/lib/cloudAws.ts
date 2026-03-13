@@ -19,6 +19,16 @@ export type AWSAccount = {
   arn: string;
   user_id: string;
   region: string;
+  ec2_quota: AWSEC2Quota | null;
+  ec2_quota_error: string;
+};
+
+export type AWSEC2Quota = {
+  region: string;
+  max_instances: number;
+  max_elastic_ips: number;
+  vpc_max_elastic_ips: number;
+  vpc_max_security_groups_per_interface: number;
 };
 
 export type AWSCredentialInput = {
@@ -38,6 +48,8 @@ export type AWSCredentialRecord = {
   account_id: string;
   arn: string;
   user_id: string;
+  ec2_quota: AWSEC2Quota | null;
+  ec2_quota_error: string;
   last_status: string;
   last_error: string;
   last_checked_at: string;
@@ -61,6 +73,8 @@ export type AWSCredentialSecret = {
   account_id: string;
   arn: string;
   user_id: string;
+  ec2_quota: AWSEC2Quota | null;
+  ec2_quota_error: string;
 };
 
 export type AWSRegion = {
@@ -352,6 +366,41 @@ function normalizeStringArray(value: unknown): string[] {
   return value.filter((item): item is string => typeof item === "string");
 }
 
+function normalizeEC2Quota(quota: Partial<AWSEC2Quota> | null | undefined): AWSEC2Quota | null {
+  if (!quota) return null;
+
+  const normalized = {
+    region: String(quota.region || ""),
+    max_instances: Number(quota.max_instances || 0),
+    max_elastic_ips: Number(quota.max_elastic_ips || 0),
+    vpc_max_elastic_ips: Number(quota.vpc_max_elastic_ips || 0),
+    vpc_max_security_groups_per_interface: Number(quota.vpc_max_security_groups_per_interface || 0),
+  };
+
+  if (
+    !normalized.region
+    && normalized.max_instances <= 0
+    && normalized.max_elastic_ips <= 0
+    && normalized.vpc_max_elastic_ips <= 0
+    && normalized.vpc_max_security_groups_per_interface <= 0
+  ) {
+    return null;
+  }
+
+  return normalized;
+}
+
+function normalizeAccount(account: Partial<AWSAccount> | null | undefined): AWSAccount {
+  return {
+    account_id: String(account?.account_id || ""),
+    arn: String(account?.arn || ""),
+    user_id: String(account?.user_id || ""),
+    region: String(account?.region || "us-east-1"),
+    ec2_quota: normalizeEC2Quota(account?.ec2_quota),
+    ec2_quota_error: String(account?.ec2_quota_error || ""),
+  };
+}
+
 function normalizeCredentialRecord(
   credential: Partial<AWSCredentialRecord> | null | undefined,
 ): AWSCredentialRecord {
@@ -363,6 +412,8 @@ function normalizeCredentialRecord(
     account_id: String(credential?.account_id || ""),
     arn: String(credential?.arn || ""),
     user_id: String(credential?.user_id || ""),
+    ec2_quota: normalizeEC2Quota(credential?.ec2_quota),
+    ec2_quota_error: String(credential?.ec2_quota_error || ""),
     last_status: String(credential?.last_status || "unknown"),
     last_error: String(credential?.last_error || ""),
     last_checked_at: String(credential?.last_checked_at || ""),
@@ -384,6 +435,8 @@ function normalizeCredentialSecret(
     account_id: String(credential?.account_id || ""),
     arn: String(credential?.arn || ""),
     user_id: String(credential?.user_id || ""),
+    ec2_quota: normalizeEC2Quota(credential?.ec2_quota),
+    ec2_quota_error: String(credential?.ec2_quota_error || ""),
   };
 }
 
@@ -738,7 +791,8 @@ async function requestCloud<T>(path: string, init?: RequestInit): Promise<T> {
 }
 
 export async function getAWSAccount(): Promise<AWSAccount> {
-  return requestCloud<AWSAccount>("/api/admin/cloud/aws/account");
+  const data = await requestCloud<Partial<AWSAccount>>("/api/admin/cloud/aws/account");
+  return normalizeAccount(data);
 }
 
 export async function getAWSCredentials(): Promise<AWSCredentialPool> {

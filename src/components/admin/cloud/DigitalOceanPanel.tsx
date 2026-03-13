@@ -172,6 +172,10 @@ function getTokenStatusColor(status: string) {
   }
 }
 
+function hasSharedManagedSSHKey(tokens: DigitalOceanTokenRecord[]) {
+  return tokens.some((token) => token.managed_ssh_key_ready);
+}
+
 function formatMonthlyPrice(droplet: DigitalOceanDroplet) {
   const monthly = droplet.size?.price_monthly ?? 0;
   return `$${monthly.toFixed(2)}`;
@@ -473,6 +477,8 @@ export default function DigitalOceanPanel() {
   const activeToken = getActiveToken(tokenPool);
   const connected = Boolean(account && activeToken);
   const passwordStorageEnabled = Boolean(tokenPool?.password_storage_enabled);
+  const tokenRows = tokenPool?.tokens ?? [];
+  const sharedManagedKeyReady = hasSharedManagedSSHKey(tokenRows);
   const runningCount = droplets.filter((droplet) => droplet.status === "active").length;
 
   const handleImportTokens = async () => {
@@ -802,7 +808,6 @@ export default function DigitalOceanPanel() {
   const sizes = catalog?.sizes ?? [];
   const images = catalog?.images ?? [];
   const sshKeys = catalog?.ssh_keys ?? [];
-  const tokenRows = tokenPool?.tokens ?? [];
 
   const handleOpenCreateDialog = () => {
     setCreateForm((previous) => ({
@@ -872,11 +877,26 @@ export default function DigitalOceanPanel() {
         </div>
       ) : null}
 
+      {account?.status_message ? (
+        <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+          {account.status_message}
+        </div>
+      ) : null}
+
       {tokenPool && !passwordStorageEnabled ? (
         <div className="rounded-2xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800">
           {t(
             "cloud.password.storage_disabled_help",
             "Set KOMARI_CLOUD_SECRET_KEY on the server to save root passwords for later viewing in the Droplet list.",
+          )}
+        </div>
+      ) : null}
+
+      {sharedManagedKeyReady ? (
+        <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+          {t(
+            "cloud.tokens.shared_managed_key_help",
+            "Komari now reuses one shared managed SSH key across DigitalOcean credentials. Each DigitalOcean account registers the same public key on first use, so every credential can launch Droplets without generating a separate fallback key.",
           )}
         </div>
       ) : null}
@@ -1184,9 +1204,9 @@ export default function DigitalOceanPanel() {
                           ) : null}
                           {token.managed_ssh_key_ready ? (
                             <div className="mt-1 truncate text-xs text-slate-500">
-                              {t("cloud.tokens.managed_key_ready", {
+                              {t("cloud.tokens.shared_managed_key_ready", {
                                 name: token.managed_ssh_key_name || "Komari Managed Key",
-                                defaultValue: `Managed SSH key: ${token.managed_ssh_key_name || "Komari Managed Key"}`,
+                                defaultValue: `Shared managed SSH key: ${token.managed_ssh_key_name || "Komari Managed Key"}`,
                               })}
                             </div>
                           ) : null}
@@ -1603,7 +1623,7 @@ export default function DigitalOceanPanel() {
                           onCheckedChange={(nextChecked) =>
                             setCreateForm((previous) => ({
                               ...previous,
-                              ssh_keys: Boolean(nextChecked)
+                              ssh_keys: nextChecked === true
                                 ? [...previous.ssh_keys, sshKey.id]
                                 : previous.ssh_keys.filter((id) => id !== sshKey.id),
                             }))
@@ -1856,7 +1876,7 @@ export default function DigitalOceanPanel() {
           <Dialog.Description>
             {t(
               "cloud.tokens.managed_key_dialog_description",
-              "This is the managed SSH key Komari uses as a safe fallback when creating Droplets with root password mode.",
+              "This is the shared managed SSH key Komari reuses as a fallback when creating DigitalOcean Droplets with root password mode.",
             )}
           </Dialog.Description>
 
@@ -1864,6 +1884,18 @@ export default function DigitalOceanPanel() {
             <div className="mt-4 flex flex-col gap-4">
               <DetailItem label={t("cloud.tokens.table.name", "Name")} value={managedKeyMaterial.token_name} />
               <DetailItem label={t("cloud.tokens.managed_key_name", "Key Name")} value={managedKeyMaterial.name} />
+              <DetailItem
+                label={t("cloud.tokens.managed_key_registration", "Account Registration")}
+                value={managedKeyMaterial.key_id > 0
+                  ? t("cloud.tokens.managed_key_registered", {
+                    keyId: managedKeyMaterial.key_id,
+                    defaultValue: `Registered for this account as key #${managedKeyMaterial.key_id}`,
+                  })
+                  : t(
+                    "cloud.tokens.managed_key_pending_registration",
+                    "Not registered for this account yet. Komari will register the shared public key the first time this credential creates a Droplet with root password mode.",
+                  )}
+              />
               <DetailItem
                 label={t("cloud.tokens.managed_key_fingerprint", "Fingerprint")}
                 value={managedKeyMaterial.fingerprint || "-"}
