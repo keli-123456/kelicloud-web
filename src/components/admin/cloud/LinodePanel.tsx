@@ -117,6 +117,8 @@ const initialCreateForm: CreateFormState = {
   user_data: "",
   root_password_mode: "random",
   root_password: "",
+  auto_connect: true,
+  auto_connect_group: "",
 };
 
 function toErrorMessage(error: unknown) {
@@ -130,6 +132,12 @@ function hasActiveToken(pool: LinodeTokenPool | null) {
 
 function getActiveToken(pool: LinodeTokenPool | null) {
   return pool?.tokens.find((token) => token.id === pool.active_token_id) || null;
+}
+
+function getDefaultAutoConnectGroup(provider: string, credentialName: string) {
+  const normalizedProvider = provider.trim().toLowerCase() || "cloud";
+  const normalizedCredentialName = credentialName.trim() || "default";
+  return `${normalizedProvider}/${normalizedCredentialName}`;
 }
 
 function findImportSeparator(line: string) {
@@ -255,8 +263,34 @@ function getTokenStatusColor(status: string) {
   }
 }
 
+function isLinodeRestrictedMessage(message: string) {
+  const normalized = message.trim().toLowerCase();
+  if (!normalized) return false;
+
+  return (
+    normalized.includes("restricted")
+    || normalized.includes("team has been locked")
+    || normalized.includes("lack of payment")
+    || normalized.includes("open a ticket")
+    || normalized.includes("improper use")
+    || normalized.includes("support staff can help")
+  );
+}
+
 function isRestrictedLinodeToken(token: LinodeTokenRecord) {
-  return token.last_status === "error" && token.last_error.toLowerCase().includes("restricted");
+  return token.last_status === "error" && isLinodeRestrictedMessage(token.last_error);
+}
+
+function getLinodeStatusSummary(
+  message: string,
+  t: ReturnType<typeof useTranslation>["t"],
+) {
+  const normalizedMessage = message.trim();
+  if (!normalizedMessage) return "";
+  if (isLinodeRestrictedMessage(normalizedMessage)) {
+    return t("cloud.providers.linode.restricted", "Restricted");
+  }
+  return normalizedMessage;
 }
 
 function DetailItem({
@@ -320,6 +354,8 @@ export default function LinodePanel() {
   const [createOpen, setCreateOpen] = React.useState(false);
   const [createSubmitting, setCreateSubmitting] = React.useState(false);
   const [createForm, setCreateForm] = React.useState<CreateFormState>(initialCreateForm);
+  const activeToken = getActiveToken(tokenPool);
+  const defaultCreateGroup = getDefaultAutoConnectGroup("linode", activeToken?.name || "");
 
   const clearPanelState = React.useCallback(() => {
     setAccount(null);
@@ -423,7 +459,6 @@ export default function LinodePanel() {
     }
   }, [tokenPool]);
 
-  const activeToken = getActiveToken(tokenPool);
   const connected = Boolean(account && activeToken);
   const passwordStorageEnabled = Boolean(tokenPool?.password_storage_enabled);
   const runningCount = instances.filter((instance) => instance.status === "running").length;
@@ -681,6 +716,8 @@ export default function LinodePanel() {
         user_data: createForm.user_data,
         root_password_mode: createForm.root_password_mode,
         root_password: createForm.root_password,
+        auto_connect: createForm.auto_connect,
+        auto_connect_group: createForm.auto_connect_group,
       };
       const result = await createLinodeInstance(payload);
       toast.success(t("cloud.providers.linode.create_success", "Linode instance created"));
@@ -703,6 +740,8 @@ export default function LinodePanel() {
         region: previous.region,
         type: previous.type,
         image: previous.image,
+        auto_connect: true,
+        auto_connect_group: defaultCreateGroup,
       }));
       await loadPanelData();
     } catch (createError) {
@@ -766,6 +805,15 @@ export default function LinodePanel() {
     }
   };
 
+  const handleOpenCreateDialog = () => {
+    setCreateForm((previous) => ({
+      ...previous,
+      auto_connect: true,
+      auto_connect_group: defaultCreateGroup,
+    }));
+    setCreateOpen(true);
+  };
+
   if (initializing) {
     return <Loading text="" />;
   }
@@ -791,7 +839,7 @@ export default function LinodePanel() {
             <RefreshCw className="mr-2 h-4 w-4" />
             {t("cloud.refresh", "Refresh")}
           </Button>
-          <Button size="1" onClick={() => setCreateOpen(true)} disabled={!connected || !catalog}>
+          <Button size="1" onClick={handleOpenCreateDialog} disabled={!connected || !catalog}>
             <Plus className="mr-2 h-4 w-4" />
             {t("cloud.providers.linode.create", "Create Instance")}
           </Button>
@@ -1143,7 +1191,12 @@ export default function LinodePanel() {
                             {t(`cloud.tokens.status.${token.last_status}`, token.last_status || "unknown")}
                           </Badge>
                           {token.last_error ? (
-                            <div className="mt-1 max-w-64 text-xs text-red-600">{token.last_error}</div>
+                            <div
+                              className="mt-1 max-w-64 truncate text-xs text-red-600"
+                              title={token.last_error}
+                            >
+                              {getLinodeStatusSummary(token.last_error, t)}
+                            </div>
                           ) : null}
                         </TableCell>
                         <TableCell>{formatDateTime(token.last_checked_at)}</TableCell>
@@ -1383,6 +1436,49 @@ export default function LinodePanel() {
               placeholder="#!/bin/bash"
               onChange={(event) => setCreateForm((previous) => ({ ...previous, user_data: event.target.value }))}
             />
+
+            <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
+              <label className="flex items-start gap-2 text-sm text-slate-700">
+                <Checkbox
+                  checked={createForm.auto_connect}
+                  onCheckedChange={(checked) =>
+                    setCreateForm((previous) => ({
+                      ...previous,
+                      auto_connect: Boolean(checked),
+                      auto_connect_group: previous.auto_connect_group || defaultCreateGroup,
+                    }))
+                  }
+                />
+                <span>
+                  <span className="block font-medium text-slate-900">
+                    {t("cloud.form.auto_connect", "Auto-connect to Komari on first boot")}
+                  </span>
+                  <span className="mt-1 block text-xs text-slate-500">
+                    {t(
+                      "cloud.form.auto_connect_help",
+                      "Requires Auto Discovery Key. When enabled, shell user_data is injected and #cloud-config is not supported.",
+                    )}
+                  </span>
+                </span>
+              </label>
+              <div className="mt-3">
+                <label className="text-sm font-medium text-slate-800">
+                  {t("cloud.form.auto_connect_group", "Auto-connect group")}
+                </label>
+                <TextField.Root
+                  className="mt-2"
+                  value={createForm.auto_connect_group}
+                  disabled={!createForm.auto_connect}
+                  placeholder={t("cloud.form.auto_connect_group_placeholder", "linode/Primary Token")}
+                  onChange={(event) =>
+                    setCreateForm((previous) => ({
+                      ...previous,
+                      auto_connect_group: event.target.value,
+                    }))
+                  }
+                />
+              </div>
+            </div>
 
             <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
               <div className="text-sm font-medium text-slate-800">

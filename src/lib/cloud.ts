@@ -199,6 +199,8 @@ export type CreateDigitalOceanDropletInput = {
   vpc_uuid: string;
   root_password_mode: "ssh" | "custom" | "random";
   root_password: string;
+  auto_connect: boolean;
+  auto_connect_group: string;
 };
 
 export type CreateDigitalOceanDropletResult = {

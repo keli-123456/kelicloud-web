@@ -198,6 +198,8 @@ export type CreateLinodeInstanceInput = {
   user_data: string;
   root_password_mode: "custom" | "random";
   root_password: string;
+  auto_connect: boolean;
+  auto_connect_group: string;
 };
 
 export type CreateLinodeInstanceResult = {

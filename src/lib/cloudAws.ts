@@ -316,6 +316,8 @@ export type CreateAWSInstanceInput = {
   user_data: string;
   assign_public_ip: boolean;
   tags: AWSTag[];
+  auto_connect: boolean;
+  auto_connect_group: string;
 };
 
 export type CreateAWSInstanceResult = {
@@ -343,6 +345,8 @@ export type CreateAWSLightsailInstanceInput = {
   user_data?: string;
   ip_address_type?: string;
   tags?: AWSTag[];
+  auto_connect: boolean;
+  auto_connect_group: string;
 };
 
 export type AWSLightsailCatalog = {

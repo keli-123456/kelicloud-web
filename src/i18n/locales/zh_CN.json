@@ -333,6 +333,10 @@
       "root_password_random_help": "系统会在后端随机生成一个 root 密码，并在创建成功后只展示一次。",
       "user_data_password_help": "启用 root 密码模式后，这里的内容会作为 shell 命令追加执行，不支持 #cloud-config。",
       "user_data": "Cloud-Init / User Data",
+      "auto_connect": "首启后自动接入 Komari",
+      "auto_connect_help": "需要先配置 Auto Discovery Key。启用后会自动注入 shell user_data，不支持 #cloud-config。",
+      "auto_connect_group": "自动接入分组",
+      "auto_connect_group_placeholder": "按凭证自动生成，可手动覆盖",
       "options": "附加选项",
       "backups": "启用备份",
       "ipv6": "启用 IPv6",
@@ -429,7 +433,8 @@
       "digitalocean": {
         "title": "DigitalOcean",
         "token": "访问令牌",
-        "token_help": "在 DigitalOcean 中创建 Personal Access Token，并授予 Droplet 读写权限。"
+        "token_help": "在 DigitalOcean 中创建 Personal Access Token，并授予 Droplet 读写权限。",
+        "locked_account_help": "DigitalOcean 账户已锁定，后续测活和实例操作可能继续失败。"
       },
       "linode": {
         "title": "Linode",

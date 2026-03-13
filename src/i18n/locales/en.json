@@ -333,6 +333,10 @@
       "root_password_random_help": "A random root password will be generated on the server and shown once after creation succeeds.",
       "user_data_password_help": "When root password mode is enabled, this field is appended as shell commands. #cloud-config is not supported in this mode.",
       "user_data": "Cloud-Init / User Data",
+      "auto_connect": "Auto-connect to Komari on first boot",
+      "auto_connect_help": "Requires Auto Discovery Key. When enabled, shell user_data is injected and #cloud-config is not supported.",
+      "auto_connect_group": "Auto-connect group",
+      "auto_connect_group_placeholder": "Generated from the active credential by default",
       "options": "Options",
       "backups": "Enable backups",
       "ipv6": "Enable IPv6",
@@ -429,7 +433,8 @@
       "digitalocean": {
         "title": "DigitalOcean",
         "token": "Access Token",
-        "token_help": "Create a DigitalOcean Personal Access Token with Droplet read/write permissions."
+        "token_help": "Create a DigitalOcean Personal Access Token with Droplet read/write permissions.",
+        "locked_account_help": "This DigitalOcean account is locked. Health checks and Droplet operations may continue to fail."
       },
       "linode": {
         "title": "Linode",

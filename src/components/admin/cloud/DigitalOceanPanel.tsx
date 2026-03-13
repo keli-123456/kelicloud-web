@@ -109,6 +109,8 @@ const initialCreateForm: CreateDropletFormState = {
   vpc_uuid: "",
   root_password_mode: "ssh",
   root_password: "",
+  auto_connect: true,
+  auto_connect_group: "",
   tagsText: "",
 };
 
@@ -170,6 +172,37 @@ function getTokenStatusColor(status: string) {
     default:
       return "gray";
   }
+}
+
+function isDigitalOceanLockedMessage(message: string) {
+  const normalized = message.trim().toLowerCase();
+  if (!normalized) return false;
+
+  return (
+    normalized.includes("lock on the account")
+    || normalized.includes("contact support")
+    || normalized.includes("team has been locked")
+    || normalized.includes("lack of payment")
+    || normalized.includes("open a ticket")
+    || normalized.includes("improper use")
+    || normalized === "digitalocean account is locked"
+  );
+}
+
+function getDigitalOceanStatusSummary(
+  status: string,
+  message: string,
+  t: ReturnType<typeof useTranslation>["t"],
+) {
+  const normalizedStatus = status.trim().toLowerCase();
+  const normalizedMessage = message.trim();
+  if (!normalizedMessage && normalizedStatus !== "locked") {
+    return "";
+  }
+  if (normalizedStatus === "locked" || isDigitalOceanLockedMessage(normalizedMessage)) {
+    return t("cloud.password.locked", "Locked");
+  }
+  return normalizedMessage;
 }
 
 function hasSharedManagedSSHKey(tokens: DigitalOceanTokenRecord[]) {
@@ -286,6 +319,12 @@ function parseTokenImports(text: string): DigitalOceanTokenInput[] {
 
 function getActiveToken(pool: DigitalOceanTokenPool | null) {
   return pool?.tokens.find((token) => token.id === pool.active_token_id) || null;
+}
+
+function getDefaultAutoConnectGroup(provider: string, credentialName: string) {
+  const normalizedProvider = provider.trim().toLowerCase() || "cloud";
+  const normalizedCredentialName = credentialName.trim() || "default";
+  return `${normalizedProvider}/${normalizedCredentialName}`;
 }
 
 function DetailItem({
@@ -475,10 +514,16 @@ export default function DigitalOceanPanel() {
   }
 
   const activeToken = getActiveToken(tokenPool);
+  const defaultCreateGroup = getDefaultAutoConnectGroup("digitalocean", activeToken?.name || "");
   const connected = Boolean(account && activeToken);
   const passwordStorageEnabled = Boolean(tokenPool?.password_storage_enabled);
   const tokenRows = tokenPool?.tokens ?? [];
   const sharedManagedKeyReady = hasSharedManagedSSHKey(tokenRows);
+  const accountStatusSummary = getDigitalOceanStatusSummary(
+    account?.status || "",
+    account?.status_message || "",
+    t,
+  );
   const runningCount = droplets.filter((droplet) => droplet.status === "active").length;
 
   const handleImportTokens = async () => {
@@ -733,6 +778,8 @@ export default function DigitalOceanPanel() {
         vpc_uuid: createForm.vpc_uuid,
         root_password_mode: passwordMode,
         root_password: createForm.root_password,
+        auto_connect: createForm.auto_connect,
+        auto_connect_group: createForm.auto_connect_group,
       };
 
       const result = await createDigitalOceanDroplet(payload);
@@ -763,6 +810,8 @@ export default function DigitalOceanPanel() {
         size: previous.size,
         image: previous.image,
         ssh_keys: getDefaultDigitalOceanSSHKeyIds(catalog),
+        auto_connect: true,
+        auto_connect_group: defaultCreateGroup,
       }));
       await loadPanelData();
     } catch (createError) {
@@ -813,6 +862,8 @@ export default function DigitalOceanPanel() {
     setCreateForm((previous) => ({
       ...previous,
       ssh_keys: normalizeDigitalOceanSSHKeySelection(previous.ssh_keys, catalog),
+      auto_connect: true,
+      auto_connect_group: defaultCreateGroup,
     }));
     setCreateOpen(true);
   };
@@ -859,7 +910,16 @@ export default function DigitalOceanPanel() {
         },
         {
           label: t("cloud.stats.account", "Account"),
-          value: account?.email || activeToken?.account_email || "-",
+          value: (
+            <span className="inline-flex items-center gap-2">
+              <span>{account?.email || activeToken?.account_email || "-"}</span>
+              {accountStatusSummary ? (
+                <span title={account?.status_message || accountStatusSummary}>
+                  <Badge color="red">{accountStatusSummary}</Badge>
+                </span>
+              ) : null}
+            </span>
+          ),
         },
         {
           label: t("cloud.stats.droplets", "Droplets"),
@@ -877,9 +937,14 @@ export default function DigitalOceanPanel() {
         </div>
       ) : null}
 
-      {account?.status_message ? (
+      {accountStatusSummary ? (
         <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-          {account.status_message}
+          <span title={account?.status_message || accountStatusSummary}>
+            {t(
+              "cloud.providers.digitalocean.locked_account_help",
+              "This DigitalOcean account is locked. Health checks and Droplet operations may continue to fail.",
+            )}
+          </span>
         </div>
       ) : null}
 
@@ -1216,8 +1281,11 @@ export default function DigitalOceanPanel() {
                             {t(`cloud.tokens.status.${token.last_status}`, token.last_status || "unknown")}
                           </Badge>
                           {token.last_error ? (
-                            <div className="mt-1 max-w-64 text-xs text-red-600">
-                              {token.last_error}
+                            <div
+                              className="mt-1 max-w-64 truncate text-xs text-red-600"
+                              title={token.last_error}
+                            >
+                              {getDigitalOceanStatusSummary("", token.last_error, t) || token.last_error}
                             </div>
                           ) : null}
                         </TableCell>
@@ -1554,6 +1622,49 @@ export default function DigitalOceanPanel() {
                 }))
               }
             />
+
+            <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
+              <label className="flex items-start gap-2 text-sm text-slate-700">
+                <Checkbox
+                  checked={createForm.auto_connect}
+                  onCheckedChange={(checked) =>
+                    setCreateForm((previous) => ({
+                      ...previous,
+                      auto_connect: Boolean(checked),
+                      auto_connect_group: previous.auto_connect_group || defaultCreateGroup,
+                    }))
+                  }
+                />
+                <span>
+                  <span className="block font-medium text-slate-900">
+                    {t("cloud.form.auto_connect", "Auto-connect to Komari on first boot")}
+                  </span>
+                  <span className="mt-1 block text-xs text-slate-500">
+                    {t(
+                      "cloud.form.auto_connect_help",
+                      "Requires Auto Discovery Key. When enabled, shell user_data is injected and #cloud-config is not supported.",
+                    )}
+                  </span>
+                </span>
+              </label>
+              <div className="mt-3">
+                <label className="text-sm font-medium text-slate-800">
+                  {t("cloud.form.auto_connect_group", "Auto-connect group")}
+                </label>
+                <TextField.Root
+                  className="mt-2"
+                  value={createForm.auto_connect_group}
+                  disabled={!createForm.auto_connect}
+                  placeholder={t("cloud.form.auto_connect_group_placeholder", "digitalocean/Primary Token")}
+                  onChange={(event) =>
+                    setCreateForm((previous) => ({
+                      ...previous,
+                      auto_connect_group: event.target.value,
+                    }))
+                  }
+                />
+              </div>
+            </div>
 
             <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
               <div className="text-sm font-medium text-slate-800">
