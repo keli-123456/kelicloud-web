@@ -6,6 +6,8 @@ import { Tabs } from "@/components/ui/compat";
 import AWSPanel from "@/components/admin/cloud/AWSPanel";
 import DigitalOceanPanel from "@/components/admin/cloud/DigitalOceanPanel";
 import LinodePanel from "@/components/admin/cloud/LinodePanel";
+import { CommandClipboardProvider } from "@/contexts/CommandClipboardContext";
+import { NodeDetailsProvider } from "@/contexts/NodeDetailsContext";
 
 type ProviderKey = "digitalocean" | "linode" | "aws";
 
@@ -45,36 +47,40 @@ export default function CloudPage() {
   };
 
   return (
-    <div className="space-y-6">
-      <div className="rounded-2xl border border-slate-200 bg-white px-5 py-4">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <div className="text-sm font-medium text-slate-900">
-              {t("cloud.provider_switcher_title", "Cloud Provider")}
-            </div>
-            <div className="mt-1 text-sm text-slate-500">
-              {t(
-                "cloud.provider_switcher_description",
-                "Switch between DigitalOcean, Linode, and AWS EC2 provider panels.",
-              )}
+    <NodeDetailsProvider>
+      <CommandClipboardProvider>
+        <div className="space-y-6">
+          <div className="rounded-2xl border border-slate-200 bg-white px-5 py-4">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <div className="text-sm font-medium text-slate-900">
+                  {t("cloud.provider_switcher_title", "Cloud Provider")}
+                </div>
+                <div className="mt-1 text-sm text-slate-500">
+                  {t(
+                    "cloud.provider_switcher_description",
+                    "Switch between DigitalOcean, Linode, and AWS EC2 provider panels.",
+                  )}
+                </div>
+              </div>
+              <Tabs.Root value={provider} onValueChange={handleProviderChange}>
+                <Tabs.List>
+                  {PROVIDERS.map((item) => (
+                    <Tabs.Trigger key={item.key} value={item.key}>
+                      {item.icon}
+                      {t(`cloud.providers.${item.key}.title`, item.key)}
+                    </Tabs.Trigger>
+                  ))}
+                </Tabs.List>
+              </Tabs.Root>
             </div>
           </div>
-          <Tabs.Root value={provider} onValueChange={handleProviderChange}>
-            <Tabs.List>
-              {PROVIDERS.map((item) => (
-                <Tabs.Trigger key={item.key} value={item.key}>
-                  {item.icon}
-                  {t(`cloud.providers.${item.key}.title`, item.key)}
-                </Tabs.Trigger>
-              ))}
-            </Tabs.List>
-          </Tabs.Root>
-        </div>
-      </div>
 
-      {provider === "digitalocean" ? <DigitalOceanPanel /> : null}
-      {provider === "linode" ? <LinodePanel /> : null}
-      {provider === "aws" ? <AWSPanel /> : null}
-    </div>
+          {provider === "digitalocean" ? <DigitalOceanPanel /> : null}
+          {provider === "linode" ? <LinodePanel /> : null}
+          {provider === "aws" ? <AWSPanel /> : null}
+        </div>
+      </CommandClipboardProvider>
+    </NodeDetailsProvider>
   );
 }

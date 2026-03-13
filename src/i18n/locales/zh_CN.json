@@ -146,6 +146,10 @@
       "namePlaceholder": "Name",
       "noData": "没有数据",
       "nodeList": "节点列表",
+      "cnConnectivityBlocked": "疑似被墙",
+      "cnConnectivityDegraded": "国内异常",
+      "cnConnectivityOk": "国内畅通",
+      "cnConnectivityUnknown": "待探测",
       "noResults": "No results",
       "price": "价格",
       "priceTips": "0不显示，-1表示免费",
@@ -428,6 +432,19 @@
       "loading_title": "加载分享中",
       "invalid": "无效的分享链接",
       "fingerprint": "指纹"
+    },
+    "script": {
+      "action": "执行脚本",
+      "dialog_title": "执行脚本",
+      "dialog_description": "从脚本库里选择脚本，直接对当前实例对应的 Komari 节点执行。",
+      "matched_node": "匹配节点",
+      "matched_node_help": "优先按分组和 IP 匹配，找不到时回退到名称匹配。",
+      "refresh_nodes": "刷新节点",
+      "unmatched": "未找到对应的 Komari 节点，请先确认 agent 已接入并且 IP 或主机名可以匹配。",
+      "submitted": "脚本 {{script}} 已下发到 {{node}}",
+      "empty": "脚本库里还没有脚本。",
+      "run": "执行",
+      "running": "执行中..."
     },
     "providers": {
       "digitalocean": {
@@ -854,6 +871,14 @@
       "auto_discovery": "自动发现",
       "auto_discovery_key": "自动发现密钥",
       "auto_discovery_key_description": "使用自动发现可以批量注册客户端，留空表示禁用自动发现。",
+      "cn_connectivity": "国内连通探测",
+      "cn_connectivity_config": "探测配置",
+      "cn_connectivity_config_description": "Agent 会定时 ICMP ping 你提供的目标地址，请只填写确认允许 ping 的目标。",
+      "cn_connectivity_enabled": "启用国内连通探测",
+      "cn_connectivity_enabled_description": "用于辅助判断节点到你指定目标的国内连通性。",
+      "cn_connectivity_interval": "探测间隔（秒）",
+      "cn_connectivity_interval_invalid": "探测间隔必须大于 0",
+      "cn_connectivity_target": "探测目标",
       "title": "通用"
     },
     "geoip": {
@@ -961,6 +986,8 @@
       "name_description": "设置站点名称",
       "private_site": "私有站点",
       "private_site_description": "将站点设置为私有，开启后数据都需要登陆后才能获取。",
+      "base_scripts_url": "Agent 脚本源地址",
+      "base_scripts_url_description": "用于一键命令和自动接入的安装脚本地址。支持 GitHub 仓库地址、tree/blob 链接或 raw 地址；留空使用官方仓库。",
       "script_domain": "Agent 连接地址",
       "script_domain_description": "为安装脚本定义面板的连接地址，方便多个域名的用户，并不会影响其他域名的访问。留空使用当前域名。",
       "send_ip_addr_to_guest": "向访客显示部分IP地址",

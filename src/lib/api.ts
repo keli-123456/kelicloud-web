@@ -9,6 +9,10 @@ export interface SettingsResponse {
   sitename: string;
   description: string;
   allow_cors: boolean;
+  base_scripts_url: string;
+  cn_connectivity_enabled: boolean;
+  cn_connectivity_target: string;
+  cn_connectivity_interval: number;
   geo_ip_enabled: boolean;
   geo_ip_provider: string;
   o_auth_provider: string;
@@ -34,7 +38,10 @@ export async function getSettings(): Promise<SettingsResponse> {
     const data = await response.json();
 
     // Remove database metadata fields that are not needed for UI
-    const { CreatedAt, UpdatedAt, id, ...settings } = data["data"];
+    const settings = { ...(data["data"] ?? {}) };
+    delete settings.CreatedAt;
+    delete settings.UpdatedAt;
+    delete settings.id;
 
     return settings as SettingsResponse;
   } catch (error) {
@@ -61,15 +68,9 @@ export async function updateSettings(
     });
 
     if (!response.ok) {
-      try {
-        const errorData = await response.json();
-        console.log("Error response data:", errorData.message);
-        throw new Error(
-          `${errorData['message']}`
-        );
-      } catch (jsonError) {
-        throw jsonError
-      }
+      const errorData = await response.json();
+      console.log("Error response data:", errorData.message);
+      throw new Error(`${errorData["message"]}`);
     }
   } catch (error) {
     console.error("Failed to update settings:", error);
@@ -113,6 +114,10 @@ export function useSettings() {
     sitename: "",
     description: "",
     allow_cors: false,
+    base_scripts_url: "",
+    cn_connectivity_enabled: false,
+    cn_connectivity_target: "",
+    cn_connectivity_interval: 60,
     geo_ip_enabled: false,
     geo_ip_provider: "",
     o_auth_provider: "",

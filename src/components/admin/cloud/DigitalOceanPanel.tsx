@@ -19,6 +19,7 @@ import {
 
 import { AdminPageShell } from "@/components/admin/AdminPageShell";
 import CloudInstanceShareDialog, { type CloudInstanceShareTarget } from "@/components/admin/cloud/CloudInstanceShareDialog";
+import CloudInstanceScriptDialog, { type CloudInstanceScriptTarget } from "@/components/admin/cloud/CloudInstanceScriptDialog";
 import Loading from "@/components/loading";
 import {
   Badge,
@@ -148,6 +149,17 @@ function getDropletPrimaryIp(droplet: DigitalOceanDroplet) {
   if (ipv4?.ip_address) return ipv4.ip_address;
   const ipv6 = droplet.networks.v6.find((network) => network.type === "public");
   return ipv6?.ip_address || "-";
+}
+
+function getDropletMatchAddresses(droplet: DigitalOceanDroplet) {
+  return [
+    ...droplet.networks.v4
+      .filter((network) => network.type === "public")
+      .map((network) => network.ip_address),
+    ...droplet.networks.v6
+      .filter((network) => network.type === "public")
+      .map((network) => network.ip_address),
+  ].filter(Boolean);
 }
 
 function getDropletStatusColor(status: string) {
@@ -309,7 +321,7 @@ function parseTokenImports(text: string): DigitalOceanTokenInput[] {
     seen.add(token);
 
     tokens.push({
-      name: name || `Token ${tokens.length + 1}`,
+      name,
       token,
     });
   }
@@ -369,6 +381,7 @@ export default function DigitalOceanPanel() {
     React.useState<SavedDropletPasswordState | null>(null);
   const [shareOpen, setShareOpen] = React.useState(false);
   const [shareTarget, setShareTarget] = React.useState<CloudInstanceShareTarget | null>(null);
+  const [scriptTarget, setScriptTarget] = React.useState<CloudInstanceScriptTarget | null>(null);
   const [shareRecord, setShareRecord] = React.useState<CloudInstanceShareRecord | null>(null);
   const [shareLoading, setShareLoading] = React.useState(false);
   const [shareSaving, setShareSaving] = React.useState(false);
@@ -1140,6 +1153,21 @@ export default function DigitalOceanPanel() {
                           >
                             <RotateCcw className="mr-1 h-3.5 w-3.5" />
                             {t("cloud.reboot", "Reboot")}
+                          </Button>
+                          <Button
+                            variant="soft"
+                            size="1"
+                            onClick={() => {
+                              setScriptTarget({
+                                providerLabel: "DigitalOcean",
+                                instanceName: droplet.name || String(droplet.id),
+                                instanceIdentifier: String(droplet.id),
+                                addresses: getDropletMatchAddresses(droplet),
+                                groupHint: getDefaultAutoConnectGroup("digitalocean", activeToken?.name || ""),
+                              });
+                            }}
+                          >
+                            {t("cloud.script.action", "Run Script")}
                           </Button>
                           <Button
                             variant="soft"
@@ -1971,6 +1999,15 @@ export default function DigitalOceanPanel() {
         }}
         onDelete={() => {
           void handleDeleteShare();
+        }}
+      />
+
+      <CloudInstanceScriptDialog
+        open={Boolean(scriptTarget)}
+        target={scriptTarget}
+        onOpenChange={(open) => {
+          if (open) return;
+          setScriptTarget(null);
         }}
       />
 

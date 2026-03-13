@@ -17,6 +17,8 @@ import {
   TextField,
 } from "@/components/ui/compat";
 import { toast } from "sonner";
+import { useSettings } from "@/lib/api";
+import { buildAgentInstallScriptURL } from "@/lib/installScriptSource";
 
 async function removeClient(uuid: string) {
   await fetch(`/api/admin/client/${uuid}/remove`, {
@@ -37,6 +39,7 @@ type Platform = "linux" | "windows" | "macos";
 
 export function ActionsCell({ row }: { row: Row<z.infer<typeof schema>> }) {
   const refreshTable = React.useContext(DataTableRefreshContext);
+  const { settings } = useSettings();
   const [removing, setRemoving] = React.useState(false);
   const [selectedPlatform, setSelectedPlatform] =
     React.useState<Platform>("linux");
@@ -80,16 +83,24 @@ export function ActionsCell({ row }: { row: Row<z.infer<typeof schema>> }) {
     }
 
     let finalCommand = "";
+    const installShUrl = buildAgentInstallScriptURL(
+      settings.base_scripts_url,
+      "install.sh"
+    );
+    const installPsUrl = buildAgentInstallScriptURL(
+      settings.base_scripts_url,
+      "install.ps1"
+    );
     switch (selectedPlatform) {
       case "linux":
         finalCommand =
-          `wget -qO- https://raw.githubusercontent.com/komari-monitor/komari-agent/refs/heads/main/install.sh | sudo bash -s -- ` +
+          `wget -qO- ${installShUrl} | sudo bash -s -- ` +
           args.join(" ");
         break;
       case "windows":
         finalCommand =
           `powershell.exe -NoProfile -ExecutionPolicy Bypass -Command ` +
-          `"iwr 'https://raw.githubusercontent.com/komari-monitor/komari-agent/refs/heads/main/install.ps1'` +
+          `"iwr '${installPsUrl}'` +
           ` -UseBasicParsing -OutFile 'install.ps1'; &` +
           ` '.\\install.ps1'`;
         args.forEach((arg) => {
@@ -99,7 +110,7 @@ export function ActionsCell({ row }: { row: Row<z.infer<typeof schema>> }) {
         break;
       case "macos":
         finalCommand =
-            `zsh <(curl -sL https://raw.githubusercontent.com/komari-monitor/komari-agent/refs/heads/main/install.sh) ` +
+            `zsh <(curl -sL ${installShUrl}) ` +
             args.join(" ");
         break;
     }
@@ -343,4 +354,3 @@ export function ActionsCell({ row }: { row: Row<z.infer<typeof schema>> }) {
     </div>
   );
 }
-

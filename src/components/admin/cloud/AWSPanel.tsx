@@ -18,6 +18,7 @@ import {
 
 import { AdminPageShell } from "@/components/admin/AdminPageShell";
 import CloudInstanceShareDialog, { type CloudInstanceShareTarget } from "@/components/admin/cloud/CloudInstanceShareDialog";
+import CloudInstanceScriptDialog, { type CloudInstanceScriptTarget } from "@/components/admin/cloud/CloudInstanceScriptDialog";
 import Loading from "@/components/loading";
 import {
   Badge,
@@ -191,7 +192,7 @@ function parseCredentialImports(text: string): AWSCredentialInput[] {
     seen.add(key);
 
     credentials.push({
-      name: name || `Credential ${credentials.length + 1}`,
+      name,
       access_key_id: accessKeyId,
       secret_access_key: secretAccessKey,
       default_region: defaultRegion || "us-east-1",
@@ -408,6 +409,7 @@ export default function AWSPanel() {
   const [credentialSecretLoading, setCredentialSecretLoading] = React.useState(false);
   const [shareOpen, setShareOpen] = React.useState(false);
   const [shareTarget, setShareTarget] = React.useState<CloudInstanceShareTarget | null>(null);
+  const [scriptTarget, setScriptTarget] = React.useState<CloudInstanceScriptTarget | null>(null);
   const [shareRecord, setShareRecord] = React.useState<CloudInstanceShareRecord | null>(null);
   const [shareLoading, setShareLoading] = React.useState(false);
   const [shareSaving, setShareSaving] = React.useState(false);
@@ -1318,6 +1320,21 @@ export default function AWSPanel() {
                                 variant="soft"
                                 size="1"
                                 onClick={() => {
+                                  setScriptTarget({
+                                    providerLabel: "AWS EC2",
+                                    instanceName: instance.name || instance.instance_id,
+                                    instanceIdentifier: instance.instance_id,
+                                    addresses: [instance.public_ip, instance.private_ip].filter(Boolean),
+                                    groupHint: getDefaultAutoConnectGroup("aws", activeCredential?.name || ""),
+                                  });
+                                }}
+                              >
+                                {t("cloud.script.action", "Run Script")}
+                              </Button>
+                              <Button
+                                variant="soft"
+                                size="1"
+                                onClick={() => {
                                   void handleOpenShareDialog({
                                     provider: "aws",
                                     resourceType: "ec2",
@@ -1446,6 +1463,21 @@ export default function AWSPanel() {
                               >
                                 <RotateCcw className="mr-1 h-3.5 w-3.5" />
                                 {t("cloud.reboot", "Reboot")}
+                              </Button>
+                              <Button
+                                variant="soft"
+                                size="1"
+                                onClick={() => {
+                                  setScriptTarget({
+                                    providerLabel: "AWS Lightsail",
+                                    instanceName: instance.name,
+                                    instanceIdentifier: instance.name,
+                                    addresses: [instance.public_ip, instance.private_ip, ...instance.ipv6_addresses].filter(Boolean),
+                                    groupHint: getDefaultAutoConnectGroup("aws", activeCredential?.name || ""),
+                                  });
+                                }}
+                              >
+                                {t("cloud.script.action", "Run Script")}
                               </Button>
                               <Button
                                 variant="soft"
@@ -2716,6 +2748,15 @@ export default function AWSPanel() {
         }}
         onDelete={() => {
           void handleDeleteShare();
+        }}
+      />
+
+      <CloudInstanceScriptDialog
+        open={Boolean(scriptTarget)}
+        target={scriptTarget}
+        onOpenChange={(open) => {
+          if (open) return;
+          setScriptTarget(null);
         }}
       />
 

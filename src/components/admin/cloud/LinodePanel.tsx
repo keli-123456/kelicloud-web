@@ -19,6 +19,7 @@ import {
 
 import { AdminPageShell } from "@/components/admin/AdminPageShell";
 import CloudInstanceShareDialog, { type CloudInstanceShareTarget } from "@/components/admin/cloud/CloudInstanceShareDialog";
+import CloudInstanceScriptDialog, { type CloudInstanceScriptTarget } from "@/components/admin/cloud/CloudInstanceScriptDialog";
 import Loading from "@/components/loading";
 import {
   Badge,
@@ -171,7 +172,7 @@ function parseTokenImports(text: string): LinodeTokenInput[] {
     if (!token || seen.has(token)) continue;
     seen.add(token);
     tokens.push({
-      name: name || `Token ${tokens.length + 1}`,
+      name,
       token,
     });
   }
@@ -341,6 +342,7 @@ export default function LinodePanel() {
   const [savedPassword, setSavedPassword] = React.useState<SavedPasswordState | null>(null);
   const [shareOpen, setShareOpen] = React.useState(false);
   const [shareTarget, setShareTarget] = React.useState<CloudInstanceShareTarget | null>(null);
+  const [scriptTarget, setScriptTarget] = React.useState<CloudInstanceScriptTarget | null>(null);
   const [shareRecord, setShareRecord] = React.useState<CloudInstanceShareRecord | null>(null);
   const [shareLoading, setShareLoading] = React.useState(false);
   const [shareSaving, setShareSaving] = React.useState(false);
@@ -1068,6 +1070,21 @@ export default function LinodePanel() {
                             >
                               <RotateCcw className="mr-1 h-3.5 w-3.5" />
                               {t("cloud.reboot", "Reboot")}
+                            </Button>
+                            <Button
+                              variant="soft"
+                              size="1"
+                              onClick={() => {
+                                setScriptTarget({
+                                  providerLabel: "Linode",
+                                  instanceName: instance.label || String(instance.id),
+                                  instanceIdentifier: String(instance.id),
+                                  addresses: [...instance.ipv4, instance.ipv6].filter(Boolean),
+                                  groupHint: getDefaultAutoConnectGroup("linode", activeToken?.name || ""),
+                                });
+                              }}
+                            >
+                              {t("cloud.script.action", "Run Script")}
                             </Button>
                             <Button
                               variant="soft"
@@ -1939,6 +1956,15 @@ export default function LinodePanel() {
         }}
         onDelete={() => {
           void handleDeleteShare();
+        }}
+      />
+
+      <CloudInstanceScriptDialog
+        open={Boolean(scriptTarget)}
+        target={scriptTarget}
+        onOpenChange={(open) => {
+          if (open) return;
+          setScriptTarget(null);
         }}
       />
 

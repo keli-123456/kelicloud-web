@@ -59,6 +59,54 @@ export default function GeneralSettings() {
         {t("settings.general.auto_discovery")}
       </SettingCardLabel>
       <ApiCard settings={settings} />
+      <SettingCardLabel>
+        {t("settings.general.cn_connectivity")}
+      </SettingCardLabel>
+      <SettingCardSwitch
+        title={t("settings.general.cn_connectivity_enabled")}
+        description={t("settings.general.cn_connectivity_enabled_description")}
+        defaultChecked={settings.cn_connectivity_enabled}
+        onChange={async (checked) => {
+          await updateSettingsWithToast({ cn_connectivity_enabled: checked }, t);
+        }}
+      />
+      <SettingCardMultiInputCollapse
+        defaultOpen={Boolean(settings.cn_connectivity_enabled)}
+        title={t("settings.general.cn_connectivity_config")}
+        description={t("settings.general.cn_connectivity_config_description")}
+        items={[
+          {
+            tag: "cn_connectivity_target",
+            label: t("settings.general.cn_connectivity_target"),
+            type: "short",
+            placeholder: "223.5.5.5",
+            defaultValue: settings.cn_connectivity_target || "",
+          },
+          {
+            tag: "cn_connectivity_interval",
+            label: t("settings.general.cn_connectivity_interval"),
+            type: "short",
+            placeholder: "60",
+            defaultValue: String(settings.cn_connectivity_interval || 60),
+            number: true,
+          },
+        ]}
+        onSave={async (values) => {
+          const interval = parseInt(values.cn_connectivity_interval, 10);
+          if (isNaN(interval) || interval <= 0) {
+            toast.error(t("settings.general.cn_connectivity_interval_invalid"));
+            return;
+          }
+
+          await updateSettingsWithToast(
+            {
+              cn_connectivity_target: values.cn_connectivity_target.trim(),
+              cn_connectivity_interval: interval,
+            },
+            t
+          );
+        }}
+      />
       <label className="pt-1 text-[12px] font-semibold uppercase tracking-[0.14em] text-slate-500">
         {t("settings.geoip.title")}
       </label>

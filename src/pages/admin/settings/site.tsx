@@ -162,6 +162,18 @@ export default function SiteSettings() {
           await updateSettingsWithToast({ script_domain: data }, t);
         }}
       />
+      <SettingCardShortTextInput
+        title={t("settings.site.base_scripts_url", "Agent 脚本源地址")}
+        description={t(
+          "settings.site.base_scripts_url_description",
+          "用于一键命令和自动接入的安装脚本地址。支持 GitHub 仓库地址、tree/blob 链接或 raw 地址；留空使用官方仓库。"
+        )}
+        placeholder="https://github.com/your-name/komari-agent"
+        defaultValue={settings.base_scripts_url || ""}
+        OnSave={async (data) => {
+          await updateSettingsWithToast({ base_scripts_url: data }, t);
+        }}
+      />
       <SettingCardLabel>{t("settings.site.private_site")}</SettingCardLabel>
       <SettingCardSwitch
         title={t("settings.site.private_site")}
@@ -212,7 +224,7 @@ export default function SiteSettings() {
                 if (!isNaN(val)) {
                   setShareHours(val);
                 }
-              } catch (err) {
+              } catch {
                 // ignore
               }
             }}

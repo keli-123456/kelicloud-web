@@ -45,6 +45,14 @@ export type Record = {
   uptime: number;
   process: number;
   message: string;
+  cn_connectivity?: {
+    status: string;
+    target?: string;
+    latency?: number;
+    message?: string;
+    checked_at?: string;
+    consecutive_failures?: number;
+  };
   updated_at: string;
 };
 

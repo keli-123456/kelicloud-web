@@ -77,6 +77,7 @@ export const LiveDataProvider: React.FC<{ children: React.ReactNode }> = ({ chil
             uptime: rec.uptime ?? 0,
             process: rec.process ?? 0,
             message: "",
+            cn_connectivity: rec.cn_connectivity ?? undefined,
             updated_at: rec.time ?? 0,
           };
         }

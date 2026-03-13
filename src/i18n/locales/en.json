@@ -146,6 +146,10 @@
       "namePlaceholder": "Name",
       "noData": "No data",
       "nodeList": "Node list",
+      "cnConnectivityBlocked": "Suspected blocked",
+      "cnConnectivityDegraded": "CN abnormal",
+      "cnConnectivityOk": "CN reachable",
+      "cnConnectivityUnknown": "Pending probe",
       "noResults": "No results",
       "price": "Price",
       "priceTips": "0 is not displayed, -1 means free",
@@ -428,6 +432,19 @@
       "loading_title": "Loading Share",
       "invalid": "Invalid share link",
       "fingerprint": "Fingerprint"
+    },
+    "script": {
+      "action": "Run Script",
+      "dialog_title": "Run Script",
+      "dialog_description": "Choose a saved script and execute it directly on the matched Komari node for this instance.",
+      "matched_node": "Matched Node",
+      "matched_node_help": "Match by group and IP first, then fall back to the instance name.",
+      "refresh_nodes": "Refresh Nodes",
+      "unmatched": "No matching Komari node was found. Make sure the agent is connected and the IP or hostname can be matched.",
+      "submitted": "Script {{script}} was dispatched to {{node}}",
+      "empty": "No saved scripts yet.",
+      "run": "Run",
+      "running": "Running..."
     },
     "providers": {
       "digitalocean": {
@@ -854,6 +871,14 @@
       "auto_discovery": "Auto discovery",
       "auto_discovery_key": "Auto discovery key",
       "auto_discovery_key_description": "Use automatic discovery to register clients in bulk. Leave blank to disable automatic discovery.",
+      "cn_connectivity": "CN connectivity probe",
+      "cn_connectivity_config": "Probe settings",
+      "cn_connectivity_config_description": "The agent will periodically ICMP ping the target you provide. Only use a target that you know allows ping.",
+      "cn_connectivity_enabled": "Enable CN connectivity probe",
+      "cn_connectivity_enabled_description": "Used to help judge node connectivity to your chosen target in China.",
+      "cn_connectivity_interval": "Probe interval (seconds)",
+      "cn_connectivity_interval_invalid": "Probe interval must be greater than 0",
+      "cn_connectivity_target": "Probe target",
       "title": "General"
     },
     "geoip": {
@@ -961,6 +986,8 @@
       "name_description": "Set the name of the site",
       "private_site": "Private site",
       "private_site_description": "Set the site to private. Once enabled, data can only be accessed after logging in.",
+      "base_scripts_url": "Agent script source",
+      "base_scripts_url_description": "Install script source used by one-click commands and auto-connect. Supports a GitHub repo URL, tree/blob URL, or raw URL. Leave empty to use the official repository.",
       "script_domain": "Agent connection address",
       "script_domain_description": "Define the connection address for the installation script panel, convenient for users with multiple domains, and will not affect access to other domains. Leave empty to use the current domain.",
       "send_ip_addr_to_guest": "Show partial IP address to guests",

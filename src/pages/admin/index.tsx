@@ -45,6 +45,7 @@ import { useSettings } from "@/lib/api";
 import { SelectOrInput } from "@/components/ui/select-or-input";
 import { useRPC2Call } from "@/contexts/RPC2Context";
 import type { Record as LiveRecord } from "@/types/LiveData";
+import { buildAgentInstallScriptURL } from "@/lib/installScriptSource";
 
 
 const NodeDetailsPage = () => {
@@ -78,6 +79,7 @@ const createEmptyLiveRecord = (): LiveRecord => ({
   uptime: 0,
   process: 0,
   message: "",
+  cn_connectivity: undefined,
   updated_at: "",
 });
 
@@ -151,6 +153,7 @@ const normalizeLiveSnapshot = (value: any): NodeLiveSnapshot => {
       uptime: value.uptime ?? 0,
       process: value.process ?? 0,
       message: "",
+      cn_connectivity: value.cn_connectivity ?? undefined,
       updated_at: value.time ?? "",
     },
   };
@@ -511,7 +514,7 @@ const clampPercent = (value: number) =>
 
 const formatPercent = (value: number) => `${Math.round(clampPercent(value))}%`;
 
-const shellQuote = (value: string) => `'${value.replace(/'/g, `'\"'\"'`)}'`;
+const shellQuote = (value: string) => `'${value.replace(/'/g, `'"'"'`)}'`;
 
 const powershellQuote = (value: string) => `'${value.replace(/'/g, "''")}'`;
 
@@ -567,10 +570,16 @@ const StatusSummary = ({
 }: {
   live?: NodeLiveSnapshot;
 }) => {
+  const { t } = useTranslation();
   const online = Boolean(live?.online);
+  const connectivity = live?.record.cn_connectivity;
+  const cnBadge =
+    online && connectivity && connectivity.status
+      ? buildCNConnectivityBadge(connectivity, t)
+      : null;
 
   return (
-    <div className="min-w-[72px]">
+    <div className="min-w-[120px] space-y-1">
       <Badge
         variant="soft"
         className={
@@ -581,8 +590,65 @@ const StatusSummary = ({
       >
         {online ? "在线" : "离线"}
       </Badge>
+      {cnBadge ? (
+        <Badge
+          variant="soft"
+          className={cnBadge.className}
+          title={cnBadge.title}
+        >
+          {cnBadge.label}
+        </Badge>
+      ) : null}
     </div>
   );
+};
+
+const buildCNConnectivityBadge = (
+  connectivity: NonNullable<LiveRecord["cn_connectivity"]>,
+  t: any
+) => {
+  const latencyLabel =
+    typeof connectivity.latency === "number" && connectivity.latency > 0
+      ? ` ${connectivity.latency}ms`
+      : "";
+  const titleParts = [
+    connectivity.target
+      ? `${t("settings.general.cn_connectivity_target")}: ${connectivity.target}`
+      : "",
+    connectivity.message || "",
+  ].filter(Boolean);
+  const title = titleParts.join("\n");
+
+  switch (connectivity.status) {
+    case "ok":
+      return {
+        label: `${t("admin.nodeTable.cnConnectivityOk", "国内畅通")}${latencyLabel}`,
+        className:
+          "rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[11px] text-emerald-700",
+        title,
+      };
+    case "blocked_suspected":
+      return {
+        label: t("admin.nodeTable.cnConnectivityBlocked", "疑似被墙"),
+        className:
+          "rounded-full border border-rose-200 bg-rose-50 px-2 py-0.5 text-[11px] text-rose-700",
+        title,
+      };
+    case "degraded":
+      return {
+        label: t("admin.nodeTable.cnConnectivityDegraded", "国内异常"),
+        className:
+          "rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[11px] text-amber-700",
+        title,
+      };
+    default:
+      return {
+        label: t("admin.nodeTable.cnConnectivityUnknown", "待探测"),
+        className:
+          "rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-[11px] text-slate-600",
+        title,
+      };
+  }
 };
 
 const ExitIpSummary = ({ node }: { node: NodeDetail }) => (
@@ -1312,8 +1378,10 @@ function GenerateCommandButton({
     if (selectedPlatform === "windows") {
       scriptFile = "install.ps1";
     }
-    let scriptUrl =
-      `https://raw.githubusercontent.com/komari-monitor/komari-agent/refs/heads/main/${scriptFile}`;
+    let scriptUrl = buildAgentInstallScriptURL(
+      settings.base_scripts_url,
+      scriptFile
+    );
     if (enableGhproxy) {
       if (enableGhproxy && installOptions.ghproxy) {
         scriptUrl = scriptUrl.slice(8); // 去掉 https://
