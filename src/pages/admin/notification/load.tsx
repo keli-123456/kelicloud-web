@@ -25,7 +25,7 @@ import {
   IconButton,
   Select,
   TextField,
-} from "@/components/ui/compat";
+} from "@/components/admin/admin-ui";
 import { MoreHorizontal, Pencil, Trash } from "lucide-react";
 import React from "react";
 import { useTranslation } from "react-i18next";

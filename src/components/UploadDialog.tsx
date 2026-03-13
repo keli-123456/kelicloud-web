@@ -1,18 +1,27 @@
 import React, { useRef } from "react";
-import { Dialog, Box, Flex, Button, Text, Card } from "@/components/ui/compat";
 import { Upload as UploadIcon } from "lucide-react";
+
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 export type UploadDialogProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   title: React.ReactNode;
   description?: React.ReactNode;
-  accept?: string; // e.g. ".zip,.png" or MIME types
+  accept?: string;
   dragDropText?: React.ReactNode;
   clickToBrowseText?: React.ReactNode;
   hintText?: React.ReactNode;
   uploading?: boolean;
-  progress?: number; // 0-100
+  progress?: number;
   uploadingText?: React.ReactNode;
   cancelUploadLabel?: React.ReactNode;
   onCancelUpload?: () => void;
@@ -20,7 +29,6 @@ export type UploadDialogProps = {
   closeLabel?: React.ReactNode;
 };
 
-// Utility to match file by accept list (extensions or mime types)
 function matchesAccept(file: File, accept: string | undefined) {
   if (!accept || accept.trim() === "" || accept === "*/*") return true;
   const items = accept.split(",").map((s) => s.trim().toLowerCase());
@@ -31,7 +39,6 @@ function matchesAccept(file: File, accept: string | undefined) {
       if (name.endsWith(it)) return true;
     } else if (it.includes("/")) {
       if (type === it) return true;
-      // wildcard like image/*
       const [m] = it.split("/");
       const [fm] = type.split("/");
       if (m && m === fm) return true;
@@ -72,43 +79,41 @@ const UploadDialog: React.FC<UploadDialogProps> = ({
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file && matchesAccept(file, accept) && onFileSelected)
+    if (file && matchesAccept(file, accept) && onFileSelected) {
       onFileSelected(file);
+    }
   };
 
   return (
-    <Dialog.Root open={open} onOpenChange={onOpenChange}>
-      <Dialog.Content maxWidth="450px">
-        <Dialog.Title>{title}</Dialog.Title>
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-[450px]">
+        <DialogTitle>{title}</DialogTitle>
         {description ? (
-          <Dialog.Description>{description}</Dialog.Description>
+          <DialogDescription>{description}</DialogDescription>
         ) : null}
 
-        <Box className="space-y-4 mt-4">
-          <Flex
-            direction="column"
-            align="center"
-            justify="center"
-            className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center cursor-pointer hover:border-gray-400 transition-colors"
+        <div className="mt-4 space-y-4">
+          <div
+            className="cursor-pointer rounded-lg border-2 border-dashed border-gray-300 p-8 text-center transition-colors hover:border-gray-400"
             onDrop={handleDrop}
             onDragOver={handleDragOver}
             onClick={() => inputRef.current?.click()}
           >
-            <UploadIcon size={48} className="mx-auto text-gray-400 mb-4" />
+            <UploadIcon size={48} className="mx-auto mb-4 text-gray-400" />
             {dragDropText ? (
-              <Text size="3" weight="medium">{dragDropText}</Text>
+              <div className="text-lg font-medium">{dragDropText}</div>
             ) : null}
             {clickToBrowseText ? (
-              <Text size="2" color="gray" className="mt-2">
+              <div className="mt-2 text-sm text-muted-foreground">
                 {clickToBrowseText}
-              </Text>
+              </div>
             ) : null}
             {hintText ? (
-              <Text size="1" color="gray" className="mt-2">
+              <div className="mt-2 text-xs text-muted-foreground">
                 {hintText}
-              </Text>
+              </div>
             ) : null}
-          </Flex>
+          </div>
 
           <input
             ref={inputRef}
@@ -117,37 +122,34 @@ const UploadDialog: React.FC<UploadDialogProps> = ({
             onChange={handleFileSelect}
             className="hidden"
           />
-        </Box>
+        </div>
 
         {uploading && (
-          <Box className="flex items-center justify-center z-50">
-            <Card className="p-6 text-center min-w-80 max-w-md">
+          <div className="z-50 flex items-center justify-center">
+            <Card className="min-w-80 max-w-md gap-0 p-6 text-center">
               {uploadingText ? (
-                <Text size="3" className="mt-2 mb-4">
-                  {uploadingText}
-                </Text>
+                <div className="mb-4 mt-2 text-lg">{uploadingText}</div>
               ) : null}
 
-              {/* Progress bar */}
-              <Box className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-3 mb-3 overflow-hidden">
-                <Box
-                  className="bg-gradient-to-r from-blue-500 to-blue-600 h-full rounded-full transition-all duration-500 ease-out relative"
+              <div className="mb-3 h-3 w-full overflow-hidden rounded-full bg-gray-200 dark:bg-gray-700">
+                <div
+                  className="relative h-full rounded-full bg-gradient-to-r from-blue-500 to-blue-600 transition-all duration-500 ease-out"
                   style={{ width: `${Math.max(0, Math.min(100, progress))}%` }}
                 >
-                  <Box className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent animate-pulse" />
-                </Box>
-              </Box>
+                  <div className="absolute inset-0 animate-pulse bg-gradient-to-r from-transparent via-white/20 to-transparent" />
+                </div>
+              </div>
 
-              <Flex justify="between" align="center" className="mb-4">
-                <Text size="2" color="gray">
+              <div className="mb-4 flex items-center justify-between">
+                <span className="text-sm text-muted-foreground">
                   {Math.round(Math.max(0, Math.min(100, progress)))}%
-                </Text>
-              </Flex>
+                </span>
+              </div>
 
               {onCancelUpload ? (
                 <Button
-                  variant="soft"
-                  color="gray"
+                  type="button"
+                  variant="outline"
                   onClick={onCancelUpload}
                   disabled={progress >= 100}
                 >
@@ -155,18 +157,16 @@ const UploadDialog: React.FC<UploadDialogProps> = ({
                 </Button>
               ) : null}
             </Card>
-          </Box>
+          </div>
         )}
 
-        <Flex gap="3" mt="4" justify="end">
-          <Dialog.Close>
-            <Button variant="soft" color="gray">
-              {closeLabel}
-            </Button>
-          </Dialog.Close>
-        </Flex>
-      </Dialog.Content>
-    </Dialog.Root>
+        <div className="mt-4 flex justify-end gap-3">
+          <DialogClose asChild>
+            <Button variant="outline">{closeLabel}</Button>
+          </DialogClose>
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 };
 

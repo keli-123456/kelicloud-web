@@ -1,25 +1,31 @@
-import { useEffect, useRef, useState, useCallback } from "react";
-import { Terminal } from "xterm";
-import { FitAddon } from "xterm-addon-fit";
-import { WebLinksAddon } from "xterm-addon-web-links";
-import { SearchAddon } from "xterm-addon-search";
-import "xterm/css/xterm.css";
-import "./Terminal.css";
-import { Callout, Flex, IconButton, Theme } from "@radix-ui/themes";
-import { useTranslation } from "react-i18next";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Cross1Icon } from "@radix-ui/react-icons";
-import { TablerAlertTriangleFilled } from "../../components/Icones/Tabler";
-import CommandClipboardPanel from "@/pages/terminal/CommandClipboard";
-import { Toaster } from "@/components/ui/sonner";
-import { TerminalContext } from "@/contexts/TerminalContext";
 import { motion } from "framer-motion";
 import throttle from "lodash/throttle";
+import { SearchAddon } from "xterm-addon-search";
+import { FitAddon } from "xterm-addon-fit";
+import { WebLinksAddon } from "xterm-addon-web-links";
+import { Terminal } from "xterm";
+import { useTranslation } from "react-i18next";
+import "xterm/css/xterm.css";
+
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import { Toaster } from "@/components/ui/sonner";
+import CommandClipboardPanel from "@/pages/terminal/CommandClipboard";
+import { TerminalContext } from "@/contexts/TerminalContext";
+
+import { TablerAlertTriangleFilled } from "../../components/Icones/Tabler";
+
+import "./Terminal.css";
+
 interface TerminalAreaProps {
   terminalRef: React.RefObject<HTMLDivElement | null>;
   toggleClipboard: () => void;
   width: number | string;
   isOpen: boolean;
 }
+
 const TerminalArea: React.FC<TerminalAreaProps> = ({
   terminalRef,
   toggleClipboard,
@@ -27,14 +33,14 @@ const TerminalArea: React.FC<TerminalAreaProps> = ({
   isOpen,
 }) => (
   <div
-    className="relative flex justify-center bg-black md:bg-accent-3 flex-col h-full min-w-128"
+    className="relative flex h-full min-w-128 flex-col justify-center bg-black md:bg-accent-3"
     style={{ width }}
   >
-    <div className="m-0 md:p-4 p-0 w-full h-full bg-black">
+    <div className="m-0 h-full w-full bg-black p-0 md:p-4">
       <div ref={terminalRef} className="h-full w-full" />
     </div>
     <div
-      className="absolute right-0 top-1/2 transform -translate-y-1/2 flex items-center justify-center bg-accent-4 hover:bg-accent-6 text-white cursor-pointer rounded-l-full w-6 h-12 z-20"
+      className="absolute right-0 top-1/2 z-20 flex h-12 w-6 -translate-y-1/2 transform cursor-pointer items-center justify-center rounded-l-full bg-accent-4 text-white hover:bg-accent-6"
       onClick={toggleClipboard}
     >
       {isOpen ? ">" : "<"}
@@ -46,7 +52,7 @@ const Divider: React.FC<{
   onMouseDown: (e: React.MouseEvent | React.TouchEvent) => void;
 }> = ({ onMouseDown }) => (
   <div
-    className="h-full bg-accent-2 cursor-col-resize hover:bg-accent-4"
+    className="h-full cursor-col-resize bg-accent-2 hover:bg-accent-4"
     style={{ width: 8 }}
     onMouseDown={onMouseDown}
     onTouchStart={onMouseDown}
@@ -54,7 +60,7 @@ const Divider: React.FC<{
 );
 
 const ClipboardPanel: React.FC = () => (
-  <div className="h-screen p-2 min-w-64" style={{ flex: 1 }}>
+  <div className="h-screen min-w-64 p-2" style={{ flex: 1 }}>
     <CommandClipboardPanel className="h-full w-full" />
   </div>
 );
@@ -75,7 +81,6 @@ const TerminalPage = () => {
   const fitAddonRef = useRef<any>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // 使用 useCallback 确保 resizeTerminal 引用稳定
   const resizeTerminal = useCallback(() => {
     fitAddonRef.current?.fit();
     const term = terminalInstance.current;
@@ -86,19 +91,16 @@ const TerminalPage = () => {
           type: "resize",
           cols: term.cols,
           rows: term.rows,
-        })
+        }),
       );
     }
   }, []);
 
-  const startDragging = useCallback(
-    (e: React.MouseEvent | React.TouchEvent) => {
-      e.preventDefault();
-      draggingRef.current = true;
-      document.body.style.userSelect = "none";
-    },
-    []
-  );
+  const startDragging = useCallback((e: React.MouseEvent | React.TouchEvent) => {
+    e.preventDefault();
+    draggingRef.current = true;
+    document.body.style.userSelect = "none";
+  }, []);
 
   const stopDragging = useCallback(() => {
     if (draggingRef.current) {
@@ -108,19 +110,13 @@ const TerminalPage = () => {
     }
   }, [resizeTerminal]);
 
-  // 限制resize onMouseMove 调用频率
   const onMouseMove = useCallback(
     throttle((e: MouseEvent | TouchEvent) => {
       if (!draggingRef.current || !containerRef.current) return;
 
       const containerRect = containerRef.current.getBoundingClientRect();
-      let clientX: number;
-
-      if (e instanceof MouseEvent) {
-        clientX = e.clientX;
-      } else {
-        clientX = e.touches[0].clientX;
-      }
+      const clientX =
+        e instanceof MouseEvent ? e.clientX : e.touches[0].clientX;
 
       const newLeftWidth = clientX - containerRect.left;
       const minWidth = 300;
@@ -129,8 +125,8 @@ const TerminalPage = () => {
       if (newLeftWidth >= minWidth && newLeftWidth <= maxWidth) {
         setLeftWidth(newLeftWidth);
       }
-    }, 1000 / 60), // （60fps）
-    []
+    }, 1000 / 60),
+    [],
   );
 
   useEffect(() => {
@@ -144,7 +140,7 @@ const TerminalPage = () => {
       document.removeEventListener("mouseup", stopDragging);
       document.removeEventListener("touchmove", onMouseMove);
       document.removeEventListener("touchend", stopDragging);
-      onMouseMove.cancel(); // 清理 throttle
+      onMouseMove.cancel();
     };
   }, [onMouseMove, stopDragging]);
 
@@ -158,9 +154,7 @@ const TerminalPage = () => {
         if (data.length === 0) {
           alert(t("terminal.no_active_connection"));
         }
-        const client = data.find(
-          (item: { uuid: string }) => item.uuid === uuid
-        );
+        const client = data.find((item: { uuid: string }) => item.uuid === uuid);
         document.title = `${t("terminal.title")} - ${
           client?.name || t("terminal.title")
         }`;
@@ -211,7 +205,7 @@ const TerminalPage = () => {
             JSON.stringify({
               type: "heartbeat",
               timestamp: new Date().toISOString(),
-            })
+            }),
           );
         }
       }, 10000);
@@ -234,9 +228,9 @@ const TerminalPage = () => {
       if (!firstBinary.current && event.data instanceof ArrayBuffer) {
         firstBinary.current = true;
         setTimeout(() => {
-          const term = terminalInstance.current;
-          if (term) {
-            term.resize(term.cols - 1, term.rows);
+          const currentTerm = terminalInstance.current;
+          if (currentTerm) {
+            currentTerm.resize(currentTerm.cols - 1, currentTerm.rows);
           }
           resizeTerminal();
         }, 200);
@@ -262,11 +256,9 @@ const TerminalPage = () => {
     window.addEventListener("resize", handleResize);
 
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.ctrlKey) {
-        if (e.key === "f" || e.key === "d") {
-          searchAddon.findNext("");
-          e.preventDefault();
-        }
+      if (e.ctrlKey && (e.key === "f" || e.key === "d")) {
+        searchAddon.findNext("");
+        e.preventDefault();
       }
     };
     document.addEventListener("keydown", handleKeyDown);
@@ -312,7 +304,6 @@ const TerminalPage = () => {
     };
   }, [t, uuid, resizeTerminal]);
 
-  // 移除对 leftWidth 的直接依赖，改用防抖
   useEffect(() => {
     if (!fitAddonRef.current) return;
     const debouncedResize = setTimeout(() => {
@@ -333,9 +324,9 @@ const TerminalPage = () => {
     <TerminalContext.Provider
       value={{ terminal: terminalInstance.current, sendCommand }}
     >
-      <Theme appearance="dark">
+      <div className="dark">
         <Toaster theme="dark" />
-        <div className="absolute inset-x-0 top-4 flex justify-center items-center z-30">
+        <div className="absolute inset-x-0 top-4 z-30 flex items-center justify-center">
           <motion.div
             initial={{ opacity: 0, y: -20, scale: 0.95 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -343,32 +334,27 @@ const TerminalPage = () => {
             transition={{ duration: 0.3, ease: "easeInOut" }}
             hidden={!callout}
           >
-            <Callout.Root
-              color="red"
-              size="2"
-              className="bg-red-50 backdrop-blur-sm border-2 border-red-800 rounded-lg"
+            <Alert
+              variant="destructive"
+              className="rounded-lg border-2 border-red-800 bg-red-50 backdrop-blur-sm"
             >
-              <Callout.Icon>
-                <TablerAlertTriangleFilled className="text-red-700" />
-              </Callout.Icon>
-              <Callout.Text className="text-red-400 font-medium">
-                <Flex align="center" justify="between" gap="3">
-                  <span>{t("warn_https")}</span>
-                  <IconButton
-                    variant="soft"
-                    color="red"
-                    size="1"
-                    className="hover:bg-red-200/50 transition-colors"
-                    onClick={() => setCallout(false)}
-                  >
-                    <Cross1Icon />
-                  </IconButton>
-                </Flex>
-              </Callout.Text>
-            </Callout.Root>
+              <TablerAlertTriangleFilled className="text-red-700" />
+              <AlertDescription className="flex items-center justify-between gap-3 font-medium text-red-700">
+                <span>{t("warn_https")}</span>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="h-6 w-6 text-red-700 hover:bg-red-200/50 hover:text-red-800"
+                  onClick={() => setCallout(false)}
+                >
+                  <Cross1Icon />
+                </Button>
+              </AlertDescription>
+            </Alert>
           </motion.div>
         </div>
-        <Flex className="h-screen w-screen" direction="row" ref={containerRef}>
+        <div className="flex h-screen w-screen flex-row" ref={containerRef}>
           <TerminalArea
             terminalRef={terminalRef}
             toggleClipboard={() => setIsClipboardOpen(!isClipboardOpen)}
@@ -377,8 +363,8 @@ const TerminalPage = () => {
           />
           {isClipboardOpen && <Divider onMouseDown={startDragging} />}
           {isClipboardOpen && <ClipboardPanel />}
-        </Flex>
-      </Theme>
+        </div>
+      </div>
     </TerminalContext.Provider>
   );
 };

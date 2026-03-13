@@ -1,57 +1,74 @@
-import { DropdownMenu, IconButton, Text } from "@/components/ui/compat";
+import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuCheckboxItem,
+  DropdownMenuContent,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import { ThemeContext, allowedColors } from "@/contexts/ThemeContext";
+import { Palette } from "lucide-react";
 import { useContext, type ReactNode } from "react";
-import { ThemeContext } from "../contexts/ThemeContext";
-import { BlendingModeIcon } from "@radix-ui/react-icons";
 import { useTranslation } from "react-i18next";
 
 interface ColorSwitchProps {
   icon?: ReactNode;
 }
 
-const ColorSwitch = ({ 
-  icon = (
-    <IconButton variant="soft">
-      <BlendingModeIcon />
-    </IconButton>
-  ),
-}: ColorSwitchProps = {}) => {
-  const { setColor } = useContext(ThemeContext);
+const ColorSwitch = ({ icon }: ColorSwitchProps = {}) => {
+  const { color, setColor } = useContext(ThemeContext);
   const { t } = useTranslation();
 
   return (
-    <DropdownMenu.Root>
-      <DropdownMenu.Trigger>
-          {icon}
-      </DropdownMenu.Trigger>
-      <DropdownMenu.Content>
-        <DropdownMenu.Item onSelect={() => setColor("gray")}><Text color="gray">{t('color.gray')}</Text></DropdownMenu.Item>
-        <DropdownMenu.Item onSelect={() => setColor("gold")}><Text color="gold">{t('color.gold')}</Text></DropdownMenu.Item>
-        <DropdownMenu.Item onSelect={() => setColor("bronze")}><Text color="bronze">{t('color.bronze')}</Text></DropdownMenu.Item>
-        <DropdownMenu.Item onSelect={() => setColor("brown")}><Text color="brown">{t('color.brown')}</Text></DropdownMenu.Item>
-        <DropdownMenu.Item onSelect={() => setColor("yellow")}><Text color="yellow">{t('color.yellow')}</Text></DropdownMenu.Item>
-        <DropdownMenu.Item onSelect={() => setColor("amber")}><Text color="amber">{t('color.amber')}</Text></DropdownMenu.Item>
-        <DropdownMenu.Item onSelect={() => setColor("orange")}><Text color="orange">{t('color.orange')}</Text></DropdownMenu.Item>
-        <DropdownMenu.Item onSelect={() => setColor("tomato")}><Text color="tomato">{t('color.tomato')}</Text></DropdownMenu.Item>
-        <DropdownMenu.Item onSelect={() => setColor("red")}><Text color="red">{t('color.red')}</Text></DropdownMenu.Item>
-        <DropdownMenu.Item onSelect={() => setColor("ruby")}><Text color="ruby">{t('color.ruby')}</Text></DropdownMenu.Item>
-        <DropdownMenu.Item onSelect={() => setColor("crimson")}><Text color="crimson">{t('color.crimson')}</Text></DropdownMenu.Item>
-        <DropdownMenu.Item onSelect={() => setColor("pink")}><Text color="pink">{t('color.pink')}</Text></DropdownMenu.Item>
-        <DropdownMenu.Item onSelect={() => setColor("plum")}><Text color="plum">{t('color.plum')}</Text></DropdownMenu.Item>
-        <DropdownMenu.Item onSelect={() => setColor("purple")}><Text color="purple">{t('color.purple')}</Text></DropdownMenu.Item>
-        <DropdownMenu.Item onSelect={() => setColor("violet")}><Text color="violet">{t('color.violet')}</Text></DropdownMenu.Item>
-        <DropdownMenu.Item onSelect={() => setColor("iris")}><Text color="iris">{t('color.iris')}</Text></DropdownMenu.Item>
-        <DropdownMenu.Item onSelect={() => setColor("indigo")}><Text color="indigo">{t('color.indigo')}</Text></DropdownMenu.Item>
-        <DropdownMenu.Item onSelect={() => setColor("blue")}><Text color="blue">{t('color.blue')}</Text></DropdownMenu.Item>
-        <DropdownMenu.Item onSelect={() => setColor("cyan")}><Text color="cyan">{t('color.cyan')}</Text></DropdownMenu.Item>
-        <DropdownMenu.Item onSelect={() => setColor("teal")}><Text color="teal">{t('color.teal')}</Text></DropdownMenu.Item>
-        <DropdownMenu.Item onSelect={() => setColor("jade")}><Text color="jade">{t('color.jade')}</Text></DropdownMenu.Item>
-        <DropdownMenu.Item onSelect={() => setColor("green")}><Text color="green">{t('color.green')}</Text></DropdownMenu.Item>
-        <DropdownMenu.Item onSelect={() => setColor("grass")}><Text color="grass">{t('color.grass')}</Text></DropdownMenu.Item>
-        <DropdownMenu.Item onSelect={() => setColor("lime")}><Text color="lime">{t('color.lime')}</Text></DropdownMenu.Item>
-        <DropdownMenu.Item onSelect={() => setColor("mint")}><Text color="mint">{t('color.mint')}</Text></DropdownMenu.Item>
-        <DropdownMenu.Item onSelect={() => setColor("sky")}><Text color="sky">{t('color.sky')}</Text></DropdownMenu.Item>
-      </DropdownMenu.Content>
-    </DropdownMenu.Root>
+    <DropdownMenu>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <DropdownMenuTrigger asChild>
+            <Button
+              type="button"
+              variant="outline"
+              size="icon"
+              aria-label={t("color.iris", "Accent")}
+              className="relative rounded-full border-border/60 bg-background/70 shadow-none hover:bg-muted"
+            >
+              {icon ?? (
+                <>
+                <Palette size={16} />
+                <span
+                  className="absolute bottom-1 right-1 size-2 rounded-full border border-white/70"
+                  style={{ backgroundColor: `var(--${color}-9)` }}
+                />
+                </>
+              )}
+            </Button>
+          </DropdownMenuTrigger>
+        </TooltipTrigger>
+        <TooltipContent>Accent</TooltipContent>
+      </Tooltip>
+      <DropdownMenuContent className="max-h-80 min-w-52 overflow-y-auto">
+        <DropdownMenuLabel>Accent</DropdownMenuLabel>
+        <DropdownMenuSeparator />
+        {allowedColors.map((item) => (
+          <DropdownMenuCheckboxItem
+            key={item}
+            checked={item === color}
+            onSelect={() => setColor(item)}
+          >
+            <span
+              className="mr-2 inline-block size-2.5 rounded-full"
+              style={{ backgroundColor: `var(--${item}-9)` }}
+            />
+            <span style={{ color: `var(--${item}-11)` }}>{t(`color.${item}`)}</span>
+          </DropdownMenuCheckboxItem>
+        ))}
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 };
 

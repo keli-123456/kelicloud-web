@@ -8,7 +8,12 @@ import {
 } from "@/components/ui/table";
 import { useNodeDetails } from "@/contexts/NodeDetailsContext";
 import { usePingTask, type PingTask } from "@/contexts/PingTaskContext";
-import { Button, Dialog, Flex, IconButton } from "@/components/ui/compat";
+import {
+  Button,
+  Dialog,
+  Flex,
+  IconButton,
+} from "@/components/admin/admin-ui";
 import { MoreHorizontal } from "lucide-react";
 import React from "react";
 import { useTranslation } from "react-i18next";
@@ -144,7 +149,7 @@ const ServerRow: React.FC<{
                 <MoreHorizontal size={16} />
               </IconButton>
             </Dialog.Trigger>
-            <Dialog.Content maxWidth="450px">
+            <Dialog.Content className="sm:max-w-[450px]">
               <Dialog.Title>
                 {t("common.server")} - {nodeName}
               </Dialog.Title>

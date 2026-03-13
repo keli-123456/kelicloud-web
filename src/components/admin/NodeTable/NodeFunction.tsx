@@ -15,7 +15,7 @@ import {
   SegmentedControl,
   TextArea,
   TextField,
-} from "@/components/ui/compat";
+} from "@/components/admin/admin-ui";
 import { toast } from "sonner";
 import { useSettings } from "@/lib/api";
 import { buildAgentInstallScriptURL } from "@/lib/installScriptSource";

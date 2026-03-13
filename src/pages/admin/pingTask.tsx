@@ -11,13 +11,13 @@ import {
 } from "@/contexts/PingTaskContext";
 import { useSettings } from "@/lib/api";
 import {
-  Box,
   Button,
   Dialog,
-  Flex, Select,
+  Flex,
+  Select,
   Tabs,
-  TextField
-} from "@/components/ui/compat";
+  TextField,
+} from "@/components/admin/admin-ui";
 import React from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
@@ -57,14 +57,14 @@ const InnerLayout = () => {
           <Tabs.Trigger value="task">{t("ping.task_view")}</Tabs.Trigger>
           <Tabs.Trigger value="server">{t("ping.server_view")}</Tabs.Trigger>
         </Tabs.List>
-        <Box pt="3">
+        <div className="pt-3">
           <Tabs.Content value="task">
             <TaskView pingTasks={pingTasks ?? []} />
           </Tabs.Content>
           <Tabs.Content value="server">
             <ServerView pingTasks={pingTasks ?? []} />
           </Tabs.Content>
-        </Box>
+        </div>
       </Tabs.Root>
       <DiskUsageEstimate />
     </Flex>

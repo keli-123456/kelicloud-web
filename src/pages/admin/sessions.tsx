@@ -10,7 +10,12 @@ import {
   TableCell,
 } from "@/components/ui/table";
 import { useTranslation } from "react-i18next";
-import { Dialog, Flex, Button, Badge } from "@/components/ui/compat";
+import {
+  Badge,
+  Button,
+  Dialog,
+  Flex,
+} from "@/components/admin/admin-ui";
 
 import { UserAgentHelper } from "@/utils/UserAgentHelper";
 import Loading from "@/components/loading";
@@ -222,7 +227,7 @@ export default function Sessions() {
                           >
                             <span>{session.session.slice(0, 8)}...</span>
                             {isCurrent && (
-                              <Badge color="blue" variant="soft" className="rounded-full">
+                              <Badge color="blue" className="rounded-full">
                                 {t("sessions.current")}
                               </Badge>
                             )}

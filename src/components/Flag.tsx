@@ -1,5 +1,4 @@
 import * as React from "react";
-import { Box } from "@radix-ui/themes";
 
 interface FlagProps {
   flag: string; // 地区代码 (例如 "SG", "US") 或旗帜 emoji (例如 "🇸🇬", "🇺🇳")
@@ -48,6 +47,8 @@ const Flag = React.memo(({ flag, size }: FlagProps) => {
   let imgSrc: string;
   let altText: string;
   let resolvedFlagFileName: string; // 最终用于构建文件名的字符串 (例如 "SG", "UN")
+  const resolvedSize =
+    size && /^\d+(\.\d+)?$/.test(size) ? `${Number(size) * 0.25}rem` : size;
 
   // 1. **算法处理：** 尝试将输入作为由区域指示符组成的旗帜 emoji 进行转换
   const countryCodeFromEmoji = getCountryCodeFromFlagEmoji(flag);
@@ -76,10 +77,13 @@ const Flag = React.memo(({ flag, size }: FlagProps) => {
   altText = `地区旗帜: ${resolvedFlagFileName}`;
 
   return (
-    <Box
-      as="span"
-      className={`m-2 self-center ${size ? `w-${size} h-${size}` : "w-6 h-6"}`}
-      style={{ display: "inline-flex", alignItems: "center" }}
+    <span
+      className="m-2 inline-flex self-center"
+      style={{
+        alignItems: "center",
+        width: resolvedSize || "1.5rem",
+        height: resolvedSize || "1.5rem",
+      }}
       aria-label={altText}
     >
       <img
@@ -87,7 +91,7 @@ const Flag = React.memo(({ flag, size }: FlagProps) => {
         alt={altText}
         style={{ width: "100%", height: "100%", objectFit: "contain" }}
       />
-    </Box>
+    </span>
   );
 });
 

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState, useCallback } from "react";
-import { Card, Switch } from "@radix-ui/themes";
+import { Card } from "@/components/ui/card";
+import { Switch } from "@/components/ui/switch";
 import Loading from "@/components/loading";
 import {
   ChartContainer,
@@ -181,7 +182,7 @@ const MiniPingChart = ({
   }, []);
 
   return (
-    <Card style={{ width, height }} className="flex flex-col">
+    <Card style={{ width, height }} className="flex flex-col px-4 py-4 sm:px-6">
       {loading && (
         <div
           style={{
@@ -286,7 +287,7 @@ const MiniPingChart = ({
         )
       )}
       <div className="-mt-3 flex items-center" style={{ display: loading ? "none" : "flex" }}>
-        <Switch size="1" checked={cutPeak} onCheckedChange={setCutPeak} />
+        <Switch size="sm" checked={cutPeak} onCheckedChange={setCutPeak} />
         <label htmlFor="cut-peak" className="text-sm font-medium flex items-center gap-1 flex-row">
           {t("chart.cutPeak")}
           <Tips mode="popup" side="top"><span dangerouslySetInnerHTML={{ __html: t("chart.cutPeak_tips") }} /></Tips>

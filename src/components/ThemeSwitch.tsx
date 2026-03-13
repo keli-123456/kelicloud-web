@@ -1,42 +1,82 @@
-import { DropdownMenu, IconButton } from "@/components/ui/compat";
+import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuCheckboxItem,
+  DropdownMenuContent,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import { ThemeContext } from "@/contexts/ThemeContext";
+import { useSystemTheme } from "@/hooks/useSystemTheme";
+import { Laptop2, MoonStar, SunMedium } from "lucide-react";
 import { useContext, type ReactNode } from "react";
-import { ThemeContext } from "../contexts/ThemeContext";
-import { SunIcon } from "@radix-ui/react-icons";
 import { useTranslation } from "react-i18next";
 
 interface ThemeSwitchProps {
   icon?: ReactNode;
-  content?: {
-    light?: ReactNode;
-    dark?: ReactNode;
-    system?: ReactNode;
-  };
 }
 
-const ThemeSwitch = ({
-  icon = (
-    <IconButton variant="soft">
-      <SunIcon />
-    </IconButton>
-  ),
-}: ThemeSwitchProps = {}) => {
-  const { setAppearance } = useContext(ThemeContext);
+const ThemeSwitch = ({ icon }: ThemeSwitchProps = {}) => {
+  const { appearance, setAppearance } = useContext(ThemeContext);
+  const resolvedAppearance = useSystemTheme(appearance);
   const [t] = useTranslation();
+
+  const activeIcon =
+    appearance === "system" ? (
+      <Laptop2 size={16} />
+    ) : resolvedAppearance === "dark" ? (
+      <MoonStar size={16} />
+    ) : (
+      <SunMedium size={16} />
+    );
+
   return (
-    <DropdownMenu.Root>
-      <DropdownMenu.Trigger>{icon}</DropdownMenu.Trigger>
-      <DropdownMenu.Content>
-        <DropdownMenu.Item onSelect={() => setAppearance("light")}>
+    <DropdownMenu>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <DropdownMenuTrigger asChild>
+            <Button
+              type="button"
+              variant="outline"
+              size="icon"
+              aria-label={t("theme.system", "Theme")}
+              className="rounded-full border-border/60 bg-background/70 shadow-none hover:bg-muted"
+            >
+              {icon ?? activeIcon}
+            </Button>
+          </DropdownMenuTrigger>
+        </TooltipTrigger>
+        <TooltipContent>Theme</TooltipContent>
+      </Tooltip>
+      <DropdownMenuContent className="min-w-44">
+        <DropdownMenuLabel>{t("theme.system", "Theme")}</DropdownMenuLabel>
+        <DropdownMenuSeparator />
+        <DropdownMenuCheckboxItem
+          checked={appearance === "light"}
+          onSelect={() => setAppearance("light")}
+        >
           {t("theme.light", "Light")}
-        </DropdownMenu.Item>
-        <DropdownMenu.Item onSelect={() => setAppearance("dark")}>
+        </DropdownMenuCheckboxItem>
+        <DropdownMenuCheckboxItem
+          checked={appearance === "dark"}
+          onSelect={() => setAppearance("dark")}
+        >
           {t("theme.dark", "Dark")}
-        </DropdownMenu.Item>
-        <DropdownMenu.Item onSelect={() => setAppearance("system")}>
+        </DropdownMenuCheckboxItem>
+        <DropdownMenuCheckboxItem
+          checked={appearance === "system"}
+          onSelect={() => setAppearance("system")}
+        >
           {t("theme.system", "System")}
-        </DropdownMenu.Item>
-      </DropdownMenu.Content>
-    </DropdownMenu.Root>
+        </DropdownMenuCheckboxItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 };
 

@@ -5,19 +5,19 @@ import {
   type NodeDetail,
 } from "@/contexts/NodeDetailsContext";
 import {
-  Flex,
-  TextField,
-  Button,
-  Checkbox,
-  Text,
   Badge,
+  Button,
   Card,
+  Checkbox,
   Dialog,
+  Flex,
   IconButton,
-  TextArea,
   SegmentedControl,
   Switch,
-} from "@/components/ui/compat";
+  Text,
+  TextArea,
+  TextField,
+} from "@/components/admin/admin-ui";
 import {
   CircleDollarSign,
   Copy,

@@ -1,5 +1,6 @@
-import React, { useEffect, useRef } from "react";
-import { Checkbox, TextField } from "@/components/ui/compat";
+import React from "react";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Input } from "@/components/ui/input";
 import { Search } from "lucide-react";
 import {
   Table,
@@ -81,14 +82,6 @@ function SelectorInner<T>(props: SelectorProps<T>) {
   // 孤立（value 中但 items 不再存在）
   const orphanIds = value.filter((id) => !items.some((it) => getId(it) === id));
 
-  const checkAllRef = useRef<HTMLButtonElement>(null);
-  useEffect(() => {
-    if (checkAllRef.current) {
-      // @ts-ignore - set indeterminate
-      checkAllRef.current.indeterminate = isIndeterminate;
-    }
-  }, [isIndeterminate]);
-
   const handleCheckAll = (checked: boolean) => {
     if (checked) {
       onChange(Array.from(new Set([...value, ...allIds])));
@@ -107,25 +100,25 @@ function SelectorInner<T>(props: SelectorProps<T>) {
 
   return (
     <div className={`flex flex-col ${className}`}>
-      <TextField.Root
-        className="mb-2 flex items-center gap-1"
-        placeholder={searchPlaceholder}
-        value={search}
-        onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-          setSearch(e.target.value)
-        }
-      >
-        <TextField.Slot>
+      <div className="relative mb-2">
+        <Input
+          className="pl-9"
+          placeholder={searchPlaceholder}
+          value={search}
+          onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+            setSearch(e.target.value)
+          }
+        />
+        <div className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-muted-foreground">
           <Search size="16" />
-        </TextField.Slot>
-      </TextField.Root>
+        </div>
+      </div>
       <div className="selector rounded-md overflow-hidden">
         <Table>
           <TableHeader>
             <TableHead>
               <Checkbox
-                ref={checkAllRef}
-                checked={allChecked}
+                checked={isIndeterminate ? "indeterminate" : allChecked}
                 onCheckedChange={(checked) => handleCheckAll(!!checked)}
                 aria-label="Select all"
               />

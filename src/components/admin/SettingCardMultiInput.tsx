@@ -1,5 +1,7 @@
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import React from "react";
-import { Button, Flex, TextField, TextArea } from "@/components/ui/compat";
 import { useTranslation } from "react-i18next";
 import { SettingCardCollapse } from "./SettingCard";
 
@@ -23,36 +25,41 @@ export function SettingCardMultiInputCollapse({
   onSave,
   isSaving,
   children,
-  onChange, // 新增 onChange
+  onChange,
 }: {
   title?: string;
   description?: string;
   defaultOpen?: boolean;
   items: InputItem[];
   onSave: OnSaveHandler;
-  /** 外部控制的保存状态，如果提供则覆盖内部状态 */
   isSaving?: boolean;
-  /** 在保存按钮之前渲染的额外节点 */
   children?: React.ReactNode;
-  /** 输入值变化时的回调 */
   onChange?: (values: Record<string, string>) => void;
 }) {
   const { t } = useTranslation();
-  const [values, setValues] = React.useState<Record<string, string>>(
-    () =>
-      items.reduce((acc, item) => {
-        acc[item.tag] = item.defaultValue || "";
-        return acc;
-      }, {} as Record<string, string>)
+  const [values, setValues] = React.useState<Record<string, string>>(() =>
+    items.reduce((acc, item) => {
+      acc[item.tag] = item.defaultValue || "";
+      return acc;
+    }, {} as Record<string, string>),
   );
   const [saving, setSaving] = React.useState(false);
   const savingState = isSaving !== undefined ? isSaving : saving;
 
+  React.useEffect(() => {
+    setValues(
+      items.reduce((acc, item) => {
+        acc[item.tag] = item.defaultValue || "";
+        return acc;
+      }, {} as Record<string, string>),
+    );
+  }, [items]);
+
   const handleChange = (tag: string, value: string) => {
     setValues((prev) => {
-      const newValues = { ...prev, [tag]: value };
-      if (onChange) onChange(newValues);
-      return newValues;
+      const nextValues = { ...prev, [tag]: value };
+      onChange?.(nextValues);
+      return nextValues;
     });
   };
 
@@ -66,8 +73,11 @@ export function SettingCardMultiInputCollapse({
   };
 
   return (
-    <SettingCardCollapse title={title} description={description} defaultOpen={defaultOpen}>
-      {/* 渲染 Header slot */}
+    <SettingCardCollapse
+      title={title}
+      description={description}
+      defaultOpen={defaultOpen}
+    >
       {React.Children.map(children, (child) => {
         if (
           React.isValidElement(child) &&
@@ -77,39 +87,34 @@ export function SettingCardMultiInputCollapse({
         }
         return null;
       })}
-      <Flex direction="column" gap="1" className="w-full">
+
+      <div className="flex w-full flex-col gap-2">
         {items.map((item) => (
           <React.Fragment key={item.tag}>
-            <label className="text-[13px] font-medium text-slate-700">{item.label}</label>
+            <label className="text-[13px] font-medium text-foreground">
+              {item.label}
+            </label>
             {item.type === "long" ? (
-              <TextArea
-                className="w-full rounded-md border border-slate-200/80 bg-white text-[13px] leading-6"
-                defaultValue={item.defaultValue}
+              <Textarea
+                className="w-full text-[13px] leading-6"
                 value={values[item.tag]}
                 placeholder={item.placeholder}
                 disabled={item.disabled}
-                onChange={(e) => handleChange(item.tag, e.target.value)}
-                resize="vertical"
-                ref={undefined}
+                onChange={(event) => handleChange(item.tag, event.target.value)}
               />
             ) : (
-              <TextField.Root
-                size="1"
-                className="w-full rounded-md border border-slate-200/80 bg-white text-[13px]"
-                defaultValue={item.defaultValue}
+              <Input
+                className="h-8 w-full text-[13px]"
                 value={values[item.tag]}
                 placeholder={item.placeholder}
                 disabled={item.disabled}
                 type={item.number ? "number" : "text"}
-                onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                  handleChange(item.tag, e.target.value)
-                }
-                ref={undefined}
+                onChange={(event) => handleChange(item.tag, event.target.value)}
               />
             )}
           </React.Fragment>
         ))}
-        {/* 渲染除 Header 外的 children */}
+
         {React.Children.map(children, (child) => {
           if (
             React.isValidElement(child) &&
@@ -119,10 +124,10 @@ export function SettingCardMultiInputCollapse({
           }
           return child;
         })}
+
         <div>
           <Button
-            variant="solid"
-            size="1"
+            size="sm"
             className="mt-1 rounded-md text-[13px]"
             onClick={handleSave}
             disabled={savingState}
@@ -130,7 +135,7 @@ export function SettingCardMultiInputCollapse({
             {t("save")}
           </Button>
         </div>
-      </Flex>
+      </div>
     </SettingCardCollapse>
   );
 }

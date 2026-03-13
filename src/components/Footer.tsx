@@ -1,12 +1,8 @@
-import { Flex, Text } from "@radix-ui/themes";
 import { useEffect, useState } from "react";
 import { useRPC2Call } from "@/contexts/RPC2Context";
 import { usePublicInfo } from "@/contexts/PublicInfoContext";
 
 const Footer = () => {
-  //const currentYear = new Date().getFullYear();
-
-  // 格式化 build 时间
   const formatBuildTime = (isoString: string) => {
     const date = new Date(isoString);
     return (
@@ -31,10 +27,10 @@ const Footer = () => {
   const { call } = useRPC2Call();
   const { publicInfo } = usePublicInfo();
   const customFooterHtml = publicInfo?.theme_settings?.customFooterHtml || "";
+
   useEffect(() => {
     const fetchVersionInfo = async () => {
       try {
-        //const response = await fetch('/api/version');
         const data = await call("common:getVersion");
         setVersionInfo({ hash: data.hash?.slice(0, 7), version: data.version });
       } catch (error) {
@@ -43,58 +39,38 @@ const Footer = () => {
     };
 
     fetchVersionInfo();
-  }, []);
+  }, [call]);
 
   return (
-    <div className="footer p-2 border-t-1 border-t-[var(--gray-7)]">
-      {/* Copyright and ICP Filing */}
-
-      {customFooterHtml ? (
-        <Text
-          size="1"
-          color="gray"
-          className="flex flex-col justify-center items-center"
-        >
-          <span
-            dangerouslySetInnerHTML={{
-              __html: customFooterHtml,
-            }}
-          ></span>
-          <Text size="2" color="gray">
-            Powered by Komari Monitor.
-          </Text>
-        </Text>
-      ) : (
-        <Flex
-          direction={{ initial: "column", md: "row" }}
-          justify="between"
-          align={{ initial: "center", md: "start" }}
-          gap="4"
-          style={{
-            maxWidth: "1200px",
-            margin: "0 auto",
-          }}
-        >
-          <Flex
-            direction="column"
-            gap="2"
-            align={{ initial: "center", md: "start" }}
-          >
-            <Text size="2" color="gray">
-              Powered by Komari Monitor.
-            </Text>
-            {buildTime && (
-              <Text size="1" color="gray">
-                Build Time: {formatBuildTime(buildTime)}
-              </Text>
-            )}
-            <Text size="1" color="gray">
-              {versionInfo && `${versionInfo.version} (${versionInfo.hash})`}
-            </Text>
-          </Flex>
-        </Flex>
-      )}
-    </div>
+    <footer className="mt-auto px-2 pb-2">
+      <div className="rounded-2xl border border-border/70 bg-background/70 px-4 py-3 shadow-sm backdrop-blur-xl">
+        {customFooterHtml ? (
+          <div className="flex flex-col items-center justify-center gap-1 text-center">
+            <div
+              className="text-sm text-muted-foreground"
+              dangerouslySetInnerHTML={{ __html: customFooterHtml }}
+            />
+            <span className="text-sm text-muted-foreground">Powered by Komari Monitor.</span>
+          </div>
+        ) : (
+          <div className="flex flex-col items-center justify-between gap-3 md:flex-row md:items-start">
+            <div className="min-w-0 text-center md:text-left">
+              <div className="text-sm text-muted-foreground">Powered by Komari Monitor.</div>
+              {buildTime ? (
+                <div className="text-xs text-muted-foreground">
+                  Build Time: {formatBuildTime(buildTime)}
+                </div>
+              ) : null}
+            </div>
+            <div className="min-w-0 text-center md:text-right">
+              <div className="text-xs text-muted-foreground">
+                {versionInfo ? `${versionInfo.version} (${versionInfo.hash})` : " "}
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    </footer>
   );
 };
 

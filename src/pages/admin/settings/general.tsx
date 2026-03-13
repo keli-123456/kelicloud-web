@@ -1,5 +1,6 @@
 import { useTranslation } from "react-i18next";
-import { Button, Code, Flex, Text, TextField } from "@/components/ui/compat";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import {
   updateSettingsWithToast,
   useSettings,
@@ -21,6 +22,7 @@ import { formatBytes } from "@/utils/unitHelper";
 export default function GeneralSettings() {
   const { t } = useTranslation();
   const { settings, loading, error } = useSettings();
+  const [geoIpQuery, setGeoIpQuery] = React.useState("");
   const [geoip_testResult, setGeoipTestResult] = React.useState<string | null>(
     null
   );
@@ -50,7 +52,7 @@ export default function GeneralSettings() {
   }
 
   if (error) {
-    return <Text color="red">{error}</Text>;
+    return <p className="text-sm text-destructive">{error}</p>;
   }
 
   return (
@@ -158,17 +160,21 @@ export default function GeneralSettings() {
         title={t("settings.geoip.test_title")}
         description={t("settings.geoip.test_description")}
       >
-        <Flex className="w-full gap-2" direction="column">
-          <TextField.Root placeholder="1.1.1.1 or 2606:4700:4700::1111"></TextField.Root>
+        <div className="flex w-full flex-col gap-2">
+          <Input
+            value={geoIpQuery}
+            onChange={(event) => setGeoIpQuery(event.target.value)}
+            placeholder="1.1.1.1 or 2606:4700:4700::1111"
+            className="text-[13px]"
+          />
           <div>
             <Button
-              variant="solid"
               onClick={async () => {
-                const ip = (
-                  document.querySelector(
-                    "input[placeholder]"
-                  ) as HTMLInputElement
-                ).value;
+                const ip = geoIpQuery.trim();
+                if (!ip) {
+                  toast.error(t("settings.geoip.test_description"));
+                  return;
+                }
                 const result = await fetch(`/api/admin/test/geoip?ip=${ip}`);
                 const data = await result.json();
                 setGeoipTestResult(
@@ -178,18 +184,17 @@ export default function GeneralSettings() {
             >
               {t("settings.geoip.test_button", "测试")}
             </Button>
-          </div>{" "}
-          <Flex className="w-full">
+          </div>
+          <div className="w-full">
             {geoip_testResult && (
-              <Code
+              <pre
                 className="w-full whitespace-pre-wrap text-sm p-3 rounded-md overflow-auto max-h-96"
-                style={{ display: "block" }}
               >
                 {geoip_testResult}
-              </Code>
+              </pre>
             )}
-          </Flex>
-        </Flex>
+          </div>
+        </div>
       </SettingCardCollapse>
       <label className="pt-1 text-[12px] font-semibold uppercase tracking-[0.14em] text-slate-500">
         {t("settings.record.title")}
@@ -362,12 +367,16 @@ const ApiCard = ({ settings }: { settings: SettingsResponse }) => {
       }}
     >
       <div className="flex flex-row gap-2 justify-start items-center">
-        <Button variant="soft" color="green" onClick={handleGenerateApiKey}>
+        <Button
+          variant="outline"
+          className="border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
+          onClick={handleGenerateApiKey}
+        >
           {t("common.generate")}
         </Button>
         <Button
-          variant="soft"
-          color="mint"
+          variant="outline"
+          className="border-cyan-200 bg-cyan-50 text-cyan-700 hover:bg-cyan-100"
           onClick={() => {
             window.open(
               "https://komari-document.pages.dev/install/agent-ad.html",

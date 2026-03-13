@@ -27,7 +27,7 @@ import {
   IconButton,
   Switch,
   TextField,
-} from "@/components/ui/compat";
+} from "@/components/admin/admin-ui";
 import { toast } from "sonner";
 import Loading from "@/components/loading";
 import Tips from "@/components/ui/tips";

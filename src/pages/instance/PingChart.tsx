@@ -1,6 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Flex, SegmentedControl, Card, Switch, Button } from "@radix-ui/themes";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { SegmentedControl } from "@/components/ui/segmented-control";
+import { Switch } from "@/components/ui/switch";
 import { usePublicInfo } from "@/contexts/PublicInfoContext";
 import Loading from "@/components/loading";
 import {
@@ -339,12 +342,7 @@ const PingChart = ({ uuid }: { uuid: string }) => {
   }, [tasks, hiddenLines]);
 
   return (
-    <Flex
-      direction="column"
-      align="center"
-      gap="4"
-      className="w-full max-w-screen"
-    >
+    <div className="flex w-full max-w-screen flex-col items-center gap-4">
       <div className="w-full overflow-x-auto px-2">
         <div className="w-max mx-auto">
           <SegmentedControl.Root
@@ -381,7 +379,7 @@ const PingChart = ({ uuid }: { uuid: string }) => {
         </div>
       )}
       {latestValues.length > 0 ? (
-        <Card className="w-full max-w-[900px] mb-2">
+        <Card className="mb-2 w-full max-w-[900px] px-4 py-4 sm:px-6">
           <Tips className="absolute top-0 right-0 m-2">
             <label>{t("chart.loss_tips")}</label>
           </Tips>
@@ -541,7 +539,7 @@ const PingChart = ({ uuid }: { uuid: string }) => {
           {t("common.none")}
         </div>
       )}
-      <Card className="w-full max-w-[900px]">
+      <Card className="w-full max-w-[900px] px-4 py-4 sm:px-6">
         {chartData.length === 0 ? (
           <div className="w-full h-40 flex items-center justify-center text-muted-foreground">
             {t("common.none")}
@@ -629,8 +627,7 @@ const PingChart = ({ uuid }: { uuid: string }) => {
             </label>
           </div>
           <Button
-            variant="soft"
-            size="2"
+            variant="outline"
             onClick={toggleAllLines}
             className="flex items-center gap-2"
           >
@@ -648,7 +645,7 @@ const PingChart = ({ uuid }: { uuid: string }) => {
           </Button>
         </div>
       </Card>
-    </Flex>
+    </div>
   );
 };
 

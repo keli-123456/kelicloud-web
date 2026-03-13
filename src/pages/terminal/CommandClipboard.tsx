@@ -1,25 +1,28 @@
+import React from "react";
+import { Edit2Icon, PlusIcon, Trash2Icon } from "lucide-react";
+import { useTranslation } from "react-i18next";
+import { toast } from "sonner";
+
 import LanguageSwitch from "@/components/Language";
 import Loading from "@/components/loading";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import {
   CommandClipboardProvider,
   useCommandClipboard,
   type CommandClipboard,
 } from "@/contexts/CommandClipboardContext";
 import { useTerminal } from "@/contexts/TerminalContext";
-import {
-  Button,
-  Card,
-  Code,
-  Dialog,
-  Flex,
-  IconButton,
-  TextArea,
-  TextField,
-} from "@radix-ui/themes";
-import { PlusIcon, Trash2Icon, Edit2Icon } from "lucide-react";
-import React from "react";
-import { useTranslation } from "react-i18next";
-import { toast } from "sonner";
 
 const CommandClipboardPanel = ({ ...props }: { [key: string]: any }) => {
   const InnerLayout = () => {
@@ -32,31 +35,27 @@ const CommandClipboardPanel = ({ ...props }: { [key: string]: any }) => {
       return <div>Error loading commands: {error.message}</div>;
     }
     return (
-      <Flex
+      <div
         {...props}
-        direction="column"
-        gap="2"
-        overflowX={"clip"}
-        overflowY={"scroll"}
         style={{ height: "100%" }}
-        className="command-clipboard-container"
+        className="command-clipboard-container flex flex-col gap-2 overflow-x-clip overflow-y-scroll"
       >
-        <Flex>
+        <div>
           <label className="text-lg font-semibold">
             {t("command_clipboard.title")}
           </label>
-        </Flex>
-        <Flex justify="between" align="center" className="mr-2">
+        </div>
+        <div className="mr-2 flex items-center justify-between">
           <AddButton />
           <LanguageSwitch />
-        </Flex>
+        </div>
 
         {commands
           .sort((a, b) => b.weight - a.weight)
           .map((item) => (
             <CommandCard key={item.id} {...item} />
           ))}
-      </Flex>
+      </div>
     );
   };
   return (
@@ -71,6 +70,7 @@ const AddButton = () => {
   const [isOpen, setOpen] = React.useState(false);
   const [adding, setAdding] = React.useState(false);
   const { addCommand } = useCommandClipboard();
+
   const handleAddCommand = async (event: React.FormEvent) => {
     event.preventDefault();
     const form = event.currentTarget as HTMLFormElement;
@@ -91,50 +91,46 @@ const AddButton = () => {
       setAdding(false);
     }
   };
+
   return (
-    <Dialog.Root open={isOpen} onOpenChange={setOpen}>
-      <Dialog.Trigger>
-        <IconButton aria-label="Add Command">
-          <PlusIcon size="16" />
-        </IconButton>
-      </Dialog.Trigger>
-      <Dialog.Content>
-        <Dialog.Title>{t("common.add")}</Dialog.Title>
+    <Dialog open={isOpen} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button type="button" size="icon" aria-label="Add Command">
+          <PlusIcon size={16} />
+        </Button>
+      </DialogTrigger>
+      <DialogContent>
+        <DialogTitle>{t("common.add")}</DialogTitle>
         <form onSubmit={handleAddCommand}>
-          <Flex direction="column" gap="2">
+          <div className="flex flex-col gap-2">
             <label htmlFor="name">{t("common.name")}</label>
-            <TextField.Root
+            <Input
               id="name"
               name="name"
               defaultValue={Math.random().toString(36).substring(7)}
             />
             <label htmlFor="text">{t("common.content")}</label>
-            <TextArea id="text" name="text" />
+            <Textarea id="text" name="text" />
             <label htmlFor="remark">{t("common.remark")}</label>
-            <TextField.Root id="remark" name="remark" />
+            <Input id="remark" name="remark" />
             <label htmlFor="weight">{t("common.weight")}</label>
-            <TextField.Root
-              defaultValue={0}
-              type="number"
-              id="weight"
-              name="weight"
-            />
-            <Button type="submit" variant="solid" disabled={adding}>
+            <Input defaultValue={0} type="number" id="weight" name="weight" />
+            <Button type="submit" disabled={adding}>
               {t("common.add")}
             </Button>
-          </Flex>
+          </div>
         </form>
-      </Dialog.Content>
-    </Dialog.Root>
+      </DialogContent>
+    </Dialog>
   );
 };
 
-// DeleteButton: 删除命令
 const DeleteButton = ({ id }: { id: number }) => {
   const { t } = useTranslation();
   const { deleteCommand } = useCommandClipboard();
   const [isOpen, setOpen] = React.useState(false);
   const [deleting, setDeleting] = React.useState(false);
+
   const handleDelete = async () => {
     try {
       setDeleting(true);
@@ -147,35 +143,41 @@ const DeleteButton = ({ id }: { id: number }) => {
       setDeleting(false);
     }
   };
+
   return (
-    <Dialog.Root open={isOpen} onOpenChange={setOpen}>
-      <Dialog.Trigger>
-        <IconButton aria-label="Delete Command" color="red">
-          <Trash2Icon size="16" />
-        </IconButton>
-      </Dialog.Trigger>
-      <Dialog.Content>
-        <Dialog.Title>{t("common.delete")}</Dialog.Title>
-        <Dialog.Description>{t("common.confirm_delete")}</Dialog.Description>
-        <Flex justify="end" gap="2" className="mt-4">
-          <Dialog.Close>
-            <Button variant="soft">{t("common.cancel")}</Button>
-          </Dialog.Close>
-          <Button onClick={handleDelete} disabled={deleting} color="red">
+    <Dialog open={isOpen} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button
+          type="button"
+          variant="destructive"
+          size="icon"
+          aria-label="Delete Command"
+        >
+          <Trash2Icon size={16} />
+        </Button>
+      </DialogTrigger>
+      <DialogContent>
+        <DialogTitle>{t("common.delete")}</DialogTitle>
+        <DialogDescription>{t("common.confirm_delete")}</DialogDescription>
+        <div className="mt-4 flex justify-end gap-2">
+          <DialogClose asChild>
+            <Button variant="outline">{t("common.cancel")}</Button>
+          </DialogClose>
+          <Button onClick={handleDelete} disabled={deleting} variant="destructive">
             {t("common.delete")}
           </Button>
-        </Flex>
-      </Dialog.Content>
-    </Dialog.Root>
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 };
 
-// EditButton: 编辑命令
 const EditButton = ({ id, name, text, remark, weight }: CommandClipboard) => {
   const { t } = useTranslation();
   const { updateCommand } = useCommandClipboard();
   const [isOpen, setOpen] = React.useState(false);
   const [updating, setUpdating] = React.useState(false);
+
   const handleUpdate = async (event: React.FormEvent) => {
     event.preventDefault();
     const form = event.currentTarget as HTMLFormElement;
@@ -183,7 +185,7 @@ const EditButton = ({ id, name, text, remark, weight }: CommandClipboard) => {
     const newName = formData.get("name") as string;
     const newText = formData.get("text") as string;
     const newRemark = formData.get("remark") as string;
-    const weight = formData.get("weight") as string;
+    const nextWeight = formData.get("weight") as string;
     try {
       setUpdating(true);
       await updateCommand(
@@ -191,7 +193,7 @@ const EditButton = ({ id, name, text, remark, weight }: CommandClipboard) => {
         newName,
         newText,
         newRemark,
-        weight ? parseInt(weight) : 0
+        nextWeight ? parseInt(nextWeight) : 0,
       );
       setOpen(false);
       toast.success(t("common.updated_successfully"));
@@ -201,42 +203,38 @@ const EditButton = ({ id, name, text, remark, weight }: CommandClipboard) => {
       setUpdating(false);
     }
   };
+
   return (
-    <Dialog.Root open={isOpen} onOpenChange={setOpen}>
-      <Dialog.Trigger>
-        <IconButton aria-label="Edit Command">
-          <Edit2Icon size="16" />
-        </IconButton>
-      </Dialog.Trigger>
-      <Dialog.Content>
-        <Dialog.Title>{t("common.edit")}</Dialog.Title>
+    <Dialog open={isOpen} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button type="button" size="icon" aria-label="Edit Command">
+          <Edit2Icon size={16} />
+        </Button>
+      </DialogTrigger>
+      <DialogContent>
+        <DialogTitle>{t("common.edit")}</DialogTitle>
         <form onSubmit={handleUpdate}>
-          <Flex direction="column" gap="2">
-            <label htmlFor={`name`}>{t("common.name")}</label>
-            <TextField.Root id={`name`} name="name" defaultValue={name} />
-            <label htmlFor={`text`}>{t("common.content")}</label>
-            <TextArea id={`text`} name="text" defaultValue={text} />
-            <label htmlFor={`remark`}>{t("common.remark")}</label>
-            <TextField.Root id={`remark`} name="remark" defaultValue={remark} />
-            <label htmlFor={`weight`}>{t("common.weight")}</label>
-            <TextField.Root
-              type="number"
-              id={`weight`}
-              name="weight"
-              defaultValue={weight}
-            />
-            <Flex justify="end" gap="2" className="mt-4">
-              <Dialog.Close>
-                <Button variant="soft">{t("common.cancel")}</Button>
-              </Dialog.Close>
+          <div className="flex flex-col gap-2">
+            <label htmlFor="name">{t("common.name")}</label>
+            <Input id="name" name="name" defaultValue={name} />
+            <label htmlFor="text">{t("common.content")}</label>
+            <Textarea id="text" name="text" defaultValue={text} />
+            <label htmlFor="remark">{t("common.remark")}</label>
+            <Input id="remark" name="remark" defaultValue={remark} />
+            <label htmlFor="weight">{t("common.weight")}</label>
+            <Input type="number" id="weight" name="weight" defaultValue={weight} />
+            <div className="mt-4 flex justify-end gap-2">
+              <DialogClose asChild>
+                <Button variant="outline">{t("common.cancel")}</Button>
+              </DialogClose>
               <Button type="submit" disabled={updating}>
                 {t("common.update")}
               </Button>
-            </Flex>
-          </Flex>
+            </div>
+          </div>
         </form>
-      </Dialog.Content>
-    </Dialog.Root>
+      </DialogContent>
+    </Dialog>
   );
 };
 
@@ -244,31 +242,34 @@ const CommandCard = (item: CommandClipboard) => {
   const { t } = useTranslation();
   const { sendCommand } = useTerminal();
   return (
-    <Flex key={item.id} direction="column">
-      <Card>
-        <Flex direction="column" gap="2">
-          <Flex justify="between" align="center">
+    <div>
+      <Card className="gap-0 px-4 py-4">
+        <div className="flex flex-col gap-2">
+          <div className="flex items-center justify-between gap-3">
             <label className="text-lg font-semibold">{item.name}</label>
             <Button onClick={() => sendCommand(item.text)}>
               {t("common.execute")}
             </Button>
-          </Flex>
-          <Code className="command-text" style={{ whiteSpace: "pre-wrap" }}>
+          </div>
+          <pre
+            className="command-text overflow-x-auto rounded-md border border-border bg-muted/40 p-3 text-sm"
+            style={{ whiteSpace: "pre-wrap" }}
+          >
             {item.text.length > 300
               ? item.text.substring(0, 300) +
                 `\n...(${t("common.have_been_omitted", {
                   count: item.text.length - 300,
                 })})`
               : item.text}
-          </Code>
+          </pre>
           <label className="text-sm text-gray-500">{item.remark}</label>
-          <Flex justify="end" gap="2">
+          <div className="flex justify-end gap-2">
             <EditButton {...item} />
             <DeleteButton id={item.id} />
-          </Flex>
-        </Flex>
+          </div>
+        </div>
       </Card>
-    </Flex>
+    </div>
   );
 };
 

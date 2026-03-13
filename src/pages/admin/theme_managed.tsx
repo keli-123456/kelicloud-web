@@ -1,5 +1,4 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Flex, Heading, Callout, Separator, Button } from "@/components/ui/compat";
 import { usePublicInfo } from "@/contexts/PublicInfoContext";
 import {
   SettingCardSelect,
@@ -11,6 +10,8 @@ import { toast } from "sonner";
 import Loading from "@/components/loading";
 import { useTranslation } from "react-i18next";
 import { resolveI18nText, type I18nText } from "@/utils/i18nText";
+import { Button } from "@/components/ui/button";
+import { Separator } from "@/components/ui/separator";
 
 interface ThemeFieldBase {
   name?: I18nText; // 显示名（字符串或多语言字典）
@@ -115,8 +116,6 @@ const ThemeManaged: React.FC = () => {
 
   const saveAll = async () => {
     if (!theme) return;
-    console.log("保存前的 values:", values);
-    console.log("保存前的 payload:", payload);
     setSaving(true);
     try {
       const resp = await fetch(
@@ -142,40 +141,40 @@ const ThemeManaged: React.FC = () => {
   };
 
   return (
-    <Flex direction="column" gap="4" className="p-2 md:p-4">
-      <Flex justify="between" align="center">
-        <Heading size="4">
+    <div className="space-y-4 p-2 md:p-4">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <h1 className="text-xl font-semibold tracking-tight">
           {theme
             ? t("theme.manage_with_name", {
                 name: theme === "default" ? "" : theme,
               })
             : t("theme.manage")}
-        </Heading>
+        </h1>
         {fields.length > 0 && (
           <Button onClick={saveAll} disabled={saving}>
             {t("common.save")}
           </Button>
         )}
-      </Flex>
+      </div>
       {error && (
-        <Callout.Root color="red">
-          <Callout.Text>{error}</Callout.Text>
-        </Callout.Root>
+        <div className="rounded-xl border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive">
+          {error}
+        </div>
       )}
       {loading && firstLoading && <Loading />}
       {!loading && !error && fields.length === 0 && theme !== "default" && (
-        <Callout.Root>
-          <Callout.Text>{t("theme.no_config")}</Callout.Text>
-        </Callout.Root>
+        <div className="rounded-xl border bg-muted/30 px-4 py-3 text-sm text-muted-foreground">
+          {t("theme.no_config")}
+        </div>
       )}
-      <Separator size="4" />
-      <Flex direction="column" gap="3">
+      <Separator />
+      <div className="space-y-3">
         {fields.map((f, idx) => {
           if (f.type === "title") {
             return (
-              <Heading key={idx} size="3" className="mt-4">
+              <h2 key={idx} className="mt-4 text-lg font-semibold">
                 {resolveI18nText(f.name, currentLanguage) || "标题"}
-              </Heading>
+              </h2>
             );
           }
           if (!f.key) return null;
@@ -256,15 +255,15 @@ const ThemeManaged: React.FC = () => {
               );
           }
         })}
-      </Flex>
+      </div>
       {fields.length > 0 && (
-        <Flex>
+        <div className="flex justify-end">
           <Button onClick={saveAll} disabled={saving}>
             {t("common.save")}
           </Button>
-        </Flex>
+        </div>
       )}
-    </Flex>
+    </div>
   );
 };
 

@@ -1,5 +1,14 @@
 import { useTranslation } from "react-i18next";
-import { Button, Dialog, Flex, Text } from "@/components/ui/compat";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { updateSettingsWithToast, useSettings } from "@/lib/api";
 import {
   SettingCardButton,
@@ -115,7 +124,7 @@ export default function SiteSettings() {
   }
 
   if (error) {
-    return <Text color="red">{error}</Text>;
+    return <p className="text-sm text-destructive">{error}</p>;
   }
 
   return (
@@ -252,8 +261,8 @@ export default function SiteSettings() {
               {t("common.generate")}
             </Button>
             <Button
-              color="red"
-              variant="soft"
+              variant="outline"
+              className="border-red-200 bg-red-50 text-red-700 hover:bg-red-100"
               onClick={async () => {
                 await updateSettingsWithToast(
                   { tempory_share_token: "", tempory_share_token_expire_at: 0 },
@@ -298,51 +307,48 @@ export default function SiteSettings() {
         )}
         defaultOpen={true}
       >
-        <Flex
-          width={"100%"}
-          justify="between"
-          align="start"
-          direction={"column"}
-          gap="2"
-        >
-          <Flex gap="2" align="center">
+        <div className="flex w-full flex-col items-start gap-2">
+          <div className="flex items-center gap-2">
             {t("settings.custom.favicon_current", "当前 Favicon")}
             <img
               src="/favicon.ico"
               alt="Favicon"
               style={{ width: 32, height: 32 }}
             />
-          </Flex>
+          </div>
           <label className="text-sm text-muted-foreground">
             {t(
               "settings.custom.favicon_note",
               "Favicon 图标的更新速度可能较慢，通常需要清除浏览器缓存后才能看到更改。",
             )}
           </label>
-          <Flex gap="2" align="center">
-            <Dialog.Root>
-              <Dialog.Trigger>
-                <Button color="tomato">
+          <div className="flex items-center gap-2">
+            <Dialog>
+              <DialogTrigger asChild>
+                <Button
+                  variant="outline"
+                  className="border-orange-200 bg-orange-50 text-orange-700 hover:bg-orange-100"
+                >
                   {t("settings.custom.favicon_default", "恢复默认")}
                 </Button>
-              </Dialog.Trigger>
-              <Dialog.Content>
-                <Dialog.Title>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogTitle>
                   {t("settings.custom.favicon_default", "恢复默认")}
-                </Dialog.Title>
-                <Dialog.Description>
+                </DialogTitle>
+                <DialogDescription>
                   {t(
                     "settings.custom.favicon_default_description",
                     "这将恢复默认的 Favicon 图标，是否继续？",
                   )}
-                </Dialog.Description>
-                <Flex gap="2" justify="end">
-                  <Dialog.Close>
-                    <Button variant="soft">{t("common.cancel", "取消")}</Button>
-                  </Dialog.Close>
-                  <Dialog.Trigger>
+                </DialogDescription>
+                <DialogFooter>
+                  <DialogClose asChild>
+                    <Button variant="outline">{t("common.cancel", "取消")}</Button>
+                  </DialogClose>
+                  <DialogClose asChild>
                     <Button
-                      color="red"
+                      variant="destructive"
                       onClick={async () => {
                         fetch("/api/admin/update/favicon", {
                           method: "POST",
@@ -371,10 +377,10 @@ export default function SiteSettings() {
                     >
                       {t("settings.custom.favicon_confirm", "确认")}
                     </Button>
-                  </Dialog.Trigger>
-                </Flex>
-              </Dialog.Content>
-            </Dialog.Root>
+                  </DialogClose>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
             <Button
               onClick={async () => {
                 const input = document.createElement("input");
@@ -415,8 +421,8 @@ export default function SiteSettings() {
             >
               {t("settings.custom.favicon_change", "更新 Favicon")}
             </Button>
-          </Flex>
-        </Flex>
+          </div>
+        </div>
       </SettingCardCollapse>
       <SettingCardLabel>{t("settings.site.backup")}</SettingCardLabel>
       <SettingCardIconButton

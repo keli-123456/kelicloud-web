@@ -5,7 +5,6 @@ import {
 } from "@/components/admin/SettingCard";
 import Loading from "@/components/loading";
 import { updateSettingsWithToast, useSettings } from "@/lib/api";
-import { Text } from "@/components/ui/compat";
 import { useTranslation } from "react-i18next";
 
 export default function SsoSettings() {
@@ -17,7 +16,7 @@ export default function SsoSettings() {
   }
 
   if (error) {
-    return <Text color="red">{error}</Text>;
+    return <p className="text-sm text-destructive">{error}</p>;
   }
   return (
     <>

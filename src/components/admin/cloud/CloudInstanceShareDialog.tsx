@@ -2,7 +2,18 @@ import React from "react";
 import { useTranslation } from "react-i18next";
 import { Copy, Share2, Trash2 } from "lucide-react";
 
-import { Button, Checkbox, Dialog, Flex, TextArea, TextField } from "@/components/ui/compat";
+import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import type { CloudInstanceShareRecord, CloudShareProvider, CloudShareResourceType } from "@/lib/cloudShare";
 
 export type CloudInstanceShareTarget = {
@@ -83,22 +94,24 @@ export default function CloudInstanceShareDialog({
   const { t } = useTranslation();
 
   return (
-    <Dialog.Root open={open} onOpenChange={onOpenChange}>
-      <Dialog.Content className="max-h-[85vh] overflow-y-auto">
-        <Dialog.Title>{t("cloud.share.dialog_title", "Share Instance")}</Dialog.Title>
-        <Dialog.Description>
-          {t(
-            "cloud.share.dialog_description",
-            "Generate a read-only public link for one instance. You can choose whether to include the saved root password or managed SSH key.",
-          )}
-        </Dialog.Description>
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-2xl">
+        <DialogHeader>
+          <DialogTitle>{t("cloud.share.dialog_title", "Share Instance")}</DialogTitle>
+          <DialogDescription>
+            {t(
+              "cloud.share.dialog_description",
+              "Generate a read-only public link for one instance. You can choose whether to include the saved root password or managed SSH key.",
+            )}
+          </DialogDescription>
+        </DialogHeader>
 
         {loading ? (
-          <div className="mt-4 text-sm text-slate-500">
+          <div className="text-sm text-slate-500">
             {t("cloud.loading", "Loading cloud resources...")}
           </div>
         ) : target ? (
-          <div className="mt-4 flex flex-col gap-4">
+          <div className="flex flex-col gap-4">
             <div className="grid gap-3 sm:grid-cols-2">
               <MetaItem label={t("cloud.share.instance", "Instance")} value={target.resourceName} />
               <MetaItem label={t("cloud.share.provider", "Provider")} value={target.providerLabel} />
@@ -109,47 +122,51 @@ export default function CloudInstanceShareDialog({
             </div>
 
             {share?.token ? (
-              <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-4">
-                <div className="text-sm font-medium text-emerald-900">
+              <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-4 dark:border-emerald-900/40 dark:bg-emerald-950/30">
+                <div className="text-sm font-medium text-emerald-900 dark:text-emerald-100">
                   {t("cloud.share.link_ready", "Share link is ready")}
                 </div>
-                <TextField.Root className="mt-3" readOnly value={shareUrl} />
-                <Flex justify="end" gap="2" className="mt-3">
-                  <Button variant="outline" size="1" onClick={onCopyLink}>
+                <Input className="mt-3" readOnly value={shareUrl} />
+                <div className="mt-3 flex justify-end">
+                  <Button variant="outline" size="sm" onClick={onCopyLink}>
                     <Copy className="mr-2 h-4 w-4" />
                     {t("common.copy", "Copy")}
                   </Button>
-                </Flex>
+                </div>
               </div>
             ) : null}
 
-            <label className="text-sm font-medium text-slate-800">
-              {t("cloud.share.custom_title", "Custom Title")}
-            </label>
-            <TextField.Root
-              value={title}
-              placeholder={target.resourceName}
-              onChange={(event) => onTitleChange(event.target.value)}
-            />
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-slate-800 dark:text-slate-100">
+                {t("cloud.share.custom_title", "Custom Title")}
+              </label>
+              <Input
+                value={title}
+                placeholder={target.resourceName}
+                onChange={(event) => onTitleChange(event.target.value)}
+              />
+            </div>
 
-            <label className="text-sm font-medium text-slate-800">
-              {t("cloud.share.note", "Share Note")}
-            </label>
-            <TextArea
-              className="min-h-28"
-              value={note}
-              placeholder={t("cloud.share.note_placeholder", "Optional note shown on the public share page")}
-              onChange={(event) => onNoteChange(event.target.value)}
-            />
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-slate-800 dark:text-slate-100">
+                {t("cloud.share.note", "Share Note")}
+              </label>
+              <Textarea
+                className="min-h-28"
+                value={note}
+                placeholder={t("cloud.share.note_placeholder", "Optional note shown on the public share page")}
+                onChange={(event) => onNoteChange(event.target.value)}
+              />
+            </div>
 
             {target.canSharePassword ? (
-              <label className="flex items-center gap-3 rounded-xl border border-slate-200 px-4 py-3">
+              <label className="flex items-center gap-3 rounded-xl border border-slate-200 px-4 py-3 dark:border-slate-800">
                 <Checkbox checked={sharePassword} onCheckedChange={(checked) => onSharePasswordChange(Boolean(checked))} />
                 <div>
-                  <div className="text-sm font-medium text-slate-900">
+                  <div className="text-sm font-medium text-slate-900 dark:text-slate-100">
                     {t("cloud.share.include_password", "Include saved root password")}
                   </div>
-                  <div className="text-xs text-slate-500">
+                  <div className="text-xs text-slate-500 dark:text-slate-400">
                     {t("cloud.share.include_password_description", "Anyone with the link will be able to view the stored root password.")}
                   </div>
                 </div>
@@ -157,22 +174,26 @@ export default function CloudInstanceShareDialog({
             ) : null}
 
             {target.canShareManagedSSHKey ? (
-              <label className="flex items-center gap-3 rounded-xl border border-slate-200 px-4 py-3">
+              <label className="flex items-center gap-3 rounded-xl border border-slate-200 px-4 py-3 dark:border-slate-800">
                 <Checkbox checked={shareManagedSSHKey} onCheckedChange={(checked) => onShareManagedSSHKeyChange(Boolean(checked))} />
                 <div>
-                  <div className="text-sm font-medium text-slate-900">
+                  <div className="text-sm font-medium text-slate-900 dark:text-slate-100">
                     {t("cloud.share.include_managed_key", "Include managed SSH key")}
                   </div>
-                  <div className="text-xs text-slate-500">
+                  <div className="text-xs text-slate-500 dark:text-slate-400">
                     {t("cloud.share.include_managed_key_description", "Expose the managed SSH private key so the recipient can log in with the shared key pair.")}
                   </div>
                 </div>
               </label>
             ) : null}
 
-            <Flex justify="end" gap="2">
+            <DialogFooter>
               {share?.token ? (
-                <Button variant="soft" color="red" onClick={onDelete} disabled={deleting || saving}>
+                <Button
+                  variant="destructive"
+                  onClick={onDelete}
+                  disabled={deleting || saving}
+                >
                   <Trash2 className="mr-2 h-4 w-4" />
                   {deleting
                     ? t("cloud.share.revoking", "Revoking...")
@@ -187,10 +208,10 @@ export default function CloudInstanceShareDialog({
                     ? t("cloud.share.update", "Update Share")
                     : t("cloud.share.create", "Create Share")}
               </Button>
-            </Flex>
+            </DialogFooter>
           </div>
         ) : null}
-      </Dialog.Content>
-    </Dialog.Root>
+      </DialogContent>
+    </Dialog>
   );
 }

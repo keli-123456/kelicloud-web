@@ -1,5 +1,4 @@
 import { useTranslation } from "react-i18next";
-import { Text } from "@/components/ui/compat";
 import { updateSettingsWithToast, useSettings } from "@/lib/api";
 import {
   SettingCardButton,
@@ -100,10 +99,10 @@ const NotificationSettings = () => {
     return <Loading />;
   }
   if (error) {
-    return <Text color="red">{error}</Text>;
+    return <p className="text-sm text-destructive">{error}</p>;
   }
   if (messageError) {
-    return <Text color="red">{messageError}</Text>;
+    return <p className="text-sm text-destructive">{messageError}</p>;
   }
 
   return (

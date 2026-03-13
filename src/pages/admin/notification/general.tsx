@@ -1,6 +1,4 @@
-import { Flex } from "@/components/ui/compat";
 import { useTranslation } from "react-i18next";
-import { Text } from "@/components/ui/compat";
 import { updateSettingsWithToast, useSettings } from "@/lib/api";
 import Loading from "@/components/loading";
 import {
@@ -11,9 +9,9 @@ import {
 import { toast } from "sonner";
 const GeneralNotification = () => {
   return (
-    <Flex direction="column" gap="2" className="p-0 md:pt-1">
+    <div className="flex flex-col gap-2 p-0 md:pt-1">
       <Inner />
-    </Flex>
+    </div>
   );
 };
 
@@ -26,7 +24,7 @@ const Inner = () => {
   }
 
   if (error) {
-    return <Text color="red">{error}</Text>;
+    return <p className="text-sm text-destructive">{error}</p>;
   }
   return (
     <>

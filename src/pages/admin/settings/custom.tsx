@@ -1,5 +1,4 @@
 import { useTranslation } from "react-i18next";
-import { Text } from "@/components/ui/compat";
 import {
   updateSettingsWithToast,
   useSettings,
@@ -16,7 +15,7 @@ export default function CustomSettings() {
   }
 
   if (error) {
-    return <Text color="red">{error}</Text>;
+    return <p className="text-sm text-destructive">{error}</p>;
   }
 
   return (

@@ -1,5 +1,5 @@
-import { Box, Flex, Text } from "@radix-ui/themes";
 import React from "react";
+import { cn } from "@/lib/utils";
 
 interface UsageBarProps {
   value: number; // Utilization percentage (0–100)
@@ -10,78 +10,48 @@ interface UsageBarProps {
 
 const UsageBar = React.memo(
   ({ value, label, compact = false, max = 100 }: UsageBarProps) => {
-    // Ensure value is between 0 and 100
     const clampedValue = Math.min(Math.max(value, 0), max);
-
-    // Determine color based on thresholds
     const getColor = (val: number) => {
-      if (val >= 80) return "red";
-      if (val >= 60) return "orange";
-      return "green";
+      if (val >= 80) return "bg-red-500";
+      if (val >= 60) return "bg-amber-500";
+      return "bg-emerald-500";
     };
 
     const barColor = getColor(clampedValue);
 
     if (compact) {
       return (
-        <Box style={{ width: "100%" }}>
-          <Box
-            style={{
-              width: "100%",
-              height: "6px",
-              backgroundColor: "var(--gray-5)",
-              borderRadius: "3px",
-              overflow: "hidden",
-              marginBottom: "2px",
-            }}
-          >
+        <div className="w-full">
+          <div className="mb-0.5 h-1.5 w-full overflow-hidden rounded-full bg-muted">
             <div
+              className={cn("h-full rounded-full transition-[width] duration-500 ease-out", barColor)}
               style={{
-                height: "100%",
-                backgroundColor: `var(--${barColor}-9)`,
-                borderRadius: "3px",
                 width: `${clampedValue}%`,
-                transition: "width 0.5s ease-out",
               }}
             />
-          </Box>
-          <label color="gray" className="text-sm">
+          </div>
+          <span className="text-[13px] text-muted-foreground">
             {clampedValue.toFixed(1)}%
-          </label>
-        </Box>
+          </span>
+        </div>
       );
     }
 
     return (
-      <Flex direction="column" gap="1" style={{ width: "100%" }}>
-        <Flex justify="between" align="center">
-          <Text size="2" color="gray">
-            {label}
-          </Text>
-          <Text size="2" weight="medium">
-            {clampedValue.toFixed(1)}%
-          </Text>
-        </Flex>
-        <Box
-          style={{
-            width: "100%",
-            height: "8px",
-            backgroundColor: "var(--gray-5)",
-            borderRadius: "4px",
-            overflow: "hidden",
-          }}
-        >
+      <div className="flex w-full flex-col gap-1">
+        <div className="flex items-center justify-between gap-3">
+          <span className="text-sm text-muted-foreground">{label}</span>
+          <span className="text-sm font-medium">{clampedValue.toFixed(1)}%</span>
+        </div>
+        <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
           <div
+            className={cn("h-full rounded-full transition-[width] duration-500 ease-out", barColor)}
             style={{
-              height: "100%",
-              backgroundColor: `var(--${barColor}-9)`,
-              borderRadius: "4px",
               width: `${clampedValue}%`,
-              transition: "width 0.5s ease-out",
             }}
           />
-        </Box>
-      </Flex>
+        </div>
+      </div>
     );
   },
 );

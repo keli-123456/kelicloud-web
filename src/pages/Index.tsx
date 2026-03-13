@@ -1,34 +1,34 @@
-import {
-  Callout,
-  Card,
-  Flex,
-  Text,
-  Popover,
-  IconButton,
-  Switch,
-} from "@radix-ui/themes";
+import React, { Suspense, useEffect } from "react";
+import { Settings } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import React, { useEffect, Suspense } from "react";
-const NodeDisplay = React.lazy(() => import("../components/NodeDisplay"));
-import { formatBytes } from "@/utils/unitHelper";
+
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { Switch } from "@/components/ui/switch";
+import Loading from "@/components/loading";
 import { useLiveData } from "../contexts/LiveDataContext";
 import { useNodeList } from "@/contexts/NodeListContext";
-import Loading from "@/components/loading";
-import { Settings } from "lucide-react";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
+import { formatBytes } from "@/utils/unitHelper";
 
-// Intelligent speed formatting function
+const NodeDisplay = React.lazy(() => import("../components/NodeDisplay"));
+
 const formatSpeed = (bytes: number): string => {
   if (bytes === 0) return "0 B/s";
   const units = ["B/s", "KB/s", "MB/s", "GB/s", "TB/s"];
   const i = Math.floor(Math.log(bytes) / Math.log(1024));
   const size = bytes / Math.pow(1024, i);
 
-  // Adaptive decimal places
   let decimals = 2;
-  if (i >= 3) decimals = 1; // GB and above: 1 decimal
-  if (i <= 1) decimals = 0; // B and KB: no decimals
-  if (size >= 100) decimals = 0; // 100+ of any unit: no decimals
+  if (i >= 3) decimals = 1;
+  if (i <= 1) decimals = 0;
+  if (size >= 100) decimals = 0;
 
   return `${size.toFixed(decimals)} ${units[i]}`;
 };
@@ -40,11 +40,8 @@ const Index = () => {
     const [currentTime, setCurrentTime] = React.useState(
       new Date().toLocaleTimeString(),
     );
-    //document.title = t("home_title");
-    //#region 节点数据
     const { nodeList, isLoading, error, refresh } = useNodeList();
 
-    // 独立的时间更新定时器
     useEffect(() => {
       const timer = setInterval(() => {
         setCurrentTime(new Date().toLocaleTimeString());
@@ -52,7 +49,6 @@ const Index = () => {
       return () => clearInterval(timer);
     }, []);
 
-    // Status cards visibility state
     const [statusCardsVisibility, setStatusCardsVisibility] = useLocalStorage(
       "statusCardsVisibility",
       {
@@ -64,7 +60,6 @@ const Index = () => {
       },
     );
 
-    // Status cards configuration
     const statusCards = [
       {
         key: "currentTime",
@@ -132,10 +127,7 @@ const Index = () => {
           const values = Object.entries(data)
             .filter(([uuid]) => onlineSet.has(uuid))
             .map(([, node]) => node);
-          const up = values.reduce(
-            (acc, node) => acc + (node.network.up || 0),
-            0,
-          );
+          const up = values.reduce((acc, node) => acc + (node.network.up || 0), 0);
           const down = values.reduce(
             (acc, node) => acc + (node.network.down || 0),
             0,
@@ -151,7 +143,7 @@ const Index = () => {
         refresh();
       }, 5000);
       return () => clearInterval(interval);
-    }, [nodeList]);
+    }, [nodeList, refresh]);
 
     if (isLoading) {
       return <Loading />;
@@ -160,25 +152,21 @@ const Index = () => {
       return <div>Error: {error}</div>;
     }
 
-    //#endregion
-
     return (
       <>
         <Callouts />
-        <Card className="summary-card mx-4 md:text-base text-sm relative">
-          <div className="absolute top-2 right-2">
-            <Popover.Root>
-              <Popover.Trigger>
-                <IconButton variant="ghost" size="1">
+        <Card className="summary-card relative mx-4 gap-0 px-4 py-5 text-sm md:text-base">
+          <div className="absolute right-2 top-2">
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button type="button" variant="ghost" size="icon" className="h-8 w-8">
                   <Settings size={16} />
-                </IconButton>
-              </Popover.Trigger>
-              <Popover.Content width="300px">
-                <Flex direction="column" gap="3">
-                  <Text size="2" weight="bold">
-                    {t("status_settings")}
-                  </Text>
-                  <Flex direction="column" gap="2">
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-[300px]">
+                <div className="flex flex-col gap-3">
+                  <div className="text-sm font-semibold">{t("status_settings")}</div>
+                  <div className="flex flex-col gap-2">
                     {statusCards.map((card) => (
                       <StatusSettingSwitch
                         key={card.key}
@@ -192,34 +180,31 @@ const Index = () => {
                         }
                       />
                     ))}
-                  </Flex>
-                </Flex>
-              </Popover.Content>
-            </Popover.Root>
+                  </div>
+                </div>
+              </PopoverContent>
+            </Popover>
           </div>
 
-          {(() => {
-            return (
-              <div
-                className="grid gap-2"
-                style={{
-                  gridTemplateColumns: `repeat(auto-fit, minmax(230px, 1fr))`,
-                  gridAutoRows: "min-content",
-                }}
-              >
-                {statusCards
-                  .filter((card) => card.visible)
-                  .map((card) => (
-                    <TopCard
-                      key={card.key}
-                      title={card.title}
-                      value={card.getValue()}
-                    />
-                  ))}
-              </div>
-            );
-          })()}
+          <div
+            className="grid gap-2"
+            style={{
+              gridTemplateColumns: "repeat(auto-fit, minmax(230px, 1fr))",
+              gridAutoRows: "min-content",
+            }}
+          >
+            {statusCards
+              .filter((card) => card.visible)
+              .map((card) => (
+                <TopCard
+                  key={card.key}
+                  title={card.title}
+                  value={card.getValue()}
+                />
+              ))}
+          </div>
         </Card>
+
         <Suspense fallback={<div style={{ padding: 16 }}>Loading…</div>}>
           <NodeDisplay
             nodes={nodeList ?? []}
@@ -229,60 +214,58 @@ const Index = () => {
       </>
     );
   };
+
   return <InnerLayout />;
 };
 
-//#region Callouts
 const Callouts = () => {
   const [t] = useTranslation();
   const { showCallout } = useLiveData();
   const ishttps = window.location.protocol === "https:";
+
   return (
-    <Flex direction="column" gap="2" className="m-2">
-      <Callout.Root m="2" hidden={ishttps} color="red">
-        <Callout.Icon>
+    <div className="m-2 flex flex-col gap-2">
+      {!ishttps && (
+        <Alert variant="destructive" className="border-red-200 bg-red-50 text-red-700">
           <svg
             xmlns="http://www.w3.org/2000/svg"
             width="24"
             viewBox="0 0 24 24"
+            className="text-red-600"
           >
             <path
               fill="currentColor"
               d="M10.03 3.659c.856-1.548 3.081-1.548 3.937 0l7.746 14.001c.83 1.5-.255 3.34-1.969 3.34H4.254c-1.715 0-2.8-1.84-1.97-3.34zM12.997 17A.999.999 0 1 0 11 17a.999.999 0 0 0 1.997 0m-.259-7.853a.75.75 0 0 0-1.493.103l.004 4.501l.007.102a.75.75 0 0 0 1.493-.103l-.004-4.502z"
             />
           </svg>
-        </Callout.Icon>
-        <Callout.Text>
-          <Text size="2" weight="medium">
+          <AlertDescription className="font-medium text-red-700">
             {t("warn_https")}
-          </Text>
-        </Callout.Text>
-      </Callout.Root>
-      <Callout.Root m="2" hidden={showCallout} id="callout" color="tomato">
-        <Callout.Icon>
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {!showCallout && (
+        <Alert className="border-orange-200 bg-orange-50 text-orange-800">
           <svg
             xmlns="http://www.w3.org/2000/svg"
             width="24"
             height="24"
             viewBox="0 0 24 24"
+            className="text-orange-600"
           >
             <path
               fill="currentColor"
               d="M21.707 3.707a1 1 0 0 0-1.414-1.414L18.496 4.09a4.25 4.25 0 0 0-5.251.604l-1.068 1.069a1.75 1.75 0 0 0 0 2.474l3.585 3.586a1.75 1.75 0 0 0 2.475 0l1.068-1.068a4.25 4.25 0 0 0 .605-5.25zm-11 8a1 1 0 0 0-1.414-1.414l-1.47 1.47l-.293-.293a.75.75 0 0 0-1.06 0l-1.775 1.775a4.25 4.25 0 0 0-.605 5.25l-1.797 1.798a1 1 0 1 0 1.414 1.414l1.798-1.797a4.25 4.25 0 0 0 5.25-.605l1.775-1.775a.75.75 0 0 0 0-1.06l-.293-.293l1.47-1.47a1 1 0 0 0-1.414-1.414l-1.47 1.47l-1.586-1.586z"
             />
           </svg>
-        </Callout.Icon>
-        <Callout.Text>
-          <Text size="2" weight="medium">
+          <AlertDescription className="font-medium text-orange-800">
             {t("warn_websocket")}
-          </Text>
-        </Callout.Text>
-      </Callout.Root>
-    </Flex>
+          </AlertDescription>
+        </Alert>
+      )}
+    </div>
   );
 };
-// #endregion Callouts
-export default Index;
 
 type TopCardProps = {
   title: string;
@@ -293,16 +276,14 @@ type TopCardProps = {
 const TopCard: React.FC<TopCardProps> = React.memo(
   ({ title, value, description }) => {
     return (
-      <div className="min-w-52 md:max-w-72 w-full">
-        <Flex direction="column" gap="1">
-          <label className="text-muted-foreground text-sm">{title}</label>
-          <label className="font-medium -mt-2 text-md">{value}</label>
+      <div className="min-w-52 w-full md:max-w-72">
+        <div className="flex flex-col gap-1">
+          <label className="text-sm text-muted-foreground">{title}</label>
+          <label className="-mt-2 text-md font-medium">{value}</label>
           {description && (
-            <Text size="2" color="gray">
-              {description}
-            </Text>
+            <span className="text-sm text-muted-foreground">{description}</span>
           )}
-        </Flex>
+        </div>
       </div>
     );
   },
@@ -317,10 +298,12 @@ type StatusSettingSwitchProps = {
 const StatusSettingSwitch: React.FC<StatusSettingSwitchProps> = React.memo(
   ({ label, checked, onCheckedChange }) => {
     return (
-      <Flex justify="between" align="center">
-        <Text size="2">{label}</Text>
+      <div className="flex items-center justify-between gap-4">
+        <span className="text-sm">{label}</span>
         <Switch checked={checked} onCheckedChange={onCheckedChange} />
-      </Flex>
+      </div>
     );
   },
 );
+
+export default Index;

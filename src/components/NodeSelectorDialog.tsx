@@ -1,5 +1,12 @@
 import React from "react";
-import { Dialog, Button, Flex } from "@/components/ui/compat";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import NodeSelector from "./NodeSelector";
 import { useTranslation } from "react-i18next";
 
@@ -43,13 +50,13 @@ const NodeSelectorDialog: React.FC<NodeSelectorDialogProps> = ({
   };
 
   return (
-    <Dialog.Root open={open} onOpenChange={onOpenChange}>
-      <Dialog.Trigger>
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogTrigger asChild>
         {children ? children : <Button>{title || t("common.select")}</Button>}
-      </Dialog.Trigger>
-      <Dialog.Content style={{ maxWidth: 400 }}>
-        <Dialog.Title>{title || t("common.select")}</Dialog.Title>
-        <Flex direction="column" gap="3">
+      </DialogTrigger>
+      <DialogContent className="sm:max-w-[400px]">
+        <DialogTitle>{title || t("common.select")}</DialogTitle>
+        <div className="flex flex-col gap-3">
           <NodeSelector
             value={temp}
             onChange={setTemp}
@@ -57,15 +64,15 @@ const NodeSelectorDialog: React.FC<NodeSelectorDialogProps> = ({
             hiddenUuidOnlyClient={hiddenUuidOnlyClient}
             hiddenDescription={hiddenDescription}
           />
-          <Flex justify="end" gap="2">
-            <Dialog.Close>
-              <Button variant="soft">{t("common.cancel")}</Button>
-            </Dialog.Close>
+          <div className="flex justify-end gap-2">
+            <DialogClose asChild>
+              <Button variant="outline">{t("common.cancel")}</Button>
+            </DialogClose>
             <Button onClick={handleOk}>{t("common.done")}</Button>
-          </Flex>
-        </Flex>
-      </Dialog.Content>
-    </Dialog.Root>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 };
 

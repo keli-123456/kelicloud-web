@@ -8,9 +8,9 @@ import {
   Button,
   Dialog,
   Flex,
-  Skeleton,
   TextField,
-} from "@/components/ui/compat";
+} from "@/components/admin/admin-ui";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Github, Globe, User } from "lucide-react";
 import Loading from "@/components/loading";
 import {
@@ -301,7 +301,6 @@ const InnerLayout = () => {
             </div>
             <Badge
               color={account?.["2fa_enabled"] ? "green" : "amber"}
-              variant="soft"
               className="rounded-full px-3 py-1"
             >
               {account?.["2fa_enabled"] ? "Protected" : "Pending"}
@@ -472,7 +471,7 @@ const TwoFactorDisabled = () => {
             <label>{t("account.2fa_qr_code_hint")}</label>
             <div className="flex justify-center">
               {isLoading ? (
-                <Skeleton width="200px" height="200px" />
+                <Skeleton className="h-[200px] w-[200px]" />
               ) : (
                 <img src={qrcode!} alt="2FA QR Code" width={200} height={200} />
               )}

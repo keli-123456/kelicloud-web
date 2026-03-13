@@ -2,7 +2,8 @@ import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { useLiveData } from "../../contexts/LiveDataContext";
 import { useTranslation } from "react-i18next";
-import { Card, Flex, SegmentedControl } from "@radix-ui/themes";
+import { Card } from "@/components/ui/card";
+import { SegmentedControl } from "@/components/ui/segmented-control";
 import { formatBytes } from "@/utils/unitHelper";
 import { useNodeList } from "@/contexts/NodeListContext";
 import fillMissingTimePoints, { type RecordFormat } from "@/utils/RecordHelper";
@@ -192,6 +193,7 @@ const LoadChart = ({ data = [] }: LoadChartProps) => {
   const primaryColor = colors[0];
   const secondaryColor = colors[1];
   const cn = "max-w-72 min-w-72 flex flex-col w-full h-full gap-4";
+  const chartCardClassName = `${cn} px-4 py-4 sm:px-6`;
   const chartMargin = {
     top: 0,
     right: 16,
@@ -240,10 +242,10 @@ const LoadChart = ({ data = [] }: LoadChartProps) => {
   };
   const ChartTitle = (text: string, left: React.ReactNode) => {
     return (
-      <Flex justify="between" align="center" className="mb-2">
+      <div className="mb-2 flex items-center justify-between gap-3">
         <label className="text-xl font-bold">{text}</label>
         <label className="text-sm text-muted-foreground">{left}</label>
-      </Flex>
+      </div>
     );
   };
   const minute = 60;
@@ -276,12 +278,7 @@ const LoadChart = ({ data = [] }: LoadChartProps) => {
       })();
 
   return (
-    <Flex
-      direction="column"
-      align="center"
-      gap="4"
-      className="w-full max-w-screen"
-    >
+    <div className="flex w-full max-w-screen flex-col items-center gap-4">
       <div className="w-full overflow-x-auto px-2">
         <div className="w-max mx-auto">
           <SegmentedControl.Root value={hoursView} onValueChange={setHoursView}>
@@ -317,7 +314,7 @@ const LoadChart = ({ data = [] }: LoadChartProps) => {
         }}
       >
         {/* CPU */}
-        <Card className={cn}>
+        <Card className={chartCardClassName}>
           {ChartTitle(
             "CPU",
             live_data?.cpu?.usage ? `${live_data.cpu.usage.toFixed(2)}%` : "-"
@@ -372,10 +369,10 @@ const LoadChart = ({ data = [] }: LoadChartProps) => {
           </ChartContainer>
         </Card>
         {/* Ram */}
-        <Card className={cn}>
+        <Card className={chartCardClassName}>
           {ChartTitle(
             "Ram",
-            <Flex gap="0" direction="column" align="end" className="text-sm">
+            <div className="flex flex-col items-end gap-0 text-sm">
               <label>
                 {live_data?.ram?.used
                   ? `${formatBytes(live_data.ram.used)} / ${formatBytes(
@@ -390,7 +387,7 @@ const LoadChart = ({ data = [] }: LoadChartProps) => {
                     )}`
                   : "-"}
               </label>
-            </Flex>
+            </div>
           )}
           <ChartContainer
             config={{
@@ -490,7 +487,7 @@ const LoadChart = ({ data = [] }: LoadChartProps) => {
           </ChartContainer>
         </Card>
         {/* Disk */}
-        <Card className={cn}>
+        <Card className={chartCardClassName}>
           {ChartTitle(
             "Disk",
             live_data?.disk?.used
@@ -549,10 +546,10 @@ const LoadChart = ({ data = [] }: LoadChartProps) => {
           </ChartContainer>
         </Card>
         {/* Netwodk */}
-        <Card className={cn}>
+        <Card className={chartCardClassName}>
           {ChartTitle(
             t("nodeCard.networkSpeed"),
-            <Flex gap="0" align="end" direction="column" className="text-sm">
+            <div className="flex flex-col items-end gap-0 text-sm">
               <span>
                 ↑ {formatBytes(live_data?.network.up || 0)}
                 /s
@@ -561,7 +558,7 @@ const LoadChart = ({ data = [] }: LoadChartProps) => {
                 ↓ {formatBytes(live_data?.network.down || 0)}
                 /s
               </span>
-            </Flex>
+            </div>
           )}
           <ChartContainer
             config={{
@@ -624,13 +621,13 @@ const LoadChart = ({ data = [] }: LoadChartProps) => {
           </ChartContainer>
         </Card>
         {/* Connections */}
-        <Card className={cn}>
+        <Card className={chartCardClassName}>
           {ChartTitle(
             t("chart.connections"),
-            <Flex gap="0" align="end" direction="column" className="text-sm">
+            <div className="flex flex-col items-end gap-0 text-sm">
               <span>TCP: {live_data?.connections.tcp}</span>
               <span>UDP: {live_data?.connections.udp}</span>
-            </Flex>
+            </div>
           )}
           <ChartContainer
             config={{
@@ -692,7 +689,7 @@ const LoadChart = ({ data = [] }: LoadChartProps) => {
           </ChartContainer>
         </Card>
         {/* Process */}
-        <Card className={cn}>
+        <Card className={chartCardClassName}>
           {ChartTitle(t("chart.process"), live_data?.process)}
           <ChartContainer
             config={{
@@ -746,8 +743,8 @@ const LoadChart = ({ data = [] }: LoadChartProps) => {
         {live_data?.gpu &&
           live_data.gpu.count > 0 &&
           live_data.gpu.detailed_info?.map((gpu, index) => (
-            <Card key={`gpu-${index}`} className={cn}>
-              <Flex direction="column" gap="2" className="mb-2">
+            <Card key={`gpu-${index}`} className={chartCardClassName}>
+              <div className="mb-2 flex flex-col gap-2">
                 <div className="flex items-center justify-between">
                   <label className="text-xl font-bold">{`GPU ${index + 1}: ${
                     gpu.name
@@ -778,7 +775,7 @@ const LoadChart = ({ data = [] }: LoadChartProps) => {
                     </div>
                   </div>
                 </div>
-              </Flex>
+              </div>
               <ChartContainer
                 config={{
                   gpu_usage: {
@@ -886,7 +883,7 @@ const LoadChart = ({ data = [] }: LoadChartProps) => {
             </Card>
           ))}
       </div>
-    </Flex>
+    </div>
   );
 };
 

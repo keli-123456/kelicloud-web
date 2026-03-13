@@ -20,7 +20,6 @@ import {
 import { AdminPageShell } from "@/components/admin/AdminPageShell";
 import CloudInstanceShareDialog, { type CloudInstanceShareTarget } from "@/components/admin/cloud/CloudInstanceShareDialog";
 import CloudInstanceScriptDialog, { type CloudInstanceScriptTarget } from "@/components/admin/cloud/CloudInstanceScriptDialog";
-import Loading from "@/components/loading";
 import {
   Badge,
   Button,
@@ -28,10 +27,11 @@ import {
   Dialog,
   Flex,
   Select,
+  Tabs,
   TextArea,
   TextField,
-  Tabs,
-} from "@/components/ui/compat";
+} from "@/components/admin/cloud/cloud-ui";
+import Loading from "@/components/loading";
 import {
   Table,
   TableBody,

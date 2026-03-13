@@ -4,7 +4,7 @@ import { useLiveData } from "../../contexts/LiveDataContext";
 import { useTranslation } from "react-i18next";
 import type { Record } from "../../types/LiveData";
 import Flag from "../../components/Flag";
-import { Flex, SegmentedControl, Text } from "@radix-ui/themes";
+import { SegmentedControl } from "@/components/ui/segmented-control";
 import { useNodeList } from "@/contexts/NodeListContext";
 import { liveDataToRecords } from "@/utils/RecordHelper";
 import LoadChart from "./LoadChart";
@@ -57,23 +57,21 @@ export default function InstancePage() {
   }, [onRefresh, uuid]);
   // #region 布局
   return (
-    <Flex className="items-center" direction={"column"} gap="2">
+    <div className="flex flex-col items-center gap-2">
       <div className="flex flex-col gap-1 md:p-4 p-3 border-0 rounded-md">
         <h1 className="flex items-center flex-wrap">
           <Flag flag={node?.region ?? ""} />
-          <Text size="3" weight="bold" wrap="nowrap">
+          <span className="whitespace-nowrap text-lg font-bold">
             {node?.name ?? uuid}
-          </Text>
-          <Text
-            size="1"
+          </span>
+          <span
             style={{
               marginLeft: "8px",
             }}
-            className="text-accent-6"
-            wrap="nowrap"
+            className="whitespace-nowrap text-sm text-muted-foreground"
           >
             {node?.uuid}
-          </Text>
+          </span>
         </h1>
         <DetailsGrid box align="center" uuid={uuid ?? ""} />
       </div>
@@ -96,7 +94,7 @@ export default function InstancePage() {
         <PingChart uuid={uuid ?? ""} />
       )}
       <div className="grid w-full items-center justify-center mx-auto h-full gap-4 p-1 md:grid-cols-[repeat(auto-fit,minmax(620px,1fr))] grid-cols-[repeat(auto-fit,minmax(320px,1fr))]"></div>
-    </Flex>
+    </div>
   );
 }
 // #region 详情网格

@@ -57,7 +57,14 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { ActionsCell } from "./NodeTable/NodeFunction";
 import { toast } from "sonner";
 import { LoadingIcon } from "../Icones/icon";
-import { Dialog, Flex, Button, IconButton, Checkbox, TextField } from "@/components/ui/compat";
+import {
+  Button,
+  Checkbox,
+  Dialog,
+  Flex,
+  IconButton,
+  TextField,
+} from "@/components/admin/admin-ui";
 import Loading from "../loading";
 
 const columns: ColumnDef<z.infer<typeof schema>>[] = [

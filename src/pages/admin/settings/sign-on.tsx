@@ -5,7 +5,7 @@ import {
   SettingCardSwitch,
 } from "@/components/admin/SettingCard";
 import { updateSettingsWithToast, useSettings } from "@/lib/api";
-import { Button, Text } from "@/components/ui/compat";
+import { Button } from "@/components/ui/button";
 import { useTranslation } from "react-i18next";
 import Loading from "@/components/loading";
 import React from "react";
@@ -100,10 +100,10 @@ export default function SignOnSettings() {
     return <Loading />;
   }
   if (error) {
-    return <Text color="red">{error}</Text>;
+    return <p className="text-sm text-destructive">{error}</p>;
   }
   if (providerError) {
-    return <Text color="red">{providerError}</Text>;
+    return <p className="text-sm text-destructive">{providerError}</p>;
   }
 
   return (
@@ -201,7 +201,13 @@ const ApiCard = () => {
         }}
       >
         <div className="flex flex-row gap-2 justify-start items-center">
-          <Button variant="soft" color="green" onClick={handleGenerateApiKey}>{t('common.generate')}</Button>
+          <Button
+            variant="outline"
+            className="border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
+            onClick={handleGenerateApiKey}
+          >
+            {t('common.generate')}
+          </Button>
         </div>
       </SettingCardShortTextInput>
   )

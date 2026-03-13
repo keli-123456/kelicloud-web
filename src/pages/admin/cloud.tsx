@@ -2,7 +2,7 @@ import React from "react";
 import { useTranslation } from "react-i18next";
 import { Cloud, Server, ShipWheel } from "lucide-react";
 
-import { Tabs } from "@/components/ui/compat";
+import { Tabs } from "@/components/admin/cloud/cloud-ui";
 import AWSPanel from "@/components/admin/cloud/AWSPanel";
 import DigitalOceanPanel from "@/components/admin/cloud/DigitalOceanPanel";
 import LinodePanel from "@/components/admin/cloud/LinodePanel";

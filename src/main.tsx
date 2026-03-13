@@ -1,8 +1,8 @@
 import React, { StrictMode, useMemo } from "react";
 import { createRoot } from "react-dom/client";
 import "./global.css";
-import { Theme } from "@radix-ui/themes";
-import "@radix-ui/themes/styles.css";
+import "./styles/vendor/radix-theme-tokens.css";
+import "./styles/vendor/radix-layout-tokens.css";
 import {
   ThemeContext,
   THEME_DEFAULTS,
@@ -24,7 +24,9 @@ import { PWAInstallPrompt } from "./components/PWAInstallPrompt";
 import { PWAUpdatePrompt } from "./components/PWAUpdatePrompt";
 import { OfflineIndicator } from "./components/OfflineIndicator";
 import { Toaster } from "./components/ui/sonner";
+import { TooltipProvider } from "./components/ui/tooltip";
 import { RPC2Provider } from "./contexts/RPC2Context";
+import { ThemeShell } from "./components/ui/theme-shell";
 
 const SW_RECOVERY_VERSION = "2026-03-12-cloud-api-recovery-1";
 
@@ -74,6 +76,12 @@ const App = () => {
   // Use the system theme hook to resolve "system" to actual theme
   const resolvedAppearance = useSystemTheme(appearance);
 
+  React.useEffect(() => {
+    const root = document.documentElement;
+    root.classList.toggle("dark", resolvedAppearance === "dark");
+    root.style.colorScheme = resolvedAppearance;
+  }, [resolvedAppearance]);
+
   const themeContextValue = useMemo(
     () => ({
       appearance,
@@ -87,10 +95,11 @@ const App = () => {
   return (
     <Suspense fallback={<Loading />}>
       <ThemeContext.Provider value={themeContextValue}>
-        <Theme
+        <ThemeShell
           appearance={resolvedAppearance}
           accentColor={color}
           scaling="110%"
+          isRoot
           className="theme-root"
           style={{
             backgroundColor: "transparent",
@@ -99,14 +108,16 @@ const App = () => {
         >
           <RPC2Provider>
             <PublicInfoProvider>
-              <Toaster />
-              <OfflineIndicator />
-              {routing}
-              <PWAInstallPrompt />
-              <PWAUpdatePrompt />
+              <TooltipProvider>
+                <Toaster />
+                <OfflineIndicator />
+                {routing}
+                <PWAInstallPrompt />
+                <PWAUpdatePrompt />
+              </TooltipProvider>
             </PublicInfoProvider>
           </RPC2Provider>
-        </Theme>
+        </ThemeShell>
       </ThemeContext.Provider>
     </Suspense>
   );

@@ -5,7 +5,7 @@ import "github-markdown-css/github-markdown.css";
 import Loading from "@/components/loading";
 import { useTranslation } from "react-i18next";
 import { SquareArrowOutUpRight } from "lucide-react";
-import { SegmentedControl } from "@/components/ui/compat";
+import { SegmentedControl } from "@/components/admin/admin-ui";
 import { Apache2_LICENSE, Eula, MIT_LICENSE } from "@/utils/field";
 import { SettingCardCollapse } from "@/components/admin/SettingCard";
 import {
@@ -59,7 +59,7 @@ export default function AboutPage() {
       "@radix-ui/react-icons",
       "@radix-ui/react-label",
       "@radix-ui/react-slot",
-      "@radix-ui/themes",
+      "@radix-ui/themes (vendored tokens)",
       "@tanstack/react-table",
       "@types/uuid",
       "class-variance-authority",
@@ -144,7 +144,7 @@ export default function AboutPage() {
       ]}
     >
       <AdminSurface className="flex flex-col gap-4">
-        <SegmentedControl.Root defaultValue={view} onValueChange={setView}>
+        <SegmentedControl.Root value={view} onValueChange={setView}>
           <SegmentedControl.Item value="open_source">
             {t("about.open_source_title")}
           </SegmentedControl.Item>

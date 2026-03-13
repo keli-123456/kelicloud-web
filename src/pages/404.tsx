@@ -1,31 +1,28 @@
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 import React from "react";
-import { Flex, Text, Button } from "@radix-ui/themes";
 import { Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 
 const NotFound: React.FC = () => {
-  React.useEffect(() => {
-    //document.title = "404 - Page Not Found";
-  }, []);
   const [t] = useTranslation();
+
   return (
-    <Flex
-      direction="column"
-      align="center"
-      justify="center"
-      style={{ height: '100vh', padding: '16px', textAlign: 'center' }}
-      gap="3"
-    >
-      <Text size="9" weight="bold">
-        404
-      </Text>
-      <Text size="4">
-        {t("page_not_found")}
-      </Text>
-      <Link to="/">
-        <Button variant="soft">{t("go_to_home")}</Button>
-      </Link>
-    </Flex>
+    <div className="flex min-h-screen items-center justify-center px-4 py-10">
+      <Card className="max-w-lg rounded-3xl border-border/70 bg-background/80 p-8 text-center shadow-xl backdrop-blur-xl">
+        <div className="flex flex-col items-center justify-center gap-3">
+          <div className="text-7xl font-bold">404</div>
+          <div className="text-balance text-xl text-muted-foreground">
+            {t("page_not_found")}
+          </div>
+          <Link to="/">
+            <Button variant="outline" className="rounded-full px-6">
+              {t("go_to_home")}
+            </Button>
+          </Link>
+        </div>
+      </Card>
+    </div>
   );
 };
 

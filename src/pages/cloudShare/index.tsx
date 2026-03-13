@@ -4,7 +4,8 @@ import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { Copy, KeyRound } from "lucide-react";
 
-import { Button, TextArea } from "@/components/ui/compat";
+import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
 import { getPublicCloudInstanceShare, type CloudPublicShareData } from "@/lib/cloudShare";
 import type { DigitalOceanDroplet } from "@/lib/cloud";
 import type { AWSInstanceDetail, AWSLightsailInstanceDetail } from "@/lib/cloudAws";
@@ -364,7 +365,7 @@ export default function CloudSharePage() {
                         <KeyRound className="mr-2 inline h-4 w-4" />
                         {t("cloud.password.view", "View Password")}
                       </div>
-                      <Button variant="outline" size="1" onClick={() => { void copyText(share.root_password?.root_password || ""); }}>
+                      <Button variant="outline" size="sm" onClick={() => { void copyText(share.root_password?.root_password || ""); }}>
                         <Copy className="mr-2 h-4 w-4" />
                         {t("common.copy", "Copy")}
                       </Button>
@@ -374,7 +375,7 @@ export default function CloudSharePage() {
                       <DetailCard label={t("cloud.password.mode", "Password Mode")} value={share.root_password.password_mode || "-"} />
                       <DetailCard label={t("cloud.password.saved_at", "Saved At")} value={formatDateTime(share.root_password.updated_at)} />
                     </div>
-                    <TextArea className="mt-3 min-h-24 font-mono text-xs" readOnly value={share.root_password.root_password} />
+                    <Textarea className="mt-3 min-h-24 font-mono text-xs" readOnly value={share.root_password.root_password} />
                   </div>
                 ) : null}
 
@@ -391,12 +392,12 @@ export default function CloudSharePage() {
                     <div className="mt-4 grid gap-4 lg:grid-cols-2">
                       <div>
                         <div className="mb-2 text-sm font-medium text-slate-800">{t("cloud.access.public_key", "Public Key")}</div>
-                        <TextArea className="min-h-40 font-mono text-xs" readOnly value={share.managed_ssh_key.public_key} />
+                        <Textarea className="min-h-40 font-mono text-xs" readOnly value={share.managed_ssh_key.public_key} />
                         <FlexButton onClick={() => { void copyText(share.managed_ssh_key?.public_key || ""); }} label={t("common.copy", "Copy")} />
                       </div>
                       <div>
                         <div className="mb-2 text-sm font-medium text-slate-800">{t("cloud.access.private_key", "Managed Private Key")}</div>
-                        <TextArea className="min-h-40 font-mono text-xs" readOnly value={share.managed_ssh_key.private_key} />
+                        <Textarea className="min-h-40 font-mono text-xs" readOnly value={share.managed_ssh_key.private_key} />
                         <FlexButton onClick={() => { void copyText(share.managed_ssh_key?.private_key || ""); }} label={t("common.copy", "Copy")} />
                       </div>
                     </div>
@@ -422,7 +423,7 @@ function FlexButton({
 }) {
   return (
     <div className="mt-2 flex justify-end">
-      <Button variant="outline" size="1" onClick={onClick}>
+      <Button variant="outline" size="sm" onClick={onClick}>
         <Copy className="mr-2 h-4 w-4" />
         {label}
       </Button>

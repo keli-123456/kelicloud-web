@@ -13,7 +13,15 @@ import { useTranslation } from "react-i18next";
 
 import { useCommandClipboard } from "@/contexts/CommandClipboardContext";
 import { type NodeDetail, useNodeDetails } from "@/contexts/NodeDetailsContext";
-import { Button, Dialog } from "@/components/ui/compat";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
 
 type ExecResponse = {
   success?: boolean;
@@ -377,18 +385,20 @@ export default function CloudInstanceScriptDialog({
   const outputText = executionState?.result?.result || "";
 
   return (
-    <Dialog.Root open={open} onOpenChange={onOpenChange}>
-      <Dialog.Content className="max-h-[80vh] overflow-y-auto">
-        <Dialog.Title>
-          {t("cloud.script.dialog_title", "执行脚本")}
-        </Dialog.Title>
-        <Dialog.Description>
-          {t("cloud.script.dialog_description", {
-            defaultValue: "从脚本库里选择脚本，直接对当前实例对应的 Komari 节点执行。",
-          })}
-        </Dialog.Description>
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-h-[80vh] overflow-y-auto sm:max-w-3xl">
+        <DialogHeader>
+          <DialogTitle>
+            {t("cloud.script.dialog_title", "执行脚本")}
+          </DialogTitle>
+          <DialogDescription>
+            {t("cloud.script.dialog_description", {
+              defaultValue: "从脚本库里选择脚本，直接对当前实例对应的 Komari 节点执行。",
+            })}
+          </DialogDescription>
+        </DialogHeader>
 
-        <div className="mt-4 space-y-4">
+        <div className="space-y-4">
           <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
             <div className="font-medium text-slate-900">
               {target?.providerLabel || "-"} / {target?.instanceName || target?.instanceIdentifier || "-"}
@@ -414,7 +424,7 @@ export default function CloudInstanceScriptDialog({
               </div>
               <Button
                 variant="outline"
-                size="1"
+                size="sm"
                 onClick={refresh}
                 disabled={nodeLoading}
               >
@@ -501,11 +511,11 @@ export default function CloudInstanceScriptDialog({
                 <div className="mb-2 text-xs text-slate-500">
                   {t("cloud.script.output", "输出")}
                 </div>
-                <textarea
+                <Textarea
                   readOnly
                   value={outputText}
                   placeholder={t("cloud.script.output_placeholder", "任务输出会显示在这里。")}
-                  className="min-h-32 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 font-mono text-xs text-slate-700 outline-none"
+                  className="min-h-32 border-slate-200 bg-slate-50 font-mono text-xs text-slate-700"
                 />
               </div>
 
@@ -513,7 +523,7 @@ export default function CloudInstanceScriptDialog({
                 <div className="mt-3 flex justify-end">
                   <Button
                     variant="outline"
-                    size="1"
+                    size="sm"
                     onClick={() => {
                       if (!matchedNode) return;
                       void pollTaskResult(
@@ -573,7 +583,7 @@ export default function CloudInstanceScriptDialog({
                         ) : null}
                       </div>
                       <Button
-                        size="1"
+                        size="sm"
                         disabled={!matchedNode || executionState?.status === "running" || executingCommandId !== null}
                         onClick={() => {
                           void handleRunCommand(command.id, command.name, command.text);
@@ -592,7 +602,7 @@ export default function CloudInstanceScriptDialog({
             )}
           </div>
         </div>
-      </Dialog.Content>
-    </Dialog.Root>
+      </DialogContent>
+    </Dialog>
   );
 }

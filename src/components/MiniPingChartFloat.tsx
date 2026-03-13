@@ -1,5 +1,9 @@
 import React, { useState, useRef, useCallback } from "react";
-import { Popover } from "@radix-ui/themes";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import MiniPingChart from "./MiniPingChart"; 
 
 interface FloatMiniPingChartProps {
@@ -46,8 +50,8 @@ const MiniPingChartFloat: React.FC<FloatMiniPingChartProps> = ({
   }, []);
 
   return (
-    <Popover.Root open={open} onOpenChange={setOpen}>
-      <Popover.Trigger>
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
         <span
           onMouseEnter={handleMouseEnter}
           onMouseLeave={handleMouseLeave}
@@ -57,8 +61,8 @@ const MiniPingChartFloat: React.FC<FloatMiniPingChartProps> = ({
         >
           {trigger}
         </span>
-      </Popover.Trigger>
-      <Popover.Content
+      </PopoverTrigger>
+      <PopoverContent
         sideOffset={5}
         onMouseEnter={handleMouseEnter} // Keep open on mouse enter popover content
         onMouseLeave={handleMouseLeave} // Close on mouse leave popover content
@@ -71,8 +75,8 @@ const MiniPingChartFloat: React.FC<FloatMiniPingChartProps> = ({
         }}
       >
         <MiniPingChart hours={hours} uuid={uuid} width={chartWidth} height={chartHeight} />
-      </Popover.Content>
-    </Popover.Root>
+      </PopoverContent>
+    </Popover>
   );
 };
 

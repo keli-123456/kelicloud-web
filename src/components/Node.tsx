@@ -1,19 +1,26 @@
 import React from "react";
-import {
-  Card,
-  Flex,
-  Text,
-  Badge,
-  Separator,
-  IconButton,
-} from "@radix-ui/themes";
-import type { LiveData, Record } from "../types/LiveData";
-import UsageBar from "./UsageBar";
-import Flag from "./Flag";
+import type { TFunction } from "i18next";
+import { TrendingUp } from "lucide-react";
+import { Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import Tips from "./ui/tips";
 
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { Separator } from "@/components/ui/separator";
+import { cn } from "@/lib/utils";
+import type { NodeBasicInfo } from "@/contexts/NodeListContext";
+import { usePublicInfo } from "@/contexts/PublicInfoContext";
+import { useIsMobile } from "@/hooks/use-mobile";
+import type { LiveData, Record } from "../types/LiveData";
+import { getOSImage, getOSName } from "@/utils";
 import { formatBytes } from "@/utils/unitHelper";
+
+import Flag from "./Flag";
+import MiniPingChartFloat from "./MiniPingChartFloat";
+import PriceTags from "./PriceTags";
+import Tips from "./ui/tips";
+import UsageBar from "./UsageBar";
 
 /** 格式化秒*/
 export function formatUptime(seconds: number, t: TFunction): string {
@@ -32,7 +39,7 @@ export function formatUptime(seconds: number, t: TFunction): string {
 
 function buildCNConnectivityBadge(
   connectivity: NonNullable<Record["cn_connectivity"]>,
-  t: TFunction
+  t: TFunction,
 ) {
   const latencyLabel =
     typeof connectivity.latency === "number" && connectivity.latency > 0
@@ -78,11 +85,31 @@ function buildCNConnectivityBadge(
   }
 }
 
+function InfoRow({
+  label,
+  value,
+  mobile = false,
+}: {
+  label: React.ReactNode;
+  value: React.ReactNode;
+  mobile?: boolean;
+}) {
+  return (
+    <div className={cn("flex justify-between", mobile && "gap-2")}>
+      <span className={cn("text-sm", !mobile && "text-muted-foreground")}>
+        {label}
+      </span>
+      <span className="text-sm">{value}</span>
+    </div>
+  );
+}
+
 interface NodeProps {
   basic: NodeBasicInfo;
   live: Record | undefined;
   online: boolean;
 }
+
 const Node = React.memo(({ basic, live, online }: NodeProps) => {
   const [t] = useTranslation();
   const isMobile = useIsMobile();
@@ -95,14 +122,12 @@ const Node = React.memo(({ basic, live, online }: NodeProps) => {
   } as Record;
 
   const liveData = live || defaultLive;
-
   const memoryUsagePercent = basic.mem_total
     ? (liveData.ram.used / basic.mem_total) * 100
     : 0;
   const diskUsagePercent = basic.disk_total
     ? (liveData.disk.used / basic.disk_total) * 100
     : 0;
-
   const uploadSpeed = formatBytes(liveData.network.up);
   const downloadSpeed = formatBytes(liveData.network.down);
   const totalUpload = formatBytes(liveData.network.totalUp);
@@ -110,45 +135,51 @@ const Node = React.memo(({ basic, live, online }: NodeProps) => {
   const cnConnectivityBadge = liveData.cn_connectivity?.status
     ? buildCNConnectivityBadge(liveData.cn_connectivity, t)
     : null;
-  //const totalTraffic = formatBytes(liveData.network.totalUp + liveData.network.totalDown);
+
   return (
     <Card
+      id={basic.uuid}
       style={{
         width: "100%",
         margin: "0 auto",
         transition: "all 0.2s ease-in-out",
       }}
-      id={basic.uuid}
-      className="node-card hover:cursor-pointer hover:shadow-lg hover:bg-accent-2"
+      className="node-card gap-0 px-4 py-4 hover:cursor-pointer hover:bg-accent-2 hover:shadow-lg"
     >
-      <Flex direction="column" gap="2">
-        <Flex justify="between" align="center" my={isMobile ? "-1" : "0"}>
-          <Flex justify="start" align="center" style={{ flex: 1, minWidth: 0 }}>
+      <div className="flex flex-col gap-2">
+        <div
+          className={cn(
+            "flex items-center justify-between gap-3",
+            isMobile && "-my-1",
+          )}
+        >
+          <div className="flex min-w-0 flex-1 items-center">
             <Flag flag={basic.region} />
             <Link
               to={`/instance/${basic.uuid}`}
               style={{ flex: 1, minWidth: 0 }}
+              className="min-w-0"
             >
-              <Flex direction="column" style={{ minWidth: 0 }}>
-                <Text
-                  weight="bold"
-                  size={isMobile ? "2" : "4"}
-                  truncate
-                  style={{ maxWidth: "100%" }}
+              <div className="min-w-0">
+                <div
+                  className={cn(
+                    "truncate font-bold",
+                    isMobile ? "text-base" : "text-xl",
+                  )}
                 >
                   {basic.name}
-                </Text>
-                <Text
-                  color="gray"
-                  hidden={!isMobile}
-                  style={{
-                    marginTop: "-3px",
-                    fontSize: "0.728rem",
-                  }}
-                  className="text-sm"
-                >
-                  {formatUptime(liveData.uptime, t)}
-                </Text>
+                </div>
+                {isMobile && (
+                  <div
+                    className="text-sm text-muted-foreground"
+                    style={{
+                      marginTop: "-3px",
+                      fontSize: "0.728rem",
+                    }}
+                  >
+                    {formatUptime(liveData.uptime, t)}
+                  </div>
+                )}
                 <PriceTags
                   hidden={isMobile}
                   price={basic.price}
@@ -167,164 +198,153 @@ const Node = React.memo(({ basic, live, online }: NodeProps) => {
                       : undefined
                   }
                 />
-              </Flex>
+              </div>
             </Link>
-          </Flex>
-          <Flex gap="2" align="center" style={{ flex: "none" }}>
+          </div>
+
+          <div className="flex items-center gap-2" style={{ flex: "none" }}>
             {live?.message && <Tips color="#CE282E">{live.message}</Tips>}
             <MiniPingChartFloat
               uuid={basic.uuid}
               hours={24}
               trigger={
-                <IconButton variant="ghost" size="1">
-                  <TrendingUp size="14" />
-                </IconButton>
+                <Button type="button" variant="ghost" size="icon" className="h-8 w-8">
+                  <TrendingUp size={14} />
+                </Button>
               }
             />
             {cnConnectivityBadge ? (
-              <Badge
-                variant="soft"
+              <span
                 className={cnConnectivityBadge.className}
                 title={cnConnectivityBadge.title}
               >
                 {cnConnectivityBadge.label}
-              </Badge>
+              </span>
             ) : null}
-            <Badge color={online ? "green" : "red"} variant="soft">
+            <Badge variant={online ? "success" : "destructive"}>
               {online ? t("nodeCard.online") : t("nodeCard.offline")}
             </Badge>
-          </Flex>
-        </Flex>
+          </div>
+        </div>
 
-        <Separator size="4" className="-mt-1" />
+        <Separator className="-mt-1" />
 
-        <Flex direction="column" gap="2">
-          <Flex justify="between" hidden={isMobile}>
-            <Text size="2" color="gray">
-              OS
-            </Text>
-            <Flex align="center">
-              <img
-                src={getOSImage(basic.os)}
-                alt={basic.os}
-                className="w-5 h-5 mr-2"
-              />
-              <Text size="2">
-                {getOSName(basic.os)} / {basic.arch}
-              </Text>
-            </Flex>
-          </Flex>
-          <Flex className="md:flex-col flex-row md:gap-1 gap-4">
-            {/* CPU Usage */}
+        <div className="flex flex-col gap-2">
+          {!isMobile && (
+            <InfoRow
+              label="OS"
+              value={
+                <span className="flex items-center">
+                  <img
+                    src={getOSImage(basic.os)}
+                    alt={basic.os}
+                    className="mr-2 h-5 w-5"
+                  />
+                  {getOSName(basic.os)} / {basic.arch}
+                </span>
+              }
+            />
+          )}
+
+          <div className="flex flex-row gap-4 md:flex-col md:gap-1">
             <UsageBar label={t("nodeCard.cpu")} value={liveData.cpu.usage} />
 
-            {/* Memory Usage */}
-            <UsageBar label={t("nodeCard.ram")} value={memoryUsagePercent} />
-            <Text
-              className="md:block hidden"
-              size="1"
-              color="gray"
-              style={{ marginTop: "-4px" }}
-            >
-              ({formatBytes(liveData.ram.used)} / {formatBytes(basic.mem_total)}
-              )
-            </Text>
+            <div>
+              <UsageBar label={t("nodeCard.ram")} value={memoryUsagePercent} />
+              <div
+                className="hidden text-sm text-muted-foreground md:block"
+                style={{ marginTop: "-4px" }}
+              >
+                ({formatBytes(liveData.ram.used)} / {formatBytes(basic.mem_total)})
+              </div>
+            </div>
 
-            {/* Disk Usage */}
-            <UsageBar label={t("nodeCard.disk")} value={diskUsagePercent} />
-            <Text
-              size="1"
-              className="md:block hidden"
-              color="gray"
-              style={{ marginTop: "-4px" }}
-            >
-              ({formatBytes(liveData.disk.used)} /{" "}
-              {formatBytes(basic.disk_total)})
-            </Text>
-          </Flex>
+            <div>
+              <UsageBar label={t("nodeCard.disk")} value={diskUsagePercent} />
+              <div
+                className="hidden text-sm text-muted-foreground md:block"
+                style={{ marginTop: "-4px" }}
+              >
+                ({formatBytes(liveData.disk.used)} / {formatBytes(basic.disk_total)})
+              </div>
+            </div>
+          </div>
+
           {basic.traffic_limit > 0 ? (
-            <Flex justify="between" hidden={isMobile} direction="column">
+            !isMobile ? (
+              <div className="flex flex-col justify-between">
+                <UsageBar
+                  label={t("nodeCard.totalTraffic")}
+                  value={getTrafficPercentage(
+                    liveData.network.totalUp,
+                    liveData.network.totalDown,
+                    basic.traffic_limit,
+                    basic.traffic_limit_type ?? "sum",
+                  )}
+                  max={Infinity}
+                />
+                <div className="flex justify-between whitespace-nowrap">
+                  <span className="text-sm text-muted-foreground">
+                    ↑ {totalUpload} ↓ {totalDownload}
+                  </span>
+                  <span className="text-sm text-muted-foreground">
+                    {basic.traffic_limit_type &&
+                      basic.traffic_limit_type.charAt(0).toUpperCase() +
+                        basic.traffic_limit_type.slice(1)}
+                    ({formatBytes(basic.traffic_limit)})
+                  </span>
+                </div>
+              </div>
+            ) : (
               <UsageBar
-                label={t("nodeCard.totalTraffic")}
+                label={`${
+                  basic.traffic_limit_type &&
+                  basic.traffic_limit_type.charAt(0).toUpperCase() +
+                    basic.traffic_limit_type.slice(1)
+                }(${formatBytes(basic.traffic_limit)})`}
+                max={Infinity}
                 value={getTrafficPercentage(
                   liveData.network.totalUp,
                   liveData.network.totalDown,
                   basic.traffic_limit,
                   basic.traffic_limit_type ?? "sum",
                 )}
-                max={Infinity}
               />
-              <Flex wrap="nowrap" justify="between">
-                <Text size="1" className="md:block hidden" color="gray">
-                  ↑ {totalUpload} ↓ {totalDownload}
-                </Text>
-                <Text size="1" className="md:block hidden" color="gray">
-                  {basic.traffic_limit_type &&
-                    basic.traffic_limit_type.charAt(0).toUpperCase() +
-                      basic.traffic_limit_type.slice(1)}
-                  ({formatBytes(basic.traffic_limit)})
-                </Text>
-              </Flex>
-            </Flex>
-          ) : (
-            <Flex justify="between" hidden={isMobile}>
-              <Text size="2" color="gray">
-                {t("nodeCard.totalTraffic")}
-              </Text>
-              <Text size="2">
-                ↑ {totalUpload} ↓ {totalDownload}
-              </Text>
-            </Flex>
-          )}
-
-          <Flex justify="between" hidden={isMobile}>
-            <Text size="2" color="gray" className="flex items-center">
-              {t("nodeCard.networkSpeed")}
-            </Text>
-            <Text size="2">
-              ↑ {uploadSpeed}/s ↓ {downloadSpeed}/s
-            </Text>
-          </Flex>
-
-          <Flex justify="between" gap="2" hidden={!isMobile}>
-            <Text size="2">{t("nodeCard.networkSpeed")}</Text>
-            <Text size="2">
-              ↑ {uploadSpeed}/s ↓ {downloadSpeed}/s
-            </Text>
-          </Flex>
-          <Flex justify="between" gap="2" hidden={!isMobile}>
-            <Text size="2">{t("nodeCard.totalTraffic")}</Text>
-            <Flex direction="column">
-              <Text size="2">
-                ↑ {totalUpload} ↓ {totalDownload}
-              </Text>
-            </Flex>
-          </Flex>
-          {basic.traffic_limit > 0 && isMobile && (
-            <UsageBar
-              label={`${basic.traffic_limit_type && basic.traffic_limit_type.charAt(0).toUpperCase() + basic.traffic_limit_type.slice(1)}(${formatBytes(basic.traffic_limit)})`}
-              max={Infinity}
-              value={getTrafficPercentage(
-                liveData.network.totalUp,
-                liveData.network.totalDown,
-                basic.traffic_limit,
-                basic.traffic_limit_type ?? "sum",
-              )}
+            )
+          ) : !isMobile ? (
+            <InfoRow
+              label={t("nodeCard.totalTraffic")}
+              value={`↑ ${totalUpload} ↓ ${totalDownload}`}
             />
+          ) : null}
+
+          {!isMobile ? (
+            <>
+              <InfoRow
+                label={t("nodeCard.networkSpeed")}
+                value={`↑ ${uploadSpeed}/s ↓ ${downloadSpeed}/s`}
+              />
+              <InfoRow
+                label={t("nodeCard.uptime")}
+                value={online ? formatUptime(liveData.uptime, t) : "-"}
+              />
+            </>
+          ) : (
+            <>
+              <InfoRow
+                mobile
+                label={t("nodeCard.networkSpeed")}
+                value={`↑ ${uploadSpeed}/s ↓ ${downloadSpeed}/s`}
+              />
+              <InfoRow
+                mobile
+                label={t("nodeCard.totalTraffic")}
+                value={`↑ ${totalUpload} ↓ ${totalDownload}`}
+              />
+            </>
           )}
-          <Flex justify="between" hidden={isMobile}>
-            <Text size="2" color="gray">
-              {t("nodeCard.uptime")}
-            </Text>
-            {online ? (
-              <Text size="2">{formatUptime(liveData.uptime, t)}</Text>
-            ) : (
-              <Text size="2" color="gray">
-                -
-              </Text>
-            )}
-          </Flex>
-        </Flex>
+        </div>
+
         <PriceTags
           hidden={!isMobile}
           price={basic.price}
@@ -333,7 +353,7 @@ const Node = React.memo(({ basic, live, online }: NodeProps) => {
           currency={basic.currency}
           tags={basic.tags || ""}
         />
-      </Flex>
+      </div>
     </Card>
   );
 });
@@ -345,24 +365,11 @@ type NodeGridProps = {
   liveData: LiveData;
 };
 
-import { Box } from "@radix-ui/themes";
-import type { TFunction } from "i18next";
-import { Link } from "react-router-dom";
-import { useIsMobile } from "@/hooks/use-mobile";
-import type { NodeBasicInfo } from "@/contexts/NodeListContext";
-import PriceTags from "./PriceTags";
-import { TrendingUp } from "lucide-react";
-import MiniPingChartFloat from "./MiniPingChartFloat";
-import { getOSImage, getOSName } from "@/utils";
-import { usePublicInfo } from "@/contexts/PublicInfoContext";
 export const NodeGrid = ({ nodes, liveData }: NodeGridProps) => {
   const { publicInfo } = usePublicInfo();
-  const offlineServerPosition =
-    publicInfo?.theme_settings?.offlineServerPosition; // "First/Keep/Last"
-  // 确保liveData是有效的
+  const offlineServerPosition = publicInfo?.theme_settings?.offlineServerPosition;
   const onlineNodes = liveData && liveData.online ? liveData.online : [];
 
-  // 排序节点：先按权重排序，权重大的靠前，再根据用户设置排序
   const sortedNodes = [...nodes].sort((a, b) => {
     const aIsOnline = onlineNodes.includes(a.uuid);
     const bIsOnline = onlineNodes.includes(b.uuid);
@@ -370,23 +377,19 @@ export const NodeGrid = ({ nodes, liveData }: NodeGridProps) => {
     if (offlineServerPosition === "First") {
       if (!aIsOnline && bIsOnline) return -1;
       if (aIsOnline && !bIsOnline) return 1;
-    } else if (offlineServerPosition === "Keep") {
-    } else {
+    } else if (offlineServerPosition !== "Keep") {
       if (aIsOnline && !bIsOnline) return -1;
       if (!aIsOnline && bIsOnline) return 1;
     }
+
     return a.weight - b.weight;
   });
 
   return (
-    <Box
-      className="gap-2 md:gap-4"
+    <div
+      className="grid w-full box-border gap-2 p-4 md:gap-4"
       style={{
-        display: "grid",
         gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))",
-        padding: "1rem",
-        width: "100%",
-        boxSizing: "border-box",
       }}
     >
       {sortedNodes.map((node) => {
@@ -403,7 +406,7 @@ export const NodeGrid = ({ nodes, liveData }: NodeGridProps) => {
           />
         );
       })}
-    </Box>
+    </div>
   );
 };
 

@@ -8,7 +8,16 @@ import {
   TableHead,
   TableCell,
 } from "@/components/ui/table";
-import { Button, Dialog, Flex } from "@/components/ui/compat";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { useTranslation } from "react-i18next";
 
 import NumberPicker from "@/components/ui/number-picker";
@@ -161,44 +170,56 @@ const LogPage = () => {
               {logs.map((log) => (
                 <TableRow key={log.id} className="transition-colors hover:bg-slate-50/60">
                   <TableCell>
-                    <Dialog.Root>
-                      <Dialog.Trigger>
+                    <Dialog>
+                      <DialogTrigger asChild>
                         <button
                           type="button"
                           className="font-semibold text-slate-900 hover:underline"
                         >
                           {log.id}
                         </button>
-                      </Dialog.Trigger>
-                      <Dialog.Content>
-                        <Dialog.Title>{t("log.title")}</Dialog.Title>
-                        <Flex direction="column" gap="1">
-                          <label className="font-bold">ID</label>
-                          <label className="text-sm">{log.id}</label>
-                          <label className="font-bold">IP</label>
-                          <label className="text-sm">{log.ip}</label>
-                          <label className="font-bold">UUID</label>
-                          <label className="text-sm break-all">{log.uuid}</label>
-                          <label className="font-bold">Type</label>
-                          <label className="text-sm">{log.msg_type}</label>
-                          <label className="font-bold">Message</label>
-                          <label className="text-sm whitespace-pre-wrap break-all">
-                            {log.message}
-                          </label>
-                          <label className="font-bold">Time</label>
-                          <label className="text-sm">
-                            {new Date(log.time).toLocaleString()}
-                          </label>
-                        </Flex>
-                        <Flex justify="end" className="mt-4">
-                          <Dialog.Close>
-                            <Button variant="soft" className="rounded-xl">
-                              {t("close")}
-                            </Button>
-                          </Dialog.Close>
-                        </Flex>
-                      </Dialog.Content>
-                    </Dialog.Root>
+                      </DialogTrigger>
+                      <DialogContent className="sm:max-w-2xl">
+                        <DialogHeader>
+                          <DialogTitle>{t("log.title")}</DialogTitle>
+                        </DialogHeader>
+                        <div className="grid gap-4 sm:grid-cols-2">
+                          <div className="space-y-1">
+                            <div className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">ID</div>
+                            <div className="text-sm text-slate-900">{log.id}</div>
+                          </div>
+                          <div className="space-y-1">
+                            <div className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">IP</div>
+                            <div className="text-sm text-slate-900">{log.ip}</div>
+                          </div>
+                          <div className="space-y-1 sm:col-span-2">
+                            <div className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">UUID</div>
+                            <div className="break-all text-sm text-slate-900">{log.uuid}</div>
+                          </div>
+                          <div className="space-y-1">
+                            <div className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Type</div>
+                            <div className="text-sm text-slate-900">{log.msg_type}</div>
+                          </div>
+                          <div className="space-y-1">
+                            <div className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Time</div>
+                            <div className="text-sm text-slate-900">
+                              {new Date(log.time).toLocaleString()}
+                            </div>
+                          </div>
+                          <div className="space-y-1 sm:col-span-2">
+                            <div className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Message</div>
+                            <div className="whitespace-pre-wrap break-all rounded-xl border bg-slate-50 px-4 py-3 text-sm text-slate-900">
+                              {log.message}
+                            </div>
+                          </div>
+                        </div>
+                        <DialogFooter>
+                          <DialogClose asChild>
+                            <Button variant="outline">{t("close")}</Button>
+                          </DialogClose>
+                        </DialogFooter>
+                      </DialogContent>
+                    </Dialog>
                   </TableCell>
                   <TableCell>{log.ip}</TableCell>
                   <TableCell>{log.msg_type}</TableCell>
@@ -219,6 +240,7 @@ const LogPage = () => {
         <Button
           disabled={page === 1}
           onClick={() => setPage((value) => Math.max(1, value - 1))}
+          variant="outline"
           className="rounded-xl"
         >
           {"<"}
@@ -227,7 +249,7 @@ const LogPage = () => {
           typeof value === "number" ? (
             <Button
               key={index}
-              variant={value === page ? "solid" : "soft"}
+              variant={value === page ? "default" : "outline"}
               onClick={() => setPage(value)}
               className="rounded-xl"
             >
@@ -242,6 +264,7 @@ const LogPage = () => {
         <Button
           disabled={page === totalPages}
           onClick={() => setPage((value) => Math.min(totalPages, value + 1))}
+          variant="outline"
           className="rounded-xl"
         >
           {">"}

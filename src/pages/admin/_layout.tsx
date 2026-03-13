@@ -3,7 +3,7 @@ import { Outlet } from "react-router-dom";
 import AdminPanelBar from "../../components/admin/AdminPanelBar";
 import { AccountProvider } from "@/contexts/AccountContext";
 import { updateSettingsWithToast, useSettings } from "@/lib/api";
-import { Button, Dialog } from "@/components/ui/compat";
+import { Button, Dialog } from "@/components/admin/admin-ui";
 import { useEffect, useState } from "react";
 import { Eula } from "@/utils/field";
 const AdminLayout = () => {
@@ -22,35 +22,30 @@ const AdminLayout = () => {
     <>
       <Dialog.Root open={open}>
         <Dialog.Content>
-          <Dialog.Content>
-            <Dialog.Title>法律声明与合规指引</Dialog.Title>
-            <div className="flex flex-col gap-2">
-              <div className="max-h-[70vh] overflow-y-auto space-y-4">
-                <pre className="text-wrap">{Eula}</pre>
-              </div>
-              <div className="flex flex-row gap-2 justify-end items-center">
-                <Button
-                  variant="soft"
-                  color="red"
-                  onClick={() => window.close()}
-                >
-                  不接受
-                </Button>
-                <Button
-                  variant="solid"
-                  onClick={() => {
-                    setOpen(false);
-                    updateSettingsWithToast(
-                      { eula_accepted: true },
-                      (key) => key
-                    );
-                  }}
-                >
-                  我已详细阅读并接受
-                </Button>
-              </div>
+          <Dialog.Title>法律声明与合规指引</Dialog.Title>
+          <div className="flex flex-col gap-2">
+            <div className="max-h-[70vh] overflow-y-auto space-y-4">
+              <pre className="text-wrap">{Eula}</pre>
             </div>
-          </Dialog.Content>
+            <div className="flex flex-row items-center justify-end gap-2">
+              <Button
+                variant="soft"
+                color="red"
+                onClick={() => window.close()}
+              >
+                不接受
+              </Button>
+              <Button
+                variant="solid"
+                onClick={() => {
+                  setOpen(false);
+                  updateSettingsWithToast({ eula_accepted: true }, (key) => key);
+                }}
+              >
+                我已详细阅读并接受
+              </Button>
+            </div>
+          </div>
         </Dialog.Content>
       </Dialog.Root>
       <AccountProvider>

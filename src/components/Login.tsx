@@ -1,17 +1,19 @@
 import * as React from "react";
+import { useTranslation } from "react-i18next";
+
+import { Button } from "@/components/ui/button";
 import {
   Dialog,
-  Flex,
-  Text,
-  TextField,
-  Button,
-  Box,
-  IconButton,
-} from "@/components/ui/compat";
-import { useTranslation } from "react-i18next";
-import { TablerSettings } from "./Icones/Tabler";
+  DialogContent,
+  DialogDescription,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
 import { AccountProvider, useAccount } from "@/contexts/AccountContext";
 import { usePublicInfo } from "@/contexts/PublicInfoContext";
+
+import { TablerSettings } from "./Icones/Tabler";
 
 type LoginDialogProps = {
   trigger?: React.ReactNode | string;
@@ -21,7 +23,13 @@ type LoginDialogProps = {
   onLoginSuccess?: () => void;
 };
 
-const LoginDialog = ({ trigger, autoOpen = false, showSettings = true, info, onLoginSuccess }: LoginDialogProps) => {
+const LoginDialog = ({
+  trigger,
+  autoOpen = false,
+  showSettings = true,
+  info,
+  onLoginSuccess,
+}: LoginDialogProps) => {
   const InnerLayout = () => {
     const { account, loading, error, refresh } = useAccount();
     const [t] = useTranslation();
@@ -32,20 +40,22 @@ const LoginDialog = ({ trigger, autoOpen = false, showSettings = true, info, onL
     const [isLoading, setIsLoading] = React.useState(false);
     const [require2FA, setRequire2FA] = React.useState(false);
     const [open, setOpen] = React.useState(autoOpen || false);
-    const {publicInfo} = usePublicInfo();
-  // 是否启用密码登录
-  const passwordLoginEnabled = !publicInfo?.disable_password_login;
-  const oauthEnabled = !!publicInfo?.oauth_enable;
-  const onlyOAuthLogin = oauthEnabled && !passwordLoginEnabled; // 只有 OAuth
-  // Validate inputs (仅在启用密码登录时需要)
-  const isFormValid = passwordLoginEnabled && username.trim() !== "" && password.trim() !== "";
-    //console.log(autoOpen, open);
+    const { publicInfo } = usePublicInfo();
+
+    const passwordLoginEnabled = !publicInfo?.disable_password_login;
+    const oauthEnabled = !!publicInfo?.oauth_enable;
+    const onlyOAuthLogin = oauthEnabled && !passwordLoginEnabled;
+    const isFormValid =
+      passwordLoginEnabled &&
+      username.trim() !== "" &&
+      password.trim() !== "";
+
     React.useEffect(() => {
       if (autoOpen) {
         setOpen(true);
       }
     }, [autoOpen]);
-    // Handle login
+
     const handleLogin = async () => {
       if (!isFormValid) {
         setErrorMsg("Username and password are required");
@@ -63,7 +73,9 @@ const LoginDialog = ({ trigger, autoOpen = false, showSettings = true, info, onL
           body: JSON.stringify({
             username,
             password,
-            ...(twoFac && !account?.["2fa_enabled"] ? { "2fa_code": twoFac } : {}),
+            ...(twoFac && !account?.["2fa_enabled"]
+              ? { "2fa_code": twoFac }
+              : {}),
           }),
         });
         const data = await res.json();
@@ -71,7 +83,7 @@ const LoginDialog = ({ trigger, autoOpen = false, showSettings = true, info, onL
           refresh();
           if (typeof onLoginSuccess === "function") {
             onLoginSuccess();
-            return
+            return;
           }
           window.open("/admin", "_self");
         } else {
@@ -89,11 +101,10 @@ const LoginDialog = ({ trigger, autoOpen = false, showSettings = true, info, onL
       }
     };
 
-    // Handle Enter key press
     const handleKeyDown = (e: React.KeyboardEvent) => {
       if (e.key === "Enter" && !isLoading && isFormValid) {
-        e.preventDefault(); // Prevent form submission issues
-        handleLogin();
+        e.preventDefault();
+        void handleLogin();
       }
     };
 
@@ -102,7 +113,7 @@ const LoginDialog = ({ trigger, autoOpen = false, showSettings = true, info, onL
     }
     if (error || !account) {
       return (
-        <Button disabled color="red">
+        <Button disabled variant="destructive">
           Error
         </Button>
       );
@@ -112,71 +123,68 @@ const LoginDialog = ({ trigger, autoOpen = false, showSettings = true, info, onL
         return null;
       }
       return (
-        <a href="/admin" target="_blank">
-          <IconButton>
-            <TablerSettings></TablerSettings>
-          </IconButton>
+        <a href="/admin" target="_blank" rel="noreferrer">
+          <Button type="button" variant="outline" size="icon">
+            <TablerSettings />
+          </Button>
         </a>
       );
     }
 
-    // 仅 OAuth 登录 且 不自动打开时：点击触发器直接跳转，不展示对话框
     if (onlyOAuthLogin && !autoOpen) {
       const redirect = () => {
         window.location.href = "/api/oauth";
       };
       if (trigger) {
-        // 如果提供了自定义触发器，包装一层点击
         if (typeof trigger === "string") {
-          return (
-            <Button onClick={redirect}>{trigger}</Button>
-          );
+          return <Button onClick={redirect}>{trigger}</Button>;
         }
         return (
-          <span onClick={redirect} style={{ cursor: "pointer", display: "inline-flex" }}>
+          <span
+            onClick={redirect}
+            style={{ cursor: "pointer", display: "inline-flex" }}
+          >
             {trigger}
           </span>
         );
       }
-      // 默认按钮
-      return (
-        <Button onClick={redirect}>{t("login.title")}</Button>
-      );
+      return <Button onClick={redirect}>{t("login.title")}</Button>;
     }
-    return (
-  <Dialog.Root open={open} onOpenChange={setOpen}>
-        <Dialog.Trigger>
-          {trigger ? trigger : <Button>{t("login.title")}</Button>}
-        </Dialog.Trigger>
-        <Dialog.Content maxWidth="450px">
-          <Dialog.Title>{t("login.title")}</Dialog.Title>
-          <Dialog.Description size="2" mb="4">
-            <div className="flex justify-center flex-col gap-2">
-              <label>{t("login.desc")}</label>
-              {info && (
-                <label>
-                  {info}
-                </label>
-              )}
-            </div>
 
-          </Dialog.Description>
-          <Box
+    const triggerNode =
+      trigger && typeof trigger !== "string" ? (
+        trigger
+      ) : (
+        <Button>{typeof trigger === "string" ? trigger : t("login.title")}</Button>
+      );
+
+    return (
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogTrigger asChild>
+          {React.isValidElement(triggerNode) ? triggerNode : <span>{triggerNode}</span>}
+        </DialogTrigger>
+        <DialogContent className="sm:max-w-[450px]">
+          <DialogTitle>{t("login.title")}</DialogTitle>
+          <DialogDescription asChild>
+            <div className="flex flex-col justify-center gap-2">
+              <label>{t("login.desc")}</label>
+              {info && <label>{info}</label>}
+            </div>
+          </DialogDescription>
+          <form
             onSubmit={(e) => {
-              e.preventDefault(); // Prevent native form submission
+              e.preventDefault();
               if (isFormValid && !isLoading) {
-                handleLogin();
+                void handleLogin();
               }
             }}
           >
-            <Flex direction="column" gap="3">
+            <div className="flex flex-col gap-3">
               {passwordLoginEnabled && (
                 <>
                   <label>
-                    <Text as="div" size="2" mb="1" weight="bold">
-                      {t("login.username")}
-                    </Text>
-                    <TextField.Root
+                    <div className="mb-1 text-sm font-bold">{t("login.username")}</div>
+                    <Input
                       value={username}
                       onChange={(e) => setUsername(e.target.value)}
                       onKeyDown={handleKeyDown}
@@ -186,10 +194,8 @@ const LoginDialog = ({ trigger, autoOpen = false, showSettings = true, info, onL
                     />
                   </label>
                   <label>
-                    <Text as="div" size="2" mb="1" weight="bold">
-                      {t("login.password")}
-                    </Text>
-                    <TextField.Root
+                    <div className="mb-1 text-sm font-bold">{t("login.password")}</div>
+                    <Input
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                       onKeyDown={handleKeyDown}
@@ -199,10 +205,8 @@ const LoginDialog = ({ trigger, autoOpen = false, showSettings = true, info, onL
                     />
                   </label>
                   <label hidden={!require2FA}>
-                    <Text as="div" size="2" mb="1" weight="bold">
-                      {t("login.two_factor")}
-                    </Text>
-                    <TextField.Root
+                    <div className="mb-1 text-sm font-bold">{t("login.two_factor")}</div>
+                    <Input
                       value={twoFac}
                       onChange={(e) => setTwoFac(e.target.value)}
                       onKeyDown={handleKeyDown}
@@ -211,28 +215,22 @@ const LoginDialog = ({ trigger, autoOpen = false, showSettings = true, info, onL
                       disabled={isLoading}
                     />
                   </label>
-                  {errorMsg && (
-                    <Text as="div" size="2" color="red">
-                      {errorMsg}
-                    </Text>
-                  )}
+                  {errorMsg && <div className="text-sm text-red-600">{errorMsg}</div>}
                   <Button
                     type="submit"
                     disabled={isLoading || !isFormValid}
                     style={{ opacity: isLoading || !isFormValid ? 0.6 : 1 }}
-                    onClick={handleLogin}
                   >
                     {isLoading ? "Logging in..." : t("login.title")}
                   </Button>
                 </>
               )}
-              {/* OAuth 登录按钮：即使关闭密码登录也展示 */}
               {publicInfo?.oauth_enable && (
                 <Button
                   onClick={() => {
                     window.location.href = "/api/oauth";
                   }}
-                  variant={passwordLoginEnabled ? "soft" : "solid"}
+                  variant={passwordLoginEnabled ? "outline" : "default"}
                   disabled={isLoading}
                   type="button"
                 >
@@ -241,18 +239,19 @@ const LoginDialog = ({ trigger, autoOpen = false, showSettings = true, info, onL
                       publicInfo?.oauth_provider === "generic"
                         ? "OAuth"
                         : publicInfo?.oauth_provider
-                        ? publicInfo.oauth_provider.charAt(0).toUpperCase() +
-                          publicInfo.oauth_provider.slice(1)
-                        : "",
+                          ? publicInfo.oauth_provider.charAt(0).toUpperCase() +
+                            publicInfo.oauth_provider.slice(1)
+                          : "",
                   })}
                 </Button>
               )}
-            </Flex>
-          </Box>
-        </Dialog.Content>
-      </Dialog.Root>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
     );
   };
+
   return (
     <AccountProvider>
       <InnerLayout />

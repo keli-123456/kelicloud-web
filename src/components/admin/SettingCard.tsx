@@ -1,18 +1,27 @@
+import { Button } from "@/components/ui/button";
 import {
-  Button,
-  DropdownMenu,
-  Flex,
-  IconButton,
-  Switch,
-  TextArea,
-  TextField,
-} from "@/components/ui/compat";
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Separator } from "@/components/ui/separator";
+import { Switch } from "@/components/ui/switch";
+import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
+import { cn } from "@/lib/utils";
+import { AnimatePresence, motion } from "framer-motion";
+import { ChevronDownIcon } from "lucide-react";
 import React from "react";
 import { useTranslation } from "react-i18next";
-import { ChevronDownIcon } from "lucide-react";
-import { AnimatePresence, motion } from "framer-motion"; // 引入 Framer Motion
 
-import { cn } from "@/lib/utils";
+type LegacyButtonVariant = "solid" | "soft" | "outline" | "ghost";
 
 interface SettingCardProps {
   title?: string | React.ReactNode;
@@ -24,6 +33,32 @@ interface SettingCardProps {
   onHeaderClick?: () => void;
 }
 
+function getDirectionClass(direction: SettingCardProps["direction"]) {
+  switch (direction) {
+    case "row":
+      return "flex-row";
+    case "row-reverse":
+      return "flex-row-reverse";
+    case "column-reverse":
+      return "flex-col-reverse";
+    default:
+      return "flex-col";
+  }
+}
+
+function mapButtonVariant(variant: LegacyButtonVariant = "solid") {
+  switch (variant) {
+    case "soft":
+      return "outline" as const;
+    case "outline":
+      return "outline" as const;
+    case "ghost":
+      return "ghost" as const;
+    default:
+      return "default" as const;
+  }
+}
+
 export function SettingCard({
   title = "",
   description = "",
@@ -31,61 +66,58 @@ export function SettingCard({
   className = "",
   direction = "column",
   bordless = false,
-  onHeaderClick = () => { },
+  onHeaderClick,
 }: SettingCardProps) {
   const actionChild = React.Children.toArray(children).find(
-    (child) => React.isValidElement(child) && child.type === Action
+    (child) => React.isValidElement(child) && child.type === Action,
   );
 
   const otherChildren = React.Children.toArray(children).filter(
-    (child) => !(React.isValidElement(child) && child.type === Action)
+    (child) => !(React.isValidElement(child) && child.type === Action),
   );
 
   return (
-    <Flex
-      direction={direction}
-      justify="between"
-      align="start"
-      wrap="wrap"
+    <div
       className={cn(
+        "flex gap-2",
+        getDirectionClass(direction),
         bordless
           ? "border-0 bg-transparent p-0 shadow-none"
-          : "min-h-0 border-b border-slate-200/70 px-0 py-2.5",
+          : "min-h-0 border-b border-border/70 px-0 py-2.5",
         className,
       )}
     >
-      <Flex
-        className="w-full gap-3"
-        direction="row"
-        justify="between"
-        align="start"
-        wrap="nowrap"
-        onClick={onHeaderClick}
+      <div
+        className={cn(
+          "flex w-full items-start justify-between gap-3",
+          onHeaderClick && "cursor-pointer",
+        )}
+        onClick={(event) => {
+          if ((event.target as HTMLElement).closest("[data-setting-action='true']")) {
+            return;
+          }
+          onHeaderClick?.();
+        }}
       >
-        <Flex
-          direction="column"
-          gap="1"
-          className="min-h-0 flex-1"
-          justify={"center"}
-        >
-          <label className="text-[14px] font-medium tracking-tight text-slate-900">
+        <div className="min-h-0 flex-1 space-y-1">
+          <div className="text-[14px] font-medium tracking-tight text-foreground">
             {title}
-          </label>
-          {description && (
-            <label className="text-[13px] leading-5 text-slate-500">
+          </div>
+          {description ? (
+            <div className="text-[13px] leading-5 text-muted-foreground">
               {description}
-            </label>
-          )}
-        </Flex>
+            </div>
+          ) : null}
+        </div>
         {actionChild}
-      </Flex>
+      </div>
       {otherChildren}
-    </Flex>
+    </div>
   );
 }
 
 function Action({ children }: { children: React.ReactNode }) {
-  return <>{children}</>;
+  return <div data-setting-action="true">{children}</div>;
 }
 
 SettingCard.Action = Action;
@@ -105,42 +137,42 @@ export function SettingCardSwitch({
   const switchRef = React.useRef<HTMLButtonElement>(null);
   const [disabled, setDisabled] = React.useState(false);
   const [checked, setChecked] = React.useState(defaultChecked || false);
-  const handleChange = (c: boolean) => {
+
+  const handleChange = (nextChecked: boolean) => {
     if (autoDisabled) setDisabled(true);
     const previousValue = checked;
-    setChecked(c);
-    const result: any =
+    setChecked(nextChecked);
+    const result: unknown =
       onChange && switchRef.current
-        ? onChange(c, switchRef.current)
+        ? onChange(nextChecked, switchRef.current)
         : undefined;
-    if (autoDisabled) {
-      const promise: Promise<any> = result;
-      if (promise && typeof promise.then === "function") {
-        promise
-          .then(() => { })
-          .catch(() => {
-            setChecked(previousValue);
-          })
-          .finally(() => {
-            setDisabled(false);
-          });
-      } else {
-        setDisabled(false);
-      }
+
+    if (autoDisabled && result && typeof (result as Promise<unknown>).then === "function") {
+      (result as Promise<unknown>)
+        .catch(() => {
+          setChecked(previousValue);
+        })
+        .finally(() => {
+          setDisabled(false);
+        });
+      return;
     }
+
+    if (autoDisabled) setDisabled(false);
   };
+
   return (
     <SettingCard {...props} direction="column">
       <SettingCard.Action>
-        <Flex direction="row" gap="2" align="center">
-          <label className="text-[13px] text-slate-600">{label}</label>
+        <div className="flex items-center gap-2">
+          <label className="text-[13px] text-muted-foreground">{label}</label>
           <Switch
             ref={switchRef}
             checked={checked}
             onCheckedChange={handleChange}
             disabled={disabled}
           />
-        </Flex>
+        </div>
       </SettingCard.Action>
     </SettingCard>
   );
@@ -155,41 +187,40 @@ export function SettingCardButton({
   ...props
 }: SettingCardProps & {
   label?: string;
-  variant?: "solid" | "soft" | "outline" | "ghost";
+  variant?: LegacyButtonVariant;
   children?: React.ReactNode;
   onClick?: (buttonElement: HTMLButtonElement) => void;
   autoDisabled?: boolean;
 }) {
   const [disabled, setDisabled] = React.useState(false);
+
   const handleClick = (event: React.MouseEvent<HTMLButtonElement>) => {
     if (autoDisabled) setDisabled(true);
-    const result: any = onClick ? onClick(event.currentTarget) : undefined;
-    if (autoDisabled) {
-      const promise: Promise<any> = result;
-      if (promise && typeof promise.then === "function") {
-        promise.finally(() => setDisabled(false));
-      } else {
-        setDisabled(false);
-      }
+    const result: unknown = onClick ? onClick(event.currentTarget) : undefined;
+
+    if (autoDisabled && result && typeof (result as Promise<unknown>).then === "function") {
+      (result as Promise<unknown>).finally(() => setDisabled(false));
+      return;
     }
+
+    if (autoDisabled) setDisabled(false);
   };
+
   return (
     <SettingCard {...props} direction="column">
       <SettingCard.Action>
-        <Flex>
-          <Flex direction="row" gap="2" align="center">
-            <label className="text-[13px] text-slate-600">{label}</label>
-            <Button
-              onClick={handleClick}
-              variant={variant}
-              disabled={disabled}
-              size="1"
-              className="rounded-md text-[13px]"
-            >
-              {children}
-            </Button>
-          </Flex>
-        </Flex>
+        <div className="flex items-center gap-2">
+          <label className="text-[13px] text-muted-foreground">{label}</label>
+          <Button
+            onClick={handleClick}
+            variant={mapButtonVariant(variant)}
+            disabled={disabled}
+            size="sm"
+            className="rounded-md text-[13px]"
+          >
+            {children}
+          </Button>
+        </div>
       </SettingCard.Action>
     </SettingCard>
   );
@@ -204,122 +235,90 @@ export function SettingCardIconButton({
   ...props
 }: SettingCardProps & {
   label?: string;
-  variant?: "solid" | "soft" | "outline" | "ghost";
+  variant?: LegacyButtonVariant;
   children?: React.ReactNode;
   onClick?: (buttonElement: HTMLButtonElement) => void;
   autoDisabled?: boolean;
 }) {
   const [disabled, setDisabled] = React.useState(false);
+
   const handleClick = (event: React.MouseEvent<HTMLButtonElement>) => {
     if (autoDisabled) setDisabled(true);
-    const result: any = onClick ? onClick(event.currentTarget) : undefined;
-    if (autoDisabled) {
-      const promise: Promise<any> = result;
-      if (promise && typeof promise.then === "function") {
-        promise.finally(() => setDisabled(false));
-      } else {
-        setDisabled(false);
-      }
+    const result: unknown = onClick ? onClick(event.currentTarget) : undefined;
+
+    if (autoDisabled && result && typeof (result as Promise<unknown>).then === "function") {
+      (result as Promise<unknown>).finally(() => setDisabled(false));
+      return;
     }
+
+    if (autoDisabled) setDisabled(false);
   };
+
   return (
     <SettingCard {...props} direction="column">
       <SettingCard.Action>
-        <Flex>
-          <Flex direction="row" gap="2" align="center">
-            <label className="text-[13px] text-slate-600">{label}</label>
-            <IconButton
-              onClick={handleClick}
-              variant={variant}
-              disabled={disabled}
-              size="1"
-              className="rounded-md"
-            >
-              {children}
-            </IconButton>
-          </Flex>
-        </Flex>
+        <div className="flex items-center gap-2">
+          <label className="text-[13px] text-muted-foreground">{label}</label>
+          <Button
+            onClick={handleClick}
+            variant={mapButtonVariant(variant)}
+            disabled={disabled}
+            size="icon"
+            className="size-8 rounded-md"
+          >
+            {children}
+          </Button>
+        </div>
       </SettingCard.Action>
     </SettingCard>
   );
 }
 
 interface SettingCardShortTextInputProps
-  extends Omit<React.ComponentProps<typeof TextField.Root>, 'onChange' | 'onKeyDown'> {
-  // SettingCard 相关属性
+  extends Omit<React.ComponentProps<typeof Input>, "onChange" | "onKeyDown"> {
   title?: string;
   description?: string;
   bordless?: boolean;
-
-  // 按钮相关属性
   showSaveButton?: boolean;
   label?: string;
   autoDisabled?: boolean;
   isSaving?: boolean;
-
-  // 保存回调
   OnSave?: (
     value: string,
     inputElement: HTMLInputElement,
-    buttonElement: HTMLButtonElement
+    buttonElement: HTMLButtonElement,
   ) => void;
-
-  // 额外内容
   children?: React.ReactNode | null;
-
-  // 输入框事件回调 (可选，用于额外处理)
   onChange?: (e: React.ChangeEvent<HTMLInputElement>) => void;
   onKeyDown?: (e: React.KeyboardEvent<HTMLInputElement>) => void;
 }
 
 export function SettingCardShortTextInput({
-  // SettingCard 属性
   title = "",
   description = "",
   bordless = false,
-
-  // 按钮属性
   showSaveButton = true,
   label = useTranslation().t("save"),
   autoDisabled = true,
   isSaving,
-
-  // 保存回调
-  OnSave = () => { },
-
-  // 额外内容
+  OnSave = () => {},
   children = null,
-
-  // 事件回调
   onChange,
   onKeyDown,
-
-  // TextField.Root 的所有其他属性
   value,
   defaultValue,
-  placeholder,
-  disabled,
-  type = "text",
-  required,
-  readOnly,
-  maxLength,
-  minLength,
-  pattern,
-  autoComplete,
-  autoFocus,
-  name,
-  id,
   className = "w-full",
   ...restProps
 }: SettingCardShortTextInputProps) {
   const [internalDisabled, setInternalDisabled] = React.useState(false);
   const savingState = isSaving !== undefined ? isSaving : internalDisabled;
-  const [internalValue, setInternalValue] = React.useState(value || defaultValue || "");
+  const [internalValue, setInternalValue] = React.useState(
+    value?.toString() ?? defaultValue?.toString() ?? "",
+  );
   const currentValue = value !== undefined ? value : internalValue;
   const inputRef = React.useRef<HTMLInputElement>(null);
   const buttonRef = React.useRef<HTMLButtonElement>(null);
 
-  // 当外部value改变时，同步内部状态
   React.useEffect(() => {
     if (value !== undefined) {
       setInternalValue(value.toString());
@@ -329,85 +328,62 @@ export function SettingCardShortTextInput({
   const handleSave = () => {
     if (isSaving === undefined && autoDisabled) setInternalDisabled(true);
     const valueToSave = currentValue?.toString() || "";
-    const result: any =
+    const result: unknown =
       inputRef.current && buttonRef.current
         ? OnSave(valueToSave, inputRef.current, buttonRef.current)
         : undefined;
-    if (autoDisabled) {
-      const promise: Promise<any> = result;
-      if (promise && typeof promise.then === "function") {
-        promise.finally(() => isSaving === undefined && setInternalDisabled(false));
-      } else {
-        isSaving === undefined && setInternalDisabled(false);
-      }
+
+    if (autoDisabled && result && typeof (result as Promise<unknown>).then === "function") {
+      (result as Promise<unknown>).finally(() => {
+        if (isSaving === undefined) setInternalDisabled(false);
+      });
+      return;
     }
+
+    if (isSaving === undefined && autoDisabled) setInternalDisabled(false);
   };
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const newValue = e.target.value;
-
-    // 只有在非受控模式下才更新内部状态
+  const handleInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const nextValue = event.target.value;
     if (value === undefined) {
-      setInternalValue(newValue);
+      setInternalValue(nextValue);
     }
-
-    // 调用外部传入的 onChange 回调
-    onChange?.(e);
+    onChange?.(event);
   };
 
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    // 按 Enter 键时触发保存
-    if (e.key === 'Enter') {
-      e.preventDefault();
+  const handleKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
+    if (event.key === "Enter") {
+      event.preventDefault();
       handleSave();
     }
-
-    // 调用外部传入的 onKeyDown 回调
-    onKeyDown?.(e);
+    onKeyDown?.(event);
   };
 
   return (
     <SettingCard title={title} description={description} bordless={bordless}>
-      <Flex direction="column" className="mt-0.5 w-full" gap="1" align="start">
-        <TextField.Root
+      <div className="mt-0.5 flex w-full flex-col items-start gap-2">
+        <Input
           {...restProps}
-          size="1"
-          className={cn(
-            "w-full rounded-md border border-slate-200/80 bg-white text-[13px]",
-            className,
-          )}
+          className={cn("h-8 w-full text-[13px]", className)}
           value={value !== undefined ? value : internalValue}
           defaultValue={value === undefined ? defaultValue : undefined}
-          placeholder={placeholder}
-          disabled={disabled || savingState}
-          type={type}
-          required={required}
-          readOnly={readOnly}
-          maxLength={maxLength}
-          minLength={minLength}
-          pattern={pattern}
-          autoComplete={autoComplete}
-          autoFocus={autoFocus}
-          name={name}
-          id={id}
+          disabled={restProps.disabled || savingState}
           onChange={handleInputChange}
           onKeyDown={handleKeyDown}
           ref={inputRef}
-        >
-        </TextField.Root>
+        />
         {children}
         <Button
           ref={buttonRef}
           onClick={handleSave}
-          variant="solid"
           hidden={!showSaveButton}
           disabled={savingState}
-          size="1"
+          size="sm"
           className="rounded-md text-[13px]"
         >
           {label}
         </Button>
-      </Flex>
+      </div>
     </SettingCard>
   );
 }
@@ -417,7 +393,7 @@ export function SettingCardLongTextInput({
   description = "",
   label = useTranslation().t("save"),
   defaultValue = "",
-  OnSave = () => { },
+  OnSave = () => {},
   onChange,
   autoDisabled = true,
   isSaving,
@@ -431,7 +407,7 @@ export function SettingCardLongTextInput({
   OnSave?: (
     value: string,
     textAreaElement: HTMLTextAreaElement,
-    buttonElement: HTMLButtonElement
+    buttonElement: HTMLButtonElement,
   ) => void;
   onChange?: (e: React.ChangeEvent<HTMLTextAreaElement>) => void;
   autoDisabled?: boolean;
@@ -445,52 +421,53 @@ export function SettingCardLongTextInput({
   const textAreaRef = React.useRef<HTMLTextAreaElement>(null);
   const buttonRef = React.useRef<HTMLButtonElement>(null);
 
+  React.useEffect(() => {
+    setValue(defaultValue);
+  }, [defaultValue]);
+
   const handleSave = () => {
     if (isSaving === undefined && autoDisabled) setDisabled(true);
-    const result: any =
+    const result: unknown =
       textAreaRef.current && buttonRef.current
         ? OnSave(value, textAreaRef.current, buttonRef.current)
         : undefined;
-    if (autoDisabled) {
-      const promise: Promise<any> = result;
-      if (promise && typeof promise.then === "function") {
-        promise.finally(() => isSaving === undefined && setDisabled(false));
-      } else {
-        isSaving === undefined && setDisabled(false);
-      }
+
+    if (autoDisabled && result && typeof (result as Promise<unknown>).then === "function") {
+      (result as Promise<unknown>).finally(() => {
+        if (isSaving === undefined) setDisabled(false);
+      });
+      return;
     }
+
+    if (isSaving === undefined && autoDisabled) setDisabled(false);
   };
 
-  const handleTextAreaChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    setValue(e.target.value);
-    // 调用外部传入的 onChange 回调
-    onChange?.(e);
+  const handleTextAreaChange = (event: React.ChangeEvent<HTMLTextAreaElement>) => {
+    setValue(event.target.value);
+    onChange?.(event);
   };
 
   return (
     <SettingCard title={title} description={description} bordless={bordless}>
-      <Flex direction="column" className="mt-0.5 w-full" gap="1" align="start">
-        <TextArea
-          className="w-full rounded-md border border-slate-200/80 bg-white text-[13px] leading-6"
-          defaultValue={defaultValue}
-          resize="vertical"
+      <div className="mt-0.5 flex w-full flex-col items-start gap-2">
+        <Textarea
+          className="w-full text-[13px] leading-6"
           value={value}
           onChange={handleTextAreaChange}
           ref={textAreaRef}
         />
-        {showSaveButton && (
+        {showSaveButton ? (
           <Button
             ref={buttonRef}
             onClick={handleSave}
-            variant="solid"
             disabled={savingState}
-            size="1"
+            size="sm"
             className="rounded-md text-[13px]"
           >
             {label}
           </Button>
-        )}
-      </Flex>
+        ) : null}
+      </div>
     </SettingCard>
   );
 }
@@ -502,7 +479,7 @@ export function SettingCardSelect({
   value,
   label = useTranslation().t("select"),
   options = [],
-  OnSave = () => { },
+  OnSave = () => {},
   autoDisabled = true,
   isSaving,
   bordless = false,
@@ -521,9 +498,9 @@ export function SettingCardSelect({
   const [disabled, setDisabled] = React.useState(false);
   const savingState = isSaving !== undefined ? isSaving : disabled;
   const [selectedValue, setSelectedValue] = React.useState(
-    value !== undefined ? value : defaultValue
+    value !== undefined ? value : defaultValue,
   );
-  const buttonRef = React.useRef<HTMLButtonElement>(null);
+  const triggerRef = React.useRef<HTMLButtonElement>(null);
 
   React.useEffect(() => {
     if (value !== undefined) {
@@ -531,78 +508,56 @@ export function SettingCardSelect({
     }
   }, [value]);
 
-  const handleSave = (value: string) => {
+  const handleSave = (nextValue: string) => {
     if (isSaving === undefined && autoDisabled) setDisabled(true);
-    const previousValue = selectedValue; // 保存之前的值
-    setSelectedValue(value); // 先更新选择的值
+    const previousValue = selectedValue;
+    setSelectedValue(nextValue);
 
-    const result: any = buttonRef.current
-      ? OnSave(value, buttonRef.current)
+    const result: unknown = triggerRef.current
+      ? OnSave(nextValue, triggerRef.current)
       : undefined;
-    if (autoDisabled) {
-      const promise: Promise<any> = result;
-      if (promise && typeof promise.then === "function") {
-        promise
-          .then(() => {
-            // 成功时不需要额外操作，值已经更新
-          })
-          .catch(() => {
-            // 错误时自动切换回之前的值
-            setSelectedValue(previousValue);
-          })
-          .finally(() => {
-            isSaving === undefined && setDisabled(false);
-          });
-      } else {
-        isSaving === undefined && setDisabled(false);
-      }
-    }
-  };
 
-  // 获取要显示的文本，优先显示选择的值对应的标签
-  const getDisplayText = () => {
-    if (selectedValue) {
-      const selectedOption = options.find(
-        (option) => option.value === selectedValue
-      );
-      return selectedOption?.label || selectedValue;
+    if (autoDisabled && result && typeof (result as Promise<unknown>).then === "function") {
+      (result as Promise<unknown>)
+        .catch(() => {
+          setSelectedValue(previousValue);
+        })
+        .finally(() => {
+          if (isSaving === undefined) setDisabled(false);
+        });
+      return;
     }
-    return label;
+
+    if (isSaving === undefined && autoDisabled) setDisabled(false);
   };
 
   return (
     <SettingCard title={title} description={description} bordless={bordless}>
       <SettingCard.Action>
-        <Flex>
-          <Flex direction="row" gap="2" align="center">
-            <DropdownMenu.Root>
-              <DropdownMenu.Trigger disabled={savingState}>
-                <Button
-                  variant="soft"
-                  size="1"
-                  ref={buttonRef}
-                  className="rounded-md text-[13px]"
-                >
-                  {getDisplayText()}
-                  <DropdownMenu.TriggerIcon />
-                </Button>
-              </DropdownMenu.Trigger>
-              <DropdownMenu.Content>
-                {options.map((option) => (
-                  <DropdownMenu.Item
-                    disabled={option.disabled}
-                    key={option.value}
-                    onSelect={() => {
-                      handleSave(option.value);
-                    }}
-                  >
-                    {option.label ? option.label : option.value}
-                  </DropdownMenu.Item>
-                ))}
-              </DropdownMenu.Content>
-            </DropdownMenu.Root>
-          </Flex>
-        </Flex>
+        <Select
+          value={selectedValue || undefined}
+          onValueChange={handleSave}
+          disabled={savingState}
+        >
+          <SelectTrigger
+            ref={triggerRef}
+            size="sm"
+            className="min-w-48 rounded-md text-[13px]"
+          >
+            <SelectValue placeholder={label} />
+          </SelectTrigger>
+          <SelectContent align="end">
+            {options.map((option) => (
+              <SelectItem
+                key={option.value}
+                value={option.value}
+                disabled={option.disabled}
+              >
+                {option.label ? option.label : option.value}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </SettingCard.Action>
     </SettingCard>
   );
@@ -614,7 +569,7 @@ export function SettingCardLabel({
   children: React.ReactNode | null;
 }) {
   return (
-    <label className="pt-1 text-[12px] font-semibold uppercase tracking-[0.14em] text-slate-500">
+    <label className="pt-1 text-[12px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
       {children}
     </label>
   );
@@ -636,52 +591,54 @@ export function SettingCardCollapse({
   const [open, setOpen] = React.useState(defaultOpen);
 
   return (
-    <SettingCard
-      title={title}
-      description={description}
-      onHeaderClick={() => setOpen(!open)}
-      bordless={bordless}
-    >
-      <SettingCard.Action>
-        <IconButton
-          variant="ghost"
-          size="1"
-          onClick={() => setOpen(!open)}
-          aria-expanded={open}
-          aria-controls="collapsible-content"
-          className="rounded-lg"
-        >
-          <motion.div
-            initial={{ rotate: 0, scale: 1 }}
-            animate={{ rotate: open ? 180 : 0, scale: open ? 1.1 : 1 }}
-            transition={{ duration: 0.25, ease: [0.4, 0, 0.2, 1] }}
-          >
-            <ChevronDownIcon />
-          </motion.div>
-        </IconButton>
-      </SettingCard.Action>
-      <AnimatePresence>
-        {open && (
-          <motion.div
-            className="w-full pt-2"
-            layout // Smoothly handles height changes
-            initial={{ height: 0, opacity: 0, y: -10 }}
-            animate={{ height: "auto", opacity: 1, y: 0 }}
-            exit={{ height: 0, opacity: 0, y: -10 }}
-            transition={{ duration: 0.25, ease: [0.4, 0, 0.2, 1] }}
-            style={{ overflow: "hidden" }}
-            id="collapsible-content"
-          >
-            <div className="mb-2 h-px bg-slate-200/80" />
-            {children}
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </SettingCard>
+    <Collapsible open={open} onOpenChange={setOpen}>
+      <SettingCard
+        title={title}
+        description={description}
+        onHeaderClick={() => setOpen((current) => !current)}
+        bordless={bordless}
+      >
+        <SettingCard.Action>
+          <CollapsibleTrigger asChild>
+            <Button
+              variant="ghost"
+              size="icon"
+              aria-expanded={open}
+              aria-controls="collapsible-content"
+              className="size-8 rounded-lg"
+            >
+              <motion.div
+                initial={{ rotate: 0, scale: 1 }}
+                animate={{ rotate: open ? 180 : 0, scale: open ? 1.1 : 1 }}
+                transition={{ duration: 0.25, ease: [0.4, 0, 0.2, 1] }}
+              >
+                <ChevronDownIcon className="size-4" />
+              </motion.div>
+            </Button>
+          </CollapsibleTrigger>
+        </SettingCard.Action>
+        <AnimatePresence initial={false}>
+          {open ? (
+            <CollapsibleContent forceMount asChild>
+              <motion.div
+                className="w-full overflow-hidden pt-2"
+                id="collapsible-content"
+                initial={{ height: 0, opacity: 0, y: -10 }}
+                animate={{ height: "auto", opacity: 1, y: 0 }}
+                exit={{ height: 0, opacity: 0, y: -10 }}
+                transition={{ duration: 0.25, ease: [0.4, 0, 0.2, 1] }}
+              >
+                <Separator className="mb-3" />
+                {children}
+              </motion.div>
+            </CollapsibleContent>
+          ) : null}
+        </AnimatePresence>
+      </SettingCard>
+    </Collapsible>
   );
 }
 
-// Header slot for SettingCardCollapse
 SettingCardCollapse.Header = function Header({
   children,
 }: {

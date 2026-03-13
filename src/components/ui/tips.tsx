@@ -1,6 +1,15 @@
 import React, { useState } from "react";
 import { Info } from "lucide-react";
-import { Popover, Dialog, Box } from "@/components/ui/compat";
+import {
+  Dialog,
+  DialogContent,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { useIsMobile } from "@/hooks/use-mobile";
 
 interface TipsProps {
@@ -24,68 +33,45 @@ const Tips: React.FC<TipsProps & React.HTMLAttributes<HTMLDivElement>> = ({
   const [isOpen, setIsOpen] = useState(false);
   const isMobile = useIsMobile();
 
-  // determine whether to render a Dialog instead of a Popover
   const isDialog = mode === "dialog" || (mode === "auto" && isMobile);
-
-  const handleInteraction = () => {
-    // toggle when using Dialog (click) or on mobile (click)
-    if (isDialog || isMobile) {
-      setIsOpen(!isOpen);
-    }
-  };
+  const iconSize = Number(size) || 16;
+  const triggerNode = trigger ?? <Info color={color} size={iconSize} />;
+  const triggerButton = (
+    <button
+      type="button"
+      className="flex cursor-pointer items-center justify-center rounded-full font-bold text-muted-foreground transition-colors hover:text-foreground"
+      onMouseEnter={!isDialog && !isMobile ? () => setIsOpen(true) : undefined}
+      onMouseLeave={!isDialog && !isMobile ? () => setIsOpen(false) : undefined}
+      aria-label="Open tips"
+    >
+      {triggerNode}
+    </button>
+  );
 
   return (
     <div className="relative inline-block" {...props}>
       {isDialog ? (
-        <Dialog.Root open={isOpen} onOpenChange={setIsOpen}>
-          <Dialog.Trigger>
-            <div
-              className={`flex items-center justify-center rounded-full font-bold cursor-pointer `}
-              onClick={handleInteraction}
-            >
-              {trigger ?? <Info color={color} size={size} />}
-            </div>
-          </Dialog.Trigger>
-          <Dialog.Content>
-            <div className="flex flex-col gap-2">
-              {/* <label className="text-xl font-bold">Tips</label> */}
+        <Dialog open={isOpen} onOpenChange={setIsOpen}>
+          <DialogTrigger asChild>{triggerButton}</DialogTrigger>
+          <DialogContent className="sm:max-w-md">
+            <div className="flex flex-col gap-2 text-sm">
               <div>{children}</div>
             </div>
-          </Dialog.Content>
-        </Dialog.Root>
+          </DialogContent>
+        </Dialog>
       ) : (
-        <Popover.Root open={isOpen} onOpenChange={setIsOpen}>
-          <Popover.Trigger>
-            <div
-              className={`flex items-center justify-center rounded-full font-bold cursor-pointer `}
-              onClick={isMobile ? handleInteraction : undefined}
-              onMouseEnter={!isMobile ? () => setIsOpen(true) : undefined}
-              onMouseLeave={!isMobile ? () => setIsOpen(false) : undefined}
-            >
-              {trigger ?? <Info color={color} size={size} />}
-            </div>
-          </Popover.Trigger>
-          <Popover.Content
+        <Popover open={isOpen} onOpenChange={setIsOpen}>
+          <PopoverTrigger asChild>{triggerButton}</PopoverTrigger>
+          <PopoverContent
             side={side}
             sideOffset={5}
             onMouseEnter={!isMobile ? () => setIsOpen(true) : undefined}
             onMouseLeave={!isMobile ? () => setIsOpen(false) : undefined}
-            // style={{
-            //   padding: "0.5rem",
-            //   border: "none",
-            //   boxShadow:
-            //     "hsl(206 22% 7% / 35%) 0px 10px 38px -10px, hsl(206 22% 7% / 20%) 0px 10px 20px -15px",
-            //   borderRadius: "var(--radius-3)",
-            //   zIndex: 5,
-            //   minWidth: isMobile ? "12rem" : "16rem",
-            //   maxWidth: isMobile ? "80vw" : "16rem",
-            //   backgroundColor: "var(--accent-3)",
-            //   color: "var(--gray-12)",
-            // }}
+            className="min-w-48 text-sm"
           >
-            <Box className="relative text-sm min-w-48">{children}</Box>
-          </Popover.Content>
-        </Popover.Root>
+            <div className="relative">{children}</div>
+          </PopoverContent>
+        </Popover>
       )}
     </div>
   );

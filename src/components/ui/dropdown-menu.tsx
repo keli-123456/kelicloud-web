@@ -3,9 +3,7 @@ import * as DropdownMenuPrimitive from "@radix-ui/react-dropdown-menu"
 import { CheckIcon, ChevronRightIcon, CircleIcon } from "lucide-react"
 
 import { cn } from "@/lib/utils"
-import { Theme } from "@radix-ui/themes"
-import { ThemeContext as AppThemeContext } from "@/contexts/ThemeContext"
-import { useSystemTheme } from "@/hooks/useSystemTheme"
+import { ThemePortal } from "@/components/ui/theme-portal"
 
 function DropdownMenu({
   ...props
@@ -38,8 +36,6 @@ function DropdownMenuContent({
   children,
   ...props
 }: React.ComponentProps<typeof DropdownMenuPrimitive.Content>) {
-  const { appearance, color } = React.useContext(AppThemeContext);
-  const resolvedAppearance = useSystemTheme(appearance);
   return (
     <DropdownMenuPrimitive.Portal>
       <DropdownMenuPrimitive.Content
@@ -51,9 +47,9 @@ function DropdownMenuContent({
         )}
         {...props}
       >
-        <Theme appearance={resolvedAppearance} accentColor={color}>
+        <ThemePortal>
           {children}
-        </Theme>
+        </ThemePortal>
       </DropdownMenuPrimitive.Content>
     </DropdownMenuPrimitive.Portal>
   )
@@ -235,8 +231,6 @@ function DropdownMenuSubContent({
   children,
   ...props
 }: React.ComponentProps<typeof DropdownMenuPrimitive.SubContent>) {
-  const { appearance, color } = React.useContext(AppThemeContext);
-  const resolvedAppearance = useSystemTheme(appearance);
   return (
     <DropdownMenuPrimitive.SubContent
       data-slot="dropdown-menu-sub-content"
@@ -246,9 +240,9 @@ function DropdownMenuSubContent({
       )}
       {...props}
     >
-      <Theme appearance={resolvedAppearance} accentColor={color}>
+      <ThemePortal>
         {children}
-      </Theme>
+      </ThemePortal>
     </DropdownMenuPrimitive.SubContent>
   )
 }
