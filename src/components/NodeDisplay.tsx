@@ -2,6 +2,7 @@ import React, { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { Grid3X3, Search, Table2, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { SegmentedControl } from "@/components/ui/segmented-control";
@@ -91,104 +92,141 @@ const NodeDisplay: React.FC<NodeDisplayProps> = ({ nodes, liveData }) => {
     });
   }, [liveData, nodes, searchTerm, selectedGroup]);
 
-  return (
-    <div className="w-full">
-      <div className="control-bar mb-2 flex flex-col gap-4 rounded-lg p-4 sm:flex-row sm:items-center sm:justify-between">
-        <div className="relative flex-1 max-w-md">
-          <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            ref={searchRef}
-            placeholder={t("search.placeholder", {
-              defaultValue: "搜索节点名称、地区、系统...",
-            })}
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="search-box min-w-32 pr-9 pl-9"
-          />
-          {searchTerm && (
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              className="search-clear-button absolute right-1 top-1/2 h-7 w-7 -translate-y-1/2"
-              onClick={() => {
-                setSearchTerm("");
-                searchRef.current?.focus();
-              }}
-            >
-              <X size={12} />
-            </Button>
-          )}
-        </div>
+  const baseSelectionCount =
+    selectedGroup === "all"
+      ? nodes.length
+      : nodes.filter((node) => node.group === selectedGroup).length;
+  const filteredOnlineCount = filteredNodes.filter((node) =>
+    liveData?.online?.includes(node.uuid),
+  ).length;
 
-        <div className="flex items-center gap-2">
-          <label className="whitespace-nowrap text-md text-muted-foreground">
-            {t("view.mode", { defaultValue: "显示模式" })}
-          </label>
-          <div className="flex gap-1">
-            <Button
-              type="button"
-              variant={viewMode === "grid" ? "default" : "outline"}
-              size="icon"
-              onClick={() => setViewMode("grid")}
-              className="view-switch-button"
-            >
-              <Grid3X3 size={16} />
-            </Button>
-            <Button
-              type="button"
-              variant={viewMode === "table" ? "default" : "outline"}
-              size="icon"
-              onClick={() => setViewMode("table")}
-              className="view-switch-button"
-            >
-              <Table2 size={16} />
-            </Button>
+  return (
+    <div className="w-full space-y-4">
+      <div className="relative mx-4 overflow-hidden rounded-[28px] border border-border/60 bg-background/90 p-4 shadow-[0_20px_60px_-40px_rgba(15,23,42,0.55)]">
+        <div
+          className="pointer-events-none absolute inset-y-0 right-0 w-48 opacity-35"
+          style={{
+            background:
+              "radial-gradient(circle at top right, var(--accent-a8), transparent 60%)",
+          }}
+        />
+
+        <div className="relative flex flex-col gap-4">
+          <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
+            <div className="space-y-3">
+              <div className="flex flex-wrap items-center gap-2">
+                <Badge variant="info" className="rounded-full px-3 py-1">
+                  Node Explorer
+                </Badge>
+                <Badge variant="secondary" className="rounded-full px-3 py-1">
+                  {nodes.length} total
+                </Badge>
+                <Badge
+                  variant={filteredOnlineCount > 0 ? "success" : "warning"}
+                  className="rounded-full px-3 py-1"
+                >
+                  {filteredOnlineCount} online in view
+                </Badge>
+              </div>
+              <div>
+                <h3 className="text-xl font-semibold tracking-tight md:text-2xl">
+                  Filter by group, search instantly, then switch between card and table views.
+                </h3>
+                <p className="mt-1 text-sm leading-6 text-muted-foreground">
+                  支持按名称、系统、地区和在线状态快速定位节点，整个节点浏览器现在被收成一个统一控制面板，而不是散落的按钮条。
+                </p>
+              </div>
+            </div>
+
+            <div className="flex w-full max-w-3xl flex-col gap-3 xl:items-end">
+              <div className="relative w-full xl:max-w-md">
+                <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  ref={searchRef}
+                  placeholder={t("search.placeholder", {
+                    defaultValue: "搜索节点名称、地区、系统...",
+                  })}
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="search-box min-w-32 rounded-full border-border/60 bg-background/90 pr-20 pl-9 shadow-sm"
+                />
+                <span className="pointer-events-none absolute right-11 top-1/2 -translate-y-1/2 rounded-full border border-border/60 bg-muted/70 px-2 py-0.5 text-[11px] text-muted-foreground">
+                  /
+                </span>
+                {searchTerm ? (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="search-clear-button absolute right-1 top-1/2 h-8 w-8 -translate-y-1/2 rounded-full"
+                    onClick={() => {
+                      setSearchTerm("");
+                      searchRef.current?.focus();
+                    }}
+                  >
+                    <X size={12} />
+                  </Button>
+                ) : null}
+              </div>
+
+              <SegmentedControl.Root
+                value={viewMode}
+                onValueChange={(value) => setViewMode(value as ViewMode)}
+                size="2"
+                radius="full"
+                className="bg-background/80"
+              >
+                <SegmentedControl.Item value="grid" className="gap-2">
+                  <Grid3X3 size={15} />
+                  Cards
+                </SegmentedControl.Item>
+                <SegmentedControl.Item value="table" className="gap-2">
+                  <Table2 size={15} />
+                  Table
+                </SegmentedControl.Item>
+              </SegmentedControl.Root>
+            </div>
           </div>
+
+          {showGroupSelector ? (
+            <div className="flex flex-col gap-2 border-t border-border/60 pt-4">
+              <div className="flex flex-wrap items-center justify-between gap-2 text-sm text-muted-foreground">
+                <span className="text-[11px] uppercase tracking-[0.24em]">
+                  Groups
+                </span>
+                <span>{baseSelectionCount} nodes in current scope</span>
+              </div>
+              <div className="overflow-x-auto pb-1">
+                <SegmentedControl.Root
+                  value={selectedGroup}
+                  onValueChange={setSelectedGroup}
+                  size="1"
+                  className="w-max bg-background/80"
+                >
+                  <SegmentedControl.Item value="all">
+                    {t("common.all", { defaultValue: "所有" })}
+                  </SegmentedControl.Item>
+                  {groups.map((group) => (
+                    <SegmentedControl.Item key={group} value={group}>
+                      {group}
+                    </SegmentedControl.Item>
+                  ))}
+                </SegmentedControl.Root>
+              </div>
+            </div>
+          ) : null}
         </div>
       </div>
 
-      {showGroupSelector && (
-        <div className="mx-4 mb-2 -mt-2 flex items-center gap-2 overflow-x-auto">
-          <label className="whitespace-nowrap text-md text-muted-foreground">
-            {t("common.group", { defaultValue: "分组" })}
-          </label>
-          <SegmentedControl.Root
-            value={selectedGroup}
-            onValueChange={setSelectedGroup}
-            size="1"
-          >
-            <SegmentedControl.Item value="all">
-              {t("common.all", { defaultValue: "所有" })}
-            </SegmentedControl.Item>
-            {groups.map((group) => (
-              <SegmentedControl.Item key={group} value={group}>
-                {group}
-              </SegmentedControl.Item>
-            ))}
-          </SegmentedControl.Root>
-        </div>
-      )}
-
-      <div className="mx-4 mb-2 flex items-center justify-between">
-        {searchTerm.trim() ? (
-          <span className="text-sm text-muted-foreground">
-            {t("search.results", {
-              count: filteredNodes.length,
-              total:
-                selectedGroup === "all"
-                  ? nodes.length
-                  : nodes.filter((n) => n.group === selectedGroup).length,
-              defaultValue: `找到 ${filteredNodes.length} 个服务器，共 ${
-                selectedGroup === "all"
-                  ? nodes.length
-                  : nodes.filter((n) => n.group === selectedGroup).length
-              } 个`,
-            })}
-          </span>
-        ) : (
-          <span className="text-sm text-muted-foreground">
-            {selectedGroup === "all"
+      <div className="mx-4 flex flex-wrap items-center justify-between gap-3">
+        <span className="text-sm text-muted-foreground">
+          {searchTerm.trim()
+            ? t("search.results", {
+                count: filteredNodes.length,
+                total: baseSelectionCount,
+                defaultValue: `找到 ${filteredNodes.length} 个服务器，共 ${baseSelectionCount} 个`,
+              })
+            : selectedGroup === "all"
               ? t("nodeCard.totalNodes", {
                   total: nodes.length,
                   online: liveData?.online?.length || 0,
@@ -199,35 +237,37 @@ const NodeDisplay: React.FC<NodeDisplayProps> = ({ nodes, liveData }) => {
               : t("nodeCard.groupNodes", {
                   group: selectedGroup,
                   total: filteredNodes.length,
-                  online: filteredNodes.filter((n) =>
-                    liveData?.online?.includes(n.uuid),
-                  ).length,
-                  defaultValue: `${selectedGroup} 分组：共 ${
-                    filteredNodes.length
-                  } 个节点，${
-                    filteredNodes.filter((n) =>
-                      liveData?.online?.includes(n.uuid),
-                    ).length
-                  } 个在线`,
+                  online: filteredOnlineCount,
+                  defaultValue: `${selectedGroup} 分组：共 ${filteredNodes.length} 个节点，${filteredOnlineCount} 个在线`,
                 })}
-          </span>
-        )}
+        </span>
+        <div className="flex flex-wrap items-center gap-2">
+          <Badge variant="secondary" className="rounded-full px-3 py-1">
+            {filteredNodes.length} visible
+          </Badge>
+          <Badge
+            variant={filteredOnlineCount > 0 ? "success" : "warning"}
+            className="rounded-full px-3 py-1"
+          >
+            {filteredOnlineCount} online
+          </Badge>
+        </div>
       </div>
 
       {filteredNodes.length === 0 ? (
-        <div className="mx-4 flex flex-col items-center justify-center py-16">
-          <span className="mb-2 text-xl text-muted-foreground">
+        <div className="mx-4 rounded-[28px] border border-dashed border-border/70 bg-background/70 px-6 py-16 text-center">
+          <span className="mb-2 block text-xl text-muted-foreground">
             {searchTerm.trim()
               ? t("search.no_results", { defaultValue: "未找到匹配的节点" })
               : t("nodes.empty", { defaultValue: "暂无节点数据" })}
           </span>
-          {searchTerm.trim() && (
+          {searchTerm.trim() ? (
             <span className="text-sm text-muted-foreground">
               {t("search.try_different", {
                 defaultValue: "尝试不同的搜索关键词",
               })}
             </span>
-          )}
+          ) : null}
         </div>
       ) : viewMode === "grid" ? (
         <NodeGrid nodes={filteredNodes} liveData={liveData} />

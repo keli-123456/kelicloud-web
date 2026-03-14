@@ -1,26 +1,31 @@
 import { useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
-import { useLiveData } from "../../contexts/LiveDataContext";
 import { useTranslation } from "react-i18next";
-import type { Record } from "../../types/LiveData";
+import { useParams } from "react-router-dom";
+
 import Flag from "../../components/Flag";
+import { useLiveData } from "../../contexts/LiveDataContext";
+import type { Record } from "../../types/LiveData";
+import { Badge } from "@/components/ui/badge";
+import { Card } from "@/components/ui/card";
 import { SegmentedControl } from "@/components/ui/segmented-control";
 import { useNodeList } from "@/contexts/NodeListContext";
+import { DetailsGrid } from "@/components/DetailsGrid";
 import { liveDataToRecords } from "@/utils/RecordHelper";
+import { formatBytes } from "@/utils/unitHelper";
 import LoadChart from "./LoadChart";
 import PingChart from "./PingChart";
-import { DetailsGrid } from "@/components/DetailsGrid";
 
 export default function InstancePage() {
   const { t } = useTranslation();
-  const { onRefresh } = useLiveData();
+  const { onRefresh, live_data } = useLiveData();
   const { uuid } = useParams<{ uuid: string }>();
   const [recent, setRecent] = useState<Record[]>([]);
   const { nodeList } = useNodeList();
   const length = 30 * 5;
   const [chartView, setChartView] = useState<"load" | "ping">("load");
-  // #region 初始数据加载
   const node = nodeList?.find((n) => n.uuid === uuid);
+  const liveRecord = live_data?.data?.data[uuid ?? ""];
+  const isOnline = live_data?.data?.online.includes(uuid ?? "") ?? false;
 
   useEffect(() => {
     fetch(`/api/recent/${uuid}`)
@@ -28,7 +33,7 @@ export default function InstancePage() {
       .then((data) => setRecent(data.data.slice(-length)))
       .catch((err) => console.error("Failed to fetch recent data:", err));
   }, [uuid]);
-  // 动态追加数据
+
   useEffect(() => {
     const unsubscribe = onRefresh((resp) => {
       if (!uuid) return;
@@ -37,129 +42,141 @@ export default function InstancePage() {
 
       setRecent((prev) => {
         const newRecord: Record = data;
-        // 追加新数据，限制总长度为length（FIFO）
-        // 检查是否已存在相同时间戳的记录
         const exists = prev.some(
-          (item) => item.updated_at === newRecord.updated_at
+          (item) => item.updated_at === newRecord.updated_at,
         );
-        if (exists) {
-          return prev; // 如果已存在，不添加新记录
-        }
-
-        // 否则，追加新记录
-        const updated = [...prev, newRecord].slice(-length);
-        return updated;
+        if (exists) return prev;
+        return [...prev, newRecord].slice(-length);
       });
     });
 
-    // 清理订阅
     return unsubscribe;
   }, [onRefresh, uuid]);
-  // #region 布局
+
   return (
-    <div className="flex flex-col items-center gap-2">
-      <div className="flex flex-col gap-1 md:p-4 p-3 border-0 rounded-md">
-        <h1 className="flex items-center flex-wrap">
-          <Flag flag={node?.region ?? ""} />
-          <span className="whitespace-nowrap text-lg font-bold">
-            {node?.name ?? uuid}
-          </span>
-          <span
-            style={{
-              marginLeft: "8px",
-            }}
-            className="whitespace-nowrap text-sm text-muted-foreground"
+    <div className="mx-auto flex w-full max-w-[1440px] flex-col gap-4 px-2 pb-6">
+      <Card className="relative overflow-hidden rounded-[32px] border border-border/60 bg-background/90 px-5 py-5 shadow-[0_24px_70px_-38px_rgba(15,23,42,0.5)]">
+        <div
+          className="pointer-events-none absolute inset-y-0 right-0 w-1/2 opacity-40"
+          style={{
+            background:
+              "radial-gradient(circle at top right, var(--accent-a8), transparent 58%)",
+          }}
+        />
+
+        <div className="relative grid gap-5 xl:grid-cols-[1.2fr_0.8fr]">
+          <div className="space-y-4">
+            <div className="flex flex-wrap items-center gap-2">
+              <Badge
+                variant={isOnline ? "success" : "warning"}
+                className="rounded-full px-3 py-1"
+              >
+                {isOnline ? "Online" : "Offline"}
+              </Badge>
+              <Badge variant="secondary" className="rounded-full px-3 py-1">
+                {node?.region || "UN"}
+              </Badge>
+              {node?.group ? (
+                <Badge variant="info" className="rounded-full px-3 py-1">
+                  {node.group}
+                </Badge>
+              ) : null}
+            </div>
+
+            <div className="space-y-3">
+              <div className="flex flex-wrap items-center gap-3">
+                <Flag flag={node?.region ?? ""} />
+                <h1 className="text-3xl font-semibold tracking-tight md:text-4xl">
+                  {node?.name ?? uuid}
+                </h1>
+              </div>
+              <div className="rounded-full border border-border/60 bg-background/80 px-4 py-2 text-sm text-muted-foreground shadow-sm backdrop-blur-sm">
+                {node?.uuid}
+              </div>
+              <p className="max-w-2xl text-sm leading-6 text-muted-foreground md:text-base">
+                聚焦单节点的实时负载、连通性和历史趋势。这个页现在把节点身份、当前状态和图表入口拆成更清晰的阅读层级。
+              </p>
+            </div>
+          </div>
+
+          <div className="grid gap-3 sm:grid-cols-2">
+            <InstanceStat
+              label={t("nodeCard.arch")}
+              value={node?.arch ?? "Unknown"}
+            />
+            <InstanceStat
+              label={t("nodeCard.os")}
+              value={node?.os ?? "Unknown"}
+            />
+            <InstanceStat
+              label={t("nodeCard.networkSpeed")}
+              value={`↑ ${formatBytes(liveRecord?.network.up || 0)}/s`}
+              helper={`↓ ${formatBytes(liveRecord?.network.down || 0)}/s`}
+            />
+            <InstanceStat
+              label={t("nodeCard.totalTraffic")}
+              value={`↑ ${formatBytes(liveRecord?.network.totalUp || 0)}`}
+              helper={`↓ ${formatBytes(liveRecord?.network.totalDown || 0)}`}
+            />
+          </div>
+        </div>
+      </Card>
+
+      <Card className="rounded-[30px] border border-border/60 bg-background/95 px-4 py-4 shadow-[0_24px_70px_-42px_rgba(15,23,42,0.45)]">
+        <div className="flex flex-col gap-3 border-b border-border/60 pb-4 md:flex-row md:items-center md:justify-between">
+          <div>
+            <div className="text-[11px] uppercase tracking-[0.24em] text-muted-foreground">
+              Node Details
+            </div>
+            <div className="mt-1 text-xl font-semibold tracking-tight">
+              Hardware profile and runtime snapshot
+            </div>
+          </div>
+          <SegmentedControl.Root
+            radius="full"
+            value={chartView}
+            onValueChange={(value) => setChartView(value as "load" | "ping")}
           >
-            {node?.uuid}
-          </span>
-        </h1>
-        <DetailsGrid box align="center" uuid={uuid ?? ""} />
-      </div>
-      <SegmentedControl.Root
-        radius="full"
-        value={chartView}
-        onValueChange={(value) => setChartView(value as "load" | "ping")}
-      >
-        <SegmentedControl.Item value="load">
-          {t("nodeCard.load")}
-        </SegmentedControl.Item>
-        <SegmentedControl.Item value="ping">
-          {t("nodeCard.ping")}
-        </SegmentedControl.Item>
-      </SegmentedControl.Root>
-      {/* Recharts */}
+            <SegmentedControl.Item value="load">
+              {t("nodeCard.load")}
+            </SegmentedControl.Item>
+            <SegmentedControl.Item value="ping">
+              {t("nodeCard.ping")}
+            </SegmentedControl.Item>
+          </SegmentedControl.Root>
+        </div>
+        <div className="pt-4">
+          <DetailsGrid uuid={uuid ?? ""} />
+        </div>
+      </Card>
+
       {chartView === "load" ? (
         <LoadChart data={liveDataToRecords(uuid ?? "", recent)} />
       ) : (
         <PingChart uuid={uuid ?? ""} />
       )}
-      <div className="grid w-full items-center justify-center mx-auto h-full gap-4 p-1 md:grid-cols-[repeat(auto-fit,minmax(620px,1fr))] grid-cols-[repeat(auto-fit,minmax(320px,1fr))]"></div>
     </div>
   );
 }
-// #region 详情网格
 
-// // 递归补0工具
-// function deepZeroFill(obj: any): any {
-//   if (obj === null || obj === undefined) return 0;
-//   if (typeof obj === "number") return 0;
-//   if (typeof obj === "string" || typeof obj === "boolean") return obj;
-//   if (Array.isArray(obj)) return obj.map(deepZeroFill);
-//   if (typeof obj === "object") {
-//     const res: any = {};
-//     for (const k in obj) {
-//       if (k === "updated_at") continue;
-//       res[k] = deepZeroFill(obj[k]);
-//     }
-//     return res;
-//   }
-//   return 0;
-// }
-
-// function fillMissingTimePoints<T extends { updated_at: string }>(
-//   data: T[],
-//   intervalSec: number = 10,
-//   totalSeconds: number = 180,
-//   matchToleranceSec?: number
-// ): T[] {
-//   if (!data.length) return [];
-//   // 按时间升序排序
-//   const sorted = [...data].sort(
-//     (a, b) =>
-//       new Date(a.updated_at).getTime() - new Date(b.updated_at).getTime()
-//   );
-//   const end = new Date(sorted[sorted.length - 1].updated_at).getTime();
-//   const interval = intervalSec * 1000;
-//   const start = end - totalSeconds * 1000 + interval;
-//   const timePoints: number[] = [];
-//   for (let t = start; t <= end; t += interval) {
-//     timePoints.push(t);
-//   }
-//   // 生成补齐后的数据：允许时间点在 matchToleranceMs 容忍范围内匹配原始数据
-//   const zeroTemplate = deepZeroFill(sorted[sorted.length - 1]);
-//   let dataIdx = 0;
-//   const matchToleranceMs = (matchToleranceSec ?? intervalSec) * 1000;
-//   const filled: T[] = timePoints.map((t) => {
-//     // 找到最近的原始数据点（在 matchToleranceMs 容忍范围内）
-//     let found: T | undefined = undefined;
-//     while (
-//       dataIdx < sorted.length &&
-//       new Date(sorted[dataIdx].updated_at).getTime() < t - matchToleranceMs
-//     ) {
-//       dataIdx++;
-//     }
-//     if (
-//       dataIdx < sorted.length &&
-//       Math.abs(new Date(sorted[dataIdx].updated_at).getTime() - t) <=
-//         matchToleranceMs
-//     ) {
-//       found = sorted[dataIdx];
-//     }
-//     if (found) {
-//       return { ...found, updated_at: new Date(t).toISOString() };
-//     }
-//     // 没有数据，递归补0
-//     return { ...zeroTemplate, updated_at: new Date(t).toISOString() } as T;
-//   });
-//   return filled;
-// }
+const InstanceStat = ({
+  label,
+  value,
+  helper,
+}: {
+  label: string;
+  value: string;
+  helper?: string;
+}) => {
+  return (
+    <div className="rounded-[24px] border border-border/60 bg-background/80 px-4 py-4 shadow-sm backdrop-blur-sm">
+      <div className="text-[11px] uppercase tracking-[0.22em] text-muted-foreground">
+        {label}
+      </div>
+      <div className="mt-2 text-lg font-semibold tracking-tight">{value}</div>
+      {helper ? (
+        <div className="mt-1 text-sm text-muted-foreground">{helper}</div>
+      ) : null}
+    </div>
+  );
+};

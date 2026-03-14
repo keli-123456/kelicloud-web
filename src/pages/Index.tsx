@@ -1,8 +1,9 @@
 import React, { Suspense, useEffect } from "react";
-import { Settings } from "lucide-react";
+import { Activity, Globe2, Server, Settings, Sparkles } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import {
@@ -12,9 +13,10 @@ import {
 } from "@/components/ui/popover";
 import { Switch } from "@/components/ui/switch";
 import Loading from "@/components/loading";
-import { useLiveData } from "../contexts/LiveDataContext";
 import { useNodeList } from "@/contexts/NodeListContext";
+import { useLiveData } from "@/contexts/LiveDataContext";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
+import { cn } from "@/lib/utils";
 import { formatBytes } from "@/utils/unitHelper";
 
 const NodeDisplay = React.lazy(() => import("../components/NodeDisplay"));
@@ -41,14 +43,6 @@ const Index = () => {
       new Date().toLocaleTimeString(),
     );
     const { nodeList, isLoading, error, refresh } = useNodeList();
-
-    useEffect(() => {
-      const timer = setInterval(() => {
-        setCurrentTime(new Date().toLocaleTimeString());
-      }, 1000);
-      return () => clearInterval(timer);
-    }, []);
-
     const [statusCardsVisibility, setStatusCardsVisibility] = useLocalStorage(
       "statusCardsVisibility",
       {
@@ -59,6 +53,13 @@ const Index = () => {
         networkSpeed: true,
       },
     );
+
+    useEffect(() => {
+      const timer = setInterval(() => {
+        setCurrentTime(new Date().toLocaleTimeString());
+      }, 1000);
+      return () => clearInterval(timer);
+    }, []);
 
     const statusCards = [
       {
@@ -127,7 +128,10 @@ const Index = () => {
           const values = Object.entries(data)
             .filter(([uuid]) => onlineSet.has(uuid))
             .map(([, node]) => node);
-          const up = values.reduce((acc, node) => acc + (node.network.up || 0), 0);
+          const up = values.reduce(
+            (acc, node) => acc + (node.network.up || 0),
+            0,
+          );
           const down = values.reduce(
             (acc, node) => acc + (node.network.down || 0),
             0,
@@ -138,6 +142,16 @@ const Index = () => {
       },
     ];
 
+    const totalNodes = nodeList?.length ?? 0;
+    const onlineCount = live_data?.data?.online.length ?? 0;
+    const onlineRatio = totalNodes > 0 ? Math.round((onlineCount / totalNodes) * 100) : 0;
+    const regionCount = nodeList
+      ? new Set(nodeList.map((item) => item.region).filter(Boolean)).size
+      : 0;
+    const visibleStatusCards = statusCards.filter((card) => card.visible);
+    const liveSpeedValue =
+      statusCards.find((card) => card.key === "networkSpeed")?.getValue() ?? "-";
+
     useEffect(() => {
       const interval = setInterval(() => {
         refresh();
@@ -145,73 +159,169 @@ const Index = () => {
       return () => clearInterval(interval);
     }, [nodeList, refresh]);
 
-    if (isLoading) {
-      return <Loading />;
-    }
-    if (error) {
-      return <div>Error: {error}</div>;
-    }
+    if (isLoading) return <Loading />;
+    if (error) return <div>Error: {error}</div>;
 
     return (
-      <>
+      <div className="mx-4 flex flex-col gap-4 pb-4">
         <Callouts />
-        <Card className="summary-card relative mx-4 gap-0 px-4 py-5 text-sm md:text-base">
-          <div className="absolute right-2 top-2">
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button type="button" variant="ghost" size="icon" className="h-8 w-8">
-                  <Settings size={16} />
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-[300px]">
-                <div className="flex flex-col gap-3">
-                  <div className="text-sm font-semibold">{t("status_settings")}</div>
-                  <div className="flex flex-col gap-2">
-                    {statusCards.map((card) => (
-                      <StatusSettingSwitch
-                        key={card.key}
-                        label={card.title}
-                        checked={card.visible}
-                        onCheckedChange={(checked) =>
-                          setStatusCardsVisibility({
-                            ...statusCardsVisibility,
-                            [card.key]: checked,
-                          })
-                        }
-                      />
-                    ))}
+
+        <Card className="relative overflow-hidden rounded-[32px] border border-border/60 bg-background/90 px-5 py-5 shadow-[0_24px_70px_-38px_rgba(15,23,42,0.55)]">
+          <div
+            className="pointer-events-none absolute inset-y-0 right-0 w-1/2 opacity-45"
+            style={{
+              background:
+                "radial-gradient(circle at top right, var(--accent-a8), transparent 58%)",
+            }}
+          />
+          <div
+            className="pointer-events-none absolute -left-16 bottom-0 h-40 w-40 rounded-full blur-3xl"
+            style={{ backgroundColor: "var(--accent-a4)" }}
+          />
+
+          <div className="relative grid gap-5 xl:grid-cols-[1.15fr_0.85fr]">
+            <div className="space-y-5">
+              <div className="flex flex-wrap items-center gap-2">
+                <Badge variant="info" className="rounded-full px-3 py-1">
+                  <Sparkles size={13} />
+                  Live Overview
+                </Badge>
+                <Badge
+                  variant={
+                    onlineRatio >= 75
+                      ? "success"
+                      : onlineRatio > 0
+                        ? "warning"
+                        : "destructive"
+                  }
+                  className="rounded-full px-3 py-1"
+                >
+                  {onlineRatio}% online
+                </Badge>
+              </div>
+
+              <div className="max-w-2xl space-y-3">
+                <h1 className="text-3xl font-semibold tracking-tight md:text-4xl">
+                  Realtime visibility for every region, node, and traffic edge.
+                </h1>
+                <p className="text-sm leading-6 text-muted-foreground md:text-base">
+                  用更清晰的总览先看到全局状态，再进入节点细节和历史图表。这个页现在不只是列表，而是一个真正的实时驾驶舱。
+                </p>
+              </div>
+
+              <div className="grid gap-3 md:grid-cols-3">
+                <HeroStat
+                  icon={<Server size={16} />}
+                  label={t("current_online")}
+                  value={`${onlineCount} / ${totalNodes}`}
+                  hint="Active nodes across the visible fleet"
+                />
+                <HeroStat
+                  icon={<Globe2 size={16} />}
+                  label={t("region_overview")}
+                  value={regionCount}
+                  hint="Regions represented in the current catalog"
+                />
+                <HeroStat
+                  icon={<Activity size={16} />}
+                  label={t("network_speed")}
+                  value={liveSpeedValue}
+                  hint="Live ingress and egress throughput"
+                />
+              </div>
+            </div>
+
+            <div className="rounded-[28px] border border-border/60 bg-background/80 p-4 backdrop-blur-sm">
+              <div className="mb-4 flex items-start justify-between gap-4">
+                <div>
+                  <div className="text-[11px] uppercase tracking-[0.24em] text-muted-foreground">
+                    Status Deck
+                  </div>
+                  <div className="mt-1 text-lg font-semibold">
+                    Current fleet snapshot
                   </div>
                 </div>
-              </PopoverContent>
-            </Popover>
-          </div>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="h-9 w-9 rounded-full"
+                    >
+                      <Settings size={16} />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-[300px]">
+                    <div className="flex flex-col gap-3">
+                      <div className="text-sm font-semibold">{t("status_settings")}</div>
+                      <div className="flex flex-col gap-2">
+                        {statusCards.map((card) => (
+                          <StatusSettingSwitch
+                            key={card.key}
+                            label={card.title}
+                            checked={card.visible}
+                            onCheckedChange={(checked) =>
+                              setStatusCardsVisibility({
+                                ...statusCardsVisibility,
+                                [card.key]: checked,
+                              })
+                            }
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  </PopoverContent>
+                </Popover>
+              </div>
 
-          <div
-            className="grid gap-2"
-            style={{
-              gridTemplateColumns: "repeat(auto-fit, minmax(230px, 1fr))",
-              gridAutoRows: "min-content",
-            }}
-          >
-            {statusCards
-              .filter((card) => card.visible)
-              .map((card) => (
-                <TopCard
-                  key={card.key}
-                  title={card.title}
-                  value={card.getValue()}
-                />
-              ))}
+              <div className="grid gap-3 sm:grid-cols-2">
+                {visibleStatusCards.map((card, index) => (
+                  <TopCard
+                    key={card.key}
+                    title={card.title}
+                    value={card.getValue()}
+                    tone={index}
+                  />
+                ))}
+              </div>
+            </div>
           </div>
         </Card>
 
-        <Suspense fallback={<div style={{ padding: 16 }}>Loading…</div>}>
-          <NodeDisplay
-            nodes={nodeList ?? []}
-            liveData={live_data?.data ?? { online: [], data: {} }}
-          />
-        </Suspense>
-      </>
+        <Card className="overflow-hidden rounded-[32px] border border-border/60 bg-background/95 py-0 shadow-[0_24px_70px_-42px_rgba(15,23,42,0.45)]">
+          <div className="flex flex-col gap-3 border-b border-border/60 px-4 py-4 md:flex-row md:items-end md:justify-between">
+            <div>
+              <div className="text-[11px] uppercase tracking-[0.24em] text-muted-foreground">
+                Node Explorer
+              </div>
+              <h2 className="mt-1 text-xl font-semibold tracking-tight md:text-2xl">
+                Search, filter, compare, then drill into a single node.
+              </h2>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <Badge variant="secondary" className="rounded-full px-3 py-1">
+                {totalNodes} total nodes
+              </Badge>
+              <Badge
+                variant={onlineCount > 0 ? "success" : "warning"}
+                className="rounded-full px-3 py-1"
+              >
+                {onlineCount} currently online
+              </Badge>
+            </div>
+          </div>
+
+          <div className="pb-4 pt-3">
+            <Suspense fallback={<div style={{ padding: 16 }}>Loading…</div>}>
+              <NodeDisplay
+                nodes={nodeList ?? []}
+                liveData={live_data?.data ?? { online: [], data: {} }}
+              />
+            </Suspense>
+          </div>
+        </Card>
+      </div>
     );
   };
 
@@ -224,7 +334,7 @@ const Callouts = () => {
   const ishttps = window.location.protocol === "https:";
 
   return (
-    <div className="m-2 flex flex-col gap-2">
+    <div className="flex flex-col gap-2">
       {!ishttps && (
         <Alert variant="destructive" className="border-red-200 bg-red-50 text-red-700">
           <svg
@@ -271,18 +381,37 @@ type TopCardProps = {
   title: string;
   value: string | number;
   description?: string;
+  tone?: number;
 };
 
 const TopCard: React.FC<TopCardProps> = React.memo(
-  ({ title, value, description }) => {
+  ({ title, value, description, tone = 0 }) => {
+    const tones = [
+      "border-[color:var(--accent-a5)] bg-[color:var(--accent-a2)]",
+      "border-emerald-200 bg-emerald-50 dark:border-emerald-900/40 dark:bg-emerald-950/30",
+      "border-blue-200 bg-blue-50 dark:border-blue-900/40 dark:bg-blue-950/30",
+      "border-amber-200 bg-amber-50 dark:border-amber-900/40 dark:bg-amber-950/30",
+      "border-slate-200 bg-slate-50 dark:border-slate-800 dark:bg-slate-900/40",
+    ];
+
     return (
-      <div className="min-w-52 w-full md:max-w-72">
-        <div className="flex flex-col gap-1">
-          <label className="text-sm text-muted-foreground">{title}</label>
-          <label className="-mt-2 text-md font-medium">{value}</label>
-          {description && (
+      <div
+        className={cn(
+          "relative min-h-28 overflow-hidden rounded-2xl border px-4 py-4",
+          tones[tone % tones.length],
+        )}
+      >
+        <div className="absolute inset-x-0 top-0 h-1 bg-[var(--accent-7)]/70" />
+        <div className="flex flex-col gap-2">
+          <label className="text-[11px] uppercase tracking-[0.22em] text-muted-foreground">
+            {title}
+          </label>
+          <label className="text-2xl font-semibold tracking-tight md:text-[1.75rem]">
+            {value}
+          </label>
+          {description ? (
             <span className="text-sm text-muted-foreground">{description}</span>
-          )}
+          ) : null}
         </div>
       </div>
     );
@@ -305,5 +434,30 @@ const StatusSettingSwitch: React.FC<StatusSettingSwitchProps> = React.memo(
     );
   },
 );
+
+const HeroStat = ({
+  icon,
+  label,
+  value,
+  hint,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  value: string | number;
+  hint: string;
+}) => {
+  return (
+    <div className="rounded-[26px] border border-border/60 bg-background/80 px-4 py-4 shadow-sm backdrop-blur-sm">
+      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+        <span className="inline-flex size-8 items-center justify-center rounded-full bg-[var(--accent-3)] text-[var(--accent-11)]">
+          {icon}
+        </span>
+        {label}
+      </div>
+      <div className="mt-3 text-2xl font-semibold tracking-tight">{value}</div>
+      <div className="mt-1 text-sm text-muted-foreground">{hint}</div>
+    </div>
+  );
+};
 
 export default Index;
