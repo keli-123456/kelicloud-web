@@ -239,20 +239,20 @@
       "vpc_uuid": "VPC UUID"
     },
     "dns": {
-      "title": "DNS 服务商",
-      "page_description": "把 DNS 服务商凭证单独收口管理，和云服务器实例、令牌池分开，便于后续做域名自动化。",
+      "aliyun_hint": "请使用对目标域名具备 AliDNS 记录管理权限的 AccessKey。",
+      "cloudflare_hint": "请使用对目标 Cloudflare Zone 具备 DNS 记录编辑权限的 API Token。",
       "description": "配置一个 DNS 服务商，让 Komari 后续可以把云实例 IP 指向你的域名记录。",
       "empty": "后端暂时还没有暴露任何 DNS 服务商配置。",
+      "generic_hint": "把 DNS 凭证保存在这里，方便 Komari 后续复用到域名解析流程。",
+      "multi_provider_hint": "这里可以并行保存多个 DNS 服务商配置。当前每个服务商仍然只保存一套凭证。",
+      "page_description": "把 DNS 服务商凭证单独收口管理，和云服务器实例、令牌池分开，便于后续做域名自动化。",
       "preferred_missing": "当前后端返回里还没有 Cloudflare 或阿里云 DNS 服务商。前端配置区已经准备好，但还需要后端先提供这些服务商定义。",
       "provider": "DNS 服务",
       "provider_description": "选择 Komari 应该用于域名自动化的 DNS 服务商。",
       "provider_fields": "凭证字段",
       "provider_fields_description": "保存这个 DNS 服务商要使用的 API 凭证。",
-      "multi_provider_hint": "这里可以并行保存多个 DNS 服务商配置。当前每个服务商仍然只保存一套凭证。",
       "save_success": "DNS 服务商配置已保存",
-      "cloudflare_hint": "请使用对目标 Cloudflare Zone 具备 DNS 记录编辑权限的 API Token。",
-      "aliyun_hint": "请使用对目标域名具备 AliDNS 记录管理权限的 AccessKey。",
-      "generic_hint": "把 DNS 凭证保存在这里，方便 Komari 后续复用到域名解析流程。"
+      "title": "DNS 服务商"
     },
     "droplet_list": "Droplet 列表",
     "droplet_list_description": "点击实例名称可查看详情，并使用当前激活令牌执行常见生命周期操作。",
