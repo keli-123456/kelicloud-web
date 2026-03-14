@@ -1,6 +1,5 @@
-import React from "react";
 import { useTranslation } from "react-i18next";
-import { Copy, Share2, Trash2 } from "lucide-react";
+import { Share2, Trash2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -14,6 +13,13 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import {
+  CloudCopyBlock,
+  CloudDetailItem,
+  cloudDialogContentClassName,
+  cloudLongTextClassName,
+  cloudSecretTextareaClassName,
+} from "@/components/admin/cloud/cloud-ui";
 import type { CloudInstanceShareRecord, CloudShareProvider, CloudShareResourceType } from "@/lib/cloudShare";
 
 export type CloudInstanceShareTarget = {
@@ -51,25 +57,6 @@ type Props = {
   onDelete: () => void;
 };
 
-function MetaItem({
-  label,
-  value,
-}: {
-  label: string;
-  value: React.ReactNode;
-}) {
-  return (
-    <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
-      <div className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">
-        {label}
-      </div>
-      <div className="mt-1 break-all text-sm text-slate-900">
-        {value === undefined || value === null || value === "" ? "-" : value}
-      </div>
-    </div>
-  );
-}
-
 export default function CloudInstanceShareDialog({
   open,
   onOpenChange,
@@ -95,7 +82,9 @@ export default function CloudInstanceShareDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-2xl">
+      <DialogContent
+        className={`${cloudDialogContentClassName} max-h-[85vh] overflow-y-auto`}
+      >
         <DialogHeader>
           <DialogTitle>{t("cloud.share.dialog_title", "Share Instance")}</DialogTitle>
           <DialogDescription>
@@ -113,12 +102,12 @@ export default function CloudInstanceShareDialog({
         ) : target ? (
           <div className="flex flex-col gap-4">
             <div className="grid gap-3 sm:grid-cols-2">
-              <MetaItem label={t("cloud.share.instance", "Instance")} value={target.resourceName} />
-              <MetaItem label={t("cloud.share.provider", "Provider")} value={target.providerLabel} />
-              <MetaItem label={t("cloud.tokens.table.account", "Account")} value={target.credentialName || "-"} />
-              <MetaItem label={t("cloud.table.region", "Region")} value={target.region || "-"} />
-              <MetaItem label={t("cloud.table.ip", "Public IP")} value={target.primaryAddress || "-"} />
-              <MetaItem label={t("cloud.share.status", "Share Status")} value={share?.token ? t("cloud.share.enabled", "Enabled") : t("cloud.share.disabled", "Not Shared")} />
+              <CloudDetailItem label={t("cloud.share.instance", "Instance")} value={target.resourceName} />
+              <CloudDetailItem label={t("cloud.share.provider", "Provider")} value={target.providerLabel} />
+              <CloudDetailItem label={t("cloud.tokens.table.account", "Account")} value={target.credentialName || "-"} />
+              <CloudDetailItem label={t("cloud.table.region", "Region")} value={target.region || "-"} />
+              <CloudDetailItem label={t("cloud.table.ip", "Public IP")} value={target.primaryAddress || "-"} />
+              <CloudDetailItem label={t("cloud.share.status", "Share Status")} value={share?.token ? t("cloud.share.enabled", "Enabled") : t("cloud.share.disabled", "Not Shared")} />
             </div>
 
             {share?.token ? (
@@ -126,13 +115,19 @@ export default function CloudInstanceShareDialog({
                 <div className="text-sm font-medium text-emerald-900 dark:text-emerald-100">
                   {t("cloud.share.link_ready", "Share link is ready")}
                 </div>
-                <Input className="mt-3" readOnly value={shareUrl} />
-                <div className="mt-3 flex justify-end">
-                  <Button variant="outline" size="sm" onClick={onCopyLink}>
-                    <Copy className="mr-2 h-4 w-4" />
-                    {t("common.copy", "Copy")}
-                  </Button>
-                </div>
+                <CloudCopyBlock
+                  className="mt-3 border-emerald-200 bg-white/80"
+                  title={t("cloud.share.public_link", "Public Link")}
+                  copyLabel={t("common.copy", "Copy")}
+                  onCopy={onCopyLink}
+                >
+                  <Textarea
+                    className={cloudSecretTextareaClassName}
+                    readOnly
+                    rows={3}
+                    value={shareUrl}
+                  />
+                </CloudCopyBlock>
               </div>
             ) : null}
 
@@ -162,11 +157,11 @@ export default function CloudInstanceShareDialog({
             {target.canSharePassword ? (
               <label className="flex items-center gap-3 rounded-xl border border-slate-200 px-4 py-3 dark:border-slate-800">
                 <Checkbox checked={sharePassword} onCheckedChange={(checked) => onSharePasswordChange(Boolean(checked))} />
-                <div>
+                <div className="min-w-0">
                   <div className="text-sm font-medium text-slate-900 dark:text-slate-100">
                     {t("cloud.share.include_password", "Include saved root password")}
                   </div>
-                  <div className="text-xs text-slate-500 dark:text-slate-400">
+                  <div className={`text-xs text-slate-500 dark:text-slate-400 ${cloudLongTextClassName}`}>
                     {t("cloud.share.include_password_description", "Anyone with the link will be able to view the stored root password.")}
                   </div>
                 </div>
@@ -176,11 +171,11 @@ export default function CloudInstanceShareDialog({
             {target.canShareManagedSSHKey ? (
               <label className="flex items-center gap-3 rounded-xl border border-slate-200 px-4 py-3 dark:border-slate-800">
                 <Checkbox checked={shareManagedSSHKey} onCheckedChange={(checked) => onShareManagedSSHKeyChange(Boolean(checked))} />
-                <div>
+                <div className="min-w-0">
                   <div className="text-sm font-medium text-slate-900 dark:text-slate-100">
                     {t("cloud.share.include_managed_key", "Include managed SSH key")}
                   </div>
-                  <div className="text-xs text-slate-500 dark:text-slate-400">
+                  <div className={`text-xs text-slate-500 dark:text-slate-400 ${cloudLongTextClassName}`}>
                     {t("cloud.share.include_managed_key_description", "Expose the managed SSH private key so the recipient can log in with the shared key pair.")}
                   </div>
                 </div>

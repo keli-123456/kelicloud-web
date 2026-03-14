@@ -3,7 +3,6 @@ import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import {
   CheckCircle2,
-  Copy,
   Eye,
   Plus,
   Power,
@@ -23,6 +22,11 @@ import {
   Badge,
   Button,
   Checkbox,
+  CloudCopyBlock,
+  CloudDetailItem,
+  cloudDialogContentClassName,
+  cloudLongTextClassName,
+  cloudSecretTextareaClassName,
   Dialog,
   Flex,
   Select,
@@ -330,22 +334,7 @@ function AWSQuotaSummary({
   );
 }
 
-function DetailItem({
-  label,
-  value,
-}: {
-  label: string;
-  value: React.ReactNode;
-}) {
-  return (
-    <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
-      <div className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">
-        {label}
-      </div>
-      <div className="mt-1 break-all text-sm text-slate-900">{value}</div>
-    </div>
-  );
-}
+const DetailItem = CloudDetailItem;
 
 function getSubnetVpcId(subnets: AWSSubnet[], subnetId: string) {
   return subnets.find((subnet) => subnet.subnet_id === subnetId)?.vpc_id || "";
@@ -1613,7 +1602,9 @@ export default function AWSPanel() {
                             {t(`cloud.tokens.status.${credential.last_status}`, credential.last_status || "unknown")}
                           </Badge>
                           {credential.last_error ? (
-                            <div className="mt-1 max-w-64 text-xs text-red-600">{credential.last_error}</div>
+                            <div className={`mt-1 max-w-64 text-xs text-red-600 ${cloudLongTextClassName}`}>
+                              {credential.last_error}
+                            </div>
                           ) : null}
                         </TableCell>
                         <TableCell>{formatDateTime(credential.last_checked_at)}</TableCell>
@@ -1680,7 +1671,7 @@ export default function AWSPanel() {
         </Tabs.Content>
 
       <Dialog.Root open={credentialImportOpen} onOpenChange={setCredentialImportOpen}>
-        <Dialog.Content className="max-h-[85vh] overflow-y-auto">
+        <Dialog.Content className={`${cloudDialogContentClassName} max-h-[85vh] overflow-y-auto`}>
           <Dialog.Title>{t("cloud.providers.aws.import_dialog_title", "Batch Import AWS Credentials")}</Dialog.Title>
           <Dialog.Description>
             {t(
@@ -1691,7 +1682,7 @@ export default function AWSPanel() {
 
           <div className="mt-4 flex flex-col gap-4">
             <TextArea
-              className="min-h-40"
+              className="min-h-40 font-mono text-xs [overflow-wrap:anywhere]"
               value={credentialImportText}
               placeholder="prod,AKIA...,secret...,us-east-1\nbackup|AKIA...|secret...|ap-southeast-1|session-token"
               onChange={(event) => setCredentialImportText(event.target.value)}
@@ -1712,7 +1703,7 @@ export default function AWSPanel() {
       </Dialog.Root>
 
       <Dialog.Root open={createOpen} onOpenChange={setCreateOpen}>
-        <Dialog.Content className="max-h-[85vh] overflow-y-auto">
+        <Dialog.Content className={`${cloudDialogContentClassName} max-h-[85vh] overflow-y-auto`}>
           <Dialog.Title>{t("cloud.providers.aws.create", "Launch EC2")}</Dialog.Title>
           <Dialog.Description>
             {t(
@@ -1964,7 +1955,7 @@ export default function AWSPanel() {
       </Dialog.Root>
 
       <Dialog.Root open={lightsailCreateOpen} onOpenChange={setLightsailCreateOpen}>
-        <Dialog.Content className="max-h-[85vh] overflow-y-auto">
+        <Dialog.Content className={`${cloudDialogContentClassName} max-h-[85vh] overflow-y-auto`}>
           <Dialog.Title>{t("cloud.providers.aws.lightsail_create", "Create Lightsail")}</Dialog.Title>
           <Dialog.Description>
             {t(
@@ -2185,7 +2176,7 @@ export default function AWSPanel() {
           setDetailData(null);
         }}
       >
-        <Dialog.Content className="max-h-[85vh] overflow-y-auto">
+        <Dialog.Content className={`${cloudDialogContentClassName} max-h-[85vh] overflow-y-auto`}>
           <Dialog.Title>{detailInstance?.name || detailInstance?.instance_id || "EC2"}</Dialog.Title>
           <Dialog.Description>
             {t(
@@ -2527,7 +2518,7 @@ export default function AWSPanel() {
           setLightsailDetailData(null);
         }}
       >
-        <Dialog.Content className="max-h-[85vh] overflow-y-auto">
+        <Dialog.Content className={`${cloudDialogContentClassName} max-h-[85vh] overflow-y-auto`}>
           <Dialog.Title>{lightsailDetailInstance?.name || "Lightsail"}</Dialog.Title>
           <Dialog.Description>
             {t(
@@ -2756,7 +2747,7 @@ export default function AWSPanel() {
       />
 
       <Dialog.Root open={Boolean(credentialSecret)} onOpenChange={(open) => !open && setCredentialSecret(null)}>
-        <Dialog.Content className="max-h-[85vh] overflow-y-auto">
+        <Dialog.Content className={`${cloudDialogContentClassName} max-h-[85vh] overflow-y-auto`}>
           <Dialog.Title>{t("cloud.providers.aws.credential_dialog_title", "Credential Details")}</Dialog.Title>
           <Dialog.Description>
             {t(
@@ -2785,31 +2776,29 @@ export default function AWSPanel() {
                   </div>
                 </div>
               ) : null}
-              <div className="rounded-xl border border-slate-200 bg-white px-4 py-3">
-                <div className="flex items-center justify-between gap-3">
-                  <div className="text-sm font-medium text-slate-800">
-                    {t("cloud.providers.aws.secret_access_key", "Secret Access Key")}
-                  </div>
-                  <Button variant="outline" size="1" onClick={() => { void copyText(credentialSecret.secret.secret_access_key); }}>
-                    <Copy className="mr-1 h-3.5 w-3.5" />
-                    {t("copy", "Copy")}
-                  </Button>
-                </div>
-                <TextArea className="mt-3 min-h-24 font-mono text-xs" readOnly value={credentialSecret.secret.secret_access_key} />
-              </div>
+              <CloudCopyBlock
+                title={t("cloud.providers.aws.secret_access_key", "Secret Access Key")}
+                copyLabel={t("copy", "Copy")}
+                onCopy={() => { void copyText(credentialSecret.secret.secret_access_key); }}
+              >
+                <TextArea
+                  className={cloudSecretTextareaClassName}
+                  readOnly
+                  value={credentialSecret.secret.secret_access_key}
+                />
+              </CloudCopyBlock>
               {credentialSecret.secret.session_token ? (
-                <div className="rounded-xl border border-slate-200 bg-white px-4 py-3">
-                  <div className="flex items-center justify-between gap-3">
-                    <div className="text-sm font-medium text-slate-800">
-                      {t("cloud.providers.aws.session_token", "Session Token")}
-                    </div>
-                    <Button variant="outline" size="1" onClick={() => { void copyText(credentialSecret.secret.session_token); }}>
-                      <Copy className="mr-1 h-3.5 w-3.5" />
-                      {t("copy", "Copy")}
-                    </Button>
-                  </div>
-                  <TextArea className="mt-3 min-h-24 font-mono text-xs" readOnly value={credentialSecret.secret.session_token} />
-                </div>
+                <CloudCopyBlock
+                  title={t("cloud.providers.aws.session_token", "Session Token")}
+                  copyLabel={t("copy", "Copy")}
+                  onCopy={() => { void copyText(credentialSecret.secret.session_token); }}
+                >
+                  <TextArea
+                    className={cloudSecretTextareaClassName}
+                    readOnly
+                    value={credentialSecret.secret.session_token}
+                  />
+                </CloudCopyBlock>
               ) : null}
             </div>
           ) : null}

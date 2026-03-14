@@ -3,7 +3,6 @@ import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import {
   CheckCircle2,
-  Copy,
   Eye,
   KeyRound,
   Plus,
@@ -24,6 +23,11 @@ import {
   Badge,
   Button,
   Checkbox,
+  CloudCopyBlock,
+  CloudDetailItem,
+  cloudDialogContentClassName,
+  cloudLongTextClassName,
+  cloudSecretTextareaClassName,
   Dialog,
   Flex,
   Select,
@@ -294,22 +298,7 @@ function getLinodeStatusSummary(
   return normalizedMessage;
 }
 
-function DetailItem({
-  label,
-  value,
-}: {
-  label: string;
-  value: React.ReactNode;
-}) {
-  return (
-    <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
-      <div className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">
-        {label}
-      </div>
-      <div className="mt-1 break-all text-sm text-slate-900">{value}</div>
-    </div>
-  );
-}
+const DetailItem = CloudDetailItem;
 
 export default function LinodePanel() {
   const { t } = useTranslation();
@@ -1271,7 +1260,7 @@ export default function LinodePanel() {
       </Tabs.Content>
 
       <Dialog.Root open={tokenImportOpen} onOpenChange={setTokenImportOpen}>
-        <Dialog.Content className="max-h-[85vh] overflow-y-auto">
+        <Dialog.Content className={`${cloudDialogContentClassName} max-h-[85vh] overflow-y-auto`}>
           <Dialog.Title>{t("cloud.tokens.import_dialog_title", "Batch Import Tokens")}</Dialog.Title>
           <Dialog.Description>
             {t(
@@ -1282,7 +1271,7 @@ export default function LinodePanel() {
 
           <div className="mt-4 flex flex-col gap-4">
             <TextArea
-              className="min-h-40"
+              className="min-h-40 font-mono text-xs [overflow-wrap:anywhere]"
               value={tokenImportText}
               placeholder={t(
                 "cloud.tokens.import_placeholder",
@@ -1304,7 +1293,7 @@ export default function LinodePanel() {
       </Dialog.Root>
 
       <Dialog.Root open={createOpen} onOpenChange={setCreateOpen}>
-        <Dialog.Content className="max-h-[85vh] overflow-y-auto">
+        <Dialog.Content className={`${cloudDialogContentClassName} max-h-[85vh] overflow-y-auto`}>
           <Dialog.Title>{t("cloud.providers.linode.create", "Create Instance")}</Dialog.Title>
           <Dialog.Description>
             {t(
@@ -1588,7 +1577,7 @@ export default function LinodePanel() {
           setDetailData(null);
         }}
       >
-        <Dialog.Content className="max-h-[85vh] overflow-y-auto">
+        <Dialog.Content className={`${cloudDialogContentClassName} max-h-[85vh] overflow-y-auto`}>
           <Dialog.Title>{detailInstance?.label || t("cloud.detail.title", "Droplet Details")}</Dialog.Title>
           <Dialog.Description>
             {t(
@@ -1880,7 +1869,7 @@ export default function LinodePanel() {
       </Dialog.Root>
 
       <Dialog.Root open={Boolean(tokenSecret)} onOpenChange={(open) => !open && setTokenSecret(null)}>
-        <Dialog.Content className="max-h-[85vh] overflow-y-auto">
+        <Dialog.Content className={`${cloudDialogContentClassName} max-h-[85vh] overflow-y-auto`}>
           <Dialog.Title>{t("cloud.tokens.token_dialog_title", "Token Details")}</Dialog.Title>
           <Dialog.Description>
             {t(
@@ -1894,18 +1883,17 @@ export default function LinodePanel() {
               <DetailItem label={t("cloud.tokens.table.name", "Name")} value={tokenSecret.secret.token_name} />
               <DetailItem label={t("cloud.tokens.table.account", "Account")} value={tokenSecret.secret.profile_email || tokenSecret.secret.profile_username || "-"} />
               <DetailItem label={t("cloud.tokens.masked_token", "Masked Token")} value={tokenSecret.secret.masked_token || "-"} />
-              <div className="rounded-xl border border-slate-200 bg-white px-4 py-3">
-                <div className="flex items-center justify-between gap-3">
-                  <div className="text-sm font-medium text-slate-800">
-                    {t("cloud.tokens.full_token", "Full Token")}
-                  </div>
-                  <Button variant="outline" size="1" onClick={() => { void copyText(tokenSecret.secret.token); }}>
-                    <Copy className="mr-1 h-3.5 w-3.5" />
-                    {t("copy", "Copy")}
-                  </Button>
-                </div>
-                <TextArea className="mt-3 min-h-24 font-mono text-xs" readOnly value={tokenSecret.secret.token} />
-              </div>
+              <CloudCopyBlock
+                title={t("cloud.tokens.full_token", "Full Token")}
+                copyLabel={t("copy", "Copy")}
+                onCopy={() => { void copyText(tokenSecret.secret.token); }}
+              >
+                <TextArea
+                  className={cloudSecretTextareaClassName}
+                  readOnly
+                  value={tokenSecret.secret.token}
+                />
+              </CloudCopyBlock>
             </div>
           ) : null}
         </Dialog.Content>
@@ -1959,7 +1947,7 @@ export default function LinodePanel() {
       />
 
       <Dialog.Root open={Boolean(savedPassword)} onOpenChange={(open) => !open && setSavedPassword(null)}>
-        <Dialog.Content className="max-h-[85vh] overflow-y-auto">
+        <Dialog.Content className={`${cloudDialogContentClassName} max-h-[85vh] overflow-y-auto`}>
           <Dialog.Title>{t("cloud.password.dialog_title", "Saved Root Password")}</Dialog.Title>
           <Dialog.Description>
             {t(
@@ -1974,23 +1962,24 @@ export default function LinodePanel() {
               <DetailItem label={t("cloud.password.username", "Username")} value={savedPassword.credential.username} />
               <DetailItem label={t("cloud.password.mode", "Password Mode")} value={savedPassword.credential.password_mode || "-"} />
               <DetailItem label={t("cloud.password.saved_at", "Saved At")} value={formatDateTime(savedPassword.credential.updated_at)} />
-              <div className="rounded-xl border border-slate-200 bg-white px-4 py-3">
-                <div className="flex items-center justify-between gap-3">
-                  <div className="text-sm font-medium text-slate-800">{t("cloud.form.root_password", "Root Password")}</div>
-                  <Button variant="outline" size="1" onClick={() => { void copyText(savedPassword.credential.root_password); }}>
-                    <Copy className="mr-1 h-3.5 w-3.5" />
-                    {t("copy", "Copy")}
-                  </Button>
-                </div>
-                <TextArea className="mt-3 min-h-24 font-mono text-xs" readOnly value={savedPassword.credential.root_password} />
-              </div>
+              <CloudCopyBlock
+                title={t("cloud.form.root_password", "Root Password")}
+                copyLabel={t("copy", "Copy")}
+                onCopy={() => { void copyText(savedPassword.credential.root_password); }}
+              >
+                <TextArea
+                  className={cloudSecretTextareaClassName}
+                  readOnly
+                  value={savedPassword.credential.root_password}
+                />
+              </CloudCopyBlock>
             </div>
           ) : null}
         </Dialog.Content>
       </Dialog.Root>
 
       <Dialog.Root open={Boolean(createdPassword)} onOpenChange={(open) => !open && setCreatedPassword(null)}>
-        <Dialog.Content className="max-h-[85vh] overflow-y-auto">
+        <Dialog.Content className={`${cloudDialogContentClassName} max-h-[85vh] overflow-y-auto`}>
           <Dialog.Title>{t("cloud.providers.linode.create_credentials_title", "Root Access Credentials")}</Dialog.Title>
           <Dialog.Description>
             {t(
@@ -2003,25 +1992,28 @@ export default function LinodePanel() {
             <div className="mt-4 flex flex-col gap-4">
               <DetailItem label={t("cloud.table.name", "Name")} value={createdPassword.instance.label} />
               <DetailItem label={t("cloud.password.mode", "Password Mode")} value={createdPassword.passwordMode} />
-              <div className="rounded-xl border border-slate-200 bg-white px-4 py-3">
-                <div className="flex items-center justify-between gap-3">
-                  <div className="text-sm font-medium text-slate-800">{t("cloud.form.root_password", "Root Password")}</div>
-                  <Button variant="outline" size="1" onClick={() => { void copyText(createdPassword.rootPassword); }}>
-                    <Copy className="mr-1 h-3.5 w-3.5" />
-                    {t("copy", "Copy")}
-                  </Button>
-                </div>
-                <TextArea className="mt-3 min-h-24 font-mono text-xs" readOnly value={createdPassword.rootPassword} />
-              </div>
+              <CloudCopyBlock
+                title={t("cloud.form.root_password", "Root Password")}
+                copyLabel={t("copy", "Copy")}
+                onCopy={() => { void copyText(createdPassword.rootPassword); }}
+              >
+                <TextArea
+                  className={cloudSecretTextareaClassName}
+                  readOnly
+                  value={createdPassword.rootPassword}
+                />
+              </CloudCopyBlock>
               <div className={`rounded-xl px-4 py-3 text-sm ${createdPassword.passwordSaved ? "border border-emerald-200 bg-emerald-50 text-emerald-800" : "border border-amber-200 bg-amber-50 text-amber-800"}`}>
-                {createdPassword.passwordSaved
-                  ? t("cloud.password.create_saved", "This root password has been encrypted and saved. You can reopen it later from the Droplet list.")
-                  : createdPassword.passwordSaveError
-                    ? t("cloud.password.create_unsaved_reason", {
-                        reason: createdPassword.passwordSaveError,
-                        defaultValue: `Password save failed: ${createdPassword.passwordSaveError}`,
-                      })
-                    : t("cloud.password.create_unsaved", "This root password was not saved on the server. Save it now if you still need it later.")}
+                <div className={cloudLongTextClassName}>
+                  {createdPassword.passwordSaved
+                    ? t("cloud.password.create_saved", "This root password has been encrypted and saved. You can reopen it later from the Droplet list.")
+                    : createdPassword.passwordSaveError
+                      ? t("cloud.password.create_unsaved_reason", {
+                          reason: createdPassword.passwordSaveError,
+                          defaultValue: `Password save failed: ${createdPassword.passwordSaveError}`,
+                        })
+                      : t("cloud.password.create_unsaved", "This root password was not saved on the server. Save it now if you still need it later.")}
+                </div>
               </div>
             </div>
           ) : null}

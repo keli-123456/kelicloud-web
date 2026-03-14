@@ -3,7 +3,6 @@ import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import {
   CheckCircle2,
-  Copy,
   Eye,
   KeyRound,
   Plus,
@@ -24,6 +23,12 @@ import {
   Badge,
   Button,
   Checkbox,
+  CloudCopyBlock,
+  CloudDetailItem,
+  cloudDialogContentClassName,
+  cloudLongTextClassName,
+  cloudSecretTextareaClassName,
+  cloudTallSecretTextareaClassName,
   Dialog,
   Flex,
   Select,
@@ -102,13 +107,12 @@ const initialCreateForm: CreateDropletFormState = {
   region: "",
   size: "",
   image: "",
-  ssh_keys: [],
   backups: false,
   ipv6: true,
   monitoring: true,
   user_data: "",
   vpc_uuid: "",
-  root_password_mode: "ssh",
+  root_password_mode: "random",
   root_password: "",
   auto_connect: true,
   auto_connect_group: "",
@@ -269,26 +273,6 @@ function getRegionOptionLabel(
   return `${region.slug} (${country}) / ${region.name}`;
 }
 
-function getDefaultDigitalOceanSSHKeyIds(catalog: DigitalOceanCatalog | null | undefined) {
-  const ids = (catalog?.ssh_keys || [])
-    .map((sshKey) => sshKey.id)
-    .filter((id) => Number.isFinite(id));
-  return Array.from(new Set(ids));
-}
-
-function normalizeDigitalOceanSSHKeySelection(
-  selectedIds: number[],
-  catalog: DigitalOceanCatalog | null | undefined,
-) {
-  const availableIds = new Set(getDefaultDigitalOceanSSHKeyIds(catalog));
-  if (!availableIds.size) return [];
-
-  const nextSelectedIds = selectedIds.filter((id) => availableIds.has(id));
-  if (nextSelectedIds.length) return nextSelectedIds;
-
-  return Array.from(availableIds);
-}
-
 function findImportSeparator(line: string) {
   for (const separator of ["|", ",", "\t", ":"]) {
     if (line.includes(separator)) {
@@ -339,22 +323,7 @@ function getDefaultAutoConnectGroup(provider: string, credentialName: string) {
   return `${normalizedProvider}/${normalizedCredentialName}`;
 }
 
-function DetailItem({
-  label,
-  value,
-}: {
-  label: string;
-  value: React.ReactNode;
-}) {
-  return (
-    <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
-      <div className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">
-        {label}
-      </div>
-      <div className="mt-1 break-all text-sm text-slate-900">{value}</div>
-    </div>
-  );
-}
+const DetailItem = CloudDetailItem;
 
 export default function DigitalOceanPanel() {
   const { t } = useTranslation();
@@ -512,7 +481,6 @@ export default function DigitalOceanPanel() {
         previous.image ||
         (catalog.images[0] ? getImageValue(catalog.images[0]) : "") ||
         "",
-      ssh_keys: normalizeDigitalOceanSSHKeySelection(previous.ssh_keys, catalog),
     }));
   }, [catalog]);
 
@@ -782,7 +750,6 @@ export default function DigitalOceanPanel() {
         region: createForm.region,
         size: createForm.size,
         image: createForm.image,
-        ssh_keys: createForm.ssh_keys,
         backups: createForm.backups,
         ipv6: createForm.ipv6,
         monitoring: createForm.monitoring,
@@ -800,29 +767,24 @@ export default function DigitalOceanPanel() {
         t("cloud.create_success", "Droplet creation request submitted"),
       );
       setCreateOpen(false);
-      if (passwordMode !== "ssh") {
-        const rootPassword =
-          passwordMode === "random" ? result.generated_password : createForm.root_password;
-        setAccessSecrets({
-          droplet: result.droplet,
-          rootPassword,
-          passwordMode,
-          managedSSHKey: result.managed_ssh_key,
-          passwordSaved: result.password_saved,
-          passwordSaveError: result.password_save_error,
-        });
-        if (result.password_save_error) {
-          toast.error(result.password_save_error);
-        }
-      } else {
-        setAccessSecrets(null);
+      const rootPassword =
+        passwordMode === "random" ? result.generated_password : createForm.root_password;
+      setAccessSecrets({
+        droplet: result.droplet,
+        rootPassword,
+        passwordMode,
+        managedSSHKey: result.managed_ssh_key,
+        passwordSaved: result.password_saved,
+        passwordSaveError: result.password_save_error,
+      });
+      if (result.password_save_error) {
+        toast.error(result.password_save_error);
       }
       setCreateForm((previous) => ({
         ...initialCreateForm,
         region: previous.region,
         size: previous.size,
         image: previous.image,
-        ssh_keys: getDefaultDigitalOceanSSHKeyIds(catalog),
         auto_connect: true,
         auto_connect_group: defaultCreateGroup,
       }));
@@ -869,12 +831,10 @@ export default function DigitalOceanPanel() {
   const regions = catalog?.regions ?? [];
   const sizes = catalog?.sizes ?? [];
   const images = catalog?.images ?? [];
-  const sshKeys = catalog?.ssh_keys ?? [];
 
   const handleOpenCreateDialog = () => {
     setCreateForm((previous) => ({
       ...previous,
-      ssh_keys: normalizeDigitalOceanSSHKeySelection(previous.ssh_keys, catalog),
       auto_connect: true,
       auto_connect_group: defaultCreateGroup,
     }));
@@ -1380,7 +1340,7 @@ export default function DigitalOceanPanel() {
       </Tabs.Content>
 
       <Dialog.Root open={tokenImportOpen} onOpenChange={setTokenImportOpen}>
-        <Dialog.Content className="max-h-[85vh] overflow-y-auto">
+        <Dialog.Content className={`${cloudDialogContentClassName} max-h-[85vh] overflow-y-auto`}>
           <Dialog.Title>{t("cloud.tokens.import_dialog_title", "Batch Import Tokens")}</Dialog.Title>
           <Dialog.Description>
             {t(
@@ -1394,7 +1354,7 @@ export default function DigitalOceanPanel() {
               {t("cloud.tokens.import_label", "Batch Import")}
             </label>
             <TextArea
-              className="min-h-40"
+              className="min-h-40 font-mono text-xs [overflow-wrap:anywhere]"
               value={tokenImportText}
               placeholder={t(
                 "cloud.tokens.import_placeholder",
@@ -1433,7 +1393,7 @@ export default function DigitalOceanPanel() {
       </Dialog.Root>
 
       <Dialog.Root open={createOpen} onOpenChange={setCreateOpen}>
-        <Dialog.Content className="max-h-[85vh] overflow-y-auto">
+        <Dialog.Content className={`${cloudDialogContentClassName} max-h-[85vh] overflow-y-auto`}>
           <Dialog.Title>{t("cloud.create", "Create Droplet")}</Dialog.Title>
           <Dialog.Description>
             {t(
@@ -1529,7 +1489,7 @@ export default function DigitalOceanPanel() {
               onValueChange={(value) =>
                 setCreateForm((previous) => ({
                   ...previous,
-                  root_password_mode: value as "ssh" | "custom" | "random",
+                  root_password_mode: value as "custom" | "random",
                   root_password: value === "custom" ? previous.root_password : "",
                 }))
               }
@@ -1538,28 +1498,20 @@ export default function DigitalOceanPanel() {
                 placeholder={t("cloud.form.root_access_placeholder", "Select access mode")}
               />
               <Select.Content>
-                <Select.Item value="ssh">
-                  {t("cloud.form.root_access_modes.ssh", "SSH key only")}
+                <Select.Item value="random">
+                  {t("cloud.form.root_access_modes.random", "Random root password")}
                 </Select.Item>
                 <Select.Item value="custom">
                   {t("cloud.form.root_access_modes.custom", "Custom root password")}
-                </Select.Item>
-                <Select.Item value="random">
-                  {t("cloud.form.root_access_modes.random", "Random root password")}
                 </Select.Item>
               </Select.Content>
             </Select.Root>
 
             <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
-              {createForm.root_password_mode === "ssh"
-                ? t(
-                    "cloud.form.root_access_ssh_help",
-                    "Use your selected SSH keys only. DigitalOcean will not set a custom root password through the panel.",
-                  )
-                : t(
-                    "cloud.form.root_access_password_help",
-                    "Komari will ensure a managed SSH key exists for this token, attach it to the Droplet, and run a startup script to set the root password and enable password login.",
-                  )}
+              {t(
+                "cloud.form.root_access_password_help",
+                "Komari will ensure a managed SSH key exists for this token, attach it to the Droplet, and run a startup script to set the root password and enable password login.",
+              )}
             </div>
 
             {createForm.root_password_mode === "custom" ? (
@@ -1621,14 +1573,12 @@ export default function DigitalOceanPanel() {
             <label className="text-sm font-medium text-slate-800">
               {t("cloud.form.user_data", "Cloud-Init / User Data")}
             </label>
-            {createForm.root_password_mode !== "ssh" ? (
-              <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-                {t(
-                  "cloud.form.user_data_password_help",
-                  "When root password mode is enabled, this field is appended as shell commands. #cloud-config is not supported in this mode.",
-                )}
-              </div>
-            ) : null}
+            <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+              {t(
+                "cloud.form.user_data_password_help",
+                "When root password mode is enabled, this field is appended as shell commands. #cloud-config is not supported in this mode.",
+              )}
+            </div>
             <TextArea
               rows={6}
               value={createForm.user_data}
@@ -1728,55 +1678,6 @@ export default function DigitalOceanPanel() {
               </div>
             </div>
 
-            <div className="rounded-xl border border-slate-200 bg-white px-4 py-3">
-              <div className="text-sm font-medium text-slate-800">
-                {t("cloud.form.ssh_keys", "SSH Keys")}
-              </div>
-              <div className="mt-1 text-sm text-slate-500">
-                {t(
-                  "cloud.form.ssh_keys_description",
-                  "Attach existing account SSH keys to the new Droplet.",
-                )}
-              </div>
-              <div className="mt-3 flex max-h-48 flex-col gap-2 overflow-y-auto">
-                {sshKeys.length ? (
-                  sshKeys.map((sshKey) => {
-                    const checked = createForm.ssh_keys.includes(sshKey.id);
-                    return (
-                      <label
-                        key={sshKey.id}
-                        className="flex items-start gap-2 rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700"
-                      >
-                        <Checkbox
-                          checked={checked}
-                          onCheckedChange={(nextChecked) =>
-                            setCreateForm((previous) => ({
-                              ...previous,
-                              ssh_keys: nextChecked === true
-                                ? [...previous.ssh_keys, sshKey.id]
-                                : previous.ssh_keys.filter((id) => id !== sshKey.id),
-                            }))
-                          }
-                        />
-                        <span className="min-w-0">
-                          <span className="block font-medium text-slate-900">
-                            {sshKey.name}
-                          </span>
-                          <span className="block truncate text-xs text-slate-500">
-                            {sshKey.fingerprint}
-                          </span>
-                        </span>
-                      </label>
-                    );
-                  })
-                ) : (
-                  <div className="text-sm text-slate-500">
-                    {t("cloud.form.ssh_keys_empty", "No SSH keys found in this account")}
-                  </div>
-                )}
-              </div>
-            </div>
-
             <Flex justify="end" gap="2" className="mt-2">
               <Button
                 variant="outline"
@@ -1815,7 +1716,7 @@ export default function DigitalOceanPanel() {
           }
         }}
       >
-        <Dialog.Content className="max-h-[85vh] overflow-y-auto">
+        <Dialog.Content className={`${cloudDialogContentClassName} max-h-[85vh] overflow-y-auto`}>
           <Dialog.Title>{detailDroplet?.name || t("cloud.detail.title", "Droplet Details")}</Dialog.Title>
           <Dialog.Description>
             {t(
@@ -1911,7 +1812,7 @@ export default function DigitalOceanPanel() {
           }
         }}
       >
-        <Dialog.Content className="max-h-[85vh] overflow-y-auto">
+        <Dialog.Content className={`${cloudDialogContentClassName} max-h-[85vh] overflow-y-auto`}>
           <Dialog.Title>{t("cloud.tokens.token_dialog_title", "Token Details")}</Dialog.Title>
           <Dialog.Description>
             {t(
@@ -1931,24 +1832,19 @@ export default function DigitalOceanPanel() {
                 label={t("cloud.tokens.masked_token", "Masked Token")}
                 value={tokenSecret.secret.masked_token || "-"}
               />
-              <div className="rounded-xl border border-slate-200 bg-white px-4 py-3">
-                <div className="flex items-center justify-between gap-3">
-                  <div className="text-sm font-medium text-slate-800">
-                    {t("cloud.tokens.full_token", "Full Token")}
-                  </div>
-                  <Button
-                    variant="outline"
-                    size="1"
-                    onClick={() => {
-                      void copyText(tokenSecret.secret.token);
-                    }}
-                  >
-                    <Copy className="mr-1 h-3.5 w-3.5" />
-                    {t("copy", "Copy")}
-                  </Button>
-                </div>
-                <TextArea className="mt-3 min-h-24 font-mono text-xs" readOnly value={tokenSecret.secret.token} />
-              </div>
+              <CloudCopyBlock
+                title={t("cloud.tokens.full_token", "Full Token")}
+                copyLabel={t("copy", "Copy")}
+                onCopy={() => {
+                  void copyText(tokenSecret.secret.token);
+                }}
+              >
+                <TextArea
+                  className={cloudSecretTextareaClassName}
+                  readOnly
+                  value={tokenSecret.secret.token}
+                />
+              </CloudCopyBlock>
             </div>
           ) : null}
         </Dialog.Content>
@@ -2009,7 +1905,7 @@ export default function DigitalOceanPanel() {
           }
         }}
       >
-        <Dialog.Content className="max-h-[85vh] overflow-y-auto">
+        <Dialog.Content className={`${cloudDialogContentClassName} max-h-[85vh] overflow-y-auto`}>
           <Dialog.Title>{t("cloud.tokens.managed_key_dialog_title", "Managed SSH Key")}</Dialog.Title>
           <Dialog.Description>
             {t(
@@ -2038,42 +1934,32 @@ export default function DigitalOceanPanel() {
                 label={t("cloud.tokens.managed_key_fingerprint", "Fingerprint")}
                 value={managedKeyMaterial.fingerprint || "-"}
               />
-              <div className="rounded-xl border border-slate-200 bg-white px-4 py-3">
-                <div className="flex items-center justify-between gap-3">
-                  <div className="text-sm font-medium text-slate-800">
-                    {t("cloud.tokens.public_key", "Public Key")}
-                  </div>
-                  <Button
-                    variant="outline"
-                    size="1"
-                    onClick={() => {
-                      void copyText(managedKeyMaterial.public_key);
-                    }}
-                  >
-                    <Copy className="mr-1 h-3.5 w-3.5" />
-                    {t("copy", "Copy")}
-                  </Button>
-                </div>
-                <TextArea className="mt-3 min-h-24 font-mono text-xs" readOnly value={managedKeyMaterial.public_key} />
-              </div>
-              <div className="rounded-xl border border-slate-200 bg-white px-4 py-3">
-                <div className="flex items-center justify-between gap-3">
-                  <div className="text-sm font-medium text-slate-800">
-                    {t("cloud.tokens.private_key", "Private Key")}
-                  </div>
-                  <Button
-                    variant="outline"
-                    size="1"
-                    onClick={() => {
-                      void copyText(managedKeyMaterial.private_key);
-                    }}
-                  >
-                    <Copy className="mr-1 h-3.5 w-3.5" />
-                    {t("copy", "Copy")}
-                  </Button>
-                </div>
-                <TextArea className="mt-3 min-h-40 font-mono text-xs" readOnly value={managedKeyMaterial.private_key} />
-              </div>
+              <CloudCopyBlock
+                title={t("cloud.tokens.public_key", "Public Key")}
+                copyLabel={t("copy", "Copy")}
+                onCopy={() => {
+                  void copyText(managedKeyMaterial.public_key);
+                }}
+              >
+                <TextArea
+                  className={cloudSecretTextareaClassName}
+                  readOnly
+                  value={managedKeyMaterial.public_key}
+                />
+              </CloudCopyBlock>
+              <CloudCopyBlock
+                title={t("cloud.tokens.private_key", "Private Key")}
+                copyLabel={t("copy", "Copy")}
+                onCopy={() => {
+                  void copyText(managedKeyMaterial.private_key);
+                }}
+              >
+                <TextArea
+                  className={cloudTallSecretTextareaClassName}
+                  readOnly
+                  value={managedKeyMaterial.private_key}
+                />
+              </CloudCopyBlock>
             </div>
           ) : null}
         </Dialog.Content>
@@ -2087,7 +1973,7 @@ export default function DigitalOceanPanel() {
           }
         }}
       >
-        <Dialog.Content className="max-h-[85vh] overflow-y-auto">
+        <Dialog.Content className={`${cloudDialogContentClassName} max-h-[85vh] overflow-y-auto`}>
           <Dialog.Title>{t("cloud.password.dialog_title", "Saved Root Password")}</Dialog.Title>
           <Dialog.Description>
             {t(
@@ -2122,29 +2008,20 @@ export default function DigitalOceanPanel() {
                 label={t("cloud.password.saved_at", "Saved At")}
                 value={formatDateTime(savedDropletPassword.credential.updated_at)}
               />
-              <div className="rounded-xl border border-slate-200 bg-white px-4 py-3">
-                <div className="flex items-center justify-between gap-3">
-                  <div className="text-sm font-medium text-slate-800">
-                    {t("cloud.access.root_password", "Root Password")}
-                  </div>
-                  <Button
-                    variant="outline"
-                    size="1"
-                    onClick={() => {
-                      void copyText(savedDropletPassword.credential.root_password);
-                    }}
-                  >
-                    <Copy className="mr-1 h-3.5 w-3.5" />
-                    {t("copy", "Copy")}
-                  </Button>
-                </div>
-                <TextField.Root
-                  className="mt-3"
+              <CloudCopyBlock
+                title={t("cloud.access.root_password", "Root Password")}
+                copyLabel={t("copy", "Copy")}
+                onCopy={() => {
+                  void copyText(savedDropletPassword.credential.root_password);
+                }}
+              >
+                <TextArea
+                  className={cloudSecretTextareaClassName}
                   readOnly
-                  type="text"
+                  rows={3}
                   value={savedDropletPassword.credential.root_password}
                 />
-              </div>
+              </CloudCopyBlock>
             </div>
           ) : null}
         </Dialog.Content>
@@ -2158,7 +2035,7 @@ export default function DigitalOceanPanel() {
           }
         }}
       >
-        <Dialog.Content className="max-h-[85vh] overflow-y-auto">
+        <Dialog.Content className={`${cloudDialogContentClassName} max-h-[85vh] overflow-y-auto`}>
           <Dialog.Title>{t("cloud.access.title", "Access Details")}</Dialog.Title>
           <Dialog.Description>
             {t(
@@ -2178,12 +2055,14 @@ export default function DigitalOceanPanel() {
                 </div>
               ) : (
                 <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-                  {t(
-                    "cloud.password.create_unsaved",
-                    "This root password was not saved on the server. Save it now if you still need it later.",
-                  )}
+                  <div className={cloudLongTextClassName}>
+                    {t(
+                      "cloud.password.create_unsaved",
+                      "This root password was not saved on the server. Save it now if you still need it later.",
+                    )}
+                  </div>
                   {accessSecrets.passwordSaveError ? (
-                    <div className="mt-2">
+                    <div className={`mt-2 ${cloudLongTextClassName}`}>
                       {t("cloud.password.create_unsaved_reason", {
                         reason: accessSecrets.passwordSaveError,
                         defaultValue: `Password save failed: ${accessSecrets.passwordSaveError}`,
@@ -2195,54 +2074,36 @@ export default function DigitalOceanPanel() {
               <DetailItem label={t("cloud.table.name", "Name")} value={accessSecrets.droplet.name} />
               <DetailItem label={t("cloud.table.ip", "Public IP")} value={getDropletPrimaryIp(accessSecrets.droplet)} />
 
-              <div className="rounded-xl border border-slate-200 bg-white px-4 py-3">
-                <div className="flex items-center justify-between gap-3">
-                  <div className="text-sm font-medium text-slate-800">
-                    {t("cloud.access.root_password", "Root Password")}
-                  </div>
-                  <Button
-                    variant="outline"
-                    size="1"
-                    onClick={() => {
-                      void copyText(accessSecrets.rootPassword);
-                    }}
-                  >
-                    <Copy className="mr-1 h-3.5 w-3.5" />
-                    {t("copy", "Copy")}
-                  </Button>
-                </div>
-                <TextField.Root
-                  className="mt-3"
+              <CloudCopyBlock
+                title={t("cloud.access.root_password", "Root Password")}
+                copyLabel={t("copy", "Copy")}
+                onCopy={() => {
+                  void copyText(accessSecrets.rootPassword);
+                }}
+              >
+                <TextArea
+                  className={cloudSecretTextareaClassName}
                   readOnly
-                  type="text"
+                  rows={3}
                   value={accessSecrets.rootPassword}
                 />
-              </div>
+              </CloudCopyBlock>
 
               {accessSecrets.managedSSHKey ? (
                 <>
-                  <div className="rounded-xl border border-slate-200 bg-white px-4 py-3">
-                    <div className="flex items-center justify-between gap-3">
-                      <div className="text-sm font-medium text-slate-800">
-                        {t("cloud.access.private_key", "Managed Private Key")}
-                      </div>
-                      <Button
-                        variant="outline"
-                        size="1"
-                        onClick={() => {
-                          void copyText(accessSecrets.managedSSHKey?.private_key || "");
-                        }}
-                      >
-                        <Copy className="mr-1 h-3.5 w-3.5" />
-                        {t("copy", "Copy")}
-                      </Button>
-                    </div>
+                  <CloudCopyBlock
+                    title={t("cloud.access.private_key", "Managed Private Key")}
+                    copyLabel={t("copy", "Copy")}
+                    onCopy={() => {
+                      void copyText(accessSecrets.managedSSHKey?.private_key || "");
+                    }}
+                  >
                     <TextArea
-                      className="mt-3 min-h-40 font-mono text-xs"
+                      className={cloudTallSecretTextareaClassName}
                       readOnly
                       value={accessSecrets.managedSSHKey.private_key}
                     />
-                  </div>
+                  </CloudCopyBlock>
                   <DetailItem
                     label={t("cloud.access.ssh_hint", "SSH Login Example")}
                     value={`ssh -i ./id_ed25519 root@${getDropletPrimaryIp(accessSecrets.droplet)}`}

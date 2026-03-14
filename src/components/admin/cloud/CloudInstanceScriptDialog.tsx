@@ -22,6 +22,10 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
+import {
+  cloudDialogWideContentClassName,
+  cloudLongTextClassName,
+} from "@/components/admin/cloud/cloud-ui";
 
 type ExecResponse = {
   success?: boolean;
@@ -386,7 +390,9 @@ export default function CloudInstanceScriptDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[80vh] overflow-y-auto sm:max-w-3xl">
+      <DialogContent
+        className={`${cloudDialogWideContentClassName} max-h-[80vh] overflow-y-auto`}
+      >
         <DialogHeader>
           <DialogTitle>
             {t("cloud.script.dialog_title", "执行脚本")}
@@ -400,23 +406,23 @@ export default function CloudInstanceScriptDialog({
 
         <div className="space-y-4">
           <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
-            <div className="font-medium text-slate-900">
+            <div className={`font-medium text-slate-900 ${cloudLongTextClassName}`}>
               {target?.providerLabel || "-"} / {target?.instanceName || target?.instanceIdentifier || "-"}
             </div>
             {resolvedAddresses.length ? (
-              <div className="mt-1 text-xs text-slate-500">
+              <div className={`mt-1 text-xs text-slate-500 ${cloudLongTextClassName}`}>
                 IP: {resolvedAddresses.join(", ")}
               </div>
             ) : null}
           </div>
 
           <div className="rounded-xl border border-slate-200 bg-white px-4 py-3">
-            <div className="flex items-center justify-between gap-3">
-              <div>
+            <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="min-w-0">
                 <div className="text-sm font-medium text-slate-900">
                   {t("cloud.script.matched_node", "匹配节点")}
                 </div>
-                <div className="mt-1 text-xs text-slate-500">
+                <div className={`mt-1 text-xs text-slate-500 ${cloudLongTextClassName}`}>
                   {t("cloud.script.matched_node_help", {
                     defaultValue: "优先按分组和 IP 匹配，找不到时回退到名称匹配。",
                   })}
@@ -427,6 +433,7 @@ export default function CloudInstanceScriptDialog({
                 size="sm"
                 onClick={refresh}
                 disabled={nodeLoading}
+                className="shrink-0 self-start sm:self-auto"
               >
                 <RefreshCw className={`mr-1 h-3.5 w-3.5${nodeLoading ? " animate-spin" : ""}`} />
                 {t("cloud.script.refresh_nodes", "刷新节点")}
@@ -434,15 +441,15 @@ export default function CloudInstanceScriptDialog({
             </div>
 
             {nodeError ? (
-              <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+              <div className={`mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800 ${cloudLongTextClassName}`}>
                 {nodeError}
               </div>
             ) : matchedNode ? (
               <div className="mt-3 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800">
-                <div className="font-medium">
+                <div className={`font-medium ${cloudLongTextClassName}`}>
                   {matchedNode.name || matchedNode.uuid}
                 </div>
-                <div className="mt-1 text-xs text-emerald-700">
+                <div className={`mt-1 text-xs text-emerald-700 ${cloudLongTextClassName}`}>
                   {matchedNode.uuid}
                   {matchedNode.group ? ` / ${matchedNode.group}` : ""}
                 </div>
@@ -451,7 +458,7 @@ export default function CloudInstanceScriptDialog({
               <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
                 <div className="flex items-start gap-2">
                   <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
-                  <span>
+                  <span className={cloudLongTextClassName}>
                     {t(
                       "cloud.script.unmatched",
                       "未找到对应的 Komari 节点，请先确认 agent 已接入并且 IP 或主机名可以匹配。",
@@ -515,7 +522,7 @@ export default function CloudInstanceScriptDialog({
                   readOnly
                   value={outputText}
                   placeholder={t("cloud.script.output_placeholder", "任务输出会显示在这里。")}
-                  className="min-h-32 border-slate-200 bg-slate-50 font-mono text-xs text-slate-700"
+                  className="min-h-32 border-slate-200 bg-slate-50 font-mono text-xs text-slate-700 [overflow-wrap:anywhere]"
                 />
               </div>
 
@@ -550,7 +557,7 @@ export default function CloudInstanceScriptDialog({
             </div>
 
             {error ? (
-              <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-3 text-sm text-red-700">
+              <div className={`rounded-lg border border-red-200 bg-red-50 px-3 py-3 text-sm text-red-700 ${cloudLongTextClassName}`}>
                 {error.message}
               </div>
             ) : loading ? (
@@ -573,11 +580,11 @@ export default function CloudInstanceScriptDialog({
                         <div className="text-sm font-medium text-slate-900">
                           {command.name}
                         </div>
-                        <div className="mt-1 text-xs text-slate-500">
+                        <div className={`mt-1 text-xs text-slate-500 ${cloudLongTextClassName}`}>
                           {command.text.split("\n").map((line) => line.trim()).find(Boolean) || "-"}
                         </div>
                         {command.remark ? (
-                          <div className="mt-1 text-xs text-slate-400">
+                          <div className={`mt-1 text-xs text-slate-400 ${cloudLongTextClassName}`}>
                             {command.remark}
                           </div>
                         ) : null}

@@ -190,14 +190,13 @@ export type CreateDigitalOceanDropletInput = {
   region: string;
   size: string;
   image: string;
-  ssh_keys: number[];
   backups: boolean;
   ipv6: boolean;
   monitoring: boolean;
   tags: string[];
   user_data: string;
   vpc_uuid: string;
-  root_password_mode: "ssh" | "custom" | "random";
+  root_password_mode: "custom" | "random";
   root_password: string;
   auto_connect: boolean;
   auto_connect_group: string;
