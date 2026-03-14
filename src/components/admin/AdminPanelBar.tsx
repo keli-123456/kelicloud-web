@@ -1,16 +1,16 @@
-import { useEffect, useMemo, useState, type ReactNode } from "react";
-import { Link, useLocation } from "react-router-dom";
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   ChevronDown,
   ChevronRight,
+  ChevronsLeft,
+  ChevronsRight,
   CircleFadingArrowUp,
   ExternalLink,
   LogOut,
   Menu,
-  PanelLeftClose,
-  PanelLeftOpen,
   X,
 } from "lucide-react";
 
@@ -23,7 +23,19 @@ import { useAccount } from "@/contexts/AccountContext";
 import { usePublicInfo } from "@/contexts/PublicInfoContext";
 import { useRPC2Call } from "@/contexts/RPC2Context";
 import { Button } from "@/components/ui/button";
-import { resolveI18nText } from "@/utils/i18nText";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { iconMap } from "@/utils/iconHelper";
 import { cn } from "@/lib/utils";
 import type { MenuItem } from "@/types/menu";
@@ -50,23 +62,59 @@ interface GithubReleaseInfo {
   prerelease?: boolean;
 }
 
-const footerMenuPaths = new Set([
-  "/admin/about",
-  "/",
-  "https://komari-document.pages.dev/",
-]);
+interface MenuEntry {
+  item: ExtendedMenuItem;
+  active: boolean;
+  activeChild: MenuItem | null;
+}
+
+const footerMenuPaths = new Set<string>();
 
 const isExternalPath = (target: string) =>
   target.startsWith("http://") || target.startsWith("https://");
 
-const isPathActive = (target: string, pathname: string) => {
+const normalizePath = (pathname: string) => {
+  if (!pathname || pathname === "/") return "/";
+  return pathname.replace(/\/+$/, "") || "/";
+};
+
+const hasMatchingSearchParams = (
+  expected: URLSearchParams,
+  actual: URLSearchParams,
+) => {
+  for (const [key, value] of expected.entries()) {
+    if (actual.get(key) !== value) {
+      return false;
+    }
+  }
+  return true;
+};
+
+const isPathActive = (target: string, pathname: string, search = "") => {
   if (!target || isExternalPath(target)) {
     return false;
   }
-  if (target === "/admin") {
-    return pathname === "/admin";
+
+  const currentUrl = new URL(
+    `${normalizePath(pathname)}${search || ""}`,
+    "https://komari.local",
+  );
+  const targetUrl = new URL(target, "https://komari.local");
+  const currentPath = normalizePath(currentUrl.pathname);
+  const targetPath = normalizePath(targetUrl.pathname);
+
+  if (targetUrl.search) {
+    return (
+      currentPath === targetPath &&
+      hasMatchingSearchParams(targetUrl.searchParams, currentUrl.searchParams)
+    );
   }
-  return pathname === target || pathname.startsWith(`${target}/`);
+
+  if (targetPath === "/admin") {
+    return currentPath === "/admin";
+  }
+
+  return currentPath === targetPath || currentPath.startsWith(`${targetPath}/`);
 };
 
 const parseSemver = (input?: string | null): number[] | null => {
@@ -88,18 +136,24 @@ const isNewerVersion = (latest?: string | null, current?: string | null) => {
   return false;
 };
 
+const getActiveChild = (
+  item: ExtendedMenuItem,
+  pathname: string,
+  search: string,
+) =>
+  item.children?.find((child) => isPathActive(child.path, pathname, search)) ||
+  null;
+
 export default function AdminPanelBar({ content }: AdminPanelBarProps) {
   const { call } = useRPC2Call();
   const { account } = useAccount();
   const { publicInfo } = usePublicInfo();
   const location = useLocation();
+  const navigate = useNavigate();
   const ishttps = window.location.protocol === "https:";
-  const [t, i18n] = useTranslation();
+  const [t] = useTranslation();
 
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [mobileExpanded, setMobileExpanded] = useState<Record<string, boolean>>(
-    {},
-  );
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
     try {
       return localStorage.getItem(SIDEBAR_COLLAPSED_STORAGE_KEY) === "1";
@@ -107,71 +161,17 @@ export default function AdminPanelBar({ content }: AdminPanelBarProps) {
       return false;
     }
   });
+  const [openMenus, setOpenMenus] = useState<Record<string, boolean>>({});
   const [versionInfo, setVersionInfo] = useState<{
     hash: string;
     version: string;
   } | null>(null);
-  const [extraMenuItems, setExtraMenuItems] = useState<ExtendedMenuItem[]>([]);
   const [latestRelease, setLatestRelease] = useState<GithubReleaseInfo | null>(
     null,
   );
   const [updateAvailable, setUpdateAvailable] = useState(false);
   const [releasesSince, setReleasesSince] = useState<GithubReleaseInfo[]>([]);
-
-  const currentLanguage =
-    i18n.resolvedLanguage ||
-    i18n.language ||
-    (typeof navigator !== "undefined" ? navigator.language : "");
-  const currentTheme = publicInfo?.theme;
-
-  useEffect(() => {
-    let ignore = false;
-
-    async function loadThemeMenu() {
-      if (!currentTheme) {
-        setExtraMenuItems([]);
-        return;
-      }
-
-      try {
-        const response = await fetch(`/themes/${currentTheme}/komari-theme.json`, {
-          cache: "no-cache",
-        });
-        if (!response.ok) throw new Error(`HTTP ${response.status}`);
-        const data = await response.json();
-        if (ignore) return;
-
-        const config = data?.configuration;
-        if (!config) {
-          setExtraMenuItems([]);
-          return;
-        }
-
-        const rawLabel =
-          resolveI18nText(config.name, currentLanguage) ??
-          t("theme.manage_with_name", {
-            name: currentTheme === "default" ? "" : currentTheme,
-          });
-
-        setExtraMenuItems([
-          {
-            labelKey: rawLabel,
-            rawLabel,
-            path: "/admin/theme_managed",
-            icon: config.icon || "Palette",
-          },
-        ]);
-      } catch (error) {
-        console.warn("加载主题配置失败，将不扩展主题菜单:", error);
-        if (!ignore) setExtraMenuItems([]);
-      }
-    }
-
-    loadThemeMenu();
-    return () => {
-      ignore = true;
-    };
-  }, [currentLanguage, currentTheme, t]);
+  const appName = publicInfo?.sitename?.trim() || "Komari";
 
   useEffect(() => {
     const fetchVersionInfo = async () => {
@@ -236,9 +236,9 @@ export default function AdminPanelBar({ content }: AdminPanelBarProps) {
 
   useEffect(() => {
     setMobileMenuOpen(false);
-  }, [location.pathname]);
+  }, [location.pathname, location.search]);
 
-  const toggleSidebarCollapsed = () => {
+  const toggleSidebarCollapsed = useCallback(() => {
     setSidebarCollapsed((prev) => {
       const next = !prev;
       try {
@@ -248,14 +248,14 @@ export default function AdminPanelBar({ content }: AdminPanelBarProps) {
       }
       return next;
     });
-  };
+  }, []);
 
   const getMenuLabel = (item: ExtendedMenuItem | MenuItem) =>
     (item as ExtendedMenuItem).rawLabel || t(item.labelKey);
 
   const combinedMenuItems = useMemo<ExtendedMenuItem[]>(
-    () => [...baseMenuItems, ...extraMenuItems],
-    [extraMenuItems],
+    () => [...baseMenuItems],
+    [],
   );
 
   const primaryMenuItems = useMemo(
@@ -274,27 +274,33 @@ export default function AdminPanelBar({ content }: AdminPanelBarProps) {
     [combinedMenuItems],
   );
 
-  const activeTopItem = useMemo(() => {
-    const active = primaryMenuItems.find((item) => {
-      if (item.children?.length) {
-        return item.children.some((child) =>
-          isPathActive(child.path, location.pathname),
-        ) || isPathActive(item.path, location.pathname);
-      }
-      return isPathActive(item.path, location.pathname);
-    });
-    return active || primaryMenuItems[0] || null;
-  }, [primaryMenuItems, location.pathname]);
-
-  const activeChildItem = useMemo(
+  const primaryMenuEntries = useMemo<MenuEntry[]>(
     () =>
-      activeTopItem?.children?.find((child) =>
-        isPathActive(child.path, location.pathname),
-      ) || null,
-    [activeTopItem, location.pathname],
+      primaryMenuItems.map((item) => {
+        const activeChild = getActiveChild(
+          item,
+          location.pathname,
+          location.search,
+        );
+        const active =
+          Boolean(activeChild) ||
+          isPathActive(item.path, location.pathname, location.search);
+
+        return {
+          item,
+          active,
+          activeChild,
+        };
+      }),
+    [location.pathname, location.search, primaryMenuItems],
   );
 
-  const currentSubmenuItems = activeTopItem?.children || [];
+  const activeTopEntry = useMemo(
+    () => primaryMenuEntries.find((entry) => entry.active) || primaryMenuEntries[0] || null,
+    [primaryMenuEntries],
+  );
+  const activeTopItem = activeTopEntry?.item || null;
+  const activeChildItem = activeTopEntry?.activeChild || null;
   const currentPageTitle =
     activeChildItem
       ? getMenuLabel(activeChildItem)
@@ -309,12 +315,23 @@ export default function AdminPanelBar({ content }: AdminPanelBarProps) {
     null;
 
   useEffect(() => {
-    if (!activeTopItem?.path || !activeTopItem.children?.length) return;
-    setMobileExpanded((prev) => ({
-      ...prev,
-      [activeTopItem.path]: true,
-    }));
+    if (!activeTopItem?.children?.length) return;
+    setOpenMenus((prev) =>
+      prev[activeTopItem.path]
+        ? prev
+        : {
+            ...prev,
+            [activeTopItem.path]: true,
+          },
+    );
   }, [activeTopItem]);
+
+  const setMenuOpen = (menuKey: string, open: boolean) => {
+    setOpenMenus((prev) => ({
+      ...prev,
+      [menuKey]: open,
+    }));
+  };
 
   const logout = () => {
     window.open("/api/logout", "_self");
@@ -322,23 +339,18 @@ export default function AdminPanelBar({ content }: AdminPanelBarProps) {
 
   const renderMenuIcon = (
     icon: string,
-    labelKey: string,
+    label: string,
     active = false,
-    className?: string,
+    sizeClass = "h-4 w-4",
   ) => {
     const isLink = /^(https?:\/\/|\/|\.\/|\.\.\/)/.test(icon);
     if (isLink) {
       return (
         <img
           src={icon}
-          alt={t(labelKey)}
-          className={className}
-          style={{
-            width: 16,
-            height: 16,
-            objectFit: "contain",
-            opacity: active ? 1 : 0.7,
-          }}
+          alt={label}
+          className={cn(sizeClass, "shrink-0 object-contain")}
+          style={{ opacity: active ? 1 : 0.72 }}
           loading="lazy"
         />
       );
@@ -348,31 +360,20 @@ export default function AdminPanelBar({ content }: AdminPanelBarProps) {
     if (!IconComponent) {
       return (
         <span
-          className={className}
+          className={cn(sizeClass, "inline-block shrink-0 rounded-[4px]")}
           style={{
-            width: 16,
-            height: 16,
-            display: "inline-block",
-            borderRadius: 4,
-            background: active ? "var(--accent-9)" : "var(--accent-6)",
+            background: active ? "currentColor" : "var(--accent-6)",
+            opacity: active ? 0.95 : 0.75,
           }}
         />
       );
     }
 
-    return (
-      <IconComponent
-        className={className}
-        style={{
-          color: active ? "var(--accent-10)" : "var(--gray-11)",
-        }}
-      />
-    );
+    return <IconComponent className={cn(sizeClass, "shrink-0")} />;
   };
 
-  const renderUpdateTrigger = updateAvailable &&
-    latestRelease &&
-    releasesSince.length > 0 && (
+  const renderUpdateTrigger =
+    updateAvailable && latestRelease && releasesSince.length > 0 ? (
       <Tips
         mode="dialog"
         trigger={<CircleFadingArrowUp color="#FB4141" size="16" />}
@@ -433,414 +434,346 @@ export default function AdminPanelBar({ content }: AdminPanelBarProps) {
           </div>
         </div>
       </Tips>
-    );
+    ) : null;
 
   return (
-    <div className="min-h-screen bg-[radial-gradient(circle_at_top,_rgba(148,163,184,0.12),_transparent_38%),linear-gradient(180deg,_#ffffff_0%,_#f8fafc_100%)]">
-      <div className="flex min-h-screen bg-white/60 backdrop-blur-sm">
-        <AnimatePresence>
-          {mobileMenuOpen && (
-            <>
-              <motion.div
-                className="fixed inset-0 z-40 bg-slate-950/40 backdrop-blur-sm md:hidden"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                onClick={() => setMobileMenuOpen(false)}
-              />
-              <motion.aside
-                className="fixed inset-y-0 left-0 z-50 flex w-[88vw] max-w-[360px] flex-col border-r border-slate-200 bg-white shadow-2xl md:hidden"
-                initial={{ x: "-100%" }}
-                animate={{ x: 0 }}
-                exit={{ x: "-100%" }}
-                transition={{ type: "spring", stiffness: 320, damping: 32 }}
-              >
-                <div className="flex items-center justify-between border-b border-slate-200/80 px-4 py-4">
-                  <div>
-                    <div className="text-lg font-semibold tracking-tight text-slate-900">
-                      Komari
-                    </div>
-                    <div className="text-[13px] text-slate-500">Admin Console</div>
-                  </div>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-8 w-8"
-                    onClick={() => setMobileMenuOpen(false)}
-                  >
-                    <X size={18} />
-                  </Button>
-                </div>
+    <div className="flex h-screen overflow-hidden bg-[radial-gradient(circle_at_top,_rgba(148,163,184,0.12),_transparent_38%),linear-gradient(180deg,_#ffffff_0%,_#f8fafc_100%)]">
+      <AnimatePresence>
+        {mobileMenuOpen && (
+          <motion.div
+            className="fixed inset-0 z-40 bg-slate-950/40 backdrop-blur-sm md:hidden"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setMobileMenuOpen(false)}
+          />
+        )}
+      </AnimatePresence>
 
-                <div className="flex-1 overflow-y-auto px-3 py-3">
-                  <nav className="flex flex-col gap-2">
-                    {primaryMenuItems.map((item) => {
-                      const active =
-                        item.children?.some((child) =>
-                          isPathActive(child.path, location.pathname),
-                        ) || isPathActive(item.path, location.pathname);
-                      const expanded = Boolean(mobileExpanded[item.path]);
-
-                      return (
-                        <div
-                          key={item.path}
-                          className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white"
-                        >
-                          <div className="flex items-center gap-2 px-2 py-2">
-                            <Link
-                              to={item.path}
-                              className={cn(
-                                "flex min-w-0 flex-1 items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium transition-colors",
-                                active
-                                  ? "bg-slate-900 text-white"
-                                  : "text-slate-700 hover:bg-slate-50 hover:text-slate-900",
-                              )}
-                              onClick={() => {
-                                if (!item.children?.length) {
-                                  setMobileMenuOpen(false);
-                                }
-                              }}
-                            >
-                              <span className="flex h-4 w-4 shrink-0 items-center justify-center">
-                                {renderMenuIcon(item.icon, item.labelKey, active)}
-                              </span>
-                              <span className="truncate">{getMenuLabel(item)}</span>
-                            </Link>
-                            {item.children?.length ? (
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-9 w-9 shrink-0"
-                                onClick={() =>
-                                  setMobileExpanded((prev) => ({
-                                    ...prev,
-                                    [item.path]: !prev[item.path],
-                                  }))
-                                }
-                              >
-                                {expanded ? (
-                                  <ChevronDown size={16} className="text-slate-500" />
-                                ) : (
-                                  <ChevronRight size={16} className="text-slate-500" />
-                                )}
-                              </Button>
-                            ) : null}
-                          </div>
-
-                          <AnimatePresence initial={false}>
-                            {expanded && item.children?.length ? (
-                              <motion.div
-                                initial={{ height: 0, opacity: 0 }}
-                                animate={{ height: "auto", opacity: 1 }}
-                                exit={{ height: 0, opacity: 0 }}
-                                className="overflow-hidden"
-                              >
-                                <div className="border-t border-slate-200/80 px-3 py-3">
-                                  <div className="flex flex-col gap-1.5">
-                                    {item.children.map((child) => (
-                                      <PillNavItem
-                                        key={child.path}
-                                        href={child.path}
-                                        label={getMenuLabel(child)}
-                                        icon={renderMenuIcon(
-                                          child.icon,
-                                          child.labelKey,
-                                          isPathActive(child.path, location.pathname),
-                                        )}
-                                        active={isPathActive(child.path, location.pathname)}
-                                        newTab={child.newTab}
-                                        onNavigate={() => setMobileMenuOpen(false)}
-                                        mobile
-                                      />
-                                    ))}
-                                  </div>
-                                </div>
-                              </motion.div>
-                            ) : null}
-                          </AnimatePresence>
-                        </div>
-                      );
-                    })}
-                  </nav>
-                </div>
-
-                <div className="border-t border-slate-200/80 px-3 py-3">
-                  <div className="flex flex-col gap-1.5">
-                    {footerMenuItems.map((item) => (
-                      <FooterNavItem
-                        key={item.path}
-                        item={item}
-                        label={getMenuLabel(item)}
-                        icon={renderMenuIcon(item.icon, item.labelKey, false)}
-                      />
-                    ))}
-                  </div>
-                </div>
-              </motion.aside>
-            </>
-          )}
-        </AnimatePresence>
-
-        <aside
+      <aside
+        className={cn(
+          "fixed inset-y-0 left-0 z-50 flex w-64 flex-col border-r border-slate-200/80 bg-white/95 shadow-sm transition-[transform,width] duration-200 ease-in-out md:static md:inset-0 md:translate-x-0",
+          mobileMenuOpen ? "translate-x-0" : "-translate-x-full",
+          sidebarCollapsed && "md:w-[76px]",
+        )}
+      >
+        <div
           className={cn(
-            "hidden border-r border-slate-200/80 bg-white/90 shadow-sm md:flex md:flex-col",
-            sidebarCollapsed ? "md:w-[84px]" : "md:w-[260px]",
+            "grid h-16 grid-cols-[1fr_auto_1fr] items-center border-b border-slate-200/80 px-4",
+            sidebarCollapsed && "md:px-2",
           )}
         >
-          <div className="flex h-16 items-center justify-between border-b border-slate-200/80 px-4">
-            <Link
-              to="/admin"
+          <div />
+          <Link
+            to="/admin"
+            className="justify-self-center flex items-center gap-2 text-slate-900"
+          >
+            <span className="flex h-8 w-8 items-center justify-center rounded-md bg-slate-900 text-sm font-semibold text-white">
+              {appName.slice(0, 1).toUpperCase()}
+            </span>
+            <span
               className={cn(
-                "flex min-w-0 items-center gap-3",
-                sidebarCollapsed && "justify-center",
+                "truncate text-sm font-semibold tracking-tight",
+                sidebarCollapsed && "md:hidden",
               )}
             >
-              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-slate-900 text-sm font-semibold text-white shadow-sm">
-                K
-              </span>
-              {!sidebarCollapsed && (
-                <div className="min-w-0">
-                  <div className="truncate text-sm font-semibold tracking-tight text-slate-900">
-                    Komari
-                  </div>
-                  <div className="truncate text-xs text-slate-500">Admin Console</div>
-                </div>
-              )}
-            </Link>
-
+              {appName}
+            </span>
+          </Link>
+          <div className="justify-self-end">
             <Button
               variant="ghost"
               size="icon"
-              className="h-9 w-9 shrink-0"
-              onClick={toggleSidebarCollapsed}
+              className="h-8 w-8 md:hidden"
+              onClick={() => setMobileMenuOpen(false)}
             >
-              {sidebarCollapsed ? <PanelLeftOpen size={16} /> : <PanelLeftClose size={16} />}
+              <X className="h-4 w-4" />
             </Button>
           </div>
+        </div>
 
-          <div className="flex-1 overflow-y-auto px-3 py-4">
-            <nav className="flex flex-col gap-1.5">
-              {primaryMenuItems.map((item) => {
-                const active =
-                  item.children?.some((child) =>
-                    isPathActive(child.path, location.pathname),
-                  ) || isPathActive(item.path, location.pathname);
+        <nav
+          className={cn(
+            "flex-1 space-y-1 overflow-y-auto px-3 py-4",
+            sidebarCollapsed && "md:px-2",
+          )}
+        >
+          {primaryMenuEntries.map((entry) => {
+            const { item, active } = entry;
+            const label = getMenuLabel(item);
+            const menuKey = item.path;
 
-                return (
-                  <SidebarNavItem
-                    key={item.path}
-                    href={item.path}
-                    label={getMenuLabel(item)}
-                    icon={renderMenuIcon(item.icon, item.labelKey, active)}
-                    active={active}
-                    collapsed={sidebarCollapsed}
-                  />
-                );
-              })}
-            </nav>
-          </div>
+            if (item.children?.length) {
+              const isOpen = Boolean(openMenus[menuKey]);
 
-          <div className="border-t border-slate-200/80 px-3 py-3">
-            {!sidebarCollapsed && versionLabel && (
-              <div className="mb-3 rounded-2xl border border-slate-200/80 bg-slate-50 px-3 py-2 text-xs text-slate-500">
-                <div className="font-medium text-slate-700">{t("common.version")}</div>
-                <div className="mt-1 break-all">{versionLabel}</div>
-              </div>
-            )}
-            <div className="flex flex-col gap-1.5">
-              {footerMenuItems.map((item) => (
+              return (
+                <div key={item.path} className="space-y-1">
+                  {sidebarCollapsed ? (
+                    <div className="hidden md:block">
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className={cn(
+                              "h-9 w-full rounded-md text-slate-600 hover:bg-slate-50 hover:text-slate-900",
+                              active && "bg-slate-100 text-slate-900",
+                            )}
+                            title={label}
+                            aria-label={label}
+                          >
+                            {renderMenuIcon(item.icon, label, active, "h-5 w-5")}
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent
+                          side="right"
+                          align="start"
+                          className="min-w-[220px]"
+                        >
+                          <DropdownMenuLabel>{label}</DropdownMenuLabel>
+                          <DropdownMenuSeparator />
+                          {item.children.map((child) => {
+                            const childLabel = getMenuLabel(child);
+                            const childActive = isPathActive(
+                              child.path,
+                              location.pathname,
+                              location.search,
+                            );
+
+                            return (
+                              <DropdownMenuItem
+                                key={child.path}
+                                className={cn(
+                                  "cursor-pointer",
+                                  childActive && "bg-slate-100 text-slate-900",
+                                )}
+                                onSelect={() => navigate(child.path)}
+                              >
+                                {renderMenuIcon(
+                                  child.icon,
+                                  childLabel,
+                                  childActive,
+                                  "h-4 w-4",
+                                )}
+                                <span className="truncate">{childLabel}</span>
+                              </DropdownMenuItem>
+                            );
+                          })}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
+                  ) : null}
+
+                  <Collapsible
+                    open={isOpen}
+                    onOpenChange={(open) => setMenuOpen(menuKey, open)}
+                    className={cn(sidebarCollapsed && "md:hidden")}
+                  >
+                    <CollapsibleTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        className={cn(
+                          "h-10 w-full justify-between rounded-md px-3 text-sm font-normal text-slate-600 hover:bg-slate-50 hover:text-slate-900",
+                          active && "bg-slate-100 text-slate-900",
+                        )}
+                      >
+                        <span className="flex min-w-0 items-center gap-3">
+                          {renderMenuIcon(item.icon, label, active, "h-5 w-5")}
+                          <span className="truncate">{label}</span>
+                        </span>
+                        {isOpen ? (
+                          <ChevronDown className="h-4 w-4 shrink-0 text-slate-400" />
+                        ) : (
+                          <ChevronRight className="h-4 w-4 shrink-0 text-slate-400" />
+                        )}
+                      </Button>
+                    </CollapsibleTrigger>
+                    <CollapsibleContent className="space-y-1 pl-4 pt-1">
+                      {item.children.map((child) => {
+                        const childLabel = getMenuLabel(child);
+                        const childActive = isPathActive(
+                          child.path,
+                          location.pathname,
+                          location.search,
+                        );
+
+                        return (
+                          <Link
+                            key={child.path}
+                            to={child.path}
+                            onClick={() => setMobileMenuOpen(false)}
+                            className={cn(
+                              "flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors",
+                              childActive
+                                ? "bg-slate-100 text-slate-900 font-medium"
+                                : "text-slate-500 hover:bg-slate-50 hover:text-slate-900",
+                            )}
+                          >
+                            {renderMenuIcon(
+                              child.icon,
+                              childLabel,
+                              childActive,
+                              "h-4 w-4",
+                            )}
+                            <span className="truncate">{childLabel}</span>
+                          </Link>
+                        );
+                      })}
+                    </CollapsibleContent>
+                  </Collapsible>
+                </div>
+              );
+            }
+
+            return (
+              <Link
+                key={item.path}
+                to={item.path}
+                onClick={() => setMobileMenuOpen(false)}
+                title={label}
+                className={cn(
+                  "flex items-center gap-3 rounded-md px-4 py-2 text-sm font-medium transition-colors",
+                  sidebarCollapsed && "md:justify-center md:px-2",
+                  active
+                    ? "bg-slate-100 text-slate-900"
+                    : "text-slate-600 hover:bg-slate-50 hover:text-slate-900",
+                )}
+              >
+                {renderMenuIcon(item.icon, label, active, "h-5 w-5")}
+                <span className={cn(sidebarCollapsed && "md:hidden")}>{label}</span>
+              </Link>
+            );
+          })}
+        </nav>
+
+        <div
+          className={cn(
+            "border-t border-slate-200/80 px-3 py-3",
+            sidebarCollapsed && "md:px-2",
+          )}
+        >
+          {!sidebarCollapsed && versionLabel ? (
+            <div className="mb-3 px-1 text-xs text-slate-500">{versionLabel}</div>
+          ) : null}
+          <div className="space-y-1">
+            {footerMenuItems.map((item) => {
+              const label = getMenuLabel(item);
+              const active = isPathActive(
+                item.path,
+                location.pathname,
+                location.search,
+              );
+
+              return (
                 <FooterNavItem
                   key={item.path}
                   item={item}
-                  label={getMenuLabel(item)}
-                  icon={renderMenuIcon(item.icon, item.labelKey, false)}
+                  label={label}
+                  icon={renderMenuIcon(item.icon, label, active, "h-4 w-4")}
                   collapsed={sidebarCollapsed}
+                  active={active}
                 />
-              ))}
+              );
+            })}
+          </div>
+        </div>
+
+        <div className="hidden border-t border-slate-200/80 p-2 md:block">
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="h-9 w-full rounded-md"
+            onClick={toggleSidebarCollapsed}
+            title={t(
+              sidebarCollapsed ? "common.expand_sidebar" : "common.collapse_sidebar",
+              sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar",
+            )}
+            aria-label={t(
+              sidebarCollapsed ? "common.expand_sidebar" : "common.collapse_sidebar",
+              sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar",
+            )}
+          >
+            {sidebarCollapsed ? (
+              <ChevronsRight className="h-4 w-4" />
+            ) : (
+              <ChevronsLeft className="h-4 w-4" />
+            )}
+          </Button>
+        </div>
+      </aside>
+
+      <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
+        <header className="flex h-16 shrink-0 items-center justify-between border-b border-slate-200/80 bg-white/90 px-4 backdrop-blur md:px-6">
+          <div className="flex min-w-0 items-center gap-3">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-9 w-9 md:hidden"
+              onClick={() => setMobileMenuOpen(true)}
+            >
+              <Menu className="h-4 w-4" />
+            </Button>
+
+            <div className="min-w-0">
+              <div className="flex min-w-0 items-center gap-2">
+                <div className="truncate text-base font-semibold text-slate-900 md:text-lg">
+                  {currentPageTitle}
+                </div>
+                {renderUpdateTrigger}
+              </div>
+              <div className="truncate text-xs text-slate-500 md:text-sm">
+                {currentSectionTitle || "Admin Console"}
+              </div>
             </div>
           </div>
-        </aside>
 
-        <div className="flex min-w-0 flex-1 flex-col">
-          <header className="sticky top-0 z-30 border-b border-slate-200/80 bg-white/90 backdrop-blur">
-            <div className="flex items-center gap-3 px-4 py-3 md:px-6">
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-9 w-9 md:hidden"
-                onClick={() => setMobileMenuOpen(true)}
-              >
-                <Menu size={18} />
-              </Button>
+          <div className="flex items-center gap-2">
+            {account && !account.logged_in && (
+              <LoginDialog
+                autoOpen
+                showSettings={false}
+                onLoginSuccess={() => window.location.reload()}
+              />
+            )}
+            <ThemeSwitch />
+            <ColorSwitch />
+            <LanguageSwitch />
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-9 w-9"
+              onClick={logout}
+            >
+              <LogOut className="h-4 w-4" />
+            </Button>
+          </div>
+        </header>
 
-              <div className="min-w-0 flex-1">
-                {currentSectionTitle && (
-                  <div className="text-xs font-medium uppercase tracking-[0.18em] text-slate-400">
-                    {currentSectionTitle}
-                  </div>
-                )}
-                <div className="mt-0.5 flex min-w-0 items-center gap-2">
-                  <h1 className="truncate text-lg font-semibold tracking-tight text-slate-900 md:text-xl">
-                    {currentPageTitle}
-                  </h1>
-                  {renderUpdateTrigger}
-                </div>
-                {versionLabel && (
-                  <div className="hidden text-xs text-slate-500 lg:block">
-                    {versionLabel}
-                  </div>
-                )}
-              </div>
-
-              <div className="ml-auto flex items-center gap-2">
-                {account && !account.logged_in && (
-                  <LoginDialog
-                    autoOpen
-                    showSettings={false}
-                    onLoginSuccess={() => window.location.reload()}
-                  />
-                )}
-                <ThemeSwitch />
-                <ColorSwitch />
-                <LanguageSwitch />
-                <Button
-                  variant="outline"
-                  size="icon"
-                  className="h-9 w-9 border-slate-200 bg-white text-slate-600 shadow-none hover:bg-slate-50"
-                  onClick={logout}
+        <main className="min-h-0 flex-1 overflow-y-auto">
+          <div className="mx-auto flex w-full max-w-[1680px] flex-col gap-4 px-4 py-4 md:px-6 md:py-6">
+            {!ishttps && (
+              <div className="flex items-start gap-3 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-red-700 shadow-sm">
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="18"
+                  viewBox="0 0 24 24"
+                  className="mt-0.5 shrink-0"
                 >
-                  <LogOut size={16} />
-                </Button>
-              </div>
-            </div>
-
-            {currentSubmenuItems.length > 0 && (
-              <div className="border-t border-slate-200/70 px-4 md:px-6">
-                <nav className="flex items-center gap-2 overflow-x-auto py-3">
-                  {currentSubmenuItems.map((item) => (
-                    <PillNavItem
-                      key={item.path}
-                      href={item.path}
-                      label={getMenuLabel(item)}
-                      icon={renderMenuIcon(
-                        item.icon,
-                        item.labelKey,
-                        isPathActive(item.path, location.pathname),
-                      )}
-                      active={isPathActive(item.path, location.pathname)}
-                      newTab={item.newTab}
-                    />
-                  ))}
-                </nav>
+                  <path
+                    fill="currentColor"
+                    d="M10.03 3.659c.856-1.548 3.081-1.548 3.937 0l7.746 14.001c.83 1.5-.255 3.34-1.969 3.34H4.254c-1.715 0-2.8-1.84-1.97-3.34zM12.997 17A.999.999 0 1 0 11 17a.999.999 0 0 0 1.997 0m-.259-7.853a.75.75 0 0 0-1.493.103l.004 4.501l.007.102a.75.75 0 0 0 1.493-.103l-.004-4.502z"
+                  />
+                </svg>
+                <span className="text-sm font-medium">{t("warn_https")}</span>
               </div>
             )}
-          </header>
 
-          <main className="min-h-0 flex-1 overflow-y-auto">
-            <div className="mx-auto flex w-full max-w-[1680px] flex-col gap-4 px-4 py-4 md:px-6 md:py-6">
-              {!ishttps && (
-                <div className="flex items-start gap-3 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-red-700 shadow-sm">
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    width="18"
-                    viewBox="0 0 24 24"
-                    className="mt-0.5 shrink-0"
-                  >
-                    <path
-                      fill="currentColor"
-                      d="M10.03 3.659c.856-1.548 3.081-1.548 3.937 0l7.746 14.001c.83 1.5-.255 3.34-1.969 3.34H4.254c-1.715 0-2.8-1.84-1.97-3.34zM12.997 17A.999.999 0 1 0 11 17a.999.999 0 0 0 1.997 0m-.259-7.853a.75.75 0 0 0-1.493.103l.004 4.501l.007.102a.75.75 0 0 0 1.493-.103l-.004-4.502z"
-                    />
-                  </svg>
-                  <span className="text-sm font-medium">{t("warn_https")}</span>
-                </div>
-              )}
-
-              {content}
-            </div>
-          </main>
-        </div>
+            {content}
+          </div>
+        </main>
       </div>
     </div>
-  );
-}
-
-function SidebarNavItem({
-  href,
-  label,
-  icon,
-  active,
-  collapsed,
-}: {
-  href: string;
-  label: ReactNode;
-  icon: ReactNode;
-  active: boolean;
-  collapsed?: boolean;
-}) {
-  return (
-    <Link
-      to={href}
-      title={typeof label === "string" ? label : undefined}
-      className={cn(
-        "group flex items-center gap-3 rounded-2xl border px-3 py-3 text-sm font-medium transition-all",
-        collapsed ? "justify-center px-2" : "justify-start",
-        active
-          ? "border-slate-900 bg-slate-900 text-white shadow-sm"
-          : "border-transparent text-slate-600 hover:border-slate-200 hover:bg-slate-50 hover:text-slate-900",
-      )}
-    >
-      <span className="flex h-5 w-5 shrink-0 items-center justify-center">{icon}</span>
-      {!collapsed && <span className="truncate">{label}</span>}
-    </Link>
-  );
-}
-
-function PillNavItem({
-  href,
-  label,
-  icon,
-  active,
-  newTab,
-  onNavigate,
-  mobile = false,
-}: {
-  href: string;
-  label: ReactNode;
-  icon: ReactNode;
-  active: boolean;
-  newTab?: boolean;
-  onNavigate?: () => void;
-  mobile?: boolean;
-}) {
-  const className = cn(
-    "inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-medium transition-colors",
-    mobile ? "w-full justify-start rounded-xl" : "shrink-0",
-    active
-      ? "border-slate-900 bg-slate-900 text-white"
-      : "border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:text-slate-900",
-  );
-
-  if (newTab) {
-    return (
-      <a
-        href={href}
-        target="_blank"
-        rel="noopener noreferrer"
-        className={className}
-        onClick={onNavigate}
-      >
-        <span className="flex h-4 w-4 items-center justify-center">{icon}</span>
-        <span className="truncate">{label}</span>
-        <ExternalLink size={14} />
-      </a>
-    );
-  }
-
-  return (
-    <Link to={href} onClick={onNavigate} className={className}>
-      <span className="flex h-4 w-4 items-center justify-center">{icon}</span>
-      <span className="truncate">{label}</span>
-    </Link>
   );
 }
 
@@ -849,15 +782,20 @@ function FooterNavItem({
   label,
   icon,
   collapsed = false,
+  active = false,
 }: {
   item: MenuItem;
-  label: ReactNode;
+  label: string;
   icon: ReactNode;
   collapsed?: boolean;
+  active?: boolean;
 }) {
   const className = cn(
-    "flex items-center gap-3 rounded-2xl border border-transparent px-3 py-2.5 text-sm text-slate-600 transition-colors hover:border-slate-200 hover:bg-slate-50 hover:text-slate-900",
+    "flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors",
     collapsed && "justify-center px-2",
+    active
+      ? "bg-slate-100 text-slate-900"
+      : "text-slate-600 hover:bg-slate-50 hover:text-slate-900",
   );
 
   if (item.newTab) {
@@ -866,23 +804,19 @@ function FooterNavItem({
         href={item.path}
         target="_blank"
         rel="noopener noreferrer"
-        title={typeof label === "string" ? label : undefined}
+        title={label}
         className={className}
       >
-        <span className="flex h-4 w-4 shrink-0 items-center justify-center">{icon}</span>
+        {icon}
         {!collapsed && <span className="truncate">{label}</span>}
-        {!collapsed && <ExternalLink size={14} />}
+        {!collapsed && <ExternalLink className="ml-auto h-3.5 w-3.5" />}
       </a>
     );
   }
 
   return (
-    <Link
-      to={item.path}
-      title={typeof label === "string" ? label : undefined}
-      className={className}
-    >
-      <span className="flex h-4 w-4 shrink-0 items-center justify-center">{icon}</span>
+    <Link to={item.path} title={label} className={className}>
+      {icon}
       {!collapsed && <span className="truncate">{label}</span>}
     </Link>
   );

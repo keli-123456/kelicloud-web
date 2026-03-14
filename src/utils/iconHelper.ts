@@ -17,7 +17,8 @@ import {
   Activity,
   Palette,
   Code,
-  Cloud
+  Cloud,
+  ShipWheel,
 } from "lucide-react";
 
 // Map icon names defined in menuConfig.json to their components
@@ -40,4 +41,5 @@ export const iconMap: Record<string, React.ComponentType<any>> = {
   Palette,
   Code,
   Cloud,
+  ShipWheel,
 };

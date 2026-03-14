@@ -882,68 +882,87 @@ export default function DigitalOceanPanel() {
   };
 
   return (
-    <AdminPageShell
-      eyebrow="DigitalOcean"
-      title={t("cloud.title", "Cloud")}
-      description={t(
-        "cloud.description",
-        "Manage a pool of DigitalOcean tokens, switch the active token for operations, bulk check token health, and operate Droplets from one panel.",
-      )}
-      actions={
-        <>
-          <Button
-            variant="outline"
-            size="1"
-            onClick={() => {
-              void refreshAll();
-            }}
-            disabled={panelLoading || tokenChecking}
-          >
-            <RefreshCw className="mr-2 h-4 w-4" />
-            {t("cloud.refresh", "Refresh")}
-          </Button>
-          <Button
-            size="1"
-            onClick={handleOpenCreateDialog}
-            disabled={!connected || !catalog}
-          >
-            <Plus className="mr-2 h-4 w-4" />
-            {t("cloud.create", "Create Droplet")}
-          </Button>
-        </>
-      }
-      stats={[
-        {
-          label: t("cloud.stats.provider", "Provider"),
-          value: "DigitalOcean",
-        },
-        {
-          label: t("cloud.stats.tokens", "Tokens"),
-          value: tokenRows.length,
-        },
-        {
-          label: t("cloud.stats.account", "Account"),
-          value: (
-            <span className="inline-flex items-center gap-2">
-              <span>{account?.email || activeToken?.account_email || "-"}</span>
-              {accountStatusSummary ? (
-                <span title={account?.status_message || accountStatusSummary}>
-                  <Badge color="red">{accountStatusSummary}</Badge>
-                </span>
-              ) : null}
-            </span>
-          ),
-        },
-        {
-          label: t("cloud.stats.droplets", "Droplets"),
-          value: droplets.length,
-        },
-        {
-          label: t("cloud.stats.running", "Running"),
-          value: runningCount,
-        },
-      ]}
+    <Tabs.Root
+      value={panelSection}
+      onValueChange={(value) => handlePanelSectionChange(value as "droplets" | "tokens")}
     >
+      <AdminPageShell
+        eyebrow="DigitalOcean"
+        title="DigitalOcean"
+        description={t(
+          "cloud.description",
+          "Manage tokens, launch Droplets, and handle lifecycle actions from one workbench.",
+        )}
+        actions={
+          <>
+            <Button
+              variant="outline"
+              size="1"
+              onClick={() => {
+                void refreshAll();
+              }}
+              disabled={panelLoading || tokenChecking}
+            >
+              <RefreshCw className="mr-2 h-4 w-4" />
+              {t("cloud.refresh", "Refresh")}
+            </Button>
+            <Button
+              size="1"
+              onClick={handleOpenCreateDialog}
+              disabled={!connected || !catalog}
+            >
+              <Plus className="mr-2 h-4 w-4" />
+              {t("cloud.create", "Create Droplet")}
+            </Button>
+          </>
+        }
+        statsVariant="cards"
+        stats={[
+          {
+            label: t("cloud.stats.tokens", "Tokens"),
+            value: tokenRows.length,
+            hint: t("cloud.sections.tokens", "Token Management"),
+            tone: "blue",
+          },
+          {
+            label: t("cloud.stats.account", "Account"),
+            value: (
+              <span className="inline-flex items-center gap-2">
+                <span>{account?.email || activeToken?.account_email || "-"}</span>
+                {accountStatusSummary ? (
+                  <span title={account?.status_message || accountStatusSummary}>
+                    <Badge color="red">{accountStatusSummary}</Badge>
+                  </span>
+                ) : null}
+              </span>
+            ),
+            hint: activeToken?.name || "-",
+            tone: accountStatusSummary ? "amber" : "slate",
+          },
+          {
+            label: t("cloud.stats.droplets", "Droplets"),
+            value: droplets.length,
+            hint: t("cloud.sections.droplets", "Droplet List"),
+            tone: "slate",
+          },
+          {
+            label: t("cloud.stats.running", "Running"),
+            value: runningCount,
+            hint: connected ? t("common.connected", "Connected") : t("cloud.no_active_token", "No active token"),
+            tone: runningCount > 0 ? "emerald" : "slate",
+          },
+        ]}
+        subnav={(
+          <Tabs.List className="grid w-full grid-cols-2 rounded-xl bg-slate-100 p-1 sm:w-auto">
+            <Tabs.Trigger value="droplets">
+              {t("cloud.sections.droplets", "Droplet List")} ({droplets.length})
+            </Tabs.Trigger>
+            <Tabs.Trigger value="tokens">
+              {t("cloud.sections.tokens", "Token Management")} ({tokenRows.length})
+            </Tabs.Trigger>
+          </Tabs.List>
+        )}
+      >
       {error ? (
         <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
           {error}
@@ -979,35 +998,7 @@ export default function DigitalOceanPanel() {
         </div>
       ) : null}
 
-      <Tabs.Root
-        value={panelSection}
-        onValueChange={(value) => handlePanelSectionChange(value as "droplets" | "tokens")}
-      >
-        <div className="rounded-2xl border border-slate-200 bg-white px-5 py-4">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <div className="text-sm font-medium text-slate-900">
-                {t("cloud.panel_title", "Panel View")}
-              </div>
-              <div className="mt-1 text-sm text-slate-500">
-                {t(
-                  "cloud.panel_description",
-                  "Switch between Droplet operations and token management to keep the page compact when you store many credentials.",
-                )}
-              </div>
-            </div>
-            <Tabs.List>
-              <Tabs.Trigger value="droplets">
-                {t("cloud.sections.droplets", "Droplet List")} ({droplets.length})
-              </Tabs.Trigger>
-              <Tabs.Trigger value="tokens">
-                {t("cloud.sections.tokens", "Token Management")} ({tokenRows.length})
-              </Tabs.Trigger>
-            </Tabs.List>
-          </div>
-        </div>
-
-        <Tabs.Content value="droplets">
+      <Tabs.Content value="droplets">
           <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
             <div className="border-b border-slate-200 px-5 py-4">
               <div className="flex flex-wrap items-center justify-between gap-3">
@@ -1198,9 +1189,9 @@ export default function DigitalOceanPanel() {
               </TableBody>
             </Table>
           </div>
-        </Tabs.Content>
+      </Tabs.Content>
 
-        <Tabs.Content value="tokens">
+      <Tabs.Content value="tokens">
           <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
             <div className="border-b border-slate-200 px-5 py-4">
               <div className="flex flex-wrap items-center justify-between gap-3">
@@ -1386,8 +1377,7 @@ export default function DigitalOceanPanel() {
               </Table>
             </div>
           </div>
-        </Tabs.Content>
-      </Tabs.Root>
+      </Tabs.Content>
 
       <Dialog.Root open={tokenImportOpen} onOpenChange={setTokenImportOpen}>
         <Dialog.Content className="max-h-[85vh] overflow-y-auto">
@@ -2263,6 +2253,7 @@ export default function DigitalOceanPanel() {
           ) : null}
         </Dialog.Content>
       </Dialog.Root>
-    </AdminPageShell>
+      </AdminPageShell>
+    </Tabs.Root>
   );
 }

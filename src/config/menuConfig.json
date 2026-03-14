@@ -8,7 +8,24 @@
     {
       "labelKey": "cloud.title",
       "path": "/admin/cloud",
-      "icon": "Cloud"
+      "icon": "Cloud",
+      "children": [
+        {
+          "labelKey": "cloud.providers.digitalocean.title",
+          "path": "/admin/cloud?provider=digitalocean",
+          "icon": "Cloud"
+        },
+        {
+          "labelKey": "cloud.providers.linode.title",
+          "path": "/admin/cloud?provider=linode",
+          "icon": "Server"
+        },
+        {
+          "labelKey": "cloud.providers.aws.title",
+          "path": "/admin/cloud?provider=aws",
+          "icon": "ShipWheel"
+        }
+      ]
     },
     {
       "labelKey": "settings.title",
@@ -19,11 +36,6 @@
           "labelKey": "settings.site.title",
           "path": "/admin/settings/site",
           "icon": "Home"
-        },
-        {
-          "labelKey": "theme.title",
-          "path": "/admin/settings/theme",
-          "icon": "Palette"
         },
         {
           "labelKey": "settings.sign_on.title",
@@ -88,23 +100,6 @@
       "labelKey": "logs.title",
       "path": "/admin/logs",
       "icon": "FileText"
-    },
-    {
-      "labelKey": "common.about",
-      "path": "/admin/about",
-      "icon": "AtSign"
-    },
-    {
-      "labelKey": "common.documentation",
-      "path": "https://komari-document.pages.dev/",
-      "icon": "Book",
-      "newTab": true
-    },
-    {
-      "labelKey": "common.home",
-      "path": "/",
-      "icon": "Home",
-      "newTab": true
     }
   ]
 }

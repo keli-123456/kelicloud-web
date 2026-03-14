@@ -31,12 +31,6 @@ export const routes: RouteObject[] = [
     children: [
       { index: true, element: React.createElement(Admin) },
       {
-        path: "theme_managed",
-        element: React.createElement(
-          lazy(() => import("./pages/admin/theme_managed.tsx"))
-        ),
-      },
-      {
         path: "sessions",
         element: React.createElement(
           lazy(() => import("./pages/admin/sessions"))
@@ -69,12 +63,6 @@ export const routes: RouteObject[] = [
             path: "site",
             element: React.createElement(
               lazy(() => import("./pages/admin/settings/site"))
-            ),
-          },
-          {
-            path: "theme",
-            element: React.createElement(
-              lazy(() => import("./pages/admin/settings/theme"))
             ),
           },
           {

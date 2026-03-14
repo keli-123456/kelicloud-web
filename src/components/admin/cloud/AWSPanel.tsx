@@ -1023,67 +1023,88 @@ export default function AWSPanel() {
   }
 
   return (
-    <AdminPageShell
-      eyebrow="AWS EC2"
-      title={t("cloud.providers.aws.title", "AWS EC2 / Lightsail")}
-      description={t(
-        "cloud.providers.aws.description",
-        "Manage multiple AWS credentials, switch the active region, and operate both EC2 and Lightsail instances from one panel.",
-      )}
-      actions={
-        <>
-          <Button
-            variant="outline"
-            size="1"
-            onClick={() => {
-              void refreshAll();
-            }}
-            disabled={panelLoading || credentialChecking}
-          >
-            <RefreshCw className="mr-2 h-4 w-4" />
-            {t("cloud.refresh", "Refresh")}
-          </Button>
-          <Button
-            size="1"
-            onClick={() => {
-              if (instanceView === "lightsail") {
-                handleOpenLightsailCreateDialog();
-                return;
-              }
-              handleOpenCreateDialog();
-            }}
-            disabled={!connected || (instanceView === "lightsail" ? !lightsailCatalog : !catalog)}
-          >
-            <Plus className="mr-2 h-4 w-4" />
-            {instanceView === "lightsail"
-              ? t("cloud.providers.aws.lightsail_create", "Create Lightsail")
-              : t("cloud.providers.aws.create", "Launch EC2")}
-          </Button>
-        </>
-      }
-      stats={[
-        {
-          label: t("cloud.stats.provider", "Provider"),
-          value: "AWS EC2 / Lightsail",
-        },
-        {
-          label: t("cloud.providers.aws.credentials", "Credentials"),
-          value: credentialPool?.credentials.length || 0,
-        },
-        {
-          label: t("cloud.stats.account", "Account"),
-          value: account?.account_id || activeCredential?.account_id || "-",
-        },
-        {
-          label: t("cloud.providers.aws.region", "Region"),
-          value: activeRegion,
-        },
-        {
-          label: t("cloud.stats.running", "Running"),
-          value: instanceView === "lightsail" ? lightsailRunningCount : runningCount,
-        },
-      ]}
-    >
+    <Tabs.Root value={panelSection} onValueChange={(value) => setPanelSection(value as "instances" | "credentials")}>
+      <AdminPageShell
+        eyebrow="AWS"
+        title="AWS EC2 / Lightsail"
+        description={t(
+          "cloud.providers.aws.description",
+          "Manage credentials, active region, EC2, and Lightsail from one workbench.",
+        )}
+        actions={
+          <>
+            <Button
+              variant="outline"
+              size="1"
+              onClick={() => {
+                void refreshAll();
+              }}
+              disabled={panelLoading || credentialChecking}
+            >
+              <RefreshCw className="mr-2 h-4 w-4" />
+              {t("cloud.refresh", "Refresh")}
+            </Button>
+            <Button
+              size="1"
+              onClick={() => {
+                if (instanceView === "lightsail") {
+                  handleOpenLightsailCreateDialog();
+                  return;
+                }
+                handleOpenCreateDialog();
+              }}
+              disabled={!connected || (instanceView === "lightsail" ? !lightsailCatalog : !catalog)}
+            >
+              <Plus className="mr-2 h-4 w-4" />
+              {instanceView === "lightsail"
+                ? t("cloud.providers.aws.lightsail_create", "Create Lightsail")
+                : t("cloud.providers.aws.create", "Launch EC2")}
+            </Button>
+          </>
+        }
+        statsVariant="cards"
+        stats={[
+          {
+            label: t("cloud.providers.aws.credentials", "Credentials"),
+            value: credentialPool?.credentials.length || 0,
+            hint: t("cloud.providers.aws.credentials", "Credentials"),
+            tone: "blue",
+          },
+          {
+            label: t("cloud.stats.account", "Account"),
+            value: account?.account_id || activeCredential?.account_id || "-",
+            hint: activeCredential?.name || "-",
+            tone: "slate",
+          },
+          {
+            label: t("cloud.providers.aws.region", "Region"),
+            value: activeRegion,
+            hint: t("cloud.providers.aws.active_region", "Active Region"),
+            tone: "amber",
+          },
+          {
+            label: t("cloud.stats.running", "Running"),
+            value: instanceView === "lightsail" ? lightsailRunningCount : runningCount,
+            hint: instanceView === "lightsail"
+              ? t("cloud.providers.aws.lightsail_instances", "Lightsail")
+              : t("cloud.providers.aws.instance_list", "EC2 Instances"),
+            tone:
+              (instanceView === "lightsail" ? lightsailRunningCount : runningCount) > 0
+                ? "emerald"
+                : "slate",
+          },
+        ]}
+        subnav={(
+          <Tabs.List className="grid w-full grid-cols-2 rounded-xl bg-slate-100 p-1 sm:w-auto">
+            <Tabs.Trigger value="instances">
+              {t("cloud.providers.aws.compute", "Compute")}
+            </Tabs.Trigger>
+            <Tabs.Trigger value="credentials">
+              {t("cloud.providers.aws.credentials", "Credentials")} ({credentialPool?.credentials.length || 0})
+            </Tabs.Trigger>
+          </Tabs.List>
+        )}
+      >
       {error ? (
         <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
           {error}
@@ -1100,103 +1121,78 @@ export default function AWSPanel() {
         </div>
       ) : null}
 
-      <div className="grid gap-4 xl:grid-cols-[minmax(0,1.05fr)_minmax(0,1fr)]">
-        <div className="rounded-2xl border border-slate-200 bg-white px-5 py-4">
-          <div className="flex flex-wrap items-center justify-between gap-4">
-            <div>
-              <div className="text-sm font-medium text-slate-900">
-                {t("cloud.providers.aws.active_region", "Active Region")}
+      <Tabs.Content value="instances">
+        <div className="grid gap-4 xl:grid-cols-[minmax(0,1.05fr)_minmax(0,1fr)]">
+          <div className="rounded-2xl border border-slate-200 bg-white px-5 py-4">
+            <div className="flex flex-wrap items-center justify-between gap-4">
+              <div>
+                <div className="text-sm font-medium text-slate-900">
+                  {t("cloud.providers.aws.active_region", "Active Region")}
+                </div>
+                <div className="mt-1 text-sm text-slate-500">
+                  {t(
+                    "cloud.providers.aws.active_region_description",
+                    "EC2 instances, AMIs, key pairs, subnets, and security groups are all loaded from the currently selected AWS region.",
+                  )}
+                </div>
               </div>
-              <div className="mt-1 text-sm text-slate-500">
-                {t(
-                  "cloud.providers.aws.active_region_description",
-                  "EC2 instances, AMIs, key pairs, subnets, and security groups are all loaded from the currently selected AWS region.",
-                )}
+              <div className="min-w-56">
+                <Select.Root value={activeRegion} onValueChange={(value) => { void handleRegionChange(value); }}>
+                  <Select.Trigger placeholder={t("cloud.providers.aws.active_region", "Active Region")} />
+                  <Select.Content>
+                    {(catalog?.regions || []).map((region) => (
+                      <Select.Item key={region.name} value={region.name}>
+                        {region.name}
+                      </Select.Item>
+                    ))}
+                  </Select.Content>
+                </Select.Root>
               </div>
             </div>
-            <div className="min-w-56">
-              <Select.Root value={activeRegion} onValueChange={(value) => { void handleRegionChange(value); }}>
-                <Select.Trigger placeholder={t("cloud.providers.aws.active_region", "Active Region")} />
-                <Select.Content>
-                  {(catalog?.regions || []).map((region) => (
-                    <Select.Item key={region.name} value={region.name}>
-                      {region.name}
-                    </Select.Item>
-                  ))}
-                </Select.Content>
-              </Select.Root>
+          </div>
+
+          <div className="rounded-2xl border border-slate-200 bg-white px-5 py-4">
+            <div className="text-sm font-medium text-slate-900">
+              {t("cloud.providers.aws.account_snapshot", "Account Snapshot")}
+            </div>
+            <div className="mt-1 text-sm text-slate-500">
+              {t(
+                "cloud.providers.aws.account_snapshot_description",
+                "Review the active account identity and the EC2 quotas Komari can currently read for this region.",
+              )}
+            </div>
+
+            <div className="mt-4 grid gap-3 sm:grid-cols-2">
+              <DetailItem
+                label={t("cloud.tokens.table.account", "Account")}
+                value={account?.account_id || activeCredential?.account_id || "-"}
+              />
+              <DetailItem
+                label={t("cloud.providers.aws.user_id", "User ID")}
+                value={account?.user_id || activeCredential?.user_id || "-"}
+              />
+              <DetailItem
+                label={t("cloud.providers.aws.arn", "ARN")}
+                value={account?.arn || activeCredential?.arn || "-"}
+              />
+              <DetailItem
+                label={t("cloud.providers.aws.quota_scope", "Quota Scope")}
+                value={activeQuota?.region || activeRegion}
+              />
+            </div>
+
+            <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
+              <div className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">
+                {t("cloud.providers.aws.ec2_quota", "EC2 Quota")}
+              </div>
+              <div className="mt-2">
+                <AWSQuotaSummary quota={activeQuota} error={activeQuotaError} t={t} />
+              </div>
             </div>
           </div>
         </div>
 
-        <div className="rounded-2xl border border-slate-200 bg-white px-5 py-4">
-          <div className="text-sm font-medium text-slate-900">
-            {t("cloud.providers.aws.account_snapshot", "Account Snapshot")}
-          </div>
-          <div className="mt-1 text-sm text-slate-500">
-            {t(
-              "cloud.providers.aws.account_snapshot_description",
-              "Review the active account identity and the EC2 quotas Komari can currently read for this region.",
-            )}
-          </div>
-
-          <div className="mt-4 grid gap-3 sm:grid-cols-2">
-            <DetailItem
-              label={t("cloud.tokens.table.account", "Account")}
-              value={account?.account_id || activeCredential?.account_id || "-"}
-            />
-            <DetailItem
-              label={t("cloud.providers.aws.user_id", "User ID")}
-              value={account?.user_id || activeCredential?.user_id || "-"}
-            />
-            <DetailItem
-              label={t("cloud.providers.aws.arn", "ARN")}
-              value={account?.arn || activeCredential?.arn || "-"}
-            />
-            <DetailItem
-              label={t("cloud.providers.aws.quota_scope", "Quota Scope")}
-              value={activeQuota?.region || activeRegion}
-            />
-          </div>
-
-          <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
-            <div className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">
-              {t("cloud.providers.aws.ec2_quota", "EC2 Quota")}
-            </div>
-            <div className="mt-2">
-              <AWSQuotaSummary quota={activeQuota} error={activeQuotaError} t={t} />
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <Tabs.Root value={panelSection} onValueChange={(value) => setPanelSection(value as "instances" | "credentials")}>
-        <div className="rounded-2xl border border-slate-200 bg-white px-5 py-4">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <div className="text-sm font-medium text-slate-900">
-                {t("cloud.panel_title", "Panel View")}
-              </div>
-              <div className="mt-1 text-sm text-slate-500">
-                {t(
-                  "cloud.providers.aws.panel_description",
-                  "Split AWS credentials and EC2 instance operations so region changes and account switching stay clear.",
-                )}
-              </div>
-            </div>
-            <Tabs.List>
-              <Tabs.Trigger value="instances">
-                {t("cloud.providers.aws.instance_list", "EC2 Instances")} ({instances.length})
-              </Tabs.Trigger>
-              <Tabs.Trigger value="credentials">
-                {t("cloud.providers.aws.credentials", "Credentials")} ({credentialPool?.credentials.length || 0})
-              </Tabs.Trigger>
-            </Tabs.List>
-          </div>
-        </div>
-
-        <Tabs.Content value="instances">
-          <Tabs.Root value={instanceView} onValueChange={(value) => setInstanceView(value as "ec2" | "lightsail")}>
+        <Tabs.Root value={instanceView} onValueChange={(value) => setInstanceView(value as "ec2" | "lightsail")}>
             <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
               <div className="border-b border-slate-200 px-5 py-4">
                 <div className="flex flex-wrap items-center justify-between gap-3">
@@ -1682,7 +1678,6 @@ export default function AWSPanel() {
             </div>
           </div>
         </Tabs.Content>
-      </Tabs.Root>
 
       <Dialog.Root open={credentialImportOpen} onOpenChange={setCredentialImportOpen}>
         <Dialog.Content className="max-h-[85vh] overflow-y-auto">
@@ -2820,6 +2815,7 @@ export default function AWSPanel() {
           ) : null}
         </Dialog.Content>
       </Dialog.Root>
-    </AdminPageShell>
+      </AdminPageShell>
+    </Tabs.Root>
   );
 }

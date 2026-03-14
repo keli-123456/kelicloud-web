@@ -13,23 +13,33 @@ import {
   Flex,
   IconButton,
   SegmentedControl,
-  Switch,
   Text,
   TextArea,
   TextField,
 } from "@/components/admin/admin-ui";
 import {
-  CircleDollarSign,
   Copy,
   Download,
-  Pencil,
+  LoaderCircle,
   Plus,
+  RefreshCw,
   Terminal,
   Trash2Icon,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import Flag from "@/components/Flag";
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuTrigger,
+} from "@/components/ui/context-menu";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import {
   Table,
   TableBody,
@@ -38,11 +48,10 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { formatBytes, stringToBytes } from "@/utils/unitHelper";
+import { formatBytes } from "@/utils/unitHelper";
 import Loading from "@/components/loading";
 import Tips from "@/components/ui/tips";
-import { useSettings } from "@/lib/api";
-import { SelectOrInput } from "@/components/ui/select-or-input";
+import { type SettingsResponse, useSettings } from "@/lib/api";
 import { useRPC2Call } from "@/contexts/RPC2Context";
 import type { Record as LiveRecord } from "@/types/LiveData";
 import { buildAgentInstallScriptURL } from "@/lib/installScriptSource";
@@ -59,6 +68,55 @@ const NodeDetailsPage = () => {
 type NodeLiveSnapshot = {
   online: boolean;
   record: LiveRecord;
+};
+
+type ExecResponse = {
+  success?: boolean;
+  task_id?: string;
+  message?: string;
+  status?: string;
+  data?: {
+    task_id?: string;
+  };
+};
+
+type TaskResult = {
+  task_id: string;
+  client: string;
+  result: string;
+  exit_code: number | null;
+  finished_at: string | null;
+  created_at: string;
+};
+
+type TaskResultResponse = {
+  success?: boolean;
+  results?: TaskResult[];
+  message?: string;
+  status?: string;
+  data?: TaskResult[];
+};
+
+type UpgradeExecutionStatus =
+  | "idle"
+  | "pending"
+  | "running"
+  | "success"
+  | "failed"
+  | "timeout";
+
+type UpgradeTask = {
+  taskId: string;
+  platform: Platform;
+  clientIds: string[];
+};
+
+type NodeUpgradeState = {
+  status: UpgradeExecutionStatus;
+  taskId?: string;
+  output: string;
+  exitCode: number | null;
+  finishedAt: string | null;
 };
 
 const DEFAULT_GROUP_NAME = "默认分组";
@@ -110,7 +168,6 @@ const NODE_DIALOG_CONTENT_CLASS =
   "max-h-[85vh] overflow-y-auto rounded-2xl border-slate-200/80 p-5 sm:p-6";
 const NODE_DIALOG_SECTION_CLASS =
   "rounded-xl border border-slate-200/80 bg-slate-50/60 p-4";
-const NODE_DIALOG_LABEL_CLASS = "text-[13px] font-medium text-slate-700";
 const NODE_DIALOG_HINT_CLASS = "text-[13px] leading-6 text-slate-500";
 const NODE_DIALOG_FOOTER_CLASS =
   "mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end";
@@ -159,30 +216,138 @@ const normalizeLiveSnapshot = (value: any): NodeLiveSnapshot => {
   };
 };
 
+const formatDateTimeLabel = (value?: string) => {
+  const normalized = String(value || "").trim();
+  if (!normalized) return "-";
+
+  const parsed = new Date(normalized);
+  if (Number.isNaN(parsed.getTime())) {
+    return normalized;
+  }
+
+  return parsed.toLocaleString("zh-CN", { hour12: false });
+};
+
+const detectNodePlatform = (node: NodeDetail): Platform => {
+  const osLabel = String(node.os || "").toLowerCase();
+  if (
+    osLabel.includes("windows") ||
+    osLabel.includes("win32") ||
+    osLabel.includes("win64")
+  ) {
+    return "windows";
+  }
+  if (
+    osLabel.includes("mac") ||
+    osLabel.includes("macos") ||
+    osLabel.includes("darwin") ||
+    osLabel.includes("os x")
+  ) {
+    return "macos";
+  }
+  return "linux";
+};
+
+const resolveScriptHost = (settings: SettingsResponse) => {
+  const raw = String(settings?.script_domain || "").trim();
+  if (!raw) {
+    return window.location.origin;
+  }
+  if (raw.startsWith("http://") || raw.startsWith("https://")) {
+    return raw.replace(/\/+$/, "");
+  }
+  return `http://${raw.replace(/\/+$/, "")}`;
+};
+
+const buildAgentUpgradeCommand = (
+  node: NodeDetail,
+  settings: SettingsResponse
+) => {
+  const host = resolveScriptHost(settings);
+  const token = String(node.token || "").trim();
+  const platform = detectNodePlatform(node);
+
+  if (!token) {
+    return "";
+  }
+
+  if (platform === "windows") {
+    const scriptUrl = buildAgentInstallScriptURL(
+      settings.base_scripts_url,
+      "install.ps1"
+    );
+    return (
+      "powershell.exe -NoProfile -ExecutionPolicy Bypass -Command " +
+      powershellQuote(
+        `$scriptPath = Join-Path $env:TEMP 'komari-install.ps1'; ` +
+          `Invoke-WebRequest ${powershellQuote(scriptUrl)} -UseBasicParsing -OutFile $scriptPath; ` +
+          `& $scriptPath -e ${powershellQuote(host)} -t ${powershellQuote(token)}`
+      )
+    );
+  }
+
+  const scriptUrl = buildAgentInstallScriptURL(
+    settings.base_scripts_url,
+    "install.sh"
+  );
+  const shellArgs = ["-e", host, "-t", token].map(shellQuote).join(" ");
+  const shellName = platform === "macos" ? "zsh" : "bash";
+
+  return [
+    'TMP_SCRIPT="$(mktemp)"',
+    `if command -v curl >/dev/null 2>&1; then curl -fsSL ${shellQuote(
+      scriptUrl
+    )} > "$TMP_SCRIPT"; else wget -qO- ${shellQuote(scriptUrl)} > "$TMP_SCRIPT"; fi`,
+    "STATUS=$?",
+    'if [ "$STATUS" -ne 0 ]; then rm -f "$TMP_SCRIPT"; exit "$STATUS"; fi',
+    `if [ "$(id -u)" -ne 0 ] && command -v sudo >/dev/null 2>&1; then sudo ${shellName} "$TMP_SCRIPT" ${shellArgs}; else ${shellName} "$TMP_SCRIPT" ${shellArgs}; fi`,
+    "STATUS=$?",
+    'rm -f "$TMP_SCRIPT"',
+    'exit "$STATUS"',
+  ].join("; ");
+};
+
+const getNodePrimaryAddress = (node: NodeDetail) =>
+  formatNodeIp(node.ipv4) !== "-"
+    ? formatNodeIp(node.ipv4)
+    : formatNodeIp(node.ipv6) !== "-"
+      ? formatNodeIp(node.ipv6)
+      : node.uuid.slice(0, 8);
+
+const isNodeConnectivityBlocked = (live?: NodeLiveSnapshot) =>
+  live?.record.cn_connectivity?.status === "blocked_suspected";
+
 const Layout = () => {
   const { nodeDetail, isLoading, error, refresh } = useNodeDetails();
   const { call } = useRPC2Call();
-  const [searchTerm, setSearchTerm] = useState("");
+  const { settings } = useSettings();
   const [liveByNode, setLiveByNode] = useState<Record<string, NodeLiveSnapshot>>(
     {}
   );
   const [liveLoaded, setLiveLoaded] = useState(false);
   const [liveError, setLiveError] = useState<string | null>(null);
   const allNodes = Array.isArray(nodeDetail)
-    ? [...nodeDetail].sort((a, b) => a.weight - b.weight)
+    ? [...nodeDetail].sort((a, b) => {
+        const leftGroup = getNodeGroupLabel(a);
+        const rightGroup = getNodeGroupLabel(b);
+
+        if (leftGroup === DEFAULT_GROUP_NAME && rightGroup !== DEFAULT_GROUP_NAME) {
+          return 1;
+        }
+        if (leftGroup !== DEFAULT_GROUP_NAME && rightGroup === DEFAULT_GROUP_NAME) {
+          return -1;
+        }
+
+        const groupDiff = leftGroup.localeCompare(rightGroup, "zh-CN");
+        if (groupDiff !== 0) return groupDiff;
+
+        if ((a.weight ?? 0) !== (b.weight ?? 0)) {
+          return (a.weight ?? 0) - (b.weight ?? 0);
+        }
+
+        return String(a.name || "").localeCompare(String(b.name || ""), "zh-CN");
+      })
     : [];
-  const normalizedSearchTerm = searchTerm.trim().toLowerCase();
-  const filteredNodes = allNodes.filter((node) => {
-    if (!normalizedSearchTerm) return true;
-    return [
-      node.name,
-      node.ipv4,
-      node.ipv6,
-      getNodeGroupLabel(node),
-    ].some((value) =>
-      String(value || "").toLowerCase().includes(normalizedSearchTerm)
-    );
-  });
 
   useEffect(() => {
     const interval = window.setInterval(() => {
@@ -248,13 +413,13 @@ const Layout = () => {
         liveByNode={liveByNode}
         liveLoaded={liveLoaded}
         liveError={liveError}
-        searchTerm={searchTerm}
-        setSearchTerm={setSearchTerm}
+        settings={settings}
       />
 
       <NodeTable
-        nodes={filteredNodes}
+        nodes={allNodes}
         liveByNode={liveByNode}
+        settings={settings}
       />
     </div>
   );
@@ -265,19 +430,16 @@ const Header = ({
   liveByNode,
   liveLoaded,
   liveError,
-  searchTerm,
-  setSearchTerm,
+  settings,
 }: {
   nodes: NodeDetail[];
   liveByNode: Record<string, NodeLiveSnapshot>;
   liveLoaded: boolean;
   liveError: string | null;
-  searchTerm: string;
-  setSearchTerm: (term: string) => void;
+  settings: SettingsResponse;
 }) => {
   const { t } = useTranslation();
   const { refresh } = useNodeDetails();
-  const { settings } = useSettings();
   const [loading, setLoading] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [cleanupOpen, setCleanupOpen] = useState(false);
@@ -361,9 +523,10 @@ const Header = ({
     }
   };
   return (
-    <Card className="border border-slate-200/70 bg-white/92 p-4 shadow-[0_12px_32px_rgba(15,23,42,0.06)]">
-      <div className="flex flex-col gap-4 2xl:flex-row 2xl:items-start 2xl:justify-between">
-        <div className="flex flex-wrap items-center gap-2">
+    <Card className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+        <div className="min-w-0 space-y-3">
+          <div className="flex flex-wrap items-center gap-2">
           <Text className="text-xl font-semibold tracking-tight text-slate-900">
             {t("admin.nodeTable.nodeList")}
           </Text>
@@ -386,29 +549,29 @@ const Header = ({
               实时状态接口异常，已暂停批量删除。
             </Text>
           )}
-        </div>
-
-        <div className="flex min-w-0 flex-col gap-3 xl:flex-row xl:items-center xl:justify-end">
+          </div>
           <div className="flex min-w-0 flex-wrap items-center gap-2">
-            <div className="flex shrink-0 items-center gap-3 whitespace-nowrap rounded-2xl border border-slate-200/80 bg-slate-50 px-4 py-2 text-sm text-slate-600">
+            <div className="flex shrink-0 items-center gap-3 whitespace-nowrap rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-600">
               <span className="font-medium text-slate-900">总速率</span>
               <span>↑ {formatBytes(totalUploadSpeed)}/s</span>
               <span>↓ {formatBytes(totalDownloadSpeed)}/s</span>
             </div>
-            <div className="flex shrink-0 items-center gap-3 whitespace-nowrap rounded-2xl border border-slate-200/80 bg-slate-50 px-4 py-2 text-sm text-slate-600">
+            <div className="flex shrink-0 items-center gap-3 whitespace-nowrap rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-600">
               <span className="font-medium text-slate-900">总流量</span>
               <span>↑ {formatBytes(totalUploadTraffic)}</span>
               <span>↓ {formatBytes(totalDownloadTraffic)}</span>
             </div>
           </div>
-          <TextField.Root
-            size="3"
-            className="w-full min-w-0 rounded-2xl border border-slate-200/80 bg-white shadow-sm xl:w-[280px]"
-            placeholder="搜索 IP / 分组"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
-          <div className="flex flex-wrap gap-2 xl:justify-end">
+          <div className="text-sm text-slate-500">
+            {cnConnectivityConfigured
+              ? `国内连通探测：${cnConnectivityTarget}`
+              : cnConnectivityEnabled
+                ? "国内连通探测已启用，但还没有填写探测目标。"
+                : "国内连通探测未启用。"}
+          </div>
+        </div>
+
+        <div className="flex flex-wrap gap-2 lg:justify-end">
             <GenerateCommandButton
               nodes={nodes}
               settings={settings}
@@ -468,7 +631,7 @@ const Header = ({
             </Dialog.Root>
             <Dialog.Root open={dialogOpen} onOpenChange={setDialogOpen}>
               <Dialog.Trigger>
-                <Button onClick={() => setDialogOpen(true)} className="rounded-2xl bg-slate-900 text-white">
+                <Button onClick={() => setDialogOpen(true)} className="rounded-lg bg-slate-900 text-white">
                   <Plus size={16} />
                   {t("admin.nodeTable.addNode")}
                 </Button>
@@ -506,29 +669,7 @@ const Header = ({
                 </div>
               </Dialog.Content>
             </Dialog.Root>
-          </div>
         </div>
-      </div>
-      <div className="mt-4 flex flex-col gap-3 rounded-2xl border border-slate-200/80 bg-slate-50/80 px-4 py-3 text-sm text-slate-700 lg:flex-row lg:items-center lg:justify-between">
-        <div className="space-y-1">
-          <div className="font-medium text-slate-900">国内连通探测</div>
-          <div>
-            {cnConnectivityConfigured
-              ? `当前探测目标：${cnConnectivityTarget}`
-              : cnConnectivityEnabled
-                ? "已启用国内连通探测，但还没有填写探测目标 IP / 域名。"
-                : "国内连通探测当前未启用。"}
-          </div>
-        </div>
-        <Button
-          variant="outline"
-          className="rounded-2xl"
-          onClick={() => {
-            window.location.assign("/admin/settings/general");
-          }}
-        >
-          前往设置
-        </Button>
       </div>
     </Card>
   );
@@ -562,32 +703,6 @@ const getDefaultInstallDir = (platform: Platform) => {
     default:
       return "/opt/komari";
   }
-};
-
-const UsageBar = ({
-  percent,
-  colorClass,
-  title,
-}: {
-  percent: number;
-  colorClass: string;
-  title?: string;
-}) => {
-  const safePercent = clampPercent(percent);
-
-  return (
-    <div className="min-w-[164px] cursor-help" title={title}>
-      <div className="relative h-6 overflow-hidden rounded-full border border-slate-200/80 bg-slate-100">
-        <div
-          className={`h-full rounded-full transition-all duration-300 ${colorClass}`}
-          style={{ width: `${safePercent}%` }}
-        />
-        <div className="absolute inset-0 flex items-center justify-center text-[12px] font-semibold tracking-tight text-slate-700">
-          {formatPercent(safePercent)}
-        </div>
-      </div>
-    </div>
-  );
 };
 
 const StatusSummary = ({
@@ -676,22 +791,81 @@ const buildCNConnectivityBadge = (
   }
 };
 
-const ExitIpSummary = ({ node }: { node: NodeDetail }) => (
-  <div className="flex min-w-[200px] items-start gap-2 text-[13px] text-slate-700">
-    <div className="pt-0.5">
-      <Flag flag={node.region} size="4" />
-    </div>
-    <div className="min-w-0 space-y-0.5">
-      <div className="truncate">
-        <span className="mr-1 text-slate-400">IPv4</span>
-        {formatNodeIp(node.ipv4)}
-      </div>
-      <div className="truncate">
-        <span className="mr-1 text-slate-400">IPv6</span>
-        {formatNodeIp(node.ipv6)}
-      </div>
-    </div>
+const VersionSummary = ({ node }: { node: NodeDetail }) => (
+  <div className="min-w-[112px]">
+    <span className="inline-flex rounded-md border border-slate-200 bg-slate-50 px-2 py-1 font-mono text-[12px] text-slate-700">
+      {String(node.version || "").trim() || "-"}
+    </span>
   </div>
+);
+
+const NodeEndpointSummary = ({ node }: { node: NodeDetail }) => {
+  return (
+    <NodeInfoTooltip
+      content={
+        <NodeTooltipBody
+          label="主机名"
+          primary={String(node.name || "").trim() || "-"}
+        />
+      }
+    >
+      <div className="flex min-w-[200px] items-start gap-2 text-[13px] text-slate-700">
+        <div className="pt-0.5">
+          <Flag flag={node.region} size="4" />
+        </div>
+        <div className="min-w-0 space-y-0.5">
+          <div className="truncate">
+            <span className="mr-1 text-slate-400">IPv4</span>
+            {formatNodeIp(node.ipv4)}
+          </div>
+          <div className="truncate">
+            <span className="mr-1 text-slate-400">IPv6</span>
+            {formatNodeIp(node.ipv6)}
+          </div>
+        </div>
+      </div>
+    </NodeInfoTooltip>
+  );
+};
+
+const NodeTooltipBody = ({
+  label,
+  primary,
+  secondary,
+}: {
+  label: string;
+  primary: string;
+  secondary?: string;
+}) => (
+  <div className="grid min-w-[180px] gap-1.5">
+    <div className="text-[10px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
+      {label}
+    </div>
+    <div className="text-sm font-semibold text-foreground">{primary}</div>
+    {secondary ? (
+      <div className="text-xs leading-relaxed text-muted-foreground">
+        {secondary}
+      </div>
+    ) : null}
+  </div>
+);
+
+const NodeInfoTooltip = ({
+  content,
+  children,
+}: {
+  content: React.ReactNode;
+  children: React.ReactElement;
+}) => (
+  <Tooltip>
+    <TooltipTrigger asChild>{children}</TooltipTrigger>
+    <TooltipContent
+      sideOffset={8}
+      className="rounded-xl border border-border/50 bg-background px-3 py-2 text-xs text-foreground shadow-xl"
+    >
+      {content}
+    </TooltipContent>
+  </Tooltip>
 );
 
 const RateSummary = ({ live }: { live?: NodeLiveSnapshot }) => {
@@ -714,10 +888,10 @@ const TrafficSummary = ({ live }: { live?: NodeLiveSnapshot }) => {
 
   return (
     <div className="min-w-[132px] space-y-0.5">
-      <Text size="1" className="block text-[13px] text-slate-700">
+      <Text size="1" className="block text-[13px] font-medium text-slate-900">
         ↑ {formatBytes(snapshot.network.totalUp)}
       </Text>
-      <Text size="1" className="block text-[13px] text-slate-700">
+      <Text size="1" className="block text-[13px] text-slate-600">
         ↓ {formatBytes(snapshot.network.totalDown)}
       </Text>
     </div>
@@ -732,6 +906,34 @@ const UptimeSummary = ({ live }: { live?: NodeLiveSnapshot }) => {
   );
 };
 
+const UsageBar = ({
+  percent,
+  colorClass,
+  tooltipContent,
+}: {
+  percent: number;
+  colorClass: string;
+  tooltipContent: React.ReactNode;
+}) => {
+  const safePercent = clampPercent(percent);
+
+  return (
+    <NodeInfoTooltip content={tooltipContent}>
+      <div className="w-[136px] cursor-help">
+        <div className="relative h-5 overflow-hidden rounded-full border border-slate-200/80 bg-slate-100">
+          <div
+            className={`h-full rounded-full transition-all duration-300 ${colorClass}`}
+            style={{ width: `${safePercent}%` }}
+          />
+          <div className="absolute inset-0 flex items-center justify-center text-[11px] font-semibold tracking-tight text-slate-700">
+            {formatPercent(safePercent)}
+          </div>
+        </div>
+      </div>
+    </NodeInfoTooltip>
+  );
+};
+
 const buildNodeConfigTooltip = ({
   node,
   live,
@@ -739,263 +941,843 @@ const buildNodeConfigTooltip = ({
   node: NodeDetail;
   live?: NodeLiveSnapshot;
 }) => {
-  const memoryUsed = live?.record.ram.used ?? 0;
-  const diskUsed = live?.record.disk.used ?? 0;
+  const snapshot = live?.record || createEmptyLiveRecord();
+  const memoryUsed = snapshot.ram.used ?? 0;
+  const diskUsed = snapshot.disk.used ?? 0;
+  const swapUsed = snapshot.swap.used ?? 0;
+  const connectivity = snapshot.cn_connectivity;
+  const connectivityLabel = connectivity
+    ? connectivity.status === "ok"
+      ? `国内畅通${typeof connectivity.latency === "number" && connectivity.latency > 0 ? ` ${connectivity.latency}ms` : ""}`
+      : connectivity.status === "blocked_suspected"
+        ? "疑似被墙"
+        : connectivity.status === "degraded"
+          ? "国内异常"
+          : "待探测"
+    : "未配置";
   const lines = [
+    `节点名: ${node.name || "-"}`,
+    `UUID: ${node.uuid || "-"}`,
+    `分组: ${getNodeGroupLabel(node)}`,
+    `状态: ${live?.online ? "在线" : "离线"}`,
+    `封锁探测: ${connectivityLabel}`,
+    `版本: ${node.version || "-"}`,
+    `区域: ${node.region || "-"}`,
     `系统: ${node.os || "-"}`,
     `架构: ${node.arch || "-"}`,
     `CPU: ${node.cpu_name || "-"} / ${node.cpu_cores || 0} 核`,
+    `GPU: ${node.gpu_name || "-"}`,
     `内存: ${formatBytes(memoryUsed)} / ${formatBytes(node.mem_total || 0)}`,
+    `Swap: ${formatBytes(swapUsed)} / ${formatBytes(node.swap_total || 0)}`,
     `存储: ${formatBytes(diskUsed)} / ${formatBytes(node.disk_total || 0)}`,
+    `速率: ↑ ${formatBytes(snapshot.network.up)}/s / ↓ ${formatBytes(
+      snapshot.network.down
+    )}/s`,
+    `流量: ↑ ${formatBytes(snapshot.network.totalUp)} / ↓ ${formatBytes(
+      snapshot.network.totalDown
+    )}`,
     `IPv4: ${formatNodeIp(node.ipv4)}`,
     `IPv6: ${formatNodeIp(node.ipv6)}`,
+    `账单周期: ${node.billing_cycle || "-"}`,
+    `公开备注: ${node.public_remark || "-"}`,
+    `内部备注: ${node.remark || "-"}`,
+    `创建时间: ${formatDateTimeLabel(node.created_at)}`,
+    `面板更新时间: ${formatDateTimeLabel(node.updated_at)}`,
+    `状态更新时间: ${formatDateTimeLabel(snapshot.updated_at)}`,
   ];
 
   if (node.virtualization) {
-    lines.splice(2, 0, `虚拟化: ${node.virtualization}`);
+    lines.splice(8, 0, `虚拟化: ${node.virtualization}`);
+  }
+  if (connectivity?.target) {
+    lines.splice(5, 0, `探测目标: ${connectivity.target}`);
+  }
+  if (connectivity?.message) {
+    lines.splice(6, 0, `探测信息: ${connectivity.message}`);
   }
 
   return lines.join("\n");
 };
 
+const openNodeTerminal = (uuid: string) => {
+  window.open(`/terminal?uuid=${uuid}`, "_blank");
+};
+
 const SortableRow = ({
-  node,
   live,
-  settings
+  node,
 }: {
-  node: NodeDetail;
   live?: NodeLiveSnapshot;
-  settings: any;
+  node: NodeDetail;
 }) => {
-  const configTooltip = buildNodeConfigTooltip({ node, live });
-
   return (
-    <TableRow
-      className="border-b border-slate-200/70 bg-white/60 text-[13px] transition-colors hover:bg-slate-50/85"
-    >
-      <TableCell>
-        <StatusSummary live={live} />
-      </TableCell>
-      <TableCell>
-        <ExitIpSummary node={node} />
-      </TableCell>
-      <TableCell>
-        <RateSummary live={live} />
-      </TableCell>
-      <TableCell>
-        <UptimeSummary live={live} />
-      </TableCell>
-      <TableCell>
-        <TrafficSummary live={live} />
-      </TableCell>
-      <TableCell>
-        <UsageBar
-          percent={live?.record.cpu.usage ?? 0}
-          colorClass="bg-sky-500"
-          title={configTooltip}
-        />
-      </TableCell>
-      <TableCell>
-        <UsageBar
-          percent={
-            node.mem_total
-              ? ((live?.record.ram.used ?? 0) / node.mem_total) * 100
-              : 0
-          }
-          colorClass="bg-emerald-500"
-          title={configTooltip}
-        />
-      </TableCell>
-      <TableCell>
-        <UsageBar
-          percent={
-            node.disk_total
-              ? ((live?.record.disk.used ?? 0) / node.disk_total) * 100
-              : 0
-          }
-          colorClass="bg-amber-500"
-          title={configTooltip}
-        />
-      </TableCell>
-      <TableCell>
-        <ActionButtons node={node} settings={settings} />
-      </TableCell>
-    </TableRow>
+    <ContextMenu>
+      <ContextMenuTrigger asChild>
+        <TableRow className="cursor-context-menu border-b border-slate-200/70 bg-white text-[13px] transition-colors hover:bg-slate-50">
+          <TableCell>
+            <NodeEndpointSummary node={node} />
+          </TableCell>
+          <TableCell>
+            <StatusSummary live={live} />
+          </TableCell>
+          <TableCell>
+            <VersionSummary node={node} />
+          </TableCell>
+          <TableCell>
+            <RateSummary live={live} />
+          </TableCell>
+          <TableCell>
+            <TrafficSummary live={live} />
+          </TableCell>
+          <TableCell>
+            <UptimeSummary live={live} />
+          </TableCell>
+          <TableCell>
+            <UsageBar
+              percent={live?.record.cpu.usage ?? 0}
+              colorClass="bg-sky-500"
+              tooltipContent={
+                <NodeTooltipBody
+                  label="CPU"
+                  primary={node.cpu_cores ? `${node.cpu_cores} 核` : "-"}
+                />
+              }
+            />
+          </TableCell>
+          <TableCell>
+            <UsageBar
+              percent={
+                node.mem_total
+                  ? ((live?.record.ram.used ?? 0) / node.mem_total) * 100
+                  : 0
+              }
+              colorClass="bg-emerald-500"
+              tooltipContent={
+                <NodeTooltipBody
+                  label="内存"
+                  primary={`${formatBytes(live?.record.ram.used ?? 0)} / ${formatBytes(node.mem_total || 0)}`}
+                />
+              }
+            />
+          </TableCell>
+          <TableCell>
+            <UsageBar
+              percent={
+                node.disk_total
+                  ? ((live?.record.disk.used ?? 0) / node.disk_total) * 100
+                  : 0
+              }
+              colorClass="bg-amber-500"
+              tooltipContent={
+                <NodeTooltipBody
+                  label="存储"
+                  primary={`${formatBytes(live?.record.disk.used ?? 0)} / ${formatBytes(node.disk_total || 0)}`}
+                />
+              }
+            />
+          </TableCell>
+        </TableRow>
+      </ContextMenuTrigger>
+      <ContextMenuContent className="w-44">
+        <ContextMenuItem onSelect={() => openNodeTerminal(node.uuid)}>
+          <Terminal className="h-4 w-4" />
+          终端
+        </ContextMenuItem>
+      </ContextMenuContent>
+    </ContextMenu>
   );
 };
-
-type NodeGroupBucket = {
-  label: string;
-  nodes: NodeDetail[];
-  onlineCount: number;
-  totalUploadSpeed: number;
-  totalDownloadSpeed: number;
-  totalUploadTraffic: number;
-  totalDownloadTraffic: number;
-};
-
-function DialogSwitchRow({
-  title,
-  description,
-  checked,
-  onCheckedChange,
-}: {
-  title: string;
-  description?: string;
-  checked: boolean;
-  onCheckedChange: (checked: boolean) => void;
-}) {
-  return (
-    <div className="flex items-start justify-between gap-4 rounded-xl border border-slate-200/80 bg-white px-4 py-3">
-      <div className="min-w-0">
-        <div className="text-[14px] font-medium text-slate-900">{title}</div>
-        {description ? (
-          <div className="mt-1 text-[13px] leading-6 text-slate-500">
-            {description}
-          </div>
-        ) : null}
-      </div>
-      <Switch checked={checked} onCheckedChange={onCheckedChange} />
-    </div>
-  );
-}
 
 const NodeTableColumns = () => (
-  <TableHeader className="bg-[linear-gradient(135deg,rgba(19,70,134,0.10),rgba(255,255,255,0.92),rgba(89,172,119,0.10))]">
+  <TableHeader className="bg-slate-50/90">
     <TableRow>
-      <TableHead>状态</TableHead>
       <TableHead className="w-[240px]">出口 IP</TableHead>
+      <TableHead>状态</TableHead>
+      <TableHead className="w-[132px]">版本</TableHead>
       <TableHead>速率</TableHead>
+      <TableHead>流量</TableHead>
       <TableHead>开机时长</TableHead>
-      <TableHead>总流量</TableHead>
-      <TableHead className="w-[190px]">CPU</TableHead>
-      <TableHead className="w-[190px]">RAM</TableHead>
-      <TableHead className="w-[190px]">存储</TableHead>
-      <TableHead className="w-[150px]">操作</TableHead>
+      <TableHead className="w-[168px]">CPU</TableHead>
+      <TableHead className="w-[168px]">RAM</TableHead>
+      <TableHead className="w-[168px]">存储</TableHead>
     </TableRow>
   </TableHeader>
 );
 
+const GroupSummaryPill = ({
+  label,
+  value,
+  tone = "slate",
+}: {
+  label: string;
+  value: string;
+  tone?: "slate" | "green" | "red" | "blue";
+}) => {
+  const toneClass =
+    tone === "green"
+      ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+      : tone === "red"
+        ? "border-rose-200 bg-rose-50 text-rose-700"
+        : tone === "blue"
+          ? "border-sky-200 bg-sky-50 text-sky-700"
+          : "border-slate-200 bg-slate-50 text-slate-600";
+
+  return (
+    <div
+      className={`inline-flex items-center gap-2 whitespace-nowrap rounded-full border px-3 py-1 text-[12px] ${toneClass}`}
+    >
+      <span>{label}</span>
+      <span className="font-semibold">{value}</span>
+    </div>
+  );
+};
+
+const GroupUpgradeButton = ({
+  groupName,
+  nodes,
+  liveByNode,
+  settings,
+}: {
+  groupName: string;
+  nodes: NodeDetail[];
+  liveByNode: Record<string, NodeLiveSnapshot>;
+  settings: SettingsResponse;
+}) => {
+  const { refresh } = useNodeDetails();
+  const [open, setOpen] = React.useState(false);
+  const [submitting, setSubmitting] = React.useState(false);
+  const [status, setStatus] = React.useState<UpgradeExecutionStatus>("idle");
+  const [resultState, setResultState] = React.useState<
+    Record<string, NodeUpgradeState>
+  >({});
+  const resultStateRef = React.useRef<Record<string, NodeUpgradeState>>({});
+  const taskRefs = React.useRef<UpgradeTask[]>([]);
+  const pollIntervalRef = React.useRef<number | null>(null);
+  const pollTimeoutRef = React.useRef<number | null>(null);
+
+  const onlineNodes = React.useMemo(
+    () =>
+      nodes.filter(
+        (node) =>
+          Boolean(liveByNode[node.uuid]?.online) &&
+          String(node.token || "").trim().length > 0
+      ),
+    [liveByNode, nodes]
+  );
+
+  const updateResultState = React.useCallback(
+    (
+      updater:
+        | Record<string, NodeUpgradeState>
+        | ((
+            previous: Record<string, NodeUpgradeState>
+          ) => Record<string, NodeUpgradeState>)
+    ) => {
+      const next =
+        typeof updater === "function"
+          ? updater(resultStateRef.current)
+          : updater;
+      resultStateRef.current = next;
+      setResultState(next);
+    },
+    []
+  );
+
+  const clearPolling = React.useCallback(() => {
+    if (pollIntervalRef.current !== null) {
+      window.clearInterval(pollIntervalRef.current);
+      pollIntervalRef.current = null;
+    }
+    if (pollTimeoutRef.current !== null) {
+      window.clearTimeout(pollTimeoutRef.current);
+      pollTimeoutRef.current = null;
+    }
+  }, []);
+
+  React.useEffect(() => () => clearPolling(), [clearPolling]);
+
+  const finalizeExecution = React.useCallback(
+    async (forceTimeout = false) => {
+      const finalStates = resultStateRef.current;
+      const failedCount = Object.values(finalStates).filter(
+        (item) => item.status === "failed" || item.status === "timeout"
+      ).length;
+      const successCount = Object.values(finalStates).filter(
+        (item) => item.status === "success"
+      ).length;
+
+      setStatus(
+        forceTimeout
+          ? "timeout"
+          : failedCount > 0
+            ? "failed"
+            : successCount > 0
+              ? "success"
+              : "idle"
+      );
+
+      if (forceTimeout) {
+        toast.warning(`${groupName} 升级超时，请稍后手动检查节点状态`);
+      } else if (failedCount > 0) {
+        toast.error(
+          `${groupName} 升级完成，成功 ${successCount} 台，失败 ${failedCount} 台`
+        );
+      } else {
+        toast.success(`${groupName} ${successCount} 台节点升级完成`);
+      }
+
+      await refresh();
+    },
+    [groupName, refresh]
+  );
+
+  const pollTaskResult = React.useCallback(
+    async (task: UpgradeTask) => {
+      const response = await fetch(`/api/admin/task/${task.taskId}/result`);
+      const payload = (await response.json().catch(() => ({}))) as TaskResultResponse;
+      if (!response.ok || payload.status === "error") {
+        throw new Error(payload.message || `HTTP ${response.status}`);
+      }
+
+      const matchedResult = (payload.results || payload.data || []).find(
+        (item) => item.client === task.clientIds[0]
+      );
+      const clientId = task.clientIds[0];
+
+      updateResultState((previous) => {
+        const current =
+          previous[clientId] ||
+          ({
+            status: "pending",
+            output: "",
+            exitCode: null,
+            finishedAt: null,
+          } as NodeUpgradeState);
+
+        if (!matchedResult) {
+          return {
+            ...previous,
+            [clientId]: {
+              ...current,
+              status:
+                current.status === "pending" ? "running" : current.status,
+            },
+          };
+        }
+
+        return {
+          ...previous,
+          [clientId]: {
+            status: matchedResult.finished_at
+              ? matchedResult.exit_code === 0
+                ? "success"
+                : "failed"
+              : "running",
+            taskId: task.taskId,
+            output: matchedResult.result || "",
+            exitCode: matchedResult.exit_code,
+            finishedAt: matchedResult.finished_at,
+          },
+        };
+      });
+
+      return Boolean(matchedResult?.finished_at);
+    },
+    [updateResultState]
+  );
+
+  const startPolling = React.useCallback(
+    (tasks: UpgradeTask[]) => {
+      clearPolling();
+      taskRefs.current = tasks;
+      setStatus("running");
+
+      const run = () => {
+        void Promise.all(
+          taskRefs.current.map((task) =>
+            pollTaskResult(task).catch((error) => {
+              updateResultState((previous) => ({
+                ...previous,
+                [task.clientIds[0]]: {
+                  ...(previous[task.clientIds[0]] || {
+                    output: "",
+                    exitCode: null,
+                    finishedAt: null,
+                  }),
+                  status: "failed",
+                  taskId: task.taskId,
+                  output:
+                    error instanceof Error
+                      ? error.message
+                      : String(error),
+                  exitCode: -1,
+                  finishedAt: new Date().toISOString(),
+                },
+              }));
+              return true;
+            })
+          )
+        ).then((states) => {
+          if (states.every(Boolean)) {
+            clearPolling();
+            void finalizeExecution(false);
+          }
+        });
+      };
+
+      run();
+      pollIntervalRef.current = window.setInterval(run, 2000);
+      pollTimeoutRef.current = window.setTimeout(() => {
+        clearPolling();
+        updateResultState((previous) => {
+          const next = { ...previous };
+          Object.keys(next).forEach((uuid) => {
+            if (
+              next[uuid]?.status === "pending" ||
+              next[uuid]?.status === "running"
+            ) {
+              next[uuid] = {
+                ...next[uuid],
+                status: "timeout",
+                finishedAt: new Date().toISOString(),
+              };
+            }
+          });
+          return next;
+        });
+        void finalizeExecution(true);
+      }, 60000);
+    },
+    [clearPolling, finalizeExecution, pollTaskResult, updateResultState]
+  );
+
+  const handleUpgrade = async () => {
+    if (onlineNodes.length === 0) {
+      toast.error(`${groupName} 当前没有可升级的在线节点`);
+      return;
+    }
+
+    setSubmitting(true);
+    setStatus("pending");
+    const initialState = Object.fromEntries(
+      onlineNodes.map((node) => [
+        node.uuid,
+        {
+          status: "pending",
+          output: "",
+          exitCode: null,
+          finishedAt: null,
+        } satisfies NodeUpgradeState,
+      ])
+    );
+    updateResultState(initialState);
+
+    try {
+      const settled = await Promise.allSettled(
+        onlineNodes.map(async (node) => {
+          const command = buildAgentUpgradeCommand(node, settings);
+          if (!command) {
+            throw new Error("节点缺少 token，无法升级");
+          }
+
+          const response = await fetch("/api/admin/task/exec", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              command,
+              clients: [node.uuid],
+            }),
+          });
+
+          const payload = (await response.json().catch(() => ({}))) as ExecResponse;
+          if (!response.ok || payload.status === "error") {
+            throw new Error(payload.message || `HTTP ${response.status}`);
+          }
+
+          const taskId = payload.data?.task_id || payload.task_id || "";
+          if (!taskId) {
+            throw new Error("没有返回任务 ID");
+          }
+
+          updateResultState((previous) => ({
+            ...previous,
+            [node.uuid]: {
+              ...(previous[node.uuid] || {
+                output: "",
+                exitCode: null,
+                finishedAt: null,
+              }),
+              status: "running",
+              taskId,
+            },
+          }));
+
+          return {
+            taskId,
+            platform: detectNodePlatform(node),
+            clientIds: [node.uuid],
+          } satisfies UpgradeTask;
+        })
+      );
+
+      const tasks = settled
+        .filter(
+          (
+            item
+          ): item is PromiseFulfilledResult<UpgradeTask> =>
+            item.status === "fulfilled"
+        )
+        .map((item) => item.value);
+
+      settled.forEach((item, index) => {
+        if (item.status === "rejected") {
+          const failedNode = onlineNodes[index];
+          updateResultState((previous) => ({
+            ...previous,
+            [failedNode.uuid]: {
+              status: "failed",
+              output:
+                item.reason instanceof Error
+                  ? item.reason.message
+                  : String(item.reason),
+              exitCode: -1,
+              finishedAt: new Date().toISOString(),
+            },
+          }));
+        }
+      });
+
+      if (tasks.length === 0) {
+        await finalizeExecution(false);
+        return;
+      }
+
+      toast.success(`${groupName} 已下发 ${tasks.length} 个升级任务`);
+      startPolling(tasks);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const summary = React.useMemo(() => {
+    const values = Object.values(resultState);
+    return {
+      pending: values.filter((item) => item.status === "pending").length,
+      running: values.filter((item) => item.status === "running").length,
+      success: values.filter((item) => item.status === "success").length,
+      failed: values.filter(
+        (item) => item.status === "failed" || item.status === "timeout"
+      ).length,
+    };
+  }, [resultState]);
+
+  const combinedOutput = React.useMemo(
+    () =>
+      onlineNodes
+        .map((node) => {
+          const result = resultState[node.uuid];
+          if (!result?.output) return null;
+          return `[${getNodePrimaryAddress(node)}]\n${result.output}`;
+        })
+        .filter(Boolean)
+        .join("\n\n--------------------------------\n\n"),
+    [onlineNodes, resultState]
+  );
+
+  return (
+    <Dialog.Root open={open} onOpenChange={setOpen}>
+      <Dialog.Trigger>
+        <Button
+          variant="outline"
+          className="rounded-full"
+          disabled={onlineNodes.length === 0}
+        >
+          {status === "running" || submitting ? (
+            <LoaderCircle className="h-4 w-4 animate-spin" />
+          ) : (
+            <RefreshCw className="h-4 w-4" />
+          )}
+          升级 Agent
+        </Button>
+      </Dialog.Trigger>
+      <Dialog.Content className={NODE_DIALOG_CONTENT_CLASS} maxWidth={760}>
+        <Dialog.Title>{groupName} · 一键升级 Agent</Dialog.Title>
+        <Dialog.Description className="mt-2">
+          只会对当前分组在线节点下发升级脚本。节点行右键仍然保留终端入口。
+        </Dialog.Description>
+
+        <div className="mt-4 grid gap-3 sm:grid-cols-4">
+          <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
+            <div className="text-xs text-slate-500">在线节点</div>
+            <div className="mt-1 text-base font-semibold text-slate-900">
+              {onlineNodes.length}
+            </div>
+          </div>
+          <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
+            <div className="text-xs text-slate-500">执行中</div>
+            <div className="mt-1 text-base font-semibold text-slate-900">
+              {summary.pending + summary.running}
+            </div>
+          </div>
+          <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2">
+            <div className="text-xs text-emerald-700">成功</div>
+            <div className="mt-1 text-base font-semibold text-emerald-800">
+              {summary.success}
+            </div>
+          </div>
+          <div className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2">
+            <div className="text-xs text-rose-700">失败</div>
+            <div className="mt-1 text-base font-semibold text-rose-800">
+              {summary.failed}
+            </div>
+          </div>
+        </div>
+
+        <div className="mt-4 rounded-xl border border-slate-200 bg-white">
+          <div className="border-b border-slate-200 px-4 py-3 text-sm text-slate-600">
+            节点执行状态
+          </div>
+          <div className="max-h-72 space-y-2 overflow-y-auto p-4">
+            {onlineNodes.length === 0 ? (
+              <div className="rounded-lg border border-dashed border-slate-200 px-3 py-4 text-sm text-slate-500">
+                当前分组没有在线节点，无法执行升级。
+              </div>
+            ) : (
+              onlineNodes.map((node) => {
+                const result = resultState[node.uuid];
+                const statusLabel =
+                  result?.status === "success"
+                    ? "成功"
+                    : result?.status === "failed"
+                      ? "失败"
+                      : result?.status === "timeout"
+                        ? "超时"
+                        : result?.status === "running"
+                          ? "执行中"
+                          : result?.status === "pending"
+                            ? "排队中"
+                            : "未开始";
+                const statusClass =
+                  result?.status === "success"
+                    ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                    : result?.status === "failed" ||
+                        result?.status === "timeout"
+                      ? "border-rose-200 bg-rose-50 text-rose-700"
+                      : "border-slate-200 bg-slate-50 text-slate-600";
+
+                return (
+                  <div
+                    key={node.uuid}
+                    title={result?.output || buildNodeConfigTooltip({ node, live: liveByNode[node.uuid] })}
+                    className="flex flex-col gap-3 rounded-xl border border-slate-200 px-3 py-3 sm:flex-row sm:items-center sm:justify-between"
+                  >
+                    <div className="min-w-0">
+                      <div className="truncate text-sm font-medium text-slate-900">
+                        {getNodePrimaryAddress(node)}
+                      </div>
+                      <div className="mt-1 text-xs text-slate-500">
+                        {detectNodePlatform(node)} / {node.version || "-"}
+                        {result?.taskId ? ` / 任务 ${result.taskId}` : ""}
+                      </div>
+                    </div>
+                    <div
+                      className={`inline-flex w-fit items-center gap-2 rounded-full border px-3 py-1 text-xs ${statusClass}`}
+                    >
+                      {result?.status === "running" ? (
+                        <LoaderCircle className="h-3.5 w-3.5 animate-spin" />
+                      ) : null}
+                      {statusLabel}
+                    </div>
+                  </div>
+                );
+              })
+            )}
+          </div>
+        </div>
+
+        {combinedOutput ? (
+          <div className="mt-4">
+            <div className="mb-2 text-xs text-slate-500">最新输出</div>
+            <TextArea
+              readOnly
+              value={combinedOutput}
+              className="min-h-44 border-slate-200 bg-slate-50 font-mono text-xs text-slate-700"
+            />
+          </div>
+        ) : null}
+
+        <div className={NODE_DIALOG_FOOTER_CLASS}>
+          <Dialog.Close>
+            <Button variant="outline" className="w-full sm:w-auto">
+              关闭
+            </Button>
+          </Dialog.Close>
+          <Button
+            className="w-full sm:w-auto"
+            onClick={() => void handleUpgrade()}
+            disabled={submitting || status === "running" || onlineNodes.length === 0}
+          >
+            {submitting || status === "running" ? (
+              <LoaderCircle className="h-4 w-4 animate-spin" />
+            ) : (
+              <RefreshCw className="h-4 w-4" />
+            )}
+            开始升级
+          </Button>
+        </div>
+      </Dialog.Content>
+    </Dialog.Root>
+  );
+};
+
+const NodeGroupSection = ({
+  groupName,
+  nodes,
+  liveByNode,
+  settings,
+}: {
+  groupName: string;
+  nodes: NodeDetail[];
+  liveByNode: Record<string, NodeLiveSnapshot>;
+  settings: SettingsResponse;
+}) => {
+  const totalUploadSpeed = nodes.reduce(
+    (sum, node) => sum + (liveByNode[node.uuid]?.record.network.up ?? 0),
+    0
+  );
+  const totalDownloadSpeed = nodes.reduce(
+    (sum, node) => sum + (liveByNode[node.uuid]?.record.network.down ?? 0),
+    0
+  );
+  const totalUploadTraffic = nodes.reduce(
+    (sum, node) => sum + (liveByNode[node.uuid]?.record.network.totalUp ?? 0),
+    0
+  );
+  const totalDownloadTraffic = nodes.reduce(
+    (sum, node) => sum + (liveByNode[node.uuid]?.record.network.totalDown ?? 0),
+    0
+  );
+  const onlineCount = nodes.filter((node) => liveByNode[node.uuid]?.online).length;
+  const blockedCount = nodes.filter((node) =>
+    isNodeConnectivityBlocked(liveByNode[node.uuid])
+  ).length;
+
+  return (
+    <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+      <div className="flex flex-col gap-3 border-b border-slate-200 bg-slate-50/80 px-4 py-4 xl:flex-row xl:items-center xl:justify-between">
+        <div className="min-w-0 flex-1 overflow-x-auto pb-1">
+          <div className="flex min-w-max items-center gap-2 pr-2 whitespace-nowrap">
+            <Text className="shrink-0 text-base font-semibold text-slate-900">
+              {groupName}
+            </Text>
+            <Badge
+              variant="soft"
+              color="blue"
+              className="shrink-0 rounded-full px-3 py-1"
+            >
+              {nodes.length} 台
+            </Badge>
+            <GroupSummaryPill
+              label="在线"
+              value={`${onlineCount}/${nodes.length}`}
+              tone="green"
+            />
+            <GroupSummaryPill label="封锁" value={`${blockedCount}`} tone="red" />
+            <GroupSummaryPill
+              label="总速率"
+              value={`↑ ${formatBytes(totalUploadSpeed)}/s · ↓ ${formatBytes(
+                totalDownloadSpeed
+              )}/s`}
+              tone="blue"
+            />
+            <GroupSummaryPill
+              label="总流量"
+              value={`↑ ${formatBytes(totalUploadTraffic)} · ↓ ${formatBytes(
+                totalDownloadTraffic
+              )}`}
+            />
+          </div>
+        </div>
+        <div className="flex shrink-0 flex-wrap gap-2 xl:justify-end">
+          <GenerateCommandButton
+            nodes={nodes}
+            settings={settings}
+            toolbar
+            groupMode
+            presetGroupName={groupName}
+            toolbarLabel="安装 Agent"
+          />
+          <GroupUpgradeButton
+            groupName={groupName}
+            nodes={nodes}
+            liveByNode={liveByNode}
+            settings={settings}
+          />
+        </div>
+      </div>
+
+      <Table className="min-w-[1320px]">
+        <NodeTableColumns />
+        <TableBody>
+          {nodes.map((node) => (
+            <SortableRow
+              key={node.uuid}
+              node={node}
+              live={liveByNode[node.uuid]}
+            />
+          ))}
+        </TableBody>
+      </Table>
+    </div>
+  );
+};
+
 const NodeTable = ({
   nodes,
   liveByNode,
+  settings,
 }: {
   nodes: NodeDetail[];
   liveByNode: Record<string, NodeLiveSnapshot>;
+  settings: SettingsResponse;
 }) => {
-  const { settings } = useSettings();
   const groupedNodes = React.useMemo(() => {
-    const groups = new Map<string, NodeGroupBucket>();
-
+    const groups = new Map<string, NodeDetail[]>();
     nodes.forEach((node) => {
       const label = getNodeGroupLabel(node);
-      const existing = groups.get(label) ?? {
-        label,
-        nodes: [],
-        onlineCount: 0,
-        totalUploadSpeed: 0,
-        totalDownloadSpeed: 0,
-        totalUploadTraffic: 0,
-        totalDownloadTraffic: 0,
-      };
-      const live = liveByNode[node.uuid];
-      existing.nodes.push(node);
-      existing.onlineCount += live?.online ? 1 : 0;
-      existing.totalUploadSpeed += live?.record.network.up ?? 0;
-      existing.totalDownloadSpeed += live?.record.network.down ?? 0;
-      existing.totalUploadTraffic += live?.record.network.totalUp ?? 0;
-      existing.totalDownloadTraffic += live?.record.network.totalDown ?? 0;
-      groups.set(label, existing);
+      const existing = groups.get(label);
+      if (existing) {
+        existing.push(node);
+      } else {
+        groups.set(label, [node]);
+      }
     });
 
-    return Array.from(groups.values()).sort((left, right) => {
-      if (left.label === DEFAULT_GROUP_NAME && right.label !== DEFAULT_GROUP_NAME) {
-        return 1;
-      }
-      if (left.label !== DEFAULT_GROUP_NAME && right.label === DEFAULT_GROUP_NAME) {
-        return -1;
-      }
-      return left.label.localeCompare(right.label, "zh-CN");
-    });
-  }, [liveByNode, nodes]);
+    return Array.from(groups.entries()).map(([groupName, groupNodes]) => ({
+      groupName,
+      nodes: groupNodes,
+    }));
+  }, [nodes]);
 
   return (
     <div className="flex flex-col gap-4">
-      {groupedNodes.length === 0 && (
-        <div className="rounded-[28px] border border-white/65 bg-white/78 px-6 py-8 text-center text-sm text-slate-500 shadow-[0_24px_60px_rgba(15,23,42,0.08)] backdrop-blur-xl">
-          当前没有匹配的节点
+      {nodes.length === 0 ? (
+        <div className="rounded-xl border border-slate-200 bg-white px-6 py-8 text-center text-sm text-slate-500 shadow-sm">
+          当前没有节点
         </div>
+      ) : (
+        groupedNodes.map((group) => (
+          <NodeGroupSection
+            key={group.groupName}
+            groupName={group.groupName}
+            nodes={group.nodes}
+            liveByNode={liveByNode}
+            settings={settings}
+          />
+        ))
       )}
-      {groupedNodes.length > 0 && (
-        <div className="sm:hidden rounded-xl border border-slate-200/80 bg-slate-50/80 px-3 py-2 text-[12px] text-slate-500">
-          节点表格支持横向滚动，左右滑动可查看 IPv6、总流量和操作列。
-        </div>
-      )}
-      {groupedNodes.map((group) => (
-        <div
-          key={group.label}
-          className="overflow-hidden rounded-[28px] border border-white/65 bg-white/78 shadow-[0_24px_60px_rgba(15,23,42,0.08)] backdrop-blur-xl"
-        >
-          <div className="border-b border-slate-200/70 bg-slate-50/90 px-4 py-3">
-            <div className="flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
-              <div className="flex flex-wrap items-center gap-2">
-                <Text className="text-sm font-semibold text-slate-900">
-                  {group.label}
-                </Text>
-                {group.label !== DEFAULT_GROUP_NAME && (
-                  <GenerateCommandButton
-                    nodes={group.nodes}
-                    settings={settings}
-                    toolbar
-                    groupMode
-                    presetGroupName={group.label}
-                    toolbarLabel="一键对接"
-                  />
-                )}
-              </div>
-              <div className="min-w-0 overflow-x-auto pb-1 xl:pb-0">
-                <div className="flex min-w-max items-center gap-x-4 gap-y-2 text-[13px] text-slate-600">
-                  <span className="inline-flex items-center gap-1 whitespace-nowrap">
-                    <span className="font-medium text-slate-900">总速率</span>
-                    ↑ {formatBytes(group.totalUploadSpeed)}/s
-                    ↓ {formatBytes(group.totalDownloadSpeed)}/s
-                  </span>
-                  <span className="inline-flex items-center gap-1 whitespace-nowrap">
-                    <span className="font-medium text-slate-900">总流量</span>
-                    ↑ {formatBytes(group.totalUploadTraffic)}
-                    ↓ {formatBytes(group.totalDownloadTraffic)}
-                  </span>
-                  <span className="inline-flex items-center gap-1 whitespace-nowrap">
-                    <span className="font-medium text-emerald-700">在线</span>
-                    {group.onlineCount}
-                  </span>
-                  <span className="inline-flex items-center gap-1 whitespace-nowrap">
-                    <span className="font-medium text-rose-700">离线</span>
-                    {group.nodes.length - group.onlineCount}
-                  </span>
-                  <span className="inline-flex items-center gap-1 whitespace-nowrap">
-                    <span className="font-medium text-slate-900">机器数</span>
-                    {group.nodes.length}
-                  </span>
-                </div>
-              </div>
-            </div>
-          </div>
-          <Table className="min-w-[1360px]">
-            <NodeTableColumns />
-            <TableBody>
-              {group.nodes.map((node) => (
-                <SortableRow
-                  key={node.uuid}
-                  node={node}
-                  live={liveByNode[node.uuid]}
-                  settings={settings}
-                />
-              ))}
-            </TableBody>
-          </Table>
-        </div>
-      ))}
     </div>
   );
 };
@@ -1096,91 +1878,7 @@ const saveGenerateCommandPreferences = (
   );
 };
 
-const ActionButtons = ({ node, settings }: { node: NodeDetail, settings: any }) => {
-  const { t } = useTranslation();
-  return (
-    <div className="flex min-w-max items-center gap-1.5">
-      <GenerateCommandButton node={node} settings={settings} />
-      <IconButton
-        title={t("terminal.title")}
-        variant="ghost"
-        className="h-8 w-8 rounded-lg"
-        onClick={() => {
-          window.open(`/terminal?uuid=${node.uuid}`, "_blank");
-        }}
-      >
-        <Terminal size="18" />
-      </IconButton>
-      <EditButton node={node} />
-      <BillingButton node={node} />
-      <DeleteButton node={node} />
-    </div>
-  );
-};
-
 export default NodeDetailsPage;
-function DeleteButton({ node }: { node: NodeDetail }) {
-  const { t } = useTranslation();
-  const { refresh } = useNodeDetails();
-  const [open, setOpen] = React.useState(false);
-  const [deleting, setDeleting] = React.useState(false);
-  const handleDelete = async () => {
-    try {
-      setDeleting(true);
-      await fetch(`/api/admin/client/${node.uuid}/remove`, {
-        method: "POST",
-      });
-      toast.success(`Delete ${node.name}`);
-      setOpen(false);
-      refresh();
-    } catch (error) {
-      toast.error(
-        `Error: ${error instanceof Error ? error.message : String(error)}`
-      );
-    } finally {
-      setDeleting(false);
-    }
-  };
-  return (
-    <Dialog.Root open={open} onOpenChange={setOpen}>
-      <Dialog.Trigger>
-        <IconButton
-          variant="ghost"
-          color="red"
-          title={t("delete")}
-          className="h-8 w-8 rounded-lg"
-        >
-          <Trash2Icon size="18" />
-        </IconButton>
-      </Dialog.Trigger>
-      <Dialog.Content className={NODE_DIALOG_CONTENT_CLASS} maxWidth={420}>
-        <Dialog.Title>{t("delete")}</Dialog.Title>
-        <Dialog.Description className="mt-2">
-          {t("admin.nodeTable.confirmDelete")}
-        </Dialog.Description>
-        <div className={NODE_DIALOG_FOOTER_CLASS}>
-          <Dialog.Close>
-            <Button
-              type="button"
-              variant="outline"
-              className="w-full sm:w-auto"
-            >
-              {t("admin.nodeTable.cancel")}
-            </Button>
-          </Dialog.Close>
-          <Button
-            disabled={deleting}
-            color="red"
-            onClick={handleDelete}
-            className="w-full sm:w-auto"
-          >
-            {t("admin.nodeTable.confirmDelete")}
-          </Button>
-        </div>
-      </Dialog.Content>
-    </Dialog.Root>
-  );
-}
 type InstallOptions = {
   disableWebSsh: boolean;
   disableAutoUpdate: boolean;
@@ -2088,439 +2786,6 @@ function GenerateCommandButton({
             </div>
           </div>
         </div>
-      </Dialog.Content>
-    </Dialog.Root>
-  );
-}
-
-function EditButton({ node }: { node: NodeDetail }) {
-  const { t } = useTranslation();
-  const [open, setOpen] = useState(false);
-  const { refresh } = useNodeDetails();
-  const nameRef = React.useRef<HTMLInputElement>(null);
-  const groupRef = React.useRef<HTMLInputElement>(null);
-  const tagsRef = React.useRef<HTMLInputElement>(null);
-  const publicRemarkRef = React.useRef<HTMLTextAreaElement>(null);
-  const privateRemarkRef = React.useRef<HTMLTextAreaElement>(null);
-  const [hidden, setHidden] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [traffic_limit, setTrafficLimit] = useState(0);
-  const [traffic_limit_type, setTrafficLimitType] = useState("sum");
-
-  React.useEffect(() => {
-    setHidden(node.hidden);
-    setTrafficLimit(node.traffic_limit || 0);
-    setTrafficLimitType(node.traffic_limit_type || "sum");
-  }, [node.hidden, node.traffic_limit, node.traffic_limit_type]);
-
-  const save = async () => {
-    try {
-      setSaving(true);
-      await fetch(`/api/admin/client/${node.uuid}/edit`, {
-        method: "POST",
-        body: JSON.stringify({
-          name: nameRef.current?.value,
-          remark: privateRemarkRef.current?.value,
-          public_remark: publicRemarkRef.current?.value,
-          group: groupRef.current?.value,
-          tags: tagsRef.current?.value,
-          hidden,
-          traffic_limit,
-          traffic_limit_type,
-        }),
-        headers: {
-          "Content-Type": "application/json",
-        },
-      });
-      refresh();
-      setOpen(false);
-      toast.success(t("admin.nodeEdit.saveSuccess", "保存成功"));
-    } catch (error) {
-      console.error("Error updating client:", error);
-    } finally {
-      setSaving(false);
-    }
-  };
-  return (
-    <Dialog.Root open={open} onOpenChange={setOpen}>
-      <Dialog.Trigger>
-        <IconButton
-          variant="ghost"
-          title={t("admin.nodeEdit.editInfo", "编辑信息")}
-          className="h-8 w-8 rounded-lg"
-        >
-          <Pencil size="18" />
-        </IconButton>
-      </Dialog.Trigger>
-      <Dialog.Content className={NODE_DIALOG_CONTENT_CLASS} maxWidth={780}>
-        <Dialog.Title>{t("admin.nodeEdit.editInfo", "编辑信息")}</Dialog.Title>
-        <Dialog.Description className="mt-2">
-          调整节点名称、分组、备注和流量限制。
-        </Dialog.Description>
-        <div className="mt-4 grid gap-4 lg:grid-cols-[minmax(0,1fr)_280px]">
-          <div className="flex flex-col gap-4">
-            <div className={NODE_DIALOG_SECTION_CLASS}>
-              <div className="grid gap-4 sm:grid-cols-2">
-                <div>
-                  <label className={`mb-2 block ${NODE_DIALOG_LABEL_CLASS}`}>
-                    {t("admin.nodeEdit.name", "名称")}
-                  </label>
-                  <TextField.Root
-                    className={NODE_INPUT_CLASS}
-                    defaultValue={node.name}
-                    placeholder={t("admin.nodeEdit.namePlaceholder", "请输入名称")}
-                    ref={nameRef}
-                  />
-                </div>
-                <div>
-                  <label className={`mb-2 block ${NODE_DIALOG_LABEL_CLASS}`}>
-                    {t("common.group")}
-                  </label>
-                  <TextField.Root
-                    className={NODE_INPUT_CLASS}
-                    defaultValue={node.group}
-                    ref={groupRef}
-                  />
-                </div>
-                <div className="sm:col-span-2">
-                  <label className={`mb-2 flex items-center gap-1 ${NODE_DIALOG_LABEL_CLASS}`}>
-                    <span>{t("common.tags")}</span>
-                    <span className="text-[12px] font-normal text-slate-500">
-                      {t("common.tagsDescription")}
-                    </span>
-                    <Tips>
-                      <span
-                        dangerouslySetInnerHTML={{ __html: t("common.tagsTips") }}
-                      />
-                    </Tips>
-                  </label>
-                  <TextField.Root
-                    className={NODE_INPUT_CLASS}
-                    defaultValue={node.tags}
-                    ref={tagsRef}
-                  />
-                </div>
-                <div className="sm:col-span-2">
-                  <label className={`mb-2 block ${NODE_DIALOG_LABEL_CLASS}`}>
-                    {t("admin.nodeEdit.token", "Token 令牌")}
-                  </label>
-                  <TextField.Root
-                    className={`${NODE_INPUT_CLASS} font-mono text-[13px]`}
-                    value={node.token}
-                    placeholder={t("admin.nodeEdit.tokenPlaceholder", "请输入 Token")}
-                    readOnly
-                  />
-                </div>
-              </div>
-            </div>
-
-            <div className={NODE_DIALOG_SECTION_CLASS}>
-              <div className="grid gap-4">
-                <div>
-                  <label className={`mb-2 block ${NODE_DIALOG_LABEL_CLASS}`}>
-                    {t("admin.nodeEdit.remark", "私有备注")}
-                  </label>
-                  <TextArea
-                    className="min-h-[120px] rounded-xl border border-slate-200 bg-white text-[14px] leading-6"
-                    defaultValue={node.remark}
-                    ref={privateRemarkRef}
-                    resize={"vertical"}
-                    placeholder={t(
-                      "admin.nodeEdit.remarkPlaceholder",
-                      "请输入私有备注"
-                    )}
-                  />
-                </div>
-                <div>
-                  <label className={`mb-2 block ${NODE_DIALOG_LABEL_CLASS}`}>
-                    {t("admin.nodeEdit.publicRemark", "公开备注")}
-                  </label>
-                  <TextArea
-                    className="min-h-[120px] rounded-xl border border-slate-200 bg-white text-[14px] leading-6"
-                    defaultValue={node.public_remark}
-                    resize={"vertical"}
-                    placeholder={t(
-                      "admin.nodeEdit.publicRemarkPlaceholder",
-                      "请输入公开备注"
-                    )}
-                    ref={publicRemarkRef}
-                  />
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div className="flex flex-col gap-4">
-            <div className={NODE_DIALOG_SECTION_CLASS}>
-              <label className="text-[14px] font-semibold text-slate-900">
-                {t("admin.nodeEdit.trafficLimit")}
-              </label>
-              <p className={`mt-1 ${NODE_DIALOG_HINT_CLASS}`}>
-                {t("admin.nodeEdit.trafficLimit_description")}
-              </p>
-              <div className="mt-4 space-y-4">
-                <div>
-                  <label className={`mb-2 block ${NODE_DIALOG_LABEL_CLASS}`}>
-                    {t("admin.nodeEdit.trafficLimitType")}
-                  </label>
-                  <select
-                    className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none"
-                    value={traffic_limit_type}
-                    onChange={(event) => setTrafficLimitType(event.target.value)}
-                  >
-                    <option value="sum">{t("admin.nodeEdit.trafficLimitType_sum")}</option>
-                    <option value="max">{t("admin.nodeEdit.trafficLimitType_max")}</option>
-                    <option value="min">{t("admin.nodeEdit.trafficLimitType_min")}</option>
-                    <option value="up">{t("admin.nodeEdit.trafficLimitType_up")}</option>
-                    <option value="down">{t("admin.nodeEdit.trafficLimitType_down")}</option>
-                  </select>
-                </div>
-                <div>
-                  <label className={`mb-2 block ${NODE_DIALOG_LABEL_CLASS}`}>
-                    {t("admin.nodeEdit.trafficLimit")}
-                  </label>
-                  <TextField.Root
-                    className={NODE_INPUT_CLASS}
-                    defaultValue={formatBytes(traffic_limit || 0)}
-                    onChange={(e) => {
-                      setTrafficLimit(stringToBytes(e.currentTarget.value));
-                    }}
-                    onBlur={(e) => {
-                      e.currentTarget.value = formatBytes(traffic_limit);
-                    }}
-                  />
-                </div>
-              </div>
-            </div>
-
-            <DialogSwitchRow
-              title={t("admin.nodeEdit.hidden")}
-              description={t("admin.nodeEdit.hidden_description")}
-              checked={hidden}
-              onCheckedChange={setHidden}
-            />
-          </div>
-        </div>
-        <div className={NODE_DIALOG_FOOTER_CLASS}>
-          <Dialog.Close>
-            <Button
-              type="button"
-              variant="outline"
-              className="w-full sm:w-auto"
-            >
-              {t("admin.nodeTable.cancel")}
-            </Button>
-          </Dialog.Close>
-          <Button
-            type="submit"
-            className="w-full sm:w-auto"
-            disabled={saving}
-            onClick={save}
-          >
-            {saving
-              ? t("admin.nodeEdit.waiting", "等待...")
-              : t("save", "保存")}
-          </Button>
-        </div>
-      </Dialog.Content>
-    </Dialog.Root>
-  );
-}
-
-function BillingButton({ node }: { node: NodeDetail }) {
-  const { t } = useTranslation();
-  const { refresh } = useNodeDetails();
-  const [open, setOpen] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [billingCycle, setBillingCycle] = React.useState<string>(
-    node.billing_cycle.toString()
-  );
-  const [autoRenewal, setAutoRenewal] = React.useState<boolean>(
-    node.auto_renewal || false
-  );
-  const [currency, setCurrency] = React.useState<string>(node.currency || "$");
-
-  const handleSave = async (e: React.FormEvent) => {
-    e.preventDefault();
-    try {
-      setSaving(true);
-      const formData = new FormData(e.target as HTMLFormElement);
-      const priceValue = (formData.get("price") as string) || "0";
-      
-      const price = parseFloat(priceValue);
-      
-      if (isNaN(price) || (price < 0 && price !== -1)) {
-        toast.error(t("admin.nodeTable.invalidPrice"));
-        return;
-      }
-      const billingCycleValue = parseInt(
-        (formData.get("billingCycle") as string) || "30"
-      );
-      const expiredAtValue = (formData.get("expiredAt") as string) || "";
-      const currencyValue = (formData.get("currency") as string) || "$";
-
-      await fetch(`/api/admin/client/${node.uuid}/edit`, {
-        method: "POST",
-        body: JSON.stringify({
-          price,
-          billing_cycle: billingCycleValue,
-          expired_at: expiredAtValue,
-          currency: currencyValue,
-          auto_renewal: autoRenewal,
-        }),
-        headers: {
-          "Content-Type": "application/json",
-        },
-      });
-      refresh();
-      setOpen(false);
-    } catch (error) {
-      toast.error("Failed to save billing information:" + error);
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  return (
-    <Dialog.Root open={open} onOpenChange={setOpen}>
-      <Dialog.Trigger>
-        <IconButton
-          variant="ghost"
-          title={t("admin.nodeTable.billing", "账单")}
-          className="h-8 w-8 rounded-lg"
-        >
-          <CircleDollarSign size="18" />
-        </IconButton>
-      </Dialog.Trigger>
-      <Dialog.Content className={NODE_DIALOG_CONTENT_CLASS} maxWidth={680}>
-        <Dialog.Title>{t("admin.nodeTable.billing", "账单")}</Dialog.Title>
-        <Dialog.Description className="mt-2">
-          配置当前节点的价格、周期、到期时间和自动续费状态。
-        </Dialog.Description>
-        <form onSubmit={handleSave}>
-          <div className="mt-4 flex flex-col gap-4">
-            <div className={NODE_DIALOG_SECTION_CLASS}>
-              <div className="grid gap-4 sm:grid-cols-2">
-                <div>
-                  <label className={`mb-2 block ${NODE_DIALOG_LABEL_CLASS}`}>
-                    {t("admin.nodeTable.price")}
-                    <span className="ml-1 text-[12px] font-normal text-slate-500">
-                      {t("admin.nodeTable.priceTips")}
-                    </span>
-                  </label>
-                  <TextField.Root
-                    className={NODE_INPUT_CLASS}
-                    name="price"
-                    defaultValue={node.price}
-                  />
-                </div>
-
-                <div>
-                  <label className={`mb-2 block ${NODE_DIALOG_LABEL_CLASS}`}>
-                    {t("admin.nodeTable.currency", "货币")}
-                    <span className="ml-1 text-[12px] font-normal text-slate-500">
-                      {t("admin.nodeTable.currencyTips")}
-                    </span>
-                  </label>
-                  <TextField.Root
-                    className={NODE_INPUT_CLASS}
-                    name="currency"
-                    defaultValue={currency}
-                    onChange={(e) => setCurrency(e.target.value)}
-                  />
-                </div>
-
-                <div>
-                  <label className={`mb-2 flex items-center gap-1 ${NODE_DIALOG_LABEL_CLASS}`}>
-                    {t("admin.nodeTable.billingCycle")}
-                    <Tips>
-                      <span
-                        dangerouslySetInnerHTML={{
-                          __html: t("admin.nodeTable.billingCycleTips"),
-                        }}
-                      />
-                    </Tips>
-                  </label>
-                  <SelectOrInput
-                    className={NODE_INPUT_CLASS}
-                    options={[
-                      { label: t("common.monthly"), value: "30" },
-                      { label: t("common.quarterly"), value: "92" },
-                      { label: t("common.semi_annual"), value: "184" },
-                      { label: t("common.annual"), value: "365" },
-                      { label: t("common.biennial"), value: "730" },
-                      { label: t("common.triennial"), value: "1095" },
-                      { label: t("common.quinquennial"), value: "1825" },
-                      { label: t("common.once"), value: "-1" },
-                    ]}
-                    type="number"
-                    name="billingCycle"
-                    value={billingCycle === "0" ? "" : billingCycle}
-                    onChange={setBillingCycle}
-                  />
-                </div>
-
-                <div>
-                  <label className={`mb-2 block ${NODE_DIALOG_LABEL_CLASS}`}>
-                    {t("admin.nodeTable.expiredAt")}
-                  </label>
-                  <TextField.Root
-                    className={NODE_INPUT_CLASS}
-                    name="expiredAt"
-                    defaultValue={
-                      node.expired_at
-                        ? new Date(node.expired_at).toISOString().slice(0, 10)
-                        : "0001-01-01"
-                    }
-                    type="date"
-                  >
-                    <TextField.Slot side="right">
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        className="h-8 rounded-lg text-[13px]"
-                        onClick={() => {
-                          const dateInput = document.querySelector(
-                            'input[name="expiredAt"]'
-                          ) as HTMLInputElement;
-                          if (dateInput) {
-                            const futureDate = new Date();
-                            futureDate.setFullYear(futureDate.getFullYear() + 200);
-                            dateInput.value = futureDate.toISOString().slice(0, 10);
-                          }
-                        }}
-                      >
-                        {t("admin.nodeTable.setToLongTerm", "设置为长期")}
-                      </Button>
-                    </TextField.Slot>
-                  </TextField.Root>
-                </div>
-              </div>
-            </div>
-
-            <DialogSwitchRow
-              title={t("admin.nodeTable.autoRenewal")}
-              description={t("admin.nodeTable.autoRenewalDescription")}
-              checked={autoRenewal}
-              onCheckedChange={setAutoRenewal}
-            />
-
-            <div className={NODE_DIALOG_FOOTER_CLASS}>
-              <Dialog.Close>
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="w-full sm:w-auto"
-                >
-                  {t("admin.nodeTable.cancel")}
-                </Button>
-              </Dialog.Close>
-              <Button type="submit" disabled={saving} className="w-full sm:w-auto">
-                {t("save")}
-              </Button>
-            </div>
-          </div>
-        </form>
       </Dialog.Content>
     </Dialog.Root>
   );
