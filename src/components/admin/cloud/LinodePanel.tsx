@@ -31,7 +31,6 @@ import {
   Dialog,
   Flex,
   Select,
-  Tabs,
   TextArea,
   TextField,
 } from "@/components/admin/cloud/cloud-ui";
@@ -44,6 +43,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { WarningAlert } from "@/components/ui/warning-alert";
+import { useWarningDialog } from "@/components/ui/warning-dialog";
 import {
   checkLinodeTokens,
   createLinodeInstance,
@@ -302,8 +303,8 @@ const DetailItem = CloudDetailItem;
 
 export default function LinodePanel() {
   const { t } = useTranslation();
+  const { confirm, dialog } = useWarningDialog();
 
-  const [panelSection, setPanelSection] = React.useState<"instances" | "tokens">("instances");
   const [initializing, setInitializing] = React.useState(true);
   const [panelLoading, setPanelLoading] = React.useState(false);
   const [tokenSaving, setTokenSaving] = React.useState(false);
@@ -444,15 +445,8 @@ export default function LinodePanel() {
     }));
   }, [catalog]);
 
-  React.useEffect(() => {
-    if (!hasActiveToken(tokenPool)) {
-      setPanelSection("tokens");
-    }
-  }, [tokenPool]);
-
   const connected = Boolean(account && activeToken);
   const passwordStorageEnabled = Boolean(tokenPool?.password_storage_enabled);
-  const runningCount = instances.filter((instance) => instance.status === "running").length;
   const typePriceMap = new Map((catalog?.types || []).map((type) => [type.id, type]));
 
   const handleImportTokens = async () => {
@@ -509,7 +503,7 @@ export default function LinodePanel() {
 
   const handleSelectToken = async (
     token: LinodeTokenRecord,
-    options?: { loadResources?: boolean; openInstances?: boolean },
+    options?: { loadResources?: boolean },
   ) => {
     try {
       const nextPool = await setLinodeActiveToken(token.id);
@@ -520,9 +514,6 @@ export default function LinodePanel() {
           defaultValue: `Using token ${token.name}`,
         }),
       );
-      if (options?.openInstances) {
-        setPanelSection("instances");
-      }
       if (options?.loadResources) {
         await loadPanelData();
       }
@@ -532,12 +523,14 @@ export default function LinodePanel() {
   };
 
   const handleDeleteToken = async (token: LinodeTokenRecord) => {
-    const confirmed = window.confirm(
-      t("cloud.tokens.delete_confirm", {
+    const confirmed = await confirm({
+      title: t("cloud.tokens.delete", "Delete token"),
+      description: t("cloud.tokens.delete_confirm", {
         name: token.name,
         defaultValue: `Delete token "${token.name}"?`,
       }),
-    );
+      confirmLabel: t("cloud.tokens.delete", "Delete"),
+    });
     if (!confirmed) return;
 
     try {
@@ -644,12 +637,15 @@ export default function LinodePanel() {
   const handleDeleteShare = async () => {
     if (!shareTarget) return;
 
-    const confirmed = window.confirm(
-      t("cloud.share.delete_confirm", {
+    const confirmed = await confirm({
+      title: t("cloud.share.delete", "Revoke share link"),
+      description: t("cloud.share.delete_confirm", {
         name: shareTarget.resourceName,
         defaultValue: `Revoke the share link for "${shareTarget.resourceName}"?`,
       }),
-    );
+      confirmLabel: t("cloud.share.delete", "Revoke link"),
+      tone: "warning",
+    });
     if (!confirmed) return;
 
     setShareDeleting(true);
@@ -779,12 +775,14 @@ export default function LinodePanel() {
   };
 
   const handleDeleteInstance = async (instance: LinodeInstance) => {
-    const confirmed = window.confirm(
-      t("cloud.delete_confirm", {
+    const confirmed = await confirm({
+      title: t("cloud.delete", "Delete instance"),
+      description: t("cloud.delete_confirm", {
         name: instance.label,
         defaultValue: `Delete instance "${instance.label}"? This action cannot be undone.`,
       }),
-    );
+      confirmLabel: t("cloud.delete", "Delete"),
+    });
     if (!confirmed) return;
 
     try {
@@ -810,8 +808,7 @@ export default function LinodePanel() {
   }
 
   return (
-    <Tabs.Root value={panelSection} onValueChange={(value) => setPanelSection(value as "instances" | "tokens")}>
-      <AdminPageShell
+    <AdminPageShell
         eyebrow="Linode"
         title="Linode"
         description={t(
@@ -837,94 +834,43 @@ export default function LinodePanel() {
             </Button>
           </>
         }
-        statsVariant="cards"
-        stats={[
-          {
-            label: t("cloud.stats.tokens", "Tokens"),
-            value: tokenPool?.tokens.length || 0,
-            hint: t("cloud.sections.tokens", "Token Management"),
-            tone: "blue",
-          },
-          {
-            label: t("cloud.stats.account", "Account"),
-            value: (
-              <span className="inline-flex items-center gap-2">
-                <span>{account?.email || activeToken?.profile_email || "-"}</span>
-                {account?.restricted ? (
-                  <Badge color="red">{t("cloud.providers.linode.restricted", "Restricted")}</Badge>
-                ) : null}
-              </span>
-            ),
-            hint: activeToken?.name || "-",
-            tone: account?.restricted ? "rose" : "slate",
-          },
-          {
-            label: t("cloud.providers.linode.instances", "Instances"),
-            value: instances.length,
-            hint: t("cloud.providers.linode.instance_list", "Instance List"),
-            tone: "slate",
-          },
-          {
-            label: t("cloud.stats.running", "Running"),
-            value: runningCount,
-            hint: connected ? t("common.connected", "Connected") : t("cloud.no_active_token", "No active token"),
-            tone: runningCount > 0 ? "emerald" : "slate",
-          },
-        ]}
-        subnav={(
-          <Tabs.List className="grid w-full grid-cols-2 rounded-xl bg-slate-100 p-1 sm:w-auto">
-            <Tabs.Trigger value="instances">
-              {t("cloud.providers.linode.instance_list", "Instance List")} ({instances.length})
-            </Tabs.Trigger>
-            <Tabs.Trigger value="tokens">
-              {t("cloud.sections.tokens", "Token Management")} ({tokenPool?.tokens.length || 0})
-            </Tabs.Trigger>
-          </Tabs.List>
-        )}
       >
       {error ? (
-        <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-          {error}
-        </div>
+        <WarningAlert tone="warning" description={error} />
       ) : null}
 
       {account?.restricted ? (
-        <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
-          {t(
+        <WarningAlert
+          tone="destructive"
+          description={t(
             "cloud.providers.linode.restricted_account_help",
             "This Linode account is currently restricted. New health checks and instance operations may continue to fail until Linode removes the restriction.",
           )}
-        </div>
+        />
       ) : null}
 
       {!passwordStorageEnabled ? (
-        <div className="rounded-2xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800">
-          {t(
+        <WarningAlert
+          tone="info"
+          description={t(
             "cloud.password.storage_disabled_help",
             "Set KOMARI_CLOUD_SECRET_KEY on the server to save root passwords for later viewing in the Droplet list.",
           )}
-        </div>
+        />
       ) : null}
 
-      <Tabs.Content value="instances">
-          <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
+      <div className="order-2 overflow-hidden rounded-2xl border border-slate-200 bg-white">
             <div className="border-b border-slate-200 px-5 py-4">
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <div>
-                  <div className="text-sm font-medium text-slate-900">
-                    {t("cloud.providers.linode.instance_list", "Instance List")}
-                  </div>
-                  <div className="mt-1 text-sm text-slate-500">
-                    {t(
-                      "cloud.providers.linode.instance_list_description",
-                      "Click an instance label to inspect details and use the current token to manage its power state.",
-                    )}
-                  </div>
+              <div>
+                <div className="text-sm font-medium text-slate-900">
+                  {t("cloud.providers.linode.instance_list", "Instance List")}
                 </div>
-                <Button variant="outline" size="1" onClick={() => setPanelSection("tokens")}>
-                  <Server className="mr-2 h-4 w-4" />
-                  {t("cloud.tokens.open_manager", "Manage Tokens")}
-                </Button>
+                <div className="mt-1 text-sm text-slate-500">
+                  {t(
+                    "cloud.providers.linode.instance_list_description",
+                    "Click an instance label to inspect details and use the current token to manage its power state.",
+                  )}
+                </div>
               </div>
             </div>
 
@@ -1095,11 +1041,9 @@ export default function LinodePanel() {
                 )}
               </TableBody>
             </Table>
-          </div>
-      </Tabs.Content>
+      </div>
 
-      <Tabs.Content value="tokens">
-          <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
+      <div className="order-1 overflow-hidden rounded-2xl border border-slate-200 bg-white">
             <div className="border-b border-slate-200 px-5 py-4">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
@@ -1124,10 +1068,6 @@ export default function LinodePanel() {
                   >
                     <ShieldCheck className="mr-2 h-4 w-4" />
                     {t("cloud.tokens.check_all", "Check All Tokens")}
-                  </Button>
-                  <Button variant="outline" size="1" onClick={() => setPanelSection("instances")}>
-                    <Server className="mr-2 h-4 w-4" />
-                    {t("cloud.providers.linode.instance_list", "Instance List")}
                   </Button>
                   <Button size="1" onClick={() => setTokenImportOpen(true)}>
                     <CheckCircle2 className="mr-2 h-4 w-4" />
@@ -1219,7 +1159,6 @@ export default function LinodePanel() {
                               onClick={() => {
                                 void handleSelectToken(token, {
                                   loadResources: true,
-                                  openInstances: true,
                                 });
                               }}
                             >
@@ -1256,8 +1195,7 @@ export default function LinodePanel() {
                 </TableBody>
               </Table>
             </div>
-          </div>
-      </Tabs.Content>
+      </div>
 
       <Dialog.Root open={tokenImportOpen} onOpenChange={setTokenImportOpen}>
         <Dialog.Content className={`${cloudDialogContentClassName} max-h-[85vh] overflow-y-auto`}>
@@ -1386,12 +1324,13 @@ export default function LinodePanel() {
                 </Select.Item>
               </Select.Content>
             </Select.Root>
-            <div className="rounded-xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-900">
-              {t(
+            <WarningAlert
+              tone="info"
+              description={t(
                 "cloud.providers.linode.root_access_help",
                 "Linode can create the instance directly with a root password. SSH keys are optional and only add extra login methods.",
               )}
-            </div>
+            />
 
             {createForm.root_password_mode === "custom" ? (
               <>
@@ -2019,7 +1958,7 @@ export default function LinodePanel() {
           ) : null}
         </Dialog.Content>
       </Dialog.Root>
-      </AdminPageShell>
-    </Tabs.Root>
+      {dialog}
+    </AdminPageShell>
   );
 }

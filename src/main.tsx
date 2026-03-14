@@ -28,7 +28,7 @@ import { TooltipProvider } from "./components/ui/tooltip";
 import { RPC2Provider } from "./contexts/RPC2Context";
 import { ThemeShell } from "./components/ui/theme-shell";
 
-const SW_RECOVERY_VERSION = "2026-03-12-cloud-api-recovery-1";
+const SW_RECOVERY_VERSION = "2026-03-15-alert-dialog-rollout-1";
 
 const App = () => {
   React.useEffect(() => {

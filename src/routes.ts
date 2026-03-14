@@ -47,6 +47,10 @@ export const routes: RouteObject[] = [
         element: React.createElement(lazy(() => import("./pages/admin/cloud"))),
       },
       {
+        path: "dns",
+        element: React.createElement(lazy(() => import("./pages/admin/cloud-dns"))),
+      },
+      {
         path: "settings",
         element: React.createElement(
           lazy(() => import("./pages/admin/settings/_layout"))

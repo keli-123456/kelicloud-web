@@ -32,7 +32,6 @@ import {
   Dialog,
   Flex,
   Select,
-  Tabs,
   TextArea,
   TextField,
 } from "@/components/admin/cloud/cloud-ui";
@@ -45,6 +44,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { WarningAlert } from "@/components/ui/warning-alert";
+import { useWarningDialog } from "@/components/ui/warning-dialog";
 import {
   checkDigitalOceanTokens,
   createDigitalOceanDroplet,
@@ -327,8 +328,8 @@ const DetailItem = CloudDetailItem;
 
 export default function DigitalOceanPanel() {
   const { t } = useTranslation();
+  const { confirm, dialog } = useWarningDialog();
 
-  const [panelSection, setPanelSection] = React.useState<"droplets" | "tokens">("droplets");
   const [initializing, setInitializing] = React.useState(true);
   const [panelLoading, setPanelLoading] = React.useState(false);
   const [tokenSaving, setTokenSaving] = React.useState(false);
@@ -422,16 +423,6 @@ export default function DigitalOceanPanel() {
     clearPanelState();
   }, [clearPanelState, loadPanelData, loadTokenPool]);
 
-  const handlePanelSectionChange = React.useCallback(
-    (nextSection: "droplets" | "tokens") => {
-      setPanelSection(nextSection);
-      if (nextSection === "droplets" && hasActiveToken(tokenPool)) {
-        void loadPanelData();
-      }
-    },
-    [loadPanelData, tokenPool],
-  );
-
   React.useEffect(() => {
     let cancelled = false;
 
@@ -484,12 +475,6 @@ export default function DigitalOceanPanel() {
     }));
   }, [catalog]);
 
-  React.useEffect(() => {
-    if (!hasActiveToken(tokenPool)) {
-      setPanelSection("tokens");
-    }
-  }, [tokenPool]);
-
   if (initializing) {
     return <Loading text="" />;
   }
@@ -505,7 +490,6 @@ export default function DigitalOceanPanel() {
     account?.status_message || "",
     t,
   );
-  const runningCount = droplets.filter((droplet) => droplet.status === "active").length;
 
   const handleImportTokens = async () => {
     const tokens = parseTokenImports(tokenImportText);
@@ -557,7 +541,7 @@ export default function DigitalOceanPanel() {
     }
   };
 
-  const handleSelectToken = async (token: DigitalOceanTokenRecord, options?: { loadResources?: boolean; openDroplets?: boolean }) => {
+  const handleSelectToken = async (token: DigitalOceanTokenRecord, options?: { loadResources?: boolean }) => {
     try {
       const nextPool = await setDigitalOceanActiveToken(token.id);
       setTokenPool(nextPool);
@@ -567,9 +551,6 @@ export default function DigitalOceanPanel() {
           defaultValue: `Using token ${token.name}`,
         }),
       );
-      if (options?.openDroplets) {
-        handlePanelSectionChange("droplets");
-      }
       if (options?.loadResources) {
         await loadPanelData();
       }
@@ -579,12 +560,14 @@ export default function DigitalOceanPanel() {
   };
 
   const handleDeleteToken = async (token: DigitalOceanTokenRecord) => {
-    const confirmed = window.confirm(
-      t("cloud.tokens.delete_confirm", {
+    const confirmed = await confirm({
+      title: t("cloud.tokens.delete", "Delete token"),
+      description: t("cloud.tokens.delete_confirm", {
         name: token.name,
         defaultValue: `Delete token "${token.name}"?`,
       }),
-    );
+      confirmLabel: t("cloud.tokens.delete", "Delete"),
+    });
     if (!confirmed) return;
 
     try {
@@ -617,7 +600,6 @@ export default function DigitalOceanPanel() {
   const handleOpenDropletsForToken = async (token: DigitalOceanTokenRecord) => {
     await handleSelectToken(token, {
       loadResources: true,
-      openDroplets: true,
     });
   };
 
@@ -714,12 +696,15 @@ export default function DigitalOceanPanel() {
   const handleDeleteShare = async () => {
     if (!shareTarget) return;
 
-    const confirmed = window.confirm(
-      t("cloud.share.delete_confirm", {
+    const confirmed = await confirm({
+      title: t("cloud.share.delete", "Revoke share link"),
+      description: t("cloud.share.delete_confirm", {
         name: shareTarget.resourceName,
         defaultValue: `Revoke the share link for "${shareTarget.resourceName}"?`,
       }),
-    );
+      confirmLabel: t("cloud.share.delete", "Revoke link"),
+      tone: "warning",
+    });
     if (!confirmed) return;
 
     setShareDeleting(true);
@@ -809,12 +794,14 @@ export default function DigitalOceanPanel() {
   };
 
   const handleDeleteDroplet = async (droplet: DigitalOceanDroplet) => {
-    const confirmed = window.confirm(
-      t("cloud.delete_confirm", {
+    const confirmed = await confirm({
+      title: t("cloud.delete", "Delete instance"),
+      description: t("cloud.delete_confirm", {
         name: droplet.name,
         defaultValue: `Delete droplet "${droplet.name}"? This action cannot be undone.`,
       }),
-    );
+      confirmLabel: t("cloud.delete", "Delete"),
+    });
     if (!confirmed) return;
 
     try {
@@ -842,10 +829,7 @@ export default function DigitalOceanPanel() {
   };
 
   return (
-    <Tabs.Root
-      value={panelSection}
-      onValueChange={(value) => handlePanelSectionChange(value as "droplets" | "tokens")}
-    >
+    <>
       <AdminPageShell
         eyebrow="DigitalOcean"
         title="DigitalOcean"
@@ -876,77 +860,33 @@ export default function DigitalOceanPanel() {
             </Button>
           </>
         }
-        statsVariant="cards"
-        stats={[
-          {
-            label: t("cloud.stats.tokens", "Tokens"),
-            value: tokenRows.length,
-            hint: t("cloud.sections.tokens", "Token Management"),
-            tone: "blue",
-          },
-          {
-            label: t("cloud.stats.account", "Account"),
-            value: (
-              <span className="inline-flex items-center gap-2">
-                <span>{account?.email || activeToken?.account_email || "-"}</span>
-                {accountStatusSummary ? (
-                  <span title={account?.status_message || accountStatusSummary}>
-                    <Badge color="red">{accountStatusSummary}</Badge>
-                  </span>
-                ) : null}
-              </span>
-            ),
-            hint: activeToken?.name || "-",
-            tone: accountStatusSummary ? "amber" : "slate",
-          },
-          {
-            label: t("cloud.stats.droplets", "Droplets"),
-            value: droplets.length,
-            hint: t("cloud.sections.droplets", "Droplet List"),
-            tone: "slate",
-          },
-          {
-            label: t("cloud.stats.running", "Running"),
-            value: runningCount,
-            hint: connected ? t("common.connected", "Connected") : t("cloud.no_active_token", "No active token"),
-            tone: runningCount > 0 ? "emerald" : "slate",
-          },
-        ]}
-        subnav={(
-          <Tabs.List className="grid w-full grid-cols-2 rounded-xl bg-slate-100 p-1 sm:w-auto">
-            <Tabs.Trigger value="droplets">
-              {t("cloud.sections.droplets", "Droplet List")} ({droplets.length})
-            </Tabs.Trigger>
-            <Tabs.Trigger value="tokens">
-              {t("cloud.sections.tokens", "Token Management")} ({tokenRows.length})
-            </Tabs.Trigger>
-          </Tabs.List>
-        )}
       >
       {error ? (
-        <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-          {error}
-        </div>
+        <WarningAlert tone="warning" description={error} />
       ) : null}
 
       {accountStatusSummary ? (
-        <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-          <span title={account?.status_message || accountStatusSummary}>
-            {t(
-              "cloud.providers.digitalocean.locked_account_help",
-              "This DigitalOcean account is locked. Health checks and Droplet operations may continue to fail.",
-            )}
-          </span>
-        </div>
+        <WarningAlert
+          tone="warning"
+          description={
+            <span title={account?.status_message || accountStatusSummary}>
+              {t(
+                "cloud.providers.digitalocean.locked_account_help",
+                "This DigitalOcean account is locked. Health checks and Droplet operations may continue to fail.",
+              )}
+            </span>
+          }
+        />
       ) : null}
 
       {tokenPool && !passwordStorageEnabled ? (
-        <div className="rounded-2xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800">
-          {t(
+        <WarningAlert
+          tone="info"
+          description={t(
             "cloud.password.storage_disabled_help",
             "Set KOMARI_CLOUD_SECRET_KEY on the server to save root passwords for later viewing in the Droplet list.",
           )}
-        </div>
+        />
       ) : null}
 
       {sharedManagedKeyReady ? (
@@ -958,29 +898,18 @@ export default function DigitalOceanPanel() {
         </div>
       ) : null}
 
-      <Tabs.Content value="droplets">
-          <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
+      <div className="order-2 overflow-hidden rounded-2xl border border-slate-200 bg-white">
             <div className="border-b border-slate-200 px-5 py-4">
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <div>
-                  <div className="text-sm font-medium text-slate-900">
-                    {t("cloud.droplet_list", "Droplet List")}
-                  </div>
-                  <div className="mt-1 text-sm text-slate-500">
-                    {t(
-                      "cloud.droplet_list_description",
-                      "Click a Droplet name to view details, and use the current active token to perform lifecycle actions.",
-                    )}
-                  </div>
+              <div>
+                <div className="text-sm font-medium text-slate-900">
+                  {t("cloud.droplet_list", "Droplet List")}
                 </div>
-                <Button
-                  variant="outline"
-                  size="1"
-                  onClick={() => handlePanelSectionChange("tokens")}
-                >
-                  <Server className="mr-2 h-4 w-4" />
-                  {t("cloud.tokens.open_manager", "Manage Tokens")}
-                </Button>
+                <div className="mt-1 text-sm text-slate-500">
+                  {t(
+                    "cloud.droplet_list_description",
+                    "Click a Droplet name to view details, and use the current active token to perform lifecycle actions.",
+                  )}
+                </div>
               </div>
             </div>
 
@@ -1148,11 +1077,9 @@ export default function DigitalOceanPanel() {
                 )}
               </TableBody>
             </Table>
-          </div>
-      </Tabs.Content>
+      </div>
 
-      <Tabs.Content value="tokens">
-          <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
+      <div className="order-1 overflow-hidden rounded-2xl border border-slate-200 bg-white">
             <div className="border-b border-slate-200 px-5 py-4">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
@@ -1177,14 +1104,6 @@ export default function DigitalOceanPanel() {
                   >
                     <ShieldCheck className="mr-2 h-4 w-4" />
                     {t("cloud.tokens.check_all", "Check All Tokens")}
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="1"
-                    onClick={() => handlePanelSectionChange("droplets")}
-                  >
-                    <Server className="mr-2 h-4 w-4" />
-                    {t("cloud.sections.droplets", "Droplet List")}
                   </Button>
                   <Button
                     size="1"
@@ -1336,8 +1255,7 @@ export default function DigitalOceanPanel() {
                 </TableBody>
               </Table>
             </div>
-          </div>
-      </Tabs.Content>
+      </div>
 
       <Dialog.Root open={tokenImportOpen} onOpenChange={setTokenImportOpen}>
         <Dialog.Content className={`${cloudDialogContentClassName} max-h-[85vh] overflow-y-auto`}>
@@ -1507,12 +1425,13 @@ export default function DigitalOceanPanel() {
               </Select.Content>
             </Select.Root>
 
-            <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
-              {t(
+            <WarningAlert
+              tone="info"
+              description={t(
                 "cloud.form.root_access_password_help",
                 "Komari will ensure a managed SSH key exists for this token, attach it to the Droplet, and run a startup script to set the root password and enable password login.",
               )}
-            </div>
+            />
 
             {createForm.root_password_mode === "custom" ? (
               <>
@@ -1573,12 +1492,13 @@ export default function DigitalOceanPanel() {
             <label className="text-sm font-medium text-slate-800">
               {t("cloud.form.user_data", "Cloud-Init / User Data")}
             </label>
-            <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-              {t(
+            <WarningAlert
+              tone="warning"
+              description={t(
                 "cloud.form.user_data_password_help",
                 "When root password mode is enabled, this field is appended as shell commands. #cloud-config is not supported in this mode.",
               )}
-            </div>
+            />
             <TextArea
               rows={6}
               value={createForm.user_data}
@@ -2115,6 +2035,7 @@ export default function DigitalOceanPanel() {
         </Dialog.Content>
       </Dialog.Root>
       </AdminPageShell>
-    </Tabs.Root>
+      {dialog}
+    </>
   );
 }

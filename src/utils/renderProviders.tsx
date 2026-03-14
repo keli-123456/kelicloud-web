@@ -22,6 +22,39 @@ interface RenderProviderInputsProps {
     t: any;
 }
 
+const ACRONYM_PARTS = new Set([
+    "api",
+    "arn",
+    "aws",
+    "dns",
+    "ec2",
+    "id",
+    "ip",
+    "ram",
+    "ssh",
+    "ssl",
+    "sts",
+    "tls",
+    "ttl",
+    "url",
+    "vpc",
+]);
+
+function humanizeFieldName(name: string) {
+    return name
+        .split(/[._-]+/)
+        .filter(Boolean)
+        .map((part) => {
+            const lower = part.toLowerCase();
+            if (ACRONYM_PARTS.has(lower)) {
+                return lower.toUpperCase();
+            }
+
+            return lower.charAt(0).toUpperCase() + lower.slice(1);
+        })
+        .join(" ");
+}
+
 export const renderProviderInputs = ({
     currentProvider,
     providerDefs,
@@ -38,6 +71,18 @@ export const renderProviderInputs = ({
     if (!currentProvider || !providerDefs[currentProvider]) return null;
 
     const fields = providerDefs[currentProvider];
+    const translateField = (fieldName: string) => {
+        const fallback = humanizeFieldName(fieldName);
+        return translationPrefix
+            ? String(t(`${translationPrefix}.${fieldName}`, fallback))
+            : fallback;
+    };
+    const translateFieldHelp = (fieldName: string, helpText?: string) => {
+        if (!helpText) return undefined;
+        return translationPrefix
+            ? String(t(`${translationPrefix}.${fieldName}_help`, helpText))
+            : helpText;
+    };
 
     // 统一保存所有字段
     const handleSaveAll = async () => {
@@ -53,7 +98,7 @@ export const renderProviderInputs = ({
             });
 
             if (missingFields.length > 0) {
-                const fieldNames = missingFields.map((f: any) => t(`${translationPrefix}.${f.name}`, f.name)).join(", ");
+                const fieldNames = missingFields.map((f: any) => translateField(f.name)).join(", ");
                 toast.error(
                     t("settings.missing_required_fields", { fieldNames })
                 );
@@ -73,18 +118,18 @@ export const renderProviderInputs = ({
                 if (["int", "int64"].includes(f.type)) {
                     const numValue = value === "" ? 0 : Number(value);
                     if (isNaN(numValue)) {
-                        toast.error(t("settings.invalid_number", { field: t(`${translationPrefix}.${f.name}`, f.name) }));
+                        toast.error(t("settings.invalid_number", { field: translateField(f.name) }));
                         throw new Error(`Invalid integer value for ${f.name}`);
                     }
                     if (!Number.isInteger(numValue)) {
-                        toast.error(t("settings.invalid_integer", { field: t(`${translationPrefix}.${f.name}`, f.name) }));
+                        toast.error(t("settings.invalid_integer", { field: translateField(f.name) }));
                         throw new Error(`Value must be an integer for ${f.name}`);
                     }
                     processedValues[f.name] = numValue;
                 } else if (["float32", "float64"].includes(f.type)) {
                     const numValue = value === "" ? 0 : Number(value);
                     if (isNaN(numValue)) {
-                        toast.error(t("settings.invalid_number", { field: t(`${translationPrefix}.${f.name}`, f.name) }));
+                        toast.error(t("settings.invalid_number", { field: translateField(f.name) }));
                         throw new Error(`Invalid float value for ${f.name}`);
                     }
                     processedValues[f.name] = numValue;
@@ -105,8 +150,8 @@ export const renderProviderInputs = ({
 
     // 渲染单个字段
     const renderField = (f: any) => {
-        const fieldTitle = String(t(`${translationPrefix}.${f.name}`, f.name)) + (f.required ? " *" : "");
-        const fieldDescription = f.help ? String(t(`${translationPrefix}.${f.name}_help`, f.help)) : undefined;
+        const fieldTitle = translateField(f.name) + (f.required ? " *" : "");
+        const fieldDescription = translateFieldHelp(f.name, f.help);
         const fieldValue = providerValues[f.name] !== undefined ? providerValues[f.name] : (f.default || "");
 
         // 选择框类型

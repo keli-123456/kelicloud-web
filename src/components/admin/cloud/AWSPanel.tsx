@@ -43,6 +43,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { WarningAlert } from "@/components/ui/warning-alert";
+import { useWarningDialog } from "@/components/ui/warning-dialog";
 import {
   checkAWSCredentials,
   createAWSInstance,
@@ -358,8 +360,8 @@ function formatElasticAddress(address: AWSElasticAddress) {
 
 export default function AWSPanel() {
   const { t } = useTranslation();
+  const { confirm, dialog } = useWarningDialog();
 
-  const [panelSection, setPanelSection] = React.useState<"instances" | "credentials">("instances");
   const [instanceView, setInstanceView] = React.useState<"ec2" | "lightsail">("ec2");
   const [initializing, setInitializing] = React.useState(true);
   const [panelLoading, setPanelLoading] = React.useState(false);
@@ -551,19 +553,11 @@ export default function AWSPanel() {
     }));
   }, [activeRegion, lightsailCatalog]);
 
-  React.useEffect(() => {
-    if (!hasActiveCredential(credentialPool)) {
-      setPanelSection("credentials");
-    }
-  }, [credentialPool]);
-
   const activeCredential = getActiveCredential(credentialPool);
   const defaultCreateGroup = getDefaultAutoConnectGroup("aws", activeCredential?.name || "");
   const connected = Boolean(account && activeCredential);
   const activeQuota = account?.ec2_quota || activeCredential?.ec2_quota || null;
   const activeQuotaError = account?.ec2_quota_error || activeCredential?.ec2_quota_error || "";
-  const runningCount = instances.filter((instance) => instance.state === "running").length;
-  const lightsailRunningCount = lightsailInstances.filter((instance) => instance.state === "running").length;
   const selectedSubnetVpcId = getSubnetVpcId(catalog?.subnets || [], createForm.subnet_id);
   const filteredSecurityGroups = (catalog?.security_groups || []).filter((group) =>
     selectedSubnetVpcId ? group.vpc_id === selectedSubnetVpcId : true,
@@ -624,7 +618,7 @@ export default function AWSPanel() {
 
   const handleSelectCredential = async (
     credential: AWSCredentialRecord,
-    options?: { loadResources?: boolean; openInstances?: boolean },
+    options?: { loadResources?: boolean },
   ) => {
     try {
       const nextPool = await setAWSActiveCredential(credential.id);
@@ -635,9 +629,6 @@ export default function AWSPanel() {
           defaultValue: `Using token ${credential.name}`,
         }),
       );
-      if (options?.openInstances) {
-        setPanelSection("instances");
-      }
       if (options?.loadResources) {
         await loadPanelData();
       }
@@ -647,12 +638,14 @@ export default function AWSPanel() {
   };
 
   const handleDeleteCredential = async (credential: AWSCredentialRecord) => {
-    const confirmed = window.confirm(
-      t("cloud.tokens.delete_confirm", {
+    const confirmed = await confirm({
+      title: t("cloud.tokens.delete", "Delete credential"),
+      description: t("cloud.tokens.delete_confirm", {
         name: credential.name,
         defaultValue: `Delete token "${credential.name}"?`,
       }),
-    );
+      confirmLabel: t("cloud.tokens.delete", "Delete"),
+    });
     if (!confirmed) return;
 
     try {
@@ -893,12 +886,14 @@ export default function AWSPanel() {
   };
 
   const handleDeleteInstance = async (instance: AWSInstance) => {
-    const confirmed = window.confirm(
-      t("cloud.delete_confirm", {
+    const confirmed = await confirm({
+      title: t("cloud.delete", "Delete instance"),
+      description: t("cloud.delete_confirm", {
         name: instance.name || instance.instance_id,
         defaultValue: `Delete droplet "${instance.name || instance.instance_id}"? This action cannot be undone.`,
       }),
-    );
+      confirmLabel: t("cloud.delete", "Delete"),
+    });
     if (!confirmed) return;
 
     try {
@@ -911,12 +906,14 @@ export default function AWSPanel() {
   };
 
   const handleDeleteLightsailInstance = async (instance: AWSLightsailInstance) => {
-    const confirmed = window.confirm(
-      t("cloud.delete_confirm", {
+    const confirmed = await confirm({
+      title: t("cloud.delete", "Delete instance"),
+      description: t("cloud.delete_confirm", {
         name: instance.name,
         defaultValue: `Delete instance "${instance.name}"? This action cannot be undone.`,
       }),
-    );
+      confirmLabel: t("cloud.delete", "Delete"),
+    });
     if (!confirmed) return;
 
     try {
@@ -982,12 +979,15 @@ export default function AWSPanel() {
   const handleDeleteShare = async () => {
     if (!shareTarget) return;
 
-    const confirmed = window.confirm(
-      t("cloud.share.delete_confirm", {
+    const confirmed = await confirm({
+      title: t("cloud.share.delete", "Revoke share link"),
+      description: t("cloud.share.delete_confirm", {
         name: shareTarget.resourceName,
         defaultValue: `Revoke the share link for "${shareTarget.resourceName}"?`,
       }),
-    );
+      confirmLabel: t("cloud.share.delete", "Revoke link"),
+      tone: "warning",
+    });
     if (!confirmed) return;
 
     setShareDeleting(true);
@@ -1012,8 +1012,7 @@ export default function AWSPanel() {
   }
 
   return (
-    <Tabs.Root value={panelSection} onValueChange={(value) => setPanelSection(value as "instances" | "credentials")}>
-      <AdminPageShell
+    <AdminPageShell
         eyebrow="AWS"
         title="AWS EC2 / Lightsail"
         description={t(
@@ -1051,67 +1050,182 @@ export default function AWSPanel() {
             </Button>
           </>
         }
-        statsVariant="cards"
-        stats={[
-          {
-            label: t("cloud.providers.aws.credentials", "Credentials"),
-            value: credentialPool?.credentials.length || 0,
-            hint: t("cloud.providers.aws.credentials", "Credentials"),
-            tone: "blue",
-          },
-          {
-            label: t("cloud.stats.account", "Account"),
-            value: account?.account_id || activeCredential?.account_id || "-",
-            hint: activeCredential?.name || "-",
-            tone: "slate",
-          },
-          {
-            label: t("cloud.providers.aws.region", "Region"),
-            value: activeRegion,
-            hint: t("cloud.providers.aws.active_region", "Active Region"),
-            tone: "amber",
-          },
-          {
-            label: t("cloud.stats.running", "Running"),
-            value: instanceView === "lightsail" ? lightsailRunningCount : runningCount,
-            hint: instanceView === "lightsail"
-              ? t("cloud.providers.aws.lightsail_instances", "Lightsail")
-              : t("cloud.providers.aws.instance_list", "EC2 Instances"),
-            tone:
-              (instanceView === "lightsail" ? lightsailRunningCount : runningCount) > 0
-                ? "emerald"
-                : "slate",
-          },
-        ]}
-        subnav={(
-          <Tabs.List className="grid w-full grid-cols-2 rounded-xl bg-slate-100 p-1 sm:w-auto">
-            <Tabs.Trigger value="instances">
-              {t("cloud.providers.aws.compute", "Compute")}
-            </Tabs.Trigger>
-            <Tabs.Trigger value="credentials">
-              {t("cloud.providers.aws.credentials", "Credentials")} ({credentialPool?.credentials.length || 0})
-            </Tabs.Trigger>
-          </Tabs.List>
-        )}
       >
       {error ? (
-        <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-          {error}
-        </div>
+        <WarningAlert tone="warning" description={error} />
       ) : null}
 
       {activeQuotaError ? (
-        <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-          {t(
-            "cloud.providers.aws.quota_warning",
-            "AWS credentials are valid, but Komari could not read EC2 account quotas for the active region.",
-          )}{" "}
-          {activeQuotaError}
-        </div>
+        <WarningAlert
+          tone="warning"
+          description={
+            <>
+              {t(
+                "cloud.providers.aws.quota_warning",
+                "AWS credentials are valid, but Komari could not read EC2 account quotas for the active region.",
+              )}{" "}
+              {activeQuotaError}
+            </>
+          }
+        />
       ) : null}
 
-      <Tabs.Content value="instances">
-        <div className="grid gap-4 xl:grid-cols-[minmax(0,1.05fr)_minmax(0,1fr)]">
+      <div className="order-1 overflow-hidden rounded-2xl border border-slate-200 bg-white">
+            <div className="border-b border-slate-200 px-5 py-4">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <div className="text-sm font-medium text-slate-900">
+                    {t("cloud.providers.aws.credentials", "Credentials")}
+                  </div>
+                  <div className="mt-1 text-sm text-slate-500">
+                    {t(
+                      "cloud.providers.aws.credentials_description",
+                      "Save multiple AWS accounts, choose the active one, and bulk-check whether the credentials can still call EC2 and STS.",
+                    )}
+                  </div>
+                </div>
+                <Flex gap="2" wrap="wrap">
+                  <Button
+                    variant="outline"
+                    size="1"
+                    onClick={() => {
+                      void handleCheckCredentials();
+                    }}
+                    disabled={credentialChecking || !credentialPool?.credentials.length}
+                  >
+                    <ShieldCheck className="mr-2 h-4 w-4" />
+                    {t("cloud.tokens.check_all", "Check All Tokens")}
+                  </Button>
+                  <Button size="1" onClick={() => setCredentialImportOpen(true)}>
+                    <CheckCircle2 className="mr-2 h-4 w-4" />
+                    {t("cloud.providers.aws.import", "Import Credentials")}
+                  </Button>
+                </Flex>
+              </div>
+            </div>
+
+            <div className="max-h-[560px] overflow-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>{t("cloud.tokens.table.name", "Name")}</TableHead>
+                    <TableHead>{t("cloud.providers.aws.access_key", "Access Key")}</TableHead>
+                    <TableHead>{t("cloud.tokens.table.account", "Account")}</TableHead>
+                    <TableHead>{t("cloud.providers.aws.default_region", "Default Region")}</TableHead>
+                    <TableHead>{t("cloud.providers.aws.ec2_quota", "EC2 Quota")}</TableHead>
+                    <TableHead>{t("cloud.tokens.table.status", "Status")}</TableHead>
+                    <TableHead>{t("cloud.tokens.table.checked_at", "Last Checked")}</TableHead>
+                    <TableHead className="text-right">{t("common.action", "Action")}</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {!credentialPool?.credentials.length ? (
+                    <TableRow>
+                      <TableCell colSpan={8} className="h-24 text-center text-slate-500">
+                        {t("cloud.providers.aws.credentials_empty", "No AWS credentials saved yet")}
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    credentialPool.credentials.map((credential) => (
+                      <TableRow key={credential.id}>
+                        <TableCell className="font-medium text-slate-900">
+                          <div className="flex items-center gap-2">
+                            <span className="max-w-40 truncate">{credential.name}</span>
+                            {credential.is_active ? (
+                              <Badge color="blue">{t("cloud.tokens.active", "Active")}</Badge>
+                            ) : null}
+                          </div>
+                        </TableCell>
+                        <TableCell className="font-mono text-xs text-slate-600">
+                          {credential.masked_access_key_id || "-"}
+                        </TableCell>
+                        <TableCell>
+                          <div className="text-sm text-slate-900">{credential.account_id || "-"}</div>
+                          {credential.arn ? (
+                            <div className="max-w-64 truncate text-xs text-slate-500">{credential.arn}</div>
+                          ) : null}
+                        </TableCell>
+                        <TableCell>{credential.default_region || "-"}</TableCell>
+                        <TableCell className="min-w-64">
+                          <AWSQuotaSummary
+                            quota={credential.ec2_quota}
+                            error={credential.ec2_quota_error}
+                            t={t}
+                            compact
+                          />
+                        </TableCell>
+                        <TableCell>
+                          <Badge color={getCredentialStatusColor(credential.last_status)}>
+                            {t(`cloud.tokens.status.${credential.last_status}`, credential.last_status || "unknown")}
+                          </Badge>
+                          {credential.last_error ? (
+                            <div className={`mt-1 max-w-64 text-xs text-red-600 ${cloudLongTextClassName}`}>
+                              {credential.last_error}
+                            </div>
+                          ) : null}
+                        </TableCell>
+                        <TableCell>{formatDateTime(credential.last_checked_at)}</TableCell>
+                        <TableCell className="text-right">
+                          <Flex justify="end" gap="2" wrap="wrap">
+                            <Button
+                              variant="soft"
+                              size="1"
+                              color={credential.is_active ? "blue" : undefined}
+                              disabled={credential.is_active}
+                              onClick={() => {
+                                void handleSelectCredential(credential);
+                              }}
+                            >
+                              <Server className="mr-1 h-3.5 w-3.5" />
+                              {credential.is_active
+                                ? t("cloud.tokens.current", "Current")
+                                : t("cloud.tokens.use", "Use")}
+                            </Button>
+                            <Button
+                              variant="soft"
+                              size="1"
+                              onClick={() => {
+                                void handleSelectCredential(credential, {
+                                  loadResources: true,
+                                });
+                              }}
+                            >
+                              <Server className="mr-1 h-3.5 w-3.5" />
+                              {t("cloud.tokens.view_droplets", "View Droplets")}
+                            </Button>
+                            <Button
+                              variant="soft"
+                              size="1"
+                              disabled={credentialSecretLoading}
+                              onClick={() => {
+                                void handleViewCredentialSecret(credential);
+                              }}
+                            >
+                              <Eye className="mr-1 h-3.5 w-3.5" />
+                              {t("cloud.providers.aws.view_credential", "View Credential")}
+                            </Button>
+                            <Button
+                              variant="soft"
+                              size="1"
+                              color="red"
+                              onClick={() => {
+                                void handleDeleteCredential(credential);
+                              }}
+                            >
+                              <Trash2 className="mr-1 h-3.5 w-3.5" />
+                              {t("cloud.tokens.delete", "Delete")}
+                            </Button>
+                          </Flex>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+      </div>
+
+      <div className="order-2 grid gap-4 xl:grid-cols-[minmax(0,1.05fr)_minmax(0,1fr)]">
           <div className="rounded-2xl border border-slate-200 bg-white px-5 py-4">
             <div className="flex flex-wrap items-center justify-between gap-4">
               <div>
@@ -1181,7 +1295,8 @@ export default function AWSPanel() {
           </div>
         </div>
 
-        <Tabs.Root value={instanceView} onValueChange={(value) => setInstanceView(value as "ec2" | "lightsail")}>
+        <div className="order-3">
+          <Tabs.Root value={instanceView} onValueChange={(value) => setInstanceView(value as "ec2" | "lightsail")}>
             <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
               <div className="border-b border-slate-200 px-5 py-4">
                 <div className="flex flex-wrap items-center justify-between gap-3">
@@ -1205,10 +1320,6 @@ export default function AWSPanel() {
                         {t("cloud.providers.aws.lightsail_instances", "Lightsail")} ({lightsailInstances.length})
                       </Tabs.Trigger>
                     </Tabs.List>
-                    <Button variant="outline" size="1" onClick={() => setPanelSection("credentials")}>
-                      <Server className="mr-2 h-4 w-4" />
-                      {t("cloud.providers.aws.credentials", "Credentials")}
-                    </Button>
                   </Flex>
                 </div>
               </div>
@@ -1506,169 +1617,7 @@ export default function AWSPanel() {
               </Tabs.Content>
             </div>
           </Tabs.Root>
-        </Tabs.Content>
-
-        <Tabs.Content value="credentials">
-          <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
-            <div className="border-b border-slate-200 px-5 py-4">
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <div>
-                  <div className="text-sm font-medium text-slate-900">
-                    {t("cloud.providers.aws.credentials", "Credentials")}
-                  </div>
-                  <div className="mt-1 text-sm text-slate-500">
-                    {t(
-                      "cloud.providers.aws.credentials_description",
-                      "Save multiple AWS accounts, choose the active one, and bulk-check whether the credentials can still call EC2 and STS.",
-                    )}
-                  </div>
-                </div>
-                <Flex gap="2" wrap="wrap">
-                  <Button
-                    variant="outline"
-                    size="1"
-                    onClick={() => {
-                      void handleCheckCredentials();
-                    }}
-                    disabled={credentialChecking || !credentialPool?.credentials.length}
-                  >
-                    <ShieldCheck className="mr-2 h-4 w-4" />
-                    {t("cloud.tokens.check_all", "Check All Tokens")}
-                  </Button>
-                  <Button variant="outline" size="1" onClick={() => setPanelSection("instances")}>
-                    <Server className="mr-2 h-4 w-4" />
-                    {t("cloud.providers.aws.instance_list", "EC2 Instances")}
-                  </Button>
-                  <Button size="1" onClick={() => setCredentialImportOpen(true)}>
-                    <CheckCircle2 className="mr-2 h-4 w-4" />
-                    {t("cloud.providers.aws.import", "Import Credentials")}
-                  </Button>
-                </Flex>
-              </div>
-            </div>
-
-            <div className="max-h-[560px] overflow-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>{t("cloud.tokens.table.name", "Name")}</TableHead>
-                    <TableHead>{t("cloud.providers.aws.access_key", "Access Key")}</TableHead>
-                    <TableHead>{t("cloud.tokens.table.account", "Account")}</TableHead>
-                    <TableHead>{t("cloud.providers.aws.default_region", "Default Region")}</TableHead>
-                    <TableHead>{t("cloud.providers.aws.ec2_quota", "EC2 Quota")}</TableHead>
-                    <TableHead>{t("cloud.tokens.table.status", "Status")}</TableHead>
-                    <TableHead>{t("cloud.tokens.table.checked_at", "Last Checked")}</TableHead>
-                    <TableHead className="text-right">{t("common.action", "Action")}</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {!credentialPool?.credentials.length ? (
-                    <TableRow>
-                      <TableCell colSpan={8} className="h-24 text-center text-slate-500">
-                        {t("cloud.providers.aws.credentials_empty", "No AWS credentials saved yet")}
-                      </TableCell>
-                    </TableRow>
-                  ) : (
-                    credentialPool.credentials.map((credential) => (
-                      <TableRow key={credential.id}>
-                        <TableCell className="font-medium text-slate-900">
-                          <div className="flex items-center gap-2">
-                            <span className="max-w-40 truncate">{credential.name}</span>
-                            {credential.is_active ? (
-                              <Badge color="blue">{t("cloud.tokens.active", "Active")}</Badge>
-                            ) : null}
-                          </div>
-                        </TableCell>
-                        <TableCell className="font-mono text-xs text-slate-600">
-                          {credential.masked_access_key_id || "-"}
-                        </TableCell>
-                        <TableCell>
-                          <div className="text-sm text-slate-900">{credential.account_id || "-"}</div>
-                          {credential.arn ? (
-                            <div className="max-w-64 truncate text-xs text-slate-500">{credential.arn}</div>
-                          ) : null}
-                        </TableCell>
-                        <TableCell>{credential.default_region || "-"}</TableCell>
-                        <TableCell className="min-w-64">
-                          <AWSQuotaSummary
-                            quota={credential.ec2_quota}
-                            error={credential.ec2_quota_error}
-                            t={t}
-                            compact
-                          />
-                        </TableCell>
-                        <TableCell>
-                          <Badge color={getCredentialStatusColor(credential.last_status)}>
-                            {t(`cloud.tokens.status.${credential.last_status}`, credential.last_status || "unknown")}
-                          </Badge>
-                          {credential.last_error ? (
-                            <div className={`mt-1 max-w-64 text-xs text-red-600 ${cloudLongTextClassName}`}>
-                              {credential.last_error}
-                            </div>
-                          ) : null}
-                        </TableCell>
-                        <TableCell>{formatDateTime(credential.last_checked_at)}</TableCell>
-                        <TableCell className="text-right">
-                          <Flex justify="end" gap="2" wrap="wrap">
-                            <Button
-                              variant="soft"
-                              size="1"
-                              color={credential.is_active ? "blue" : undefined}
-                              disabled={credential.is_active}
-                              onClick={() => {
-                                void handleSelectCredential(credential);
-                              }}
-                            >
-                              <Server className="mr-1 h-3.5 w-3.5" />
-                              {credential.is_active
-                                ? t("cloud.tokens.current", "Current")
-                                : t("cloud.tokens.use", "Use")}
-                            </Button>
-                            <Button
-                              variant="soft"
-                              size="1"
-                              onClick={() => {
-                                void handleSelectCredential(credential, {
-                                  loadResources: true,
-                                  openInstances: true,
-                                });
-                              }}
-                            >
-                              <Server className="mr-1 h-3.5 w-3.5" />
-                              {t("cloud.tokens.view_droplets", "View Droplets")}
-                            </Button>
-                            <Button
-                              variant="soft"
-                              size="1"
-                              disabled={credentialSecretLoading}
-                              onClick={() => {
-                                void handleViewCredentialSecret(credential);
-                              }}
-                            >
-                              <Eye className="mr-1 h-3.5 w-3.5" />
-                              {t("cloud.providers.aws.view_credential", "View Credential")}
-                            </Button>
-                            <Button
-                              variant="soft"
-                              size="1"
-                              color="red"
-                              onClick={() => {
-                                void handleDeleteCredential(credential);
-                              }}
-                            >
-                              <Trash2 className="mr-1 h-3.5 w-3.5" />
-                              {t("cloud.tokens.delete", "Delete")}
-                            </Button>
-                          </Flex>
-                        </TableCell>
-                      </TableRow>
-                    ))
-                  )}
-                </TableBody>
-              </Table>
-            </div>
-          </div>
-        </Tabs.Content>
+        </div>
 
       <Dialog.Root open={credentialImportOpen} onOpenChange={setCredentialImportOpen}>
         <Dialog.Content className={`${cloudDialogContentClassName} max-h-[85vh] overflow-y-auto`}>
@@ -1808,6 +1757,21 @@ export default function AWSPanel() {
               </Select.Content>
             </Select.Root>
 
+            <WarningAlert
+              tone="warning"
+              description={
+                selectedSubnetVpcId
+                  ? t("cloud.providers.aws.security_group_hint_vpc", {
+                      vpc: selectedSubnetVpcId,
+                      defaultValue: `Showing groups from VPC ${selectedSubnetVpcId}`,
+                    })
+                  : t(
+                      "cloud.providers.aws.security_group_hint",
+                      "Select matching security groups when you choose a subnet. Leave empty to let AWS use the subnet default behavior.",
+                    )
+              }
+            />
+
             <div className="rounded-xl border border-slate-200 bg-white px-4 py-3">
               <div className="text-sm font-medium text-slate-800">
                 {t("cloud.providers.aws.security_groups", "Security Groups")}
@@ -1875,6 +1839,13 @@ export default function AWSPanel() {
             <label className="text-sm font-medium text-slate-800">
               {t("cloud.form.user_data", "Cloud-Init / User Data")}
             </label>
+            <WarningAlert
+              tone="info"
+              description={t(
+                "cloud.providers.aws.user_data_help",
+                "EC2 sends this field to cloud-init as-is. If Auto-connect is enabled, Komari appends bootstrap shell commands, so keep the payload shell-compatible.",
+              )}
+            />
             <TextArea
               rows={6}
               value={createForm.user_data}
@@ -2091,6 +2062,13 @@ export default function AWSPanel() {
             <label className="text-sm font-medium text-slate-800">
               {t("cloud.form.user_data", "Cloud-Init / User Data")}
             </label>
+            <WarningAlert
+              tone="info"
+              description={t(
+                "cloud.providers.aws.lightsail_user_data_help",
+                "Lightsail runs user data only on first boot. If Auto-connect is enabled, Komari appends bootstrap shell commands to the same payload.",
+              )}
+            />
             <TextArea
               rows={6}
               value={lightsailCreateForm.user_data || ""}
@@ -2804,7 +2782,7 @@ export default function AWSPanel() {
           ) : null}
         </Dialog.Content>
       </Dialog.Root>
-      </AdminPageShell>
-    </Tabs.Root>
+      {dialog}
+    </AdminPageShell>
   );
 }

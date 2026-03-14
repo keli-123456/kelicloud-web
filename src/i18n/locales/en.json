@@ -224,6 +224,22 @@
     "connection_description": "Save a Personal Access Token with Droplet read/write permissions. The panel uses the official DigitalOcean v2 API.",
     "droplet_list": "Droplet List",
     "droplet_list_description": "Click a Droplet name to view details, and use the current active token to perform lifecycle actions.",
+    "dns": {
+      "title": "DNS Provider",
+      "page_description": "Keep DNS service credentials in a dedicated page so domain automation stays separate from cloud instances and token pools.",
+      "description": "Configure a DNS service provider so Komari can later point cloud instance IPs at your domain records.",
+      "empty": "The backend has not exposed any DNS provider configuration yet.",
+      "preferred_missing": "This backend response does not expose Cloudflare or Aliyun DNS providers yet. The DNS settings panel is ready, but those providers need to exist on the backend first.",
+      "provider": "DNS Service",
+      "provider_description": "Pick the DNS provider Komari should use for domain automation.",
+      "provider_fields": "Credential Fields",
+      "provider_fields_description": "Save the API credentials Komari should use for this DNS provider.",
+      "multi_provider_hint": "You can save multiple DNS providers side by side here. Each provider currently stores one credential profile.",
+      "save_success": "DNS provider configuration saved",
+      "cloudflare_hint": "Use an API token that can edit DNS records for the target Cloudflare zone.",
+      "aliyun_hint": "Use an AccessKey pair with AliDNS record permissions for the target domain.",
+      "generic_hint": "Save DNS credentials here so Komari can reuse them in domain resolution workflows."
+    },
     "loading": "Loading cloud resources...",
     "empty": "No Droplets found",
     "stats": {

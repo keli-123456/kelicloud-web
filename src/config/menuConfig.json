@@ -28,6 +28,11 @@
       ]
     },
     {
+      "labelKey": "cloud.dns.title",
+      "path": "/admin/dns",
+      "icon": "AtSign"
+    },
+    {
       "labelKey": "settings.title",
       "path": "/admin/settings",
       "icon": "Bolt",
