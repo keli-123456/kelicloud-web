@@ -19,6 +19,7 @@ import { toast } from "sonner";
 import Loading from "@/components/loading";
 import { SettingCardMultiInputCollapse } from "@/components/admin/SettingCardMultiInput";
 import { formatBytes } from "@/utils/unitHelper";
+import { normalizeCNConnectivityTargets } from "@/lib/cnConnectivityTargets";
 export default function GeneralSettings() {
   const { t } = useTranslation();
   const { settings, loading, error } = useSettings();
@@ -80,9 +81,11 @@ export default function GeneralSettings() {
           {
             tag: "cn_connectivity_target",
             label: t("settings.general.cn_connectivity_target"),
-            type: "short",
-            placeholder: "223.5.5.5",
-            defaultValue: settings.cn_connectivity_target || "",
+            type: "long",
+            placeholder: "223.5.5.5\n119.29.29.29\ndns.alidns.com",
+            defaultValue: normalizeCNConnectivityTargets(
+              settings.cn_connectivity_target || ""
+            ),
           },
           {
             tag: "cn_connectivity_interval",
@@ -100,15 +103,23 @@ export default function GeneralSettings() {
             return;
           }
 
+          const normalizedTargets = normalizeCNConnectivityTargets(
+            values.cn_connectivity_target
+          );
+
           await updateSettingsWithToast(
             {
-              cn_connectivity_target: values.cn_connectivity_target.trim(),
+              cn_connectivity_target: normalizedTargets,
               cn_connectivity_interval: interval,
             },
             t
           );
         }}
-      />
+      >
+        <p className="text-[12px] leading-5 text-muted-foreground">
+          {t("settings.general.cn_connectivity_target_help")}
+        </p>
+      </SettingCardMultiInputCollapse>
       <label className="pt-1 text-[12px] font-semibold uppercase tracking-[0.14em] text-slate-500">
         {t("settings.geoip.title")}
       </label>

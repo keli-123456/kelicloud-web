@@ -889,12 +889,13 @@
       "auto_discovery_key_description": "使用自动发现可以批量注册客户端，留空表示禁用自动发现。",
       "cn_connectivity": "国内连通探测",
       "cn_connectivity_config": "探测配置",
-      "cn_connectivity_config_description": "Agent 会定时 ICMP ping 你提供的目标地址，请只填写确认允许 ping 的目标。",
+      "cn_connectivity_config_description": "Agent 会定时按顺序探测你提供的目标地址，建议填写多个确认允许 ping 的 IP 或域名作为备用。",
       "cn_connectivity_enabled": "启用国内连通探测",
       "cn_connectivity_enabled_description": "用于辅助判断节点到你指定目标的国内连通性。",
       "cn_connectivity_interval": "探测间隔（秒）",
       "cn_connectivity_interval_invalid": "探测间隔必须大于 0",
       "cn_connectivity_target": "探测目标",
+      "cn_connectivity_target_help": "支持填写多个目标，每行一个。Agent 会按顺序尝试，前一个不可用时自动切到下一个目标。",
       "title": "通用"
     },
     "geoip": {

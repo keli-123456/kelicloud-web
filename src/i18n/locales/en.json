@@ -889,12 +889,13 @@
       "auto_discovery_key_description": "Use automatic discovery to register clients in bulk. Leave blank to disable automatic discovery.",
       "cn_connectivity": "CN connectivity probe",
       "cn_connectivity_config": "Probe settings",
-      "cn_connectivity_config_description": "The agent will periodically ICMP ping the target you provide. Only use a target that you know allows ping.",
+      "cn_connectivity_config_description": "The agent will probe the targets you provide in order. Add multiple IPs or domains that you know allow ICMP as fallbacks.",
       "cn_connectivity_enabled": "Enable CN connectivity probe",
       "cn_connectivity_enabled_description": "Used to help judge node connectivity to your chosen target in China.",
       "cn_connectivity_interval": "Probe interval (seconds)",
       "cn_connectivity_interval_invalid": "Probe interval must be greater than 0",
       "cn_connectivity_target": "Probe target",
+      "cn_connectivity_target_help": "Multiple targets are supported, one per line. The agent will try them in order and fall back automatically when a target fails.",
       "title": "General"
     },
     "geoip": {

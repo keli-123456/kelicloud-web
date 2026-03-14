@@ -55,6 +55,7 @@ import { type SettingsResponse, useSettings } from "@/lib/api";
 import { useRPC2Call } from "@/contexts/RPC2Context";
 import type { Record as LiveRecord } from "@/types/LiveData";
 import { buildAgentInstallScriptURL } from "@/lib/installScriptSource";
+import { formatCNConnectivityTargetsSummary, parseCNConnectivityTargets } from "@/lib/cnConnectivityTargets";
 
 
 const NodeDetailsPage = () => {
@@ -438,7 +439,7 @@ const Header = ({
   liveError: string | null;
   settings: SettingsResponse;
 }) => {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { refresh } = useNodeDetails();
   const [loading, setLoading] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -466,9 +467,15 @@ const Header = ({
     0
   );
   const cnConnectivityEnabled = Boolean(settings?.cn_connectivity_enabled);
-  const cnConnectivityTarget = String(settings?.cn_connectivity_target || "").trim();
+  const cnConnectivityTargets = parseCNConnectivityTargets(
+    String(settings?.cn_connectivity_target || "")
+  );
   const cnConnectivityConfigured =
-    cnConnectivityEnabled && cnConnectivityTarget !== "";
+    cnConnectivityEnabled && cnConnectivityTargets.length > 0;
+  const cnConnectivitySummary = formatCNConnectivityTargetsSummary(
+    String(settings?.cn_connectivity_target || ""),
+    i18n.language.startsWith("zh") ? "zh" : "en"
+  );
   const handleAddNode = async (name: string | undefined) => {
     setDialogOpen(true);
     setLoading(true);
@@ -564,7 +571,7 @@ const Header = ({
           </div>
           <div className="text-sm text-slate-500">
             {cnConnectivityConfigured
-              ? `国内连通探测：${cnConnectivityTarget}`
+              ? `国内连通探测：${cnConnectivitySummary}`
               : cnConnectivityEnabled
                 ? "国内连通探测已启用，但还没有填写探测目标。"
                 : "国内连通探测未启用。"}
