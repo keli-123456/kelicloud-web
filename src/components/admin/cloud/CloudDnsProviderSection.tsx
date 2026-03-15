@@ -138,23 +138,29 @@ function getProviderAccent(provider: string) {
   if (isCloudflareProvider(provider)) {
     return {
       icon: "CF",
-      iconClassName: "border-amber-200 bg-amber-50 text-amber-700",
-      cardClassName: "border-amber-200/70 bg-gradient-to-br from-amber-50 via-white to-white",
+      iconClassName:
+        "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-300",
+      cardClassName:
+        "border-amber-200/70 bg-gradient-to-br from-amber-50 via-white to-white dark:border-amber-900/50 dark:from-amber-950/20 dark:via-slate-950 dark:to-slate-950",
     };
   }
 
   if (isAliyunProvider(provider)) {
     return {
       icon: "AL",
-      iconClassName: "border-sky-200 bg-sky-50 text-sky-700",
-      cardClassName: "border-sky-200/70 bg-gradient-to-br from-sky-50 via-white to-white",
+      iconClassName:
+        "border-sky-200 bg-sky-50 text-sky-700 dark:border-sky-900/60 dark:bg-sky-950/30 dark:text-sky-300",
+      cardClassName:
+        "border-sky-200/70 bg-gradient-to-br from-sky-50 via-white to-white dark:border-sky-900/50 dark:from-sky-950/20 dark:via-slate-950 dark:to-slate-950",
     };
   }
 
   return {
     icon: valueToMonogram(provider),
-    iconClassName: "border-slate-200 bg-slate-100 text-slate-700",
-    cardClassName: "border-slate-200 bg-slate-50",
+    iconClassName:
+      "border-slate-200 bg-slate-100 text-slate-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200",
+    cardClassName:
+      "border-slate-200 bg-slate-50 dark:border-slate-800 dark:bg-slate-950/50",
   };
 }
 
@@ -581,13 +587,18 @@ export default function CloudDnsProviderSection({
 
   return (
     <>
-      <div className={cn("overflow-hidden rounded-2xl border border-slate-200 bg-white", className)}>
-        <div className="border-b border-slate-200 px-5 py-4">
+      <div
+        className={cn(
+          "overflow-hidden rounded-2xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-950/40",
+          className,
+        )}
+      >
+        <div className="border-b border-slate-200 px-5 py-4 dark:border-slate-800">
           <div>
-            <div className="text-sm font-medium text-slate-900">
+            <div className="text-sm font-medium text-slate-900 dark:text-slate-100">
               {t("cloud.dns.title", "DNS Providers")}
             </div>
-            <div className="mt-1 text-sm text-slate-500">
+            <div className="mt-1 text-sm text-slate-500 dark:text-slate-400">
               {t(
                 "cloud.dns.description",
                 "Configure DNS service providers here so Komari can reuse their credentials later when it needs to create or update domain records.",
@@ -631,24 +642,24 @@ export default function CloudDnsProviderSection({
                 )}
               />
 
-              <div className="flex flex-wrap gap-x-5 gap-y-2 border-b border-slate-200 pb-1 text-[13px] text-slate-500">
+              <div className="flex flex-wrap gap-x-5 gap-y-2 border-b border-slate-200 pb-1 text-[13px] text-slate-500 dark:border-slate-800 dark:text-slate-400">
                 <div className="flex items-center gap-2">
-                  <span className="font-medium text-slate-700">
+                  <span className="font-medium text-slate-700 dark:text-slate-300">
                     {t("cloud.dns.overview.providers", "Providers")}:
                   </span>
-                  <span className="text-slate-900">{providerList.length}</span>
+                  <span className="text-slate-900 dark:text-slate-100">{providerList.length}</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className="font-medium text-slate-700">
+                  <span className="font-medium text-slate-700 dark:text-slate-300">
                     {t("cloud.dns.overview.credentials", "Credentials")}:
                   </span>
-                  <span className="text-slate-900">{totalCredentialCount}</span>
+                  <span className="text-slate-900 dark:text-slate-100">{totalCredentialCount}</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className="font-medium text-slate-700">
+                  <span className="font-medium text-slate-700 dark:text-slate-300">
                     {t("cloud.dns.overview.configured", "Configured")}:
                   </span>
-                  <span className="text-slate-900">
+                  <span className="text-slate-900 dark:text-slate-100">
                     {configuredProviderCount}
                     {incompleteProviderCount > 0
                       ? t("cloud.dns.overview.incomplete_suffix", " ({{count}} incomplete)", {
@@ -684,7 +695,7 @@ export default function CloudDnsProviderSection({
                       key={provider}
                       className={cn("rounded-xl border px-4 py-4", accent.cardClassName)}
                     >
-                      <div className="flex flex-col gap-3 border-b border-slate-200/80 pb-4">
+                      <div className="flex flex-col gap-3 border-b border-slate-200/80 pb-4 dark:border-slate-800/80">
                         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                           <div className="flex items-start gap-3">
                             <div
@@ -697,7 +708,7 @@ export default function CloudDnsProviderSection({
                             </div>
                             <div className="space-y-1">
                               <div className="flex flex-wrap items-center gap-2">
-                                <div className="text-sm font-semibold text-slate-900">
+                                <div className="text-sm font-semibold text-slate-900 dark:text-slate-100">
                                   {providerLabel}
                                 </div>
                                 {isPreferredDnsProvider(provider) ? (
@@ -706,7 +717,7 @@ export default function CloudDnsProviderSection({
                                   </Badge>
                                 ) : null}
                               </div>
-                              <div className="max-w-2xl text-sm text-slate-600">
+                              <div className="max-w-2xl text-sm text-slate-600 dark:text-slate-300">
                                 {t(
                                   `cloud.dns.providers.${translationKey}.description`,
                                   "Store multiple named credential sets here. Domain binding will be selected later when the record is actually used.",
@@ -724,7 +735,7 @@ export default function CloudDnsProviderSection({
                           {summaryItems.map((item, index) => (
                             <div
                               key={`${provider}-${index}`}
-                              className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-medium text-slate-600"
+                              className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-medium text-slate-600 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-300"
                             >
                               {item}
                             </div>
@@ -748,7 +759,7 @@ export default function CloudDnsProviderSection({
                         <>
                           <div className="mt-4 space-y-3">
                             {providerEntries.length === 0 ? (
-                              <div className="rounded-xl border border-dashed border-slate-300 bg-white/70 px-4 py-5 text-sm text-slate-500">
+                              <div className="rounded-xl border border-dashed border-slate-300 bg-white/70 px-4 py-5 text-sm text-slate-500 dark:border-slate-700 dark:bg-slate-950/60 dark:text-slate-400">
                                 {t(
                                   "cloud.dns.empty_entries",
                                   "No credential profiles saved for this provider yet.",
@@ -769,19 +780,19 @@ export default function CloudDnsProviderSection({
                                 return (
                                   <div
                                     key={entry.id}
-                                    className="rounded-xl border border-slate-200 bg-white px-4 py-3"
+                                    className="rounded-xl border border-slate-200 bg-white px-4 py-3 dark:border-slate-800 dark:bg-slate-950/60"
                                   >
                                     <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                                       <div className="min-w-0 space-y-1">
                                         <div className="flex flex-wrap items-center gap-2">
-                                          <div className="truncate text-sm font-semibold text-slate-900">
+                                          <div className="truncate text-sm font-semibold text-slate-900 dark:text-slate-100">
                                             {entry.name}
                                           </div>
                                           <Badge variant={entryStatusMeta.variant}>
                                             {entryStatusMeta.label}
                                           </Badge>
                                         </div>
-                                        <div className="text-xs text-slate-500">
+                                        <div className="text-xs text-slate-500 dark:text-slate-400">
                                           {t(
                                             "cloud.dns.summary.credentials_ready",
                                             "{{filled}} / {{total}} credential fields ready",
@@ -817,7 +828,7 @@ export default function CloudDnsProviderSection({
                           </div>
 
                           <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                            <div className="text-sm text-slate-500">
+                            <div className="text-sm text-slate-500 dark:text-slate-400">
                               {t(
                                 "cloud.dns.dialog.credentials_only_hint",
                                 "This page only stores config names and credentials. Domain or zone binding will be selected later.",
@@ -843,7 +854,7 @@ export default function CloudDnsProviderSection({
       </div>
 
       <Dialog open={Boolean(dialogState)} onOpenChange={(open) => !open && closeDialog()}>
-        <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-2xl">
+        <DialogContent className="max-h-[85vh] overflow-y-auto border-slate-200 bg-white sm:max-w-2xl dark:border-slate-800 dark:bg-slate-950">
           <DialogHeader>
             <DialogTitle>
               {dialogState?.entryId

@@ -35,6 +35,20 @@ const NodeDisplay: React.FC<NodeDisplayProps> = ({ nodes, liveData }) => {
     "all",
   );
   const searchRef = useRef<HTMLInputElement>(null);
+  const onlineSearchTerms = useMemo(
+    () =>
+      new Set(
+        ["online", "在线", "在線", String(t("nodeCard.online")).toLowerCase()].filter(Boolean),
+      ),
+    [t],
+  );
+  const offlineSearchTerms = useMemo(
+    () =>
+      new Set(
+        ["offline", "离线", "離線", String(t("nodeCard.offline")).toLowerCase()].filter(Boolean),
+      ),
+    [t],
+  );
 
   const groups = useMemo(() => {
     const groupSet = new Set<string>();
@@ -85,12 +99,12 @@ const NodeDisplay: React.FC<NodeDisplayProps> = ({ nodes, liveData }) => {
         !Number.isNaN(Number(term)) && node.price.toString().includes(term);
       const isOnline = liveData?.online?.includes(node.uuid) || false;
       const statusMatch =
-        ((term === "online" || term === "在线") && isOnline) ||
-        ((term === "offline" || term === "离线") && !isOnline);
+        (onlineSearchTerms.has(term) && isOnline) ||
+        (offlineSearchTerms.has(term) && !isOnline);
 
       return basicMatch || regionMatch || priceMatch || statusMatch;
     });
-  }, [liveData, nodes, searchTerm, selectedGroup]);
+  }, [liveData, nodes, offlineSearchTerms, onlineSearchTerms, searchTerm, selectedGroup]);
 
   const baseSelectionCount =
     selectedGroup === "all"
@@ -116,24 +130,36 @@ const NodeDisplay: React.FC<NodeDisplayProps> = ({ nodes, liveData }) => {
             <div className="space-y-3">
               <div className="flex flex-wrap items-center gap-2">
                 <Badge variant="info" className="rounded-full px-3 py-1">
-                  Node Explorer
+                  {t("nodes.explorer", { defaultValue: "Node Explorer" })}
                 </Badge>
                 <Badge variant="secondary" className="rounded-full px-3 py-1">
-                  {nodes.length} total
+                  {t("nodes.total_badge", {
+                    count: nodes.length,
+                    defaultValue: "{{count}} total",
+                  })}
                 </Badge>
                 <Badge
                   variant={filteredOnlineCount > 0 ? "success" : "warning"}
                   className="rounded-full px-3 py-1"
                 >
-                  {filteredOnlineCount} online in view
+                  {t("nodes.online_in_view", {
+                    count: filteredOnlineCount,
+                    defaultValue: "{{count}} online in view",
+                  })}
                 </Badge>
               </div>
               <div>
                 <h3 className="text-xl font-semibold tracking-tight md:text-2xl">
-                  Filter by group, search instantly, then switch between card and table views.
+                  {t("nodes.browser_title", {
+                    defaultValue:
+                      "Filter by group, search instantly, then switch between card and table views.",
+                  })}
                 </h3>
                 <p className="mt-1 text-sm leading-6 text-muted-foreground">
-                  支持按名称、系统、地区和在线状态快速定位节点，整个节点浏览器现在被收成一个统一控制面板，而不是散落的按钮条。
+                  {t("nodes.browser_description", {
+                    defaultValue:
+                      "Filter nodes by name, OS, region, or live status from one compact explorer instead of scattered controls.",
+                  })}
                 </p>
               </div>
             </div>
@@ -178,11 +204,11 @@ const NodeDisplay: React.FC<NodeDisplayProps> = ({ nodes, liveData }) => {
               >
                 <SegmentedControl.Item value="grid" className="gap-2">
                   <Grid3X3 size={15} />
-                  Cards
+                  {t("nodes.cards_view", { defaultValue: "Cards" })}
                 </SegmentedControl.Item>
                 <SegmentedControl.Item value="table" className="gap-2">
                   <Table2 size={15} />
-                  Table
+                  {t("nodes.table_view", { defaultValue: "Table" })}
                 </SegmentedControl.Item>
               </SegmentedControl.Root>
             </div>
@@ -192,9 +218,14 @@ const NodeDisplay: React.FC<NodeDisplayProps> = ({ nodes, liveData }) => {
             <div className="flex flex-col gap-2 border-t border-border/60 pt-4">
               <div className="flex flex-wrap items-center justify-between gap-2 text-sm text-muted-foreground">
                 <span className="text-[11px] uppercase tracking-[0.24em]">
-                  Groups
+                  {t("nodes.groups", { defaultValue: "Groups" })}
                 </span>
-                <span>{baseSelectionCount} nodes in current scope</span>
+                <span>
+                  {t("nodes.current_scope", {
+                    count: baseSelectionCount,
+                    defaultValue: "{{count}} nodes in current scope",
+                  })}
+                </span>
               </div>
               <div className="overflow-x-auto pb-1">
                 <SegmentedControl.Root
@@ -243,13 +274,19 @@ const NodeDisplay: React.FC<NodeDisplayProps> = ({ nodes, liveData }) => {
         </span>
         <div className="flex flex-wrap items-center gap-2">
           <Badge variant="secondary" className="rounded-full px-3 py-1">
-            {filteredNodes.length} visible
+            {t("nodes.visible_badge", {
+              count: filteredNodes.length,
+              defaultValue: "{{count}} visible",
+            })}
           </Badge>
           <Badge
             variant={filteredOnlineCount > 0 ? "success" : "warning"}
             className="rounded-full px-3 py-1"
           >
-            {filteredOnlineCount} online
+            {t("nodes.online_badge", {
+              count: filteredOnlineCount,
+              defaultValue: "{{count}} online",
+            })}
           </Badge>
         </div>
       </div>
@@ -272,7 +309,7 @@ const NodeDisplay: React.FC<NodeDisplayProps> = ({ nodes, liveData }) => {
       ) : viewMode === "grid" ? (
         <NodeGrid nodes={filteredNodes} liveData={liveData} />
       ) : (
-        <Suspense fallback={<div style={{ padding: 16 }}>Loading table…</div>}>
+        <Suspense fallback={<div style={{ padding: 16 }}>{t("nodes.loading_table", { defaultValue: "Loading table..." })}</div>}>
           <NodeTable nodes={filteredNodes} liveData={liveData} />
         </Suspense>
       )}

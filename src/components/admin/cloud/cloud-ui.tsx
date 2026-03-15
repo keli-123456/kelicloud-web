@@ -29,6 +29,30 @@ const cloudSecretTextareaClassName =
 const cloudTallSecretTextareaClassName =
   "mt-3 min-h-40 max-w-full resize-y font-mono text-xs [overflow-wrap:anywhere]";
 
+const cloudPanelCardClassName =
+  "overflow-hidden rounded-2xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-950/40";
+
+const cloudPanelHeaderClassName =
+  "border-b border-slate-200 px-5 py-4 dark:border-slate-800";
+
+const cloudPanelTitleClassName =
+  "text-sm font-medium text-slate-900 dark:text-slate-100";
+
+const cloudPanelDescriptionClassName =
+  "mt-1 text-sm text-slate-500 dark:text-slate-400";
+
+const cloudPanelSectionClassName =
+  "rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 dark:border-slate-800 dark:bg-slate-900/50";
+
+const cloudPanelSubcardClassName =
+  "rounded-xl border border-slate-200 bg-white px-4 py-3 dark:border-slate-800 dark:bg-slate-950/50";
+
+const cloudPanelFieldLabelClassName =
+  "text-sm font-medium text-slate-800 dark:text-slate-100";
+
+const cloudPanelBodyTextClassName =
+  "text-sm text-slate-700 dark:text-slate-300";
+
 type CloudDetailItemProps = {
   label: React.ReactNode;
   value: React.ReactNode;
@@ -45,16 +69,16 @@ function CloudDetailItem({
   return (
     <div
       className={cn(
-        "min-w-0 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3",
+        "min-w-0 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 dark:border-slate-800 dark:bg-slate-900/60",
         className,
       )}
     >
-      <div className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">
+      <div className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">
         {label}
       </div>
       <div
         className={cn(
-          "mt-1 min-w-0 text-sm text-slate-900",
+          "mt-1 min-w-0 text-sm text-slate-900 dark:text-slate-100",
           cloudLongTextClassName,
           valueClassName,
         )}
@@ -85,14 +109,14 @@ function CloudCopyBlock({
   return (
     <div
       className={cn(
-        "min-w-0 rounded-xl border border-slate-200 bg-white px-4 py-3",
+        "min-w-0 rounded-xl border border-slate-200 bg-white px-4 py-3 dark:border-slate-800 dark:bg-slate-950/40",
         className,
       )}
     >
       <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div
           className={cn(
-            "min-w-0 text-sm font-medium text-slate-800",
+            "min-w-0 text-sm font-medium text-slate-800 dark:text-slate-100",
             cloudLongTextClassName,
             titleClassName,
           )}
@@ -126,7 +150,15 @@ export {
   Tabs,
   TextArea,
   TextField,
+  cloudPanelBodyTextClassName,
   cloudDialogContentClassName,
+  cloudPanelCardClassName,
+  cloudPanelDescriptionClassName,
+  cloudPanelFieldLabelClassName,
+  cloudPanelHeaderClassName,
+  cloudPanelSectionClassName,
+  cloudPanelSubcardClassName,
+  cloudPanelTitleClassName,
   cloudDialogWideContentClassName,
   cloudLongTextClassName,
   cloudSecretTextareaClassName,

@@ -25,7 +25,14 @@ import {
   Checkbox,
   CloudCopyBlock,
   CloudDetailItem,
+  cloudPanelBodyTextClassName,
+  cloudPanelCardClassName,
+  cloudPanelDescriptionClassName,
   cloudDialogContentClassName,
+  cloudPanelFieldLabelClassName,
+  cloudPanelHeaderClassName,
+  cloudPanelSectionClassName,
+  cloudPanelTitleClassName,
   cloudLongTextClassName,
   cloudSecretTextareaClassName,
   cloudTallSecretTextareaClassName,
@@ -73,6 +80,7 @@ import {
   type DigitalOceanTokenPool,
   type DigitalOceanTokenRecord,
 } from "@/lib/cloud";
+import { getCloudStatusLabel } from "@/lib/cloudStatus";
 import {
   buildCloudInstanceShareUrl,
   deleteCloudInstanceShare,
@@ -633,7 +641,7 @@ export default function DigitalOceanPanel() {
       resourceType: "droplet",
       resourceId: String(droplet.id),
       resourceName: droplet.name || String(droplet.id),
-      providerLabel: "DigitalOcean",
+      providerLabel: t("cloud.providers.digitalocean.title", "DigitalOcean"),
       credentialName: activeToken?.name || activeToken?.account_email || "",
       region: getRegionOptionLabel(droplet.region, t),
       primaryAddress: getDropletPrimaryIp(droplet),
@@ -890,7 +898,7 @@ export default function DigitalOceanPanel() {
       ) : null}
 
       {sharedManagedKeyReady ? (
-        <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+        <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-300">
           {t(
             "cloud.tokens.shared_managed_key_help",
             "Komari now reuses one shared managed SSH key across DigitalOcean credentials. Each DigitalOcean account registers the same public key on first use, so every credential can launch Droplets without generating a separate fallback key.",
@@ -898,13 +906,13 @@ export default function DigitalOceanPanel() {
         </div>
       ) : null}
 
-      <div className="order-2 overflow-hidden rounded-2xl border border-slate-200 bg-white">
-            <div className="border-b border-slate-200 px-5 py-4">
+      <div className={`order-2 ${cloudPanelCardClassName}`}>
+            <div className={cloudPanelHeaderClassName}>
               <div>
-                <div className="text-sm font-medium text-slate-900">
+                <div className={cloudPanelTitleClassName}>
                   {t("cloud.droplet_list", "Droplet List")}
                 </div>
-                <div className="mt-1 text-sm text-slate-500">
+                <div className={cloudPanelDescriptionClassName}>
                   {t(
                     "cloud.droplet_list_description",
                     "Click a Droplet name to view details, and use the current active token to perform lifecycle actions.",
@@ -944,10 +952,10 @@ export default function DigitalOceanPanel() {
                 ) : (
                   droplets.map((droplet) => (
                     <TableRow key={droplet.id}>
-                      <TableCell className="font-medium text-slate-900">
+                      <TableCell className="font-medium text-slate-900 dark:text-slate-100">
                         <button
                           type="button"
-                          className="text-left text-blue-700 hover:text-blue-800 hover:underline"
+                          className="text-left text-blue-700 hover:text-blue-800 hover:underline dark:text-blue-400 dark:hover:text-blue-300"
                           onClick={() => setDetailDroplet(droplet)}
                         >
                           {droplet.name}
@@ -955,7 +963,7 @@ export default function DigitalOceanPanel() {
                       </TableCell>
                       <TableCell>
                         <Badge color={getDropletStatusColor(droplet.status)}>
-                          {droplet.status}
+                          {getCloudStatusLabel(droplet.status, t)}
                         </Badge>
                       </TableCell>
                       <TableCell>{getRegionOptionLabel(droplet.region, t)}</TableCell>
@@ -1039,7 +1047,7 @@ export default function DigitalOceanPanel() {
                             size="1"
                             onClick={() => {
                               setScriptTarget({
-                                providerLabel: "DigitalOcean",
+                                providerLabel: t("cloud.providers.digitalocean.title", "DigitalOcean"),
                                 instanceName: droplet.name || String(droplet.id),
                                 instanceIdentifier: String(droplet.id),
                                 addresses: getDropletMatchAddresses(droplet),
@@ -1079,14 +1087,14 @@ export default function DigitalOceanPanel() {
             </Table>
       </div>
 
-      <div className="order-1 overflow-hidden rounded-2xl border border-slate-200 bg-white">
-            <div className="border-b border-slate-200 px-5 py-4">
+      <div className={`order-1 ${cloudPanelCardClassName}`}>
+            <div className={cloudPanelHeaderClassName}>
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
-                  <div className="text-sm font-medium text-slate-900">
+                  <div className={cloudPanelTitleClassName}>
                     {t("cloud.tokens.title", "Token Pool")}
                   </div>
-                  <div className="mt-1 text-sm text-slate-500">
+                  <div className={cloudPanelDescriptionClassName}>
                     {t(
                       "cloud.tokens.description_compact",
                       "Save multiple DigitalOcean tokens, switch the active one, check token health in bulk, and inspect stored credentials when needed.",
@@ -1140,7 +1148,7 @@ export default function DigitalOceanPanel() {
                   ) : (
                     tokenRows.map((token) => (
                       <TableRow key={token.id}>
-                        <TableCell className="font-medium text-slate-900">
+                        <TableCell className="font-medium text-slate-900 dark:text-slate-100">
                           <div className="flex items-center gap-2">
                             <span className="max-w-44 truncate">{token.name}</span>
                             {token.is_active ? (
@@ -1154,11 +1162,11 @@ export default function DigitalOceanPanel() {
                           {token.masked_token || "-"}
                         </TableCell>
                         <TableCell>
-                          <div className="text-sm text-slate-900">
+                          <div className="text-sm text-slate-900 dark:text-slate-100">
                             {token.account_email || "-"}
                           </div>
                           {token.droplet_limit ? (
-                            <div className="text-xs text-slate-500">
+                            <div className="text-xs text-slate-500 dark:text-slate-400">
                               {t("cloud.tokens.droplet_limit", {
                                 count: token.droplet_limit,
                                 defaultValue: `Droplet limit ${token.droplet_limit}`,
@@ -1166,7 +1174,7 @@ export default function DigitalOceanPanel() {
                             </div>
                           ) : null}
                           {token.managed_ssh_key_ready ? (
-                            <div className="mt-1 truncate text-xs text-slate-500">
+                            <div className="mt-1 truncate text-xs text-slate-500 dark:text-slate-400">
                               {t("cloud.tokens.shared_managed_key_ready", {
                                 name: token.managed_ssh_key_name || "Komari Managed Key",
                                 defaultValue: `Shared managed SSH key: ${token.managed_ssh_key_name || "Komari Managed Key"}`,
@@ -1268,7 +1276,7 @@ export default function DigitalOceanPanel() {
           </Dialog.Description>
 
           <div className="mt-4 flex flex-col gap-4">
-            <label className="text-sm font-medium text-slate-800">
+            <label className={cloudPanelFieldLabelClassName}>
               {t("cloud.tokens.import_label", "Batch Import")}
             </label>
             <TextArea
@@ -1280,7 +1288,7 @@ export default function DigitalOceanPanel() {
               )}
               onChange={(event) => setTokenImportText(event.target.value)}
             />
-            <div className="text-sm text-slate-500">
+            <div className="text-sm text-slate-500 dark:text-slate-400">
               {t(
                 "cloud.tokens.import_hint",
                 "One line per token. Supported formats: name,token ; name|token ; or token only.",
@@ -1321,7 +1329,7 @@ export default function DigitalOceanPanel() {
           </Dialog.Description>
 
           <div className="mt-4 flex flex-col gap-4">
-            <label className="text-sm font-medium text-slate-800">
+            <label className={cloudPanelFieldLabelClassName}>
               {t("cloud.form.name", "Name")}
             </label>
             <TextField.Root
@@ -1335,7 +1343,7 @@ export default function DigitalOceanPanel() {
               }
             />
 
-            <label className="text-sm font-medium text-slate-800">
+            <label className={cloudPanelFieldLabelClassName}>
               {t("cloud.form.region", "Region")}
             </label>
             <Select.Root
@@ -1356,7 +1364,7 @@ export default function DigitalOceanPanel() {
               </Select.Content>
             </Select.Root>
 
-            <label className="text-sm font-medium text-slate-800">
+            <label className={cloudPanelFieldLabelClassName}>
               {t("cloud.form.size", "Size")}
             </label>
             <Select.Root
@@ -1378,7 +1386,7 @@ export default function DigitalOceanPanel() {
               </Select.Content>
             </Select.Root>
 
-            <label className="text-sm font-medium text-slate-800">
+            <label className={cloudPanelFieldLabelClassName}>
               {t("cloud.form.image", "Image")}
             </label>
             <Select.Root
@@ -1399,7 +1407,7 @@ export default function DigitalOceanPanel() {
               </Select.Content>
             </Select.Root>
 
-            <label className="text-sm font-medium text-slate-800">
+            <label className={cloudPanelFieldLabelClassName}>
               {t("cloud.form.root_access", "Root Access")}
             </label>
             <Select.Root
@@ -1435,7 +1443,7 @@ export default function DigitalOceanPanel() {
 
             {createForm.root_password_mode === "custom" ? (
               <>
-                <label className="text-sm font-medium text-slate-800">
+                <label className={cloudPanelFieldLabelClassName}>
                   {t("cloud.form.root_password", "Root Password")}
                 </label>
                 <TextField.Root
@@ -1453,7 +1461,7 @@ export default function DigitalOceanPanel() {
             ) : null}
 
             {createForm.root_password_mode === "random" ? (
-              <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+              <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-300">
                 {t(
                   "cloud.form.root_password_random_help",
                   "A random root password will be generated on the server and shown once after creation succeeds.",
@@ -1461,7 +1469,7 @@ export default function DigitalOceanPanel() {
               </div>
             ) : null}
 
-            <label className="text-sm font-medium text-slate-800">
+            <label className={cloudPanelFieldLabelClassName}>
               {t("cloud.form.tags", "Tags")}
             </label>
             <TextField.Root
@@ -1475,7 +1483,7 @@ export default function DigitalOceanPanel() {
               }
             />
 
-            <label className="text-sm font-medium text-slate-800">
+            <label className={cloudPanelFieldLabelClassName}>
               {t("cloud.form.vpc_uuid", "VPC UUID")}
             </label>
             <TextField.Root
@@ -1489,7 +1497,7 @@ export default function DigitalOceanPanel() {
               }
             />
 
-            <label className="text-sm font-medium text-slate-800">
+            <label className={cloudPanelFieldLabelClassName}>
               {t("cloud.form.user_data", "Cloud-Init / User Data")}
             </label>
             <WarningAlert
@@ -1511,8 +1519,8 @@ export default function DigitalOceanPanel() {
               }
             />
 
-            <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
-              <label className="flex items-start gap-2 text-sm text-slate-700">
+            <div className={cloudPanelSectionClassName}>
+              <label className={`flex items-start gap-2 ${cloudPanelBodyTextClassName}`}>
                 <Checkbox
                   checked={createForm.auto_connect}
                   onCheckedChange={(checked) =>
@@ -1523,20 +1531,20 @@ export default function DigitalOceanPanel() {
                     }))
                   }
                 />
-                <span>
-                  <span className="block font-medium text-slate-900">
-                    {t("cloud.form.auto_connect", "Auto-connect to Komari on first boot")}
-                  </span>
-                  <span className="mt-1 block text-xs text-slate-500">
-                    {t(
-                      "cloud.form.auto_connect_help",
-                      "Requires Auto Discovery Key. When enabled, shell user_data is injected and #cloud-config is not supported.",
+                  <span>
+                    <span className="block font-medium text-slate-900 dark:text-slate-100">
+                      {t("cloud.form.auto_connect", "Auto-connect to Komari on first boot")}
+                    </span>
+                    <span className="mt-1 block text-xs text-slate-500 dark:text-slate-400">
+                      {t(
+                        "cloud.form.auto_connect_help",
+                        "Requires Auto Discovery Key. When enabled, shell user_data is injected and #cloud-config is not supported.",
                     )}
                   </span>
                 </span>
               </label>
               <div className="mt-3">
-                <label className="text-sm font-medium text-slate-800">
+                <label className={cloudPanelFieldLabelClassName}>
                   {t("cloud.form.auto_connect_group", "Auto-connect group")}
                 </label>
                 <TextField.Root
@@ -1554,12 +1562,12 @@ export default function DigitalOceanPanel() {
               </div>
             </div>
 
-            <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
-              <div className="text-sm font-medium text-slate-800">
+            <div className={cloudPanelSectionClassName}>
+              <div className={cloudPanelFieldLabelClassName}>
                 {t("cloud.form.options", "Options")}
               </div>
               <div className="mt-3 flex flex-col gap-3">
-                <label className="flex items-center gap-2 text-sm text-slate-700">
+                <label className={`flex items-center gap-2 ${cloudPanelBodyTextClassName}`}>
                   <Checkbox
                     checked={createForm.backups}
                     onCheckedChange={(checked) =>
@@ -1571,7 +1579,7 @@ export default function DigitalOceanPanel() {
                   />
                   {t("cloud.form.backups", "Enable backups")}
                 </label>
-                <label className="flex items-center gap-2 text-sm text-slate-700">
+                <label className={`flex items-center gap-2 ${cloudPanelBodyTextClassName}`}>
                   <Checkbox
                     checked={createForm.ipv6}
                     onCheckedChange={(checked) =>
@@ -1583,7 +1591,7 @@ export default function DigitalOceanPanel() {
                   />
                   {t("cloud.form.ipv6", "Enable IPv6")}
                 </label>
-                <label className="flex items-center gap-2 text-sm text-slate-700">
+                <label className={`flex items-center gap-2 ${cloudPanelBodyTextClassName}`}>
                   <Checkbox
                     checked={createForm.monitoring}
                     onCheckedChange={(checked) =>
@@ -1648,7 +1656,10 @@ export default function DigitalOceanPanel() {
           {detailDroplet ? (
             <div className="mt-4 grid gap-3 sm:grid-cols-2">
               <DetailItem label={t("cloud.detail.id", "Droplet ID")} value={detailDroplet.id} />
-              <DetailItem label={t("cloud.table.status", "Status")} value={detailDroplet.status || "-"} />
+              <DetailItem
+                label={t("cloud.table.status", "Status")}
+                value={getCloudStatusLabel(detailDroplet.status, t)}
+              />
               <DetailItem
                 label={t("cloud.table.region", "Region")}
                 value={getRegionOptionLabel(detailDroplet.region, t)}
@@ -1967,14 +1978,14 @@ export default function DigitalOceanPanel() {
           {accessSecrets ? (
             <div className="mt-4 flex flex-col gap-4">
               {accessSecrets.passwordSaved ? (
-                <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+                <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-300">
                   {t(
                     "cloud.password.create_saved",
                     "This root password has been encrypted and saved. You can reopen it later from the Droplet list.",
                   )}
                 </div>
               ) : (
-                <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+                <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-300">
                   <div className={cloudLongTextClassName}>
                     {t(
                       "cloud.password.create_unsaved",

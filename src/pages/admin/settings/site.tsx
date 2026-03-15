@@ -30,7 +30,7 @@ export default function SiteSettings() {
   const { settings, loading, error, refetch } = useSettings();
   const [shareHours, setShareHours] = useState(1);
 
-  // 恢复备份对话框与上传状态
+  // Restore backup dialog and upload state.
   const [restoreOpen, setRestoreOpen] = useState(false);
   const [restoring, setRestoring] = useState(false);
   const [restoreProgress, setRestoreProgress] = useState(0);
@@ -38,7 +38,9 @@ export default function SiteSettings() {
 
   const uploadBackup = async (file: File) => {
     if (!file.name.endsWith(".zip")) {
-      toast.error(t("theme.invalid_file_type", "仅支持 .zip 文件"));
+      toast.error(
+        t("theme.invalid_file_type", "Invalid file type, only .zip files are supported"),
+      );
       return;
     }
 
@@ -64,14 +66,14 @@ export default function SiteSettings() {
           const data = xhr.responseText ? JSON.parse(xhr.responseText) : {};
           if (ok) {
             if (data && data.status && data.status !== "success") {
-              // 服务器返回了非 success 状态
+              // The server returned a non-success status.
               const msg =
                 data.message ||
-                t("settings.site.backup_restore_error", "恢复备份失败");
+                t("settings.site.backup_restore_error", "Restore backup failed");
               toast.error(msg);
               reject(new Error(msg));
             } else {
-              toast.success(t("account_settings.upload_success", "上传成功"));
+              toast.success(t("account_settings.upload_success", "Upload success"));
               setRestoreOpen(false);
               setRestoreProgress(0);
               resolve();
@@ -79,12 +81,14 @@ export default function SiteSettings() {
           } else {
             const msg =
               (data && data.message) ||
-              t("settings.site.backup_restore_error", "恢复备份失败");
+              t("settings.site.backup_restore_error", "Restore backup failed");
             toast.error(msg);
             reject(new Error(msg));
           }
         } catch (err) {
-          toast.error(t("settings.site.backup_restore_error", "恢复备份失败"));
+          toast.error(
+            t("settings.site.backup_restore_error", "Restore backup failed"),
+          );
           reject(err as Error);
         } finally {
           setRestoring(false);
@@ -93,7 +97,7 @@ export default function SiteSettings() {
       });
 
       xhr.addEventListener("error", () => {
-        toast.error(t("settings.site.backup_restore_error", "恢复备份失败"));
+        toast.error(t("settings.site.backup_restore_error", "Restore backup failed"));
         setRestoring(false);
         setRestoreProgress(0);
         setRestoreXhr(null);
@@ -102,7 +106,10 @@ export default function SiteSettings() {
 
       xhr.addEventListener("abort", () => {
         toast.error(
-          t("theme.upload_failed", "上传失败") + ": Upload cancelled",
+          t(
+            "settings.site.backup_restore_cancelled",
+            "Backup restore cancelled",
+          ),
         );
         setRestoring(false);
         setRestoreProgress(0);
@@ -172,10 +179,10 @@ export default function SiteSettings() {
         }}
       />
       <SettingCardShortTextInput
-        title={t("settings.site.base_scripts_url", "Agent 脚本源地址")}
+        title={t("settings.site.base_scripts_url", "Agent script source")}
         description={t(
           "settings.site.base_scripts_url_description",
-          "用于一键命令和自动接入的安装脚本地址。支持 GitHub 仓库地址、tree/blob 链接或 raw 地址；留空使用官方仓库。"
+          "Install script source used by one-click commands and auto-connect. Supports a GitHub repo URL, tree/blob URL, or raw URL. Leave empty to use the official repository.",
         )}
         placeholder="https://github.com/your-name/komari-agent"
         defaultValue={settings.base_scripts_url || ""}
@@ -262,7 +269,7 @@ export default function SiteSettings() {
             </Button>
             <Button
               variant="outline"
-              className="border-red-200 bg-red-50 text-red-700 hover:bg-red-100"
+              className="border-red-200 bg-red-50 text-red-700 hover:bg-red-100 dark:border-red-900 dark:bg-red-950/40 dark:text-red-300 dark:hover:bg-red-950/60"
               onClick={async () => {
                 await updateSettingsWithToast(
                   { tempory_share_token: "", tempory_share_token_expire_at: 0 },
@@ -289,10 +296,10 @@ export default function SiteSettings() {
         }}
       />
       <SettingCardLongTextInput
-        title={t("settings.custom.body", "自定义 Body")}
+        title={t("settings.custom.body", "Custom Body")}
         description={t(
           "settings.custom.body_description",
-          "在页面底部添加自定义内容",
+          "Add custom content to the bottom of the page",
         )}
         defaultValue={settings.custom_body || ""}
         OnSave={async (data) => {
@@ -300,26 +307,26 @@ export default function SiteSettings() {
         }}
       />
       <SettingCardCollapse
-        title={t("settings.custom.favicon", "自定义 Favicon")}
+        title={t("settings.custom.favicon", "Customize Favicon")}
         description={t(
           "settings.custom.favicon_description",
-          "在浏览器标签页显示的图标",
+          "Icons displayed in browser tabs",
         )}
         defaultOpen={true}
       >
         <div className="flex w-full flex-col items-start gap-2">
           <div className="flex items-center gap-2">
-            {t("settings.custom.favicon_current", "当前 Favicon")}
+            {t("settings.custom.favicon_current", "Current Favicon")}
             <img
               src="/favicon.ico"
-              alt="Favicon"
+              alt={t("settings.custom.favicon", "Customize Favicon")}
               style={{ width: 32, height: 32 }}
             />
           </div>
           <label className="text-sm text-muted-foreground">
             {t(
               "settings.custom.favicon_note",
-              "Favicon 图标的更新速度可能较慢，通常需要清除浏览器缓存后才能看到更改。",
+              "Favicon icons can be slow to update and it is often necessary to clear your browser's cache to see the changes.",
             )}
           </label>
           <div className="flex items-center gap-2">
@@ -327,24 +334,24 @@ export default function SiteSettings() {
               <DialogTrigger asChild>
                 <Button
                   variant="outline"
-                  className="border-orange-200 bg-orange-50 text-orange-700 hover:bg-orange-100"
+                  className="border-orange-200 bg-orange-50 text-orange-700 hover:bg-orange-100 dark:border-orange-900 dark:bg-orange-950/40 dark:text-orange-300 dark:hover:bg-orange-950/60"
                 >
-                  {t("settings.custom.favicon_default", "恢复默认")}
+                  {t("settings.custom.favicon_default", "Restore Default")}
                 </Button>
               </DialogTrigger>
               <DialogContent>
                 <DialogTitle>
-                  {t("settings.custom.favicon_default", "恢复默认")}
+                  {t("settings.custom.favicon_default", "Restore Default")}
                 </DialogTitle>
                 <DialogDescription>
                   {t(
                     "settings.custom.favicon_default_description",
-                    "这将恢复默认的 Favicon 图标，是否继续？",
+                    "This will restore the default favicon icon. Do you want to continue?",
                   )}
                 </DialogDescription>
                 <DialogFooter>
                   <DialogClose asChild>
-                    <Button variant="outline">{t("common.cancel", "取消")}</Button>
+                    <Button variant="outline">{t("common.cancel", "Cancel")}</Button>
                   </DialogClose>
                   <DialogClose asChild>
                     <Button
@@ -361,12 +368,16 @@ export default function SiteSettings() {
                               toast.success(
                                 t(
                                   "settings.custom.favicon_default_success",
-                                  "已恢复默认 Favicon",
+                                  "Default favicon has been restored",
                                 ),
                               );
                             } else {
                               toast.error(
-                                data.message || "恢复默认 Favicon 失败",
+                                data.message ||
+                                  t(
+                                    "settings.custom.favicon_default_failed",
+                                    "Failed to restore default favicon",
+                                  ),
                               );
                             }
                           })
@@ -375,7 +386,7 @@ export default function SiteSettings() {
                           });
                       }}
                     >
-                      {t("settings.custom.favicon_confirm", "确认")}
+                      {t("settings.custom.favicon_confirm", "Confirm")}
                     </Button>
                   </DialogClose>
                 </DialogFooter>
@@ -405,11 +416,17 @@ export default function SiteSettings() {
                         toast.success(
                           t(
                             "settings.custom.favicon_update_success",
-                            "已更新 Favicon",
+                            "Favicon updated",
                           ),
                         );
                       } else {
-                        toast.error(data.message || "Failed to update Favicon");
+                        toast.error(
+                          data.message ||
+                            t(
+                              "settings.custom.favicon_update_failed",
+                              "Failed to update favicon",
+                            ),
+                        );
                       }
                     } catch (error) {
                       toast.error("" + error);
@@ -419,7 +436,7 @@ export default function SiteSettings() {
                 input.click();
               }}
             >
-              {t("settings.custom.favicon_change", "更新 Favicon")}
+              {t("settings.custom.favicon_change", "Update Favicon")}
             </Button>
           </div>
         </div>
@@ -442,7 +459,7 @@ export default function SiteSettings() {
         {t("common.select")}
       </SettingCardButton>
 
-      {/* 上传备份对话框 */}
+      {/* Backup upload dialog. */}
       <UploadDialog
         open={restoreOpen}
         onOpenChange={setRestoreOpen}

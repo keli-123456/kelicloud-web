@@ -35,11 +35,13 @@ export function AdminPageShell({
   contentClassName?: string;
 }) {
   const statToneClasses: Record<AdminStatTone, string> = {
-    blue: "border-sky-200 bg-sky-50/80",
-    emerald: "border-emerald-200 bg-emerald-50/80",
-    amber: "border-amber-200 bg-amber-50/80",
-    rose: "border-rose-200 bg-rose-50/80",
-    slate: "border-slate-200 bg-white",
+    blue: "border-sky-200 bg-sky-50/80 dark:border-sky-900/60 dark:bg-sky-950/30",
+    emerald:
+      "border-emerald-200 bg-emerald-50/80 dark:border-emerald-900/60 dark:bg-emerald-950/30",
+    amber:
+      "border-amber-200 bg-amber-50/80 dark:border-amber-900/60 dark:bg-amber-950/30",
+    rose: "border-rose-200 bg-rose-50/80 dark:border-rose-900/60 dark:bg-rose-950/30",
+    slate: "border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-950/40",
   };
 
   return (
@@ -47,16 +49,16 @@ export function AdminPageShell({
       <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
         <div className="space-y-2">
           {eyebrow && (
-            <div className="text-[12px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+            <div className="text-[12px] font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">
               {eyebrow}
             </div>
           )}
           <div className="space-y-2">
-            <h1 className="text-3xl font-semibold tracking-tight text-slate-900">
+            <h1 className="text-3xl font-semibold tracking-tight text-slate-900 dark:text-slate-50">
               {title}
             </h1>
             {description && (
-              <p className="max-w-3xl text-[14px] leading-6 text-slate-600">
+              <p className="max-w-3xl text-[14px] leading-6 text-slate-600 dark:text-slate-300">
                 {description}
               </p>
             )}
@@ -81,14 +83,14 @@ export function AdminPageShell({
                     statToneClasses[stat.tone || "slate"],
                   )}
                 >
-                  <div className="text-[12px] font-semibold uppercase tracking-[0.12em] text-slate-500">
+                  <div className="text-[12px] font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">
                     {stat.label}
                   </div>
-                  <div className="mt-2 text-lg font-semibold text-slate-900">
+                  <div className="mt-2 text-lg font-semibold text-slate-900 dark:text-slate-50">
                     {stat.value}
                   </div>
                   {stat.hint ? (
-                    <div className="mt-1 text-xs leading-5 text-slate-500">
+                    <div className="mt-1 text-xs leading-5 text-slate-500 dark:text-slate-400">
                       {stat.hint}
                     </div>
                   ) : null}
@@ -97,11 +99,11 @@ export function AdminPageShell({
             </div>
           )
           : (
-            <div className="flex flex-wrap gap-x-5 gap-y-2 border-b border-slate-200/80 pb-4 text-[13px] text-slate-500">
+            <div className="flex flex-wrap gap-x-5 gap-y-2 border-b border-slate-200/80 pb-4 text-[13px] text-slate-500 dark:border-slate-800/80 dark:text-slate-400">
               {stats.map((stat, index) => (
                 <div key={`${index}-${String(stat.label)}`} className="flex items-center gap-2">
-                  <span className="font-medium text-slate-700">{stat.label}:</span>
-                  <span className="text-slate-900">{stat.value}</span>
+                  <span className="font-medium text-slate-700 dark:text-slate-300">{stat.label}:</span>
+                  <span className="text-slate-900 dark:text-slate-50">{stat.value}</span>
                 </div>
               ))}
             </div>
@@ -109,7 +111,7 @@ export function AdminPageShell({
         : null}
 
       {subnav ? (
-        <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white p-3">
+        <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white p-3 dark:border-slate-800 dark:bg-slate-950/40">
           <div className="min-w-max">{subnav}</div>
         </div>
       ) : null}
@@ -139,7 +141,7 @@ export function AdminSubnav({
   return (
     <div
       className={cn(
-        "flex flex-wrap gap-2 border-b border-slate-200/80 pb-3",
+        "flex flex-wrap gap-2 border-b border-slate-200/80 pb-3 dark:border-slate-800/80",
         className,
       )}
     >

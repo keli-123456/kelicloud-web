@@ -47,21 +47,25 @@ const InnerLayout = () => {
     useNodeDetails();
   const { t } = useTranslation();
   if (isLoading || nodeDetailLoading) {
-    return <Loading />;
+    return <Loading text={t("loading", "Loading...")} />;
   }
   if (error || nodeDetailError) {
-    return <div>{error || nodeDetailError}</div>;
+    return (
+      <div className="rounded-2xl border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive">
+        {error || nodeDetailError || t("loadAlert.load_failed", "Failed to load load alerts")}
+      </div>
+    );
   }
   return (
-    <Flex direction="column" gap="4" className="p-4">
+    <Flex direction="column" gap="4" className="p-4 text-slate-900 dark:text-slate-100">
       <div className="flex justify-between items-center">
-        <label className="text-2xl font-bold">
+        <label className="text-2xl font-bold text-slate-900 dark:text-slate-100">
           {t("notification.load.title")}
         </label>
         <AddButton />
       </div>
 
-      <div className="rounded-xl overflow-hidden">
+      <div className="overflow-hidden rounded-xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-950/40">
         <Table>
           <TableHeader>
             <TableHead>{t("common.name")}</TableHead>
@@ -102,6 +106,24 @@ const Row = ({ alert }: { alert: LoadAlert }) => {
     clients: alert.clients || [],
     interval: alert.interval || 15,
   });
+  const getUpdateFailedMessage = (statusText?: string) =>
+    statusText
+      ? t("loadAlert.update_failed", {
+          defaultValue: "Failed to update load alert: {{statusText}}",
+          statusText,
+        })
+      : t("loadAlert.update_failed_generic", {
+          defaultValue: "Failed to update load alert",
+        });
+  const getDeleteFailedMessage = (statusText?: string) =>
+    statusText
+      ? t("loadAlert.delete_failed", {
+          defaultValue: "Failed to delete load alert: {{statusText}}",
+          statusText,
+        })
+      : t("loadAlert.delete_failed_generic", {
+          defaultValue: "Failed to delete load alert",
+        });
 
   const submitEdit = (newForm: typeof form) => {
     setEditSaving(true);
@@ -122,13 +144,12 @@ const Row = ({ alert }: { alert: LoadAlert }) => {
         ],
       }),
     })
-      .then((res) => {
-        if (!res.ok) {
-          return res.json().then((data) => {
-            throw new Error(data?.message || t("common.error"));
-          });
+      .then(async (res) => {
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok || (data?.status && data.status !== "success")) {
+          throw new Error(data?.message || getUpdateFailedMessage(res.statusText));
         }
-        return res.json();
+        return data;
       })
       .then(() => {
         setEditOpen(false);
@@ -136,18 +157,20 @@ const Row = ({ alert }: { alert: LoadAlert }) => {
         refresh();
       })
       .catch((error) => {
-        toast.error(error.message);
+        toast.error(
+          error instanceof Error ? error.message : getUpdateFailedMessage(),
+        );
       })
       .finally(() => setEditSaving(false));
   };
 
-  // 编辑提交
+  // Submit the edit form.
   const handleEdit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     submitEdit(form);
   };
 
-  // 删除
+  // Delete the current alert.
   const handleDelete = () => {
     setDeleteLoading(true);
     fetch("/api/admin/notification/load/delete", {
@@ -155,13 +178,12 @@ const Row = ({ alert }: { alert: LoadAlert }) => {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ id: [alert.id] }),
     })
-      .then((res) => {
-        if (!res.ok) {
-          return res.json().then((data) => {
-            throw new Error(data?.message || t("common.error"));
-          });
+      .then(async (res) => {
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok || (data?.status && data.status !== "success")) {
+          throw new Error(data?.message || getDeleteFailedMessage(res.statusText));
         }
-        return res.json();
+        return data;
       })
       .then(() => {
         setDeleteOpen(false);
@@ -169,7 +191,9 @@ const Row = ({ alert }: { alert: LoadAlert }) => {
         refresh();
       })
       .catch((error) => {
-        toast.error(error.message);
+        toast.error(
+          error instanceof Error ? error.message : getDeleteFailedMessage(),
+        );
       })
       .finally(() => setDeleteLoading(false));
   };
@@ -213,7 +237,7 @@ const Row = ({ alert }: { alert: LoadAlert }) => {
         {alert.interval} {t("time.minute")}
       </TableCell>
       <TableCell className="flex items-center gap-2">
-        {/* 编辑按钮 */}
+        {/* Edit action. */}
         <Dialog.Root open={editOpen} onOpenChange={setEditOpen}>
           <Dialog.Trigger>
             <IconButton variant="soft">
@@ -305,7 +329,7 @@ const Row = ({ alert }: { alert: LoadAlert }) => {
             </form>
           </Dialog.Content>
         </Dialog.Root>
-        {/* 删除按钮 */}
+        {/* Delete action. */}
         <Dialog.Root open={deleteOpen} onOpenChange={setDeleteOpen}>
           <Dialog.Trigger>
             <IconButton variant="soft" color="red">
@@ -350,6 +374,15 @@ const AddButton: React.FC = () => {
     "cpu" | "ram" | "disk" | "net_in" | "net_out"
   >("cpu");
   const [saving, setSaving] = React.useState(false);
+  const getAddFailedMessage = (statusText?: string) =>
+    statusText
+      ? t("loadAlert.add_failed", {
+          defaultValue: "Failed to add load alert: {{statusText}}",
+          statusText,
+        })
+      : t("loadAlert.add_failed_generic", {
+          defaultValue: "Failed to add load alert",
+        });
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const payload = {
@@ -368,26 +401,21 @@ const AddButton: React.FC = () => {
       },
       body: JSON.stringify(payload),
     })
-      .then((response) => {
-        if (response.ok) {
-          setIsOpen(false);
-          setSelected([]);
-          setSelectedType("cpu");
-          toast.success(t("common.success"));
-        } else {
-          response
-            .json()
-            .then((data) => {
-              toast.error(data?.message || t("common.error"));
-            })
-            .catch((error) => {
-              toast.error(error.message);
-            });
+      .then(async (response) => {
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok || (data?.status && data.status !== "success")) {
+          throw new Error(data?.message || getAddFailedMessage(response.statusText));
         }
+        setIsOpen(false);
+        setSelected([]);
+        setSelectedType("cpu");
+        toast.success(t("common.added_successfully"));
       })
       .catch((error) => {
         console.error("Error adding load alert:", error);
-        toast.error(error.message);
+        toast.error(
+          error instanceof Error ? error.message : getAddFailedMessage(),
+        );
       })
       .finally(() => {
         setSaving(false);

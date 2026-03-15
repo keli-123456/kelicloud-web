@@ -126,19 +126,28 @@ export default function AboutPage() {
   return (
     <AdminPageShell
       eyebrow={t("about.title")}
-      title="关于 Komari"
-      description="查看开源许可、法律声明与项目说明文档。"
+      title={t("about.page_title", "About Komari")}
+      description={t(
+        "about.description",
+        "Review open-source licenses, legal statements, and the project README.",
+      )}
       stats={[
         {
-          label: "内容分区",
+          label: t("about.stats.sections_label", "Sections"),
           value: "3",
-          hint: "开源许可、EULA 与 README 三个版块。",
+          hint: t(
+            "about.stats.sections_hint",
+            "Includes open-source licenses, legal notice, and the README.",
+          ),
           tone: "blue",
         },
         {
-          label: "依赖许可证",
+          label: t("about.stats.licenses_label", "License groups"),
           value: `${sortedLicenses.length}`,
-          hint: "按许可证类别汇总第三方依赖。",
+          hint: t(
+            "about.stats.licenses_hint",
+            "Third-party dependencies are grouped by license type.",
+          ),
           tone: "emerald",
         },
       ]}
@@ -149,17 +158,19 @@ export default function AboutPage() {
             {t("about.open_source_title")}
           </SegmentedControl.Item>
           <SegmentedControl.Item value="eula">
-            法律声明与合规指引
+            {t("about.eula_title", "Legal & Compliance")}
           </SegmentedControl.Item>
-          <SegmentedControl.Item value="readme">Readme</SegmentedControl.Item>
+          <SegmentedControl.Item value="readme">
+            {t("about.readme_title", "README")}
+          </SegmentedControl.Item>
         </SegmentedControl.Root>
 
         {(() => {
           switch (view) {
             case "eula":
               return (
-                <div className="license-text border-l-2 border-slate-200 pl-4">
-                  <pre className="text-wrap text-sm leading-6 text-slate-700">
+                <div className="license-text border-l-2 border-slate-200 pl-4 dark:border-slate-800">
+                  <pre className="text-wrap text-sm leading-6 text-slate-700 dark:text-slate-300">
                     {Eula}
                   </pre>
                 </div>
@@ -170,18 +181,24 @@ export default function AboutPage() {
                   <div className="text-foreground flex flex-col gap-4">
                     <SettingCardCollapse
                       title="MIT License"
-                      description="Copyright (C) 2025 Komari Monitor"
+                      description={t(
+                        "about.license_cards.mit_description",
+                        "Copyright (C) 2025 Komari Monitor",
+                      )}
                     >
                       <pre className="text-wrap">{MIT_LICENSE}</pre>
                     </SettingCardCollapse>
                     <SettingCardCollapse
                       title="Apache License"
-                      description="Version 2.0, January 2004"
+                      description={t(
+                        "about.license_cards.apache_description",
+                        "Version 2.0, January 2004",
+                      )}
                     >
                       <pre className="text-wrap">{Apache2_LICENSE}</pre>
                     </SettingCardCollapse>
                   </div>
-                  <div className="border-t border-slate-200/80 pt-4">
+                  <div className="border-t border-slate-200/80 pt-4 dark:border-slate-800/80">
                     <h2 className="text-xl font-semibold text-foreground">
                       {t("about.open_source")}
                     </h2>
@@ -206,7 +223,7 @@ export default function AboutPage() {
             case "readme":
               return (
                 <div className="flex flex-col gap-4">
-                  <div className="markdown-body border-t border-slate-200/80 pt-4">
+                  <div className="markdown-body border-t border-slate-200/80 pt-4 !bg-transparent dark:border-slate-800/80 dark:!bg-transparent dark:text-slate-200">
                     {markdown ? (
                       <ReactMarkdown
                         remarkPlugins={[remarkGfm]}
@@ -220,7 +237,7 @@ export default function AboutPage() {
                     href="https://github.com/keli-123456/kelicloud/blob/main/README.md"
                     target="_blank"
                     rel="noreferrer"
-                    className="flex flex-row gap-2 text-sm items-center text-slate-600"
+                    className="flex flex-row items-center gap-2 text-sm text-slate-600 dark:text-slate-400"
                   >
                     {t("about.readme_open_in_new_tab")}
                     <SquareArrowOutUpRight size="16" />

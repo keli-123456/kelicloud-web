@@ -35,7 +35,11 @@ const InnerLayout = () => {
     return <Loading />;
   }
   if (error) {
-    return <div>{error.message}</div>;
+    return (
+      <div className="rounded-2xl border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive">
+        {error.message}
+      </div>
+    );
   }
 
   function handleSubmitUsernameChange(event: React.FormEvent<HTMLFormElement>) {
@@ -200,10 +204,13 @@ const InnerLayout = () => {
     <AdminPageShell
       eyebrow={t("account.title")}
       title={t("account.greeting", { username: account?.username })}
-      description="集中管理管理员身份、密码、双重验证与第三方登录绑定。"
+      description={t(
+        "account.page_description",
+        "Manage your admin identity, password, two-factor authentication, and external sign-in bindings in one place.",
+      )}
       stats={[
         {
-          label: "当前用户",
+          label: t("account.stats.current_user_label", "Current user"),
           value: account?.username || "-",
           hint: `UUID: ${account?.uuid || "-"}`,
           tone: "blue",
@@ -214,14 +221,22 @@ const InnerLayout = () => {
             ? t("account.2fa_enabled")
             : t("account.2fa_disabled"),
           hint: account?.["2fa_enabled"]
-            ? "双重验证已启用。"
-            : "建议开启双重验证提升后台安全性。",
+            ? t("account.stats.two_factor_enabled_hint", "Two-factor authentication is enabled.")
+            : t("account.stats.two_factor_disabled_hint", "Enable two-factor authentication to improve admin security."),
           tone: account?.["2fa_enabled"] ? "emerald" : "amber",
         },
         {
           label: "SSO",
           value: boundProvider,
-          hint: ssoInfo?.isBound ? `已绑定 ${boundProvider}` : "尚未绑定第三方登录账号。",
+          hint: ssoInfo?.isBound
+            ? t("account.stats.sso_bound_hint", {
+                provider: boundProvider,
+                defaultValue: "Bound to {{provider}}.",
+              })
+            : t(
+                "account.stats.sso_unbound_hint",
+                "No external sign-in account is bound yet.",
+              ),
           tone: ssoInfo?.isBound ? "blue" : "slate",
         },
       ]}
@@ -229,23 +244,26 @@ const InnerLayout = () => {
       <div className="grid gap-4 xl:grid-cols-[minmax(0,1.25fr)_minmax(320px,0.95fr)]">
         <AdminSurface className="flex flex-col gap-6">
           <div className="space-y-2">
-            <label className="text-xl font-semibold tracking-tight text-slate-900">
-              账户资料
+            <label className="text-xl font-semibold tracking-tight text-slate-900 dark:text-slate-50">
+              {t("account.profile_title", "Profile")}
             </label>
-            <p className="text-sm leading-6 text-slate-500">
-              更新用户名和登录密码。密码更新成功后会重新跳转回首页。
+            <p className="text-sm leading-6 text-slate-500 dark:text-slate-400">
+              {t(
+                "account.profile_description",
+                "Update your username and login password. After a successful password change, you will be redirected to the homepage.",
+              )}
             </p>
           </div>
           <form
             className="flex gap-3 flex-col"
             onSubmit={handleSubmitUsernameChange}
           >
-            <label className="text-sm font-medium text-slate-700" htmlFor="username">
+            <label className="text-sm font-medium text-slate-700 dark:text-slate-300" htmlFor="username">
               {t("account.change_username_title")}
             </label>
 
             <TextField.Root
-              className="max-w-xl rounded-xl border border-slate-200/80 bg-white shadow-sm"
+              className="max-w-xl rounded-xl border border-slate-200/80 bg-white shadow-sm dark:border-slate-700/80 dark:bg-slate-950"
               id="username"
               name="username"
               defaultValue={account?.username}
@@ -260,23 +278,23 @@ const InnerLayout = () => {
           <div className="h-px bg-[linear-gradient(90deg,rgba(148,163,184,0.10),rgba(148,163,184,0.65),rgba(148,163,184,0.10))]" />
 
           <form onSubmit={changePassword} className="flex flex-col gap-3">
-            <label className="text-sm font-medium text-slate-700" htmlFor="old_password">
+            <label className="text-sm font-medium text-slate-700 dark:text-slate-300" htmlFor="old_password">
               {t("account.change_password_title")}
             </label>
-            <label className="text-sm text-slate-600" htmlFor="password">
+            <label className="text-sm text-slate-600 dark:text-slate-400" htmlFor="password">
               {t("account.new_password")}
             </label>
             <TextField.Root
-              className="max-w-xl rounded-xl border border-slate-200/80 bg-white shadow-sm"
+              className="max-w-xl rounded-xl border border-slate-200/80 bg-white shadow-sm dark:border-slate-700/80 dark:bg-slate-950"
               id="password"
               name="password"
               type="password"
             />
-            <label htmlFor="password_repeat">
+            <label className="text-sm text-slate-600 dark:text-slate-400" htmlFor="password_repeat">
               {t("account.new_password_repeat")}
             </label>
             <TextField.Root
-              className="max-w-xl rounded-xl border border-slate-200/80 bg-white shadow-sm"
+              className="max-w-xl rounded-xl border border-slate-200/80 bg-white shadow-sm dark:border-slate-700/80 dark:bg-slate-950"
               id="password_repeat"
               name="password_repeat"
               type="password"
@@ -292,11 +310,14 @@ const InnerLayout = () => {
         <AdminSurface className="flex flex-col gap-6">
           <div className="flex items-start justify-between gap-3">
             <div className="space-y-2">
-              <label className="text-xl font-semibold tracking-tight text-slate-900">
-                安全与登录
+              <label className="text-xl font-semibold tracking-tight text-slate-900 dark:text-slate-50">
+                {t("account.security_title", "Security & Sign-in")}
               </label>
-              <p className="text-sm leading-6 text-slate-500">
-                统一管理双重验证与单点登录绑定状态。
+              <p className="text-sm leading-6 text-slate-500 dark:text-slate-400">
+                {t(
+                  "account.security_description",
+                  "Manage two-factor authentication and single sign-on bindings from one place.",
+                )}
               </p>
             </div>
             <Badge
@@ -321,18 +342,21 @@ const InnerLayout = () => {
           <div className="h-px bg-[linear-gradient(90deg,rgba(148,163,184,0.10),rgba(148,163,184,0.65),rgba(148,163,184,0.10))]" />
 
           <div className="space-y-4">
-            <label className="text-sm font-medium uppercase tracking-[0.18em] text-slate-500">
+            <label className="text-sm font-medium uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">
               {t("settings.sso.title")}
             </label>
-            <div className="border-l-2 border-slate-200 pl-4">
+            <div className="border-l-2 border-slate-200 pl-4 dark:border-slate-800">
               <div className="flex items-start gap-3">
-                <div className="flex h-11 w-11 items-center justify-center text-slate-700">
+                <div className="flex h-11 w-11 items-center justify-center text-slate-700 dark:text-slate-200">
                   {providerIcon}
                 </div>
                 <div className="flex-1 space-y-2">
-                  <label className="flex items-center gap-2 text-base font-semibold text-slate-900">
+                  <label className="flex items-center gap-2 text-base font-semibold text-slate-900 dark:text-slate-100">
                     {ssoInfo?.isBound
-                      ? `${boundProvider} 账户`
+                      ? t("account.sso_provider_account", {
+                          provider: boundProvider,
+                          defaultValue: "{{provider}} account",
+                        })
                       : t("account_settings.sso_account")}
                   </label>
                   <div className="flex flex-wrap items-center gap-2">
@@ -344,7 +368,7 @@ const InnerLayout = () => {
                         ? t("account_settings.sso_bound")
                         : t("account_settings.sso_unbound")}
                     </Badge>
-                    <span className="text-sm text-slate-600">
+                    <span className="text-sm text-slate-600 dark:text-slate-400">
                       {ssoInfo?.isBound
                         ? `${boundProvider} ID: ${ssoInfo.uniqueId}`
                         : t("account_settings.sso_not_bound")}
@@ -392,7 +416,7 @@ const InnerLayout = () => {
             </div>
           </div>
 
-          <div className="border-l-2 border-sky-300 pl-4 text-sm text-sky-800">
+          <div className="border-l-2 border-sky-300 pl-4 text-sm text-sky-800 dark:border-sky-700 dark:text-sky-300">
             {t("account_settings.looking_for_backup")}
           </div>
         </AdminSurface>
@@ -509,7 +533,7 @@ const TwoFactorEnabled = () => {
       .then(async (response) => {
         if (!response.ok) {
           const data = await response.json();
-          throw new Error(data.message || "Failed to disable 2FA");
+          throw new Error(data.message || t("account.disable_2fa_failed", "Failed to disable 2FA"));
         }
         return response.json();
       })

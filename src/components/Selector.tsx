@@ -1,4 +1,5 @@
 import React from "react";
+import { useTranslation } from "react-i18next";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Search } from "lucide-react";
@@ -49,9 +50,16 @@ function SelectorInner<T>(props: SelectorProps<T>) {
     getLabel,
     sortItems,
     filterItem,
-    searchPlaceholder = "Search…",
-    headerLabel = "Items",
+    searchPlaceholder,
+    headerLabel,
   } = props;
+  const { t } = useTranslation();
+  const resolvedSearchPlaceholder =
+    searchPlaceholder ||
+    t("selector.search_placeholder", { defaultValue: "Search..." });
+  const resolvedHeaderLabel =
+    headerLabel ||
+    t("selector.header_label", { defaultValue: "Items" });
 
   const value = externalValue ?? [];
   const [search, setSearch] = React.useState("");
@@ -103,7 +111,7 @@ function SelectorInner<T>(props: SelectorProps<T>) {
       <div className="relative mb-2">
         <Input
           className="pl-9"
-          placeholder={searchPlaceholder}
+          placeholder={resolvedSearchPlaceholder}
           value={search}
           onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
             setSearch(e.target.value)
@@ -120,10 +128,12 @@ function SelectorInner<T>(props: SelectorProps<T>) {
               <Checkbox
                 checked={isIndeterminate ? "indeterminate" : allChecked}
                 onCheckedChange={(checked) => handleCheckAll(!!checked)}
-                aria-label="Select all"
+                aria-label={t("selector.select_all", {
+                  defaultValue: "Select all",
+                })}
               />
             </TableHead>
-            <TableHead>{headerLabel}</TableHead>
+            <TableHead>{resolvedHeaderLabel}</TableHead>
           </TableHeader>
           <TableBody>
             {processed.map((it) => {
@@ -139,7 +149,10 @@ function SelectorInner<T>(props: SelectorProps<T>) {
                     <Checkbox
                       checked={value.includes(id)}
                       onCheckedChange={(checked) => handleCheck(id, !!checked)}
-                      aria-label={`Select ${id}`}
+                      aria-label={t("selector.select_item", {
+                        item: id,
+                        defaultValue: "Select {{item}}",
+                      })}
                     />
                   </TableCell>
                   <TableCell>{getLabel(it)}</TableCell>
@@ -157,7 +170,10 @@ function SelectorInner<T>(props: SelectorProps<T>) {
                   <Checkbox
                     checked={value.includes(id)}
                     onCheckedChange={(checked) => handleCheck(id, !!checked)}
-                    aria-label={`Select ${id}`}
+                    aria-label={t("selector.select_item", {
+                      item: id,
+                      defaultValue: "Select {{item}}",
+                    })}
                   />
                 </TableCell>
                 <TableCell>{id}</TableCell>
@@ -167,7 +183,9 @@ function SelectorInner<T>(props: SelectorProps<T>) {
         </Table>
       </div>
       {!hiddenDescription && (
-        <label className="text-sm text-gray-500">已选择 {value.length}</label>
+        <label className="text-sm text-muted-foreground">
+          {t("common.selected", { count: value.length })}
+        </label>
       )}
     </div>
   );

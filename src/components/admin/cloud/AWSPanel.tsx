@@ -24,7 +24,15 @@ import {
   Checkbox,
   CloudCopyBlock,
   CloudDetailItem,
+  cloudPanelBodyTextClassName,
+  cloudPanelCardClassName,
+  cloudPanelDescriptionClassName,
   cloudDialogContentClassName,
+  cloudPanelFieldLabelClassName,
+  cloudPanelHeaderClassName,
+  cloudPanelSectionClassName,
+  cloudPanelSubcardClassName,
+  cloudPanelTitleClassName,
   cloudLongTextClassName,
   cloudSecretTextareaClassName,
   Dialog,
@@ -85,6 +93,7 @@ import {
   type CreateAWSInstanceInput,
   type CreateAWSLightsailInstanceInput,
 } from "@/lib/cloudAws";
+import { getCloudStatusLabel } from "@/lib/cloudStatus";
 import {
   buildCloudInstanceShareUrl,
   deleteCloudInstanceShare,
@@ -888,9 +897,9 @@ export default function AWSPanel() {
   const handleDeleteInstance = async (instance: AWSInstance) => {
     const confirmed = await confirm({
       title: t("cloud.delete", "Delete instance"),
-      description: t("cloud.delete_confirm", {
+      description: t("cloud.providers.aws.delete_confirm", {
         name: instance.name || instance.instance_id,
-        defaultValue: `Delete droplet "${instance.name || instance.instance_id}"? This action cannot be undone.`,
+        defaultValue: `Delete instance "${instance.name || instance.instance_id}"? This action cannot be undone.`,
       }),
       confirmLabel: t("cloud.delete", "Delete"),
     });
@@ -898,7 +907,7 @@ export default function AWSPanel() {
 
     try {
       await deleteAWSInstance(instance.instance_id);
-      toast.success(t("cloud.delete_success", "Droplet deleted"));
+      toast.success(t("cloud.providers.aws.delete_success", "Instance deleted"));
       await loadPanelData();
     } catch (deleteError) {
       toast.error(toErrorMessage(deleteError));
@@ -908,7 +917,7 @@ export default function AWSPanel() {
   const handleDeleteLightsailInstance = async (instance: AWSLightsailInstance) => {
     const confirmed = await confirm({
       title: t("cloud.delete", "Delete instance"),
-      description: t("cloud.delete_confirm", {
+      description: t("cloud.providers.aws.delete_confirm", {
         name: instance.name,
         defaultValue: `Delete instance "${instance.name}"? This action cannot be undone.`,
       }),
@@ -918,7 +927,7 @@ export default function AWSPanel() {
 
     try {
       await deleteAWSLightsailInstance(instance.name);
-      toast.success(t("cloud.delete_success", "Droplet deleted"));
+      toast.success(t("cloud.providers.aws.delete_success", "Instance deleted"));
       await loadPanelData();
     } catch (deleteError) {
       toast.error(toErrorMessage(deleteError));
@@ -1070,14 +1079,14 @@ export default function AWSPanel() {
         />
       ) : null}
 
-      <div className="order-1 overflow-hidden rounded-2xl border border-slate-200 bg-white">
-            <div className="border-b border-slate-200 px-5 py-4">
+      <div className={`order-1 ${cloudPanelCardClassName}`}>
+            <div className={cloudPanelHeaderClassName}>
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
-                  <div className="text-sm font-medium text-slate-900">
+                  <div className={cloudPanelTitleClassName}>
                     {t("cloud.providers.aws.credentials", "Credentials")}
                   </div>
-                  <div className="mt-1 text-sm text-slate-500">
+                  <div className={cloudPanelDescriptionClassName}>
                     {t(
                       "cloud.providers.aws.credentials_description",
                       "Save multiple AWS accounts, choose the active one, and bulk-check whether the credentials can still call EC2 and STS.",
@@ -1128,7 +1137,7 @@ export default function AWSPanel() {
                   ) : (
                     credentialPool.credentials.map((credential) => (
                       <TableRow key={credential.id}>
-                        <TableCell className="font-medium text-slate-900">
+                        <TableCell className="font-medium text-slate-900 dark:text-slate-100">
                           <div className="flex items-center gap-2">
                             <span className="max-w-40 truncate">{credential.name}</span>
                             {credential.is_active ? (
@@ -1140,9 +1149,9 @@ export default function AWSPanel() {
                           {credential.masked_access_key_id || "-"}
                         </TableCell>
                         <TableCell>
-                          <div className="text-sm text-slate-900">{credential.account_id || "-"}</div>
+                          <div className="text-sm text-slate-900 dark:text-slate-100">{credential.account_id || "-"}</div>
                           {credential.arn ? (
-                            <div className="max-w-64 truncate text-xs text-slate-500">{credential.arn}</div>
+                            <div className="max-w-64 truncate text-xs text-slate-500 dark:text-slate-400">{credential.arn}</div>
                           ) : null}
                         </TableCell>
                         <TableCell>{credential.default_region || "-"}</TableCell>
@@ -1191,7 +1200,7 @@ export default function AWSPanel() {
                               }}
                             >
                               <Server className="mr-1 h-3.5 w-3.5" />
-                              {t("cloud.tokens.view_droplets", "View Droplets")}
+                              {t("cloud.providers.aws.view_instances", "View Instances")}
                             </Button>
                             <Button
                               variant="soft"
@@ -1226,13 +1235,13 @@ export default function AWSPanel() {
       </div>
 
       <div className="order-2 grid gap-4 xl:grid-cols-[minmax(0,1.05fr)_minmax(0,1fr)]">
-          <div className="rounded-2xl border border-slate-200 bg-white px-5 py-4">
+          <div className={cloudPanelCardClassName.replace("overflow-hidden ", "") + " px-5 py-4"}>
             <div className="flex flex-wrap items-center justify-between gap-4">
               <div>
-                <div className="text-sm font-medium text-slate-900">
+                <div className={cloudPanelTitleClassName}>
                   {t("cloud.providers.aws.active_region", "Active Region")}
                 </div>
-                <div className="mt-1 text-sm text-slate-500">
+                <div className={cloudPanelDescriptionClassName}>
                   {t(
                     "cloud.providers.aws.active_region_description",
                     "EC2 instances, AMIs, key pairs, subnets, and security groups are all loaded from the currently selected AWS region.",
@@ -1254,11 +1263,11 @@ export default function AWSPanel() {
             </div>
           </div>
 
-          <div className="rounded-2xl border border-slate-200 bg-white px-5 py-4">
-            <div className="text-sm font-medium text-slate-900">
+          <div className={cloudPanelCardClassName.replace("overflow-hidden ", "") + " px-5 py-4"}>
+            <div className={cloudPanelTitleClassName}>
               {t("cloud.providers.aws.account_snapshot", "Account Snapshot")}
             </div>
-            <div className="mt-1 text-sm text-slate-500">
+            <div className={cloudPanelDescriptionClassName}>
               {t(
                 "cloud.providers.aws.account_snapshot_description",
                 "Review the active account identity and the EC2 quotas Komari can currently read for this region.",
@@ -1284,8 +1293,8 @@ export default function AWSPanel() {
               />
             </div>
 
-            <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
-              <div className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">
+            <div className={`mt-4 ${cloudPanelSectionClassName}`}>
+              <div className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">
                 {t("cloud.providers.aws.ec2_quota", "EC2 Quota")}
               </div>
               <div className="mt-2">
@@ -1297,14 +1306,14 @@ export default function AWSPanel() {
 
         <div className="order-3">
           <Tabs.Root value={instanceView} onValueChange={(value) => setInstanceView(value as "ec2" | "lightsail")}>
-            <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
-              <div className="border-b border-slate-200 px-5 py-4">
+            <div className={cloudPanelCardClassName}>
+              <div className={cloudPanelHeaderClassName}>
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <div>
-                    <div className="text-sm font-medium text-slate-900">
+                    <div className={cloudPanelTitleClassName}>
                       {t("cloud.providers.aws.compute", "Compute")}
                     </div>
-                    <div className="mt-1 text-sm text-slate-500">
+                    <div className={cloudPanelDescriptionClassName}>
                       {t(
                         "cloud.providers.aws.instance_list_description",
                         "The list is scoped to the active credential and active region.",
@@ -1353,10 +1362,10 @@ export default function AWSPanel() {
                     ) : (
                       instances.map((instance) => (
                         <TableRow key={instance.instance_id}>
-                          <TableCell className="font-medium text-slate-900">
+                          <TableCell className="font-medium text-slate-900 dark:text-slate-100">
                             <button
                               type="button"
-                              className="text-left text-blue-700 hover:text-blue-800 hover:underline"
+                              className="text-left text-blue-700 hover:text-blue-800 hover:underline dark:text-blue-400 dark:hover:text-blue-300"
                               onClick={() => {
                                 void loadInstanceDetail(instance);
                               }}
@@ -1365,7 +1374,9 @@ export default function AWSPanel() {
                             </button>
                           </TableCell>
                           <TableCell>
-                            <Badge color={getInstanceStateColor(instance.state)}>{instance.state || "-"}</Badge>
+                            <Badge color={getInstanceStateColor(instance.state)}>
+                              {getCloudStatusLabel(instance.state, t)}
+                            </Badge>
                           </TableCell>
                           <TableCell>{instance.availability_zone || "-"}</TableCell>
                           <TableCell>{instance.public_ip || instance.private_ip || "-"}</TableCell>
@@ -1417,7 +1428,7 @@ export default function AWSPanel() {
                                 size="1"
                                 onClick={() => {
                                   setScriptTarget({
-                                    providerLabel: "AWS EC2",
+                                    providerLabel: t("cloud.providers.aws.ec2_label", "AWS EC2"),
                                     instanceName: instance.name || instance.instance_id,
                                     instanceIdentifier: instance.instance_id,
                                     addresses: [instance.public_ip, instance.private_ip].filter(Boolean),
@@ -1436,7 +1447,7 @@ export default function AWSPanel() {
                                     resourceType: "ec2",
                                     resourceId: instance.instance_id,
                                     resourceName: instance.name || instance.instance_id,
-                                    providerLabel: "AWS EC2",
+                                    providerLabel: t("cloud.providers.aws.ec2_label", "AWS EC2"),
                                     credentialName: getActiveCredential(credentialPool)?.name || "",
                                     region: activeRegion,
                                     primaryAddress: instance.public_ip || instance.private_ip || "",
@@ -1471,7 +1482,7 @@ export default function AWSPanel() {
 
               <Tabs.Content value="lightsail">
                 {lightsailError ? (
-                  <div className="border-b border-amber-200 bg-amber-50 px-5 py-3 text-sm text-amber-800">
+                  <div className="border-b border-amber-200 bg-amber-50 px-5 py-3 text-sm text-amber-800 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-300">
                     {lightsailError}
                   </div>
                 ) : null}
@@ -1503,10 +1514,10 @@ export default function AWSPanel() {
                     ) : (
                       lightsailInstances.map((instance) => (
                         <TableRow key={instance.name}>
-                          <TableCell className="font-medium text-slate-900">
+                          <TableCell className="font-medium text-slate-900 dark:text-slate-100">
                             <button
                               type="button"
-                              className="text-left text-blue-700 hover:text-blue-800 hover:underline"
+                              className="text-left text-blue-700 hover:text-blue-800 hover:underline dark:text-blue-400 dark:hover:text-blue-300"
                               onClick={() => {
                                 void loadLightsailDetail(instance);
                               }}
@@ -1515,7 +1526,9 @@ export default function AWSPanel() {
                             </button>
                           </TableCell>
                           <TableCell>
-                            <Badge color={getInstanceStateColor(instance.state)}>{instance.state || "-"}</Badge>
+                            <Badge color={getInstanceStateColor(instance.state)}>
+                              {getCloudStatusLabel(instance.state, t)}
+                            </Badge>
                           </TableCell>
                           <TableCell>{instance.availability_zone || "-"}</TableCell>
                           <TableCell>{instance.public_ip || instance.private_ip || "-"}</TableCell>
@@ -1565,7 +1578,7 @@ export default function AWSPanel() {
                                 size="1"
                                 onClick={() => {
                                   setScriptTarget({
-                                    providerLabel: "AWS Lightsail",
+                                    providerLabel: t("cloud.providers.aws.lightsail_label", "AWS Lightsail"),
                                     instanceName: instance.name,
                                     instanceIdentifier: instance.name,
                                     addresses: [instance.public_ip, instance.private_ip, ...instance.ipv6_addresses].filter(Boolean),
@@ -1584,7 +1597,7 @@ export default function AWSPanel() {
                                     resourceType: "lightsail",
                                     resourceId: instance.name,
                                     resourceName: instance.name,
-                                    providerLabel: "AWS Lightsail",
+                                    providerLabel: t("cloud.providers.aws.lightsail_label", "AWS Lightsail"),
                                     credentialName: getActiveCredential(credentialPool)?.name || "",
                                     region: activeRegion,
                                     primaryAddress: instance.public_ip || instance.private_ip || "",
@@ -1662,7 +1675,7 @@ export default function AWSPanel() {
           </Dialog.Description>
 
           <div className="mt-4 flex flex-col gap-4">
-            <label className="text-sm font-medium text-slate-800">
+            <label className={cloudPanelFieldLabelClassName}>
               {t("cloud.form.name", "Name")}
             </label>
             <TextField.Root
@@ -1671,7 +1684,7 @@ export default function AWSPanel() {
               onChange={(event) => setCreateForm((previous) => ({ ...previous, name: event.target.value }))}
             />
 
-            <label className="text-sm font-medium text-slate-800">
+            <label className={cloudPanelFieldLabelClassName}>
               {t("cloud.providers.aws.ami", "AMI")}
             </label>
             <Select.Root
@@ -1693,7 +1706,7 @@ export default function AWSPanel() {
               onChange={(event) => setCreateForm((previous) => ({ ...previous, image_id: event.target.value }))}
             />
 
-            <label className="text-sm font-medium text-slate-800">
+            <label className={cloudPanelFieldLabelClassName}>
               {t("cloud.providers.aws.instance_type", "Instance Type")}
             </label>
             <Select.Root
@@ -1710,7 +1723,7 @@ export default function AWSPanel() {
               </Select.Content>
             </Select.Root>
 
-            <label className="text-sm font-medium text-slate-800">
+            <label className={cloudPanelFieldLabelClassName}>
               {t("cloud.providers.aws.key_pair", "Key Pair")}
             </label>
             <Select.Root
@@ -1733,7 +1746,7 @@ export default function AWSPanel() {
               </Select.Content>
             </Select.Root>
 
-            <label className="text-sm font-medium text-slate-800">
+            <label className={cloudPanelFieldLabelClassName}>
               {t("cloud.providers.aws.subnet", "Subnet")}
             </label>
             <Select.Root
@@ -1772,11 +1785,11 @@ export default function AWSPanel() {
               }
             />
 
-            <div className="rounded-xl border border-slate-200 bg-white px-4 py-3">
-              <div className="text-sm font-medium text-slate-800">
+            <div className={cloudPanelSubcardClassName}>
+              <div className={cloudPanelFieldLabelClassName}>
                 {t("cloud.providers.aws.security_groups", "Security Groups")}
               </div>
-              <div className="mt-1 text-sm text-slate-500">
+              <div className="mt-1 text-sm text-slate-500 dark:text-slate-400">
                 {selectedSubnetVpcId
                   ? t("cloud.providers.aws.security_group_hint_vpc", {
                       vpc: selectedSubnetVpcId,
@@ -1794,7 +1807,7 @@ export default function AWSPanel() {
                     return (
                       <label
                         key={group.group_id}
-                        className="flex items-start gap-2 rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700"
+                        className="flex items-start gap-2 rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 dark:border-slate-800 dark:text-slate-300"
                       >
                         <Checkbox
                           checked={checked}
@@ -1808,10 +1821,10 @@ export default function AWSPanel() {
                           }
                         />
                         <span className="min-w-0">
-                          <span className="block font-medium text-slate-900">
+                          <span className="block font-medium text-slate-900 dark:text-slate-100">
                             {group.group_name}
                           </span>
-                          <span className="block truncate text-xs text-slate-500">
+                          <span className="block truncate text-xs text-slate-500 dark:text-slate-400">
                             {group.group_id} / {group.vpc_id}
                           </span>
                         </span>
@@ -1819,14 +1832,14 @@ export default function AWSPanel() {
                     );
                   })
                 ) : (
-                  <div className="text-sm text-slate-500">
+                  <div className="text-sm text-slate-500 dark:text-slate-400">
                     {t("cloud.providers.aws.security_groups_empty", "No security groups found")}
                   </div>
                 )}
               </div>
             </div>
 
-            <label className="text-sm font-medium text-slate-800">
+            <label className={cloudPanelFieldLabelClassName}>
               {t("cloud.form.tags", "Tags")}
             </label>
             <TextArea
@@ -1836,7 +1849,7 @@ export default function AWSPanel() {
               onChange={(event) => setCreateForm((previous) => ({ ...previous, tagsText: event.target.value }))}
             />
 
-            <label className="text-sm font-medium text-slate-800">
+            <label className={cloudPanelFieldLabelClassName}>
               {t("cloud.form.user_data", "Cloud-Init / User Data")}
             </label>
             <WarningAlert
@@ -1853,8 +1866,8 @@ export default function AWSPanel() {
               onChange={(event) => setCreateForm((previous) => ({ ...previous, user_data: event.target.value }))}
             />
 
-            <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
-              <label className="flex items-start gap-2 text-sm text-slate-700">
+            <div className={cloudPanelSectionClassName}>
+              <label className={`flex items-start gap-2 ${cloudPanelBodyTextClassName}`}>
                 <Checkbox
                   checked={createForm.auto_connect}
                   onCheckedChange={(checked) =>
@@ -1865,20 +1878,20 @@ export default function AWSPanel() {
                     }))
                   }
                 />
-                <span>
-                  <span className="block font-medium text-slate-900">
-                    {t("cloud.form.auto_connect", "Auto-connect to Komari on first boot")}
-                  </span>
-                  <span className="mt-1 block text-xs text-slate-500">
-                    {t(
-                      "cloud.form.auto_connect_help",
-                      "Requires Auto Discovery Key. When enabled, shell user_data is injected and #cloud-config is not supported.",
+                  <span>
+                    <span className="block font-medium text-slate-900 dark:text-slate-100">
+                      {t("cloud.form.auto_connect", "Auto-connect to Komari on first boot")}
+                    </span>
+                    <span className="mt-1 block text-xs text-slate-500 dark:text-slate-400">
+                      {t(
+                        "cloud.form.auto_connect_help",
+                        "Requires Auto Discovery Key. When enabled, shell user_data is injected and #cloud-config is not supported.",
                     )}
                   </span>
                 </span>
               </label>
               <div className="mt-3">
-                <label className="text-sm font-medium text-slate-800">
+                <label className={cloudPanelFieldLabelClassName}>
                   {t("cloud.form.auto_connect_group", "Auto-connect group")}
                 </label>
                 <TextField.Root
@@ -1896,7 +1909,7 @@ export default function AWSPanel() {
               </div>
             </div>
 
-            <label className="flex items-center gap-2 text-sm text-slate-700">
+            <label className={`flex items-center gap-2 ${cloudPanelBodyTextClassName}`}>
               <Checkbox
                 checked={createForm.assign_public_ip}
                 onCheckedChange={(checked) =>
@@ -1936,7 +1949,7 @@ export default function AWSPanel() {
           </Dialog.Description>
 
           <div className="mt-4 flex flex-col gap-4">
-            <label className="text-sm font-medium text-slate-800">
+            <label className={cloudPanelFieldLabelClassName}>
               {t("cloud.form.name", "Name")}
             </label>
             <TextField.Root
@@ -1947,7 +1960,7 @@ export default function AWSPanel() {
               }
             />
 
-            <label className="text-sm font-medium text-slate-800">
+            <label className={cloudPanelFieldLabelClassName}>
               {t("cloud.providers.aws.az", "AZ")}
             </label>
             <Select.Root
@@ -1968,7 +1981,7 @@ export default function AWSPanel() {
               </Select.Content>
             </Select.Root>
 
-            <label className="text-sm font-medium text-slate-800">
+            <label className={cloudPanelFieldLabelClassName}>
               {t("cloud.form.image", "Image")}
             </label>
             <Select.Root
@@ -1988,7 +2001,7 @@ export default function AWSPanel() {
               </Select.Content>
             </Select.Root>
 
-            <label className="text-sm font-medium text-slate-800">
+            <label className={cloudPanelFieldLabelClassName}>
               {t("cloud.form.size", "Size")}
             </label>
             <Select.Root
@@ -2007,7 +2020,7 @@ export default function AWSPanel() {
               </Select.Content>
             </Select.Root>
 
-            <label className="text-sm font-medium text-slate-800">
+            <label className={cloudPanelFieldLabelClassName}>
               {t("cloud.providers.aws.key_pair", "Key Pair")}
             </label>
             <Select.Root
@@ -2030,7 +2043,7 @@ export default function AWSPanel() {
               </Select.Content>
             </Select.Root>
 
-            <label className="text-sm font-medium text-slate-800">
+            <label className={cloudPanelFieldLabelClassName}>
               {t("cloud.providers.aws.ip_address_type", "IP Address Type")}
             </label>
             <Select.Root
@@ -2047,7 +2060,7 @@ export default function AWSPanel() {
               </Select.Content>
             </Select.Root>
 
-            <label className="text-sm font-medium text-slate-800">
+            <label className={cloudPanelFieldLabelClassName}>
               {t("cloud.form.tags", "Tags")}
             </label>
             <TextArea
@@ -2059,7 +2072,7 @@ export default function AWSPanel() {
               }
             />
 
-            <label className="text-sm font-medium text-slate-800">
+            <label className={cloudPanelFieldLabelClassName}>
               {t("cloud.form.user_data", "Cloud-Init / User Data")}
             </label>
             <WarningAlert
@@ -2078,8 +2091,8 @@ export default function AWSPanel() {
               }
             />
 
-            <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
-              <label className="flex items-start gap-2 text-sm text-slate-700">
+            <div className={cloudPanelSectionClassName}>
+              <label className={`flex items-start gap-2 ${cloudPanelBodyTextClassName}`}>
                 <Checkbox
                   checked={lightsailCreateForm.auto_connect}
                   onCheckedChange={(checked) =>
@@ -2090,20 +2103,20 @@ export default function AWSPanel() {
                     }))
                   }
                 />
-                <span>
-                  <span className="block font-medium text-slate-900">
-                    {t("cloud.form.auto_connect", "Auto-connect to Komari on first boot")}
-                  </span>
-                  <span className="mt-1 block text-xs text-slate-500">
-                    {t(
-                      "cloud.form.auto_connect_help",
-                      "Requires Auto Discovery Key. When enabled, shell user_data is injected and #cloud-config is not supported.",
+                  <span>
+                    <span className="block font-medium text-slate-900 dark:text-slate-100">
+                      {t("cloud.form.auto_connect", "Auto-connect to Komari on first boot")}
+                    </span>
+                    <span className="mt-1 block text-xs text-slate-500 dark:text-slate-400">
+                      {t(
+                        "cloud.form.auto_connect_help",
+                        "Requires Auto Discovery Key. When enabled, shell user_data is injected and #cloud-config is not supported.",
                     )}
                   </span>
                 </span>
               </label>
               <div className="mt-3">
-                <label className="text-sm font-medium text-slate-800">
+                <label className={cloudPanelFieldLabelClassName}>
                   {t("cloud.form.auto_connect_group", "Auto-connect group")}
                 </label>
                 <TextField.Root
@@ -2155,7 +2168,7 @@ export default function AWSPanel() {
         }}
       >
         <Dialog.Content className={`${cloudDialogContentClassName} max-h-[85vh] overflow-y-auto`}>
-          <Dialog.Title>{detailInstance?.name || detailInstance?.instance_id || "EC2"}</Dialog.Title>
+          <Dialog.Title>{detailInstance?.name || detailInstance?.instance_id || t("cloud.providers.aws.ec2_label", "AWS EC2")}</Dialog.Title>
           <Dialog.Description>
             {t(
               "cloud.providers.aws.detail_description",
@@ -2164,12 +2177,18 @@ export default function AWSPanel() {
           </Dialog.Description>
 
           {detailLoading ? (
-            <div className="mt-4 text-sm text-slate-500">{t("cloud.loading", "Loading cloud resources...")}</div>
+            <div className="mt-4 text-sm text-slate-500 dark:text-slate-400">{t("cloud.loading", "Loading cloud resources...")}</div>
           ) : detailData ? (
             <div className="mt-4 flex flex-col gap-4">
               <div className="grid gap-3 sm:grid-cols-2">
-                <DetailItem label={t("cloud.detail.id", "Droplet ID")} value={detailData.instance.instance_id} />
-                <DetailItem label={t("cloud.table.status", "Status")} value={detailData.instance.state || "-"} />
+                <DetailItem
+                  label={t("cloud.providers.aws.instance_id", "EC2 Instance ID")}
+                  value={detailData.instance.instance_id}
+                />
+                <DetailItem
+                  label={t("cloud.table.status", "Status")}
+                  value={getCloudStatusLabel(detailData.instance.state, t)}
+                />
                 <DetailItem label={t("cloud.providers.aws.az", "AZ")} value={detailData.instance.availability_zone || "-"} />
                 <DetailItem label={t("cloud.table.ip", "Public IP")} value={detailData.instance.public_ip || detailData.instance.private_ip || "-"} />
                 <DetailItem label={t("cloud.table.size", "Size")} value={detailData.instance.instance_type || "-"} />
@@ -2178,14 +2197,17 @@ export default function AWSPanel() {
                 <DetailItem label={t("cloud.table.created_at", "Created")} value={formatDateTime(detailData.instance.launch_time)} />
                 <DetailItem label={t("cloud.providers.aws.vpc", "VPC")} value={detailData.vpc_id || "-"} />
                 <DetailItem label={t("cloud.providers.aws.subnet", "Subnet")} value={detailData.subnet_id || "-"} />
-                <DetailItem label={t("cloud.providers.aws.monitoring", "Monitoring")} value={detailData.monitoring_state || "-"} />
+                <DetailItem
+                  label={t("cloud.providers.aws.monitoring", "Monitoring")}
+                  value={getCloudStatusLabel(detailData.monitoring_state, t)}
+                />
                 <DetailItem label={t("cloud.providers.aws.architecture", "Architecture")} value={detailData.architecture || "-"} />
                 <DetailItem label={t("cloud.providers.aws.public_dns", "Public DNS")} value={detailData.public_dns_name || "-"} />
                 <DetailItem label={t("cloud.providers.aws.private_dns", "Private DNS")} value={detailData.private_dns_name || "-"} />
               </div>
 
-              <div className="rounded-xl border border-slate-200 bg-white px-4 py-3">
-                <div className="text-sm font-medium text-slate-900">
+              <div className={cloudPanelSubcardClassName}>
+                <div className={cloudPanelTitleClassName}>
                   {t("cloud.detail.tags", "Tags")}
                 </div>
                 <TextArea
@@ -2211,20 +2233,20 @@ export default function AWSPanel() {
                 </Flex>
               </div>
 
-              <div className="rounded-xl border border-slate-200 bg-white px-4 py-3">
-                <div className="text-sm font-medium text-slate-900">
+              <div className={cloudPanelSubcardClassName}>
+                <div className={cloudPanelTitleClassName}>
                   {t("cloud.providers.aws.storage", "Volumes")}
                 </div>
                 <div className="mt-3 flex flex-col gap-2">
                   {detailData.volumes.length ? detailData.volumes.map((volume) => (
-                    <div key={volume.volume_id} className="rounded-lg border border-slate-200 px-3 py-2 text-sm">
-                      <div className="font-medium text-slate-900">{volume.device_name || volume.volume_id}</div>
-                      <div className="text-slate-500">
+                    <div key={volume.volume_id} className="rounded-lg border border-slate-200 px-3 py-2 text-sm dark:border-slate-800">
+                      <div className="font-medium text-slate-900 dark:text-slate-100">{volume.device_name || volume.volume_id}</div>
+                      <div className="text-slate-500 dark:text-slate-400">
                         {volume.size_gib} GiB / {volume.volume_type} / {volume.state}
                       </div>
                     </div>
                   )) : (
-                    <div className="text-sm text-slate-500">-</div>
+                    <div className="text-sm text-slate-500 dark:text-slate-400">-</div>
                   )}
                 </div>
                 <Flex justify="end" gap="2" className="mt-3">
@@ -2244,8 +2266,8 @@ export default function AWSPanel() {
               </div>
 
               <div className="grid gap-4 sm:grid-cols-2">
-                <div className="rounded-xl border border-slate-200 bg-white px-4 py-3">
-                  <div className="text-sm font-medium text-slate-900">
+                <div className={cloudPanelSubcardClassName}>
+                  <div className={cloudPanelTitleClassName}>
                     {t("cloud.providers.aws.change_type", "Change Instance Type")}
                   </div>
                   <Select.Root
@@ -2283,11 +2305,13 @@ export default function AWSPanel() {
                   </Flex>
                 </div>
 
-                <div className="rounded-xl border border-slate-200 bg-white px-4 py-3">
-                  <div className="text-sm font-medium text-slate-900">
+                <div className={cloudPanelSubcardClassName}>
+                  <div className={cloudPanelTitleClassName}>
                     {t("cloud.providers.aws.monitoring", "Monitoring")}
                   </div>
-                  <div className="mt-2 text-sm text-slate-500">{detailData.monitoring_state || "-"}</div>
+                  <div className="mt-2 text-sm text-slate-500 dark:text-slate-400">
+                    {getCloudStatusLabel(detailData.monitoring_state, t)}
+                  </div>
                   <Flex justify="end" gap="2" className="mt-3">
                     <Button
                       size="1"
@@ -2306,8 +2330,8 @@ export default function AWSPanel() {
                 </div>
               </div>
 
-              <div className="rounded-xl border border-slate-200 bg-white px-4 py-3">
-                <div className="text-sm font-medium text-slate-900">
+              <div className={cloudPanelSubcardClassName}>
+                <div className={cloudPanelTitleClassName}>
                   {t("cloud.providers.aws.machine_image", "Machine Image")}
                 </div>
                 <TextField.Root
@@ -2326,7 +2350,7 @@ export default function AWSPanel() {
                     setDetailActionForm((previous) => ({ ...previous, imageDescription: event.target.value }))
                   }
                 />
-                <label className="mt-3 flex items-center gap-2 text-sm text-slate-700">
+                <label className={`mt-3 flex items-center gap-2 ${cloudPanelBodyTextClassName}`}>
                   <Checkbox
                     checked={detailActionForm.noReboot}
                     onCheckedChange={(checked) =>
@@ -2353,14 +2377,14 @@ export default function AWSPanel() {
                 </Flex>
               </div>
 
-              <div className="rounded-xl border border-slate-200 bg-white px-4 py-3">
-                <div className="text-sm font-medium text-slate-900">
+              <div className={cloudPanelSubcardClassName}>
+                <div className={cloudPanelTitleClassName}>
                   {t("cloud.providers.aws.elastic_ip", "Elastic IP")}
                 </div>
                 <div className="mt-3 flex flex-col gap-2">
                   {detailData.addresses.length ? detailData.addresses.map((address) => (
-                    <div key={address.allocation_id || address.public_ip} className="rounded-lg border border-slate-200 px-3 py-2 text-sm">
-                      <div className="font-medium text-slate-900">{formatElasticAddress(address)}</div>
+                    <div key={address.allocation_id || address.public_ip} className="rounded-lg border border-slate-200 px-3 py-2 text-sm dark:border-slate-800">
+                      <div className="font-medium text-slate-900 dark:text-slate-100">{formatElasticAddress(address)}</div>
                       <div className="mt-2 flex flex-wrap gap-2">
                         {address.association_id ? (
                           <Button
@@ -2396,7 +2420,7 @@ export default function AWSPanel() {
                       </div>
                     </div>
                   )) : (
-                    <div className="text-sm text-slate-500">-</div>
+                    <div className="text-sm text-slate-500 dark:text-slate-400">-</div>
                   )}
                 </div>
                 <div className="mt-3 grid gap-3 sm:grid-cols-2">
@@ -2460,15 +2484,15 @@ export default function AWSPanel() {
               </div>
 
               {detailData.security_groups.length ? (
-                <div className="rounded-xl border border-slate-200 bg-white px-4 py-3">
-                  <div className="text-sm font-medium text-slate-900">
+                <div className={cloudPanelSubcardClassName}>
+                  <div className={cloudPanelTitleClassName}>
                     {t("cloud.providers.aws.security_groups", "Security Groups")}
                   </div>
                   <div className="mt-3 flex flex-col gap-2">
                     {detailData.security_groups.map((group) => (
-                      <div key={group.group_id} className="rounded-lg border border-slate-200 px-3 py-2 text-sm">
-                        <div className="font-medium text-slate-900">{group.group_name || group.group_id}</div>
-                        <div className="text-slate-500">{group.group_id}</div>
+                      <div key={group.group_id} className="rounded-lg border border-slate-200 px-3 py-2 text-sm dark:border-slate-800">
+                        <div className="font-medium text-slate-900 dark:text-slate-100">{group.group_name || group.group_id}</div>
+                        <div className="text-slate-500 dark:text-slate-400">{group.group_id}</div>
                       </div>
                     ))}
                   </div>
@@ -2476,8 +2500,8 @@ export default function AWSPanel() {
               ) : null}
 
               {detailData.console_output ? (
-                <div className="rounded-xl border border-slate-200 bg-white px-4 py-3">
-                  <div className="text-sm font-medium text-slate-900">
+                <div className={cloudPanelSubcardClassName}>
+                  <div className={cloudPanelTitleClassName}>
                     {t("cloud.providers.aws.console_output", "Console Output")}
                   </div>
                   <TextArea className="mt-3 min-h-40 font-mono text-xs" readOnly value={detailData.console_output} />
@@ -2497,7 +2521,7 @@ export default function AWSPanel() {
         }}
       >
         <Dialog.Content className={`${cloudDialogContentClassName} max-h-[85vh] overflow-y-auto`}>
-          <Dialog.Title>{lightsailDetailInstance?.name || "Lightsail"}</Dialog.Title>
+          <Dialog.Title>{lightsailDetailInstance?.name || t("cloud.providers.aws.lightsail_label", "AWS Lightsail")}</Dialog.Title>
           <Dialog.Description>
             {t(
               "cloud.providers.aws.lightsail_detail_description",
@@ -2506,12 +2530,15 @@ export default function AWSPanel() {
           </Dialog.Description>
 
           {lightsailDetailLoading ? (
-            <div className="mt-4 text-sm text-slate-500">{t("cloud.loading", "Loading cloud resources...")}</div>
+            <div className="mt-4 text-sm text-slate-500 dark:text-slate-400">{t("cloud.loading", "Loading cloud resources...")}</div>
           ) : lightsailDetailData ? (
             <div className="mt-4 flex flex-col gap-4">
               <div className="grid gap-3 sm:grid-cols-2">
                 <DetailItem label={t("cloud.table.name", "Name")} value={lightsailDetailData.instance.name} />
-                <DetailItem label={t("cloud.table.status", "Status")} value={lightsailDetailData.instance.state || "-"} />
+                <DetailItem
+                  label={t("cloud.table.status", "Status")}
+                  value={getCloudStatusLabel(lightsailDetailData.instance.state, t)}
+                />
                 <DetailItem label={t("cloud.providers.aws.az", "AZ")} value={lightsailDetailData.instance.availability_zone || "-"} />
                 <DetailItem label={t("cloud.table.ip", "Public IP")} value={lightsailDetailData.instance.public_ip || lightsailDetailData.instance.private_ip || "-"} />
                 <DetailItem label={t("cloud.table.size", "Size")} value={lightsailDetailData.instance.bundle_id || "-"} />
@@ -2520,35 +2547,35 @@ export default function AWSPanel() {
                 <DetailItem label={t("cloud.table.created_at", "Created")} value={formatDateTime(lightsailDetailData.instance.created_at)} />
               </div>
 
-              <div className="rounded-xl border border-slate-200 bg-white px-4 py-3">
-                <div className="text-sm font-medium text-slate-900">
+              <div className={cloudPanelSubcardClassName}>
+                <div className={cloudPanelTitleClassName}>
                   {t("cloud.providers.aws.ports", "Firewall Ports")}
                 </div>
                 <div className="mt-3 flex flex-col gap-2">
                   {lightsailDetailData.ports.length ? lightsailDetailData.ports.map((port) => (
-                    <div key={`${port.protocol}-${port.from_port}-${port.to_port}`} className="rounded-lg border border-slate-200 px-3 py-2 text-sm">
-                      <div className="font-medium text-slate-900">
+                    <div key={`${port.protocol}-${port.from_port}-${port.to_port}`} className="rounded-lg border border-slate-200 px-3 py-2 text-sm dark:border-slate-800">
+                      <div className="font-medium text-slate-900 dark:text-slate-100">
                         {port.common_name || `${port.protocol}:${port.from_port}-${port.to_port}`}
                       </div>
-                      <div className="text-slate-500">
+                      <div className="text-slate-500 dark:text-slate-400">
                         {port.access_type || "-"} / {port.access_from || "-"} / {(port.cidrs || []).join(", ") || "-"}
                       </div>
                     </div>
                   )) : (
-                    <div className="text-sm text-slate-500">-</div>
+                    <div className="text-sm text-slate-500 dark:text-slate-400">-</div>
                   )}
                 </div>
               </div>
 
-              <div className="rounded-xl border border-slate-200 bg-white px-4 py-3">
-                <div className="text-sm font-medium text-slate-900">
+              <div className={cloudPanelSubcardClassName}>
+                <div className={cloudPanelTitleClassName}>
                   {t("cloud.providers.aws.static_ip", "Static IP")}
                 </div>
                 <div className="mt-3 flex flex-col gap-2">
                   {lightsailDetailData.static_ips.length ? lightsailDetailData.static_ips.map((staticIP) => (
-                    <div key={staticIP.name} className="rounded-lg border border-slate-200 px-3 py-2 text-sm">
-                      <div className="font-medium text-slate-900">{staticIP.name}</div>
-                      <div className="text-slate-500">
+                    <div key={staticIP.name} className="rounded-lg border border-slate-200 px-3 py-2 text-sm dark:border-slate-800">
+                      <div className="font-medium text-slate-900 dark:text-slate-100">{staticIP.name}</div>
+                      <div className="text-slate-500 dark:text-slate-400">
                         {staticIP.ip_address || "-"} / {staticIP.attached_to || "-"}
                       </div>
                       <div className="mt-2 flex flex-wrap gap-2">
@@ -2600,7 +2627,7 @@ export default function AWSPanel() {
                       </div>
                     </div>
                   )) : (
-                    <div className="text-sm text-slate-500">-</div>
+                    <div className="text-sm text-slate-500 dark:text-slate-400">-</div>
                   )}
                 </div>
                 <TextField.Root
@@ -2630,20 +2657,20 @@ export default function AWSPanel() {
                 </Flex>
               </div>
 
-              <div className="rounded-xl border border-slate-200 bg-white px-4 py-3">
-                <div className="text-sm font-medium text-slate-900">
+              <div className={cloudPanelSubcardClassName}>
+                <div className={cloudPanelTitleClassName}>
                   {t("cloud.providers.aws.snapshots", "Snapshots")}
                 </div>
                 <div className="mt-3 flex flex-col gap-2">
                   {lightsailDetailData.snapshots.length ? lightsailDetailData.snapshots.map((snapshot) => (
-                    <div key={snapshot.name} className="rounded-lg border border-slate-200 px-3 py-2 text-sm">
-                      <div className="font-medium text-slate-900">{snapshot.name}</div>
-                      <div className="text-slate-500">
+                    <div key={snapshot.name} className="rounded-lg border border-slate-200 px-3 py-2 text-sm dark:border-slate-800">
+                      <div className="font-medium text-slate-900 dark:text-slate-100">{snapshot.name}</div>
+                      <div className="text-slate-500 dark:text-slate-400">
                         {snapshot.state || "-"} / {snapshot.size_in_gb} GB / {formatDateTime(snapshot.created_at)}
                       </div>
                     </div>
                   )) : (
-                    <div className="text-sm text-slate-500">-</div>
+                    <div className="text-sm text-slate-500 dark:text-slate-400">-</div>
                   )}
                 </div>
                 <TextField.Root
@@ -2741,8 +2768,8 @@ export default function AWSPanel() {
               <DetailItem label={t("cloud.tokens.table.account", "Account")} value={credentialSecret.secret.account_id || "-"} />
               <DetailItem label={t("cloud.providers.aws.access_key", "Access Key")} value={credentialSecret.secret.access_key_id || "-"} />
               {(credentialSecret.secret.ec2_quota || credentialSecret.secret.ec2_quota_error) ? (
-                <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
-                  <div className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">
+                <div className={cloudPanelSectionClassName}>
+                  <div className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">
                     {t("cloud.providers.aws.ec2_quota", "EC2 Quota")}
                   </div>
                   <div className="mt-2">

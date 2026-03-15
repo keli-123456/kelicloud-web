@@ -23,7 +23,7 @@ export default function SignOnSettings() {
   const [providerError, setProviderError] = React.useState("");
 
 
-  // 拉取所有 provider 及字段定义
+  // Load all provider definitions.
   React.useEffect(() => {
     if (loading) return;
     setProviderLoading(true);
@@ -40,14 +40,27 @@ export default function SignOnSettings() {
               : "";
           setCurrentProvider(initialProvider);
         } else {
-          setProviderError(data.message || "获取登录接口信息失败");
+          setProviderError(
+            data.message ||
+              t(
+                "settings.sso.fetch_providers_error",
+                "Failed to load sign-on provider definitions",
+              ),
+          );
         }
       })
-      .catch(() => setProviderError("获取登录接口信息失败"))
+      .catch(() =>
+        setProviderError(
+          t(
+            "settings.sso.fetch_providers_error",
+            "Failed to load sign-on provider definitions",
+          ),
+        ),
+      )
       .finally(() => setProviderLoading(false));
-  }, [loading, settings.o_auth_provider]);
+  }, [loading, settings.o_auth_provider, t]);
 
-  // 拉取当前 provider 的设置
+  // Load settings for the current provider.
   React.useEffect(() => {
     if (!currentProvider) return;
     setProviderLoading(true);
@@ -61,14 +74,27 @@ export default function SignOnSettings() {
             setProviderValues({});
           }
         } else {
-          setProviderError(data.message || "获取设置失败");
+          setProviderError(
+            data.message ||
+              t(
+                "settings.sso.fetch_settings_error",
+                "Failed to load sign-on settings",
+              ),
+          );
         }
       })
-      .catch(() => setProviderError("获取设置失败"))
+      .catch(() =>
+        setProviderError(
+          t(
+            "settings.sso.fetch_settings_error",
+            "Failed to load sign-on settings",
+          ),
+        ),
+      )
       .finally(() => setProviderLoading(false));
-  }, [currentProvider]);
+  }, [currentProvider, t]);
 
-  // 处理保存
+  // Save provider settings.
   const handleOidcSave = async (values: any) => {
     setProviderLoading(true);
     setProviderError("");
@@ -84,17 +110,22 @@ export default function SignOnSettings() {
       });
       const data = await res.json();
       if (data.status !== "success") {
-        setProviderError(data.message || "保存失败");
+        setProviderError(
+          data.message ||
+            t("settings.sso.save_error", "Failed to save sign-on settings"),
+        );
       } else {
         setProviderValues(values);
       }
     } catch {
-      setProviderError("保存失败");
+      setProviderError(
+        t("settings.sso.save_error", "Failed to save sign-on settings"),
+      );
     }
     setProviderLoading(false);
   };
 
-  // 渲染 provider 的输入项已抽象到 utils/renderProviders.tsx 中
+  // Provider field rendering is delegated to utils/renderProviders.tsx.
 
   if (loading || (!providerLoading && providerList.length === 0 && !providerError)) {
     return <Loading />;
@@ -110,7 +141,7 @@ export default function SignOnSettings() {
     <>
       <SettingCardLabel>{t("settings.sign_on.title")}</SettingCardLabel>
       <SettingCardSwitch
-        title={t("settings.sign_on.disable_password", "禁止密码登录")}
+        title={t("settings.sign_on.disable_password", "Disable password login")}
         defaultChecked={settings.disable_password_login}
         onChange={async (checked) => {
           await updateSettingsWithToast({ disable_password_login: checked }, t);
@@ -118,9 +149,12 @@ export default function SignOnSettings() {
       />
       <SettingCardLabel>{t("settings.sso.title")}</SettingCardLabel>
       <SettingCardSwitch
-        title={t("settings.sso.enable", "启用单点登录")}
+        title={t("settings.sso.enable", "Enable Single Sign-On")}
         defaultChecked={settings.o_auth_enabled}
-        description={t("settings.sso.enable_description", "启用单点登录功能")}
+        description={t(
+          "settings.sso.enable_description",
+          "Allow users to login with third-party accounts (like GitHub)",
+        )}
         onChange={async (checked) => {
           await updateSettingsWithToast({ o_auth_enabled: checked }, t);
         }}
@@ -159,7 +193,7 @@ const ApiCard = () => {
   const { t } = useTranslation();
   const [apiValues, setApiValues] = React.useState<string>(settings?.api_key || "" );
 
-  // 生成32位随机字符串
+  // Generate a 32-character random token.
   const generateRandomString = () => {
     const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
     let result = 'komari-';
@@ -169,13 +203,13 @@ const ApiCard = () => {
     return result;
   };
 
-  // 处理生成按钮点击
+  // Fill the field with a new generated API key.
   const handleGenerateApiKey = () => {
     const newApiKey = generateRandomString();
     setApiValues(newApiKey);
   };
 
-  // 初始化API值
+  // Keep the local input in sync with settings.
   React.useEffect(() => {
     if (settings?.api_key) {
       setApiValues(settings.api_key);
@@ -203,7 +237,7 @@ const ApiCard = () => {
         <div className="flex flex-row gap-2 justify-start items-center">
           <Button
             variant="outline"
-            className="border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
+            className="border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-300 dark:hover:bg-emerald-950/60"
             onClick={handleGenerateApiKey}
           >
             {t('common.generate')}

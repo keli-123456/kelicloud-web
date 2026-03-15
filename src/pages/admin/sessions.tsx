@@ -72,7 +72,7 @@ export default function Sessions() {
       .then((response) => response.json())
       .then((data) => {
         if (data.status === "success") {
-          toast.success("会话已删除");
+          toast.success(t("sessions.deleted", "Session deleted"));
           if (isCurrent) {
             window.location.href = "/";
             return;
@@ -83,7 +83,7 @@ export default function Sessions() {
           }));
         } else {
           console.error("Failed to delete session:", data);
-          toast.error("删除失败");
+          toast.error(t("sessions.delete_failed", "Failed to delete session"));
         }
       })
       .catch((error) => {
@@ -99,7 +99,7 @@ export default function Sessions() {
     })
       .then((response) => {
         if (!response.ok) {
-          toast.error("Error:" + response.status);
+          toast.error(`Error: ${response.status}`);
           return;
         }
         response
@@ -108,7 +108,7 @@ export default function Sessions() {
             window.location.href = "/";
           })
           .catch((error) => {
-            toast.error("Error parsing JSON:" + error);
+            toast.error(`Error parsing JSON: ${error}`);
           });
       })
       .catch((error) => {
@@ -129,7 +129,10 @@ export default function Sessions() {
     <AdminPageShell
       eyebrow={t("sessions.title")}
       title={t("sessions.active_sessions")}
-      description="查看当前后台登录设备、来源 IP、最近活跃时间与会话有效期。"
+      description={t(
+        "sessions.description",
+        "Review current admin devices, source IPs, recent activity, and session expiration from one page.",
+      )}
       actions={
         <Dialog.Root>
           <Dialog.Trigger>
@@ -157,55 +160,69 @@ export default function Sessions() {
       }
       stats={[
         {
-          label: "活跃会话",
+          label: t("sessions.stats.active_sessions_label", "Active sessions"),
           value: `${sessions.data.length}`,
-          hint: "包含当前正在使用的后台管理端登录记录。",
+          hint: t(
+            "sessions.stats.active_sessions_hint",
+            "Includes the admin session currently in use.",
+          ),
           tone: "blue",
         },
         {
-          label: "当前设备",
-          value: sessions.current ? "已识别" : "未知",
+          label: t("sessions.stats.current_device_label", "Current device"),
+          value: sessions.current
+            ? t("sessions.stats.current_device_known", "Recognized")
+            : t("sessions.stats.current_device_unknown", "Unknown"),
           hint: sessions.current
             ? `${sessions.current.slice(0, 8)}...`
-            : "未检测到当前会话标识。",
+            : t(
+                "sessions.stats.current_device_hint",
+                "No current session identifier was detected.",
+              ),
           tone: "emerald",
         },
         {
-          label: "最近活跃",
+          label: t("sessions.stats.last_active_label", "Last active"),
           value: latestActive
             ? formatDuration(Date.now() - latestActive, t)
             : t("just_now"),
-          hint: "按最后在线时间动态计算。",
+          hint: t(
+            "sessions.stats.last_active_hint",
+            "Calculated dynamically from the most recent online timestamp.",
+          ),
           tone: "amber",
         },
       ]}
     >
       <AdminSurface className="overflow-hidden p-0">
-        <div className="border-b border-slate-200/70 px-1 py-3">
+        <div className="border-b border-slate-200/70 px-1 py-3 dark:border-slate-800/70">
           <div className="flex flex-col gap-1">
-            <label className="text-lg font-semibold tracking-tight text-slate-900">
-              会话明细
+            <label className="text-lg font-semibold tracking-tight text-slate-900 dark:text-slate-50">
+              {t("sessions.details_title", "Session details")}
             </label>
-            <p className="text-sm text-slate-500">
-              建议定期清理异常设备或过期会话。
+            <p className="text-sm text-slate-500 dark:text-slate-400">
+              {t(
+                "sessions.details_description",
+                "Review suspicious devices and expired sessions regularly.",
+              )}
             </p>
           </div>
         </div>
 
         {sessions.data.length === 0 ? (
-          <div className="px-6 py-14 text-center text-sm text-slate-500">
-            当前没有可展示的会话记录。
+          <div className="px-6 py-14 text-center text-sm text-slate-500 dark:text-slate-400">
+            {t("sessions.empty", "No session records are available right now.")}
           </div>
         ) : (
           <Table>
-            <TableHeader className="bg-[linear-gradient(135deg,rgba(19,70,134,0.10),rgba(255,255,255,0.92),rgba(89,172,119,0.10))]">
+            <TableHeader className="bg-[linear-gradient(135deg,rgba(19,70,134,0.10),rgba(255,255,255,0.92),rgba(89,172,119,0.10))] dark:bg-[linear-gradient(135deg,rgba(14,165,233,0.16),rgba(2,6,23,0.92),rgba(16,185,129,0.12))]">
               <TableRow>
                 <TableHead>{t("sessions.session_id")}</TableHead>
-                <TableHead>UA</TableHead>
+                <TableHead>{t("sessions.user_agent_short", "UA")}</TableHead>
                 <TableHead>IP</TableHead>
-                <TableHead>Latest IP</TableHead>
+                <TableHead>{t("sessions.latest_ip", "Latest IP")}</TableHead>
                 <TableHead>{t("sessions.expires_at")}</TableHead>
-                <TableHead>{t("sessions.last_login", "上次登录")}</TableHead>
+                <TableHead>{t("sessions.last_login", "Last Seen")}</TableHead>
                 <TableHead>{t("sessions.actions")}</TableHead>
               </TableRow>
             </TableHeader>
@@ -216,14 +233,14 @@ export default function Sessions() {
                 return (
                   <TableRow
                     key={session.uuid}
-                    className="transition-colors hover:bg-slate-50/60"
+                    className="transition-colors hover:bg-slate-50/60 dark:hover:bg-slate-900/60"
                   >
                     <TableCell>
                       <Dialog.Root>
                         <Dialog.Trigger>
                           <button
                             type="button"
-                            className="flex items-center gap-2 text-left text-sm font-medium text-slate-900 hover:text-slate-700"
+                            className="flex items-center gap-2 text-left text-sm font-medium text-slate-900 hover:text-slate-700 dark:text-slate-100 dark:hover:text-slate-300"
                           >
                             <span>{session.session.slice(0, 8)}...</span>
                             {isCurrent && (
@@ -234,7 +251,9 @@ export default function Sessions() {
                           </button>
                         </Dialog.Trigger>
                         <Dialog.Content>
-                          <Dialog.Title>{t("sessions.active_sessions")}</Dialog.Title>
+                          <Dialog.Title>
+                            {t("sessions.detail_dialog_title", "Session details")}
+                          </Dialog.Title>
                           <Flex direction="column" gap="2">
                             <label className="text-base font-bold">
                               {t("sessions.session_id")}
@@ -246,7 +265,9 @@ export default function Sessions() {
                             <label className="text-sm">
                               {session.ip} / {session.latest_ip}
                             </label>
-                            <label className="text-base font-bold">User Agent</label>
+                            <label className="text-base font-bold">
+                              {t("sessions.user_agent", "User Agent")}
+                            </label>
                             <label className="text-sm">{session.user_agent}</label>
                             <label className="text-sm text-muted-foreground font-bold">
                               {UserAgentHelper.format(session.user_agent)}
@@ -290,11 +311,11 @@ export default function Sessions() {
                             </label>
                             <Flex justify="end">
                               <Dialog.Close>
-                                <Button variant="soft" className="rounded-xl">
-                                  {t("close")}
-                                </Button>
-                              </Dialog.Close>
-                            </Flex>
+                              <Button variant="soft" className="rounded-xl">
+                                  {t("close", "Close")}
+                              </Button>
+                            </Dialog.Close>
+                          </Flex>
                           </Flex>
                         </Dialog.Content>
                       </Dialog.Root>
@@ -317,8 +338,8 @@ export default function Sessions() {
                       {!isCurrent && (
                         <Dialog.Root>
                           <Dialog.Trigger>
-                            <Button color="red" variant="ghost" className="rounded-xl">
-                              {t("delete")}
+                              <Button color="red" variant="ghost" className="rounded-xl">
+                              {t("delete", "Delete")}
                             </Button>
                           </Dialog.Trigger>
                           <Dialog.Content>
@@ -339,7 +360,7 @@ export default function Sessions() {
                                 onClick={() => deleteSession(session.session)}
                                 className="rounded-xl"
                               >
-                                {t("delete")}
+                                {t("delete", "Delete")}
                               </Button>
                             </Flex>
                           </Dialog.Content>

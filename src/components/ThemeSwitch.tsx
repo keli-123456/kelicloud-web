@@ -45,17 +45,17 @@ const ThemeSwitch = ({ icon }: ThemeSwitchProps = {}) => {
               type="button"
               variant="outline"
               size="icon"
-              aria-label={t("theme.system", "Theme")}
+              aria-label={t("theme.label", "Theme")}
               className="rounded-full border-border/60 bg-background/70 shadow-none hover:bg-muted"
             >
               {icon ?? activeIcon}
             </Button>
           </DropdownMenuTrigger>
         </TooltipTrigger>
-        <TooltipContent>Theme</TooltipContent>
+        <TooltipContent>{t("theme.label", "Theme")}</TooltipContent>
       </Tooltip>
       <DropdownMenuContent className="min-w-44">
-        <DropdownMenuLabel>{t("theme.system", "Theme")}</DropdownMenuLabel>
+        <DropdownMenuLabel>{t("theme.label", "Theme")}</DropdownMenuLabel>
         <DropdownMenuSeparator />
         <DropdownMenuCheckboxItem
           checked={appearance === "light"}

@@ -3,6 +3,13 @@ import { useTranslation } from "react-i18next";
 
 import { Button } from "@/components/ui/button";
 import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import {
   Dialog,
   DialogContent,
   DialogDescription,
@@ -12,6 +19,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { AccountProvider, useAccount } from "@/contexts/AccountContext";
 import { usePublicInfo } from "@/contexts/PublicInfoContext";
+import { Navigate } from "react-router-dom";
 
 import { TablerSettings } from "./Icones/Tabler";
 
@@ -21,6 +29,9 @@ type LoginDialogProps = {
   showSettings?: boolean;
   info?: string | React.ReactNode;
   onLoginSuccess?: () => void;
+  inline?: boolean;
+  redirectAuthenticatedTo?: string;
+  className?: string;
 };
 
 const LoginDialog = ({
@@ -29,6 +40,9 @@ const LoginDialog = ({
   showSettings = true,
   info,
   onLoginSuccess,
+  inline = false,
+  redirectAuthenticatedTo,
+  className,
 }: LoginDialogProps) => {
   const InnerLayout = () => {
     const { account, loading, error, refresh } = useAccount();
@@ -41,6 +55,7 @@ const LoginDialog = ({
     const [require2FA, setRequire2FA] = React.useState(false);
     const [open, setOpen] = React.useState(autoOpen || false);
     const { publicInfo } = usePublicInfo();
+    const siteName = String(publicInfo?.sitename || "Komari").trim() || "Komari";
 
     const passwordLoginEnabled = !publicInfo?.disable_password_login;
     const oauthEnabled = !!publicInfo?.oauth_enable;
@@ -58,7 +73,12 @@ const LoginDialog = ({
 
     const handleLogin = async () => {
       if (!isFormValid) {
-        setErrorMsg("Username and password are required");
+        setErrorMsg(
+          t(
+            "login.required_credentials",
+            "Username and password are required",
+          ),
+        );
         return;
       }
 
@@ -91,10 +111,13 @@ const LoginDialog = ({
             setRequire2FA(true);
             return;
           }
-          setErrorMsg(data.message || "Login failed");
+          setErrorMsg(
+            data.message ||
+              t("login.failed", "Login failed"),
+          );
         }
       } catch (err) {
-        setErrorMsg("Network error");
+        setErrorMsg(t("login.network_error", "Network error"));
         console.error(err);
       } finally {
         setIsLoading(false);
@@ -114,11 +137,14 @@ const LoginDialog = ({
     if (error || !account) {
       return (
         <Button disabled variant="destructive">
-          Error
+          {t("common.error", "Error")}
         </Button>
       );
     }
     if (account.logged_in) {
+      if (redirectAuthenticatedTo) {
+        return <Navigate to={redirectAuthenticatedTo} replace />;
+      }
       if (!showSettings) {
         return null;
       }
@@ -131,7 +157,7 @@ const LoginDialog = ({
       );
     }
 
-    if (onlyOAuthLogin && !autoOpen) {
+    if (onlyOAuthLogin && !autoOpen && !inline) {
       const redirect = () => {
         window.location.href = "/api/oauth";
       };
@@ -158,6 +184,106 @@ const LoginDialog = ({
         <Button>{typeof trigger === "string" ? trigger : t("login.title")}</Button>
       );
 
+    const loginFields = (
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          if (isFormValid && !isLoading) {
+            void handleLogin();
+          }
+        }}
+      >
+        <div className="flex flex-col gap-3">
+          {passwordLoginEnabled && (
+            <>
+              <label>
+                <div className="mb-1 text-sm font-bold">{t("login.username")}</div>
+                <Input
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  onKeyDown={handleKeyDown}
+                  placeholder="admin"
+                  disabled={isLoading}
+                  autoFocus
+                />
+              </label>
+              <label>
+                <div className="mb-1 text-sm font-bold">{t("login.password")}</div>
+                <Input
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  onKeyDown={handleKeyDown}
+                  type="password"
+                  placeholder={t("login.password_placeholder")}
+                  disabled={isLoading}
+                />
+              </label>
+              <label hidden={!require2FA}>
+                <div className="mb-1 text-sm font-bold">{t("login.two_factor")}</div>
+                <Input
+                  value={twoFac}
+                  onChange={(e) => setTwoFac(e.target.value)}
+                  onKeyDown={handleKeyDown}
+                  type="text"
+                  placeholder="000000"
+                  disabled={isLoading}
+                />
+              </label>
+              {errorMsg ? (
+                <div className="text-sm text-red-600 dark:text-red-400">
+                  {errorMsg}
+                </div>
+              ) : null}
+              <Button
+                type="submit"
+                disabled={isLoading || !isFormValid}
+                style={{ opacity: isLoading || !isFormValid ? 0.6 : 1 }}
+              >
+                {isLoading
+                  ? t("login.logging_in", "Logging in...")
+                  : t("login.title")}
+              </Button>
+            </>
+          )}
+          {publicInfo?.oauth_enable && (
+            <Button
+              onClick={() => {
+                window.location.href = "/api/oauth";
+              }}
+              variant={passwordLoginEnabled ? "outline" : "default"}
+              disabled={isLoading}
+              type="button"
+            >
+              {t("login.login_with", {
+                provider:
+                  publicInfo?.oauth_provider === "generic"
+                    ? "OAuth"
+                    : publicInfo?.oauth_provider
+                      ? publicInfo.oauth_provider.charAt(0).toUpperCase() +
+                        publicInfo.oauth_provider.slice(1)
+                      : "",
+              })}
+            </Button>
+          )}
+        </div>
+      </form>
+    );
+
+    if (inline) {
+      return (
+        <Card className={className}>
+          <CardHeader className="space-y-2">
+            <CardTitle>{t("login.title")}</CardTitle>
+            <CardDescription className="space-y-2">
+              <div>{t("login.desc", { siteName })}</div>
+              {info ? <div>{info}</div> : null}
+            </CardDescription>
+          </CardHeader>
+          <CardContent>{loginFields}</CardContent>
+        </Card>
+      );
+    }
+
     return (
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogTrigger asChild>
@@ -167,86 +293,11 @@ const LoginDialog = ({
           <DialogTitle>{t("login.title")}</DialogTitle>
           <DialogDescription asChild>
             <div className="flex flex-col justify-center gap-2">
-              <label>{t("login.desc")}</label>
+              <label>{t("login.desc", { siteName })}</label>
               {info && <label>{info}</label>}
             </div>
           </DialogDescription>
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              if (isFormValid && !isLoading) {
-                void handleLogin();
-              }
-            }}
-          >
-            <div className="flex flex-col gap-3">
-              {passwordLoginEnabled && (
-                <>
-                  <label>
-                    <div className="mb-1 text-sm font-bold">{t("login.username")}</div>
-                    <Input
-                      value={username}
-                      onChange={(e) => setUsername(e.target.value)}
-                      onKeyDown={handleKeyDown}
-                      placeholder="admin"
-                      disabled={isLoading}
-                      autoFocus
-                    />
-                  </label>
-                  <label>
-                    <div className="mb-1 text-sm font-bold">{t("login.password")}</div>
-                    <Input
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      onKeyDown={handleKeyDown}
-                      type="password"
-                      placeholder={t("login.password_placeholder")}
-                      disabled={isLoading}
-                    />
-                  </label>
-                  <label hidden={!require2FA}>
-                    <div className="mb-1 text-sm font-bold">{t("login.two_factor")}</div>
-                    <Input
-                      value={twoFac}
-                      onChange={(e) => setTwoFac(e.target.value)}
-                      onKeyDown={handleKeyDown}
-                      type="text"
-                      placeholder="000000"
-                      disabled={isLoading}
-                    />
-                  </label>
-                  {errorMsg && <div className="text-sm text-red-600">{errorMsg}</div>}
-                  <Button
-                    type="submit"
-                    disabled={isLoading || !isFormValid}
-                    style={{ opacity: isLoading || !isFormValid ? 0.6 : 1 }}
-                  >
-                    {isLoading ? "Logging in..." : t("login.title")}
-                  </Button>
-                </>
-              )}
-              {publicInfo?.oauth_enable && (
-                <Button
-                  onClick={() => {
-                    window.location.href = "/api/oauth";
-                  }}
-                  variant={passwordLoginEnabled ? "outline" : "default"}
-                  disabled={isLoading}
-                  type="button"
-                >
-                  {t("login.login_with", {
-                    provider:
-                      publicInfo?.oauth_provider === "generic"
-                        ? "OAuth"
-                        : publicInfo?.oauth_provider
-                          ? publicInfo.oauth_provider.charAt(0).toUpperCase() +
-                            publicInfo.oauth_provider.slice(1)
-                          : "",
-                  })}
-                </Button>
-              )}
-            </div>
-          </form>
+          {loginFields}
         </DialogContent>
       </Dialog>
     );

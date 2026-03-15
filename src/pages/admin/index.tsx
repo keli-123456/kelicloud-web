@@ -4,6 +4,7 @@ import {
   useNodeDetails,
   type NodeDetail,
 } from "@/contexts/NodeDetailsContext";
+import { t as translate } from "i18next";
 import {
   Badge,
   Button,
@@ -127,12 +128,20 @@ type ActionResponsePayload = {
   error?: string;
 };
 
-const DEFAULT_GROUP_NAME = "默认分组";
-
 const getNodeGroupLabel = (node: NodeDetail) => {
   const groupName = String(node.group || "").trim();
-  return groupName || DEFAULT_GROUP_NAME;
+  return (
+    groupName ||
+    translate("admin.nodeTable.defaultGroup", {
+      defaultValue: "Default group",
+    })
+  );
 };
+
+const getDefaultGroupLabel = () =>
+  translate("admin.nodeTable.defaultGroup", {
+    defaultValue: "Default group",
+  });
 
 const createEmptyLiveRecord = (): LiveRecord => ({
   cpu: { usage: 0 },
@@ -156,15 +165,27 @@ const formatUptimeLabel = (secondsValue?: number) => {
   const minutes = Math.floor((seconds % 3600) / 60);
 
   if (days > 0) {
-    return `${days}天 ${hours}小时`;
+    return `${days}${translate("admin.nodeTable.uptimeDayUnit", {
+      defaultValue: "d",
+    })} ${hours}${translate("admin.nodeTable.uptimeHourUnit", {
+      defaultValue: "h",
+    })}`;
   }
   if (hours > 0) {
-    return `${hours}小时 ${minutes}分钟`;
+    return `${hours}${translate("admin.nodeTable.uptimeHourUnit", {
+      defaultValue: "h",
+    })} ${minutes}${translate("admin.nodeTable.uptimeMinuteUnit", {
+      defaultValue: "min",
+    })}`;
   }
   if (minutes > 0) {
-    return `${minutes}分钟`;
+    return `${minutes}${translate("admin.nodeTable.uptimeMinuteUnit", {
+      defaultValue: "min",
+    })}`;
   }
-  return "刚启动";
+  return translate("admin.nodeTable.justStarted", {
+    defaultValue: "Just started",
+  });
 };
 
 const formatNodeIp = (value?: string) => {
@@ -173,14 +194,15 @@ const formatNodeIp = (value?: string) => {
 };
 
 const NODE_DIALOG_CONTENT_CLASS =
-  "max-h-[85vh] overflow-y-auto rounded-2xl border-slate-200/80 p-5 sm:p-6";
+  "max-h-[85vh] overflow-y-auto rounded-2xl border-slate-200/80 p-5 sm:p-6 dark:border-slate-800/80";
 const NODE_DIALOG_SECTION_CLASS =
-  "rounded-xl border border-slate-200/80 bg-slate-50/60 p-4";
-const NODE_DIALOG_HINT_CLASS = "text-[13px] leading-6 text-slate-500";
+  "rounded-xl border border-slate-200/80 bg-slate-50/60 p-4 dark:border-slate-800/80 dark:bg-slate-900/40";
+const NODE_DIALOG_HINT_CLASS =
+  "text-[13px] leading-6 text-slate-500 dark:text-slate-400";
 const NODE_DIALOG_FOOTER_CLASS =
   "mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end";
 const NODE_INPUT_CLASS =
-  "rounded-xl border-slate-200 bg-white text-[14px] shadow-none";
+  "rounded-xl border-slate-200 bg-white text-[14px] shadow-none dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100";
 
 const normalizeLiveSnapshot = (value: any): NodeLiveSnapshot => {
   const fallback = createEmptyLiveRecord();
@@ -373,15 +395,16 @@ const Layout = () => {
     ? [...nodeDetail].sort((a, b) => {
         const leftGroup = getNodeGroupLabel(a);
         const rightGroup = getNodeGroupLabel(b);
+        const defaultGroupLabel = getDefaultGroupLabel();
 
-        if (leftGroup === DEFAULT_GROUP_NAME && rightGroup !== DEFAULT_GROUP_NAME) {
+        if (leftGroup === defaultGroupLabel && rightGroup !== defaultGroupLabel) {
           return 1;
         }
-        if (leftGroup !== DEFAULT_GROUP_NAME && rightGroup === DEFAULT_GROUP_NAME) {
+        if (leftGroup !== defaultGroupLabel && rightGroup === defaultGroupLabel) {
           return -1;
         }
 
-        const groupDiff = leftGroup.localeCompare(rightGroup, "zh-CN");
+        const groupDiff = leftGroup.localeCompare(rightGroup);
         if (groupDiff !== 0) return groupDiff;
 
         if ((a.weight ?? 0) !== (b.weight ?? 0)) {
@@ -543,14 +566,14 @@ const Header = ({
 
     const confirmed = await confirm({
       tone: "destructive",
-      title: t("admin.nodeTable.cleanupOfflineTitle", "删除离线节点"),
+      title: t("admin.nodeTable.cleanupOfflineTitle", "Delete offline nodes"),
       description: t(
         "admin.nodeTable.cleanupOfflineDescription",
-        "将删除当前已确认离线的 {{count}} 个节点。这个操作不可撤销。",
+        "Delete the {{count}} nodes currently confirmed offline. This action cannot be undone.",
         { count: offlineNodes.length },
       ),
-      confirmLabel: t("common.delete", "删除"),
-      cancelLabel: t("common.cancel", "取消"),
+      confirmLabel: t("common.delete", "Delete"),
+      cancelLabel: t("common.cancel", "Cancel"),
     });
     if (!confirmed) {
       return;
@@ -570,7 +593,7 @@ const Header = ({
                 response,
                 payload,
                 raw,
-                "删除失败"
+                t("admin.nodeTable.cleanupOfflineDeleteFailed", "Delete failed")
               )}`
             );
           }
@@ -594,13 +617,29 @@ const Header = ({
 
         if (deletedCount > 0) {
           toast.warning(
-            `已删除 ${deletedCount} 个离线节点，${failed.length} 个删除失败：${detail}`
+            t("admin.nodeTable.cleanupOfflinePartialSuccess", {
+              count: deletedCount,
+              failed: failed.length,
+              detail,
+              defaultValue:
+                "Deleted {{count}} offline nodes, {{failed}} failed: {{detail}}",
+            })
           );
         } else {
-          toast.error(`删除离线节点失败：${detail}`);
+          toast.error(
+            t("admin.nodeTable.cleanupOfflineFailed", {
+              detail,
+              defaultValue: "Failed to delete offline nodes: {{detail}}",
+            })
+          );
         }
       } else {
-        toast.success(`已删除 ${offlineNodes.length} 个离线节点`);
+        toast.success(
+          t("admin.nodeTable.cleanupOfflineSuccess", {
+            count: offlineNodes.length,
+            defaultValue: "Deleted {{count}} offline nodes",
+          })
+        );
       }
     } catch (cleanupError) {
       toast.error(
@@ -611,15 +650,18 @@ const Header = ({
     }
   };
   return (
-    <Card className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+    <Card className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-950/50">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div className="min-w-0 space-y-3">
           <div className="flex flex-wrap items-center gap-2">
-          <Text className="text-xl font-semibold tracking-tight text-slate-900">
+          <Text className="text-xl font-semibold tracking-tight text-slate-900 dark:text-slate-50">
             {t("admin.nodeTable.nodeList")}
           </Text>
           <Badge variant="soft" color="blue" className="rounded-full px-3 py-1">
-            {nodes.length} 节点
+            {t("admin.nodeTable.nodeCountBadge", {
+              count: nodes.length,
+              defaultValue: "{{count}} nodes",
+            })}
           </Badge>
           <Badge
             variant="soft"
@@ -627,35 +669,53 @@ const Header = ({
             className="rounded-full px-3 py-1"
           >
             {liveError
-              ? "同步异常"
+              ? t("admin.nodeTable.syncError", "Sync error")
               : liveLoaded
-                ? `${offlineNodes.length} 离线`
-                : "状态同步中"}
+                ? t("admin.nodeTable.offlineCountBadge", {
+                    count: offlineNodes.length,
+                    defaultValue: "{{count}} offline",
+                  })
+                : t("admin.nodeTable.syncingStatus", "Syncing status")}
           </Badge>
           {liveError && (
-            <Text size="2" className="text-rose-600">
-              实时状态接口异常，已暂停批量删除。
+            <Text size="2" className="text-rose-600 dark:text-rose-400">
+              {t("admin.nodeTable.liveErrorPausedDeletion", {
+                defaultValue:
+                  "Live status API failed, so bulk offline deletion is paused.",
+              })}
             </Text>
           )}
           </div>
           <div className="flex min-w-0 flex-wrap items-center gap-2">
-            <div className="flex shrink-0 items-center gap-3 whitespace-nowrap rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-600">
-              <span className="font-medium text-slate-900">总速率</span>
+            <div className="flex shrink-0 items-center gap-3 whitespace-nowrap rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-600 dark:border-slate-800 dark:bg-slate-900/60 dark:text-slate-300">
+              <span className="font-medium text-slate-900 dark:text-slate-100">
+                {t("admin.nodeTable.totalRate", "Total rate")}
+              </span>
               <span>↑ {formatBytes(totalUploadSpeed)}/s</span>
               <span>↓ {formatBytes(totalDownloadSpeed)}/s</span>
             </div>
-            <div className="flex shrink-0 items-center gap-3 whitespace-nowrap rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-600">
-              <span className="font-medium text-slate-900">总流量</span>
+            <div className="flex shrink-0 items-center gap-3 whitespace-nowrap rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-600 dark:border-slate-800 dark:bg-slate-900/60 dark:text-slate-300">
+              <span className="font-medium text-slate-900 dark:text-slate-100">
+                {t("admin.nodeTable.totalTraffic", "Total traffic")}
+              </span>
               <span>↑ {formatBytes(totalUploadTraffic)}</span>
               <span>↓ {formatBytes(totalDownloadTraffic)}</span>
             </div>
           </div>
-          <div className="text-sm text-slate-500">
+          <div className="text-sm text-slate-500 dark:text-slate-400">
             {cnConnectivityConfigured
-              ? `国内连通探测：${cnConnectivitySummary}`
+              ? t("admin.nodeTable.cnConnectivitySummary", {
+                  summary: cnConnectivitySummary,
+                  defaultValue: "CN connectivity probe: {{summary}}",
+                })
               : cnConnectivityEnabled
-                ? "国内连通探测已启用，但还没有填写探测目标。"
-                : "国内连通探测未启用。"}
+                ? t("admin.nodeTable.cnConnectivityMissingTarget", {
+                    defaultValue:
+                      "CN connectivity probe is enabled, but no targets are configured yet.",
+                  })
+                : t("admin.nodeTable.cnConnectivityDisabledMessage", {
+                    defaultValue: "CN connectivity probe is disabled.",
+                  })}
           </div>
         </div>
 
@@ -684,11 +744,14 @@ const Header = ({
               onClick={() => void handleDeleteOffline()}
             >
               <Trash2Icon size={16} />
-              删除离线节点
+              {t("admin.nodeTable.deleteOffline", "Delete offline nodes")}
             </Button>
             <Dialog.Root open={dialogOpen} onOpenChange={setDialogOpen}>
               <Dialog.Trigger>
-                <Button onClick={() => setDialogOpen(true)} className="rounded-lg bg-slate-900 text-white">
+                <Button
+                  onClick={() => setDialogOpen(true)}
+                  className="rounded-lg bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900"
+                >
                   <Plus size={16} />
                   {t("admin.nodeTable.addNode")}
                 </Button>
@@ -699,11 +762,14 @@ const Header = ({
               >
                 <Dialog.Title>{t("admin.nodeTable.addNode")}</Dialog.Title>
                 <Dialog.Description className="mt-2">
-                  创建新节点后，可以继续编辑分组、备注和账单信息。
+                  {t("admin.nodeTable.addNodeDescription", {
+                    defaultValue:
+                      "After creating a node, you can continue editing its group, notes, and billing details.",
+                  })}
                 </Dialog.Description>
                 <TextField.Root
                   ref={inputRef}
-                  className="mt-4 rounded-xl border-slate-200 bg-white text-[14px] shadow-none"
+                  className={`mt-4 ${NODE_INPUT_CLASS}`}
                   placeholder={t("admin.nodeTable.nameOptional")}
                 />
                 <div className={NODE_DIALOG_FOOTER_CLASS}>
@@ -713,7 +779,7 @@ const Header = ({
                       variant="outline"
                       className="w-full sm:w-auto"
                     >
-                      取消
+                      {t("common.cancel", "Cancel")}
                     </Button>
                   </Dialog.Close>
                   <Button
@@ -782,11 +848,11 @@ const StatusSummary = ({
         variant="soft"
         className={
           online
-            ? "rounded-full border border-emerald-200 bg-emerald-100 px-2 py-0.5 text-[12px] text-emerald-700"
-            : "rounded-full border border-rose-200 bg-rose-100 px-2 py-0.5 text-[12px] text-rose-700"
+            ? "rounded-full border border-emerald-200 bg-emerald-100 px-2 py-0.5 text-[12px] text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/40 dark:text-emerald-300"
+            : "rounded-full border border-rose-200 bg-rose-100 px-2 py-0.5 text-[12px] text-rose-700 dark:border-rose-900/60 dark:bg-rose-950/40 dark:text-rose-300"
         }
       >
-        {online ? "在线" : "离线"}
+        {online ? t("nodeCard.online", "Online") : t("nodeCard.offline", "Offline")}
       </Badge>
       {cnBadge ? (
         <Badge
@@ -820,30 +886,30 @@ const buildCNConnectivityBadge = (
   switch (connectivity.status) {
     case "ok":
       return {
-        label: `${t("admin.nodeTable.cnConnectivityOk", "国内畅通")}${latencyLabel}`,
+        label: `${t("admin.nodeTable.cnConnectivityOk", "CN reachable")}${latencyLabel}`,
         className:
-          "rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[11px] text-emerald-700",
+          "rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[11px] text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/30 dark:text-emerald-300",
         title,
       };
     case "blocked_suspected":
       return {
-        label: t("admin.nodeTable.cnConnectivityBlocked", "疑似被墙"),
+        label: t("admin.nodeTable.cnConnectivityBlocked", "Suspected blocked"),
         className:
-          "rounded-full border border-rose-200 bg-rose-50 px-2 py-0.5 text-[11px] text-rose-700",
+          "rounded-full border border-rose-200 bg-rose-50 px-2 py-0.5 text-[11px] text-rose-700 dark:border-rose-900/60 dark:bg-rose-950/30 dark:text-rose-300",
         title,
       };
     case "degraded":
       return {
-        label: t("admin.nodeTable.cnConnectivityDegraded", "国内异常"),
+        label: t("admin.nodeTable.cnConnectivityDegraded", "CN abnormal"),
         className:
-          "rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[11px] text-amber-700",
+          "rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[11px] text-amber-700 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-300",
         title,
       };
     default:
       return {
-        label: t("admin.nodeTable.cnConnectivityUnknown", "待探测"),
+        label: t("admin.nodeTable.cnConnectivityUnknown", "Pending probe"),
         className:
-          "rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-[11px] text-slate-600",
+          "rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-[11px] text-slate-600 dark:border-slate-800 dark:bg-slate-900/50 dark:text-slate-300",
         title,
       };
   }
@@ -851,7 +917,7 @@ const buildCNConnectivityBadge = (
 
 const VersionSummary = ({ node }: { node: NodeDetail }) => (
   <div className="min-w-[112px]">
-    <span className="inline-flex rounded-md border border-slate-200 bg-slate-50 px-2 py-1 font-mono text-[12px] text-slate-700">
+    <span className="inline-flex rounded-md border border-slate-200 bg-slate-50 px-2 py-1 font-mono text-[12px] text-slate-700 dark:border-slate-800 dark:bg-slate-900/50 dark:text-slate-200">
       {String(node.version || "").trim() || "-"}
     </span>
   </div>
@@ -862,22 +928,24 @@ const NodeEndpointSummary = ({ node }: { node: NodeDetail }) => {
     <NodeInfoTooltip
       content={
         <NodeTooltipBody
-          label="主机名"
+          label={translate("admin.nodeTable.hostname", {
+            defaultValue: "Hostname",
+          })}
           primary={String(node.name || "").trim() || "-"}
         />
       }
     >
-      <div className="flex min-w-[200px] items-start gap-2 text-[13px] text-slate-700">
+      <div className="flex min-w-[200px] items-start gap-2 text-[13px] text-slate-700 dark:text-slate-200">
         <div className="pt-0.5">
           <Flag flag={node.region} size="4" />
         </div>
         <div className="min-w-0 space-y-0.5">
           <div className="truncate">
-            <span className="mr-1 text-slate-400">IPv4</span>
+            <span className="mr-1 text-slate-400 dark:text-slate-500">IPv4</span>
             {formatNodeIp(node.ipv4)}
           </div>
           <div className="truncate">
-            <span className="mr-1 text-slate-400">IPv6</span>
+            <span className="mr-1 text-slate-400 dark:text-slate-500">IPv6</span>
             {formatNodeIp(node.ipv6)}
           </div>
         </div>
@@ -931,10 +999,10 @@ const RateSummary = ({ live }: { live?: NodeLiveSnapshot }) => {
 
   return (
     <div className="min-w-[120px] space-y-0.5">
-      <Text size="1" className="block text-[13px] font-medium text-slate-900">
+      <Text size="1" className="block text-[13px] font-medium text-slate-900 dark:text-slate-100">
         ↑ {formatBytes(snapshot.network.up)}/s
       </Text>
-      <Text size="1" className="block text-[13px] text-slate-600">
+      <Text size="1" className="block text-[13px] text-slate-600 dark:text-slate-400">
         ↓ {formatBytes(snapshot.network.down)}/s
       </Text>
     </div>
@@ -946,10 +1014,10 @@ const TrafficSummary = ({ live }: { live?: NodeLiveSnapshot }) => {
 
   return (
     <div className="min-w-[132px] space-y-0.5">
-      <Text size="1" className="block text-[13px] font-medium text-slate-900">
+      <Text size="1" className="block text-[13px] font-medium text-slate-900 dark:text-slate-100">
         ↑ {formatBytes(snapshot.network.totalUp)}
       </Text>
-      <Text size="1" className="block text-[13px] text-slate-600">
+      <Text size="1" className="block text-[13px] text-slate-600 dark:text-slate-400">
         ↓ {formatBytes(snapshot.network.totalDown)}
       </Text>
     </div>
@@ -958,7 +1026,7 @@ const TrafficSummary = ({ live }: { live?: NodeLiveSnapshot }) => {
 
 const UptimeSummary = ({ live }: { live?: NodeLiveSnapshot }) => {
   return (
-    <Text size="1" className="block min-w-[72px] text-[13px] text-slate-700">
+    <Text size="1" className="block min-w-[72px] text-[13px] text-slate-700 dark:text-slate-300">
       {formatUptimeLabel(live?.record.uptime)}
     </Text>
   );
@@ -978,12 +1046,12 @@ const UsageBar = ({
   return (
     <NodeInfoTooltip content={tooltipContent}>
       <div className="w-[136px] cursor-help">
-        <div className="relative h-5 overflow-hidden rounded-full border border-slate-200/80 bg-slate-100">
+        <div className="relative h-5 overflow-hidden rounded-full border border-slate-200/80 bg-slate-100 dark:border-slate-800/80 dark:bg-slate-900/60">
           <div
             className={`h-full rounded-full transition-all duration-300 ${colorClass}`}
             style={{ width: `${safePercent}%` }}
           />
-          <div className="absolute inset-0 flex items-center justify-center text-[11px] font-semibold tracking-tight text-slate-700">
+          <div className="absolute inset-0 flex items-center justify-center text-[11px] font-semibold tracking-tight text-slate-700 dark:text-slate-200">
             {formatPercent(safePercent)}
           </div>
         </div>
@@ -1006,52 +1074,126 @@ const buildNodeConfigTooltip = ({
   const connectivity = snapshot.cn_connectivity;
   const connectivityLabel = connectivity
     ? connectivity.status === "ok"
-      ? `国内畅通${typeof connectivity.latency === "number" && connectivity.latency > 0 ? ` ${connectivity.latency}ms` : ""}`
+      ? `${translate("admin.nodeTable.cnConnectivityOk", {
+          defaultValue: "CN reachable",
+        })}${typeof connectivity.latency === "number" && connectivity.latency > 0 ? ` ${connectivity.latency}ms` : ""}`
       : connectivity.status === "blocked_suspected"
-        ? "疑似被墙"
+        ? translate("admin.nodeTable.cnConnectivityBlocked", {
+            defaultValue: "Suspected blocked",
+          })
         : connectivity.status === "degraded"
-          ? "国内异常"
-          : "待探测"
-    : "未配置";
+          ? translate("admin.nodeTable.cnConnectivityDegraded", {
+              defaultValue: "CN abnormal",
+            })
+          : translate("admin.nodeTable.cnConnectivityUnknown", {
+              defaultValue: "Pending probe",
+            })
+    : translate("admin.nodeTable.detailTooltip.notConfigured", {
+        defaultValue: "Not configured",
+      });
   const lines = [
-    `节点名: ${node.name || "-"}`,
-    `UUID: ${node.uuid || "-"}`,
-    `分组: ${getNodeGroupLabel(node)}`,
-    `状态: ${live?.online ? "在线" : "离线"}`,
-    `封锁探测: ${connectivityLabel}`,
-    `版本: ${node.version || "-"}`,
-    `区域: ${node.region || "-"}`,
-    `系统: ${node.os || "-"}`,
-    `架构: ${node.arch || "-"}`,
-    `CPU: ${node.cpu_name || "-"} / ${node.cpu_cores || 0} 核`,
-    `GPU: ${node.gpu_name || "-"}`,
-    `内存: ${formatBytes(memoryUsed)} / ${formatBytes(node.mem_total || 0)}`,
-    `Swap: ${formatBytes(swapUsed)} / ${formatBytes(node.swap_total || 0)}`,
-    `存储: ${formatBytes(diskUsed)} / ${formatBytes(node.disk_total || 0)}`,
-    `速率: ↑ ${formatBytes(snapshot.network.up)}/s / ↓ ${formatBytes(
+    `${translate("admin.nodeTable.detailTooltip.nodeName", {
+      defaultValue: "Node",
+    })}: ${node.name || "-"}`,
+    `${translate("admin.nodeTable.detailTooltip.uuid", {
+      defaultValue: "UUID",
+    })}: ${node.uuid || "-"}`,
+    `${translate("admin.nodeTable.detailTooltip.group", {
+      defaultValue: "Group",
+    })}: ${getNodeGroupLabel(node)}`,
+    `${translate("admin.nodeTable.detailTooltip.status", {
+      defaultValue: "Status",
+    })}: ${live?.online ? translate("nodeCard.online", { defaultValue: "Online" }) : translate("nodeCard.offline", { defaultValue: "Offline" })}`,
+    `${translate("admin.nodeTable.detailTooltip.connectivity", {
+      defaultValue: "CN probe",
+    })}: ${connectivityLabel}`,
+    `${translate("admin.nodeTable.detailTooltip.version", {
+      defaultValue: "Version",
+    })}: ${node.version || "-"}`,
+    `${translate("admin.nodeTable.detailTooltip.region", {
+      defaultValue: "Region",
+    })}: ${node.region || "-"}`,
+    `${translate("admin.nodeTable.detailTooltip.os", {
+      defaultValue: "OS",
+    })}: ${node.os || "-"}`,
+    `${translate("admin.nodeTable.detailTooltip.architecture", {
+      defaultValue: "Architecture",
+    })}: ${node.arch || "-"}`,
+    `${translate("admin.nodeTable.detailTooltip.cpu", {
+      defaultValue: "CPU",
+    })}: ${node.cpu_name || "-"} / ${node.cpu_cores || 0} ${translate("admin.nodeTable.cpuCoresShort", {
+      defaultValue: "cores",
+    })}`,
+    `${translate("admin.nodeTable.detailTooltip.gpu", {
+      defaultValue: "GPU",
+    })}: ${node.gpu_name || "-"}`,
+    `${translate("admin.nodeTable.detailTooltip.memory", {
+      defaultValue: "Memory",
+    })}: ${formatBytes(memoryUsed)} / ${formatBytes(node.mem_total || 0)}`,
+    `${translate("admin.nodeTable.detailTooltip.swap", {
+      defaultValue: "Swap",
+    })}: ${formatBytes(swapUsed)} / ${formatBytes(node.swap_total || 0)}`,
+    `${translate("admin.nodeTable.detailTooltip.storage", {
+      defaultValue: "Storage",
+    })}: ${formatBytes(diskUsed)} / ${formatBytes(node.disk_total || 0)}`,
+    `${translate("admin.nodeTable.detailTooltip.rate", {
+      defaultValue: "Rate",
+    })}: ↑ ${formatBytes(snapshot.network.up)}/s / ↓ ${formatBytes(
       snapshot.network.down
     )}/s`,
-    `流量: ↑ ${formatBytes(snapshot.network.totalUp)} / ↓ ${formatBytes(
+    `${translate("admin.nodeTable.detailTooltip.traffic", {
+      defaultValue: "Traffic",
+    })}: ↑ ${formatBytes(snapshot.network.totalUp)} / ↓ ${formatBytes(
       snapshot.network.totalDown
     )}`,
     `IPv4: ${formatNodeIp(node.ipv4)}`,
     `IPv6: ${formatNodeIp(node.ipv6)}`,
-    `账单周期: ${node.billing_cycle || "-"}`,
-    `公开备注: ${node.public_remark || "-"}`,
-    `内部备注: ${node.remark || "-"}`,
-    `创建时间: ${formatDateTimeLabel(node.created_at)}`,
-    `面板更新时间: ${formatDateTimeLabel(node.updated_at)}`,
-    `状态更新时间: ${formatDateTimeLabel(snapshot.updated_at)}`,
+    `${translate("admin.nodeTable.detailTooltip.billingCycle", {
+      defaultValue: "Billing cycle",
+    })}: ${node.billing_cycle || "-"}`,
+    `${translate("admin.nodeTable.detailTooltip.publicRemark", {
+      defaultValue: "Public remark",
+    })}: ${node.public_remark || "-"}`,
+    `${translate("admin.nodeTable.detailTooltip.privateRemark", {
+      defaultValue: "Private remark",
+    })}: ${node.remark || "-"}`,
+    `${translate("admin.nodeTable.detailTooltip.createdAt", {
+      defaultValue: "Created at",
+    })}: ${formatDateTimeLabel(node.created_at)}`,
+    `${translate("admin.nodeTable.detailTooltip.panelUpdatedAt", {
+      defaultValue: "Panel updated at",
+    })}: ${formatDateTimeLabel(node.updated_at)}`,
+    `${translate("admin.nodeTable.detailTooltip.statusUpdatedAt", {
+      defaultValue: "Status updated at",
+    })}: ${formatDateTimeLabel(snapshot.updated_at)}`,
   ];
 
   if (node.virtualization) {
-    lines.splice(8, 0, `虚拟化: ${node.virtualization}`);
+    lines.splice(
+      8,
+      0,
+      `${translate("admin.nodeTable.detailTooltip.virtualization", {
+        defaultValue: "Virtualization",
+      })}: ${node.virtualization}`,
+    );
   }
   if (connectivity?.target) {
-    lines.splice(5, 0, `探测目标: ${connectivity.target}`);
+    lines.splice(
+      5,
+      0,
+      `${translate("admin.nodeTable.detailTooltip.probeTarget", {
+        defaultValue: "Probe target",
+      })}: ${connectivity.target}`,
+    );
   }
   if (connectivity?.message) {
-    lines.splice(6, 0, `探测信息: ${connectivity.message}`);
+    lines.splice(
+      6,
+      0,
+      `${translate("admin.nodeTable.detailTooltip.probeMessage", {
+        defaultValue: "Probe message",
+      })}: ${connectivity.message}`,
+    );
   }
 
   return lines.join("\n");
@@ -1068,10 +1210,12 @@ const SortableRow = ({
   live?: NodeLiveSnapshot;
   node: NodeDetail;
 }) => {
+  const { t } = useTranslation();
+
   return (
     <ContextMenu>
       <ContextMenuTrigger asChild>
-        <TableRow className="cursor-context-menu border-b border-slate-200/70 bg-white text-[13px] transition-colors hover:bg-slate-50">
+        <TableRow className="cursor-context-menu border-b border-slate-200/70 bg-white text-[13px] transition-colors hover:bg-slate-50 dark:border-slate-800/70 dark:bg-slate-950/20 dark:hover:bg-slate-900/50">
           <TableCell>
             <NodeEndpointSummary node={node} />
           </TableCell>
@@ -1097,7 +1241,13 @@ const SortableRow = ({
               tooltipContent={
                 <NodeTooltipBody
                   label="CPU"
-                  primary={node.cpu_cores ? `${node.cpu_cores} 核` : "-"}
+                  primary={
+                    node.cpu_cores
+                      ? `${node.cpu_cores} ${t("admin.nodeTable.cpuCoresShort", {
+                          defaultValue: "cores",
+                        })}`
+                      : "-"
+                  }
                 />
               }
             />
@@ -1112,7 +1262,7 @@ const SortableRow = ({
               colorClass="bg-emerald-500"
               tooltipContent={
                 <NodeTooltipBody
-                  label="内存"
+                  label={t("nodeCard.ram", { defaultValue: "RAM" })}
                   primary={`${formatBytes(live?.record.ram.used ?? 0)} / ${formatBytes(node.mem_total || 0)}`}
                 />
               }
@@ -1128,7 +1278,7 @@ const SortableRow = ({
               colorClass="bg-amber-500"
               tooltipContent={
                 <NodeTooltipBody
-                  label="存储"
+                  label={t("nodeCard.disk", { defaultValue: "Disk" })}
                   primary={`${formatBytes(live?.record.disk.used ?? 0)} / ${formatBytes(node.disk_total || 0)}`}
                 />
               }
@@ -1139,28 +1289,50 @@ const SortableRow = ({
       <ContextMenuContent className="w-44">
         <ContextMenuItem onSelect={() => openNodeTerminal(node.uuid)}>
           <Terminal className="h-4 w-4" />
-          终端
+          {t("terminal.title", { defaultValue: "Terminal" })}
         </ContextMenuItem>
       </ContextMenuContent>
     </ContextMenu>
   );
 };
 
-const NodeTableColumns = () => (
-  <TableHeader className="bg-slate-50/90">
-    <TableRow>
-      <TableHead className="w-[240px]">出口 IP</TableHead>
-      <TableHead>状态</TableHead>
-      <TableHead className="w-[132px]">版本</TableHead>
-      <TableHead>速率</TableHead>
-      <TableHead>流量</TableHead>
-      <TableHead>开机时长</TableHead>
-      <TableHead className="w-[168px]">CPU</TableHead>
-      <TableHead className="w-[168px]">RAM</TableHead>
-      <TableHead className="w-[168px]">存储</TableHead>
-    </TableRow>
-  </TableHeader>
-);
+const NodeTableColumns = () => {
+  const { t } = useTranslation();
+
+  return (
+    <TableHeader className="bg-slate-50/90 dark:bg-slate-900/60">
+      <TableRow>
+        <TableHead className="w-[240px]">
+          {t("admin.nodeTable.columns.endpoint", { defaultValue: "Public IP" })}
+        </TableHead>
+        <TableHead>
+          {t("admin.nodeTable.columns.status", { defaultValue: "Status" })}
+        </TableHead>
+        <TableHead className="w-[132px]">
+          {t("admin.nodeTable.columns.version", { defaultValue: "Version" })}
+        </TableHead>
+        <TableHead>
+          {t("admin.nodeTable.columns.rate", { defaultValue: "Rate" })}
+        </TableHead>
+        <TableHead>
+          {t("admin.nodeTable.columns.traffic", { defaultValue: "Traffic" })}
+        </TableHead>
+        <TableHead>
+          {t("admin.nodeTable.columns.uptime", { defaultValue: "Uptime" })}
+        </TableHead>
+        <TableHead className="w-[168px]">
+          {t("admin.nodeTable.columns.cpu", { defaultValue: "CPU" })}
+        </TableHead>
+        <TableHead className="w-[168px]">
+          {t("admin.nodeTable.columns.ram", { defaultValue: "RAM" })}
+        </TableHead>
+        <TableHead className="w-[168px]">
+          {t("admin.nodeTable.columns.storage", { defaultValue: "Storage" })}
+        </TableHead>
+      </TableRow>
+    </TableHeader>
+  );
+};
 
 const GroupSummaryPill = ({
   label,
@@ -1173,12 +1345,12 @@ const GroupSummaryPill = ({
 }) => {
   const toneClass =
     tone === "green"
-      ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+      ? "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/30 dark:text-emerald-300"
       : tone === "red"
-        ? "border-rose-200 bg-rose-50 text-rose-700"
+        ? "border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-900/60 dark:bg-rose-950/30 dark:text-rose-300"
         : tone === "blue"
-          ? "border-sky-200 bg-sky-50 text-sky-700"
-          : "border-slate-200 bg-slate-50 text-slate-600";
+          ? "border-sky-200 bg-sky-50 text-sky-700 dark:border-sky-900/60 dark:bg-sky-950/30 dark:text-sky-300"
+          : "border-slate-200 bg-slate-50 text-slate-600 dark:border-slate-800 dark:bg-slate-900/50 dark:text-slate-300";
 
   return (
     <div
@@ -1201,6 +1373,7 @@ const GroupUpgradeButton = ({
   liveByNode: Record<string, NodeLiveSnapshot>;
   settings: SettingsResponse;
 }) => {
+  const { t } = useTranslation();
   const { refresh } = useNodeDetails();
   const [open, setOpen] = React.useState(false);
   const [submitting, setSubmitting] = React.useState(false);
@@ -1275,18 +1448,37 @@ const GroupUpgradeButton = ({
       );
 
       if (forceTimeout) {
-        toast.warning(`${groupName} 升级超时，请稍后手动检查节点状态`);
+        toast.warning(
+          t("admin.nodeTable.upgradeTimeoutToast", {
+            groupName,
+            defaultValue:
+              "{{groupName}} upgrade timed out. Please check node status manually.",
+          })
+        );
       } else if (failedCount > 0) {
         toast.error(
-          `${groupName} 升级完成，成功 ${successCount} 台，失败 ${failedCount} 台`
+          t("admin.nodeTable.upgradeMixedResultToast", {
+            groupName,
+            successCount,
+            failedCount,
+            defaultValue:
+              "{{groupName}} upgrade finished: {{successCount}} succeeded, {{failedCount}} failed.",
+          })
         );
       } else {
-        toast.success(`${groupName} ${successCount} 台节点升级完成`);
+        toast.success(
+          t("admin.nodeTable.upgradeSuccessToast", {
+            groupName,
+            successCount,
+            defaultValue:
+              "{{groupName}} upgrade finished on {{successCount}} node(s).",
+          })
+        );
       }
 
       await refresh();
     },
-    [groupName, refresh]
+    [groupName, refresh, t]
   );
 
   const pollTaskResult = React.useCallback(
@@ -1411,7 +1603,12 @@ const GroupUpgradeButton = ({
 
   const handleUpgrade = async () => {
     if (onlineNodes.length === 0) {
-      toast.error(`${groupName} 当前没有可升级的在线节点`);
+      toast.error(
+        t("admin.nodeTable.upgradeNoOnlineToast", {
+          groupName,
+          defaultValue: "No online nodes available in {{groupName}} for upgrade.",
+        })
+      );
       return;
     }
 
@@ -1435,7 +1632,11 @@ const GroupUpgradeButton = ({
         onlineNodes.map(async (node) => {
           const command = buildAgentUpgradeCommand(node, settings);
           if (!command) {
-            throw new Error("节点缺少 token，无法升级");
+            throw new Error(
+              t("admin.nodeTable.upgradeMissingToken", {
+                defaultValue: "Node is missing a token and cannot be upgraded.",
+              })
+            );
           }
 
           const response = await fetch("/api/admin/task/exec", {
@@ -1456,7 +1657,11 @@ const GroupUpgradeButton = ({
 
           const taskId = payload.data?.task_id || payload.task_id || "";
           if (!taskId) {
-            throw new Error("没有返回任务 ID");
+            throw new Error(
+              t("admin.nodeTable.upgradeMissingTaskId", {
+                defaultValue: "No task ID was returned.",
+              })
+            );
           }
 
           updateResultState((previous) => ({
@@ -1512,7 +1717,14 @@ const GroupUpgradeButton = ({
         return;
       }
 
-      toast.success(`${groupName} 已下发 ${tasks.length} 个升级任务`);
+      toast.success(
+        t("admin.nodeTable.upgradeTasksDispatched", {
+          groupName,
+          count: tasks.length,
+          defaultValue:
+            "{{groupName}} dispatched {{count}} upgrade task(s).",
+        })
+      );
       startPolling(tasks);
     } finally {
       setSubmitting(false);
@@ -1557,87 +1769,110 @@ const GroupUpgradeButton = ({
           ) : (
             <RefreshCw className="h-4 w-4" />
           )}
-          升级 Agent
+          {t("admin.nodeTable.upgradeAgent", "Upgrade agent")}
         </Button>
       </Dialog.Trigger>
       <Dialog.Content className={NODE_DIALOG_CONTENT_CLASS} maxWidth={760}>
-        <Dialog.Title>{groupName} · 一键升级 Agent</Dialog.Title>
+        <Dialog.Title>
+          {t("admin.nodeTable.upgradeDialogTitle", {
+            groupName,
+            defaultValue: "{{groupName}} · Upgrade agent",
+          })}
+        </Dialog.Title>
         <Dialog.Description className="mt-2">
-          只会对当前分组在线节点下发升级脚本。节点行右键仍然保留终端入口。
+          {t("admin.nodeTable.upgradeDialogDescription", {
+            defaultValue:
+              "Only online nodes in the current group will receive the upgrade script. The terminal entry remains available from the node row context menu.",
+          })}
         </Dialog.Description>
 
         <div className="mt-4 grid gap-3 sm:grid-cols-4">
-          <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
-            <div className="text-xs text-slate-500">在线节点</div>
-            <div className="mt-1 text-base font-semibold text-slate-900">
+          <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 dark:border-slate-800 dark:bg-slate-900/50">
+            <div className="text-xs text-slate-500 dark:text-slate-400">
+              {t("admin.nodeTable.upgradeOnlineNodes", "Online nodes")}
+            </div>
+            <div className="mt-1 text-base font-semibold text-slate-900 dark:text-slate-100">
               {onlineNodes.length}
             </div>
           </div>
-          <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
-            <div className="text-xs text-slate-500">执行中</div>
-            <div className="mt-1 text-base font-semibold text-slate-900">
+          <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 dark:border-slate-800 dark:bg-slate-900/50">
+            <div className="text-xs text-slate-500 dark:text-slate-400">
+              {t("admin.nodeTable.upgradeRunning", "Running")}
+            </div>
+            <div className="mt-1 text-base font-semibold text-slate-900 dark:text-slate-100">
               {summary.pending + summary.running}
             </div>
           </div>
-          <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2">
-            <div className="text-xs text-emerald-700">成功</div>
+          <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 dark:border-emerald-900/60 dark:bg-emerald-950/30">
+            <div className="text-xs text-emerald-700 dark:text-emerald-300">
+              {t("admin.nodeTable.upgradeSuccessShort", "Succeeded")}
+            </div>
             <div className="mt-1 text-base font-semibold text-emerald-800">
               {summary.success}
             </div>
           </div>
-          <div className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2">
-            <div className="text-xs text-rose-700">失败</div>
+          <div className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 dark:border-rose-900/60 dark:bg-rose-950/30">
+            <div className="text-xs text-rose-700 dark:text-rose-300">
+              {t("admin.nodeTable.upgradeFailedShort", "Failed")}
+            </div>
             <div className="mt-1 text-base font-semibold text-rose-800">
               {summary.failed}
             </div>
           </div>
         </div>
 
-        <div className="mt-4 rounded-xl border border-slate-200 bg-white">
-          <div className="border-b border-slate-200 px-4 py-3 text-sm text-slate-600">
-            节点执行状态
+        <div className="mt-4 rounded-xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-950/40">
+          <div className="border-b border-slate-200 px-4 py-3 text-sm text-slate-600 dark:border-slate-800 dark:text-slate-300">
+            {t("admin.nodeTable.upgradeStatusTitle", "Node execution status")}
           </div>
           <div className="max-h-72 space-y-2 overflow-y-auto p-4">
             {onlineNodes.length === 0 ? (
-              <div className="rounded-lg border border-dashed border-slate-200 px-3 py-4 text-sm text-slate-500">
-                当前分组没有在线节点，无法执行升级。
+              <div className="rounded-lg border border-dashed border-slate-200 px-3 py-4 text-sm text-slate-500 dark:border-slate-800 dark:text-slate-400">
+                {t("admin.nodeTable.upgradeNoOnlineState", {
+                  defaultValue:
+                    "There are no online nodes in this group, so the upgrade cannot start.",
+                })}
               </div>
             ) : (
               onlineNodes.map((node) => {
                 const result = resultState[node.uuid];
                 const statusLabel =
                   result?.status === "success"
-                    ? "成功"
+                    ? t("admin.nodeTable.upgradeSuccessShort", "Succeeded")
                     : result?.status === "failed"
-                      ? "失败"
+                      ? t("admin.nodeTable.upgradeFailedShort", "Failed")
                       : result?.status === "timeout"
-                        ? "超时"
+                        ? t("exec.status.timeout", "Timeout")
                         : result?.status === "running"
-                          ? "执行中"
+                          ? t("admin.nodeTable.upgradeRunning", "Running")
                           : result?.status === "pending"
-                            ? "排队中"
-                            : "未开始";
+                            ? t("admin.nodeTable.upgradePending", "Queued")
+                            : t("admin.nodeTable.upgradeNotStarted", "Not started");
                 const statusClass =
                   result?.status === "success"
-                    ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                    ? "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/30 dark:text-emerald-300"
                     : result?.status === "failed" ||
                         result?.status === "timeout"
-                      ? "border-rose-200 bg-rose-50 text-rose-700"
-                      : "border-slate-200 bg-slate-50 text-slate-600";
+                      ? "border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-900/60 dark:bg-rose-950/30 dark:text-rose-300"
+                      : "border-slate-200 bg-slate-50 text-slate-600 dark:border-slate-800 dark:bg-slate-900/50 dark:text-slate-300";
 
                 return (
                   <div
                     key={node.uuid}
                     title={result?.output || buildNodeConfigTooltip({ node, live: liveByNode[node.uuid] })}
-                    className="flex flex-col gap-3 rounded-xl border border-slate-200 px-3 py-3 sm:flex-row sm:items-center sm:justify-between"
+                    className="flex flex-col gap-3 rounded-xl border border-slate-200 px-3 py-3 dark:border-slate-800 sm:flex-row sm:items-center sm:justify-between"
                   >
                     <div className="min-w-0">
-                      <div className="truncate text-sm font-medium text-slate-900">
+                      <div className="truncate text-sm font-medium text-slate-900 dark:text-slate-100">
                         {getNodePrimaryAddress(node)}
                       </div>
-                      <div className="mt-1 text-xs text-slate-500">
+                      <div className="mt-1 text-xs text-slate-500 dark:text-slate-400">
                         {detectNodePlatform(node)} / {node.version || "-"}
-                        {result?.taskId ? ` / 任务 ${result.taskId}` : ""}
+                        {result?.taskId
+                          ? ` / ${t("exec.task_id_label", {
+                              defaultValue: "Task ID",
+                            })} ${result.taskId}`
+                          : ""}
                       </div>
                     </div>
                     <div
@@ -1657,11 +1892,13 @@ const GroupUpgradeButton = ({
 
         {combinedOutput ? (
           <div className="mt-4">
-            <div className="mb-2 text-xs text-slate-500">最新输出</div>
+            <div className="mb-2 text-xs text-slate-500 dark:text-slate-400">
+              {t("admin.nodeTable.upgradeLatestOutput", "Latest output")}
+            </div>
             <TextArea
               readOnly
               value={combinedOutput}
-              className="min-h-44 border-slate-200 bg-slate-50 font-mono text-xs text-slate-700"
+              className="min-h-44 border-slate-200 bg-slate-50 font-mono text-xs text-slate-700 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-200"
             />
           </div>
         ) : null}
@@ -1669,7 +1906,7 @@ const GroupUpgradeButton = ({
         <div className={NODE_DIALOG_FOOTER_CLASS}>
           <Dialog.Close>
             <Button variant="outline" className="w-full sm:w-auto">
-              关闭
+              {t("common.close", "Close")}
             </Button>
           </Dialog.Close>
           <Button
@@ -1682,7 +1919,7 @@ const GroupUpgradeButton = ({
             ) : (
               <RefreshCw className="h-4 w-4" />
             )}
-            开始升级
+            {t("admin.nodeTable.upgradeStart", "Start upgrade")}
           </Button>
         </div>
       </Dialog.Content>
@@ -1701,6 +1938,7 @@ const NodeGroupSection = ({
   liveByNode: Record<string, NodeLiveSnapshot>;
   settings: SettingsResponse;
 }) => {
+  const { t } = useTranslation();
   const totalUploadSpeed = nodes.reduce(
     (sum, node) => sum + (liveByNode[node.uuid]?.record.network.up ?? 0),
     0
@@ -1723,11 +1961,11 @@ const NodeGroupSection = ({
   ).length;
 
   return (
-    <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-      <div className="flex flex-col gap-3 border-b border-slate-200 bg-slate-50/80 px-4 py-4 xl:flex-row xl:items-center xl:justify-between">
+    <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-950/40">
+      <div className="flex flex-col gap-3 border-b border-slate-200 bg-slate-50/80 px-4 py-4 dark:border-slate-800 dark:bg-slate-900/40 xl:flex-row xl:items-center xl:justify-between">
         <div className="min-w-0 flex-1 overflow-x-auto pb-1">
           <div className="flex min-w-max items-center gap-2 pr-2 whitespace-nowrap">
-            <Text className="shrink-0 text-base font-semibold text-slate-900">
+            <Text className="shrink-0 text-base font-semibold text-slate-900 dark:text-slate-100">
               {groupName}
             </Text>
             <Badge
@@ -1735,23 +1973,30 @@ const NodeGroupSection = ({
               color="blue"
               className="shrink-0 rounded-full px-3 py-1"
             >
-              {nodes.length} 台
+              {t("admin.nodeTable.groupNodeCount", {
+                count: nodes.length,
+                defaultValue: "{{count}} nodes",
+              })}
             </Badge>
             <GroupSummaryPill
-              label="在线"
+              label={t("nodeCard.online", "Online")}
               value={`${onlineCount}/${nodes.length}`}
               tone="green"
             />
-            <GroupSummaryPill label="封锁" value={`${blockedCount}`} tone="red" />
             <GroupSummaryPill
-              label="总速率"
+              label={t("admin.nodeTable.blockedCount", "Blocked")}
+              value={`${blockedCount}`}
+              tone="red"
+            />
+            <GroupSummaryPill
+              label={t("admin.nodeTable.totalRate", "Total rate")}
               value={`↑ ${formatBytes(totalUploadSpeed)}/s · ↓ ${formatBytes(
                 totalDownloadSpeed
               )}/s`}
               tone="blue"
             />
             <GroupSummaryPill
-              label="总流量"
+              label={t("admin.nodeTable.totalTraffic", "Total traffic")}
               value={`↑ ${formatBytes(totalUploadTraffic)} · ↓ ${formatBytes(
                 totalDownloadTraffic
               )}`}
@@ -1765,7 +2010,7 @@ const NodeGroupSection = ({
             toolbar
             groupMode
             presetGroupName={groupName}
-            toolbarLabel="安装 Agent"
+            toolbarLabel={t("admin.nodeTable.installAgent", "Install agent")}
           />
           <GroupUpgradeButton
             groupName={groupName}
@@ -1801,6 +2046,7 @@ const NodeTable = ({
   liveByNode: Record<string, NodeLiveSnapshot>;
   settings: SettingsResponse;
 }) => {
+  const { t } = useTranslation();
   const groupedNodes = React.useMemo(() => {
     const groups = new Map<string, NodeDetail[]>();
     nodes.forEach((node) => {
@@ -1822,8 +2068,8 @@ const NodeTable = ({
   return (
     <div className="flex flex-col gap-4">
       {nodes.length === 0 ? (
-        <div className="rounded-xl border border-slate-200 bg-white px-6 py-8 text-center text-sm text-slate-500 shadow-sm">
-          当前没有节点
+        <div className="rounded-xl border border-slate-200 bg-white px-6 py-8 text-center text-sm text-slate-500 shadow-sm dark:border-slate-800 dark:bg-slate-950/40 dark:text-slate-400">
+          {t("admin.nodeTable.noNodes", "No nodes")}
         </div>
       ) : (
         groupedNodes.map((group) => (
@@ -2002,7 +2248,7 @@ function GenerateCommandButton({
     initialPreferences.enableMonthRotate
   );
   const scopedGroupName =
-    groupMode && presetGroupName && presetGroupName !== DEFAULT_GROUP_NAME
+    groupMode && presetGroupName && presetGroupName !== getDefaultGroupLabel()
       ? presetGroupName.trim()
       : "";
   const [groupName, setGroupName] = React.useState(scopedGroupName);
@@ -2226,7 +2472,7 @@ function GenerateCommandButton({
   const copyToClipboard = async (text: string) => {
     try {
       await navigator.clipboard.writeText(text);
-      toast.success(t("copy_success", "已复制到剪贴板"));
+      toast.success(t("copy_success", "Copied!"));
     } catch (err) {
       console.error("Failed to copy text: ", err);
     }
@@ -2246,7 +2492,10 @@ function GenerateCommandButton({
             className="shrink-0 rounded-2xl"
           >
             <Download size={16} />
-            {toolbarLabel || (groupMode ? "创建分组" : "一键安装命令")}
+            {toolbarLabel ||
+              (groupMode
+                ? t("admin.nodeTable.createGroup", "Create group")
+                : t("admin.nodeTable.installCommand", "Install command"))}
           </Button>
         ) : (
         <IconButton
@@ -2265,37 +2514,49 @@ function GenerateCommandButton({
         <Dialog.Title>
           {groupMode
             ? scopedGroupName
-              ? `${t("admin.nodeTable.installCommand", "一键部署指令")} · ${scopedGroupName}`
-              : "创建分组安装命令"
+              ? `${t("admin.nodeTable.installCommand", "Install command")} · ${scopedGroupName}`
+              : t("admin.nodeTable.groupInstallCommand", "Create group install command")
             : useAutoDiscovery
-            ? `${t("admin.nodeTable.installCommand", "一键部署指令")} · 自动接入`
+            ? `${t("admin.nodeTable.installCommand", "Install command")} · ${t("admin.nodeTable.autoEnroll", "Auto-enroll")}`
             : node
-              ? `${t("admin.nodeTable.installCommand", "一键部署指令")} · ${activeNode?.name || "-"}`
-              : t("admin.nodeTable.installCommand", "一键部署指令")}
+              ? `${t("admin.nodeTable.installCommand", "Install command")} · ${activeNode?.name || "-"}`
+              : t("admin.nodeTable.installCommand", "Install command")}
         </Dialog.Title>
         <Dialog.Description className="mt-2">
-          平台选择和安装参数会自动记住，下次打开会沿用上一次的设置。
+          {t(
+            "admin.nodeTable.installDialogDescription",
+            "Platform selection and install parameters are remembered and reused next time.",
+          )}
         </Dialog.Description>
         <div className="mt-4 flex flex-col gap-4">
           {useAutoDiscovery && !groupMode && (
-            <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
-              当前使用通用自动接入命令。任意服务器执行后会自动注册到你的面板。
+            <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/30 dark:text-emerald-300">
+              {t(
+                "admin.nodeTable.autoDiscoveryGeneralHint",
+                "This currently uses the general auto-enroll command. Run it on any server and the node will register to your panel automatically.",
+              )}
             </div>
           )}
           {groupMode && useAutoDiscovery && (
-            <div className="rounded-xl border border-sky-200 bg-sky-50 px-3 py-2 text-sm text-sky-700">
-              输入分组名称后，复制这条命令到任意服务器执行，节点会自动注册并归入该分组。已绑定过的机器再次执行时，会先提示是否清理旧绑定。
+            <div className="rounded-xl border border-sky-200 bg-sky-50 px-3 py-2 text-sm text-sky-700 dark:border-sky-900/60 dark:bg-sky-950/30 dark:text-sky-300">
+              {t(
+                "admin.nodeTable.autoDiscoveryGroupHint",
+                "After you enter a group name, run this command on any server. The node will register automatically into that group. If the machine was previously bound, it will first prompt to reset the old binding.",
+              )}
             </div>
           )}
           {groupMode && (
             <div className={`${NODE_DIALOG_SECTION_CLASS} flex flex-col gap-3`}>
               <div className="flex flex-col gap-2">
-                <label className="text-[14px] font-semibold text-slate-900">
-                  分组名称
+                <label className="text-[14px] font-semibold text-slate-900 dark:text-slate-100">
+                  {t("admin.nodeTable.groupName", "Group name")}
                 </label>
                 <TextField.Root
                   className={NODE_INPUT_CLASS}
-                  placeholder="例如：香港 / 日本 / 生产环境"
+                  placeholder={t(
+                    "admin.nodeTable.groupNamePlaceholder",
+                    "For example: Hong Kong / Japan / Production",
+                  )}
                   value={groupName}
                   onChange={(event) => setGroupName(event.target.value)}
                 />
@@ -2308,8 +2569,8 @@ function GenerateCommandButton({
                       type="button"
                       className={`rounded-full border px-3 py-1 text-[13px] font-medium transition-colors ${
                         normalizedGroupName === group
-                          ? "border-sky-300 bg-sky-100 text-sky-700"
-                          : "border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:text-slate-900"
+                          ? "border-sky-300 bg-sky-100 text-sky-700 dark:border-sky-800 dark:bg-sky-950/50 dark:text-sky-300"
+                          : "border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:text-slate-900 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-300 dark:hover:border-slate-600 dark:hover:text-slate-100"
                       }`}
                       onClick={() => setGroupName(group)}
                     >
@@ -2318,18 +2579,21 @@ function GenerateCommandButton({
                   ))}
                 </div>
               )}
-              <Text size="1" className="text-slate-500">
-                分组在首台服务器执行命令后会自动创建，不需要先手动建空分组。
+              <Text size="1" className="text-slate-500 dark:text-slate-400">
+                {t(
+                  "admin.nodeTable.groupNameHelp",
+                  "The group will be created automatically after the first server runs this command. You do not need to create an empty group first.",
+                )}
               </Text>
             </div>
           )}
           {!groupMode && !useAutoDiscovery && !node && availableNodes.length > 0 && (
             <div className={NODE_DIALOG_SECTION_CLASS}>
-              <label className="text-[14px] font-semibold text-slate-900">
-                选择节点
+              <label className="text-[14px] font-semibold text-slate-900 dark:text-slate-100">
+                {t("admin.nodeTable.selectNode", "Select node")}
               </label>
               <select
-                className="mt-3 h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none"
+                className="mt-3 h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-900 outline-none dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
                 value={selectedNodeId}
                 onChange={(event) => setSelectedNodeId(event.target.value)}
               >
@@ -2342,20 +2606,26 @@ function GenerateCommandButton({
             </div>
           )}
           {!useAutoDiscovery && toolbar && !groupMode && (
-            <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-700">
-              当前还没启用自动发现密钥，所以这里仍是旧的单节点模式。到“系统设置 &gt; 通用”里设置自动发现密钥后，这里会变成通用接入命令。
+            <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-700 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-300">
+              {t(
+                "admin.nodeTable.autoDiscoveryDisabledSingle",
+                "Auto Discovery Key is not enabled yet, so this still uses the legacy single-node mode. Set it in System Settings > General to switch to the general onboarding command.",
+              )}
             </div>
           )}
           {!useAutoDiscovery && groupMode && (
-            <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-700">
-              先到“系统设置 &gt; 通用”里设置自动发现密钥，创建分组命令才会生效。
+            <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-700 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-300">
+              {t(
+                "admin.nodeTable.autoDiscoveryDisabledGroup",
+                "Set the Auto Discovery Key in System Settings > General first, then group install commands can be used.",
+              )}
             </div>
           )}
           <div className="grid gap-4 xl:grid-cols-[minmax(0,1.3fr)_minmax(320px,0.9fr)]">
             <div className="flex flex-col gap-4">
               <div className={NODE_DIALOG_SECTION_CLASS}>
-                <label className="text-[14px] font-semibold text-slate-900">
-                  安装平台
+                <label className="text-[14px] font-semibold text-slate-900 dark:text-slate-100">
+                  {t("admin.nodeTable.platform", "Platform")}
                 </label>
                 <div className="mt-3">
                   <SegmentedControl.Root
@@ -2372,10 +2642,10 @@ function GenerateCommandButton({
               </div>
 
               <div className={NODE_DIALOG_SECTION_CLASS}>
-                <label className="text-[14px] font-semibold text-slate-900">
-                  {t("admin.nodeTable.installOptions", "安装选项")}
+                <label className="text-[14px] font-semibold text-slate-900 dark:text-slate-100">
+                  {t("admin.nodeTable.installOptions", "Install options")}
                 </label>
-                <div className="mt-3 grid gap-3 md:grid-cols-2">
+                <div className="mt-3 grid gap-3 text-slate-900 dark:text-slate-100 md:grid-cols-2">
               <Flex gap="2" align="center">
                 <Checkbox
                   checked={installOptions.disableWebSsh}
@@ -2417,7 +2687,7 @@ function GenerateCommandButton({
                     }));
                   }}
                 >
-                  {t("admin.nodeTable.disableAutoUpdate", "禁用自动更新")}
+                  {t("admin.nodeTable.disableAutoUpdate", "Disable auto update")}
                 </label>
               </Flex>
               <Flex gap="2" align="center">
@@ -2439,7 +2709,7 @@ function GenerateCommandButton({
                     }));
                   }}
                 >
-                  {t("admin.nodeTable.ignoreUnsafeCert", "忽略不安全证书")}
+                  {t("admin.nodeTable.ignoreUnsafeCert", "Ignore unsafe cert")}
                 </label>
               </Flex>
               <Flex gap="2" align="center">
@@ -2461,7 +2731,7 @@ function GenerateCommandButton({
                     }));
                   }}
                 >
-                  {t("admin.nodeTable.memoryModeAvailable", "监测可用内存")}
+                  {t("admin.nodeTable.memoryModeAvailable", "Include cache memory")}
                 </label>
                 <Tips size="14">
                   {t("admin.nodeTable.memoryModeAvailable_tip")}
@@ -2471,10 +2741,10 @@ function GenerateCommandButton({
               </div>
 
               <div className={NODE_DIALOG_SECTION_CLASS}>
-                <label className="text-[14px] font-semibold text-slate-900">
-                  高级参数
+                <label className="text-[14px] font-semibold text-slate-900 dark:text-slate-100">
+                  {t("admin.nodeTable.advancedParameters", "Advanced parameters")}
                 </label>
-                <div className="mt-3 flex flex-col gap-3">
+                <div className="mt-3 flex flex-col gap-3 text-slate-900 dark:text-slate-100">
               <Flex gap="2" align="center">
                 <Checkbox
                   checked={enableGhproxy}
@@ -2500,7 +2770,7 @@ function GenerateCommandButton({
                     }
                   }}
                 >
-                  {t("admin.nodeTable.ghproxy", "GitHub 代理")}
+                  {t("admin.nodeTable.ghproxy", "GitHub proxy")}
                 </label>
               </Flex>
               {enableGhproxy && (
@@ -2546,7 +2816,7 @@ function GenerateCommandButton({
                     }
                   }}
                 >
-                  {t("admin.nodeTable.install_dir", "安装目录")}
+                  {t("admin.nodeTable.install_dir", "Installation directory")}
                 </label>
               </Flex>
               {enableCustomDir && (
@@ -2554,7 +2824,7 @@ function GenerateCommandButton({
                   className={NODE_INPUT_CLASS}
                   placeholder={t(
                     "admin.nodeTable.install_dir_placeholder",
-                    "安装目录，为空则使用默认目录(/opt/komari-agent)"
+                    "Installation directory, leave empty to use the default directory (/opt/komari-agent)"
                   )}
                   value={installOptions.dir}
                   onChange={(e) =>
@@ -2591,7 +2861,7 @@ function GenerateCommandButton({
                     }
                   }}
                 >
-                  {t("admin.nodeTable.serviceName", "服务名称")}
+                  {t("admin.nodeTable.serviceName", "Service name")}
                 </label>
               </Flex>
               {enableCustomServiceName && (
@@ -2599,7 +2869,7 @@ function GenerateCommandButton({
                   className={NODE_INPUT_CLASS}
                   placeholder={t(
                     "admin.nodeTable.serviceName_placeholder",
-                    "服务名称，为空则使用默认名称(komari-agent)"
+                    "Service name, leave empty to use the default name (komari-agent)"
                   )}
                   value={installOptions.serviceName}
                   onChange={(e) =>
@@ -2635,7 +2905,7 @@ function GenerateCommandButton({
                     }
                   }}
                 >
-                  {t("admin.nodeTable.includeNics", "只监测特定网卡")}
+                  {t("admin.nodeTable.includeNics", "Specific network interfaces only.")}
                 </label>
               </Flex>
               {enableIncludeNics && (
@@ -2680,7 +2950,7 @@ function GenerateCommandButton({
                     }
                   }}
                 >
-                  {t("admin.nodeTable.excludeNics", "排除特定网卡")}
+                  {t("admin.nodeTable.excludeNics", "Exclude specific network interfaces.")}
                 </label>
               </Flex>
               {enableExcludeNics && (
@@ -2725,7 +2995,7 @@ function GenerateCommandButton({
                     }
                   }}
                 >
-                  {t("admin.nodeTable.includeMountpoints", "只监测特定挂载点")}
+                  {t("admin.nodeTable.includeMountpoints", "Specific mountpoints only.")}
                 </label>
               </Flex>
               {enableIncludeMountpoints && (
@@ -2782,7 +3052,7 @@ function GenerateCommandButton({
                     }
                   }}
                 >
-                  {t("admin.nodeTable.monthRotate", "网络统计月重置")}
+                  {t("admin.nodeTable.monthRotate", "Month reset for network statistics")}
                 </label>
               </Flex>
               {enableMonthRotate && (
@@ -2807,16 +3077,19 @@ function GenerateCommandButton({
 
             <div className="flex flex-col gap-4">
               <div className={NODE_DIALOG_SECTION_CLASS}>
-                <label className="text-[14px] font-semibold text-slate-900">
-                  {t("admin.nodeTable.generatedCommand", "生成的指令")}
+                <label className="text-[14px] font-semibold text-slate-900 dark:text-slate-100">
+                  {t("admin.nodeTable.generatedCommand", "Command")}
                 </label>
                 <p className={`mt-1 ${NODE_DIALOG_HINT_CLASS}`}>
-                  复制后直接在目标服务器执行即可。
+                  {t(
+                    "admin.nodeTable.generatedCommandHelp",
+                    "Copy this command and run it directly on the target server.",
+                  )}
                 </p>
                 <div className="relative mt-3">
                   <TextArea
                     disabled
-                    className="min-h-[220px] w-full rounded-xl border border-slate-200 bg-white font-mono text-[13px] leading-6 text-slate-700"
+                    className="min-h-[220px] w-full rounded-xl border border-slate-200 bg-white font-mono text-[13px] leading-6 text-slate-700 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200"
                     value={generateCommand()}
                   />
                 </div>
@@ -2829,7 +3102,7 @@ function GenerateCommandButton({
                     variant="outline"
                     className="w-full sm:w-auto"
                   >
-                    关闭
+                    {t("close", "Close")}
                   </Button>
                 </Dialog.Close>
                 <Button

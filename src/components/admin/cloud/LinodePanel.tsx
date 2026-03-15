@@ -25,7 +25,15 @@ import {
   Checkbox,
   CloudCopyBlock,
   CloudDetailItem,
+  cloudPanelBodyTextClassName,
+  cloudPanelCardClassName,
+  cloudPanelDescriptionClassName,
   cloudDialogContentClassName,
+  cloudPanelFieldLabelClassName,
+  cloudPanelHeaderClassName,
+  cloudPanelSectionClassName,
+  cloudPanelSubcardClassName,
+  cloudPanelTitleClassName,
   cloudLongTextClassName,
   cloudSecretTextareaClassName,
   Dialog,
@@ -75,6 +83,7 @@ import {
   type LinodeTokenRecord,
   type LinodeTokenSecret,
 } from "@/lib/cloudLinode";
+import { getCloudStatusLabel } from "@/lib/cloudStatus";
 import {
   buildCloudInstanceShareUrl,
   deleteCloudInstanceShare,
@@ -577,7 +586,7 @@ export default function LinodePanel() {
       resourceType: "instance",
       resourceId: String(instance.id),
       resourceName: instance.label || String(instance.id),
-      providerLabel: "Linode",
+      providerLabel: t("cloud.providers.linode.title", "Linode"),
       credentialName: activeToken?.name || activeToken?.profile_email || "",
       region: instance.region || "",
       primaryAddress: instance.ipv4[0] || instance.ipv6 || "",
@@ -777,9 +786,9 @@ export default function LinodePanel() {
   const handleDeleteInstance = async (instance: LinodeInstance) => {
     const confirmed = await confirm({
       title: t("cloud.delete", "Delete instance"),
-      description: t("cloud.delete_confirm", {
+      description: t("cloud.providers.linode.delete_confirm", {
         name: instance.label,
-        defaultValue: `Delete instance "${instance.label}"? This action cannot be undone.`,
+        defaultValue: `Delete Linode "${instance.label}"? This action cannot be undone.`,
       }),
       confirmLabel: t("cloud.delete", "Delete"),
     });
@@ -787,7 +796,7 @@ export default function LinodePanel() {
 
     try {
       await deleteLinodeInstance(instance.id);
-      toast.success(t("cloud.delete_success", "Droplet deleted"));
+      toast.success(t("cloud.providers.linode.delete_success", "Linode instance deleted"));
       await loadPanelData();
     } catch (deleteError) {
       toast.error(toErrorMessage(deleteError));
@@ -854,18 +863,18 @@ export default function LinodePanel() {
           tone="info"
           description={t(
             "cloud.password.storage_disabled_help",
-            "Set KOMARI_CLOUD_SECRET_KEY on the server to save root passwords for later viewing in the Droplet list.",
+            "Set KOMARI_CLOUD_SECRET_KEY on the server to save root passwords for later viewing in the instance list.",
           )}
         />
       ) : null}
 
-      <div className="order-2 overflow-hidden rounded-2xl border border-slate-200 bg-white">
-            <div className="border-b border-slate-200 px-5 py-4">
+      <div className={`order-2 ${cloudPanelCardClassName}`}>
+            <div className={cloudPanelHeaderClassName}>
               <div>
-                <div className="text-sm font-medium text-slate-900">
+                <div className={cloudPanelTitleClassName}>
                   {t("cloud.providers.linode.instance_list", "Instance List")}
                 </div>
-                <div className="mt-1 text-sm text-slate-500">
+                <div className={cloudPanelDescriptionClassName}>
                   {t(
                     "cloud.providers.linode.instance_list_description",
                     "Click an instance label to inspect details and use the current token to manage its power state.",
@@ -896,7 +905,7 @@ export default function LinodePanel() {
                       {panelLoading
                         ? t("cloud.loading", "Loading cloud resources...")
                         : hasActiveToken(tokenPool)
-                          ? t("cloud.empty", "No Droplets found")
+                          ? t("cloud.providers.linode.instance_empty", "No Linode instances found")
                           : t("cloud.no_active_token", "Select an active token to load DigitalOcean resources")}
                     </TableCell>
                   </TableRow>
@@ -905,10 +914,10 @@ export default function LinodePanel() {
                     const typeInfo = typePriceMap.get(instance.type);
                     return (
                       <TableRow key={instance.id}>
-                        <TableCell className="font-medium text-slate-900">
+                        <TableCell className="font-medium text-slate-900 dark:text-slate-100">
                           <button
                             type="button"
-                            className="text-left text-blue-700 hover:text-blue-800 hover:underline"
+                            className="text-left text-blue-700 hover:text-blue-800 hover:underline dark:text-blue-400 dark:hover:text-blue-300"
                             onClick={() => {
                               void loadInstanceDetail(instance);
                             }}
@@ -917,7 +926,9 @@ export default function LinodePanel() {
                           </button>
                         </TableCell>
                         <TableCell>
-                          <Badge color={getStatusColor(instance.status)}>{instance.status}</Badge>
+                          <Badge color={getStatusColor(instance.status)}>
+                            {getCloudStatusLabel(instance.status, t)}
+                          </Badge>
                         </TableCell>
                         <TableCell>{instance.region || "-"}</TableCell>
                         <TableCell>{instance.ipv4[0] || instance.ipv6 || "-"}</TableCell>
@@ -1002,7 +1013,7 @@ export default function LinodePanel() {
                               size="1"
                               onClick={() => {
                                 setScriptTarget({
-                                  providerLabel: "Linode",
+                                  providerLabel: t("cloud.providers.linode.title", "Linode"),
                                   instanceName: instance.label || String(instance.id),
                                   instanceIdentifier: String(instance.id),
                                   addresses: [...instance.ipv4, instance.ipv6].filter(Boolean),
@@ -1043,14 +1054,14 @@ export default function LinodePanel() {
             </Table>
       </div>
 
-      <div className="order-1 overflow-hidden rounded-2xl border border-slate-200 bg-white">
-            <div className="border-b border-slate-200 px-5 py-4">
+      <div className={`order-1 ${cloudPanelCardClassName}`}>
+            <div className={cloudPanelHeaderClassName}>
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
-                  <div className="text-sm font-medium text-slate-900">
+                  <div className={cloudPanelTitleClassName}>
                     {t("cloud.tokens.title", "Token Pool")}
                   </div>
-                  <div className="mt-1 text-sm text-slate-500">
+                  <div className={cloudPanelDescriptionClassName}>
                     {t(
                       "cloud.providers.linode.tokens_description",
                       "Save multiple Linode personal access tokens, choose the active one, and verify them in bulk.",
@@ -1099,7 +1110,7 @@ export default function LinodePanel() {
                   ) : (
                     tokenPool.tokens.map((token) => (
                       <TableRow key={token.id}>
-                        <TableCell className="font-medium text-slate-900">
+                        <TableCell className="font-medium text-slate-900 dark:text-slate-100">
                           <div className="flex items-center gap-2">
                             <span className="max-w-44 truncate">{token.name}</span>
                             {token.is_active ? (
@@ -1111,11 +1122,11 @@ export default function LinodePanel() {
                           {token.masked_token || "-"}
                         </TableCell>
                         <TableCell>
-                          <div className="text-sm text-slate-900">
+                          <div className="text-sm text-slate-900 dark:text-slate-100">
                             {token.profile_email || token.profile_username || "-"}
                           </div>
                           {token.account_company ? (
-                            <div className="text-xs text-slate-500">{token.account_company}</div>
+                            <div className="text-xs text-slate-500 dark:text-slate-400">{token.account_company}</div>
                           ) : null}
                           {isRestrictedLinodeToken(token) ? (
                             <div className="mt-1">
@@ -1163,7 +1174,7 @@ export default function LinodePanel() {
                               }}
                             >
                               <Server className="mr-1 h-3.5 w-3.5" />
-                              {t("cloud.tokens.view_droplets", "View Droplets")}
+                              {t("cloud.providers.linode.view_instances", "View Instances")}
                             </Button>
                             <Button
                               variant="soft"
@@ -1241,7 +1252,7 @@ export default function LinodePanel() {
           </Dialog.Description>
 
           <div className="mt-4 flex flex-col gap-4">
-            <label className="text-sm font-medium text-slate-800">
+            <label className={cloudPanelFieldLabelClassName}>
               {t("cloud.form.name", "Name")}
             </label>
             <TextField.Root
@@ -1250,7 +1261,7 @@ export default function LinodePanel() {
               onChange={(event) => setCreateForm((previous) => ({ ...previous, label: event.target.value }))}
             />
 
-            <label className="text-sm font-medium text-slate-800">
+            <label className={cloudPanelFieldLabelClassName}>
               {t("cloud.form.region", "Region")}
             </label>
             <Select.Root
@@ -1267,7 +1278,7 @@ export default function LinodePanel() {
               </Select.Content>
             </Select.Root>
 
-            <label className="text-sm font-medium text-slate-800">
+            <label className={cloudPanelFieldLabelClassName}>
               {t("cloud.form.size", "Size")}
             </label>
             <Select.Root
@@ -1284,7 +1295,7 @@ export default function LinodePanel() {
               </Select.Content>
             </Select.Root>
 
-            <label className="text-sm font-medium text-slate-800">
+            <label className={cloudPanelFieldLabelClassName}>
               {t("cloud.form.image", "Image")}
             </label>
             <Select.Root
@@ -1301,7 +1312,7 @@ export default function LinodePanel() {
               </Select.Content>
             </Select.Root>
 
-            <label className="text-sm font-medium text-slate-800">
+            <label className={cloudPanelFieldLabelClassName}>
               {t("cloud.form.root_access", "Root Access")}
             </label>
             <Select.Root
@@ -1334,7 +1345,7 @@ export default function LinodePanel() {
 
             {createForm.root_password_mode === "custom" ? (
               <>
-                <label className="text-sm font-medium text-slate-800">
+                <label className={cloudPanelFieldLabelClassName}>
                   {t("cloud.form.root_password", "Root Password")}
                 </label>
                 <TextField.Root
@@ -1345,7 +1356,7 @@ export default function LinodePanel() {
                 />
               </>
             ) : (
-              <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+              <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-300">
                 {t(
                   "cloud.form.root_password_random_help",
                   "A random root password will be generated on the server and shown once after creation succeeds.",
@@ -1353,7 +1364,7 @@ export default function LinodePanel() {
               </div>
             )}
 
-            <label className="text-sm font-medium text-slate-800">
+            <label className={cloudPanelFieldLabelClassName}>
               {t("cloud.form.tags", "Tags")}
             </label>
             <TextField.Root
@@ -1362,7 +1373,7 @@ export default function LinodePanel() {
               onChange={(event) => setCreateForm((previous) => ({ ...previous, tagsText: event.target.value }))}
             />
 
-            <label className="text-sm font-medium text-slate-800">
+            <label className={cloudPanelFieldLabelClassName}>
               {t("cloud.form.user_data", "Cloud-Init / User Data")}
             </label>
             <TextArea
@@ -1372,8 +1383,8 @@ export default function LinodePanel() {
               onChange={(event) => setCreateForm((previous) => ({ ...previous, user_data: event.target.value }))}
             />
 
-            <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
-              <label className="flex items-start gap-2 text-sm text-slate-700">
+            <div className={cloudPanelSectionClassName}>
+              <label className={`flex items-start gap-2 ${cloudPanelBodyTextClassName}`}>
                 <Checkbox
                   checked={createForm.auto_connect}
                   onCheckedChange={(checked) =>
@@ -1384,20 +1395,20 @@ export default function LinodePanel() {
                     }))
                   }
                 />
-                <span>
-                  <span className="block font-medium text-slate-900">
-                    {t("cloud.form.auto_connect", "Auto-connect to Komari on first boot")}
-                  </span>
-                  <span className="mt-1 block text-xs text-slate-500">
-                    {t(
-                      "cloud.form.auto_connect_help",
-                      "Requires Auto Discovery Key. When enabled, shell user_data is injected and #cloud-config is not supported.",
+                  <span>
+                    <span className="block font-medium text-slate-900 dark:text-slate-100">
+                      {t("cloud.form.auto_connect", "Auto-connect to Komari on first boot")}
+                    </span>
+                    <span className="mt-1 block text-xs text-slate-500 dark:text-slate-400">
+                      {t(
+                        "cloud.form.auto_connect_help",
+                        "Requires Auto Discovery Key. When enabled, shell user_data is injected and #cloud-config is not supported.",
                     )}
                   </span>
                 </span>
               </label>
               <div className="mt-3">
-                <label className="text-sm font-medium text-slate-800">
+                <label className={cloudPanelFieldLabelClassName}>
                   {t("cloud.form.auto_connect_group", "Auto-connect group")}
                 </label>
                 <TextField.Root
@@ -1415,19 +1426,19 @@ export default function LinodePanel() {
               </div>
             </div>
 
-            <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
-              <div className="text-sm font-medium text-slate-800">
+            <div className={cloudPanelSectionClassName}>
+              <div className={cloudPanelFieldLabelClassName}>
                 {t("cloud.form.options", "Options")}
               </div>
               <div className="mt-3 flex flex-col gap-3">
-                <label className="flex items-center gap-2 text-sm text-slate-700">
+                <label className={`flex items-center gap-2 ${cloudPanelBodyTextClassName}`}>
                   <Checkbox
                     checked={createForm.backups_enabled}
                     onCheckedChange={(checked) => setCreateForm((previous) => ({ ...previous, backups_enabled: Boolean(checked) }))}
                   />
                   {t("cloud.form.backups", "Enable backups")}
                 </label>
-                <label className="flex items-center gap-2 text-sm text-slate-700">
+                <label className={`flex items-center gap-2 ${cloudPanelBodyTextClassName}`}>
                   <Checkbox
                     checked={createForm.booted}
                     onCheckedChange={(checked) => setCreateForm((previous) => ({ ...previous, booted: Boolean(checked) }))}
@@ -1437,11 +1448,11 @@ export default function LinodePanel() {
               </div>
             </div>
 
-            <div className="rounded-xl border border-slate-200 bg-white px-4 py-3">
-              <div className="text-sm font-medium text-slate-800">
+            <div className={cloudPanelSubcardClassName}>
+              <div className={cloudPanelFieldLabelClassName}>
                 {t("cloud.providers.linode.ssh_keys_optional", "SSH Keys (Optional)")}
               </div>
-              <div className="mt-1 text-xs text-slate-500">
+              <div className="mt-1 text-xs text-slate-500 dark:text-slate-400">
                 {t(
                   "cloud.providers.linode.ssh_keys_optional_description",
                   "You can leave this empty. The selected keys are only attached as additional login methods.",
@@ -1454,7 +1465,7 @@ export default function LinodePanel() {
                     return (
                       <label
                         key={sshKey.label}
-                        className="flex items-start gap-2 rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700"
+                        className="flex items-start gap-2 rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 dark:border-slate-800 dark:text-slate-300"
                       >
                         <Checkbox
                           checked={checked}
@@ -1468,14 +1479,14 @@ export default function LinodePanel() {
                           }
                         />
                         <span className="min-w-0">
-                          <span className="block font-medium text-slate-900">{sshKey.label}</span>
-                          <span className="block truncate text-xs text-slate-500">{sshKey.ssh_key}</span>
+                          <span className="block font-medium text-slate-900 dark:text-slate-100">{sshKey.label}</span>
+                          <span className="block truncate text-xs text-slate-500 dark:text-slate-400">{sshKey.ssh_key}</span>
                         </span>
                       </label>
                     );
                   })
                 ) : (
-                  <div className="text-sm text-slate-500">
+                  <div className="text-sm text-slate-500 dark:text-slate-400">
                     {t("cloud.form.ssh_keys_empty", "No SSH keys found in this account")}
                   </div>
                 )}
@@ -1517,7 +1528,9 @@ export default function LinodePanel() {
         }}
       >
         <Dialog.Content className={`${cloudDialogContentClassName} max-h-[85vh] overflow-y-auto`}>
-          <Dialog.Title>{detailInstance?.label || t("cloud.detail.title", "Droplet Details")}</Dialog.Title>
+          <Dialog.Title>
+            {detailInstance?.label || t("cloud.providers.linode.detail_title", "Linode Details")}
+          </Dialog.Title>
           <Dialog.Description>
             {t(
               "cloud.providers.linode.detail_description",
@@ -1526,12 +1539,18 @@ export default function LinodePanel() {
           </Dialog.Description>
 
           {detailLoading ? (
-            <div className="mt-4 text-sm text-slate-500">{t("cloud.loading", "Loading cloud resources...")}</div>
+            <div className="mt-4 text-sm text-slate-500 dark:text-slate-400">{t("cloud.loading", "Loading cloud resources...")}</div>
           ) : detailData ? (
             <div className="mt-4 flex flex-col gap-4">
               <div className="grid gap-3 sm:grid-cols-2">
-                <DetailItem label={t("cloud.detail.id", "Droplet ID")} value={detailData.instance.id} />
-                <DetailItem label={t("cloud.table.status", "Status")} value={detailData.instance.status || "-"} />
+                <DetailItem
+                  label={t("cloud.providers.linode.instance_id", "Linode ID")}
+                  value={detailData.instance.id}
+                />
+                <DetailItem
+                  label={t("cloud.table.status", "Status")}
+                  value={getCloudStatusLabel(detailData.instance.status, t)}
+                />
                 <DetailItem label={t("cloud.table.region", "Region")} value={detailData.instance.region || "-"} />
                 <DetailItem label={t("cloud.table.ip", "Public IP")} value={detailData.instance.ipv4[0] || detailData.instance.ipv6 || "-"} />
                 <DetailItem label={t("cloud.table.size", "Size")} value={detailData.instance.type || "-"} />
@@ -1563,48 +1582,48 @@ export default function LinodePanel() {
                 />
               </div>
 
-              <div className="rounded-xl border border-slate-200 bg-white px-4 py-3">
-                <div className="text-sm font-medium text-slate-900">
+              <div className={cloudPanelSubcardClassName}>
+                <div className={cloudPanelTitleClassName}>
                   {t("cloud.providers.linode.disks", "Disks")}
                 </div>
                 <div className="mt-3 flex flex-col gap-2">
                   {detailData.disks.length ? detailData.disks.map((disk: LinodeDisk) => (
-                    <div key={disk.id} className="rounded-lg border border-slate-200 px-3 py-2 text-sm">
-                      <div className="font-medium text-slate-900">{disk.label || `Disk ${disk.id}`}</div>
-                      <div className="text-slate-500">
+                    <div key={disk.id} className="rounded-lg border border-slate-200 px-3 py-2 text-sm dark:border-slate-800">
+                      <div className="font-medium text-slate-900 dark:text-slate-100">{disk.label || `Disk ${disk.id}`}</div>
+                      <div className="text-slate-500 dark:text-slate-400">
                         {disk.size} MB / {disk.filesystem || "-"} / {disk.status || "-"}
                       </div>
                     </div>
                   )) : (
-                    <div className="text-sm text-slate-500">-</div>
+                    <div className="text-sm text-slate-500 dark:text-slate-400">-</div>
                   )}
                 </div>
               </div>
 
-              <div className="rounded-xl border border-slate-200 bg-white px-4 py-3">
-                <div className="text-sm font-medium text-slate-900">
+              <div className={cloudPanelSubcardClassName}>
+                <div className={cloudPanelTitleClassName}>
                   {t("cloud.providers.linode.configs", "Configs")}
                 </div>
                 <div className="mt-3 flex flex-col gap-2">
                   {detailData.configs.length ? detailData.configs.map((config: LinodeConfig) => (
-                    <div key={config.id} className="rounded-lg border border-slate-200 px-3 py-2 text-sm">
-                      <div className="font-medium text-slate-900">{config.label || `Config ${config.id}`}</div>
-                      <div className="text-slate-500">
+                    <div key={config.id} className="rounded-lg border border-slate-200 px-3 py-2 text-sm dark:border-slate-800">
+                      <div className="font-medium text-slate-900 dark:text-slate-100">{config.label || `Config ${config.id}`}</div>
+                      <div className="text-slate-500 dark:text-slate-400">
                         {config.kernel || "-"} / {config.root_device || "-"} / {config.run_level || "-"}
                       </div>
                     </div>
                   )) : (
-                    <div className="text-sm text-slate-500">-</div>
+                    <div className="text-sm text-slate-500 dark:text-slate-400">-</div>
                   )}
                 </div>
               </div>
 
-              <div className="rounded-xl border border-slate-200 bg-white px-4 py-3">
-                <div className="text-sm font-medium text-slate-900">
+              <div className={cloudPanelSubcardClassName}>
+                <div className={cloudPanelTitleClassName}>
                   {t("cloud.providers.linode.backups", "Backups")}
                 </div>
                 {detailData.backups ? (
-                  <div className="mt-3 space-y-2 text-sm text-slate-700">
+                  <div className="mt-3 space-y-2 text-sm text-slate-700 dark:text-slate-300">
                     <div>
                       {t("cloud.form.backups", "Enable backups")}: {detailData.backups.enabled ? t("common.yes", "Yes") : t("common.no", "No")}
                     </div>
@@ -1619,7 +1638,7 @@ export default function LinodePanel() {
                     </div>
                   </div>
                 ) : (
-                  <div className="mt-3 text-sm text-slate-500">-</div>
+                  <div className="mt-3 text-sm text-slate-500 dark:text-slate-400">-</div>
                 )}
                 <Flex justify="end" gap="2" className="mt-3">
                   <Button
@@ -1635,8 +1654,8 @@ export default function LinodePanel() {
               </div>
 
               <div className="grid gap-4 sm:grid-cols-2">
-                <div className="rounded-xl border border-slate-200 bg-white px-4 py-3">
-                  <div className="text-sm font-medium text-slate-900">
+                <div className={cloudPanelSubcardClassName}>
+                  <div className={cloudPanelTitleClassName}>
                     {t("cloud.providers.linode.resize", "Resize")}
                   </div>
                   <Select.Root value={resizeTargetType || SELECT_NONE} onValueChange={(value) => setResizeTargetType(value === SELECT_NONE ? "" : value)}>
@@ -1666,8 +1685,8 @@ export default function LinodePanel() {
                   </Flex>
                 </div>
 
-                <div className="rounded-xl border border-slate-200 bg-white px-4 py-3">
-                  <div className="text-sm font-medium text-slate-900">
+                <div className={cloudPanelSubcardClassName}>
+                  <div className={cloudPanelTitleClassName}>
                     {t("cloud.providers.linode.reset_password", "Reset Root Password")}
                   </div>
                   <Select.Root
@@ -1722,8 +1741,8 @@ export default function LinodePanel() {
                 </div>
               </div>
 
-              <div className="rounded-xl border border-slate-200 bg-white px-4 py-3">
-                <div className="text-sm font-medium text-slate-900">
+              <div className={cloudPanelSubcardClassName}>
+                <div className={cloudPanelTitleClassName}>
                   {t("cloud.providers.linode.rebuild", "Rebuild")}
                 </div>
                 <div className="grid gap-3 sm:grid-cols-2 mt-3">
@@ -1942,10 +1961,10 @@ export default function LinodePanel() {
                   value={createdPassword.rootPassword}
                 />
               </CloudCopyBlock>
-              <div className={`rounded-xl px-4 py-3 text-sm ${createdPassword.passwordSaved ? "border border-emerald-200 bg-emerald-50 text-emerald-800" : "border border-amber-200 bg-amber-50 text-amber-800"}`}>
+              <div className={`rounded-xl px-4 py-3 text-sm ${createdPassword.passwordSaved ? "border border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-300" : "border border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-300"}`}>
                 <div className={cloudLongTextClassName}>
                   {createdPassword.passwordSaved
-                    ? t("cloud.password.create_saved", "This root password has been encrypted and saved. You can reopen it later from the Droplet list.")
+                    ? t("cloud.password.create_saved", "This root password has been encrypted and saved. You can reopen it later from the instance list.")
                     : createdPassword.passwordSaveError
                       ? t("cloud.password.create_unsaved_reason", {
                           reason: createdPassword.passwordSaveError,

@@ -1,7 +1,7 @@
 import { LiveDataProvider } from "@/contexts/LiveDataContext";
 import Footer from "../components/Footer";
 import NavBar from "../components/NavBar";
-import { Outlet } from "react-router-dom";
+import { Outlet, useLocation } from "react-router-dom";
 import { NodeListProvider } from "@/contexts/NodeListContext";
 import { usePublicInfo } from "@/contexts/PublicInfoContext";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -10,12 +10,14 @@ const IndexLayout = () => {
   // 使用我们的LiveDataContext
   const InnerLayout = () => {
     const { publicInfo } = usePublicInfo();
+    const location = useLocation();
     const isMobile = useIsMobile();
     const bgUrlDesktop = publicInfo?.theme_settings?.backgroundImageUrlDesktop;
     const bgUrlMobile = publicInfo?.theme_settings?.backgroundImageUrlMobile;
     const bgUrl = isMobile ? bgUrlMobile || bgUrlDesktop : bgUrlDesktop;
     const mainContentWidth =
       publicInfo?.theme_settings?.mainContentWidth ?? 100;
+    const isLoginEntryPage = location.pathname === "/";
     return (
       <>
         <div
@@ -36,10 +38,10 @@ const IndexLayout = () => {
               marginRight: "auto",
             }}
           >
-            <NavBar />
+            {!isLoginEntryPage ? <NavBar /> : null}
             <Outlet />
           </main>
-          <Footer />
+          {!isLoginEntryPage ? <Footer /> : null}
         </div>
       </>
     );

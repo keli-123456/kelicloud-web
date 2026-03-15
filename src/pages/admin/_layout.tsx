@@ -6,7 +6,9 @@ import { updateSettingsWithToast, useSettings } from "@/lib/api";
 import { Button, Dialog } from "@/components/admin/admin-ui";
 import { useEffect, useState } from "react";
 import { Eula } from "@/utils/field";
+import { useTranslation } from "react-i18next";
 const AdminLayout = () => {
+  const { t } = useTranslation();
   const { settings, loading } = useSettings();
   const lang = localStorage.getItem("i18nextLng") || "en";
   const [open, setOpen] = useState(false);
@@ -22,7 +24,7 @@ const AdminLayout = () => {
     <>
       <Dialog.Root open={open}>
         <Dialog.Content>
-          <Dialog.Title>法律声明与合规指引</Dialog.Title>
+          <Dialog.Title>{t("about.eula_title")}</Dialog.Title>
           <div className="flex flex-col gap-2">
             <div className="max-h-[70vh] overflow-y-auto space-y-4">
               <pre className="text-wrap">{Eula}</pre>
@@ -33,7 +35,7 @@ const AdminLayout = () => {
                 color="red"
                 onClick={() => window.close()}
               >
-                不接受
+                {t("about.eula_decline", "Decline")}
               </Button>
               <Button
                 variant="solid"
@@ -42,7 +44,7 @@ const AdminLayout = () => {
                   updateSettingsWithToast({ eula_accepted: true }, (key) => key);
                 }}
               >
-                我已详细阅读并接受
+                {t("about.eula_accept", "I have read and accept")}
               </Button>
             </div>
           </div>

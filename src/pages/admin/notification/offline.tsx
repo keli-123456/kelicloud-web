@@ -135,7 +135,17 @@ const InnerLayout = () => {
     grace_period: 300,
   });
 
-  // 批量修改
+  const getBatchUpdateFailedMessage = (statusText?: string) =>
+    statusText
+      ? t("notification.offline.batch_update_failed", {
+          defaultValue: "Failed to update offline notifications: {{statusText}}",
+          statusText,
+        })
+      : t("notification.offline.batch_update_failed_generic", {
+          defaultValue: "Failed to update offline notifications",
+        });
+
+  // Batch update selected nodes.
   const handleBatchEdit = (values: {
     enable: boolean;
     cooldown: number;
@@ -153,39 +163,49 @@ const InnerLayout = () => {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
     })
-      .then((res) => {
-        if (!res.ok) {
-          toast.error(
-            "Failed to update offline notifications: " + res.statusText
-          );
-        } else {
-          toast.success(t("common.updated_successfully"));
+      .then(async (res) => {
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok || (data?.status && data.status !== "success")) {
+          throw new Error(data?.message || getBatchUpdateFailedMessage(res.statusText));
         }
-        return res.json();
+        return data;
       })
       .then(() => {
-        setBatchLoading(false);
+        toast.success(t("common.updated_successfully"));
         setBatchDialogOpen(false);
         refresh();
       })
       .catch((error) => {
         console.error("Error updating offline notifications:", error);
-        toast.error(t("common.error", { message: error.message }));
+        toast.error(
+          error instanceof Error
+            ? error.message
+            : getBatchUpdateFailedMessage(),
+        );
+      })
+      .finally(() => {
         setBatchLoading(false);
       });
   };
 
   if (onLoading || onNodeLoading) {
-    return <Loading text="(o゜▽゜)o☆" />;
+    return <Loading text={t("loading", "Loading...")} />;
   }
   if (onError || onNodeError) {
-    return <div>Error: {onError?.message || onNodeError}</div>;
+    return (
+      <div className="rounded-2xl border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive">
+        {(onError?.message || onNodeError) ??
+          t("notification.offline.load_failed", {
+            defaultValue: "Failed to load offline notification settings",
+          })}
+      </div>
+    );
   }
   return (
-    <div className="flex flex-col gap-4 md:p-4 p-1">
+    <div className="flex flex-col gap-4 p-1 text-slate-900 dark:text-slate-100 md:p-4">
       <Flex justify="between" align="center" wrap="wrap">
-        <label className="text-2xl font-semibold">
-          {t("notification.offline.full_title", "离线通知设置")}
+        <label className="text-2xl font-semibold text-slate-900 dark:text-slate-100">
+          {t("notification.offline.full_title", "Offline Alerts Configuration")}
         </label>
         <TextField.Root
           type="text"
@@ -217,7 +237,7 @@ const InnerLayout = () => {
             <Button
               variant="soft"
               onClick={() => {
-                // 默认取第一个选中项的配置作为初始值
+                // Seed the form from the first selected item.
                 const first = offlineNotification.find(
                   (n) => n.client === selected[0]
                 );
@@ -268,7 +288,7 @@ const OfflineNotificationTable = ({
     .sort((a, b) => a.weight - b.weight)
     .filter((node) => node.name.toLowerCase().includes(search.toLowerCase()));
   return (
-    <div className="rounded-lg overflow-hidden">
+    <div className="overflow-hidden rounded-xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-950/40">
       <Table>
         <TableHeader>
           <TableRow>
@@ -373,6 +393,16 @@ const ActionButtons = ({
   const { refresh } = useOfflineNotification();
   const [editOpen, setEditOpen] = React.useState(false);
   const [editSaving, setEditSaving] = React.useState(false);
+  const getSaveFailedMessage = (statusText?: string) =>
+    statusText
+      ? t("notification.offline.save_failed", {
+          defaultValue:
+            "Failed to save offline notification settings: {{statusText}}",
+          statusText,
+        })
+      : t("notification.offline.save_failed_generic", {
+          defaultValue: "Failed to save offline notification settings",
+        });
 
   return (
     <Flex gap="2" align="center">
@@ -403,27 +433,31 @@ const ActionButtons = ({
                   },
                 ]),
               })
-                .then((res) => {
-                  if (!res.ok) {
-                    toast.error(
-                      "Failed to save offline notification settings: " +
-                        res.statusText
-                    );
+                .then(async (res) => {
+                  const data = await res.json().catch(() => ({}));
+                  if (!res.ok || (data?.status && data.status !== "success")) {
+                    throw new Error(data?.message || getSaveFailedMessage(res.statusText));
                   }
-                  toast.success(t("common.updated_successfully"));
-                  return res.json();
+                  return data;
                 })
                 .then(() => {
+                  toast.success(t("common.updated_successfully"));
                   setEditOpen(false);
                   refresh();
-                  setEditSaving(false);
                 })
                 .catch((error) => {
                   console.error(
                     "Error saving offline notification settings:",
                     error
                   );
-                  toast.error(t("common.error", { message: error.message }));
+                  toast.error(
+                    error instanceof Error
+                      ? error.message
+                      : getSaveFailedMessage(),
+                  );
+                })
+                .finally(() => {
+                  setEditSaving(false);
                 });
             }}
             onCancel={() => setEditOpen(false)}

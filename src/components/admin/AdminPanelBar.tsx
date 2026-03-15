@@ -308,7 +308,9 @@ export default function AdminPanelBar({ content }: AdminPanelBarProps) {
         ? getMenuLabel(activeTopItem)
         : "Komari";
   const currentSectionTitle =
-    activeChildItem && activeTopItem ? getMenuLabel(activeTopItem) : null;
+    activeChildItem && activeTopItem
+      ? getMenuLabel(activeTopItem)
+      : t("common.admin_console", "Admin Console");
   const versionLabel =
     (publicInfo as any)?.version ||
     (versionInfo && `${versionInfo.version} (${versionInfo.hash})`) ||
@@ -421,7 +423,7 @@ export default function AdminPanelBar({ content }: AdminPanelBarProps) {
               asChild
               variant="outline"
               size="sm"
-              className="border-slate-200 bg-white shadow-none hover:bg-slate-50"
+              className="border-slate-200 bg-white shadow-none hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-950 dark:hover:bg-slate-900"
             >
               <a
                 href={latestRelease.html_url}
@@ -437,7 +439,7 @@ export default function AdminPanelBar({ content }: AdminPanelBarProps) {
     ) : null;
 
   return (
-    <div className="flex h-screen overflow-hidden bg-[radial-gradient(circle_at_top,_rgba(148,163,184,0.12),_transparent_38%),linear-gradient(180deg,_#ffffff_0%,_#f8fafc_100%)]">
+    <div className="flex h-screen overflow-hidden bg-[radial-gradient(circle_at_top,_rgba(148,163,184,0.12),_transparent_38%),linear-gradient(180deg,_#ffffff_0%,_#f8fafc_100%)] dark:bg-[radial-gradient(circle_at_top,_rgba(56,189,248,0.10),_transparent_35%),linear-gradient(180deg,_#020617_0%,_#0f172a_100%)]">
       <AnimatePresence>
         {mobileMenuOpen && (
           <motion.div
@@ -452,23 +454,23 @@ export default function AdminPanelBar({ content }: AdminPanelBarProps) {
 
       <aside
         className={cn(
-          "fixed inset-y-0 left-0 z-50 flex w-64 flex-col border-r border-slate-200/80 bg-white/95 shadow-sm transition-[transform,width] duration-200 ease-in-out md:static md:inset-0 md:translate-x-0",
+          "fixed inset-y-0 left-0 z-50 flex w-64 flex-col border-r border-slate-200/80 bg-white/95 shadow-sm transition-[transform,width] duration-200 ease-in-out md:static md:inset-0 md:translate-x-0 dark:border-slate-800/80 dark:bg-slate-950/90",
           mobileMenuOpen ? "translate-x-0" : "-translate-x-full",
           sidebarCollapsed && "md:w-[76px]",
         )}
       >
         <div
           className={cn(
-            "grid h-16 grid-cols-[1fr_auto_1fr] items-center border-b border-slate-200/80 px-4",
+            "grid h-16 grid-cols-[1fr_auto_1fr] items-center border-b border-slate-200/80 px-4 dark:border-slate-800/80",
             sidebarCollapsed && "md:px-2",
           )}
         >
           <div />
           <Link
             to="/admin"
-            className="justify-self-center flex items-center gap-2 text-slate-900"
+            className="justify-self-center flex items-center gap-2 text-slate-900 dark:text-slate-50"
           >
-            <span className="flex h-8 w-8 items-center justify-center rounded-md bg-slate-900 text-sm font-semibold text-white">
+            <span className="flex h-8 w-8 items-center justify-center rounded-md bg-slate-900 text-sm font-semibold text-white dark:bg-slate-100 dark:text-slate-900">
               {appName.slice(0, 1).toUpperCase()}
             </span>
             <span
@@ -516,8 +518,8 @@ export default function AdminPanelBar({ content }: AdminPanelBarProps) {
                             variant="ghost"
                             size="icon"
                             className={cn(
-                              "h-9 w-full rounded-md text-slate-600 hover:bg-slate-50 hover:text-slate-900",
-                              active && "bg-slate-100 text-slate-900",
+                              "h-9 w-full rounded-md text-slate-600 hover:bg-slate-50 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-900 dark:hover:text-slate-100",
+                              active && "bg-slate-100 text-slate-900 dark:bg-slate-800 dark:text-slate-100",
                             )}
                             title={label}
                             aria-label={label}
@@ -545,7 +547,7 @@ export default function AdminPanelBar({ content }: AdminPanelBarProps) {
                                 key={child.path}
                                 className={cn(
                                   "cursor-pointer",
-                                  childActive && "bg-slate-100 text-slate-900",
+                                  childActive && "bg-slate-100 text-slate-900 dark:bg-slate-800 dark:text-slate-100",
                                 )}
                                 onSelect={() => navigate(child.path)}
                               >
@@ -573,8 +575,8 @@ export default function AdminPanelBar({ content }: AdminPanelBarProps) {
                       <Button
                         variant="ghost"
                         className={cn(
-                          "h-10 w-full justify-between rounded-md px-3 text-sm font-normal text-slate-600 hover:bg-slate-50 hover:text-slate-900",
-                          active && "bg-slate-100 text-slate-900",
+                          "h-10 w-full justify-between rounded-md px-3 text-sm font-normal text-slate-600 hover:bg-slate-50 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-900 dark:hover:text-slate-100",
+                          active && "bg-slate-100 text-slate-900 dark:bg-slate-800 dark:text-slate-100",
                         )}
                       >
                         <span className="flex min-w-0 items-center gap-3">
@@ -582,9 +584,9 @@ export default function AdminPanelBar({ content }: AdminPanelBarProps) {
                           <span className="truncate">{label}</span>
                         </span>
                         {isOpen ? (
-                          <ChevronDown className="h-4 w-4 shrink-0 text-slate-400" />
+                          <ChevronDown className="h-4 w-4 shrink-0 text-slate-400 dark:text-slate-500" />
                         ) : (
-                          <ChevronRight className="h-4 w-4 shrink-0 text-slate-400" />
+                          <ChevronRight className="h-4 w-4 shrink-0 text-slate-400 dark:text-slate-500" />
                         )}
                       </Button>
                     </CollapsibleTrigger>
@@ -605,8 +607,8 @@ export default function AdminPanelBar({ content }: AdminPanelBarProps) {
                             className={cn(
                               "flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors",
                               childActive
-                                ? "bg-slate-100 text-slate-900 font-medium"
-                                : "text-slate-500 hover:bg-slate-50 hover:text-slate-900",
+                                ? "bg-slate-100 text-slate-900 font-medium dark:bg-slate-800 dark:text-slate-100"
+                                : "text-slate-500 hover:bg-slate-50 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-900 dark:hover:text-slate-100",
                             )}
                           >
                             {renderMenuIcon(
@@ -635,8 +637,8 @@ export default function AdminPanelBar({ content }: AdminPanelBarProps) {
                   "flex items-center gap-3 rounded-md px-4 py-2 text-sm font-medium transition-colors",
                   sidebarCollapsed && "md:justify-center md:px-2",
                   active
-                    ? "bg-slate-100 text-slate-900"
-                    : "text-slate-600 hover:bg-slate-50 hover:text-slate-900",
+                    ? "bg-slate-100 text-slate-900 dark:bg-slate-800 dark:text-slate-100"
+                    : "text-slate-600 hover:bg-slate-50 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-900 dark:hover:text-slate-100",
                 )}
               >
                 {renderMenuIcon(item.icon, label, active, "h-5 w-5")}
@@ -648,12 +650,12 @@ export default function AdminPanelBar({ content }: AdminPanelBarProps) {
 
         <div
           className={cn(
-            "border-t border-slate-200/80 px-3 py-3",
+            "border-t border-slate-200/80 px-3 py-3 dark:border-slate-800/80",
             sidebarCollapsed && "md:px-2",
           )}
         >
           {!sidebarCollapsed && versionLabel ? (
-            <div className="mb-3 px-1 text-xs text-slate-500">{versionLabel}</div>
+            <div className="mb-3 px-1 text-xs text-slate-500 dark:text-slate-400">{versionLabel}</div>
           ) : null}
           <div className="space-y-1">
             {footerMenuItems.map((item) => {
@@ -678,7 +680,7 @@ export default function AdminPanelBar({ content }: AdminPanelBarProps) {
           </div>
         </div>
 
-        <div className="hidden border-t border-slate-200/80 p-2 md:block">
+        <div className="hidden border-t border-slate-200/80 p-2 dark:border-slate-800/80 md:block">
           <Button
             type="button"
             variant="ghost"
@@ -704,7 +706,7 @@ export default function AdminPanelBar({ content }: AdminPanelBarProps) {
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
-        <header className="flex h-16 shrink-0 items-center justify-between border-b border-slate-200/80 bg-white/90 px-4 backdrop-blur md:px-6">
+        <header className="flex h-16 shrink-0 items-center justify-between border-b border-slate-200/80 bg-white/90 px-4 backdrop-blur md:px-6 dark:border-slate-800/80 dark:bg-slate-950/75">
           <div className="flex min-w-0 items-center gap-3">
             <Button
               variant="ghost"
@@ -717,13 +719,13 @@ export default function AdminPanelBar({ content }: AdminPanelBarProps) {
 
             <div className="min-w-0">
               <div className="flex min-w-0 items-center gap-2">
-                <div className="truncate text-base font-semibold text-slate-900 md:text-lg">
+                <div className="truncate text-base font-semibold text-slate-900 dark:text-slate-50 md:text-lg">
                   {currentPageTitle}
                 </div>
                 {renderUpdateTrigger}
               </div>
-              <div className="truncate text-xs text-slate-500 md:text-sm">
-                {currentSectionTitle || "Admin Console"}
+              <div className="truncate text-xs text-slate-500 dark:text-slate-400 md:text-sm">
+                {currentSectionTitle}
               </div>
             </div>
           </div>
@@ -753,7 +755,7 @@ export default function AdminPanelBar({ content }: AdminPanelBarProps) {
         <main className="min-h-0 flex-1 overflow-y-auto">
           <div className="mx-auto flex w-full max-w-[1680px] flex-col gap-4 px-4 py-4 md:px-6 md:py-6">
             {!ishttps && (
-              <div className="flex items-start gap-3 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-red-700 shadow-sm">
+              <div className="flex items-start gap-3 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-red-700 shadow-sm dark:border-red-900/60 dark:bg-red-950/30 dark:text-red-300">
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
                   width="18"
@@ -794,8 +796,8 @@ function FooterNavItem({
     "flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors",
     collapsed && "justify-center px-2",
     active
-      ? "bg-slate-100 text-slate-900"
-      : "text-slate-600 hover:bg-slate-50 hover:text-slate-900",
+      ? "bg-slate-100 text-slate-900 dark:bg-slate-800 dark:text-slate-100"
+      : "text-slate-600 hover:bg-slate-50 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-900 dark:hover:text-slate-100",
   );
 
   if (item.newTab) {

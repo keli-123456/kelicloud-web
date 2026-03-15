@@ -54,19 +54,23 @@ const LogPage = () => {
           `/api/admin/logs?limit=${limit}&page=${page}`,
         );
         if (!response.ok) {
-          throw new Error("Failed to fetch logs");
+          throw new Error(t("logs.fetch_error", "Failed to fetch logs"));
         }
         const data = await response.json();
         setLogs(data.data.logs);
         setTotal(data.data.total);
       } catch (err) {
-        setError(err instanceof Error ? err.message : "Unknown error");
+        setError(
+          err instanceof Error
+            ? err.message
+            : t("common.unknown_error", "Unknown error"),
+        );
       } finally {
         setLoading(false);
       }
     };
     fetchLogs();
-  }, [limit, page]);
+  }, [limit, page, t]);
 
   const totalPages = Math.max(1, Math.ceil(total / limit));
   const siblingsCount = 1;
@@ -96,37 +100,54 @@ const LogPage = () => {
     return <Loading />;
   }
   if (error) {
-    return <div>Error: {error}</div>;
+    return (
+      <div className="rounded-2xl border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive">
+        {t("common.error")}: {error}
+      </div>
+    );
   }
 
   return (
     <AdminPageShell
       eyebrow={t("logs.title")}
-      title="系统日志"
-      description="按分页浏览后台操作日志，快速排查来源 IP、事件类型和具体消息内容。"
+      title={t("logs.title")}
+      description={t("logs.description", {
+        defaultValue:
+          "Browse backend operation logs by page to quickly inspect source IPs, event types, and message details.",
+      })}
       stats={[
         {
-          label: "总记录",
+          label: t("logs.stats.total_records", {
+            defaultValue: "Total records",
+          }),
           value: `${total}`,
-          hint: "接口返回的日志总数。",
+          hint: t("logs.stats.total_records_hint", {
+            defaultValue: "Total number of log records returned by the API.",
+          }),
           tone: "blue",
         },
         {
-          label: "当前页",
+          label: t("logs.stats.current_page", { defaultValue: "Current page" }),
           value: `${page} / ${totalPages}`,
-          hint: "切换页码查看历史记录。",
+          hint: t("logs.stats.current_page_hint", {
+            defaultValue: "Switch pages to review historical records.",
+          }),
           tone: "emerald",
         },
         {
-          label: "每页数量",
+          label: t("logs.stats.page_size", { defaultValue: "Page size" }),
           value: `${limit}`,
-          hint: "调整分页大小会立即重新拉取数据。",
+          hint: t("logs.stats.page_size_hint", {
+            defaultValue: "Changing the page size reloads the log list immediately.",
+          }),
           tone: "amber",
         },
       ]}
       actions={
-        <div className="flex items-center gap-2 text-sm text-slate-600">
-          <span className="text-slate-500">Limit</span>
+        <div className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300">
+          <span className="text-slate-500 dark:text-slate-400">
+            {t("logs.limit", { defaultValue: "Rows per page" })}
+          </span>
           <NumberPicker
             defaultValue={limit}
             onChange={(value) => {
@@ -140,75 +161,97 @@ const LogPage = () => {
       }
     >
       <AdminSurface className="overflow-hidden p-0">
-        <div className="border-b border-slate-200/70 px-1 py-3">
+        <div className="border-b border-slate-200/70 px-1 py-3 dark:border-slate-800/70">
           <div className="flex flex-col gap-1">
-            <label className="text-lg font-semibold tracking-tight text-slate-900">
-              日志明细
+            <label className="text-lg font-semibold tracking-tight text-slate-900 dark:text-slate-50">
+              {t("logs.details_title", { defaultValue: "Log details" })}
             </label>
-            <p className="text-sm text-slate-500">
-              点击日志 ID 可查看完整消息、UUID 和时间信息。
+            <p className="text-sm text-slate-500 dark:text-slate-400">
+              {t("logs.details_description", {
+                defaultValue:
+                  "Click a log ID to inspect the full message, UUID, and timestamp.",
+              })}
             </p>
           </div>
         </div>
 
         {logs.length === 0 ? (
-          <div className="px-6 py-14 text-center text-sm text-slate-500">
-            当前没有日志记录。
+          <div className="px-6 py-14 text-center text-sm text-slate-500 dark:text-slate-400">
+            {t("logs.empty", { defaultValue: "No log records found." })}
           </div>
         ) : (
           <Table>
-            <TableHeader className="bg-[linear-gradient(135deg,rgba(19,70,134,0.10),rgba(255,255,255,0.92),rgba(89,172,119,0.10))]">
+            <TableHeader className="bg-[linear-gradient(135deg,rgba(19,70,134,0.10),rgba(255,255,255,0.92),rgba(89,172,119,0.10))] dark:bg-[linear-gradient(135deg,rgba(14,165,233,0.16),rgba(2,6,23,0.92),rgba(16,185,129,0.12))]">
               <TableRow>
-                <TableHead>ID</TableHead>
-                <TableHead>IP</TableHead>
-                <TableHead>Type</TableHead>
-                <TableHead>Message</TableHead>
-                <TableHead>Time</TableHead>
+                <TableHead>{t("logs.fields.id", { defaultValue: "ID" })}</TableHead>
+                <TableHead>{t("logs.fields.ip", { defaultValue: "IP" })}</TableHead>
+                <TableHead>{t("logs.fields.type", { defaultValue: "Type" })}</TableHead>
+                <TableHead>{t("logs.fields.message", { defaultValue: "Message" })}</TableHead>
+                <TableHead>{t("logs.fields.time", { defaultValue: "Time" })}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {logs.map((log) => (
-                <TableRow key={log.id} className="transition-colors hover:bg-slate-50/60">
+                <TableRow
+                  key={log.id}
+                  className="transition-colors hover:bg-slate-50/60 dark:hover:bg-slate-900/60"
+                >
                   <TableCell>
                     <Dialog>
                       <DialogTrigger asChild>
                         <button
                           type="button"
-                          className="font-semibold text-slate-900 hover:underline"
+                          className="font-semibold text-slate-900 hover:underline dark:text-slate-100"
                         >
                           {log.id}
                         </button>
                       </DialogTrigger>
                       <DialogContent className="sm:max-w-2xl">
                         <DialogHeader>
-                          <DialogTitle>{t("log.title")}</DialogTitle>
+                          <DialogTitle>
+                            {t("logs.detail_dialog_title", {
+                              defaultValue: "Log details",
+                            })}
+                          </DialogTitle>
                         </DialogHeader>
                         <div className="grid gap-4 sm:grid-cols-2">
                           <div className="space-y-1">
-                            <div className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">ID</div>
-                            <div className="text-sm text-slate-900">{log.id}</div>
+                            <div className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">
+                              {t("logs.fields.id", { defaultValue: "ID" })}
+                            </div>
+                            <div className="text-sm text-slate-900 dark:text-slate-100">{log.id}</div>
                           </div>
                           <div className="space-y-1">
-                            <div className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">IP</div>
-                            <div className="text-sm text-slate-900">{log.ip}</div>
+                            <div className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">
+                              {t("logs.fields.ip", { defaultValue: "IP" })}
+                            </div>
+                            <div className="text-sm text-slate-900 dark:text-slate-100">{log.ip}</div>
                           </div>
                           <div className="space-y-1 sm:col-span-2">
-                            <div className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">UUID</div>
-                            <div className="break-all text-sm text-slate-900">{log.uuid}</div>
+                            <div className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">
+                              {t("logs.fields.uuid", { defaultValue: "UUID" })}
+                            </div>
+                            <div className="break-all text-sm text-slate-900 dark:text-slate-100">{log.uuid}</div>
                           </div>
                           <div className="space-y-1">
-                            <div className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Type</div>
-                            <div className="text-sm text-slate-900">{log.msg_type}</div>
+                            <div className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">
+                              {t("logs.fields.type", { defaultValue: "Type" })}
+                            </div>
+                            <div className="text-sm text-slate-900 dark:text-slate-100">{log.msg_type}</div>
                           </div>
                           <div className="space-y-1">
-                            <div className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Time</div>
-                            <div className="text-sm text-slate-900">
+                            <div className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">
+                              {t("logs.fields.time", { defaultValue: "Time" })}
+                            </div>
+                            <div className="text-sm text-slate-900 dark:text-slate-100">
                               {new Date(log.time).toLocaleString()}
                             </div>
                           </div>
                           <div className="space-y-1 sm:col-span-2">
-                            <div className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Message</div>
-                            <div className="whitespace-pre-wrap break-all rounded-xl border bg-slate-50 px-4 py-3 text-sm text-slate-900">
+                            <div className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">
+                              {t("logs.fields.message", { defaultValue: "Message" })}
+                            </div>
+                            <div className="whitespace-pre-wrap break-all rounded-xl border bg-slate-50 px-4 py-3 text-sm text-slate-900 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-100">
                               {log.message}
                             </div>
                           </div>

@@ -41,7 +41,7 @@ export function TableCellViewer({ item }: { item: z.infer<typeof schema> }) {
         <DrawerHeader className="gap-1">
           <DrawerTitle>{item.name}</DrawerTitle>
           <DrawerDescription>
-            {t("admin.nodeDetail.machineDetail", "机器详细信息")}
+            {t("admin.nodeDetail.machineDetail", "Machine details")}
           </DrawerDescription>
         </DrawerHeader>
         <div className="flex flex-col gap-4 overflow-y-auto px-4 text-sm">
@@ -49,7 +49,7 @@ export function TableCellViewer({ item }: { item: z.infer<typeof schema> }) {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="flex flex-col gap-3">
                 <Label htmlFor="detail-ip">
-                  {t("admin.nodeDetail.ipAddress", "IP 地址")}
+                  {t("admin.nodeDetail.ipAddress", "IP address")}
                 </Label>
                 <div className="flex flex-col gap-1">
                   {item.ipv4 && (
@@ -96,7 +96,7 @@ export function TableCellViewer({ item }: { item: z.infer<typeof schema> }) {
               </div>
               <div className="flex flex-col gap-3">
                 <Label htmlFor="detail-version">
-                  {t("admin.nodeDetail.clientVersion", "客户端版本")}
+                  {t("admin.nodeDetail.clientVersion", "Client version")}
                 </Label>
                 <span
                   id="detail-version"
@@ -111,7 +111,7 @@ export function TableCellViewer({ item }: { item: z.infer<typeof schema> }) {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="flex flex-col gap-3">
                 <Label htmlFor="detail-os">
-                  {t("admin.nodeDetail.os", "操作系统")}
+                  {t("admin.nodeDetail.os", "Operating system")}
                 </Label>
                 <span
                   id="detail-os"
@@ -122,7 +122,7 @@ export function TableCellViewer({ item }: { item: z.infer<typeof schema> }) {
               </div>
               <div className="flex flex-col gap-3">
                 <Label htmlFor="detail-arch">
-                  {t("admin.nodeDetail.arch", "架构")}
+                  {t("admin.nodeDetail.arch", "Architecture")}
                 </Label>
                 <span
                   id="detail-arch"
@@ -150,7 +150,7 @@ export function TableCellViewer({ item }: { item: z.infer<typeof schema> }) {
               </div>
               <div className="flex flex-col gap-3">
                 <Label htmlFor="detail-cpu_cores">
-                  {t("admin.nodeDetail.cpuCores", "CPU 核心数")}
+                  {t("admin.nodeDetail.cpuCores", "CPU core number")}
                 </Label>
                 <span
                   id="detail-cpu_cores"
@@ -165,7 +165,7 @@ export function TableCellViewer({ item }: { item: z.infer<typeof schema> }) {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="flex flex-col gap-3">
                 <Label htmlFor="detail-mem_total">
-                  {t("admin.nodeDetail.memTotal", "总内存 (Bytes)")}
+                  {t("admin.nodeDetail.memTotal", "Total Memory")}
                 </Label>
                 <span
                   id="detail-mem_total"
@@ -179,7 +179,7 @@ export function TableCellViewer({ item }: { item: z.infer<typeof schema> }) {
               </div>
               <div className="flex flex-col gap-3">
                 <Label htmlFor="detail-disk_total">
-                  {t("admin.nodeDetail.diskTotal", "总磁盘空间 (Bytes)")}
+                  {t("admin.nodeDetail.diskTotal", "Total disk space")}
                 </Label>
                 <span
                   id="detail-disk_total"
@@ -219,7 +219,7 @@ export function TableCellViewer({ item }: { item: z.infer<typeof schema> }) {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="flex flex-col gap-3">
                 <Label htmlFor="detail-createdAt">
-                  {t("admin.nodeDetail.createdAt", "创建时间")}
+                  {t("admin.nodeDetail.createdAt", "Creation time")}
                 </Label>
                 <span
                   id="detail-createdAt"
@@ -234,7 +234,7 @@ export function TableCellViewer({ item }: { item: z.infer<typeof schema> }) {
               </div>
               <div className="flex flex-col gap-3">
                 <Label htmlFor="detail-updatedAt">
-                  {t("admin.nodeDetail.updatedAt", "更新时间")}
+                  {t("admin.nodeDetail.updatedAt", "Update time")}
                 </Label>
                 <span
                   id="detail-updatedAt"
@@ -252,7 +252,7 @@ export function TableCellViewer({ item }: { item: z.infer<typeof schema> }) {
         </div>
         <DrawerFooter>
           <DrawerClose asChild>
-            <Button>{t("admin.nodeDetail.done", "完成")}</Button>
+            <Button>{t("admin.nodeDetail.done", "Finish")}</Button>
           </DrawerClose>
         </DrawerFooter>
       </DrawerContent>

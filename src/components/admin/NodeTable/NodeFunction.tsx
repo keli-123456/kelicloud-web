@@ -62,7 +62,14 @@ async function removeClient(uuid: string) {
   });
   const { payload, raw } = await readActionResponse(response);
   if (!response.ok || payload?.status === "error") {
-    throw new Error(getActionErrorMessage(response, payload, raw, "删除节点失败"));
+    throw new Error(
+      getActionErrorMessage(
+        response,
+        payload,
+        raw,
+        t("admin.nodeTable.deleteFailed", "Failed to delete node"),
+      ),
+    );
   }
 }
 
@@ -160,7 +167,7 @@ export function ActionsCell({ row }: { row: Row<z.infer<typeof schema>> }) {
   const copyToClipboard = async (text: string) => {
     try {
       await navigator.clipboard.writeText(text);
-      toast.success(t("copy_success", "已复制到剪贴板"));
+      toast.success(t("copy_success", "Copied!"));
     } catch (err) {
       console.error("Failed to copy text: ", err);
     }
@@ -176,7 +183,7 @@ export function ActionsCell({ row }: { row: Row<z.infer<typeof schema>> }) {
         </Dialog.Trigger>
         <Dialog.Content>
           <Dialog.Title>
-            {t("admin.nodeTable.installCommand", "一键部署指令")}
+            {t("admin.nodeTable.installCommand", "Install command")}
           </Dialog.Title>
           <div className="flex flex-col gap-4">
             <SegmentedControl.Root
@@ -192,7 +199,7 @@ export function ActionsCell({ row }: { row: Row<z.infer<typeof schema>> }) {
 
             <Flex direction="column" gap="2">
               <label className="text-base font-bold">
-                {t("admin.nodeTable.installOptions", "安装选项")}
+                {t("admin.nodeTable.installOptions", "Install options")}
               </label>
               <div className="grid grid-cols-2 gap-2">
                 <Flex gap="2">
@@ -214,7 +221,7 @@ export function ActionsCell({ row }: { row: Row<z.infer<typeof schema>> }) {
                       }));
                     }}
                   >
-                    {t("admin.nodeTable.disableWebSsh", "禁用 WebSSH")}
+                    {t("admin.nodeTable.disableWebSsh", "Disable remote control")}
                   </label>
                 </Flex>
                 <Flex gap="2">
@@ -236,7 +243,7 @@ export function ActionsCell({ row }: { row: Row<z.infer<typeof schema>> }) {
                       }));
                     }}
                   >
-                    {t("admin.nodeTable.disableAutoUpdate", "禁用自动更新")}
+                    {t("admin.nodeTable.disableAutoUpdate", "Disable auto update")}
                   </label>
                 </Flex>
                 <Flex gap="2">
@@ -258,13 +265,13 @@ export function ActionsCell({ row }: { row: Row<z.infer<typeof schema>> }) {
                       }));
                     }}
                   >
-                    {t("admin.nodeTable.ignoreUnsafeCert", "忽略不安全证书")}
+                    {t("admin.nodeTable.ignoreUnsafeCert", "Ignore unsafe cert")}
                   </label>
                 </Flex>
               </div>
               <Flex direction="column" gap="2">
                 <label className="text-sm font-bold">
-                  {t("admin.nodeTable.ghproxy", "GitHub 代理")}
+                  {t("admin.nodeTable.ghproxy", "GitHub proxy")}
                 </label>
                 <TextField.Root
                   placeholder={t(
@@ -279,7 +286,7 @@ export function ActionsCell({ row }: { row: Row<z.infer<typeof schema>> }) {
                   }
                 ></TextField.Root>
                 <label className="text-sm font-bold">
-                  {t("admin.nodeTable.install_dir", "安装目录")}
+                  {t("admin.nodeTable.install_dir", "Installation directory")}
                 </label>
                 <TextField.Root
                   placeholder={t(
@@ -294,7 +301,7 @@ export function ActionsCell({ row }: { row: Row<z.infer<typeof schema>> }) {
                   }
                 ></TextField.Root>
                 <label className="text-sm font-bold">
-                  {t("admin.nodeTable.serviceName", "服务名称")}
+                  {t("admin.nodeTable.serviceName", "Service name")}
                 </label>
                 <TextField.Root
                   placeholder={t(
@@ -312,7 +319,7 @@ export function ActionsCell({ row }: { row: Row<z.infer<typeof schema>> }) {
             </Flex>
             <Flex direction="column" gap="2">
               <label className="text-base font-bold">
-                {t("admin.nodeTable.generatedCommand", "生成的指令")}
+                {t("admin.nodeTable.generatedCommand", "Command")}
               </label>
               <div className="relative">
                 <TextArea
@@ -380,7 +387,7 @@ export function ActionsCell({ row }: { row: Row<z.infer<typeof schema>> }) {
                   setRemoving(true);
                   try {
                     await removeClient(row.original.uuid);
-                    toast.success(t("admin.nodeTable.deleteSuccess", "节点已删除"));
+                    toast.success(t("admin.nodeTable.deleteSuccess", "Node deleted"));
                     if (refreshTable) refreshTable();
                   } catch (error) {
                     toast.error(
