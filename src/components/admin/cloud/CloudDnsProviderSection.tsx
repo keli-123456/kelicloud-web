@@ -192,7 +192,9 @@ function getEditableProviderFields(provider: string, fields: CloudProviderField[
   return [buildProviderNameField(), ...credentialFields];
 }
 
-function buildEntryFormValues(entry?: CloudProviderCredentialEntry | null) {
+function buildEntryFormValues(
+  entry?: CloudProviderCredentialEntry | null,
+): Record<string, unknown> {
   return {
     name: entry?.name || "",
     ...(entry?.values || {}),
@@ -576,9 +578,6 @@ export default function CloudDnsProviderSection({
     ? getEditableProviderFields(activeProvider, providerDefs[activeProvider] || [])
     : [];
   const activeProviderEntries = activeProvider ? (providerEntriesMap[activeProvider] || []) : [];
-  const activeEntry = dialogState?.entryId
-    ? activeProviderEntries.find((entry) => entry.id === dialogState.entryId) || null
-    : null;
 
   return (
     <>
