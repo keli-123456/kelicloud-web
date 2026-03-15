@@ -20,10 +20,50 @@ import { toast } from "sonner";
 import { useSettings } from "@/lib/api";
 import { buildAgentInstallScriptURL } from "@/lib/installScriptSource";
 
+type ActionResponsePayload = {
+  status?: string;
+  message?: string;
+  error?: string;
+};
+
+const readActionResponse = async (response: Response) => {
+  const raw = (await response.text().catch(() => "")).trim();
+  if (!raw) {
+    return { payload: null as ActionResponsePayload | null, raw: "" };
+  }
+
+  try {
+    return {
+      payload: JSON.parse(raw) as ActionResponsePayload,
+      raw,
+    };
+  } catch {
+    return { payload: null as ActionResponsePayload | null, raw };
+  }
+};
+
+const getActionErrorMessage = (
+  response: Response,
+  payload: ActionResponsePayload | null,
+  raw: string,
+  fallback: string
+) => {
+  const detail =
+    (typeof payload?.message === "string" ? payload.message : "") ||
+    (typeof payload?.error === "string" ? payload.error : "") ||
+    raw;
+
+  return detail || `${fallback} (HTTP ${response.status})`;
+};
+
 async function removeClient(uuid: string) {
-  await fetch(`/api/admin/client/${uuid}/remove`, {
+  const response = await fetch(`/api/admin/client/${uuid}/remove`, {
     method: "POST",
   });
+  const { payload, raw } = await readActionResponse(response);
+  if (!response.ok || payload?.status === "error") {
+    throw new Error(getActionErrorMessage(response, payload, raw, "删除节点失败"));
+  }
 }
 
 type InstallOptions = {
@@ -338,9 +378,17 @@ export function ActionsCell({ row }: { row: Row<z.infer<typeof schema>> }) {
                 color="red"
                 onClick={async () => {
                   setRemoving(true);
-                  await removeClient(row.original.uuid);
-                  setRemoving(false);
-                  if (refreshTable) refreshTable();
+                  try {
+                    await removeClient(row.original.uuid);
+                    toast.success(t("admin.nodeTable.deleteSuccess", "节点已删除"));
+                    if (refreshTable) refreshTable();
+                  } catch (error) {
+                    toast.error(
+                      error instanceof Error ? error.message : String(error)
+                    );
+                  } finally {
+                    setRemoving(false);
+                  }
                 }}
               >
                 {removing

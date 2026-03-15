@@ -40,6 +40,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { useWarningDialog } from "@/components/ui/warning-dialog";
 import {
   Table,
   TableBody,
@@ -118,6 +119,12 @@ type NodeUpgradeState = {
   output: string;
   exitCode: number | null;
   finishedAt: string | null;
+};
+
+type ActionResponsePayload = {
+  status?: string;
+  message?: string;
+  error?: string;
 };
 
 const DEFAULT_GROUP_NAME = "默认分组";
@@ -215,6 +222,41 @@ const normalizeLiveSnapshot = (value: any): NodeLiveSnapshot => {
       updated_at: value.time ?? "",
     },
   };
+};
+
+const isNodeOnline = (live?: NodeLiveSnapshot) => Boolean(live?.online);
+
+const isNodeOffline = (live: NodeLiveSnapshot | undefined, liveLoaded: boolean) =>
+  liveLoaded && !isNodeOnline(live);
+
+const readActionResponse = async (response: Response) => {
+  const raw = (await response.text().catch(() => "")).trim();
+  if (!raw) {
+    return { payload: null as ActionResponsePayload | null, raw: "" };
+  }
+
+  try {
+    return {
+      payload: JSON.parse(raw) as ActionResponsePayload,
+      raw,
+    };
+  } catch {
+    return { payload: null as ActionResponsePayload | null, raw };
+  }
+};
+
+const getActionErrorMessage = (
+  response: Response,
+  payload: ActionResponsePayload | null,
+  raw: string,
+  fallback: string
+) => {
+  const detail =
+    (typeof payload?.message === "string" ? payload.message : "") ||
+    (typeof payload?.error === "string" ? payload.error : "") ||
+    raw;
+
+  return detail || `${fallback} (HTTP ${response.status})`;
 };
 
 const formatDateTimeLabel = (value?: string) => {
@@ -441,15 +483,14 @@ const Header = ({
 }) => {
   const { t, i18n } = useTranslation();
   const { refresh } = useNodeDetails();
+  const { confirm, dialog } = useWarningDialog();
   const [loading, setLoading] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [cleanupOpen, setCleanupOpen] = useState(false);
   const [cleanupLoading, setCleanupLoading] = useState(false);
   const inputRef = React.useRef<HTMLInputElement>(null);
-  const offlineNodes = nodes.filter((node) => {
-    const live = liveByNode[node.uuid];
-    return live ? !live.online : false;
-  });
+  const offlineNodes = nodes.filter((node) =>
+    isNodeOffline(liveByNode[node.uuid], liveLoaded)
+  );
   const totalUploadSpeed = nodes.reduce(
     (sum, node) => sum + (liveByNode[node.uuid]?.record.network.up ?? 0),
     0
@@ -500,6 +541,21 @@ const Header = ({
   const handleDeleteOffline = async () => {
     if (offlineNodes.length === 0) return;
 
+    const confirmed = await confirm({
+      tone: "destructive",
+      title: t("admin.nodeTable.cleanupOfflineTitle", "删除离线节点"),
+      description: t(
+        "admin.nodeTable.cleanupOfflineDescription",
+        "将删除当前已确认离线的 {{count}} 个节点。这个操作不可撤销。",
+        { count: offlineNodes.length },
+      ),
+      confirmLabel: t("common.delete", "删除"),
+      cancelLabel: t("common.cancel", "取消"),
+    });
+    if (!confirmed) {
+      return;
+    }
+
     setCleanupLoading(true);
     try {
       const results = await Promise.allSettled(
@@ -507,19 +563,44 @@ const Header = ({
           const response = await fetch(`/api/admin/client/${node.uuid}/remove`, {
             method: "POST",
           });
-          if (!response.ok) {
-            throw new Error(`Delete failed for ${node.name} (${response.status})`);
+          const { payload, raw } = await readActionResponse(response);
+          if (!response.ok || payload?.status === "error") {
+            throw new Error(
+              `${node.name || node.uuid}: ${getActionErrorMessage(
+                response,
+                payload,
+                raw,
+                "删除失败"
+              )}`
+            );
           }
           return node.uuid;
         })
       );
-      const failed = results.filter((result) => result.status === "rejected");
+      const failed = results.filter(
+        (result): result is PromiseRejectedResult => result.status === "rejected"
+      );
+      const deletedCount = results.length - failed.length;
       await refresh();
-      setCleanupOpen(false);
       if (failed.length > 0) {
-        toast.error(`Failed to delete ${failed.length} offline node(s)`);
+        const detail = failed
+          .slice(0, 3)
+          .map((result) =>
+            result.reason instanceof Error
+              ? result.reason.message
+              : String(result.reason)
+          )
+          .join("；");
+
+        if (deletedCount > 0) {
+          toast.warning(
+            `已删除 ${deletedCount} 个离线节点，${failed.length} 个删除失败：${detail}`
+          );
+        } else {
+          toast.error(`删除离线节点失败：${detail}`);
+        }
       } else {
-        toast.success(`Deleted ${offlineNodes.length} offline node(s)`);
+        toast.success(`已删除 ${offlineNodes.length} 个离线节点`);
       }
     } catch (cleanupError) {
       toast.error(
@@ -590,52 +671,21 @@ const Header = ({
               toolbar
               groupMode
             />
-            <Dialog.Root open={cleanupOpen} onOpenChange={setCleanupOpen}>
-              <Dialog.Trigger>
-                <Button
-                  variant="soft"
-                  color="red"
-                  disabled={
-                    !liveLoaded ||
-                    Boolean(liveError) ||
-                    offlineNodes.length === 0 ||
-                    cleanupLoading
-                  }
-                  className="rounded-2xl"
-                >
-                  <Trash2Icon size={16} />
-                  删除离线节点
-                </Button>
-              </Dialog.Trigger>
-              <Dialog.Content
-                className={NODE_DIALOG_CONTENT_CLASS}
-                maxWidth={460}
-              >
-                <Dialog.Title>删除离线节点</Dialog.Title>
-                <Dialog.Description className="mt-2">
-                  将删除当前已确认离线的 {offlineNodes.length} 个节点。这个操作不可撤销。
-                </Dialog.Description>
-                <div className={NODE_DIALOG_FOOTER_CLASS}>
-                  <Dialog.Close>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      className="w-full sm:w-auto"
-                    >
-                      取消
-                    </Button>
-                  </Dialog.Close>
-                  <Button
-                    color="red"
-                    disabled={cleanupLoading || offlineNodes.length === 0}
-                    onClick={handleDeleteOffline}
-                    className="w-full sm:w-auto"
-                  >
-                    确认删除
-                  </Button>
-                </div>
-              </Dialog.Content>
-            </Dialog.Root>
+            <Button
+              variant="soft"
+              color="red"
+              disabled={
+                !liveLoaded ||
+                Boolean(liveError) ||
+                offlineNodes.length === 0 ||
+                cleanupLoading
+              }
+              className="rounded-2xl"
+              onClick={() => void handleDeleteOffline()}
+            >
+              <Trash2Icon size={16} />
+              删除离线节点
+            </Button>
             <Dialog.Root open={dialogOpen} onOpenChange={setDialogOpen}>
               <Dialog.Trigger>
                 <Button onClick={() => setDialogOpen(true)} className="rounded-lg bg-slate-900 text-white">
@@ -678,6 +728,7 @@ const Header = ({
             </Dialog.Root>
         </div>
       </div>
+      {dialog}
     </Card>
   );
 };
@@ -718,7 +769,7 @@ const StatusSummary = ({
   live?: NodeLiveSnapshot;
 }) => {
   const { t } = useTranslation();
-  const online = Boolean(live?.online);
+  const online = isNodeOnline(live);
   const connectivity = live?.record.cn_connectivity;
   const cnBadge =
     connectivity && connectivity.status

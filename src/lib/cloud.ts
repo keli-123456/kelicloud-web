@@ -23,6 +23,12 @@ export type CloudProviderField = {
   help?: string;
 };
 
+export type CloudProviderCredentialEntry = {
+  id: string;
+  name: string;
+  values: Record<string, unknown>;
+};
+
 export type DigitalOceanAccount = {
   uuid: string;
   email: string;
@@ -435,26 +441,58 @@ export async function getCloudProviders(): Promise<Record<string, CloudProviderF
   return requestCloud<Record<string, CloudProviderField[]>>("/api/admin/cloud/providers");
 }
 
-export async function getCloudProviderValues(
+function normalizeCloudProviderCredentialEntry(
+  entry: Partial<CloudProviderCredentialEntry> | null | undefined,
+): CloudProviderCredentialEntry {
+  return {
+    id: String(entry?.id || ""),
+    name: String(entry?.name || ""),
+    values:
+      entry?.values && typeof entry.values === "object"
+        ? { ...(entry.values as Record<string, unknown>) }
+        : {},
+  };
+}
+
+export async function getCloudProviderEntries(
   provider: string,
-): Promise<Record<string, unknown>> {
-  const data = await requestCloud<{ name: string; addition: string }>(
+): Promise<CloudProviderCredentialEntry[]> {
+  const data = await requestCloud<{
+    name: string;
+    entries?: Array<Partial<CloudProviderCredentialEntry>>;
+    addition?: string;
+  }>(
     `/api/admin/cloud/providers/${provider}`,
   );
 
+  if (Array.isArray(data?.entries)) {
+    return data.entries.map(normalizeCloudProviderCredentialEntry);
+  }
+
   if (!data?.addition) {
-    return {};
+    return [];
   }
 
   const parsed = JSON.parse(data.addition) as Record<string, unknown> | null;
-  return parsed && typeof parsed === "object" ? parsed : {};
+  if (!parsed || typeof parsed !== "object") {
+    return [];
+  }
+
+  return [{
+    id: "legacy-default",
+    name: "Default",
+    values: parsed,
+  }];
 }
 
-export async function saveCloudProviderValues(
+export async function saveCloudProviderEntries(
   provider: string,
-  values: Record<string, unknown>,
-): Promise<void> {
-  await requestCloud(
+  entries: CloudProviderCredentialEntry[],
+): Promise<CloudProviderCredentialEntry[]> {
+  const data = await requestCloud<{
+    name: string;
+    entries?: Array<Partial<CloudProviderCredentialEntry>>;
+  }>(
     `/api/admin/cloud/providers/${provider}`,
     {
       method: "POST",
@@ -462,10 +500,34 @@ export async function saveCloudProviderValues(
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        addition: JSON.stringify(values),
+        entries,
       }),
     },
   );
+
+  if (!Array.isArray(data?.entries)) {
+    return entries.map(normalizeCloudProviderCredentialEntry);
+  }
+
+  return data.entries.map(normalizeCloudProviderCredentialEntry);
+}
+
+export async function getCloudProviderValues(
+  provider: string,
+): Promise<Record<string, unknown>> {
+  const entries = await getCloudProviderEntries(provider);
+  return entries[0]?.values || {};
+}
+
+export async function saveCloudProviderValues(
+  provider: string,
+  values: Record<string, unknown>,
+): Promise<void> {
+  await saveCloudProviderEntries(provider, [{
+    id: "legacy-default",
+    name: "Default",
+    values,
+  }]);
 }
 
 export async function getDigitalOceanAccount(): Promise<DigitalOceanAccount> {

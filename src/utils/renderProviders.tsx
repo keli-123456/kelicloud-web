@@ -17,6 +17,7 @@ interface RenderProviderInputsProps {
     title?: string;
     description?: string;
     footer?: React.ReactNode | string;
+    collapsible?: boolean;
     setProviderValues: (updater: (prev: any) => any) => void;
     handleSave: (values: any) => Promise<void>;
     t: any;
@@ -40,6 +41,23 @@ const ACRONYM_PARTS = new Set([
     "vpc",
 ]);
 
+function parseFieldDefault(field: any) {
+    if (field.default === undefined) {
+        return undefined;
+    }
+
+    if (field.type === "bool") {
+        return field.default === "true" || field.default === true;
+    }
+
+    if (["int", "int64", "float32", "float64"].includes(field.type)) {
+        const numericValue = Number(field.default);
+        return Number.isNaN(numericValue) ? field.default : numericValue;
+    }
+
+    return field.default;
+}
+
 function humanizeFieldName(name: string) {
     return name
         .split(/[._-]+/)
@@ -55,6 +73,11 @@ function humanizeFieldName(name: string) {
         .join(" ");
 }
 
+function isSensitiveFieldName(name: string) {
+    const normalized = name.toLowerCase();
+    return normalized.includes("token") || normalized.includes("secret");
+}
+
 export const renderProviderInputs = ({
     currentProvider,
     providerDefs,
@@ -63,6 +86,7 @@ export const renderProviderInputs = ({
     title,
     description,
     footer,
+    collapsible = true,
     setProviderValues,
     handleSave,
     t,
@@ -87,8 +111,16 @@ export const renderProviderInputs = ({
     // 统一保存所有字段
     const handleSaveAll = async () => {
         try {
-            // 直接使用 providerValues
             const finalValues = { ...providerValues };
+
+            fields.forEach((f: any) => {
+                if (finalValues[f.name] === undefined) {
+                    const defaultValue = parseFieldDefault(f);
+                    if (defaultValue !== undefined) {
+                        finalValues[f.name] = defaultValue;
+                    }
+                }
+            });
 
             // 验证必填字段
             const requiredFields = fields.filter((f: any) => f.required);
@@ -152,7 +184,8 @@ export const renderProviderInputs = ({
     const renderField = (f: any) => {
         const fieldTitle = translateField(f.name) + (f.required ? " *" : "");
         const fieldDescription = translateFieldHelp(f.name, f.help);
-        const fieldValue = providerValues[f.name] !== undefined ? providerValues[f.name] : (f.default || "");
+        const defaultValue = parseFieldDefault(f);
+        const fieldValue = providerValues[f.name] !== undefined ? providerValues[f.name] : (defaultValue ?? "");
 
         // 选择框类型
         if (f.type === "option" && f.options) {
@@ -209,6 +242,7 @@ export const renderProviderInputs = ({
 
         // 短文本和数字类型
         const isNumber = ["int", "int64", "float32", "float64"].includes(f.type);
+        const isSensitiveField = isSensitiveFieldName(f.name);
         return (
             <SettingCardShortTextInput
                 key={f.name}
@@ -216,7 +250,8 @@ export const renderProviderInputs = ({
                 title={fieldTitle}
                 description={fieldDescription}
                 value={String(fieldValue)}
-                type={isNumber ? "number" : "text"}
+                type={isNumber ? "number" : isSensitiveField ? "password" : "text"}
+                autoComplete={isSensitiveField ? "new-password" : undefined}
                 showSaveButton={false}
                 onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
                     const value = isNumber ? (e.target.value === "" ? 0 : Number(e.target.value)) : e.target.value;
@@ -229,6 +264,46 @@ export const renderProviderInputs = ({
         );
     };
 
+    const formContent = (
+        <div className="flex gap-4 flex-col">
+            {/* 按照服务器传来的顺序渲染所有字段 */}
+            {fields.map((f: any) => renderField(f))}
+
+            {/* 底部说明 */}
+            {footer && (
+                <label className="text-sm text-muted-foreground mt-2 block">
+                    {footer}
+                </label>
+            )}
+
+            {/* 统一的保存按钮 */}
+            <SettingCardButton
+                bordless
+                onClick={handleSaveAll}
+            >
+                {t("save", "保存")}
+            </SettingCardButton>
+        </div>
+    );
+
+    if (!collapsible) {
+        return (
+            <div key={currentProvider} className="space-y-4">
+                {(title || description) ? (
+                    <div className="space-y-1">
+                        {title ? (
+                            <div className="text-sm font-semibold text-slate-900">{title}</div>
+                        ) : null}
+                        {description ? (
+                            <div className="text-sm text-slate-500">{description}</div>
+                        ) : null}
+                    </div>
+                ) : null}
+                {formContent}
+            </div>
+        );
+    }
+
     return (
         <div key={currentProvider}>
             <SettingCardCollapse
@@ -236,25 +311,7 @@ export const renderProviderInputs = ({
                 description={description}
                 defaultOpen={true}
             >
-                <div className="flex gap-4 flex-col">
-                    {/* 按照服务器传来的顺序渲染所有字段 */}
-                    {fields.map((f: any) => renderField(f))}
-
-                    {/* 底部说明 */}
-                    {footer && (
-                        <label className="text-sm text-muted-foreground mt-2 block">
-                            {footer}
-                        </label>
-                    )}
-
-                    {/* 统一的保存按钮 */}
-                    <SettingCardButton
-                        bordless
-                        onClick={handleSaveAll}
-                    >
-                        {t("save", "保存")}
-                    </SettingCardButton>
-                </div>
+                {formContent}
             </SettingCardCollapse>
         </div>
     );

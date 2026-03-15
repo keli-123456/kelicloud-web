@@ -9,7 +9,7 @@ export default function CloudDnsPage() {
   return (
     <AdminPageShell
       eyebrow={t("cloud.title", "Cloud")}
-      title={t("cloud.dns.title", "DNS Provider")}
+      title={t("cloud.dns.title", "DNS Providers")}
       description={t(
         "cloud.dns.page_description",
         "Manage DNS service credentials separately from compute instances so domain automation stays isolated from cloud server operations.",
