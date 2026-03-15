@@ -1,10 +1,6 @@
 import { useState, useRef, useEffect } from "react";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import Loading from "@/components/loading";
-import {
-    CommandClipboardProvider,
-    type CommandClipboard,
-    useCommandClipboard,
-} from "@/contexts/CommandClipboardContext";
 import { NodeDetailsProvider, useNodeDetails } from "@/contexts/NodeDetailsContext";
 import { useTranslation } from "react-i18next";
 import {
@@ -15,7 +11,6 @@ import {
     Copy,
     Clock,
     Save,
-    Trash2,
 } from "lucide-react";
 import { toast } from "sonner";
 import NodeSelector from "@/components/NodeSelector";
@@ -25,7 +20,6 @@ import {
 } from "@/components/admin/AdminPageShell";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 
 interface TaskResult {
@@ -47,7 +41,7 @@ interface ExecResponse {
     task_id?: string;
     clients?: string[];
     message?: string;
-    // 新的响应格式
+    // New response format.
     status?: string;
     data?: {
         task_id: string;
@@ -58,47 +52,46 @@ interface TaskResultResponse {
     success?: boolean;
     results?: TaskResult[];
     message?: string;
-    // 新的响应格式
+    // New response format.
     status?: string;
     data?: TaskResult[];
 }
 
+const EXEC_TIMEOUT_SENTINEL = "__KOMARI_EXEC_TIMEOUT__";
+
+type ExecPageLocationState = {
+    presetCommand?: {
+        name?: string;
+        text?: string;
+    };
+} | null;
+
 const ExecPage = () => {
     return (
         <NodeDetailsProvider>
-            <CommandClipboardProvider>
-                <ExecContent />
-            </CommandClipboardProvider>
+            <ExecContent />
         </NodeDetailsProvider>
     );
 };
 
 const ExecContent = () => {
     const { t } = useTranslation();
+    const navigate = useNavigate();
+    const location = useLocation();
+    const routeState = (location.state as ExecPageLocationState) ?? null;
     const { nodeDetail, isLoading, error } = useNodeDetails();
-    const {
-        commands: savedCommands,
-        loading: savedCommandsLoading,
-        error: savedCommandsError,
-        addCommand,
-        updateCommand,
-        deleteCommand,
-    } = useCommandClipboard();
     const [command, setCommand] = useState("");
-    const [commandName, setCommandName] = useState("");
     const [selectedNodes, setSelectedNodes] = useState<string[]>([]);
     const [executing, setExecuting] = useState(false);
     const [results, setResults] = useState<TaskResult[]>([]);
     const [taskId, setTaskId] = useState<string | null>(null);
     const [polling, setPolling] = useState(false);
-    const [savingCommand, setSavingCommand] = useState(false);
-    const [removingCommandId, setRemovingCommandId] = useState<number | null>(null);
 
-    // 使用 useRef 来保存轮询相关的引用
+    // Keep polling handles in refs.
     const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
     const pollingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-    // 清理轮询的函数
+    // Stop any active polling timers.
     const clearPolling = () => {
         if (pollingIntervalRef.current) {
             clearInterval(pollingIntervalRef.current);
@@ -111,22 +104,50 @@ const ExecContent = () => {
         setPolling(false);
     };
 
-    // 组件卸载时清理轮询
+    // Clean up on unmount.
     useEffect(() => {
         return () => {
             clearPolling();
         };
     }, []);
 
+    useEffect(() => {
+        const presetCommand = routeState?.presetCommand;
+        if (!presetCommand?.text) {
+            return;
+        }
+
+        setCommand(presetCommand.text);
+        toast.success(
+            t("exec.savedCommandApplied", {
+                defaultValue: "Command content applied",
+            }),
+        );
+
+        navigate(`${location.pathname}${location.search}`, {
+            replace: true,
+            state: null,
+        });
+    }, [location.pathname, location.search, navigate, routeState, t]);
+
     if (isLoading) {
         return <Loading />;
     }
 
     if (error) {
-        return <div className="text-red-500">{error}</div>;
+        return (
+            <div className="rounded-2xl border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive">
+                {error}
+            </div>
+        );
     }
 
-    // 轮询任务结果
+    const getTimeoutOutput = () =>
+        t("exec.status.timeout_output", "Execution timed out");
+    const getDisplayOutput = (output: string) =>
+        output === EXEC_TIMEOUT_SENTINEL ? getTimeoutOutput() : output;
+
+    // Poll task results.
     const pollTaskResult = async (taskId: string) => {
         try {
             const response = await fetch(`/api/admin/task/${taskId}/result`);
@@ -137,7 +158,7 @@ const ExecContent = () => {
             const data: TaskResultResponse = await response.json();
             let taskResults: TaskResult[] | undefined;
 
-            // 支持旧格式和新格式
+            // Support both the legacy and current response shapes.
             if (data.success && data.results) {
                 taskResults = data.results;
             } else if (data.status === "success" && data.data) {
@@ -147,46 +168,51 @@ const ExecContent = () => {
             if (taskResults) {
                 setResults(taskResults);
 
-                // 检查是否所有任务都已完成
+                // Stop polling once every result is finished.
                 const allCompleted = taskResults.every(result => result.finished_at !== null);
                 if (allCompleted) {
                     clearPolling();
-                    toast.success(t("exec.allCompleted", "所有任务执行完成"));
+                    toast.success(t("exec.allCompleted", "All tasks executed successfully"));
                 }
             }
         } catch (err) {
-            console.error("轮询任务结果失败:", err);
+            console.error("Failed to poll task results:", err);
             clearPolling();
         }
     };
 
-    // 开始轮询
+    // Start polling.
     const startPolling = (taskId: string) => {
-        // 先清理之前的轮询
+        // Clear any previous polling cycle first.
         clearPolling();
 
         setPolling(true);
 
-        // 首次立即执行
+        // Run immediately once.
         pollTaskResult(taskId);
 
-        // 设置定时轮询
+        // Continue polling on an interval.
         pollingIntervalRef.current = setInterval(() => {
             pollTaskResult(taskId);
         }, 2000);
 
-        // 60秒后停止轮询并设置为超时状态
+        // Stop polling after 60 seconds and mark pending tasks as timed out.
         pollingTimeoutRef.current = setTimeout(() => {
-            // 将未完成的任务状态设置为超时
+            // Mark unfinished tasks as timed out.
             setResults(prevResults =>
                 prevResults.map(result =>
                     result.finished_at === null
-                        ? { ...result, finished_at: new Date().toISOString(), exit_code: -1, result: "执行超时" }
+                        ? {
+                            ...result,
+                            finished_at: new Date().toISOString(),
+                            exit_code: -1,
+                            result: EXEC_TIMEOUT_SENTINEL,
+                        }
                         : result
                 )
             );
             clearPolling();
-            toast.warning(t("exec.pollingTimeout", "任务执行超时"));
+            toast.warning(t("exec.pollingTimeout", "Task execution timed out"));
         }, 60000);
     };
 
@@ -203,7 +229,7 @@ const ExecContent = () => {
             return;
         }
 
-        // 清理之前的轮询
+        // Clear any previous polling state.
         clearPolling();
 
         setExecuting(true);
@@ -241,7 +267,8 @@ const ExecContent = () => {
                 throw new Error(data.message);
             }
         } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : "未知错误";
+            const errorMessage =
+                err instanceof Error ? err.message : t("common.unknown_error");
             toast.error(errorMessage);
         } finally {
             setExecuting(false);
@@ -250,119 +277,7 @@ const ExecContent = () => {
 
     const copyOutput = (output: string) => {
         navigator.clipboard.writeText(output);
-        toast.success(t("common.success"));
-    };
-
-    const getDefaultCommandName = () => {
-        const explicitName = commandName.trim();
-        if (explicitName) {
-            return explicitName;
-        }
-
-        const firstLine = command
-            .split("\n")
-            .map((line) => line.trim())
-            .find(Boolean);
-
-        if (!firstLine) {
-            return t("exec.savedCommandUntitled", {
-                defaultValue: "未命名命令",
-            });
-        }
-
-        return firstLine.length > 32 ? `${firstLine.slice(0, 32)}...` : firstLine;
-    };
-
-    const getCommandPreview = (value: string) => {
-        const lines = value
-            .split("\n")
-            .map((line) => line.trim())
-            .filter(Boolean);
-
-        if (lines.length === 0) {
-            return "";
-        }
-
-        const preview = lines[0];
-        if (lines.length > 1 || preview.length > 72) {
-            return `${preview.slice(0, 72)}...`;
-        }
-        return preview;
-    };
-
-    const saveCurrentCommand = async () => {
-        const trimmedCommand = command.trim();
-        if (!trimmedCommand) {
-            toast.error(t("exec.errors.emptyCommand"));
-            return;
-        }
-
-        const resolvedName = getDefaultCommandName();
-        const existingPreset = savedCommands.find(
-            (item) => item.name === resolvedName,
-        );
-
-        setSavingCommand(true);
-        try {
-            if (existingPreset) {
-                await updateCommand(
-                    existingPreset.id,
-                    resolvedName,
-                    trimmedCommand,
-                    existingPreset.remark,
-                    existingPreset.weight,
-                );
-            } else {
-                await addCommand(resolvedName, trimmedCommand, "", 0);
-            }
-
-            setCommandName(resolvedName);
-            toast.success(
-                existingPreset
-                    ? t("exec.savedCommandUpdated", {
-                        defaultValue: "已更新保存脚本",
-                    })
-                    : t("exec.savedCommandSaved", {
-                        defaultValue: "脚本已保存到脚本库",
-                    }),
-            );
-        } catch (err) {
-            toast.error(err instanceof Error ? err.message : "保存脚本失败");
-        } finally {
-            setSavingCommand(false);
-        }
-    };
-
-    const applySavedCommand = (preset: CommandClipboard) => {
-        setCommand(preset.text);
-        setCommandName(preset.name);
-        toast.success(
-            t("exec.savedCommandApplied", {
-                defaultValue: "已回填脚本内容",
-            }),
-        );
-    };
-
-    const runSavedCommand = async (preset: CommandClipboard) => {
-        setCommand(preset.text);
-        setCommandName(preset.name);
-        await executeCommand(preset.text);
-    };
-
-    const removeSavedCommand = async (preset: CommandClipboard) => {
-        setRemovingCommandId(preset.id);
-        try {
-            await deleteCommand(preset.id);
-            toast.success(
-                t("exec.savedCommandDeleted", {
-                    defaultValue: "脚本已删除",
-                }),
-            );
-        } catch (err) {
-            toast.error(err instanceof Error ? err.message : "删除脚本失败");
-        } finally {
-            setRemovingCommandId(null);
-        }
+        toast.success(t("copy_success", "Copied!"));
     };
 
     const getSelectedNodeNames = () => {
@@ -380,11 +295,11 @@ const ExecContent = () => {
                 text: t("exec.status.running"),
             };
         }
-        if (result.result === "执行超时") {
+        if (result.result === EXEC_TIMEOUT_SENTINEL) {
             return {
                 status: "timeout",
                 variant: "warning" as const,
-                text: t("exec.status.timeout", "超时"),
+                text: t("exec.status.timeout", "Timeout"),
             };
         }
         if (result.exit_code === 0) {
@@ -402,50 +317,86 @@ const ExecContent = () => {
     };
 
     const completedResults = results.filter((result) => result.finished_at !== null).length;
-    const orderedCommands = [...savedCommands].sort((left, right) => {
-        if (right.weight !== left.weight) {
-            return right.weight - left.weight;
-        }
-        return right.id - left.id;
-    });
 
     return (
         <AdminPageShell
             eyebrow={t("exec.title")}
-            title="批量命令执行"
+            title={t("exec.page_title", {
+                defaultValue: "Batch command execution",
+            })}
             description={t("exec.description")}
+            actions={(
+                <Button variant="outline" asChild>
+                    <Link to="/admin/scripts">
+                        <Save size={15} />
+                        {t("command_clipboard.open_library", {
+                            defaultValue: "Script library",
+                        })}
+                    </Link>
+                </Button>
+            )}
             stats={[
                 {
-                    label: "目标节点",
+                    label: t("exec.stats.target_nodes", {
+                        defaultValue: "Target nodes",
+                    }),
                     value: `${selectedNodes.length}`,
-                    hint: selectedNodes.length > 0 ? getSelectedNodeNames() : "尚未选择节点。",
+                    hint: selectedNodes.length > 0
+                        ? getSelectedNodeNames()
+                        : t("exec.stats.target_nodes_empty", {
+                            defaultValue: "No nodes selected yet.",
+                        }),
                     tone: "blue",
                 },
                 {
-                    label: "执行状态",
-                    value: executing ? t("exec.executing") : polling ? "轮询中" : "待执行",
-                    hint: taskId ? `Task ID: ${taskId}` : "提交后会自动轮询结果。",
+                    label: t("exec.stats.execution_status", {
+                        defaultValue: "Execution status",
+                    }),
+                    value: executing
+                        ? t("exec.executing")
+                        : polling
+                            ? t("exec.stats.polling", {
+                                defaultValue: "Polling",
+                            })
+                            : t("exec.stats.idle", {
+                                defaultValue: "Idle",
+                            }),
+                    hint: taskId
+                        ? `${t("exec.task_id_label", {
+                            defaultValue: "Task ID",
+                        })}: ${taskId}`
+                        : t("exec.stats.execution_status_hint", {
+                            defaultValue: "Results will be polled automatically after submission.",
+                        }),
                     tone: polling ? "amber" : "emerald",
                 },
                 {
-                    label: "结果进度",
+                    label: t("exec.stats.result_progress", {
+                        defaultValue: "Result progress",
+                    }),
                     value: `${completedResults} / ${results.length || 0}`,
-                    hint: results.length > 0 ? "按节点维度汇总执行结果。" : "暂无执行结果。",
+                    hint: results.length > 0
+                        ? t("exec.stats.result_progress_hint", {
+                            defaultValue: "Execution results are summarized per node.",
+                        })
+                        : t("exec.stats.result_progress_empty", {
+                            defaultValue: "No execution results yet.",
+                        }),
                     tone: results.length > 0 ? "slate" : "amber",
                 },
             ]}
         >
             <AdminSurface className="py-2">
                 <div className="grid gap-5 xl:grid-cols-[minmax(320px,360px)_minmax(0,1fr)]">
-                    <section className="min-w-0 border-b border-slate-200/80 pb-4 xl:border-b-0 xl:border-r xl:pb-0 xl:pr-5">
+                    <section className="min-w-0 border-b border-slate-200/80 pb-4 dark:border-slate-800/80 xl:border-b-0 xl:border-r xl:pb-0 xl:pr-5">
                         <div className="mb-3 flex items-center justify-between gap-3">
                             <div className="min-w-0">
-                                <p className="block text-[14px] font-medium text-slate-900">
+                                <p className="block text-[14px] font-medium text-slate-900 dark:text-slate-100">
                                     {t("exec.selectNodes")}
                                 </p>
-                                <p className="block text-[13px] text-slate-500">
+                                <p className="block text-[13px] text-slate-500 dark:text-slate-400">
                                     {t("exec.selectedNodes", {
-                                        defaultValue: "已选择节点",
+                                        defaultValue: "Selected nodes",
                                     })}: {selectedNodes.length}
                                 </p>
                             </div>
@@ -458,8 +409,8 @@ const ExecContent = () => {
                             />
                         </div>
                         {selectedNodes.length > 0 && (
-                            <p className="mt-2 block text-[13px] leading-6 text-slate-500">
-                                {t("exec.selectedNodes", "已选择节点")}: {getSelectedNodeNames()}
+                            <p className="mt-2 block text-[13px] leading-6 text-slate-500 dark:text-slate-400">
+                                {t("exec.selectedNodes", "Selected nodes")}: {getSelectedNodeNames()}
                             </p>
                         )}
                     </section>
@@ -468,16 +419,18 @@ const ExecContent = () => {
                         <div className="flex flex-col gap-4">
                             <div className="space-y-1">
                                 <div className="flex items-center gap-2">
-                                    <Terminal size={15} className="text-slate-500" />
-                                    <p className="text-[14px] font-medium text-slate-900">
+                                    <Terminal size={15} className="text-slate-500 dark:text-slate-400" />
+                                    <p className="text-[14px] font-medium text-slate-900 dark:text-slate-100">
                                         {t("exec.command")}
                                     </p>
                                 </div>
-                                <p className="block text-[13px] leading-6 text-slate-500">
+                                <p className="block text-[13px] leading-6 text-slate-500 dark:text-slate-400">
                                     {taskId
-                                        ? `Task ID: ${taskId}`
+                                        ? `${t("exec.task_id_label", {
+                                            defaultValue: "Task ID",
+                                        })}: ${taskId}`
                                         : t("exec.commandEditorHint", {
-                                            defaultValue: "支持保存常用命令，并对选中节点批量执行。",
+                                            defaultValue: "Manage reusable scripts on the library page, then run commands in bulk on selected nodes.",
                                         })}
                                 </p>
                             </div>
@@ -487,36 +440,28 @@ const ExecContent = () => {
                                 onChange={(e) => setCommand(e.target.value)}
                                 placeholder={t("exec.commandPlaceholder")}
                                 rows={7}
-                                className="min-h-[180px] rounded-lg border-slate-200 bg-white text-[14px] leading-6 shadow-none focus-visible:ring-slate-200"
+                                className="min-h-[180px] rounded-lg border-slate-200 bg-white text-[14px] leading-6 shadow-none focus-visible:ring-slate-200 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100 dark:focus-visible:ring-slate-700"
                             />
 
-                            <div className="flex flex-col gap-2 border-b border-slate-200/80 pb-4 sm:flex-row sm:items-end">
-                                <div className="min-w-0 flex-1">
-                                    <p className="mb-1 block text-[13px] text-slate-500">
-                                        {t("exec.savedCommandName", {
-                                            defaultValue: "命令名称",
-                                        })}
-                                    </p>
-                                    <Input
-                                        value={commandName}
-                                        onChange={(e) => setCommandName(e.target.value)}
-                                        placeholder={t("exec.savedCommandNamePlaceholder", {
-                                            defaultValue: "留空时自动取命令首行",
-                                        })}
-                                        className="h-9 rounded-lg border-slate-200 bg-white text-[14px] shadow-none focus-visible:ring-slate-200"
-                                    />
-                                </div>
-
+                            <div className="flex flex-col gap-2 border-b border-slate-200/80 pb-4 dark:border-slate-800/80 sm:flex-row sm:items-center">
                                 <Button
                                     variant="outline"
                                     size="sm"
-                                    onClick={() => { void saveCurrentCommand(); }}
-                                    disabled={!command.trim() || savingCommand}
-                                    className="rounded-lg border-slate-200 bg-white text-[13px] shadow-none hover:bg-slate-50"
+                                    onClick={() => {
+                                        navigate("/admin/scripts", {
+                                            state: {
+                                                draftCommand: {
+                                                    text: command,
+                                                },
+                                            },
+                                        });
+                                    }}
+                                    disabled={!command.trim()}
+                                    className="rounded-lg border-slate-200 bg-white text-[13px] shadow-none hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-950 dark:hover:bg-slate-900"
                                 >
                                     <Save size={15} />
-                                    {t("exec.saveCommand", {
-                                        defaultValue: savingCommand ? "保存中..." : "保存到脚本库",
+                                    {t("command_clipboard.save_from_exec", {
+                                        defaultValue: "Save on library page",
                                     })}
                                 </Button>
 
@@ -540,115 +485,48 @@ const ExecContent = () => {
                                 </Button>
                             </div>
 
-                            <div className="space-y-3">
-                                <div className="flex items-center justify-between">
-                                    <div>
-                                        <p className="block text-[14px] font-medium text-slate-900">
-                                            {t("exec.savedCommands", {
-                                                defaultValue: "脚本库",
+                            <div className="rounded-2xl border border-slate-200 bg-slate-50/70 px-4 py-4 dark:border-slate-800 dark:bg-slate-950/40">
+                                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                                    <div className="min-w-0">
+                                        <p className="text-[14px] font-medium text-slate-900 dark:text-slate-100">
+                                            {t("command_clipboard.open_library", {
+                                                defaultValue: "Script library",
                                             })}
                                         </p>
-                                        <p className="block text-[13px] text-slate-500">
-                                            {t("exec.savedCommandsHint", {
-                                                defaultValue: "脚本保存在数据库里，可一键回填或直接执行。",
+                                        <p className="text-[13px] leading-6 text-slate-500 dark:text-slate-400">
+                                            {t("command_clipboard.moved_hint", {
+                                                defaultValue: "Command saving has moved to a dedicated script library page.",
                                             })}
                                         </p>
                                     </div>
-                                    {orderedCommands.length > 0 && (
-                                        <span className="text-[13px] text-slate-400">
-                                            {orderedCommands.length}
-                                        </span>
-                                    )}
+                                    <Button variant="outline" size="sm" asChild>
+                                        <Link to="/admin/scripts">
+                                            <Save size={15} />
+                                            {t("command_clipboard.open_library", {
+                                                defaultValue: "Script library",
+                                            })}
+                                        </Link>
+                                    </Button>
                                 </div>
-
-                                {savedCommandsError ? (
-                                    <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-4 text-[13px] text-red-700">
-                                        {savedCommandsError.message}
-                                    </div>
-                                ) : savedCommandsLoading ? (
-                                    <div className="border border-dashed border-slate-200/80 px-3 py-4 text-[13px] text-slate-500">
-                                        {t("loading", "加载中...")}
-                                    </div>
-                                ) : orderedCommands.length === 0 ? (
-                                    <div className="border border-dashed border-slate-200/80 px-3 py-4 text-[13px] text-slate-500">
-                                        {t("exec.savedCommandsEmpty", {
-                                            defaultValue: "还没有保存的脚本。",
-                                        })}
-                                    </div>
-                                ) : (
-                                    <div className="divide-y divide-slate-200/70 border-t border-slate-200/80">
-                                        {orderedCommands.map((preset) => (
-                                            <div
-                                                key={preset.id}
-                                                className="flex flex-col gap-2 py-3 md:flex-row md:items-center md:justify-between"
-                                            >
-                                                <div className="min-w-0">
-                                                    <p className="block text-[14px] font-medium text-slate-900">
-                                                        {preset.name}
-                                                    </p>
-                                                    <p className="block text-[13px] leading-6 text-slate-500">
-                                                        {getCommandPreview(preset.text)}
-                                                    </p>
-                                                    {preset.remark ? (
-                                                        <p className="block text-[12px] leading-5 text-slate-400">
-                                                            {preset.remark}
-                                                        </p>
-                                                    ) : null}
-                                                </div>
-
-                                                <div className="flex shrink-0 flex-wrap items-center gap-1">
-                                                    <Button
-                                                        variant="ghost"
-                                                        size="sm"
-                                                        onClick={() => applySavedCommand(preset)}
-                                                        className="rounded-md text-[13px]"
-                                                    >
-                                                        {t("exec.useSavedCommand", {
-                                                            defaultValue: "使用",
-                                                        })}
-                                                    </Button>
-                                                    <Button
-                                                        variant="ghost"
-                                                        size="sm"
-                                                        onClick={() => { void runSavedCommand(preset); }}
-                                                        disabled={executing || selectedNodes.length === 0}
-                                                        className="rounded-md text-[13px]"
-                                                    >
-                                                        {t("exec.runSavedCommand", {
-                                                            defaultValue: "执行",
-                                                        })}
-                                                    </Button>
-                                                    <Button
-                                                        variant="ghost"
-                                                        size="icon"
-                                                        onClick={() => { void removeSavedCommand(preset); }}
-                                                        disabled={removingCommandId === preset.id}
-                                                        className="h-8 w-8 rounded-md text-red-600 hover:bg-red-50 hover:text-red-700"
-                                                    >
-                                                        <Trash2 size={14} />
-                                                    </Button>
-                                                </div>
-                                            </div>
-                                        ))}
-                                    </div>
-                                )}
                             </div>
                         </div>
                     </section>
                 </div>
             </AdminSurface>
 
-            {/* 执行结果区域 */}
+            {/* Execution results. */}
             {results.length > 0 && (
                 <AdminSurface className="py-2">
                     <div className="flex flex-col gap-4">
                         <div className="flex items-center justify-between gap-3">
-                            <p className="text-sm font-medium text-slate-900">
-                                {t("exec.results", "执行结果")}
+                            <p className="text-sm font-medium text-slate-900 dark:text-slate-100">
+                                {t("exec.results", "Execution results")}
                             </p>
                             {taskId && (
-                                <span className="text-[13px] text-slate-500">
-                                    Task ID: {taskId}
+                                <span className="text-[13px] text-slate-500 dark:text-slate-400">
+                                    {t("exec.task_id_label", {
+                                        defaultValue: "Task ID",
+                                    })}: {taskId}
                                 </span>
                             )}
                         </div>
@@ -659,16 +537,16 @@ const ExecContent = () => {
                                 return (
                                     <div
                                         key={result.client}
-                                        className="border-b border-slate-200/70 py-4 last:border-b-0"
+                                        className="border-b border-slate-200/70 py-4 last:border-b-0 dark:border-slate-800/70"
                                     >
                                         <div className="flex flex-col gap-3">
-                                            {/* 节点信息和状态 */}
-                                            <p className="text-base font-medium text-slate-900">
+                                            {/* Node identity and status. */}
+                                            <p className="text-base font-medium text-slate-900 dark:text-slate-100">
                                                 {nodeDetail.find(n => n.uuid === result.client)?.name || result.client}
                                             </p>
                                             <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                                                 <div className="flex flex-wrap items-center gap-2">
-                                                    <span className="text-sm font-medium text-slate-900">
+                                                    <span className="text-sm font-medium text-slate-900 dark:text-slate-100">
                                                         {result.client_info.name}
                                                     </span>
                                                     <Badge
@@ -698,8 +576,10 @@ const ExecContent = () => {
                                                         )}
                                                     </Badge>
                                                     {result.exit_code !== null && (
-                                                        <span className="text-[13px] text-slate-500">
-                                                            Exit Code: {result.exit_code}
+                                                        <span className="text-[13px] text-slate-500 dark:text-slate-400">
+                                                            {t("exec.exit_code_label", {
+                                                                defaultValue: "Exit code",
+                                                            })}: {result.exit_code}
                                                         </span>
                                                     )}
                                                 </div>
@@ -708,7 +588,7 @@ const ExecContent = () => {
                                                     <Button
                                                         variant="ghost"
                                                         size="icon"
-                                                        onClick={() => copyOutput(result.result)}
+                                                        onClick={() => copyOutput(getDisplayOutput(result.result))}
                                                         className="h-8 w-8 rounded-md"
                                                     >
                                                         <Copy size={14} />
@@ -716,22 +596,24 @@ const ExecContent = () => {
                                                 )}
                                             </div>
 
-                                            {/* 时间信息 */}
+                                            {/* Timestamps. */}
                                             {/* <Flex gap="4" className="text-sm text-gray-500">
                                                 <Text size="1" color="gray">
-                                                    创建时间: {new Date(result.created_at).toLocaleString()}
+                                                    Created at: {new Date(result.created_at).toLocaleString()}
                                                 </Text>
                                                 {result.finished_at && (
                                                     <Text size="1" color="gray">
-                                                        完成时间: {new Date(result.finished_at).toLocaleString()}
+                                                        Finished at: {new Date(result.finished_at).toLocaleString()}
                                                     </Text>
                                                 )}
                                             </Flex> */}
 
-                                            {/* 输出内容 */}
+                                            {/* Output. */}
                                             {result.result && (
-                                                <div className="border-l-2 border-slate-200 pl-4 font-mono text-sm overflow-x-auto">
-                                                    <pre className="whitespace-pre-wrap">{result.result}</pre>
+                                                <div className="overflow-x-auto border-l-2 border-slate-200 pl-4 font-mono text-sm dark:border-slate-800">
+                                                    <pre className="whitespace-pre-wrap text-slate-700 dark:text-slate-200">
+                                                        {getDisplayOutput(result.result)}
+                                                    </pre>
                                                 </div>
                                             )}
                                         </div>
@@ -740,22 +622,26 @@ const ExecContent = () => {
                             })}
                         </div>
 
-                        {/* 轮询状态提示 */}
+                        {/* Polling status. */}
                         {polling && (
-                            <div className="flex flex-col gap-3 text-sm text-gray-500 md:flex-row md:items-center md:justify-between">
+                            <div className="flex flex-col gap-3 text-sm text-slate-500 dark:text-slate-400 md:flex-row md:items-center md:justify-between">
                                 <div className="flex items-center gap-2">
                                     <div className="animate-spin rounded-full h-4 w-4 border-2 border-current border-t-transparent" />
-                                    <span className="text-[13px] text-slate-500">
-                                        正在获取最新执行状态...
+                                    <span className="text-[13px] text-slate-500 dark:text-slate-400">
+                                        {t("exec.polling_status", {
+                                            defaultValue: "Fetching the latest execution state...",
+                                        })}
                                     </span>
                                 </div>
                                 <Button
                                     variant="outline"
                                     size="sm"
                                     onClick={clearPolling}
-                                    className="rounded-lg border-slate-200 bg-white text-[13px] shadow-none hover:bg-slate-50"
+                                    className="rounded-lg border-slate-200 bg-white text-[13px] shadow-none hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-950 dark:hover:bg-slate-900"
                                 >
-                                    停止轮询
+                                    {t("exec.stop_polling", {
+                                        defaultValue: "Stop polling",
+                                    })}
                                 </Button>
                             </div>
                         )}

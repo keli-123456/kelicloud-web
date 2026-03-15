@@ -87,6 +87,11 @@
       "icon": "Code"
     },
     {
+      "labelKey": "exec.savedCommands",
+      "path": "/admin/scripts",
+      "icon": "Book"
+    },
+    {
       "labelKey": "ping.title",
       "path": "/admin/ping",
       "icon": "Activity"
