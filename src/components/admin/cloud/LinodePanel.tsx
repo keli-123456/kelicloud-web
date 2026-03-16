@@ -321,6 +321,7 @@ export default function LinodePanel() {
   const [tokenImportOpen, setTokenImportOpen] = React.useState(false);
   const [tokenImportText, setTokenImportText] = React.useState("");
   const [tokenPool, setTokenPool] = React.useState<LinodeTokenPool | null>(null);
+  const [selectedTokenIds, setSelectedTokenIds] = React.useState<string[]>([]);
   const [account, setAccount] = React.useState<LinodeAccount | null>(null);
   const [catalog, setCatalog] = React.useState<LinodeCatalog | null>(null);
   const [instances, setInstances] = React.useState<LinodeInstance[]>([]);
@@ -454,9 +455,58 @@ export default function LinodePanel() {
     }));
   }, [catalog]);
 
+  React.useEffect(() => {
+    setSelectedTokenIds((current) => {
+      if (current.length === 0) {
+        return current;
+      }
+
+      const validIds = new Set((tokenPool?.tokens ?? []).map((token) => token.id));
+      const next = current.filter((id) => validIds.has(id));
+      return next.length === current.length ? current : next;
+    });
+  }, [tokenPool]);
+
   const connected = Boolean(account && activeToken);
   const passwordStorageEnabled = Boolean(tokenPool?.password_storage_enabled);
+  const tokenRows = tokenPool?.tokens ?? [];
+  const selectedTokens = tokenRows.filter((token) => selectedTokenIds.includes(token.id));
+  const allTokensSelected = tokenRows.length > 0 && selectedTokenIds.length === tokenRows.length;
+  const someTokensSelected = selectedTokenIds.length > 0 && selectedTokenIds.length < tokenRows.length;
   const typePriceMap = new Map((catalog?.types || []).map((type) => [type.id, type]));
+
+  const assertTokensDeleted = (nextPool: LinodeTokenPool, tokenIds: string[]) => {
+    const remaining = nextPool.tokens.filter((token) => tokenIds.includes(token.id));
+    if (remaining.length > 0) {
+      throw new Error(
+        t("cloud.tokens.delete_not_applied", {
+          defaultValue: "Delete request returned success, but the token still exists. Refresh and try again.",
+        }),
+      );
+    }
+  };
+
+  const syncTokenPoolAfterDelete = async (
+    nextPool: LinodeTokenPool,
+    removedTokenIds: string[],
+  ) => {
+    setTokenPool(nextPool);
+    setSelectedTokenIds((current) => current.filter((id) => !removedTokenIds.includes(id)));
+    if (hasActiveToken(nextPool)) {
+      await loadPanelData();
+    } else {
+      clearPanelState();
+    }
+  };
+
+  const toggleTokenSelection = (tokenId: string, checked: boolean) => {
+    setSelectedTokenIds((current) => {
+      if (checked) {
+        return current.includes(tokenId) ? current : [...current, tokenId];
+      }
+      return current.filter((id) => id !== tokenId);
+    });
+  };
 
   const handleImportTokens = async () => {
     const tokens = parseTokenImports(tokenImportText);
@@ -544,16 +594,66 @@ export default function LinodePanel() {
 
     try {
       const nextPool = await deleteLinodeToken(token.id);
-      setTokenPool(nextPool);
+      assertTokensDeleted(nextPool, [token.id]);
+      await syncTokenPoolAfterDelete(nextPool, [token.id]);
       toast.success(t("cloud.tokens.delete_success", "Token deleted"));
-      if (hasActiveToken(nextPool)) {
-        await loadPanelData();
-      } else {
-        clearPanelState();
-      }
     } catch (deleteError) {
       toast.error(toErrorMessage(deleteError));
     }
+  };
+
+  const handleDeleteSelectedTokens = async () => {
+    if (!selectedTokens.length) {
+      return;
+    }
+
+    const confirmed = await confirm({
+      title: t("cloud.tokens.delete_selected", {
+        count: selectedTokens.length,
+        defaultValue: "Delete selected tokens",
+      }),
+      description: t("cloud.tokens.delete_selected_confirm", {
+        count: selectedTokens.length,
+        defaultValue: `Delete ${selectedTokens.length} selected tokens?`,
+      }),
+      confirmLabel: t("cloud.tokens.delete", "Delete"),
+    });
+    if (!confirmed) return;
+
+    let latestPool: LinodeTokenPool | null = null;
+    const removedIds: string[] = [];
+    const failedIds: string[] = [];
+    const failures: string[] = [];
+
+    for (const token of selectedTokens) {
+      try {
+        const nextPool = await deleteLinodeToken(token.id);
+        assertTokensDeleted(nextPool, [token.id]);
+        latestPool = nextPool;
+        removedIds.push(token.id);
+      } catch (deleteError) {
+        failedIds.push(token.id);
+        failures.push(`${token.name}: ${toErrorMessage(deleteError)}`);
+      }
+    }
+
+    if (latestPool && removedIds.length > 0) {
+      await syncTokenPoolAfterDelete(latestPool, removedIds);
+    }
+
+    setSelectedTokenIds(failedIds);
+
+    if (failures.length > 0) {
+      toast.error(failures.join("；"));
+      return;
+    }
+
+    toast.success(
+      t("cloud.tokens.delete_selected_success", {
+        count: removedIds.length,
+        defaultValue: `Deleted ${removedIds.length} tokens`,
+      }),
+    );
   };
 
   const handleViewTokenSecret = async (token: LinodeTokenRecord) => {
@@ -1080,6 +1180,21 @@ export default function LinodePanel() {
                     <ShieldCheck className="mr-2 h-4 w-4" />
                     {t("cloud.tokens.check_all", "Check All Tokens")}
                   </Button>
+                  <Button
+                    variant="outline"
+                    size="1"
+                    color="red"
+                    onClick={() => {
+                      void handleDeleteSelectedTokens();
+                    }}
+                    disabled={selectedTokens.length === 0}
+                  >
+                    <Trash2 className="mr-2 h-4 w-4" />
+                    {t("cloud.tokens.delete_selected", {
+                      count: selectedTokens.length,
+                      defaultValue: "Delete selected",
+                    })}
+                  </Button>
                   <Button size="1" onClick={() => setTokenImportOpen(true)}>
                     <CheckCircle2 className="mr-2 h-4 w-4" />
                     {t("cloud.tokens.import", "Import Tokens")}
@@ -1092,6 +1207,17 @@ export default function LinodePanel() {
               <Table>
                 <TableHeader>
                   <TableRow>
+                    <TableHead className="w-10">
+                      <div className="flex items-center justify-center">
+                        <Checkbox
+                          checked={allTokensSelected || (someTokensSelected && "indeterminate")}
+                          onCheckedChange={(checked) => {
+                            setSelectedTokenIds(Boolean(checked) ? tokenRows.map((token) => token.id) : []);
+                          }}
+                          aria-label={t("cloud.tokens.select_all", "Select all tokens")}
+                        />
+                      </div>
+                    </TableHead>
                     <TableHead>{t("cloud.tokens.table.name", "Name")}</TableHead>
                     <TableHead>{t("cloud.tokens.table.token", "Token")}</TableHead>
                     <TableHead>{t("cloud.tokens.table.account", "Account")}</TableHead>
@@ -1101,15 +1227,29 @@ export default function LinodePanel() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {!tokenPool?.tokens.length ? (
+                  {!tokenRows.length ? (
                     <TableRow>
-                      <TableCell colSpan={6} className="h-24 text-center text-slate-500">
+                      <TableCell colSpan={7} className="h-24 text-center text-slate-500">
                         {t("cloud.providers.linode.tokens_empty", "No Linode tokens saved yet")}
                       </TableCell>
                     </TableRow>
                   ) : (
-                    tokenPool.tokens.map((token) => (
+                    tokenRows.map((token) => (
                       <TableRow key={token.id}>
+                        <TableCell className="w-10">
+                          <div className="flex items-center justify-center">
+                            <Checkbox
+                              checked={selectedTokenIds.includes(token.id)}
+                              onCheckedChange={(checked) => {
+                                toggleTokenSelection(token.id, Boolean(checked));
+                              }}
+                              aria-label={t("cloud.tokens.select_one", {
+                                name: token.name,
+                                defaultValue: `Select token ${token.name}`,
+                              })}
+                            />
+                          </div>
+                        </TableCell>
                         <TableCell className="font-medium text-slate-900 dark:text-slate-100">
                           <div className="flex items-center gap-2">
                             <span className="max-w-44 truncate">{token.name}</span>

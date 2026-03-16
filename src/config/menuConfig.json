@@ -92,6 +92,11 @@
       "icon": "Book"
     },
     {
+      "labelKey": "tenants.title",
+      "path": "/admin/tenants",
+      "icon": "Building2"
+    },
+    {
       "labelKey": "ping.title",
       "path": "/admin/ping",
       "icon": "Activity"

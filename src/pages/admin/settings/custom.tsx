@@ -8,7 +8,7 @@ import Loading from "@/components/loading";
 
 export default function CustomSettings() {
   const { t } = useTranslation();
-  const { settings, loading, error } = useSettings();
+  const { settings, loading, error } = useSettings("tenant");
 
   if (loading) {
     return <Loading />;
@@ -25,7 +25,7 @@ export default function CustomSettings() {
         description={t("settings.custom.header_description")}
         defaultValue={settings.custom_head || ""}
         OnSave={async (data) => {
-          await updateSettingsWithToast({ custom_head: data },t);
+          await updateSettingsWithToast({ custom_head: data }, t, "tenant");
         }}
       />
     </>

@@ -385,7 +385,7 @@ const isNodeConnectivityBlocked = (live?: NodeLiveSnapshot) =>
 const Layout = () => {
   const { nodeDetail, isLoading, error, refresh } = useNodeDetails();
   const { call } = useRPC2Call();
-  const { settings } = useSettings();
+  const { settings } = useSettings("tenant");
   const [liveByNode, setLiveByNode] = useState<Record<string, NodeLiveSnapshot>>(
     {}
   );
@@ -2609,7 +2609,7 @@ function GenerateCommandButton({
             <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-700 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-300">
               {t(
                 "admin.nodeTable.autoDiscoveryDisabledSingle",
-                "Auto Discovery Key is not enabled yet, so this still uses the legacy single-node mode. Set it in System Settings > General to switch to the general onboarding command.",
+                "Auto Discovery Key is not enabled yet, so this still uses the legacy single-node mode. Set it in Settings > General to switch to the general onboarding command.",
               )}
             </div>
           )}
@@ -2617,7 +2617,7 @@ function GenerateCommandButton({
             <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-700 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-300">
               {t(
                 "admin.nodeTable.autoDiscoveryDisabledGroup",
-                "Set the Auto Discovery Key in System Settings > General first, then group install commands can be used.",
+                "Set the Auto Discovery Key in Settings > General first, then group install commands can be used.",
               )}
             </div>
           )}

@@ -1,25 +1,31 @@
 import { Outlet } from "react-router-dom";
 
 import AdminPanelBar from "../../components/admin/AdminPanelBar";
-import { AccountProvider } from "@/contexts/AccountContext";
+import { AccountProvider, useAccount } from "@/contexts/AccountContext";
 import { updateSettingsWithToast, useSettings } from "@/lib/api";
 import { Button, Dialog } from "@/components/admin/admin-ui";
 import { useEffect, useState } from "react";
 import { Eula } from "@/utils/field";
 import { useTranslation } from "react-i18next";
-const AdminLayout = () => {
+
+const AdminLayoutContent = () => {
   const { t } = useTranslation();
-  const { settings, loading } = useSettings();
+  const { platformAdmin } = useAccount();
+  const { settings, loading } = useSettings("system", {
+    enabled: platformAdmin,
+  });
   const lang = localStorage.getItem("i18nextLng") || "en";
   const [open, setOpen] = useState(false);
+
   useEffect(() => {
-    if (loading) {
+    if (!platformAdmin || loading) {
       setOpen(false);
     }
     else if (settings && !settings.eula_accepted && lang.startsWith("zh")) {
       setOpen(true);
     }
-  }, [loading, settings, lang]);
+  }, [loading, platformAdmin, settings, lang]);
+
   return (
     <>
       <Dialog.Root open={open}>
@@ -41,7 +47,11 @@ const AdminLayout = () => {
                 variant="solid"
                 onClick={() => {
                   setOpen(false);
-                  updateSettingsWithToast({ eula_accepted: true }, (key) => key);
+                  updateSettingsWithToast(
+                    { eula_accepted: true },
+                    (key) => t(key),
+                    "system"
+                  );
                 }}
               >
                 {t("about.eula_accept", "I have read and accept")}
@@ -50,10 +60,16 @@ const AdminLayout = () => {
           </div>
         </Dialog.Content>
       </Dialog.Root>
-      <AccountProvider>
-        <AdminPanelBar content={<Outlet />} />
-      </AccountProvider>
+      <AdminPanelBar content={<Outlet />} />
     </>
+  );
+};
+
+const AdminLayout = () => {
+  return (
+    <AccountProvider>
+      <AdminLayoutContent />
+    </AccountProvider>
   );
 };
 

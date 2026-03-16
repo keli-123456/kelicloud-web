@@ -5,6 +5,10 @@ import { toast } from "sonner";
  * API utility functions for settings management
  */
 
+export type SettingsScope = "tenant" | "system";
+
+export const TENANT_SWITCH_EVENT = "komari:tenant-switched";
+
 export interface SettingsResponse {
   sitename: string;
   description: string;
@@ -23,16 +27,47 @@ export interface SettingsResponse {
   [key: string]: any;
 }
 
+const DEFAULT_SETTINGS: SettingsResponse = {
+  sitename: "",
+  description: "",
+  allow_cors: false,
+  base_scripts_url: "",
+  cn_connectivity_enabled: false,
+  cn_connectivity_target: "",
+  cn_connectivity_interval: 60,
+  geo_ip_enabled: false,
+  geo_ip_provider: "",
+  o_auth_provider: "",
+  o_auth_enabled: false,
+  custom_head: "",
+  CreatedAt: "",
+  UpdatedAt: "",
+};
+
+const getSettingsPath = (scope: SettingsScope) =>
+  scope === "system" ? "/api/admin/settings/system" : "/api/admin/settings";
+
+const getResponseMessage = async (response: Response) => {
+  try {
+    const data = await response.json();
+    return data?.message || `HTTP error! status: ${response.status}`;
+  } catch {
+    return `HTTP error! status: ${response.status}`;
+  }
+};
+
 /**
  * Fetch settings from the API
  * @returns Promise containing the settings data
  */
-export async function getSettings(): Promise<SettingsResponse> {
+export async function getSettings(
+  scope: SettingsScope = "tenant"
+): Promise<SettingsResponse> {
   try {
-    const response = await fetch("/api/admin/settings");
+    const response = await fetch(getSettingsPath(scope));
 
     if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
+      throw new Error(await getResponseMessage(response));
     }
 
     const data = await response.json();
@@ -56,10 +91,11 @@ export async function getSettings(): Promise<SettingsResponse> {
  * @returns Promise containing the response
  */
 export async function updateSettings(
-  settings: Partial<SettingsResponse>
+  settings: Partial<SettingsResponse>,
+  scope: SettingsScope = "tenant"
 ): Promise<void> {
   try {
-    const response = await fetch("/api/admin/settings", {
+    const response = await fetch(getSettingsPath(scope), {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -79,10 +115,11 @@ export async function updateSettings(
 }
 export async function updateSettingsWithToast(
   settings: Partial<SettingsResponse>,
-  t: (key: string) => string
+  t: (key: string) => string,
+  scope: SettingsScope = "tenant"
 ): Promise<void> {
   try {
-    await updateSettings(settings);
+    await updateSettings(settings, scope);
     toast.success(t("settings.settings_saved"));
   } catch (error) {
     toast.error(t("settings.settings_save_failed") + ": " + error);
@@ -100,63 +137,76 @@ export async function updateSettingsWithToast(
 export async function updateSingleSetting<K extends keyof SettingsResponse>(
   key: K,
   value: SettingsResponse[K],
-  currentSettings: SettingsResponse
+  _currentSettings: SettingsResponse,
+  scope: SettingsScope = "tenant"
 ): Promise<void> {
-  const updatedSettings = { ...currentSettings, [key]: value };
-  return updateSettings(updatedSettings);
+  return updateSettings({ [key]: value }, scope);
 }
 
 /**
  * Hook for managing settings state and API calls
  */
-export function useSettings() {
-  const [settings, setSettings] = React.useState<SettingsResponse>({
-    sitename: "",
-    description: "",
-    allow_cors: false,
-    base_scripts_url: "",
-    cn_connectivity_enabled: false,
-    cn_connectivity_target: "",
-    cn_connectivity_interval: 60,
-    geo_ip_enabled: false,
-    geo_ip_provider: "",
-    o_auth_provider: "",
-    o_auth_enabled: false,
-    custom_head: "",
-    CreatedAt: "",
-    UpdatedAt: "",
-  });
-
-  const [loading, setLoading] = React.useState(false);
+export function useSettings(
+  scope: SettingsScope = "tenant",
+  options?: { enabled?: boolean }
+) {
+  const enabled = options?.enabled ?? true;
+  const [settings, setSettings] = React.useState<SettingsResponse>(DEFAULT_SETTINGS);
+  const [loading, setLoading] = React.useState(enabled);
   const [error, setError] = React.useState<string | null>(null);
 
-  // Fetch settings on mount
-  React.useEffect(() => {
-    const fetchSettings = async () => {
-      setLoading(true);
+  const refetch = React.useCallback(async () => {
+    if (!enabled) {
+      setLoading(false);
       setError(null);
-      try {
-        const data = await getSettings();
-        setSettings(data);
-      } catch (err) {
-        setError(
-          err instanceof Error ? err.message : "Failed to fetch settings"
-        );
-      } finally {
-        setLoading(false);
-      }
+      return DEFAULT_SETTINGS;
+    }
+
+    setLoading(true);
+    setError(null);
+    try {
+      const data = await getSettings(scope);
+      setSettings(data);
+      return data;
+    } catch (err) {
+      const nextError =
+        err instanceof Error ? err.message : "Failed to fetch settings";
+      setError(nextError);
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  }, [enabled, scope]);
+
+  React.useEffect(() => {
+    if (!enabled) {
+      setLoading(false);
+      setError(null);
+      return;
+    }
+
+    refetch().catch(() => undefined);
+  }, [enabled, refetch]);
+
+  React.useEffect(() => {
+    if (!enabled || scope !== "tenant") return;
+
+    const handleTenantSwitch = () => {
+      refetch().catch(() => undefined);
     };
 
-    fetchSettings();
-  }, []);
+    window.addEventListener(TENANT_SWITCH_EVENT, handleTenantSwitch);
+    return () => {
+      window.removeEventListener(TENANT_SWITCH_EVENT, handleTenantSwitch);
+    };
+  }, [enabled, refetch, scope]);
 
-  // Update a single setting
   const updateSetting = async <K extends keyof SettingsResponse>(
     key: K,
     value: SettingsResponse[K]
   ) => {
     try {
-      await updateSingleSetting(key, value, settings);
+      await updateSingleSetting(key, value, settings, scope);
       setSettings((prev) => ({ ...prev, [key]: value }));
     } catch (err) {
       setError(
@@ -172,7 +222,7 @@ export function useSettings() {
   ) => {
     try {
       const updatedSettings = { ...settings, ...newSettings };
-      await updateSettings(updatedSettings);
+      await updateSettings(newSettings, scope);
       setSettings(updatedSettings);
     } catch (err) {
       setError(
@@ -188,9 +238,6 @@ export function useSettings() {
     error,
     updateSetting,
     updateMultipleSettings,
-    refetch: async () => {
-      const data = await getSettings();
-      setSettings(data);
-    },
+    refetch,
   };
 }

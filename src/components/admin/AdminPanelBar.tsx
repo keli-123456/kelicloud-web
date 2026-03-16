@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { AnimatePresence, motion } from "framer-motion";
+import { toast } from "sonner";
 import {
   ChevronDown,
   ChevronRight,
@@ -36,6 +37,13 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { iconMap } from "@/utils/iconHelper";
 import { cn } from "@/lib/utils";
 import type { MenuItem } from "@/types/menu";
@@ -146,7 +154,7 @@ const getActiveChild = (
 
 export default function AdminPanelBar({ content }: AdminPanelBarProps) {
   const { call } = useRPC2Call();
-  const { account } = useAccount();
+  const { account, platformAdmin, switchTenant, switchingTenant } = useAccount();
   const { publicInfo } = usePublicInfo();
   const location = useLocation();
   const navigate = useNavigate();
@@ -253,9 +261,30 @@ export default function AdminPanelBar({ content }: AdminPanelBarProps) {
   const getMenuLabel = (item: ExtendedMenuItem | MenuItem) =>
     (item as ExtendedMenuItem).rawLabel || t(item.labelKey);
 
+  const isPlatformOnlyPath = useCallback((target: string) => {
+    if (!target || isExternalPath(target)) {
+      return false;
+    }
+
+    const targetUrl = new URL(target, "https://komari.local");
+    return [
+      "/admin/settings/sign-on",
+      "/admin/settings/notification",
+      "/admin/notification/general",
+    ].includes(normalizePath(targetUrl.pathname));
+  }, []);
+
   const combinedMenuItems = useMemo<ExtendedMenuItem[]>(
-    () => [...baseMenuItems],
-    [],
+    () =>
+      baseMenuItems
+        .filter((item) => platformAdmin || !isPlatformOnlyPath(item.path))
+        .map((item) => ({
+          ...item,
+          children: item.children?.filter(
+            (child) => platformAdmin || !isPlatformOnlyPath(child.path),
+          ),
+        })),
+    [isPlatformOnlyPath, platformAdmin],
   );
 
   const primaryMenuItems = useMemo(
@@ -315,6 +344,8 @@ export default function AdminPanelBar({ content }: AdminPanelBarProps) {
     (publicInfo as any)?.version ||
     (versionInfo && `${versionInfo.version} (${versionInfo.hash})`) ||
     null;
+  const currentTenant = account?.current_tenant ?? null;
+  const availableTenants = account?.tenants ?? [];
 
   useEffect(() => {
     if (!activeTopItem?.children?.length) return;
@@ -338,6 +369,26 @@ export default function AdminPanelBar({ content }: AdminPanelBarProps) {
   const logout = () => {
     window.open("/api/logout", "_self");
   };
+
+  const handleTenantChange = useCallback(
+    async (tenantId: string) => {
+      if (!tenantId || tenantId === currentTenant?.id) {
+        return;
+      }
+
+      try {
+        await switchTenant(tenantId);
+        window.location.reload();
+      } catch (error) {
+        toast.error(
+          error instanceof Error
+            ? error.message
+            : t("common.switch_tenant_failed", "Failed to switch tenant"),
+        );
+      }
+    },
+    [currentTenant?.id, switchTenant, t],
+  );
 
   const renderMenuIcon = (
     icon: string,
@@ -731,6 +782,32 @@ export default function AdminPanelBar({ content }: AdminPanelBarProps) {
           </div>
 
           <div className="flex items-center gap-2">
+            {account?.logged_in && availableTenants.length > 0 ? (
+              <Select
+                value={currentTenant?.id ?? undefined}
+                onValueChange={(tenantId) => {
+                  void handleTenantChange(tenantId);
+                }}
+                disabled={switchingTenant}
+              >
+                <SelectTrigger
+                  size="sm"
+                  className="min-w-[180px] max-w-[240px]"
+                  aria-label={t("common.tenant", "Tenant")}
+                >
+                  <SelectValue
+                    placeholder={t("loading", "Loading...")}
+                  />
+                </SelectTrigger>
+                <SelectContent align="end">
+                  {availableTenants.map((tenant) => (
+                    <SelectItem key={tenant.id} value={tenant.id}>
+                      {tenant.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            ) : null}
             {account && !account.logged_in && (
               <LoginDialog
                 autoOpen

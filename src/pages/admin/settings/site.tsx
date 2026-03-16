@@ -24,10 +24,13 @@ import Loading from "@/components/loading";
 import { DownloadIcon } from "lucide-react";
 import { useState } from "react";
 import UploadDialog from "@/components/UploadDialog";
+import { useAccount } from "@/contexts/AccountContext";
+import { PlatformAdminNotice } from "@/components/admin/PlatformAdminNotice";
 
 export default function SiteSettings() {
   const { t } = useTranslation();
-  const { settings, loading, error, refetch } = useSettings();
+  const { platformAdmin, loading: accountLoading } = useAccount();
+  const { settings, loading, error, refetch } = useSettings("tenant");
   const [shareHours, setShareHours] = useState(1);
 
   // Restore backup dialog and upload state.
@@ -126,7 +129,7 @@ export default function SiteSettings() {
     if (restoreXhr) restoreXhr.abort();
   };
 
-  if (loading) {
+  if (accountLoading || loading) {
     return <Loading />;
   }
 
@@ -151,14 +154,6 @@ export default function SiteSettings() {
         defaultValue={settings.description || ""}
         OnSave={async (data) => {
           await updateSettingsWithToast({ description: data }, t);
-        }}
-      />
-      <SettingCardSwitch
-        title={t("settings.site.cros")}
-        description={t("settings.site.cros_description")}
-        defaultChecked={settings.allow_cors}
-        onChange={async (checked) => {
-          await updateSettingsWithToast({ allow_cors: checked }, t);
         }}
       />
       <SettingCardSwitch
@@ -306,158 +301,171 @@ export default function SiteSettings() {
           await updateSettingsWithToast({ custom_body: data }, t);
         }}
       />
-      <SettingCardCollapse
-        title={t("settings.custom.favicon", "Customize Favicon")}
-        description={t(
-          "settings.custom.favicon_description",
-          "Icons displayed in browser tabs",
-        )}
-        defaultOpen={true}
-      >
-        <div className="flex w-full flex-col items-start gap-2">
-          <div className="flex items-center gap-2">
-            {t("settings.custom.favicon_current", "Current Favicon")}
-            <img
-              src="/favicon.ico"
-              alt={t("settings.custom.favicon", "Customize Favicon")}
-              style={{ width: 32, height: 32 }}
-            />
-          </div>
-          <label className="text-sm text-muted-foreground">
-            {t(
-              "settings.custom.favicon_note",
-              "Favicon icons can be slow to update and it is often necessary to clear your browser's cache to see the changes.",
-            )}
+      {platformAdmin ? (
+        <>
+          <SettingCardLabel>{t("settings.platform_tools_title")}</SettingCardLabel>
+          <label className="text-sm text-muted-foreground -mt-4">
+            {t("settings.platform_tools_description")}
           </label>
-          <div className="flex items-center gap-2">
-            <Dialog>
-              <DialogTrigger asChild>
-                <Button
-                  variant="outline"
-                  className="border-orange-200 bg-orange-50 text-orange-700 hover:bg-orange-100 dark:border-orange-900 dark:bg-orange-950/40 dark:text-orange-300 dark:hover:bg-orange-950/60"
-                >
-                  {t("settings.custom.favicon_default", "Restore Default")}
-                </Button>
-              </DialogTrigger>
-              <DialogContent>
-                <DialogTitle>
-                  {t("settings.custom.favicon_default", "Restore Default")}
-                </DialogTitle>
-                <DialogDescription>
-                  {t(
-                    "settings.custom.favicon_default_description",
-                    "This will restore the default favicon icon. Do you want to continue?",
-                  )}
-                </DialogDescription>
-                <DialogFooter>
-                  <DialogClose asChild>
-                    <Button variant="outline">{t("common.cancel", "Cancel")}</Button>
-                  </DialogClose>
-                  <DialogClose asChild>
+          <SettingCardCollapse
+            title={t("settings.custom.favicon", "Customize Favicon")}
+            description={t(
+              "settings.custom.favicon_description",
+              "Icons displayed in browser tabs",
+            )}
+            defaultOpen={true}
+          >
+            <div className="flex w-full flex-col items-start gap-2">
+              <div className="flex items-center gap-2">
+                {t("settings.custom.favicon_current", "Current Favicon")}
+                <img
+                  src="/favicon.ico"
+                  alt={t("settings.custom.favicon", "Customize Favicon")}
+                  style={{ width: 32, height: 32 }}
+                />
+              </div>
+              <label className="text-sm text-muted-foreground">
+                {t(
+                  "settings.custom.favicon_note",
+                  "Favicon icons can be slow to update and it is often necessary to clear your browser's cache to see the changes.",
+                )}
+              </label>
+              <div className="flex items-center gap-2">
+                <Dialog>
+                  <DialogTrigger asChild>
                     <Button
-                      variant="destructive"
-                      onClick={async () => {
-                        fetch("/api/admin/update/favicon", {
-                          method: "POST",
-                        })
-                          .then((response) => {
-                            return response.json();
-                          })
-                          .then((data) => {
-                            if (data.status === "success") {
-                              toast.success(
-                                t(
-                                  "settings.custom.favicon_default_success",
-                                  "Default favicon has been restored",
-                                ),
-                              );
-                            } else {
-                              toast.error(
-                                data.message ||
-                                  t(
-                                    "settings.custom.favicon_default_failed",
-                                    "Failed to restore default favicon",
-                                  ),
-                              );
-                            }
-                          })
-                          .catch((error) => {
-                            toast.error("" + error);
-                          });
-                      }}
+                      variant="outline"
+                      className="border-orange-200 bg-orange-50 text-orange-700 hover:bg-orange-100 dark:border-orange-900 dark:bg-orange-950/40 dark:text-orange-300 dark:hover:bg-orange-950/60"
                     >
-                      {t("settings.custom.favicon_confirm", "Confirm")}
+                      {t("settings.custom.favicon_default", "Restore Default")}
                     </Button>
-                  </DialogClose>
-                </DialogFooter>
-              </DialogContent>
-            </Dialog>
-            <Button
-              onClick={async () => {
-                const input = document.createElement("input");
-                input.type = "file";
-                input.accept = "image/*";
-                input.onchange = async (e) => {
-                  const file = (e.target as HTMLInputElement).files?.[0];
-                  if (file) {
-                    try {
-                      const response = await fetch(
-                        "/api/admin/update/favicon",
-                        {
-                          method: "PUT",
-                          body: file,
-                          headers: {
-                            "Content-Type": "application/octet-stream",
-                          },
-                        },
-                      );
-                      const data = await response.json();
-                      if (data.status === "success") {
-                        toast.success(
-                          t(
-                            "settings.custom.favicon_update_success",
-                            "Favicon updated",
-                          ),
-                        );
-                      } else {
-                        toast.error(
-                          data.message ||
-                            t(
-                              "settings.custom.favicon_update_failed",
-                              "Failed to update favicon",
-                            ),
-                        );
+                  </DialogTrigger>
+                  <DialogContent>
+                    <DialogTitle>
+                      {t("settings.custom.favicon_default", "Restore Default")}
+                    </DialogTitle>
+                    <DialogDescription>
+                      {t(
+                        "settings.custom.favicon_default_description",
+                        "This will restore the default favicon icon. Do you want to continue?",
+                      )}
+                    </DialogDescription>
+                    <DialogFooter>
+                      <DialogClose asChild>
+                        <Button variant="outline">{t("common.cancel", "Cancel")}</Button>
+                      </DialogClose>
+                      <DialogClose asChild>
+                        <Button
+                          variant="destructive"
+                          onClick={async () => {
+                            fetch("/api/admin/update/favicon", {
+                              method: "POST",
+                            })
+                              .then((response) => {
+                                return response.json();
+                              })
+                              .then((data) => {
+                                if (data.status === "success") {
+                                  toast.success(
+                                    t(
+                                      "settings.custom.favicon_default_success",
+                                      "Default favicon has been restored",
+                                    ),
+                                  );
+                                } else {
+                                  toast.error(
+                                    data.message ||
+                                      t(
+                                        "settings.custom.favicon_default_failed",
+                                        "Failed to restore default favicon",
+                                      ),
+                                  );
+                                }
+                              })
+                              .catch((error) => {
+                                toast.error("" + error);
+                              });
+                          }}
+                        >
+                          {t("settings.custom.favicon_confirm", "Confirm")}
+                        </Button>
+                      </DialogClose>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
+                <Button
+                  onClick={async () => {
+                    const input = document.createElement("input");
+                    input.type = "file";
+                    input.accept = "image/*";
+                    input.onchange = async (e) => {
+                      const file = (e.target as HTMLInputElement).files?.[0];
+                      if (file) {
+                        try {
+                          const response = await fetch(
+                            "/api/admin/update/favicon",
+                            {
+                              method: "PUT",
+                              body: file,
+                              headers: {
+                                "Content-Type": "application/octet-stream",
+                              },
+                            },
+                          );
+                          const data = await response.json();
+                          if (data.status === "success") {
+                            toast.success(
+                              t(
+                                "settings.custom.favicon_update_success",
+                                "Favicon updated",
+                              ),
+                            );
+                          } else {
+                            toast.error(
+                              data.message ||
+                                t(
+                                  "settings.custom.favicon_update_failed",
+                                  "Failed to update favicon",
+                                ),
+                            );
+                          }
+                        } catch (error) {
+                          toast.error("" + error);
+                        }
                       }
-                    } catch (error) {
-                      toast.error("" + error);
-                    }
-                  }
-                };
-                input.click();
-              }}
-            >
-              {t("settings.custom.favicon_change", "Update Favicon")}
-            </Button>
-          </div>
-        </div>
-      </SettingCardCollapse>
-      <SettingCardLabel>{t("settings.site.backup")}</SettingCardLabel>
-      <SettingCardIconButton
-        title={t("settings.site.backup_download")}
-        description={t("settings.site.backup_download_description")}
-        onClick={() => {
-          window.open("/api/admin/download/backup", "_blank");
-        }}
-      >
-        <DownloadIcon size={16} />
-      </SettingCardIconButton>
-      <SettingCardButton
-        title={t("settings.site.backup_restore")}
-        description={t("settings.site.backup_restore_description")}
-        onClick={() => setRestoreOpen(true)}
-      >
-        {t("common.select")}
-      </SettingCardButton>
+                    };
+                    input.click();
+                  }}
+                >
+                  {t("settings.custom.favicon_change", "Update Favicon")}
+                </Button>
+              </div>
+            </div>
+          </SettingCardCollapse>
+          <SettingCardLabel>{t("settings.site.backup")}</SettingCardLabel>
+          <SettingCardIconButton
+            title={t("settings.site.backup_download")}
+            description={t("settings.site.backup_download_description")}
+            onClick={() => {
+              window.open("/api/admin/download/backup", "_blank");
+            }}
+          >
+            <DownloadIcon size={16} />
+          </SettingCardIconButton>
+          <SettingCardButton
+            title={t("settings.site.backup_restore")}
+            description={t("settings.site.backup_restore_description")}
+            onClick={() => setRestoreOpen(true)}
+          >
+            {t("common.select")}
+          </SettingCardButton>
+        </>
+      ) : (
+        <PlatformAdminNotice
+          title={t("settings.platform_tools_title")}
+          description={t("settings.platform_tools_restricted_description")}
+        />
+      )}
 
       {/* Backup upload dialog. */}
       <UploadDialog

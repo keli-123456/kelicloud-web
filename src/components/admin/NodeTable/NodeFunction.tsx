@@ -86,7 +86,7 @@ type Platform = "linux" | "windows" | "macos";
 
 export function ActionsCell({ row }: { row: Row<z.infer<typeof schema>> }) {
   const refreshTable = React.useContext(DataTableRefreshContext);
-  const { settings } = useSettings();
+  const { settings } = useSettings("tenant");
   const [removing, setRemoving] = React.useState(false);
   const [selectedPlatform, setSelectedPlatform] =
     React.useState<Platform>("linux");

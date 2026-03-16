@@ -21,6 +21,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { CodeEditor } from "@/components/ui/code-editor";
 import {
   Dialog,
   DialogClose,
@@ -31,7 +32,6 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import {
   type CommandClipboard,
   useCommandClipboard,
@@ -527,7 +527,7 @@ export default function CommandLibraryManager() {
           }
         }}
       >
-        <DialogContent className="sm:max-w-2xl">
+        <DialogContent className="sm:max-w-4xl">
           <DialogHeader>
             <DialogTitle>
               {editingCommand
@@ -564,14 +564,15 @@ export default function CommandLibraryManager() {
               <label className="text-sm font-medium text-slate-900 dark:text-slate-100">
                 {t("common.content")}
               </label>
-              <Textarea
+              <CodeEditor
                 value={formValues.text}
-                onChange={(event) => handleEditorChange("text", event.target.value)}
+                onChange={(value) => handleEditorChange("text", value)}
                 placeholder={t("command_clipboard.editor.content_placeholder", {
                   defaultValue: "#!/usr/bin/env bash",
                 })}
-                rows={10}
-                className="min-h-[240px]"
+                minHeight="320px"
+                maxHeight="50vh"
+                ariaLabel={t("common.content")}
               />
             </div>
 

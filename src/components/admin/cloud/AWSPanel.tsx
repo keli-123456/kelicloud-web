@@ -379,6 +379,7 @@ export default function AWSPanel() {
   const [credentialImportOpen, setCredentialImportOpen] = React.useState(false);
   const [credentialImportText, setCredentialImportText] = React.useState("");
   const [credentialPool, setCredentialPool] = React.useState<AWSCredentialPool | null>(null);
+  const [selectedCredentialIds, setSelectedCredentialIds] = React.useState<string[]>([]);
   const [account, setAccount] = React.useState<AWSAccount | null>(null);
   const [catalog, setCatalog] = React.useState<AWSCatalog | null>(null);
   const [lightsailCatalog, setLightsailCatalog] = React.useState<AWSLightsailCatalog | null>(null);
@@ -562,7 +563,25 @@ export default function AWSPanel() {
     }));
   }, [activeRegion, lightsailCatalog]);
 
+  React.useEffect(() => {
+    setSelectedCredentialIds((current) => {
+      if (current.length === 0) {
+        return current;
+      }
+
+      const validIds = new Set((credentialPool?.credentials ?? []).map((credential) => credential.id));
+      const next = current.filter((id) => validIds.has(id));
+      return next.length === current.length ? current : next;
+    });
+  }, [credentialPool]);
+
   const activeCredential = getActiveCredential(credentialPool);
+  const credentialRows = credentialPool?.credentials ?? [];
+  const selectedCredentials = credentialRows.filter((credential) => selectedCredentialIds.includes(credential.id));
+  const allCredentialsSelected =
+    credentialRows.length > 0 && selectedCredentialIds.length === credentialRows.length;
+  const someCredentialsSelected =
+    selectedCredentialIds.length > 0 && selectedCredentialIds.length < credentialRows.length;
   const defaultCreateGroup = getDefaultAutoConnectGroup("aws", activeCredential?.name || "");
   const connected = Boolean(account && activeCredential);
   const activeQuota = account?.ec2_quota || activeCredential?.ec2_quota || null;
@@ -571,6 +590,39 @@ export default function AWSPanel() {
   const filteredSecurityGroups = (catalog?.security_groups || []).filter((group) =>
     selectedSubnetVpcId ? group.vpc_id === selectedSubnetVpcId : true,
   );
+
+  const assertCredentialsDeleted = (nextPool: AWSCredentialPool, credentialIds: string[]) => {
+    const remaining = nextPool.credentials.filter((credential) => credentialIds.includes(credential.id));
+    if (remaining.length > 0) {
+      throw new Error(
+        t("cloud.tokens.delete_not_applied", {
+          defaultValue: "Delete request returned success, but the token still exists. Refresh and try again.",
+        }),
+      );
+    }
+  };
+
+  const syncCredentialPoolAfterDelete = async (
+    nextPool: AWSCredentialPool,
+    removedCredentialIds: string[],
+  ) => {
+    setCredentialPool(nextPool);
+    setSelectedCredentialIds((current) => current.filter((id) => !removedCredentialIds.includes(id)));
+    if (hasActiveCredential(nextPool)) {
+      await loadPanelData();
+    } else {
+      clearPanelState();
+    }
+  };
+
+  const toggleCredentialSelection = (credentialId: string, checked: boolean) => {
+    setSelectedCredentialIds((current) => {
+      if (checked) {
+        return current.includes(credentialId) ? current : [...current, credentialId];
+      }
+      return current.filter((id) => id !== credentialId);
+    });
+  };
 
   const handleImportCredentials = async () => {
     const credentials = parseCredentialImports(credentialImportText);
@@ -659,16 +711,66 @@ export default function AWSPanel() {
 
     try {
       const nextPool = await deleteAWSCredential(credential.id);
-      setCredentialPool(nextPool);
+      assertCredentialsDeleted(nextPool, [credential.id]);
+      await syncCredentialPoolAfterDelete(nextPool, [credential.id]);
       toast.success(t("cloud.tokens.delete_success", "Token deleted"));
-      if (hasActiveCredential(nextPool)) {
-        await loadPanelData();
-      } else {
-        clearPanelState();
-      }
     } catch (deleteError) {
       toast.error(toErrorMessage(deleteError));
     }
+  };
+
+  const handleDeleteSelectedCredentials = async () => {
+    if (!selectedCredentials.length) {
+      return;
+    }
+
+    const confirmed = await confirm({
+      title: t("cloud.tokens.delete_selected", {
+        count: selectedCredentials.length,
+        defaultValue: "Delete selected tokens",
+      }),
+      description: t("cloud.tokens.delete_selected_confirm", {
+        count: selectedCredentials.length,
+        defaultValue: `Delete ${selectedCredentials.length} selected tokens?`,
+      }),
+      confirmLabel: t("cloud.tokens.delete", "Delete"),
+    });
+    if (!confirmed) return;
+
+    let latestPool: AWSCredentialPool | null = null;
+    const removedIds: string[] = [];
+    const failedIds: string[] = [];
+    const failures: string[] = [];
+
+    for (const credential of selectedCredentials) {
+      try {
+        const nextPool = await deleteAWSCredential(credential.id);
+        assertCredentialsDeleted(nextPool, [credential.id]);
+        latestPool = nextPool;
+        removedIds.push(credential.id);
+      } catch (deleteError) {
+        failedIds.push(credential.id);
+        failures.push(`${credential.name}: ${toErrorMessage(deleteError)}`);
+      }
+    }
+
+    if (latestPool && removedIds.length > 0) {
+      await syncCredentialPoolAfterDelete(latestPool, removedIds);
+    }
+
+    setSelectedCredentialIds(failedIds);
+
+    if (failures.length > 0) {
+      toast.error(failures.join("；"));
+      return;
+    }
+
+    toast.success(
+      t("cloud.tokens.delete_selected_success", {
+        count: removedIds.length,
+        defaultValue: `Deleted ${removedIds.length} tokens`,
+      }),
+    );
   };
 
   const handleViewCredentialSecret = async (credential: AWSCredentialRecord) => {
@@ -1105,6 +1207,21 @@ export default function AWSPanel() {
                     <ShieldCheck className="mr-2 h-4 w-4" />
                     {t("cloud.tokens.check_all", "Check All Tokens")}
                   </Button>
+                  <Button
+                    variant="outline"
+                    size="1"
+                    color="red"
+                    onClick={() => {
+                      void handleDeleteSelectedCredentials();
+                    }}
+                    disabled={selectedCredentials.length === 0}
+                  >
+                    <Trash2 className="mr-2 h-4 w-4" />
+                    {t("cloud.tokens.delete_selected", {
+                      count: selectedCredentials.length,
+                      defaultValue: "Delete selected",
+                    })}
+                  </Button>
                   <Button size="1" onClick={() => setCredentialImportOpen(true)}>
                     <CheckCircle2 className="mr-2 h-4 w-4" />
                     {t("cloud.providers.aws.import", "Import Credentials")}
@@ -1117,6 +1234,17 @@ export default function AWSPanel() {
               <Table>
                 <TableHeader>
                   <TableRow>
+                    <TableHead className="w-10">
+                      <div className="flex items-center justify-center">
+                        <Checkbox
+                          checked={allCredentialsSelected || (someCredentialsSelected && "indeterminate")}
+                          onCheckedChange={(checked) => {
+                            setSelectedCredentialIds(Boolean(checked) ? credentialRows.map((credential) => credential.id) : []);
+                          }}
+                          aria-label={t("cloud.tokens.select_all", "Select all tokens")}
+                        />
+                      </div>
+                    </TableHead>
                     <TableHead>{t("cloud.tokens.table.name", "Name")}</TableHead>
                     <TableHead>{t("cloud.providers.aws.access_key", "Access Key")}</TableHead>
                     <TableHead>{t("cloud.tokens.table.account", "Account")}</TableHead>
@@ -1128,15 +1256,29 @@ export default function AWSPanel() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {!credentialPool?.credentials.length ? (
+                  {!credentialRows.length ? (
                     <TableRow>
-                      <TableCell colSpan={8} className="h-24 text-center text-slate-500">
+                      <TableCell colSpan={9} className="h-24 text-center text-slate-500">
                         {t("cloud.providers.aws.credentials_empty", "No AWS credentials saved yet")}
                       </TableCell>
                     </TableRow>
                   ) : (
-                    credentialPool.credentials.map((credential) => (
+                    credentialRows.map((credential) => (
                       <TableRow key={credential.id}>
+                        <TableCell className="w-10">
+                          <div className="flex items-center justify-center">
+                            <Checkbox
+                              checked={selectedCredentialIds.includes(credential.id)}
+                              onCheckedChange={(checked) => {
+                                toggleCredentialSelection(credential.id, Boolean(checked));
+                              }}
+                              aria-label={t("cloud.tokens.select_one", {
+                                name: credential.name,
+                                defaultValue: `Select token ${credential.name}`,
+                              })}
+                            />
+                          </div>
+                        </TableCell>
                         <TableCell className="font-medium text-slate-900 dark:text-slate-100">
                           <div className="flex items-center gap-2">
                             <span className="max-w-40 truncate">{credential.name}</span>

@@ -7,6 +7,8 @@ import {
   SettingCardSwitch,
 } from "@/components/admin/SettingCard";
 import { toast } from "sonner";
+import { useAccount } from "@/contexts/AccountContext";
+import { PlatformAdminNotice } from "@/components/admin/PlatformAdminNotice";
 const GeneralNotification = () => {
   return (
     <div className="flex flex-col gap-2 p-0 md:pt-1">
@@ -17,10 +19,17 @@ const GeneralNotification = () => {
 
 const Inner = () => {
   const { t } = useTranslation();
-  const { settings, loading, error } = useSettings();
+  const { platformAdmin, loading: accountLoading } = useAccount();
+  const { settings, loading, error } = useSettings("system", {
+    enabled: platformAdmin,
+  });
 
-  if (loading) {
+  if (accountLoading || loading) {
     return <Loading />;
+  }
+
+  if (!platformAdmin) {
+    return <PlatformAdminNotice />;
   }
 
   if (error) {
@@ -38,7 +47,8 @@ const Inner = () => {
         onChange={async (checked) => {
           await updateSettingsWithToast(
             { expire_notification_enabled: checked },
-            t
+            t,
+            "system"
           );
         }}
       />
@@ -55,7 +65,8 @@ const Inner = () => {
           }
           await updateSettingsWithToast(
             { expire_notification_lead_days: numValue },
-            t
+            t,
+            "system"
           );
         }}
       />
@@ -67,7 +78,8 @@ const Inner = () => {
         onChange={async (checked) => {
           await updateSettingsWithToast(
             { login_notification: checked },
-            t
+            t,
+            "system"
           );
         }}
       />
@@ -80,7 +92,8 @@ const Inner = () => {
         OnSave={async (value) => {
           await updateSettingsWithToast(
             { traffic_limit_percentage: Number(value) },
-            t
+            t,
+            "system"
           );
         }}
       />

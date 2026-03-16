@@ -6,13 +6,22 @@ import {
 import Loading from "@/components/loading";
 import { updateSettingsWithToast, useSettings } from "@/lib/api";
 import { useTranslation } from "react-i18next";
+import { useAccount } from "@/contexts/AccountContext";
+import { PlatformAdminNotice } from "@/components/admin/PlatformAdminNotice";
 
 export default function SsoSettings() {
   const { t } = useTranslation();
-  const { settings, loading, error } = useSettings();
+  const { platformAdmin, loading: accountLoading } = useAccount();
+  const { settings, loading, error } = useSettings("system", {
+    enabled: platformAdmin,
+  });
 
-  if (loading) {
+  if (accountLoading || loading) {
     return <Loading />;
+  }
+
+  if (!platformAdmin) {
+    return <PlatformAdminNotice />;
   }
 
   if (error) {
@@ -25,7 +34,7 @@ export default function SsoSettings() {
         description={t("settings.sso.enable_description")}
         defaultChecked={settings.o_auth_enabled}
         onChange={async (checked) => {
-          await updateSettingsWithToast({ o_auth_enabled: checked }, t);
+          await updateSettingsWithToast({ o_auth_enabled: checked }, t, "system");
         }}
       />
       <SettingCardSelect
@@ -33,7 +42,7 @@ export default function SsoSettings() {
         description={t("settings.sso.provider_description") + " [Not Implemented, 暂未实现]"}
         defaultValue={"Github"}
         OnSave={async (data) => {
-          await updateSettingsWithToast({ o_auth_provider: data }, t);
+          await updateSettingsWithToast({ o_auth_provider: data }, t, "system");
         }}
         options={[
           { value: "github", label: "GitHub"},
@@ -45,7 +54,7 @@ export default function SsoSettings() {
         description={t("settings.sso.client_id_description")}
         defaultValue={settings.o_auth_client_id || ""}
         OnSave={async (data) => {
-          await updateSettingsWithToast({ o_auth_client_id: data }, t);
+          await updateSettingsWithToast({ o_auth_client_id: data }, t, "system");
         }}
       />
       <SettingCardShortTextInput
@@ -53,7 +62,7 @@ export default function SsoSettings() {
         description={t("settings.sso.client_secret_description")}
         defaultValue={settings.o_auth_client_secret || ""}
         OnSave={async (data) => {
-          await updateSettingsWithToast({ o_auth_client_secret: data }, t);
+          await updateSettingsWithToast({ o_auth_client_secret: data }, t, "system");
         }}
       />
     </>

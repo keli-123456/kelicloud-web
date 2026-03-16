@@ -13,10 +13,15 @@ import React from "react";
 import { renderProviderInputs } from "@/utils/renderProviders";
 import { SquareArrowOutUpRight } from "lucide-react";
 import { Link } from "react-router-dom";
+import { useAccount } from "@/contexts/AccountContext";
+import { PlatformAdminNotice } from "@/components/admin/PlatformAdminNotice";
 
 const NotificationSettings = () => {
   const { t } = useTranslation();
-  const { settings, loading, error } = useSettings();
+  const { platformAdmin, loading: accountLoading } = useAccount();
+  const { settings, loading, error } = useSettings("system", {
+    enabled: platformAdmin,
+  });
   const [messageDefs, setMessageDefs] = React.useState<any>({});
   const [messageList, setMessageList] = React.useState<string[]>([]);
   const [currentMessageSender, setCurrentMessageSender] = React.useState<string>("");
@@ -26,7 +31,7 @@ const NotificationSettings = () => {
 
   // 拉取所有 message sender 及字段定义
   React.useEffect(() => {
-    if (loading) return;
+    if (!platformAdmin || loading) return;
     setMessageLoading(true);
     fetch("/api/admin/settings/message-sender")
       .then((res) => res.json())
@@ -59,11 +64,11 @@ const NotificationSettings = () => {
         )
       )
       .finally(() => setMessageLoading(false));
-  }, [loading, settings.notification_method, t]);
+  }, [loading, platformAdmin, settings.notification_method, t]);
 
   // 拉取当前 message sender 的设置
   React.useEffect(() => {
-    if (!currentMessageSender) return;
+    if (!platformAdmin || !currentMessageSender) return;
     setMessageLoading(true);
     fetch(`/api/admin/settings/message-sender?provider=${currentMessageSender}`)
       .then((res) => res.json())
@@ -93,7 +98,7 @@ const NotificationSettings = () => {
         )
       )
       .finally(() => setMessageLoading(false));
-  }, [currentMessageSender, t]);
+  }, [currentMessageSender, platformAdmin, t]);
 
   // 处理保存
   const handleMessageSave = async (values: any) => {
@@ -121,6 +126,12 @@ const NotificationSettings = () => {
     }
     setMessageLoading(false);
   };
+  if (accountLoading) {
+    return <Loading />;
+  }
+  if (!platformAdmin) {
+    return <PlatformAdminNotice />;
+  }
   if (loading || (!messageLoading && messageList.length === 0 && !messageError)) {
     return <Loading />;
   }
@@ -139,7 +150,7 @@ const NotificationSettings = () => {
         description={t("settings.notification.enable_description")}
         defaultChecked={settings.notification_enabled}
         onChange={async (checked) => {
-          await updateSettingsWithToast({ notification_enabled: checked }, t);
+          await updateSettingsWithToast({ notification_enabled: checked }, t, "system");
         }}
       />
       <SettingCardLongTextInput
@@ -148,7 +159,7 @@ const NotificationSettings = () => {
         defaultValue={settings.notification_template}
         OnSave={
           async (value) => {
-            await updateSettingsWithToast({ notification_template: value }, t);
+            await updateSettingsWithToast({ notification_template: value }, t, "system");
           }}
       />
       <SettingCardSelect
@@ -158,7 +169,7 @@ const NotificationSettings = () => {
         value={currentMessageSender}
         OnSave={async (val: string) => {
           if (val === currentMessageSender) return;
-          await updateSettingsWithToast({ notification_method: val }, t);
+          await updateSettingsWithToast({ notification_method: val }, t, "system");
           setCurrentMessageSender(val);
         }}
       />

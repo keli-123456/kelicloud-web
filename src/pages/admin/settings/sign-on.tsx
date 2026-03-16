@@ -11,10 +11,15 @@ import Loading from "@/components/loading";
 import React from "react";
 import { renderProviderInputs } from "@/utils/renderProviders";
 import { toast } from "sonner";
+import { useAccount } from "@/contexts/AccountContext";
+import { PlatformAdminNotice } from "@/components/admin/PlatformAdminNotice";
 
 export default function SignOnSettings() {
   const { t } = useTranslation();
-  const { settings, loading, error } = useSettings();
+  const { platformAdmin, loading: accountLoading } = useAccount();
+  const { settings, loading, error } = useSettings("system", {
+    enabled: platformAdmin,
+  });
   const [providerDefs, setProviderDefs] = React.useState<any>({});
   const [providerList, setProviderList] = React.useState<string[]>([]);
   const [currentProvider, setCurrentProvider] = React.useState<string>("");
@@ -25,7 +30,7 @@ export default function SignOnSettings() {
 
   // Load all provider definitions.
   React.useEffect(() => {
-    if (loading) return;
+    if (!platformAdmin || loading) return;
     setProviderLoading(true);
     fetch("/api/admin/settings/oidc")
       .then((res) => res.json())
@@ -58,11 +63,11 @@ export default function SignOnSettings() {
         ),
       )
       .finally(() => setProviderLoading(false));
-  }, [loading, settings.o_auth_provider, t]);
+  }, [loading, platformAdmin, settings.o_auth_provider, t]);
 
   // Load settings for the current provider.
   React.useEffect(() => {
-    if (!currentProvider) return;
+    if (!platformAdmin || !currentProvider) return;
     setProviderLoading(true);
     fetch(`/api/admin/settings/oidc?provider=${currentProvider}`)
       .then((res) => res.json())
@@ -92,7 +97,7 @@ export default function SignOnSettings() {
         ),
       )
       .finally(() => setProviderLoading(false));
-  }, [currentProvider, t]);
+  }, [currentProvider, platformAdmin, t]);
 
   // Save provider settings.
   const handleOidcSave = async (values: any) => {
@@ -127,6 +132,14 @@ export default function SignOnSettings() {
 
   // Provider field rendering is delegated to utils/renderProviders.tsx.
 
+  if (accountLoading) {
+    return <Loading />;
+  }
+
+  if (!platformAdmin) {
+    return <PlatformAdminNotice />;
+  }
+
   if (loading || (!providerLoading && providerList.length === 0 && !providerError)) {
     return <Loading />;
   }
@@ -144,7 +157,7 @@ export default function SignOnSettings() {
         title={t("settings.sign_on.disable_password", "Disable password login")}
         defaultChecked={settings.disable_password_login}
         onChange={async (checked) => {
-          await updateSettingsWithToast({ disable_password_login: checked }, t);
+          await updateSettingsWithToast({ disable_password_login: checked }, t, "system");
         }}
       />
       <SettingCardLabel>{t("settings.sso.title")}</SettingCardLabel>
@@ -156,7 +169,7 @@ export default function SignOnSettings() {
           "Allow users to login with third-party accounts (like GitHub)",
         )}
         onChange={async (checked) => {
-          await updateSettingsWithToast({ o_auth_enabled: checked }, t);
+          await updateSettingsWithToast({ o_auth_enabled: checked }, t, "system");
         }}
       />
       <SettingCardSelect
@@ -166,7 +179,7 @@ export default function SignOnSettings() {
         value={currentProvider}
         OnSave={async (val: string) => {
           if (val === currentProvider) return;
-          await updateSettingsWithToast({ o_auth_provider: val }, t);
+          await updateSettingsWithToast({ o_auth_provider: val }, t, "system");
           setCurrentProvider(val);
         }}
       />
@@ -183,13 +196,12 @@ export default function SignOnSettings() {
         t,
       })}
       <SettingCardLabel>API</SettingCardLabel>
-      <ApiCard />
+      <ApiCard settings={settings} />
     </>
   );
 }
 
-const ApiCard = () => {
-  const { settings } = useSettings();
+const ApiCard = ({ settings }: { settings: Record<string, any> }) => {
   const { t } = useTranslation();
   const [apiValues, setApiValues] = React.useState<string>(settings?.api_key || "" );
 
@@ -224,14 +236,14 @@ const ApiCard = () => {
         onChange={(e) => setApiValues(e.target.value)}
         OnSave={async (values) => {
           if (!values) {
-            await updateSettingsWithToast({ api_key: "" }, t);
+            await updateSettingsWithToast({ api_key: "" }, t, "system");
             return;
           }
           if (values.length < 12) {
             toast.error(t("settings.api.key_length_error"));
             return;
           }
-          await updateSettingsWithToast({ api_key: values }, t);
+          await updateSettingsWithToast({ api_key: values }, t, "system");
         }}
       >
         <div className="flex flex-row gap-2 justify-start items-center">
