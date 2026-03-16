@@ -23,6 +23,10 @@ export const routes: RouteObject[] = [
         path: "cloud/share/:token",
         element: React.createElement(lazy(() => import("./pages/cloudShare"))),
       },
+      {
+        path: "tenant/invite/:token",
+        element: React.createElement(lazy(() => import("./pages/tenantInvite"))),
+      },
     ],
   },
   {

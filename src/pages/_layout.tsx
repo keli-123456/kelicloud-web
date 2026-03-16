@@ -17,7 +17,8 @@ const IndexLayout = () => {
     const bgUrl = isMobile ? bgUrlMobile || bgUrlDesktop : bgUrlDesktop;
     const mainContentWidth =
       publicInfo?.theme_settings?.mainContentWidth ?? 100;
-    const isLoginEntryPage = location.pathname === "/";
+    const isStandalonePublicPage =
+      location.pathname === "/" || location.pathname.startsWith("/tenant/invite/");
     return (
       <>
         <div
@@ -38,10 +39,10 @@ const IndexLayout = () => {
               marginRight: "auto",
             }}
           >
-            {!isLoginEntryPage ? <NavBar /> : null}
+            {!isStandalonePublicPage ? <NavBar /> : null}
             <Outlet />
           </main>
-          {!isLoginEntryPage ? <Footer /> : null}
+          {!isStandalonePublicPage ? <Footer /> : null}
         </div>
       </>
     );
