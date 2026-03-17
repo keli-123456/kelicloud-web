@@ -158,7 +158,7 @@ export default function CommandLibraryManager() {
   }, [commands]);
 
   const latestUpdatedAt = useMemo(() => {
-    return commands.reduce<string | null>((latest, item) => {
+    return commands.reduce<string | undefined>((latest, item) => {
       if (!latest) {
         return item.updated_at;
       }
@@ -166,7 +166,7 @@ export default function CommandLibraryManager() {
       return new Date(item.updated_at).getTime() > new Date(latest).getTime()
         ? item.updated_at
         : latest;
-    }, null);
+    }, undefined);
   }, [commands]);
 
   const maxWeight = useMemo(() => {
@@ -377,7 +377,7 @@ export default function CommandLibraryManager() {
               defaultValue: "Latest update",
             }),
             value:
-              formatTimestamp(latestUpdatedAt || undefined) ??
+              formatTimestamp(latestUpdatedAt) ??
               t("command_clipboard.stats.updated_empty", {
                 defaultValue: "No scripts yet.",
               }),
