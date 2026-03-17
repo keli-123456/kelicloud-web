@@ -385,7 +385,7 @@ const isNodeConnectivityBlocked = (live?: NodeLiveSnapshot) =>
 const Layout = () => {
   const { nodeDetail, isLoading, error, refresh } = useNodeDetails();
   const { call } = useRPC2Call();
-  const { settings } = useSettings("tenant");
+  const { settings } = useSettings();
   const [liveByNode, setLiveByNode] = useState<Record<string, NodeLiveSnapshot>>(
     {}
   );

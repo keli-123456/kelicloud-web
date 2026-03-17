@@ -23,10 +23,6 @@ export const routes: RouteObject[] = [
         path: "cloud/share/:token",
         element: React.createElement(lazy(() => import("./pages/cloudShare"))),
       },
-      {
-        path: "tenant/invite/:token",
-        element: React.createElement(lazy(() => import("./pages/tenantInvite"))),
-      },
     ],
   },
   {
@@ -47,6 +43,12 @@ export const routes: RouteObject[] = [
         ),
       },
       {
+        path: "users",
+        element: React.createElement(
+          lazy(() => import("./pages/admin/users"))
+        ),
+      },
+      {
         path: "cloud",
         element: React.createElement(lazy(() => import("./pages/admin/cloud"))),
       },
@@ -63,7 +65,7 @@ export const routes: RouteObject[] = [
           {
             index: true,
             element: React.createElement(Navigate, {
-              to: "site",
+              to: "general",
               replace: true,
             }),
           },
@@ -150,10 +152,6 @@ export const routes: RouteObject[] = [
       {
         path: "scripts",
         element: React.createElement(lazy(() => import("./pages/admin/scripts"))),
-      },
-      {
-        path: "tenants",
-        element: React.createElement(lazy(() => import("./pages/admin/tenants"))),
       },
     ],
   },

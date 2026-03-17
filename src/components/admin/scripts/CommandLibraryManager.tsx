@@ -377,7 +377,7 @@ export default function CommandLibraryManager() {
               defaultValue: "Latest update",
             }),
             value:
-              formatTimestamp(latestUpdatedAt) ??
+              formatTimestamp(latestUpdatedAt || undefined) ??
               t("command_clipboard.stats.updated_empty", {
                 defaultValue: "No scripts yet.",
               }),

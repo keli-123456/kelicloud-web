@@ -3,41 +3,19 @@ import Footer from "../components/Footer";
 import NavBar from "../components/NavBar";
 import { Outlet, useLocation } from "react-router-dom";
 import { NodeListProvider } from "@/contexts/NodeListContext";
-import { usePublicInfo } from "@/contexts/PublicInfoContext";
-import { useIsMobile } from "@/hooks/use-mobile";
 
 const IndexLayout = () => {
   // 使用我们的LiveDataContext
   const InnerLayout = () => {
-    const { publicInfo } = usePublicInfo();
     const location = useLocation();
-    const isMobile = useIsMobile();
-    const bgUrlDesktop = publicInfo?.theme_settings?.backgroundImageUrlDesktop;
-    const bgUrlMobile = publicInfo?.theme_settings?.backgroundImageUrlMobile;
-    const bgUrl = isMobile ? bgUrlMobile || bgUrlDesktop : bgUrlDesktop;
-    const mainContentWidth =
-      publicInfo?.theme_settings?.mainContentWidth ?? 100;
-    const isStandalonePublicPage =
-      location.pathname === "/" || location.pathname.startsWith("/tenant/invite/");
+    const isStandalonePublicPage = location.pathname === "/";
     return (
       <>
         <div
-          className={
-            bgUrl
-              ? "layout flex flex-col w-full min-h-screen bg-cover bg-center bg-fixed bg-no-repeat"
-              : "layout flex flex-col w-full min-h-screen bg-accent-1"
-          }
-          style={{
-            backgroundImage: bgUrl ? `url(${bgUrl})` : "none",
-          }}
+          className="layout flex min-h-screen w-full flex-col bg-[radial-gradient(circle_at_top,_rgba(148,163,184,0.12),_transparent_32%),linear-gradient(180deg,_var(--background)_0%,_var(--accent-1)_100%)]"
         >
           <main
-            className="main-content m-1 h-full"
-            style={{
-              width: `${mainContentWidth}vw`,
-              marginLeft: "auto",
-              marginRight: "auto",
-            }}
+            className="main-content mx-auto my-1 h-full w-full max-w-[1600px]"
           >
             {!isStandalonePublicPage ? <NavBar /> : null}
             <Outlet />

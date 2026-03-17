@@ -42,6 +42,16 @@ npm run dev
 npm run build
 ```
 
+### 发布前校验
+
+```bash
+npm ci
+npx tsc --noEmit
+npm run build
+```
+
+仓库里也提供了一个手动触发的 GitHub Actions 工作流 `Verify Runtime`，会执行同一套校验并上传 `dist` 产物。
+
 ## 主题相关
 
 如果你需要基于本项目进行二次开发，可以参考以下步骤：

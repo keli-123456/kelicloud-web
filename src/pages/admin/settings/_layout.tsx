@@ -10,12 +10,12 @@ const navItems = [
   {
     path: "/admin/settings/site",
     labelKey: "settings.site.title",
-    platformOnly: false,
+    platformOnly: true,
   },
   {
     path: "/admin/settings/custom",
     labelKey: "settings.custom.header",
-    platformOnly: false,
+    platformOnly: true,
   },
   {
     path: "/admin/settings/general",

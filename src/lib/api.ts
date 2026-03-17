@@ -5,9 +5,7 @@ import { toast } from "sonner";
  * API utility functions for settings management
  */
 
-export type SettingsScope = "tenant" | "system";
-
-export const TENANT_SWITCH_EVENT = "komari:tenant-switched";
+export type SettingsScope = "user" | "system";
 
 export interface SettingsResponse {
   sitename: string;
@@ -61,7 +59,7 @@ const getResponseMessage = async (response: Response) => {
  * @returns Promise containing the settings data
  */
 export async function getSettings(
-  scope: SettingsScope = "tenant"
+  scope: SettingsScope = "user"
 ): Promise<SettingsResponse> {
   try {
     const response = await fetch(getSettingsPath(scope));
@@ -92,7 +90,7 @@ export async function getSettings(
  */
 export async function updateSettings(
   settings: Partial<SettingsResponse>,
-  scope: SettingsScope = "tenant"
+  scope: SettingsScope = "user"
 ): Promise<void> {
   try {
     const response = await fetch(getSettingsPath(scope), {
@@ -116,7 +114,7 @@ export async function updateSettings(
 export async function updateSettingsWithToast(
   settings: Partial<SettingsResponse>,
   t: (key: string) => string,
-  scope: SettingsScope = "tenant"
+  scope: SettingsScope = "user"
 ): Promise<void> {
   try {
     await updateSettings(settings, scope);
@@ -138,7 +136,7 @@ export async function updateSingleSetting<K extends keyof SettingsResponse>(
   key: K,
   value: SettingsResponse[K],
   _currentSettings: SettingsResponse,
-  scope: SettingsScope = "tenant"
+  scope: SettingsScope = "user"
 ): Promise<void> {
   return updateSettings({ [key]: value }, scope);
 }
@@ -147,7 +145,7 @@ export async function updateSingleSetting<K extends keyof SettingsResponse>(
  * Hook for managing settings state and API calls
  */
 export function useSettings(
-  scope: SettingsScope = "tenant",
+  scope: SettingsScope = "user",
   options?: { enabled?: boolean }
 ) {
   const enabled = options?.enabled ?? true;
@@ -187,19 +185,6 @@ export function useSettings(
 
     refetch().catch(() => undefined);
   }, [enabled, refetch]);
-
-  React.useEffect(() => {
-    if (!enabled || scope !== "tenant") return;
-
-    const handleTenantSwitch = () => {
-      refetch().catch(() => undefined);
-    };
-
-    window.addEventListener(TENANT_SWITCH_EVENT, handleTenantSwitch);
-    return () => {
-      window.removeEventListener(TENANT_SWITCH_EVENT, handleTenantSwitch);
-    };
-  }, [enabled, refetch, scope]);
 
   const updateSetting = async <K extends keyof SettingsResponse>(
     key: K,

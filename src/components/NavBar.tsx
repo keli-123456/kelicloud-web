@@ -19,7 +19,6 @@ import { usePublicInfo } from "@/contexts/PublicInfoContext";
 const NavBar = () => {
   const { publicInfo } = usePublicInfo();
   const { t } = useTranslation();
-  const isPrivate = publicInfo?.private_site && !document.cookie.includes("temp_key");
   const siteInitial = String(publicInfo?.sitename || "K")
     .trim()
     .slice(0, 1)
@@ -53,10 +52,10 @@ const NavBar = () => {
                     {publicInfo?.sitename}
                   </span>
                   <Badge
-                    variant={isPrivate ? "warning" : "info"}
+                    variant="info"
                     className="rounded-full px-2.5 py-1"
                   >
-                    {isPrivate ? t("common.private_site") : "Live Fleet"}
+                    Live Fleet
                   </Badge>
                 </div>
                 <span className="truncate text-[11px] uppercase tracking-[0.28em] text-muted-foreground md:text-xs">
@@ -68,14 +67,10 @@ const NavBar = () => {
               </div>
             </Link>
 
-            {isPrivate ? (
-              <>
-                <Separator orientation="vertical" className="hidden h-10 md:block" />
-                <div className="hidden rounded-2xl border border-amber-200/70 bg-amber-50/70 px-3 py-2 text-sm text-amber-700 md:block">
-                  {t("common.private_site")}
-                </div>
-              </>
-            ) : null}
+            <Separator orientation="vertical" className="hidden h-10 md:block" />
+            <div className="hidden rounded-2xl border border-slate-200/70 bg-slate-50/70 px-3 py-2 text-sm text-slate-600 md:block">
+              {t("common.admin_console", "Admin Console")}
+            </div>
           </div>
 
           <div className="flex flex-shrink-0 flex-wrap items-center gap-2 rounded-full border border-border/60 bg-background/75 p-1.5 shadow-sm">
@@ -99,17 +94,7 @@ const NavBar = () => {
             <ThemeSwitch />
             <ColorSwitch />
             <LanguageSwitch />
-            {isPrivate ? (
-              <LoginDialog
-                autoOpen={isPrivate}
-                info={t("common.private_site")}
-                onLoginSuccess={() => {
-                  window.location.reload();
-                }}
-              />
-            ) : (
-              <LoginDialog />
-            )}
+            <LoginDialog />
           </div>
         </div>
       </div>

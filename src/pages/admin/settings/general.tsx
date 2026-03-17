@@ -26,12 +26,12 @@ import { PlatformAdminNotice } from "@/components/admin/PlatformAdminNotice";
 export default function GeneralSettings() {
   const { t } = useTranslation();
   const { platformAdmin, loading: accountLoading } = useAccount();
-  const tenantState = useSettings("tenant");
+  const userState = useSettings();
   const systemState = useSettings("system", { enabled: platformAdmin });
-  const settings = tenantState.settings;
+  const settings = userState.settings;
   const systemSettings = systemState.settings;
-  const loading = tenantState.loading || (platformAdmin && systemState.loading);
-  const error = tenantState.error || systemState.error;
+  const loading = userState.loading || (platformAdmin && systemState.loading);
+  const error = userState.error || systemState.error;
   const [geoIpQuery, setGeoIpQuery] = React.useState("");
   const [geoip_testResult, setGeoipTestResult] = React.useState<string | null>(
     null
@@ -71,6 +71,27 @@ export default function GeneralSettings() {
         {t("settings.general.auto_discovery")}
       </SettingCardLabel>
       <ApiCard settings={settings} />
+      <SettingCardShortTextInput
+        title={t("settings.site.script_domain")}
+        description={t("settings.site.script_domain_description")}
+        placeholder={window.location.origin}
+        defaultValue={settings.script_domain || ""}
+        OnSave={async (value) => {
+          await updateSettingsWithToast({ script_domain: value }, t);
+        }}
+      />
+      <SettingCardShortTextInput
+        title={t("settings.site.base_scripts_url", "Agent script source")}
+        description={t(
+          "settings.site.base_scripts_url_description",
+          "Install script source used by one-click commands and auto-connect. Supports a GitHub repo URL, tree/blob URL, or raw URL. Leave empty to use the official repository.",
+        )}
+        placeholder="https://github.com/your-name/komari-agent"
+        defaultValue={settings.base_scripts_url || ""}
+        OnSave={async (value) => {
+          await updateSettingsWithToast({ base_scripts_url: value }, t);
+        }}
+      />
       {platformAdmin ? (
         <>
           <SettingCardLabel>{t("settings.system_settings_title")}</SettingCardLabel>
@@ -399,14 +420,14 @@ const ApiCard = ({ settings }: { settings: SettingsResponse }) => {
       onChange={(e) => setApiValues(e.target.value)}
       OnSave={async (values) => {
         if (!values) {
-          await updateSettingsWithToast({ auto_discovery_key: "" }, t, "tenant");
+          await updateSettingsWithToast({ auto_discovery_key: "" }, t);
           return;
         }
         if (values.length < 12) {
           toast.error(t("settings.api.key_length_error"));
           return;
         }
-        await updateSettingsWithToast({ auto_discovery_key: values }, t, "tenant");
+        await updateSettingsWithToast({ auto_discovery_key: values }, t);
       }}
     >
       <div className="flex flex-row gap-2 justify-start items-center">

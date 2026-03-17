@@ -92,11 +92,6 @@
       "icon": "Book"
     },
     {
-      "labelKey": "tenants.title",
-      "path": "/admin/tenants",
-      "icon": "Building2"
-    },
-    {
       "labelKey": "ping.title",
       "path": "/admin/ping",
       "icon": "Activity"
@@ -105,6 +100,11 @@
       "labelKey": "sessions.title",
       "path": "/admin/sessions",
       "icon": "Users"
+    },
+    {
+      "labelKey": "admin.users.title",
+      "path": "/admin/users",
+      "icon": "ShieldCheck"
     },
     {
       "labelKey": "account.title",

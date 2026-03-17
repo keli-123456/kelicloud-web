@@ -10,7 +10,6 @@ import { Card } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
 import type { NodeBasicInfo } from "@/contexts/NodeListContext";
-import { usePublicInfo } from "@/contexts/PublicInfoContext";
 import { useIsMobile } from "@/hooks/use-mobile";
 import type { LiveData, Record } from "../types/LiveData";
 import { getOSImage, getOSName } from "@/utils";
@@ -113,7 +112,6 @@ interface NodeProps {
 const Node = React.memo(({ basic, live, online }: NodeProps) => {
   const [t] = useTranslation();
   const isMobile = useIsMobile();
-  const { publicInfo } = usePublicInfo();
   const defaultLive = {
     cpu: { usage: 0 },
     ram: { used: 0 },
@@ -187,16 +185,8 @@ const Node = React.memo(({ basic, live, online }: NodeProps) => {
                   expired_at={basic.expired_at}
                   currency={basic.currency}
                   tags={basic.tags}
-                  ip4={
-                    publicInfo?.theme_settings?.showIpTagsInCard
-                      ? basic.ipv4
-                      : undefined
-                  }
-                  ip6={
-                    publicInfo?.theme_settings?.showIpTagsInCard
-                      ? basic.ipv6
-                      : undefined
-                  }
+                  ip4={undefined}
+                  ip6={undefined}
                 />
               </div>
             </Link>
@@ -366,21 +356,14 @@ type NodeGridProps = {
 };
 
 export const NodeGrid = ({ nodes, liveData }: NodeGridProps) => {
-  const { publicInfo } = usePublicInfo();
-  const offlineServerPosition = publicInfo?.theme_settings?.offlineServerPosition;
   const onlineNodes = liveData && liveData.online ? liveData.online : [];
 
   const sortedNodes = [...nodes].sort((a, b) => {
     const aIsOnline = onlineNodes.includes(a.uuid);
     const bIsOnline = onlineNodes.includes(b.uuid);
 
-    if (offlineServerPosition === "First") {
-      if (!aIsOnline && bIsOnline) return -1;
-      if (aIsOnline && !bIsOnline) return 1;
-    } else if (offlineServerPosition !== "Keep") {
-      if (aIsOnline && !bIsOnline) return -1;
-      if (!aIsOnline && bIsOnline) return 1;
-    }
+    if (aIsOnline && !bIsOnline) return -1;
+    if (!aIsOnline && bIsOnline) return 1;
 
     return a.weight - b.weight;
   });
