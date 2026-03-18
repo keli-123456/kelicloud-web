@@ -4,6 +4,10 @@ import {
   useNodeDetails,
   type NodeDetail,
 } from "@/contexts/NodeDetailsContext";
+import {
+  getDefaultAdminPath,
+  useAccount,
+} from "@/contexts/AccountContext";
 import { t as translate } from "i18next";
 import {
   Badge,
@@ -58,9 +62,19 @@ import { useRPC2Call } from "@/contexts/RPC2Context";
 import type { Record as LiveRecord } from "@/types/LiveData";
 import { buildAgentInstallScriptURL } from "@/lib/installScriptSource";
 import { formatCNConnectivityTargetsSummary, parseCNConnectivityTargets } from "@/lib/cnConnectivityTargets";
+import { Navigate } from "react-router-dom";
 
 
 const NodeDetailsPage = () => {
+  const { account, hasFeature, loading } = useAccount();
+
+  if (loading) {
+    return <Loading />;
+  }
+  if (!hasFeature("clients")) {
+    return <Navigate to={getDefaultAdminPath(account)} replace />;
+  }
+
   return (
     <NodeDetailsProvider>
       <Layout />

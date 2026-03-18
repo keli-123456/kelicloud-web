@@ -1,4 +1,5 @@
 import React from 'react';
+import { useAccount } from "@/contexts/AccountContext";
 
 export type NodeDetail = {
   uuid: string;
@@ -37,13 +38,25 @@ interface NodeDetailsContextType {
 }
 const NodeDetailsContext = React.createContext<NodeDetailsContextType | undefined>(undefined);
 export const NodeDetailsProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const { platformAdmin } = useAccount();
   const [nodeDetail, setNodeDetail] = React.useState<NodeDetail[] | []>([]);
   const [isLoading, setIsLoading] = React.useState<boolean>(false);
   const [error, setError] = React.useState<string | null>(null);
+  const listEndpoint = React.useMemo(
+    () => (platformAdmin ? "/api/admin/client/list?all=1" : "/api/admin/client/list"),
+    [platformAdmin],
+  );
 
   const refresh = () => {
-    fetch("/api/admin/client/list")
-      .then((response) => response.json())
+    setIsLoading(true);
+    setError(null);
+    fetch(listEndpoint)
+      .then((response) => {
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return response.json();
+      })
       .then((data: NodeDetail[]) => {
         setNodeDetail(data);
         setIsLoading(false);
@@ -56,7 +69,7 @@ export const NodeDetailsProvider: React.FC<{ children: React.ReactNode }> = ({ c
     React.useEffect(() => {
         setIsLoading(true);
         refresh();
-    }, []);
+    }, [listEndpoint]);
   return (
     <NodeDetailsContext.Provider value={{ nodeDetail, isLoading, error, refresh }}>
       {children}

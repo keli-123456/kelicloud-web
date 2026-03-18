@@ -17,7 +17,11 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { AccountProvider, useAccount } from "@/contexts/AccountContext";
+import {
+  AccountProvider,
+  getDefaultAdminPath,
+  useAccount,
+} from "@/contexts/AccountContext";
 import { usePublicInfo } from "@/contexts/PublicInfoContext";
 import { Navigate } from "react-router-dom";
 
@@ -100,12 +104,12 @@ const LoginDialog = ({
         });
         const data = await res.json();
         if (res.status === 200) {
-          refresh();
+          const nextAccount = await refresh();
           if (typeof onLoginSuccess === "function") {
             onLoginSuccess();
             return;
           }
-          window.open("/admin", "_self");
+          window.open(getDefaultAdminPath(nextAccount), "_self");
         } else {
           if (data.message === "2FA code is required") {
             setRequire2FA(true);
@@ -142,6 +146,7 @@ const LoginDialog = ({
       );
     }
     if (account.logged_in) {
+      const defaultAdminPath = getDefaultAdminPath(account);
       if (redirectAuthenticatedTo) {
         return <Navigate to={redirectAuthenticatedTo} replace />;
       }
@@ -149,7 +154,7 @@ const LoginDialog = ({
         return null;
       }
       return (
-        <a href="/admin" target="_blank" rel="noreferrer">
+        <a href={defaultAdminPath} target="_blank" rel="noreferrer">
           <Button type="button" variant="outline" size="icon">
             <TablerSettings />
           </Button>

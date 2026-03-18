@@ -19,7 +19,10 @@ import LanguageSwitch from "../Language";
 import ThemeSwitch from "../ThemeSwitch";
 import LoginDialog from "../Login";
 import Tips from "../ui/tips";
-import { useAccount } from "@/contexts/AccountContext";
+import {
+  type AccountFeature,
+  useAccount,
+} from "@/contexts/AccountContext";
 import { usePublicInfo } from "@/contexts/PublicInfoContext";
 import { useRPC2Call } from "@/contexts/RPC2Context";
 import { Button } from "@/components/ui/button";
@@ -69,6 +72,17 @@ interface MenuEntry {
 }
 
 const footerMenuPaths = new Set<string>();
+
+const featurePathPrefixes: Array<[string, AccountFeature]> = [
+  ["/admin/cloud", "cloud"],
+  ["/admin/dns", "cloud"],
+  ["/admin/notification", "notifications"],
+  ["/admin/exec", "tasks"],
+  ["/admin/scripts", "clipboard"],
+  ["/admin/ping", "ping"],
+  ["/admin/logs", "logs"],
+  ["/admin", "clients"],
+];
 
 const isExternalPath = (target: string) =>
   target.startsWith("http://") || target.startsWith("https://");
@@ -144,9 +158,32 @@ const getActiveChild = (
   item.children?.find((child) => isPathActive(child.path, pathname, search)) ||
   null;
 
+const getRequiredFeatureForPath = (target: string) => {
+  if (!target || isExternalPath(target)) {
+    return null;
+  }
+
+  const targetUrl = new URL(target, "https://komari.local");
+  const normalizedPath = normalizePath(targetUrl.pathname);
+
+  for (const [prefix, feature] of featurePathPrefixes) {
+    if (prefix === "/admin") {
+      if (normalizedPath === prefix) {
+        return feature;
+      }
+      continue;
+    }
+    if (normalizedPath === prefix || normalizedPath.startsWith(`${prefix}/`)) {
+      return feature;
+    }
+  }
+
+  return null;
+};
+
 export default function AdminPanelBar({ content }: AdminPanelBarProps) {
   const { call } = useRPC2Call();
-  const { account, platformAdmin } = useAccount();
+  const { account, hasFeature, platformAdmin } = useAccount();
   const { publicInfo } = usePublicInfo();
   const location = useLocation();
   const navigate = useNavigate();
@@ -269,17 +306,34 @@ export default function AdminPanelBar({ content }: AdminPanelBarProps) {
     ].includes(normalizePath(targetUrl.pathname));
   }, []);
 
+  const isFeatureAllowedPath = useCallback(
+    (target: string) => {
+      const feature = getRequiredFeatureForPath(target);
+      if (!feature) {
+        return true;
+      }
+      return hasFeature(feature);
+    },
+    [hasFeature],
+  );
+
   const combinedMenuItems = useMemo<ExtendedMenuItem[]>(
     () =>
       baseMenuItems
-        .filter((item) => platformAdmin || !isPlatformOnlyPath(item.path))
+        .filter(
+          (item) =>
+            (platformAdmin || !isPlatformOnlyPath(item.path)) &&
+            isFeatureAllowedPath(item.path),
+        )
         .map((item) => ({
           ...item,
           children: item.children?.filter(
-            (child) => platformAdmin || !isPlatformOnlyPath(child.path),
+            (child) =>
+              (platformAdmin || !isPlatformOnlyPath(child.path)) &&
+              isFeatureAllowedPath(child.path),
           ),
         })),
-    [isPlatformOnlyPath, platformAdmin],
+    [isFeatureAllowedPath, isPlatformOnlyPath, platformAdmin],
   );
 
   const primaryMenuItems = useMemo(

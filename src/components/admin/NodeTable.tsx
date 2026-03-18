@@ -66,6 +66,7 @@ import {
   TextField,
 } from "@/components/admin/admin-ui";
 import Loading from "../loading";
+import { useAccount } from "@/contexts/AccountContext";
 
 const columns: ColumnDef<z.infer<typeof schema>>[] = [
   {
@@ -160,6 +161,7 @@ const columns: ColumnDef<z.infer<typeof schema>>[] = [
 ];
 
 export function DataTable() {
+  const { platformAdmin } = useAccount();
   const [data, setData] = React.useState<z.infer<typeof schema>[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
@@ -184,6 +186,10 @@ export function DataTable() {
   );
   const [newNodeName, setNewNodeName] = React.useState("");
   const [isAddingNode, setIsAddingNode] = React.useState(false);
+  const listEndpoint = React.useMemo(
+    () => (platformAdmin ? "/api/admin/client/list?all=1" : "/api/admin/client/list"),
+    [platformAdmin],
+  );
 
   async function handleAddNode() {
     setIsAddingNode(true);
@@ -208,7 +214,7 @@ export function DataTable() {
   React.useEffect(() => {
     setIsLoading(true);
     setError(null);
-    fetch("/api/admin/client/list")
+    fetch(listEndpoint)
       .then((res) => {
         if (!res.ok) {
           toast.error(t("admin.nodeTable.errorLoadNodeList"));
@@ -224,7 +230,7 @@ export function DataTable() {
         console.error("Failed to fetch node list:", e);
         if (data.length > 0) setError(t("admin.nodeTable.errorLoadNodeList"));
       });
-  }, [data.length]);
+  }, [data.length, listEndpoint]);
 
   const table = useReactTable({
     data,
@@ -291,7 +297,7 @@ export function DataTable() {
   const refreshTable = React.useCallback(() => {
     // setIsLoading(true);
     setError(null);
-    fetch("/api/admin/client/list")
+    fetch(listEndpoint)
       .then((res) => {
         if (!res.ok) {
           throw new Error(`HTTP error! status: ${res.status}`);
@@ -307,7 +313,7 @@ export function DataTable() {
         setError(t("admin.nodeTable.errorRefreshNodeList"));
         setIsLoading(false);
       });
-  }, []);
+  }, [listEndpoint]);
 
   if (isLoading) {
     return (
