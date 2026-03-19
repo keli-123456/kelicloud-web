@@ -17,6 +17,7 @@ import {
   Dialog,
   Flex,
   IconButton,
+  Select,
   SegmentedControl,
   Text,
   TextArea,
@@ -64,9 +65,124 @@ import { buildAgentInstallScriptURL } from "@/lib/installScriptSource";
 import { formatCNConnectivityTargetsSummary, parseCNConnectivityTargets } from "@/lib/cnConnectivityTargets";
 import { Navigate } from "react-router-dom";
 
+type AdminNodeScopeMode = "self" | "all" | "user";
+
+type AdminScopedUser = {
+  uuid: string;
+  username: string;
+  client_count?: number;
+};
+
+type AdminUsersEnvelope = {
+  status?: string;
+  message?: string;
+  data?: {
+    items?: AdminScopedUser[];
+  };
+};
 
 const NodeDetailsPage = () => {
-  const { account, hasFeature, loading } = useAccount();
+  const { account, hasFeature, loading, platformAdmin } = useAccount();
+  const selfUUID = String(account?.uuid || "").trim();
+  const [scopeMode, setScopeMode] = useState<AdminNodeScopeMode>("self");
+  const [scopeUsers, setScopeUsers] = useState<AdminScopedUser[]>([]);
+  const [scopeUsersLoading, setScopeUsersLoading] = useState(false);
+  const [selectedUserUUID, setSelectedUserUUID] = useState("");
+
+  React.useEffect(() => {
+    if (!platformAdmin) {
+      setScopeMode("self");
+      setScopeUsers([]);
+      setSelectedUserUUID("");
+      return;
+    }
+
+    let cancelled = false;
+
+    const loadScopeUsers = async () => {
+      setScopeUsersLoading(true);
+      try {
+        const response = await fetch("/api/admin/users");
+        const payload = (await response
+          .json()
+          .catch(() => ({}))) as AdminUsersEnvelope;
+        if (!response.ok || payload.status === "error") {
+          throw new Error(payload.message || "Failed to load users");
+        }
+
+        const items = (payload.data?.items || [])
+          .map((item) => ({
+            uuid: String(item.uuid || "").trim(),
+            username: String(item.username || "").trim(),
+            client_count: Number(item.client_count || 0),
+          }))
+          .filter(
+            (item) =>
+              item.uuid &&
+              item.username &&
+              item.uuid !== selfUUID,
+          )
+          .sort((left, right) =>
+            left.username.localeCompare(right.username, "zh-CN"),
+          );
+
+        if (cancelled) {
+          return;
+        }
+
+        setScopeUsers(items);
+        setSelectedUserUUID((current) =>
+          current && items.some((item) => item.uuid === current)
+            ? current
+            : (items[0]?.uuid ?? ""),
+        );
+      } catch (loadError) {
+        console.error("Failed to load admin node scope users:", loadError);
+        if (cancelled) {
+          return;
+        }
+        setScopeUsers([]);
+        setSelectedUserUUID("");
+      } finally {
+        if (!cancelled) {
+          setScopeUsersLoading(false);
+        }
+      }
+    };
+
+    void loadScopeUsers();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [platformAdmin, selfUUID]);
+
+  React.useEffect(() => {
+    if (scopeMode === "user" && scopeUsers.length === 0 && !scopeUsersLoading) {
+      setScopeMode("self");
+    }
+  }, [scopeMode, scopeUsers.length, scopeUsersLoading]);
+
+  const listEndpoint = React.useMemo(() => {
+    if (!platformAdmin) {
+      return "/api/admin/client/list";
+    }
+    if (scopeMode === "all") {
+      return "/api/admin/client/list?all=1";
+    }
+    if (scopeMode === "user" && selectedUserUUID) {
+      return `/api/admin/client/list?user_uuid=${encodeURIComponent(
+        selectedUserUUID,
+      )}`;
+    }
+    return "/api/admin/client/list";
+  }, [platformAdmin, scopeMode, selectedUserUUID]);
+
+  const selectedScopeUser = React.useMemo(
+    () =>
+      scopeUsers.find((item) => item.uuid === selectedUserUUID) || null,
+    [scopeUsers, selectedUserUUID],
+  );
 
   if (loading) {
     return <Loading />;
@@ -76,8 +192,17 @@ const NodeDetailsPage = () => {
   }
 
   return (
-    <NodeDetailsProvider>
-      <Layout />
+    <NodeDetailsProvider listEndpoint={listEndpoint}>
+      <Layout
+        platformAdmin={platformAdmin}
+        scopeMode={scopeMode}
+        scopeUsers={scopeUsers}
+        scopeUsersLoading={scopeUsersLoading}
+        selectedUserUUID={selectedUserUUID}
+        selectedScopeUser={selectedScopeUser}
+        onScopeModeChange={setScopeMode}
+        onSelectedUserUUIDChange={setSelectedUserUUID}
+      />
     </NodeDetailsProvider>
   );
 };
@@ -396,7 +521,25 @@ const getNodePrimaryAddress = (node: NodeDetail) =>
 const isNodeConnectivityBlocked = (live?: NodeLiveSnapshot) =>
   live?.record.cn_connectivity?.status === "blocked_suspected";
 
-const Layout = () => {
+const Layout = ({
+  platformAdmin,
+  scopeMode,
+  scopeUsers,
+  scopeUsersLoading,
+  selectedUserUUID,
+  selectedScopeUser,
+  onScopeModeChange,
+  onSelectedUserUUIDChange,
+}: {
+  platformAdmin: boolean;
+  scopeMode: AdminNodeScopeMode;
+  scopeUsers: AdminScopedUser[];
+  scopeUsersLoading: boolean;
+  selectedUserUUID: string;
+  selectedScopeUser: AdminScopedUser | null;
+  onScopeModeChange: (value: AdminNodeScopeMode) => void;
+  onSelectedUserUUIDChange: (value: string) => void;
+}) => {
   const { nodeDetail, isLoading, error, refresh } = useNodeDetails();
   const { call } = useRPC2Call();
   const { settings } = useSettings();
@@ -428,6 +571,15 @@ const Layout = () => {
         return String(a.name || "").localeCompare(String(b.name || ""), "zh-CN");
       })
     : [];
+  const liveScopeUUIDs = React.useMemo(
+    () => allNodes.map((node) => node.uuid),
+    [allNodes],
+  );
+  const liveScopeKey = React.useMemo(
+    () => liveScopeUUIDs.join(","),
+    [liveScopeUUIDs],
+  );
+  const installActionsEnabled = !platformAdmin || scopeMode === "self";
 
   useEffect(() => {
     const interval = window.setInterval(() => {
@@ -440,13 +592,25 @@ const Layout = () => {
     let timer: number | undefined;
     let stopped = false;
     let running = false;
+    const pollUUIDs = [...liveScopeUUIDs];
+
+    if (pollUUIDs.length === 0) {
+      setLiveByNode({});
+      setLiveLoaded(true);
+      setLiveError(null);
+      return () => {
+        stopped = true;
+      };
+    }
 
     const pollLiveData = async () => {
       if (running) return;
       running = true;
 
       try {
-        const result: Record<string, any> = await call("common:getNodesLatestStatus");
+        const result: Record<string, any> = await call("common:getNodesLatestStatus", {
+          uuids: pollUUIDs,
+        });
         if (stopped) return;
 
         const nextState: Record<string, NodeLiveSnapshot> = {};
@@ -475,7 +639,7 @@ const Layout = () => {
         window.clearTimeout(timer);
       }
     };
-  }, [call]);
+  }, [call, liveScopeKey]);
 
   if (isLoading) return <Loading text="" />;
   if (error) return <div>{error}</div>;
@@ -494,12 +658,22 @@ const Layout = () => {
         liveLoaded={liveLoaded}
         liveError={liveError}
         settings={settings}
+        platformAdmin={platformAdmin}
+        scopeMode={scopeMode}
+        scopeUsers={scopeUsers}
+        scopeUsersLoading={scopeUsersLoading}
+        selectedUserUUID={selectedUserUUID}
+        selectedScopeUser={selectedScopeUser}
+        onScopeModeChange={onScopeModeChange}
+        onSelectedUserUUIDChange={onSelectedUserUUIDChange}
+        installActionsEnabled={installActionsEnabled}
       />
 
       <NodeTable
         nodes={allNodes}
         liveByNode={liveByNode}
         settings={settings}
+        installActionsEnabled={installActionsEnabled}
       />
     </div>
   );
@@ -511,12 +685,30 @@ const Header = ({
   liveLoaded,
   liveError,
   settings,
+  platformAdmin,
+  scopeMode,
+  scopeUsers,
+  scopeUsersLoading,
+  selectedUserUUID,
+  selectedScopeUser,
+  onScopeModeChange,
+  onSelectedUserUUIDChange,
+  installActionsEnabled,
 }: {
   nodes: NodeDetail[];
   liveByNode: Record<string, NodeLiveSnapshot>;
   liveLoaded: boolean;
   liveError: string | null;
   settings: SettingsResponse;
+  platformAdmin: boolean;
+  scopeMode: AdminNodeScopeMode;
+  scopeUsers: AdminScopedUser[];
+  scopeUsersLoading: boolean;
+  selectedUserUUID: string;
+  selectedScopeUser: AdminScopedUser | null;
+  onScopeModeChange: (value: AdminNodeScopeMode) => void;
+  onSelectedUserUUIDChange: (value: string) => void;
+  installActionsEnabled: boolean;
 }) => {
   const { t, i18n } = useTranslation();
   const { refresh } = useNodeDetails();
@@ -554,15 +746,38 @@ const Header = ({
     String(settings?.cn_connectivity_target || ""),
     i18n.language.startsWith("zh") ? "zh" : "en"
   );
+  const addNodeDisabled = platformAdmin && scopeMode === "all";
+  const scopeSummaryLabel = platformAdmin
+    ? scopeMode === "all"
+      ? t("admin.nodeTable.scopeAllSummary", {
+          defaultValue: "Viewing all users",
+        })
+      : scopeMode === "user"
+        ? t("admin.nodeTable.scopeUserSummary", {
+            username: selectedScopeUser?.username || t("admin.users.role_user", "User"),
+            defaultValue: "Viewing {{username}}",
+          })
+        : t("admin.nodeTable.scopeSelfSummary", {
+            defaultValue: "Viewing my nodes",
+          })
+    : null;
   const handleAddNode = async (name: string | undefined) => {
     setDialogOpen(true);
     setLoading(true);
     try {
-      await fetch("/api/admin/client/add", {
+      const payload: Record<string, string> = { name: name || "" };
+      if (platformAdmin && scopeMode === "user" && selectedUserUUID) {
+        payload.user_uuid = selectedUserUUID;
+      }
+
+      const response = await fetch("/api/admin/client/add", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: name || "" }),
+        body: JSON.stringify(payload),
       });
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
       refresh();
     } catch (error) {
       toast.error(
@@ -716,6 +931,90 @@ const Header = ({
               <span>↓ {formatBytes(totalDownloadTraffic)}</span>
             </div>
           </div>
+          {platformAdmin ? (
+            <div className="flex min-w-0 flex-col gap-2 rounded-xl border border-slate-200 bg-slate-50/70 px-3 py-3 dark:border-slate-800 dark:bg-slate-900/40">
+              <div className="flex flex-wrap items-center gap-2">
+                <Text className="text-sm font-medium text-slate-700 dark:text-slate-200">
+                  {t("admin.nodeTable.scopeLabel", {
+                    defaultValue: "View scope",
+                  })}
+                </Text>
+                <SegmentedControl.Root
+                  value={scopeMode}
+                  onValueChange={(value) =>
+                    onScopeModeChange(value as AdminNodeScopeMode)
+                  }
+                >
+                  <SegmentedControl.Item value="self">
+                    {t("admin.nodeTable.scopeMine", {
+                      defaultValue: "My nodes",
+                    })}
+                  </SegmentedControl.Item>
+                  <SegmentedControl.Item value="all">
+                    {t("admin.nodeTable.scopeAll", {
+                      defaultValue: "All nodes",
+                    })}
+                  </SegmentedControl.Item>
+                  <SegmentedControl.Item value="user">
+                    {t("admin.nodeTable.scopeUser", {
+                      defaultValue: "By user",
+                    })}
+                  </SegmentedControl.Item>
+                </SegmentedControl.Root>
+                {scopeMode === "user" ? (
+                  <div className="min-w-[220px] flex-1 sm:max-w-xs">
+                    <Select.Root
+                      value={selectedUserUUID}
+                      onValueChange={onSelectedUserUUIDChange}
+                    >
+                      <Select.Trigger
+                        className="rounded-lg border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-950"
+                        placeholder={
+                          scopeUsersLoading
+                            ? t("common.loading", "Loading...")
+                            : t("admin.nodeTable.scopeSelectUser", {
+                                defaultValue: "Select a user",
+                              })
+                        }
+                      />
+                      <Select.Content>
+                        {scopeUsers.map((user) => (
+                          <Select.Item key={user.uuid} value={user.uuid}>
+                            {user.username}
+                          </Select.Item>
+                        ))}
+                      </Select.Content>
+                    </Select.Root>
+                  </div>
+                ) : null}
+                {scopeSummaryLabel ? (
+                  <Badge
+                    variant="soft"
+                    color="gray"
+                    className="rounded-full px-3 py-1"
+                  >
+                    {scopeSummaryLabel}
+                  </Badge>
+                ) : null}
+              </div>
+              {!installActionsEnabled ? (
+                <Text className="text-[13px] text-slate-500 dark:text-slate-400">
+                  {t("admin.nodeTable.scopeInstallHint", {
+                    defaultValue:
+                      "Install commands use your own auto-discovery key. Switch back to My nodes before onboarding new servers.",
+                  })}
+                </Text>
+              ) : null}
+              {addNodeDisabled ? (
+                <Text className="text-[13px] text-slate-500 dark:text-slate-400">
+                  {t("admin.nodeTable.scopeAddNodeHint", {
+                    defaultValue:
+                      "Switch to My nodes or a specific user before creating a new node.",
+                  })}
+                </Text>
+              ) : null}
+            </div>
+          ) : null}
           <div className="text-sm text-slate-500 dark:text-slate-400">
             {cnConnectivityConfigured
               ? t("admin.nodeTable.cnConnectivitySummary", {
@@ -738,12 +1037,14 @@ const Header = ({
               nodes={nodes}
               settings={settings}
               toolbar
+              disabled={!installActionsEnabled}
             />
             <GenerateCommandButton
               nodes={nodes}
               settings={settings}
               toolbar
               groupMode
+              disabled={!installActionsEnabled}
             />
             <Button
               variant="soft"
@@ -765,6 +1066,7 @@ const Header = ({
                 <Button
                   onClick={() => setDialogOpen(true)}
                   className="rounded-lg bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900"
+                  disabled={addNodeDisabled}
                 >
                   <Plus size={16} />
                   {t("admin.nodeTable.addNode")}
@@ -776,10 +1078,18 @@ const Header = ({
               >
                 <Dialog.Title>{t("admin.nodeTable.addNode")}</Dialog.Title>
                 <Dialog.Description className="mt-2">
-                  {t("admin.nodeTable.addNodeDescription", {
-                    defaultValue:
-                      "After creating a node, you can continue editing its group, notes, and billing details.",
-                  })}
+                  {platformAdmin && scopeMode === "user"
+                    ? t("admin.nodeTable.addNodeDescriptionForUser", {
+                        username:
+                          selectedScopeUser?.username ||
+                          t("admin.users.role_user", "User"),
+                        defaultValue:
+                          "This node will be created under {{username}}. You can continue editing its group, notes, and billing details afterward.",
+                      })
+                    : t("admin.nodeTable.addNodeDescription", {
+                        defaultValue:
+                          "After creating a node, you can continue editing its group, notes, and billing details.",
+                      })}
                 </Dialog.Description>
                 <TextField.Root
                   ref={inputRef}
@@ -1946,11 +2256,13 @@ const NodeGroupSection = ({
   nodes,
   liveByNode,
   settings,
+  installActionsEnabled,
 }: {
   groupName: string;
   nodes: NodeDetail[];
   liveByNode: Record<string, NodeLiveSnapshot>;
   settings: SettingsResponse;
+  installActionsEnabled: boolean;
 }) => {
   const { t } = useTranslation();
   const totalUploadSpeed = nodes.reduce(
@@ -2025,6 +2337,7 @@ const NodeGroupSection = ({
             groupMode
             presetGroupName={groupName}
             toolbarLabel={t("admin.nodeTable.installAgent", "Install agent")}
+            disabled={!installActionsEnabled}
           />
           <GroupUpgradeButton
             groupName={groupName}
@@ -2055,10 +2368,12 @@ const NodeTable = ({
   nodes,
   liveByNode,
   settings,
+  installActionsEnabled,
 }: {
   nodes: NodeDetail[];
   liveByNode: Record<string, NodeLiveSnapshot>;
   settings: SettingsResponse;
+  installActionsEnabled: boolean;
 }) => {
   const { t } = useTranslation();
   const groupedNodes = React.useMemo(() => {
@@ -2093,6 +2408,7 @@ const NodeTable = ({
             nodes={group.nodes}
             liveByNode={liveByNode}
             settings={settings}
+            installActionsEnabled={installActionsEnabled}
           />
         ))
       )}
@@ -2218,6 +2534,7 @@ function GenerateCommandButton({
   groupMode = false,
   presetGroupName,
   toolbarLabel,
+  disabled = false,
 }: {
   node?: NodeDetail;
   nodes?: NodeDetail[];
@@ -2226,6 +2543,7 @@ function GenerateCommandButton({
   groupMode?: boolean;
   presetGroupName?: string;
   toolbarLabel?: string;
+  disabled?: boolean;
 }) {
   const availableNodes = nodes ?? (node ? [node] : []);
   const initialPreferences = React.useMemo(
@@ -2504,6 +2822,7 @@ function GenerateCommandButton({
             variant="soft"
             color={groupMode ? "green" : "blue"}
             className="shrink-0 rounded-2xl"
+            disabled={disabled}
           >
             <Download size={16} />
             {toolbarLabel ||
@@ -2516,6 +2835,7 @@ function GenerateCommandButton({
           variant="ghost"
           title={t("admin.nodeTable.installCommand")}
           className="h-8 w-8 rounded-lg"
+          disabled={disabled}
         >
           <Download size="18" />
         </IconButton>
