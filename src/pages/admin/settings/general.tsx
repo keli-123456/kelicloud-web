@@ -4,7 +4,6 @@ import { Input } from "@/components/ui/input";
 import {
   updateSettingsWithToast,
   useSettings,
-  type SettingsResponse,
 } from "@/lib/api";
 import {
   SettingCardButton,
@@ -19,7 +18,6 @@ import { toast } from "sonner";
 import Loading from "@/components/loading";
 import { SettingCardMultiInputCollapse } from "@/components/admin/SettingCardMultiInput";
 import { formatBytes } from "@/utils/unitHelper";
-import { normalizeCNConnectivityTargets } from "@/lib/cnConnectivityTargets";
 import { useAccount } from "@/contexts/AccountContext";
 import { PlatformAdminNotice } from "@/components/admin/PlatformAdminNotice";
 
@@ -67,10 +65,6 @@ export default function GeneralSettings() {
 
   return (
     <>
-      <SettingCardLabel>
-        {t("settings.general.auto_discovery")}
-      </SettingCardLabel>
-      <ApiCard settings={settings} />
       <SettingCardShortTextInput
         title={t("settings.site.script_domain")}
         description={t("settings.site.script_domain_description")}
@@ -106,65 +100,6 @@ export default function GeneralSettings() {
               await updateSettingsWithToast({ allow_cors: checked }, t, "system");
             }}
           />
-          <SettingCardLabel>
-            {t("settings.general.cn_connectivity")}
-          </SettingCardLabel>
-          <SettingCardSwitch
-            title={t("settings.general.cn_connectivity_enabled")}
-            description={t("settings.general.cn_connectivity_enabled_description")}
-            defaultChecked={systemSettings.cn_connectivity_enabled}
-            onChange={async (checked) => {
-              await updateSettingsWithToast({ cn_connectivity_enabled: checked }, t, "system");
-            }}
-          />
-          <SettingCardMultiInputCollapse
-            defaultOpen={Boolean(systemSettings.cn_connectivity_enabled)}
-            title={t("settings.general.cn_connectivity_config")}
-            description={t("settings.general.cn_connectivity_config_description")}
-            items={[
-              {
-                tag: "cn_connectivity_target",
-                label: t("settings.general.cn_connectivity_target"),
-                type: "long",
-                placeholder: "223.5.5.5\n119.29.29.29\ndns.alidns.com",
-                defaultValue: normalizeCNConnectivityTargets(
-                  systemSettings.cn_connectivity_target || ""
-                ),
-              },
-              {
-                tag: "cn_connectivity_interval",
-                label: t("settings.general.cn_connectivity_interval"),
-                type: "short",
-                placeholder: "60",
-                defaultValue: String(systemSettings.cn_connectivity_interval || 60),
-                number: true,
-              },
-            ]}
-            onSave={async (values) => {
-              const interval = parseInt(values.cn_connectivity_interval, 10);
-              if (isNaN(interval) || interval <= 0) {
-                toast.error(t("settings.general.cn_connectivity_interval_invalid"));
-                return;
-              }
-
-              const normalizedTargets = normalizeCNConnectivityTargets(
-                values.cn_connectivity_target
-              );
-
-              await updateSettingsWithToast(
-                {
-                  cn_connectivity_target: normalizedTargets,
-                  cn_connectivity_interval: interval,
-                },
-                t,
-                "system"
-              );
-            }}
-          >
-            <p className="text-[12px] leading-5 text-muted-foreground">
-              {t("settings.general.cn_connectivity_target_help")}
-            </p>
-          </SettingCardMultiInputCollapse>
           <label className="pt-1 text-[12px] font-semibold uppercase tracking-[0.14em] text-slate-500">
             {t("settings.geoip.title")}
           </label>
@@ -380,77 +315,3 @@ function calculateExpectedUsage(
 
   return formatBytes(totalPingBytes + totalRecordBytes);
 }
-
-const ApiCard = ({ settings }: { settings: SettingsResponse }) => {
-  //const { settings } = useSettings();
-  const { t } = useTranslation();
-  const [apiValues, setApiValues] = React.useState<string>(
-    settings?.auto_discovery_key || ""
-  );
-
-  // 生成32位随机字符串
-  const generateRandomString = () => {
-    const chars =
-      "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
-    let result = "";
-    for (let i = 0; i < 24; i++) {
-      result += chars.charAt(Math.floor(Math.random() * chars.length));
-    }
-    return result;
-  };
-
-  // 处理生成按钮点击
-  const handleGenerateApiKey = () => {
-    const newApiKey = generateRandomString();
-    setApiValues(newApiKey);
-  };
-
-  // 初始化API值
-  React.useEffect(() => {
-    if (settings?.auto_discovery_key) {
-      setApiValues(settings.auto_discovery_key);
-    }
-  }, [settings?.auto_discovery_key]);
-
-  return (
-    <SettingCardShortTextInput
-      title={t("settings.general.auto_discovery_key")}
-      description={t("settings.general.auto_discovery_key_description")}
-      value={apiValues}
-      onChange={(e) => setApiValues(e.target.value)}
-      OnSave={async (values) => {
-        if (!values) {
-          await updateSettingsWithToast({ auto_discovery_key: "" }, t);
-          return;
-        }
-        if (values.length < 12) {
-          toast.error(t("settings.api.key_length_error"));
-          return;
-        }
-        await updateSettingsWithToast({ auto_discovery_key: values }, t);
-      }}
-    >
-      <div className="flex flex-row gap-2 justify-start items-center">
-        <Button
-          variant="outline"
-          className="border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
-          onClick={handleGenerateApiKey}
-        >
-          {t("common.generate")}
-        </Button>
-        <Button
-          variant="outline"
-          className="border-cyan-200 bg-cyan-50 text-cyan-700 hover:bg-cyan-100"
-          onClick={() => {
-            window.open(
-              "https://komari-document.pages.dev/install/agent-ad.html",
-              "_blank"
-            );
-          }}
-        >
-          {t("common.help")}
-        </Button>
-      </div>
-    </SettingCardShortTextInput>
-  );
-};

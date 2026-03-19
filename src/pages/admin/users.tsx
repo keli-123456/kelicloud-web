@@ -70,6 +70,7 @@ const FEATURE_ORDER: AccountFeature[] = [
   "cloud",
   "clipboard",
   "logs",
+  "cn_connectivity",
 ];
 
 const normalizeRole = (role?: string): UserRole =>
@@ -132,10 +133,18 @@ const getFeatureLabel = (
       return t("admin.users.feature_clipboard", "Scripts");
     case "logs":
       return t("admin.users.feature_logs", "Logs");
+    case "cn_connectivity":
+      return t(
+        "admin.users.feature_cn_connectivity",
+        "CN connectivity probe",
+      );
     default:
       return feature;
   }
 };
+
+const getImplicitStandardFeaturesLabel = (t: TFunction) =>
+  t("admin.users.standard_features", "Standard features");
 
 const createDefaultForm = (): CreateUserForm => ({
   username: "",
@@ -513,8 +522,8 @@ export default function AdminUsersPage() {
                     </div>
                     <div className="text-xs text-slate-500 dark:text-slate-400">
                       {t(
-                        "admin.users.allowed_features_hint",
-                        "Leave all unchecked to allow every feature.",
+                        "admin.users.allowed_features_hint_v2",
+                        "Standard features stay available by default. Sensitive features like CN connectivity probe must be granted explicitly.",
                       )}
                     </div>
                   </div>
@@ -648,7 +657,7 @@ export default function AdminUsersPage() {
                         <div className="flex flex-wrap gap-2">
                           {allowedFeatures.length === 0 ? (
                             <Badge color="green" variant="soft">
-                              {t("admin.users.all_features", "All features")}
+                              {getImplicitStandardFeaturesLabel(t)}
                             </Badge>
                           ) : (
                             allowedFeatures.map((feature) => (
@@ -741,8 +750,8 @@ export default function AdminUsersPage() {
                     </div>
                     <div className="text-xs text-slate-500 dark:text-slate-400">
                       {t(
-                        "admin.users.allowed_features_hint",
-                        "Leave all unchecked to allow every feature.",
+                        "admin.users.allowed_features_hint_v2",
+                        "Standard features stay available by default. Sensitive features like CN connectivity probe must be granted explicitly.",
                       )}
                     </div>
                   </div>

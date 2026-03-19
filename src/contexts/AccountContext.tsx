@@ -8,7 +8,8 @@ export type AccountFeature =
   | "notifications"
   | "cloud"
   | "clipboard"
-  | "logs";
+  | "logs"
+  | "cn_connectivity";
 
 export type Account = {
   logged_in: boolean;
@@ -27,6 +28,21 @@ export function isPlatformAdminAccount(account: Account | null) {
   return (account?.role || "").toLowerCase() === "admin";
 }
 
+const defaultGrantedAccountFeatures = new Set<AccountFeature>([
+  "clients",
+  "records",
+  "tasks",
+  "ping",
+  "notifications",
+  "cloud",
+  "clipboard",
+  "logs",
+]);
+
+export function isDefaultGrantedAccountFeature(feature: AccountFeature) {
+  return defaultGrantedAccountFeatures.has(feature);
+}
+
 export function isAccountFeatureAllowed(
   account: Account | null,
   feature: AccountFeature,
@@ -37,7 +53,7 @@ export function isAccountFeatureAllowed(
 
   const allowed = account?.allowed_features || [];
   if (allowed.length === 0) {
-    return true;
+    return isDefaultGrantedAccountFeature(feature);
   }
 
   return allowed.includes(feature);

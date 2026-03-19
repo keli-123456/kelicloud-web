@@ -58,12 +58,26 @@ import {
 import { formatBytes } from "@/utils/unitHelper";
 import Loading from "@/components/loading";
 import Tips from "@/components/ui/tips";
-import { type SettingsResponse, useSettings } from "@/lib/api";
+import {
+  type SettingsResponse,
+  updateSettingsWithToast,
+  useSettings,
+} from "@/lib/api";
 import { useRPC2Call } from "@/contexts/RPC2Context";
 import type { Record as LiveRecord } from "@/types/LiveData";
 import { buildAgentInstallScriptURL } from "@/lib/installScriptSource";
-import { formatCNConnectivityTargetsSummary, parseCNConnectivityTargets } from "@/lib/cnConnectivityTargets";
+import {
+  formatCNConnectivityTargetsSummary,
+  normalizeCNConnectivityTargets,
+  parseCNConnectivityTargets,
+} from "@/lib/cnConnectivityTargets";
 import { Navigate } from "react-router-dom";
+import {
+  SettingCardLabel,
+  SettingCardShortTextInput,
+  SettingCardSwitch,
+} from "@/components/admin/SettingCard";
+import { SettingCardMultiInputCollapse } from "@/components/admin/SettingCardMultiInput";
 
 type AdminNodeScopeMode = "self" | "all" | "user";
 
@@ -84,6 +98,7 @@ type AdminUsersEnvelope = {
 const NodeDetailsPage = () => {
   const { account, hasFeature, loading, platformAdmin } = useAccount();
   const selfUUID = String(account?.uuid || "").trim();
+  const canManageCNConnectivity = platformAdmin || hasFeature("cn_connectivity");
   const [scopeMode, setScopeMode] = useState<AdminNodeScopeMode>("self");
   const [scopeUsers, setScopeUsers] = useState<AdminScopedUser[]>([]);
   const [scopeUsersLoading, setScopeUsersLoading] = useState(false);
@@ -202,6 +217,7 @@ const NodeDetailsPage = () => {
         selectedScopeUser={selectedScopeUser}
         onScopeModeChange={setScopeMode}
         onSelectedUserUUIDChange={setSelectedUserUUID}
+        canManageCNConnectivity={canManageCNConnectivity}
       />
     </NodeDetailsProvider>
   );
@@ -530,6 +546,7 @@ const Layout = ({
   selectedScopeUser,
   onScopeModeChange,
   onSelectedUserUUIDChange,
+  canManageCNConnectivity,
 }: {
   platformAdmin: boolean;
   scopeMode: AdminNodeScopeMode;
@@ -539,10 +556,11 @@ const Layout = ({
   selectedScopeUser: AdminScopedUser | null;
   onScopeModeChange: (value: AdminNodeScopeMode) => void;
   onSelectedUserUUIDChange: (value: string) => void;
+  canManageCNConnectivity: boolean;
 }) => {
   const { nodeDetail, isLoading, error, refresh } = useNodeDetails();
   const { call } = useRPC2Call();
-  const { settings } = useSettings();
+  const { settings, refetch: refetchSettings } = useSettings();
   const [liveByNode, setLiveByNode] = useState<Record<string, NodeLiveSnapshot>>(
     {}
   );
@@ -669,6 +687,12 @@ const Layout = ({
         installActionsEnabled={installActionsEnabled}
       />
 
+      <NodeAccessSettingsPanel
+        settings={settings}
+        canManageCNConnectivity={canManageCNConnectivity}
+        onRefreshSettings={refetchSettings}
+      />
+
       <NodeTable
         nodes={allNodes}
         liveByNode={liveByNode}
@@ -676,6 +700,178 @@ const Layout = ({
         installActionsEnabled={installActionsEnabled}
       />
     </div>
+  );
+};
+
+const generateRandomAutoDiscoveryKey = () => {
+  const chars =
+    "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+  let result = "";
+  for (let index = 0; index < 24; index += 1) {
+    result += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return result;
+};
+
+const NodeAccessSettingsPanel = ({
+  settings,
+  canManageCNConnectivity,
+  onRefreshSettings,
+}: {
+  settings: SettingsResponse;
+  canManageCNConnectivity: boolean;
+  onRefreshSettings: () => Promise<SettingsResponse>;
+}) => {
+  const { t } = useTranslation();
+  const [autoDiscoveryKey, setAutoDiscoveryKey] = React.useState(
+    String(settings?.auto_discovery_key || ""),
+  );
+
+  React.useEffect(() => {
+    setAutoDiscoveryKey(String(settings?.auto_discovery_key || ""));
+  }, [settings?.auto_discovery_key]);
+
+  return (
+    <Card className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-950/50">
+      <div className="space-y-4">
+        <div className="space-y-1">
+          <Text className="text-base font-semibold tracking-tight text-slate-900 dark:text-slate-50">
+            {t("admin.nodeTable.accessSettingsTitle", {
+              defaultValue: "Onboarding and probe settings",
+            })}
+          </Text>
+          <Text className="text-sm text-slate-500 dark:text-slate-400">
+            {t("admin.nodeTable.accessSettingsDescription", {
+              defaultValue:
+                "Manage your auto-discovery key here. CN connectivity probe remains a global setting and only appears if you are allowed to manage it.",
+            })}
+          </Text>
+        </div>
+
+        <SettingCardLabel>
+          {t("settings.general.auto_discovery")}
+        </SettingCardLabel>
+        <SettingCardShortTextInput
+          title={t("settings.general.auto_discovery_key")}
+          description={t("settings.general.auto_discovery_key_description")}
+          value={autoDiscoveryKey}
+          onChange={(event) => setAutoDiscoveryKey(event.target.value)}
+          OnSave={async (value) => {
+            if (!value) {
+              await updateSettingsWithToast({ auto_discovery_key: "" }, t);
+              await onRefreshSettings();
+              return;
+            }
+            if (value.length < 12) {
+              toast.error(t("settings.api.key_length_error"));
+              return;
+            }
+            await updateSettingsWithToast({ auto_discovery_key: value }, t);
+            await onRefreshSettings();
+          }}
+        >
+          <div className="flex flex-wrap gap-2">
+            <Button
+              variant="outline"
+              onClick={() =>
+                setAutoDiscoveryKey(generateRandomAutoDiscoveryKey())
+              }
+            >
+              {t("common.generate")}
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => {
+                window.open(
+                  "https://komari-document.pages.dev/install/agent-ad.html",
+                  "_blank",
+                );
+              }}
+            >
+              {t("common.help")}
+            </Button>
+          </div>
+        </SettingCardShortTextInput>
+
+        {canManageCNConnectivity ? (
+          <>
+            <SettingCardLabel>
+              {t("settings.general.cn_connectivity")}
+            </SettingCardLabel>
+            <Text className="text-sm text-slate-500 dark:text-slate-400">
+              {t("admin.nodeTable.cnConnectivityManageHint", {
+                defaultValue:
+                  "These options change the global CN connectivity probe used by all nodes on the panel.",
+              })}
+            </Text>
+            <SettingCardSwitch
+              title={t("settings.general.cn_connectivity_enabled")}
+              description={t(
+                "settings.general.cn_connectivity_enabled_description",
+              )}
+              defaultChecked={Boolean(settings.cn_connectivity_enabled)}
+              onChange={async (checked) => {
+                await updateSettingsWithToast(
+                  { cn_connectivity_enabled: checked },
+                  t,
+                );
+                await onRefreshSettings();
+              }}
+            />
+            <SettingCardMultiInputCollapse
+              defaultOpen={Boolean(settings.cn_connectivity_enabled)}
+              title={t("settings.general.cn_connectivity_config")}
+              description={t(
+                "settings.general.cn_connectivity_config_description",
+              )}
+              items={[
+                {
+                  tag: "cn_connectivity_target",
+                  label: t("settings.general.cn_connectivity_target"),
+                  type: "long",
+                  placeholder: "223.5.5.5\n119.29.29.29\ndns.alidns.com",
+                  defaultValue: normalizeCNConnectivityTargets(
+                    settings.cn_connectivity_target || "",
+                  ),
+                },
+                {
+                  tag: "cn_connectivity_interval",
+                  label: t("settings.general.cn_connectivity_interval"),
+                  type: "short",
+                  placeholder: "60",
+                  defaultValue: String(settings.cn_connectivity_interval || 60),
+                  number: true,
+                },
+              ]}
+              onSave={async (values) => {
+                const interval = parseInt(values.cn_connectivity_interval, 10);
+                if (Number.isNaN(interval) || interval <= 0) {
+                  toast.error(
+                    t("settings.general.cn_connectivity_interval_invalid"),
+                  );
+                  return;
+                }
+
+                await updateSettingsWithToast(
+                  {
+                    cn_connectivity_target: normalizeCNConnectivityTargets(
+                      values.cn_connectivity_target,
+                    ),
+                    cn_connectivity_interval: interval,
+                  },
+                  t,
+                );
+                await onRefreshSettings();
+              }}
+            >
+              <p className="text-[12px] leading-5 text-muted-foreground">
+                {t("settings.general.cn_connectivity_target_help")}
+              </p>
+            </SettingCardMultiInputCollapse>
+          </>
+        ) : null}
+      </div>
+    </Card>
   );
 };
 
