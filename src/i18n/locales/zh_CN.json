@@ -132,6 +132,8 @@
       "waiting": "等待..."
     },
     "nodeTable": {
+      "accessSettingsDescription": "在这里管理自动发现密钥。国内连通探测属于全局配置，只有被授权的用户才会显示。",
+      "accessSettingsTitle": "接入与探测设置",
       "addNode": "添加节点",
       "addNodeDescription": "创建新节点后，可以继续编辑分组、备注和账单信息。",
       "advancedParameters": "高级参数",
@@ -139,15 +141,8 @@
       "autoDiscoveryDisabledSingle": "当前还没启用自动发现密钥，所以这里仍是旧的单节点模式。到“设置 > 通用”里设置自动发现密钥后，这里会变成通用接入命令。",
       "autoDiscoveryGeneralHint": "当前使用通用自动接入命令。任意服务器执行后会自动注册到你的面板。",
       "autoDiscoveryGroupHint": "输入分组名称后，复制这条命令到任意服务器执行，节点会自动注册并归入该分组。已绑定过的机器再次执行时，会先提示是否清理旧绑定。",
-      "accessSettingsTitle": "接入与探测设置",
-      "accessSettingsDescription": "在这里管理自动发现密钥。国内连通探测属于全局配置，只有被授权的用户才会显示。",
-      "autoDiscoveryKeySummary": "当前密钥后 6 位：{{suffix}}",
       "autoDiscoveryKeyMissing": "生成密钥后才能使用通用接入命令。",
-      "manageAutoDiscovery": "设置密钥",
-      "manageCNConnectivity": "设置探测",
-      "cnConnectivityManageHint": "这些选项会修改整站节点共用的国内连通探测配置。",
-      "userSearchPlaceholder": "搜索用户节点",
-      "userSearchNoMatch": "没有找到匹配“{{query}}”的用户。",
+      "autoDiscoveryKeySummary": "当前密钥后 6 位：{{suffix}}",
       "autoEnroll": "自动接入",
       "autoRenewal": "自动续费",
       "autoRenewalDescription": "如果服务器过期且当前在线，Komari 将自动将到期时间设置为下个自然月（年）",
@@ -167,6 +162,7 @@
       "cnConnectivityBlocked": "疑似被墙",
       "cnConnectivityDegraded": "国内异常",
       "cnConnectivityDisabledMessage": "国内连通探测未启用。",
+      "cnConnectivityManageHint": "这些选项会修改整站节点共用的国内连通探测配置。",
       "cnConnectivityMissingTarget": "国内连通探测已启用，但还没有填写探测目标。",
       "cnConnectivityOk": "国内畅通",
       "cnConnectivitySummary": "国内连通探测：{{summary}}",
@@ -254,6 +250,8 @@
       "justStarted": "刚启动",
       "liveErrorPausedDeletion": "实时状态接口异常，已暂停批量删除。",
       "loading": "加载中...",
+      "manageAutoDiscovery": "设置密钥",
+      "manageCNConnectivity": "设置探测",
       "memoryModeAvailable": "包含缓冲区内存",
       "memoryModeAvailable_tip": "Agent 默认监测并上报已用内存，勾选此选项将上报已用内存+缓冲区内存。",
       "monthRotate": "网络统计月重置日",
@@ -302,7 +300,9 @@
       "upgradeTimeoutToast": "{{groupName}} 升级超时，请稍后手动检查节点状态",
       "uptimeDayUnit": "天",
       "uptimeHourUnit": "小时",
-      "uptimeMinuteUnit": "分钟"
+      "uptimeMinuteUnit": "分钟",
+      "userSearchNoMatch": "没有找到匹配“{{query}}”的用户。",
+      "userSearchPlaceholder": "搜索用户节点"
     },
     "notification": {
       "expire_enable": "是否启用过期提醒",
@@ -388,9 +388,6 @@
   },
   "close": "关闭",
   "cloud": {
-    "failover": {
-      "title": "故障切换"
-    },
     "access": {
       "description": "请立即保存这些信息。随机生成的密码只会展示一次，托管 SSH 密钥是你的保底登录方式。",
       "private_key": "托管私钥",
@@ -532,6 +529,9 @@
     "droplet_list": "Droplet 列表",
     "droplet_list_description": "点击实例名称可查看详情，并使用当前激活令牌执行常见生命周期操作。",
     "empty": "当前没有 Droplet",
+    "failover": {
+      "title": "故障切换"
+    },
     "form": {
       "auto_connect": "首启后自动接入 Komari",
       "auto_connect_group": "自动接入分组",
@@ -1009,7 +1009,6 @@
     "help": "帮助",
     "home": "主页",
     "language": "语言",
-    "settings": "设置",
     "long_term": "长期",
     "monthly": "月",
     "name": "名称",
@@ -1027,6 +1026,7 @@
     "selected": "{{count}}选择",
     "semi_annual": "半年",
     "server": "服务器",
+    "settings": "设置",
     "status": "状态",
     "success": "成功",
     "tags": "标签",
