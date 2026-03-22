@@ -63,6 +63,8 @@ export type FailoverTask = {
   id: number;
   name: string;
   enabled: boolean;
+  current_client_uuid: string;
+  current_address: string;
   watch_client_uuid: string;
   trigger_source: string;
   failure_threshold: number;
@@ -143,7 +145,7 @@ export type FailoverExecution = {
 export type FailoverTaskInput = {
   name: string;
   enabled: boolean;
-  watch_client_uuid: string;
+  current_client_uuid?: string;
   failure_threshold: number;
   stale_after_seconds: number;
   cooldown_seconds: number;
@@ -185,6 +187,63 @@ export type FailoverScriptOption = {
   updated_at: string;
 };
 
+export type FailoverDnsCatalogDefaults = {
+  zone_id: string;
+  zone_name: string;
+  domain_name: string;
+  proxied: boolean | null;
+};
+
+export type FailoverDnsRecordOption = {
+  id: string;
+  name: string;
+  type: string;
+  value: string;
+  ttl: number;
+  zone_id: string;
+  zone_name: string;
+  domain_name: string;
+  rr: string;
+  line: string;
+  proxied: boolean | null;
+};
+
+export type FailoverDnsOption = {
+  value: string;
+  label: string;
+};
+
+export type FailoverDnsCatalog = {
+  provider: string;
+  defaults: FailoverDnsCatalogDefaults;
+  records: FailoverDnsRecordOption[];
+  lines: FailoverDnsOption[];
+};
+
+export type FailoverCatalogOption = {
+  value: string;
+  label: string;
+  hint: string;
+};
+
+export type FailoverPlanCatalog = {
+  provider: string;
+  action_type: string;
+  service: string;
+  region: string;
+  regions: FailoverCatalogOption[];
+  availability_zones: FailoverCatalogOption[];
+  images: FailoverCatalogOption[];
+  instance_types: FailoverCatalogOption[];
+  key_pairs: FailoverCatalogOption[];
+  subnets: FailoverCatalogOption[];
+  security_groups: FailoverCatalogOption[];
+  bundles: FailoverCatalogOption[];
+  blueprints: FailoverCatalogOption[];
+  sizes: FailoverCatalogOption[];
+  types: FailoverCatalogOption[];
+};
+
 const ACTIVE_EXECUTION_STATUSES = new Set([
   "queued",
   "detecting",
@@ -219,6 +278,10 @@ function normalizeUnknown(value: unknown) {
 function normalizeNullableString(value: unknown) {
   const normalized = normalizeString(value).trim();
   return normalized ? normalized : null;
+}
+
+function normalizeNullableBoolean(value: unknown) {
+  return typeof value === "boolean" ? value : null;
 }
 
 function normalizeProbe(probe: unknown): FailoverProbe {
@@ -304,6 +367,8 @@ function normalizeTask(task: unknown): FailoverTask {
     id: normalizeNumber(raw.id),
     name: normalizeString(raw.name),
     enabled: normalizeBoolean(raw.enabled),
+    current_client_uuid: normalizeString(raw.current_client_uuid) || normalizeString(raw.watch_client_uuid),
+    current_address: normalizeString(raw.current_address),
     watch_client_uuid: normalizeString(raw.watch_client_uuid),
     trigger_source: normalizeString(raw.trigger_source),
     failure_threshold: normalizeNumber(raw.failure_threshold),
@@ -328,6 +393,81 @@ function normalizeTask(task: unknown): FailoverTask {
     plans,
     created_at: normalizeString(raw.created_at),
     updated_at: normalizeString(raw.updated_at),
+  };
+}
+
+function normalizeDnsCatalogDefaults(value: unknown): FailoverDnsCatalogDefaults {
+  const raw = value && typeof value === "object" ? value as Record<string, unknown> : {};
+  return {
+    zone_id: normalizeString(raw.zone_id),
+    zone_name: normalizeString(raw.zone_name),
+    domain_name: normalizeString(raw.domain_name),
+    proxied: normalizeNullableBoolean(raw.proxied),
+  };
+}
+
+function normalizeDnsRecord(value: unknown): FailoverDnsRecordOption {
+  const raw = value && typeof value === "object" ? value as Record<string, unknown> : {};
+  return {
+    id: normalizeString(raw.id),
+    name: normalizeString(raw.name),
+    type: normalizeString(raw.type),
+    value: normalizeString(raw.value),
+    ttl: normalizeNumber(raw.ttl),
+    zone_id: normalizeString(raw.zone_id),
+    zone_name: normalizeString(raw.zone_name),
+    domain_name: normalizeString(raw.domain_name),
+    rr: normalizeString(raw.rr),
+    line: normalizeString(raw.line),
+    proxied: normalizeNullableBoolean(raw.proxied),
+  };
+}
+
+function normalizeDnsOption(value: unknown): FailoverDnsOption {
+  const raw = value && typeof value === "object" ? value as Record<string, unknown> : {};
+  return {
+    value: normalizeString(raw.value),
+    label: normalizeString(raw.label),
+  };
+}
+
+function normalizeDnsCatalog(value: unknown): FailoverDnsCatalog {
+  const raw = value && typeof value === "object" ? value as Record<string, unknown> : {};
+  return {
+    provider: normalizeString(raw.provider),
+    defaults: normalizeDnsCatalogDefaults(raw.defaults),
+    records: Array.isArray(raw.records) ? raw.records.map(normalizeDnsRecord) : [],
+    lines: Array.isArray(raw.lines) ? raw.lines.map(normalizeDnsOption) : [],
+  };
+}
+
+function normalizeCatalogOption(value: unknown): FailoverCatalogOption {
+  const raw = value && typeof value === "object" ? value as Record<string, unknown> : {};
+  return {
+    value: normalizeString(raw.value),
+    label: normalizeString(raw.label),
+    hint: normalizeString(raw.hint),
+  };
+}
+
+function normalizePlanCatalog(value: unknown): FailoverPlanCatalog {
+  const raw = value && typeof value === "object" ? value as Record<string, unknown> : {};
+  return {
+    provider: normalizeString(raw.provider),
+    action_type: normalizeString(raw.action_type),
+    service: normalizeString(raw.service),
+    region: normalizeString(raw.region),
+    regions: Array.isArray(raw.regions) ? raw.regions.map(normalizeCatalogOption) : [],
+    availability_zones: Array.isArray(raw.availability_zones) ? raw.availability_zones.map(normalizeCatalogOption) : [],
+    images: Array.isArray(raw.images) ? raw.images.map(normalizeCatalogOption) : [],
+    instance_types: Array.isArray(raw.instance_types) ? raw.instance_types.map(normalizeCatalogOption) : [],
+    key_pairs: Array.isArray(raw.key_pairs) ? raw.key_pairs.map(normalizeCatalogOption) : [],
+    subnets: Array.isArray(raw.subnets) ? raw.subnets.map(normalizeCatalogOption) : [],
+    security_groups: Array.isArray(raw.security_groups) ? raw.security_groups.map(normalizeCatalogOption) : [],
+    bundles: Array.isArray(raw.bundles) ? raw.bundles.map(normalizeCatalogOption) : [],
+    blueprints: Array.isArray(raw.blueprints) ? raw.blueprints.map(normalizeCatalogOption) : [],
+    sizes: Array.isArray(raw.sizes) ? raw.sizes.map(normalizeCatalogOption) : [],
+    types: Array.isArray(raw.types) ? raw.types.map(normalizeCatalogOption) : [],
   };
 }
 
@@ -528,6 +668,50 @@ export async function getFailoverExecutions(taskID: number, limit = 20): Promise
 export async function getFailoverExecution(executionID: number): Promise<FailoverExecution> {
   const data = await requestEnvelope<unknown>(`/api/admin/failover/executions/${executionID}`);
   return normalizeExecution(data);
+}
+
+export async function getFailoverDnsCatalog(args: {
+  provider: string;
+  entry_id: string;
+  zone_name?: string;
+  domain_name?: string;
+}): Promise<FailoverDnsCatalog> {
+  const params = new URLSearchParams();
+  params.set("provider", args.provider);
+  params.set("entry_id", args.entry_id);
+  if (args.zone_name) {
+    params.set("zone_name", args.zone_name);
+  }
+  if (args.domain_name) {
+    params.set("domain_name", args.domain_name);
+  }
+
+  const data = await requestEnvelope<unknown>(`/api/admin/failover/dns/catalog?${params.toString()}`);
+  return normalizeDnsCatalog(data);
+}
+
+export async function getFailoverPlanCatalog(args: {
+  provider: string;
+  entry_id: string;
+  action_type?: string;
+  service?: string;
+  region?: string;
+}): Promise<FailoverPlanCatalog> {
+  const params = new URLSearchParams();
+  params.set("provider", args.provider);
+  params.set("entry_id", args.entry_id);
+  if (args.action_type) {
+    params.set("action_type", args.action_type);
+  }
+  if (args.service) {
+    params.set("service", args.service);
+  }
+  if (args.region) {
+    params.set("region", args.region);
+  }
+
+  const data = await requestEnvelope<unknown>(`/api/admin/failover/plans/catalog?${params.toString()}`);
+  return normalizePlanCatalog(data);
 }
 
 export async function getFailoverNodes(): Promise<FailoverNodeOption[]> {
