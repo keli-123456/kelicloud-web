@@ -435,7 +435,7 @@ export default function CloudInstanceScriptDialog({
               <Button
                 variant="outline"
                 size="sm"
-                onClick={refresh}
+                onClick={() => refresh()}
                 disabled={nodeLoading}
                 className="shrink-0 self-start sm:self-auto"
               >

@@ -24,7 +24,7 @@ export function AdminPageShell({
   contentClassName,
 }: {
   eyebrow?: ReactNode;
-  title: ReactNode;
+  title?: ReactNode;
   description?: ReactNode;
   actions?: ReactNode;
   stats?: AdminPageStat[];
@@ -34,6 +34,7 @@ export function AdminPageShell({
   className?: string;
   contentClassName?: string;
 }) {
+  const hasHeaderCopy = Boolean(eyebrow || title || description);
   const statToneClasses: Record<AdminStatTone, string> = {
     blue: "border-sky-200 bg-sky-50/80 dark:border-sky-900/60 dark:bg-sky-950/30",
     emerald:
@@ -46,30 +47,36 @@ export function AdminPageShell({
 
   return (
     <section className={cn("flex flex-col gap-5 px-1 py-1", className)}>
-      <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
-        <div className="space-y-2">
-          {eyebrow && (
-            <div className="text-[12px] font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">
-              {eyebrow}
+      {hasHeaderCopy || actions ? (
+        <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
+          {hasHeaderCopy ? (
+            <div className="space-y-2">
+              {eyebrow && (
+                <div className="text-[12px] font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">
+                  {eyebrow}
+                </div>
+              )}
+              <div className="space-y-2">
+                {title ? (
+                  <h1 className="text-3xl font-semibold tracking-tight text-slate-900 dark:text-slate-50">
+                    {title}
+                  </h1>
+                ) : null}
+                {description && (
+                  <p className="max-w-3xl text-[14px] leading-6 text-slate-600 dark:text-slate-300">
+                    {description}
+                  </p>
+                )}
+              </div>
             </div>
-          )}
-          <div className="space-y-2">
-            <h1 className="text-3xl font-semibold tracking-tight text-slate-900 dark:text-slate-50">
-              {title}
-            </h1>
-            {description && (
-              <p className="max-w-3xl text-[14px] leading-6 text-slate-600 dark:text-slate-300">
-                {description}
-              </p>
-            )}
-          </div>
+          ) : null}
+          {actions ? (
+            <div className="flex w-full flex-wrap gap-2 xl:w-auto xl:justify-end">
+              {actions}
+            </div>
+          ) : null}
         </div>
-        {actions && (
-          <div className="flex w-full flex-wrap gap-2 xl:w-auto xl:justify-end">
-            {actions}
-          </div>
-        )}
-      </div>
+      ) : null}
 
       {stats.length > 0
         ? statsVariant === "cards"

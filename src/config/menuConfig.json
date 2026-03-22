@@ -24,6 +24,11 @@
           "labelKey": "cloud.providers.aws.title",
           "path": "/admin/cloud?provider=aws",
           "icon": "ShipWheel"
+        },
+        {
+          "labelKey": "cloud.failover.title",
+          "path": "/admin/failover",
+          "icon": "RefreshCw"
         }
       ]
     },

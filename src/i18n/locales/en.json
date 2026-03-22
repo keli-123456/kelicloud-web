@@ -216,6 +216,15 @@
       "selectNode": "Select node",
       "autoDiscoveryDisabledSingle": "Auto Discovery Key is not enabled yet, so this still uses the legacy single-node mode. Set it in Settings > General to switch to the general onboarding command.",
       "autoDiscoveryDisabledGroup": "Set the Auto Discovery Key in Settings > General first, then group install commands can be used.",
+      "accessSettingsTitle": "Onboarding and probe settings",
+      "accessSettingsDescription": "Manage your auto-discovery key here. CN connectivity probe remains a global setting and only appears if you are allowed to manage it.",
+      "autoDiscoveryKeySummary": "Current key ends with {{suffix}}",
+      "autoDiscoveryKeyMissing": "Generate a key before using the general onboarding command.",
+      "manageAutoDiscovery": "Configure key",
+      "manageCNConnectivity": "Configure probe",
+      "cnConnectivityManageHint": "These options change the global CN connectivity probe used by all nodes on the panel.",
+      "userSearchPlaceholder": "Search a user's nodes",
+      "userSearchNoMatch": "No user matches \"{{query}}\".",
       "platform": "Platform",
       "advancedParameters": "Advanced parameters",
       "generatedCommandHelp": "Copy this command and run it directly on the target server.",
@@ -378,6 +387,9 @@
     "volatility": "Vol"
   },
   "cloud": {
+    "failover": {
+      "title": "Failover"
+    },
     "title": "Cloud",
     "description": "Manage a pool of DigitalOcean tokens, switch the active token for operations, bulk check token health, and operate Droplets from one panel.",
     "panel_title": "Panel View",
@@ -997,6 +1009,7 @@
     "language": "Language",
     "long_term": "Long term",
     "monthly": "Monthly",
+    "settings": "Settings",
     "name": "Name",
     "none": "None",
     "once": "Once",

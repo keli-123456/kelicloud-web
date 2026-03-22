@@ -918,12 +918,6 @@ export default function LinodePanel() {
 
   return (
     <AdminPageShell
-        eyebrow="Linode"
-        title="Linode"
-        description={t(
-          "cloud.providers.linode.description",
-          "Manage tokens, create instances, and work through lifecycle actions from one workbench.",
-        )}
         actions={
           <>
             <Button

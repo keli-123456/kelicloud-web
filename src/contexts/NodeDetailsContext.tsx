@@ -34,7 +34,7 @@ interface NodeDetailsContextType {
   nodeDetail: NodeDetail[] | [];
   isLoading: boolean;
   error: string | null;
-  refresh: () => void;
+  refresh: (options?: { silent?: boolean }) => Promise<void>;
 }
 const NodeDetailsContext = React.createContext<NodeDetailsContextType | undefined>(undefined);
 
@@ -51,34 +51,45 @@ export const NodeDetailsProvider: React.FC<NodeDetailsProviderProps> = ({
   const [nodeDetail, setNodeDetail] = React.useState<NodeDetail[] | []>([]);
   const [isLoading, setIsLoading] = React.useState<boolean>(false);
   const [error, setError] = React.useState<string | null>(null);
+  const nodeDetailRef = React.useRef<NodeDetail[]>([]);
   const defaultListEndpoint = React.useMemo(
     () => (platformAdmin ? "/api/admin/client/list?all=1" : "/api/admin/client/list"),
     [platformAdmin],
   );
   const resolvedListEndpoint = listEndpoint || defaultListEndpoint;
 
-  const refresh = React.useCallback(() => {
-    setIsLoading(true);
+  React.useEffect(() => {
+    nodeDetailRef.current = nodeDetail;
+  }, [nodeDetail]);
+
+  const refresh = React.useCallback(async (options?: { silent?: boolean }) => {
+    const silent = options?.silent ?? false;
+    const shouldShowLoading = !silent && nodeDetailRef.current.length === 0;
+
+    if (shouldShowLoading) {
+      setIsLoading(true);
+    }
     setError(null);
-    fetch(resolvedListEndpoint)
-      .then((response) => {
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        return response.json();
-      })
-      .then((data: NodeDetail[]) => {
-        setNodeDetail(data);
+
+    try {
+      const response = await fetch(resolvedListEndpoint);
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = (await response.json()) as NodeDetail[];
+      setNodeDetail(data);
+    } catch (error) {
+      setError(error instanceof Error ? error.message : String(error));
+    } finally {
+      if (shouldShowLoading) {
         setIsLoading(false);
-      })
-      .catch((error) => {
-        setError(error.message);
-        setIsLoading(false);
-      });
+      }
+    }
   }, [resolvedListEndpoint]);
 
   React.useEffect(() => {
-    refresh();
+    void refresh();
   }, [refresh]);
 
   return (

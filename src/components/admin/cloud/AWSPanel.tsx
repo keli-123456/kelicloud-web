@@ -1124,12 +1124,6 @@ export default function AWSPanel() {
 
   return (
     <AdminPageShell
-        eyebrow="AWS"
-        title="AWS EC2 / Lightsail"
-        description={t(
-          "cloud.providers.aws.description",
-          "Manage credentials, active region, EC2, and Lightsail from one workbench.",
-        )}
         actions={
           <>
             <Button

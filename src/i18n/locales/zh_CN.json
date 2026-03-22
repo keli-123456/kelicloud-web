@@ -139,6 +139,15 @@
       "autoDiscoveryDisabledSingle": "当前还没启用自动发现密钥，所以这里仍是旧的单节点模式。到“设置 > 通用”里设置自动发现密钥后，这里会变成通用接入命令。",
       "autoDiscoveryGeneralHint": "当前使用通用自动接入命令。任意服务器执行后会自动注册到你的面板。",
       "autoDiscoveryGroupHint": "输入分组名称后，复制这条命令到任意服务器执行，节点会自动注册并归入该分组。已绑定过的机器再次执行时，会先提示是否清理旧绑定。",
+      "accessSettingsTitle": "接入与探测设置",
+      "accessSettingsDescription": "在这里管理自动发现密钥。国内连通探测属于全局配置，只有被授权的用户才会显示。",
+      "autoDiscoveryKeySummary": "当前密钥后 6 位：{{suffix}}",
+      "autoDiscoveryKeyMissing": "生成密钥后才能使用通用接入命令。",
+      "manageAutoDiscovery": "设置密钥",
+      "manageCNConnectivity": "设置探测",
+      "cnConnectivityManageHint": "这些选项会修改整站节点共用的国内连通探测配置。",
+      "userSearchPlaceholder": "搜索用户节点",
+      "userSearchNoMatch": "没有找到匹配“{{query}}”的用户。",
       "autoEnroll": "自动接入",
       "autoRenewal": "自动续费",
       "autoRenewalDescription": "如果服务器过期且当前在线，Komari 将自动将到期时间设置为下个自然月（年）",
@@ -379,6 +388,9 @@
   },
   "close": "关闭",
   "cloud": {
+    "failover": {
+      "title": "故障切换"
+    },
     "access": {
       "description": "请立即保存这些信息。随机生成的密码只会展示一次，托管 SSH 密钥是你的保底登录方式。",
       "private_key": "托管私钥",
@@ -997,6 +1009,7 @@
     "help": "帮助",
     "home": "主页",
     "language": "语言",
+    "settings": "设置",
     "long_term": "长期",
     "monthly": "月",
     "name": "名称",

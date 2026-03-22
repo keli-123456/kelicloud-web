@@ -1,10 +1,16 @@
 import React from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
+import { ChevronDown } from "lucide-react";
 
 import Loading from "@/components/loading";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 import {
   Dialog,
   DialogContent,
@@ -402,6 +408,7 @@ export default function CloudDnsProviderSection({
   >({});
   const [providerReadyMap, setProviderReadyMap] = React.useState<Record<string, boolean>>({});
   const [providerErrorMap, setProviderErrorMap] = React.useState<Record<string, string>>({});
+  const [openProviders, setOpenProviders] = React.useState<Record<string, boolean>>({});
   const [dialogState, setDialogState] = React.useState<ProviderDialogState | null>(null);
 
   React.useEffect(() => {
@@ -476,6 +483,16 @@ export default function CloudDnsProviderSection({
     return () => {
       active = false;
     };
+  }, [providerList]);
+
+  React.useEffect(() => {
+    setOpenProviders((previous) => {
+      const next: Record<string, boolean> = {};
+      providerList.forEach((provider) => {
+        next[provider] = previous[provider] ?? false;
+      });
+      return next;
+    });
   }, [providerList]);
 
   const persistProviderEntries = React.useCallback(async (
@@ -598,12 +615,6 @@ export default function CloudDnsProviderSection({
             <div className="text-sm font-medium text-slate-900 dark:text-slate-100">
               {t("cloud.dns.title", "DNS Providers")}
             </div>
-            <div className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-              {t(
-                "cloud.dns.description",
-                "Configure DNS service providers here so Komari can reuse their credentials later when it needs to create or update domain records.",
-              )}
-            </div>
           </div>
         </div>
 
@@ -684,6 +695,7 @@ export default function CloudDnsProviderSection({
                   const providerStatus = providerStatusMap[provider];
                   const providerStatusMeta = getStatusMeta(providerStatus, t);
                   const accent = getProviderAccent(provider);
+                  const providerOpen = Boolean(openProviders[provider]);
                   const summaryItems = providerError
                     ? [t("cloud.dns.summary.load_failed", "Saved values could not be loaded")]
                     : providerReady
@@ -691,73 +703,98 @@ export default function CloudDnsProviderSection({
                       : [t("cloud.dns.summary.loading", "Loading saved values...")];
 
                   return (
-                    <div
+                    <Collapsible
                       key={provider}
-                      className={cn("rounded-xl border px-4 py-4", accent.cardClassName)}
+                      open={providerOpen}
+                      onOpenChange={(open) => {
+                        setOpenProviders((previous) => ({
+                          ...previous,
+                          [provider]: open,
+                        }));
+                      }}
                     >
-                      <div className="flex flex-col gap-3 border-b border-slate-200/80 pb-4 dark:border-slate-800/80">
-                        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                          <div className="flex items-start gap-3">
-                            <div
-                              className={cn(
-                                "flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border text-sm font-semibold tracking-[0.18em]",
-                                accent.iconClassName,
-                              )}
-                            >
-                              {accent.icon}
-                            </div>
-                            <div className="space-y-1">
-                              <div className="flex flex-wrap items-center gap-2">
-                                <div className="text-sm font-semibold text-slate-900 dark:text-slate-100">
-                                  {providerLabel}
+                      <div
+                        className={cn("rounded-xl border px-4 py-4", accent.cardClassName)}
+                      >
+                        <CollapsibleTrigger asChild>
+                          <button
+                            type="button"
+                            className="w-full text-left"
+                          >
+                            <div className="flex flex-col gap-3">
+                              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                                <div className="flex items-start gap-3">
+                                  <div
+                                    className={cn(
+                                      "flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border text-sm font-semibold tracking-[0.18em]",
+                                      accent.iconClassName,
+                                    )}
+                                  >
+                                    {accent.icon}
+                                  </div>
+                                  <div className="space-y-1">
+                                    <div className="flex flex-wrap items-center gap-2">
+                                      <div className="text-sm font-semibold text-slate-900 dark:text-slate-100">
+                                        {providerLabel}
+                                      </div>
+                                      {isPreferredDnsProvider(provider) ? (
+                                        <Badge variant="info">
+                                          {t("cloud.dns.recommended", "Recommended")}
+                                        </Badge>
+                                      ) : null}
+                                    </div>
+                                    <div className="max-w-2xl text-sm text-slate-600 dark:text-slate-300">
+                                      {t(
+                                        `cloud.dns.providers.${translationKey}.description`,
+                                        "Store multiple named credential sets here. Domain binding will be selected later when the record is actually used.",
+                                      )}
+                                    </div>
+                                  </div>
                                 </div>
-                                {isPreferredDnsProvider(provider) ? (
-                                  <Badge variant="info">
-                                    {t("cloud.dns.recommended", "Recommended")}
+
+                                <div className="flex items-center gap-2 self-start">
+                                  <Badge variant={providerStatusMeta.variant}>
+                                    {providerStatusMeta.label}
                                   </Badge>
-                                ) : null}
+                                  <span className="flex h-8 w-8 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-500 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-300">
+                                    <ChevronDown
+                                      className={cn(
+                                        "h-4 w-4 transition-transform duration-200",
+                                        providerOpen ? "rotate-180" : "",
+                                      )}
+                                    />
+                                  </span>
+                                </div>
                               </div>
-                              <div className="max-w-2xl text-sm text-slate-600 dark:text-slate-300">
-                                {t(
-                                  `cloud.dns.providers.${translationKey}.description`,
-                                  "Store multiple named credential sets here. Domain binding will be selected later when the record is actually used.",
-                                )}
+
+                              <div className="flex flex-wrap gap-2">
+                                {summaryItems.map((item, index) => (
+                                  <div
+                                    key={`${provider}-${index}`}
+                                    className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-medium text-slate-600 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-300"
+                                  >
+                                    {item}
+                                  </div>
+                                ))}
                               </div>
                             </div>
-                          </div>
+                          </button>
+                        </CollapsibleTrigger>
 
-                          <Badge variant={providerStatusMeta.variant}>
-                            {providerStatusMeta.label}
-                          </Badge>
-                        </div>
+                        <CollapsibleContent className="mt-4 border-t border-slate-200/80 pt-4 dark:border-slate-800/80">
+                          {providerError ? (
+                            <WarningAlert
+                              className="mb-4"
+                              tone="warning"
+                              description={providerError}
+                            />
+                          ) : null}
 
-                        <div className="flex flex-wrap gap-2">
-                          {summaryItems.map((item, index) => (
-                            <div
-                              key={`${provider}-${index}`}
-                              className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-medium text-slate-600 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-300"
-                            >
-                              {item}
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-
-                      {providerError ? (
-                        <WarningAlert
-                          className="mt-4"
-                          tone="warning"
-                          description={providerError}
-                        />
-                      ) : null}
-
-                      {!providerReady ? (
-                        <div className="mt-4">
-                          <Loading text="" />
-                        </div>
-                      ) : (
-                        <>
-                          <div className="mt-4 space-y-3">
+                          {!providerReady ? (
+                            <Loading text="" />
+                          ) : (
+                            <>
+                              <div className="space-y-3">
                             {providerEntries.length === 0 ? (
                               <div className="rounded-xl border border-dashed border-slate-300 bg-white/70 px-4 py-5 text-sm text-slate-500 dark:border-slate-700 dark:bg-slate-950/60 dark:text-slate-400">
                                 {t(
@@ -825,26 +862,28 @@ export default function CloudDnsProviderSection({
                                 );
                               })
                             )}
-                          </div>
+                              </div>
 
-                          <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                            <div className="text-sm text-slate-500 dark:text-slate-400">
-                              {t(
-                                "cloud.dns.dialog.credentials_only_hint",
-                                "This page only stores config names and credentials. Domain or zone binding will be selected later.",
-                              )}
-                            </div>
-                            <Button
-                              size="sm"
-                              disabled={Boolean(providerError)}
-                              onClick={() => openCreateDialog(provider)}
-                            >
-                              {t("cloud.dns.add_entry", "Add Credential")}
-                            </Button>
-                          </div>
-                        </>
-                      )}
-                    </div>
+                              <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                                <div className="text-sm text-slate-500 dark:text-slate-400">
+                                  {t(
+                                    "cloud.dns.dialog.credentials_only_hint",
+                                    "This page only stores config names and credentials. Domain or zone binding will be selected later.",
+                                  )}
+                                </div>
+                                <Button
+                                  size="sm"
+                                  disabled={Boolean(providerError)}
+                                  onClick={() => openCreateDialog(provider)}
+                                >
+                                  {t("cloud.dns.add_entry", "Add Credential")}
+                                </Button>
+                              </div>
+                            </>
+                          )}
+                        </CollapsibleContent>
+                      </div>
+                    </Collapsible>
                   );
                 })}
               </div>

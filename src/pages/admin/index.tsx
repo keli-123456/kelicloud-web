@@ -17,7 +17,6 @@ import {
   Dialog,
   Flex,
   IconButton,
-  Select,
   SegmentedControl,
   Text,
   TextArea,
@@ -27,8 +26,9 @@ import {
   Copy,
   Download,
   LoaderCircle,
-  Plus,
   RefreshCw,
+  Search,
+  Settings2,
   Terminal,
   Trash2Icon,
 } from "lucide-react";
@@ -73,13 +73,8 @@ import {
 } from "@/lib/cnConnectivityTargets";
 import { Navigate } from "react-router-dom";
 import {
-  SettingCardLabel,
-  SettingCardShortTextInput,
-  SettingCardSwitch,
+  SettingCard,
 } from "@/components/admin/SettingCard";
-import { SettingCardMultiInputCollapse } from "@/components/admin/SettingCardMultiInput";
-
-type AdminNodeScopeMode = "self" | "all" | "user";
 
 type AdminScopedUser = {
   uuid: string;
@@ -99,23 +94,21 @@ const NodeDetailsPage = () => {
   const { account, hasFeature, loading, platformAdmin } = useAccount();
   const selfUUID = String(account?.uuid || "").trim();
   const canManageCNConnectivity = platformAdmin || hasFeature("cn_connectivity");
-  const [scopeMode, setScopeMode] = useState<AdminNodeScopeMode>("self");
   const [scopeUsers, setScopeUsers] = useState<AdminScopedUser[]>([]);
-  const [scopeUsersLoading, setScopeUsersLoading] = useState(false);
   const [selectedUserUUID, setSelectedUserUUID] = useState("");
+  const [userSearchQuery, setUserSearchQuery] = useState("");
 
   React.useEffect(() => {
     if (!platformAdmin) {
-      setScopeMode("self");
       setScopeUsers([]);
       setSelectedUserUUID("");
+      setUserSearchQuery("");
       return;
     }
 
     let cancelled = false;
 
     const loadScopeUsers = async () => {
-      setScopeUsersLoading(true);
       try {
         const response = await fetch("/api/admin/users");
         const payload = (await response
@@ -147,9 +140,7 @@ const NodeDetailsPage = () => {
 
         setScopeUsers(items);
         setSelectedUserUUID((current) =>
-          current && items.some((item) => item.uuid === current)
-            ? current
-            : (items[0]?.uuid ?? ""),
+          current && items.some((item) => item.uuid === current) ? current : "",
         );
       } catch (loadError) {
         console.error("Failed to load admin node scope users:", loadError);
@@ -158,10 +149,7 @@ const NodeDetailsPage = () => {
         }
         setScopeUsers([]);
         setSelectedUserUUID("");
-      } finally {
-        if (!cancelled) {
-          setScopeUsersLoading(false);
-        }
+        setUserSearchQuery("");
       }
     };
 
@@ -172,32 +160,50 @@ const NodeDetailsPage = () => {
     };
   }, [platformAdmin, selfUUID]);
 
-  React.useEffect(() => {
-    if (scopeMode === "user" && scopeUsers.length === 0 && !scopeUsersLoading) {
-      setScopeMode("self");
-    }
-  }, [scopeMode, scopeUsers.length, scopeUsersLoading]);
-
   const listEndpoint = React.useMemo(() => {
     if (!platformAdmin) {
       return "/api/admin/client/list";
     }
-    if (scopeMode === "all") {
-      return "/api/admin/client/list?all=1";
-    }
-    if (scopeMode === "user" && selectedUserUUID) {
+    if (selectedUserUUID) {
       return `/api/admin/client/list?user_uuid=${encodeURIComponent(
         selectedUserUUID,
       )}`;
     }
     return "/api/admin/client/list";
-  }, [platformAdmin, scopeMode, selectedUserUUID]);
+  }, [platformAdmin, selectedUserUUID]);
 
-  const selectedScopeUser = React.useMemo(
-    () =>
-      scopeUsers.find((item) => item.uuid === selectedUserUUID) || null,
-    [scopeUsers, selectedUserUUID],
-  );
+  const handleUserSearch = React.useCallback(() => {
+    if (!platformAdmin) {
+      return;
+    }
+
+    const keyword = userSearchQuery.trim().toLowerCase();
+    if (!keyword) {
+      setSelectedUserUUID("");
+      return;
+    }
+
+    const exactMatch = scopeUsers.find(
+      (item) => item.username.toLowerCase() === keyword,
+    );
+    const partialMatch =
+      exactMatch ||
+      scopeUsers.find((item) =>
+        item.username.toLowerCase().includes(keyword),
+      );
+
+    if (!partialMatch) {
+      toast.error(
+        translate("admin.nodeTable.userSearchNoMatch", {
+          query: userSearchQuery,
+        }),
+      );
+      return;
+    }
+
+    setSelectedUserUUID(partialMatch.uuid);
+    setUserSearchQuery(partialMatch.username);
+  }, [platformAdmin, scopeUsers, userSearchQuery]);
 
   if (loading) {
     return <Loading />;
@@ -210,13 +216,11 @@ const NodeDetailsPage = () => {
     <NodeDetailsProvider listEndpoint={listEndpoint}>
       <Layout
         platformAdmin={platformAdmin}
-        scopeMode={scopeMode}
         scopeUsers={scopeUsers}
-        scopeUsersLoading={scopeUsersLoading}
         selectedUserUUID={selectedUserUUID}
-        selectedScopeUser={selectedScopeUser}
-        onScopeModeChange={setScopeMode}
-        onSelectedUserUUIDChange={setSelectedUserUUID}
+        userSearchQuery={userSearchQuery}
+        onUserSearchQueryChange={setUserSearchQuery}
+        onUserSearch={handleUserSearch}
         canManageCNConnectivity={canManageCNConnectivity}
       />
     </NodeDetailsProvider>
@@ -539,23 +543,19 @@ const isNodeConnectivityBlocked = (live?: NodeLiveSnapshot) =>
 
 const Layout = ({
   platformAdmin,
-  scopeMode,
   scopeUsers,
-  scopeUsersLoading,
   selectedUserUUID,
-  selectedScopeUser,
-  onScopeModeChange,
-  onSelectedUserUUIDChange,
+  userSearchQuery,
+  onUserSearchQueryChange,
+  onUserSearch,
   canManageCNConnectivity,
 }: {
   platformAdmin: boolean;
-  scopeMode: AdminNodeScopeMode;
   scopeUsers: AdminScopedUser[];
-  scopeUsersLoading: boolean;
   selectedUserUUID: string;
-  selectedScopeUser: AdminScopedUser | null;
-  onScopeModeChange: (value: AdminNodeScopeMode) => void;
-  onSelectedUserUUIDChange: (value: string) => void;
+  userSearchQuery: string;
+  onUserSearchQueryChange: (value: string) => void;
+  onUserSearch: () => void;
   canManageCNConnectivity: boolean;
 }) => {
   const { nodeDetail, isLoading, error, refresh } = useNodeDetails();
@@ -597,11 +597,11 @@ const Layout = ({
     () => liveScopeUUIDs.join(","),
     [liveScopeUUIDs],
   );
-  const installActionsEnabled = !platformAdmin || scopeMode === "self";
+  const installActionsEnabled = !platformAdmin || !selectedUserUUID;
 
   useEffect(() => {
     const interval = window.setInterval(() => {
-      refresh();
+      refresh({ silent: true });
     }, 5000);
     return () => window.clearInterval(interval);
   }, [refresh]);
@@ -677,18 +677,11 @@ const Layout = ({
         liveError={liveError}
         settings={settings}
         platformAdmin={platformAdmin}
-        scopeMode={scopeMode}
         scopeUsers={scopeUsers}
-        scopeUsersLoading={scopeUsersLoading}
-        selectedUserUUID={selectedUserUUID}
-        selectedScopeUser={selectedScopeUser}
-        onScopeModeChange={onScopeModeChange}
-        onSelectedUserUUIDChange={onSelectedUserUUIDChange}
+        userSearchQuery={userSearchQuery}
+        onUserSearchQueryChange={onUserSearchQueryChange}
+        onUserSearch={onUserSearch}
         installActionsEnabled={installActionsEnabled}
-      />
-
-      <NodeAccessSettingsPanel
-        settings={settings}
         canManageCNConnectivity={canManageCNConnectivity}
         onRefreshSettings={refetchSettings}
       />
@@ -713,7 +706,7 @@ const generateRandomAutoDiscoveryKey = () => {
   return result;
 };
 
-const NodeAccessSettingsPanel = ({
+const NodeAccessSettingsDialogButton = ({
   settings,
   canManageCNConnectivity,
   onRefreshSettings,
@@ -723,155 +716,235 @@ const NodeAccessSettingsPanel = ({
   onRefreshSettings: () => Promise<SettingsResponse>;
 }) => {
   const { t } = useTranslation();
+  const [dialogOpen, setDialogOpen] = React.useState(false);
   const [autoDiscoveryKey, setAutoDiscoveryKey] = React.useState(
     String(settings?.auto_discovery_key || ""),
   );
+  const [cnConnectivityEnabled, setCnConnectivityEnabled] = React.useState(
+    Boolean(settings?.cn_connectivity_enabled),
+  );
+  const [cnConnectivityTarget, setCnConnectivityTarget] = React.useState(
+    normalizeCNConnectivityTargets(String(settings?.cn_connectivity_target || "")),
+  );
+  const [cnConnectivityInterval, setCnConnectivityInterval] =
+    React.useState(String(settings?.cn_connectivity_interval || 60));
+  const [settingsSaving, setSettingsSaving] = React.useState(false);
+
+  const resetForm = React.useCallback(() => {
+    setAutoDiscoveryKey(String(settings?.auto_discovery_key || ""));
+    setCnConnectivityEnabled(Boolean(settings?.cn_connectivity_enabled));
+    setCnConnectivityTarget(
+      normalizeCNConnectivityTargets(String(settings?.cn_connectivity_target || "")),
+    );
+    setCnConnectivityInterval(String(settings?.cn_connectivity_interval || 60));
+  }, [
+    settings?.auto_discovery_key,
+    settings?.cn_connectivity_enabled,
+    settings?.cn_connectivity_interval,
+    settings?.cn_connectivity_target,
+  ]);
 
   React.useEffect(() => {
-    setAutoDiscoveryKey(String(settings?.auto_discovery_key || ""));
-  }, [settings?.auto_discovery_key]);
+    resetForm();
+  }, [resetForm]);
+
+  const handleSaveSettings = async () => {
+    if (autoDiscoveryKey && autoDiscoveryKey.length < 12) {
+      toast.error(t("settings.api.key_length_error"));
+      return;
+    }
+
+    const payload: Record<string, string | number | boolean> = {
+      auto_discovery_key: autoDiscoveryKey,
+    };
+
+    if (canManageCNConnectivity) {
+      const interval = parseInt(cnConnectivityInterval, 10);
+      if (Number.isNaN(interval) || interval <= 0) {
+        toast.error(t("settings.general.cn_connectivity_interval_invalid"));
+        return;
+      }
+
+      payload.cn_connectivity_enabled = cnConnectivityEnabled;
+      payload.cn_connectivity_target = normalizeCNConnectivityTargets(
+        cnConnectivityTarget,
+      );
+      payload.cn_connectivity_interval = interval;
+    }
+
+    setSettingsSaving(true);
+    try {
+      await updateSettingsWithToast(payload, t);
+      await onRefreshSettings();
+      setDialogOpen(false);
+    } finally {
+      setSettingsSaving(false);
+    }
+  };
 
   return (
-    <Card className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-950/50">
-      <div className="space-y-4">
-        <div className="space-y-1">
-          <Text className="text-base font-semibold tracking-tight text-slate-900 dark:text-slate-50">
-            {t("admin.nodeTable.accessSettingsTitle", {
-              defaultValue: "Onboarding and probe settings",
-            })}
-          </Text>
-          <Text className="text-sm text-slate-500 dark:text-slate-400">
-            {t("admin.nodeTable.accessSettingsDescription", {
-              defaultValue:
-                "Manage your auto-discovery key here. CN connectivity probe remains a global setting and only appears if you are allowed to manage it.",
-            })}
-          </Text>
-        </div>
-
-        <SettingCardLabel>
-          {t("settings.general.auto_discovery")}
-        </SettingCardLabel>
-        <SettingCardShortTextInput
-          title={t("settings.general.auto_discovery_key")}
-          description={t("settings.general.auto_discovery_key_description")}
-          value={autoDiscoveryKey}
-          onChange={(event) => setAutoDiscoveryKey(event.target.value)}
-          OnSave={async (value) => {
-            if (!value) {
-              await updateSettingsWithToast({ auto_discovery_key: "" }, t);
-              await onRefreshSettings();
-              return;
-            }
-            if (value.length < 12) {
-              toast.error(t("settings.api.key_length_error"));
-              return;
-            }
-            await updateSettingsWithToast({ auto_discovery_key: value }, t);
-            await onRefreshSettings();
-          }}
-        >
-          <div className="flex flex-wrap gap-2">
-            <Button
-              variant="outline"
-              onClick={() =>
-                setAutoDiscoveryKey(generateRandomAutoDiscoveryKey())
-              }
-            >
-              {t("common.generate")}
-            </Button>
-            <Button
-              variant="outline"
-              onClick={() => {
-                window.open(
-                  "https://komari-document.pages.dev/install/agent-ad.html",
-                  "_blank",
-                );
-              }}
-            >
-              {t("common.help")}
-            </Button>
-          </div>
-        </SettingCardShortTextInput>
-
-        {canManageCNConnectivity ? (
-          <>
-            <SettingCardLabel>
-              {t("settings.general.cn_connectivity")}
-            </SettingCardLabel>
-            <Text className="text-sm text-slate-500 dark:text-slate-400">
-              {t("admin.nodeTable.cnConnectivityManageHint", {
-                defaultValue:
-                  "These options change the global CN connectivity probe used by all nodes on the panel.",
-              })}
-            </Text>
-            <SettingCardSwitch
-              title={t("settings.general.cn_connectivity_enabled")}
-              description={t(
-                "settings.general.cn_connectivity_enabled_description",
-              )}
-              defaultChecked={Boolean(settings.cn_connectivity_enabled)}
-              onChange={async (checked) => {
-                await updateSettingsWithToast(
-                  { cn_connectivity_enabled: checked },
-                  t,
-                );
-                await onRefreshSettings();
-              }}
-            />
-            <SettingCardMultiInputCollapse
-              defaultOpen={Boolean(settings.cn_connectivity_enabled)}
-              title={t("settings.general.cn_connectivity_config")}
-              description={t(
-                "settings.general.cn_connectivity_config_description",
-              )}
-              items={[
-                {
-                  tag: "cn_connectivity_target",
-                  label: t("settings.general.cn_connectivity_target"),
-                  type: "long",
-                  placeholder: "223.5.5.5\n119.29.29.29\ndns.alidns.com",
-                  defaultValue: normalizeCNConnectivityTargets(
-                    settings.cn_connectivity_target || "",
-                  ),
-                },
-                {
-                  tag: "cn_connectivity_interval",
-                  label: t("settings.general.cn_connectivity_interval"),
-                  type: "short",
-                  placeholder: "60",
-                  defaultValue: String(settings.cn_connectivity_interval || 60),
-                  number: true,
-                },
-              ]}
-              onSave={async (values) => {
-                const interval = parseInt(values.cn_connectivity_interval, 10);
-                if (Number.isNaN(interval) || interval <= 0) {
-                  toast.error(
-                    t("settings.general.cn_connectivity_interval_invalid"),
-                  );
-                  return;
+    <Dialog.Root
+      open={dialogOpen}
+      onOpenChange={(open) => {
+        if (open) {
+          resetForm();
+        }
+        setDialogOpen(open);
+      }}
+    >
+      <Dialog.Trigger>
+        <Button className="rounded-lg bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900">
+          <Settings2 size={16} />
+          {t("common.settings")}
+        </Button>
+      </Dialog.Trigger>
+      <Dialog.Content
+        className={NODE_DIALOG_CONTENT_CLASS}
+        maxWidth={640}
+      >
+        <Dialog.Title>
+          {t("admin.nodeTable.accessSettingsTitle")}
+        </Dialog.Title>
+        <Dialog.Description className="mt-2">
+          {t("admin.nodeTable.accessSettingsDescription")}
+        </Dialog.Description>
+        <div className="mt-4 space-y-4">
+          <div className="rounded-xl border border-slate-200 bg-slate-50/80 p-4 dark:border-slate-800 dark:bg-slate-900/50">
+            <div className="space-y-1">
+              <Text className="text-sm font-semibold text-slate-900 dark:text-slate-100">
+                {t("settings.general.auto_discovery")}
+              </Text>
+              <Text className="text-sm text-slate-500 dark:text-slate-400">
+                {t("settings.general.auto_discovery_key_description")}
+              </Text>
+            </div>
+            <div className="mt-4 space-y-4">
+              <TextField.Root
+                className={NODE_INPUT_CLASS}
+                value={autoDiscoveryKey}
+                onChange={(event) =>
+                  setAutoDiscoveryKey(event.target.value)
                 }
+              />
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  variant="outline"
+                  type="button"
+                  onClick={() =>
+                    setAutoDiscoveryKey(generateRandomAutoDiscoveryKey())
+                  }
+                >
+                  {t("common.generate")}
+                </Button>
+                <Button
+                  variant="outline"
+                  type="button"
+                  onClick={() => {
+                    window.open(
+                      "https://komari-document.pages.dev/install/agent-ad.html",
+                      "_blank",
+                    );
+                  }}
+                >
+                  {t("common.help")}
+                </Button>
+              </div>
+            </div>
+          </div>
 
-                await updateSettingsWithToast(
-                  {
-                    cn_connectivity_target: normalizeCNConnectivityTargets(
-                      values.cn_connectivity_target,
-                    ),
-                    cn_connectivity_interval: interval,
-                  },
-                  t,
-                );
-                await onRefreshSettings();
-              }}
+          {canManageCNConnectivity ? (
+            <div className="rounded-xl border border-slate-200 bg-slate-50/80 p-4 dark:border-slate-800 dark:bg-slate-900/50">
+              <div className="space-y-2">
+                <Flex justify="between" align="center" gap="2" wrap="wrap">
+                  <Text className="text-sm font-semibold text-slate-900 dark:text-slate-100">
+                    {t("settings.general.cn_connectivity")}
+                  </Text>
+                  <Badge
+                    color={cnConnectivityEnabled ? "green" : "gray"}
+                    variant="soft"
+                  >
+                    {cnConnectivityEnabled
+                      ? t("common.enabled")
+                      : t("common.disabled")}
+                  </Badge>
+                </Flex>
+                <Text className="text-sm text-slate-500 dark:text-slate-400">
+                  {t("admin.nodeTable.cnConnectivityManageHint")}
+                </Text>
+              </div>
+              <div className="mt-4 space-y-4">
+                <SettingCard
+                  title={t("settings.general.cn_connectivity_enabled")}
+                  description={t(
+                    "settings.general.cn_connectivity_enabled_description",
+                  )}
+                  bordless
+                >
+                  <SettingCard.Action>
+                    <Checkbox
+                      checked={cnConnectivityEnabled}
+                      onCheckedChange={(checked) =>
+                        setCnConnectivityEnabled(Boolean(checked))
+                      }
+                    />
+                  </SettingCard.Action>
+                </SettingCard>
+                <div className="space-y-2">
+                  <label className="text-[14px] font-semibold text-slate-900 dark:text-slate-100">
+                    {t("settings.general.cn_connectivity_target")}
+                  </label>
+                  <TextArea
+                    className="min-h-32 text-[13px] leading-6"
+                    placeholder={
+                      "223.5.5.5\n119.29.29.29\ndns.alidns.com"
+                    }
+                    value={cnConnectivityTarget}
+                    onChange={(event) =>
+                      setCnConnectivityTarget(event.target.value)
+                    }
+                  />
+                  <Text className="text-xs text-slate-500 dark:text-slate-400">
+                    {t("settings.general.cn_connectivity_target_help")}
+                  </Text>
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[14px] font-semibold text-slate-900 dark:text-slate-100">
+                    {t("settings.general.cn_connectivity_interval")}
+                  </label>
+                  <TextField.Root
+                    className={NODE_INPUT_CLASS}
+                    type="number"
+                    min={1}
+                    value={cnConnectivityInterval}
+                    onChange={(event) =>
+                      setCnConnectivityInterval(event.target.value)
+                    }
+                  />
+                </div>
+              </div>
+            </div>
+          ) : null}
+        </div>
+        <div className={NODE_DIALOG_FOOTER_CLASS}>
+          <Dialog.Close>
+            <Button
+              type="button"
+              variant="outline"
+              className="w-full sm:w-auto"
             >
-              <p className="text-[12px] leading-5 text-muted-foreground">
-                {t("settings.general.cn_connectivity_target_help")}
-              </p>
-            </SettingCardMultiInputCollapse>
-          </>
-        ) : null}
-      </div>
-    </Card>
+              {t("common.cancel")}
+            </Button>
+          </Dialog.Close>
+          <Button
+            className="w-full sm:w-auto"
+            onClick={() => void handleSaveSettings()}
+            disabled={settingsSaving}
+          >
+            {t("save")}
+          </Button>
+        </div>
+      </Dialog.Content>
+    </Dialog.Root>
   );
 };
 
@@ -882,14 +955,13 @@ const Header = ({
   liveError,
   settings,
   platformAdmin,
-  scopeMode,
   scopeUsers,
-  scopeUsersLoading,
-  selectedUserUUID,
-  selectedScopeUser,
-  onScopeModeChange,
-  onSelectedUserUUIDChange,
+  userSearchQuery,
+  onUserSearchQueryChange,
+  onUserSearch,
   installActionsEnabled,
+  canManageCNConnectivity,
+  onRefreshSettings,
 }: {
   nodes: NodeDetail[];
   liveByNode: Record<string, NodeLiveSnapshot>;
@@ -897,22 +969,18 @@ const Header = ({
   liveError: string | null;
   settings: SettingsResponse;
   platformAdmin: boolean;
-  scopeMode: AdminNodeScopeMode;
   scopeUsers: AdminScopedUser[];
-  scopeUsersLoading: boolean;
-  selectedUserUUID: string;
-  selectedScopeUser: AdminScopedUser | null;
-  onScopeModeChange: (value: AdminNodeScopeMode) => void;
-  onSelectedUserUUIDChange: (value: string) => void;
+  userSearchQuery: string;
+  onUserSearchQueryChange: (value: string) => void;
+  onUserSearch: () => void;
   installActionsEnabled: boolean;
+  canManageCNConnectivity: boolean;
+  onRefreshSettings: () => Promise<SettingsResponse>;
 }) => {
   const { t, i18n } = useTranslation();
   const { refresh } = useNodeDetails();
   const { confirm, dialog } = useWarningDialog();
-  const [loading, setLoading] = useState(false);
-  const [dialogOpen, setDialogOpen] = useState(false);
   const [cleanupLoading, setCleanupLoading] = useState(false);
-  const inputRef = React.useRef<HTMLInputElement>(null);
   const offlineNodes = nodes.filter((node) =>
     isNodeOffline(liveByNode[node.uuid], liveLoaded)
   );
@@ -942,50 +1010,6 @@ const Header = ({
     String(settings?.cn_connectivity_target || ""),
     i18n.language.startsWith("zh") ? "zh" : "en"
   );
-  const addNodeDisabled = platformAdmin && scopeMode === "all";
-  const scopeSummaryLabel = platformAdmin
-    ? scopeMode === "all"
-      ? t("admin.nodeTable.scopeAllSummary", {
-          defaultValue: "Viewing all users",
-        })
-      : scopeMode === "user"
-        ? t("admin.nodeTable.scopeUserSummary", {
-            username: selectedScopeUser?.username || t("admin.users.role_user", "User"),
-            defaultValue: "Viewing {{username}}",
-          })
-        : t("admin.nodeTable.scopeSelfSummary", {
-            defaultValue: "Viewing my nodes",
-          })
-    : null;
-  const handleAddNode = async (name: string | undefined) => {
-    setDialogOpen(true);
-    setLoading(true);
-    try {
-      const payload: Record<string, string> = { name: name || "" };
-      if (platformAdmin && scopeMode === "user" && selectedUserUUID) {
-        payload.user_uuid = selectedUserUUID;
-      }
-
-      const response = await fetch("/api/admin/client/add", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
-      }
-      refresh();
-    } catch (error) {
-      toast.error(
-        `${t("common.error", "Error")}: ${
-          error instanceof Error ? error.message : String(error)
-        }`
-      );
-    } finally {
-      setLoading(false);
-      setDialogOpen(false);
-    }
-  };
   const handleDeleteOffline = async () => {
     if (offlineNodes.length === 0) return;
 
@@ -1111,106 +1135,6 @@ const Header = ({
             </Text>
           )}
           </div>
-          <div className="flex min-w-0 flex-wrap items-center gap-2">
-            <div className="flex shrink-0 items-center gap-3 whitespace-nowrap rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-600 dark:border-slate-800 dark:bg-slate-900/60 dark:text-slate-300">
-              <span className="font-medium text-slate-900 dark:text-slate-100">
-                {t("admin.nodeTable.totalRate", "Total rate")}
-              </span>
-              <span>↑ {formatBytes(totalUploadSpeed)}/s</span>
-              <span>↓ {formatBytes(totalDownloadSpeed)}/s</span>
-            </div>
-            <div className="flex shrink-0 items-center gap-3 whitespace-nowrap rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-600 dark:border-slate-800 dark:bg-slate-900/60 dark:text-slate-300">
-              <span className="font-medium text-slate-900 dark:text-slate-100">
-                {t("admin.nodeTable.totalTraffic", "Total traffic")}
-              </span>
-              <span>↑ {formatBytes(totalUploadTraffic)}</span>
-              <span>↓ {formatBytes(totalDownloadTraffic)}</span>
-            </div>
-          </div>
-          {platformAdmin ? (
-            <div className="flex min-w-0 flex-col gap-2 rounded-xl border border-slate-200 bg-slate-50/70 px-3 py-3 dark:border-slate-800 dark:bg-slate-900/40">
-              <div className="flex flex-wrap items-center gap-2">
-                <Text className="text-sm font-medium text-slate-700 dark:text-slate-200">
-                  {t("admin.nodeTable.scopeLabel", {
-                    defaultValue: "View scope",
-                  })}
-                </Text>
-                <SegmentedControl.Root
-                  value={scopeMode}
-                  onValueChange={(value) =>
-                    onScopeModeChange(value as AdminNodeScopeMode)
-                  }
-                >
-                  <SegmentedControl.Item value="self">
-                    {t("admin.nodeTable.scopeMine", {
-                      defaultValue: "My nodes",
-                    })}
-                  </SegmentedControl.Item>
-                  <SegmentedControl.Item value="all">
-                    {t("admin.nodeTable.scopeAll", {
-                      defaultValue: "All nodes",
-                    })}
-                  </SegmentedControl.Item>
-                  <SegmentedControl.Item value="user">
-                    {t("admin.nodeTable.scopeUser", {
-                      defaultValue: "By user",
-                    })}
-                  </SegmentedControl.Item>
-                </SegmentedControl.Root>
-                {scopeMode === "user" ? (
-                  <div className="min-w-[220px] flex-1 sm:max-w-xs">
-                    <Select.Root
-                      value={selectedUserUUID}
-                      onValueChange={onSelectedUserUUIDChange}
-                    >
-                      <Select.Trigger
-                        className="rounded-lg border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-950"
-                        placeholder={
-                          scopeUsersLoading
-                            ? t("common.loading", "Loading...")
-                            : t("admin.nodeTable.scopeSelectUser", {
-                                defaultValue: "Select a user",
-                              })
-                        }
-                      />
-                      <Select.Content>
-                        {scopeUsers.map((user) => (
-                          <Select.Item key={user.uuid} value={user.uuid}>
-                            {user.username}
-                          </Select.Item>
-                        ))}
-                      </Select.Content>
-                    </Select.Root>
-                  </div>
-                ) : null}
-                {scopeSummaryLabel ? (
-                  <Badge
-                    variant="soft"
-                    color="gray"
-                    className="rounded-full px-3 py-1"
-                  >
-                    {scopeSummaryLabel}
-                  </Badge>
-                ) : null}
-              </div>
-              {!installActionsEnabled ? (
-                <Text className="text-[13px] text-slate-500 dark:text-slate-400">
-                  {t("admin.nodeTable.scopeInstallHint", {
-                    defaultValue:
-                      "Install commands use your own auto-discovery key. Switch back to My nodes before onboarding new servers.",
-                  })}
-                </Text>
-              ) : null}
-              {addNodeDisabled ? (
-                <Text className="text-[13px] text-slate-500 dark:text-slate-400">
-                  {t("admin.nodeTable.scopeAddNodeHint", {
-                    defaultValue:
-                      "Switch to My nodes or a specific user before creating a new node.",
-                  })}
-                </Text>
-              ) : null}
-            </div>
-          ) : null}
           <div className="text-sm text-slate-500 dark:text-slate-400">
             {cnConnectivityConfigured
               ? t("admin.nodeTable.cnConnectivitySummary", {
@@ -1228,7 +1152,46 @@ const Header = ({
           </div>
         </div>
 
-        <div className="flex flex-wrap gap-2 lg:justify-end">
+        <div className="flex flex-wrap items-center gap-2 lg:justify-end">
+            <div className="flex shrink-0 items-center gap-2 whitespace-nowrap rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1.5 text-xs text-slate-600 dark:border-slate-800 dark:bg-slate-900/60 dark:text-slate-300">
+              <span className="font-medium text-slate-900 dark:text-slate-100">
+                {t("admin.nodeTable.totalRate", "Total rate")}
+              </span>
+              <span>↑ {formatBytes(totalUploadSpeed)}/s</span>
+              <span>↓ {formatBytes(totalDownloadSpeed)}/s</span>
+              <span className="text-slate-300 dark:text-slate-700">·</span>
+              <span className="font-medium text-slate-900 dark:text-slate-100">
+                {t("admin.nodeTable.totalTraffic", "Total traffic")}
+              </span>
+              <span>↑ {formatBytes(totalUploadTraffic)}</span>
+              <span>↓ {formatBytes(totalDownloadTraffic)}</span>
+            </div>
+            {platformAdmin ? (
+              <form
+                className="flex min-w-[260px] flex-1 items-center sm:min-w-[320px] lg:max-w-sm lg:flex-none"
+                onSubmit={(event) => {
+                  event.preventDefault();
+                  onUserSearch();
+                }}
+              >
+                <TextField.Root
+                  className="w-full rounded-lg sm:flex-1"
+                  placeholder={t("admin.nodeTable.userSearchPlaceholder")}
+                  value={userSearchQuery}
+                  list="admin-node-user-search"
+                  onChange={(event) => onUserSearchQueryChange(event.target.value)}
+                >
+                  <TextField.Slot side="left">
+                    <Search size={16} className="text-slate-400" />
+                  </TextField.Slot>
+                </TextField.Root>
+                <datalist id="admin-node-user-search">
+                  {scopeUsers.map((user) => (
+                    <option key={user.uuid} value={user.username} />
+                  ))}
+                </datalist>
+              </form>
+            ) : null}
             <GenerateCommandButton
               nodes={nodes}
               settings={settings}
@@ -1257,61 +1220,13 @@ const Header = ({
               <Trash2Icon size={16} />
               {t("admin.nodeTable.deleteOffline", "Delete offline nodes")}
             </Button>
-            <Dialog.Root open={dialogOpen} onOpenChange={setDialogOpen}>
-              <Dialog.Trigger>
-                <Button
-                  onClick={() => setDialogOpen(true)}
-                  className="rounded-lg bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900"
-                  disabled={addNodeDisabled}
-                >
-                  <Plus size={16} />
-                  {t("admin.nodeTable.addNode")}
-                </Button>
-              </Dialog.Trigger>
-              <Dialog.Content
-                className={NODE_DIALOG_CONTENT_CLASS}
-                maxWidth={480}
-              >
-                <Dialog.Title>{t("admin.nodeTable.addNode")}</Dialog.Title>
-                <Dialog.Description className="mt-2">
-                  {platformAdmin && scopeMode === "user"
-                    ? t("admin.nodeTable.addNodeDescriptionForUser", {
-                        username:
-                          selectedScopeUser?.username ||
-                          t("admin.users.role_user", "User"),
-                        defaultValue:
-                          "This node will be created under {{username}}. You can continue editing its group, notes, and billing details afterward.",
-                      })
-                    : t("admin.nodeTable.addNodeDescription", {
-                        defaultValue:
-                          "After creating a node, you can continue editing its group, notes, and billing details.",
-                      })}
-                </Dialog.Description>
-                <TextField.Root
-                  ref={inputRef}
-                  className={`mt-4 ${NODE_INPUT_CLASS}`}
-                  placeholder={t("admin.nodeTable.nameOptional")}
-                />
-                <div className={NODE_DIALOG_FOOTER_CLASS}>
-                  <Dialog.Close>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      className="w-full sm:w-auto"
-                    >
-                      {t("common.cancel", "Cancel")}
-                    </Button>
-                  </Dialog.Close>
-                  <Button
-                    className="w-full sm:w-auto"
-                    onClick={() => handleAddNode(inputRef.current?.value)}
-                    disabled={loading}
-                  >
-                    {t("admin.nodeTable.addNode")}
-                  </Button>
-                </div>
-              </Dialog.Content>
-            </Dialog.Root>
+            {platformAdmin ? (
+              <NodeAccessSettingsDialogButton
+                settings={settings}
+                canManageCNConnectivity={canManageCNConnectivity}
+                onRefreshSettings={onRefreshSettings}
+              />
+            ) : null}
         </div>
       </div>
       {dialog}

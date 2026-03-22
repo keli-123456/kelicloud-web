@@ -76,6 +76,7 @@ const footerMenuPaths = new Set<string>();
 const featurePathPrefixes: Array<[string, AccountFeature]> = [
   ["/admin/cloud", "cloud"],
   ["/admin/dns", "cloud"],
+  ["/admin/failover", "cloud"],
   ["/admin/notification", "notifications"],
   ["/admin/exec", "tasks"],
   ["/admin/scripts", "clipboard"],
@@ -394,16 +395,21 @@ export default function AdminPanelBar({ content }: AdminPanelBarProps) {
     (versionInfo && `${versionInfo.version} (${versionInfo.hash})`) ||
     null;
   useEffect(() => {
-    if (!activeTopItem?.children?.length) return;
-    setOpenMenus((prev) =>
-      prev[activeTopItem.path]
-        ? prev
-        : {
-            ...prev,
-            [activeTopItem.path]: true,
-          },
-    );
-  }, [activeTopItem]);
+    setOpenMenus((prev) => {
+      let changed = false;
+      const next = { ...prev };
+
+      primaryMenuItems.forEach((item) => {
+        if (!item.children?.length || next[item.path] !== undefined) {
+          return;
+        }
+        next[item.path] = true;
+        changed = true;
+      });
+
+      return changed ? next : prev;
+    });
+  }, [primaryMenuItems]);
 
   const setMenuOpen = (menuKey: string, open: boolean) => {
     setOpenMenus((prev) => ({

@@ -937,12 +937,6 @@ export default function DigitalOceanPanel() {
   return (
     <>
       <AdminPageShell
-        eyebrow="DigitalOcean"
-        title="DigitalOcean"
-        description={t(
-          "cloud.description",
-          "Manage tokens, launch Droplets, and handle lifecycle actions from one workbench.",
-        )}
         actions={
           <>
             <Button
