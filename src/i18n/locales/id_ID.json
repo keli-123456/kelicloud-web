@@ -427,7 +427,7 @@
         "subnet": "Subnet",
         "subnet_optional": "Opsional",
         "sync_tags": "Sinkronkan tag",
-        "title": "AWS EC2 / Lightsail",
+        "title": "aws",
         "view_credential": "Lihat kredensial",
         "view_instances": "Lihat instance",
         "vpc": "VPC"

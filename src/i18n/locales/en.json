@@ -821,7 +821,7 @@
         "create_snapshot": "Create Snapshot"
       },
       "aws": {
-        "title": "AWS EC2 / Lightsail",
+        "title": "aws",
         "ec2_label": "AWS EC2",
         "description": "Manage multiple AWS credentials, switch the active region, and query, create, or operate both EC2 and Lightsail instances from one panel.",
         "panel_description": "Split AWS credentials from EC2 operations so account and region switching stay clear.",

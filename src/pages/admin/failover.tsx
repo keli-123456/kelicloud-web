@@ -27,6 +27,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Card,
   CardContent,
@@ -105,6 +106,7 @@ type TaskFormState = {
   dns_domain_name: string;
   dns_rr: string;
   dns_line: string;
+  dns_lines: string[];
   delete_strategy: string;
   delete_delay_seconds: string;
   plans: PlanFormState[];
@@ -164,7 +166,7 @@ const ACTION_TYPE_VALUES: Record<string, string[]> = {
 const EDITOR_STEPS: EditorStep[] = ["task", "dns", "plans"];
 const DNS_RECORD_TYPE_VALUES = ["A"] as const;
 const AWS_SERVICE_VALUES = ["ec2", "lightsail"] as const;
-const DNS_TTL_OPTIONS = [60, 120, 300, 600, 900, 1800, 3600, 7200] as const;
+const DNS_TTL_OPTIONS = [1, 60, 120, 300, 600, 900, 1800, 3600, 7200] as const;
 
 function isDnsRecordType(value: string): value is (typeof DNS_RECORD_TYPE_VALUES)[number] {
   return DNS_RECORD_TYPE_VALUES.includes(value as (typeof DNS_RECORD_TYPE_VALUES)[number]);
@@ -180,6 +182,12 @@ function getBooleanValue(value: unknown, fallback = false) {
 
 function getNumberValue(value: unknown, fallback: number) {
   return typeof value === "number" && Number.isFinite(value) ? value : fallback;
+}
+
+function getStringArrayValue(value: unknown) {
+  return Array.isArray(value)
+    ? value.map((item) => (typeof item === "string" ? item.trim() : "")).filter(Boolean)
+    : [];
 }
 
 function createLocalID() {
@@ -424,11 +432,21 @@ function getDNSDomainOptions(catalog: FailoverDnsCatalog | null, currentValue: s
   return buildSelectableDnsOptions(fallbackOptions, currentValue);
 }
 
-function getDNSTTLOptions(currentValue: string) {
-  const options = DNS_TTL_OPTIONS.map((value) => ({
-    value: String(value),
-    label: formatDnsTTLLabel(value),
-  }));
+function getDNSTTLOptions(catalog: FailoverDnsCatalog | null, currentValue: string) {
+  const options = (catalog?.ttls?.length
+    ? catalog.ttls
+    : DNS_TTL_OPTIONS.map((value) => ({
+        value: String(value),
+        label: formatDnsTTLLabel(value),
+      }))).map((option) => {
+        const numericValue = Number.parseInt(String(option.value || "").trim(), 10);
+        return {
+          value: String(option.value || "").trim(),
+          label: Number.isFinite(numericValue) && numericValue > 0
+            ? formatDnsTTLLabel(numericValue)
+            : String(option.label || option.value || "").trim(),
+        };
+      });
   return buildSelectableDnsOptions(options, currentValue);
 }
 
@@ -456,12 +474,19 @@ function localizeAliyunLineLabel(value: string, fallback?: string) {
   }
 }
 
-function getAliyunLineOptions(catalog: FailoverDnsCatalog | null, currentValue: string) {
+function getAliyunLineOptions(catalog: FailoverDnsCatalog | null, currentValues: string[]) {
   const normalizedOptions = (catalog?.lines || []).map((option) => ({
     value: option.value,
     label: localizeAliyunLineLabel(option.value, option.label),
   }));
-  return buildSelectableDnsOptions(normalizedOptions, currentValue || "default");
+  const currentOptions = (currentValues.length > 0 ? currentValues : ["default"]).map((value) => ({
+    value,
+    label: localizeAliyunLineLabel(value),
+  }));
+  return buildSelectableDnsOptions(
+    [...normalizedOptions, ...currentOptions],
+    "",
+  );
 }
 
 function prettyJson(value: unknown, fallback = "{}") {
@@ -734,6 +759,7 @@ function buildDefaultDnsFields(
     dns_domain_name: getStringValue(entryValues.domain_name),
     dns_rr: "@",
     dns_line: "default",
+    dns_lines: ["default"],
   };
 }
 
@@ -802,12 +828,55 @@ function fillDnsFieldsFromRecord(
   nextState.dns_record_type = normalizeDnsRecordType(record.type) || nextState.dns_record_type;
   nextState.dns_ttl = String(record.ttl || numberOrDefault(nextState.dns_ttl, 600));
   nextState.dns_line = record.line || nextState.dns_line;
+  nextState.dns_lines = record.lines.length > 0
+    ? [...record.lines]
+    : record.line
+      ? [record.line]
+      : nextState.dns_lines;
   return nextState;
+}
+
+function collectAliyunRecordLines(
+  records: FailoverDnsRecordOption[],
+  selectedRecord: FailoverDnsRecordOption,
+) {
+  const relatedLines = records
+    .filter((record) =>
+      record.domain_name === selectedRecord.domain_name
+      && record.rr === selectedRecord.rr
+      && normalizeDnsRecordType(record.type) === normalizeDnsRecordType(selectedRecord.type)
+      && record.value === selectedRecord.value
+      && record.ttl === selectedRecord.ttl,
+    )
+    .map((record) => record.line)
+    .filter(Boolean);
+
+  const deduped = Array.from(new Set(relatedLines));
+  if (deduped.length > 0) {
+    return deduped;
+  }
+  return selectedRecord.line ? [selectedRecord.line] : [];
+}
+
+function toggleDnsLineSelection(current: string[], value: string, checked: boolean) {
+  const normalizedValue = String(value || "").trim();
+  if (!normalizedValue) {
+    return current;
+  }
+  if (checked) {
+    return current.includes(normalizedValue) ? current : [...current, normalizedValue];
+  }
+  const next = current.filter((item) => item !== normalizedValue);
+  return next.length > 0 ? next : ["default"];
 }
 
 function dnsRecordSummary(record: FailoverDnsRecordOption) {
   const left = record.name || joinRecordName(record.domain_name, record.rr);
-  const right = [record.type, record.value].filter(Boolean).join(" · ");
+  const right = [
+    record.type,
+    record.value,
+    record.line ? localizeAliyunLineLabel(record.line) : "",
+  ].filter(Boolean).join(" · ");
   return [left, right].filter(Boolean).join(" · ");
 }
 
@@ -868,6 +937,14 @@ function parseDnsPayloadFields(
     dns_record_type: normalizeDnsRecordType(getStringValue(raw.record_type)) || defaults.dns_record_type,
     dns_ttl: String(getNumberValue(raw.ttl, numberOrDefault(defaults.dns_ttl, 600))),
     dns_line: getStringValue(raw.line) || defaults.dns_line,
+    dns_lines: (() => {
+      const normalized = getStringArrayValue(raw.lines);
+      if (normalized.length > 0) {
+        return normalized;
+      }
+      const single = getStringValue(raw.line);
+      return single ? [single] : defaults.dns_lines;
+    })(),
   };
 }
 
@@ -981,6 +1058,13 @@ function buildTaskInput(formState: TaskFormState, t: TFunction): FailoverTaskInp
   const dnsProvider = String(formState.dns_provider || "").trim();
   const dnsRecordType = "A";
   const dnsTTL = numberOrDefault(formState.dns_ttl, 0);
+  const normalizedDnsLines = Array.from(
+    new Set(
+      formState.dns_lines
+        .map((value) => String(value || "").trim())
+        .filter(Boolean),
+    ),
+  );
   if (dnsProvider && dnsTTL <= 0) {
     throw new Error(
       t("failover.validation.dns_ttl_invalid", {
@@ -1071,7 +1155,8 @@ function buildTaskInput(formState: TaskFormState, t: TFunction): FailoverTaskInp
           rr: formState.dns_rr.trim() || "@",
           record_type: dnsRecordType,
           ttl: dnsTTL,
-          line: formState.dns_line.trim() || "default",
+          line: normalizedDnsLines[0] || formState.dns_line.trim() || "default",
+          lines: normalizedDnsLines.length > 0 ? normalizedDnsLines : ["default"],
         }
         : {};
 
@@ -1476,12 +1561,12 @@ function TaskEditorDialog({
     [dnsCatalog, formState.dns_domain_name],
   );
   const dnsTTLOptions = React.useMemo(
-    () => getDNSTTLOptions(formState.dns_ttl),
-    [formState.dns_ttl],
+    () => getDNSTTLOptions(dnsCatalog, formState.dns_ttl),
+    [dnsCatalog, formState.dns_ttl],
   );
   const aliyunLineOptions = React.useMemo(
-    () => getAliyunLineOptions(dnsCatalog, formState.dns_line),
-    [dnsCatalog, formState.dns_line],
+    () => getAliyunLineOptions(dnsCatalog, formState.dns_lines),
+    [dnsCatalog, formState.dns_lines],
   );
   const hasDnsEnabled = Boolean(formState.dns_provider.trim());
   const firstConfiguredDnsProvider = React.useMemo(
@@ -2085,7 +2170,17 @@ function TaskEditorDialog({
                             if (!record) {
                               return;
                             }
-                            setFormState((current) => fillDnsFieldsFromRecord(current, record));
+                            setFormState((current) => {
+                              const nextState = fillDnsFieldsFromRecord(current, record);
+                              if (current.dns_provider === "aliyun") {
+                                const lines = collectAliyunRecordLines(dnsCatalogRecords, record);
+                                if (lines.length > 0) {
+                                  nextState.dns_lines = lines;
+                                  nextState.dns_line = lines[0];
+                                }
+                              }
+                              return nextState;
+                            });
                           }}
                           disabled={!dnsCatalogRecords.length}
                         >
@@ -2254,21 +2349,36 @@ function TaskEditorDialog({
                       </div>
                       <div className="space-y-2 lg:col-span-2">
                         <Label>{t("failover.editor.line", { defaultValue: "Routing line" })}</Label>
-                        <Select
-                          value={formState.dns_line || "default"}
-                          onValueChange={(value) => updateTaskField("dns_line", value)}
-                        >
-                          <SelectTrigger>
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {aliyunLineOptions.map((line) => (
-                              <SelectItem key={line.value} value={line.value}>
-                                {line.label}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                        <div className="grid gap-3 rounded-xl border border-dashed p-4 sm:grid-cols-2">
+                          {aliyunLineOptions.map((line) => {
+                            const checked = formState.dns_lines.includes(line.value);
+                            return (
+                              <label
+                                key={line.value}
+                                className="flex items-center gap-3 rounded-lg border border-transparent px-2 py-1.5 text-sm hover:bg-muted/30"
+                              >
+                                <Checkbox
+                                  checked={checked}
+                                  onCheckedChange={(nextChecked) => {
+                                    setFormState((current) => {
+                                      const nextLines = toggleDnsLineSelection(
+                                        current.dns_lines,
+                                        line.value,
+                                        Boolean(nextChecked),
+                                      );
+                                      return {
+                                        ...current,
+                                        dns_lines: nextLines,
+                                        dns_line: nextLines[0] || "default",
+                                      };
+                                    });
+                                  }}
+                                />
+                                <span>{line.label}</span>
+                              </label>
+                            );
+                          })}
+                        </div>
                       </div>
                     </div>
                   ) : null}

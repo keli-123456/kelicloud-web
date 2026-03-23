@@ -679,7 +679,7 @@
         "subnet": "子网",
         "subnet_optional": "可选",
         "sync_tags": "同步标签",
-        "title": "AWS EC2 / Lightsail",
+        "title": "aws",
         "view_credential": "查看凭证",
         "view_instances": "查看实例",
         "vpc": "VPC"

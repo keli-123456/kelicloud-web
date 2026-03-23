@@ -427,7 +427,7 @@
         "subnet": "サブネット",
         "subnet_optional": "任意",
         "sync_tags": "タグを同期",
-        "title": "AWS EC2 / Lightsail",
+        "title": "aws",
         "view_credential": "認証情報を表示",
         "view_instances": "インスタンスを見る",
         "vpc": "VPC"

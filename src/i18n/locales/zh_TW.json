@@ -427,7 +427,7 @@
         "subnet": "子網",
         "subnet_optional": "可選",
         "sync_tags": "同步標籤",
-        "title": "AWS EC2 / Lightsail",
+        "title": "aws",
         "view_credential": "查看憑證",
         "view_instances": "查看實例",
         "vpc": "VPC"

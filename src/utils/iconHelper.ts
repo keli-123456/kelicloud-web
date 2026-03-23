@@ -20,6 +20,8 @@ import {
   Cloud,
   ShipWheel,
   Building2,
+  RefreshCw,
+  ShieldCheck,
 } from "lucide-react";
 
 // Map icon names defined in menuConfig.json to their components
@@ -44,4 +46,6 @@ export const iconMap: Record<string, React.ComponentType<any>> = {
   Cloud,
   ShipWheel,
   Building2,
+  RefreshCw,
+  ShieldCheck,
 };

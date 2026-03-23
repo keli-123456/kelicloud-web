@@ -205,6 +205,7 @@ export type FailoverDnsRecordOption = {
   domain_name: string;
   rr: string;
   line: string;
+  lines: string[];
   proxied: boolean | null;
 };
 
@@ -220,6 +221,7 @@ export type FailoverDnsCatalog = {
   domains: FailoverDnsOption[];
   records: FailoverDnsRecordOption[];
   lines: FailoverDnsOption[];
+  ttls: FailoverDnsOption[];
 };
 
 export type FailoverCatalogOption = {
@@ -422,6 +424,7 @@ function normalizeDnsRecord(value: unknown): FailoverDnsRecordOption {
     domain_name: normalizeString(raw.domain_name),
     rr: normalizeString(raw.rr),
     line: normalizeString(raw.line),
+    lines: Array.isArray(raw.lines) ? raw.lines.map(normalizeString).filter(Boolean) : [],
     proxied: normalizeNullableBoolean(raw.proxied),
   };
 }
@@ -443,6 +446,7 @@ function normalizeDnsCatalog(value: unknown): FailoverDnsCatalog {
     domains: Array.isArray(raw.domains) ? raw.domains.map(normalizeDnsOption) : [],
     records: Array.isArray(raw.records) ? raw.records.map(normalizeDnsRecord) : [],
     lines: Array.isArray(raw.lines) ? raw.lines.map(normalizeDnsOption) : [],
+    ttls: Array.isArray(raw.ttls) ? raw.ttls.map(normalizeDnsOption) : [],
   };
 }
 
