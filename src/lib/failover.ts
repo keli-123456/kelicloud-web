@@ -216,6 +216,8 @@ export type FailoverDnsOption = {
 export type FailoverDnsCatalog = {
   provider: string;
   defaults: FailoverDnsCatalogDefaults;
+  zones: FailoverDnsOption[];
+  domains: FailoverDnsOption[];
   records: FailoverDnsRecordOption[];
   lines: FailoverDnsOption[];
 };
@@ -232,6 +234,7 @@ export type FailoverPlanCatalog = {
   service: string;
   region: string;
   regions: FailoverCatalogOption[];
+  instances: FailoverCatalogOption[];
   availability_zones: FailoverCatalogOption[];
   images: FailoverCatalogOption[];
   instance_types: FailoverCatalogOption[];
@@ -436,6 +439,8 @@ function normalizeDnsCatalog(value: unknown): FailoverDnsCatalog {
   return {
     provider: normalizeString(raw.provider),
     defaults: normalizeDnsCatalogDefaults(raw.defaults),
+    zones: Array.isArray(raw.zones) ? raw.zones.map(normalizeDnsOption) : [],
+    domains: Array.isArray(raw.domains) ? raw.domains.map(normalizeDnsOption) : [],
     records: Array.isArray(raw.records) ? raw.records.map(normalizeDnsRecord) : [],
     lines: Array.isArray(raw.lines) ? raw.lines.map(normalizeDnsOption) : [],
   };
@@ -458,6 +463,7 @@ function normalizePlanCatalog(value: unknown): FailoverPlanCatalog {
     service: normalizeString(raw.service),
     region: normalizeString(raw.region),
     regions: Array.isArray(raw.regions) ? raw.regions.map(normalizeCatalogOption) : [],
+    instances: Array.isArray(raw.instances) ? raw.instances.map(normalizeCatalogOption) : [],
     availability_zones: Array.isArray(raw.availability_zones) ? raw.availability_zones.map(normalizeCatalogOption) : [],
     images: Array.isArray(raw.images) ? raw.images.map(normalizeCatalogOption) : [],
     instance_types: Array.isArray(raw.instance_types) ? raw.instance_types.map(normalizeCatalogOption) : [],

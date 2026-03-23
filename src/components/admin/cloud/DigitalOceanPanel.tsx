@@ -373,6 +373,7 @@ export default function DigitalOceanPanel() {
   const [error, setError] = React.useState("");
   const [createOpen, setCreateOpen] = React.useState(false);
   const [createSubmitting, setCreateSubmitting] = React.useState(false);
+  const [resourcesLoaded, setResourcesLoaded] = React.useState(false);
   const [createForm, setCreateForm] =
     React.useState<CreateDropletFormState>(initialCreateForm);
 
@@ -381,6 +382,7 @@ export default function DigitalOceanPanel() {
     setCatalog(null);
     setDroplets([]);
     setError("");
+    setResourcesLoaded(false);
   }, []);
 
   const copyText = React.useCallback(
@@ -413,11 +415,13 @@ export default function DigitalOceanPanel() {
       setCatalog(nextCatalog);
       setDroplets(nextDroplets);
       setError("");
+      setResourcesLoaded(true);
     } catch (panelError) {
       setAccount(null);
       setCatalog(null);
       setDroplets([]);
       setError(toErrorMessage(panelError));
+      setResourcesLoaded(false);
     } finally {
       setPanelLoading(false);
     }
@@ -441,10 +445,10 @@ export default function DigitalOceanPanel() {
         if (cancelled) return;
 
         setTokenPool(nextPool);
-        if (hasActiveToken(nextPool)) {
-          await loadPanelData();
-        } else {
+        if (!hasActiveToken(nextPool)) {
           clearPanelState();
+        } else {
+          setError("");
         }
       } catch (bootstrapError) {
         if (!cancelled) {
@@ -533,7 +537,11 @@ export default function DigitalOceanPanel() {
     setTokenPool(nextPool);
     setSelectedTokenIds((current) => current.filter((id) => !removedTokenIds.includes(id)));
     if (hasActiveToken(nextPool)) {
-      await loadPanelData();
+      if (resourcesLoaded) {
+        await loadPanelData();
+      } else {
+        clearPanelState();
+      }
     } else {
       clearPanelState();
     }
@@ -569,7 +577,11 @@ export default function DigitalOceanPanel() {
       );
 
       if (hasActiveToken(nextPool)) {
-        await loadPanelData();
+        if (resourcesLoaded) {
+          await loadPanelData();
+        } else {
+          clearPanelState();
+        }
       } else {
         clearPanelState();
       }
@@ -587,7 +599,11 @@ export default function DigitalOceanPanel() {
       setTokenPool(nextPool);
       toast.success(t("cloud.tokens.check_success", "Token health check finished"));
       if (hasActiveToken(nextPool)) {
-        await loadPanelData();
+        if (resourcesLoaded) {
+          await loadPanelData();
+        } else {
+          clearPanelState();
+        }
       } else {
         clearPanelState();
       }
@@ -610,6 +626,8 @@ export default function DigitalOceanPanel() {
       );
       if (options?.loadResources) {
         await loadPanelData();
+      } else {
+        clearPanelState();
       }
     } catch (selectError) {
       toast.error(toErrorMessage(selectError));
@@ -1036,9 +1054,13 @@ export default function DigitalOceanPanel() {
                     <TableCell colSpan={10} className="h-24 text-center text-slate-500">
                       {panelLoading
                         ? t("cloud.loading", "Loading cloud resources...")
-                        : hasActiveToken(tokenPool)
-                          ? t("cloud.empty", "No Droplets found")
-                          : t("cloud.no_active_token", "Select an active token to load DigitalOcean resources")}
+                        : error
+                          ? t("cloud.load_failed", "Unable to load cloud resources. Check the warning above and try again.")
+                          : !hasActiveToken(tokenPool)
+                            ? t("cloud.no_active_token", "Select an active token to load DigitalOcean resources")
+                            : !resourcesLoaded
+                              ? t("cloud.load_resources_prompt", "Click Refresh to load cloud resources on demand.")
+                              : t("cloud.empty", "No Droplets found")}
                     </TableCell>
                   </TableRow>
                 ) : (

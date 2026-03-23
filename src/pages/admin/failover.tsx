@@ -75,6 +75,7 @@ import {
   toggleFailoverTask,
   updateFailoverTask,
   type FailoverExecution,
+  type FailoverDnsOption,
   type FailoverPlanCatalog,
   type FailoverDnsCatalog,
   type FailoverDnsRecordOption,
@@ -163,6 +164,7 @@ const ACTION_TYPE_VALUES: Record<string, string[]> = {
 const EDITOR_STEPS: EditorStep[] = ["task", "dns", "plans"];
 const DNS_RECORD_TYPE_VALUES = ["A"] as const;
 const AWS_SERVICE_VALUES = ["ec2", "lightsail"] as const;
+const DNS_TTL_OPTIONS = [60, 120, 300, 600, 900, 1800, 3600, 7200] as const;
 
 function isDnsRecordType(value: string): value is (typeof DNS_RECORD_TYPE_VALUES)[number] {
   return DNS_RECORD_TYPE_VALUES.includes(value as (typeof DNS_RECORD_TYPE_VALUES)[number]);
@@ -356,6 +358,112 @@ function formatCatalogOptionLabel(option: { label: string; hint?: string }) {
   return option.hint ? `${option.label} · ${option.hint}` : option.label;
 }
 
+function formatDnsTTLLabel(ttl: number) {
+  return `${ttl} 秒`;
+}
+
+function buildSelectableDnsOptions(
+  options: FailoverDnsOption[],
+  currentValue: string,
+) {
+  const result: FailoverDnsOption[] = [];
+  const seen = new Set<string>();
+
+  for (const option of options) {
+    const value = String(option.value || "").trim();
+    if (!value || seen.has(value)) {
+      continue;
+    }
+    result.push({
+      value,
+      label: String(option.label || value).trim() || value,
+    });
+    seen.add(value);
+  }
+
+  const normalizedCurrentValue = String(currentValue || "").trim();
+  if (normalizedCurrentValue && !seen.has(normalizedCurrentValue)) {
+    result.push({
+      value: normalizedCurrentValue,
+      label: normalizedCurrentValue,
+    });
+  }
+
+  return result;
+}
+
+function getDNSZoneOptions(catalog: FailoverDnsCatalog | null, currentValue: string) {
+  const options = catalog?.zones || [];
+  if (options.length > 0) {
+    return buildSelectableDnsOptions(options, currentValue);
+  }
+
+  const fallbackOptions: FailoverDnsOption[] = [];
+  if (catalog?.defaults.zone_name) {
+    fallbackOptions.push({
+      value: catalog.defaults.zone_name,
+      label: catalog.defaults.zone_name,
+    });
+  }
+  return buildSelectableDnsOptions(fallbackOptions, currentValue);
+}
+
+function getDNSDomainOptions(catalog: FailoverDnsCatalog | null, currentValue: string) {
+  const options = catalog?.domains || [];
+  if (options.length > 0) {
+    return buildSelectableDnsOptions(options, currentValue);
+  }
+
+  const fallbackOptions: FailoverDnsOption[] = [];
+  if (catalog?.defaults.domain_name) {
+    fallbackOptions.push({
+      value: catalog.defaults.domain_name,
+      label: catalog.defaults.domain_name,
+    });
+  }
+  return buildSelectableDnsOptions(fallbackOptions, currentValue);
+}
+
+function getDNSTTLOptions(currentValue: string) {
+  const options = DNS_TTL_OPTIONS.map((value) => ({
+    value: String(value),
+    label: formatDnsTTLLabel(value),
+  }));
+  return buildSelectableDnsOptions(options, currentValue);
+}
+
+function localizeAliyunLineLabel(value: string, fallback?: string) {
+  const normalized = String(value || "").trim().toLowerCase();
+  switch (normalized) {
+    case "default":
+      return "默认";
+    case "telecom":
+      return "电信";
+    case "unicom":
+      return "联通";
+    case "mobile":
+      return "移动";
+    case "edu":
+      return "教育网";
+    case "oversea":
+      return "境外";
+    case "search":
+      return "搜索引擎";
+    case "school":
+      return "校园网";
+    default:
+      return String(fallback || value || "").trim() || normalized;
+  }
+}
+
+function getAliyunLineOptions(catalog: FailoverDnsCatalog | null, currentValue: string) {
+  const normalizedOptions = (catalog?.lines || []).map((option) => ({
+    value: option.value,
+    label: localizeAliyunLineLabel(option.value, option.label),
+  }));
+  return buildSelectableDnsOptions(normalizedOptions, currentValue || "default");
+}
+
 function prettyJson(value: unknown, fallback = "{}") {
   if (value === null || value === undefined || value === "") {
     return fallback;
@@ -478,7 +586,6 @@ function validatePlanPayload(
       return;
     }
     requirePlanField(t, index, t("failover.editor.instance_name", { defaultValue: "Instance name" }), payload.instance_name);
-    requirePlanField(t, index, t("failover.editor.static_ip_name", { defaultValue: "Static IP name" }), payload.static_ip_name);
     return;
   }
 
@@ -1274,6 +1381,8 @@ function TaskEditorDialog({
   const [planCatalogLoading, setPlanCatalogLoading] = React.useState(false);
   const [planCatalogError, setPlanCatalogError] = React.useState("");
   const lastEnabledDnsRef = React.useRef<{ provider: string; entryID: string } | null>(null);
+  const dnsCatalogRequestRef = React.useRef(0);
+  const planCatalogRequestRef = React.useRef(0);
 
   React.useEffect(() => {
     if (!open) {
@@ -1358,6 +1467,22 @@ function TaskEditorDialog({
     () => (dnsCatalog?.records || []).filter((record) => normalizeDnsRecordType(record.type) === "A"),
     [dnsCatalog],
   );
+  const dnsZoneOptions = React.useMemo(
+    () => getDNSZoneOptions(dnsCatalog, formState.dns_zone_name),
+    [dnsCatalog, formState.dns_zone_name],
+  );
+  const dnsDomainOptions = React.useMemo(
+    () => getDNSDomainOptions(dnsCatalog, formState.dns_domain_name),
+    [dnsCatalog, formState.dns_domain_name],
+  );
+  const dnsTTLOptions = React.useMemo(
+    () => getDNSTTLOptions(formState.dns_ttl),
+    [formState.dns_ttl],
+  );
+  const aliyunLineOptions = React.useMemo(
+    () => getAliyunLineOptions(dnsCatalog, formState.dns_line),
+    [dnsCatalog, formState.dns_line],
+  );
   const hasDnsEnabled = Boolean(formState.dns_provider.trim());
   const firstConfiguredDnsProvider = React.useMemo(
     () => getFirstConfiguredProvider(providerEntries, DNS_PROVIDER_VALUES),
@@ -1387,6 +1512,8 @@ function TaskEditorDialog({
       return;
     }
 
+    const requestID = dnsCatalogRequestRef.current + 1;
+    dnsCatalogRequestRef.current = requestID;
     setDnsCatalogLoading(true);
     setDnsCatalogError("");
     try {
@@ -1396,13 +1523,21 @@ function TaskEditorDialog({
         zone_name: overrides?.zone_name,
         domain_name: overrides?.domain_name,
       });
+      if (dnsCatalogRequestRef.current !== requestID) {
+        return;
+      }
       setDnsCatalog(catalog);
       setFormState((current) => applyDnsCatalogDefaults(current, catalog));
     } catch (error) {
+      if (dnsCatalogRequestRef.current !== requestID) {
+        return;
+      }
       setDnsCatalog(null);
       setDnsCatalogError(error instanceof Error ? error.message : t("common.unknown_error"));
     } finally {
-      setDnsCatalogLoading(false);
+      if (dnsCatalogRequestRef.current === requestID) {
+        setDnsCatalogLoading(false);
+      }
     }
   }, [
     formState.dns_entry_id,
@@ -1411,16 +1546,17 @@ function TaskEditorDialog({
   ]);
 
   React.useEffect(() => {
-    if (!open) {
+    if (!open || editorStep !== "dns") {
       return;
     }
     if (!formState.dns_entry_id.trim()) {
       setDnsCatalog(null);
       setDnsCatalogError("");
+      setDnsCatalogLoading(false);
       return;
     }
     void refreshDnsCatalog();
-  }, [open, formState.dns_provider, formState.dns_entry_id, refreshDnsCatalog]);
+  }, [open, editorStep, formState.dns_provider, formState.dns_entry_id, refreshDnsCatalog]);
 
   const updateTaskField = <K extends keyof TaskFormState>(key: K, value: TaskFormState[K]) => {
     setFormState((current) => ({ ...current, [key]: value }));
@@ -1514,6 +1650,8 @@ function TaskEditorDialog({
       return;
     }
 
+    const requestID = planCatalogRequestRef.current + 1;
+    planCatalogRequestRef.current = requestID;
     setPlanCatalogLoading(true);
     setPlanCatalogError("");
     try {
@@ -1524,6 +1662,9 @@ function TaskEditorDialog({
         service: overrides?.service || selectedPlanService,
         region: overrides?.region || selectedPlanRegion,
       });
+      if (planCatalogRequestRef.current !== requestID) {
+        return;
+      }
       setPlanCatalog(catalog);
       if (!selectedPlanRegion.trim() && catalog.region) {
         updateSelectedPlanPayload((current) => ({
@@ -1532,10 +1673,15 @@ function TaskEditorDialog({
         }));
       }
     } catch (error) {
+      if (planCatalogRequestRef.current !== requestID) {
+        return;
+      }
       setPlanCatalog(null);
       setPlanCatalogError(error instanceof Error ? error.message : t("common.unknown_error"));
     } finally {
-      setPlanCatalogLoading(false);
+      if (planCatalogRequestRef.current === requestID) {
+        setPlanCatalogLoading(false);
+      }
     }
   }, [
     selectedPlan,
@@ -1546,14 +1692,16 @@ function TaskEditorDialog({
   ]);
 
   React.useEffect(() => {
-    if (!open || !selectedPlan?.provider.trim() || !selectedPlan.provider_entry_id.trim()) {
+    if (!open || editorStep !== "plans" || !selectedPlan?.provider.trim() || !selectedPlan.provider_entry_id.trim()) {
       setPlanCatalog(null);
       setPlanCatalogError("");
+      setPlanCatalogLoading(false);
       return;
     }
     void refreshPlanCatalog();
   }, [
     open,
+    editorStep,
     selectedPlan?.provider,
     selectedPlan?.provider_entry_id,
     selectedPlan?.action_type,
@@ -1980,13 +2128,26 @@ function TaskEditorDialog({
                   {formState.dns_provider === "cloudflare" ? (
                     <div className="grid gap-4 lg:grid-cols-2">
                       <div className="space-y-2">
-                        <Label htmlFor="failover-zone-name">{t("failover.editor.zone_name", { defaultValue: "Zone / domain" })}</Label>
-                        <Input
-                          id="failover-zone-name"
-                          value={formState.dns_zone_name}
-                          onChange={(event) => updateTaskField("dns_zone_name", event.target.value)}
-                          placeholder="example.com"
-                        />
+                        <Label>{t("failover.editor.zone_name", { defaultValue: "Zone / domain" })}</Label>
+                        <Select
+                          value={formState.dns_zone_name || undefined}
+                          onValueChange={(value) => {
+                            updateTaskField("dns_zone_name", value);
+                            setSelectedDnsRecordKey("");
+                            void refreshDnsCatalog({ zone_name: value });
+                          }}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="example.com" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {dnsZoneOptions.map((option) => (
+                              <SelectItem key={option.value} value={option.value}>
+                                {option.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
                       </div>
                       <div className="space-y-2">
                         <Label htmlFor="failover-record-name">{t("failover.editor.record_name", { defaultValue: "Record name" })}</Label>
@@ -2002,14 +2163,22 @@ function TaskEditorDialog({
                         <Input value="A" readOnly className="bg-muted/30" />
                       </div>
                       <div className="space-y-2">
-                        <Label htmlFor="failover-dns-ttl">{t("failover.editor.ttl", { defaultValue: "TTL" })}</Label>
-                        <Input
-                          id="failover-dns-ttl"
-                          type="number"
-                          min={1}
-                          value={formState.dns_ttl}
-                          onChange={(event) => updateTaskField("dns_ttl", event.target.value)}
-                        />
+                        <Label>{t("failover.editor.ttl", { defaultValue: "TTL" })}</Label>
+                        <Select
+                          value={formState.dns_ttl || undefined}
+                          onValueChange={(value) => updateTaskField("dns_ttl", value)}
+                        >
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {dnsTTLOptions.map((option) => (
+                              <SelectItem key={option.value} value={option.value}>
+                                {option.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
                       </div>
                       <div className="rounded-xl bg-muted/20 px-4 py-3 lg:col-span-2">
                         <div className="flex items-center justify-between gap-4">
@@ -2031,13 +2200,26 @@ function TaskEditorDialog({
                   ) : formState.dns_provider === "aliyun" ? (
                     <div className="grid gap-4 lg:grid-cols-2">
                       <div className="space-y-2">
-                        <Label htmlFor="failover-domain-name">{t("failover.editor.domain_name", { defaultValue: "Domain" })}</Label>
-                        <Input
-                          id="failover-domain-name"
-                          value={formState.dns_domain_name}
-                          onChange={(event) => updateTaskField("dns_domain_name", event.target.value)}
-                          placeholder="example.com"
-                        />
+                        <Label>{t("failover.editor.domain_name", { defaultValue: "Domain" })}</Label>
+                        <Select
+                          value={formState.dns_domain_name || undefined}
+                          onValueChange={(value) => {
+                            updateTaskField("dns_domain_name", value);
+                            setSelectedDnsRecordKey("");
+                            void refreshDnsCatalog({ domain_name: value });
+                          }}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="example.com" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {dnsDomainOptions.map((option) => (
+                              <SelectItem key={option.value} value={option.value}>
+                                {option.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
                       </div>
                       <div className="space-y-2">
                         <Label htmlFor="failover-rr">{t("failover.editor.rr", { defaultValue: "Host / RR" })}</Label>
@@ -2053,14 +2235,22 @@ function TaskEditorDialog({
                         <Input value="A" readOnly className="bg-muted/30" />
                       </div>
                       <div className="space-y-2">
-                        <Label htmlFor="failover-dns-ttl-aliyun">{t("failover.editor.ttl", { defaultValue: "TTL" })}</Label>
-                        <Input
-                          id="failover-dns-ttl-aliyun"
-                          type="number"
-                          min={1}
-                          value={formState.dns_ttl}
-                          onChange={(event) => updateTaskField("dns_ttl", event.target.value)}
-                        />
+                        <Label>{t("failover.editor.ttl", { defaultValue: "TTL" })}</Label>
+                        <Select
+                          value={formState.dns_ttl || undefined}
+                          onValueChange={(value) => updateTaskField("dns_ttl", value)}
+                        >
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {dnsTTLOptions.map((option) => (
+                              <SelectItem key={option.value} value={option.value}>
+                                {option.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
                       </div>
                       <div className="space-y-2 lg:col-span-2">
                         <Label>{t("failover.editor.line", { defaultValue: "Routing line" })}</Label>
@@ -2072,14 +2262,11 @@ function TaskEditorDialog({
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
-                            {(dnsCatalog?.lines || []).map((line) => (
+                            {aliyunLineOptions.map((line) => (
                               <SelectItem key={line.value} value={line.value}>
                                 {line.label}
                               </SelectItem>
                             ))}
-                            {!dnsCatalog?.lines?.length ? (
-                              <SelectItem value="default">default</SelectItem>
-                            ) : null}
                           </SelectContent>
                         </Select>
                       </div>
@@ -2283,7 +2470,7 @@ function TaskEditorDialog({
                           </Select>
                         </div>
                         <div className="space-y-2">
-                          <Label>{t("failover.editor.provider_entry", { defaultValue: "Provider entry" })}</Label>
+                          <Label>{t("failover.editor.provider_entry", { defaultValue: "Preferred credential" })}</Label>
                           {(() => {
                             const providerOptions = buildProviderEntryOptions({
 	                              entries: providerEntries[selectedPlan.provider] || [],
@@ -2320,6 +2507,11 @@ function TaskEditorDialog({
                               </Select>
                             );
                           })()}
+                          <div className="text-xs text-muted-foreground">
+                            {t("failover.editor.provider_entry_hint", {
+                              defaultValue: "Choose the preferred credential first. If it is unavailable, Komari will automatically try other credentials from the same provider.",
+                            })}
+                          </div>
                         </div>
 	                        <div className="space-y-2 lg:col-span-2">
 	                          <Label>{t("failover.editor.action_type", { defaultValue: "Action type" })}</Label>
@@ -2379,11 +2571,13 @@ function TaskEditorDialog({
                       ) : !selectedPlan.provider_entry_id ? (
                         <div className="rounded-xl border border-dashed px-4 py-3 text-sm text-muted-foreground">
                           {t("failover.editor.plan_provider_entry_required_hint", {
-                            defaultValue: "Choose a provider entry first.",
+                            defaultValue: "Choose a preferred credential first.",
                           })}
                         </div>
                       ) : null}
 
+                      {!planCatalogLoading && planCatalog ? (
+                        <>
                       {selectedPlan.provider === "aws" && selectedPlan.action_type === "provision_instance" ? (
                         <div className="grid gap-4 lg:grid-cols-2">
                           <div className="space-y-2">
@@ -2784,50 +2978,62 @@ function TaskEditorDialog({
                             <>
                               <div className="space-y-2">
                                 <Label>{t("failover.editor.instance_id", { defaultValue: "Instance ID" })}</Label>
-                                <Input
-                                  value={getStringValue(selectedPlanPayload.instance_id)}
-                                  onChange={(event) => updateSelectedPlanPayload((current) => ({
-                                    ...current,
-                                    instance_id: event.target.value,
-                                  }))}
-                                  placeholder="i-..."
-                                />
-                              </div>
-                              <div className="space-y-2">
-                                <Label>{t("failover.editor.private_ip", { defaultValue: "Private IP" })}</Label>
-                                <Input
-                                  value={getStringValue(selectedPlanPayload.private_ip)}
-                                  onChange={(event) => updateSelectedPlanPayload((current) => ({
-                                    ...current,
-                                    private_ip: event.target.value,
-                                  }))}
-                                  placeholder="10.0.0.12"
-                                />
+                                {(planCatalog?.instances || []).length > 0 ? (
+                                  <Select
+                                    value={getStringValue(selectedPlanPayload.instance_id) || undefined}
+                                    onValueChange={(value) => updateSelectedPlanPayload((current) => ({
+                                      ...current,
+                                      instance_id: value,
+                                      private_ip: "",
+                                    }))}
+                                  >
+                                    <SelectTrigger>
+                                      <SelectValue placeholder={t("failover.editor.instance_name", { defaultValue: "Choose an instance" })} />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      {planCatalog?.instances?.map((option) => (
+                                        <SelectItem key={option.value} value={option.value}>
+                                          {formatCatalogOptionLabel(option)}
+                                        </SelectItem>
+                                      ))}
+                                    </SelectContent>
+                                  </Select>
+                                ) : (
+                                  <div className="rounded-xl border border-dashed px-4 py-3 text-sm text-muted-foreground">
+                                    {t("failover.editor.loading_plan_catalog", { defaultValue: "Loading provider configuration options..." })}
+                                  </div>
+                                )}
                               </div>
                             </>
                           ) : (
                             <>
                               <div className="space-y-2">
                                 <Label>{t("failover.editor.instance_name", { defaultValue: "Instance name" })}</Label>
-                                <Input
-                                  value={getStringValue(selectedPlanPayload.instance_name)}
-                                  onChange={(event) => updateSelectedPlanPayload((current) => ({
-                                    ...current,
-                                    instance_name: event.target.value,
-                                  }))}
-                                  placeholder="komari-edge-1"
-                                />
-                              </div>
-                              <div className="space-y-2">
-                                <Label>{t("failover.editor.static_ip_name", { defaultValue: "Static IP name" })}</Label>
-                                <Input
-                                  value={getStringValue(selectedPlanPayload.static_ip_name)}
-                                  onChange={(event) => updateSelectedPlanPayload((current) => ({
-                                    ...current,
-                                    static_ip_name: event.target.value,
-                                  }))}
-                                  placeholder="komari-static-ip"
-                                />
+                                {(planCatalog?.instances || []).length > 0 ? (
+                                  <Select
+                                    value={getStringValue(selectedPlanPayload.instance_name) || undefined}
+                                    onValueChange={(value) => updateSelectedPlanPayload((current) => ({
+                                      ...current,
+                                      instance_name: value,
+                                      static_ip_name: "",
+                                    }))}
+                                  >
+                                    <SelectTrigger>
+                                      <SelectValue placeholder={t("failover.editor.instance_name", { defaultValue: "Choose an instance" })} />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      {planCatalog?.instances?.map((option) => (
+                                        <SelectItem key={option.value} value={option.value}>
+                                          {formatCatalogOptionLabel(option)}
+                                        </SelectItem>
+                                      ))}
+                                    </SelectContent>
+                                  </Select>
+                                ) : (
+                                  <div className="rounded-xl border border-dashed px-4 py-3 text-sm text-muted-foreground">
+                                    {t("failover.editor.loading_plan_catalog", { defaultValue: "Loading provider configuration options..." })}
+                                  </div>
+                                )}
                               </div>
                             </>
                           )}
@@ -3034,6 +3240,8 @@ function TaskEditorDialog({
                             )}
                           </div>
                         </div>
+                      ) : null}
+                        </>
                       ) : null}
                     </div>
 

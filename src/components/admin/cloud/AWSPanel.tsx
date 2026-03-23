@@ -421,6 +421,7 @@ export default function AWSPanel() {
   const [lightsailError, setLightsailError] = React.useState("");
   const [createOpen, setCreateOpen] = React.useState(false);
   const [createSubmitting, setCreateSubmitting] = React.useState(false);
+  const [resourcesLoaded, setResourcesLoaded] = React.useState(false);
   const [createForm, setCreateForm] = React.useState<CreateFormState>(initialCreateForm);
   const [lightsailCreateOpen, setLightsailCreateOpen] = React.useState(false);
   const [lightsailCreateSubmitting, setLightsailCreateSubmitting] = React.useState(false);
@@ -439,6 +440,7 @@ export default function AWSPanel() {
     setLightsailDetailData(null);
     setError("");
     setLightsailError("");
+    setResourcesLoaded(false);
   }, []);
 
   const copyText = React.useCallback(
@@ -488,6 +490,7 @@ export default function AWSPanel() {
       setInstances(nextInstances);
       setError("");
       await loadLightsailData();
+      setResourcesLoaded(true);
     } catch (panelError) {
       setAccount(null);
       setCatalog(null);
@@ -496,6 +499,7 @@ export default function AWSPanel() {
       setLightsailInstances([]);
       setError(toErrorMessage(panelError));
       setLightsailError("");
+      setResourcesLoaded(false);
     } finally {
       setPanelLoading(false);
     }
@@ -518,10 +522,11 @@ export default function AWSPanel() {
         const nextPool = await getAWSCredentials();
         if (cancelled) return;
         setCredentialPool(nextPool);
-        if (hasActiveCredential(nextPool)) {
-          await loadPanelData();
-        } else {
+        if (!hasActiveCredential(nextPool)) {
           clearPanelState();
+        } else {
+          setError("");
+          setLightsailError("");
         }
       } catch (bootstrapError) {
         if (!cancelled) {
@@ -609,7 +614,11 @@ export default function AWSPanel() {
     setCredentialPool(nextPool);
     setSelectedCredentialIds((current) => current.filter((id) => !removedCredentialIds.includes(id)));
     if (hasActiveCredential(nextPool)) {
-      await loadPanelData();
+      if (resourcesLoaded) {
+        await loadPanelData();
+      } else {
+        clearPanelState();
+      }
     } else {
       clearPanelState();
     }
@@ -648,7 +657,11 @@ export default function AWSPanel() {
         }),
       );
       if (hasActiveCredential(nextPool)) {
-        await loadPanelData();
+        if (resourcesLoaded) {
+          await loadPanelData();
+        } else {
+          clearPanelState();
+        }
       } else {
         clearPanelState();
       }
@@ -666,7 +679,11 @@ export default function AWSPanel() {
       setCredentialPool(nextPool);
       toast.success(t("cloud.tokens.check_success", "Token health check finished"));
       if (hasActiveCredential(nextPool)) {
-        await loadPanelData();
+        if (resourcesLoaded) {
+          await loadPanelData();
+        } else {
+          clearPanelState();
+        }
       } else {
         clearPanelState();
       }
@@ -692,6 +709,8 @@ export default function AWSPanel() {
       );
       if (options?.loadResources) {
         await loadPanelData();
+      } else {
+        clearPanelState();
       }
     } catch (selectError) {
       toast.error(toErrorMessage(selectError));
@@ -789,8 +808,10 @@ export default function AWSPanel() {
     try {
       const nextPool = await setAWSActiveRegion(region);
       setCredentialPool(nextPool);
-      if (hasActiveCredential(nextPool)) {
+      if (hasActiveCredential(nextPool) && resourcesLoaded) {
         await loadPanelData();
+      } else {
+        clearPanelState();
       }
     } catch (regionError) {
       toast.error(toErrorMessage(regionError));
@@ -1490,9 +1511,13 @@ export default function AWSPanel() {
                         <TableCell colSpan={9} className="h-24 text-center text-slate-500">
                           {panelLoading
                             ? t("cloud.loading", "Loading cloud resources...")
-                            : hasActiveCredential(credentialPool)
-                              ? t("cloud.providers.aws.empty", "No EC2 instances found in this region")
-                              : t("cloud.providers.aws.no_active_credential", "Select an active AWS credential first")}
+                            : error
+                              ? t("cloud.load_failed", "Unable to load cloud resources. Check the warning above and try again.")
+                              : !hasActiveCredential(credentialPool)
+                                ? t("cloud.providers.aws.no_active_credential", "Select an active AWS credential first")
+                                : !resourcesLoaded
+                                  ? t("cloud.load_resources_prompt", "Click Refresh to load cloud resources on demand.")
+                                  : t("cloud.providers.aws.empty", "No EC2 instances found in this region")}
                         </TableCell>
                       </TableRow>
                     ) : (
@@ -1642,9 +1667,13 @@ export default function AWSPanel() {
                         <TableCell colSpan={9} className="h-24 text-center text-slate-500">
                           {panelLoading
                             ? t("cloud.loading", "Loading cloud resources...")
-                            : hasActiveCredential(credentialPool)
-                              ? t("cloud.providers.aws.lightsail_empty", "No Lightsail instances found in this region")
-                              : t("cloud.providers.aws.no_active_credential", "Select an active AWS credential first")}
+                            : lightsailError || error
+                              ? t("cloud.load_failed", "Unable to load cloud resources. Check the warning above and try again.")
+                              : !hasActiveCredential(credentialPool)
+                                ? t("cloud.providers.aws.no_active_credential", "Select an active AWS credential first")
+                                : !resourcesLoaded
+                                  ? t("cloud.load_resources_prompt", "Click Refresh to load cloud resources on demand.")
+                                  : t("cloud.providers.aws.lightsail_empty", "No Lightsail instances found in this region")}
                         </TableCell>
                       </TableRow>
                     ) : (

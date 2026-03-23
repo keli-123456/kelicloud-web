@@ -570,6 +570,8 @@
       "vpc_uuid_placeholder": "可选"
     },
     "loading": "正在加载云资源...",
+    "load_failed": "云资源加载失败，请先查看上方告警后再重试。",
+    "load_resources_prompt": "当前已选择凭证，点击“刷新”后再按需加载云资源。",
     "no_active_token": "请先选择一个当前操作令牌，再加载 DigitalOcean 资源",
     "panel_description": "把 Droplet 操作和令牌管理拆开显示，保存很多凭证时页面会更紧凑。",
     "panel_title": "面板视图",
@@ -712,6 +714,7 @@
         "instance_list_description": "点击实例标签查看详情，并用当前激活令牌管理电源状态。",
         "instances": "实例数",
         "last_successful": "最近成功备份",
+        "no_active_token": "请先选择一个激活的 Linode 令牌",
         "panel_description": "把 Linode 实例操作和令牌管理拆开显示，方便在多令牌场景下快速切换。",
         "password_dialog_description": "查看当前激活令牌下这台 Linode 实例已保存的 root 密码。",
         "rebuild": "重建实例",

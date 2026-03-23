@@ -355,6 +355,7 @@ export default function LinodePanel() {
   const [error, setError] = React.useState("");
   const [createOpen, setCreateOpen] = React.useState(false);
   const [createSubmitting, setCreateSubmitting] = React.useState(false);
+  const [resourcesLoaded, setResourcesLoaded] = React.useState(false);
   const [createForm, setCreateForm] = React.useState<CreateFormState>(initialCreateForm);
   const activeToken = getActiveToken(tokenPool);
   const defaultCreateGroup = getDefaultAutoConnectGroup("linode", activeToken?.name || "");
@@ -365,6 +366,7 @@ export default function LinodePanel() {
     setInstances([]);
     setDetailData(null);
     setError("");
+    setResourcesLoaded(false);
   }, []);
 
   const copyText = React.useCallback(
@@ -397,11 +399,13 @@ export default function LinodePanel() {
       setCatalog(nextCatalog);
       setInstances(nextInstances);
       setError("");
+      setResourcesLoaded(true);
     } catch (panelError) {
       setAccount(null);
       setCatalog(null);
       setInstances([]);
       setError(toErrorMessage(panelError));
+      setResourcesLoaded(false);
     } finally {
       setPanelLoading(false);
     }
@@ -424,10 +428,10 @@ export default function LinodePanel() {
         const nextPool = await getLinodeTokens();
         if (cancelled) return;
         setTokenPool(nextPool);
-        if (hasActiveToken(nextPool)) {
-          await loadPanelData();
-        } else {
+        if (!hasActiveToken(nextPool)) {
           clearPanelState();
+        } else {
+          setError("");
         }
       } catch (bootstrapError) {
         if (!cancelled) {
@@ -493,7 +497,11 @@ export default function LinodePanel() {
     setTokenPool(nextPool);
     setSelectedTokenIds((current) => current.filter((id) => !removedTokenIds.includes(id)));
     if (hasActiveToken(nextPool)) {
-      await loadPanelData();
+      if (resourcesLoaded) {
+        await loadPanelData();
+      } else {
+        clearPanelState();
+      }
     } else {
       clearPanelState();
     }
@@ -531,7 +539,11 @@ export default function LinodePanel() {
         }),
       );
       if (hasActiveToken(nextPool)) {
-        await loadPanelData();
+        if (resourcesLoaded) {
+          await loadPanelData();
+        } else {
+          clearPanelState();
+        }
       } else {
         clearPanelState();
       }
@@ -549,7 +561,11 @@ export default function LinodePanel() {
       setTokenPool(nextPool);
       toast.success(t("cloud.tokens.check_success", "Token health check finished"));
       if (hasActiveToken(nextPool)) {
-        await loadPanelData();
+        if (resourcesLoaded) {
+          await loadPanelData();
+        } else {
+          clearPanelState();
+        }
       } else {
         clearPanelState();
       }
@@ -575,6 +591,8 @@ export default function LinodePanel() {
       );
       if (options?.loadResources) {
         await loadPanelData();
+      } else {
+        clearPanelState();
       }
     } catch (selectError) {
       toast.error(toErrorMessage(selectError));
@@ -998,9 +1016,13 @@ export default function LinodePanel() {
                     <TableCell colSpan={10} className="h-24 text-center text-slate-500">
                       {panelLoading
                         ? t("cloud.loading", "Loading cloud resources...")
-                        : hasActiveToken(tokenPool)
-                          ? t("cloud.providers.linode.instance_empty", "No Linode instances found")
-                          : t("cloud.no_active_token", "Select an active token to load DigitalOcean resources")}
+                        : error
+                          ? t("cloud.load_failed", "Unable to load cloud resources. Check the warning above and try again.")
+                          : !hasActiveToken(tokenPool)
+                            ? t("cloud.providers.linode.no_active_token", "Select an active Linode token first")
+                            : !resourcesLoaded
+                              ? t("cloud.load_resources_prompt", "Click Refresh to load cloud resources on demand.")
+                              : t("cloud.providers.linode.instance_empty", "No Linode instances found")}
                     </TableCell>
                   </TableRow>
                 ) : (
