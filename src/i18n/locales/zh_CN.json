@@ -569,9 +569,9 @@
       "vpc_uuid": "VPC UUID",
       "vpc_uuid_placeholder": "可选"
     },
-    "loading": "正在加载云资源...",
     "load_failed": "云资源加载失败，请先查看上方告警后再重试。",
     "load_resources_prompt": "当前已选择凭证，点击“刷新”后再按需加载云资源。",
+    "loading": "正在加载云资源...",
     "no_active_token": "请先选择一个当前操作令牌，再加载 DigitalOcean 资源",
     "panel_description": "把 Droplet 操作和令牌管理拆开显示，保存很多凭证时页面会更紧凑。",
     "panel_title": "面板视图",
