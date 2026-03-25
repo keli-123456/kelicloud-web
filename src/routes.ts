@@ -107,6 +107,9 @@ export const routes: RouteObject[] = [
       },
       {
         path: "notification",
+        element: React.createElement(
+          lazy(() => import("./pages/admin/notification/_layout"))
+        ),
         children: [
           {
             index: true,

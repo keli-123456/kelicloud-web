@@ -457,6 +457,17 @@ export default function AdminPanelBar({ content }: AdminPanelBarProps) {
     return <IconComponent className={cn(sizeClass, "shrink-0")} />;
   };
 
+  const renderMenuLeadingIcon = (
+    icon: string,
+    label: string,
+    active = false,
+    sizeClass = "size-5",
+  ) => (
+    <span className="flex h-5 w-5 shrink-0 items-center justify-center">
+      {renderMenuIcon(icon, label, active, sizeClass)}
+    </span>
+  );
+
   const renderUpdateTrigger =
     updateAvailable && latestRelease && releasesSince.length > 0 ? (
       <Tips
@@ -607,7 +618,7 @@ export default function AdminPanelBar({ content }: AdminPanelBarProps) {
                             title={label}
                             aria-label={label}
                           >
-                            {renderMenuIcon(item.icon, label, active, "h-5 w-5")}
+                            {renderMenuLeadingIcon(item.icon, label, active)}
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent
@@ -658,19 +669,21 @@ export default function AdminPanelBar({ content }: AdminPanelBarProps) {
                       <Button
                         variant="ghost"
                         className={cn(
-                          "h-10 w-full justify-between rounded-md px-3 text-sm font-normal text-slate-600 hover:bg-slate-50 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-900 dark:hover:text-slate-100",
+                          "h-10 w-full justify-between rounded-md px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-900 dark:hover:text-slate-100",
                           active && "bg-slate-100 text-slate-900 dark:bg-slate-800 dark:text-slate-100",
                         )}
                       >
                         <span className="flex min-w-0 items-center gap-3">
-                          {renderMenuIcon(item.icon, label, active, "h-5 w-5")}
+                          {renderMenuLeadingIcon(item.icon, label, active)}
                           <span className="truncate">{label}</span>
                         </span>
-                        {isOpen ? (
-                          <ChevronDown className="h-4 w-4 shrink-0 text-slate-400 dark:text-slate-500" />
-                        ) : (
-                          <ChevronRight className="h-4 w-4 shrink-0 text-slate-400 dark:text-slate-500" />
-                        )}
+                        <span className="flex h-4 w-4 shrink-0 items-center justify-center text-slate-400 dark:text-slate-500">
+                          {isOpen ? (
+                            <ChevronDown className="h-4 w-4" />
+                          ) : (
+                            <ChevronRight className="h-4 w-4" />
+                          )}
+                        </span>
                       </Button>
                     </CollapsibleTrigger>
                     <CollapsibleContent className="space-y-1 pl-4 pt-1">
@@ -724,7 +737,7 @@ export default function AdminPanelBar({ content }: AdminPanelBarProps) {
                     : "text-slate-600 hover:bg-slate-50 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-900 dark:hover:text-slate-100",
                 )}
               >
-                {renderMenuIcon(item.icon, label, active, "h-5 w-5")}
+                {renderMenuLeadingIcon(item.icon, label, active)}
                 <span className={cn(sidebarCollapsed && "md:hidden")}>{label}</span>
               </Link>
             );

@@ -40,51 +40,12 @@
     {
       "labelKey": "settings.title",
       "path": "/admin/settings",
-      "icon": "Bolt",
-      "children": [
-        {
-          "labelKey": "settings.site.title",
-          "path": "/admin/settings/site",
-          "icon": "Home"
-        },
-        {
-          "labelKey": "settings.sign_on.title",
-          "path": "/admin/settings/sign-on",
-          "icon": "CircleArrowRight"
-        },
-        {
-          "labelKey": "settings.notification.title",
-          "path": "/admin/settings/notification",
-          "icon": "MessageCircleMore"
-        },
-        {
-          "labelKey": "settings.general.title",
-          "path": "/admin/settings/general",
-          "icon": "Ellipsis"
-        }
-      ]
+      "icon": "Bolt"
     },
     {
       "labelKey": "notification.title",
       "path": "/admin/notification",
-      "icon": "Bell",
-      "children": [
-        {
-          "labelKey": "notification.offline.title",
-          "path": "/admin/notification/offline",
-          "icon": "Unplug"
-        },
-        {
-          "labelKey": "notification.load.title",
-          "path": "/admin/notification/load",
-          "icon": "TrendingUp"
-        },
-        {
-          "labelKey": "settings.general.title",
-          "path": "/admin/notification/general",
-          "icon": "Ellipsis"
-        }
-      ]
+      "icon": "Bell"
     },
     {
       "labelKey": "exec.title",
