@@ -186,6 +186,8 @@
       "totalRate": "Total rate",
       "totalTraffic": "Total traffic",
       "cnConnectivitySummary": "CN connectivity probe: {{summary}}",
+      "cnConnectivityLoading": "Loading CN connectivity probe settings...",
+      "cnConnectivityLoadFailed": "Failed to load CN connectivity probe settings.",
       "cnConnectivityMissingTarget": "CN connectivity probe is enabled, but no targets are configured yet.",
       "cnConnectivityDisabledMessage": "CN connectivity probe is disabled.",
       "deleteOffline": "Delete offline nodes",
@@ -1487,7 +1489,7 @@
       "base_scripts_url": "Agent script source",
       "base_scripts_url_description": "Install script source used by one-click commands and auto-connect. Supports a GitHub repo URL, tree/blob URL, or raw URL. Leave empty to use the official repository.",
       "script_domain": "Agent connection address",
-      "script_domain_description": "Define the connection address for the installation script panel, convenient for users with multiple domains, and will not affect access to other domains. Leave empty to use the current domain.",
+      "script_domain_description": "Define the connection address for the installation script panel, convenient for users with multiple domains, and it will not affect access to other domains. Cloud pages can fall back to the current domain when left empty, but async failover tasks should set this explicitly.",
       "title": "Site"
     },
     "sso": {

@@ -60,6 +60,7 @@ import {
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { getCloudProviderEntries, type CloudProviderCredentialEntry } from "@/lib/cloud";
+import { useSettings } from "@/lib/api";
 import {
   createFailoverTask,
   deleteFailoverTask,
@@ -74,10 +75,11 @@ import {
   normalizeProviderEntryID,
   runFailoverTask,
   toggleFailoverTask,
-  updateFailoverTask,
-  type FailoverExecution,
-  type FailoverDnsOption,
-  type FailoverPlanCatalog,
+	  updateFailoverTask,
+	  type FailoverCatalogOption,
+	  type FailoverExecution,
+	  type FailoverDnsOption,
+	  type FailoverPlanCatalog,
   type FailoverDnsCatalog,
   type FailoverDnsRecordOption,
   type FailoverNodeOption,
@@ -167,6 +169,20 @@ const EDITOR_STEPS: EditorStep[] = ["task", "dns", "plans"];
 const DNS_RECORD_TYPE_VALUES = ["A"] as const;
 const AWS_SERVICE_VALUES = ["ec2", "lightsail"] as const;
 const DNS_TTL_OPTIONS = [1, 60, 120, 300, 600, 900, 1800, 3600, 7200] as const;
+const DEFAULT_DIGITALOCEAN_IMAGE = "ubuntu-24-04-x64";
+const DEFAULT_LINODE_IMAGE = "linode/ubuntu24.04";
+const DIGITALOCEAN_REGION_COUNTRIES: Record<string, string> = {
+  ams: "nl",
+  atl: "us",
+  blr: "in",
+  fra: "de",
+  lon: "gb",
+  nyc: "us",
+  sfo: "us",
+  sgp: "sg",
+  syd: "au",
+  tor: "ca",
+};
 
 function isDnsRecordType(value: string): value is (typeof DNS_RECORD_TYPE_VALUES)[number] {
   return DNS_RECORD_TYPE_VALUES.includes(value as (typeof DNS_RECORD_TYPE_VALUES)[number]);
@@ -366,6 +382,49 @@ function formatCatalogOptionLabel(option: { label: string; hint?: string }) {
   return option.hint ? `${option.label} · ${option.hint}` : option.label;
 }
 
+function localizeCountryLabel(t: TFunction, rawValue: string) {
+  const normalized = String(rawValue || "").trim();
+  if (!normalized) {
+    return "";
+  }
+
+  const countryCode = normalized.toLowerCase();
+  if (/^[a-z]{2,3}$/.test(countryCode)) {
+    return t(`cloud.region_countries.${countryCode}`, {
+      defaultValue: normalized.toUpperCase(),
+    });
+  }
+
+  return normalized;
+}
+
+function getDigitalOceanRegionPrefix(slug: string) {
+  return String(slug || "").trim().toLowerCase().replace(/[0-9]+$/, "");
+}
+
+function formatPlanRegionOptionLabel(
+  t: TFunction,
+  provider: string,
+  option: { value: string; label: string; hint?: string },
+) {
+  if (provider === "digitalocean") {
+    const countryCode = DIGITALOCEAN_REGION_COUNTRIES[getDigitalOceanRegionPrefix(option.value)];
+    const country = countryCode ? localizeCountryLabel(t, countryCode) : "";
+    if (country) {
+      return `${option.value} (${country}) / ${option.label}`;
+    }
+  }
+
+  if (provider === "linode") {
+    const country = localizeCountryLabel(t, option.hint || "");
+    if (country) {
+      return `${option.value} (${country}) / ${option.label}`;
+    }
+  }
+
+  return formatCatalogOptionLabel(option);
+}
+
 function formatDnsTTLLabel(ttl: number) {
   return `${ttl} 秒`;
 }
@@ -548,7 +607,10 @@ function defaultPlanPayload(provider: string, actionType: string) {
     return {
       region: "",
       size: "",
-      image: "",
+      image: DEFAULT_DIGITALOCEAN_IMAGE,
+      ipv6: false,
+      root_password_mode: "random",
+      root_password: "",
     };
   }
 
@@ -556,11 +618,60 @@ function defaultPlanPayload(provider: string, actionType: string) {
     return {
       region: "",
       type: "",
-      image: "",
+      image: DEFAULT_LINODE_IMAGE,
+      root_password_mode: "random",
+      root_password: "",
     };
   }
 
   return {};
+}
+
+function createEmptyPlanCatalog(
+  provider: string,
+  actionType: string,
+  service = "",
+  region = "",
+  regions: FailoverCatalogOption[] = [],
+): FailoverPlanCatalog {
+  return {
+    provider,
+    action_type: actionType,
+    service,
+    region,
+    regions,
+    instances: [],
+    availability_zones: [],
+    images: [],
+    instance_types: [],
+    key_pairs: [],
+    subnets: [],
+    security_groups: [],
+    bundles: [],
+    blueprints: [],
+    sizes: [],
+    types: [],
+  };
+}
+
+function keepPlanCatalogRegions(
+  catalog: FailoverPlanCatalog | null,
+  provider: string,
+  actionType: string,
+  service: string,
+  region: string,
+): FailoverPlanCatalog | null {
+  if (!catalog || catalog.provider !== provider) {
+    return createEmptyPlanCatalog(provider, actionType, service, region);
+  }
+
+  return createEmptyPlanCatalog(
+    provider,
+    actionType,
+    service,
+    region,
+    Array.isArray(catalog.regions) ? catalog.regions : [],
+  );
 }
 
 function requirePlanField(
@@ -626,6 +737,33 @@ function validatePlanPayload(
     requirePlanField(t, index, t("failover.editor.type", { defaultValue: "Plan type" }), payload.type);
     requirePlanField(t, index, t("failover.editor.image", { defaultValue: "Image" }), payload.image);
   }
+}
+
+function normalizePlanPayloadForSubmit(
+  provider: string,
+  actionType: string,
+  payload: Record<string, unknown>,
+) {
+  const nextPayload = { ...payload };
+
+  if (provider === "digitalocean" && actionType === "provision_instance") {
+    const rootPassword = getStringValue(nextPayload.root_password);
+    nextPayload.image = getStringValue(nextPayload.image) || DEFAULT_DIGITALOCEAN_IMAGE;
+    nextPayload.root_password = rootPassword;
+    nextPayload.root_password_mode = rootPassword ? "custom" : "random";
+    nextPayload.ipv6 = getBooleanValue(nextPayload.ipv6, false);
+    return nextPayload;
+  }
+
+  if (provider === "linode" && actionType === "provision_instance") {
+    const rootPassword = getStringValue(nextPayload.root_password);
+    nextPayload.image = getStringValue(nextPayload.image) || DEFAULT_LINODE_IMAGE;
+    nextPayload.root_password = rootPassword;
+    nextPayload.root_password_mode = rootPassword ? "custom" : "random";
+    return nextPayload;
+  }
+
+  return nextPayload;
 }
 
 function numberOrDefault(value: string, fallback: number) {
@@ -722,6 +860,58 @@ function buildProviderEntryOptions(args: {
   }
 
   return options;
+}
+
+function isTruthyEntryFlag(value: unknown) {
+  if (typeof value === "boolean") {
+    return value;
+  }
+  if (typeof value === "number") {
+    return value !== 0;
+  }
+  if (typeof value === "string") {
+    const normalized = value.trim().toLowerCase();
+    return normalized === "true" || normalized === "1" || normalized === "yes";
+  }
+  return false;
+}
+
+function getDefaultAutoConnectGroup(provider: string, credentialName: string) {
+  const normalizedProvider = provider.trim().toLowerCase() || "cloud";
+  const normalizedCredentialName = credentialName.trim() || "default";
+  return `${normalizedProvider}/${normalizedCredentialName}`;
+}
+
+function getProviderEntryDisplayName(
+  providerEntries: ProviderEntriesMap,
+  provider: string,
+  entryID: string,
+) {
+  const entries = providerEntries[provider] || [];
+  const normalizedEntryID = normalizeProviderEntryID(String(entryID || "").trim());
+  if (normalizedEntryID && normalizedEntryID !== "active") {
+    const matched = entries.find((entry) => normalizeProviderEntryID(String(entry.id || "").trim()) === normalizedEntryID);
+    return String(matched?.name || "").trim();
+  }
+
+  const activeEntry = entries.find((entry) => {
+    const values = entry.values && typeof entry.values === "object"
+      ? entry.values as EntryValues
+      : {};
+    return isTruthyEntryFlag(values.is_active) || isTruthyEntryFlag(values.active);
+  });
+  return String(activeEntry?.name || entries[0]?.name || "").trim();
+}
+
+function getDefaultPlanAutoConnectGroup(
+  providerEntries: ProviderEntriesMap,
+  provider: string,
+  entryID: string,
+) {
+  return getDefaultAutoConnectGroup(
+    provider,
+    getProviderEntryDisplayName(providerEntries, provider, entryID),
+  );
 }
 
 function getFirstConfiguredProvider(
@@ -955,6 +1145,7 @@ function createEmptyPlanForm(providerEntries: ProviderEntriesMap): PlanFormState
     includeActive: true,
   });
   const defaultActionType = (ACTION_TYPE_VALUES[defaultProvider] || [])[0] || "";
+  const defaultEntryID = providerOptions[0]?.id || "";
 
   return {
     local_id: createLocalID(),
@@ -962,10 +1153,10 @@ function createEmptyPlanForm(providerEntries: ProviderEntriesMap): PlanFormState
     priority: "1",
     enabled: true,
     provider: defaultProvider,
-    provider_entry_id: providerOptions[0]?.id || "",
+    provider_entry_id: defaultEntryID,
     action_type: defaultActionType,
     payload: prettyJson(defaultPlanPayload(defaultProvider, defaultActionType)),
-    auto_connect_group: "",
+    auto_connect_group: getDefaultPlanAutoConnectGroup(providerEntries, defaultProvider, defaultEntryID),
     script_clipboard_id: "",
     script_timeout_sec: "600",
     wait_agent_timeout_sec: "600",
@@ -1019,7 +1210,13 @@ function taskToForm(task: FailoverTask, providerEntries: ProviderEntriesMap): Ta
           provider_entry_id: normalizeProviderEntryID(plan.provider_entry_id),
           action_type: plan.action_type,
           payload: prettyJson(plan.payload),
-          auto_connect_group: plan.auto_connect_group,
+          auto_connect_group:
+            plan.auto_connect_group.trim() ||
+            getDefaultPlanAutoConnectGroup(
+              providerEntries,
+              plan.provider,
+              normalizeProviderEntryID(plan.provider_entry_id),
+            ),
           script_clipboard_id:
             plan.script_clipboard_id && plan.script_clipboard_id > 0
               ? String(plan.script_clipboard_id)
@@ -1038,7 +1235,7 @@ function getPlanDisplayName(plan: PlanFormState, index: number, t: TFunction) {
   });
 }
 
-function buildTaskInput(formState: TaskFormState, t: TFunction): FailoverTaskInput {
+function buildTaskInput(formState: TaskFormState, providerEntries: ProviderEntriesMap, t: TFunction): FailoverTaskInput {
   const taskName = formState.name.trim();
   if (!taskName) {
     throw new Error(
@@ -1120,7 +1317,11 @@ function buildTaskInput(formState: TaskFormState, t: TFunction): FailoverTaskInp
       );
     }
 
-    const planPayload = parsePlanPayloadObject(plan.payload);
+    const planPayload = normalizePlanPayloadForSubmit(
+      plan.provider,
+      plan.action_type,
+      parsePlanPayloadObject(plan.payload),
+    );
     validatePlanPayload(t, index, plan.provider, plan.action_type, planPayload);
 
     return {
@@ -1131,7 +1332,13 @@ function buildTaskInput(formState: TaskFormState, t: TFunction): FailoverTaskInp
       provider_entry_id: normalizeProviderEntryID(plan.provider_entry_id.trim()),
       action_type: plan.action_type,
       payload: planPayload,
-      auto_connect_group: plan.auto_connect_group.trim(),
+      auto_connect_group:
+        plan.auto_connect_group.trim() ||
+        getDefaultPlanAutoConnectGroup(
+          providerEntries,
+          plan.provider,
+          normalizeProviderEntryID(plan.provider_entry_id.trim()),
+        ),
       script_clipboard_id: plan.script_clipboard_id
         ? numberOrDefault(plan.script_clipboard_id, 0)
         : null,
@@ -1175,25 +1382,6 @@ function buildTaskInput(formState: TaskFormState, t: TFunction): FailoverTaskInp
   };
 }
 
-function TaskMetricCard({
-  label,
-  children,
-  className,
-}: {
-  label: string;
-  children: React.ReactNode;
-  className?: string;
-}) {
-  return (
-    <div className={cn("rounded-xl border bg-muted/20 p-4", className)}>
-      <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-        {label}
-      </div>
-      <div className="mt-3 space-y-2 text-sm">{children}</div>
-    </div>
-  );
-}
-
 function JsonBlock({
   title,
   value,
@@ -1202,11 +1390,11 @@ function JsonBlock({
   value: unknown;
 }) {
   return (
-    <div className="space-y-2">
-      <div className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+    <div className="min-w-0 space-y-1.5">
+      <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
         {title}
       </div>
-      <pre className="max-h-64 overflow-auto rounded-lg border bg-muted/40 p-3 text-xs leading-6 text-slate-800 dark:text-slate-200">
+      <pre className="max-h-56 overflow-auto rounded-lg border bg-muted/25 p-3 text-xs leading-6 text-slate-800 dark:text-slate-200">
         {prettyJson(value, "null")}
       </pre>
     </div>
@@ -1228,6 +1416,7 @@ function ExecutionDetailDialog({
   const [execution, setExecution] = React.useState<FailoverExecution | null>(null);
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState("");
+  const [showRawData, setShowRawData] = React.useState(false);
 
   const loadExecution = React.useCallback(async (showLoading = true) => {
     if (!executionID) {
@@ -1279,8 +1468,8 @@ function ExecutionDetailDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[88vh] max-w-5xl overflow-y-auto">
-        <DialogHeader>
+      <DialogContent className="flex max-h-[88vh] max-w-4xl flex-col overflow-hidden p-0">
+        <DialogHeader className="border-b px-5 py-4">
           <DialogTitle>
             {t("failover.execution.title", { defaultValue: "Execution details" })}
           </DialogTitle>
@@ -1289,33 +1478,31 @@ function ExecutionDetailDialog({
           </DialogDescription>
         </DialogHeader>
 
-        {loading && !execution ? <Loading /> : null}
+        <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">
+          {loading && !execution ? <Loading /> : null}
 
-        {!loading && error ? (
-          <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900/40 dark:bg-red-950/30 dark:text-red-200">
-            {error}
-          </div>
-        ) : null}
+          {!loading && error ? (
+            <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900/40 dark:bg-red-950/30 dark:text-red-200">
+              {error}
+            </div>
+          ) : null}
 
-        {execution ? (
-          <div className="space-y-6">
-            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-              <Card className="gap-4 py-4">
-                <CardHeader className="px-4 pb-0">
-                  <CardTitle className="text-sm">{t("failover.execution.status", { defaultValue: "Execution status" })}</CardTitle>
-                </CardHeader>
-                <CardContent className="px-4 pt-0">
+          {execution ? (
+            <div className="space-y-4">
+              <div className="grid gap-3 rounded-xl border border-slate-200/80 px-4 py-4 sm:grid-cols-2 xl:grid-cols-4 dark:border-slate-800/80">
+                <div className="min-w-0 space-y-1.5">
+                  <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+                    {t("failover.execution.status", { defaultValue: "Execution status" })}
+                  </div>
                   <Badge variant={getStatusVariant(execution.status, "execution")}>{getStatusLabel(t, execution.status)}</Badge>
-                  <div className="mt-2 text-xs text-muted-foreground">{formatDateTime(execution.started_at)}</div>
-                </CardContent>
-              </Card>
-              <Card className="gap-4 py-4">
-                <CardHeader className="px-4 pb-0">
-                  <CardTitle className="text-sm">{t("failover.execution.script", { defaultValue: "Script" })}</CardTitle>
-                </CardHeader>
-                <CardContent className="px-4 pt-0 space-y-2">
+                  <div className="text-xs text-muted-foreground">{formatDateTime(execution.started_at)}</div>
+                </div>
+                <div className="min-w-0 space-y-1.5">
+                  <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+                    {t("failover.execution.script", { defaultValue: "Script" })}
+                  </div>
                   <Badge variant={getStatusVariant(execution.script_status, "script")}>{getStatusLabel(t, execution.script_status)}</Badge>
-                  <div className="text-xs text-muted-foreground">
+                  <div className="truncate text-xs text-muted-foreground" title={execution.script_name_snapshot || undefined}>
                     {execution.script_name_snapshot || t("failover.execution.no_script", { defaultValue: "No script recorded" })}
                   </div>
                   {execution.script_exit_code !== null ? (
@@ -1326,102 +1513,130 @@ function ExecutionDetailDialog({
                       })}
                     </div>
                   ) : null}
-                </CardContent>
-              </Card>
-              <Card className="gap-4 py-4">
-                <CardHeader className="px-4 pb-0">
-                  <CardTitle className="text-sm">{t("failover.execution.dns", { defaultValue: "DNS" })}</CardTitle>
-                </CardHeader>
-                <CardContent className="px-4 pt-0">
+                </div>
+                <div className="min-w-0 space-y-1.5">
+                  <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+                    {t("failover.execution.dns", { defaultValue: "DNS" })}
+                  </div>
                   <Badge variant={getStatusVariant(execution.dns_status, "dns")}>{getStatusLabel(t, execution.dns_status)}</Badge>
-                  <div className="mt-2 text-xs text-muted-foreground">
+                  <div className="truncate text-xs text-muted-foreground" title={execution.dns_provider ? getDnsProviderLabel(t, execution.dns_provider) : undefined}>
                     {execution.dns_provider ? getDnsProviderLabel(t, execution.dns_provider) : "-"}
                   </div>
-                </CardContent>
-              </Card>
-              <Card className="gap-4 py-4">
-                <CardHeader className="px-4 pb-0">
-                  <CardTitle className="text-sm">{t("failover.execution.cleanup", { defaultValue: "Cleanup" })}</CardTitle>
-                </CardHeader>
-                <CardContent className="px-4 pt-0">
+                </div>
+                <div className="min-w-0 space-y-1.5">
+                  <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+                    {t("failover.execution.cleanup", { defaultValue: "Cleanup" })}
+                  </div>
                   <Badge variant={getStatusVariant(execution.cleanup_status, "cleanup")}>{getStatusLabel(t, execution.cleanup_status)}</Badge>
-                  <div className="mt-2 text-xs text-muted-foreground">{formatDateTime(execution.finished_at)}</div>
-                </CardContent>
-              </Card>
-            </div>
+                  <div className="text-xs text-muted-foreground">
+                    {execution.finished_at
+                      ? formatDateTime(execution.finished_at)
+                      : t("failover.execution.running", { defaultValue: "Still running" })}
+                  </div>
+                </div>
+              </div>
 
-            <Card className="gap-4 py-4">
-              <CardHeader className="px-4 pb-0">
-                <CardTitle>{t("failover.execution.timeline", { defaultValue: "Timeline" })}</CardTitle>
-                <CardDescription>
-                  {t("failover.execution.timeline_hint", { defaultValue: "Each step is persisted by the backend so you can see exactly where a run failed." })}
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-3 px-4 pt-0">
+              {execution.error_message ? (
+                <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900/40 dark:bg-red-950/30 dark:text-red-200">
+                  {execution.error_message}
+                </div>
+              ) : null}
+
+              <div className="space-y-2 rounded-xl border border-slate-200/80 px-4 py-4 dark:border-slate-800/80">
+                <div className="space-y-1">
+                  <div className="text-sm font-medium text-slate-900 dark:text-slate-50">
+                    {t("failover.execution.timeline", { defaultValue: "Timeline" })}
+                  </div>
+                  <div className="text-xs text-muted-foreground">
+                    {t("failover.execution.timeline_hint", { defaultValue: "Each step is persisted by the backend so you can see exactly where a run failed." })}
+                  </div>
+                </div>
                 {execution.steps.length === 0 ? (
                   <div className="rounded-lg border border-dashed px-4 py-6 text-sm text-muted-foreground">
                     {t("failover.execution.steps_empty", { defaultValue: "No step data is available yet." })}
                   </div>
                 ) : (
-                  execution.steps.map((step) => (
-                    <div key={step.id} className="rounded-lg border px-4 py-3">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <Badge variant={getStatusVariant(step.status, "execution")}>{getStatusLabel(t, step.status)}</Badge>
-                        <div className="font-medium text-slate-900 dark:text-slate-50">{step.step_label || step.step_key}</div>
-                        <div className="text-xs text-muted-foreground">#{step.sort}</div>
+                  <div className="divide-y divide-slate-200/80 dark:divide-slate-800/80">
+                    {execution.steps.map((step) => (
+                      <div key={step.id} className="py-3 first:pt-0 last:pb-0">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <Badge variant={getStatusVariant(step.status, "execution")}>{getStatusLabel(t, step.status)}</Badge>
+                          <div className="min-w-0 flex-1 truncate font-medium text-slate-900 dark:text-slate-50" title={step.step_label || step.step_key}>
+                            {step.step_label || step.step_key}
+                          </div>
+                          <div className="text-xs text-muted-foreground">#{step.sort}</div>
+                        </div>
+                        {step.message ? (
+                          <div className="mt-1.5 text-sm text-slate-700 dark:text-slate-300">{step.message}</div>
+                        ) : null}
+                        <div className="mt-1.5 text-xs text-muted-foreground">
+                          {formatDateTime(step.started_at)}
+                          {step.finished_at ? ` → ${formatDateTime(step.finished_at)}` : ""}
+                        </div>
                       </div>
-                      {step.message ? (
-                        <div className="mt-2 text-sm text-slate-700 dark:text-slate-300">{step.message}</div>
-                      ) : null}
-                      <div className="mt-2 text-xs text-muted-foreground">
-                        {formatDateTime(step.started_at)}
-                        {step.finished_at ? ` → ${formatDateTime(step.finished_at)}` : ""}
-                      </div>
-                      {step.detail !== null && step.detail !== undefined && step.detail !== "" ? (
-                        <pre className="mt-3 max-h-48 overflow-auto rounded-md bg-muted/40 p-3 text-xs leading-6">
-                          {prettyJson(step.detail, "null")}
-                        </pre>
-                      ) : null}
-                    </div>
-                  ))
+                    ))}
+                  </div>
                 )}
-              </CardContent>
-            </Card>
-
-            {execution.script_output ? (
-              <Card className="gap-4 py-4">
-                <CardHeader className="px-4 pb-0">
-                  <CardTitle>{t("failover.execution.script_output", { defaultValue: "Script output" })}</CardTitle>
-                  <CardDescription>
-                    {execution.script_output_truncated
-                      ? t("failover.execution.script_output_truncated", { defaultValue: "The backend truncated this output for storage safety." })
-                      : t("failover.execution.script_output_full", { defaultValue: "Captured task output from the target agent." })}
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="px-4 pt-0">
-                  <pre className="max-h-80 overflow-auto rounded-lg border bg-muted/40 p-3 text-xs leading-6">{execution.script_output}</pre>
-                </CardContent>
-              </Card>
-            ) : null}
-
-            <div className="grid gap-4 xl:grid-cols-2">
-              <JsonBlock title={t("failover.execution.trigger_snapshot", { defaultValue: "Trigger snapshot" })} value={execution.trigger_snapshot} />
-              <JsonBlock title={t("failover.execution.attempted_plans", { defaultValue: "Attempted plans" })} value={execution.attempted_plans} />
-              <JsonBlock title={t("failover.execution.new_instance", { defaultValue: "New instance" })} value={execution.new_instance_ref} />
-              <JsonBlock title={t("failover.execution.new_addresses", { defaultValue: "New addresses" })} value={execution.new_addresses} />
-              <JsonBlock title={t("failover.execution.dns_result", { defaultValue: "DNS result" })} value={execution.dns_result} />
-              <JsonBlock title={t("failover.execution.cleanup_result", { defaultValue: "Cleanup result" })} value={execution.cleanup_result} />
-            </div>
-
-            {execution.error_message ? (
-              <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900/40 dark:bg-red-950/30 dark:text-red-200">
-                {execution.error_message}
               </div>
-            ) : null}
-          </div>
-        ) : null}
 
-        <DialogFooter>
+              {execution.script_output ? (
+                <div className="space-y-2 rounded-xl border border-slate-200/80 px-4 py-4 dark:border-slate-800/80">
+                  <div className="space-y-1">
+                    <div className="text-sm font-medium text-slate-900 dark:text-slate-50">
+                      {t("failover.execution.script_output", { defaultValue: "Script output" })}
+                    </div>
+                    <div className="text-xs text-muted-foreground">
+                      {execution.script_output_truncated
+                        ? t("failover.execution.script_output_truncated", { defaultValue: "The backend truncated this output for storage safety." })
+                        : t("failover.execution.script_output_full", { defaultValue: "Captured task output from the target agent." })}
+                    </div>
+                  </div>
+                  <pre className="max-h-72 overflow-auto rounded-lg border bg-muted/25 p-3 text-xs leading-6">{execution.script_output}</pre>
+                </div>
+              ) : null}
+
+              <Collapsible open={showRawData} onOpenChange={setShowRawData}>
+                <div className="rounded-xl border border-slate-200/80 dark:border-slate-800/80">
+                  <CollapsibleTrigger asChild>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      className="flex h-auto w-full items-center justify-between rounded-xl px-4 py-3 text-left"
+                    >
+                      <div className="space-y-1">
+                        <div className="text-sm font-medium text-slate-900 dark:text-slate-50">
+                          {t("failover.execution.raw_data", { defaultValue: "Raw data" })}
+                        </div>
+                        <div className="text-xs text-muted-foreground">
+                          {t("failover.execution.raw_data_hint", { defaultValue: "Expand only when you need the backend snapshots and raw execution payloads." })}
+                        </div>
+                      </div>
+                      <ChevronDown
+                        className={cn(
+                          "size-4 shrink-0 text-muted-foreground transition-transform",
+                          showRawData ? "rotate-180" : "",
+                        )}
+                      />
+                    </Button>
+                  </CollapsibleTrigger>
+                  <CollapsibleContent className="border-t px-4 py-4">
+                    <div className="grid gap-4 xl:grid-cols-2">
+                      <JsonBlock title={t("failover.execution.steps_raw", { defaultValue: "Steps raw data" })} value={execution.steps} />
+                      <JsonBlock title={t("failover.execution.trigger_snapshot", { defaultValue: "Trigger snapshot" })} value={execution.trigger_snapshot} />
+                      <JsonBlock title={t("failover.execution.attempted_plans", { defaultValue: "Attempted plans" })} value={execution.attempted_plans} />
+                      <JsonBlock title={t("failover.execution.new_instance", { defaultValue: "New instance" })} value={execution.new_instance_ref} />
+                      <JsonBlock title={t("failover.execution.new_addresses", { defaultValue: "New addresses" })} value={execution.new_addresses} />
+                      <JsonBlock title={t("failover.execution.dns_result", { defaultValue: "DNS result" })} value={execution.dns_result} />
+                      <JsonBlock title={t("failover.execution.cleanup_result", { defaultValue: "Cleanup result" })} value={execution.cleanup_result} />
+                    </div>
+                  </CollapsibleContent>
+                </div>
+              </Collapsible>
+            </div>
+          ) : null}
+        </div>
+
+        <DialogFooter className="border-t px-5 py-4">
           <Button type="button" variant="outline" onClick={() => void loadExecution()} disabled={!executionID || loading}>
             <RefreshCw className={cn("size-4", loading ? "animate-spin" : "")} />
             {t("common.refresh", { defaultValue: "Refresh" })}
@@ -1450,6 +1665,11 @@ function TaskEditorDialog({
   onSaved: () => Promise<void>;
 }) {
   const { t } = useTranslation();
+  const {
+    settings: userSettings,
+    loading: settingsLoading,
+    refetch: refetchSettings,
+  } = useSettings();
   const [submitting, setSubmitting] = React.useState(false);
   const [formState, setFormState] = React.useState<TaskFormState>(() => createEmptyTaskForm(providerEntries));
   const [editorStep, setEditorStep] = React.useState<EditorStep>("task");
@@ -1464,6 +1684,7 @@ function TaskEditorDialog({
   const [selectedDnsRecordKey, setSelectedDnsRecordKey] = React.useState("");
   const [planCatalog, setPlanCatalog] = React.useState<FailoverPlanCatalog | null>(null);
   const [planCatalogLoading, setPlanCatalogLoading] = React.useState(false);
+  const [planCatalogLoadMode, setPlanCatalogLoadMode] = React.useState<"regions" | "full">("regions");
   const [planCatalogError, setPlanCatalogError] = React.useState("");
   const lastEnabledDnsRef = React.useRef<{ provider: string; entryID: string } | null>(null);
   const dnsCatalogRequestRef = React.useRef(0);
@@ -1499,8 +1720,7 @@ function TaskEditorDialog({
     setDnsCatalog(null);
     setDnsCatalogError("");
     setSelectedDnsRecordKey("");
-    setPlanCatalog(null);
-    setPlanCatalogError("");
+    resetPlanCatalogState();
     lastEnabledDnsRef.current = nextFormState.dns_provider
       ? {
           provider: nextFormState.dns_provider,
@@ -1533,6 +1753,10 @@ function TaskEditorDialog({
     () => formState.plans.find((plan) => plan.local_id === selectedPlanID) || formState.plans[0] || null,
     [formState.plans, selectedPlanID],
   );
+  const configuredScriptDomain = React.useMemo(
+    () => String(userSettings.script_domain || "").trim(),
+    [userSettings.script_domain],
+  );
   const selectedPlanIndex = selectedPlan
     ? formState.plans.findIndex((plan) => plan.local_id === selectedPlan.local_id)
     : -1;
@@ -1548,6 +1772,8 @@ function TaskEditorDialog({
     () => getStringValue(selectedPlanPayload.region),
     [selectedPlanPayload],
   );
+  const canLoadPlanCatalog = Boolean(selectedPlan?.provider.trim() && selectedPlan.provider_entry_id.trim());
+  const canLoadPlanDetails = canLoadPlanCatalog && Boolean(selectedPlanRegion.trim());
   const dnsCatalogRecords = React.useMemo(
     () => (dnsCatalog?.records || []).filter((record) => normalizeDnsRecordType(record.type) === "A"),
     [dnsCatalog],
@@ -1575,8 +1801,27 @@ function TaskEditorDialog({
   );
   const hasAnyDnsCredential = Boolean(firstConfiguredDnsProvider);
   const hasMultiplePlans = formState.plans.length > 1;
+  const hasEnabledProvisionPlan = React.useMemo(
+    () => formState.plans.some((plan) =>
+      plan.enabled
+      && plan.provider.trim()
+      && plan.action_type === "provision_instance",
+    ),
+    [formState.plans],
+  );
   const stepIndex = EDITOR_STEPS.indexOf(editorStep);
   const isLastStep = stepIndex === EDITOR_STEPS.length - 1;
+
+  const resetPlanCatalogState = React.useCallback((
+    nextCatalog: FailoverPlanCatalog | null = null,
+    nextMode: "regions" | "full" = "regions",
+  ) => {
+    planCatalogRequestRef.current += 1;
+    setPlanCatalog(nextCatalog);
+    setPlanCatalogError("");
+    setPlanCatalogLoading(false);
+    setPlanCatalogLoadMode(nextMode);
+  }, []);
 
   React.useEffect(() => {
     if (formState.plans.length === 0) {
@@ -1728,16 +1973,17 @@ function TaskEditorDialog({
     });
   }, [selectedPlan, updatePlan]);
 
-  const refreshPlanCatalog = React.useCallback(async (overrides?: { service?: string; region?: string }) => {
+  const refreshPlanCatalog = React.useCallback(async (overrides?: { service?: string; region?: string; mode?: "regions" | "full" }) => {
     if (!selectedPlan?.provider.trim() || !selectedPlan.provider_entry_id.trim()) {
-      setPlanCatalog(null);
-      setPlanCatalogError("");
+      resetPlanCatalogState();
       return;
     }
 
+    const requestedMode = overrides?.mode || "full";
     const requestID = planCatalogRequestRef.current + 1;
     planCatalogRequestRef.current = requestID;
     setPlanCatalogLoading(true);
+    setPlanCatalogLoadMode(requestedMode);
     setPlanCatalogError("");
     try {
       const catalog = await getFailoverPlanCatalog({
@@ -1746,12 +1992,13 @@ function TaskEditorDialog({
         action_type: selectedPlan.action_type,
         service: overrides?.service || selectedPlanService,
         region: overrides?.region || selectedPlanRegion,
+        mode: requestedMode,
       });
       if (planCatalogRequestRef.current !== requestID) {
         return;
       }
       setPlanCatalog(catalog);
-      if (!selectedPlanRegion.trim() && catalog.region) {
+      if (requestedMode === "full" && !selectedPlanRegion.trim() && catalog.region) {
         updateSelectedPlanPayload((current) => ({
           ...current,
           region: catalog.region,
@@ -1761,7 +2008,7 @@ function TaskEditorDialog({
       if (planCatalogRequestRef.current !== requestID) {
         return;
       }
-      setPlanCatalog(null);
+      resetPlanCatalogState();
       setPlanCatalogError(error instanceof Error ? error.message : t("common.unknown_error"));
     } finally {
       if (planCatalogRequestRef.current === requestID) {
@@ -1777,23 +2024,12 @@ function TaskEditorDialog({
   ]);
 
   React.useEffect(() => {
-    if (!open || editorStep !== "plans" || !selectedPlan?.provider.trim() || !selectedPlan.provider_entry_id.trim()) {
-      setPlanCatalog(null);
-      setPlanCatalogError("");
-      setPlanCatalogLoading(false);
+    if (!open || editorStep !== "plans") {
+      resetPlanCatalogState();
       return;
     }
-    void refreshPlanCatalog();
-  }, [
-    open,
-    editorStep,
-    selectedPlan?.provider,
-    selectedPlan?.provider_entry_id,
-    selectedPlan?.action_type,
-    selectedPlanService,
-    selectedPlanRegion,
-    refreshPlanCatalog,
-  ]);
+    resetPlanCatalogState();
+  }, [editorStep, open, resetPlanCatalogState, selectedPlan?.local_id]);
 
   const addPlan = () => {
     const nextPlan = {
@@ -1819,7 +2055,19 @@ function TaskEditorDialog({
     setSubmitting(true);
 
     try {
-      const payload = buildTaskInput(formState, t);
+      const settingsSnapshot = settingsLoading
+        ? await refetchSettings()
+        : userSettings;
+      const scriptDomain = String(settingsSnapshot.script_domain || "").trim();
+      if (hasEnabledProvisionPlan && !scriptDomain) {
+        throw new Error(
+          t("failover.validation.script_domain_required", {
+            defaultValue:
+              "Agent connection address is required for failover auto-connect. Set it in Settings -> Site before saving or running this task.",
+          }),
+        );
+      }
+      const payload = buildTaskInput(formState, providerEntries, t);
       if (task) {
         await updateFailoverTask(task.id, payload);
         toast.success(t("failover.messages.updated", { defaultValue: "Failover task updated" }));
@@ -1847,7 +2095,7 @@ function TaskEditorDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="flex max-h-[88vh] w-[calc(100vw-2rem)] max-w-4xl flex-col overflow-hidden p-0">
+      <DialogContent className="flex max-h-[88vh] w-[calc(100vw-2rem)] max-w-4xl flex-col overflow-hidden p-0 [&_button[data-slot=select-trigger]]:w-full [&_button[data-slot=select-trigger]]:min-w-0">
         <DialogHeader className="border-b px-5 py-4">
           <DialogTitle>
             {task
@@ -1888,17 +2136,7 @@ function TaskEditorDialog({
             <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden px-5 py-5">
               <TabsContent value="task" className="mt-0 space-y-5">
                 <div className="space-y-4 rounded-xl border px-4 py-4">
-                  <div className="space-y-1">
-                    <div className="text-sm font-medium text-slate-900 dark:text-slate-50">
-                      {t("failover.editor.basics", { defaultValue: "Task basics" })}
-                    </div>
-                    <div className="text-xs text-muted-foreground">
-                      {t("failover.editor.basics_hint", {
-                        defaultValue: "Create the task first. The current outlet will be filled after the first successful initialization or failover.",
-                      })}
-                    </div>
-                  </div>
-                  <div className="space-y-2">
+                  <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
                     <div className="space-y-2">
                       <Label htmlFor="failover-name">{t("common.name", { defaultValue: "Name" })}</Label>
                       <Input
@@ -1908,39 +2146,34 @@ function TaskEditorDialog({
                         placeholder={t("failover.editor.name_placeholder", { defaultValue: "CN failover for production edge" })}
                       />
                     </div>
-                  </div>
-                  <div className="flex items-center justify-between rounded-xl bg-muted/20 px-4 py-3">
-                    <div className="min-w-0 space-y-1">
-                      <div className="text-sm font-medium text-slate-900 dark:text-slate-50">
-                        {t("failover.editor.enabled", { defaultValue: "Task enabled" })}
+                    <div className="flex items-center justify-between gap-4 rounded-xl bg-muted/20 px-4 py-3 lg:min-w-56">
+                      <div className="min-w-0">
+                        <div className="text-sm font-medium text-slate-900 dark:text-slate-50">
+                          {t("failover.editor.enabled", { defaultValue: "Task enabled" })}
+                        </div>
                       </div>
-                      <div className="text-xs text-muted-foreground">
-                        {t("failover.editor.enabled_hint", {
-                          defaultValue: "Disabled tasks stay saved but will not run automatically.",
-                        })}
-                      </div>
+                      <Switch
+                        checked={formState.enabled}
+                        onCheckedChange={(checked) => updateTaskField("enabled", Boolean(checked))}
+                      />
                     </div>
-                    <Switch
-                      checked={formState.enabled}
-                      onCheckedChange={(checked) => updateTaskField("enabled", Boolean(checked))}
-                    />
                   </div>
                   <div className="rounded-xl border bg-background px-4 py-3">
-                    <div className="text-sm font-medium text-slate-900 dark:text-slate-50">
+                    <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
                       {t("failover.editor.current_outlet", { defaultValue: "Current outlet" })}
                     </div>
                     {task?.current_client_uuid || task?.current_address ? (
                       <div className="mt-2 space-y-1 text-sm">
-                        <div className="font-medium text-slate-900 dark:text-slate-50">
+                        <div className="truncate font-medium text-slate-900 dark:text-slate-50" title={currentOutletNode ? getNodeLabel(currentOutletNode) : task.current_client_uuid || task.current_address || undefined}>
                           {currentOutletNode ? getNodeLabel(currentOutletNode) : task.current_client_uuid || task.current_address}
                         </div>
-                        <div className="text-xs text-muted-foreground">
+                        <div className="truncate text-xs text-muted-foreground" title={task.current_address || undefined}>
                           {task.current_address
                             ? `${t("failover.editor.current_ip", { defaultValue: "IP" })}: ${task.current_address}`
                             : t("failover.editor.current_ip_empty", { defaultValue: "IP not recorded yet." })}
                         </div>
                         {task.current_client_uuid ? (
-                          <div className="text-xs text-muted-foreground">
+                          <div className="truncate text-xs text-muted-foreground" title={task.current_client_uuid}>
                             {t("failover.editor.current_client", { defaultValue: "Client" })}: {task.current_client_uuid}
                           </div>
                         ) : null}
@@ -1966,17 +2199,10 @@ function TaskEditorDialog({
                       variant="ghost"
                       className="flex h-auto w-full items-center justify-between rounded-xl px-4 py-3 text-left hover:bg-muted/20"
                     >
-                      <div className="space-y-1">
-                        <div className="text-sm font-medium text-slate-900 dark:text-slate-50">
-                          {t("failover.editor.show_task_advanced", {
-                            defaultValue: "Advanced monitoring settings",
-                          })}
-                        </div>
-                        <div className="text-xs text-muted-foreground">
-                          {t("failover.editor.show_task_advanced_hint", {
-                            defaultValue: "Failure threshold, stale timeout, and cooldown usually do not need changes.",
-                          })}
-                        </div>
+                      <div className="text-sm font-medium text-slate-900 dark:text-slate-50">
+                        {t("failover.editor.show_task_advanced", {
+                          defaultValue: "Advanced monitoring settings",
+                        })}
                       </div>
                       <ChevronDown
                         className={cn(
@@ -2025,31 +2251,13 @@ function TaskEditorDialog({
 
               <TabsContent value="dns" className="mt-0 space-y-5">
                 <div className="space-y-4 rounded-xl border px-4 py-4">
-                  <div className="space-y-1">
-                    <div className="text-sm font-medium text-slate-900 dark:text-slate-50">
-                      {t("failover.editor.dns", { defaultValue: "DNS and cleanup" })}
-                    </div>
-                    <div className="text-xs text-muted-foreground">
-                      {t("failover.editor.dns_hint", {
-                        defaultValue: "Select the DNS credential, then choose an existing record or fill the structured fields below.",
-                      })}
-                    </div>
+                  <div className="text-sm font-medium text-slate-900 dark:text-slate-50">
+                    {t("failover.editor.dns", { defaultValue: "DNS and cleanup" })}
                   </div>
                   <div className="rounded-xl bg-muted/20 px-4 py-3">
                     <div className="flex items-center justify-between gap-4">
-                      <div className="space-y-1">
-                        <div className="text-sm font-medium text-slate-900 dark:text-slate-50">
-                          {t("failover.editor.dns_enabled", { defaultValue: "Enable DNS switching" })}
-                        </div>
-                        <div className="text-xs text-muted-foreground">
-                          {hasDnsEnabled
-                            ? t("failover.editor.dns_enabled_hint", {
-                                defaultValue: "This task will update the configured DNS record after the new outlet is ready.",
-                              })
-                            : t("failover.editor.no_dns_hint", {
-                                defaultValue: "This task will skip DNS switching and only create or replace the outlet IP.",
-                              })}
-                        </div>
+                      <div className="text-sm font-medium text-slate-900 dark:text-slate-50">
+                        {t("failover.editor.dns_enabled", { defaultValue: "Enable DNS switching" })}
                       </div>
                       <Switch
                         checked={hasDnsEnabled}
@@ -2394,17 +2602,10 @@ function TaskEditorDialog({
                       variant="ghost"
                       className="flex h-auto w-full items-center justify-between rounded-xl px-4 py-3 text-left hover:bg-muted/20"
                     >
-                      <div className="space-y-1">
-                        <div className="text-sm font-medium text-slate-900 dark:text-slate-50">
-                          {t("failover.editor.show_dns_advanced", {
-                            defaultValue: "Advanced DNS settings",
-                          })}
-                        </div>
-                        <div className="text-xs text-muted-foreground">
-                          {t("failover.editor.show_dns_advanced_hint", {
-                            defaultValue: "Cleanup behavior belongs here. DNS record fields above should cover normal usage.",
-                          })}
-                        </div>
+                      <div className="text-sm font-medium text-slate-900 dark:text-slate-50">
+                        {t("failover.editor.show_dns_advanced", {
+                          defaultValue: "Advanced DNS settings",
+                        })}
                       </div>
                       <ChevronDown
                         className={cn(
@@ -2454,15 +2655,8 @@ function TaskEditorDialog({
                 {selectedPlan ? (
                   <>
                     <div className="space-y-4 rounded-xl border px-4 py-4">
-                      <div className="space-y-1">
-                        <div className="text-sm font-medium text-slate-900 dark:text-slate-50">
-                          {t("failover.editor.plans", { defaultValue: "Failover plans" })}
-                        </div>
-                        <div className="text-xs text-muted-foreground">
-                          {t("failover.editor.plans_hint", {
-                            defaultValue: "Each plan is one fallback path. Keep the core fields first, then expand only if needed.",
-                          })}
-                        </div>
+                      <div className="text-sm font-medium text-slate-900 dark:text-slate-50">
+                        {t("failover.editor.plans", { defaultValue: "Failover plans" })}
                       </div>
                       <div className="flex flex-col gap-4 lg:flex-row lg:items-end">
                         <div className="min-w-0 flex-1 space-y-2">
@@ -2484,8 +2678,8 @@ function TaskEditorDialog({
                             </div>
                           ) : (
                             <div className="rounded-xl bg-muted/20 px-4 py-3 text-sm text-muted-foreground">
-                              {t("failover.editor.single_plan_hint", {
-                                defaultValue: "Start with one plan. Add a backup plan only when you need a second fallback path.",
+                              {t("failover.editor.plan_single", {
+                                defaultValue: "1 plan",
                               })}
                             </div>
                           )}
@@ -2514,11 +2708,6 @@ function TaskEditorDialog({
                           <div className="truncate text-sm font-medium text-slate-900 dark:text-slate-50">
                             {getPlanDisplayName(selectedPlan, selectedPlanIndex >= 0 ? selectedPlanIndex : 0, t)}
                           </div>
-                          <div className="text-xs text-muted-foreground">
-                            {t("failover.editor.selected_plan_hint", {
-                              defaultValue: "Use multiple plans only when you really need backup paths.",
-                            })}
-                          </div>
                         </div>
                         <div className="flex items-center gap-3">
                           <Label className="text-sm">
@@ -2532,39 +2721,56 @@ function TaskEditorDialog({
                       </div>
                     </div>
 
-                    <div className="space-y-4 rounded-xl border px-4 py-4">
-                      <div className="space-y-1">
-                        <div className="text-sm font-medium text-slate-900 dark:text-slate-50">
-                          {t("failover.editor.plan_core", { defaultValue: "Plan core fields" })}
-                        </div>
-                        <div className="text-xs text-muted-foreground">
-                          {t("failover.editor.plan_core_hint", {
-                            defaultValue: "A plan usually only needs cloud, credential, and action type.",
-                          })}
-                        </div>
+	                    <div className="space-y-4 rounded-xl border px-4 py-4">
+                        {!settingsLoading && hasEnabledProvisionPlan && !configuredScriptDomain ? (
+                          <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-900/40 dark:bg-amber-950/30 dark:text-amber-100">
+                            {t("failover.editor.script_domain_required_hint", {
+                              defaultValue:
+                                "Agent connection address is not configured yet. Set it in Settings -> Site, otherwise failover-created instances cannot auto-connect back to Komari.",
+                            })}
+                          </div>
+                        ) : null}
+	                      <div className="text-sm font-medium text-slate-900 dark:text-slate-50">
+	                        {t("failover.editor.plan_core", { defaultValue: "Plan core fields" })}
                       </div>
 	                      <div className="grid gap-4 lg:grid-cols-2">
 	                        <div className="space-y-2">
 	                          <Label>{t("cloud.title", { defaultValue: "Cloud" })}</Label>
-	                          <Select
-	                            value={selectedPlan.provider || undefined}
-	                            onValueChange={(value) => {
-	                              const nextActionOptions = ACTION_TYPE_VALUES[value] || [];
-	                              const nextEntryOptions = buildProviderEntryOptions({
-	                                entries: providerEntries[value] || [],
-	                                includeActive: true,
+		                          <Select
+		                            value={selectedPlan.provider || undefined}
+		                            onValueChange={(value) => {
+                                  const previousDefaultGroup = getDefaultPlanAutoConnectGroup(
+                                    providerEntries,
+                                    selectedPlan.provider,
+                                    selectedPlan.provider_entry_id,
+                                  );
+		                              const nextActionOptions = ACTION_TYPE_VALUES[value] || [];
+		                              const nextEntryOptions = buildProviderEntryOptions({
+		                                entries: providerEntries[value] || [],
+		                                includeActive: true,
 	                                activeLabel: t("failover.provider_entry.active", {
 	                                  defaultValue: "Active credential",
 	                                }),
-	                              });
+		                              });
 	                              const nextActionType = nextActionOptions[0] || "";
+                                  const nextEntryID = nextEntryOptions[0]?.id || "";
+                                  const nextDefaultGroup = getDefaultPlanAutoConnectGroup(
+                                    providerEntries,
+                                    value,
+                                    nextEntryID,
+                                  );
 	                              updatePlan(selectedPlan.local_id, (current) => ({
 	                                ...current,
 	                                provider: value,
 	                                action_type: nextActionType,
-	                                provider_entry_id: nextEntryOptions[0]?.id || "",
+	                                provider_entry_id: nextEntryID,
 	                                payload: prettyJson(defaultPlanPayload(value, nextActionType)),
+                                    auto_connect_group:
+                                      !current.auto_connect_group.trim() || current.auto_connect_group.trim() === previousDefaultGroup
+                                        ? nextDefaultGroup
+                                        : current.auto_connect_group,
 	                              }));
+	                              resetPlanCatalogState();
 	                            }}
 	                          >
 	                            <SelectTrigger>
@@ -2602,7 +2808,27 @@ function TaskEditorDialog({
 	                            return (
 	                              <Select
 	                                value={selectedPlan.provider_entry_id || undefined}
-	                                onValueChange={(value) => updatePlan(selectedPlan.local_id, (current) => ({ ...current, provider_entry_id: value }))}
+	                                onValueChange={(value) => {
+                                      const previousDefaultGroup = getDefaultPlanAutoConnectGroup(
+                                        providerEntries,
+                                        selectedPlan.provider,
+                                        selectedPlan.provider_entry_id,
+                                      );
+                                      const nextDefaultGroup = getDefaultPlanAutoConnectGroup(
+                                        providerEntries,
+                                        selectedPlan.provider,
+                                        value,
+                                      );
+	                                  updatePlan(selectedPlan.local_id, (current) => ({
+                                        ...current,
+                                        provider_entry_id: value,
+                                        auto_connect_group:
+                                          !current.auto_connect_group.trim() || current.auto_connect_group.trim() === previousDefaultGroup
+                                            ? nextDefaultGroup
+                                            : current.auto_connect_group,
+                                      }));
+	                                  resetPlanCatalogState();
+	                                }}
 	                              >
                                 <SelectTrigger>
                                   <SelectValue />
@@ -2617,22 +2843,20 @@ function TaskEditorDialog({
                               </Select>
                             );
                           })()}
-                          <div className="text-xs text-muted-foreground">
-                            {t("failover.editor.provider_entry_hint", {
-                              defaultValue: "Choose the preferred credential first. If it is unavailable, Komari will automatically try other credentials from the same provider.",
-                            })}
-                          </div>
                         </div>
 	                        <div className="space-y-2 lg:col-span-2">
 	                          <Label>{t("failover.editor.action_type", { defaultValue: "Action type" })}</Label>
-	                          <Select
-	                            value={selectedPlan.action_type || undefined}
-	                            onValueChange={(value) => updatePlan(selectedPlan.local_id, (current) => ({
-	                              ...current,
-	                              action_type: value,
-	                              payload: prettyJson(defaultPlanPayload(current.provider, value)),
-	                            }))}
-	                          >
+                          <Select
+                            value={selectedPlan.action_type || undefined}
+                            onValueChange={(value) => {
+                              updatePlan(selectedPlan.local_id, (current) => ({
+                                ...current,
+                                action_type: value,
+                                payload: prettyJson(defaultPlanPayload(current.provider, value)),
+                              }));
+                              resetPlanCatalogState();
+                            }}
+                          >
 	                            <SelectTrigger>
 	                              <SelectValue placeholder={t("failover.editor.action_type_placeholder", { defaultValue: "Choose an action" })} />
 	                            </SelectTrigger>
@@ -2649,20 +2873,39 @@ function TaskEditorDialog({
                     </div>
 
                     <div className="space-y-4 rounded-xl border px-4 py-4">
-                      <div className="space-y-1">
+                      <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
                         <div className="text-sm font-medium text-slate-900 dark:text-slate-50">
                           {t("failover.editor.plan_config", { defaultValue: "Instance configuration" })}
                         </div>
-                        <div className="text-xs text-muted-foreground">
-                          {t("failover.editor.plan_config_hint", {
-                            defaultValue: "Choose the region, image, and instance size here. The backend will generate the payload for you.",
-                          })}
+                        <div className="flex flex-wrap gap-2">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            disabled={!canLoadPlanCatalog || planCatalogLoading}
+                            onClick={() => void refreshPlanCatalog({ mode: "regions" })}
+                          >
+                            {planCatalogLoading && planCatalogLoadMode === "regions" ? <LoaderCircle className="mr-2 size-4 animate-spin" /> : <RefreshCw className="mr-2 size-4" />}
+                            {t("failover.editor.load_plan_regions", { defaultValue: "Load regions" })}
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            disabled={!canLoadPlanDetails || planCatalogLoading}
+                            onClick={() => void refreshPlanCatalog({ mode: "full" })}
+                          >
+                            {planCatalogLoading && planCatalogLoadMode === "full" ? <LoaderCircle className="mr-2 size-4 animate-spin" /> : <RefreshCw className="mr-2 size-4" />}
+                            {t("failover.editor.load_plan_options", { defaultValue: "Load options" })}
+                          </Button>
                         </div>
                       </div>
 
                       {planCatalogLoading ? (
                         <div className="rounded-xl border border-dashed px-4 py-3 text-sm text-muted-foreground">
-                          {t("failover.editor.loading_plan_catalog", { defaultValue: "Loading provider configuration options..." })}
+                          {planCatalogLoadMode === "regions"
+                            ? t("failover.editor.loading_plan_regions", { defaultValue: "Loading available regions..." })
+                            : t("failover.editor.loading_plan_catalog", { defaultValue: "Loading provider configuration options..." })}
                         </div>
                       ) : null}
 
@@ -2686,7 +2929,7 @@ function TaskEditorDialog({
                         </div>
                       ) : null}
 
-                      {!planCatalogLoading && planCatalog ? (
+                      {selectedPlan.provider && selectedPlan.provider_entry_id ? (
                         <>
                       {selectedPlan.provider === "aws" && selectedPlan.action_type === "provision_instance" ? (
                         <div className="grid gap-4 lg:grid-cols-2">
@@ -2694,12 +2937,15 @@ function TaskEditorDialog({
                             <Label>{t("failover.editor.aws_service", { defaultValue: "AWS service" })}</Label>
                             <Select
                               value={selectedPlanService}
-                              onValueChange={(value) => updateSelectedPlanPayload((current) => ({
-                                ...defaultPlanPayload("aws", selectedPlan.action_type),
-                                ...current,
-                                service: value,
-                                region: "",
-                              }))}
+                              onValueChange={(value) => {
+                                updateSelectedPlanPayload((current) => ({
+                                  ...defaultPlanPayload("aws", selectedPlan.action_type),
+                                  ...current,
+                                  service: value,
+                                  region: "",
+                                }));
+                                resetPlanCatalogState();
+                              }}
                             >
                               <SelectTrigger>
                                 <SelectValue />
@@ -2715,10 +2961,19 @@ function TaskEditorDialog({
                             {(planCatalog?.regions || []).length > 0 ? (
                               <Select
                                 value={selectedPlanRegion || undefined}
-                                onValueChange={(value) => updateSelectedPlanPayload((current) => ({
-                                  ...current,
-                                  region: value,
-                                }))}
+                                onValueChange={(value) => {
+                                  updateSelectedPlanPayload((current) => ({
+                                    ...current,
+                                    region: value,
+                                  }));
+                                  resetPlanCatalogState(keepPlanCatalogRegions(
+                                    planCatalog,
+                                    selectedPlan.provider,
+                                    selectedPlan.action_type,
+                                    selectedPlanService,
+                                    value,
+                                  ));
+                                }}
                               >
                                 <SelectTrigger>
                                   <SelectValue placeholder={t("failover.editor.region_placeholder", { defaultValue: "Choose a region" })} />
@@ -2734,10 +2989,20 @@ function TaskEditorDialog({
                             ) : (
                               <Input
                                 value={selectedPlanRegion}
-                                onChange={(event) => updateSelectedPlanPayload((current) => ({
-                                  ...current,
-                                  region: event.target.value,
-                                }))}
+                                onChange={(event) => {
+                                  const value = event.target.value;
+                                  updateSelectedPlanPayload((current) => ({
+                                    ...current,
+                                    region: value,
+                                  }));
+                                  resetPlanCatalogState(keepPlanCatalogRegions(
+                                    planCatalog,
+                                    selectedPlan.provider,
+                                    selectedPlan.action_type,
+                                    selectedPlanService,
+                                    value,
+                                  ));
+                                }}
                                 placeholder="us-east-1"
                               />
                             )}
@@ -3036,12 +3301,15 @@ function TaskEditorDialog({
                             <Label>{t("failover.editor.aws_service", { defaultValue: "AWS service" })}</Label>
                             <Select
                               value={selectedPlanService}
-                              onValueChange={(value) => updateSelectedPlanPayload((current) => ({
-                                ...defaultPlanPayload("aws", selectedPlan.action_type),
-                                ...current,
-                                service: value,
-                                region: "",
-                              }))}
+                              onValueChange={(value) => {
+                                updateSelectedPlanPayload((current) => ({
+                                  ...defaultPlanPayload("aws", selectedPlan.action_type),
+                                  ...current,
+                                  service: value,
+                                  region: "",
+                                }));
+                                resetPlanCatalogState();
+                              }}
                             >
                               <SelectTrigger>
                                 <SelectValue />
@@ -3057,10 +3325,19 @@ function TaskEditorDialog({
                             {(planCatalog?.regions || []).length > 0 ? (
                               <Select
                                 value={selectedPlanRegion || undefined}
-                                onValueChange={(value) => updateSelectedPlanPayload((current) => ({
-                                  ...current,
-                                  region: value,
-                                }))}
+                                onValueChange={(value) => {
+                                  updateSelectedPlanPayload((current) => ({
+                                    ...current,
+                                    region: value,
+                                  }));
+                                  resetPlanCatalogState(keepPlanCatalogRegions(
+                                    planCatalog,
+                                    selectedPlan.provider,
+                                    selectedPlan.action_type,
+                                    selectedPlanService,
+                                    value,
+                                  ));
+                                }}
                               >
                                 <SelectTrigger>
                                   <SelectValue placeholder={t("failover.editor.region_placeholder", { defaultValue: "Choose a region" })} />
@@ -3076,10 +3353,20 @@ function TaskEditorDialog({
                             ) : (
                               <Input
                                 value={selectedPlanRegion}
-                                onChange={(event) => updateSelectedPlanPayload((current) => ({
-                                  ...current,
-                                  region: event.target.value,
-                                }))}
+                                onChange={(event) => {
+                                  const value = event.target.value;
+                                  updateSelectedPlanPayload((current) => ({
+                                    ...current,
+                                    region: value,
+                                  }));
+                                  resetPlanCatalogState(keepPlanCatalogRegions(
+                                    planCatalog,
+                                    selectedPlan.provider,
+                                    selectedPlan.action_type,
+                                    selectedPlanService,
+                                    value,
+                                  ));
+                                }}
                                 placeholder="us-east-1"
                               />
                             )}
@@ -3109,9 +3396,14 @@ function TaskEditorDialog({
                                     </SelectContent>
                                   </Select>
                                 ) : (
-                                  <div className="rounded-xl border border-dashed px-4 py-3 text-sm text-muted-foreground">
-                                    {t("failover.editor.loading_plan_catalog", { defaultValue: "Loading provider configuration options..." })}
-                                  </div>
+                                  <Input
+                                    value={getStringValue(selectedPlanPayload.instance_id)}
+                                    onChange={(event) => updateSelectedPlanPayload((current) => ({
+                                      ...current,
+                                      instance_id: event.target.value,
+                                    }))}
+                                    placeholder="i-..."
+                                  />
                                 )}
                               </div>
                             </>
@@ -3140,9 +3432,14 @@ function TaskEditorDialog({
                                     </SelectContent>
                                   </Select>
                                 ) : (
-                                  <div className="rounded-xl border border-dashed px-4 py-3 text-sm text-muted-foreground">
-                                    {t("failover.editor.loading_plan_catalog", { defaultValue: "Loading provider configuration options..." })}
-                                  </div>
+                                  <Input
+                                    value={getStringValue(selectedPlanPayload.instance_name)}
+                                    onChange={(event) => updateSelectedPlanPayload((current) => ({
+                                      ...current,
+                                      instance_name: event.target.value,
+                                    }))}
+                                    placeholder="komari-edge-1"
+                                  />
                                 )}
                               </div>
                             </>
@@ -3151,16 +3448,25 @@ function TaskEditorDialog({
                       ) : null}
 
                       {selectedPlan.provider === "digitalocean" && selectedPlan.action_type === "provision_instance" ? (
-                        <div className="grid gap-4 lg:grid-cols-3">
+                        <div className="grid gap-4 lg:grid-cols-2">
                           <div className="space-y-2">
                             <Label>{t("failover.editor.region", { defaultValue: "Region" })}</Label>
                             {(planCatalog?.regions || []).length > 0 ? (
                               <Select
                                 value={getStringValue(selectedPlanPayload.region) || undefined}
-                                onValueChange={(value) => updateSelectedPlanPayload((current) => ({
-                                  ...current,
-                                  region: value,
-                                }))}
+                                onValueChange={(value) => {
+                                  updateSelectedPlanPayload((current) => ({
+                                    ...current,
+                                    region: value,
+                                  }));
+                                  resetPlanCatalogState(keepPlanCatalogRegions(
+                                    planCatalog,
+                                    selectedPlan.provider,
+                                    selectedPlan.action_type,
+                                    selectedPlanService,
+                                    value,
+                                  ));
+                                }}
                               >
                                 <SelectTrigger>
                                   <SelectValue placeholder={t("failover.editor.region_placeholder", { defaultValue: "Choose a region" })} />
@@ -3168,20 +3474,17 @@ function TaskEditorDialog({
                                 <SelectContent>
                                   {planCatalog?.regions?.map((option) => (
                                     <SelectItem key={option.value} value={option.value}>
-                                      {formatCatalogOptionLabel(option)}
+                                      {formatPlanRegionOptionLabel(t, selectedPlan.provider, option)}
                                     </SelectItem>
                                   ))}
                                 </SelectContent>
                               </Select>
                             ) : (
-                              <Input
-                                value={getStringValue(selectedPlanPayload.region)}
-                                onChange={(event) => updateSelectedPlanPayload((current) => ({
-                                  ...current,
-                                  region: event.target.value,
-                                }))}
-                                placeholder="sgp1"
-                              />
+                              <div className="rounded-xl border border-dashed px-4 py-3 text-sm text-muted-foreground">
+                                {t("failover.editor.load_plan_regions_first", {
+                                  defaultValue: "Load regions first, then choose a region.",
+                                })}
+                              </div>
                             )}
                           </div>
                           <div className="space-y-2">
@@ -3206,14 +3509,11 @@ function TaskEditorDialog({
                                 </SelectContent>
                               </Select>
                             ) : (
-                              <Input
-                                value={getStringValue(selectedPlanPayload.size)}
-                                onChange={(event) => updateSelectedPlanPayload((current) => ({
-                                  ...current,
-                                  size: event.target.value,
-                                }))}
-                                placeholder="s-1vcpu-1gb"
-                              />
+                              <div className="rounded-xl border border-dashed px-4 py-3 text-sm text-muted-foreground">
+                                {t("failover.editor.load_plan_options_first", {
+                                  defaultValue: "Choose a region first, then load provider options.",
+                                })}
+                              </div>
                             )}
                           </div>
                           <div className="space-y-2">
@@ -3238,30 +3538,76 @@ function TaskEditorDialog({
                                 </SelectContent>
                               </Select>
                             ) : (
-                              <Input
-                                value={getStringValue(selectedPlanPayload.image)}
-                                onChange={(event) => updateSelectedPlanPayload((current) => ({
-                                  ...current,
-                                  image: event.target.value,
-                                }))}
-                                placeholder="ubuntu-24-04-x64"
-                              />
+                              <div className="rounded-xl border border-dashed px-4 py-3 text-sm text-muted-foreground">
+                                {t("failover.editor.load_plan_options_first", {
+                                  defaultValue: "Choose a region first, then load provider options.",
+                                })}
+                              </div>
                             )}
+                          </div>
+                          <div className="space-y-2">
+                            <Label>{t("cloud.form.root_password", { defaultValue: "Root password" })}</Label>
+                            <Input
+                              type="password"
+                              value={getStringValue(selectedPlanPayload.root_password)}
+                              onChange={(event) => updateSelectedPlanPayload((current) => ({
+                                ...current,
+                                root_password: event.target.value,
+                              }))}
+                              placeholder={t("cloud.form.root_password_placeholder", {
+                                defaultValue: "Enter a root password",
+                              })}
+                            />
+                            <div className="text-xs text-muted-foreground">
+                              {t("cloud.form.root_password_random_help", {
+                                defaultValue: "Leave it empty to generate a random root password when the instance is created.",
+                              })}
+                            </div>
+                          </div>
+                          <div className="rounded-xl bg-muted/20 px-4 py-3 lg:col-span-2">
+                            <div className="flex items-center justify-between gap-4">
+                              <div className="space-y-1">
+                                <div className="text-sm font-medium text-slate-900 dark:text-slate-50">
+                                  {t("cloud.form.ipv6", { defaultValue: "Enable IPv6" })}
+                                </div>
+                                <div className="text-xs text-muted-foreground">
+                                  {t("failover.editor.plan_default_image_hint", {
+                                    defaultValue: "Region labels include Chinese country names, and image and size come from provider options.",
+                                  })}
+                                </div>
+                              </div>
+                              <Switch
+                                checked={getBooleanValue(selectedPlanPayload.ipv6, false)}
+                                onCheckedChange={(checked) => updateSelectedPlanPayload((current) => ({
+                                  ...current,
+                                  ipv6: Boolean(checked),
+                                }))}
+                              />
+                            </div>
                           </div>
                         </div>
                       ) : null}
 
                       {selectedPlan.provider === "linode" && selectedPlan.action_type === "provision_instance" ? (
-                        <div className="grid gap-4 lg:grid-cols-3">
+                        <div className="grid gap-4 lg:grid-cols-2">
                           <div className="space-y-2">
                             <Label>{t("failover.editor.region", { defaultValue: "Region" })}</Label>
                             {(planCatalog?.regions || []).length > 0 ? (
                               <Select
                                 value={getStringValue(selectedPlanPayload.region) || undefined}
-                                onValueChange={(value) => updateSelectedPlanPayload((current) => ({
-                                  ...current,
-                                  region: value,
-                                }))}
+                                onValueChange={(value) => {
+                                  updateSelectedPlanPayload((current) => ({
+                                    ...current,
+                                    region: value,
+                                  }));
+                                  resetPlanCatalogState(keepPlanCatalogRegions(
+                                    planCatalog,
+                                    selectedPlan.provider,
+                                    selectedPlan.action_type,
+                                    selectedPlanService,
+                                    value,
+                                  ));
+                                }}
                               >
                                 <SelectTrigger>
                                   <SelectValue placeholder={t("failover.editor.region_placeholder", { defaultValue: "Choose a region" })} />
@@ -3269,20 +3615,17 @@ function TaskEditorDialog({
                                 <SelectContent>
                                   {planCatalog?.regions?.map((option) => (
                                     <SelectItem key={option.value} value={option.value}>
-                                      {formatCatalogOptionLabel(option)}
+                                      {formatPlanRegionOptionLabel(t, selectedPlan.provider, option)}
                                     </SelectItem>
                                   ))}
                                 </SelectContent>
                               </Select>
                             ) : (
-                              <Input
-                                value={getStringValue(selectedPlanPayload.region)}
-                                onChange={(event) => updateSelectedPlanPayload((current) => ({
-                                  ...current,
-                                  region: event.target.value,
-                                }))}
-                                placeholder="jp-osa"
-                              />
+                              <div className="rounded-xl border border-dashed px-4 py-3 text-sm text-muted-foreground">
+                                {t("failover.editor.load_plan_regions_first", {
+                                  defaultValue: "Load regions first, then choose a region.",
+                                })}
+                              </div>
                             )}
                           </div>
                           <div className="space-y-2">
@@ -3307,14 +3650,11 @@ function TaskEditorDialog({
                                 </SelectContent>
                               </Select>
                             ) : (
-                              <Input
-                                value={getStringValue(selectedPlanPayload.type)}
-                                onChange={(event) => updateSelectedPlanPayload((current) => ({
-                                  ...current,
-                                  type: event.target.value,
-                                }))}
-                                placeholder="g6-standard-1"
-                              />
+                              <div className="rounded-xl border border-dashed px-4 py-3 text-sm text-muted-foreground">
+                                {t("failover.editor.load_plan_options_first", {
+                                  defaultValue: "Choose a region first, then load provider options.",
+                                })}
+                              </div>
                             )}
                           </div>
                           <div className="space-y-2">
@@ -3339,15 +3679,31 @@ function TaskEditorDialog({
                                 </SelectContent>
                               </Select>
                             ) : (
-                              <Input
-                                value={getStringValue(selectedPlanPayload.image)}
-                                onChange={(event) => updateSelectedPlanPayload((current) => ({
-                                  ...current,
-                                  image: event.target.value,
-                                }))}
-                                placeholder="linode/ubuntu24.04"
-                              />
+                              <div className="rounded-xl border border-dashed px-4 py-3 text-sm text-muted-foreground">
+                                {t("failover.editor.load_plan_options_first", {
+                                  defaultValue: "Choose a region first, then load provider options.",
+                                })}
+                              </div>
                             )}
+                          </div>
+                          <div className="space-y-2">
+                            <Label>{t("cloud.form.root_password", { defaultValue: "Root password" })}</Label>
+                            <Input
+                              type="password"
+                              value={getStringValue(selectedPlanPayload.root_password)}
+                              onChange={(event) => updateSelectedPlanPayload((current) => ({
+                                ...current,
+                                root_password: event.target.value,
+                              }))}
+                              placeholder={t("cloud.form.root_password_placeholder", {
+                                defaultValue: "Enter a root password",
+                              })}
+                            />
+                            <div className="text-xs text-muted-foreground">
+                              {t("failover.editor.plan_default_image_and_password_hint", {
+                                defaultValue: "Pick the image from provider options. Leave the password empty to generate a random one.",
+                              })}
+                            </div>
                           </div>
                         </div>
                       ) : null}
@@ -3366,17 +3722,10 @@ function TaskEditorDialog({
                           variant="ghost"
                           className="flex h-auto w-full items-center justify-between rounded-xl px-4 py-3 text-left hover:bg-muted/20"
                         >
-                          <div className="space-y-1">
-                            <div className="text-sm font-medium text-slate-900 dark:text-slate-50">
-                              {t("failover.editor.show_plan_optional", {
-                                defaultValue: "Optional plan settings",
-                              })}
-                            </div>
-                            <div className="text-xs text-muted-foreground">
-                              {t("failover.editor.show_plan_optional_hint", {
-                                defaultValue: "Plan name, auto-connect group, and script can stay empty.",
-                              })}
-                            </div>
+                          <div className="text-sm font-medium text-slate-900 dark:text-slate-50">
+                            {t("failover.editor.show_plan_optional", {
+                              defaultValue: "Optional plan settings",
+                            })}
                           </div>
                           <ChevronDown
                             className={cn(
@@ -3403,7 +3752,13 @@ function TaskEditorDialog({
                             <Input
                               value={selectedPlan.auto_connect_group}
                               onChange={(event) => updatePlan(selectedPlan.local_id, (current) => ({ ...current, auto_connect_group: event.target.value }))}
-                              placeholder={t("failover.editor.auto_connect_group_placeholder", { defaultValue: "edge/failover" })}
+                              placeholder={
+                                getDefaultPlanAutoConnectGroup(
+                                  providerEntries,
+                                  selectedPlan.provider,
+                                  selectedPlan.provider_entry_id,
+                                ) || t("failover.editor.auto_connect_group_placeholder", { defaultValue: "cloud/default" })
+                              }
                             />
                           </div>
                           <div className="space-y-2">
@@ -3440,17 +3795,10 @@ function TaskEditorDialog({
                           variant="ghost"
                           className="flex h-auto w-full items-center justify-between rounded-xl px-4 py-3 text-left hover:bg-muted/20"
                         >
-                          <div className="space-y-1">
-                            <div className="text-sm font-medium text-slate-900 dark:text-slate-50">
-                              {t("failover.editor.show_plan_advanced", {
-                                defaultValue: "Advanced plan settings",
-                              })}
-                            </div>
-	                            <div className="text-xs text-muted-foreground">
-	                              {t("failover.editor.show_plan_advanced_hint", {
-	                                defaultValue: "Priority and timeout controls are only for custom tuning.",
-	                              })}
-	                            </div>
+                          <div className="text-sm font-medium text-slate-900 dark:text-slate-50">
+                            {t("failover.editor.show_plan_advanced", {
+                              defaultValue: "Advanced plan settings",
+                            })}
                           </div>
                           <ChevronDown
                             className={cn(
@@ -3768,7 +4116,7 @@ function FailoverPageContent() {
         ) : null}
 
         {!loading && !error && tasks.length > 0 ? (
-          <div className="grid gap-4 2xl:grid-cols-2">
+          <div className="space-y-3">
             {tasks.map((task) => {
               const currentClientUUID = task.current_client_uuid || task.watch_client_uuid;
               const node = currentClientUUID ? nodeLookup.get(currentClientUUID) : undefined;
@@ -3776,100 +4124,46 @@ function FailoverPageContent() {
               const taskBusy = busyTaskID === task.id;
               const taskRunning = runningTaskID === task.id;
               const requiresInitialization = !currentClientUUID;
-              const latestSummary = task.plans
-                .slice(0, 3)
-                .map((plan) => {
-                  return `${getPlanProviderLabel(t, plan.provider)} / ${getActionTypeLabel(t, plan.action_type)}`;
-                })
-                .join(" · ");
+              const currentOutletLabel = node
+                ? getNodeLabel(node)
+                : task.current_address || currentClientUUID || t("failover.task.uninitialized", { defaultValue: "Not initialized" });
+              const latestExecutionSummary = latestExecution
+                ? latestExecution.error_message || formatDateTime(latestExecution.started_at)
+                : t("failover.task.no_execution", { defaultValue: "No execution recorded yet." });
+              const currentOutletMeta = task.current_address || currentClientUUID || "";
+              const cooldownSummary = task.cooldown_remaining_seconds > 0
+                ? formatDurationSeconds(task.cooldown_remaining_seconds, t)
+                : t("failover.cooldown.ready", { defaultValue: "Ready" });
 
               return (
                 <Card
                   key={task.id}
                   className={cn(
-                    "gap-0 overflow-hidden border-slate-200/80 bg-card py-0 dark:border-slate-800/80",
-                    task.has_active_execution && "border-amber-300/80 shadow-sm dark:border-amber-700/60",
+                    "overflow-hidden border-slate-200/80 bg-card py-0 dark:border-slate-800/80",
+                    task.has_active_execution && "border-amber-300/80 dark:border-amber-700/60",
                   )}
                 >
-                  <CardHeader className="gap-4 border-b px-5 py-5">
-                    <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
-                      <div className="min-w-0 space-y-3">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <CardTitle className="text-xl">{task.name}</CardTitle>
-                          <Badge variant={task.enabled ? "success" : "outline"}>
-                            {task.enabled
-                              ? t("common.enabled", { defaultValue: "Enabled" })
-                              : t("common.disabled", { defaultValue: "Disabled" })}
-                          </Badge>
-                          <Badge variant={getStatusVariant(task.last_status, "execution")}>
-                            {getStatusLabel(t, task.last_status)}
-                          </Badge>
-                          {task.has_active_execution ? (
-                            <Badge variant="warning">
-                              {t("failover.task.active_execution", { defaultValue: "Active execution" })}
-                            </Badge>
-                          ) : null}
-                        </div>
-                        <CardDescription className="max-w-3xl">
-                          {task.last_message || t("failover.task.no_message", { defaultValue: "No recent task message." })}
-                        </CardDescription>
-                      </div>
-
-                      <div className="flex flex-wrap gap-2 xl:justify-end">
-                        <Button type="button" size="sm" variant="outline" onClick={() => void openEditDialog(task)} disabled={taskBusy || taskRunning}>
-                          {taskBusy ? <LoaderCircle className="size-4 animate-spin" /> : <PencilLine className="size-4" />}
-                          {t("common.edit", { defaultValue: "Edit" })}
-                        </Button>
-                        <Button
-                          type="button"
-                          size="sm"
-                          variant="outline"
-                          onClick={() => void handleRunTask(task)}
-                          disabled={taskRunning || task.has_active_execution || !task.enabled}
-                        >
-                          {taskRunning ? <LoaderCircle className="size-4 animate-spin" /> : <Play className="size-4" />}
-                          {requiresInitialization
-                            ? t("failover.actions.initialize", { defaultValue: "Initialize" })
-                            : t("failover.actions.run", { defaultValue: "Run" })}
-                        </Button>
-                        <Button type="button" size="sm" variant="outline" onClick={() => void handleToggleTask(task)} disabled={taskBusy || taskRunning}>
-                          {task.enabled
-                            ? t("failover.actions.disable", { defaultValue: "Disable" })
-                            : t("failover.actions.enable", { defaultValue: "Enable" })}
-                        </Button>
-                        <Button type="button" size="sm" variant="outline" onClick={() => setDeleteTarget(task)} disabled={taskBusy || taskRunning}>
-                          <Trash2 className="size-4" />
-                          {t("common.delete", { defaultValue: "Delete" })}
-                        </Button>
-                      </div>
-                    </div>
-                  </CardHeader>
-
-                  <CardContent className="grid gap-4 px-5 py-5 md:grid-cols-2">
-                    <TaskMetricCard label={t("failover.table.current", { defaultValue: "Current outlet" })}>
-                      <div className="font-medium text-slate-900 dark:text-slate-50">
-                        {node
-                          ? getNodeLabel(node)
-                          : task.current_address || currentClientUUID || t("failover.task.uninitialized", { defaultValue: "Not initialized" })}
-                      </div>
-                      <div className="text-xs text-muted-foreground">
-                        {task.current_address
-                          ? `${t("failover.editor.current_ip", { defaultValue: "IP" })}: ${task.current_address}`
-                          : t("failover.editor.current_ip_empty", { defaultValue: "IP not recorded yet." })}
-                      </div>
-                      <div className="text-xs text-muted-foreground">
-                        {currentClientUUID
-                          ? `${t("failover.editor.current_client", { defaultValue: "Client" })}: ${currentClientUUID}`
-                          : t("failover.task.uninitialized_hint", {
-                            defaultValue: "Save the task first, then run initialization to create the first outlet.",
-                          })}
-                      </div>
-                    </TaskMetricCard>
-
-                    <TaskMetricCard label={t("failover.table.probe", { defaultValue: "Probe" })}>
+                  <div className="grid gap-3 px-4 py-3 lg:grid-cols-[minmax(0,2fr)_minmax(0,1.15fr)_minmax(0,1.15fr)_auto] lg:items-center">
+                    <div className="min-w-0 space-y-1">
                       <div className="flex flex-wrap items-center gap-2">
+                        <div className="truncate text-sm font-medium text-slate-900 dark:text-slate-50" title={task.name}>
+                          {task.name}
+                        </div>
+                        <Badge variant={task.enabled ? "success" : "outline"}>
+                          {task.enabled
+                            ? t("common.enabled", { defaultValue: "Enabled" })
+                            : t("common.disabled", { defaultValue: "Disabled" })}
+                        </Badge>
+                        <Badge variant={getStatusVariant(task.last_status, "execution")}>
+                          {getStatusLabel(t, task.last_status)}
+                        </Badge>
+                        {task.has_active_execution ? (
+                          <Badge variant="warning">
+                            {t("failover.task.active_execution", { defaultValue: "Active execution" })}
+                          </Badge>
+                        ) : null}
                         <Badge variant={getStatusVariant(task.probe.status, "probe")}>
-                          {getStatusLabel(t, task.probe.status)}
+                          {t("failover.table.probe", { defaultValue: "Probe" })}: {getStatusLabel(t, task.probe.status)}
                         </Badge>
                         {task.probe.stale ? (
                           <Badge variant="warning">
@@ -3877,86 +4171,90 @@ function FailoverPageContent() {
                           </Badge>
                         ) : null}
                       </div>
-                      <div className="text-xs text-muted-foreground">
-                        {task.probe.target || t("failover.probe.no_target", { defaultValue: "No target" })}
+                      <div className="truncate text-sm text-muted-foreground" title={currentOutletLabel}>
+                        {t("failover.table.current", { defaultValue: "Current outlet" })}: {currentOutletLabel}
                       </div>
-                      <div className="text-xs text-muted-foreground">
-                        {t("failover.probe.failures", {
-                          defaultValue: "Failures: {{count}}",
-                          count: task.probe.consecutive_failures,
+                    </div>
+
+                    <div className="min-w-0 space-y-1">
+                      <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+                        {t("failover.table.current", { defaultValue: "Current outlet" })}
+                      </div>
+                      <div className="truncate text-sm font-medium text-slate-900 dark:text-slate-50" title={currentOutletLabel}>
+                        {currentOutletLabel}
+                      </div>
+                      <div className="truncate text-xs text-muted-foreground" title={currentOutletMeta || undefined}>
+                        {currentOutletMeta || t("failover.task.uninitialized_hint", {
+                          defaultValue: "Save the task first, then run initialization to create the first outlet.",
                         })}
                       </div>
-                      <div className="text-xs text-muted-foreground">
-                        {formatDateTime(task.probe.report_updated_at || task.probe.checked_at)}
-                      </div>
-                    </TaskMetricCard>
+                    </div>
 
-                    <TaskMetricCard label={t("failover.table.latest", { defaultValue: "Latest execution" })}>
-                      {latestExecution ? (
-                        <>
-                          <div className="flex flex-wrap gap-2">
-                            <Badge variant={getStatusVariant(latestExecution.status, "execution")}>
-                              {getStatusLabel(t, latestExecution.status)}
-                            </Badge>
-                            <Badge variant={getStatusVariant(latestExecution.script_status, "script")}>
-                              {t("failover.table.script", { defaultValue: "Script" })}: {getStatusLabel(t, latestExecution.script_status)}
-                            </Badge>
-                            <Badge variant={getStatusVariant(latestExecution.dns_status, "dns")}>
-                              {t("failover.execution.dns", { defaultValue: "DNS" })}: {getStatusLabel(t, latestExecution.dns_status)}
-                            </Badge>
-                          </div>
-                          <div className="text-xs text-muted-foreground">
-                            {formatDateTime(latestExecution.started_at)}
-                          </div>
-                          {latestExecution.error_message ? (
-                            <div className="text-xs text-red-600 dark:text-red-300">
-                              {latestExecution.error_message}
-                            </div>
-                          ) : (
-                            <div className="text-xs text-muted-foreground">
-                              {t("failover.task.latest_execution_hint", {
-                                defaultValue: "Latest run state from the backend execution log.",
-                              })}
-                            </div>
-                          )}
-                          <div>
-                            <Button
-                              type="button"
-                              size="sm"
-                              variant="outline"
-                              onClick={() => openExecutionDialog(latestExecution.id, task.name)}
-                            >
-                              <Eye className="size-4" />
-                              {t("failover.table.view_latest", { defaultValue: "View details" })}
-                            </Button>
-                          </div>
-                        </>
-                      ) : (
-                        <div className="text-sm text-muted-foreground">
-                          {t("failover.task.no_execution", { defaultValue: "No execution recorded yet." })}
+                    <div className="min-w-0 space-y-1">
+                      <div className="flex items-center gap-2">
+                        <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+                          {t("failover.table.latest", { defaultValue: "Latest execution" })}
                         </div>
-                      )}
-                    </TaskMetricCard>
+                        {latestExecution ? (
+                          <Badge variant={getStatusVariant(latestExecution.status, "execution")}>
+                            {getStatusLabel(t, latestExecution.status)}
+                          </Badge>
+                        ) : null}
+                      </div>
+                      <div
+                        className={cn(
+                          "truncate text-sm",
+                          latestExecution?.error_message ? "text-red-600 dark:text-red-300" : "text-slate-900 dark:text-slate-50",
+                        )}
+                        title={latestExecution?.error_message || latestExecutionSummary}
+                      >
+                        {latestExecutionSummary}
+                      </div>
+                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                        <span>{t("failover.table.cooldown", { defaultValue: "Cooldown" })}: {cooldownSummary}</span>
+                        {latestExecution ? (
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="ghost"
+                            className="h-auto px-0 text-xs"
+                            onClick={() => openExecutionDialog(latestExecution.id, task.name)}
+                          >
+                            <Eye className="size-3.5" />
+                            {t("failover.table.view_latest", { defaultValue: "View details" })}
+                          </Button>
+                        ) : null}
+                      </div>
+                    </div>
 
-                    <TaskMetricCard label={t("failover.table.cooldown", { defaultValue: "Cooldown" })}>
-                      <div className="text-lg font-semibold text-slate-900 dark:text-slate-50">
-                        {task.cooldown_remaining_seconds > 0
-                          ? formatDurationSeconds(task.cooldown_remaining_seconds, t)
-                          : t("failover.cooldown.ready", { defaultValue: "Ready" })}
-                      </div>
-                      <div className="text-xs text-muted-foreground">
-                        {task.next_eligible_at
-                          ? formatDateTime(task.next_eligible_at)
-                          : t("failover.cooldown.immediate", { defaultValue: "Can run immediately." })}
-                      </div>
-                      <div className="text-xs text-muted-foreground">
-                        {t("failover.table.plans", { defaultValue: "Plans" })}: {task.plans.length}
-                      </div>
-                      <div className="text-xs text-muted-foreground">
-                        {latestSummary || "-"}
-                      </div>
-                    </TaskMetricCard>
-                  </CardContent>
+                    <div className="flex flex-wrap gap-2 lg:justify-end">
+                      <Button type="button" size="sm" variant="outline" onClick={() => void openEditDialog(task)} disabled={taskBusy || taskRunning}>
+                        {taskBusy ? <LoaderCircle className="size-4 animate-spin" /> : <PencilLine className="size-4" />}
+                        {t("common.edit", { defaultValue: "Edit" })}
+                      </Button>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        onClick={() => void handleRunTask(task)}
+                        disabled={taskRunning || task.has_active_execution || !task.enabled}
+                      >
+                        {taskRunning ? <LoaderCircle className="size-4 animate-spin" /> : <Play className="size-4" />}
+                        {requiresInitialization
+                          ? t("failover.actions.initialize", { defaultValue: "Initialize" })
+                          : t("failover.actions.run", { defaultValue: "Run" })}
+                      </Button>
+                      <Button type="button" size="sm" variant="outline" onClick={() => void handleToggleTask(task)} disabled={taskBusy || taskRunning}>
+                        {task.enabled
+                          ? t("failover.actions.disable", { defaultValue: "Disable" })
+                          : t("failover.actions.enable", { defaultValue: "Enable" })}
+                      </Button>
+                      <Button type="button" size="sm" variant="outline" onClick={() => setDeleteTarget(task)} disabled={taskBusy || taskRunning}>
+                        <Trash2 className="size-4" />
+                        {t("common.delete", { defaultValue: "Delete" })}
+                      </Button>
+                    </div>
+                  </div>
                 </Card>
               );
             })}

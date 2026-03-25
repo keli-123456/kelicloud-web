@@ -560,7 +560,12 @@ const Layout = ({
 }) => {
   const { nodeDetail, isLoading, error, refresh } = useNodeDetails();
   const { call } = useRPC2Call();
-  const { settings, refetch: refetchSettings } = useSettings();
+  const {
+    settings,
+    loading: settingsLoading,
+    error: settingsError,
+    refetch: refetchSettings,
+  } = useSettings();
   const [liveByNode, setLiveByNode] = useState<Record<string, NodeLiveSnapshot>>(
     {}
   );
@@ -676,6 +681,8 @@ const Layout = ({
         liveLoaded={liveLoaded}
         liveError={liveError}
         settings={settings}
+        settingsLoading={settingsLoading}
+        settingsError={settingsError}
         platformAdmin={platformAdmin}
         scopeUsers={scopeUsers}
         userSearchQuery={userSearchQuery}
@@ -954,6 +961,8 @@ const Header = ({
   liveLoaded,
   liveError,
   settings,
+  settingsLoading,
+  settingsError,
   platformAdmin,
   scopeUsers,
   userSearchQuery,
@@ -968,6 +977,8 @@ const Header = ({
   liveLoaded: boolean;
   liveError: string | null;
   settings: SettingsResponse;
+  settingsLoading: boolean;
+  settingsError: string | null;
   platformAdmin: boolean;
   scopeUsers: AdminScopedUser[];
   userSearchQuery: string;
@@ -1136,19 +1147,27 @@ const Header = ({
           )}
           </div>
           <div className="text-sm text-slate-500 dark:text-slate-400">
-            {cnConnectivityConfigured
-              ? t("admin.nodeTable.cnConnectivitySummary", {
-                  summary: cnConnectivitySummary,
-                  defaultValue: "CN connectivity probe: {{summary}}",
+            {settingsLoading
+              ? t("admin.nodeTable.cnConnectivityLoading", {
+                  defaultValue: "Loading CN connectivity probe settings...",
                 })
-              : cnConnectivityEnabled
-                ? t("admin.nodeTable.cnConnectivityMissingTarget", {
-                    defaultValue:
-                      "CN connectivity probe is enabled, but no targets are configured yet.",
+              : settingsError
+                ? t("admin.nodeTable.cnConnectivityLoadFailed", {
+                    defaultValue: "Failed to load CN connectivity probe settings.",
                   })
-                : t("admin.nodeTable.cnConnectivityDisabledMessage", {
-                    defaultValue: "CN connectivity probe is disabled.",
-                  })}
+                : cnConnectivityConfigured
+                  ? t("admin.nodeTable.cnConnectivitySummary", {
+                      summary: cnConnectivitySummary,
+                      defaultValue: "CN connectivity probe: {{summary}}",
+                    })
+                  : cnConnectivityEnabled
+                    ? t("admin.nodeTable.cnConnectivityMissingTarget", {
+                        defaultValue:
+                          "CN connectivity probe is enabled, but no targets are configured yet.",
+                      })
+                    : t("admin.nodeTable.cnConnectivityDisabledMessage", {
+                        defaultValue: "CN connectivity probe is disabled.",
+                      })}
           </div>
         </div>
 

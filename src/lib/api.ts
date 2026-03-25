@@ -25,6 +25,21 @@ export interface SettingsResponse {
   [key: string]: any;
 }
 
+type UpdateSettingsEnvelope = {
+  status?: string;
+  message?: string;
+  data?: {
+    updated_user_keys?: Record<string, unknown>;
+    updated_system_keys?: string[];
+    ignored_system_keys?: string[];
+    ignored_unknown_keys?: string[];
+  };
+  updated_user_keys?: Record<string, unknown>;
+  updated_system_keys?: string[];
+  ignored_system_keys?: string[];
+  ignored_unknown_keys?: string[];
+};
+
 const DEFAULT_SETTINGS: SettingsResponse = {
   sitename: "",
   description: "",
@@ -101,10 +116,30 @@ export async function updateSettings(
       body: JSON.stringify(settings),
     });
 
+    const payload = (await response.json().catch(() => ({}))) as UpdateSettingsEnvelope;
+
     if (!response.ok) {
-      const errorData = await response.json();
-      console.log("Error response data:", errorData.message);
-      throw new Error(`${errorData["message"]}`);
+      console.log("Error response data:", payload.message);
+      throw new Error(`${payload.message || `HTTP error! status: ${response.status}`}`);
+    }
+
+    const ignoredSystemKeys = Array.isArray(payload.data?.ignored_system_keys)
+      ? payload.data?.ignored_system_keys
+      : Array.isArray(payload.ignored_system_keys)
+        ? payload.ignored_system_keys
+        : [];
+    const ignoredUnknownKeys = Array.isArray(payload.data?.ignored_unknown_keys)
+      ? payload.data?.ignored_unknown_keys
+      : Array.isArray(payload.ignored_unknown_keys)
+        ? payload.ignored_unknown_keys
+        : [];
+    const requestedKeys = Object.keys(settings);
+    const ignoredRequestedKeys = requestedKeys.filter(
+      (key) => ignoredSystemKeys.includes(key) || ignoredUnknownKeys.includes(key),
+    );
+
+    if (ignoredRequestedKeys.length > 0) {
+      throw new Error(`The server ignored these settings: ${ignoredRequestedKeys.join(", ")}`);
     }
   } catch (error) {
     console.error("Failed to update settings:", error);

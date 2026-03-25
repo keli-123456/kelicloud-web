@@ -521,6 +521,8 @@ function normalizeExecution(execution: unknown): FailoverExecution {
   };
 }
 
+const FAILOVER_REQUEST_TIMEOUT_MS = 30_000;
+
 async function requestEnvelope<T>(path: string, init?: RequestInit): Promise<T> {
   const method = (init?.method || "GET").toUpperCase();
   const requestUrl =
@@ -528,18 +530,32 @@ async function requestEnvelope<T>(path: string, init?: RequestInit): Promise<T> 
       ? `${path}${path.includes("?") ? "&" : "?"}__ts=${Date.now()}`
       : path;
 
-  const response = await fetch(requestUrl, {
-    credentials: "same-origin",
-    cache: "no-store",
-    headers: {
-      Accept: "application/json",
-      "Cache-Control": "no-cache, no-store, max-age=0",
-      Pragma: "no-cache",
-      "X-Requested-With": "XMLHttpRequest",
-      ...(init?.headers || {}),
-    },
-    ...init,
-  });
+  const controller = new AbortController();
+  const timeoutID = setTimeout(() => controller.abort(), FAILOVER_REQUEST_TIMEOUT_MS);
+
+  let response: Response;
+  try {
+    response = await fetch(requestUrl, {
+      credentials: "same-origin",
+      cache: "no-store",
+      headers: {
+        Accept: "application/json",
+        "Cache-Control": "no-cache, no-store, max-age=0",
+        Pragma: "no-cache",
+        "X-Requested-With": "XMLHttpRequest",
+        ...(init?.headers || {}),
+      },
+      ...init,
+      signal: controller.signal,
+    });
+  } catch (error) {
+    if (error instanceof DOMException && error.name === "AbortError") {
+      throw new FailoverApiError(`Request timed out while loading ${path}`, 408);
+    }
+    throw error;
+  } finally {
+    clearTimeout(timeoutID);
+  }
 
   const text = await response.text();
   const contentType = response.headers.get("content-type") || "";
@@ -577,16 +593,30 @@ async function requestEnvelope<T>(path: string, init?: RequestInit): Promise<T> 
 }
 
 async function requestRaw<T>(path: string): Promise<T> {
-  const response = await fetch(`${path}${path.includes("?") ? "&" : "?"}__ts=${Date.now()}`, {
-    credentials: "same-origin",
-    cache: "no-store",
-    headers: {
-      Accept: "application/json",
-      "Cache-Control": "no-cache, no-store, max-age=0",
-      Pragma: "no-cache",
-      "X-Requested-With": "XMLHttpRequest",
-    },
-  });
+  const controller = new AbortController();
+  const timeoutID = setTimeout(() => controller.abort(), FAILOVER_REQUEST_TIMEOUT_MS);
+
+  let response: Response;
+  try {
+    response = await fetch(`${path}${path.includes("?") ? "&" : "?"}__ts=${Date.now()}`, {
+      credentials: "same-origin",
+      cache: "no-store",
+      headers: {
+        Accept: "application/json",
+        "Cache-Control": "no-cache, no-store, max-age=0",
+        Pragma: "no-cache",
+        "X-Requested-With": "XMLHttpRequest",
+      },
+      signal: controller.signal,
+    });
+  } catch (error) {
+    if (error instanceof DOMException && error.name === "AbortError") {
+      throw new FailoverApiError(`Request timed out while loading ${path}`, 408);
+    }
+    throw error;
+  } finally {
+    clearTimeout(timeoutID);
+  }
 
   const text = await response.text();
   if (!response.ok) {
@@ -706,6 +736,7 @@ export async function getFailoverPlanCatalog(args: {
   action_type?: string;
   service?: string;
   region?: string;
+  mode?: "regions" | "full";
 }): Promise<FailoverPlanCatalog> {
   const params = new URLSearchParams();
   params.set("provider", args.provider);
@@ -718,6 +749,9 @@ export async function getFailoverPlanCatalog(args: {
   }
   if (args.region) {
     params.set("region", args.region);
+  }
+  if (args.mode) {
+    params.set("mode", args.mode);
   }
 
   const data = await requestEnvelope<unknown>(`/api/admin/failover/plans/catalog?${params.toString()}`);

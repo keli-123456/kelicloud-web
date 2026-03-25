@@ -89,7 +89,7 @@ import {
   type CloudInstanceShareRecord,
 } from "@/lib/cloudShare";
 
-type CreateDropletFormState = Omit<CreateDigitalOceanDropletInput, "tags"> & {
+type CreateDropletFormState = Omit<CreateDigitalOceanDropletInput, "tags" | "root_password_mode"> & {
   tagsText: string;
 };
 
@@ -121,7 +121,6 @@ const initialCreateForm: CreateDropletFormState = {
   monitoring: true,
   user_data: "",
   vpc_uuid: "",
-  root_password_mode: "random",
   root_password: "",
   auto_connect: true,
   auto_connect_group: "",
@@ -155,6 +154,10 @@ function parseTags(tagsText: string) {
     .split(/[\n,]/)
     .map((entry) => entry.trim())
     .filter(Boolean);
+}
+
+function getCreateRootPasswordMode(rootPassword: string): "custom" | "random" {
+  return rootPassword.trim() ? "custom" : "random";
 }
 
 function getDropletPrimaryIp(droplet: DigitalOceanDroplet) {
@@ -228,10 +231,6 @@ function getDigitalOceanStatusSummary(
     return t("cloud.password.locked", "Locked");
   }
   return normalizedMessage;
-}
-
-function hasSharedManagedSSHKey(tokens: DigitalOceanTokenRecord[]) {
-  return tokens.some((token) => token.managed_ssh_key_ready);
 }
 
 function formatMonthlyPrice(droplet: DigitalOceanDroplet) {
@@ -373,6 +372,7 @@ export default function DigitalOceanPanel() {
   const [error, setError] = React.useState("");
   const [createOpen, setCreateOpen] = React.useState(false);
   const [createSubmitting, setCreateSubmitting] = React.useState(false);
+  const [createCatalogLoading, setCreateCatalogLoading] = React.useState(false);
   const [resourcesLoaded, setResourcesLoaded] = React.useState(false);
   const [createForm, setCreateForm] =
     React.useState<CreateDropletFormState>(initialCreateForm);
@@ -500,19 +500,36 @@ export default function DigitalOceanPanel() {
     });
   }, [tokenPool]);
 
+  const ensureCreateCatalogLoaded = React.useCallback(async () => {
+    if (catalog) {
+      return catalog;
+    }
+
+    setCreateCatalogLoading(true);
+    try {
+      const nextCatalog = await getDigitalOceanCatalog();
+      setCatalog(nextCatalog);
+      setError("");
+      return nextCatalog;
+    } catch (catalogError) {
+      toast.error(toErrorMessage(catalogError));
+      return null;
+    } finally {
+      setCreateCatalogLoading(false);
+    }
+  }, [catalog]);
+
   if (initializing) {
     return <Loading text="" />;
   }
 
   const activeToken = getActiveToken(tokenPool);
   const defaultCreateGroup = getDefaultAutoConnectGroup("digitalocean", activeToken?.name || "");
-  const connected = Boolean(account && activeToken);
   const passwordStorageEnabled = Boolean(tokenPool?.password_storage_enabled);
   const tokenRows = tokenPool?.tokens ?? [];
   const selectedTokens = tokenRows.filter((token) => selectedTokenIds.includes(token.id));
   const allTokensSelected = tokenRows.length > 0 && selectedTokenIds.length === tokenRows.length;
   const someTokensSelected = selectedTokenIds.length > 0 && selectedTokenIds.length < tokenRows.length;
-  const sharedManagedKeyReady = hasSharedManagedSSHKey(tokenRows);
   const accountStatusSummary = getDigitalOceanStatusSummary(
     account?.status || "",
     account?.status_message || "",
@@ -853,7 +870,7 @@ export default function DigitalOceanPanel() {
   const handleCreateDroplet = async () => {
     setCreateSubmitting(true);
     try {
-      const passwordMode = createForm.root_password_mode;
+      const passwordMode = getCreateRootPasswordMode(createForm.root_password);
       const payload: CreateDigitalOceanDropletInput = {
         name: createForm.name,
         region: createForm.region,
@@ -867,8 +884,8 @@ export default function DigitalOceanPanel() {
         vpc_uuid: createForm.vpc_uuid,
         root_password_mode: passwordMode,
         root_password: createForm.root_password,
-        auto_connect: createForm.auto_connect,
-        auto_connect_group: createForm.auto_connect_group,
+        auto_connect: true,
+        auto_connect_group: createForm.auto_connect_group || defaultCreateGroup,
       };
 
       const result = await createDigitalOceanDroplet(payload);
@@ -943,12 +960,16 @@ export default function DigitalOceanPanel() {
   const sizes = catalog?.sizes ?? [];
   const images = catalog?.images ?? [];
 
-  const handleOpenCreateDialog = () => {
+  const handleOpenCreateDialog = async () => {
     setCreateForm((previous) => ({
       ...previous,
       auto_connect: true,
       auto_connect_group: defaultCreateGroup,
     }));
+    const nextCatalog = await ensureCreateCatalogLoaded();
+    if (!nextCatalog) {
+      return;
+    }
     setCreateOpen(true);
   };
 
@@ -970,8 +991,10 @@ export default function DigitalOceanPanel() {
             </Button>
             <Button
               size="1"
-              onClick={handleOpenCreateDialog}
-              disabled={!connected || !catalog}
+              onClick={() => {
+                void handleOpenCreateDialog();
+              }}
+              disabled={!activeToken || createCatalogLoading}
             >
               <Plus className="mr-2 h-4 w-4" />
               {t("cloud.create", "Create Droplet")}
@@ -1005,15 +1028,6 @@ export default function DigitalOceanPanel() {
             "Set KOMARI_CLOUD_SECRET_KEY on the server to save root passwords for later viewing in the Droplet list.",
           )}
         />
-      ) : null}
-
-      {sharedManagedKeyReady ? (
-        <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-300">
-          {t(
-            "cloud.tokens.shared_managed_key_help",
-            "Komari now reuses one shared managed SSH key across DigitalOcean credentials. Each DigitalOcean account registers the same public key on first use, so every credential can launch Droplets without generating a separate fallback key.",
-          )}
-        </div>
       ) : null}
 
       <div className={`order-2 ${cloudPanelCardClassName}`}>
@@ -1562,31 +1576,19 @@ export default function DigitalOceanPanel() {
             </Select.Root>
 
             <label className={cloudPanelFieldLabelClassName}>
-              {t("cloud.form.root_access", "Root Access")}
+              {t("cloud.form.root_password", "Root Password")}
             </label>
-            <Select.Root
-              value={createForm.root_password_mode}
-              onValueChange={(value) =>
+            <TextField.Root
+              type="password"
+              value={createForm.root_password}
+              placeholder={t("cloud.form.root_password_placeholder", "Enter a root password")}
+              onChange={(event) =>
                 setCreateForm((previous) => ({
                   ...previous,
-                  root_password_mode: value as "custom" | "random",
-                  root_password: value === "custom" ? previous.root_password : "",
+                  root_password: event.target.value,
                 }))
               }
-            >
-              <Select.Trigger
-                placeholder={t("cloud.form.root_access_placeholder", "Select access mode")}
-              />
-              <Select.Content>
-                <Select.Item value="random">
-                  {t("cloud.form.root_access_modes.random", "Random root password")}
-                </Select.Item>
-                <Select.Item value="custom">
-                  {t("cloud.form.root_access_modes.custom", "Custom root password")}
-                </Select.Item>
-              </Select.Content>
-            </Select.Root>
-
+            />
             <WarningAlert
               tone="info"
               description={t(
@@ -1594,126 +1596,11 @@ export default function DigitalOceanPanel() {
                 "Komari will ensure a managed SSH key exists for this token, attach it to the Droplet, and run a startup script to set the root password and enable password login.",
               )}
             />
-
-            {createForm.root_password_mode === "custom" ? (
-              <>
-                <label className={cloudPanelFieldLabelClassName}>
-                  {t("cloud.form.root_password", "Root Password")}
-                </label>
-                <TextField.Root
-                  type="password"
-                  value={createForm.root_password}
-                  placeholder={t("cloud.form.root_password_placeholder", "Enter a root password")}
-                  onChange={(event) =>
-                    setCreateForm((previous) => ({
-                      ...previous,
-                      root_password: event.target.value,
-                    }))
-                  }
-                />
-              </>
-            ) : null}
-
-            {createForm.root_password_mode === "random" ? (
-              <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-300">
-                {t(
-                  "cloud.form.root_password_random_help",
-                  "A random root password will be generated on the server and shown once after creation succeeds.",
-                )}
-              </div>
-            ) : null}
-
-            <label className={cloudPanelFieldLabelClassName}>
-              {t("cloud.form.tags", "Tags")}
-            </label>
-            <TextField.Root
-              value={createForm.tagsText}
-              placeholder="prod, web"
-              onChange={(event) =>
-                setCreateForm((previous) => ({
-                  ...previous,
-                  tagsText: event.target.value,
-                }))
-              }
-            />
-
-            <label className={cloudPanelFieldLabelClassName}>
-              {t("cloud.form.vpc_uuid", "VPC UUID")}
-            </label>
-            <TextField.Root
-              value={createForm.vpc_uuid}
-              placeholder={t("cloud.form.vpc_uuid_placeholder", "Optional")}
-              onChange={(event) =>
-                setCreateForm((previous) => ({
-                  ...previous,
-                  vpc_uuid: event.target.value,
-                }))
-              }
-            />
-
-            <label className={cloudPanelFieldLabelClassName}>
-              {t("cloud.form.user_data", "Cloud-Init / User Data")}
-            </label>
-            <WarningAlert
-              tone="warning"
-              description={t(
-                "cloud.form.user_data_password_help",
-                "When root password mode is enabled, this field is appended as shell commands. #cloud-config is not supported in this mode.",
+            <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-300">
+              {t(
+                "cloud.form.root_password_random_help",
+                "A random root password will be generated on the server and shown once after creation succeeds.",
               )}
-            />
-            <TextArea
-              rows={6}
-              value={createForm.user_data}
-              placeholder="#cloud-config"
-              onChange={(event) =>
-                setCreateForm((previous) => ({
-                  ...previous,
-                  user_data: event.target.value,
-                }))
-              }
-            />
-
-            <div className={cloudPanelSectionClassName}>
-              <label className={`flex items-start gap-2 ${cloudPanelBodyTextClassName}`}>
-                <Checkbox
-                  checked={createForm.auto_connect}
-                  onCheckedChange={(checked) =>
-                    setCreateForm((previous) => ({
-                      ...previous,
-                      auto_connect: Boolean(checked),
-                      auto_connect_group: previous.auto_connect_group || defaultCreateGroup,
-                    }))
-                  }
-                />
-                  <span>
-                    <span className="block font-medium text-slate-900 dark:text-slate-100">
-                      {t("cloud.form.auto_connect", "Auto-connect to Komari on first boot")}
-                    </span>
-                    <span className="mt-1 block text-xs text-slate-500 dark:text-slate-400">
-                      {t(
-                        "cloud.form.auto_connect_help",
-                        "Requires Auto Discovery Key. When enabled, shell user_data is injected and #cloud-config is not supported.",
-                    )}
-                  </span>
-                </span>
-              </label>
-              <div className="mt-3">
-                <label className={cloudPanelFieldLabelClassName}>
-                  {t("cloud.form.auto_connect_group", "Auto-connect group")}
-                </label>
-                <TextField.Root
-                  className="mt-2"
-                  value={createForm.auto_connect_group}
-                  disabled={!createForm.auto_connect}
-                  placeholder={t("cloud.form.auto_connect_group_placeholder", "digitalocean/Primary Token")}
-                  onChange={(event) =>
-                    setCreateForm((previous) => ({
-                      ...previous,
-                      auto_connect_group: event.target.value,
-                    }))
-                  }
-                />
-              </div>
             </div>
 
             <div className={cloudPanelSectionClassName}>
@@ -1777,8 +1664,7 @@ export default function DigitalOceanPanel() {
                   !createForm.name ||
                   !createForm.region ||
                   !createForm.size ||
-                  !createForm.image ||
-                  (createForm.root_password_mode === "custom" && !createForm.root_password)
+                  !createForm.image
                 }
               >
                 {createSubmitting

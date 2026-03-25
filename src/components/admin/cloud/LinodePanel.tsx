@@ -92,7 +92,7 @@ import {
   type CloudInstanceShareRecord,
 } from "@/lib/cloudShare";
 
-type CreateFormState = Omit<CreateLinodeInstanceInput, "tags"> & {
+type CreateFormState = Omit<CreateLinodeInstanceInput, "tags" | "root_password_mode"> & {
   tagsText: string;
 };
 
@@ -130,7 +130,6 @@ const initialCreateForm: CreateFormState = {
   booted: true,
   tagsText: "",
   user_data: "",
-  root_password_mode: "random",
   root_password: "",
   auto_connect: true,
   auto_connect_group: "",
@@ -153,6 +152,10 @@ function getDefaultAutoConnectGroup(provider: string, credentialName: string) {
   const normalizedProvider = provider.trim().toLowerCase() || "cloud";
   const normalizedCredentialName = credentialName.trim() || "default";
   return `${normalizedProvider}/${normalizedCredentialName}`;
+}
+
+function getCreateRootPasswordMode(rootPassword: string): "custom" | "random" {
+  return rootPassword.trim() ? "custom" : "random";
 }
 
 function findImportSeparator(line: string) {
@@ -355,6 +358,7 @@ export default function LinodePanel() {
   const [error, setError] = React.useState("");
   const [createOpen, setCreateOpen] = React.useState(false);
   const [createSubmitting, setCreateSubmitting] = React.useState(false);
+  const [createCatalogLoading, setCreateCatalogLoading] = React.useState(false);
   const [resourcesLoaded, setResourcesLoaded] = React.useState(false);
   const [createForm, setCreateForm] = React.useState<CreateFormState>(initialCreateForm);
   const activeToken = getActiveToken(tokenPool);
@@ -471,7 +475,6 @@ export default function LinodePanel() {
     });
   }, [tokenPool]);
 
-  const connected = Boolean(account && activeToken);
   const passwordStorageEnabled = Boolean(tokenPool?.password_storage_enabled);
   const tokenRows = tokenPool?.tokens ?? [];
   const selectedTokens = tokenRows.filter((token) => selectedTokenIds.includes(token.id));
@@ -818,6 +821,7 @@ export default function LinodePanel() {
   const handleCreateInstance = async () => {
     setCreateSubmitting(true);
     try {
+      const passwordMode = getCreateRootPasswordMode(createForm.root_password);
       const payload: CreateLinodeInstanceInput = {
         label: createForm.label,
         region: createForm.region,
@@ -828,10 +832,10 @@ export default function LinodePanel() {
         booted: createForm.booted,
         tags: parseTags(createForm.tagsText),
         user_data: createForm.user_data,
-        root_password_mode: createForm.root_password_mode,
+        root_password_mode: passwordMode,
         root_password: createForm.root_password,
-        auto_connect: createForm.auto_connect,
-        auto_connect_group: createForm.auto_connect_group,
+        auto_connect: true,
+        auto_connect_group: createForm.auto_connect_group || defaultCreateGroup,
       };
       const result = await createLinodeInstance(payload);
       toast.success(t("cloud.providers.linode.create_success", "Linode instance created"));
@@ -839,10 +843,10 @@ export default function LinodePanel() {
       setCreatedPassword({
         instance: result.instance,
         rootPassword:
-          createForm.root_password_mode === "random"
+          passwordMode === "random"
             ? result.generated_password
             : createForm.root_password,
-        passwordMode: createForm.root_password_mode,
+        passwordMode,
         passwordSaved: result.password_saved,
         passwordSaveError: result.password_save_error,
       });
@@ -921,12 +925,35 @@ export default function LinodePanel() {
     }
   };
 
-  const handleOpenCreateDialog = () => {
+  const ensureCreateCatalogLoaded = React.useCallback(async () => {
+    if (catalog) {
+      return catalog;
+    }
+
+    setCreateCatalogLoading(true);
+    try {
+      const nextCatalog = await getLinodeCatalog();
+      setCatalog(nextCatalog);
+      setError("");
+      return nextCatalog;
+    } catch (catalogError) {
+      toast.error(toErrorMessage(catalogError));
+      return null;
+    } finally {
+      setCreateCatalogLoading(false);
+    }
+  }, [catalog]);
+
+  const handleOpenCreateDialog = async () => {
     setCreateForm((previous) => ({
       ...previous,
       auto_connect: true,
       auto_connect_group: defaultCreateGroup,
     }));
+    const nextCatalog = await ensureCreateCatalogLoaded();
+    if (!nextCatalog) {
+      return;
+    }
     setCreateOpen(true);
   };
 
@@ -949,7 +976,13 @@ export default function LinodePanel() {
               <RefreshCw className="mr-2 h-4 w-4" />
               {t("cloud.refresh", "Refresh")}
             </Button>
-            <Button size="1" onClick={handleOpenCreateDialog} disabled={!connected || !catalog}>
+            <Button
+              size="1"
+              onClick={() => {
+                void handleOpenCreateDialog();
+              }}
+              disabled={!activeToken || createCatalogLoading}
+            >
               <Plus className="mr-2 h-4 w-4" />
               {t("cloud.providers.linode.create", "Create Instance")}
             </Button>
@@ -1469,28 +1502,14 @@ export default function LinodePanel() {
             </Select.Root>
 
             <label className={cloudPanelFieldLabelClassName}>
-              {t("cloud.form.root_access", "Root Access")}
+              {t("cloud.form.root_password", "Root Password")}
             </label>
-            <Select.Root
-              value={createForm.root_password_mode}
-              onValueChange={(value) =>
-                setCreateForm((previous) => ({
-                  ...previous,
-                  root_password_mode: value as "custom" | "random",
-                  root_password: value === "custom" ? previous.root_password : "",
-                }))
-              }
-            >
-              <Select.Trigger placeholder={t("cloud.form.root_access_placeholder", "Select access mode")} />
-              <Select.Content>
-                <Select.Item value="custom">
-                  {t("cloud.form.root_access_modes.custom", "Custom root password")}
-                </Select.Item>
-                <Select.Item value="random">
-                  {t("cloud.form.root_access_modes.random", "Random root password")}
-                </Select.Item>
-              </Select.Content>
-            </Select.Root>
+            <TextField.Root
+              type="password"
+              value={createForm.root_password}
+              placeholder={t("cloud.form.root_password_placeholder", "Enter a root password")}
+              onChange={(event) => setCreateForm((previous) => ({ ...previous, root_password: event.target.value }))}
+            />
             <WarningAlert
               tone="info"
               description={t(
@@ -1498,88 +1517,11 @@ export default function LinodePanel() {
                 "Linode can create the instance directly with a root password. SSH keys are optional and only add extra login methods.",
               )}
             />
-
-            {createForm.root_password_mode === "custom" ? (
-              <>
-                <label className={cloudPanelFieldLabelClassName}>
-                  {t("cloud.form.root_password", "Root Password")}
-                </label>
-                <TextField.Root
-                  type="password"
-                  value={createForm.root_password}
-                  placeholder={t("cloud.form.root_password_placeholder", "Enter a root password")}
-                  onChange={(event) => setCreateForm((previous) => ({ ...previous, root_password: event.target.value }))}
-                />
-              </>
-            ) : (
-              <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-300">
-                {t(
-                  "cloud.form.root_password_random_help",
-                  "A random root password will be generated on the server and shown once after creation succeeds.",
-                )}
-              </div>
-            )}
-
-            <label className={cloudPanelFieldLabelClassName}>
-              {t("cloud.form.tags", "Tags")}
-            </label>
-            <TextField.Root
-              value={createForm.tagsText}
-              placeholder="prod, web"
-              onChange={(event) => setCreateForm((previous) => ({ ...previous, tagsText: event.target.value }))}
-            />
-
-            <label className={cloudPanelFieldLabelClassName}>
-              {t("cloud.form.user_data", "Cloud-Init / User Data")}
-            </label>
-            <TextArea
-              rows={6}
-              value={createForm.user_data}
-              placeholder="#!/bin/bash"
-              onChange={(event) => setCreateForm((previous) => ({ ...previous, user_data: event.target.value }))}
-            />
-
-            <div className={cloudPanelSectionClassName}>
-              <label className={`flex items-start gap-2 ${cloudPanelBodyTextClassName}`}>
-                <Checkbox
-                  checked={createForm.auto_connect}
-                  onCheckedChange={(checked) =>
-                    setCreateForm((previous) => ({
-                      ...previous,
-                      auto_connect: Boolean(checked),
-                      auto_connect_group: previous.auto_connect_group || defaultCreateGroup,
-                    }))
-                  }
-                />
-                  <span>
-                    <span className="block font-medium text-slate-900 dark:text-slate-100">
-                      {t("cloud.form.auto_connect", "Auto-connect to Komari on first boot")}
-                    </span>
-                    <span className="mt-1 block text-xs text-slate-500 dark:text-slate-400">
-                      {t(
-                        "cloud.form.auto_connect_help",
-                        "Requires Auto Discovery Key. When enabled, shell user_data is injected and #cloud-config is not supported.",
-                    )}
-                  </span>
-                </span>
-              </label>
-              <div className="mt-3">
-                <label className={cloudPanelFieldLabelClassName}>
-                  {t("cloud.form.auto_connect_group", "Auto-connect group")}
-                </label>
-                <TextField.Root
-                  className="mt-2"
-                  value={createForm.auto_connect_group}
-                  disabled={!createForm.auto_connect}
-                  placeholder={t("cloud.form.auto_connect_group_placeholder", "linode/Primary Token")}
-                  onChange={(event) =>
-                    setCreateForm((previous) => ({
-                      ...previous,
-                      auto_connect_group: event.target.value,
-                    }))
-                  }
-                />
-              </div>
+            <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-300">
+              {t(
+                "cloud.form.root_password_random_help",
+                "A random root password will be generated on the server and shown once after creation succeeds.",
+              )}
             </div>
 
             <div className={cloudPanelSectionClassName}>
@@ -1662,8 +1604,7 @@ export default function LinodePanel() {
                   !createForm.label ||
                   !createForm.region ||
                   !createForm.type ||
-                  !createForm.image ||
-                  (createForm.root_password_mode === "custom" && !createForm.root_password)
+                  !createForm.image
                 }
               >
                 {createSubmitting

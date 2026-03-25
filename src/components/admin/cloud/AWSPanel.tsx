@@ -421,10 +421,12 @@ export default function AWSPanel() {
   const [lightsailError, setLightsailError] = React.useState("");
   const [createOpen, setCreateOpen] = React.useState(false);
   const [createSubmitting, setCreateSubmitting] = React.useState(false);
+  const [ec2CatalogLoading, setEc2CatalogLoading] = React.useState(false);
   const [resourcesLoaded, setResourcesLoaded] = React.useState(false);
   const [createForm, setCreateForm] = React.useState<CreateFormState>(initialCreateForm);
   const [lightsailCreateOpen, setLightsailCreateOpen] = React.useState(false);
   const [lightsailCreateSubmitting, setLightsailCreateSubmitting] = React.useState(false);
+  const [lightsailCatalogLoading, setLightsailCatalogLoading] = React.useState(false);
   const [lightsailCreateForm, setLightsailCreateForm] = React.useState<LightsailCreateFormState>(
     initialLightsailCreateForm,
   );
@@ -588,7 +590,6 @@ export default function AWSPanel() {
   const someCredentialsSelected =
     selectedCredentialIds.length > 0 && selectedCredentialIds.length < credentialRows.length;
   const defaultCreateGroup = getDefaultAutoConnectGroup("aws", activeCredential?.name || "");
-  const connected = Boolean(account && activeCredential);
   const activeQuota = account?.ec2_quota || activeCredential?.ec2_quota || null;
   const activeQuotaError = account?.ec2_quota_error || activeCredential?.ec2_quota_error || "";
   const selectedSubnetVpcId = getSubnetVpcId(catalog?.subnets || [], createForm.subnet_id);
@@ -831,8 +832,8 @@ export default function AWSPanel() {
         user_data: createForm.user_data,
         assign_public_ip: createForm.assign_public_ip,
         tags: parseTags(createForm.tagsText),
-        auto_connect: createForm.auto_connect,
-        auto_connect_group: createForm.auto_connect_group,
+        auto_connect: true,
+        auto_connect_group: createForm.auto_connect_group || defaultCreateGroup,
       };
       await createAWSInstance(payload);
       toast.success(t("cloud.providers.aws.create_success", "EC2 instance launch submitted"));
@@ -864,8 +865,8 @@ export default function AWSPanel() {
         user_data: lightsailCreateForm.user_data || "",
         ip_address_type: lightsailCreateForm.ip_address_type || "dualstack",
         tags: parseTags(lightsailCreateForm.tagsText),
-        auto_connect: lightsailCreateForm.auto_connect,
-        auto_connect_group: lightsailCreateForm.auto_connect_group,
+        auto_connect: true,
+        auto_connect_group: lightsailCreateForm.auto_connect_group || defaultCreateGroup,
       };
       await createAWSLightsailInstance(payload);
       toast.success(t("cloud.providers.aws.lightsail_create_success", "Lightsail instance launch submitted"));
@@ -886,21 +887,67 @@ export default function AWSPanel() {
     }
   };
 
-  const handleOpenCreateDialog = () => {
+  const ensureEc2CatalogLoaded = React.useCallback(async () => {
+    if (catalog) {
+      return catalog;
+    }
+
+    setEc2CatalogLoading(true);
+    try {
+      const nextCatalog = await getAWSCatalog();
+      setCatalog(nextCatalog);
+      setError("");
+      return nextCatalog;
+    } catch (catalogError) {
+      toast.error(toErrorMessage(catalogError));
+      return null;
+    } finally {
+      setEc2CatalogLoading(false);
+    }
+  }, [catalog]);
+
+  const ensureLightsailCatalogLoaded = React.useCallback(async () => {
+    if (lightsailCatalog) {
+      return lightsailCatalog;
+    }
+
+    setLightsailCatalogLoading(true);
+    try {
+      const nextLightsailCatalog = await getAWSLightsailCatalog();
+      setLightsailCatalog(nextLightsailCatalog);
+      setLightsailError("");
+      return nextLightsailCatalog;
+    } catch (catalogError) {
+      toast.error(toErrorMessage(catalogError));
+      return null;
+    } finally {
+      setLightsailCatalogLoading(false);
+    }
+  }, [lightsailCatalog]);
+
+  const handleOpenCreateDialog = async () => {
     setCreateForm((previous) => ({
       ...previous,
       auto_connect: true,
       auto_connect_group: defaultCreateGroup,
     }));
+    const nextCatalog = await ensureEc2CatalogLoaded();
+    if (!nextCatalog) {
+      return;
+    }
     setCreateOpen(true);
   };
 
-  const handleOpenLightsailCreateDialog = () => {
+  const handleOpenLightsailCreateDialog = async () => {
     setLightsailCreateForm((previous) => ({
       ...previous,
       auto_connect: true,
       auto_connect_group: defaultCreateGroup,
     }));
+    const nextCatalog = await ensureLightsailCatalogLoaded();
+    if (!nextCatalog) {
+      return;
+    }
     setLightsailCreateOpen(true);
   };
 
@@ -1162,12 +1209,12 @@ export default function AWSPanel() {
               size="1"
               onClick={() => {
                 if (instanceView === "lightsail") {
-                  handleOpenLightsailCreateDialog();
+                  void handleOpenLightsailCreateDialog();
                   return;
                 }
-                handleOpenCreateDialog();
+                void handleOpenCreateDialog();
               }}
-              disabled={!connected || (instanceView === "lightsail" ? !lightsailCatalog : !catalog)}
+              disabled={!activeCredential || (instanceView === "lightsail" ? lightsailCatalogLoading : ec2CatalogLoading)}
             >
               <Plus className="mr-2 h-4 w-4" />
               {instanceView === "lightsail"
@@ -2004,76 +2051,6 @@ export default function AWSPanel() {
               </div>
             </div>
 
-            <label className={cloudPanelFieldLabelClassName}>
-              {t("cloud.form.tags", "Tags")}
-            </label>
-            <TextArea
-              rows={4}
-              value={createForm.tagsText}
-              placeholder={"env=prod\nteam=platform"}
-              onChange={(event) => setCreateForm((previous) => ({ ...previous, tagsText: event.target.value }))}
-            />
-
-            <label className={cloudPanelFieldLabelClassName}>
-              {t("cloud.form.user_data", "Cloud-Init / User Data")}
-            </label>
-            <WarningAlert
-              tone="info"
-              description={t(
-                "cloud.providers.aws.user_data_help",
-                "EC2 sends this field to cloud-init as-is. If Auto-connect is enabled, Komari appends bootstrap shell commands, so keep the payload shell-compatible.",
-              )}
-            />
-            <TextArea
-              rows={6}
-              value={createForm.user_data}
-              placeholder="#!/bin/bash"
-              onChange={(event) => setCreateForm((previous) => ({ ...previous, user_data: event.target.value }))}
-            />
-
-            <div className={cloudPanelSectionClassName}>
-              <label className={`flex items-start gap-2 ${cloudPanelBodyTextClassName}`}>
-                <Checkbox
-                  checked={createForm.auto_connect}
-                  onCheckedChange={(checked) =>
-                    setCreateForm((previous) => ({
-                      ...previous,
-                      auto_connect: Boolean(checked),
-                      auto_connect_group: previous.auto_connect_group || defaultCreateGroup,
-                    }))
-                  }
-                />
-                  <span>
-                    <span className="block font-medium text-slate-900 dark:text-slate-100">
-                      {t("cloud.form.auto_connect", "Auto-connect to Komari on first boot")}
-                    </span>
-                    <span className="mt-1 block text-xs text-slate-500 dark:text-slate-400">
-                      {t(
-                        "cloud.form.auto_connect_help",
-                        "Requires Auto Discovery Key. When enabled, shell user_data is injected and #cloud-config is not supported.",
-                    )}
-                  </span>
-                </span>
-              </label>
-              <div className="mt-3">
-                <label className={cloudPanelFieldLabelClassName}>
-                  {t("cloud.form.auto_connect_group", "Auto-connect group")}
-                </label>
-                <TextField.Root
-                  className="mt-2"
-                  value={createForm.auto_connect_group}
-                  disabled={!createForm.auto_connect}
-                  placeholder={t("cloud.form.auto_connect_group_placeholder", "aws/Primary Credential")}
-                  onChange={(event) =>
-                    setCreateForm((previous) => ({
-                      ...previous,
-                      auto_connect_group: event.target.value,
-                    }))
-                  }
-                />
-              </div>
-            </div>
-
             <label className={`flex items-center gap-2 ${cloudPanelBodyTextClassName}`}>
               <Checkbox
                 checked={createForm.assign_public_ip}
@@ -2224,80 +2201,6 @@ export default function AWSPanel() {
                 <Select.Item value="ipv6">ipv6</Select.Item>
               </Select.Content>
             </Select.Root>
-
-            <label className={cloudPanelFieldLabelClassName}>
-              {t("cloud.form.tags", "Tags")}
-            </label>
-            <TextArea
-              rows={4}
-              value={lightsailCreateForm.tagsText}
-              placeholder={"env=prod\nservice=web"}
-              onChange={(event) =>
-                setLightsailCreateForm((previous) => ({ ...previous, tagsText: event.target.value }))
-              }
-            />
-
-            <label className={cloudPanelFieldLabelClassName}>
-              {t("cloud.form.user_data", "Cloud-Init / User Data")}
-            </label>
-            <WarningAlert
-              tone="info"
-              description={t(
-                "cloud.providers.aws.lightsail_user_data_help",
-                "Lightsail runs user data only on first boot. If Auto-connect is enabled, Komari appends bootstrap shell commands to the same payload.",
-              )}
-            />
-            <TextArea
-              rows={6}
-              value={lightsailCreateForm.user_data || ""}
-              placeholder="#!/bin/bash"
-              onChange={(event) =>
-                setLightsailCreateForm((previous) => ({ ...previous, user_data: event.target.value }))
-              }
-            />
-
-            <div className={cloudPanelSectionClassName}>
-              <label className={`flex items-start gap-2 ${cloudPanelBodyTextClassName}`}>
-                <Checkbox
-                  checked={lightsailCreateForm.auto_connect}
-                  onCheckedChange={(checked) =>
-                    setLightsailCreateForm((previous) => ({
-                      ...previous,
-                      auto_connect: Boolean(checked),
-                      auto_connect_group: previous.auto_connect_group || defaultCreateGroup,
-                    }))
-                  }
-                />
-                  <span>
-                    <span className="block font-medium text-slate-900 dark:text-slate-100">
-                      {t("cloud.form.auto_connect", "Auto-connect to Komari on first boot")}
-                    </span>
-                    <span className="mt-1 block text-xs text-slate-500 dark:text-slate-400">
-                      {t(
-                        "cloud.form.auto_connect_help",
-                        "Requires Auto Discovery Key. When enabled, shell user_data is injected and #cloud-config is not supported.",
-                    )}
-                  </span>
-                </span>
-              </label>
-              <div className="mt-3">
-                <label className={cloudPanelFieldLabelClassName}>
-                  {t("cloud.form.auto_connect_group", "Auto-connect group")}
-                </label>
-                <TextField.Root
-                  className="mt-2"
-                  value={lightsailCreateForm.auto_connect_group || ""}
-                  disabled={!lightsailCreateForm.auto_connect}
-                  placeholder={t("cloud.form.auto_connect_group_placeholder", "aws/Primary Credential")}
-                  onChange={(event) =>
-                    setLightsailCreateForm((previous) => ({
-                      ...previous,
-                      auto_connect_group: event.target.value,
-                    }))
-                  }
-                />
-              </div>
-            </div>
 
             <Flex justify="end" gap="2">
               <Button variant="outline" onClick={() => setLightsailCreateOpen(false)} disabled={lightsailCreateSubmitting}>
