@@ -297,8 +297,35 @@ function getStatusLabel(t: TFunction, value: string) {
   });
 }
 
-function getDeleteStrategyOptions(t: TFunction) {
-  return DELETE_STRATEGY_VALUES.map((value) => ({
+function planRequiresInstanceCleanup(plan: Pick<PlanFormState, "enabled" | "action_type">) {
+  return Boolean(plan.enabled) && String(plan.action_type || "").trim() === "provision_instance";
+}
+
+function resolveTaskDeleteStrategy(
+  currentValue: string,
+  plans: Array<Pick<PlanFormState, "enabled" | "action_type">>,
+) {
+  const hasProvisionPlan = plans.some(planRequiresInstanceCleanup);
+  if (!hasProvisionPlan) {
+    return "keep";
+  }
+
+  const normalized = String(currentValue || "").trim().toLowerCase();
+  if (normalized === "delete_after_success_delay") {
+    return "delete_after_success_delay";
+  }
+  return "delete_after_success";
+}
+
+function getDeleteStrategyOptions(
+  t: TFunction,
+  plans: Array<Pick<PlanFormState, "enabled" | "action_type">>,
+) {
+  const values = plans.some(planRequiresInstanceCleanup)
+    ? DELETE_STRATEGY_VALUES.filter((value) => value !== "keep")
+    : DELETE_STRATEGY_VALUES.filter((value) => value === "keep");
+
+  return values.map((value) => ({
     value,
     label: t(`failover.delete_strategy.${value}`, {
       defaultValue:
@@ -1234,6 +1261,7 @@ function createEmptyTaskForm(providerEntries: ProviderEntriesMap): TaskFormState
   });
   const defaultEntryID = dnsOptions[0]?.id || "";
   const dnsDefaults = buildDefaultDnsFields(defaultProvider, providerEntries, defaultEntryID);
+  const defaultPlan = createEmptyPlanForm(providerEntries);
 
   return {
     name: "",
@@ -1244,14 +1272,39 @@ function createEmptyTaskForm(providerEntries: ProviderEntriesMap): TaskFormState
     dns_provider: defaultProvider,
     dns_entry_id: defaultEntryID,
     ...dnsDefaults,
-    delete_strategy: "keep",
+    delete_strategy: resolveTaskDeleteStrategy("", [defaultPlan]),
     delete_delay_seconds: "0",
-    plans: [createEmptyPlanForm(providerEntries)],
+    plans: [defaultPlan],
   };
 }
 
 function taskToForm(task: FailoverTask, providerEntries: ProviderEntriesMap): TaskFormState {
   const dnsFields = parseDnsPayloadFields(task, providerEntries);
+  const plans = task.plans.length > 0
+    ? task.plans.map((plan) => ({
+        local_id: createLocalID(),
+        name: plan.name,
+        priority: String(plan.priority || 1),
+        enabled: plan.enabled,
+        provider: plan.provider,
+        provider_entry_id: normalizeProviderEntryID(plan.provider_entry_id),
+        action_type: plan.action_type,
+        payload: prettyJson(plan.payload),
+        auto_connect_group:
+          plan.auto_connect_group.trim() ||
+          getDefaultPlanAutoConnectGroup(
+            providerEntries,
+            plan.provider,
+            normalizeProviderEntryID(plan.provider_entry_id),
+          ),
+        script_clipboard_id:
+          plan.script_clipboard_id && plan.script_clipboard_id > 0
+            ? String(plan.script_clipboard_id)
+            : "",
+        script_timeout_sec: String(plan.script_timeout_sec || 600),
+        wait_agent_timeout_sec: String(plan.wait_agent_timeout_sec || 600),
+      }))
+    : [createEmptyPlanForm(providerEntries)];
 
   return {
     name: task.name,
@@ -1262,33 +1315,9 @@ function taskToForm(task: FailoverTask, providerEntries: ProviderEntriesMap): Ta
     dns_provider: task.dns_provider,
     dns_entry_id: normalizeProviderEntryID(task.dns_entry_id),
     ...dnsFields,
-    delete_strategy: task.delete_strategy || "keep",
+    delete_strategy: resolveTaskDeleteStrategy(task.delete_strategy || "", plans),
     delete_delay_seconds: String(task.delete_delay_seconds || 0),
-    plans: task.plans.length > 0
-      ? task.plans.map((plan) => ({
-          local_id: createLocalID(),
-          name: plan.name,
-          priority: String(plan.priority || 1),
-          enabled: plan.enabled,
-          provider: plan.provider,
-          provider_entry_id: normalizeProviderEntryID(plan.provider_entry_id),
-          action_type: plan.action_type,
-          payload: prettyJson(plan.payload),
-          auto_connect_group:
-            plan.auto_connect_group.trim() ||
-            getDefaultPlanAutoConnectGroup(
-              providerEntries,
-              plan.provider,
-              normalizeProviderEntryID(plan.provider_entry_id),
-            ),
-          script_clipboard_id:
-            plan.script_clipboard_id && plan.script_clipboard_id > 0
-              ? String(plan.script_clipboard_id)
-              : "",
-          script_timeout_sec: String(plan.script_timeout_sec || 600),
-          wait_agent_timeout_sec: String(plan.wait_agent_timeout_sec || 600),
-        }))
-      : [createEmptyPlanForm(providerEntries)],
+    plans,
   };
 }
 
@@ -1410,6 +1439,7 @@ function buildTaskInput(formState: TaskFormState, providerEntries: ProviderEntri
       wait_agent_timeout_sec: numberOrDefault(plan.wait_agent_timeout_sec, 600),
     };
   });
+  const deleteStrategy = resolveTaskDeleteStrategy(formState.delete_strategy, formState.plans);
 
   const dnsPayload =
     dnsProvider === "cloudflare"
@@ -1440,8 +1470,11 @@ function buildTaskInput(formState: TaskFormState, providerEntries: ProviderEntri
     dns_provider: dnsProvider,
     dns_entry_id: dnsProvider ? normalizeProviderEntryID(formState.dns_entry_id.trim()) : "",
     dns_payload: dnsPayload,
-    delete_strategy: formState.delete_strategy,
-    delete_delay_seconds: numberOrDefault(formState.delete_delay_seconds, 0),
+    delete_strategy: deleteStrategy,
+    delete_delay_seconds:
+      deleteStrategy === "delete_after_success_delay"
+        ? numberOrDefault(formState.delete_delay_seconds, 0)
+        : 0,
     plans,
   };
 }
@@ -1980,7 +2013,13 @@ function TaskEditorDialog({
   }, [open, editorStep, formState.dns_provider, formState.dns_entry_id, refreshDnsCatalog]);
 
   const updateTaskField = <K extends keyof TaskFormState>(key: K, value: TaskFormState[K]) => {
-    setFormState((current) => ({ ...current, [key]: value }));
+    setFormState((current) => {
+      const nextState = { ...current, [key]: value };
+      return {
+        ...nextState,
+        delete_strategy: resolveTaskDeleteStrategy(nextState.delete_strategy, nextState.plans),
+      };
+    });
   };
 
   const setDnsEnabled = React.useCallback((enabled: boolean) => {
@@ -2044,10 +2083,16 @@ function TaskEditorDialog({
   ]);
 
   const updatePlan = (localID: string, updater: (plan: PlanFormState) => PlanFormState) => {
-    setFormState((current) => ({
-      ...current,
-      plans: current.plans.map((plan) => (plan.local_id === localID ? updater(plan) : plan)),
-    }));
+    setFormState((current) => {
+      const nextState = {
+        ...current,
+        plans: current.plans.map((plan) => (plan.local_id === localID ? updater(plan) : plan)),
+      };
+      return {
+        ...nextState,
+        delete_strategy: resolveTaskDeleteStrategy(nextState.delete_strategy, nextState.plans),
+      };
+    });
   };
 
   const updateSelectedPlanPayload = React.useCallback((updater: (payload: Record<string, unknown>) => Record<string, unknown>) => {
@@ -2127,18 +2172,30 @@ function TaskEditorDialog({
       ...createEmptyPlanForm(providerEntries),
       priority: String(formState.plans.length + 1),
     };
-    setFormState((current) => ({
-      ...current,
-      plans: [...current.plans, nextPlan],
-    }));
+    setFormState((current) => {
+      const nextState = {
+        ...current,
+        plans: [...current.plans, nextPlan],
+      };
+      return {
+        ...nextState,
+        delete_strategy: resolveTaskDeleteStrategy(nextState.delete_strategy, nextState.plans),
+      };
+    });
     setSelectedPlanID(nextPlan.local_id);
   };
 
   const removePlan = (localID: string) => {
-    setFormState((current) => ({
-      ...current,
-      plans: current.plans.filter((plan) => plan.local_id !== localID),
-    }));
+    setFormState((current) => {
+      const nextState = {
+        ...current,
+        plans: current.plans.filter((plan) => plan.local_id !== localID),
+      };
+      return {
+        ...nextState,
+        delete_strategy: resolveTaskDeleteStrategy(nextState.delete_strategy, nextState.plans),
+      };
+    });
   };
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
@@ -2718,7 +2775,7 @@ function TaskEditorDialog({
                               <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
-                              {getDeleteStrategyOptions(t).map((option) => (
+                              {getDeleteStrategyOptions(t, formState.plans).map((option) => (
                                 <SelectItem key={option.value} value={option.value}>
                                   {option.label}
                                 </SelectItem>
