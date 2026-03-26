@@ -1481,9 +1481,9 @@
     "platform_admin_required_title": "Platform admin required",
     "platform_admin_required_description": "This section manages platform-wide integrations and security settings. Switch to a platform admin account to edit it.",
     "proxy": {
-      "description": "Manage the shared outbound proxy used by cloud provider, DNS, and failover requests. Newly created requests will use the settings saved here. Proxy requests use short-lived connections and reconnect on every request. A failed proxy attempt will automatically retry the current request once without the proxy.",
+      "description": "Manage the outbound proxy used by cloud provider credential requests. Requests that do not use cloud provider credentials keep using the server's local IP. Proxy requests use short-lived connections and reconnect on every request. A failed proxy attempt will automatically retry the current request once without the proxy.",
       "enable": "Enable global outbound proxy",
-      "enable_description": "Applies to cloud provider APIs, DNS APIs, and failover runtime requests.",
+      "enable_description": "Applies to cloud provider APIs that use DigitalOcean, Linode, or AWS credentials.",
       "host": "Proxy host",
       "host_description": "Set the hostname or IP address of your SOCKS5 / HTTP / HTTPS proxy. You can also paste `host:port:username:password` directly.",
       "password": "Proxy password",
