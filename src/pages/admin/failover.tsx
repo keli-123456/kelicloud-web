@@ -1093,6 +1093,68 @@ function joinRecordName(domainName: string, rr: string) {
   return `${normalizedRR}.${normalizedDomain}`;
 }
 
+function joinCloudflareRecordName(zoneName: string, recordName: string) {
+  const normalizedZone = String(zoneName || "").trim();
+  const normalizedRecord = String(recordName || "").trim();
+  if (!normalizedRecord || normalizedRecord === "@") {
+    return normalizedZone;
+  }
+  if (!normalizedZone || normalizedRecord === normalizedZone || normalizedRecord.endsWith(`.${normalizedZone}`)) {
+    return normalizedRecord;
+  }
+  return `${normalizedRecord}.${normalizedZone}`;
+}
+
+function getTaskDnsTargetLabel(task: FailoverTask) {
+  const raw = task.dns_payload && typeof task.dns_payload === "object"
+    ? task.dns_payload as Record<string, unknown>
+    : {};
+
+  if (task.dns_provider === "cloudflare") {
+    return joinCloudflareRecordName(getStringValue(raw.zone_name), getStringValue(raw.record_name));
+  }
+  if (task.dns_provider === "aliyun") {
+    return joinRecordName(getStringValue(raw.domain_name), getStringValue(raw.rr));
+  }
+  return "";
+}
+
+function getDnsTaskStatusLabel(t: TFunction, status: string) {
+  const normalized = String(status || "").trim().toLowerCase();
+  if (normalized === "success") {
+    return t("failover.task.dns_success", { defaultValue: "DNS resolved" });
+  }
+  if (normalized === "failed") {
+    return t("failover.task.dns_failed", { defaultValue: "DNS failed" });
+  }
+  if (normalized === "skipped") {
+    return t("failover.task.dns_skipped", { defaultValue: "DNS skipped" });
+  }
+  if (!normalized) {
+    return t("failover.task.dns_pending", { defaultValue: "DNS pending" });
+  }
+  return getStatusLabel(t, status);
+}
+
+function getTaskScriptStatusLabel(
+  t: TFunction,
+  status: string,
+  hasConfiguredScript: boolean,
+  hasExecution: boolean,
+) {
+  const normalized = String(status || "").trim().toLowerCase();
+  if (!hasConfiguredScript) {
+    return t("failover.task.script_none", { defaultValue: "No script" });
+  }
+  if (!hasExecution && !normalized) {
+    return t("failover.task.script_pending", { defaultValue: "Not run yet" });
+  }
+  if (!normalized) {
+    return t("failover.task.script_pending", { defaultValue: "Not run yet" });
+  }
+  return getStatusLabel(t, status);
+}
+
 function parseDnsPayloadFields(
   task: FailoverTask,
   providerEntries: ProviderEntriesMap,
@@ -3904,6 +3966,7 @@ function FailoverPageContent() {
   const [selectedExecutionTaskName, setSelectedExecutionTaskName] = React.useState("");
   const [runningTaskID, setRunningTaskID] = React.useState<number | null>(null);
   const [busyTaskID, setBusyTaskID] = React.useState<number | null>(null);
+  const [clockNow, setClockNow] = React.useState(() => Date.now());
 
   const refreshTasks = React.useCallback(async (options?: { silent?: boolean }) => {
     const silent = options?.silent ?? false;
@@ -3979,13 +4042,15 @@ function FailoverPageContent() {
     };
   }, [accountLoading, hasFeature, refreshTasks]);
 
-  const nodeLookup = React.useMemo(() => {
-    const map = new Map<string, FailoverNodeOption>();
-    for (const node of nodes) {
-      map.set(node.uuid, node);
-    }
-    return map;
-  }, [nodes]);
+  React.useEffect(() => {
+    const timer = window.setInterval(() => {
+      setClockNow(Date.now());
+    }, 1000);
+
+    return () => {
+      window.clearInterval(timer);
+    };
+  }, []);
 
   const openCreateDialog = () => {
     setEditingTask(null);
@@ -4119,21 +4184,39 @@ function FailoverPageContent() {
           <div className="space-y-3">
             {tasks.map((task) => {
               const currentClientUUID = task.current_client_uuid || task.watch_client_uuid;
-              const node = currentClientUUID ? nodeLookup.get(currentClientUUID) : undefined;
               const latestExecution = task.latest_execution;
               const taskBusy = busyTaskID === task.id;
               const taskRunning = runningTaskID === task.id;
               const requiresInitialization = !currentClientUUID;
-              const currentOutletLabel = node
-                ? getNodeLabel(node)
-                : task.current_address || currentClientUUID || t("failover.task.uninitialized", { defaultValue: "Not initialized" });
+              const currentOutletIP = task.current_address || "";
+              const currentOutletLabel = currentOutletIP || t("failover.task.uninitialized", { defaultValue: "Not initialized" });
+              const dnsTargetLabel = getTaskDnsTargetLabel(task);
+              const dnsStatus = latestExecution?.dns_status || "";
+              const hasConfiguredScript = task.plans.some((plan) => plan.script_clipboard_id !== null);
+              const scriptStatus = latestExecution?.script_status || "";
+              const scriptName = latestExecution?.script_name_snapshot || "";
               const latestExecutionSummary = latestExecution
                 ? latestExecution.error_message || formatDateTime(latestExecution.started_at)
                 : t("failover.task.no_execution", { defaultValue: "No execution recorded yet." });
-              const currentOutletMeta = task.current_address || currentClientUUID || "";
               const cooldownSummary = task.cooldown_remaining_seconds > 0
                 ? formatDurationSeconds(task.cooldown_remaining_seconds, t)
                 : t("failover.cooldown.ready", { defaultValue: "Ready" });
+              const nextCycleAt = task.next_scheduled_check_at ? new Date(task.next_scheduled_check_at).getTime() : Number.NaN;
+              const nextCycleRemainingSeconds = Number.isFinite(nextCycleAt)
+                ? Math.max(0, Math.ceil((nextCycleAt - clockNow) / 1000))
+                : Math.max(0, task.next_scheduled_check_remaining_seconds);
+              const nextCycleSummary = task.enabled && !task.has_active_execution && (task.next_scheduled_check_at || task.next_scheduled_check_remaining_seconds > 0)
+                ? nextCycleRemainingSeconds > 0
+                  ? formatDurationSeconds(nextCycleRemainingSeconds, t)
+                  : t("failover.table.next_cycle_now", { defaultValue: "Now" })
+                : null;
+              const staleRetrySummary = task.probe.stale && task.failure_threshold > 0
+                ? t("failover.probe.stale_with_retry", {
+                  defaultValue: "Stale ({{current}}/{{total}})",
+                  current: Math.min(Math.max(0, task.trigger_failure_count), task.failure_threshold),
+                  total: task.failure_threshold,
+                })
+                : null;
 
               return (
                 <Card
@@ -4143,7 +4226,7 @@ function FailoverPageContent() {
                     task.has_active_execution && "border-amber-300/80 dark:border-amber-700/60",
                   )}
                 >
-                  <div className="grid gap-3 px-4 py-3 lg:grid-cols-[minmax(0,2fr)_minmax(0,1.15fr)_minmax(0,1.15fr)_auto] lg:items-center">
+                  <div className="grid gap-3 px-4 py-3 lg:grid-cols-[minmax(0,2.3fr)_minmax(0,1.35fr)_auto] lg:items-center">
                     <div className="min-w-0 space-y-1">
                       <div className="flex flex-wrap items-center gap-2">
                         <div className="truncate text-sm font-medium text-slate-900 dark:text-slate-50" title={task.name}>
@@ -4162,31 +4245,54 @@ function FailoverPageContent() {
                             {t("failover.task.active_execution", { defaultValue: "Active execution" })}
                           </Badge>
                         ) : null}
-                        <Badge variant={getStatusVariant(task.probe.status, "probe")}>
-                          {t("failover.table.probe", { defaultValue: "Probe" })}: {getStatusLabel(t, task.probe.status)}
-                        </Badge>
                         {task.probe.stale ? (
-                          <Badge variant="warning">
-                            {t("failover.probe.stale", { defaultValue: "Stale" })}
+                          <Badge variant="warning" title={task.last_message || undefined}>
+                            {staleRetrySummary || t("failover.probe.stale", { defaultValue: "Stale" })}
                           </Badge>
+                        ) : (
+                          <Badge variant={getStatusVariant(task.probe.status, "probe")}>
+                            {t("failover.table.probe", { defaultValue: "Probe" })}: {getStatusLabel(t, task.probe.status)}
+                          </Badge>
+                        )}
+                      </div>
+                      <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                        <span className="font-medium text-slate-600 dark:text-slate-300">
+                          {t("failover.task.script_status_label", { defaultValue: "Script status" })}:
+                        </span>
+                        <Badge variant={getStatusVariant(
+                          scriptStatus || (hasConfiguredScript ? "pending" : "skipped"),
+                          "script",
+                        )}>
+                          {getTaskScriptStatusLabel(t, scriptStatus, hasConfiguredScript, Boolean(latestExecution))}
+                        </Badge>
+                        {scriptName ? (
+                          <span className="min-w-0 truncate" title={scriptName}>
+                            {scriptName}
+                          </span>
                         ) : null}
                       </div>
-                      <div className="truncate text-sm text-muted-foreground" title={currentOutletLabel}>
-                        {t("failover.table.current", { defaultValue: "Current outlet" })}: {currentOutletLabel}
-                      </div>
-                    </div>
-
-                    <div className="min-w-0 space-y-1">
-                      <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
-                        {t("failover.table.current", { defaultValue: "Current outlet" })}
-                      </div>
-                      <div className="truncate text-sm font-medium text-slate-900 dark:text-slate-50" title={currentOutletLabel}>
-                        {currentOutletLabel}
-                      </div>
-                      <div className="truncate text-xs text-muted-foreground" title={currentOutletMeta || undefined}>
-                        {currentOutletMeta || t("failover.task.uninitialized_hint", {
-                          defaultValue: "Save the task first, then run initialization to create the first outlet.",
-                        })}
+                      <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+                        <span className="font-medium text-slate-600 dark:text-slate-300">
+                          {t("failover.task.outlet_ip_label", { defaultValue: "Outlet IP" })}:
+                        </span>
+                        <div className="min-w-0 truncate" title={currentOutletLabel}>
+                          {currentOutletLabel}
+                        </div>
+                        {dnsTargetLabel ? (
+                          <>
+                            <span className="font-medium text-slate-600 dark:text-slate-300">
+                              {t("failover.task.dns_target_label", { defaultValue: "DNS target" })}:
+                            </span>
+                            <div className="min-w-0 truncate" title={dnsTargetLabel}>
+                              {dnsTargetLabel}
+                            </div>
+                          </>
+                        ) : null}
+                        {task.dns_provider ? (
+                          <Badge variant={getStatusVariant(dnsStatus || "pending", "dns")}>
+                            {getDnsTaskStatusLabel(t, dnsStatus)}
+                          </Badge>
+                        ) : null}
                       </div>
                     </div>
 
@@ -4210,8 +4316,11 @@ function FailoverPageContent() {
                       >
                         {latestExecutionSummary}
                       </div>
-                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                      <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
                         <span>{t("failover.table.cooldown", { defaultValue: "Cooldown" })}: {cooldownSummary}</span>
+                        {nextCycleSummary ? (
+                          <span>{t("failover.table.next_cycle", { defaultValue: "Next cycle" })}: {nextCycleSummary}</span>
+                        ) : null}
                         {latestExecution ? (
                           <Button
                             type="button"

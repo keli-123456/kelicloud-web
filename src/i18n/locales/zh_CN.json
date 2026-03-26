@@ -1344,7 +1344,8 @@
     "probe": {
       "failures": "连续失败：{{count}}",
       "no_target": "未配置目标",
-      "stale": "数据过期"
+      "stale": "数据过期",
+      "stale_with_retry": "数据过期 ({{current}}/{{total}})"
     },
     "provider_entry": {
       "active": "当前生效凭证"
@@ -1386,6 +1387,8 @@
       "cooldown": "冷却时间",
       "current": "当前出口",
       "latest": "最近执行",
+      "next_cycle": "下一轮巡检",
+      "next_cycle_now": "即将执行",
       "plans": "方案数",
       "probe": "探测状态",
       "script": "脚本",
@@ -1395,9 +1398,18 @@
     },
     "task": {
       "active_execution": "执行中",
+      "dns_failed": "解析失败",
+      "dns_pending": "待验证",
+      "dns_skipped": "未切换 DNS",
+      "dns_success": "解析成功",
+      "dns_target_label": "解析域名",
       "latest_execution_hint": "最近一次运行状态来自后端执行记录。",
       "no_execution": "还没有执行记录。",
       "no_message": "暂无最近任务消息。",
+      "outlet_ip_label": "出口 IP",
+      "script_none": "无脚本",
+      "script_pending": "未执行",
+      "script_status_label": "脚本状态",
       "uninitialized": "未初始化",
       "uninitialized_hint": "先保存任务，再执行一次初始化来创建首个出口。"
     },

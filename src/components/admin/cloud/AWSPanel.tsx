@@ -1888,15 +1888,6 @@ export default function AWSPanel() {
 
           <div className="mt-4 flex flex-col gap-4">
             <label className={cloudPanelFieldLabelClassName}>
-              {t("cloud.form.name", "Name")}
-            </label>
-            <TextField.Root
-              value={createForm.name}
-              placeholder="web-01"
-              onChange={(event) => setCreateForm((previous) => ({ ...previous, name: event.target.value }))}
-            />
-
-            <label className={cloudPanelFieldLabelClassName}>
               {t("cloud.providers.aws.ami", "AMI")}
             </label>
             <Select.Root
@@ -2092,17 +2083,6 @@ export default function AWSPanel() {
 
           <div className="mt-4 flex flex-col gap-4">
             <label className={cloudPanelFieldLabelClassName}>
-              {t("cloud.form.name", "Name")}
-            </label>
-            <TextField.Root
-              value={lightsailCreateForm.name}
-              placeholder="lightsail-web-01"
-              onChange={(event) =>
-                setLightsailCreateForm((previous) => ({ ...previous, name: event.target.value }))
-              }
-            />
-
-            <label className={cloudPanelFieldLabelClassName}>
               {t("cloud.providers.aws.az", "AZ")}
             </label>
             <Select.Root
@@ -2212,7 +2192,6 @@ export default function AWSPanel() {
                 }}
                 disabled={
                   lightsailCreateSubmitting ||
-                  !lightsailCreateForm.name ||
                   !lightsailCreateForm.availability_zone ||
                   !lightsailCreateForm.blueprint_id ||
                   !lightsailCreateForm.bundle_id

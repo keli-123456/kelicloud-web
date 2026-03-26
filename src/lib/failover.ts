@@ -67,6 +67,7 @@ export type FailoverTask = {
   current_address: string;
   watch_client_uuid: string;
   trigger_source: string;
+  trigger_failure_count: number;
   failure_threshold: number;
   stale_after_seconds: number;
   cooldown_seconds: number;
@@ -84,6 +85,8 @@ export type FailoverTask = {
   probe: FailoverProbe;
   cooldown_remaining_seconds: number;
   next_eligible_at: string | null;
+  next_scheduled_check_at: string | null;
+  next_scheduled_check_remaining_seconds: number;
   latest_execution: FailoverExecutionSummary | null;
   has_active_execution: boolean;
   plans: FailoverPlan[];
@@ -376,6 +379,7 @@ function normalizeTask(task: unknown): FailoverTask {
     current_address: normalizeString(raw.current_address),
     watch_client_uuid: normalizeString(raw.watch_client_uuid),
     trigger_source: normalizeString(raw.trigger_source),
+    trigger_failure_count: normalizeNumber(raw.trigger_failure_count),
     failure_threshold: normalizeNumber(raw.failure_threshold),
     stale_after_seconds: normalizeNumber(raw.stale_after_seconds),
     cooldown_seconds: normalizeNumber(raw.cooldown_seconds),
@@ -393,6 +397,8 @@ function normalizeTask(task: unknown): FailoverTask {
     probe: normalizeProbe(raw.probe),
     cooldown_remaining_seconds: normalizeNumber(raw.cooldown_remaining_seconds),
     next_eligible_at: normalizeNullableString(raw.next_eligible_at),
+    next_scheduled_check_at: normalizeNullableString(raw.next_scheduled_check_at),
+    next_scheduled_check_remaining_seconds: normalizeNumber(raw.next_scheduled_check_remaining_seconds),
     latest_execution: normalizeExecutionSummary(raw.latest_execution),
     has_active_execution: normalizeBoolean(raw.has_active_execution),
     plans,

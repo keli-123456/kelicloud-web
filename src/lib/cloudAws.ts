@@ -307,7 +307,7 @@ export type AWSCatalog = {
 };
 
 export type CreateAWSInstanceInput = {
-  name: string;
+  name?: string;
   image_id: string;
   instance_type: string;
   key_name: string;
@@ -337,7 +337,7 @@ export type CreateAWSInstanceActionInput = {
 };
 
 export type CreateAWSLightsailInstanceInput = {
-  name: string;
+  name?: string;
   availability_zone: string;
   blueprint_id: string;
   bundle_id: string;

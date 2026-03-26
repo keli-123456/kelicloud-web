@@ -187,7 +187,7 @@ export type LinodeCatalog = {
 };
 
 export type CreateLinodeInstanceInput = {
-  label: string;
+  label?: string;
   region: string;
   type: string;
   image: string;

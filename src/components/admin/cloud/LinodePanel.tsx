@@ -1442,15 +1442,6 @@ export default function LinodePanel() {
 
           <div className="mt-4 flex flex-col gap-4">
             <label className={cloudPanelFieldLabelClassName}>
-              {t("cloud.form.name", "Name")}
-            </label>
-            <TextField.Root
-              value={createForm.label}
-              placeholder="web-01"
-              onChange={(event) => setCreateForm((previous) => ({ ...previous, label: event.target.value }))}
-            />
-
-            <label className={cloudPanelFieldLabelClassName}>
               {t("cloud.form.region", "Region")}
             </label>
             <Select.Root
@@ -1601,7 +1592,6 @@ export default function LinodePanel() {
                 }}
                 disabled={
                   createSubmitting ||
-                  !createForm.label ||
                   !createForm.region ||
                   !createForm.type ||
                   !createForm.image

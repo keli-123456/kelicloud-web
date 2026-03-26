@@ -192,7 +192,7 @@ export type DigitalOceanCatalog = {
 };
 
 export type CreateDigitalOceanDropletInput = {
-  name: string;
+  name?: string;
   region: string;
   size: string;
   image: string;
