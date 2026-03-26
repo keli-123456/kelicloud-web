@@ -140,7 +140,7 @@
       "autoDiscoveryDisabledGroup": "先到“设置 > 通用”里设置自动发现密钥，创建分组命令才会生效。",
       "autoDiscoveryDisabledSingle": "当前还没启用自动发现密钥，所以这里仍是旧的单节点模式。到“设置 > 通用”里设置自动发现密钥后，这里会变成通用接入命令。",
       "autoDiscoveryGeneralHint": "当前使用通用自动接入命令。任意服务器执行后会自动注册到你的面板。",
-      "autoDiscoveryGroupHint": "输入分组名称后，复制这条命令到任意服务器执行，节点会自动注册并归入该分组。已绑定过的机器再次执行时，会先提示是否清理旧绑定。",
+      "autoDiscoveryGroupHint": "输入分组名称后，复制这条命令到任意服务器执行，节点会自动注册并归入该分组。已绑定过的机器再次执行时，会自动清理旧绑定后重新接入。",
       "autoDiscoveryKeyMissing": "生成密钥后才能使用通用接入命令。",
       "autoDiscoveryKeySummary": "当前密钥后 6 位：{{suffix}}",
       "autoEnroll": "自动接入",

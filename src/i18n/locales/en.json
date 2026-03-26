@@ -211,7 +211,7 @@
       "autoEnroll": "Auto-enroll",
       "installDialogDescription": "Platform selection and install parameters are remembered and reused next time.",
       "autoDiscoveryGeneralHint": "This currently uses the general auto-enroll command. Run it on any server and the node will register to your panel automatically.",
-      "autoDiscoveryGroupHint": "After you enter a group name, run this command on any server. The node will register automatically into that group. If the machine was previously bound, it will first prompt to reset the old binding.",
+      "autoDiscoveryGroupHint": "After you enter a group name, run this command on any server. The node will register automatically into that group. If the machine was previously bound, the command will clear the old binding automatically before re-enrolling.",
       "groupName": "Group name",
       "groupNamePlaceholder": "For example: Hong Kong / Japan / Production",
       "groupNameHelp": "The group will be created automatically after the first server runs this command. You do not need to create an empty group first.",

@@ -503,9 +503,13 @@ const buildAgentUpgradeCommand = (
     return (
       "powershell.exe -NoProfile -ExecutionPolicy Bypass -Command " +
       powershellQuote(
-        `$scriptPath = Join-Path $env:TEMP 'komari-install.ps1'; ` +
+        `$scriptPath = Join-Path $env:TEMP ('komari-install-' + [guid]::NewGuid().ToString() + '.ps1'); ` +
           `Invoke-WebRequest ${powershellQuote(scriptUrl)} -UseBasicParsing -OutFile $scriptPath; ` +
-          `& $scriptPath -e ${powershellQuote(host)} -t ${powershellQuote(token)}`
+          `$jobArgs = @('-NoProfile','-ExecutionPolicy','Bypass','-File',$scriptPath,'-e',${powershellQuote(
+            host
+          )},'-t',${powershellQuote(token)}); ` +
+          `Start-Process -FilePath 'powershell.exe' -ArgumentList $jobArgs -WindowStyle Hidden; ` +
+          `Write-Output 'Agent upgrade scheduled. The node may go offline briefly while the service restarts.'`
       )
     );
   }
@@ -516,6 +520,7 @@ const buildAgentUpgradeCommand = (
   );
   const shellArgs = ["-e", host, "-t", token].map(shellQuote).join(" ");
   const shellName = platform === "macos" ? "zsh" : "bash";
+  const installCommand = `if [ "$(id -u)" -ne 0 ] && command -v sudo >/dev/null 2>&1; then sudo ${shellName} "$TMP_SCRIPT" ${shellArgs}; else ${shellName} "$TMP_SCRIPT" ${shellArgs}; fi; STATUS=$?; rm -f "$TMP_SCRIPT"; exit "$STATUS"`;
 
   return [
     'TMP_SCRIPT="$(mktemp)"',
@@ -524,10 +529,11 @@ const buildAgentUpgradeCommand = (
     )} > "$TMP_SCRIPT"; else wget -qO- ${shellQuote(scriptUrl)} > "$TMP_SCRIPT"; fi`,
     "STATUS=$?",
     'if [ "$STATUS" -ne 0 ]; then rm -f "$TMP_SCRIPT"; exit "$STATUS"; fi',
-    `if [ "$(id -u)" -ne 0 ] && command -v sudo >/dev/null 2>&1; then sudo ${shellName} "$TMP_SCRIPT" ${shellArgs}; else ${shellName} "$TMP_SCRIPT" ${shellArgs}; fi`,
-    "STATUS=$?",
-    'rm -f "$TMP_SCRIPT"',
-    'exit "$STATUS"',
+    `INSTALL_CMD=${shellQuote(installCommand)}`,
+    'if command -v systemd-run >/dev/null 2>&1 && systemctl list-units >/dev/null 2>&1; then UNIT="komari-agent-upgrade-$(date +%s)"; systemd-run --unit "$UNIT" --collect /bin/sh -lc "$INSTALL_CMD"; STATUS=$?; else nohup /bin/sh -lc "$INSTALL_CMD" >/tmp/komari-agent-upgrade.log 2>&1 </dev/null & STATUS=$?; fi',
+    'if [ "$STATUS" -ne 0 ]; then rm -f "$TMP_SCRIPT"; exit "$STATUS"; fi',
+    "echo 'Agent upgrade scheduled. The node may go offline briefly while the service restarts.'",
+    "exit 0",
   ].join("; ");
 };
 
@@ -2890,8 +2896,11 @@ function GenerateCommandButton({
       case "linux":
         finalCommand =
           groupMode && useAutoDiscovery
-            ? `AUTO_DISCOVERY_FILE=${shellQuote(`${effectiveInstallDir}/auto-discovery.json`)}; if [ -f "$AUTO_DISCOVERY_FILE" ]; then if [ -r /dev/tty ]; then printf '%s' '检测到当前机器已绑定到旧节点。输入 y 清理旧绑定并重新接入新分组，其他任意键保持原绑定: ' > /dev/tty; read -r KS_RESET < /dev/tty || KS_RESET=''; else KS_RESET='y'; fi; if [ "$KS_RESET" = 'y' ] || [ "$KS_RESET" = 'Y' ]; then sudo rm -f "$AUTO_DISCOVERY_FILE"; fi; fi; ` +
-              `wget -qO- ${shellQuote(scriptUrl)} | sudo bash -s -- ${shellArgs}`
+            ? `AUTO_DISCOVERY_FILE=${shellQuote(`${effectiveInstallDir}/auto-discovery.json`)}; if [ -f "$AUTO_DISCOVERY_FILE" ]; then if [ "$(id -u)" -ne 0 ] && command -v sudo >/dev/null 2>&1; then sudo rm -f "$AUTO_DISCOVERY_FILE"; else rm -f "$AUTO_DISCOVERY_FILE"; fi; fi; if [ "$(id -u)" -ne 0 ] && command -v sudo >/dev/null 2>&1; then wget -qO- ${shellQuote(
+                scriptUrl
+              )} | sudo bash -s -- ${shellArgs}; else wget -qO- ${shellQuote(
+                scriptUrl
+              )} | bash -s -- ${shellArgs}; fi`
             :
           `wget -qO- ${shellQuote(scriptUrl)} | sudo bash -s -- ` + shellArgs;
         break;
@@ -2902,7 +2911,7 @@ function GenerateCommandButton({
             enableCustomDir && installOptions.dir.trim()
               ? powershellQuote(installOptions.dir.trim())
               : "$Env:ProgramFiles\\Komari";
-          finalCommand += `$ksBindFile = Join-Path ${windowsInstallDir} 'auto-discovery.json'; if (Test-Path $ksBindFile) { $ksReset = Read-Host 'Detected existing binding. Enter y to clear it and rebind to the new group'; if ($ksReset -match '^(?i)y(?:es)?$') { Remove-Item $ksBindFile -Force } }; `;
+          finalCommand += `$ksBindFile = Join-Path ${windowsInstallDir} 'auto-discovery.json'; if (Test-Path $ksBindFile) { Remove-Item $ksBindFile -Force }; `;
         }
         finalCommand +=
           `iwr ${powershellQuote(scriptUrl)}` +
@@ -2921,7 +2930,7 @@ function GenerateCommandButton({
               : `$(if [ "$(id -u)" -eq 0 ] || [ -w /usr/local ]; then printf %s /usr/local/komari; else printf %s "$HOME/.komari"; fi)`;
           finalCommand =
             `AUTO_DISCOVERY_DIR=${macInstallDir}; AUTO_DISCOVERY_FILE="$AUTO_DISCOVERY_DIR/auto-discovery.json"; ` +
-            `if [ -f "$AUTO_DISCOVERY_FILE" ]; then if [ -r /dev/tty ]; then printf '%s' '检测到当前机器已绑定到旧节点。输入 y 清理旧绑定并重新接入新分组，其他任意键保持原绑定: ' > /dev/tty; read -r KS_RESET < /dev/tty || KS_RESET=''; else KS_RESET='y'; fi; if [ "$KS_RESET" = 'y' ] || [ "$KS_RESET" = 'Y' ]; then rm -f "$AUTO_DISCOVERY_FILE"; fi; fi; ` +
+            `if [ -f "$AUTO_DISCOVERY_FILE" ]; then rm -f "$AUTO_DISCOVERY_FILE"; fi; ` +
             `zsh <(curl -sL ${shellQuote(scriptUrl)}) ${shellArgs}`;
         } else {
           finalCommand = `zsh <(curl -sL ${shellQuote(scriptUrl)}) ` + shellArgs;
@@ -3005,7 +3014,7 @@ function GenerateCommandButton({
             <div className="rounded-xl border border-sky-200 bg-sky-50 px-3 py-2 text-sm text-sky-700 dark:border-sky-900/60 dark:bg-sky-950/30 dark:text-sky-300">
               {t(
                 "admin.nodeTable.autoDiscoveryGroupHint",
-                "After you enter a group name, run this command on any server. The node will register automatically into that group. If the machine was previously bound, it will first prompt to reset the old binding.",
+                "After you enter a group name, run this command on any server. The node will register automatically into that group. If the machine was previously bound, the command will clear the old binding automatically before re-enrolling.",
               )}
             </div>
           )}
