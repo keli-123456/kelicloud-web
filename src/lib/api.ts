@@ -20,6 +20,13 @@ export interface SettingsResponse {
   o_auth_provider: string;
   o_auth_enabled: boolean;
   custom_head: string;
+  notification_enabled: boolean;
+  notification_method: string;
+  notification_template: string;
+  notification_telegram_chat_id: string;
+  notification_telegram_message_thread_id: string;
+  notification_bark_device_key: string;
+  notification_webhook_url: string;
   CreatedAt: string;
   UpdatedAt: string;
   [key: string]: any;
@@ -53,6 +60,13 @@ const DEFAULT_SETTINGS: SettingsResponse = {
   o_auth_provider: "",
   o_auth_enabled: false,
   custom_head: "",
+  notification_enabled: false,
+  notification_method: "",
+  notification_template: "",
+  notification_telegram_chat_id: "",
+  notification_telegram_message_thread_id: "",
+  notification_bark_device_key: "",
+  notification_webhook_url: "",
   CreatedAt: "",
   UpdatedAt: "",
 };

@@ -85,14 +85,6 @@ const resolveCommandName = (
   return firstLine.length > 48 ? `${firstLine.slice(0, 48)}...` : firstLine;
 };
 
-const getPreviewLines = (value: string) =>
-  value
-    .split("\n")
-    .map((line) => line.trimEnd())
-    .filter((line) => line.trim().length > 0)
-    .slice(0, 10)
-    .join("\n");
-
 const formatTimestamp = (value?: string) => {
   if (!value) {
     return null;
@@ -322,16 +314,6 @@ export default function CommandLibraryManager() {
   return (
     <>
       <AdminPageShell
-        eyebrow={t("exec.savedCommands", {
-          defaultValue: "Command library",
-        })}
-        title={t("command_clipboard.page_title", {
-          defaultValue: "Script library",
-        })}
-        description={t("command_clipboard.page_description", {
-          defaultValue:
-            "Manage saved shell scripts for remote execution and cloud instance workflows.",
-        })}
         actions={
           <>
             <Button variant="outline" asChild>
@@ -423,91 +405,81 @@ export default function CommandLibraryManager() {
               </div>
             </div>
           ) : (
-            <div className="grid gap-4">
+            <div className="grid gap-2">
               {orderedCommands.map((command) => {
                 const updatedAt = formatTimestamp(command.updated_at);
+                const metaText = command.remark?.trim()
+                  || t("command_clipboard.updated_at", {
+                    defaultValue: "Updated {{date}}",
+                    date:
+                      updatedAt ??
+                      t("command_clipboard.stats.updated_empty", {
+                        defaultValue: "No scripts yet.",
+                      }),
+                  });
 
                 return (
                   <article
                     key={command.id}
-                    className="rounded-2xl border border-slate-200 bg-white px-5 py-4 shadow-sm shadow-slate-200/40 dark:border-slate-800 dark:bg-slate-950/40 dark:shadow-none"
+                    className="rounded-xl border border-slate-200 bg-white px-4 py-3 dark:border-slate-800 dark:bg-slate-950/40"
                   >
-                    <div className="flex flex-col gap-4">
-                      <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-                        <div className="min-w-0 space-y-2">
-                          <div className="flex flex-wrap items-center gap-2">
-                            <h2 className="text-base font-semibold text-slate-900 dark:text-slate-100">
-                              {command.name}
-                            </h2>
-                            <Badge variant="secondary">
-                              {t("command_clipboard.weight_label", {
-                                defaultValue: "Weight {{weight}}",
-                                weight: command.weight,
-                              })}
-                            </Badge>
-                          </div>
-                          <p className="text-sm leading-6 text-slate-500 dark:text-slate-400">
-                            {command.remark ||
-                              t("command_clipboard.remark_empty", {
-                                defaultValue: "No remark",
-                              })}
-                          </p>
-                          <p className="text-xs text-slate-400 dark:text-slate-500">
-                            {t("command_clipboard.updated_at", {
-                              defaultValue: "Updated {{date}}",
-                              date:
-                                updatedAt ??
-                                t("command_clipboard.stats.updated_empty", {
-                                  defaultValue: "No scripts yet.",
-                                }),
+                    <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
+                      <div className="min-w-0 flex-1">
+                        <div className="flex min-w-0 items-center gap-2">
+                          <h2 className="truncate text-sm font-medium text-slate-900 dark:text-slate-100">
+                            {command.name}
+                          </h2>
+                          <Badge variant="secondary" className="shrink-0">
+                            {t("command_clipboard.weight_label", {
+                              defaultValue: "Weight {{weight}}",
+                              weight: command.weight,
                             })}
-                          </p>
+                          </Badge>
                         </div>
-
-                        <div className="flex shrink-0 flex-wrap gap-2">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleUseInExec(command)}
-                          >
-                            <Play size={14} />
-                            {t("command_clipboard.use_in_exec", {
-                              defaultValue: "Use in exec",
-                            })}
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => {
-                              void handleCopy(command);
-                            }}
-                          >
-                            <Copy size={14} />
-                            {t("copy", { defaultValue: "Copy" })}
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => openEditDialog(command)}
-                          >
-                            <PencilLine size={14} />
-                            {t("common.edit")}
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => setDeleteTarget(command)}
-                            className="border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700 dark:border-red-900/50 dark:text-red-300 dark:hover:bg-red-950/30 dark:hover:text-red-200"
-                          >
-                            <Trash2 size={14} />
-                            {t("common.delete")}
-                          </Button>
-                        </div>
+                        <p className="truncate text-[13px] text-slate-500 dark:text-slate-400">
+                          {metaText}
+                        </p>
                       </div>
 
-                      <pre className="max-h-64 overflow-auto rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-[13px] leading-6 text-slate-700 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-200">
-                        {getPreviewLines(command.text)}
-                      </pre>
+                      <div className="flex shrink-0 flex-wrap gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleUseInExec(command)}
+                        >
+                          <Play size={14} />
+                          {t("command_clipboard.use_in_exec", {
+                            defaultValue: "Use in exec",
+                          })}
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            void handleCopy(command);
+                          }}
+                        >
+                          <Copy size={14} />
+                          {t("copy", { defaultValue: "Copy" })}
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => openEditDialog(command)}
+                        >
+                          <PencilLine size={14} />
+                          {t("common.edit")}
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setDeleteTarget(command)}
+                          className="border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700 dark:border-red-900/50 dark:text-red-300 dark:hover:bg-red-950/30 dark:hover:text-red-200"
+                        >
+                          <Trash2 size={14} />
+                          {t("common.delete")}
+                        </Button>
+                      </div>
                     </div>
                   </article>
                 );
@@ -527,9 +499,9 @@ export default function CommandLibraryManager() {
           }
         }}
       >
-        <DialogContent className="sm:max-w-4xl">
-          <DialogHeader>
-            <DialogTitle>
+      <DialogContent className="flex max-h-[calc(100vh-2rem)] flex-col overflow-hidden sm:max-w-4xl">
+        <DialogHeader className="shrink-0">
+          <DialogTitle>
               {editingCommand
                 ? t("command_clipboard.editor.edit_title", {
                     defaultValue: "Edit script",
@@ -546,69 +518,72 @@ export default function CommandLibraryManager() {
             </DialogDescription>
           </DialogHeader>
 
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-slate-900 dark:text-slate-100">
-                {t("common.name")}
-              </label>
-              <Input
-                value={formValues.name}
-                onChange={(event) => handleEditorChange("name", event.target.value)}
-                placeholder={t("command_clipboard.editor.name_placeholder", {
-                  defaultValue: "Deploy agent bootstrap",
-                })}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-slate-900 dark:text-slate-100">
-                {t("common.content")}
-              </label>
-              <CodeEditor
-                value={formValues.text}
-                onChange={(value) => handleEditorChange("text", value)}
-                placeholder={t("command_clipboard.editor.content_placeholder", {
-                  defaultValue: "#!/usr/bin/env bash",
-                })}
-                minHeight="320px"
-                maxHeight="50vh"
-                ariaLabel={t("common.content")}
-              />
-            </div>
-
-            <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_160px]">
+          <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col overflow-hidden">
+            <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto pr-1">
               <div className="space-y-2">
                 <label className="text-sm font-medium text-slate-900 dark:text-slate-100">
-                  {t("common.remark")}
+                  {t("common.name")}
                 </label>
                 <Input
-                  value={formValues.remark}
-                  onChange={(event) => handleEditorChange("remark", event.target.value)}
-                  placeholder={t("command_clipboard.editor.remark_placeholder", {
-                    defaultValue: "Optional notes for this script",
+                  value={formValues.name}
+                  onChange={(event) => handleEditorChange("name", event.target.value)}
+                  placeholder={t("command_clipboard.editor.name_placeholder", {
+                    defaultValue: "Deploy agent bootstrap",
                   })}
                 />
               </div>
 
-              <div className="space-y-2">
+              <div className="min-h-0 space-y-2">
                 <label className="text-sm font-medium text-slate-900 dark:text-slate-100">
-                  {t("common.weight")}
+                  {t("common.content")}
                 </label>
-                <Input
-                  type="number"
-                  value={formValues.weight}
-                  onChange={(event) => handleEditorChange("weight", event.target.value)}
+                <CodeEditor
+                  value={formValues.text}
+                  onChange={(value) => handleEditorChange("text", value)}
+                  placeholder={t("command_clipboard.editor.content_placeholder", {
+                    defaultValue: "#!/usr/bin/env bash",
+                  })}
+                  className="min-h-0"
+                  minHeight="320px"
+                  maxHeight="min(50vh, calc(100vh - 20rem))"
+                  ariaLabel={t("common.content")}
                 />
               </div>
+
+              <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_160px]">
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-slate-900 dark:text-slate-100">
+                    {t("common.remark")}
+                  </label>
+                  <Input
+                    value={formValues.remark}
+                    onChange={(event) => handleEditorChange("remark", event.target.value)}
+                    placeholder={t("command_clipboard.editor.remark_placeholder", {
+                      defaultValue: "Optional notes for this script",
+                    })}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-slate-900 dark:text-slate-100">
+                    {t("common.weight")}
+                  </label>
+                  <Input
+                    type="number"
+                    value={formValues.weight}
+                    onChange={(event) => handleEditorChange("weight", event.target.value)}
+                  />
+                </div>
+              </div>
+
+              <p className="text-xs leading-5 text-slate-500 dark:text-slate-400">
+                {t("command_clipboard.editor.weight_hint", {
+                  defaultValue: "Higher weights appear first.",
+                })}
+              </p>
             </div>
 
-            <p className="text-xs leading-5 text-slate-500 dark:text-slate-400">
-              {t("command_clipboard.editor.weight_hint", {
-                defaultValue: "Higher weights appear first.",
-              })}
-            </p>
-
-            <DialogFooter>
+            <DialogFooter className="mt-4 shrink-0">
               <DialogClose asChild>
                 <Button variant="outline">{t("common.cancel")}</Button>
               </DialogClose>

@@ -20,7 +20,7 @@ import ThemeSwitch from "../ThemeSwitch";
 import LoginDialog from "../Login";
 import Tips from "../ui/tips";
 import {
-  type AccountFeature,
+  isAnyAccountFeatureAllowed,
   useAccount,
 } from "@/contexts/AccountContext";
 import { usePublicInfo } from "@/contexts/PublicInfoContext";
@@ -72,18 +72,6 @@ interface MenuEntry {
 }
 
 const footerMenuPaths = new Set<string>();
-
-const featurePathPrefixes: Array<[string, AccountFeature]> = [
-  ["/admin/cloud", "cloud"],
-  ["/admin/dns", "cloud"],
-  ["/admin/failover", "cloud"],
-  ["/admin/notification", "notifications"],
-  ["/admin/exec", "tasks"],
-  ["/admin/scripts", "clipboard"],
-  ["/admin/ping", "ping"],
-  ["/admin/logs", "logs"],
-  ["/admin", "clients"],
-];
 
 const isExternalPath = (target: string) =>
   target.startsWith("http://") || target.startsWith("https://");
@@ -167,16 +155,42 @@ const getRequiredFeatureForPath = (target: string) => {
   const targetUrl = new URL(target, "https://komari.local");
   const normalizedPath = normalizePath(targetUrl.pathname);
 
-  for (const [prefix, feature] of featurePathPrefixes) {
-    if (prefix === "/admin") {
-      if (normalizedPath === prefix) {
-        return feature;
-      }
-      continue;
+  if (normalizedPath === "/admin/failover" || normalizedPath.startsWith("/admin/failover/")) {
+    return "cloud_failover";
+  }
+  if (normalizedPath === "/admin/dns" || normalizedPath.startsWith("/admin/dns/")) {
+    return "cloud_dns";
+  }
+  if (normalizedPath === "/admin/cloud") {
+    const provider = targetUrl.searchParams.get("provider");
+    if (provider === "digitalocean") {
+      return "cloud_digitalocean";
     }
-    if (normalizedPath === prefix || normalizedPath.startsWith(`${prefix}/`)) {
-      return feature;
+    if (provider === "linode") {
+      return "cloud_linode";
     }
+    if (provider === "aws") {
+      return "cloud_aws";
+    }
+    return null;
+  }
+  if (normalizedPath.startsWith("/admin/notification")) {
+    return "notifications";
+  }
+  if (normalizedPath.startsWith("/admin/exec")) {
+    return "tasks";
+  }
+  if (normalizedPath.startsWith("/admin/scripts")) {
+    return "clipboard";
+  }
+  if (normalizedPath.startsWith("/admin/ping")) {
+    return "ping";
+  }
+  if (normalizedPath.startsWith("/admin/logs")) {
+    return "logs";
+  }
+  if (normalizedPath === "/admin") {
+    return "clients";
   }
 
   return null;
@@ -309,23 +323,36 @@ export default function AdminPanelBar({ content }: AdminPanelBarProps) {
 
   const isFeatureAllowedPath = useCallback(
     (target: string) => {
+      if (!target || isExternalPath(target)) {
+        return true;
+      }
+      const targetUrl = new URL(target, "https://komari.local");
+      const normalizedPath = normalizePath(targetUrl.pathname);
+      if (normalizedPath === "/admin/cloud") {
+        const provider = targetUrl.searchParams.get("provider");
+        if (!provider) {
+          return isAnyAccountFeatureAllowed(account, [
+            "cloud_digitalocean",
+            "cloud_linode",
+            "cloud_aws",
+          ]);
+        }
+      }
+      if (normalizedPath === "/admin/failover") {
+        return hasFeature("cloud_failover") && hasFeature("cn_connectivity");
+      }
       const feature = getRequiredFeatureForPath(target);
       if (!feature) {
         return true;
       }
       return hasFeature(feature);
     },
-    [hasFeature],
+    [account, hasFeature],
   );
 
   const combinedMenuItems = useMemo<ExtendedMenuItem[]>(
     () =>
       baseMenuItems
-        .filter(
-          (item) =>
-            (platformAdmin || !isPlatformOnlyPath(item.path)) &&
-            isFeatureAllowedPath(item.path),
-        )
         .map((item) => ({
           ...item,
           children: item.children?.filter(
@@ -333,7 +360,13 @@ export default function AdminPanelBar({ content }: AdminPanelBarProps) {
               (platformAdmin || !isPlatformOnlyPath(child.path)) &&
               isFeatureAllowedPath(child.path),
           ),
-        })),
+        }))
+        .filter((item) => {
+          if (platformAdmin || !isPlatformOnlyPath(item.path)) {
+            return isFeatureAllowedPath(item.path) || Boolean(item.children?.length);
+          }
+          return false;
+        }),
     [isFeatureAllowedPath, isPlatformOnlyPath, platformAdmin],
   );
 

@@ -3958,7 +3958,7 @@ function FailoverPageContent() {
   }, []);
 
   React.useEffect(() => {
-    if (accountLoading || !hasFeature("cloud")) {
+    if (accountLoading || !hasFeature("cloud_failover") || !hasFeature("cn_connectivity")) {
       return;
     }
 
@@ -3966,7 +3966,7 @@ function FailoverPageContent() {
   }, [accountLoading, hasFeature, refreshResources, refreshTasks]);
 
   React.useEffect(() => {
-    if (accountLoading || !hasFeature("cloud")) {
+    if (accountLoading || !hasFeature("cloud_failover") || !hasFeature("cn_connectivity")) {
       return;
     }
 
@@ -4065,7 +4065,7 @@ function FailoverPageContent() {
     return <Loading />;
   }
 
-  if (!hasFeature("cloud")) {
+  if (!hasFeature("cloud_failover") || !hasFeature("cn_connectivity")) {
     return <Navigate to={getDefaultAdminPath(account)} replace />;
   }
 

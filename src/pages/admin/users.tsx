@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/table";
 import {
   type AccountFeature,
+  isDefaultGrantedAccountFeature,
   useAccount,
 } from "@/contexts/AccountContext";
 
@@ -61,17 +62,81 @@ type PolicyForm = {
   allowedFeatures: AccountFeature[];
 };
 
+type FeatureGroup = {
+  titleKey: string;
+  defaultTitle: string;
+  descriptionKey: string;
+  defaultDescription: string;
+  features: AccountFeature[];
+};
+
+type FeatureDependencyMap = Partial<Record<AccountFeature, AccountFeature[]>>;
+
 const FEATURE_ORDER: AccountFeature[] = [
   "clients",
   "records",
   "tasks",
   "ping",
   "notifications",
-  "cloud",
+  "cloud_digitalocean",
+  "cloud_linode",
+  "cloud_aws",
+  "cloud_dns",
+  "cloud_failover",
   "clipboard",
   "logs",
   "cn_connectivity",
 ];
+
+const LEGACY_CLOUD_FEATURES: AccountFeature[] = [
+  "cloud_digitalocean",
+  "cloud_linode",
+  "cloud_aws",
+  "cloud_dns",
+  "cloud_failover",
+];
+
+const FEATURE_GROUPS: FeatureGroup[] = [
+  {
+    titleKey: "admin.users.group_standard",
+    defaultTitle: "Core access",
+    descriptionKey: "admin.users.group_standard_description",
+    defaultDescription: "Common day-to-day admin capabilities.",
+    features: [
+      "clients",
+      "records",
+      "tasks",
+      "ping",
+      "notifications",
+      "clipboard",
+      "logs",
+    ],
+  },
+  {
+    titleKey: "admin.users.group_cloud",
+    defaultTitle: "Cloud access",
+    descriptionKey: "admin.users.group_cloud_description",
+    defaultDescription: "Control each cloud provider, DNS, and failover separately.",
+    features: [
+      "cloud_digitalocean",
+      "cloud_linode",
+      "cloud_aws",
+      "cloud_dns",
+      "cloud_failover",
+    ],
+  },
+  {
+    titleKey: "admin.users.group_sensitive",
+    defaultTitle: "Additional probes",
+    descriptionKey: "admin.users.group_sensitive_description",
+    defaultDescription: "Low-frequency features with extra dependencies.",
+    features: ["cn_connectivity"],
+  },
+];
+
+const FEATURE_DEPENDENCIES: FeatureDependencyMap = {
+  cloud_failover: ["cn_connectivity"],
+};
 
 const normalizeRole = (role?: string): UserRole =>
   String(role || "").toLowerCase() === "user" ? "user" : "admin";
@@ -80,12 +145,20 @@ const normalizeFeatures = (
   features?: string[] | null,
   availableFeatures?: AccountFeature[],
 ) => {
-  const allowList = new Set(availableFeatures?.length ? availableFeatures : FEATURE_ORDER);
+  const source = availableFeatures?.length ? availableFeatures : FEATURE_ORDER;
+  const allowList = new Set<AccountFeature>(source);
+  const rawFeatures = (features || []).flatMap((feature) => {
+    const value = String(feature || "").trim().toLowerCase();
+    if (value === "cloud") {
+      return LEGACY_CLOUD_FEATURES;
+    }
+    return [value];
+  });
   const normalized = Array.from(
     new Set(
-      (features || [])
-        .map((feature) => String(feature || "").trim().toLowerCase())
-        .filter((feature): feature is AccountFeature => allowList.has(feature as AccountFeature)),
+      rawFeatures.filter(
+        (feature): feature is AccountFeature => allowList.has(feature as AccountFeature),
+      ),
     ),
   );
   normalized.sort(
@@ -127,8 +200,16 @@ const getFeatureLabel = (
       return t("admin.users.feature_ping", "Ping");
     case "notifications":
       return t("admin.users.feature_notifications", "Notifications");
-    case "cloud":
-      return t("admin.users.feature_cloud", "Cloud");
+    case "cloud_digitalocean":
+      return t("admin.users.feature_cloud_digitalocean", "DigitalOcean");
+    case "cloud_linode":
+      return t("admin.users.feature_cloud_linode", "Linode");
+    case "cloud_aws":
+      return t("admin.users.feature_cloud_aws", "AWS");
+    case "cloud_dns":
+      return t("admin.users.feature_cloud_dns", "DNS providers");
+    case "cloud_failover":
+      return t("admin.users.feature_cloud_failover", "Failover");
     case "clipboard":
       return t("admin.users.feature_clipboard", "Scripts");
     case "logs":
@@ -144,14 +225,188 @@ const getFeatureLabel = (
 };
 
 const getImplicitStandardFeaturesLabel = (t: TFunction) =>
-  t("admin.users.standard_features", "Standard features");
+  t("admin.users.default_features", "Default access");
 
-const createDefaultForm = (): CreateUserForm => ({
+const getDefaultSelectedFeatures = (availableFeatures: AccountFeature[]) =>
+  availableFeatures.filter((feature) => isDefaultGrantedAccountFeature(feature));
+
+const collapseFeaturesForSave = (
+  selectedFeatures: AccountFeature[],
+  availableFeatures: AccountFeature[],
+) => {
+  const normalizedSelected = normalizeFeatures(selectedFeatures, availableFeatures);
+  const defaultSelected = normalizeFeatures(
+    getDefaultSelectedFeatures(availableFeatures),
+    availableFeatures,
+  );
+
+  if (
+    normalizedSelected.length === defaultSelected.length &&
+    normalizedSelected.every((feature, index) => feature === defaultSelected[index])
+  ) {
+    return [] as AccountFeature[];
+  }
+
+  return normalizedSelected;
+};
+
+const getDependentFeatures = (
+  feature: AccountFeature,
+  availableFeatures: AccountFeature[],
+) =>
+  Object.entries(FEATURE_DEPENDENCIES)
+    .filter(([dependent, requirements]) =>
+      availableFeatures.includes(dependent as AccountFeature) &&
+      requirements.includes(feature),
+    )
+    .map(([dependent]) => dependent as AccountFeature);
+
+const applyFeatureSelection = (
+  current: AccountFeature[],
+  feature: AccountFeature,
+  checked: boolean,
+  availableFeatures: AccountFeature[],
+) => {
+  const availableSet = new Set(availableFeatures);
+  let next = checked
+    ? normalizeFeatures([...current, feature], availableFeatures)
+    : current.filter((item) => item !== feature);
+
+  if (feature === "cloud_failover" && checked && availableSet.has("cn_connectivity")) {
+    next = normalizeFeatures([...next, "cn_connectivity"], availableFeatures);
+  }
+
+  if (feature === "cn_connectivity" && !checked) {
+    next = next.filter((item) => item !== "cloud_failover");
+  }
+
+  return next;
+};
+
+function FeatureAccessEditor({
+  availableFeatures,
+  selectedFeatures,
+  onChange,
+  t,
+}: {
+  availableFeatures: AccountFeature[];
+  selectedFeatures: AccountFeature[];
+  onChange: (next: AccountFeature[]) => void;
+  t: TFunction;
+}) {
+  const availableSet = React.useMemo(
+    () => new Set(availableFeatures),
+    [availableFeatures],
+  );
+
+  return (
+    <div className="space-y-4">
+      <div>
+        <div className="text-sm font-medium text-slate-900 dark:text-slate-100">
+          {t("admin.users.allowed_features", "Allowed features")}
+        </div>
+        <div className="text-xs text-slate-500 dark:text-slate-400">
+          {t(
+            "admin.users.allowed_features_hint_v2",
+            "Leave everything unchecked to use default access. Selecting failover will also enable the CN connectivity probe dependency.",
+          )}
+        </div>
+      </div>
+      <div className="space-y-4">
+        {FEATURE_GROUPS.map((group) => {
+          const groupFeatures = group.features.filter((feature) =>
+            availableFeatures.includes(feature),
+          );
+          if (groupFeatures.length === 0) {
+            return null;
+          }
+
+          return (
+            <div
+              key={group.titleKey}
+              className="rounded-xl border border-slate-200 p-3 dark:border-slate-800"
+            >
+              <div className="mb-3">
+                <div className="text-sm font-medium text-slate-900 dark:text-slate-100">
+                  {t(group.titleKey, group.defaultTitle)}
+                </div>
+                <div className="text-xs text-slate-500 dark:text-slate-400">
+                  {t(group.descriptionKey, group.defaultDescription)}
+                </div>
+              </div>
+              <div className="grid gap-3 sm:grid-cols-2">
+                {groupFeatures.map((feature) => {
+                  const checked = selectedFeatures.includes(feature);
+                  const dependencies = (FEATURE_DEPENDENCIES[feature] || []).filter((dependency) =>
+                    availableSet.has(dependency),
+                  );
+                  const dependents = getDependentFeatures(feature, availableFeatures).filter(
+                    (dependent) => selectedFeatures.includes(dependent),
+                  );
+                  const locked = dependents.length > 0;
+
+                  return (
+                    <label
+                      key={feature}
+                      className="flex items-start gap-2 rounded-lg border border-slate-200 px-3 py-2 text-sm dark:border-slate-800"
+                    >
+                      <Checkbox
+                        checked={checked}
+                        disabled={locked}
+                        onCheckedChange={(next) =>
+                          onChange(
+                            applyFeatureSelection(
+                              selectedFeatures,
+                              feature,
+                              Boolean(next),
+                              availableFeatures,
+                            ),
+                          )
+                        }
+                      />
+                      <div className="min-w-0 space-y-1">
+                        <div className="text-sm text-slate-900 dark:text-slate-100">
+                          {getFeatureLabel(feature, t)}
+                        </div>
+                        {dependencies.length > 0 || dependents.length > 0 ? (
+                          <div className="flex flex-wrap gap-1.5">
+                            {dependencies.map((dependency) => (
+                              <Badge key={`${feature}-${dependency}`} color="amber" variant="soft">
+                                {t("admin.users.feature_requires", {
+                                  feature: getFeatureLabel(dependency, t),
+                                  defaultValue: `Requires ${getFeatureLabel(dependency, t)}`,
+                                })}
+                              </Badge>
+                            ))}
+                            {dependents.map((dependent) => (
+                              <Badge key={`${feature}-${dependent}-dependent`} color="blue" variant="soft">
+                                {t("admin.users.feature_required_by", {
+                                  feature: getFeatureLabel(dependent, t),
+                                  defaultValue: `Required by ${getFeatureLabel(dependent, t)}`,
+                                })}
+                              </Badge>
+                            ))}
+                          </div>
+                        ) : null}
+                      </div>
+                    </label>
+                  );
+                })}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+const createDefaultForm = (availableFeatures: AccountFeature[]): CreateUserForm => ({
   username: "",
   password: "",
   role: "user",
   serverQuota: "0",
-  allowedFeatures: [],
+  allowedFeatures: getDefaultSelectedFeatures(availableFeatures),
 });
 
 export default function AdminUsersPage() {
@@ -163,7 +418,9 @@ export default function AdminUsersPage() {
   const [error, setError] = React.useState<string | null>(null);
   const [createOpen, setCreateOpen] = React.useState(false);
   const [createSubmitting, setCreateSubmitting] = React.useState(false);
-  const [createForm, setCreateForm] = React.useState<CreateUserForm>(createDefaultForm);
+  const [createForm, setCreateForm] = React.useState<CreateUserForm>(() =>
+    createDefaultForm(FEATURE_ORDER),
+  );
   const [policyUser, setPolicyUser] = React.useState<ManagedUser | null>(null);
   const [policyForm, setPolicyForm] = React.useState<PolicyForm>({
     serverQuota: "0",
@@ -229,25 +486,18 @@ export default function AdminUsersPage() {
   const totalAdmins = users.filter((user) => normalizeRole(user.role) === "admin").length;
   const totalRegularUsers = totalUsers - totalAdmins;
 
-  const toggleFeature = React.useCallback(
-    (
-      current: AccountFeature[],
-      feature: AccountFeature,
-      checked: boolean,
-    ) => {
-      if (checked) {
-        return normalizeFeatures([...current, feature], availableFeatures);
-      }
-      return current.filter((item) => item !== feature);
-    },
-    [availableFeatures],
-  );
-
   const openPolicyEditor = (user: ManagedUser) => {
+    const normalizedAllowedFeatures = normalizeFeatures(
+      user.allowed_features,
+      availableFeatures,
+    );
     setPolicyUser(user);
     setPolicyForm({
       serverQuota: String(Number(user.server_quota || 0)),
-      allowedFeatures: normalizeFeatures(user.allowed_features, availableFeatures),
+      allowedFeatures:
+        normalizedAllowedFeatures.length > 0
+          ? normalizedAllowedFeatures
+          : getDefaultSelectedFeatures(availableFeatures),
     });
   };
 
@@ -273,7 +523,10 @@ export default function AdminUsersPage() {
           password: createForm.password,
           role: createForm.role,
           server_quota: parseServerQuota(createForm.serverQuota),
-          allowed_features: createForm.allowedFeatures,
+          allowed_features: collapseFeaturesForSave(
+            createForm.allowedFeatures,
+            availableFeatures,
+          ),
         }),
       });
       const payload = (await response.json().catch(() => ({}))) as ApiEnvelope<ManagedUser>;
@@ -281,7 +534,7 @@ export default function AdminUsersPage() {
         throw new Error(payload.message || t("admin.users.create_failed"));
       }
       toast.success(t("common.created_successfully"));
-      setCreateForm(createDefaultForm());
+      setCreateForm(createDefaultForm(availableFeatures));
       setCreateOpen(false);
       await loadUsers();
     } catch (createError) {
@@ -344,7 +597,10 @@ export default function AdminUsersPage() {
         body: JSON.stringify({
           uuid: policyUser.uuid,
           server_quota: parseServerQuota(policyForm.serverQuota),
-          allowed_features: policyForm.allowedFeatures,
+          allowed_features: collapseFeaturesForSave(
+            policyForm.allowedFeatures,
+            availableFeatures,
+          ),
         }),
       });
       const payload = (await response.json().catch(() => ({}))) as ApiEnvelope<{
@@ -359,7 +615,7 @@ export default function AdminUsersPage() {
             ? {
                 ...user,
                 server_quota: parseServerQuota(policyForm.serverQuota),
-                allowed_features: normalizeFeatures(
+                allowed_features: collapseFeaturesForSave(
                   policyForm.allowedFeatures,
                   availableFeatures,
                 ),
@@ -433,7 +689,15 @@ export default function AdminUsersPage() {
           <Button variant="outline" onClick={() => void loadUsers()}>
             {t("common.refresh")}
           </Button>
-          <Dialog.Root open={createOpen} onOpenChange={setCreateOpen}>
+          <Dialog.Root
+            open={createOpen}
+            onOpenChange={(open) => {
+              setCreateOpen(open);
+              if (open) {
+                setCreateForm(createDefaultForm(availableFeatures));
+              }
+            }}
+          >
             <Dialog.Trigger asChild>
               <Button>{t("common.add")}</Button>
             </Dialog.Trigger>
@@ -515,45 +779,14 @@ export default function AdminUsersPage() {
                     </div>
                   </label>
                 </div>
-                <div className="space-y-3">
-                  <div>
-                    <div className="text-sm font-medium text-slate-900 dark:text-slate-100">
-                      {t("admin.users.allowed_features", "Allowed features")}
-                    </div>
-                    <div className="text-xs text-slate-500 dark:text-slate-400">
-                      {t(
-                        "admin.users.allowed_features_hint_v2",
-                        "Standard features stay available by default. Sensitive features like CN connectivity probe must be granted explicitly.",
-                      )}
-                    </div>
-                  </div>
-                  <div className="grid gap-3 sm:grid-cols-2">
-                    {availableFeatures.map((feature) => {
-                      const checked = createForm.allowedFeatures.includes(feature);
-                      return (
-                        <label
-                          key={feature}
-                          className="flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-sm dark:border-slate-800"
-                        >
-                          <Checkbox
-                            checked={checked}
-                            onCheckedChange={(next) =>
-                              setCreateForm((current) => ({
-                                ...current,
-                                allowedFeatures: toggleFeature(
-                                  current.allowedFeatures,
-                                  feature,
-                                  Boolean(next),
-                                ),
-                              }))
-                            }
-                          />
-                          <span>{getFeatureLabel(feature, t)}</span>
-                        </label>
-                      );
-                    })}
-                  </div>
-                </div>
+                <FeatureAccessEditor
+                  availableFeatures={availableFeatures}
+                  selectedFeatures={createForm.allowedFeatures}
+                  onChange={(allowedFeatures) =>
+                    setCreateForm((current) => ({ ...current, allowedFeatures }))
+                  }
+                  t={t}
+                />
                 <div className="flex justify-end gap-2">
                   <Dialog.Close asChild>
                     <Button variant="outline" type="button">
@@ -743,45 +976,14 @@ export default function AdminUsersPage() {
                     {t("admin.users.server_quota_hint", "Set to 0 for unlimited.")}
                   </div>
                 </label>
-                <div className="space-y-3">
-                  <div>
-                    <div className="text-sm font-medium text-slate-900 dark:text-slate-100">
-                      {t("admin.users.allowed_features", "Allowed features")}
-                    </div>
-                    <div className="text-xs text-slate-500 dark:text-slate-400">
-                      {t(
-                        "admin.users.allowed_features_hint_v2",
-                        "Standard features stay available by default. Sensitive features like CN connectivity probe must be granted explicitly.",
-                      )}
-                    </div>
-                  </div>
-                  <div className="grid gap-3 sm:grid-cols-2">
-                    {availableFeatures.map((feature) => {
-                      const checked = policyForm.allowedFeatures.includes(feature);
-                      return (
-                        <label
-                          key={feature}
-                          className="flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-sm dark:border-slate-800"
-                        >
-                          <Checkbox
-                            checked={checked}
-                            onCheckedChange={(next) =>
-                              setPolicyForm((current) => ({
-                                ...current,
-                                allowedFeatures: toggleFeature(
-                                  current.allowedFeatures,
-                                  feature,
-                                  Boolean(next),
-                                ),
-                              }))
-                            }
-                          />
-                          <span>{getFeatureLabel(feature, t)}</span>
-                        </label>
-                      );
-                    })}
-                  </div>
-                </div>
+                <FeatureAccessEditor
+                  availableFeatures={availableFeatures}
+                  selectedFeatures={policyForm.allowedFeatures}
+                  onChange={(allowedFeatures) =>
+                    setPolicyForm((current) => ({ ...current, allowedFeatures }))
+                  }
+                  t={t}
+                />
                 <div className="flex justify-end gap-2">
                   <Dialog.Close asChild>
                     <Button variant="outline" type="button" onClick={closePolicyEditor}>

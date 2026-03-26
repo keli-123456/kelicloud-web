@@ -146,6 +146,19 @@ const ExecContent = () => {
         t("exec.status.timeout_output", "Execution timed out");
     const getDisplayOutput = (output: string) =>
         output === EXEC_TIMEOUT_SENTINEL ? getTimeoutOutput() : output;
+    const getNodeDisplayAddress = (uuid: string) => {
+        const node = nodeDetail.find((item) => item.uuid === uuid);
+        return node?.ipv4 || node?.ipv6 || node?.name || uuid;
+    };
+    const getNodeDisplayName = (uuid: string) => {
+        const node = nodeDetail.find((item) => item.uuid === uuid);
+        return node?.name || uuid;
+    };
+    const shouldShowNodeName = (uuid: string) => {
+        const address = getNodeDisplayAddress(uuid);
+        const name = getNodeDisplayName(uuid);
+        return Boolean(name) && name !== address && name !== uuid;
+    };
 
     // Poll task results.
     const pollTaskResult = async (taskId: string) => {
@@ -280,12 +293,9 @@ const ExecContent = () => {
         toast.success(t("copy_success", "Copied!"));
     };
 
-    const getSelectedNodeNames = () => {
-        return selectedNodes.map(uuid => {
-            const node = nodeDetail.find(n => n.uuid === uuid);
-            return node ? node.name : uuid;
-        }).join(", ");
-    };
+    const getSelectedNodeAddresses = () => selectedNodes
+        .map((uuid) => getNodeDisplayAddress(uuid))
+        .join(", ");
 
     const getTaskStatus = (result: TaskResult) => {
         if (result.finished_at === null) {
@@ -320,11 +330,6 @@ const ExecContent = () => {
 
     return (
         <AdminPageShell
-            eyebrow={t("exec.title")}
-            title={t("exec.page_title", {
-                defaultValue: "Batch command execution",
-            })}
-            description={t("exec.description")}
             actions={(
                 <Button variant="outline" asChild>
                     <Link to="/admin/scripts">
@@ -342,7 +347,7 @@ const ExecContent = () => {
                     }),
                     value: `${selectedNodes.length}`,
                     hint: selectedNodes.length > 0
-                        ? getSelectedNodeNames()
+                        ? getSelectedNodeAddresses()
                         : t("exec.stats.target_nodes_empty", {
                             defaultValue: "No nodes selected yet.",
                         }),
@@ -405,12 +410,13 @@ const ExecContent = () => {
                             <NodeSelector
                                 value={selectedNodes}
                                 onChange={setSelectedNodes}
+                                displayMode="ip"
                                 className="min-h-[320px]"
                             />
                         </div>
                         {selectedNodes.length > 0 && (
                             <p className="mt-2 block text-[13px] leading-6 text-slate-500 dark:text-slate-400">
-                                {t("exec.selectedNodes", "Selected nodes")}: {getSelectedNodeNames()}
+                                {t("exec.selectedNodes", "Selected nodes")}: {getSelectedNodeAddresses()}
                             </p>
                         )}
                     </section>
@@ -541,14 +547,18 @@ const ExecContent = () => {
                                     >
                                         <div className="flex flex-col gap-3">
                                             {/* Node identity and status. */}
-                                            <p className="text-base font-medium text-slate-900 dark:text-slate-100">
-                                                {nodeDetail.find(n => n.uuid === result.client)?.name || result.client}
-                                            </p>
+                                            <div className="min-w-0">
+                                                <p className="truncate text-base font-medium text-slate-900 dark:text-slate-100">
+                                                    {getNodeDisplayAddress(result.client)}
+                                                </p>
+                                                {shouldShowNodeName(result.client) && (
+                                                    <p className="truncate text-[13px] text-slate-500 dark:text-slate-400">
+                                                        {getNodeDisplayName(result.client)}
+                                                    </p>
+                                                )}
+                                            </div>
                                             <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                                                 <div className="flex flex-wrap items-center gap-2">
-                                                    <span className="text-sm font-medium text-slate-900 dark:text-slate-100">
-                                                        {result.client_info.name}
-                                                    </span>
                                                     <Badge
                                                         variant={status.variant}
                                                         className="rounded-md"

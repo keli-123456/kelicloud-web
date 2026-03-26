@@ -7,6 +7,11 @@ export type AccountFeature =
   | "ping"
   | "notifications"
   | "cloud"
+  | "cloud_digitalocean"
+  | "cloud_linode"
+  | "cloud_aws"
+  | "cloud_dns"
+  | "cloud_failover"
   | "clipboard"
   | "logs"
   | "cn_connectivity";
@@ -34,12 +39,29 @@ const defaultGrantedAccountFeatures = new Set<AccountFeature>([
   "tasks",
   "ping",
   "notifications",
-  "cloud",
+  "cloud_digitalocean",
+  "cloud_linode",
+  "cloud_aws",
+  "cloud_dns",
+  "cloud_failover",
   "clipboard",
   "logs",
 ]);
 
+const legacyCloudAccountFeatures: AccountFeature[] = [
+  "cloud_digitalocean",
+  "cloud_linode",
+  "cloud_aws",
+  "cloud_dns",
+  "cloud_failover",
+];
+
 export function isDefaultGrantedAccountFeature(feature: AccountFeature) {
+  if (feature === "cloud") {
+    return legacyCloudAccountFeatures.some((item) =>
+      defaultGrantedAccountFeatures.has(item),
+    );
+  }
   return defaultGrantedAccountFeatures.has(feature);
 }
 
@@ -56,7 +78,21 @@ export function isAccountFeatureAllowed(
     return isDefaultGrantedAccountFeature(feature);
   }
 
+  if (feature === "cloud") {
+    return (
+      allowed.includes("cloud") ||
+      legacyCloudAccountFeatures.some((item) => allowed.includes(item))
+    );
+  }
+
   return allowed.includes(feature);
+}
+
+export function isAnyAccountFeatureAllowed(
+  account: Account | null,
+  features: AccountFeature[],
+) {
+  return features.some((feature) => isAccountFeatureAllowed(account, feature));
 }
 
 export function getDefaultAdminPath(account: Account | null) {
@@ -66,8 +102,23 @@ export function getDefaultAdminPath(account: Account | null) {
   if (isAccountFeatureAllowed(account, "clients")) {
     return "/admin";
   }
-  if (isAccountFeatureAllowed(account, "cloud")) {
+  if (
+    isAnyAccountFeatureAllowed(account, [
+      "cloud_digitalocean",
+      "cloud_linode",
+      "cloud_aws",
+    ])
+  ) {
     return "/admin/cloud";
+  }
+  if (isAccountFeatureAllowed(account, "cloud_dns")) {
+    return "/admin/dns";
+  }
+  if (
+    isAccountFeatureAllowed(account, "cloud_failover") &&
+    isAccountFeatureAllowed(account, "cn_connectivity")
+  ) {
+    return "/admin/failover";
   }
   if (isAccountFeatureAllowed(account, "notifications")) {
     return "/admin/notification";
