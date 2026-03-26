@@ -557,6 +557,29 @@ export const emojiToRegionMap: Record<string, { en: string; zh: string; aliases:
   }
 };
 
+const getRegionInfo = (regionValue: string) => {
+  const trimmed = String(regionValue || "").trim();
+  if (!trimmed) {
+    return null;
+  }
+
+  const direct = emojiToRegionMap[trimmed];
+  if (direct) {
+    return direct;
+  }
+
+  const normalized = trimmed.toUpperCase();
+  if (!/^[A-Z]{2}$/.test(normalized)) {
+    return null;
+  }
+
+  const emoji = Array.from(normalized)
+    .map((char) => String.fromCodePoint(0x1F1E6 + char.charCodeAt(0) - 0x41))
+    .join("");
+
+  return emojiToRegionMap[emoji] || null;
+};
+
 /**
  * 检查地区emoji是否匹配搜索词
  * @param regionEmoji 地区emoji（如：🇭🇰）
@@ -572,7 +595,7 @@ export const isRegionMatch = (regionEmoji: string, searchTerm: string): boolean 
   }
   
   // 从映射表中查找
-  const regionInfo = emojiToRegionMap[regionEmoji];
+  const regionInfo = getRegionInfo(regionEmoji);
   if (!regionInfo) {
     // 如果映射表中没有，则只进行简单的包含匹配
     return regionEmoji.toLowerCase().includes(lowerSearchTerm);
@@ -601,7 +624,7 @@ export const isRegionMatch = (regionEmoji: string, searchTerm: string): boolean 
  * @returns 地区名称
  */
 export const getRegionDisplayName = (regionEmoji: string, language: 'en' | 'zh' = 'zh'): string => {
-  const regionInfo = emojiToRegionMap[regionEmoji];
+  const regionInfo = getRegionInfo(regionEmoji);
   if (!regionInfo) {
     return regionEmoji;
   }
