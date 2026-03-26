@@ -704,6 +704,13 @@ export async function runFailoverTask(taskID: number): Promise<FailoverExecution
   return execution;
 }
 
+export async function stopFailoverExecution(executionID: number): Promise<FailoverExecution> {
+  const data = await requestEnvelope<unknown>(`/api/admin/failover/executions/${executionID}/stop`, {
+    method: "POST",
+  });
+  return normalizeExecution(data);
+}
+
 export async function getFailoverExecutions(taskID: number, limit = 20): Promise<FailoverExecutionSummary[]> {
   const data = await requestEnvelope<unknown[]>(`/api/admin/failover/tasks/${taskID}/executions?limit=${limit}`);
   return Array.isArray(data)

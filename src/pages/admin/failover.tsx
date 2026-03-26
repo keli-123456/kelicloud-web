@@ -8,6 +8,7 @@ import {
   Play,
   Plus,
   RefreshCw,
+  Square,
   Trash2,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
@@ -74,6 +75,7 @@ import {
   isFailoverExecutionActive,
   normalizeProviderEntryID,
   runFailoverTask,
+  stopFailoverExecution,
   toggleFailoverTask,
 	  updateFailoverTask,
 	  type FailoverCatalogOption,
@@ -1468,17 +1470,20 @@ function ExecutionDetailDialog({
   taskName,
   open,
   onOpenChange,
+  onExecutionUpdated,
 }: {
   executionID: number | null;
   taskName: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  onExecutionUpdated?: () => Promise<void>;
 }) {
   const { t } = useTranslation();
   const [execution, setExecution] = React.useState<FailoverExecution | null>(null);
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState("");
   const [showRawData, setShowRawData] = React.useState(false);
+  const [stopping, setStopping] = React.useState(false);
 
   const loadExecution = React.useCallback(async (showLoading = true) => {
     if (!executionID) {
@@ -1527,6 +1532,24 @@ function ExecutionDetailDialog({
       window.clearInterval(timer);
     };
   }, [execution, loadExecution, open]);
+
+  const handleStopExecution = async () => {
+    if (!executionID) {
+      return;
+    }
+
+    setStopping(true);
+    try {
+      const updated = await stopFailoverExecution(executionID);
+      setExecution(updated);
+      toast.success(t("failover.messages.stopped", { defaultValue: "Failover execution stopped" }));
+      await onExecutionUpdated?.();
+    } catch (nextError) {
+      toast.error(nextError instanceof Error ? nextError.message : t("common.unknown_error"));
+    } finally {
+      setStopping(false);
+    }
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -1699,6 +1722,12 @@ function ExecutionDetailDialog({
         </div>
 
         <DialogFooter className="border-t px-5 py-4">
+          {execution && isFailoverExecutionActive(execution.status) ? (
+            <Button type="button" variant="outline" onClick={() => void handleStopExecution()} disabled={stopping || loading}>
+              {stopping ? <LoaderCircle className="size-4 animate-spin" /> : <Square className="size-4" />}
+              {t("failover.actions.stop", { defaultValue: "Stop" })}
+            </Button>
+          ) : null}
           <Button type="button" variant="outline" onClick={() => void loadExecution()} disabled={!executionID || loading}>
             <RefreshCw className={cn("size-4", loading ? "animate-spin" : "")} />
             {t("common.refresh", { defaultValue: "Refresh" })}
@@ -3966,6 +3995,7 @@ function FailoverPageContent() {
   const [selectedExecutionTaskName, setSelectedExecutionTaskName] = React.useState("");
   const [runningTaskID, setRunningTaskID] = React.useState<number | null>(null);
   const [busyTaskID, setBusyTaskID] = React.useState<number | null>(null);
+  const [stoppingExecutionID, setStoppingExecutionID] = React.useState<number | null>(null);
   const [clockNow, setClockNow] = React.useState(() => Date.now());
 
   const refreshTasks = React.useCallback(async (options?: { silent?: boolean }) => {
@@ -4091,6 +4121,20 @@ function FailoverPageContent() {
     }
   };
 
+  const handleStopExecution = async (executionID: number, taskName: string) => {
+    setStoppingExecutionID(executionID);
+    try {
+      await stopFailoverExecution(executionID);
+      toast.success(t("failover.messages.stopped", { defaultValue: "Failover execution stopped" }));
+      await refreshTasks({ silent: true });
+      openExecutionDialog(executionID, taskName);
+    } catch (nextError) {
+      toast.error(nextError instanceof Error ? nextError.message : t("common.unknown_error"));
+    } finally {
+      setStoppingExecutionID(null);
+    }
+  };
+
   const handleToggleTask = async (task: FailoverTask) => {
     setBusyTaskID(task.id);
     try {
@@ -4187,6 +4231,7 @@ function FailoverPageContent() {
               const latestExecution = task.latest_execution;
               const taskBusy = busyTaskID === task.id;
               const taskRunning = runningTaskID === task.id;
+              const executionStopping = latestExecution ? stoppingExecutionID === latestExecution.id : false;
               const requiresInitialization = !currentClientUUID;
               const currentOutletIP = task.current_address || "";
               const currentOutletLabel = currentOutletIP || t("failover.task.uninitialized", { defaultValue: "Not initialized" });
@@ -4353,6 +4398,18 @@ function FailoverPageContent() {
                           ? t("failover.actions.initialize", { defaultValue: "Initialize" })
                           : t("failover.actions.run", { defaultValue: "Run" })}
                       </Button>
+                      {latestExecution && task.has_active_execution ? (
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          onClick={() => void handleStopExecution(latestExecution.id, task.name)}
+                          disabled={executionStopping || taskBusy || taskRunning}
+                        >
+                          {executionStopping ? <LoaderCircle className="size-4 animate-spin" /> : <Square className="size-4" />}
+                          {t("failover.actions.stop", { defaultValue: "Stop" })}
+                        </Button>
+                      ) : null}
                       <Button type="button" size="sm" variant="outline" onClick={() => void handleToggleTask(task)} disabled={taskBusy || taskRunning}>
                         {task.enabled
                           ? t("failover.actions.disable", { defaultValue: "Disable" })
@@ -4392,6 +4449,7 @@ function FailoverPageContent() {
         executionID={selectedExecutionID}
         taskName={selectedExecutionTaskName}
         open={selectedExecutionID !== null}
+        onExecutionUpdated={() => refreshTasks({ silent: true })}
         onOpenChange={(nextOpen) => {
           if (!nextOpen) {
             setSelectedExecutionID(null);
