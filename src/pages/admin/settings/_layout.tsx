@@ -23,6 +23,11 @@ const navItems = [
     platformOnly: false,
   },
   {
+    path: "/admin/settings/proxy",
+    labelKey: "settings.proxy.title",
+    platformOnly: true,
+  },
+  {
     path: "/admin/settings/sign-on",
     labelKey: "settings.sign_on.title",
     platformOnly: true,

@@ -15,6 +15,12 @@ export interface SettingsResponse {
   cn_connectivity_enabled: boolean;
   cn_connectivity_target: string;
   cn_connectivity_interval: number;
+  outbound_proxy_enabled: boolean;
+  outbound_proxy_protocol: string;
+  outbound_proxy_host: string;
+  outbound_proxy_port: number;
+  outbound_proxy_username: string;
+  outbound_proxy_password: string;
   geo_ip_enabled: boolean;
   geo_ip_provider: string;
   o_auth_provider: string;
@@ -55,6 +61,12 @@ const DEFAULT_SETTINGS: SettingsResponse = {
   cn_connectivity_enabled: false,
   cn_connectivity_target: "",
   cn_connectivity_interval: 60,
+  outbound_proxy_enabled: false,
+  outbound_proxy_protocol: "socks5",
+  outbound_proxy_host: "",
+  outbound_proxy_port: 1080,
+  outbound_proxy_username: "",
+  outbound_proxy_password: "",
   geo_ip_enabled: false,
   geo_ip_provider: "",
   o_auth_provider: "",
