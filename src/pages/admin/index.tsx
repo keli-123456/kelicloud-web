@@ -689,18 +689,22 @@ const buildAgentUpgradeCommand = (
   }
   const shellArgs = shellArgsList.map(shellQuote).join(" ");
   const shellName = platform === "macos" ? "zsh" : "bash";
-  const installCommand = `if [ "$(id -u)" -ne 0 ] && command -v sudo >/dev/null 2>&1; then sudo ${shellName} "$TMP_SCRIPT" ${shellArgs}; else ${shellName} "$TMP_SCRIPT" ${shellArgs}; fi; STATUS=$?; rm -f "$TMP_SCRIPT"; exit "$STATUS"`;
-
-  return [
+  const installCommand = [
+    "set -eu",
     'TMP_SCRIPT="$(mktemp)"',
+    'cleanup() { rm -f "$TMP_SCRIPT"; }',
+    "trap cleanup EXIT",
     `if command -v curl >/dev/null 2>&1; then curl -fsSL ${shellQuote(
       scriptUrl
     )} > "$TMP_SCRIPT"; else wget -qO- ${shellQuote(scriptUrl)} > "$TMP_SCRIPT"; fi`,
-    "STATUS=$?",
-    'if [ "$STATUS" -ne 0 ]; then rm -f "$TMP_SCRIPT"; exit "$STATUS"; fi',
+    'chmod +x "$TMP_SCRIPT"',
+    `if [ "$(id -u)" -ne 0 ] && command -v sudo >/dev/null 2>&1; then sudo ${shellName} "$TMP_SCRIPT" ${shellArgs}; else ${shellName} "$TMP_SCRIPT" ${shellArgs}; fi`,
+  ].join("; ");
+
+  return [
     `INSTALL_CMD=${shellQuote(installCommand)}`,
     'if command -v systemd-run >/dev/null 2>&1 && systemctl list-units >/dev/null 2>&1; then UNIT="komari-agent-upgrade-$(date +%s)"; systemd-run --unit "$UNIT" --collect /bin/sh -lc "$INSTALL_CMD"; STATUS=$?; else nohup /bin/sh -lc "$INSTALL_CMD" >/tmp/komari-agent-upgrade.log 2>&1 </dev/null & STATUS=$?; fi',
-    'if [ "$STATUS" -ne 0 ]; then rm -f "$TMP_SCRIPT"; exit "$STATUS"; fi',
+    'if [ "$STATUS" -ne 0 ]; then exit "$STATUS"; fi',
     `echo ${shellQuote(`Agent upgrade scheduled. The node may go offline briefly while the service restarts.${targetVersionMessage}`)}`,
     "exit 0",
   ].join("; ");
