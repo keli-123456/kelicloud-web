@@ -15,6 +15,12 @@ export interface SettingsResponse {
   cn_connectivity_enabled: boolean;
   cn_connectivity_target: string;
   cn_connectivity_interval: number;
+  cn_connectivity_retry_attempts: number;
+  cn_connectivity_retry_delay_seconds: number;
+  cn_connectivity_timeout_seconds: number;
+  offline_cleanup_enabled: boolean;
+  offline_cleanup_time: string;
+  offline_cleanup_grace_hours: number;
   outbound_proxy_enabled: boolean;
   outbound_proxy_protocol: string;
   outbound_proxy_host: string;
@@ -61,6 +67,12 @@ const DEFAULT_SETTINGS: SettingsResponse = {
   cn_connectivity_enabled: false,
   cn_connectivity_target: "",
   cn_connectivity_interval: 60,
+  cn_connectivity_retry_attempts: 3,
+  cn_connectivity_retry_delay_seconds: 1,
+  cn_connectivity_timeout_seconds: 5,
+  offline_cleanup_enabled: false,
+  offline_cleanup_time: "03:00",
+  offline_cleanup_grace_hours: 24,
   outbound_proxy_enabled: false,
   outbound_proxy_protocol: "socks5",
   outbound_proxy_host: "",

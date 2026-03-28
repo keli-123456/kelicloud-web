@@ -37,6 +37,7 @@ export type FailoverPlan = {
   payload: unknown;
   auto_connect_group: string;
   script_clipboard_id: number | null;
+  script_clipboard_ids: number[];
   script_timeout_sec: number;
   wait_agent_timeout_sec: number;
   created_at: string;
@@ -125,6 +126,7 @@ export type FailoverExecution = {
   new_instance_ref: unknown;
   new_addresses: unknown;
   script_clipboard_id: number | null;
+  script_clipboard_ids: number[];
   script_name_snapshot: string;
   script_task_id: string;
   script_status: string;
@@ -170,6 +172,7 @@ export type FailoverPlanInput = {
   payload: unknown;
   auto_connect_group: string;
   script_clipboard_id?: number | null;
+  script_clipboard_ids?: number[];
   script_timeout_sec: number;
   wait_agent_timeout_sec: number;
 };
@@ -275,6 +278,16 @@ function normalizeNullableNumber(value: unknown) {
   return typeof value === "number" && Number.isFinite(value) ? value : null;
 }
 
+function normalizeNumberArray(value: unknown) {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  const normalized = value
+    .filter((entry): entry is number => typeof entry === "number" && Number.isFinite(entry) && entry > 0);
+  return Array.from(new Set(normalized));
+}
+
 function normalizeBoolean(value: unknown) {
   return Boolean(value);
 }
@@ -308,6 +321,8 @@ function normalizeProbe(probe: unknown): FailoverProbe {
 
 function normalizePlan(plan: unknown): FailoverPlan {
   const raw = plan && typeof plan === "object" ? plan as Record<string, unknown> : {};
+  const scriptClipboardID = normalizeNullableNumber(raw.script_clipboard_id);
+  const scriptClipboardIDs = normalizeNumberArray(raw.script_clipboard_ids);
   return {
     id: normalizeNumber(raw.id),
     task_id: normalizeNumber(raw.task_id),
@@ -319,7 +334,12 @@ function normalizePlan(plan: unknown): FailoverPlan {
     action_type: normalizeString(raw.action_type),
     payload: normalizeUnknown(raw.payload),
     auto_connect_group: normalizeString(raw.auto_connect_group),
-    script_clipboard_id: normalizeNullableNumber(raw.script_clipboard_id),
+    script_clipboard_id: scriptClipboardID,
+    script_clipboard_ids: scriptClipboardIDs.length > 0
+      ? scriptClipboardIDs
+      : scriptClipboardID !== null
+        ? [scriptClipboardID]
+        : [],
     script_timeout_sec: normalizeNumber(raw.script_timeout_sec),
     wait_agent_timeout_sec: normalizeNumber(raw.wait_agent_timeout_sec),
     created_at: normalizeString(raw.created_at),
@@ -490,6 +510,8 @@ function normalizePlanCatalog(value: unknown): FailoverPlanCatalog {
 function normalizeExecution(execution: unknown): FailoverExecution {
   const raw = execution && typeof execution === "object" ? execution as Record<string, unknown> : {};
   const steps = Array.isArray(raw.steps) ? raw.steps.map(normalizeExecutionStep) : [];
+  const scriptClipboardID = normalizeNullableNumber(raw.script_clipboard_id);
+  const scriptClipboardIDs = normalizeNumberArray(raw.script_clipboard_ids);
   return {
     id: normalizeNumber(raw.id),
     task_id: normalizeNumber(raw.task_id),
@@ -505,7 +527,12 @@ function normalizeExecution(execution: unknown): FailoverExecution {
     new_client_uuid: normalizeString(raw.new_client_uuid),
     new_instance_ref: normalizeUnknown(raw.new_instance_ref),
     new_addresses: normalizeUnknown(raw.new_addresses),
-    script_clipboard_id: normalizeNullableNumber(raw.script_clipboard_id),
+    script_clipboard_id: scriptClipboardID,
+    script_clipboard_ids: scriptClipboardIDs.length > 0
+      ? scriptClipboardIDs
+      : scriptClipboardID !== null
+        ? [scriptClipboardID]
+        : [],
     script_name_snapshot: normalizeString(raw.script_name_snapshot),
     script_task_id: normalizeString(raw.script_task_id),
     script_status: normalizeString(raw.script_status),

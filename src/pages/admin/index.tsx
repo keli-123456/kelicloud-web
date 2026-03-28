@@ -363,6 +363,33 @@ const NODE_DIALOG_FOOTER_CLASS =
 const NODE_INPUT_CLASS =
   "rounded-xl border-slate-200 bg-white text-[14px] shadow-none dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100";
 
+const normalizeDailyCleanupTime = (value: string) => {
+  const trimmed = String(value || "").trim();
+  if (!trimmed) {
+    return "03:00";
+  }
+
+  const match = /^(\d{2}):(\d{2})$/.exec(trimmed);
+  if (!match) {
+    return null;
+  }
+
+  const hour = Number(match[1]);
+  const minute = Number(match[2]);
+  if (
+    !Number.isInteger(hour) ||
+    !Number.isInteger(minute) ||
+    hour < 0 ||
+    hour > 23 ||
+    minute < 0 ||
+    minute > 59
+  ) {
+    return null;
+  }
+
+  return `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
+};
+
 const normalizeLiveSnapshot = (value: any): NodeLiveSnapshot => {
   const fallback = createEmptyLiveRecord();
 
@@ -721,10 +748,12 @@ const generateRandomAutoDiscoveryKey = () => {
 
 const NodeAccessSettingsDialogButton = ({
   settings,
+  platformAdmin,
   canManageCNConnectivity,
   onRefreshSettings,
 }: {
   settings: SettingsResponse;
+  platformAdmin: boolean;
   canManageCNConnectivity: boolean;
   onRefreshSettings: () => Promise<SettingsResponse>;
 }) => {
@@ -741,6 +770,22 @@ const NodeAccessSettingsDialogButton = ({
   );
   const [cnConnectivityInterval, setCnConnectivityInterval] =
     React.useState(String(settings?.cn_connectivity_interval || 60));
+  const [cnConnectivityRetryAttempts, setCnConnectivityRetryAttempts] =
+    React.useState(String(settings?.cn_connectivity_retry_attempts || 3));
+  const [cnConnectivityRetryDelaySeconds, setCnConnectivityRetryDelaySeconds] =
+    React.useState(String(settings?.cn_connectivity_retry_delay_seconds || 1));
+  const [cnConnectivityTimeoutSeconds, setCnConnectivityTimeoutSeconds] =
+    React.useState(String(settings?.cn_connectivity_timeout_seconds || 5));
+  const [offlineCleanupEnabled, setOfflineCleanupEnabled] = React.useState(
+    Boolean(settings?.offline_cleanup_enabled),
+  );
+  const [offlineCleanupTime, setOfflineCleanupTime] = React.useState(
+    normalizeDailyCleanupTime(String(settings?.offline_cleanup_time || "03:00")) ||
+      "03:00",
+  );
+  const [offlineCleanupGraceHours, setOfflineCleanupGraceHours] = React.useState(
+    String(settings?.offline_cleanup_grace_hours || 24),
+  );
   const [settingsSaving, setSettingsSaving] = React.useState(false);
 
   const resetForm = React.useCallback(() => {
@@ -750,11 +795,32 @@ const NodeAccessSettingsDialogButton = ({
       normalizeCNConnectivityTargets(String(settings?.cn_connectivity_target || "")),
     );
     setCnConnectivityInterval(String(settings?.cn_connectivity_interval || 60));
+    setCnConnectivityRetryAttempts(
+      String(settings?.cn_connectivity_retry_attempts || 3),
+    );
+    setCnConnectivityRetryDelaySeconds(
+      String(settings?.cn_connectivity_retry_delay_seconds || 1),
+    );
+    setCnConnectivityTimeoutSeconds(
+      String(settings?.cn_connectivity_timeout_seconds || 5),
+    );
+    setOfflineCleanupEnabled(Boolean(settings?.offline_cleanup_enabled));
+    setOfflineCleanupTime(
+      normalizeDailyCleanupTime(String(settings?.offline_cleanup_time || "03:00")) ||
+        "03:00",
+    );
+    setOfflineCleanupGraceHours(String(settings?.offline_cleanup_grace_hours || 24));
   }, [
     settings?.auto_discovery_key,
     settings?.cn_connectivity_enabled,
     settings?.cn_connectivity_interval,
+    settings?.cn_connectivity_retry_attempts,
+    settings?.cn_connectivity_retry_delay_seconds,
     settings?.cn_connectivity_target,
+    settings?.cn_connectivity_timeout_seconds,
+    settings?.offline_cleanup_enabled,
+    settings?.offline_cleanup_time,
+    settings?.offline_cleanup_grace_hours,
   ]);
 
   React.useEffect(() => {
@@ -777,12 +843,54 @@ const NodeAccessSettingsDialogButton = ({
         toast.error(t("settings.general.cn_connectivity_interval_invalid"));
         return;
       }
+      const retryAttempts = parseInt(cnConnectivityRetryAttempts, 10);
+      if (Number.isNaN(retryAttempts) || retryAttempts <= 0) {
+        toast.error(t("settings.general.cn_connectivity_retry_attempts_invalid"));
+        return;
+      }
+      const retryDelaySeconds = parseInt(cnConnectivityRetryDelaySeconds, 10);
+      if (Number.isNaN(retryDelaySeconds) || retryDelaySeconds <= 0) {
+        toast.error(t("settings.general.cn_connectivity_retry_delay_seconds_invalid"));
+        return;
+      }
+      const timeoutSeconds = parseInt(cnConnectivityTimeoutSeconds, 10);
+      if (Number.isNaN(timeoutSeconds) || timeoutSeconds <= 0) {
+        toast.error(t("settings.general.cn_connectivity_timeout_seconds_invalid"));
+        return;
+      }
 
       payload.cn_connectivity_enabled = cnConnectivityEnabled;
       payload.cn_connectivity_target = normalizeCNConnectivityTargets(
         cnConnectivityTarget,
       );
       payload.cn_connectivity_interval = interval;
+      payload.cn_connectivity_retry_attempts = retryAttempts;
+      payload.cn_connectivity_retry_delay_seconds = retryDelaySeconds;
+      payload.cn_connectivity_timeout_seconds = timeoutSeconds;
+    }
+
+    if (platformAdmin) {
+      const normalizedCleanupTime = normalizeDailyCleanupTime(offlineCleanupTime);
+      if (!normalizedCleanupTime) {
+        toast.error(
+          t("settings.general.offline_cleanup_time_invalid", "Please use HH:MM"),
+        );
+        return;
+      }
+      const parsedGraceHours = parseInt(offlineCleanupGraceHours, 10);
+      if (Number.isNaN(parsedGraceHours) || parsedGraceHours <= 0) {
+        toast.error(
+          t(
+            "settings.general.offline_cleanup_grace_hours_invalid",
+            "Grace period must be greater than 0",
+          ),
+        );
+        return;
+      }
+
+      payload.offline_cleanup_enabled = offlineCleanupEnabled;
+      payload.offline_cleanup_time = normalizedCleanupTime;
+      payload.offline_cleanup_grace_hours = parsedGraceHours;
     }
 
     setSettingsSaving(true);
@@ -933,6 +1041,136 @@ const NodeAccessSettingsDialogButton = ({
                       setCnConnectivityInterval(event.target.value)
                     }
                   />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[14px] font-semibold text-slate-900 dark:text-slate-100">
+                    {t("settings.general.cn_connectivity_retry_attempts")}
+                  </label>
+                  <TextField.Root
+                    className={NODE_INPUT_CLASS}
+                    type="number"
+                    min={1}
+                    step={1}
+                    value={cnConnectivityRetryAttempts}
+                    onChange={(event) =>
+                      setCnConnectivityRetryAttempts(event.target.value)
+                    }
+                  />
+                  <Text className="text-xs text-slate-500 dark:text-slate-400">
+                    {t("settings.general.cn_connectivity_retry_attempts_description")}
+                  </Text>
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[14px] font-semibold text-slate-900 dark:text-slate-100">
+                    {t("settings.general.cn_connectivity_timeout_seconds")}
+                  </label>
+                  <TextField.Root
+                    className={NODE_INPUT_CLASS}
+                    type="number"
+                    min={1}
+                    step={1}
+                    value={cnConnectivityTimeoutSeconds}
+                    onChange={(event) =>
+                      setCnConnectivityTimeoutSeconds(event.target.value)
+                    }
+                  />
+                  <Text className="text-xs text-slate-500 dark:text-slate-400">
+                    {t("settings.general.cn_connectivity_timeout_seconds_description")}
+                  </Text>
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[14px] font-semibold text-slate-900 dark:text-slate-100">
+                    {t("settings.general.cn_connectivity_retry_delay_seconds")}
+                  </label>
+                  <TextField.Root
+                    className={NODE_INPUT_CLASS}
+                    type="number"
+                    min={1}
+                    step={1}
+                    value={cnConnectivityRetryDelaySeconds}
+                    onChange={(event) =>
+                      setCnConnectivityRetryDelaySeconds(event.target.value)
+                    }
+                  />
+                  <Text className="text-xs text-slate-500 dark:text-slate-400">
+                    {t("settings.general.cn_connectivity_retry_delay_seconds_description")}
+                  </Text>
+                </div>
+              </div>
+            </div>
+          ) : null}
+
+          {platformAdmin ? (
+            <div className="rounded-xl border border-slate-200 bg-slate-50/80 p-4 dark:border-slate-800 dark:bg-slate-900/50">
+              <div className="space-y-2">
+                <Flex justify="between" align="center" gap="2" wrap="wrap">
+                  <Text className="text-sm font-semibold text-slate-900 dark:text-slate-100">
+                    {t("settings.general.offline_cleanup")}
+                  </Text>
+                  <Badge
+                    color={offlineCleanupEnabled ? "green" : "gray"}
+                    variant="soft"
+                  >
+                    {offlineCleanupEnabled
+                      ? t("common.enabled")
+                      : t("common.disabled")}
+                  </Badge>
+                </Flex>
+                <Text className="text-sm text-slate-500 dark:text-slate-400">
+                  {t("admin.nodeTable.offlineCleanupManageHint")}
+                </Text>
+              </div>
+              <div className="mt-4 space-y-4">
+                <SettingCard
+                  title={t("settings.general.offline_cleanup_enabled")}
+                  description={t(
+                    "settings.general.offline_cleanup_enabled_description",
+                  )}
+                  bordless
+                >
+                  <SettingCard.Action>
+                    <Checkbox
+                      checked={offlineCleanupEnabled}
+                      onCheckedChange={(checked) =>
+                        setOfflineCleanupEnabled(Boolean(checked))
+                      }
+                    />
+                  </SettingCard.Action>
+                </SettingCard>
+                <div className="space-y-2">
+                  <label className="text-[14px] font-semibold text-slate-900 dark:text-slate-100">
+                    {t("settings.general.offline_cleanup_time")}
+                  </label>
+                  <TextField.Root
+                    className={NODE_INPUT_CLASS}
+                    type="time"
+                    step={60}
+                    value={offlineCleanupTime}
+                    onChange={(event) =>
+                      setOfflineCleanupTime(event.target.value)
+                    }
+                  />
+                  <Text className="text-xs text-slate-500 dark:text-slate-400">
+                    {t("settings.general.offline_cleanup_time_description")}
+                  </Text>
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[14px] font-semibold text-slate-900 dark:text-slate-100">
+                    {t("settings.general.offline_cleanup_grace_hours")}
+                  </label>
+                  <TextField.Root
+                    className={NODE_INPUT_CLASS}
+                    type="number"
+                    min={1}
+                    step={1}
+                    value={offlineCleanupGraceHours}
+                    onChange={(event) =>
+                      setOfflineCleanupGraceHours(event.target.value)
+                    }
+                  />
+                  <Text className="text-xs text-slate-500 dark:text-slate-400">
+                    {t("settings.general.offline_cleanup_grace_hours_description")}
+                  </Text>
                 </div>
               </div>
             </div>
@@ -1248,6 +1486,7 @@ const Header = ({
             {platformAdmin ? (
               <NodeAccessSettingsDialogButton
                 settings={settings}
+                platformAdmin={platformAdmin}
                 canManageCNConnectivity={canManageCNConnectivity}
                 onRefreshSettings={onRefreshSettings}
               />

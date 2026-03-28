@@ -65,6 +65,7 @@ import { useSettings } from "@/lib/api";
 import {
   createFailoverTask,
   deleteFailoverTask,
+  type FailoverExecutionStep,
   getFailoverDnsCatalog,
   getFailoverPlanCatalog,
   getFailoverExecution,
@@ -126,7 +127,7 @@ type PlanFormState = {
   action_type: string;
   payload: string;
   auto_connect_group: string;
-  script_clipboard_id: string;
+  script_clipboard_ids: string[];
   script_timeout_sec: string;
   wait_agent_timeout_sec: string;
 };
@@ -295,6 +296,76 @@ function getStatusLabel(t: TFunction, value: string) {
   return t(`failover.status.${normalized}`, {
     defaultValue: humanizeStatus(value),
   });
+}
+
+function getFailoverExecutionStepLabel(t: TFunction, step: FailoverExecutionStep) {
+  const stepKey = String(step.step_key || "").trim().toLowerCase();
+
+  if (stepKey === "detect") {
+    return t("failover.execution.step_labels.detect", { defaultValue: "Detect trigger" });
+  }
+  if (stepKey.startsWith("plan:")) {
+    return t("failover.execution.step_labels.plan", { defaultValue: "Plan attempt" });
+  }
+  if (stepKey === "wait_agent") {
+    return t("failover.execution.step_labels.wait_agent", { defaultValue: "Wait for agent" });
+  }
+  if (stepKey === "run_scripts") {
+    return t("failover.execution.step_labels.run_scripts", { defaultValue: "Run scripts" });
+  }
+  if (stepKey.startsWith("run_script:")) {
+    const match = stepKey.match(/:(\d+)$/);
+    const index = match ? Number.parseInt(match[1], 10) : 0;
+    return t("failover.execution.step_labels.run_script_index", {
+      defaultValue: index > 0 ? "Run script {{index}}" : "Run script",
+      index,
+    });
+  }
+  if (stepKey === "switch_dns") {
+    return t("failover.execution.step_labels.switch_dns", { defaultValue: "Switch DNS" });
+  }
+  if (stepKey === "cleanup_old") {
+    return t("failover.execution.step_labels.cleanup_old", { defaultValue: "Cleanup old instance" });
+  }
+  if (stepKey === "reclaim_current") {
+    return t("failover.execution.step_labels.reclaim_current", { defaultValue: "Reclaim current outlet capacity" });
+  }
+
+  return step.step_label || step.step_key;
+}
+
+function getFailoverExecutionStepMessage(t: TFunction, step: FailoverExecutionStep) {
+  const message = String(step.message || "").trim();
+  const normalized = message.toLowerCase();
+
+  switch (normalized) {
+    case "trigger snapshot recorded":
+      return t("failover.execution.step_messages.trigger_snapshot_recorded", { defaultValue: "Trigger snapshot recorded" });
+    case "manual trigger without live cn_connectivity snapshot":
+      return t("failover.execution.step_messages.manual_trigger_without_live_snapshot", {
+        defaultValue: "Manual trigger without a live CN connectivity snapshot",
+      });
+    case "plan completed":
+      return t("failover.execution.step_messages.plan_completed", { defaultValue: "Plan completed" });
+    case "agent connected":
+      return t("failover.execution.step_messages.agent_connected", { defaultValue: "Agent connected" });
+    case "scripts finished successfully":
+      return t("failover.execution.step_messages.scripts_finished_successfully", { defaultValue: "Scripts finished successfully" });
+    case "script finished successfully":
+      return t("failover.execution.step_messages.script_finished_successfully", { defaultValue: "Script finished successfully" });
+    case "dns switching skipped":
+      return t("failover.execution.step_messages.dns_switching_skipped", { defaultValue: "DNS switching skipped" });
+    case "dns updated":
+      return t("failover.execution.step_messages.dns_updated", { defaultValue: "DNS updated" });
+    case "old instance deleted":
+      return t("failover.execution.step_messages.old_instance_deleted", { defaultValue: "Old instance deleted" });
+    case "current failed outlet deleted to free capacity":
+      return t("failover.execution.step_messages.reclaimed_current_instance", {
+        defaultValue: "Current failed outlet deleted to free capacity",
+      });
+    default:
+      return message;
+  }
 }
 
 function planRequiresInstanceCleanup(plan: Pick<PlanFormState, "enabled" | "action_type">) {
@@ -804,6 +875,31 @@ function compareString(left: string, right: string) {
   return left.localeCompare(right, "zh-CN", { sensitivity: "base" });
 }
 
+function normalizePlanScriptClipboardIDs(values: string[]) {
+  return Array.from(new Set(
+    values
+      .map((value) => String(value || "").trim())
+      .filter(Boolean),
+  ));
+}
+
+function orderPlanScriptClipboardIDs(values: string[], scripts: FailoverScriptOption[]) {
+  const normalized = normalizePlanScriptClipboardIDs(values);
+  if (normalized.length <= 1) {
+    return normalized;
+  }
+
+  const ranks = new Map(scripts.map((script, index) => [String(script.id), index]));
+  return [...normalized].sort((left, right) => {
+    const leftRank = ranks.get(left) ?? Number.MAX_SAFE_INTEGER;
+    const rightRank = ranks.get(right) ?? Number.MAX_SAFE_INTEGER;
+    if (leftRank !== rightRank) {
+      return leftRank - rightRank;
+    }
+    return compareString(left, right);
+  });
+}
+
 function getNodeLabel(node: FailoverNodeOption) {
   const address = node.ipv4 || node.ipv6;
   const suffix = address ? ` · ${address}` : "";
@@ -1248,7 +1344,7 @@ function createEmptyPlanForm(providerEntries: ProviderEntriesMap): PlanFormState
     action_type: defaultActionType,
     payload: prettyJson(defaultPlanPayload(defaultProvider, defaultActionType)),
     auto_connect_group: getDefaultPlanAutoConnectGroup(providerEntries, defaultProvider, defaultEntryID),
-    script_clipboard_id: "",
+    script_clipboard_ids: [],
     script_timeout_sec: "600",
     wait_agent_timeout_sec: "600",
   };
@@ -1297,10 +1393,14 @@ function taskToForm(task: FailoverTask, providerEntries: ProviderEntriesMap): Ta
             plan.provider,
             normalizeProviderEntryID(plan.provider_entry_id),
           ),
-        script_clipboard_id:
-          plan.script_clipboard_id && plan.script_clipboard_id > 0
-            ? String(plan.script_clipboard_id)
-            : "",
+        script_clipboard_ids: normalizePlanScriptClipboardIDs(
+          (plan.script_clipboard_ids.length > 0
+            ? plan.script_clipboard_ids
+            : plan.script_clipboard_id
+              ? [plan.script_clipboard_id]
+              : []
+          ).map((scriptClipboardID) => String(scriptClipboardID)),
+        ),
         script_timeout_sec: String(plan.script_timeout_sec || 600),
         wait_agent_timeout_sec: String(plan.wait_agent_timeout_sec || 600),
       }))
@@ -1417,6 +1517,7 @@ function buildTaskInput(formState: TaskFormState, providerEntries: ProviderEntri
     );
     validatePlanPayload(t, index, plan.provider, plan.action_type, planPayload);
 
+    const scriptClipboardIDs = normalizePlanScriptClipboardIDs(plan.script_clipboard_ids);
     return {
       name: plan.name.trim(),
       priority: numberOrDefault(plan.priority, index + 1),
@@ -1432,9 +1533,10 @@ function buildTaskInput(formState: TaskFormState, providerEntries: ProviderEntri
           plan.provider,
           normalizeProviderEntryID(plan.provider_entry_id.trim()),
         ),
-      script_clipboard_id: plan.script_clipboard_id
-        ? numberOrDefault(plan.script_clipboard_id, 0)
+      script_clipboard_id: scriptClipboardIDs.length > 0
+        ? numberOrDefault(scriptClipboardIDs[0], 0)
         : null,
+      script_clipboard_ids: scriptClipboardIDs.map((scriptClipboardID) => numberOrDefault(scriptClipboardID, 0)).filter((scriptClipboardID) => scriptClipboardID > 0),
       script_timeout_sec: numberOrDefault(plan.script_timeout_sec, 600),
       wait_agent_timeout_sec: numberOrDefault(plan.wait_agent_timeout_sec, 600),
     };
@@ -1675,24 +1777,29 @@ function ExecutionDetailDialog({
                   </div>
                 ) : (
                   <div className="divide-y divide-slate-200/80 dark:divide-slate-800/80">
-                    {execution.steps.map((step) => (
-                      <div key={step.id} className="py-3 first:pt-0 last:pb-0">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <Badge variant={getStatusVariant(step.status, "execution")}>{getStatusLabel(t, step.status)}</Badge>
-                          <div className="min-w-0 flex-1 truncate font-medium text-slate-900 dark:text-slate-50" title={step.step_label || step.step_key}>
-                            {step.step_label || step.step_key}
+                    {execution.steps.map((step) => {
+                      const stepLabel = getFailoverExecutionStepLabel(t, step);
+                      const stepMessage = getFailoverExecutionStepMessage(t, step);
+
+                      return (
+                        <div key={step.id} className="py-3 first:pt-0 last:pb-0">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <Badge variant={getStatusVariant(step.status, "execution")}>{getStatusLabel(t, step.status)}</Badge>
+                            <div className="min-w-0 flex-1 truncate font-medium text-slate-900 dark:text-slate-50" title={stepLabel || undefined}>
+                              {stepLabel}
+                            </div>
+                            <div className="text-xs text-muted-foreground">#{step.sort}</div>
                           </div>
-                          <div className="text-xs text-muted-foreground">#{step.sort}</div>
+                          {stepMessage ? (
+                            <div className="mt-1.5 text-sm text-slate-700 dark:text-slate-300">{stepMessage}</div>
+                          ) : null}
+                          <div className="mt-1.5 text-xs text-muted-foreground">
+                            {formatDateTime(step.started_at)}
+                            {step.finished_at ? ` → ${formatDateTime(step.finished_at)}` : ""}
+                          </div>
                         </div>
-                        {step.message ? (
-                          <div className="mt-1.5 text-sm text-slate-700 dark:text-slate-300">{step.message}</div>
-                        ) : null}
-                        <div className="mt-1.5 text-xs text-muted-foreground">
-                          {formatDateTime(step.started_at)}
-                          {step.finished_at ? ` → ${formatDateTime(step.finished_at)}` : ""}
-                        </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 )}
               </div>
@@ -1827,7 +1934,7 @@ function TaskEditorDialog({
       nextFormState.delete_strategy !== "keep"
       || nextFormState.delete_delay_seconds !== "0";
     const hasPlanOptional = nextFormState.plans.some((plan) =>
-      Boolean(plan.auto_connect_group.trim() || plan.script_clipboard_id),
+      Boolean(plan.auto_connect_group.trim() || plan.script_clipboard_ids.length > 0),
     );
     const hasPlanAdvanced = nextFormState.plans.some((plan, index) =>
       plan.priority !== String(index + 1)
@@ -1876,6 +1983,18 @@ function TaskEditorDialog({
   const selectedPlan = React.useMemo(
     () => formState.plans.find((plan) => plan.local_id === selectedPlanID) || formState.plans[0] || null,
     [formState.plans, selectedPlanID],
+  );
+  const selectedPlanScriptNames = React.useMemo(
+    () => {
+      if (!selectedPlan) {
+        return [];
+      }
+      const selectedIDs = new Set(selectedPlan.script_clipboard_ids);
+      return sortedScripts
+        .filter((script) => selectedIDs.has(String(script.id)))
+        .map((script) => script.name);
+    },
+    [selectedPlan, sortedScripts],
   );
   const configuredScriptDomain = React.useMemo(
     () => String(userSettings.script_domain || "").trim(),
@@ -2094,6 +2213,21 @@ function TaskEditorDialog({
       };
     });
   };
+
+  const togglePlanScript = React.useCallback((localID: string, scriptID: string, checked: boolean) => {
+    updatePlan(localID, (current) => {
+      const currentIDs = new Set(normalizePlanScriptClipboardIDs(current.script_clipboard_ids));
+      if (checked) {
+        currentIDs.add(scriptID);
+      } else {
+        currentIDs.delete(scriptID);
+      }
+      return {
+        ...current,
+        script_clipboard_ids: orderPlanScriptClipboardIDs(Array.from(currentIDs), sortedScripts),
+      };
+    });
+  }, [sortedScripts]);
 
   const updateSelectedPlanPayload = React.useCallback((updater: (payload: Record<string, unknown>) => Record<string, unknown>) => {
     if (!selectedPlan) {
@@ -3909,24 +4043,55 @@ function TaskEditorDialog({
                               }
                             />
                           </div>
-                          <div className="space-y-2">
-                            <Label>{t("failover.editor.script", { defaultValue: "Script" })}</Label>
-                            <Select
-                              value={selectedPlan.script_clipboard_id || "__none"}
-                              onValueChange={(value) => updatePlan(selectedPlan.local_id, (current) => ({ ...current, script_clipboard_id: value === "__none" ? "" : value }))}
-                            >
-                              <SelectTrigger>
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="__none">{t("failover.editor.no_script", { defaultValue: "No script" })}</SelectItem>
-                                {sortedScripts.map((script) => (
-                                  <SelectItem key={script.id} value={String(script.id)}>
-                                    {script.name}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
+                          <div className="space-y-2 lg:col-span-2">
+                            <div className="flex flex-wrap items-center justify-between gap-2">
+                              <Label>{t("failover.editor.scripts", { defaultValue: "Scripts" })}</Label>
+                              <div className="text-xs text-muted-foreground">
+                                {selectedPlan.script_clipboard_ids.length > 0
+                                  ? t("failover.editor.scripts_selected", {
+                                    defaultValue: "{{count}} selected",
+                                    count: selectedPlan.script_clipboard_ids.length,
+                                  })
+                                  : t("failover.editor.no_script", { defaultValue: "No script" })}
+                              </div>
+                            </div>
+                            <div className="max-h-56 overflow-y-auto rounded-xl border">
+                              {sortedScripts.length === 0 ? (
+                                <div className="px-3 py-3 text-sm text-muted-foreground">
+                                  {t("scripts.empty", { defaultValue: "No saved scripts yet." })}
+                                </div>
+                              ) : (
+                                sortedScripts.map((script) => {
+                                  const checked = selectedPlan.script_clipboard_ids.includes(String(script.id));
+                                  return (
+                                    <label
+                                      key={script.id}
+                                      className="flex cursor-pointer items-start gap-3 border-b px-3 py-3 text-sm last:border-b-0"
+                                    >
+                                      <Checkbox
+                                        checked={checked}
+                                        onCheckedChange={(nextChecked) => togglePlanScript(selectedPlan.local_id, String(script.id), Boolean(nextChecked))}
+                                      />
+                                      <div className="min-w-0 flex-1">
+                                        <div className="font-medium text-slate-900 dark:text-slate-50">{script.name}</div>
+                                        {script.remark ? (
+                                          <div className="truncate text-xs text-muted-foreground" title={script.remark}>
+                                            {script.remark}
+                                          </div>
+                                        ) : null}
+                                      </div>
+                                    </label>
+                                  );
+                                })
+                              )}
+                            </div>
+                            <div className="text-xs text-muted-foreground">
+                              {selectedPlanScriptNames.length > 0
+                                ? selectedPlanScriptNames.join(" -> ")
+                                : t("failover.editor.scripts_execution_order_empty", {
+                                  defaultValue: "Selected scripts run from top to bottom.",
+                                })}
+                            </div>
                           </div>
                         </div>
                       </CollapsibleContent>
@@ -4294,7 +4459,7 @@ function FailoverPageContent() {
               const currentOutletLabel = currentOutletIP || t("failover.task.uninitialized", { defaultValue: "Not initialized" });
               const dnsTargetLabel = getTaskDnsTargetLabel(task);
               const dnsStatus = latestExecution?.dns_status || "";
-              const hasConfiguredScript = task.plans.some((plan) => plan.script_clipboard_id !== null);
+              const hasConfiguredScript = task.plans.some((plan) => plan.script_clipboard_ids.length > 0 || plan.script_clipboard_id !== null);
               const scriptStatus = latestExecution?.script_status || "";
               const scriptName = latestExecution?.script_name_snapshot || "";
               const latestExecutionSummary = latestExecution
