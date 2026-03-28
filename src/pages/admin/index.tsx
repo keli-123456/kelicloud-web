@@ -259,6 +259,18 @@ type TaskResultResponse = {
   data?: TaskResult[];
 };
 
+type GithubReleaseAsset = {
+  name?: string | null;
+};
+
+type GithubReleasePayload = {
+  tag_name?: string | null;
+  name?: string | null;
+  draft?: boolean;
+  prerelease?: boolean;
+  assets?: GithubReleaseAsset[] | null;
+};
+
 type UpgradeExecutionStatus =
   | "idle"
   | "pending"
@@ -499,6 +511,115 @@ const detectNodePlatform = (node: NodeDetail): Platform => {
   return "linux";
 };
 
+const normalizeAgentReleaseTag = (value?: string | null) => {
+  const trimmed = String(value || "").trim();
+  if (!trimmed) {
+    return "";
+  }
+  return trimmed.startsWith("v") || trimmed.startsWith("V")
+    ? trimmed
+    : `v${trimmed}`;
+};
+
+const normalizeAgentReleaseArch = (value?: string | null) => {
+  const arch = String(value || "").trim().toLowerCase();
+  if (!arch) {
+    return null;
+  }
+  if (arch === "amd64" || arch === "x86_64" || arch === "x64") {
+    return "amd64";
+  }
+  if (
+    arch === "arm64" ||
+    arch === "aarch64" ||
+    arch === "armv8" ||
+    arch === "armv8l"
+  ) {
+    return "arm64";
+  }
+  if (
+    arch === "386" ||
+    arch === "i386" ||
+    arch === "i686" ||
+    arch === "x86"
+  ) {
+    return "386";
+  }
+  if (
+    arch === "arm" ||
+    arch.startsWith("armv7") ||
+    arch.startsWith("armv6")
+  ) {
+    return "arm";
+  }
+  return null;
+};
+
+const buildAgentReleaseAssetName = (node: NodeDetail) => {
+  const arch = normalizeAgentReleaseArch(node.arch);
+  if (!arch) {
+    return null;
+  }
+
+  const platform = detectNodePlatform(node);
+  if (platform === "windows") {
+    return `komari-agent-windows-${arch}.exe`;
+  }
+  if (platform === "macos") {
+    return `komari-agent-darwin-${arch}`;
+  }
+  return `komari-agent-linux-${arch}`;
+};
+
+const resolveLatestAgentUpgradeVersion = async (nodes: NodeDetail[]) => {
+  const response = await fetch(
+    "https://api.github.com/repos/keli-123456/kelicloud-agent/releases/latest",
+    {
+      headers: {
+        Accept: "application/vnd.github+json",
+      },
+      cache: "no-cache",
+    }
+  );
+
+  if (!response.ok) {
+    throw new Error(`Failed to load latest agent release (GitHub HTTP ${response.status})`);
+  }
+
+  const payload = (await response.json()) as GithubReleasePayload;
+  const releaseTag = normalizeAgentReleaseTag(payload.tag_name || payload.name);
+  if (!releaseTag) {
+    throw new Error("Latest agent release tag is unavailable");
+  }
+
+  const requiredAssets = Array.from(
+    new Set(
+      nodes
+        .map((node) => buildAgentReleaseAssetName(node))
+        .filter((value): value is string => Boolean(value))
+    )
+  );
+  if (requiredAssets.length === 0) {
+    return releaseTag;
+  }
+
+  const publishedAssets = new Set(
+    (payload.assets || [])
+      .map((asset) => String(asset?.name || "").trim())
+      .filter(Boolean)
+  );
+  const missingAssets = requiredAssets.filter(
+    (assetName) => !publishedAssets.has(assetName)
+  );
+  if (missingAssets.length > 0) {
+    throw new Error(
+      `Agent release ${releaseTag} is not fully published yet. Missing assets: ${missingAssets.join(", ")}`
+    );
+  }
+
+  return releaseTag;
+};
+
 const resolveScriptHost = (settings: SettingsResponse) => {
   const raw = String(settings?.script_domain || "").trim();
   if (!raw) {
@@ -512,11 +633,16 @@ const resolveScriptHost = (settings: SettingsResponse) => {
 
 const buildAgentUpgradeCommand = (
   node: NodeDetail,
-  settings: SettingsResponse
+  settings: SettingsResponse,
+  installVersion?: string
 ) => {
   const host = resolveScriptHost(settings);
   const token = String(node.token || "").trim();
   const platform = detectNodePlatform(node);
+  const pinnedVersion = normalizeAgentReleaseTag(installVersion);
+  const targetVersionMessage = pinnedVersion
+    ? ` Target version: ${pinnedVersion}.`
+    : "";
 
   if (!token) {
     return "";
@@ -527,16 +653,28 @@ const buildAgentUpgradeCommand = (
       settings.base_scripts_url,
       "install.ps1"
     );
+    const jobArgs = [
+      "'-NoProfile'",
+      "'-ExecutionPolicy'",
+      "'Bypass'",
+      "'-File'",
+      "$scriptPath",
+      "'-e'",
+      powershellQuote(host),
+      "'-t'",
+      powershellQuote(token),
+    ];
+    if (pinnedVersion) {
+      jobArgs.push("'--install-version'", powershellQuote(pinnedVersion));
+    }
     return (
       "powershell.exe -NoProfile -ExecutionPolicy Bypass -Command " +
       powershellQuote(
         `$scriptPath = Join-Path $env:TEMP ('komari-install-' + [guid]::NewGuid().ToString() + '.ps1'); ` +
           `Invoke-WebRequest ${powershellQuote(scriptUrl)} -UseBasicParsing -OutFile $scriptPath; ` +
-          `$jobArgs = @('-NoProfile','-ExecutionPolicy','Bypass','-File',$scriptPath,'-e',${powershellQuote(
-            host
-          )},'-t',${powershellQuote(token)}); ` +
+          `$jobArgs = @(${jobArgs.join(",")}); ` +
           `Start-Process -FilePath 'powershell.exe' -ArgumentList $jobArgs -WindowStyle Hidden; ` +
-          `Write-Output 'Agent upgrade scheduled. The node may go offline briefly while the service restarts.'`
+          `Write-Output 'Agent upgrade scheduled. The node may go offline briefly while the service restarts.${targetVersionMessage}'`
       )
     );
   }
@@ -545,7 +683,11 @@ const buildAgentUpgradeCommand = (
     settings.base_scripts_url,
     "install.sh"
   );
-  const shellArgs = ["-e", host, "-t", token].map(shellQuote).join(" ");
+  const shellArgsList = ["-e", host, "-t", token];
+  if (pinnedVersion) {
+    shellArgsList.push("--install-version", pinnedVersion);
+  }
+  const shellArgs = shellArgsList.map(shellQuote).join(" ");
   const shellName = platform === "macos" ? "zsh" : "bash";
   const installCommand = `if [ "$(id -u)" -ne 0 ] && command -v sudo >/dev/null 2>&1; then sudo ${shellName} "$TMP_SCRIPT" ${shellArgs}; else ${shellName} "$TMP_SCRIPT" ${shellArgs}; fi; STATUS=$?; rm -f "$TMP_SCRIPT"; exit "$STATUS"`;
 
@@ -559,7 +701,7 @@ const buildAgentUpgradeCommand = (
     `INSTALL_CMD=${shellQuote(installCommand)}`,
     'if command -v systemd-run >/dev/null 2>&1 && systemctl list-units >/dev/null 2>&1; then UNIT="komari-agent-upgrade-$(date +%s)"; systemd-run --unit "$UNIT" --collect /bin/sh -lc "$INSTALL_CMD"; STATUS=$?; else nohup /bin/sh -lc "$INSTALL_CMD" >/tmp/komari-agent-upgrade.log 2>&1 </dev/null & STATUS=$?; fi',
     'if [ "$STATUS" -ne 0 ]; then rm -f "$TMP_SCRIPT"; exit "$STATUS"; fi',
-    "echo 'Agent upgrade scheduled. The node may go offline briefly while the service restarts.'",
+    `echo ${shellQuote(`Agent upgrade scheduled. The node may go offline briefly while the service restarts.${targetVersionMessage}`)}`,
     "exit 0",
   ].join("; ");
 };
@@ -2327,9 +2469,10 @@ const GroupUpgradeButton = ({
     updateResultState(initialState);
 
     try {
+      const installVersion = await resolveLatestAgentUpgradeVersion(onlineNodes);
       const settled = await Promise.allSettled(
         onlineNodes.map(async (node) => {
-          const command = buildAgentUpgradeCommand(node, settings);
+          const command = buildAgentUpgradeCommand(node, settings, installVersion);
           if (!command) {
             throw new Error(
               t("admin.nodeTable.upgradeMissingToken", {
