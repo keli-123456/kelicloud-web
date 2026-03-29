@@ -310,6 +310,9 @@ function getFailoverExecutionStepLabel(t: TFunction, step: FailoverExecutionStep
   if (stepKey === "wait_agent") {
     return t("failover.execution.step_labels.wait_agent", { defaultValue: "Wait for agent" });
   }
+  if (stepKey === "validate_outlet") {
+    return t("failover.execution.step_labels.validate_outlet", { defaultValue: "Validate new outlet" });
+  }
   if (stepKey === "run_scripts") {
     return t("failover.execution.step_labels.run_scripts", { defaultValue: "Run scripts" });
   }
@@ -327,8 +330,14 @@ function getFailoverExecutionStepLabel(t: TFunction, step: FailoverExecutionStep
   if (stepKey === "cleanup_old") {
     return t("failover.execution.step_labels.cleanup_old", { defaultValue: "Cleanup old instance" });
   }
+  if (stepKey === "rollback_new") {
+    return t("failover.execution.step_labels.rollback_new", { defaultValue: "Rollback new instance" });
+  }
   if (stepKey === "reclaim_current") {
     return t("failover.execution.step_labels.reclaim_current", { defaultValue: "Reclaim current outlet capacity" });
+  }
+  if (stepKey === "retry_same_entry") {
+    return t("failover.execution.step_labels.retry_same_entry", { defaultValue: "Retry same provider entry" });
   }
 
   return step.step_label || step.step_key;
@@ -349,6 +358,14 @@ function getFailoverExecutionStepMessage(t: TFunction, step: FailoverExecutionSt
       return t("failover.execution.step_messages.plan_completed", { defaultValue: "Plan completed" });
     case "agent connected":
       return t("failover.execution.step_messages.agent_connected", { defaultValue: "Agent connected" });
+    case "connectivity validation skipped because no target client is available":
+      return t("failover.execution.step_messages.validation_skipped_no_target_client", {
+        defaultValue: "Connectivity validation skipped because no target client is available",
+      });
+    case "new outlet connectivity looks healthy":
+      return t("failover.execution.step_messages.new_outlet_healthy", {
+        defaultValue: "New outlet connectivity looks healthy",
+      });
     case "scripts finished successfully":
       return t("failover.execution.step_messages.scripts_finished_successfully", { defaultValue: "Scripts finished successfully" });
     case "script finished successfully":
@@ -359,9 +376,21 @@ function getFailoverExecutionStepMessage(t: TFunction, step: FailoverExecutionSt
       return t("failover.execution.step_messages.dns_updated", { defaultValue: "DNS updated" });
     case "old instance deleted":
       return t("failover.execution.step_messages.old_instance_deleted", { defaultValue: "Old instance deleted" });
+    case "failed new instance deleted":
+      return t("failover.execution.step_messages.failed_new_instance_deleted", {
+        defaultValue: "Failed new instance deleted",
+      });
     case "current failed outlet deleted to free capacity":
       return t("failover.execution.step_messages.reclaimed_current_instance", {
         defaultValue: "Current failed outlet deleted to free capacity",
+      });
+    case "current outlet was already missing; skipping delete":
+      return t("failover.execution.step_messages.current_outlet_missing_skipped", {
+        defaultValue: "Current outlet was already missing; skipping delete",
+      });
+    case "retryable new-outlet failure detected; retrying the same provider entry":
+      return t("failover.execution.step_messages.retry_same_entry", {
+        defaultValue: "Retryable new-outlet failure detected; retrying the same provider entry",
       });
     default:
       return message;
@@ -923,6 +952,7 @@ function getStatusVariant(
   if (kind === "execution") {
     if (normalized === "success") return "success";
     if (normalized === "failed") return "destructive";
+    if (normalized === "retry") return "info";
     if (isFailoverExecutionActive(normalized)) return "info";
     return "secondary";
   }
