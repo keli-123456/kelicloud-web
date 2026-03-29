@@ -1268,6 +1268,8 @@
       "script": "脚本",
       "script_attached": "已附加脚本",
       "script_domain_required_hint": "还没有配置 Agent 连接地址。请先到“设置 -> 站点”填写，否则故障切换新建的实例无法自动回连到 Komari。",
+      "scripts_search_empty": "没有匹配的脚本",
+      "scripts_search_placeholder": "按脚本名或备注搜索，例如 sg1",
       "script_timeout": "脚本超时（秒）",
       "selected_plan_hint": "只有在确实需要备用路径时，才添加多个方案。",
       "show_dns_advanced": "高级 DNS 设置",

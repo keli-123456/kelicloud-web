@@ -1939,6 +1939,7 @@ function TaskEditorDialog({
   const [showDnsAdvanced, setShowDnsAdvanced] = React.useState(false);
   const [showPlanOptional, setShowPlanOptional] = React.useState(false);
   const [showPlanAdvanced, setShowPlanAdvanced] = React.useState(false);
+  const [planScriptSearchQueries, setPlanScriptSearchQueries] = React.useState<Record<string, string>>({});
   const [dnsCatalog, setDnsCatalog] = React.useState<FailoverDnsCatalog | null>(null);
   const [dnsCatalogLoading, setDnsCatalogLoading] = React.useState(false);
   const [dnsCatalogError, setDnsCatalogError] = React.useState("");
@@ -1978,6 +1979,7 @@ function TaskEditorDialog({
     setShowDnsAdvanced(Boolean(task && hasDnsAdvanced));
     setShowPlanOptional(Boolean(task && hasPlanOptional));
     setShowPlanAdvanced(Boolean(task && hasPlanAdvanced));
+    setPlanScriptSearchQueries({});
     setDnsCatalog(null);
     setDnsCatalogError("");
     setSelectedDnsRecordKey("");
@@ -2025,6 +2027,23 @@ function TaskEditorDialog({
         .map((script) => script.name);
     },
     [selectedPlan, sortedScripts],
+  );
+  const selectedPlanScriptSearch = React.useMemo(
+    () => (selectedPlan ? planScriptSearchQueries[selectedPlan.local_id] || "" : ""),
+    [planScriptSearchQueries, selectedPlan],
+  );
+  const filteredScripts = React.useMemo(
+    () => {
+      const normalizedQuery = selectedPlanScriptSearch.trim().toLowerCase();
+      if (!normalizedQuery) {
+        return sortedScripts;
+      }
+      return sortedScripts.filter((script) => {
+        const haystack = `${String(script.name || "").trim()} ${String(script.remark || "").trim()}`.toLowerCase();
+        return haystack.includes(normalizedQuery);
+      });
+    },
+    [selectedPlanScriptSearch, sortedScripts],
   );
   const configuredScriptDomain = React.useMemo(
     () => String(userSettings.script_domain || "").trim(),
@@ -4085,13 +4104,32 @@ function TaskEditorDialog({
                                   : t("failover.editor.no_script", { defaultValue: "No script" })}
                               </div>
                             </div>
+                            <Input
+                              value={selectedPlanScriptSearch}
+                              onChange={(event) => {
+                                const nextValue = event.target.value;
+                                setPlanScriptSearchQueries((current) => ({
+                                  ...current,
+                                  [selectedPlan.local_id]: nextValue,
+                                }));
+                              }}
+                              placeholder={t("failover.editor.scripts_search_placeholder", {
+                                defaultValue: "Search scripts by name or remark, e.g. sg1",
+                              })}
+                            />
                             <div className="max-h-56 overflow-y-auto rounded-xl border">
                               {sortedScripts.length === 0 ? (
                                 <div className="px-3 py-3 text-sm text-muted-foreground">
                                   {t("scripts.empty", { defaultValue: "No saved scripts yet." })}
                                 </div>
+                              ) : filteredScripts.length === 0 ? (
+                                <div className="px-3 py-3 text-sm text-muted-foreground">
+                                  {t("failover.editor.scripts_search_empty", {
+                                    defaultValue: "No matching scripts",
+                                  })}
+                                </div>
                               ) : (
-                                sortedScripts.map((script) => {
+                                filteredScripts.map((script) => {
                                   const checked = selectedPlan.script_clipboard_ids.includes(String(script.id));
                                   return (
                                     <label
