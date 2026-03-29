@@ -169,6 +169,9 @@ const getRequiredFeatureForPath = (target: string) => {
     if (provider === "linode") {
       return "cloud_linode";
     }
+    if (provider === "azure") {
+      return "cloud_azure";
+    }
     if (provider === "aws") {
       return "cloud_aws";
     }
@@ -334,6 +337,7 @@ export default function AdminPanelBar({ content }: AdminPanelBarProps) {
           return isAnyAccountFeatureAllowed(account, [
             "cloud_digitalocean",
             "cloud_linode",
+            "cloud_azure",
             "cloud_aws",
           ]);
         }

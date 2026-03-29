@@ -1,6 +1,7 @@
 import React from "react";
 import { Navigate, useSearchParams } from "react-router-dom";
 
+import AzurePanel from "@/components/admin/cloud/AzurePanel";
 import AWSPanel from "@/components/admin/cloud/AWSPanel";
 import DigitalOceanPanel from "@/components/admin/cloud/DigitalOceanPanel";
 import LinodePanel from "@/components/admin/cloud/LinodePanel";
@@ -9,7 +10,7 @@ import { CommandClipboardProvider } from "@/contexts/CommandClipboardContext";
 import { getDefaultAdminPath, useAccount } from "@/contexts/AccountContext";
 import { NodeDetailsProvider } from "@/contexts/NodeDetailsContext";
 
-type ProviderKey = "digitalocean" | "linode" | "aws";
+type ProviderKey = "digitalocean" | "linode" | "azure" | "aws";
 
 export default function CloudPage() {
   const { account, hasFeature, loading: accountLoading } = useAccount();
@@ -23,6 +24,9 @@ export default function CloudPage() {
     if (hasFeature("cloud_linode")) {
       providers.push("linode");
     }
+    if (hasFeature("cloud_azure")) {
+      providers.push("azure");
+    }
     if (hasFeature("cloud_aws")) {
       providers.push("aws");
     }
@@ -33,6 +37,7 @@ export default function CloudPage() {
     if (
       (providerParam === "digitalocean" ||
         providerParam === "linode" ||
+        providerParam === "azure" ||
         providerParam === "aws") &&
       allowedProviders.includes(providerParam)
     ) {
@@ -41,7 +46,7 @@ export default function CloudPage() {
 
     const saved = window.localStorage.getItem("komari-cloud-provider");
     if (
-      (saved === "digitalocean" || saved === "linode" || saved === "aws") &&
+      (saved === "digitalocean" || saved === "linode" || saved === "azure" || saved === "aws") &&
       allowedProviders.includes(saved)
     ) {
       return saved;
@@ -73,6 +78,7 @@ export default function CloudPage() {
       <CommandClipboardProvider>
         {provider === "digitalocean" ? <DigitalOceanPanel /> : null}
         {provider === "linode" ? <LinodePanel /> : null}
+        {provider === "azure" ? <AzurePanel /> : null}
         {provider === "aws" ? <AWSPanel /> : null}
       </CommandClipboardProvider>
     </NodeDetailsProvider>

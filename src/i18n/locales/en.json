@@ -405,6 +405,7 @@
       "feature_notifications": "Notifications",
       "feature_cloud": "Cloud",
       "feature_cloud_aws": "AWS",
+      "feature_cloud_azure": "Azure",
       "feature_cloud_digitalocean": "DigitalOcean",
       "feature_cloud_dns": "DNS providers",
       "feature_cloud_failover": "Failover",
@@ -789,7 +790,7 @@
       "us": "United States"
     },
     "provider_switcher_title": "Cloud Provider",
-    "provider_switcher_description": "Switch between the DigitalOcean, Linode, and AWS EC2 panels.",
+    "provider_switcher_description": "Switch between the DigitalOcean, Linode, Azure, and AWS EC2 panels.",
     "share": {
       "action": "Share",
       "dialog_title": "Share Instance",
@@ -915,6 +916,29 @@
         "redeem_promo": "Redeem Promo",
         "restricted": "Restricted",
         "username": "Username"
+      },
+      "azure": {
+        "title": "Azure",
+        "description": "Manage multiple Azure service principal credentials, inspect the active subscription, and operate virtual machines from one panel.",
+        "create": "Create VM",
+        "create_description": "Create a Linux VM in the current active Azure location. Komari will automatically prepare the resource group network stack and bootstrap agent auto-connect.",
+        "create_success": "Azure VM created",
+        "create_location_hint": "Active location: {{location}}",
+        "create_name_placeholder": "Leave empty to auto-generate a VM name",
+        "resource_group_placeholder": "Optional. Leave empty to auto-create a dedicated resource group",
+        "image_publisher": "Publisher",
+        "image_offer": "Offer",
+        "image_sku": "SKU",
+        "image_version": "Version",
+        "size_manual_placeholder": "Or enter an Azure VM size manually",
+        "admin_username": "Admin Username",
+        "auth_mode": "Authentication",
+        "auth_password": "Password",
+        "auth_ssh": "SSH Public Key",
+        "admin_password": "Admin Password",
+        "admin_password_placeholder": "Use a strong password that meets Azure complexity requirements",
+        "ssh_public_key": "SSH Public Key",
+        "public_ip_toggle": "Allocate a public IPv4 address and open inbound traffic by default"
       },
       "aws": {
         "title": "aws",

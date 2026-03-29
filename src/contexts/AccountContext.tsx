@@ -9,6 +9,7 @@ export type AccountFeature =
   | "cloud"
   | "cloud_digitalocean"
   | "cloud_linode"
+  | "cloud_azure"
   | "cloud_aws"
   | "cloud_dns"
   | "cloud_failover"
@@ -41,6 +42,7 @@ const defaultGrantedAccountFeatures = new Set<AccountFeature>([
   "notifications",
   "cloud_digitalocean",
   "cloud_linode",
+  "cloud_azure",
   "cloud_aws",
   "cloud_dns",
   "cloud_failover",
@@ -51,6 +53,7 @@ const defaultGrantedAccountFeatures = new Set<AccountFeature>([
 const legacyCloudAccountFeatures: AccountFeature[] = [
   "cloud_digitalocean",
   "cloud_linode",
+  "cloud_azure",
   "cloud_aws",
   "cloud_dns",
   "cloud_failover",
@@ -106,6 +109,7 @@ export function getDefaultAdminPath(account: Account | null) {
     isAnyAccountFeatureAllowed(account, [
       "cloud_digitalocean",
       "cloud_linode",
+      "cloud_azure",
       "cloud_aws",
     ])
   ) {

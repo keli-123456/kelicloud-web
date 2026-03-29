@@ -80,6 +80,7 @@ const FEATURE_ORDER: AccountFeature[] = [
   "notifications",
   "cloud_digitalocean",
   "cloud_linode",
+  "cloud_azure",
   "cloud_aws",
   "cloud_dns",
   "cloud_failover",
@@ -91,6 +92,7 @@ const FEATURE_ORDER: AccountFeature[] = [
 const LEGACY_CLOUD_FEATURES: AccountFeature[] = [
   "cloud_digitalocean",
   "cloud_linode",
+  "cloud_azure",
   "cloud_aws",
   "cloud_dns",
   "cloud_failover",
@@ -120,6 +122,7 @@ const FEATURE_GROUPS: FeatureGroup[] = [
     features: [
       "cloud_digitalocean",
       "cloud_linode",
+      "cloud_azure",
       "cloud_aws",
       "cloud_dns",
       "cloud_failover",
@@ -204,6 +207,8 @@ const getFeatureLabel = (
       return t("admin.users.feature_cloud_digitalocean", "DigitalOcean");
     case "cloud_linode":
       return t("admin.users.feature_cloud_linode", "Linode");
+    case "cloud_azure":
+      return t("admin.users.feature_cloud_azure", "Azure");
     case "cloud_aws":
       return t("admin.users.feature_cloud_aws", "AWS");
     case "cloud_dns":
