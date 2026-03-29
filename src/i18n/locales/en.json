@@ -292,6 +292,9 @@
       "advancedParameters": "Advanced parameters",
       "generatedCommandHelp": "Copy this command and run it directly on the target server.",
       "hostname": "Hostname",
+      "ddnsDomain": "DDNS domain",
+      "ddnsDomainLoading": "Loading DDNS domain...",
+      "ddnsDomainLoadFailed": "Failed to load DDNS domain",
       "columns": {
         "endpoint": "Public IP",
         "status": "Status",

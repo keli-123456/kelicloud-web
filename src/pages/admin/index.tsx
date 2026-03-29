@@ -64,6 +64,10 @@ import {
   updateSettingsWithToast,
   useSettings,
 } from "@/lib/api";
+import {
+  getClientDDNSBinding,
+  type ClientDDNSBinding,
+} from "@/lib/clientDDNS";
 import { useRPC2Call } from "@/contexts/RPC2Context";
 import type { Record as LiveRecord } from "@/types/LiveData";
 import { buildAgentInstallScriptURL } from "@/lib/installScriptSource";
@@ -364,6 +368,63 @@ const formatUptimeLabel = (secondsValue?: number) => {
 const formatNodeIp = (value?: string) => {
   const normalized = String(value || "").trim();
   return normalized || "-";
+};
+
+const normalizeDDNSPayload = (value: unknown): Record<string, unknown> => {
+  if (value && typeof value === "object" && !Array.isArray(value)) {
+    return value as Record<string, unknown>;
+  }
+  if (typeof value === "string") {
+    try {
+      const parsed = JSON.parse(value) as unknown;
+      if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+        return parsed as Record<string, unknown>;
+      }
+    } catch {
+      return {};
+    }
+  }
+  return {};
+};
+
+const buildDDNSDomainLabel = (binding: ClientDDNSBinding | null | undefined) => {
+  if (!binding) {
+    return "";
+  }
+
+  const payload = normalizeDDNSPayload(binding.payload);
+  const provider = String(binding.provider || "").trim().toLowerCase();
+  if (provider === "cloudflare") {
+    const zoneName = String(payload.zone_name || "").trim();
+    const recordName = String(payload.record_name || "").trim();
+    if (!zoneName) {
+      return "";
+    }
+    if (!recordName || recordName === "@") {
+      return zoneName;
+    }
+    if (recordName === zoneName || recordName.endsWith(`.${zoneName}`)) {
+      return recordName;
+    }
+    return `${recordName}.${zoneName}`;
+  }
+
+  if (provider === "aliyun") {
+    const domainName = String(payload.domain_name || "").trim();
+    const rr = String(payload.rr || "").trim();
+    if (!domainName) {
+      return "";
+    }
+    if (!rr || rr === "@") {
+      return domainName;
+    }
+    if (rr === domainName || rr.endsWith(`.${domainName}`)) {
+      return rr;
+    }
+    return `${rr}.${domainName}`;
+  }
+
+  return "";
 };
 
 const NODE_DIALOG_CONTENT_CLASS =
@@ -1751,14 +1812,79 @@ const VersionSummary = ({ node }: { node: NodeDetail }) => (
 );
 
 const NodeEndpointSummary = ({ node }: { node: NodeDetail }) => {
+  const { t } = useTranslation();
+  const { hasFeature } = useAccount();
+  const [tooltipOpen, setTooltipOpen] = React.useState(false);
+  const [ddnsBinding, setDdnsBinding] = React.useState<ClientDDNSBinding | null>(null);
+  const [ddnsLoading, setDdnsLoading] = React.useState(false);
+  const [ddnsLoadError, setDdnsLoadError] = React.useState("");
+
+  React.useEffect(() => {
+    if (!tooltipOpen || !hasFeature("cloud_dns")) {
+      return;
+    }
+
+    let cancelled = false;
+    setDdnsLoading(true);
+    setDdnsLoadError("");
+
+    void getClientDDNSBinding(node.uuid)
+      .then((binding) => {
+        if (cancelled) {
+          return;
+        }
+        setDdnsBinding(binding);
+      })
+      .catch((error) => {
+        if (cancelled) {
+          return;
+        }
+        setDdnsBinding(null);
+        setDdnsLoadError(
+          error instanceof Error
+            ? error.message
+            : t("admin.nodeTable.ddnsDomainLoadFailed", {
+              defaultValue: "Failed to load DDNS domain",
+            }),
+        );
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setDdnsLoading(false);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [hasFeature, node.uuid, t, tooltipOpen]);
+
+  const ddnsDomain = buildDDNSDomainLabel(ddnsBinding);
+  const tooltipSecondary = hasFeature("cloud_dns")
+    ? ddnsLoading
+      ? t("admin.nodeTable.ddnsDomainLoading", {
+        defaultValue: "Loading DDNS domain...",
+      })
+      : ddnsLoadError
+        ? t("admin.nodeTable.ddnsDomainLoadFailed", {
+          defaultValue: "Failed to load DDNS domain",
+        })
+        : ddnsDomain
+          ? `${t("admin.nodeTable.ddnsDomain", { defaultValue: "DDNS domain" })}: ${ddnsDomain}`
+          : undefined
+    : undefined;
+
   return (
     <NodeInfoTooltip
+      open={tooltipOpen}
+      onOpenChange={setTooltipOpen}
       content={
         <NodeTooltipBody
-          label={translate("admin.nodeTable.hostname", {
+          label={t("admin.nodeTable.hostname", {
             defaultValue: "Hostname",
           })}
           primary={String(node.name || "").trim() || "-"}
+          secondary={tooltipSecondary}
         />
       }
     >
@@ -1806,11 +1932,15 @@ const NodeTooltipBody = ({
 const NodeInfoTooltip = ({
   content,
   children,
+  open,
+  onOpenChange,
 }: {
   content: React.ReactNode;
   children: React.ReactElement;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
 }) => (
-  <Tooltip>
+  <Tooltip open={open} onOpenChange={onOpenChange}>
     <TooltipTrigger asChild>{children}</TooltipTrigger>
     <TooltipContent
       sideOffset={8}
@@ -2039,99 +2169,110 @@ const SortableRow = ({
 }) => {
   const { t } = useTranslation();
   const { hasFeature } = useAccount();
+  const [ddnsOpen, setDdnsOpen] = React.useState(false);
 
   return (
-    <ContextMenu>
-      <ContextMenuTrigger asChild>
-        <TableRow className="cursor-context-menu border-b border-slate-200/70 bg-white text-[13px] transition-colors hover:bg-slate-50 dark:border-slate-800/70 dark:bg-slate-950/20 dark:hover:bg-slate-900/50">
-          <TableCell>
-            <NodeEndpointSummary node={node} />
-          </TableCell>
-          <TableCell>
-            <StatusSummary live={live} />
-          </TableCell>
-          <TableCell>
-            <VersionSummary node={node} />
-          </TableCell>
-          <TableCell>
-            <RateSummary live={live} />
-          </TableCell>
-          <TableCell>
-            <TrafficSummary live={live} />
-          </TableCell>
-          <TableCell>
-            <UptimeSummary live={live} />
-          </TableCell>
-          <TableCell>
-            <UsageBar
-              percent={live?.record.cpu.usage ?? 0}
-              colorClass="bg-sky-500"
-              tooltipContent={
-                <NodeTooltipBody
-                  label="CPU"
-                  primary={
-                    node.cpu_cores
-                      ? `${node.cpu_cores} ${t("admin.nodeTable.cpuCoresShort", {
-                          defaultValue: "cores",
-                        })}`
-                      : "-"
-                  }
-                />
-              }
-            />
-          </TableCell>
-          <TableCell>
-            <UsageBar
-              percent={
-                node.mem_total
-                  ? ((live?.record.ram.used ?? 0) / node.mem_total) * 100
-                  : 0
-              }
-              colorClass="bg-emerald-500"
-              tooltipContent={
-                <NodeTooltipBody
-                  label={t("nodeCard.ram", { defaultValue: "RAM" })}
-                  primary={`${formatBytes(live?.record.ram.used ?? 0)} / ${formatBytes(node.mem_total || 0)}`}
-                />
-              }
-            />
-          </TableCell>
-          <TableCell>
-            <UsageBar
-              percent={
-                node.disk_total
-                  ? ((live?.record.disk.used ?? 0) / node.disk_total) * 100
-                  : 0
-              }
-              colorClass="bg-amber-500"
-              tooltipContent={
-                <NodeTooltipBody
-                  label={t("nodeCard.disk", { defaultValue: "Disk" })}
-                  primary={`${formatBytes(live?.record.disk.used ?? 0)} / ${formatBytes(node.disk_total || 0)}`}
-                />
-              }
-            />
-          </TableCell>
-        </TableRow>
-      </ContextMenuTrigger>
-      <ContextMenuContent className="w-44">
-        <ContextMenuItem onSelect={() => openNodeTerminal(node.uuid)}>
-          <Terminal className="h-4 w-4" />
-          {t("terminal.title", { defaultValue: "Terminal" })}
-        </ContextMenuItem>
-        {hasFeature("cloud_dns") ? (
-          <NodeDDNSDialog
-            item={node}
-            trigger={(
-              <ContextMenuItem>
+    <>
+      <ContextMenu>
+        <ContextMenuTrigger asChild>
+          <TableRow className="cursor-context-menu border-b border-slate-200/70 bg-white text-[13px] transition-colors hover:bg-slate-50 dark:border-slate-800/70 dark:bg-slate-950/20 dark:hover:bg-slate-900/50">
+            <TableCell>
+              <NodeEndpointSummary node={node} />
+            </TableCell>
+            <TableCell>
+              <StatusSummary live={live} />
+            </TableCell>
+            <TableCell>
+              <VersionSummary node={node} />
+            </TableCell>
+            <TableCell>
+              <RateSummary live={live} />
+            </TableCell>
+            <TableCell>
+              <TrafficSummary live={live} />
+            </TableCell>
+            <TableCell>
+              <UptimeSummary live={live} />
+            </TableCell>
+            <TableCell>
+              <UsageBar
+                percent={live?.record.cpu.usage ?? 0}
+                colorClass="bg-sky-500"
+                tooltipContent={
+                  <NodeTooltipBody
+                    label="CPU"
+                    primary={
+                      node.cpu_cores
+                        ? `${node.cpu_cores} ${t("admin.nodeTable.cpuCoresShort", {
+                            defaultValue: "cores",
+                          })}`
+                        : "-"
+                    }
+                  />
+                }
+              />
+            </TableCell>
+            <TableCell>
+              <UsageBar
+                percent={
+                  node.mem_total
+                    ? ((live?.record.ram.used ?? 0) / node.mem_total) * 100
+                    : 0
+                }
+                colorClass="bg-emerald-500"
+                tooltipContent={
+                  <NodeTooltipBody
+                    label={t("nodeCard.ram", { defaultValue: "RAM" })}
+                    primary={`${formatBytes(live?.record.ram.used ?? 0)} / ${formatBytes(node.mem_total || 0)}`}
+                  />
+                }
+              />
+            </TableCell>
+            <TableCell>
+              <UsageBar
+                percent={
+                  node.disk_total
+                    ? ((live?.record.disk.used ?? 0) / node.disk_total) * 100
+                    : 0
+                }
+                colorClass="bg-amber-500"
+                tooltipContent={
+                  <NodeTooltipBody
+                    label={t("nodeCard.disk", { defaultValue: "Disk" })}
+                    primary={`${formatBytes(live?.record.disk.used ?? 0)} / ${formatBytes(node.disk_total || 0)}`}
+                  />
+                }
+              />
+            </TableCell>
+          </TableRow>
+        </ContextMenuTrigger>
+        <ContextMenuContent className="w-44">
+          <ContextMenuItem onSelect={() => openNodeTerminal(node.uuid)}>
+            <Terminal className="h-4 w-4" />
+            {t("terminal.title", { defaultValue: "Terminal" })}
+          </ContextMenuItem>
+          {hasFeature("cloud_dns") ? (
+            <ContextMenuItem
+              onSelect={(event) => {
+                event.preventDefault();
+                setDdnsOpen(true);
+              }}
+            >
                 <Globe className="h-4 w-4" />
                 {t("admin.nodeTable.ddns.title", { defaultValue: "DDNS" })}
-              </ContextMenuItem>
-            )}
-          />
-        ) : null}
-      </ContextMenuContent>
-    </ContextMenu>
+            </ContextMenuItem>
+          ) : null}
+        </ContextMenuContent>
+      </ContextMenu>
+      {hasFeature("cloud_dns") ? (
+        <NodeDDNSDialog
+          item={node}
+          open={ddnsOpen}
+          onOpenChange={setDdnsOpen}
+          trigger={null}
+        />
+      ) : null}
+    </>
   );
 };
 

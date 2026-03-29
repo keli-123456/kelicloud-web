@@ -178,11 +178,15 @@ function chooseEntryID(current: string, entries: CloudProviderCredentialEntry[])
 export function NodeDDNSDialog({
   item,
   trigger,
+  open: controlledOpen,
+  onOpenChange,
 }: {
   item: NodeDDNSTarget;
-  trigger?: React.ReactNode;
+  trigger?: React.ReactNode | null;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
 }) {
-  const [open, setOpen] = React.useState(false);
+  const [uncontrolledOpen, setUncontrolledOpen] = React.useState(false);
   const [binding, setBinding] = React.useState<ClientDDNSBinding | null>(null);
   const [provider, setProvider] = React.useState<DDNSProvider>("cloudflare");
   const [entryID, setEntryID] = React.useState("");
@@ -199,6 +203,13 @@ export function NodeDDNSDialog({
   const [saving, setSaving] = React.useState(false);
   const [syncing, setSyncing] = React.useState(false);
   const [removing, setRemoving] = React.useState(false);
+  const open = typeof controlledOpen === "boolean" ? controlledOpen : uncontrolledOpen;
+  const setOpen = React.useCallback((nextOpen: boolean) => {
+    if (typeof controlledOpen !== "boolean") {
+      setUncontrolledOpen(nextOpen);
+    }
+    onOpenChange?.(nextOpen);
+  }, [controlledOpen, onOpenChange]);
 
   React.useEffect(() => {
     if (!open) {
@@ -459,7 +470,7 @@ export function NodeDDNSDialog({
 
   return (
     <Dialog.Root open={open} onOpenChange={setOpen}>
-      {trigger ? (
+      {trigger === null ? null : trigger ? (
         <Dialog.Trigger asChild>{trigger}</Dialog.Trigger>
       ) : (
         <Dialog.Trigger>
