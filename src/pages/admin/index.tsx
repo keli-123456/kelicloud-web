@@ -1504,37 +1504,17 @@ const Header = ({
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div className="min-w-0 space-y-3">
           <div className="flex flex-wrap items-center gap-2">
-          <Text className="text-xl font-semibold tracking-tight text-slate-900 dark:text-slate-50">
-            {t("admin.nodeTable.nodeList")}
-          </Text>
-          <Badge variant="soft" color="blue" className="rounded-full px-3 py-1">
-            {t("admin.nodeTable.nodeCountBadge", {
-              count: nodes.length,
-              defaultValue: "{{count}} nodes",
-            })}
-          </Badge>
-          <Badge
-            variant="soft"
-            color={liveError ? "red" : offlineNodes.length > 0 ? "amber" : "green"}
-            className="rounded-full px-3 py-1"
-          >
-            {liveError
-              ? t("admin.nodeTable.syncError", "Sync error")
-              : liveLoaded
-                ? t("admin.nodeTable.offlineCountBadge", {
-                    count: offlineNodes.length,
-                    defaultValue: "{{count}} offline",
-                  })
-                : t("admin.nodeTable.syncingStatus", "Syncing status")}
-          </Badge>
-          {liveError && (
-            <Text size="2" className="text-rose-600 dark:text-rose-400">
-              {t("admin.nodeTable.liveErrorPausedDeletion", {
-                defaultValue:
-                  "Live status API failed, so bulk offline deletion is paused.",
-              })}
+            <Text className="text-xl font-semibold tracking-tight text-slate-900 dark:text-slate-50">
+              {t("admin.nodeTable.nodeList")}
             </Text>
-          )}
+            {liveError && (
+              <Text size="2" className="text-rose-600 dark:text-rose-400">
+                {t("admin.nodeTable.liveErrorPausedDeletion", {
+                  defaultValue:
+                    "Live status API failed, so bulk offline deletion is paused.",
+                })}
+              </Text>
+            )}
           </div>
           <div className="text-sm text-slate-500 dark:text-slate-400">
             {settingsLoading
