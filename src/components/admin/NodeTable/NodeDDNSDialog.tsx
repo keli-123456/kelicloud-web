@@ -1,10 +1,8 @@
 import * as React from "react";
-import { z } from "zod";
 import { Globe, RefreshCw, Trash2 } from "lucide-react";
 import { t } from "i18next";
 import { toast } from "sonner";
 
-import { schema } from "@/components/admin/NodeTable/schema/node";
 import {
   Badge,
   Button,
@@ -28,7 +26,11 @@ import {
 } from "@/lib/clientDDNS";
 import type { FailoverDnsCatalog } from "@/lib/failover";
 
-type NodeRow = z.infer<typeof schema>;
+type NodeDDNSTarget = {
+  uuid: string;
+  ipv4?: string;
+  ipv6?: string;
+};
 type DDNSProvider = "cloudflare" | "aliyun";
 type AddressMode = "ipv4" | "ipv6" | "dual";
 
@@ -173,7 +175,13 @@ function chooseEntryID(current: string, entries: CloudProviderCredentialEntry[])
   return entries[0]?.id || "";
 }
 
-export function NodeDDNSDialog({ item }: { item: NodeRow }) {
+export function NodeDDNSDialog({
+  item,
+  trigger,
+}: {
+  item: NodeDDNSTarget;
+  trigger?: React.ReactNode;
+}) {
   const [open, setOpen] = React.useState(false);
   const [binding, setBinding] = React.useState<ClientDDNSBinding | null>(null);
   const [provider, setProvider] = React.useState<DDNSProvider>("cloudflare");
@@ -451,11 +459,15 @@ export function NodeDDNSDialog({ item }: { item: NodeRow }) {
 
   return (
     <Dialog.Root open={open} onOpenChange={setOpen}>
-      <Dialog.Trigger>
-        <IconButton variant="ghost" title={t("admin.nodeTable.ddns.title", "DDNS")}>
-          <Globe className="p-1" />
-        </IconButton>
-      </Dialog.Trigger>
+      {trigger ? (
+        <Dialog.Trigger asChild>{trigger}</Dialog.Trigger>
+      ) : (
+        <Dialog.Trigger>
+          <IconButton variant="ghost" title={t("admin.nodeTable.ddns.title", "DDNS")}>
+            <Globe className="p-1" />
+          </IconButton>
+        </Dialog.Trigger>
+      )}
       <Dialog.Content maxWidth={720}>
         <Dialog.Title>{t("admin.nodeTable.ddns.title", "DDNS")}</Dialog.Title>
         <Dialog.Description>

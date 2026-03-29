@@ -174,6 +174,7 @@ const AWS_SERVICE_VALUES = ["ec2", "lightsail"] as const;
 const DNS_TTL_OPTIONS = [1, 60, 120, 300, 600, 900, 1800, 3600, 7200] as const;
 const DEFAULT_DIGITALOCEAN_IMAGE = "ubuntu-24-04-x64";
 const DEFAULT_LINODE_IMAGE = "linode/ubuntu24.04";
+const AUTOMATIC_PROVIDER_ENTRY_ID = "active";
 const DIGITALOCEAN_REGION_COUNTRIES: Record<string, string> = {
   ams: "nl",
   atl: "us",
@@ -1017,153 +1018,6 @@ function buildProviderEntryOptions(args: {
   return options;
 }
 
-function isTruthyEntryFlag(value: unknown) {
-  if (typeof value === "boolean") {
-    return value;
-  }
-  if (typeof value === "number") {
-    return value !== 0;
-  }
-  if (typeof value === "string") {
-    const normalized = value.trim().toLowerCase();
-    return normalized === "true" || normalized === "1" || normalized === "yes";
-  }
-  return false;
-}
-
-function getDefaultAutoConnectGroup(provider: string, credentialName: string) {
-  const normalizedProvider = provider.trim().toLowerCase() || "cloud";
-  const normalizedCredentialName = credentialName.trim() || "default";
-  return `${normalizedProvider}/${normalizedCredentialName}`;
-}
-
-function getNamedLegacyProviderRecord(
-  records: unknown,
-  targetID: string,
-) {
-  if (!Array.isArray(records)) {
-    return null;
-  }
-
-  const normalizedTargetID = normalizeProviderEntryID(String(targetID || "").trim());
-  const namedRecords = records.filter((record) =>
-    record && typeof record === "object",
-  ) as EntryValues[];
-
-  if (normalizedTargetID) {
-    const matched = namedRecords.find((record) =>
-      normalizeProviderEntryID(String(record.id || "").trim()) === normalizedTargetID,
-    );
-    if (matched) {
-      return matched;
-    }
-  }
-
-  if (namedRecords.length === 1) {
-    return namedRecords[0];
-  }
-
-  return null;
-}
-
-function getLegacyProviderRecordName(
-  provider: string,
-  values: EntryValues,
-  entryID: string,
-) {
-  const normalizedProvider = provider.trim().toLowerCase();
-  const normalizedEntryID = normalizeProviderEntryID(String(entryID || "").trim());
-
-  if (normalizedProvider === "digitalocean" || normalizedProvider === "linode") {
-    const activeTokenID = normalizeProviderEntryID(String(values.active_token_id || "").trim());
-    const token = getNamedLegacyProviderRecord(
-      values.tokens,
-      normalizedEntryID === "active" ? activeTokenID : normalizedEntryID,
-    );
-    const tokenName = String(token?.name || "").trim();
-    if (tokenName) {
-      return tokenName;
-    }
-  }
-
-  if (normalizedProvider === "aws") {
-    const activeCredentialID = normalizeProviderEntryID(String(values.active_credential_id || "").trim());
-    const credential = getNamedLegacyProviderRecord(
-      values.credentials,
-      normalizedEntryID === "active" ? activeCredentialID : normalizedEntryID,
-    );
-    const credentialName = String(credential?.name || "").trim();
-    if (credentialName) {
-      return credentialName;
-    }
-  }
-
-  return "";
-}
-
-function getProviderEntryDisplayName(
-  providerEntries: ProviderEntriesMap,
-  provider: string,
-  entryID: string,
-) {
-  const entries = providerEntries[provider] || [];
-  const normalizedEntryID = normalizeProviderEntryID(String(entryID || "").trim());
-  if (normalizedEntryID && normalizedEntryID !== "active") {
-    const matched = entries.find((entry) => normalizeProviderEntryID(String(entry.id || "").trim()) === normalizedEntryID);
-    const matchedName = String(matched?.name || "").trim();
-    if (matchedName && matchedName.toLowerCase() !== "default") {
-      return matchedName;
-    }
-    if (matched?.values && typeof matched.values === "object") {
-      const legacyName = getLegacyProviderRecordName(
-        provider,
-        matched.values as EntryValues,
-        normalizedEntryID,
-      );
-      if (legacyName) {
-        return legacyName;
-      }
-    }
-    return matchedName;
-  }
-
-  const activeEntry = entries.find((entry) => {
-    const values = entry.values && typeof entry.values === "object"
-      ? entry.values as EntryValues
-      : {};
-    return isTruthyEntryFlag(values.is_active) || isTruthyEntryFlag(values.active);
-  });
-  const activeEntryName = String(activeEntry?.name || "").trim();
-  if (activeEntryName && activeEntryName.toLowerCase() !== "default") {
-    return activeEntryName;
-  }
-
-  const legacyEntry = activeEntry || entries[0];
-  if (legacyEntry?.values && typeof legacyEntry.values === "object") {
-    const legacyName = getLegacyProviderRecordName(
-      provider,
-      legacyEntry.values as EntryValues,
-      "active",
-    );
-    if (legacyName) {
-      return legacyName;
-    }
-  }
-
-  return String(legacyEntry?.name || "").trim();
-}
-
-function getDefaultPlanAutoConnectGroup(
-  providerEntries: ProviderEntriesMap,
-  provider: string,
-  entryID: string,
-) {
-  return getDefaultAutoConnectGroup(
-    provider,
-    getProviderEntryDisplayName(providerEntries, provider, entryID),
-  );
-}
-
 function getFirstConfiguredProvider(
   providerEntries: ProviderEntriesMap,
   providers: readonly string[],
@@ -1452,12 +1306,7 @@ function parseDnsPayloadFields(
 
 function createEmptyPlanForm(providerEntries: ProviderEntriesMap): PlanFormState {
   const defaultProvider = getFirstConfiguredProvider(providerEntries, PLAN_PROVIDER_VALUES);
-  const providerOptions = buildProviderEntryOptions({
-    entries: providerEntries[defaultProvider] || [],
-    includeActive: true,
-  });
   const defaultActionType = (ACTION_TYPE_VALUES[defaultProvider] || [])[0] || "";
-  const defaultEntryID = providerOptions[0]?.id || "";
 
   return {
     local_id: createLocalID(),
@@ -1465,10 +1314,10 @@ function createEmptyPlanForm(providerEntries: ProviderEntriesMap): PlanFormState
     priority: "1",
     enabled: true,
     provider: defaultProvider,
-    provider_entry_id: defaultEntryID,
+    provider_entry_id: AUTOMATIC_PROVIDER_ENTRY_ID,
     action_type: defaultActionType,
     payload: prettyJson(defaultPlanPayload(defaultProvider, defaultActionType)),
-    auto_connect_group: getDefaultPlanAutoConnectGroup(providerEntries, defaultProvider, defaultEntryID),
+    auto_connect_group: "",
     script_clipboard_ids: [],
     script_timeout_sec: "600",
     wait_agent_timeout_sec: "600",
@@ -1508,16 +1357,10 @@ function taskToForm(task: FailoverTask, providerEntries: ProviderEntriesMap): Ta
         priority: String(plan.priority || 1),
         enabled: plan.enabled,
         provider: plan.provider,
-        provider_entry_id: normalizeProviderEntryID(plan.provider_entry_id),
+        provider_entry_id: normalizeProviderEntryID(plan.provider_entry_id) || AUTOMATIC_PROVIDER_ENTRY_ID,
         action_type: plan.action_type,
         payload: prettyJson(plan.payload),
-        auto_connect_group:
-          plan.auto_connect_group.trim() ||
-          getDefaultPlanAutoConnectGroup(
-            providerEntries,
-            plan.provider,
-            normalizeProviderEntryID(plan.provider_entry_id),
-          ),
+        auto_connect_group: plan.auto_connect_group.trim(),
         script_clipboard_ids: normalizePlanScriptClipboardIDs(
           (plan.script_clipboard_ids.length > 0
             ? plan.script_clipboard_ids
@@ -1553,7 +1396,7 @@ function getPlanDisplayName(plan: PlanFormState, index: number, t: TFunction) {
   });
 }
 
-function buildTaskInput(formState: TaskFormState, providerEntries: ProviderEntriesMap, t: TFunction): FailoverTaskInput {
+function buildTaskInput(formState: TaskFormState, t: TFunction): FailoverTaskInput {
   const taskName = formState.name.trim();
   if (!taskName) {
     throw new Error(
@@ -1626,15 +1469,6 @@ function buildTaskInput(formState: TaskFormState, providerEntries: ProviderEntri
         }),
       );
     }
-    if (!plan.provider_entry_id.trim()) {
-      throw new Error(
-        t("failover.validation.plan_provider_entry_required", {
-          defaultValue: "Plan {{index}} requires a provider entry",
-          index: index + 1,
-        }),
-      );
-    }
-
     const planPayload = normalizePlanPayloadForSubmit(
       plan.provider,
       plan.action_type,
@@ -1648,16 +1482,10 @@ function buildTaskInput(formState: TaskFormState, providerEntries: ProviderEntri
       priority: numberOrDefault(plan.priority, index + 1),
       enabled: plan.enabled,
       provider: plan.provider,
-      provider_entry_id: normalizeProviderEntryID(plan.provider_entry_id.trim()),
+      provider_entry_id: normalizeProviderEntryID(plan.provider_entry_id.trim() || AUTOMATIC_PROVIDER_ENTRY_ID),
       action_type: plan.action_type,
       payload: planPayload,
-      auto_connect_group:
-        plan.auto_connect_group.trim() ||
-        getDefaultPlanAutoConnectGroup(
-          providerEntries,
-          plan.provider,
-          normalizeProviderEntryID(plan.provider_entry_id.trim()),
-        ),
+      auto_connect_group: plan.auto_connect_group.trim(),
       script_clipboard_id: scriptClipboardIDs.length > 0
         ? numberOrDefault(scriptClipboardIDs[0], 0)
         : null,
@@ -2059,9 +1887,7 @@ function TaskEditorDialog({
     const hasDnsAdvanced =
       nextFormState.delete_strategy !== "keep"
       || nextFormState.delete_delay_seconds !== "0";
-    const hasPlanOptional = nextFormState.plans.some((plan) =>
-      Boolean(plan.auto_connect_group.trim() || plan.script_clipboard_ids.length > 0),
-    );
+    const hasPlanOptional = nextFormState.plans.some((plan) => plan.script_clipboard_ids.length > 0);
     const hasPlanAdvanced = nextFormState.plans.some((plan, index) =>
       plan.priority !== String(index + 1)
       || plan.script_timeout_sec !== "600"
@@ -2493,7 +2319,7 @@ function TaskEditorDialog({
           }),
         );
       }
-      const payload = buildTaskInput(formState, providerEntries, t);
+      const payload = buildTaskInput(formState, t);
       if (task) {
         await updateFailoverTask(task.id, payload);
         toast.success(t("failover.messages.updated", { defaultValue: "Failover task updated" }));
@@ -3165,36 +2991,15 @@ function TaskEditorDialog({
 		                          <Select
 		                            value={selectedPlan.provider || undefined}
 		                            onValueChange={(value) => {
-                                  const previousDefaultGroup = getDefaultPlanAutoConnectGroup(
-                                    providerEntries,
-                                    selectedPlan.provider,
-                                    selectedPlan.provider_entry_id,
-                                  );
 		                              const nextActionOptions = ACTION_TYPE_VALUES[value] || [];
-		                              const nextEntryOptions = buildProviderEntryOptions({
-		                                entries: providerEntries[value] || [],
-		                                includeActive: true,
-	                                activeLabel: t("failover.provider_entry.active", {
-	                                  defaultValue: "Active credential",
-	                                }),
-		                              });
 	                              const nextActionType = nextActionOptions[0] || "";
-                                  const nextEntryID = nextEntryOptions[0]?.id || "";
-                                  const nextDefaultGroup = getDefaultPlanAutoConnectGroup(
-                                    providerEntries,
-                                    value,
-                                    nextEntryID,
-                                  );
 	                              updatePlan(selectedPlan.local_id, (current) => ({
 	                                ...current,
 	                                provider: value,
 	                                action_type: nextActionType,
-	                                provider_entry_id: nextEntryID,
+	                                provider_entry_id: AUTOMATIC_PROVIDER_ENTRY_ID,
 	                                payload: prettyJson(defaultPlanPayload(value, nextActionType)),
-                                    auto_connect_group:
-                                      !current.auto_connect_group.trim() || current.auto_connect_group.trim() === previousDefaultGroup
-                                        ? nextDefaultGroup
-                                        : current.auto_connect_group,
+                                    auto_connect_group: "",
 	                              }));
 	                              resetPlanCatalogState();
 	                            }}
@@ -3212,63 +3017,12 @@ function TaskEditorDialog({
                           </Select>
                         </div>
                         <div className="space-y-2">
-                          <Label>{t("failover.editor.provider_entry", { defaultValue: "Preferred credential" })}</Label>
-                          {(() => {
-                            const providerOptions = buildProviderEntryOptions({
-	                              entries: providerEntries[selectedPlan.provider] || [],
-	                              includeActive: true,
-	                              currentValue: selectedPlan.provider_entry_id,
-                              activeLabel: t("failover.provider_entry.active", {
-                                defaultValue: "Active credential",
-                              }),
-                            });
-	                            if (providerOptions.length === 0) {
-	                              return (
-	                                <div className="rounded-xl border border-dashed px-4 py-3 text-sm text-muted-foreground">
-	                                  {t("failover.editor.provider_entry_missing", {
-	                                    defaultValue: "No cloud credential is configured for this provider yet.",
-	                                  })}
-	                                </div>
-	                              );
-	                            }
-	                            return (
-	                              <Select
-	                                value={selectedPlan.provider_entry_id || undefined}
-	                                onValueChange={(value) => {
-                                      const previousDefaultGroup = getDefaultPlanAutoConnectGroup(
-                                        providerEntries,
-                                        selectedPlan.provider,
-                                        selectedPlan.provider_entry_id,
-                                      );
-                                      const nextDefaultGroup = getDefaultPlanAutoConnectGroup(
-                                        providerEntries,
-                                        selectedPlan.provider,
-                                        value,
-                                      );
-	                                  updatePlan(selectedPlan.local_id, (current) => ({
-                                        ...current,
-                                        provider_entry_id: value,
-                                        auto_connect_group:
-                                          !current.auto_connect_group.trim() || current.auto_connect_group.trim() === previousDefaultGroup
-                                            ? nextDefaultGroup
-                                            : current.auto_connect_group,
-                                      }));
-	                                  resetPlanCatalogState();
-	                                }}
-	                              >
-                                <SelectTrigger>
-                                  <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  {providerOptions.map((option) => (
-                                    <SelectItem key={option.id} value={option.id}>
-                                      {option.label}
-                                    </SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
-                            );
-                          })()}
+                          <Label>{t("failover.editor.provider_pool", { defaultValue: "Credential pool" })}</Label>
+                          <div className="rounded-xl border border-dashed px-4 py-3 text-sm text-muted-foreground">
+                            {t("failover.editor.provider_pool_auto", {
+                              defaultValue: "Komari picks credentials from the provider token pool automatically. The active entry is preferred, and auto-connect group is generated at runtime from the actual provider/token name.",
+                            })}
+                          </div>
                         </div>
 	                        <div className="space-y-2 lg:col-span-2">
 	                          <Label>{t("failover.editor.action_type", { defaultValue: "Action type" })}</Label>
@@ -3347,15 +3101,9 @@ function TaskEditorDialog({
                             defaultValue: "Choose a cloud provider first.",
                           })}
                         </div>
-                      ) : !selectedPlan.provider_entry_id ? (
-                        <div className="rounded-xl border border-dashed px-4 py-3 text-sm text-muted-foreground">
-                          {t("failover.editor.plan_provider_entry_required_hint", {
-                            defaultValue: "Choose a preferred credential first.",
-                          })}
-                        </div>
                       ) : null}
 
-                      {selectedPlan.provider && selectedPlan.provider_entry_id ? (
+                      {selectedPlan.provider ? (
                         <>
                       {selectedPlan.provider === "aws" && selectedPlan.action_type === "provision_instance" ? (
                         <div className="grid gap-4 lg:grid-cols-2">
@@ -4171,20 +3919,6 @@ function TaskEditorDialog({
                               placeholder={t("failover.editor.plan_name_placeholder", {
                                 defaultValue: "AWS Elastic IP first",
                               })}
-                            />
-                          </div>
-                          <div className="space-y-2">
-                            <Label>{t("failover.editor.auto_connect_group", { defaultValue: "Auto-connect group" })}</Label>
-                            <Input
-                              value={selectedPlan.auto_connect_group}
-                              onChange={(event) => updatePlan(selectedPlan.local_id, (current) => ({ ...current, auto_connect_group: event.target.value }))}
-                              placeholder={
-                                getDefaultPlanAutoConnectGroup(
-                                  providerEntries,
-                                  selectedPlan.provider,
-                                  selectedPlan.provider_entry_id,
-                                ) || t("failover.editor.auto_connect_group_placeholder", { defaultValue: "cloud/default" })
-                              }
                             />
                           </div>
                           <div className="space-y-2 lg:col-span-2">

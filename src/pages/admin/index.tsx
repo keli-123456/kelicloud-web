@@ -25,6 +25,7 @@ import {
 import {
   Copy,
   Download,
+  Globe,
   LoaderCircle,
   RefreshCw,
   Search,
@@ -75,6 +76,7 @@ import { Navigate } from "react-router-dom";
 import {
   SettingCard,
 } from "@/components/admin/SettingCard";
+import { NodeDDNSDialog } from "@/components/admin/NodeTable/NodeDDNSDialog";
 
 type AdminScopedUser = {
   uuid: string;
@@ -2036,6 +2038,7 @@ const SortableRow = ({
   node: NodeDetail;
 }) => {
   const { t } = useTranslation();
+  const { hasFeature } = useAccount();
 
   return (
     <ContextMenu>
@@ -2116,6 +2119,17 @@ const SortableRow = ({
           <Terminal className="h-4 w-4" />
           {t("terminal.title", { defaultValue: "Terminal" })}
         </ContextMenuItem>
+        {hasFeature("cloud_dns") ? (
+          <NodeDDNSDialog
+            item={node}
+            trigger={(
+              <ContextMenuItem>
+                <Globe className="h-4 w-4" />
+                {t("admin.nodeTable.ddns.title", { defaultValue: "DDNS" })}
+              </ContextMenuItem>
+            )}
+          />
+        ) : null}
       </ContextMenuContent>
     </ContextMenu>
   );
