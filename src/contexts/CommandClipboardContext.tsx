@@ -26,7 +26,13 @@ const CommandClipboardContext = React.createContext<
 
 export const CommandClipboardProvider: React.FC<{
   children: React.ReactNode;
-}> = ({ children }) => {
+  autoLoad?: boolean;
+  refreshAfterMutations?: boolean;
+}> = ({
+  children,
+  autoLoad = true,
+  refreshAfterMutations = true,
+}) => {
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState<Error | null>(null);
   const [commands, setCommands] = React.useState<CommandClipboard[]>([]);
@@ -70,7 +76,9 @@ export const CommandClipboardProvider: React.FC<{
       if (!response.ok) {
         throw new Error("Failed to add command");
       }
-      await refresh();
+      if (refreshAfterMutations) {
+        await refresh();
+      }
     } catch (err) {
       const nextError = toError(err, "Failed to add command");
       setError(nextError);
@@ -100,7 +108,9 @@ export const CommandClipboardProvider: React.FC<{
       if (!response.ok) {
         throw new Error("Failed to update command");
       }
-      await refresh();
+      if (refreshAfterMutations) {
+        await refresh();
+      }
     } catch (err) {
       const nextError = toError(err, "Failed to update command");
       setError(nextError);
@@ -120,7 +130,9 @@ export const CommandClipboardProvider: React.FC<{
       if (!response.ok) {
         throw new Error("Failed to delete command");
       }
-      await refresh();
+      if (refreshAfterMutations) {
+        await refresh();
+      }
     } catch (err) {
       const nextError = toError(err, "Failed to delete command");
       setError(nextError);
@@ -131,8 +143,12 @@ export const CommandClipboardProvider: React.FC<{
   };
 
   React.useEffect(() => {
+    if (!autoLoad) {
+      setLoading(false);
+      return;
+    }
     void refresh();
-  }, [refresh]);
+  }, [autoLoad, refresh]);
   return (
     <CommandClipboardContext.Provider
       value={{

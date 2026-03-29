@@ -967,6 +967,16 @@
     "save_from_exec": "Save on library page",
     "use_in_exec": "Use in exec",
     "moved_hint": "Command saving has moved to a dedicated script library page.",
+    "pagination": {
+      "current_page": "Current page",
+      "current_page_hint": "Switch pages to browse older saved scripts.",
+      "next": "Next",
+      "page_size": "Page size",
+      "page_size_hint": "Changing the page size reloads the script list immediately.",
+      "previous": "Previous",
+      "rows_per_page": "Rows per page",
+      "summary": "Showing {{start}}-{{end}} of {{total}} scripts"
+    },
     "remark_empty": "No remark",
     "updated_at": "Updated {{date}}",
     "weight_label": "Weight {{weight}}",

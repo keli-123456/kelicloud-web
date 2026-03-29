@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Copy, PencilLine, Play, Plus, Trash2 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Link, useLocation, useNavigate } from "react-router-dom";
@@ -32,6 +32,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import NumberPicker from "@/components/ui/number-picker";
 import {
   type CommandClipboard,
   useCommandClipboard,
@@ -48,12 +49,21 @@ type ScriptsPageLocationState = {
   draftCommand?: Partial<Pick<CommandClipboard, "name" | "text" | "remark" | "weight">>;
 } | null;
 
+type PaginatedCommandResponse = {
+  items: CommandClipboard[];
+  total: number;
+  page: number;
+  limit: number;
+};
+
 const EMPTY_FORM_VALUES: CommandFormValues = {
   name: "",
   text: "",
   remark: "",
   weight: "0",
 };
+
+const DEFAULT_PAGE_SIZE = 20;
 
 const toFormValues = (
   command?: Partial<Pick<CommandClipboard, "name" | "text" | "remark" | "weight">>,
@@ -98,14 +108,99 @@ const formatTimestamp = (value?: string) => {
   return date.toLocaleString();
 };
 
+const sortCommands = (commands: CommandClipboard[]) => (
+  [...commands].sort((left, right) => {
+    if (right.weight !== left.weight) {
+      return right.weight - left.weight;
+    }
+
+    const rightTime = new Date(right.updated_at).getTime();
+    const leftTime = new Date(left.updated_at).getTime();
+    if (!Number.isNaN(rightTime) && !Number.isNaN(leftTime) && rightTime !== leftTime) {
+      return rightTime - leftTime;
+    }
+
+    return right.id - left.id;
+  })
+);
+
+async function fetchCommandPage(page: number, limit: number): Promise<PaginatedCommandResponse> {
+  const response = await fetch(`/api/admin/clipboard?page=${page}&limit=${limit}`);
+  const payload = await response.json().catch(() => ({})) as {
+    message?: string;
+    data?: {
+      items?: CommandClipboard[];
+      total?: number;
+      page?: number;
+      limit?: number;
+    };
+  };
+
+  if (!response.ok) {
+    throw new Error(payload.message || "Failed to fetch commands");
+  }
+
+  const data = payload.data;
+  return {
+    items: Array.isArray(data?.items) ? data.items : [],
+    total: Number(data?.total || 0),
+    page: Number(data?.page || page),
+    limit: Number(data?.limit || limit),
+  };
+}
+
+function buildPageNumbers(page: number, totalPages: number) {
+  const siblingsCount = 1;
+  const values: (number | string)[] = [];
+  const leftSibling = Math.max(page - siblingsCount, 1);
+  const rightSibling = Math.min(page + siblingsCount, totalPages);
+  const showLeftDots = leftSibling > 2;
+  const showRightDots = rightSibling < totalPages - 1;
+
+  values.push(1);
+  if (showLeftDots) {
+    values.push("...");
+  } else {
+    for (let index = 2; index < leftSibling; index += 1) {
+      values.push(index);
+    }
+  }
+
+  for (let index = leftSibling; index <= rightSibling; index += 1) {
+    if (index > 1 && index < totalPages) {
+      values.push(index);
+    }
+  }
+
+  if (showRightDots) {
+    values.push("...");
+  } else {
+    for (let index = rightSibling + 1; index < totalPages; index += 1) {
+      values.push(index);
+    }
+  }
+
+  if (totalPages > 1) {
+    values.push(totalPages);
+  }
+
+  return values;
+}
+
 export default function CommandLibraryManager() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const location = useLocation();
   const routeState = (location.state as ScriptsPageLocationState) ?? null;
-  const { commands, loading, error, addCommand, updateCommand, deleteCommand } =
+  const { addCommand, updateCommand, deleteCommand } =
     useCommandClipboard();
 
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [commands, setCommands] = useState<CommandClipboard[]>([]);
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(DEFAULT_PAGE_SIZE);
+  const [total, setTotal] = useState(0);
   const [editorOpen, setEditorOpen] = useState(false);
   const [editingCommand, setEditingCommand] = useState<CommandClipboard | null>(null);
   const [formValues, setFormValues] = useState<CommandFormValues>(EMPTY_FORM_VALUES);
@@ -133,40 +228,41 @@ export default function CommandLibraryManager() {
     });
   }, [location.pathname, location.search, navigate, routeState, t]);
 
-  const orderedCommands = useMemo(() => {
-    return [...commands].sort((left, right) => {
-      if (right.weight !== left.weight) {
-        return right.weight - left.weight;
+  const orderedCommands = useMemo(() => sortCommands(commands), [commands]);
+  const totalPages = Math.max(1, Math.ceil(total / Math.max(limit, 1)));
+  const pageNumbers = useMemo(() => buildPageNumbers(page, totalPages), [page, totalPages]);
+  const visibleStart = total === 0 ? 0 : (page - 1) * limit + 1;
+  const visibleEnd = total === 0 ? 0 : Math.min(page * limit, total);
+
+  const loadCommands = useCallback(async (targetPage: number, targetLimit: number) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const data = await fetchCommandPage(targetPage, targetLimit);
+      const nextTotalPages = Math.max(1, Math.ceil(data.total / Math.max(data.limit, 1)));
+      if (targetPage > nextTotalPages) {
+        setCommands([]);
+        setTotal(data.total);
+        setPage(nextTotalPages);
+        return;
       }
 
-      const rightTime = new Date(right.updated_at).getTime();
-      const leftTime = new Date(left.updated_at).getTime();
-      if (!Number.isNaN(rightTime) && !Number.isNaN(leftTime) && rightTime !== leftTime) {
-        return rightTime - leftTime;
-      }
-
-      return right.id - left.id;
-    });
-  }, [commands]);
-
-  const latestUpdatedAt = useMemo(() => {
-    return commands.reduce<string | undefined>((latest, item) => {
-      if (!latest) {
-        return item.updated_at;
-      }
-
-      return new Date(item.updated_at).getTime() > new Date(latest).getTime()
-        ? item.updated_at
-        : latest;
-    }, undefined);
-  }, [commands]);
-
-  const maxWeight = useMemo(() => {
-    if (commands.length === 0) {
-      return null;
+      setCommands(data.items);
+      setTotal(data.total);
+    } catch (nextError) {
+      setError(
+        nextError instanceof Error
+          ? nextError.message
+          : t("common.unknown_error", "Unknown error"),
+      );
+    } finally {
+      setLoading(false);
     }
-    return Math.max(...commands.map((item) => item.weight));
-  }, [commands]);
+  }, [t]);
+
+  useEffect(() => {
+    void loadCommands(page, limit);
+  }, [limit, loadCommands, page]);
 
   const openCreateDialog = () => {
     setEditingCommand(null);
@@ -222,6 +318,7 @@ export default function CommandLibraryManager() {
             defaultValue: "Saved command updated",
           }),
         );
+        await loadCommands(page, limit);
       } else {
         await addCommand(
           resolvedName,
@@ -234,6 +331,11 @@ export default function CommandLibraryManager() {
             defaultValue: "Command saved to library",
           }),
         );
+        if (page === 1) {
+          await loadCommands(1, limit);
+        } else {
+          setPage(1);
+        }
       }
 
       setEditorOpen(false);
@@ -266,6 +368,7 @@ export default function CommandLibraryManager() {
         }),
       );
       setDeleteTarget(null);
+      await loadCommands(page, limit);
     } catch (nextError) {
       toast.error(
         nextError instanceof Error
@@ -306,7 +409,7 @@ export default function CommandLibraryManager() {
   if (error) {
     return (
       <div className="rounded-2xl border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive">
-        {error.message}
+        {error}
       </div>
     );
   }
@@ -314,8 +417,41 @@ export default function CommandLibraryManager() {
   return (
     <>
       <AdminPageShell
-        actions={
-          <>
+        stats={[
+          {
+            label: t("command_clipboard.stats.total", {
+              defaultValue: "Saved scripts",
+            }),
+            value: `${total}`,
+            hint: t("exec.savedCommandsHint", {
+              defaultValue:
+                "Saved commands are stored in the database and can be inserted back or executed directly.",
+            }),
+            tone: "blue",
+          },
+          {
+            label: t("command_clipboard.pagination.current_page", {
+              defaultValue: "Current page",
+            }),
+            value: `${page} / ${totalPages}`,
+            hint: t("command_clipboard.pagination.current_page_hint", {
+              defaultValue: "Switch pages to browse older scripts.",
+            }),
+            tone: "emerald",
+          },
+          {
+            label: t("command_clipboard.pagination.page_size", {
+              defaultValue: "Page size",
+            }),
+            value: `${limit}`,
+            hint: t("command_clipboard.pagination.page_size_hint", {
+              defaultValue: "Changing page size reloads the script list immediately.",
+            }),
+            tone: "amber",
+          },
+        ]}
+        actions={(
+          <div className="flex flex-wrap items-center justify-end gap-3">
             <Button variant="outline" asChild>
               <Link to="/admin/exec">
                 <Play size={15} />
@@ -330,46 +466,24 @@ export default function CommandLibraryManager() {
                 defaultValue: "New script",
               })}
             </Button>
-          </>
-        }
-        stats={[
-          {
-            label: t("command_clipboard.stats.total", {
-              defaultValue: "Saved scripts",
-            }),
-            value: commands.length,
-            hint: t("exec.savedCommandsHint", {
-              defaultValue:
-                "Saved commands are stored in the database and can be inserted back or executed directly.",
-            }),
-            tone: "blue",
-          },
-          {
-            label: t("command_clipboard.stats.weight", {
-              defaultValue: "Top weight",
-            }),
-            value: maxWeight ?? t("common.none"),
-            hint: t("command_clipboard.editor.weight_hint", {
-              defaultValue: "Higher weights appear first.",
-            }),
-            tone: "amber",
-          },
-          {
-            label: t("command_clipboard.stats.updated", {
-              defaultValue: "Latest update",
-            }),
-            value:
-              formatTimestamp(latestUpdatedAt) ??
-              t("command_clipboard.stats.updated_empty", {
-                defaultValue: "No scripts yet.",
-              }),
-            hint: t("command_clipboard.empty_description", {
-              defaultValue:
-                "Store reusable shell scripts here. Cloud and remote execution dialogs can reuse them.",
-            }),
-            tone: "slate",
-          },
-        ]}
+            <div className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300">
+              <span className="text-slate-500 dark:text-slate-400">
+                {t("command_clipboard.pagination.rows_per_page", {
+                  defaultValue: "Rows per page",
+                })}
+              </span>
+              <NumberPicker
+                defaultValue={limit}
+                onChange={(value) => {
+                  setPage(1);
+                  setLimit(value);
+                }}
+                min={5}
+                max={100}
+              />
+            </div>
+          </div>
+        )}
       >
         <AdminSurface className="py-2">
           {orderedCommands.length === 0 ? (
@@ -405,85 +519,153 @@ export default function CommandLibraryManager() {
               </div>
             </div>
           ) : (
-            <div className="grid gap-2">
-              {orderedCommands.map((command) => {
-                const updatedAt = formatTimestamp(command.updated_at);
-                const metaText = command.remark?.trim()
-                  || t("command_clipboard.updated_at", {
-                    defaultValue: "Updated {{date}}",
-                    date:
-                      updatedAt ??
-                      t("command_clipboard.stats.updated_empty", {
-                        defaultValue: "No scripts yet.",
-                      }),
-                  });
+            <div className="space-y-4">
+              <div className="flex items-center justify-between gap-3 px-1 text-sm text-slate-500 dark:text-slate-400">
+                <span>
+                  {t("command_clipboard.pagination.summary", {
+                    defaultValue: "Showing {{start}}-{{end}} of {{total}} scripts",
+                    start: visibleStart,
+                    end: visibleEnd,
+                    total,
+                  })}
+                </span>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    void loadCommands(page, limit);
+                  }}
+                >
+                  {t("common.refresh")}
+                </Button>
+              </div>
 
-                return (
-                  <article
-                    key={command.id}
-                    className="rounded-xl border border-slate-200 bg-white px-4 py-3 dark:border-slate-800 dark:bg-slate-950/40"
-                  >
-                    <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
-                      <div className="min-w-0 flex-1">
-                        <div className="flex min-w-0 items-center gap-2">
-                          <h2 className="truncate text-sm font-medium text-slate-900 dark:text-slate-100">
-                            {command.name}
-                          </h2>
-                          <Badge variant="secondary" className="shrink-0">
-                            {t("command_clipboard.weight_label", {
-                              defaultValue: "Weight {{weight}}",
-                              weight: command.weight,
-                            })}
-                          </Badge>
+              <div className="grid gap-2">
+                {orderedCommands.map((command) => {
+                  const updatedAt = formatTimestamp(command.updated_at);
+                  const metaText = command.remark?.trim()
+                    || t("command_clipboard.updated_at", {
+                      defaultValue: "Updated {{date}}",
+                      date:
+                        updatedAt ??
+                        t("command_clipboard.stats.updated_empty", {
+                          defaultValue: "No scripts yet.",
+                        }),
+                    });
+
+                  return (
+                    <article
+                      key={command.id}
+                      className="rounded-xl border border-slate-200 bg-white px-4 py-3 dark:border-slate-800 dark:bg-slate-950/40"
+                    >
+                      <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
+                        <div className="min-w-0 flex-1">
+                          <div className="flex min-w-0 items-center gap-2">
+                            <h2 className="truncate text-sm font-medium text-slate-900 dark:text-slate-100">
+                              {command.name}
+                            </h2>
+                            <Badge variant="secondary" className="shrink-0">
+                              {t("command_clipboard.weight_label", {
+                                defaultValue: "Weight {{weight}}",
+                                weight: command.weight,
+                              })}
+                            </Badge>
+                          </div>
+                          <p className="truncate text-[13px] text-slate-500 dark:text-slate-400">
+                            {metaText}
+                          </p>
                         </div>
-                        <p className="truncate text-[13px] text-slate-500 dark:text-slate-400">
-                          {metaText}
-                        </p>
-                      </div>
 
-                      <div className="flex shrink-0 flex-wrap gap-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleUseInExec(command)}
-                        >
-                          <Play size={14} />
-                          {t("command_clipboard.use_in_exec", {
-                            defaultValue: "Use in exec",
-                          })}
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => {
-                            void handleCopy(command);
-                          }}
-                        >
-                          <Copy size={14} />
-                          {t("copy", { defaultValue: "Copy" })}
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => openEditDialog(command)}
-                        >
-                          <PencilLine size={14} />
-                          {t("common.edit")}
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => setDeleteTarget(command)}
-                          className="border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700 dark:border-red-900/50 dark:text-red-300 dark:hover:bg-red-950/30 dark:hover:text-red-200"
-                        >
-                          <Trash2 size={14} />
-                          {t("common.delete")}
-                        </Button>
+                        <div className="flex shrink-0 flex-wrap gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleUseInExec(command)}
+                          >
+                            <Play size={14} />
+                            {t("command_clipboard.use_in_exec", {
+                              defaultValue: "Use in exec",
+                            })}
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              void handleCopy(command);
+                            }}
+                          >
+                            <Copy size={14} />
+                            {t("copy", { defaultValue: "Copy" })}
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => openEditDialog(command)}
+                          >
+                            <PencilLine size={14} />
+                            {t("common.edit")}
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setDeleteTarget(command)}
+                            className="border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700 dark:border-red-900/50 dark:text-red-300 dark:hover:bg-red-950/30 dark:hover:text-red-200"
+                          >
+                            <Trash2 size={14} />
+                            {t("common.delete")}
+                          </Button>
+                        </div>
                       </div>
-                    </div>
-                  </article>
-                );
-              })}
+                    </article>
+                  );
+                })}
+              </div>
+
+              <div className="flex flex-wrap items-center justify-end gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setPage((current) => Math.max(1, current - 1))}
+                  disabled={page === 1}
+                >
+                  {t("command_clipboard.pagination.previous", {
+                    defaultValue: "Previous",
+                  })}
+                </Button>
+                {pageNumbers.map((value, index) => (
+                  typeof value === "number" ? (
+                    <Button
+                      key={`${value}-${index}`}
+                      type="button"
+                      variant={value === page ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => setPage(value)}
+                    >
+                      {value}
+                    </Button>
+                  ) : (
+                    <span
+                      key={`${value}-${index}`}
+                      className="px-2 text-sm text-slate-400"
+                    >
+                      {value}
+                    </span>
+                  )
+                ))}
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setPage((current) => Math.min(totalPages, current + 1))}
+                  disabled={page === totalPages}
+                >
+                  {t("command_clipboard.pagination.next", {
+                    defaultValue: "Next",
+                  })}
+                </Button>
+              </div>
             </div>
           )}
         </AdminSurface>
