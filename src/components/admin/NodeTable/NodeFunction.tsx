@@ -6,6 +6,7 @@ import { Terminal, Trash2, Copy, Download, DollarSign } from "lucide-react";
 import { t } from "i18next";
 import type { Row } from "@tanstack/react-table";
 import { EditDialog } from "./NodeEditDialog";
+import { NodeDDNSDialog } from "./NodeDDNSDialog";
 import {
   Button,
   Checkbox,
@@ -19,6 +20,7 @@ import {
 import { toast } from "sonner";
 import { useSettings } from "@/lib/api";
 import { buildAgentInstallScriptURL } from "@/lib/installScriptSource";
+import { useAccount } from "@/contexts/AccountContext";
 
 type ActionResponsePayload = {
   status?: string;
@@ -87,6 +89,7 @@ type Platform = "linux" | "windows" | "macos";
 export function ActionsCell({ row }: { row: Row<z.infer<typeof schema>> }) {
   const refreshTable = React.useContext(DataTableRefreshContext);
   const { settings } = useSettings();
+  const { hasFeature } = useAccount();
   const [removing, setRemoving] = React.useState(false);
   const [selectedPlatform, setSelectedPlatform] =
     React.useState<Platform>("linux");
@@ -347,6 +350,7 @@ export function ActionsCell({ row }: { row: Row<z.infer<typeof schema>> }) {
           <Terminal className="p-1" />
         </IconButton>
       </a>
+      {hasFeature("cloud_dns") ? <NodeDDNSDialog item={row.original} /> : null}
       {/** Edit Button */}
       <EditDialog item={row.original} />
       {/** Edit Money */}

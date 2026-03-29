@@ -1037,6 +1037,70 @@ function getDefaultAutoConnectGroup(provider: string, credentialName: string) {
   return `${normalizedProvider}/${normalizedCredentialName}`;
 }
 
+function getNamedLegacyProviderRecord(
+  records: unknown,
+  targetID: string,
+) {
+  if (!Array.isArray(records)) {
+    return null;
+  }
+
+  const normalizedTargetID = normalizeProviderEntryID(String(targetID || "").trim());
+  const namedRecords = records.filter((record) =>
+    record && typeof record === "object",
+  ) as EntryValues[];
+
+  if (normalizedTargetID) {
+    const matched = namedRecords.find((record) =>
+      normalizeProviderEntryID(String(record.id || "").trim()) === normalizedTargetID,
+    );
+    if (matched) {
+      return matched;
+    }
+  }
+
+  if (namedRecords.length === 1) {
+    return namedRecords[0];
+  }
+
+  return null;
+}
+
+function getLegacyProviderRecordName(
+  provider: string,
+  values: EntryValues,
+  entryID: string,
+) {
+  const normalizedProvider = provider.trim().toLowerCase();
+  const normalizedEntryID = normalizeProviderEntryID(String(entryID || "").trim());
+
+  if (normalizedProvider === "digitalocean" || normalizedProvider === "linode") {
+    const activeTokenID = normalizeProviderEntryID(String(values.active_token_id || "").trim());
+    const token = getNamedLegacyProviderRecord(
+      values.tokens,
+      normalizedEntryID === "active" ? activeTokenID : normalizedEntryID,
+    );
+    const tokenName = String(token?.name || "").trim();
+    if (tokenName) {
+      return tokenName;
+    }
+  }
+
+  if (normalizedProvider === "aws") {
+    const activeCredentialID = normalizeProviderEntryID(String(values.active_credential_id || "").trim());
+    const credential = getNamedLegacyProviderRecord(
+      values.credentials,
+      normalizedEntryID === "active" ? activeCredentialID : normalizedEntryID,
+    );
+    const credentialName = String(credential?.name || "").trim();
+    if (credentialName) {
+      return credentialName;
+    }
+  }
+
+  return "";
+}
+
 function getProviderEntryDisplayName(
   providerEntries: ProviderEntriesMap,
   provider: string,
@@ -1046,7 +1110,21 @@ function getProviderEntryDisplayName(
   const normalizedEntryID = normalizeProviderEntryID(String(entryID || "").trim());
   if (normalizedEntryID && normalizedEntryID !== "active") {
     const matched = entries.find((entry) => normalizeProviderEntryID(String(entry.id || "").trim()) === normalizedEntryID);
-    return String(matched?.name || "").trim();
+    const matchedName = String(matched?.name || "").trim();
+    if (matchedName && matchedName.toLowerCase() !== "default") {
+      return matchedName;
+    }
+    if (matched?.values && typeof matched.values === "object") {
+      const legacyName = getLegacyProviderRecordName(
+        provider,
+        matched.values as EntryValues,
+        normalizedEntryID,
+      );
+      if (legacyName) {
+        return legacyName;
+      }
+    }
+    return matchedName;
   }
 
   const activeEntry = entries.find((entry) => {
@@ -1055,7 +1133,24 @@ function getProviderEntryDisplayName(
       : {};
     return isTruthyEntryFlag(values.is_active) || isTruthyEntryFlag(values.active);
   });
-  return String(activeEntry?.name || entries[0]?.name || "").trim();
+  const activeEntryName = String(activeEntry?.name || "").trim();
+  if (activeEntryName && activeEntryName.toLowerCase() !== "default") {
+    return activeEntryName;
+  }
+
+  const legacyEntry = activeEntry || entries[0];
+  if (legacyEntry?.values && typeof legacyEntry.values === "object") {
+    const legacyName = getLegacyProviderRecordName(
+      provider,
+      legacyEntry.values as EntryValues,
+      "active",
+    );
+    if (legacyName) {
+      return legacyName;
+    }
+  }
+
+  return String(legacyEntry?.name || "").trim();
 }
 
 function getDefaultPlanAutoConnectGroup(

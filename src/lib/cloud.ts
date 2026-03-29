@@ -479,7 +479,7 @@ export async function getCloudProviderEntries(
   }
 
   return [{
-    id: "legacy-default",
+    id: "default",
     name: "Default",
     values: parsed,
   }];
@@ -524,7 +524,7 @@ export async function saveCloudProviderValues(
   values: Record<string, unknown>,
 ): Promise<void> {
   await saveCloudProviderEntries(provider, [{
-    id: "legacy-default",
+    id: "default",
     name: "Default",
     values,
   }]);
