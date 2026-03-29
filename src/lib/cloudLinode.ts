@@ -500,6 +500,16 @@ export async function getLinodeAccount(): Promise<LinodeAccount> {
   return normalizeAccount(data);
 }
 
+export async function redeemLinodePromoCode(promoCode: string): Promise<void> {
+  await requestCloud("/api/admin/cloud/linode/promo-codes", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ promo_code: promoCode }),
+  });
+}
+
 export async function getLinodeTokens(): Promise<LinodeTokenPool> {
   const data = await requestCloud<Partial<LinodeTokenPool>>("/api/admin/cloud/linode/tokens");
   return {

@@ -275,26 +275,36 @@ function getEC2QuotaItems(
 
   return [
     {
-      key: "max_instances",
-      label: t("cloud.providers.aws.max_instances", "Max instances"),
-      value: quota.max_instances,
+      key: "running_instances",
+      label: t("cloud.providers.aws.running_instances", "Running / Limit"),
+      value: quota.max_instances > 0 ? `${quota.running_instances} / ${quota.max_instances}` : String(quota.running_instances),
     },
     {
-      key: "max_elastic_ips",
-      label: t("cloud.providers.aws.max_elastic_ips", "Elastic IPs"),
-      value: quota.max_elastic_ips,
+      key: "total_instances",
+      label: t("cloud.providers.aws.total_instances", "Tracked instances"),
+      value: String(quota.total_instances),
+    },
+    {
+      key: "allocated_elastic_ips",
+      label: t("cloud.providers.aws.allocated_elastic_ips", "Allocated EIPs"),
+      value: quota.max_elastic_ips > 0 ? `${quota.allocated_elastic_ips} / ${quota.max_elastic_ips}` : String(quota.allocated_elastic_ips),
+    },
+    {
+      key: "associated_elastic_ips",
+      label: t("cloud.providers.aws.associated_elastic_ips", "Attached EIPs"),
+      value: String(quota.associated_elastic_ips),
     },
     {
       key: "vpc_max_elastic_ips",
       label: t("cloud.providers.aws.vpc_max_elastic_ips", "VPC EIPs"),
-      value: quota.vpc_max_elastic_ips,
+      value: String(quota.vpc_max_elastic_ips),
     },
     {
       key: "vpc_max_security_groups_per_interface",
       label: t("cloud.providers.aws.max_security_groups_per_interface", "SGs / ENI"),
-      value: quota.vpc_max_security_groups_per_interface,
+      value: String(quota.vpc_max_security_groups_per_interface),
     },
-  ].filter((item) => item.value > 0);
+  ].filter((item) => item.value !== "0");
 }
 
 function AWSQuotaSummary({
@@ -349,6 +359,15 @@ const DetailItem = CloudDetailItem;
 
 function getSubnetVpcId(subnets: AWSSubnet[], subnetId: string) {
   return subnets.find((subnet) => subnet.subnet_id === subnetId)?.vpc_id || "";
+}
+
+function getInstanceTypeAvailabilityZones(catalog: AWSCatalog | null, instanceType: string) {
+  const normalized = instanceType.trim();
+  if (!normalized) return [];
+  return (
+    catalog?.instance_type_offerings.find((offering) => offering.instance_type === normalized)?.availability_zones
+    || []
+  );
 }
 
 function getImageLabel(image: AWSImage) {
@@ -592,7 +611,23 @@ export default function AWSPanel() {
   const defaultCreateGroup = getDefaultAutoConnectGroup("aws", activeCredential?.name || "");
   const activeQuota = account?.ec2_quota || activeCredential?.ec2_quota || null;
   const activeQuotaError = account?.ec2_quota_error || activeCredential?.ec2_quota_error || "";
+  const runningInstanceLimitReached = Boolean(
+    activeQuota && activeQuota.max_instances > 0 && activeQuota.running_instances >= activeQuota.max_instances,
+  );
+  const elasticIPLimitReached = Boolean(
+    activeQuota && activeQuota.max_elastic_ips > 0 && activeQuota.allocated_elastic_ips >= activeQuota.max_elastic_ips,
+  );
+  const selectedSubnet = (catalog?.subnets || []).find((subnet) => subnet.subnet_id === createForm.subnet_id) || null;
   const selectedSubnetVpcId = getSubnetVpcId(catalog?.subnets || [], createForm.subnet_id);
+  const selectedSubnetAz = selectedSubnet?.availability_zone || "";
+  const selectedInstanceTypeZones = getInstanceTypeAvailabilityZones(catalog, createForm.instance_type);
+  const instanceTypeAvailabilityKnown = Boolean(catalog?.instance_type_offerings.length);
+  const instanceTypeAvailableInRegion =
+    !instanceTypeAvailabilityKnown || !createForm.instance_type || selectedInstanceTypeZones.length > 0;
+  const instanceTypeAvailableForCreate =
+    !instanceTypeAvailabilityKnown ||
+    !selectedSubnetAz ||
+    selectedInstanceTypeZones.includes(selectedSubnetAz);
   const filteredSecurityGroups = (catalog?.security_groups || []).filter((group) =>
     selectedSubnetVpcId ? group.vpc_id === selectedSubnetVpcId : true,
   );
@@ -1014,6 +1049,23 @@ export default function AWSPanel() {
     }
   };
 
+  const handleAllowAllEc2Traffic = async () => {
+    if (!detailInstance) return;
+
+    const confirmed = await confirm({
+      title: t("cloud.providers.aws.allow_all_traffic", "Allow All Traffic"),
+      description: t("cloud.providers.aws.allow_all_traffic_confirm", {
+        name: detailInstance.name || detailInstance.instance_id,
+        defaultValue: `Allow all IPv4 and IPv6 ingress and egress traffic on every security group attached to "${detailInstance.name || detailInstance.instance_id}"?`,
+      }),
+      confirmLabel: t("cloud.providers.aws.allow_all_traffic", "Allow All Traffic"),
+      tone: "warning",
+    });
+    if (!confirmed) return;
+
+    await handleDetailedEc2Action({ type: "allow_all_traffic" });
+  };
+
   const handleLightsailInstanceAction = async (instance: AWSLightsailInstance, type: string) => {
     try {
       await postAWSLightsailInstanceAction(instance.name, { type });
@@ -1062,6 +1114,23 @@ export default function AWSPanel() {
     } finally {
       setLightsailActionLoading(false);
     }
+  };
+
+  const handleAllowAllLightsailTraffic = async () => {
+    if (!lightsailDetailInstance) return;
+
+    const confirmed = await confirm({
+      title: t("cloud.providers.aws.allow_all_traffic", "Allow All Traffic"),
+      description: t("cloud.providers.aws.allow_all_lightsail_traffic_confirm", {
+        name: lightsailDetailInstance.name,
+        defaultValue: `Open all public ports for "${lightsailDetailInstance.name}" to 0.0.0.0/0 and ::/0 when IPv6 is enabled?`,
+      }),
+      confirmLabel: t("cloud.providers.aws.allow_all_traffic", "Allow All Traffic"),
+      tone: "warning",
+    });
+    if (!confirmed) return;
+
+    await handleDetailedLightsailAction({ type: "allow_all_traffic" });
   };
 
   const handleDeleteInstance = async (instance: AWSInstance) => {
@@ -1240,6 +1309,28 @@ export default function AWSPanel() {
               {activeQuotaError}
             </>
           }
+        />
+      ) : null}
+
+      {runningInstanceLimitReached ? (
+        <WarningAlert
+          tone="warning"
+          description={t("cloud.providers.aws.instance_quota_reached", {
+            running: activeQuota?.running_instances || 0,
+            limit: activeQuota?.max_instances || 0,
+            defaultValue: `Running instances have reached the current regional limit (${activeQuota?.running_instances || 0}/${activeQuota?.max_instances || 0}). New launches may fail until capacity is freed or the quota is raised.`,
+          })}
+        />
+      ) : null}
+
+      {elasticIPLimitReached ? (
+        <WarningAlert
+          tone="warning"
+          description={t("cloud.providers.aws.elastic_ip_quota_reached", {
+            used: activeQuota?.allocated_elastic_ips || 0,
+            limit: activeQuota?.max_elastic_ips || 0,
+            defaultValue: `Elastic IP usage has reached the current regional limit (${activeQuota?.allocated_elastic_ips || 0}/${activeQuota?.max_elastic_ips || 0}). Allocating a new Elastic IP may fail.`,
+          })}
         />
       ) : null}
 
@@ -2052,6 +2143,42 @@ export default function AWSPanel() {
               {t("cloud.providers.aws.assign_public_ip", "Assign public IPv4 when subnet configuration allows it")}
             </label>
 
+            {!instanceTypeAvailableInRegion ? (
+              <WarningAlert
+                tone="warning"
+                description={t("cloud.providers.aws.instance_type_unavailable_region", {
+                  instanceType: createForm.instance_type,
+                  region: activeRegion,
+                  defaultValue: `${createForm.instance_type} is not currently offered in ${activeRegion}. Choose another instance type or region.`,
+                })}
+              />
+            ) : selectedSubnetAz && !instanceTypeAvailableForCreate ? (
+              <WarningAlert
+                tone="warning"
+                description={t("cloud.providers.aws.instance_type_unavailable_az", {
+                  instanceType: createForm.instance_type,
+                  az: selectedSubnetAz,
+                  defaultValue: `${createForm.instance_type} is not currently offered in ${selectedSubnetAz}. Choose another subnet or instance type.`,
+                })}
+              />
+            ) : instanceTypeAvailabilityKnown && createForm.instance_type ? (
+              <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800 dark:border-emerald-900/50 dark:bg-emerald-950/30 dark:text-emerald-300">
+                {selectedSubnetAz
+                  ? t("cloud.providers.aws.instance_type_available_az", {
+                      instanceType: createForm.instance_type,
+                      az: selectedSubnetAz,
+                      count: selectedInstanceTypeZones.length,
+                      defaultValue: `${createForm.instance_type} is offered in ${selectedSubnetAz}. AWS reports ${selectedInstanceTypeZones.length} supported AZs in ${activeRegion}.`,
+                    })
+                  : t("cloud.providers.aws.instance_type_available_region", {
+                      instanceType: createForm.instance_type,
+                      region: activeRegion,
+                      count: selectedInstanceTypeZones.length,
+                      defaultValue: `${createForm.instance_type} is currently offered in ${selectedInstanceTypeZones.length} AZs in ${activeRegion}.`,
+                    })}
+              </div>
+            ) : null}
+
             <Flex justify="end" gap="2">
               <Button variant="outline" onClick={() => setCreateOpen(false)} disabled={createSubmitting}>
                 {t("common.cancel", "Cancel")}
@@ -2060,7 +2187,13 @@ export default function AWSPanel() {
                 onClick={() => {
                   void handleCreateInstance();
                 }}
-                disabled={createSubmitting || !createForm.image_id || !createForm.instance_type}
+                disabled={
+                  createSubmitting ||
+                  !createForm.image_id ||
+                  !createForm.instance_type ||
+                  !instanceTypeAvailableInRegion ||
+                  !instanceTypeAvailableForCreate
+                }
               >
                 {createSubmitting
                   ? t("cloud.creating", "Creating...")
@@ -2543,6 +2676,19 @@ export default function AWSPanel() {
                       </div>
                     ))}
                   </div>
+                  <Flex justify="end" gap="2" className="mt-3">
+                    <Button
+                      size="1"
+                      color="amber"
+                      disabled={detailActionLoading || !detailData.security_groups.length}
+                      onClick={() => {
+                        void handleAllowAllEc2Traffic();
+                      }}
+                    >
+                      <ShieldCheck className="mr-1 h-3.5 w-3.5" />
+                      {t("cloud.providers.aws.allow_all_traffic", "Allow All Traffic")}
+                    </Button>
+                  </Flex>
                 </div>
               ) : null}
 
@@ -2612,6 +2758,19 @@ export default function AWSPanel() {
                     <div className="text-sm text-slate-500 dark:text-slate-400">-</div>
                   )}
                 </div>
+                <Flex justify="end" gap="2" className="mt-3">
+                  <Button
+                    size="1"
+                    color="amber"
+                    disabled={lightsailActionLoading}
+                    onClick={() => {
+                      void handleAllowAllLightsailTraffic();
+                    }}
+                  >
+                    <ShieldCheck className="mr-1 h-3.5 w-3.5" />
+                    {t("cloud.providers.aws.allow_all_traffic", "Allow All Traffic")}
+                  </Button>
+                </Flex>
               </div>
 
               <div className={cloudPanelSubcardClassName}>

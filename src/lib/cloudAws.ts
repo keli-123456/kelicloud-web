@@ -29,6 +29,10 @@ export type AWSEC2Quota = {
   max_elastic_ips: number;
   vpc_max_elastic_ips: number;
   vpc_max_security_groups_per_interface: number;
+  running_instances: number;
+  total_instances: number;
+  allocated_elastic_ips: number;
+  associated_elastic_ips: number;
 };
 
 export type AWSCredentialInput = {
@@ -92,6 +96,11 @@ export type AWSInstanceType = {
   free_tier_eligible: boolean;
   network_performance: string;
   supported_usage_class: string[];
+};
+
+export type AWSInstanceTypeOffering = {
+  instance_type: string;
+  availability_zones: string[];
 };
 
 export type AWSImage = {
@@ -299,6 +308,7 @@ export type AWSCatalog = {
   active_region: string;
   regions: AWSRegion[];
   instance_types: AWSInstanceType[];
+  instance_type_offerings: AWSInstanceTypeOffering[];
   images: AWSImage[];
   key_pairs: AWSKeyPair[];
   subnets: AWSSubnet[];
@@ -379,6 +389,10 @@ function normalizeEC2Quota(quota: Partial<AWSEC2Quota> | null | undefined): AWSE
     max_elastic_ips: Number(quota.max_elastic_ips || 0),
     vpc_max_elastic_ips: Number(quota.vpc_max_elastic_ips || 0),
     vpc_max_security_groups_per_interface: Number(quota.vpc_max_security_groups_per_interface || 0),
+    running_instances: Number(quota.running_instances || 0),
+    total_instances: Number(quota.total_instances || 0),
+    allocated_elastic_ips: Number(quota.allocated_elastic_ips || 0),
+    associated_elastic_ips: Number(quota.associated_elastic_ips || 0),
   };
 
   if (
@@ -387,6 +401,10 @@ function normalizeEC2Quota(quota: Partial<AWSEC2Quota> | null | undefined): AWSE
     && normalized.max_elastic_ips <= 0
     && normalized.vpc_max_elastic_ips <= 0
     && normalized.vpc_max_security_groups_per_interface <= 0
+    && normalized.running_instances <= 0
+    && normalized.total_instances <= 0
+    && normalized.allocated_elastic_ips <= 0
+    && normalized.associated_elastic_ips <= 0
   ) {
     return null;
   }
@@ -464,6 +482,15 @@ function normalizeInstanceType(
     free_tier_eligible: Boolean(instanceType?.free_tier_eligible),
     network_performance: String(instanceType?.network_performance || ""),
     supported_usage_class: normalizeStringArray(instanceType?.supported_usage_class),
+  };
+}
+
+function normalizeInstanceTypeOffering(
+  offering: Partial<AWSInstanceTypeOffering> | null | undefined,
+): AWSInstanceTypeOffering {
+  return {
+    instance_type: String(offering?.instance_type || ""),
+    availability_zones: normalizeStringArray(offering?.availability_zones),
   };
 }
 
@@ -938,6 +965,9 @@ export async function getAWSCatalog(): Promise<AWSCatalog> {
     regions: Array.isArray(data?.regions) ? data.regions.map(normalizeRegion) : [],
     instance_types: Array.isArray(data?.instance_types)
       ? data.instance_types.map(normalizeInstanceType)
+      : [],
+    instance_type_offerings: Array.isArray(data?.instance_type_offerings)
+      ? data.instance_type_offerings.map(normalizeInstanceTypeOffering)
       : [],
     images: Array.isArray(data?.images) ? data.images.map(normalizeImage) : [],
     key_pairs: Array.isArray(data?.key_pairs) ? data.key_pairs.map(normalizeKeyPair) : [],

@@ -66,6 +66,7 @@ import {
   getLinodeTokens,
   listLinodeInstances,
   postLinodeInstanceAction,
+  redeemLinodePromoCode,
   saveLinodeTokens,
   setLinodeActiveToken,
   type CreateLinodeInstanceInput,
@@ -209,6 +210,19 @@ function formatDateTime(value: string) {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return value;
   return date.toLocaleString();
+}
+
+function formatUsdCurrency(value: number) {
+  try {
+    return new Intl.NumberFormat(undefined, {
+      style: "currency",
+      currency: "USD",
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(value);
+  } catch {
+    return `$${value.toFixed(2)}`;
+  }
 }
 
 function formatList(values: Array<string | number>) {
@@ -358,6 +372,9 @@ export default function LinodePanel() {
   const [error, setError] = React.useState("");
   const [createOpen, setCreateOpen] = React.useState(false);
   const [createSubmitting, setCreateSubmitting] = React.useState(false);
+  const [promoOpen, setPromoOpen] = React.useState(false);
+  const [promoCode, setPromoCode] = React.useState("");
+  const [promoSubmitting, setPromoSubmitting] = React.useState(false);
   const [createCatalogLoading, setCreateCatalogLoading] = React.useState(false);
   const [resourcesLoaded, setResourcesLoaded] = React.useState(false);
   const [createForm, setCreateForm] = React.useState<CreateFormState>(initialCreateForm);
@@ -957,6 +974,33 @@ export default function LinodePanel() {
     setCreateOpen(true);
   };
 
+  const handleRedeemPromoCode = async () => {
+    const trimmedPromoCode = promoCode.trim();
+    if (!trimmedPromoCode) {
+      toast.error(t("cloud.providers.linode.promo_code_required", "Enter a promo code"));
+      return;
+    }
+
+    setPromoSubmitting(true);
+    try {
+      await redeemLinodePromoCode(trimmedPromoCode);
+      setPromoOpen(false);
+      setPromoCode("");
+      toast.success(t("cloud.providers.linode.promo_redeem_success", "Promo credit redeemed"));
+      try {
+        const nextAccount = await getLinodeAccount();
+        setAccount(nextAccount);
+        setError("");
+      } catch {
+        // The promo code may still be applied even if the follow-up refresh fails.
+      }
+    } catch (promoError) {
+      toast.error(toErrorMessage(promoError));
+    } finally {
+      setPromoSubmitting(false);
+    }
+  };
+
   if (initializing) {
     return <Loading text="" />;
   }
@@ -1012,6 +1056,91 @@ export default function LinodePanel() {
           )}
         />
       ) : null}
+
+      <div className={`order-0 ${cloudPanelCardClassName}`}>
+        <div className={cloudPanelHeaderClassName}>
+          <div>
+            <div className={cloudPanelTitleClassName}>
+              {t("cloud.providers.linode.account_summary", "Account Summary")}
+            </div>
+            <div className={cloudPanelDescriptionClassName}>
+              {t(
+                "cloud.providers.linode.account_summary_description",
+                "Shows the current active Linode account identity and billing balance.",
+              )}
+            </div>
+          </div>
+          <Flex gap="2" wrap="wrap">
+            <Button
+              variant="outline"
+              size="1"
+              onClick={() => setPromoOpen(true)}
+              disabled={!activeToken || panelLoading || promoSubmitting || account?.restricted}
+            >
+              {promoSubmitting
+                ? t("cloud.providers.linode.promo_redeeming", "Redeeming...")
+                : t("cloud.providers.linode.redeem_promo", "Redeem Promo")}
+            </Button>
+          </Flex>
+        </div>
+
+        {!activeToken ? (
+          <div className="text-sm text-slate-500 dark:text-slate-400">
+            {t("cloud.providers.linode.no_active_token", "Select an active Linode token first")}
+          </div>
+        ) : panelLoading && !account ? (
+          <div className="text-sm text-slate-500 dark:text-slate-400">
+            {t("cloud.loading", "Loading cloud resources...")}
+          </div>
+        ) : !resourcesLoaded && !account ? (
+          <div className="text-sm text-slate-500 dark:text-slate-400">
+            {t("cloud.load_resources_prompt", "Click Refresh to load cloud resources on demand.")}
+          </div>
+        ) : account ? (
+          <div className="flex flex-col gap-4">
+            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+              <div className="rounded-2xl border border-emerald-200/80 bg-emerald-50/80 p-4 dark:border-emerald-900/70 dark:bg-emerald-950/30">
+                <div className="text-xs font-medium uppercase tracking-[0.2em] text-emerald-700/80 dark:text-emerald-300/80">
+                  {t("cloud.providers.linode.balance", "Balance")}
+                </div>
+                <div className="mt-2 text-2xl font-semibold text-emerald-900 dark:text-emerald-100">
+                  {formatUsdCurrency(account.balance)}
+                </div>
+              </div>
+              <DetailItem
+                label={t("cloud.providers.linode.username", "Username")}
+                value={account.username || "-"}
+              />
+              <DetailItem
+                label={t("cloud.providers.linode.email", "Email")}
+                value={account.email || "-"}
+              />
+              <DetailItem
+                label={t("cloud.providers.linode.company", "Company")}
+                value={account.company || "-"}
+              />
+            </div>
+            <div className={cloudPanelSubcardClassName}>
+              <div className="grid gap-3 md:grid-cols-2">
+                <DetailItem
+                  label={t("cloud.providers.linode.active_token", "Active Token")}
+                  value={activeToken?.name || activeToken?.profile_email || "-"}
+                />
+                <DetailItem
+                  label={t("cloud.table.status", "Status")}
+                  value={
+                    account.restricted
+                      ? t("cloud.providers.linode.restricted", "Restricted")
+                      : t("cloud.tokens.status.healthy", "Healthy")
+                  }
+                />
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div className="text-sm text-slate-500 dark:text-slate-400">-</div>
+        )}
+      </div>
 
       <div className={`order-2 ${cloudPanelCardClassName}`}>
             <div className={cloudPanelHeaderClassName}>
@@ -1600,6 +1729,53 @@ export default function LinodePanel() {
                 {createSubmitting
                   ? t("cloud.creating", "Creating...")
                   : t("cloud.providers.linode.create", "Create Instance")}
+              </Button>
+            </Flex>
+          </div>
+        </Dialog.Content>
+      </Dialog.Root>
+
+      <Dialog.Root
+        open={promoOpen}
+        onOpenChange={(open) => {
+          setPromoOpen(open);
+          if (!open && !promoSubmitting) {
+            setPromoCode("");
+          }
+        }}
+      >
+        <Dialog.Content className={cloudDialogContentClassName}>
+          <Dialog.Title>{t("cloud.providers.linode.redeem_promo", "Redeem Promo")}</Dialog.Title>
+          <Dialog.Description>
+            {t(
+              "cloud.providers.linode.promo_dialog_description",
+              "Submit a Linode promo code for the current active account. Linode may reject codes when the account does not meet their eligibility rules.",
+            )}
+          </Dialog.Description>
+
+          <div className="mt-4 flex flex-col gap-4">
+            <label className={cloudPanelFieldLabelClassName}>
+              {t("cloud.providers.linode.promo_code", "Promo Code")}
+            </label>
+            <TextField.Root
+              value={promoCode}
+              placeholder={t("cloud.providers.linode.promo_code_placeholder", "Enter a Linode promo code")}
+              onChange={(event) => setPromoCode(event.target.value)}
+              disabled={promoSubmitting}
+            />
+            <Flex justify="end" gap="2">
+              <Button variant="outline" onClick={() => setPromoOpen(false)} disabled={promoSubmitting}>
+                {t("common.cancel", "Cancel")}
+              </Button>
+              <Button
+                onClick={() => {
+                  void handleRedeemPromoCode();
+                }}
+                disabled={promoSubmitting || !promoCode.trim()}
+              >
+                {promoSubmitting
+                  ? t("cloud.providers.linode.promo_redeeming", "Redeeming...")
+                  : t("cloud.providers.linode.redeem_promo", "Redeem Promo")}
               </Button>
             </Flex>
           </div>
