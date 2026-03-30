@@ -1324,6 +1324,9 @@
   },
   "failover": {
     "editor": {
+      "auto_connect_group": "Auto-connect group",
+      "auto_connect_group_hint": "Defaults to provider/token-pool-group when available. Edit it only if this plan should register servers into a different group.",
+      "auto_connect_group_placeholder": "digitalocean/sg-prod",
       "provider_entry_group": "Token pool group",
       "provider_entry_group_missing": "No token groups have been assigned for this provider yet. You can still use all entries below.",
       "provider_entry_group_placeholder": "Choose a token group",
@@ -1340,6 +1343,12 @@
       "dns_sync_mode_hint": "Dual stack always updates the A record and only adds AAAA when the new outlet reports IPv6. IPv6-only mode still requires an IPv6 address.",
       "dns_sync_mode_ipv4": "IPv4 only (A)",
       "dns_sync_mode_ipv6": "IPv6 only (AAAA)"
+    },
+    "task": {
+      "ipv6_failed": "IPv6 / AAAA sync failed in the latest DNS run.",
+      "ipv6_pending": "IPv6 sync has not completed yet.",
+      "ipv6_skipped": "The new outlet has no IPv6, so AAAA was skipped.",
+      "ipv6_success": "AAAA synced successfully."
     }
   },
   "go_to_home": "Go to home",

@@ -55,6 +55,7 @@ export type FailoverExecutionSummary = {
   script_exit_code: number | null;
   script_output_truncated: boolean;
   dns_status: string;
+  dns_result: unknown;
   cleanup_status: string;
   error_message: string;
   started_at: string;
@@ -366,6 +367,7 @@ function normalizeExecutionSummary(execution: unknown): FailoverExecutionSummary
     script_exit_code: normalizeNullableNumber(raw.script_exit_code),
     script_output_truncated: normalizeBoolean(raw.script_output_truncated),
     dns_status: normalizeString(raw.dns_status),
+    dns_result: normalizeUnknown(raw.dns_result),
     cleanup_status: normalizeString(raw.cleanup_status),
     error_message: normalizeString(raw.error_message),
     started_at: normalizeString(raw.started_at),

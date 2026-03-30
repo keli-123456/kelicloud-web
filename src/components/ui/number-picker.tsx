@@ -27,8 +27,7 @@ export default function NumberPicker({
     if (defaultValue === undefined) return;
     const numValue = Math.max(min, Math.min(max, defaultValue));
     setValue(String(numValue));
-    onChange(numValue);
-  }, [defaultValue, min, max, onChange]);
+  }, [defaultValue, min, max]);
 
   const handleChange = (newValue: number) => {
     const clampedValue = Math.max(min, Math.min(max, newValue));

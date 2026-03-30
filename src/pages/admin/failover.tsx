@@ -1154,6 +1154,86 @@ function getProviderEntryGroups(
   ).sort(compareString);
 }
 
+function resolvePlanProviderPoolGroup(
+  provider: string,
+  providerEntries: ProviderEntriesMap,
+  entryGroup: string,
+  entryID: string,
+) {
+  const normalizedGroup = getStringValue(entryGroup);
+  if (normalizedGroup) {
+    return normalizedGroup;
+  }
+
+  const normalizedEntryID = normalizePlanProviderEntryID(provider, entryID);
+  if (!normalizedEntryID || normalizedEntryID === AUTOMATIC_PROVIDER_ENTRY_ID) {
+    return "";
+  }
+
+  const matched = (providerEntries[provider] || []).find(
+    (entry) => normalizeProviderEntryID(String(entry.id || "").trim()) === normalizedEntryID,
+  );
+  return getStringValue(matched?.group);
+}
+
+function buildSuggestedAutoConnectGroup(
+  provider: string,
+  providerEntries: ProviderEntriesMap,
+  entryGroup: string,
+  entryID: string,
+) {
+  const normalizedProvider = getStringValue(provider).toLowerCase();
+  const normalizedGroup = resolvePlanProviderPoolGroup(
+    provider,
+    providerEntries,
+    entryGroup,
+    entryID,
+  );
+  if (!normalizedProvider || !normalizedGroup) {
+    return "";
+  }
+  return `${normalizedProvider}/${normalizedGroup}`;
+}
+
+function shouldSyncAutoConnectGroup(
+  plan: Pick<PlanFormState, "provider" | "provider_entry_group" | "provider_entry_id" | "auto_connect_group">,
+  providerEntries: ProviderEntriesMap,
+) {
+  const currentGroup = getStringValue(plan.auto_connect_group);
+  if (!currentGroup) {
+    return true;
+  }
+  return currentGroup === buildSuggestedAutoConnectGroup(
+    plan.provider,
+    providerEntries,
+    plan.provider_entry_group,
+    plan.provider_entry_id,
+  );
+}
+
+function applySuggestedAutoConnectGroup(
+  plan: PlanFormState,
+  providerEntries: ProviderEntriesMap,
+  overrides: Partial<PlanFormState>,
+) {
+  const nextPlan = {
+    ...plan,
+    ...overrides,
+  };
+  if (!shouldSyncAutoConnectGroup(plan, providerEntries)) {
+    return nextPlan;
+  }
+  return {
+    ...nextPlan,
+    auto_connect_group: buildSuggestedAutoConnectGroup(
+      nextPlan.provider,
+      providerEntries,
+      nextPlan.provider_entry_group,
+      nextPlan.provider_entry_id,
+    ),
+  };
+}
+
 function getFirstConfiguredProvider(
   providerEntries: ProviderEntriesMap,
   providers: readonly string[],
@@ -1411,6 +1491,123 @@ function getTaskDnsTargetLabel(task: FailoverTask) {
   return "";
 }
 
+function collectDnsResultRecordTypes(value: unknown) {
+  const types = new Set<string>();
+  const appendType = (entry: unknown) => {
+    const raw = entry && typeof entry === "object"
+      ? entry as Record<string, unknown>
+      : {};
+    const recordType = normalizeDnsRecordType(getStringValue(raw.type));
+    if (recordType) {
+      types.add(recordType);
+    }
+  };
+
+  appendType(value);
+
+  const raw = value && typeof value === "object"
+    ? value as Record<string, unknown>
+    : {};
+  if (Array.isArray(raw.records)) {
+    raw.records.forEach(appendType);
+  }
+
+  return types;
+}
+
+function collectDnsResultSkippedTypes(value: unknown) {
+  const raw = value && typeof value === "object"
+    ? value as Record<string, unknown>
+    : {};
+  return new Set(
+    getStringArrayValue(raw.skipped_types)
+      .map((item) => normalizeDnsRecordType(item))
+      .filter(Boolean),
+  );
+}
+
+function getTaskDnsIPv6Badge(
+  t: TFunction,
+  task: FailoverTask,
+  latestExecution: FailoverTask["latest_execution"],
+) {
+  if (!task.dns_provider) {
+    return null;
+  }
+
+  const raw = task.dns_payload && typeof task.dns_payload === "object"
+    ? task.dns_payload as Record<string, unknown>
+    : {};
+  const syncMode = getDnsSyncMode(
+    getStringValue(raw.record_type),
+    getBooleanValue(raw.sync_ipv6),
+  );
+  if (syncMode === "ipv4") {
+    return null;
+  }
+
+  if (!latestExecution) {
+    return {
+      variant: "outline" as const,
+      title: t("failover.task.ipv6_pending", {
+        defaultValue: "IPv6 sync has not completed yet.",
+      }),
+    };
+  }
+
+  const dnsStatus = String(latestExecution.dns_status || "").trim().toLowerCase();
+  if (dnsStatus === "failed") {
+    return {
+      variant: "destructive" as const,
+      title: t("failover.task.ipv6_failed", {
+        defaultValue: "IPv6 / AAAA sync failed in the latest DNS run.",
+      }),
+    };
+  }
+  if (dnsStatus === "skipped") {
+    return {
+      variant: "outline" as const,
+      title: t("failover.task.ipv6_pending", {
+        defaultValue: "IPv6 sync has not completed yet.",
+      }),
+    };
+  }
+
+  const recordTypes = collectDnsResultRecordTypes(latestExecution.dns_result);
+  const skippedTypes = collectDnsResultSkippedTypes(latestExecution.dns_result);
+  if (recordTypes.has("AAAA")) {
+    return {
+      variant: "success" as const,
+      title: t("failover.task.ipv6_success", {
+        defaultValue: "AAAA synced successfully.",
+      }),
+    };
+  }
+  if (skippedTypes.has("AAAA")) {
+    return {
+      variant: "warning" as const,
+      title: t("failover.task.ipv6_skipped", {
+        defaultValue: "The new outlet has no IPv6, so AAAA was skipped.",
+      }),
+    };
+  }
+  if (syncMode === "ipv6" && dnsStatus === "success") {
+    return {
+      variant: "success" as const,
+      title: t("failover.task.ipv6_success", {
+        defaultValue: "AAAA synced successfully.",
+      }),
+    };
+  }
+
+  return {
+    variant: isFailoverExecutionActive(latestExecution.status) ? "info" as const : "outline" as const,
+    title: t("failover.task.ipv6_pending", {
+      defaultValue: "IPv6 sync has not completed yet.",
+    }),
+  };
+}
+
 function getDnsTaskStatusLabel(t: TFunction, status: string) {
   const normalized = String(status || "").trim().toLowerCase();
   if (normalized === "success") {
@@ -1508,7 +1705,12 @@ function createEmptyPlanForm(providerEntries: ProviderEntriesMap): PlanFormState
     provider_entry_group: "",
     action_type: defaultActionType,
     payload: prettyJson(defaultPlanPayload(defaultProvider, defaultActionType)),
-    auto_connect_group: "",
+    auto_connect_group: buildSuggestedAutoConnectGroup(
+      defaultProvider,
+      providerEntries,
+      "",
+      AUTOMATIC_PROVIDER_ENTRY_ID,
+    ),
     script_clipboard_ids: [],
     script_timeout_sec: "600",
     wait_agent_timeout_sec: "600",
@@ -1552,7 +1754,12 @@ function taskToForm(task: FailoverTask, providerEntries: ProviderEntriesMap): Ta
         provider_entry_group: plan.provider_entry_group.trim(),
         action_type: plan.action_type,
         payload: prettyJson(plan.payload),
-        auto_connect_group: plan.auto_connect_group.trim(),
+        auto_connect_group: plan.auto_connect_group.trim() || buildSuggestedAutoConnectGroup(
+          plan.provider,
+          providerEntries,
+          plan.provider_entry_group.trim(),
+          normalizePlanProviderEntryID(plan.provider, plan.provider_entry_id) || AUTOMATIC_PROVIDER_ENTRY_ID,
+        ),
         script_clipboard_ids: normalizePlanScriptClipboardIDs(
           (plan.script_clipboard_ids.length > 0
             ? plan.script_clipboard_ids
@@ -3185,15 +3392,17 @@ function TaskEditorDialog({
 		                            onValueChange={(value) => {
 		                              const nextActionOptions = ACTION_TYPE_VALUES[value] || [];
 	                              const nextActionType = nextActionOptions[0] || "";
-	                              updatePlan(selectedPlan.local_id, (current) => ({
-	                                ...current,
-	                                provider: value,
-	                                action_type: nextActionType,
-	                                provider_entry_id: AUTOMATIC_PROVIDER_ENTRY_ID,
-	                                provider_entry_group: "",
-	                                payload: prettyJson(defaultPlanPayload(value, nextActionType)),
-                                    auto_connect_group: "",
-	                              }));
+	                              updatePlan(selectedPlan.local_id, (current) => applySuggestedAutoConnectGroup(
+                                  current,
+                                  providerEntries,
+                                  {
+	                                  provider: value,
+	                                  action_type: nextActionType,
+	                                  provider_entry_id: AUTOMATIC_PROVIDER_ENTRY_ID,
+	                                  provider_entry_group: "",
+	                                  payload: prettyJson(defaultPlanPayload(value, nextActionType)),
+                                  },
+                                ));
 	                              resetPlanCatalogState();
 	                            }}
 	                          >
@@ -3236,11 +3445,14 @@ function TaskEditorDialog({
                                 <Select
                                   value={selectedPlan.provider_entry_group || "__all__"}
                                   onValueChange={(value) => {
-                                    updatePlan(selectedPlan.local_id, (current) => ({
-                                      ...current,
-                                      provider_entry_group: value === "__all__" ? "" : value,
-                                      provider_entry_id: AUTOMATIC_PROVIDER_ENTRY_ID,
-                                    }));
+                                    updatePlan(selectedPlan.local_id, (current) => applySuggestedAutoConnectGroup(
+                                      current,
+                                      providerEntries,
+                                      {
+                                        provider_entry_group: value === "__all__" ? "" : value,
+                                        provider_entry_id: AUTOMATIC_PROVIDER_ENTRY_ID,
+                                      },
+                                    ));
                                     resetPlanCatalogState();
                                   }}
                                 >
@@ -3300,10 +3512,13 @@ function TaskEditorDialog({
                                 <Select
                                   value={selectedPlan.provider_entry_id || undefined}
                                   onValueChange={(value) => {
-                                    updatePlan(selectedPlan.local_id, (current) => ({
-                                      ...current,
-                                      provider_entry_id: value,
-                                    }));
+                                    updatePlan(selectedPlan.local_id, (current) => applySuggestedAutoConnectGroup(
+                                      current,
+                                      providerEntries,
+                                      {
+                                        provider_entry_id: value,
+                                      },
+                                    ));
                                     resetPlanCatalogState();
                                   }}
                                 >
@@ -4205,6 +4420,30 @@ function TaskEditorDialog({
                             })}
                           />
                         </div>
+                        <div className="space-y-2">
+                          <Label>{t("failover.editor.auto_connect_group", { defaultValue: "Auto-connect group" })}</Label>
+                          <Input
+                            value={selectedPlan.auto_connect_group}
+                            onChange={(event) => updatePlan(selectedPlan.local_id, (current) => ({
+                              ...current,
+                              auto_connect_group: event.target.value,
+                            }))}
+                            placeholder={
+                              buildSuggestedAutoConnectGroup(
+                                selectedPlan.provider,
+                                providerEntries,
+                                selectedPlan.provider_entry_group,
+                                selectedPlan.provider_entry_id,
+                              )
+                              || t("failover.editor.auto_connect_group_placeholder", { defaultValue: "digitalocean/sg-prod" })
+                            }
+                          />
+                          <div className="text-xs text-muted-foreground">
+                            {t("failover.editor.auto_connect_group_hint", {
+                              defaultValue: "Defaults to provider/token-pool-group when available. Edit it only if this plan should register servers into a different group.",
+                            })}
+                          </div>
+                        </div>
                         <div className="space-y-2 lg:col-span-2">
                           <div className="flex flex-wrap items-center justify-between gap-2">
                             <Label>{t("failover.editor.scripts", { defaultValue: "Scripts" })}</Label>
@@ -4598,6 +4837,7 @@ function FailoverPageContent() {
               const currentOutletLabel = currentOutletIP || t("failover.task.uninitialized", { defaultValue: "Not initialized" });
               const dnsTargetLabel = getTaskDnsTargetLabel(task);
               const dnsStatus = latestExecution?.dns_status || "";
+              const dnsIPv6Badge = getTaskDnsIPv6Badge(t, task, latestExecution);
               const hasConfiguredScript = task.plans.some((plan) => plan.script_clipboard_ids.length > 0 || plan.script_clipboard_id !== null);
               const scriptStatus = latestExecution?.script_status || "";
               const scriptName = latestExecution?.script_name_snapshot || "";
@@ -4707,9 +4947,21 @@ function FailoverPageContent() {
                           </>
                         ) : null}
                         {task.dns_provider ? (
-                          <Badge variant={getStatusVariant(dnsStatus || "pending", "dns")}>
-                            {getDnsTaskStatusLabel(t, dnsStatus)}
-                          </Badge>
+                          <>
+                            <Badge variant={getStatusVariant(dnsStatus || "pending", "dns")}>
+                              {getDnsTaskStatusLabel(t, dnsStatus)}
+                            </Badge>
+                            {dnsIPv6Badge ? (
+                              <Badge
+                                variant={dnsIPv6Badge.variant}
+                                className="px-1.5 py-0 text-[10px] font-semibold lowercase tracking-[0.06em]"
+                                title={dnsIPv6Badge.title}
+                                aria-label={dnsIPv6Badge.title}
+                              >
+                                v6
+                              </Badge>
+                            ) : null}
+                          </>
                         ) : null}
                       </div>
                     </div>
