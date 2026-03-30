@@ -108,24 +108,17 @@ const formatTimestamp = (value?: string) => {
   return date.toLocaleString();
 };
 
-const sortCommands = (commands: CommandClipboard[]) => (
-  [...commands].sort((left, right) => {
-    if (right.weight !== left.weight) {
-      return right.weight - left.weight;
-    }
-
-    const rightTime = new Date(right.updated_at).getTime();
-    const leftTime = new Date(left.updated_at).getTime();
-    if (!Number.isNaN(rightTime) && !Number.isNaN(leftTime) && rightTime !== leftTime) {
-      return rightTime - leftTime;
-    }
-
-    return right.id - left.id;
-  })
-);
-
 async function fetchCommandPage(page: number, limit: number): Promise<PaginatedCommandResponse> {
-  const response = await fetch(`/api/admin/clipboard?page=${page}&limit=${limit}`);
+  const response = await fetch(`/api/admin/clipboard?page=${page}&limit=${limit}`, {
+    credentials: "same-origin",
+    cache: "no-store",
+    headers: {
+      Accept: "application/json",
+      "Cache-Control": "no-cache, no-store, max-age=0",
+      Pragma: "no-cache",
+      "X-Requested-With": "XMLHttpRequest",
+    },
+  });
   const payload = await response.json().catch(() => ({})) as {
     message?: string;
     data?: {
@@ -228,7 +221,6 @@ export default function CommandLibraryManager() {
     });
   }, [location.pathname, location.search, navigate, routeState, t]);
 
-  const orderedCommands = useMemo(() => sortCommands(commands), [commands]);
   const totalPages = Math.max(1, Math.ceil(total / Math.max(limit, 1)));
   const pageNumbers = useMemo(() => buildPageNumbers(page, totalPages), [page, totalPages]);
   const visibleStart = total === 0 ? 0 : (page - 1) * limit + 1;
@@ -249,6 +241,8 @@ export default function CommandLibraryManager() {
 
       setCommands(data.items);
       setTotal(data.total);
+      setPage(Math.min(Math.max(data.page, 1), nextTotalPages));
+      setLimit(data.limit);
     } catch (nextError) {
       setError(
         nextError instanceof Error
@@ -486,7 +480,7 @@ export default function CommandLibraryManager() {
         )}
       >
         <AdminSurface className="py-2">
-          {orderedCommands.length === 0 ? (
+          {commands.length === 0 ? (
             <div className="rounded-2xl border border-dashed border-slate-200 bg-white px-5 py-8 text-center dark:border-slate-800 dark:bg-slate-950/40">
               <div className="space-y-2">
                 <p className="text-base font-medium text-slate-900 dark:text-slate-100">
@@ -542,7 +536,7 @@ export default function CommandLibraryManager() {
               </div>
 
               <div className="grid gap-2">
-                {orderedCommands.map((command) => {
+                {commands.map((command) => {
                   const updatedAt = formatTimestamp(command.updated_at);
                   const metaText = command.remark?.trim()
                     || t("command_clipboard.updated_at", {

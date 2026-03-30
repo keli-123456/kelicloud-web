@@ -25,12 +25,14 @@ export type LinodeAccount = {
 export type LinodeTokenInput = {
   id?: string;
   name: string;
+  group?: string;
   token: string;
 };
 
 export type LinodeTokenRecord = {
   id: string;
   name: string;
+  group: string;
   masked_token: string;
   profile_username: string;
   profile_email: string;
@@ -251,6 +253,7 @@ function normalizeTokenRecord(
   return {
     id: String(token?.id || ""),
     name: String(token?.name || ""),
+    group: String(token?.group || ""),
     masked_token: String(token?.masked_token || ""),
     profile_username: String(token?.profile_username || ""),
     profile_email: String(token?.profile_email || ""),

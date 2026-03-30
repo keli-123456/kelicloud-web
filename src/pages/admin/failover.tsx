@@ -60,7 +60,13 @@ import {
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { getCloudProviderEntries, type CloudProviderCredentialEntry } from "@/lib/cloud";
+import {
+  getCloudProviderEntries,
+  getDigitalOceanTokens,
+  type CloudProviderCredentialEntry,
+} from "@/lib/cloud";
+import { getAWSCredentials } from "@/lib/cloudAws";
+import { getLinodeTokens } from "@/lib/cloudLinode";
 import { useSettings } from "@/lib/api";
 import {
   createFailoverTask,
@@ -124,6 +130,7 @@ type PlanFormState = {
   enabled: boolean;
   provider: string;
   provider_entry_id: string;
+  provider_entry_group: string;
   action_type: string;
   payload: string;
   auto_connect_group: string;
@@ -132,7 +139,12 @@ type PlanFormState = {
   wait_agent_timeout_sec: string;
 };
 
-type ProviderEntriesMap = Record<string, CloudProviderCredentialEntry[]>;
+type ProviderEntry = CloudProviderCredentialEntry & {
+  active?: boolean;
+  group?: string;
+};
+
+type ProviderEntriesMap = Record<string, ProviderEntry[]>;
 
 type ProviderEntryOption = {
   id: string;
@@ -930,6 +942,13 @@ function orderPlanScriptClipboardIDs(values: string[], scripts: FailoverScriptOp
   });
 }
 
+function splitScriptSnapshotNames(value: string) {
+  return String(value || "")
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
 function getNodeLabel(node: FailoverNodeOption) {
   const address = node.ipv4 || node.ipv6;
   const suffix = address ? ` · ${address}` : "";
@@ -976,15 +995,25 @@ function getStatusVariant(
   return "secondary";
 }
 
-function normalizeEntries(entries: CloudProviderCredentialEntry[]) {
-  return entries.map((entry) => ({
-    ...entry,
-    id: normalizeProviderEntryID(String(entry.id || "")),
-  }));
+function normalizeEntries(entries: ProviderEntry[]) {
+  return [...entries]
+    .map((entry) => ({
+      ...entry,
+      id: normalizeProviderEntryID(String(entry.id || "")),
+      name: String(entry.name || "").trim(),
+      group: String(entry.group || "").trim(),
+      active: Boolean(entry.active),
+    }))
+    .sort((left, right) => {
+      if (Boolean(left.active) !== Boolean(right.active)) {
+        return left.active ? -1 : 1;
+      }
+      return compareString(left.name || left.id, right.name || right.id);
+    });
 }
 
 function buildProviderEntryOptions(args: {
-  entries: CloudProviderCredentialEntry[];
+  entries: ProviderEntry[];
   includeActive?: boolean;
   currentValue?: string;
   activeLabel?: string;
@@ -1018,6 +1047,45 @@ function buildProviderEntryOptions(args: {
   return options;
 }
 
+function buildPlanProviderEntryOptions(
+  t: TFunction,
+  provider: string,
+  providerEntries: ProviderEntriesMap,
+  entryGroup: string,
+  currentValue: string,
+) {
+  const entries = entryGroup.trim()
+    ? (providerEntries[provider] || []).filter((entry) => String(entry.group || "").trim() === entryGroup.trim())
+    : providerEntries[provider] || [];
+  const activeEntry = entries.find((entry) => entry.active);
+  return buildProviderEntryOptions({
+    entries,
+    includeActive: entries.length > 0,
+    currentValue,
+    activeLabel: activeEntry
+      ? t("failover.editor.provider_entry_active_named", {
+        defaultValue: "Use active entry ({{name}})",
+        name: activeEntry.name || activeEntry.id,
+      })
+      : t("failover.editor.provider_entry_active", {
+        defaultValue: "Use active entry",
+      }),
+  });
+}
+
+function getProviderEntryGroups(
+  providerEntries: ProviderEntriesMap,
+  provider: string,
+) {
+  return Array.from(
+    new Set(
+      (providerEntries[provider] || [])
+        .map((entry) => String(entry.group || "").trim())
+        .filter(Boolean),
+    ),
+  ).sort(compareString);
+}
+
 function getFirstConfiguredProvider(
   providerEntries: ProviderEntriesMap,
   providers: readonly string[],
@@ -1038,6 +1106,18 @@ function getProviderEntryValues(
     : {};
 }
 
+function normalizePlanProviderEntryID(provider: string, entryID: string) {
+  const normalizedProvider = String(provider || "").trim().toLowerCase();
+  const normalizedEntryID = normalizeProviderEntryID(String(entryID || "").trim());
+  if (
+    ["aws", "digitalocean", "linode"].includes(normalizedProvider)
+    && (!normalizedEntryID || normalizedEntryID === "default")
+  ) {
+    return AUTOMATIC_PROVIDER_ENTRY_ID;
+  }
+  return normalizedEntryID;
+}
+
 function buildDefaultDnsFields(
   provider: string,
   providerEntries: ProviderEntriesMap,
@@ -1055,6 +1135,45 @@ function buildDefaultDnsFields(
     dns_line: "default",
     dns_lines: ["default"],
   };
+}
+
+async function getFailoverProviderEntries(provider: string): Promise<ProviderEntry[]> {
+  if (provider === "aws") {
+    const pool = await getAWSCredentials();
+    return normalizeEntries(pool.credentials.map((credential) => ({
+      id: credential.id,
+      name: credential.name,
+      group: credential.group,
+      active: credential.is_active,
+      values: {
+        default_region: credential.default_region,
+      },
+    })));
+  }
+
+  if (provider === "digitalocean") {
+    const pool = await getDigitalOceanTokens();
+    return normalizeEntries(pool.tokens.map((token) => ({
+      id: token.id,
+      name: token.name,
+      group: token.group,
+      active: token.is_active,
+      values: {},
+    })));
+  }
+
+  if (provider === "linode") {
+    const pool = await getLinodeTokens();
+    return normalizeEntries(pool.tokens.map((token) => ({
+      id: token.id,
+      name: token.name,
+      group: token.group,
+      active: token.is_active,
+      values: {},
+    })));
+  }
+
+  return normalizeEntries(await getCloudProviderEntries(provider));
 }
 
 function applyDnsCatalogDefaults(
@@ -1315,6 +1434,7 @@ function createEmptyPlanForm(providerEntries: ProviderEntriesMap): PlanFormState
     enabled: true,
     provider: defaultProvider,
     provider_entry_id: AUTOMATIC_PROVIDER_ENTRY_ID,
+    provider_entry_group: "",
     action_type: defaultActionType,
     payload: prettyJson(defaultPlanPayload(defaultProvider, defaultActionType)),
     auto_connect_group: "",
@@ -1357,7 +1477,8 @@ function taskToForm(task: FailoverTask, providerEntries: ProviderEntriesMap): Ta
         priority: String(plan.priority || 1),
         enabled: plan.enabled,
         provider: plan.provider,
-        provider_entry_id: normalizeProviderEntryID(plan.provider_entry_id) || AUTOMATIC_PROVIDER_ENTRY_ID,
+        provider_entry_id: normalizePlanProviderEntryID(plan.provider, plan.provider_entry_id) || AUTOMATIC_PROVIDER_ENTRY_ID,
+        provider_entry_group: plan.provider_entry_group.trim(),
         action_type: plan.action_type,
         payload: prettyJson(plan.payload),
         auto_connect_group: plan.auto_connect_group.trim(),
@@ -1482,7 +1603,8 @@ function buildTaskInput(formState: TaskFormState, t: TFunction): FailoverTaskInp
       priority: numberOrDefault(plan.priority, index + 1),
       enabled: plan.enabled,
       provider: plan.provider,
-      provider_entry_id: normalizeProviderEntryID(plan.provider_entry_id.trim() || AUTOMATIC_PROVIDER_ENTRY_ID),
+      provider_entry_id: normalizePlanProviderEntryID(plan.provider, plan.provider_entry_id.trim() || AUTOMATIC_PROVIDER_ENTRY_ID),
+      provider_entry_group: plan.provider_entry_group.trim(),
       action_type: plan.action_type,
       payload: planPayload,
       auto_connect_group: plan.auto_connect_group.trim(),
@@ -1639,6 +1761,8 @@ function ExecutionDetailDialog({
     }
   };
 
+  const executionScriptNames = splitScriptSnapshotNames(execution?.script_name_snapshot || "");
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="flex max-h-[88vh] max-w-4xl flex-col overflow-hidden p-0">
@@ -1674,9 +1798,21 @@ function ExecutionDetailDialog({
                   <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
                     {t("failover.execution.script", { defaultValue: "Script" })}
                   </div>
-                  <Badge variant={getStatusVariant(execution.script_status, "script")}>{getStatusLabel(t, execution.script_status)}</Badge>
-                  <div className="truncate text-xs text-muted-foreground" title={execution.script_name_snapshot || undefined}>
-                    {execution.script_name_snapshot || t("failover.execution.no_script", { defaultValue: "No script recorded" })}
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Badge variant={getStatusVariant(execution.script_status, "script")}>{getStatusLabel(t, execution.script_status)}</Badge>
+                    {executionScriptNames.length > 0 ? (
+                      <Badge variant="outline">
+                        {t("failover.task.script_count", {
+                          count: executionScriptNames.length,
+                          defaultValue: "{{count}} script(s)",
+                        })}
+                      </Badge>
+                    ) : null}
+                  </div>
+                  <div className="line-clamp-2 text-xs leading-5 text-muted-foreground" title={execution.script_name_snapshot || undefined}>
+                    {executionScriptNames.length > 0
+                      ? executionScriptNames.join(" · ")
+                      : t("failover.execution.no_script", { defaultValue: "No script recorded" })}
                   </div>
                   {execution.script_exit_code !== null ? (
                     <div className="text-xs text-muted-foreground">
@@ -1985,7 +2121,10 @@ function TaskEditorDialog({
     () => getStringValue(selectedPlanPayload.region),
     [selectedPlanPayload],
   );
-  const canLoadPlanCatalog = Boolean(selectedPlan?.provider.trim() && selectedPlan.provider_entry_id.trim());
+  const canLoadPlanCatalog = Boolean(
+    selectedPlan?.provider.trim()
+    && (selectedPlan.provider_entry_id.trim() || selectedPlan.provider_entry_group.trim()),
+  );
   const canLoadPlanDetails = canLoadPlanCatalog && Boolean(selectedPlanRegion.trim());
   const dnsCatalogRecords = React.useMemo(
     () => (dnsCatalog?.records || []).filter((record) => normalizeDnsRecordType(record.type) === "A"),
@@ -2214,7 +2353,7 @@ function TaskEditorDialog({
   }, [selectedPlan, updatePlan]);
 
   const refreshPlanCatalog = React.useCallback(async (overrides?: { service?: string; region?: string; mode?: "regions" | "full" }) => {
-    if (!selectedPlan?.provider.trim() || !selectedPlan.provider_entry_id.trim()) {
+    if (!selectedPlan?.provider.trim() || (!selectedPlan.provider_entry_id.trim() && !selectedPlan.provider_entry_group.trim())) {
       resetPlanCatalogState();
       return;
     }
@@ -2228,7 +2367,8 @@ function TaskEditorDialog({
     try {
       const catalog = await getFailoverPlanCatalog({
         provider: selectedPlan.provider,
-        entry_id: normalizeProviderEntryID(selectedPlan.provider_entry_id),
+        entry_id: normalizePlanProviderEntryID(selectedPlan.provider, selectedPlan.provider_entry_id),
+        entry_group: selectedPlan.provider_entry_group.trim(),
         action_type: selectedPlan.action_type,
         service: overrides?.service || selectedPlanService,
         region: overrides?.region || selectedPlanRegion,
@@ -2998,6 +3138,7 @@ function TaskEditorDialog({
 	                                provider: value,
 	                                action_type: nextActionType,
 	                                provider_entry_id: AUTOMATIC_PROVIDER_ENTRY_ID,
+	                                provider_entry_group: "",
 	                                payload: prettyJson(defaultPlanPayload(value, nextActionType)),
                                     auto_connect_group: "",
 	                              }));
@@ -3017,12 +3158,122 @@ function TaskEditorDialog({
                           </Select>
                         </div>
                         <div className="space-y-2">
-                          <Label>{t("failover.editor.provider_pool", { defaultValue: "Credential pool" })}</Label>
-                          <div className="rounded-xl border border-dashed px-4 py-3 text-sm text-muted-foreground">
-                            {t("failover.editor.provider_pool_auto", {
-                              defaultValue: "Komari picks credentials from the provider token pool automatically. The active entry is preferred, and auto-connect group is generated at runtime from the actual provider/token name.",
-                            })}
-                          </div>
+                          <Label>{t("failover.editor.provider_entry_group", { defaultValue: "Token pool group" })}</Label>
+                          {(() => {
+                            const groups = getProviderEntryGroups(providerEntries, selectedPlan.provider);
+                            if (!selectedPlan.provider) {
+                              return (
+                                <div className="rounded-xl border border-dashed px-4 py-3 text-sm text-muted-foreground">
+                                  {t("failover.editor.plan_provider_required_hint", {
+                                    defaultValue: "Choose a cloud provider first.",
+                                  })}
+                                </div>
+                              );
+                            }
+                            if (groups.length === 0) {
+                              return (
+                                <div className="rounded-xl border border-dashed px-4 py-3 text-sm text-muted-foreground">
+                                  {t("failover.editor.provider_entry_group_missing", {
+                                    defaultValue: "No token groups have been assigned for this provider yet. You can still use all entries below.",
+                                  })}
+                                </div>
+                              );
+                            }
+                            return (
+                              <div className="space-y-2">
+                                <Select
+                                  value={selectedPlan.provider_entry_group || "__all__"}
+                                  onValueChange={(value) => {
+                                    updatePlan(selectedPlan.local_id, (current) => ({
+                                      ...current,
+                                      provider_entry_group: value === "__all__" ? "" : value,
+                                      provider_entry_id: AUTOMATIC_PROVIDER_ENTRY_ID,
+                                    }));
+                                    resetPlanCatalogState();
+                                  }}
+                                >
+                                  <SelectTrigger>
+                                    <SelectValue placeholder={t("failover.editor.provider_entry_group_placeholder", { defaultValue: "Choose a token group" })} />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="__all__">
+                                      {t("failover.editor.provider_entry_group_all", { defaultValue: "All entries" })}
+                                    </SelectItem>
+                                    {groups.map((group) => (
+                                      <SelectItem key={group} value={group}>
+                                        {group}
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                                <div className="text-xs text-muted-foreground">
+                                  {t("failover.editor.provider_entry_group_hint", {
+                                    defaultValue: "If a group is selected, failover will only rotate within that token pool group.",
+                                  })}
+                                </div>
+                              </div>
+                            );
+                          })()}
+                        </div>
+                        <div className="space-y-2">
+                          <Label>{t("failover.editor.provider_entry", { defaultValue: "Specific credential entry (optional)" })}</Label>
+                          {(() => {
+                            const options = buildPlanProviderEntryOptions(
+                              t,
+                              selectedPlan.provider,
+                              providerEntries,
+                              selectedPlan.provider_entry_group,
+                              selectedPlan.provider_entry_id,
+                            );
+                            if (!selectedPlan.provider) {
+                              return (
+                                <div className="rounded-xl border border-dashed px-4 py-3 text-sm text-muted-foreground">
+                                  {t("failover.editor.plan_provider_required_hint", {
+                                    defaultValue: "Choose a cloud provider first.",
+                                  })}
+                                </div>
+                              );
+                            }
+                            if (options.length === 0) {
+                              return (
+                                <div className="rounded-xl border border-dashed px-4 py-3 text-sm text-muted-foreground">
+                                  {t("failover.editor.provider_entry_missing", {
+                                    defaultValue: "No cloud credential entry matches this provider or group yet.",
+                                  })}
+                                </div>
+                              );
+                            }
+                            return (
+                              <div className="space-y-2">
+                                <Select
+                                  value={selectedPlan.provider_entry_id || undefined}
+                                  onValueChange={(value) => {
+                                    updatePlan(selectedPlan.local_id, (current) => ({
+                                      ...current,
+                                      provider_entry_id: value,
+                                    }));
+                                    resetPlanCatalogState();
+                                  }}
+                                >
+                                  <SelectTrigger>
+                                    <SelectValue placeholder={t("failover.editor.provider_entry_placeholder", { defaultValue: "Choose an entry" })} />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    {options.map((option) => (
+                                      <SelectItem key={option.id} value={option.id}>
+                                        {option.label}
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                                <div className="text-xs text-muted-foreground">
+                                  {t("failover.editor.provider_entry_hint", {
+                                    defaultValue: "Leave this on the active entry to follow the group dynamically, or pin a specific token inside the group.",
+                                  })}
+                                </div>
+                              </div>
+                            );
+                          })()}
                         </div>
 	                        <div className="space-y-2 lg:col-span-2">
 	                          <Label>{t("failover.editor.action_type", { defaultValue: "Action type" })}</Label>
@@ -3982,7 +4233,7 @@ function TaskEditorDialog({
                                 })
                               )}
                             </div>
-                            <div className="text-xs text-muted-foreground">
+                            <div className="line-clamp-2 text-xs leading-5 text-muted-foreground">
                               {selectedPlanScriptNames.length > 0
                                 ? selectedPlanScriptNames.join(" -> ")
                                 : t("failover.editor.scripts_execution_order_empty", {
@@ -4152,7 +4403,7 @@ function FailoverPageContent() {
       Promise.allSettled(
         FAILOVER_PROVIDER_KEYS.map(async (provider) => ({
           provider,
-          entries: normalizeEntries(await getCloudProviderEntries(provider)),
+          entries: await getFailoverProviderEntries(provider),
         })),
       ),
     ]);
@@ -4359,6 +4610,9 @@ function FailoverPageContent() {
               const hasConfiguredScript = task.plans.some((plan) => plan.script_clipboard_ids.length > 0 || plan.script_clipboard_id !== null);
               const scriptStatus = latestExecution?.script_status || "";
               const scriptName = latestExecution?.script_name_snapshot || "";
+              const scriptNames = splitScriptSnapshotNames(scriptName);
+              const scriptPreviewNames = scriptNames.slice(0, 2);
+              const hiddenScriptCount = Math.max(0, scriptNames.length - scriptPreviewNames.length);
               const latestExecutionSummary = latestExecution
                 ? latestExecution.error_message || formatDateTime(latestExecution.started_at)
                 : t("failover.task.no_execution", { defaultValue: "No execution recorded yet." });
@@ -4429,10 +4683,19 @@ function FailoverPageContent() {
                         )}>
                           {getTaskScriptStatusLabel(t, scriptStatus, hasConfiguredScript, Boolean(latestExecution))}
                         </Badge>
+                        {scriptNames.length > 0 ? (
+                          <Badge variant="outline">
+                            {t("failover.task.script_count", {
+                              count: scriptNames.length,
+                              defaultValue: "{{count}} script(s)",
+                            })}
+                          </Badge>
+                        ) : null}
                         {scriptName ? (
-                          <span className="min-w-0 truncate" title={scriptName}>
-                            {scriptName}
-                          </span>
+                          <div className="min-w-0 flex-1 line-clamp-2 leading-5" title={scriptName}>
+                            {scriptPreviewNames.join(" · ")}
+                            {hiddenScriptCount > 0 ? ` +${hiddenScriptCount}` : ""}
+                          </div>
                         ) : null}
                       </div>
                       <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">

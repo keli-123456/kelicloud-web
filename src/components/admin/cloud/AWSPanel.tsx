@@ -397,8 +397,12 @@ export default function AWSPanel() {
   const [credentialChecking, setCredentialChecking] = React.useState(false);
   const [credentialImportOpen, setCredentialImportOpen] = React.useState(false);
   const [credentialImportText, setCredentialImportText] = React.useState("");
+  const [credentialImportGroup, setCredentialImportGroup] = React.useState("");
   const [credentialPool, setCredentialPool] = React.useState<AWSCredentialPool | null>(null);
   const [selectedCredentialIds, setSelectedCredentialIds] = React.useState<string[]>([]);
+  const [credentialGroupEditorOpen, setCredentialGroupEditorOpen] = React.useState(false);
+  const [credentialGroupEditorValue, setCredentialGroupEditorValue] = React.useState("");
+  const [credentialGroupEditorIds, setCredentialGroupEditorIds] = React.useState<string[]>([]);
   const [account, setAccount] = React.useState<AWSAccount | null>(null);
   const [catalog, setCatalog] = React.useState<AWSCatalog | null>(null);
   const [lightsailCatalog, setLightsailCatalog] = React.useState<AWSLightsailCatalog | null>(null);
@@ -669,8 +673,22 @@ export default function AWSPanel() {
     });
   };
 
+  const openCredentialGroupEditor = (credentials: AWSCredentialRecord[]) => {
+    if (!credentials.length) {
+      return;
+    }
+    const groups = Array.from(new Set(credentials.map((credential) => credential.group.trim())));
+    setCredentialGroupEditorIds(credentials.map((credential) => credential.id));
+    setCredentialGroupEditorValue(groups.length === 1 ? groups[0] : "");
+    setCredentialGroupEditorOpen(true);
+  };
+
   const handleImportCredentials = async () => {
-    const credentials = parseCredentialImports(credentialImportText);
+    const importGroup = credentialImportGroup.trim();
+    const credentials = parseCredentialImports(credentialImportText).map((credential) => ({
+      ...credential,
+      group: importGroup,
+    }));
     if (!credentials.length) {
       toast.error(t("cloud.providers.aws.import_empty", "No valid credentials found"));
       return;
@@ -685,6 +703,7 @@ export default function AWSPanel() {
       });
       setCredentialPool(nextPool);
       setCredentialImportText("");
+      setCredentialImportGroup("");
       setCredentialImportOpen(false);
       toast.success(
         t("cloud.providers.aws.import_success", {
@@ -701,6 +720,47 @@ export default function AWSPanel() {
       } else {
         clearPanelState();
       }
+    } catch (saveError) {
+      toast.error(toErrorMessage(saveError));
+    } finally {
+      setCredentialSaving(false);
+    }
+  };
+
+  const handleSaveCredentialGroup = async () => {
+    if (!credentialGroupEditorIds.length || !credentialPool) {
+      return;
+    }
+
+    const updates = credentialRows
+      .filter((credential) => credentialGroupEditorIds.includes(credential.id))
+      .map((credential) => ({
+        id: credential.id,
+        name: credential.name,
+        group: credentialGroupEditorValue.trim(),
+        access_key_id: "",
+        secret_access_key: "",
+        session_token: "",
+        default_region: credential.default_region,
+      }));
+
+    if (!updates.length) {
+      setCredentialGroupEditorOpen(false);
+      return;
+    }
+
+    setCredentialSaving(true);
+    try {
+      const nextPool = await saveAWSCredentials({
+        credentials: updates,
+        active_credential_id: credentialPool.active_credential_id || undefined,
+        active_region: credentialPool.active_region || undefined,
+      });
+      setCredentialPool(nextPool);
+      setCredentialGroupEditorOpen(false);
+      setCredentialGroupEditorIds([]);
+      setCredentialGroupEditorValue("");
+      toast.success(t("cloud.tokens.group_save_success", "Token group updated"));
     } catch (saveError) {
       toast.error(toErrorMessage(saveError));
     } finally {
@@ -1363,6 +1423,16 @@ export default function AWSPanel() {
                   <Button
                     variant="outline"
                     size="1"
+                    onClick={() => {
+                      openCredentialGroupEditor(selectedCredentials);
+                    }}
+                    disabled={selectedCredentials.length === 0}
+                  >
+                    {t("cloud.tokens.set_group", "Set Group")}
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="1"
                     color="red"
                     onClick={() => {
                       void handleDeleteSelectedCredentials();
@@ -1399,6 +1469,7 @@ export default function AWSPanel() {
                       </div>
                     </TableHead>
                     <TableHead>{t("cloud.tokens.table.name", "Name")}</TableHead>
+                    <TableHead>{t("cloud.tokens.group", "Group")}</TableHead>
                     <TableHead>{t("cloud.providers.aws.access_key", "Access Key")}</TableHead>
                     <TableHead>{t("cloud.tokens.table.account", "Account")}</TableHead>
                     <TableHead>{t("cloud.providers.aws.default_region", "Default Region")}</TableHead>
@@ -1411,7 +1482,7 @@ export default function AWSPanel() {
                 <TableBody>
                   {!credentialRows.length ? (
                     <TableRow>
-                      <TableCell colSpan={9} className="h-24 text-center text-slate-500">
+                      <TableCell colSpan={10} className="h-24 text-center text-slate-500">
                         {t("cloud.providers.aws.credentials_empty", "No AWS credentials saved yet")}
                       </TableCell>
                     </TableRow>
@@ -1440,6 +1511,7 @@ export default function AWSPanel() {
                             ) : null}
                           </div>
                         </TableCell>
+                        <TableCell>{credential.group || "-"}</TableCell>
                         <TableCell className="font-mono text-xs text-slate-600">
                           {credential.masked_access_key_id || "-"}
                         </TableCell>
@@ -1496,6 +1568,15 @@ export default function AWSPanel() {
                             >
                               <Server className="mr-1 h-3.5 w-3.5" />
                               {t("cloud.providers.aws.view_instances", "View Instances")}
+                            </Button>
+                            <Button
+                              variant="soft"
+                              size="1"
+                              onClick={() => {
+                                openCredentialGroupEditor([credential]);
+                              }}
+                            >
+                              {t("cloud.tokens.set_group", "Set Group")}
                             </Button>
                             <Button
                               variant="soft"
@@ -1946,6 +2027,14 @@ export default function AWSPanel() {
           </Dialog.Description>
 
           <div className="mt-4 flex flex-col gap-4">
+            <label className={cloudPanelFieldLabelClassName}>
+              {t("cloud.tokens.group", "Group")}
+            </label>
+            <TextField.Root
+              value={credentialImportGroup}
+              placeholder={t("cloud.tokens.group_placeholder", "Optional token group")}
+              onChange={(event) => setCredentialImportGroup(event.target.value)}
+            />
             <TextArea
               className="min-h-40 font-mono text-xs [overflow-wrap:anywhere]"
               value={credentialImportText}
@@ -1961,6 +2050,41 @@ export default function AWSPanel() {
                 {credentialSaving
                   ? t("cloud.tokens.importing", "Importing...")
                   : t("cloud.providers.aws.import", "Import Credentials")}
+              </Button>
+            </Flex>
+          </div>
+        </Dialog.Content>
+      </Dialog.Root>
+
+      <Dialog.Root open={credentialGroupEditorOpen} onOpenChange={setCredentialGroupEditorOpen}>
+        <Dialog.Content className={cloudDialogContentClassName}>
+          <Dialog.Title>{t("cloud.tokens.set_group", "Set Group")}</Dialog.Title>
+          <Dialog.Description>
+            {t("cloud.tokens.set_group_description", {
+              count: credentialGroupEditorIds.length,
+              defaultValue: `Update the group for ${credentialGroupEditorIds.length} selected credential(s). Leave empty to remove the group.`,
+            })}
+          </Dialog.Description>
+
+          <div className="mt-4 flex flex-col gap-4">
+            <label className={cloudPanelFieldLabelClassName}>
+              {t("cloud.tokens.group", "Group")}
+            </label>
+            <TextField.Root
+              value={credentialGroupEditorValue}
+              placeholder={t("cloud.tokens.group_placeholder", "Optional token group")}
+              onChange={(event) => setCredentialGroupEditorValue(event.target.value)}
+            />
+            <Flex justify="end" gap="2">
+              <Button
+                variant="outline"
+                onClick={() => setCredentialGroupEditorOpen(false)}
+                disabled={credentialSaving}
+              >
+                {t("common.cancel", "Cancel")}
+              </Button>
+              <Button onClick={() => { void handleSaveCredentialGroup(); }} disabled={credentialSaving}>
+                {credentialSaving ? t("common.saving", "Saving...") : t("common.save", "Save")}
               </Button>
             </Flex>
           </div>

@@ -343,8 +343,12 @@ export default function DigitalOceanPanel() {
   const [tokenChecking, setTokenChecking] = React.useState(false);
   const [tokenImportOpen, setTokenImportOpen] = React.useState(false);
   const [tokenImportText, setTokenImportText] = React.useState("");
+  const [tokenImportGroup, setTokenImportGroup] = React.useState("");
   const [tokenPool, setTokenPool] = React.useState<DigitalOceanTokenPool | null>(null);
   const [selectedTokenIds, setSelectedTokenIds] = React.useState<string[]>([]);
+  const [tokenGroupEditorOpen, setTokenGroupEditorOpen] = React.useState(false);
+  const [tokenGroupEditorValue, setTokenGroupEditorValue] = React.useState("");
+  const [tokenGroupEditorIds, setTokenGroupEditorIds] = React.useState<string[]>([]);
   const [account, setAccount] = React.useState<DigitalOceanAccount | null>(null);
   const [catalog, setCatalog] = React.useState<DigitalOceanCatalog | null>(null);
   const [droplets, setDroplets] = React.useState<DigitalOceanDroplet[]>([]);
@@ -573,8 +577,22 @@ export default function DigitalOceanPanel() {
     });
   };
 
+  const openTokenGroupEditor = (tokens: DigitalOceanTokenRecord[]) => {
+    if (!tokens.length) {
+      return;
+    }
+    const groups = Array.from(new Set(tokens.map((token) => token.group.trim())));
+    setTokenGroupEditorIds(tokens.map((token) => token.id));
+    setTokenGroupEditorValue(groups.length === 1 ? groups[0] : "");
+    setTokenGroupEditorOpen(true);
+  };
+
   const handleImportTokens = async () => {
-    const tokens = parseTokenImports(tokenImportText);
+    const importGroup = tokenImportGroup.trim();
+    const tokens = parseTokenImports(tokenImportText).map((token) => ({
+      ...token,
+      group: importGroup,
+    }));
     if (!tokens.length) {
       toast.error(t("cloud.tokens.import_empty", "No valid tokens found"));
       return;
@@ -588,6 +606,7 @@ export default function DigitalOceanPanel() {
       });
       setTokenPool(nextPool);
       setTokenImportText("");
+      setTokenImportGroup("");
       setTokenImportOpen(false);
       toast.success(
         t("cloud.tokens.import_success", { count: tokens.length, defaultValue: `Imported ${tokens.length} tokens` }),
@@ -602,6 +621,43 @@ export default function DigitalOceanPanel() {
       } else {
         clearPanelState();
       }
+    } catch (saveError) {
+      toast.error(toErrorMessage(saveError));
+    } finally {
+      setTokenSaving(false);
+    }
+  };
+
+  const handleSaveTokenGroup = async () => {
+    if (!tokenGroupEditorIds.length || !tokenPool) {
+      return;
+    }
+
+    const updates = tokenRows
+      .filter((token) => tokenGroupEditorIds.includes(token.id))
+      .map((token) => ({
+        id: token.id,
+        name: token.name,
+        group: tokenGroupEditorValue.trim(),
+        token: "",
+      }));
+
+    if (!updates.length) {
+      setTokenGroupEditorOpen(false);
+      return;
+    }
+
+    setTokenSaving(true);
+    try {
+      const nextPool = await saveDigitalOceanTokens({
+        tokens: updates,
+        active_token_id: tokenPool.active_token_id || undefined,
+      });
+      setTokenPool(nextPool);
+      setTokenGroupEditorOpen(false);
+      setTokenGroupEditorIds([]);
+      setTokenGroupEditorValue("");
+      toast.success(t("cloud.tokens.group_save_success", "Token group updated"));
     } catch (saveError) {
       toast.error(toErrorMessage(saveError));
     } finally {
@@ -1244,6 +1300,16 @@ export default function DigitalOceanPanel() {
                   <Button
                     variant="outline"
                     size="1"
+                    onClick={() => {
+                      openTokenGroupEditor(selectedTokens);
+                    }}
+                    disabled={selectedTokens.length === 0}
+                  >
+                    {t("cloud.tokens.set_group", "Set Group")}
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="1"
                     color="red"
                     onClick={() => {
                       void handleDeleteSelectedTokens();
@@ -1283,6 +1349,7 @@ export default function DigitalOceanPanel() {
                       </div>
                     </TableHead>
                     <TableHead>{t("cloud.tokens.table.name", "Name")}</TableHead>
+                    <TableHead>{t("cloud.tokens.group", "Group")}</TableHead>
                     <TableHead>{t("cloud.tokens.table.token", "Token")}</TableHead>
                     <TableHead>{t("cloud.tokens.table.account", "Account")}</TableHead>
                     <TableHead>{t("cloud.tokens.table.status", "Status")}</TableHead>
@@ -1295,7 +1362,7 @@ export default function DigitalOceanPanel() {
                 <TableBody>
                   {tokenRows.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={7} className="h-24 text-center text-slate-500">
+                      <TableCell colSpan={8} className="h-24 text-center text-slate-500">
                         {t("cloud.tokens.empty", "No DigitalOcean tokens saved yet")}
                       </TableCell>
                     </TableRow>
@@ -1326,6 +1393,7 @@ export default function DigitalOceanPanel() {
                             ) : null}
                           </div>
                         </TableCell>
+                        <TableCell>{token.group || "-"}</TableCell>
                         <TableCell className="max-w-44 truncate font-mono text-xs text-slate-600">
                           {token.masked_token || "-"}
                         </TableCell>
@@ -1393,6 +1461,15 @@ export default function DigitalOceanPanel() {
                             <Button
                               variant="soft"
                               size="1"
+                              onClick={() => {
+                                openTokenGroupEditor([token]);
+                              }}
+                            >
+                              {t("cloud.tokens.set_group", "Set Group")}
+                            </Button>
+                            <Button
+                              variant="soft"
+                              size="1"
                               disabled={tokenSecretLoading}
                               onClick={() => {
                                 void handleViewTokenSecret(token);
@@ -1445,6 +1522,14 @@ export default function DigitalOceanPanel() {
 
           <div className="mt-4 flex flex-col gap-4">
             <label className={cloudPanelFieldLabelClassName}>
+              {t("cloud.tokens.group", "Group")}
+            </label>
+            <TextField.Root
+              value={tokenImportGroup}
+              placeholder={t("cloud.tokens.group_placeholder", "Optional token group")}
+              onChange={(event) => setTokenImportGroup(event.target.value)}
+            />
+            <label className={cloudPanelFieldLabelClassName}>
               {t("cloud.tokens.import_label", "Batch Import")}
             </label>
             <TextArea
@@ -1480,6 +1565,41 @@ export default function DigitalOceanPanel() {
                 {tokenSaving
                   ? t("cloud.tokens.importing", "Importing...")
                   : t("cloud.tokens.import", "Import Tokens")}
+              </Button>
+            </Flex>
+          </div>
+        </Dialog.Content>
+      </Dialog.Root>
+
+      <Dialog.Root open={tokenGroupEditorOpen} onOpenChange={setTokenGroupEditorOpen}>
+        <Dialog.Content className={cloudDialogContentClassName}>
+          <Dialog.Title>{t("cloud.tokens.set_group", "Set Group")}</Dialog.Title>
+          <Dialog.Description>
+            {t("cloud.tokens.set_group_description", {
+              count: tokenGroupEditorIds.length,
+              defaultValue: `Update the group for ${tokenGroupEditorIds.length} selected token(s). Leave empty to remove the group.`,
+            })}
+          </Dialog.Description>
+
+          <div className="mt-4 flex flex-col gap-4">
+            <label className={cloudPanelFieldLabelClassName}>
+              {t("cloud.tokens.group", "Group")}
+            </label>
+            <TextField.Root
+              value={tokenGroupEditorValue}
+              placeholder={t("cloud.tokens.group_placeholder", "Optional token group")}
+              onChange={(event) => setTokenGroupEditorValue(event.target.value)}
+            />
+            <Flex justify="end" gap="2">
+              <Button
+                variant="outline"
+                onClick={() => setTokenGroupEditorOpen(false)}
+                disabled={tokenSaving}
+              >
+                {t("common.cancel", "Cancel")}
+              </Button>
+              <Button onClick={() => { void handleSaveTokenGroup(); }} disabled={tokenSaving}>
+                {tokenSaving ? t("common.saving", "Saving...") : t("common.save", "Save")}
               </Button>
             </Flex>
           </div>

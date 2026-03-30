@@ -41,12 +41,14 @@ export type DigitalOceanAccount = {
 export type DigitalOceanTokenInput = {
   id?: string;
   name: string;
+  group?: string;
   token: string;
 };
 
 export type DigitalOceanTokenRecord = {
   id: string;
   name: string;
+  group: string;
   masked_token: string;
   account_email: string;
   account_uuid: string;
@@ -227,6 +229,7 @@ function normalizeTokenRecord(
   return {
     id: String(token?.id || ""),
     name: String(token?.name || ""),
+    group: String(token?.group || ""),
     masked_token: String(token?.masked_token || ""),
     account_email: String(token?.account_email || ""),
     account_uuid: String(token?.account_uuid || ""),

@@ -38,6 +38,7 @@ export type AWSEC2Quota = {
 export type AWSCredentialInput = {
   id?: string;
   name: string;
+  group?: string;
   access_key_id: string;
   secret_access_key: string;
   session_token?: string;
@@ -47,6 +48,7 @@ export type AWSCredentialInput = {
 export type AWSCredentialRecord = {
   id: string;
   name: string;
+  group: string;
   masked_access_key_id: string;
   default_region: string;
   account_id: string;
@@ -429,6 +431,7 @@ function normalizeCredentialRecord(
   return {
     id: String(credential?.id || ""),
     name: String(credential?.name || ""),
+    group: String(credential?.group || ""),
     masked_access_key_id: String(credential?.masked_access_key_id || ""),
     default_region: String(credential?.default_region || "us-east-1"),
     account_id: String(credential?.account_id || ""),

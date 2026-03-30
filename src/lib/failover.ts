@@ -33,6 +33,7 @@ export type FailoverPlan = {
   enabled: boolean;
   provider: string;
   provider_entry_id: string;
+  provider_entry_group: string;
   action_type: string;
   payload: unknown;
   auto_connect_group: string;
@@ -168,6 +169,7 @@ export type FailoverPlanInput = {
   enabled: boolean;
   provider: string;
   provider_entry_id: string;
+  provider_entry_group: string;
   action_type: string;
   payload: unknown;
   auto_connect_group: string;
@@ -331,6 +333,7 @@ function normalizePlan(plan: unknown): FailoverPlan {
     enabled: normalizeBoolean(raw.enabled),
     provider: normalizeString(raw.provider),
     provider_entry_id: normalizeString(raw.provider_entry_id),
+    provider_entry_group: normalizeString(raw.provider_entry_group),
     action_type: normalizeString(raw.action_type),
     payload: normalizeUnknown(raw.payload),
     auto_connect_group: normalizeString(raw.auto_connect_group),
@@ -772,7 +775,8 @@ export async function getFailoverDnsCatalog(args: {
 
 export async function getFailoverPlanCatalog(args: {
   provider: string;
-  entry_id: string;
+  entry_id?: string;
+  entry_group?: string;
   action_type?: string;
   service?: string;
   region?: string;
@@ -780,7 +784,12 @@ export async function getFailoverPlanCatalog(args: {
 }): Promise<FailoverPlanCatalog> {
   const params = new URLSearchParams();
   params.set("provider", args.provider);
-  params.set("entry_id", args.entry_id);
+  if (args.entry_id) {
+    params.set("entry_id", args.entry_id);
+  }
+  if (args.entry_group) {
+    params.set("entry_group", args.entry_group);
+  }
   if (args.action_type) {
     params.set("action_type", args.action_type);
   }
