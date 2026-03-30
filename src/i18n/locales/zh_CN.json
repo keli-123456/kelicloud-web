@@ -1179,9 +1179,9 @@
       "summary": "显示第 {{start}}-{{end}} 条，共 {{total}} 条脚本"
     },
     "remark_empty": "暂无备注",
+    "save_from_exec": "去脚本库保存",
     "search_empty": "没有匹配的脚本",
     "search_placeholder": "按脚本名、备注或内容搜索",
-    "save_from_exec": "去脚本库保存",
     "stats": {
       "total": "已保存脚本",
       "updated": "最近更新",
