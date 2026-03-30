@@ -702,6 +702,8 @@
     "open_library": "Pustaka skrip",
     "page_description": "Kelola skrip shell tersimpan yang dipakai ulang untuk eksekusi jarak jauh dan alur instance cloud.",
     "page_title": "Pustaka skrip",
+    "search_empty": "Tidak ada skrip yang cocok",
+    "search_placeholder": "Cari berdasarkan nama, catatan, atau isi skrip",
     "remark_empty": "Tidak ada catatan",
     "save_from_exec": "Simpan di halaman pustaka",
     "stats": {

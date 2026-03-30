@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Copy, PencilLine, Play, Plus, Trash2 } from "lucide-react";
+import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
+import { Copy, PencilLine, Play, Plus, Search, Trash2 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
@@ -111,9 +111,19 @@ const formatTimestamp = (value?: string) => {
 async function fetchCommandPage(
   page: number,
   limit: number,
+  search: string,
   signal?: AbortSignal,
 ): Promise<PaginatedCommandResponse> {
-  const response = await fetch(`/api/admin/clipboard?page=${page}&limit=${limit}&__ts=${Date.now()}`, {
+  const params = new URLSearchParams({
+    page: String(page),
+    limit: String(limit),
+    __ts: String(Date.now()),
+  });
+  if (search) {
+    params.set("search", search);
+  }
+
+  const response = await fetch(`/api/admin/clipboard?${params.toString()}`, {
     credentials: "same-origin",
     cache: "no-store",
     headers: {
@@ -199,6 +209,7 @@ export default function CommandLibraryManager() {
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(DEFAULT_PAGE_SIZE);
   const [total, setTotal] = useState(0);
+  const [searchTerm, setSearchTerm] = useState("");
   const [editorOpen, setEditorOpen] = useState(false);
   const [editingCommand, setEditingCommand] = useState<CommandClipboard | null>(null);
   const [formValues, setFormValues] = useState<CommandFormValues>(EMPTY_FORM_VALUES);
@@ -208,6 +219,7 @@ export default function CommandLibraryManager() {
   const requestSequenceRef = useRef(0);
   const requestControllerRef = useRef<AbortController | null>(null);
   const unknownErrorText = t("common.unknown_error", "Unknown error");
+  const deferredSearchTerm = useDeferredValue(searchTerm.trim());
 
   useEffect(() => {
     if (!routeState?.draftCommand?.text) {
@@ -233,8 +245,10 @@ export default function CommandLibraryManager() {
   const pageNumbers = useMemo(() => buildPageNumbers(page, totalPages), [page, totalPages]);
   const visibleStart = total === 0 ? 0 : (page - 1) * limit + 1;
   const visibleEnd = total === 0 ? 0 : Math.min(page * limit, total);
+  const hasActiveSearch = deferredSearchTerm.length > 0;
+  const showEmptyLibraryState = !hasActiveSearch && total === 0;
 
-  const loadCommands = useCallback(async (targetPage: number, targetLimit: number) => {
+  const loadCommands = useCallback(async (targetPage: number, targetLimit: number, targetSearch: string) => {
     const requestID = requestSequenceRef.current + 1;
     requestSequenceRef.current = requestID;
     requestControllerRef.current?.abort();
@@ -244,7 +258,7 @@ export default function CommandLibraryManager() {
     setLoading(true);
     setError(null);
     try {
-      const data = await fetchCommandPage(targetPage, targetLimit, controller.signal);
+      const data = await fetchCommandPage(targetPage, targetLimit, targetSearch, controller.signal);
       if (requestSequenceRef.current !== requestID) {
         return;
       }
@@ -281,8 +295,8 @@ export default function CommandLibraryManager() {
   }, [unknownErrorText]);
 
   useEffect(() => {
-    void loadCommands(page, limit);
-  }, [limit, loadCommands, page]);
+    void loadCommands(page, limit, deferredSearchTerm);
+  }, [deferredSearchTerm, limit, loadCommands, page]);
 
   useEffect(() => () => {
     requestControllerRef.current?.abort();
@@ -342,7 +356,7 @@ export default function CommandLibraryManager() {
             defaultValue: "Saved command updated",
           }),
         );
-        await loadCommands(page, limit);
+        await loadCommands(page, limit, deferredSearchTerm);
       } else {
         await addCommand(
           resolvedName,
@@ -356,7 +370,7 @@ export default function CommandLibraryManager() {
           }),
         );
         if (page === 1) {
-          await loadCommands(1, limit);
+          await loadCommands(1, limit, deferredSearchTerm);
         } else {
           setPage(1);
         }
@@ -392,7 +406,7 @@ export default function CommandLibraryManager() {
         }),
       );
       setDeleteTarget(null);
-      await loadCommands(page, limit);
+      await loadCommands(page, limit, deferredSearchTerm);
     } catch (nextError) {
       toast.error(
         nextError instanceof Error
@@ -475,7 +489,24 @@ export default function CommandLibraryManager() {
           },
         ]}
         actions={(
-          <div className="flex flex-wrap items-center justify-end gap-3">
+          <div className="flex w-full flex-wrap items-center justify-end gap-3">
+            <div className="relative min-w-[240px] flex-1 sm:max-w-sm">
+              <Search
+                size={15}
+                className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+              />
+              <Input
+                value={searchTerm}
+                onChange={(event) => {
+                  setSearchTerm(event.target.value);
+                  setPage(1);
+                }}
+                placeholder={t("command_clipboard.search_placeholder", {
+                  defaultValue: "Search by script name, remark, or content",
+                })}
+                className="pl-9"
+              />
+            </div>
             <Button variant="outline" asChild>
               <Link to="/admin/exec">
                 <Play size={15} />
@@ -510,7 +541,7 @@ export default function CommandLibraryManager() {
         )}
       >
         <AdminSurface className="py-2">
-          {commands.length === 0 ? (
+          {showEmptyLibraryState ? (
             <div className="rounded-2xl border border-dashed border-slate-200 bg-white px-5 py-8 text-center dark:border-slate-800 dark:bg-slate-950/40">
               <div className="space-y-2">
                 <p className="text-base font-medium text-slate-900 dark:text-slate-100">
@@ -558,7 +589,7 @@ export default function CommandLibraryManager() {
                   variant="outline"
                   size="sm"
                   onClick={() => {
-                    void loadCommands(page, limit);
+                    void loadCommands(page, limit, deferredSearchTerm);
                   }}
                   disabled={loading}
                 >
@@ -567,7 +598,20 @@ export default function CommandLibraryManager() {
               </div>
 
               <div className="grid gap-2">
-                {commands.map((command) => {
+                {commands.length === 0 ? (
+                  <div className="rounded-2xl border border-dashed border-slate-200 bg-white px-5 py-8 text-center dark:border-slate-800 dark:bg-slate-950/40">
+                    <p className="text-base font-medium text-slate-900 dark:text-slate-100">
+                      {t("command_clipboard.search_empty", {
+                        defaultValue: "No matching scripts",
+                      })}
+                    </p>
+                    <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
+                      {t("command_clipboard.search_placeholder", {
+                        defaultValue: "Search by script name, remark, or content",
+                      })}
+                    </p>
+                  </div>
+                ) : commands.map((command) => {
                   const updatedAt = formatTimestamp(command.updated_at);
                   const metaText = command.remark?.trim()
                     || t("command_clipboard.updated_at", {
@@ -647,7 +691,8 @@ export default function CommandLibraryManager() {
                 })}
               </div>
 
-              <div className="flex flex-wrap items-center justify-end gap-2">
+              {total > 0 ? (
+                <div className="flex flex-wrap items-center justify-end gap-2">
                 <Button
                   type="button"
                   variant="outline"
@@ -690,7 +735,8 @@ export default function CommandLibraryManager() {
                     defaultValue: "Next",
                   })}
                 </Button>
-              </div>
+                </div>
+              ) : null}
             </div>
           )}
         </AdminSurface>

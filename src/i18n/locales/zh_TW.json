@@ -702,6 +702,8 @@
     "open_library": "腳本庫",
     "page_description": "集中管理可供遠端執行與雲實例流程重複使用的腳本命令。",
     "page_title": "腳本庫",
+    "search_empty": "沒有符合條件的腳本",
+    "search_placeholder": "依腳本名、備註或內容搜尋",
     "remark_empty": "暫無備註",
     "save_from_exec": "前往腳本庫保存",
     "stats": {

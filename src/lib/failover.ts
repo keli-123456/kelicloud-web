@@ -74,6 +74,8 @@ export type FailoverTask = {
   failure_threshold: number;
   stale_after_seconds: number;
   cooldown_seconds: number;
+  provision_retry_limit: number;
+  provision_failure_fallback_limit: number;
   dns_provider: string;
   dns_entry_id: string;
   dns_payload: unknown;
@@ -156,6 +158,8 @@ export type FailoverTaskInput = {
   failure_threshold: number;
   stale_after_seconds: number;
   cooldown_seconds: number;
+  provision_retry_limit: number;
+  provision_failure_fallback_limit: number;
   dns_provider: string;
   dns_entry_id: string;
   dns_payload: unknown;
@@ -408,6 +412,8 @@ function normalizeTask(task: unknown): FailoverTask {
     failure_threshold: normalizeNumber(raw.failure_threshold),
     stale_after_seconds: normalizeNumber(raw.stale_after_seconds),
     cooldown_seconds: normalizeNumber(raw.cooldown_seconds),
+    provision_retry_limit: normalizeNumber(raw.provision_retry_limit),
+    provision_failure_fallback_limit: normalizeNumber(raw.provision_failure_fallback_limit),
     dns_provider: normalizeString(raw.dns_provider),
     dns_entry_id: normalizeString(raw.dns_entry_id),
     dns_payload: normalizeUnknown(raw.dns_payload),

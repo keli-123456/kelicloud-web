@@ -106,6 +106,8 @@ type TaskFormState = {
   failure_threshold: string;
   stale_after_seconds: string;
   cooldown_seconds: string;
+  provision_retry_limit: string;
+  provision_failure_fallback_limit: string;
   dns_provider: string;
   dns_entry_id: string;
   dns_zone_name: string;
@@ -1732,6 +1734,8 @@ function createEmptyTaskForm(providerEntries: ProviderEntriesMap): TaskFormState
     failure_threshold: "2",
     stale_after_seconds: "300",
     cooldown_seconds: "1800",
+    provision_retry_limit: "6",
+    provision_failure_fallback_limit: "3",
     dns_provider: defaultProvider,
     dns_entry_id: defaultEntryID,
     ...dnsDefaults,
@@ -1779,6 +1783,8 @@ function taskToForm(task: FailoverTask, providerEntries: ProviderEntriesMap): Ta
     failure_threshold: String(task.failure_threshold || 2),
     stale_after_seconds: String(task.stale_after_seconds || 300),
     cooldown_seconds: String(task.cooldown_seconds || 1800),
+    provision_retry_limit: String(task.provision_retry_limit || 6),
+    provision_failure_fallback_limit: String(task.provision_failure_fallback_limit || 3),
     dns_provider: task.dns_provider,
     dns_entry_id: normalizeProviderEntryID(task.dns_entry_id),
     ...dnsFields,
@@ -1925,6 +1931,8 @@ function buildTaskInput(formState: TaskFormState, t: TFunction): FailoverTaskInp
     failure_threshold: numberOrDefault(formState.failure_threshold, 2),
     stale_after_seconds: numberOrDefault(formState.stale_after_seconds, 300),
     cooldown_seconds: numberOrDefault(formState.cooldown_seconds, 1800),
+    provision_retry_limit: numberOrDefault(formState.provision_retry_limit, 6),
+    provision_failure_fallback_limit: numberOrDefault(formState.provision_failure_fallback_limit, 3),
     dns_provider: dnsProvider,
     dns_entry_id: dnsProvider ? normalizeProviderEntryID(formState.dns_entry_id.trim()) : "",
     dns_payload: dnsPayload,
@@ -2827,7 +2835,7 @@ function TaskEditorDialog({
                       defaultValue: "Advanced monitoring settings",
                     })}
                   </div>
-                  <div className="grid gap-4 lg:grid-cols-3">
+                  <div className="grid gap-4 lg:grid-cols-3 xl:grid-cols-5">
                     <div className="space-y-2">
                       <Label htmlFor="failover-threshold">{t("failover.editor.failure_threshold", { defaultValue: "Failure threshold" })}</Label>
                       <Input
@@ -2856,6 +2864,30 @@ function TaskEditorDialog({
                         min={0}
                         value={formState.cooldown_seconds}
                         onChange={(event) => updateTaskField("cooldown_seconds", event.target.value)}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="failover-provision-retry-limit">
+                        {t("failover.editor.provision_retry_limit", { defaultValue: "Blocked retry limit" })}
+                      </Label>
+                      <Input
+                        id="failover-provision-retry-limit"
+                        type="number"
+                        min={1}
+                        value={formState.provision_retry_limit}
+                        onChange={(event) => updateTaskField("provision_retry_limit", event.target.value)}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="failover-provision-fallback-limit">
+                        {t("failover.editor.provision_failure_fallback_limit", { defaultValue: "Plan fallback after provision failures" })}
+                      </Label>
+                      <Input
+                        id="failover-provision-fallback-limit"
+                        type="number"
+                        min={1}
+                        value={formState.provision_failure_fallback_limit}
+                        onChange={(event) => updateTaskField("provision_failure_fallback_limit", event.target.value)}
                       />
                     </div>
                   </div>

@@ -1179,6 +1179,8 @@
       "summary": "显示第 {{start}}-{{end}} 条，共 {{total}} 条脚本"
     },
     "remark_empty": "暂无备注",
+    "search_empty": "没有匹配的脚本",
+    "search_placeholder": "按脚本名、备注或内容搜索",
     "save_from_exec": "去脚本库保存",
     "stats": {
       "total": "已保存脚本",
@@ -1471,6 +1473,8 @@
       "provider_entry_hint": "保持为当前激活条目即可随分组动态轮转，或者固定到组内某个具体令牌。",
       "provider_entry_missing": "当前这个云厂商或分组下还没有可用的凭证条目。",
       "provider_entry_placeholder": "选择一个条目",
+      "provision_failure_fallback_limit": "创建失败切换方案次数",
+      "provision_retry_limit": "封锁重试次数",
       "proxied": "Cloudflare 代理",
       "proxied_hint": "默认沿用凭证设置，只有这条任务需要例外时再修改。",
       "record_name": "记录名",

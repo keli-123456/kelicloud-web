@@ -1167,6 +1167,8 @@
       "summary": "Showing {{start}}-{{end}} of {{total}} scripts"
     },
     "remark_empty": "No remark",
+    "search_empty": "No matching scripts",
+    "search_placeholder": "Search by script name, remark, or content",
     "updated_at": "Updated {{date}}",
     "weight_label": "Weight {{weight}}",
     "delete_title": "Delete script?",
@@ -1338,6 +1340,8 @@
       "provider_entry_missing": "No cloud credential entry matches this provider or group yet.",
       "provider_entry_placeholder": "Choose an entry",
       "provider_entry_hint": "Leave this on the active entry to follow the group dynamically, or pin a specific token inside the group.",
+      "provision_failure_fallback_limit": "Plan fallback after provision failures",
+      "provision_retry_limit": "Blocked retry limit",
       "dns_sync_mode": "DNS sync mode",
       "dns_sync_mode_dual_stack": "Dual stack (A + AAAA)",
       "dns_sync_mode_hint": "Dual stack always updates the A record and only adds AAAA when the new outlet reports IPv6. IPv6-only mode still requires an IPv6 address.",

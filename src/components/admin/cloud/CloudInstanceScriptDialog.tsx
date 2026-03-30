@@ -5,6 +5,7 @@ import {
   Clock3,
   Play,
   RefreshCw,
+  Search,
   Terminal,
   XCircle,
 } from "lucide-react";
@@ -21,6 +22,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import {
   cloudDialogWideContentClassName,
@@ -80,6 +82,49 @@ type CloudInstanceScriptDialogProps = {
 
 function normalizeMatchValue(value: string) {
   return value.trim().toLowerCase();
+}
+
+function buildSearchTokens(value: string) {
+  return normalizeMatchValue(value)
+    .split(/\s+/)
+    .filter(Boolean);
+}
+
+function fuzzyTokenMatch(value: string, token: string) {
+  if (!token) {
+    return true;
+  }
+
+  let tokenIndex = 0;
+  for (const char of value) {
+    if (char === token[tokenIndex]) {
+      tokenIndex += 1;
+      if (tokenIndex === token.length) {
+        return true;
+      }
+    }
+  }
+
+  return false;
+}
+
+function commandMatchesSearch(command: {
+  name: string;
+  text: string;
+  remark: string;
+}, rawSearch: string) {
+  const tokens = buildSearchTokens(rawSearch);
+  if (tokens.length === 0) {
+    return true;
+  }
+
+  const haystack = normalizeMatchValue([
+    command.name,
+    command.remark,
+    command.text,
+  ].join("\n"));
+
+  return tokens.every((token) => fuzzyTokenMatch(haystack, token));
 }
 
 function normalizeAddresses(addresses: string[]) {
@@ -142,8 +187,10 @@ export default function CloudInstanceScriptDialog({
   } = useNodeDetails();
   const [executingCommandId, setExecutingCommandId] = React.useState<number | null>(null);
   const [executionState, setExecutionState] = React.useState<ExecutionState | null>(null);
+  const [searchTerm, setSearchTerm] = React.useState("");
   const pollingIntervalRef = React.useRef<number | null>(null);
   const pollingTimeoutRef = React.useRef<number | null>(null);
+  const deferredSearchTerm = React.useDeferredValue(searchTerm);
 
   const matchedNode = React.useMemo(
     () => findNodeMatch(nodeDetail, target),
@@ -157,6 +204,10 @@ export default function CloudInstanceScriptDialog({
       return right.id - left.id;
     }),
     [commands],
+  );
+  const filteredCommands = React.useMemo(
+    () => orderedCommands.filter((command) => commandMatchesSearch(command, deferredSearchTerm)),
+    [deferredSearchTerm, orderedCommands],
   );
   const resolvedAddresses = React.useMemo(
     () => normalizeAddresses(target?.addresses || []),
@@ -178,6 +229,7 @@ export default function CloudInstanceScriptDialog({
     if (!open) {
       setExecutingCommandId(null);
       setExecutionState(null);
+      setSearchTerm("");
       clearPolling();
     }
   }, [clearPolling, open]);
@@ -555,9 +607,24 @@ export default function CloudInstanceScriptDialog({
           ) : null}
 
           <div className="rounded-xl border border-slate-200 bg-white px-4 py-3 dark:border-slate-800 dark:bg-slate-950/60">
-            <div className="mb-3 flex items-center gap-2 text-sm font-medium text-slate-900 dark:text-slate-100">
-              <Terminal className="h-4 w-4 text-slate-500 dark:text-slate-400" />
-              {t("exec.savedCommands", { defaultValue: "Command library" })}
+            <div className="mb-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex items-center gap-2 text-sm font-medium text-slate-900 dark:text-slate-100">
+                <Terminal className="h-4 w-4 text-slate-500 dark:text-slate-400" />
+                {t("exec.savedCommands", { defaultValue: "Command library" })}
+              </div>
+              <div className="relative w-full sm:max-w-xs">
+                <Search
+                  className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400"
+                />
+                <Input
+                  value={searchTerm}
+                  onChange={(event) => setSearchTerm(event.target.value)}
+                  placeholder={t("command_clipboard.search_placeholder", {
+                    defaultValue: "Search by script name, remark, or content",
+                  })}
+                  className="pl-9"
+                />
+              </div>
             </div>
 
             {error ? (
@@ -572,9 +639,13 @@ export default function CloudInstanceScriptDialog({
               <div className="rounded-lg border border-dashed border-slate-200 px-3 py-3 text-sm text-slate-500 dark:border-slate-800 dark:text-slate-400">
                 {t("cloud.script.empty", "No saved scripts yet.")}
               </div>
+            ) : filteredCommands.length === 0 ? (
+              <div className="rounded-lg border border-dashed border-slate-200 px-3 py-3 text-sm text-slate-500 dark:border-slate-800 dark:text-slate-400">
+                {t("command_clipboard.search_empty", "No matching scripts")}
+              </div>
             ) : (
               <div className="space-y-3">
-                {orderedCommands.map((command) => (
+                {filteredCommands.map((command) => (
                   <div
                     key={command.id}
                     className="rounded-lg border border-slate-200 px-3 py-3 dark:border-slate-800 dark:bg-slate-950/40"

@@ -702,6 +702,8 @@
     "open_library": "スクリプトライブラリ",
     "page_description": "リモート実行やクラウドインスタンスの操作で再利用する保存済みスクリプトを管理します。",
     "page_title": "スクリプトライブラリ",
+    "search_empty": "一致するスクリプトがありません。",
+    "search_placeholder": "スクリプト名、メモ、内容で検索",
     "remark_empty": "備考なし",
     "save_from_exec": "ライブラリページで保存",
     "stats": {
