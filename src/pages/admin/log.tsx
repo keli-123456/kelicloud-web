@@ -68,6 +68,8 @@ const LogPage = () => {
   const [t] = useTranslation();
   const requestSequenceRef = React.useRef(0);
   const requestControllerRef = React.useRef<AbortController | null>(null);
+  const fetchLogsErrorText = t("logs.fetch_error", "Failed to fetch logs");
+  const unknownErrorText = t("common.unknown_error", "Unknown error");
 
   React.useEffect(() => {
     const fetchLogs = async () => {
@@ -93,9 +95,9 @@ const LogPage = () => {
         setError(
           err instanceof Error
             ? (err.message.startsWith("HTTP ")
-              ? t("logs.fetch_error", "Failed to fetch logs")
+              ? fetchLogsErrorText
               : err.message)
-            : t("common.unknown_error", "Unknown error"),
+            : unknownErrorText,
         );
       } finally {
         if (requestControllerRef.current === controller) {
@@ -112,7 +114,7 @@ const LogPage = () => {
     return () => {
       requestControllerRef.current?.abort();
     };
-  }, [limit, page, t]);
+  }, [fetchLogsErrorText, limit, page, unknownErrorText]);
 
   const totalPages = Math.max(1, Math.ceil(total / limit));
   const siblingsCount = 1;
@@ -323,7 +325,8 @@ const LogPage = () => {
 
       <div className="flex justify-center items-center gap-2">
         <Button
-          disabled={loading || page === 1}
+          type="button"
+          disabled={page === 1}
           onClick={() => setPage((value) => Math.max(1, value - 1))}
           variant="outline"
           className="rounded-xl"
@@ -334,9 +337,9 @@ const LogPage = () => {
           typeof value === "number" ? (
             <Button
               key={index}
+              type="button"
               variant={value === page ? "default" : "outline"}
               onClick={() => setPage(value)}
-              disabled={loading}
               className="rounded-xl"
             >
               {value}
@@ -348,7 +351,8 @@ const LogPage = () => {
           ),
         )}
         <Button
-          disabled={loading || page === totalPages}
+          type="button"
+          disabled={page === totalPages}
           onClick={() => setPage((value) => Math.min(totalPages, value + 1))}
           variant="outline"
           className="rounded-xl"

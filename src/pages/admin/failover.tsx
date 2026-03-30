@@ -53,13 +53,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
   Select,
-  SelectContent,
+  SelectContent as BaseSelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   getCloudProviderEntries,
   getDigitalOceanTokens,
@@ -118,6 +117,7 @@ type TaskFormState = {
   dns_rr: string;
   dns_line: string;
   dns_lines: string[];
+  dns_sync_ipv6: boolean;
   delete_strategy: string;
   delete_delay_seconds: string;
   plans: PlanFormState[];
@@ -153,8 +153,27 @@ type ProviderEntryOption = {
 };
 
 type EntryValues = Record<string, unknown>;
+type DnsSyncMode = "ipv4" | "ipv6" | "dual_stack";
 
-type EditorStep = "task" | "dns" | "plans";
+const FailoverSelectPortalContext = React.createContext<HTMLElement | null>(null);
+
+function SelectContent({
+  position = "popper",
+  align = "start",
+  sideOffset = 6,
+  ...props
+}: React.ComponentProps<typeof BaseSelectContent>) {
+  const portalContainer = React.useContext(FailoverSelectPortalContext);
+  return (
+    <BaseSelectContent
+      portalContainer={portalContainer}
+      position={position}
+      align={align}
+      sideOffset={sideOffset}
+      {...props}
+    />
+  );
+}
 
 const FAILOVER_PROVIDER_KEYS = [
   "cloudflare",
@@ -180,8 +199,7 @@ const ACTION_TYPE_VALUES: Record<string, string[]> = {
   linode: ["provision_instance"],
 };
 
-const EDITOR_STEPS: EditorStep[] = ["task", "dns", "plans"];
-const DNS_RECORD_TYPE_VALUES = ["A"] as const;
+const DNS_RECORD_TYPE_VALUES = ["A", "AAAA"] as const;
 const AWS_SERVICE_VALUES = ["ec2", "lightsail"] as const;
 const DNS_TTL_OPTIONS = [1, 60, 120, 300, 600, 900, 1800, 3600, 7200] as const;
 const DEFAULT_DIGITALOCEAN_IMAGE = "ubuntu-24-04-x64";
@@ -473,6 +491,56 @@ function getDnsProviderOptions(t: TFunction, providerEntries: ProviderEntriesMap
 function normalizeDnsRecordType(value: string) {
   const normalized = String(value || "").trim().toUpperCase();
   return isDnsRecordType(normalized) ? normalized : "";
+}
+
+function getDnsSyncMode(recordType: string, syncIPv6: boolean): DnsSyncMode {
+  if (syncIPv6) {
+    return "dual_stack";
+  }
+  return normalizeDnsRecordType(recordType) === "AAAA" ? "ipv6" : "ipv4";
+}
+
+function applyDnsSyncMode(mode: string) {
+  switch (mode) {
+    case "ipv6":
+      return {
+        dns_record_type: "AAAA",
+        dns_sync_ipv6: false,
+      } satisfies Pick<TaskFormState, "dns_record_type" | "dns_sync_ipv6">;
+    case "dual_stack":
+      return {
+        dns_record_type: "A",
+        dns_sync_ipv6: true,
+      } satisfies Pick<TaskFormState, "dns_record_type" | "dns_sync_ipv6">;
+    default:
+      return {
+        dns_record_type: "A",
+        dns_sync_ipv6: false,
+      } satisfies Pick<TaskFormState, "dns_record_type" | "dns_sync_ipv6">;
+  }
+}
+
+function getDnsSyncModeOptions(t: TFunction) {
+  return [
+    {
+      value: "ipv4",
+      label: t("failover.editor.dns_sync_mode_ipv4", {
+        defaultValue: "IPv4 only (A)",
+      }),
+    },
+    {
+      value: "ipv6",
+      label: t("failover.editor.dns_sync_mode_ipv6", {
+        defaultValue: "IPv6 only (AAAA)",
+      }),
+    },
+    {
+      value: "dual_stack",
+      label: t("failover.editor.dns_sync_mode_dual_stack", {
+        defaultValue: "Dual stack (A + AAAA)",
+      }),
+    },
+  ] satisfies Array<{ value: DnsSyncMode; label: string }>;
 }
 
 function getPlanProviderLabel(t: TFunction, value: string) {
@@ -1134,6 +1202,7 @@ function buildDefaultDnsFields(
     dns_rr: "@",
     dns_line: "default",
     dns_lines: ["default"],
+    dns_sync_ipv6: false,
   };
 }
 
@@ -1402,6 +1471,7 @@ function parseDnsPayloadFields(
       dns_record_type: normalizeDnsRecordType(getStringValue(raw.record_type)) || defaults.dns_record_type,
       dns_ttl: String(getNumberValue(raw.ttl, numberOrDefault(defaults.dns_ttl, 120))),
       dns_proxied: typeof raw.proxied === "boolean" ? raw.proxied : defaults.dns_proxied,
+      dns_sync_ipv6: getBooleanValue(raw.sync_ipv6, defaults.dns_sync_ipv6),
     };
   }
 
@@ -1420,6 +1490,7 @@ function parseDnsPayloadFields(
       const single = getStringValue(raw.line);
       return single ? [single] : defaults.dns_lines;
     })(),
+    dns_sync_ipv6: getBooleanValue(raw.sync_ipv6, defaults.dns_sync_ipv6),
   };
 }
 
@@ -1535,7 +1606,8 @@ function buildTaskInput(formState: TaskFormState, t: TFunction): FailoverTaskInp
   }
 
   const dnsProvider = String(formState.dns_provider || "").trim();
-  const dnsRecordType = "A";
+  const dnsRecordType = normalizeDnsRecordType(formState.dns_record_type) || "A";
+  const dnsSyncIPv6 = Boolean(formState.dns_sync_ipv6);
   const dnsTTL = numberOrDefault(formState.dns_ttl, 0);
   const normalizedDnsLines = Array.from(
     new Set(
@@ -1624,6 +1696,7 @@ function buildTaskInput(formState: TaskFormState, t: TFunction): FailoverTaskInp
           zone_name: formState.dns_zone_name.trim(),
           record_name: formState.dns_record_name.trim(),
           record_type: dnsRecordType,
+          sync_ipv6: dnsSyncIPv6,
           ttl: dnsTTL,
           proxied: formState.dns_proxied,
         }
@@ -1632,6 +1705,7 @@ function buildTaskInput(formState: TaskFormState, t: TFunction): FailoverTaskInp
           domain_name: formState.dns_domain_name.trim(),
           rr: formState.dns_rr.trim() || "@",
           record_type: dnsRecordType,
+          sync_ipv6: dnsSyncIPv6,
           ttl: dnsTTL,
           line: normalizedDnsLines[0] || formState.dns_line.trim() || "default",
           lines: normalizedDnsLines.length > 0 ? normalizedDnsLines : ["default"],
@@ -1992,12 +2066,7 @@ function TaskEditorDialog({
   } = useSettings();
   const [submitting, setSubmitting] = React.useState(false);
   const [formState, setFormState] = React.useState<TaskFormState>(() => createEmptyTaskForm(providerEntries));
-  const [editorStep, setEditorStep] = React.useState<EditorStep>("task");
   const [selectedPlanID, setSelectedPlanID] = React.useState("");
-  const [showTaskAdvanced, setShowTaskAdvanced] = React.useState(false);
-  const [showDnsAdvanced, setShowDnsAdvanced] = React.useState(false);
-  const [showPlanOptional, setShowPlanOptional] = React.useState(false);
-  const [showPlanAdvanced, setShowPlanAdvanced] = React.useState(false);
   const [planScriptSearchQueries, setPlanScriptSearchQueries] = React.useState<Record<string, string>>({});
   const [dnsCatalog, setDnsCatalog] = React.useState<FailoverDnsCatalog | null>(null);
   const [dnsCatalogLoading, setDnsCatalogLoading] = React.useState(false);
@@ -2007,6 +2076,7 @@ function TaskEditorDialog({
   const [planCatalogLoading, setPlanCatalogLoading] = React.useState(false);
   const [planCatalogLoadMode, setPlanCatalogLoadMode] = React.useState<"regions" | "full">("regions");
   const [planCatalogError, setPlanCatalogError] = React.useState("");
+  const [selectPortalContainer, setSelectPortalContainer] = React.useState<HTMLDivElement | null>(null);
   const lastEnabledDnsRef = React.useRef<{ provider: string; entryID: string } | null>(null);
   const dnsCatalogRequestRef = React.useRef(0);
   const planCatalogRequestRef = React.useRef(0);
@@ -2016,26 +2086,8 @@ function TaskEditorDialog({
       return;
     }
     const nextFormState = task ? taskToForm(task, providerEntries) : createEmptyTaskForm(providerEntries);
-    const hasTaskAdvanced =
-      nextFormState.failure_threshold !== "2"
-      || nextFormState.stale_after_seconds !== "300"
-      || nextFormState.cooldown_seconds !== "1800";
-    const hasDnsAdvanced =
-      nextFormState.delete_strategy !== "keep"
-      || nextFormState.delete_delay_seconds !== "0";
-    const hasPlanOptional = nextFormState.plans.some((plan) => plan.script_clipboard_ids.length > 0);
-    const hasPlanAdvanced = nextFormState.plans.some((plan, index) =>
-      plan.priority !== String(index + 1)
-      || plan.script_timeout_sec !== "600"
-      || plan.wait_agent_timeout_sec !== "600"
-    );
     setFormState(nextFormState);
-    setEditorStep("task");
     setSelectedPlanID(nextFormState.plans[0]?.local_id || "");
-    setShowTaskAdvanced(Boolean(task && hasTaskAdvanced));
-    setShowDnsAdvanced(Boolean(task && hasDnsAdvanced));
-    setShowPlanOptional(Boolean(task && hasPlanOptional));
-    setShowPlanAdvanced(Boolean(task && hasPlanAdvanced));
     setPlanScriptSearchQueries({});
     setDnsCatalog(null);
     setDnsCatalogError("");
@@ -2127,7 +2179,10 @@ function TaskEditorDialog({
   );
   const canLoadPlanDetails = canLoadPlanCatalog && Boolean(selectedPlanRegion.trim());
   const dnsCatalogRecords = React.useMemo(
-    () => (dnsCatalog?.records || []).filter((record) => normalizeDnsRecordType(record.type) === "A"),
+    () => (dnsCatalog?.records || []).filter((record) => {
+      const recordType = normalizeDnsRecordType(record.type);
+      return recordType === "A" || recordType === "AAAA";
+    }),
     [dnsCatalog],
   );
   const dnsZoneOptions = React.useMemo(
@@ -2141,6 +2196,14 @@ function TaskEditorDialog({
   const dnsTTLOptions = React.useMemo(
     () => getDNSTTLOptions(dnsCatalog, formState.dns_ttl),
     [dnsCatalog, formState.dns_ttl],
+  );
+  const dnsSyncMode = React.useMemo(
+    () => getDnsSyncMode(formState.dns_record_type, formState.dns_sync_ipv6),
+    [formState.dns_record_type, formState.dns_sync_ipv6],
+  );
+  const dnsSyncModeOptions = React.useMemo(
+    () => getDnsSyncModeOptions(t),
+    [t],
   );
   const aliyunLineOptions = React.useMemo(
     () => getAliyunLineOptions(dnsCatalog, formState.dns_lines),
@@ -2161,8 +2224,6 @@ function TaskEditorDialog({
     ),
     [formState.plans],
   );
-  const stepIndex = EDITOR_STEPS.indexOf(editorStep);
-  const isLastStep = stepIndex === EDITOR_STEPS.length - 1;
 
   const resetPlanCatalogState = React.useCallback((
     nextCatalog: FailoverPlanCatalog | null = null,
@@ -2228,7 +2289,7 @@ function TaskEditorDialog({
   ]);
 
   React.useEffect(() => {
-    if (!open || editorStep !== "dns") {
+    if (!open) {
       return;
     }
     if (!formState.dns_entry_id.trim()) {
@@ -2238,7 +2299,7 @@ function TaskEditorDialog({
       return;
     }
     void refreshDnsCatalog();
-  }, [open, editorStep, formState.dns_provider, formState.dns_entry_id, refreshDnsCatalog]);
+  }, [open, formState.dns_provider, formState.dns_entry_id, refreshDnsCatalog]);
 
   const updateTaskField = <K extends keyof TaskFormState>(key: K, value: TaskFormState[K]) => {
     setFormState((current) => {
@@ -2404,12 +2465,12 @@ function TaskEditorDialog({
   ]);
 
   React.useEffect(() => {
-    if (!open || editorStep !== "plans") {
+    if (!open) {
       resetPlanCatalogState();
       return;
     }
     resetPlanCatalogState();
-  }, [editorStep, open, resetPlanCatalogState, selectedPlan?.local_id]);
+  }, [open, resetPlanCatalogState, selectedPlan?.local_id]);
 
   const addPlan = () => {
     const nextPlan = {
@@ -2476,19 +2537,14 @@ function TaskEditorDialog({
     }
   };
 
-  const handleFormSubmit = (event: React.FormEvent<HTMLFormElement>) => {
-    if (!isLastStep) {
-      event.preventDefault();
-      setEditorStep(EDITOR_STEPS[Math.min(stepIndex + 1, EDITOR_STEPS.length - 1)]);
-      return;
-    }
-    void handleSubmit(event);
-  };
-
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="flex max-h-[88vh] w-[calc(100vw-2rem)] max-w-4xl flex-col overflow-hidden p-0 [&_button[data-slot=select-trigger]]:w-full [&_button[data-slot=select-trigger]]:min-w-0">
-        <DialogHeader className="border-b px-5 py-4">
+    <FailoverSelectPortalContext.Provider value={selectPortalContainer}>
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent
+          ref={setSelectPortalContainer}
+          className="flex h-[95vh] min-h-0 w-[calc(100vw-2rem)] max-w-[96rem] flex-col overflow-hidden p-0 [&_button[data-slot=select-trigger]]:w-full [&_button[data-slot=select-trigger]]:min-w-0"
+        >
+        <DialogHeader className="shrink-0 border-b bg-background px-5 py-4">
           <DialogTitle>
             {task
               ? t("failover.editor.edit_title", { defaultValue: "Edit failover task" })
@@ -2496,37 +2552,15 @@ function TaskEditorDialog({
           </DialogTitle>
         </DialogHeader>
 
-        <form className="flex min-h-0 flex-1 flex-col" onSubmit={handleFormSubmit}>
-          <Tabs
-            value={editorStep}
-            onValueChange={(value) => setEditorStep(value as EditorStep)}
-            className="flex min-h-0 flex-1 flex-col gap-0"
-          >
-            <div className="border-b px-5 py-3">
-              <TabsList className="grid h-auto w-full grid-cols-3 gap-2 bg-transparent p-0">
-                <TabsTrigger
-                  value="task"
-                  className="h-auto rounded-lg border px-3 py-2 text-xs data-[state=active]:border-primary data-[state=active]:bg-primary/5 sm:text-sm"
-                >
-                  {t("failover.editor.step_task", { defaultValue: "1. Task" })}
-                </TabsTrigger>
-                <TabsTrigger
-                  value="dns"
-                  className="h-auto rounded-lg border px-3 py-2 text-xs data-[state=active]:border-primary data-[state=active]:bg-primary/5 sm:text-sm"
-                >
-                  {t("failover.editor.step_dns", { defaultValue: "2. DNS" })}
-                </TabsTrigger>
-                <TabsTrigger
-                  value="plans"
-                  className="h-auto rounded-lg border px-3 py-2 text-xs data-[state=active]:border-primary data-[state=active]:bg-primary/5 sm:text-sm"
-                >
-                  {t("failover.editor.step_plans", { defaultValue: "3. Plans" })}
-                </TabsTrigger>
-              </TabsList>
-            </div>
-
-            <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden px-5 py-5">
-              <TabsContent value="task" className="mt-0 space-y-5">
+        <form className="flex min-h-0 flex-1 flex-col overflow-hidden" onSubmit={handleSubmit}>
+          <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden px-5 py-5">
+            <div className="space-y-6">
+              <section className="space-y-4">
+                <div className="space-y-1">
+                  <div className="text-sm font-medium text-slate-900 dark:text-slate-50">
+                    {t("failover.editor.step_task", { defaultValue: "1. Task" })}
+                  </div>
+                </div>
                 <div className="space-y-4 rounded-xl border px-4 py-4">
                   <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
                     <div className="space-y-2">
@@ -2580,68 +2614,53 @@ function TaskEditorDialog({
                   </div>
                 </div>
 
-                <Collapsible
-                  open={showTaskAdvanced}
-                  onOpenChange={setShowTaskAdvanced}
-                  className="rounded-xl border"
-                >
-                  <CollapsibleTrigger asChild>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      className="flex h-auto w-full items-center justify-between rounded-xl px-4 py-3 text-left hover:bg-muted/20"
-                    >
-                      <div className="text-sm font-medium text-slate-900 dark:text-slate-50">
-                        {t("failover.editor.show_task_advanced", {
-                          defaultValue: "Advanced monitoring settings",
-                        })}
-                      </div>
-                      <ChevronDown
-                        className={cn(
-                          "size-4 shrink-0 text-muted-foreground transition-transform",
-                          showTaskAdvanced ? "rotate-180" : "",
-                        )}
+                <div className="space-y-4 rounded-xl border px-4 py-4">
+                  <div className="text-sm font-medium text-slate-900 dark:text-slate-50">
+                    {t("failover.editor.show_task_advanced", {
+                      defaultValue: "Advanced monitoring settings",
+                    })}
+                  </div>
+                  <div className="grid gap-4 lg:grid-cols-3">
+                    <div className="space-y-2">
+                      <Label htmlFor="failover-threshold">{t("failover.editor.failure_threshold", { defaultValue: "Failure threshold" })}</Label>
+                      <Input
+                        id="failover-threshold"
+                        type="number"
+                        min={1}
+                        value={formState.failure_threshold}
+                        onChange={(event) => updateTaskField("failure_threshold", event.target.value)}
                       />
-                    </Button>
-                  </CollapsibleTrigger>
-                  <CollapsibleContent className="border-t px-4 py-4">
-                    <div className="grid gap-4 lg:grid-cols-3">
-                      <div className="space-y-2">
-                        <Label htmlFor="failover-threshold">{t("failover.editor.failure_threshold", { defaultValue: "Failure threshold" })}</Label>
-                        <Input
-                          id="failover-threshold"
-                          type="number"
-                          min={1}
-                          value={formState.failure_threshold}
-                          onChange={(event) => updateTaskField("failure_threshold", event.target.value)}
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="failover-stale">{t("failover.editor.stale_after", { defaultValue: "Stale after (s)" })}</Label>
-                        <Input
-                          id="failover-stale"
-                          type="number"
-                          min={1}
-                          value={formState.stale_after_seconds}
-                          onChange={(event) => updateTaskField("stale_after_seconds", event.target.value)}
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="failover-cooldown">{t("failover.editor.cooldown", { defaultValue: "Cooldown (s)" })}</Label>
-                        <Input
-                          id="failover-cooldown"
-                          type="number"
-                          min={0}
-                          value={formState.cooldown_seconds}
-                          onChange={(event) => updateTaskField("cooldown_seconds", event.target.value)}
-                        />
-                      </div>
                     </div>
-                  </CollapsibleContent>
-                </Collapsible>
-              </TabsContent>
+                    <div className="space-y-2">
+                      <Label htmlFor="failover-stale">{t("failover.editor.stale_after", { defaultValue: "Stale after (s)" })}</Label>
+                      <Input
+                        id="failover-stale"
+                        type="number"
+                        min={1}
+                        value={formState.stale_after_seconds}
+                        onChange={(event) => updateTaskField("stale_after_seconds", event.target.value)}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="failover-cooldown">{t("failover.editor.cooldown", { defaultValue: "Cooldown (s)" })}</Label>
+                      <Input
+                        id="failover-cooldown"
+                        type="number"
+                        min={0}
+                        value={formState.cooldown_seconds}
+                        onChange={(event) => updateTaskField("cooldown_seconds", event.target.value)}
+                      />
+                    </div>
+                  </div>
+                </div>
+              </section>
 
-              <TabsContent value="dns" className="mt-0 space-y-5">
+              <section className="space-y-4">
+                <div className="space-y-1">
+                  <div className="text-sm font-medium text-slate-900 dark:text-slate-50">
+                    {t("failover.editor.step_dns", { defaultValue: "2. DNS" })}
+                  </div>
+                </div>
                 <div className="space-y-4 rounded-xl border px-4 py-4">
                   <div className="text-sm font-medium text-slate-900 dark:text-slate-50">
                     {t("failover.editor.dns", { defaultValue: "DNS and cleanup" })}
@@ -2854,8 +2873,32 @@ function TaskEditorDialog({
                         />
                       </div>
                       <div className="space-y-2">
-                        <Label>{t("failover.editor.record_type", { defaultValue: "Record type" })}</Label>
-                        <Input value="A" readOnly className="bg-muted/30" />
+                        <Label>{t("failover.editor.dns_sync_mode", { defaultValue: "DNS sync mode" })}</Label>
+                        <Select
+                          value={dnsSyncMode}
+                          onValueChange={(value) => {
+                            setFormState((current) => ({
+                              ...current,
+                              ...applyDnsSyncMode(value),
+                            }));
+                          }}
+                        >
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {dnsSyncModeOptions.map((option) => (
+                              <SelectItem key={option.value} value={option.value}>
+                                {option.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <div className="text-xs text-muted-foreground">
+                          {t("failover.editor.dns_sync_mode_hint", {
+                            defaultValue: "Dual stack always updates the A record and only adds AAAA when the new outlet reports IPv6. IPv6-only mode still requires an IPv6 address.",
+                          })}
+                        </div>
                       </div>
                       <div className="space-y-2">
                         <Label>{t("failover.editor.ttl", { defaultValue: "TTL" })}</Label>
@@ -2926,8 +2969,32 @@ function TaskEditorDialog({
                         />
                       </div>
                       <div className="space-y-2">
-                        <Label>{t("failover.editor.record_type", { defaultValue: "Record type" })}</Label>
-                        <Input value="A" readOnly className="bg-muted/30" />
+                        <Label>{t("failover.editor.dns_sync_mode", { defaultValue: "DNS sync mode" })}</Label>
+                        <Select
+                          value={dnsSyncMode}
+                          onValueChange={(value) => {
+                            setFormState((current) => ({
+                              ...current,
+                              ...applyDnsSyncMode(value),
+                            }));
+                          }}
+                        >
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {dnsSyncModeOptions.map((option) => (
+                              <SelectItem key={option.value} value={option.value}>
+                                {option.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <div className="text-xs text-muted-foreground">
+                          {t("failover.editor.dns_sync_mode_hint", {
+                            defaultValue: "Dual stack always updates the A record and only adds AAAA when the new outlet reports IPv6. IPv6-only mode still requires an IPv6 address.",
+                          })}
+                        </div>
                       </div>
                       <div className="space-y-2">
                         <Label>{t("failover.editor.ttl", { defaultValue: "TTL" })}</Label>
@@ -2983,67 +3050,52 @@ function TaskEditorDialog({
                     </div>
                   ) : null}
                 </div>
-                <Collapsible
-                  open={showDnsAdvanced}
-                  onOpenChange={setShowDnsAdvanced}
-                  className="rounded-xl border"
-                >
-                  <CollapsibleTrigger asChild>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      className="flex h-auto w-full items-center justify-between rounded-xl px-4 py-3 text-left hover:bg-muted/20"
-                    >
-                      <div className="text-sm font-medium text-slate-900 dark:text-slate-50">
-                        {t("failover.editor.show_dns_advanced", {
-                          defaultValue: "Advanced DNS settings",
-                        })}
-                      </div>
-                      <ChevronDown
-                        className={cn(
-                          "size-4 shrink-0 text-muted-foreground transition-transform",
-                          showDnsAdvanced ? "rotate-180" : "",
-                        )}
-                      />
-                    </Button>
-                  </CollapsibleTrigger>
-                  <CollapsibleContent className="border-t px-4 py-4">
-                    <div className="grid gap-4 lg:grid-cols-2">
-                        <div className="space-y-2">
-                          <Label>{t("failover.editor.delete_strategy", { defaultValue: "Old instance strategy" })}</Label>
-                          <Select
-                            value={formState.delete_strategy}
-                            onValueChange={(value) => updateTaskField("delete_strategy", value)}
-                          >
-                            <SelectTrigger>
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {getDeleteStrategyOptions(t, formState.plans).map((option) => (
-                                <SelectItem key={option.value} value={option.value}>
-                                  {option.label}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
-                        <div className="space-y-2">
-                          <Label htmlFor="failover-delete-delay">{t("failover.editor.delete_delay", { defaultValue: "Delete delay (s)" })}</Label>
-                          <Input
-                            id="failover-delete-delay"
-                            type="number"
-                            min={0}
-                            value={formState.delete_delay_seconds}
-                            onChange={(event) => updateTaskField("delete_delay_seconds", event.target.value)}
-                            disabled={formState.delete_strategy !== "delete_after_success_delay"}
-                          />
-                        </div>
+                <div className="space-y-4 rounded-xl border px-4 py-4">
+                  <div className="text-sm font-medium text-slate-900 dark:text-slate-50">
+                    {t("failover.editor.show_dns_advanced", {
+                      defaultValue: "Advanced DNS settings",
+                    })}
+                  </div>
+                  <div className="grid gap-4 lg:grid-cols-2">
+                    <div className="space-y-2">
+                      <Label>{t("failover.editor.delete_strategy", { defaultValue: "Old instance strategy" })}</Label>
+                      <Select
+                        value={formState.delete_strategy}
+                        onValueChange={(value) => updateTaskField("delete_strategy", value)}
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {getDeleteStrategyOptions(t, formState.plans).map((option) => (
+                            <SelectItem key={option.value} value={option.value}>
+                              {option.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     </div>
-                  </CollapsibleContent>
-                </Collapsible>
-              </TabsContent>
+                    <div className="space-y-2">
+                      <Label htmlFor="failover-delete-delay">{t("failover.editor.delete_delay", { defaultValue: "Delete delay (s)" })}</Label>
+                      <Input
+                        id="failover-delete-delay"
+                        type="number"
+                        min={0}
+                        value={formState.delete_delay_seconds}
+                        onChange={(event) => updateTaskField("delete_delay_seconds", event.target.value)}
+                        disabled={formState.delete_strategy !== "delete_after_success_delay"}
+                      />
+                    </div>
+                  </div>
+                </div>
+              </section>
 
-              <TabsContent value="plans" className="mt-0 space-y-5">
+              <section className="space-y-4">
+                <div className="space-y-1">
+                  <div className="text-sm font-medium text-slate-900 dark:text-slate-50">
+                    {t("failover.editor.step_plans", { defaultValue: "3. Plans" })}
+                  </div>
+                </div>
                 {selectedPlan ? (
                   <>
                     <div className="space-y-4 rounded-xl border px-4 py-4">
@@ -4136,215 +4188,154 @@ function TaskEditorDialog({
                       ) : null}
                     </div>
 
-                    <Collapsible
-                      open={showPlanOptional}
-                      onOpenChange={setShowPlanOptional}
-                      className="rounded-xl border"
-                    >
-                      <CollapsibleTrigger asChild>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          className="flex h-auto w-full items-center justify-between rounded-xl px-4 py-3 text-left hover:bg-muted/20"
-                        >
-                          <div className="text-sm font-medium text-slate-900 dark:text-slate-50">
-                            {t("failover.editor.show_plan_optional", {
-                              defaultValue: "Optional plan settings",
+                    <div className="space-y-4 rounded-xl border px-4 py-4">
+                      <div className="text-sm font-medium text-slate-900 dark:text-slate-50">
+                        {t("failover.editor.show_plan_optional", {
+                          defaultValue: "Optional plan settings",
+                        })}
+                      </div>
+                      <div className="grid gap-4 lg:grid-cols-2">
+                        <div className="space-y-2">
+                          <Label>{t("common.name", { defaultValue: "Name" })}</Label>
+                          <Input
+                            value={selectedPlan.name}
+                            onChange={(event) => updatePlan(selectedPlan.local_id, (current) => ({ ...current, name: event.target.value }))}
+                            placeholder={t("failover.editor.plan_name_placeholder", {
+                              defaultValue: "AWS Elastic IP first",
                             })}
-                          </div>
-                          <ChevronDown
-                            className={cn(
-                              "size-4 shrink-0 text-muted-foreground transition-transform",
-                              showPlanOptional ? "rotate-180" : "",
-                            )}
                           />
-                        </Button>
-                      </CollapsibleTrigger>
-                      <CollapsibleContent className="border-t px-4 py-4">
-                        <div className="grid gap-4 lg:grid-cols-2">
-                          <div className="space-y-2">
-                            <Label>{t("common.name", { defaultValue: "Name" })}</Label>
-                            <Input
-                              value={selectedPlan.name}
-                              onChange={(event) => updatePlan(selectedPlan.local_id, (current) => ({ ...current, name: event.target.value }))}
-                              placeholder={t("failover.editor.plan_name_placeholder", {
-                                defaultValue: "AWS Elastic IP first",
-                              })}
-                            />
-                          </div>
-                          <div className="space-y-2 lg:col-span-2">
-                            <div className="flex flex-wrap items-center justify-between gap-2">
-                              <Label>{t("failover.editor.scripts", { defaultValue: "Scripts" })}</Label>
-                              <div className="text-xs text-muted-foreground">
-                                {selectedPlan.script_clipboard_ids.length > 0
-                                  ? t("failover.editor.scripts_selected", {
-                                    defaultValue: "{{count}} selected",
-                                    count: selectedPlan.script_clipboard_ids.length,
-                                  })
-                                  : t("failover.editor.no_script", { defaultValue: "No script" })}
-                              </div>
-                            </div>
-                            <Input
-                              value={selectedPlanScriptSearch}
-                              onChange={(event) => {
-                                const nextValue = event.target.value;
-                                setPlanScriptSearchQueries((current) => ({
-                                  ...current,
-                                  [selectedPlan.local_id]: nextValue,
-                                }));
-                              }}
-                              placeholder={t("failover.editor.scripts_search_placeholder", {
-                                defaultValue: "Search scripts by name or remark, e.g. sg1",
-                              })}
-                            />
-                            <div className="max-h-56 overflow-y-auto rounded-xl border">
-                              {sortedScripts.length === 0 ? (
-                                <div className="px-3 py-3 text-sm text-muted-foreground">
-                                  {t("scripts.empty", { defaultValue: "No saved scripts yet." })}
-                                </div>
-                              ) : filteredScripts.length === 0 ? (
-                                <div className="px-3 py-3 text-sm text-muted-foreground">
-                                  {t("failover.editor.scripts_search_empty", {
-                                    defaultValue: "No matching scripts",
-                                  })}
-                                </div>
-                              ) : (
-                                filteredScripts.map((script) => {
-                                  const checked = selectedPlan.script_clipboard_ids.includes(String(script.id));
-                                  return (
-                                    <label
-                                      key={script.id}
-                                      className="flex cursor-pointer items-start gap-3 border-b px-3 py-3 text-sm last:border-b-0"
-                                    >
-                                      <Checkbox
-                                        checked={checked}
-                                        onCheckedChange={(nextChecked) => togglePlanScript(selectedPlan.local_id, String(script.id), Boolean(nextChecked))}
-                                      />
-                                      <div className="min-w-0 flex-1">
-                                        <div className="font-medium text-slate-900 dark:text-slate-50">{script.name}</div>
-                                        {script.remark ? (
-                                          <div className="truncate text-xs text-muted-foreground" title={script.remark}>
-                                            {script.remark}
-                                          </div>
-                                        ) : null}
-                                      </div>
-                                    </label>
-                                  );
+                        </div>
+                        <div className="space-y-2 lg:col-span-2">
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <Label>{t("failover.editor.scripts", { defaultValue: "Scripts" })}</Label>
+                            <div className="text-xs text-muted-foreground">
+                              {selectedPlan.script_clipboard_ids.length > 0
+                                ? t("failover.editor.scripts_selected", {
+                                  defaultValue: "{{count}} selected",
+                                  count: selectedPlan.script_clipboard_ids.length,
                                 })
-                              )}
+                                : t("failover.editor.no_script", { defaultValue: "No script" })}
                             </div>
-                            <div className="line-clamp-2 text-xs leading-5 text-muted-foreground">
-                              {selectedPlanScriptNames.length > 0
-                                ? selectedPlanScriptNames.join(" -> ")
-                                : t("failover.editor.scripts_execution_order_empty", {
-                                  defaultValue: "Selected scripts run from top to bottom.",
+                          </div>
+                          <Input
+                            value={selectedPlanScriptSearch}
+                            onChange={(event) => {
+                              const nextValue = event.target.value;
+                              setPlanScriptSearchQueries((current) => ({
+                                ...current,
+                                [selectedPlan.local_id]: nextValue,
+                              }));
+                            }}
+                            placeholder={t("failover.editor.scripts_search_placeholder", {
+                              defaultValue: "Search scripts by name or remark, e.g. sg1",
+                            })}
+                          />
+                          <div className="max-h-56 overflow-y-auto rounded-xl border">
+                            {sortedScripts.length === 0 ? (
+                              <div className="px-3 py-3 text-sm text-muted-foreground">
+                                {t("scripts.empty", { defaultValue: "No saved scripts yet." })}
+                              </div>
+                            ) : filteredScripts.length === 0 ? (
+                              <div className="px-3 py-3 text-sm text-muted-foreground">
+                                {t("failover.editor.scripts_search_empty", {
+                                  defaultValue: "No matching scripts",
                                 })}
-                            </div>
+                              </div>
+                            ) : (
+                              filteredScripts.map((script) => {
+                                const checked = selectedPlan.script_clipboard_ids.includes(String(script.id));
+                                return (
+                                  <label
+                                    key={script.id}
+                                    className="flex cursor-pointer items-start gap-3 border-b px-3 py-3 text-sm last:border-b-0"
+                                  >
+                                    <Checkbox
+                                      checked={checked}
+                                      onCheckedChange={(nextChecked) => togglePlanScript(selectedPlan.local_id, String(script.id), Boolean(nextChecked))}
+                                    />
+                                    <div className="min-w-0 flex-1">
+                                      <div className="font-medium text-slate-900 dark:text-slate-50">{script.name}</div>
+                                      {script.remark ? (
+                                        <div className="truncate text-xs text-muted-foreground" title={script.remark}>
+                                          {script.remark}
+                                        </div>
+                                      ) : null}
+                                    </div>
+                                  </label>
+                                );
+                              })
+                            )}
+                          </div>
+                          <div className="line-clamp-2 text-xs leading-5 text-muted-foreground">
+                            {selectedPlanScriptNames.length > 0
+                              ? selectedPlanScriptNames.join(" -> ")
+                              : t("failover.editor.scripts_execution_order_empty", {
+                                defaultValue: "Selected scripts run from top to bottom.",
+                              })}
                           </div>
                         </div>
-                      </CollapsibleContent>
-                    </Collapsible>
+                      </div>
+                    </div>
 
-                    <Collapsible
-                      open={showPlanAdvanced}
-                      onOpenChange={setShowPlanAdvanced}
-                      className="rounded-xl border"
-                    >
-                      <CollapsibleTrigger asChild>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          className="flex h-auto w-full items-center justify-between rounded-xl px-4 py-3 text-left hover:bg-muted/20"
-                        >
-                          <div className="text-sm font-medium text-slate-900 dark:text-slate-50">
-                            {t("failover.editor.show_plan_advanced", {
-                              defaultValue: "Advanced plan settings",
-                            })}
-                          </div>
-                          <ChevronDown
-                            className={cn(
-                              "size-4 shrink-0 text-muted-foreground transition-transform",
-                              showPlanAdvanced ? "rotate-180" : "",
-                            )}
+                    <div className="space-y-4 rounded-xl border px-4 py-4">
+                      <div className="text-sm font-medium text-slate-900 dark:text-slate-50">
+                        {t("failover.editor.show_plan_advanced", {
+                          defaultValue: "Advanced plan settings",
+                        })}
+                      </div>
+                      <div className="grid gap-4 lg:grid-cols-3">
+                        <div className="space-y-2">
+                          <Label>{t("failover.editor.priority", { defaultValue: "Priority" })}</Label>
+                          <Input
+                            type="number"
+                            min={1}
+                            value={selectedPlan.priority}
+                            onChange={(event) => updatePlan(selectedPlan.local_id, (current) => ({ ...current, priority: event.target.value }))}
                           />
-                        </Button>
-                      </CollapsibleTrigger>
-                      <CollapsibleContent className="border-t px-4 py-4">
-	                        <div className="grid gap-4 lg:grid-cols-3">
-	                          <div className="space-y-2">
-	                            <Label>{t("failover.editor.priority", { defaultValue: "Priority" })}</Label>
-	                            <Input
-	                              type="number"
-	                              min={1}
-	                              value={selectedPlan.priority}
-	                              onChange={(event) => updatePlan(selectedPlan.local_id, (current) => ({ ...current, priority: event.target.value }))}
-	                            />
-	                          </div>
-	                          <div className="space-y-2">
-	                            <Label>{t("failover.editor.script_timeout", { defaultValue: "Script timeout (s)" })}</Label>
-	                            <Input
-	                              type="number"
-	                              min={1}
-	                              value={selectedPlan.script_timeout_sec}
-	                              onChange={(event) => updatePlan(selectedPlan.local_id, (current) => ({ ...current, script_timeout_sec: event.target.value }))}
-	                            />
-	                          </div>
-	                          <div className="space-y-2">
-	                            <Label>{t("failover.editor.wait_agent_timeout", { defaultValue: "Wait agent timeout (s)" })}</Label>
-	                            <Input
-	                              type="number"
-	                              min={1}
-	                              value={selectedPlan.wait_agent_timeout_sec}
-	                              onChange={(event) => updatePlan(selectedPlan.local_id, (current) => ({ ...current, wait_agent_timeout_sec: event.target.value }))}
-	                            />
-	                          </div>
-	                        </div>
-	                      </CollapsibleContent>
-                    </Collapsible>
+                        </div>
+                        <div className="space-y-2">
+                          <Label>{t("failover.editor.script_timeout", { defaultValue: "Script timeout (s)" })}</Label>
+                          <Input
+                            type="number"
+                            min={1}
+                            value={selectedPlan.script_timeout_sec}
+                            onChange={(event) => updatePlan(selectedPlan.local_id, (current) => ({ ...current, script_timeout_sec: event.target.value }))}
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label>{t("failover.editor.wait_agent_timeout", { defaultValue: "Wait agent timeout (s)" })}</Label>
+                          <Input
+                            type="number"
+                            min={1}
+                            value={selectedPlan.wait_agent_timeout_sec}
+                            onChange={(event) => updatePlan(selectedPlan.local_id, (current) => ({ ...current, wait_agent_timeout_sec: event.target.value }))}
+                          />
+                        </div>
+                      </div>
+                    </div>
                   </>
                 ) : null}
-              </TabsContent>
+              </section>
             </div>
-          </Tabs>
+          </div>
 
-          <DialogFooter className="border-t bg-background/95 px-5 py-4 sm:justify-between">
-            <div className="flex items-center gap-2">
-              {stepIndex > 0 ? (
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => setEditorStep(EDITOR_STEPS[stepIndex - 1])}
-                  disabled={submitting}
-                >
-                  {t("failover.actions.back", { defaultValue: "Back" })}
-                </Button>
-              ) : null}
-            </div>
+          <DialogFooter className="shrink-0 border-t bg-background/95 px-5 py-4 backdrop-blur">
             <div className="flex flex-wrap gap-2">
               <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={submitting}>
                 {t("common.cancel", { defaultValue: "Cancel" })}
               </Button>
-              {isLastStep ? (
-                <Button type="submit" disabled={submitting}>
-                  {submitting ? <LoaderCircle className="size-4 animate-spin" /> : null}
-                  {task
-                    ? t("common.save", { defaultValue: "Save" })
-                    : t("common.create", { defaultValue: "Create" })}
-                </Button>
-              ) : (
-                <Button
-                  type="button"
-                  onClick={() => setEditorStep(EDITOR_STEPS[stepIndex + 1])}
-                  disabled={submitting}
-                >
-                  {t("failover.actions.next", { defaultValue: "Next" })}
-                </Button>
-              )}
+              <Button type="submit" disabled={submitting}>
+                {submitting ? <LoaderCircle className="size-4 animate-spin" /> : null}
+                {task
+                  ? t("common.save", { defaultValue: "Save" })
+                  : t("common.create", { defaultValue: "Create" })}
+              </Button>
             </div>
           </DialogFooter>
         </form>
-      </DialogContent>
-    </Dialog>
+        </DialogContent>
+      </Dialog>
+    </FailoverSelectPortalContext.Provider>
   );
 }
 

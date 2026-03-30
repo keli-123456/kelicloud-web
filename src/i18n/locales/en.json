@@ -1334,7 +1334,12 @@
       "provider_entry_active_named": "Use active entry ({{name}})",
       "provider_entry_missing": "No cloud credential entry matches this provider or group yet.",
       "provider_entry_placeholder": "Choose an entry",
-      "provider_entry_hint": "Leave this on the active entry to follow the group dynamically, or pin a specific token inside the group."
+      "provider_entry_hint": "Leave this on the active entry to follow the group dynamically, or pin a specific token inside the group.",
+      "dns_sync_mode": "DNS sync mode",
+      "dns_sync_mode_dual_stack": "Dual stack (A + AAAA)",
+      "dns_sync_mode_hint": "Dual stack always updates the A record and only adds AAAA when the new outlet reports IPv6. IPv6-only mode still requires an IPv6 address.",
+      "dns_sync_mode_ipv4": "IPv4 only (A)",
+      "dns_sync_mode_ipv6": "IPv6 only (AAAA)"
     }
   },
   "go_to_home": "Go to home",

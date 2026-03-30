@@ -207,6 +207,7 @@ export default function CommandLibraryManager() {
   const [removingId, setRemovingId] = useState<number | null>(null);
   const requestSequenceRef = useRef(0);
   const requestControllerRef = useRef<AbortController | null>(null);
+  const unknownErrorText = t("common.unknown_error", "Unknown error");
 
   useEffect(() => {
     if (!routeState?.draftCommand?.text) {
@@ -267,7 +268,7 @@ export default function CommandLibraryManager() {
       setError(
         nextError instanceof Error
           ? nextError.message
-          : t("common.unknown_error", "Unknown error"),
+          : unknownErrorText,
       );
     } finally {
       if (requestControllerRef.current === controller) {
@@ -277,7 +278,7 @@ export default function CommandLibraryManager() {
         setLoading(false);
       }
     }
-  }, [t]);
+  }, [unknownErrorText]);
 
   useEffect(() => {
     void loadCommands(page, limit);
@@ -652,7 +653,7 @@ export default function CommandLibraryManager() {
                   variant="outline"
                   size="sm"
                   onClick={() => setPage((current) => Math.max(1, current - 1))}
-                  disabled={loading || page === 1}
+                  disabled={page === 1}
                 >
                   {t("command_clipboard.pagination.previous", {
                     defaultValue: "Previous",
@@ -666,7 +667,6 @@ export default function CommandLibraryManager() {
                       variant={value === page ? "default" : "outline"}
                       size="sm"
                       onClick={() => setPage(value)}
-                      disabled={loading}
                     >
                       {value}
                     </Button>
@@ -684,7 +684,7 @@ export default function CommandLibraryManager() {
                   variant="outline"
                   size="sm"
                   onClick={() => setPage((current) => Math.min(totalPages, current + 1))}
-                  disabled={loading || page === totalPages}
+                  disabled={page === totalPages}
                 >
                   {t("command_clipboard.pagination.next", {
                     defaultValue: "Next",
