@@ -36,6 +36,28 @@ interface Log {
   time: string;
 }
 
+async function fetchLogPage(limit: number, page: number, signal?: AbortSignal) {
+  const response = await fetch(
+    `/api/admin/logs?limit=${limit}&page=${page}&__ts=${Date.now()}`,
+    {
+      cache: "no-store",
+      headers: {
+        Accept: "application/json",
+        "Cache-Control": "no-cache, no-store, max-age=0",
+        Pragma: "no-cache",
+        "X-Requested-With": "XMLHttpRequest",
+      },
+      signal,
+    },
+  );
+
+  if (!response.ok) {
+    throw new Error(`HTTP ${response.status}`);
+  }
+
+  return response.json();
+}
+
 const LogPage = () => {
   const [loading, setLoading] = React.useState<boolean>(true);
   const [logs, setLogs] = React.useState<Log[]>([]);
@@ -44,32 +66,52 @@ const LogPage = () => {
   const [total, setTotal] = React.useState<number>(1);
   const [limit, setLimit] = React.useState<number>(10);
   const [t] = useTranslation();
+  const requestSequenceRef = React.useRef(0);
+  const requestControllerRef = React.useRef<AbortController | null>(null);
 
   React.useEffect(() => {
     const fetchLogs = async () => {
+      const requestID = requestSequenceRef.current + 1;
+      requestSequenceRef.current = requestID;
+      requestControllerRef.current?.abort();
+      const controller = new AbortController();
+      requestControllerRef.current = controller;
+
       setLoading(true);
       setError(null);
       try {
-        const response = await fetch(
-          `/api/admin/logs?limit=${limit}&page=${page}`,
-        );
-        if (!response.ok) {
-          throw new Error(t("logs.fetch_error", "Failed to fetch logs"));
+        const data = await fetchLogPage(limit, page, controller.signal);
+        if (requestSequenceRef.current !== requestID) {
+          return;
         }
-        const data = await response.json();
         setLogs(data.data.logs);
         setTotal(data.data.total);
       } catch (err) {
+        if (controller.signal.aborted) {
+          return;
+        }
         setError(
           err instanceof Error
-            ? err.message
+            ? (err.message.startsWith("HTTP ")
+              ? t("logs.fetch_error", "Failed to fetch logs")
+              : err.message)
             : t("common.unknown_error", "Unknown error"),
         );
       } finally {
-        setLoading(false);
+        if (requestControllerRef.current === controller) {
+          requestControllerRef.current = null;
+        }
+        if (requestSequenceRef.current === requestID) {
+          setLoading(false);
+        }
       }
     };
-    fetchLogs();
+
+    void fetchLogs();
+
+    return () => {
+      requestControllerRef.current?.abort();
+    };
   }, [limit, page, t]);
 
   const totalPages = Math.max(1, Math.ceil(total / limit));
@@ -281,7 +323,7 @@ const LogPage = () => {
 
       <div className="flex justify-center items-center gap-2">
         <Button
-          disabled={page === 1}
+          disabled={loading || page === 1}
           onClick={() => setPage((value) => Math.max(1, value - 1))}
           variant="outline"
           className="rounded-xl"
@@ -294,6 +336,7 @@ const LogPage = () => {
               key={index}
               variant={value === page ? "default" : "outline"}
               onClick={() => setPage(value)}
+              disabled={loading}
               className="rounded-xl"
             >
               {value}
@@ -305,7 +348,7 @@ const LogPage = () => {
           ),
         )}
         <Button
-          disabled={page === totalPages}
+          disabled={loading || page === totalPages}
           onClick={() => setPage((value) => Math.min(totalPages, value + 1))}
           variant="outline"
           className="rounded-xl"

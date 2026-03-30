@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Copy, PencilLine, Play, Plus, Trash2 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Link, useLocation, useNavigate } from "react-router-dom";
@@ -108,8 +108,12 @@ const formatTimestamp = (value?: string) => {
   return date.toLocaleString();
 };
 
-async function fetchCommandPage(page: number, limit: number): Promise<PaginatedCommandResponse> {
-  const response = await fetch(`/api/admin/clipboard?page=${page}&limit=${limit}`, {
+async function fetchCommandPage(
+  page: number,
+  limit: number,
+  signal?: AbortSignal,
+): Promise<PaginatedCommandResponse> {
+  const response = await fetch(`/api/admin/clipboard?page=${page}&limit=${limit}&__ts=${Date.now()}`, {
     credentials: "same-origin",
     cache: "no-store",
     headers: {
@@ -118,6 +122,7 @@ async function fetchCommandPage(page: number, limit: number): Promise<PaginatedC
       Pragma: "no-cache",
       "X-Requested-With": "XMLHttpRequest",
     },
+    signal,
   });
   const payload = await response.json().catch(() => ({})) as {
     message?: string;
@@ -200,6 +205,8 @@ export default function CommandLibraryManager() {
   const [submitting, setSubmitting] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<CommandClipboard | null>(null);
   const [removingId, setRemovingId] = useState<number | null>(null);
+  const requestSequenceRef = useRef(0);
+  const requestControllerRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
     if (!routeState?.draftCommand?.text) {
@@ -227,10 +234,20 @@ export default function CommandLibraryManager() {
   const visibleEnd = total === 0 ? 0 : Math.min(page * limit, total);
 
   const loadCommands = useCallback(async (targetPage: number, targetLimit: number) => {
+    const requestID = requestSequenceRef.current + 1;
+    requestSequenceRef.current = requestID;
+    requestControllerRef.current?.abort();
+    const controller = new AbortController();
+    requestControllerRef.current = controller;
+
     setLoading(true);
     setError(null);
     try {
-      const data = await fetchCommandPage(targetPage, targetLimit);
+      const data = await fetchCommandPage(targetPage, targetLimit, controller.signal);
+      if (requestSequenceRef.current !== requestID) {
+        return;
+      }
+
       const nextTotalPages = Math.max(1, Math.ceil(data.total / Math.max(data.limit, 1)));
       if (targetPage > nextTotalPages) {
         setCommands([]);
@@ -244,19 +261,31 @@ export default function CommandLibraryManager() {
       setPage(Math.min(Math.max(data.page, 1), nextTotalPages));
       setLimit(data.limit);
     } catch (nextError) {
+      if (controller.signal.aborted) {
+        return;
+      }
       setError(
         nextError instanceof Error
           ? nextError.message
           : t("common.unknown_error", "Unknown error"),
       );
     } finally {
-      setLoading(false);
+      if (requestControllerRef.current === controller) {
+        requestControllerRef.current = null;
+      }
+      if (requestSequenceRef.current === requestID) {
+        setLoading(false);
+      }
     }
   }, [t]);
 
   useEffect(() => {
     void loadCommands(page, limit);
   }, [limit, loadCommands, page]);
+
+  useEffect(() => () => {
+    requestControllerRef.current?.abort();
+  }, []);
 
   const openCreateDialog = () => {
     setEditingCommand(null);
@@ -530,6 +559,7 @@ export default function CommandLibraryManager() {
                   onClick={() => {
                     void loadCommands(page, limit);
                   }}
+                  disabled={loading}
                 >
                   {t("common.refresh")}
                 </Button>
@@ -622,7 +652,7 @@ export default function CommandLibraryManager() {
                   variant="outline"
                   size="sm"
                   onClick={() => setPage((current) => Math.max(1, current - 1))}
-                  disabled={page === 1}
+                  disabled={loading || page === 1}
                 >
                   {t("command_clipboard.pagination.previous", {
                     defaultValue: "Previous",
@@ -636,6 +666,7 @@ export default function CommandLibraryManager() {
                       variant={value === page ? "default" : "outline"}
                       size="sm"
                       onClick={() => setPage(value)}
+                      disabled={loading}
                     >
                       {value}
                     </Button>
@@ -653,7 +684,7 @@ export default function CommandLibraryManager() {
                   variant="outline"
                   size="sm"
                   onClick={() => setPage((current) => Math.min(totalPages, current + 1))}
-                  disabled={page === totalPages}
+                  disabled={loading || page === totalPages}
                 >
                   {t("command_clipboard.pagination.next", {
                     defaultValue: "Next",
