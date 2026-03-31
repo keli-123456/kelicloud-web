@@ -37,6 +37,7 @@ export type LinodeTokenRecord = {
   profile_username: string;
   profile_email: string;
   account_company: string;
+  account_balance: number;
   last_status: string;
   last_error: string;
   last_checked_at: string;
@@ -258,6 +259,7 @@ function normalizeTokenRecord(
     profile_username: String(token?.profile_username || ""),
     profile_email: String(token?.profile_email || ""),
     account_company: String(token?.account_company || ""),
+    account_balance: Number(token?.account_balance || 0),
     last_status: String(token?.last_status || "unknown"),
     last_error: String(token?.last_error || ""),
     last_checked_at: String(token?.last_checked_at || ""),

@@ -25,6 +25,9 @@ import {
   Checkbox,
   CloudCopyBlock,
   CloudDetailItem,
+  cloudDetailListClassName,
+  cloudDetailListItemClassName,
+  cloudDetailSectionClassName,
   cloudPanelBodyTextClassName,
   cloudPanelCardClassName,
   cloudPanelDescriptionClassName,
@@ -140,9 +143,32 @@ const DIGITALOCEAN_REGION_COUNTRIES: Record<string, string> = {
   tor: "ca",
 };
 
+const DIGITALOCEAN_LAST_TOKEN_GROUP_STORAGE_KEY = "komari-digitalocean-last-token-group";
+
 function toErrorMessage(error: unknown) {
   if (error instanceof Error) return error.message;
   return "Unknown error";
+}
+
+function getStoredTokenGroup() {
+  try {
+    return window.localStorage.getItem(DIGITALOCEAN_LAST_TOKEN_GROUP_STORAGE_KEY) || "";
+  } catch {
+    return "";
+  }
+}
+
+function setStoredTokenGroup(value: string) {
+  try {
+    const normalized = value.trim();
+    if (normalized) {
+      window.localStorage.setItem(DIGITALOCEAN_LAST_TOKEN_GROUP_STORAGE_KEY, normalized);
+      return;
+    }
+    window.localStorage.removeItem(DIGITALOCEAN_LAST_TOKEN_GROUP_STORAGE_KEY);
+  } catch {
+    // ignore storage write failures
+  }
 }
 
 function hasActiveToken(pool: DigitalOceanTokenPool | null) {
@@ -343,7 +369,7 @@ export default function DigitalOceanPanel() {
   const [tokenChecking, setTokenChecking] = React.useState(false);
   const [tokenImportOpen, setTokenImportOpen] = React.useState(false);
   const [tokenImportText, setTokenImportText] = React.useState("");
-  const [tokenImportGroup, setTokenImportGroup] = React.useState("");
+  const [tokenImportGroup, setTokenImportGroup] = React.useState(() => getStoredTokenGroup());
   const [tokenPool, setTokenPool] = React.useState<DigitalOceanTokenPool | null>(null);
   const [selectedTokenIds, setSelectedTokenIds] = React.useState<string[]>([]);
   const [tokenGroupEditorOpen, setTokenGroupEditorOpen] = React.useState(false);
@@ -531,6 +557,15 @@ export default function DigitalOceanPanel() {
   const defaultCreateGroup = getDefaultAutoConnectGroup("digitalocean", activeToken?.name || "");
   const passwordStorageEnabled = Boolean(tokenPool?.password_storage_enabled);
   const tokenRows = tokenPool?.tokens ?? [];
+  const existingTokenGroups = React.useMemo(
+    () =>
+      Array.from(new Set(
+        tokenRows
+          .map((token) => token.group.trim())
+          .filter(Boolean),
+      )),
+    [tokenRows],
+  );
   const selectedTokens = tokenRows.filter((token) => selectedTokenIds.includes(token.id));
   const allTokensSelected = tokenRows.length > 0 && selectedTokenIds.length === tokenRows.length;
   const someTokensSelected = selectedTokenIds.length > 0 && selectedTokenIds.length < tokenRows.length;
@@ -606,8 +641,9 @@ export default function DigitalOceanPanel() {
       });
       setTokenPool(nextPool);
       setTokenImportText("");
-      setTokenImportGroup("");
+      setTokenImportGroup(importGroup);
       setTokenImportOpen(false);
+      setStoredTokenGroup(importGroup);
       toast.success(
         t("cloud.tokens.import_success", { count: tokens.length, defaultValue: `Imported ${tokens.length} tokens` }),
       );
@@ -657,6 +693,9 @@ export default function DigitalOceanPanel() {
       setTokenGroupEditorOpen(false);
       setTokenGroupEditorIds([]);
       setTokenGroupEditorValue("");
+      if (tokenGroupEditorValue.trim()) {
+        setStoredTokenGroup(tokenGroupEditorValue);
+      }
       toast.success(t("cloud.tokens.group_save_success", "Token group updated"));
     } catch (saveError) {
       toast.error(toErrorMessage(saveError));
@@ -1461,15 +1500,6 @@ export default function DigitalOceanPanel() {
                             <Button
                               variant="soft"
                               size="1"
-                              onClick={() => {
-                                openTokenGroupEditor([token]);
-                              }}
-                            >
-                              {t("cloud.tokens.set_group", "Set Group")}
-                            </Button>
-                            <Button
-                              variant="soft"
-                              size="1"
                               disabled={tokenSecretLoading}
                               onClick={() => {
                                 void handleViewTokenSecret(token);
@@ -1529,6 +1559,21 @@ export default function DigitalOceanPanel() {
               placeholder={t("cloud.tokens.group_placeholder", "Optional token group")}
               onChange={(event) => setTokenImportGroup(event.target.value)}
             />
+            {existingTokenGroups.length > 0 ? (
+              <div className="flex flex-wrap gap-2">
+                {existingTokenGroups.map((group) => (
+                  <Button
+                    key={group}
+                    variant={tokenImportGroup.trim() === group ? "solid" : "outline"}
+                    size="1"
+                    type="button"
+                    onClick={() => setTokenImportGroup(group)}
+                  >
+                    {group}
+                  </Button>
+                ))}
+              </div>
+            ) : null}
             <label className={cloudPanelFieldLabelClassName}>
               {t("cloud.tokens.import_label", "Batch Import")}
             </label>
@@ -1590,6 +1635,21 @@ export default function DigitalOceanPanel() {
               placeholder={t("cloud.tokens.group_placeholder", "Optional token group")}
               onChange={(event) => setTokenGroupEditorValue(event.target.value)}
             />
+            {existingTokenGroups.length > 0 ? (
+              <div className="flex flex-wrap gap-2">
+                {existingTokenGroups.map((group) => (
+                  <Button
+                    key={group}
+                    variant={tokenGroupEditorValue.trim() === group ? "solid" : "outline"}
+                    size="1"
+                    type="button"
+                    onClick={() => setTokenGroupEditorValue(group)}
+                  >
+                    {group}
+                  </Button>
+                ))}
+              </div>
+            ) : null}
             <Flex justify="end" gap="2">
               <Button
                 variant="outline"
@@ -1799,82 +1859,131 @@ export default function DigitalOceanPanel() {
           </Dialog.Description>
 
           {detailDroplet ? (
-            <div className="mt-4 grid gap-3 sm:grid-cols-2">
-              <DetailItem label={t("cloud.detail.id", "Droplet ID")} value={detailDroplet.id} />
-              <DetailItem
-                label={t("cloud.table.status", "Status")}
-                value={getCloudStatusLabel(detailDroplet.status, t)}
-              />
-              <DetailItem
-                label={t("cloud.table.region", "Region")}
-                value={getRegionOptionLabel(detailDroplet.region, t)}
-              />
-              <DetailItem label={t("cloud.table.ip", "Public IP")} value={getDropletPrimaryIp(detailDroplet)} />
-              <DetailItem
-                label={t("cloud.table.size", "Size")}
-                value={detailDroplet.size_slug || detailDroplet.size?.slug || "-"}
-              />
-              <DetailItem
-                label={t("cloud.table.image", "Image")}
-                value={getImageLabel(detailDroplet.image)}
-              />
-              <DetailItem
-                label={t("cloud.table.created_at", "Created")}
-                value={formatDateTime(detailDroplet.created_at)}
-              />
-              <DetailItem
-                label={t("cloud.table.password", "Root Password")}
-                value={
-                  detailDroplet.saved_root_password ? (
-                    <Button
-                      variant="soft"
-                      size="1"
-                      disabled={!passwordStorageEnabled || dropletPasswordLoading}
-                      onClick={() => {
-                        void handleViewDropletPassword(detailDroplet);
-                      }}
-                    >
-                      <KeyRound className="mr-1 h-3.5 w-3.5" />
-                      {t("cloud.password.view", "View Password")}
-                    </Button>
-                  ) : (
-                    t("cloud.password.not_saved", "Not saved")
-                  )
-                }
-              />
-              <DetailItem label={t("cloud.detail.memory", "Memory")} value={`${detailDroplet.memory} MB`} />
-              <DetailItem label={t("cloud.detail.vcpus", "vCPUs")} value={detailDroplet.vcpus} />
-              <DetailItem label={t("cloud.detail.disk", "Disk")} value={`${detailDroplet.disk} GB`} />
-              <DetailItem label={t("cloud.detail.vpc_uuid", "VPC UUID")} value={detailDroplet.vpc_uuid || "-"} />
-              <DetailItem label={t("cloud.detail.tags", "Tags")} value={formatList(detailDroplet.tags)} />
-              <DetailItem
-                label={t("cloud.detail.features", "Features")}
-                value={formatList(detailDroplet.features)}
-              />
-              <DetailItem
-                label={t("cloud.detail.backup_ids", "Backup IDs")}
-                value={formatList(detailDroplet.backup_ids)}
-              />
-              <DetailItem
-                label={t("cloud.detail.snapshot_ids", "Snapshot IDs")}
-                value={formatList(detailDroplet.snapshot_ids)}
-              />
-              <DetailItem
-                label={t("cloud.detail.volume_ids", "Volume IDs")}
-                value={formatList(detailDroplet.volume_ids)}
-              />
-              <DetailItem
-                label={t("cloud.detail.ipv4", "IPv4 Networks")}
-                value={detailDroplet.networks.v4.length
-                  ? detailDroplet.networks.v4.map((network) => `${network.type}: ${network.ip_address}`).join(" | ")
-                  : "-"}
-              />
-              <DetailItem
-                label={t("cloud.detail.ipv6", "IPv6 Networks")}
-                value={detailDroplet.networks.v6.length
-                  ? detailDroplet.networks.v6.map((network) => `${network.type}: ${network.ip_address}`).join(" | ")
-                  : "-"}
-              />
+            <div className="mt-4 flex flex-col gap-4">
+              <section className="pt-0">
+                <div className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">
+                  {t("cloud.detail.summary", "Summary")}
+                </div>
+                <div className="mt-2 grid gap-x-6 sm:grid-cols-2 xl:grid-cols-3">
+                  <DetailItem variant="plain" label={t("cloud.detail.id", "Droplet ID")} value={detailDroplet.id} />
+                  <DetailItem
+                    variant="plain"
+                    label={t("cloud.table.status", "Status")}
+                    value={getCloudStatusLabel(detailDroplet.status, t)}
+                  />
+                  <DetailItem
+                    variant="plain"
+                    label={t("cloud.table.region", "Region")}
+                    value={getRegionOptionLabel(detailDroplet.region, t)}
+                  />
+                  <DetailItem variant="plain" label={t("cloud.table.ip", "Public IP")} value={getDropletPrimaryIp(detailDroplet)} />
+                  <DetailItem
+                    variant="plain"
+                    label={t("cloud.table.size", "Size")}
+                    value={detailDroplet.size_slug || detailDroplet.size?.slug || "-"}
+                  />
+                  <DetailItem
+                    variant="plain"
+                    label={t("cloud.table.image", "Image")}
+                    value={getImageLabel(detailDroplet.image)}
+                  />
+                  <DetailItem
+                    variant="plain"
+                    label={t("cloud.table.created_at", "Created")}
+                    value={formatDateTime(detailDroplet.created_at)}
+                  />
+                  <DetailItem variant="plain" label={t("cloud.detail.memory", "Memory")} value={`${detailDroplet.memory} MB`} />
+                  <DetailItem variant="plain" label={t("cloud.detail.vcpus", "vCPUs")} value={detailDroplet.vcpus} />
+                  <DetailItem variant="plain" label={t("cloud.detail.disk", "Disk")} value={`${detailDroplet.disk} GB`} />
+                  <DetailItem variant="plain" label={t("cloud.detail.vpc_uuid", "VPC UUID")} value={detailDroplet.vpc_uuid || "-"} />
+                  <DetailItem variant="plain" label={t("cloud.detail.tags", "Tags")} value={formatList(detailDroplet.tags)} />
+                </div>
+              </section>
+
+              <section className={cloudDetailSectionClassName}>
+                <div className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">
+                  {t("cloud.detail.access", "Access")}
+                </div>
+                <div className="mt-2 grid gap-x-6 sm:grid-cols-2">
+                  <DetailItem
+                    variant="plain"
+                    label={t("cloud.table.password", "Root Password")}
+                    value={
+                      detailDroplet.saved_root_password ? (
+                        <Button
+                          variant="soft"
+                          size="1"
+                          disabled={!passwordStorageEnabled || dropletPasswordLoading}
+                          onClick={() => {
+                            void handleViewDropletPassword(detailDroplet);
+                          }}
+                        >
+                          <KeyRound className="mr-1 h-3.5 w-3.5" />
+                          {t("cloud.password.view", "View Password")}
+                        </Button>
+                      ) : (
+                        t("cloud.password.not_saved", "Not saved")
+                      )
+                    }
+                  />
+                  <DetailItem
+                    variant="plain"
+                    label={t("cloud.detail.features", "Features")}
+                    value={formatList(detailDroplet.features)}
+                  />
+                </div>
+              </section>
+
+              <section className={cloudDetailSectionClassName}>
+                <div className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">
+                  {t("cloud.detail.resources", "Resources")}
+                </div>
+                <div className="mt-2 grid gap-x-6 sm:grid-cols-2 xl:grid-cols-3">
+                  <DetailItem
+                    variant="plain"
+                    label={t("cloud.detail.backup_ids", "Backup IDs")}
+                    value={formatList(detailDroplet.backup_ids)}
+                  />
+                  <DetailItem
+                    variant="plain"
+                    label={t("cloud.detail.snapshot_ids", "Snapshot IDs")}
+                    value={formatList(detailDroplet.snapshot_ids)}
+                  />
+                  <DetailItem
+                    variant="plain"
+                    label={t("cloud.detail.volume_ids", "Volume IDs")}
+                    value={formatList(detailDroplet.volume_ids)}
+                  />
+                </div>
+              </section>
+
+              <section className={cloudDetailSectionClassName}>
+                <div className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">
+                  {t("cloud.detail.network", "Network")}
+                </div>
+                <div className={`mt-2 ${cloudDetailListClassName}`}>
+                  <div className={cloudDetailListItemClassName}>
+                    <div className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">
+                      {t("cloud.detail.ipv4", "IPv4 Networks")}
+                    </div>
+                    <div className={`mt-1 text-sm text-slate-900 dark:text-slate-100 ${cloudLongTextClassName}`}>
+                      {detailDroplet.networks.v4.length
+                        ? detailDroplet.networks.v4.map((network) => `${network.type}: ${network.ip_address}`).join(" | ")
+                        : "-"}
+                    </div>
+                  </div>
+                  <div className={cloudDetailListItemClassName}>
+                    <div className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">
+                      {t("cloud.detail.ipv6", "IPv6 Networks")}
+                    </div>
+                    <div className={`mt-1 text-sm text-slate-900 dark:text-slate-100 ${cloudLongTextClassName}`}>
+                      {detailDroplet.networks.v6.length
+                        ? detailDroplet.networks.v6.map((network) => `${network.type}: ${network.ip_address}`).join(" | ")
+                        : "-"}
+                    </div>
+                  </div>
+                </div>
+              </section>
             </div>
           ) : null}
         </Dialog.Content>

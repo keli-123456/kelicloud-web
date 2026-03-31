@@ -23,13 +23,15 @@ import {
   CloudDetailItem,
   cloudDialogContentClassName,
   cloudDialogWideContentClassName,
+  cloudDetailListClassName,
+  cloudDetailListItemClassName,
+  cloudDetailSectionClassName,
   cloudLongTextClassName,
   cloudPanelBodyTextClassName,
   cloudPanelCardClassName,
   cloudPanelDescriptionClassName,
   cloudPanelFieldLabelClassName,
   cloudPanelHeaderClassName,
-  cloudPanelSectionClassName,
   cloudPanelTitleClassName,
   Dialog,
   Flex,
@@ -1301,22 +1303,27 @@ export default function AzurePanel() {
             </div>
           ) : detailData ? (
             <div className="mt-4 space-y-4">
-              <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-                <CloudDetailItem label={t("cloud.table.name", "Name")} value={detailData.instance.name || "-"} />
-                <CloudDetailItem label={t("cloud.providers.azure.resource_group", "Resource Group")} value={detailData.instance.resource_group || "-"} />
-                <CloudDetailItem label={t("cloud.table.region", "Region")} value={getLocationLabel(catalog, detailData.instance.location)} />
-                <CloudDetailItem label={t("cloud.table.status", "Status")} value={getCloudStatusLabel(detailData.instance.power_state || detailData.instance.provisioning_state, t)} />
-                <CloudDetailItem label={t("cloud.table.size", "Size")} value={detailData.instance.size || "-"} />
-                <CloudDetailItem label={t("cloud.providers.azure.os_type", "OS Type")} value={detailData.instance.os_type || "-"} />
-                <CloudDetailItem label={t("cloud.providers.azure.computer_name", "Computer Name")} value={detailData.instance.computer_name || "-"} />
-                <CloudDetailItem label={t("cloud.providers.azure.vm_id", "VM ID")} value={detailData.vm_id || "-"} />
-                <CloudDetailItem label={t("cloud.providers.azure.image", "Image")} value={detailData.instance.image || "-"} />
-                <CloudDetailItem label={t("cloud.table.ip", "Public IP")} value={formatList(detailData.instance.public_ips)} />
-                <CloudDetailItem label={t("cloud.providers.azure.private_ip", "Private IP")} value={formatList(detailData.instance.private_ips)} />
-                <CloudDetailItem label={t("cloud.providers.azure.zones", "Zones")} value={formatList(detailData.zones)} />
-              </div>
+              <section className="pt-0">
+                <div className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">
+                  {t("cloud.detail.summary", "Summary")}
+                </div>
+                <div className="mt-2 grid gap-x-6 sm:grid-cols-2 xl:grid-cols-3">
+                  <CloudDetailItem variant="plain" label={t("cloud.table.name", "Name")} value={detailData.instance.name || "-"} />
+                  <CloudDetailItem variant="plain" label={t("cloud.providers.azure.resource_group", "Resource Group")} value={detailData.instance.resource_group || "-"} />
+                  <CloudDetailItem variant="plain" label={t("cloud.table.region", "Region")} value={getLocationLabel(catalog, detailData.instance.location)} />
+                  <CloudDetailItem variant="plain" label={t("cloud.table.status", "Status")} value={getCloudStatusLabel(detailData.instance.power_state || detailData.instance.provisioning_state, t)} />
+                  <CloudDetailItem variant="plain" label={t("cloud.table.size", "Size")} value={detailData.instance.size || "-"} />
+                  <CloudDetailItem variant="plain" label={t("cloud.providers.azure.os_type", "OS Type")} value={detailData.instance.os_type || "-"} />
+                  <CloudDetailItem variant="plain" label={t("cloud.providers.azure.computer_name", "Computer Name")} value={detailData.instance.computer_name || "-"} />
+                  <CloudDetailItem variant="plain" label={t("cloud.providers.azure.vm_id", "VM ID")} value={detailData.vm_id || "-"} />
+                  <CloudDetailItem variant="plain" label={t("cloud.providers.azure.image", "Image")} value={detailData.instance.image || "-"} />
+                  <CloudDetailItem variant="plain" label={t("cloud.table.ip", "Public IP")} value={formatList(detailData.instance.public_ips)} />
+                  <CloudDetailItem variant="plain" label={t("cloud.providers.azure.private_ip", "Private IP")} value={formatList(detailData.instance.private_ips)} />
+                  <CloudDetailItem variant="plain" label={t("cloud.providers.azure.zones", "Zones")} value={formatList(detailData.zones)} />
+                </div>
+              </section>
 
-              <section className={cloudPanelSectionClassName}>
+              <section className={cloudDetailSectionClassName}>
                 <Flex justify="between" align="center" wrap="wrap" gap="2">
                   <div className={cloudPanelTitleClassName}>
                     {t("cloud.providers.azure.actions", "Actions")}
@@ -1372,21 +1379,21 @@ export default function AzurePanel() {
                 </Flex>
               </section>
 
-              <section className={cloudPanelSectionClassName}>
+              <section className={cloudDetailSectionClassName}>
                 <div className={cloudPanelTitleClassName}>
                   {t("cloud.providers.azure.network_interfaces", "Network Interfaces")}
                 </div>
-                <div className="mt-3 space-y-3">
+                <div className={`mt-3 ${cloudDetailListClassName}`}>
                   {detailData.network_interfaces.length ? detailData.network_interfaces.map((networkInterface) => (
-                    <div key={networkInterface.id || networkInterface.name} className="rounded-xl border border-slate-200 bg-white px-4 py-3 dark:border-slate-800 dark:bg-slate-950/50">
+                    <div key={networkInterface.id || networkInterface.name} className={cloudDetailListItemClassName}>
                       <div className={`font-medium ${cloudLongTextClassName}`}>
                         {networkInterface.name || networkInterface.id || "-"}
                       </div>
-                      <div className="mt-2 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-                        <CloudDetailItem label={t("cloud.providers.azure.primary", "Primary")} value={networkInterface.primary ? t("common.yes", "Yes") : t("common.no", "No")} />
-                        <CloudDetailItem label={t("cloud.providers.azure.private_ip", "Private IP")} value={formatList(networkInterface.private_ips)} />
-                        <CloudDetailItem label={t("cloud.table.ip", "Public IP")} value={formatList(networkInterface.public_ips)} />
-                        <CloudDetailItem label={t("cloud.providers.azure.nsg", "NSG")} value={networkInterface.network_security_group_id || "-"} />
+                      <div className="mt-2 grid gap-x-6 sm:grid-cols-2 xl:grid-cols-4">
+                        <CloudDetailItem variant="plain" label={t("cloud.providers.azure.primary", "Primary")} value={networkInterface.primary ? t("common.yes", "Yes") : t("common.no", "No")} />
+                        <CloudDetailItem variant="plain" label={t("cloud.providers.azure.private_ip", "Private IP")} value={formatList(networkInterface.private_ips)} />
+                        <CloudDetailItem variant="plain" label={t("cloud.table.ip", "Public IP")} value={formatList(networkInterface.public_ips)} />
+                        <CloudDetailItem variant="plain" label={t("cloud.providers.azure.nsg", "NSG")} value={networkInterface.network_security_group_id || "-"} />
                       </div>
                     </div>
                   )) : (
@@ -1398,17 +1405,17 @@ export default function AzurePanel() {
               </section>
 
               <div className="grid gap-4 xl:grid-cols-2">
-                <section className={cloudPanelSectionClassName}>
+                <section className={cloudDetailSectionClassName}>
                   <div className={cloudPanelTitleClassName}>
                     {t("cloud.providers.azure.os_disk", "OS Disk")}
                   </div>
                   <div className="mt-3">
                     {detailData.os_disk ? (
-                      <div className="grid gap-3 sm:grid-cols-2">
-                        <CloudDetailItem label={t("cloud.table.name", "Name")} value={detailData.os_disk.name || "-"} />
-                        <CloudDetailItem label={t("cloud.providers.azure.disk_size", "Disk Size")} value={detailData.os_disk.size_gb ? `${detailData.os_disk.size_gb} GiB` : "-"} />
-                        <CloudDetailItem label={t("cloud.providers.azure.disk_type", "Disk Type")} value={detailData.os_disk.storage_account_type || "-"} />
-                        <CloudDetailItem label={t("cloud.providers.azure.create_option", "Create Option")} value={detailData.os_disk.create_option || "-"} />
+                      <div className="grid gap-x-6 sm:grid-cols-2">
+                        <CloudDetailItem variant="plain" label={t("cloud.table.name", "Name")} value={detailData.os_disk.name || "-"} />
+                        <CloudDetailItem variant="plain" label={t("cloud.providers.azure.disk_size", "Disk Size")} value={detailData.os_disk.size_gb ? `${detailData.os_disk.size_gb} GiB` : "-"} />
+                        <CloudDetailItem variant="plain" label={t("cloud.providers.azure.disk_type", "Disk Type")} value={detailData.os_disk.storage_account_type || "-"} />
+                        <CloudDetailItem variant="plain" label={t("cloud.providers.azure.create_option", "Create Option")} value={detailData.os_disk.create_option || "-"} />
                       </div>
                     ) : (
                       <div className={cloudPanelBodyTextClassName}>
@@ -1418,21 +1425,21 @@ export default function AzurePanel() {
                   </div>
                 </section>
 
-                <section className={cloudPanelSectionClassName}>
+                <section className={cloudDetailSectionClassName}>
                   <div className={cloudPanelTitleClassName}>
                     {t("cloud.providers.azure.data_disks", "Data Disks")}
                   </div>
-                  <div className="mt-3 space-y-3">
+                  <div className={`mt-3 ${cloudDetailListClassName}`}>
                     {detailData.data_disks.length ? detailData.data_disks.map((disk) => (
-                      <div key={`${disk.id}-${disk.lun}`} className="rounded-xl border border-slate-200 bg-white px-4 py-3 dark:border-slate-800 dark:bg-slate-950/50">
+                      <div key={`${disk.id}-${disk.lun}`} className={cloudDetailListItemClassName}>
                         <div className={`font-medium ${cloudLongTextClassName}`}>
                           {disk.name || disk.id || "-"}
                         </div>
-                        <div className="mt-2 grid gap-3 sm:grid-cols-2">
-                          <CloudDetailItem label={t("cloud.providers.azure.lun", "LUN")} value={disk.lun} />
-                          <CloudDetailItem label={t("cloud.providers.azure.disk_size", "Disk Size")} value={disk.size_gb ? `${disk.size_gb} GiB` : "-"} />
-                          <CloudDetailItem label={t("cloud.providers.azure.disk_type", "Disk Type")} value={disk.storage_account_type || "-"} />
-                          <CloudDetailItem label={t("cloud.providers.azure.create_option", "Create Option")} value={disk.create_option || "-"} />
+                        <div className="mt-2 grid gap-x-6 sm:grid-cols-2">
+                          <CloudDetailItem variant="plain" label={t("cloud.providers.azure.lun", "LUN")} value={disk.lun} />
+                          <CloudDetailItem variant="plain" label={t("cloud.providers.azure.disk_size", "Disk Size")} value={disk.size_gb ? `${disk.size_gb} GiB` : "-"} />
+                          <CloudDetailItem variant="plain" label={t("cloud.providers.azure.disk_type", "Disk Type")} value={disk.storage_account_type || "-"} />
+                          <CloudDetailItem variant="plain" label={t("cloud.providers.azure.create_option", "Create Option")} value={disk.create_option || "-"} />
                         </div>
                       </div>
                     )) : (
@@ -1444,7 +1451,7 @@ export default function AzurePanel() {
                 </section>
               </div>
 
-              <section className={cloudPanelSectionClassName}>
+              <section className={cloudDetailSectionClassName}>
                 <div className={cloudPanelTitleClassName}>
                   {t("cloud.providers.azure.tags", "Tags")}
                 </div>
@@ -1452,7 +1459,7 @@ export default function AzurePanel() {
                   {Object.keys(detailData.instance.tags || {}).length ? (
                     <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
                       {Object.entries(detailData.instance.tags).map(([key, value]) => (
-                        <div key={key} className="rounded-xl border border-slate-200 bg-white px-4 py-3 dark:border-slate-800 dark:bg-slate-950/50">
+                        <div key={key} className="border-b border-slate-200 py-3 last:border-b-0 dark:border-slate-800">
                           <div className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">
                             {key}
                           </div>

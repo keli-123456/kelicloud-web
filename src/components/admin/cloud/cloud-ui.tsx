@@ -53,11 +53,21 @@ const cloudPanelFieldLabelClassName =
 const cloudPanelBodyTextClassName =
   "text-sm text-slate-700 dark:text-slate-300";
 
+const cloudDetailSectionClassName =
+  "border-t border-slate-200 pt-4 dark:border-slate-800";
+
+const cloudDetailListClassName =
+  "overflow-hidden rounded-lg border border-slate-200/80 dark:border-slate-800";
+
+const cloudDetailListItemClassName =
+  "border-t border-slate-200 px-4 py-3 first:border-t-0 dark:border-slate-800";
+
 type CloudDetailItemProps = {
   label: React.ReactNode;
   value: React.ReactNode;
   className?: string;
   valueClassName?: string;
+  variant?: "card" | "plain";
 };
 
 function CloudDetailItem({
@@ -65,11 +75,14 @@ function CloudDetailItem({
   value,
   className,
   valueClassName,
+  variant = "card",
 }: CloudDetailItemProps) {
   return (
     <div
       className={cn(
-        "min-w-0 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 dark:border-slate-800 dark:bg-slate-900/60",
+        variant === "plain"
+          ? "min-w-0 border-b border-slate-200 py-3 last:border-b-0 dark:border-slate-800"
+          : "min-w-0 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 dark:border-slate-800 dark:bg-slate-900/60",
         className,
       )}
     >
@@ -159,6 +172,9 @@ export {
   cloudPanelSectionClassName,
   cloudPanelSubcardClassName,
   cloudPanelTitleClassName,
+  cloudDetailSectionClassName,
+  cloudDetailListClassName,
+  cloudDetailListItemClassName,
   cloudDialogWideContentClassName,
   cloudLongTextClassName,
   cloudSecretTextareaClassName,

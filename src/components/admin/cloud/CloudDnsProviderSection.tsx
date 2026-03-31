@@ -58,19 +58,8 @@ function getProviderTranslationKey(value: string) {
   return normalizeProviderKey(value);
 }
 
-function isCloudComputeProvider(value: string) {
-  const normalized = normalizeProviderKey(value);
-  return [
-    "aws",
-    "ec2",
-    "lightsail",
-    "digitalocean",
-    "linode",
-  ].includes(normalized);
-}
-
 function isDnsProvider(value: string) {
-  return !isCloudComputeProvider(value);
+  return isPreferredDnsProvider(value);
 }
 
 function formatProviderLabel(value: string) {

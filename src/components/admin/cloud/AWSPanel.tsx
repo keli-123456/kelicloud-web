@@ -24,6 +24,9 @@ import {
   Checkbox,
   CloudCopyBlock,
   CloudDetailItem,
+  cloudDetailListClassName,
+  cloudDetailListItemClassName,
+  cloudDetailSectionClassName,
   cloudPanelBodyTextClassName,
   cloudPanelCardClassName,
   cloudPanelDescriptionClassName,
@@ -356,6 +359,9 @@ function AWSQuotaSummary({
 }
 
 const DetailItem = CloudDetailItem;
+const PlainDetailItem = (props: React.ComponentProps<typeof CloudDetailItem>) => (
+  <CloudDetailItem variant="plain" {...props} />
+);
 
 function getSubnetVpcId(subnets: AWSSubnet[], subnetId: string) {
   return subnets.find((subnet) => subnet.subnet_id === subnetId)?.vpc_id || "";
@@ -2484,33 +2490,38 @@ export default function AWSPanel() {
             <div className="mt-4 text-sm text-slate-500 dark:text-slate-400">{t("cloud.loading", "Loading cloud resources...")}</div>
           ) : detailData ? (
             <div className="mt-4 flex flex-col gap-4">
-              <div className="grid gap-3 sm:grid-cols-2">
-                <DetailItem
+              <section className="pt-0">
+                <div className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">
+                  {t("cloud.detail.summary", "Summary")}
+                </div>
+                <div className="mt-2 grid gap-x-6 sm:grid-cols-2 xl:grid-cols-3">
+                  <PlainDetailItem
                   label={t("cloud.providers.aws.instance_id", "EC2 Instance ID")}
                   value={detailData.instance.instance_id}
-                />
-                <DetailItem
+                  />
+                  <PlainDetailItem
                   label={t("cloud.table.status", "Status")}
                   value={getCloudStatusLabel(detailData.instance.state, t)}
-                />
-                <DetailItem label={t("cloud.providers.aws.az", "AZ")} value={detailData.instance.availability_zone || "-"} />
-                <DetailItem label={t("cloud.table.ip", "Public IP")} value={detailData.instance.public_ip || detailData.instance.private_ip || "-"} />
-                <DetailItem label={t("cloud.table.size", "Size")} value={detailData.instance.instance_type || "-"} />
-                <DetailItem label={t("cloud.table.image", "Image")} value={detailData.instance.image_id || "-"} />
-                <DetailItem label={t("cloud.providers.aws.key_pair", "Key Pair")} value={detailData.instance.key_name || "-"} />
-                <DetailItem label={t("cloud.table.created_at", "Created")} value={formatDateTime(detailData.instance.launch_time)} />
-                <DetailItem label={t("cloud.providers.aws.vpc", "VPC")} value={detailData.vpc_id || "-"} />
-                <DetailItem label={t("cloud.providers.aws.subnet", "Subnet")} value={detailData.subnet_id || "-"} />
-                <DetailItem
+                  />
+                  <PlainDetailItem label={t("cloud.providers.aws.az", "AZ")} value={detailData.instance.availability_zone || "-"} />
+                  <PlainDetailItem label={t("cloud.table.ip", "Public IP")} value={detailData.instance.public_ip || detailData.instance.private_ip || "-"} />
+                  <PlainDetailItem label={t("cloud.table.size", "Size")} value={detailData.instance.instance_type || "-"} />
+                  <PlainDetailItem label={t("cloud.table.image", "Image")} value={detailData.instance.image_id || "-"} />
+                  <PlainDetailItem label={t("cloud.providers.aws.key_pair", "Key Pair")} value={detailData.instance.key_name || "-"} />
+                  <PlainDetailItem label={t("cloud.table.created_at", "Created")} value={formatDateTime(detailData.instance.launch_time)} />
+                  <PlainDetailItem label={t("cloud.providers.aws.vpc", "VPC")} value={detailData.vpc_id || "-"} />
+                  <PlainDetailItem label={t("cloud.providers.aws.subnet", "Subnet")} value={detailData.subnet_id || "-"} />
+                  <PlainDetailItem
                   label={t("cloud.providers.aws.monitoring", "Monitoring")}
                   value={getCloudStatusLabel(detailData.monitoring_state, t)}
-                />
-                <DetailItem label={t("cloud.providers.aws.architecture", "Architecture")} value={detailData.architecture || "-"} />
-                <DetailItem label={t("cloud.providers.aws.public_dns", "Public DNS")} value={detailData.public_dns_name || "-"} />
-                <DetailItem label={t("cloud.providers.aws.private_dns", "Private DNS")} value={detailData.private_dns_name || "-"} />
-              </div>
+                  />
+                  <PlainDetailItem label={t("cloud.providers.aws.architecture", "Architecture")} value={detailData.architecture || "-"} />
+                  <PlainDetailItem label={t("cloud.providers.aws.public_dns", "Public DNS")} value={detailData.public_dns_name || "-"} />
+                  <PlainDetailItem label={t("cloud.providers.aws.private_dns", "Private DNS")} value={detailData.private_dns_name || "-"} />
+                </div>
+              </section>
 
-              <div className={cloudPanelSubcardClassName}>
+              <section className={cloudDetailSectionClassName}>
                 <div className={cloudPanelTitleClassName}>
                   {t("cloud.detail.tags", "Tags")}
                 </div>
@@ -2535,17 +2546,17 @@ export default function AWSPanel() {
                     {t("cloud.providers.aws.sync_tags", "Sync Tags")}
                   </Button>
                 </Flex>
-              </div>
+              </section>
 
-              <div className={cloudPanelSubcardClassName}>
+              <section className={cloudDetailSectionClassName}>
                 <div className={cloudPanelTitleClassName}>
                   {t("cloud.providers.aws.storage", "Volumes")}
                 </div>
-                <div className="mt-3 flex flex-col gap-2">
+                <div className={`mt-3 ${cloudDetailListClassName}`}>
                   {detailData.volumes.length ? detailData.volumes.map((volume) => (
-                    <div key={volume.volume_id} className="rounded-lg border border-slate-200 px-3 py-2 text-sm dark:border-slate-800">
+                    <div key={volume.volume_id} className={cloudDetailListItemClassName}>
                       <div className="font-medium text-slate-900 dark:text-slate-100">{volume.device_name || volume.volume_id}</div>
-                      <div className="text-slate-500 dark:text-slate-400">
+                      <div className="mt-1 text-sm text-slate-500 dark:text-slate-400">
                         {volume.size_gib} GiB / {volume.volume_type} / {volume.state}
                       </div>
                     </div>
@@ -2567,10 +2578,11 @@ export default function AWSPanel() {
                     {t("cloud.providers.aws.create_snapshots", "Create Snapshots")}
                   </Button>
                 </Flex>
-              </div>
+              </section>
 
-              <div className="grid gap-4 sm:grid-cols-2">
-                <div className={cloudPanelSubcardClassName}>
+              <section className={cloudDetailSectionClassName}>
+                <div className="grid gap-6 lg:grid-cols-2">
+                  <div>
                   <div className={cloudPanelTitleClassName}>
                     {t("cloud.providers.aws.change_type", "Change Instance Type")}
                   </div>
@@ -2607,9 +2619,9 @@ export default function AWSPanel() {
                       {t("cloud.providers.aws.change_type", "Change Instance Type")}
                     </Button>
                   </Flex>
-                </div>
+                  </div>
 
-                <div className={cloudPanelSubcardClassName}>
+                  <div>
                   <div className={cloudPanelTitleClassName}>
                     {t("cloud.providers.aws.monitoring", "Monitoring")}
                   </div>
@@ -2631,10 +2643,11 @@ export default function AWSPanel() {
                         : t("cloud.providers.aws.enable_monitoring", "Enable Monitoring")}
                     </Button>
                   </Flex>
+                  </div>
                 </div>
-              </div>
+              </section>
 
-              <div className={cloudPanelSubcardClassName}>
+              <section className={cloudDetailSectionClassName}>
                 <div className={cloudPanelTitleClassName}>
                   {t("cloud.providers.aws.machine_image", "Machine Image")}
                 </div>
@@ -2679,15 +2692,15 @@ export default function AWSPanel() {
                     {t("cloud.providers.aws.create_image", "Create AMI")}
                   </Button>
                 </Flex>
-              </div>
+              </section>
 
-              <div className={cloudPanelSubcardClassName}>
+              <section className={cloudDetailSectionClassName}>
                 <div className={cloudPanelTitleClassName}>
                   {t("cloud.providers.aws.elastic_ip", "Elastic IP")}
                 </div>
-                <div className="mt-3 flex flex-col gap-2">
+                <div className={`mt-3 ${cloudDetailListClassName}`}>
                   {detailData.addresses.length ? detailData.addresses.map((address) => (
-                    <div key={address.allocation_id || address.public_ip} className="rounded-lg border border-slate-200 px-3 py-2 text-sm dark:border-slate-800">
+                    <div key={address.allocation_id || address.public_ip} className={cloudDetailListItemClassName}>
                       <div className="font-medium text-slate-900 dark:text-slate-100">{formatElasticAddress(address)}</div>
                       <div className="mt-2 flex flex-wrap gap-2">
                         {address.association_id ? (
@@ -2785,18 +2798,18 @@ export default function AWSPanel() {
                     {t("cloud.providers.aws.attach_existing", "Attach Existing")}
                   </Button>
                 </Flex>
-              </div>
+              </section>
 
               {detailData.security_groups.length ? (
-                <div className={cloudPanelSubcardClassName}>
+                <section className={cloudDetailSectionClassName}>
                   <div className={cloudPanelTitleClassName}>
                     {t("cloud.providers.aws.security_groups", "Security Groups")}
                   </div>
-                  <div className="mt-3 flex flex-col gap-2">
+                  <div className={`mt-3 ${cloudDetailListClassName}`}>
                     {detailData.security_groups.map((group) => (
-                      <div key={group.group_id} className="rounded-lg border border-slate-200 px-3 py-2 text-sm dark:border-slate-800">
+                      <div key={group.group_id} className={cloudDetailListItemClassName}>
                         <div className="font-medium text-slate-900 dark:text-slate-100">{group.group_name || group.group_id}</div>
-                        <div className="text-slate-500 dark:text-slate-400">{group.group_id}</div>
+                        <div className="mt-1 text-sm text-slate-500 dark:text-slate-400">{group.group_id}</div>
                       </div>
                     ))}
                   </div>
@@ -2813,16 +2826,16 @@ export default function AWSPanel() {
                       {t("cloud.providers.aws.allow_all_traffic", "Allow All Traffic")}
                     </Button>
                   </Flex>
-                </div>
+                </section>
               ) : null}
 
               {detailData.console_output ? (
-                <div className={cloudPanelSubcardClassName}>
+                <section className={cloudDetailSectionClassName}>
                   <div className={cloudPanelTitleClassName}>
                     {t("cloud.providers.aws.console_output", "Console Output")}
                   </div>
                   <TextArea className="mt-3 min-h-40 font-mono text-xs" readOnly value={detailData.console_output} />
-                </div>
+                </section>
               ) : null}
             </div>
           ) : null}
@@ -2850,31 +2863,36 @@ export default function AWSPanel() {
             <div className="mt-4 text-sm text-slate-500 dark:text-slate-400">{t("cloud.loading", "Loading cloud resources...")}</div>
           ) : lightsailDetailData ? (
             <div className="mt-4 flex flex-col gap-4">
-              <div className="grid gap-3 sm:grid-cols-2">
-                <DetailItem label={t("cloud.table.name", "Name")} value={lightsailDetailData.instance.name} />
-                <DetailItem
+              <section className="pt-0">
+                <div className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">
+                  {t("cloud.detail.summary", "Summary")}
+                </div>
+                <div className="mt-2 grid gap-x-6 sm:grid-cols-2 xl:grid-cols-3">
+                  <PlainDetailItem label={t("cloud.table.name", "Name")} value={lightsailDetailData.instance.name} />
+                  <PlainDetailItem
                   label={t("cloud.table.status", "Status")}
                   value={getCloudStatusLabel(lightsailDetailData.instance.state, t)}
-                />
-                <DetailItem label={t("cloud.providers.aws.az", "AZ")} value={lightsailDetailData.instance.availability_zone || "-"} />
-                <DetailItem label={t("cloud.table.ip", "Public IP")} value={lightsailDetailData.instance.public_ip || lightsailDetailData.instance.private_ip || "-"} />
-                <DetailItem label={t("cloud.table.size", "Size")} value={lightsailDetailData.instance.bundle_id || "-"} />
-                <DetailItem label={t("cloud.table.image", "Image")} value={lightsailDetailData.instance.blueprint_name || lightsailDetailData.instance.blueprint_id || "-"} />
-                <DetailItem label={t("cloud.providers.aws.key_pair", "Key Pair")} value={lightsailDetailData.instance.ssh_key_name || "-"} />
-                <DetailItem label={t("cloud.table.created_at", "Created")} value={formatDateTime(lightsailDetailData.instance.created_at)} />
-              </div>
+                  />
+                  <PlainDetailItem label={t("cloud.providers.aws.az", "AZ")} value={lightsailDetailData.instance.availability_zone || "-"} />
+                  <PlainDetailItem label={t("cloud.table.ip", "Public IP")} value={lightsailDetailData.instance.public_ip || lightsailDetailData.instance.private_ip || "-"} />
+                  <PlainDetailItem label={t("cloud.table.size", "Size")} value={lightsailDetailData.instance.bundle_id || "-"} />
+                  <PlainDetailItem label={t("cloud.table.image", "Image")} value={lightsailDetailData.instance.blueprint_name || lightsailDetailData.instance.blueprint_id || "-"} />
+                  <PlainDetailItem label={t("cloud.providers.aws.key_pair", "Key Pair")} value={lightsailDetailData.instance.ssh_key_name || "-"} />
+                  <PlainDetailItem label={t("cloud.table.created_at", "Created")} value={formatDateTime(lightsailDetailData.instance.created_at)} />
+                </div>
+              </section>
 
-              <div className={cloudPanelSubcardClassName}>
+              <section className={cloudDetailSectionClassName}>
                 <div className={cloudPanelTitleClassName}>
                   {t("cloud.providers.aws.ports", "Firewall Ports")}
                 </div>
-                <div className="mt-3 flex flex-col gap-2">
+                <div className={`mt-3 ${cloudDetailListClassName}`}>
                   {lightsailDetailData.ports.length ? lightsailDetailData.ports.map((port) => (
-                    <div key={`${port.protocol}-${port.from_port}-${port.to_port}`} className="rounded-lg border border-slate-200 px-3 py-2 text-sm dark:border-slate-800">
+                    <div key={`${port.protocol}-${port.from_port}-${port.to_port}`} className={cloudDetailListItemClassName}>
                       <div className="font-medium text-slate-900 dark:text-slate-100">
                         {port.common_name || `${port.protocol}:${port.from_port}-${port.to_port}`}
                       </div>
-                      <div className="text-slate-500 dark:text-slate-400">
+                      <div className="mt-1 text-sm text-slate-500 dark:text-slate-400">
                         {port.access_type || "-"} / {port.access_from || "-"} / {(port.cidrs || []).join(", ") || "-"}
                       </div>
                     </div>
@@ -2892,20 +2910,20 @@ export default function AWSPanel() {
                     }}
                   >
                     <ShieldCheck className="mr-1 h-3.5 w-3.5" />
-                    {t("cloud.providers.aws.allow_all_traffic", "Allow All Traffic")}
-                  </Button>
-                </Flex>
-              </div>
+                      {t("cloud.providers.aws.allow_all_traffic", "Allow All Traffic")}
+                    </Button>
+                  </Flex>
+              </section>
 
-              <div className={cloudPanelSubcardClassName}>
+              <section className={cloudDetailSectionClassName}>
                 <div className={cloudPanelTitleClassName}>
                   {t("cloud.providers.aws.static_ip", "Static IP")}
                 </div>
-                <div className="mt-3 flex flex-col gap-2">
+                <div className={`mt-3 ${cloudDetailListClassName}`}>
                   {lightsailDetailData.static_ips.length ? lightsailDetailData.static_ips.map((staticIP) => (
-                    <div key={staticIP.name} className="rounded-lg border border-slate-200 px-3 py-2 text-sm dark:border-slate-800">
+                    <div key={staticIP.name} className={cloudDetailListItemClassName}>
                       <div className="font-medium text-slate-900 dark:text-slate-100">{staticIP.name}</div>
-                      <div className="text-slate-500 dark:text-slate-400">
+                      <div className="mt-1 text-sm text-slate-500 dark:text-slate-400">
                         {staticIP.ip_address || "-"} / {staticIP.attached_to || "-"}
                       </div>
                       <div className="mt-2 flex flex-wrap gap-2">
@@ -2985,17 +3003,17 @@ export default function AWSPanel() {
                     {t("cloud.providers.aws.allocate_static_ip", "Allocate Static IP")}
                   </Button>
                 </Flex>
-              </div>
+              </section>
 
-              <div className={cloudPanelSubcardClassName}>
+              <section className={cloudDetailSectionClassName}>
                 <div className={cloudPanelTitleClassName}>
                   {t("cloud.providers.aws.snapshots", "Snapshots")}
                 </div>
-                <div className="mt-3 flex flex-col gap-2">
+                <div className={`mt-3 ${cloudDetailListClassName}`}>
                   {lightsailDetailData.snapshots.length ? lightsailDetailData.snapshots.map((snapshot) => (
-                    <div key={snapshot.name} className="rounded-lg border border-slate-200 px-3 py-2 text-sm dark:border-slate-800">
+                    <div key={snapshot.name} className={cloudDetailListItemClassName}>
                       <div className="font-medium text-slate-900 dark:text-slate-100">{snapshot.name}</div>
-                      <div className="text-slate-500 dark:text-slate-400">
+                      <div className="mt-1 text-sm text-slate-500 dark:text-slate-400">
                         {snapshot.state || "-"} / {snapshot.size_in_gb} GB / {formatDateTime(snapshot.created_at)}
                       </div>
                     </div>
@@ -3028,7 +3046,7 @@ export default function AWSPanel() {
                     {t("cloud.providers.aws.create_snapshot", "Create Snapshot")}
                   </Button>
                 </Flex>
-              </div>
+              </section>
             </div>
           ) : null}
         </Dialog.Content>

@@ -25,6 +25,9 @@ import {
   Checkbox,
   CloudCopyBlock,
   CloudDetailItem,
+  cloudDetailListClassName,
+  cloudDetailListItemClassName,
+  cloudDetailSectionClassName,
   cloudPanelBodyTextClassName,
   cloudPanelCardClassName,
   cloudPanelDescriptionClassName,
@@ -136,9 +139,32 @@ const initialCreateForm: CreateFormState = {
   auto_connect_group: "",
 };
 
+const LINODE_LAST_TOKEN_GROUP_STORAGE_KEY = "komari-linode-last-token-group";
+
 function toErrorMessage(error: unknown) {
   if (error instanceof Error) return error.message;
   return "Unknown error";
+}
+
+function getStoredTokenGroup() {
+  try {
+    return window.localStorage.getItem(LINODE_LAST_TOKEN_GROUP_STORAGE_KEY) || "";
+  } catch {
+    return "";
+  }
+}
+
+function setStoredTokenGroup(value: string) {
+  try {
+    const normalized = value.trim();
+    if (normalized) {
+      window.localStorage.setItem(LINODE_LAST_TOKEN_GROUP_STORAGE_KEY, normalized);
+      return;
+    }
+    window.localStorage.removeItem(LINODE_LAST_TOKEN_GROUP_STORAGE_KEY);
+  } catch {
+    // ignore storage write failures
+  }
 }
 
 function hasActiveToken(pool: LinodeTokenPool | null) {
@@ -337,7 +363,7 @@ export default function LinodePanel() {
   const [tokenChecking, setTokenChecking] = React.useState(false);
   const [tokenImportOpen, setTokenImportOpen] = React.useState(false);
   const [tokenImportText, setTokenImportText] = React.useState("");
-  const [tokenImportGroup, setTokenImportGroup] = React.useState("");
+  const [tokenImportGroup, setTokenImportGroup] = React.useState(() => getStoredTokenGroup());
   const [tokenPool, setTokenPool] = React.useState<LinodeTokenPool | null>(null);
   const [selectedTokenIds, setSelectedTokenIds] = React.useState<string[]>([]);
   const [tokenGroupEditorOpen, setTokenGroupEditorOpen] = React.useState(false);
@@ -498,6 +524,15 @@ export default function LinodePanel() {
 
   const passwordStorageEnabled = Boolean(tokenPool?.password_storage_enabled);
   const tokenRows = tokenPool?.tokens ?? [];
+  const existingTokenGroups = React.useMemo(
+    () =>
+      Array.from(new Set(
+        tokenRows
+          .map((token) => token.group.trim())
+          .filter(Boolean),
+      )),
+    [tokenRows],
+  );
   const selectedTokens = tokenRows.filter((token) => selectedTokenIds.includes(token.id));
   const allTokensSelected = tokenRows.length > 0 && selectedTokenIds.length === tokenRows.length;
   const someTokensSelected = selectedTokenIds.length > 0 && selectedTokenIds.length < tokenRows.length;
@@ -569,8 +604,9 @@ export default function LinodePanel() {
       });
       setTokenPool(nextPool);
       setTokenImportText("");
-      setTokenImportGroup("");
+      setTokenImportGroup(importGroup);
       setTokenImportOpen(false);
+      setStoredTokenGroup(importGroup);
       toast.success(
         t("cloud.tokens.import_success", {
           count: tokens.length,
@@ -622,6 +658,7 @@ export default function LinodePanel() {
       setTokenGroupEditorOpen(false);
       setTokenGroupEditorIds([]);
       setTokenGroupEditorValue("");
+      setStoredTokenGroup(tokenGroupEditorValue);
       toast.success(t("cloud.tokens.group_save_success", "Token group updated"));
     } catch (saveError) {
       toast.error(toErrorMessage(saveError));
@@ -1113,91 +1150,6 @@ export default function LinodePanel() {
         />
       ) : null}
 
-      <div className={`order-0 ${cloudPanelCardClassName}`}>
-        <div className={cloudPanelHeaderClassName}>
-          <div>
-            <div className={cloudPanelTitleClassName}>
-              {t("cloud.providers.linode.account_summary", "Account Summary")}
-            </div>
-            <div className={cloudPanelDescriptionClassName}>
-              {t(
-                "cloud.providers.linode.account_summary_description",
-                "Shows the current active Linode account identity and billing balance.",
-              )}
-            </div>
-          </div>
-          <Flex gap="2" wrap="wrap">
-            <Button
-              variant="outline"
-              size="1"
-              onClick={() => setPromoOpen(true)}
-              disabled={!activeToken || panelLoading || promoSubmitting || account?.restricted}
-            >
-              {promoSubmitting
-                ? t("cloud.providers.linode.promo_redeeming", "Redeeming...")
-                : t("cloud.providers.linode.redeem_promo", "Redeem Promo")}
-            </Button>
-          </Flex>
-        </div>
-
-        {!activeToken ? (
-          <div className="text-sm text-slate-500 dark:text-slate-400">
-            {t("cloud.providers.linode.no_active_token", "Select an active Linode token first")}
-          </div>
-        ) : panelLoading && !account ? (
-          <div className="text-sm text-slate-500 dark:text-slate-400">
-            {t("cloud.loading", "Loading cloud resources...")}
-          </div>
-        ) : !resourcesLoaded && !account ? (
-          <div className="text-sm text-slate-500 dark:text-slate-400">
-            {t("cloud.load_resources_prompt", "Click Refresh to load cloud resources on demand.")}
-          </div>
-        ) : account ? (
-          <div className="flex flex-col gap-4">
-            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-              <div className="rounded-2xl border border-emerald-200/80 bg-emerald-50/80 p-4 dark:border-emerald-900/70 dark:bg-emerald-950/30">
-                <div className="text-xs font-medium uppercase tracking-[0.2em] text-emerald-700/80 dark:text-emerald-300/80">
-                  {t("cloud.providers.linode.balance", "Balance")}
-                </div>
-                <div className="mt-2 text-2xl font-semibold text-emerald-900 dark:text-emerald-100">
-                  {formatUsdCurrency(account.balance)}
-                </div>
-              </div>
-              <DetailItem
-                label={t("cloud.providers.linode.username", "Username")}
-                value={account.username || "-"}
-              />
-              <DetailItem
-                label={t("cloud.providers.linode.email", "Email")}
-                value={account.email || "-"}
-              />
-              <DetailItem
-                label={t("cloud.providers.linode.company", "Company")}
-                value={account.company || "-"}
-              />
-            </div>
-            <div className={cloudPanelSubcardClassName}>
-              <div className="grid gap-3 md:grid-cols-2">
-                <DetailItem
-                  label={t("cloud.providers.linode.active_token", "Active Token")}
-                  value={activeToken?.name || activeToken?.profile_email || "-"}
-                />
-                <DetailItem
-                  label={t("cloud.table.status", "Status")}
-                  value={
-                    account.restricted
-                      ? t("cloud.providers.linode.restricted", "Restricted")
-                      : t("cloud.tokens.status.healthy", "Healthy")
-                  }
-                />
-              </div>
-            </div>
-          </div>
-        ) : (
-          <div className="text-sm text-slate-500 dark:text-slate-400">-</div>
-        )}
-      </div>
-
       <div className={`order-2 ${cloudPanelCardClassName}`}>
             <div className={cloudPanelHeaderClassName}>
               <div>
@@ -1406,6 +1358,16 @@ export default function LinodePanel() {
                   <Button
                     variant="outline"
                     size="1"
+                    onClick={() => setPromoOpen(true)}
+                    disabled={!activeToken || panelLoading || promoSubmitting || account?.restricted}
+                  >
+                    {promoSubmitting
+                      ? t("cloud.providers.linode.promo_redeeming", "Redeeming...")
+                      : t("cloud.providers.linode.redeem_promo", "Redeem Promo")}
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="1"
                     onClick={() => {
                       void handleCheckTokens();
                     }}
@@ -1511,8 +1473,12 @@ export default function LinodePanel() {
                           <div className="text-sm text-slate-900 dark:text-slate-100">
                             {token.profile_email || token.profile_username || "-"}
                           </div>
-                          {token.account_company ? (
-                            <div className="text-xs text-slate-500 dark:text-slate-400">{token.account_company}</div>
+                          {token.last_status === "healthy" ? (
+                            <div className="text-xs text-slate-500 dark:text-slate-400">
+                              {t("cloud.providers.linode.balance", "Balance")}
+                              : {" "}
+                              {formatUsdCurrency(token.account_balance)}
+                            </div>
                           ) : null}
                           {isRestrictedLinodeToken(token) ? (
                             <div className="mt-1">
@@ -1565,15 +1531,6 @@ export default function LinodePanel() {
                             <Button
                               variant="soft"
                               size="1"
-                              onClick={() => {
-                                openTokenGroupEditor([token]);
-                              }}
-                            >
-                              {t("cloud.tokens.set_group", "Set Group")}
-                            </Button>
-                            <Button
-                              variant="soft"
-                              size="1"
                               disabled={tokenSecretLoading}
                               onClick={() => {
                                 void handleViewTokenSecret(token);
@@ -1622,6 +1579,21 @@ export default function LinodePanel() {
               placeholder={t("cloud.tokens.group_placeholder", "Optional token group")}
               onChange={(event) => setTokenImportGroup(event.target.value)}
             />
+            {existingTokenGroups.length > 0 ? (
+              <div className="flex flex-wrap gap-2">
+                {existingTokenGroups.map((group) => (
+                  <Button
+                    key={group}
+                    variant={tokenImportGroup.trim() === group ? "solid" : "outline"}
+                    size="1"
+                    type="button"
+                    onClick={() => setTokenImportGroup(group)}
+                  >
+                    {group}
+                  </Button>
+                ))}
+              </div>
+            ) : null}
             <TextArea
               className="min-h-40 font-mono text-xs [overflow-wrap:anywhere]"
               value={tokenImportText}
@@ -1663,6 +1635,21 @@ export default function LinodePanel() {
               placeholder={t("cloud.tokens.group_placeholder", "Optional token group")}
               onChange={(event) => setTokenGroupEditorValue(event.target.value)}
             />
+            {existingTokenGroups.length > 0 ? (
+              <div className="flex flex-wrap gap-2">
+                {existingTokenGroups.map((group) => (
+                  <Button
+                    key={group}
+                    variant={tokenGroupEditorValue.trim() === group ? "solid" : "outline"}
+                    size="1"
+                    type="button"
+                    onClick={() => setTokenGroupEditorValue(group)}
+                  >
+                    {group}
+                  </Button>
+                ))}
+              </div>
+            ) : null}
             <Flex justify="end" gap="2">
               <Button
                 variant="outline"
@@ -1925,105 +1912,99 @@ export default function LinodePanel() {
             <div className="mt-4 text-sm text-slate-500 dark:text-slate-400">{t("cloud.loading", "Loading cloud resources...")}</div>
           ) : detailData ? (
             <div className="mt-4 flex flex-col gap-4">
-              <div className="grid gap-3 sm:grid-cols-2">
-                <DetailItem
-                  label={t("cloud.providers.linode.instance_id", "Linode ID")}
-                  value={detailData.instance.id}
-                />
-                <DetailItem
-                  label={t("cloud.table.status", "Status")}
-                  value={getCloudStatusLabel(detailData.instance.status, t)}
-                />
-                <DetailItem label={t("cloud.table.region", "Region")} value={detailData.instance.region || "-"} />
-                <DetailItem label={t("cloud.table.ip", "Public IP")} value={detailData.instance.ipv4[0] || detailData.instance.ipv6 || "-"} />
-                <DetailItem label={t("cloud.table.size", "Size")} value={detailData.instance.type || "-"} />
-                <DetailItem label={t("cloud.table.image", "Image")} value={detailData.instance.image || "-"} />
-                <DetailItem label={t("cloud.table.created_at", "Created")} value={formatDateTime(detailData.instance.created)} />
-                <DetailItem label={t("cloud.detail.memory", "Memory")} value={`${detailData.instance.specs.memory} MB`} />
-                <DetailItem label={t("cloud.detail.vcpus", "vCPUs")} value={detailData.instance.specs.vcpus} />
-                <DetailItem label={t("cloud.detail.disk", "Disk")} value={`${detailData.instance.specs.disk} GB`} />
-                <DetailItem label={t("cloud.detail.tags", "Tags")} value={formatList(detailData.instance.tags)} />
-                <DetailItem
-                  label={t("cloud.table.password", "Root Password")}
-                  value={
-                    detailData.instance.saved_root_password ? (
-                      <Button
-                        variant="soft"
-                        size="1"
-                        disabled={!passwordStorageEnabled || passwordLoading}
-                        onClick={() => {
-                          void handleViewPassword(detailData.instance);
-                        }}
-                      >
-                        <KeyRound className="mr-1 h-3.5 w-3.5" />
-                        {t("cloud.password.view", "View Password")}
-                      </Button>
-                    ) : (
-                      t("cloud.password.not_saved", "Not saved")
-                    )
-                  }
-                />
-              </div>
+              <section className="pt-0">
+                <div className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">
+                  {t("cloud.detail.summary", "Summary")}
+                </div>
+                <div className="mt-2 grid gap-x-6 sm:grid-cols-2 xl:grid-cols-3">
+                  <DetailItem
+                    variant="plain"
+                    label={t("cloud.providers.linode.instance_id", "Linode ID")}
+                    value={detailData.instance.id}
+                  />
+                  <DetailItem
+                    variant="plain"
+                    label={t("cloud.table.status", "Status")}
+                    value={getCloudStatusLabel(detailData.instance.status, t)}
+                  />
+                  <DetailItem variant="plain" label={t("cloud.table.region", "Region")} value={detailData.instance.region || "-"} />
+                  <DetailItem variant="plain" label={t("cloud.table.ip", "Public IP")} value={detailData.instance.ipv4[0] || detailData.instance.ipv6 || "-"} />
+                  <DetailItem variant="plain" label={t("cloud.table.size", "Size")} value={detailData.instance.type || "-"} />
+                  <DetailItem variant="plain" label={t("cloud.table.image", "Image")} value={detailData.instance.image || "-"} />
+                  <DetailItem variant="plain" label={t("cloud.table.created_at", "Created")} value={formatDateTime(detailData.instance.created)} />
+                  <DetailItem variant="plain" label={t("cloud.detail.memory", "Memory")} value={`${detailData.instance.specs.memory} MB`} />
+                  <DetailItem variant="plain" label={t("cloud.detail.vcpus", "vCPUs")} value={detailData.instance.specs.vcpus} />
+                  <DetailItem variant="plain" label={t("cloud.detail.disk", "Disk")} value={`${detailData.instance.specs.disk} GB`} />
+                  <DetailItem variant="plain" label={t("cloud.detail.tags", "Tags")} value={formatList(detailData.instance.tags)} />
+                  <DetailItem
+                    variant="plain"
+                    label={t("cloud.table.password", "Root Password")}
+                    value={
+                      detailData.instance.saved_root_password ? (
+                        <Button
+                          variant="soft"
+                          size="1"
+                          disabled={!passwordStorageEnabled || passwordLoading}
+                          onClick={() => {
+                            void handleViewPassword(detailData.instance);
+                          }}
+                        >
+                          <KeyRound className="mr-1 h-3.5 w-3.5" />
+                          {t("cloud.password.view", "View Password")}
+                        </Button>
+                      ) : (
+                        t("cloud.password.not_saved", "Not saved")
+                      )
+                    }
+                  />
+                </div>
+              </section>
 
-              <div className={cloudPanelSubcardClassName}>
-                <div className={cloudPanelTitleClassName}>
+              <section className={cloudDetailSectionClassName}>
+                <div className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">
                   {t("cloud.providers.linode.disks", "Disks")}
                 </div>
-                <div className="mt-3 flex flex-col gap-2">
-                  {detailData.disks.length ? detailData.disks.map((disk: LinodeDisk) => (
-                    <div key={disk.id} className="rounded-lg border border-slate-200 px-3 py-2 text-sm dark:border-slate-800">
-                      <div className="font-medium text-slate-900 dark:text-slate-100">{disk.label || `Disk ${disk.id}`}</div>
-                      <div className="text-slate-500 dark:text-slate-400">
-                        {disk.size} MB / {disk.filesystem || "-"} / {disk.status || "-"}
+                {detailData.disks.length ? (
+                  <div className={`mt-2 ${cloudDetailListClassName}`}>
+                    {detailData.disks.map((disk: LinodeDisk) => (
+                      <div key={disk.id} className={cloudDetailListItemClassName}>
+                        <div className="font-medium text-slate-900 dark:text-slate-100">{disk.label || `Disk ${disk.id}`}</div>
+                        <div className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+                          {disk.size} MB / {disk.filesystem || "-"} / {disk.status || "-"}
+                        </div>
                       </div>
-                    </div>
-                  )) : (
-                    <div className="text-sm text-slate-500 dark:text-slate-400">-</div>
-                  )}
-                </div>
-              </div>
-
-              <div className={cloudPanelSubcardClassName}>
-                <div className={cloudPanelTitleClassName}>
-                  {t("cloud.providers.linode.configs", "Configs")}
-                </div>
-                <div className="mt-3 flex flex-col gap-2">
-                  {detailData.configs.length ? detailData.configs.map((config: LinodeConfig) => (
-                    <div key={config.id} className="rounded-lg border border-slate-200 px-3 py-2 text-sm dark:border-slate-800">
-                      <div className="font-medium text-slate-900 dark:text-slate-100">{config.label || `Config ${config.id}`}</div>
-                      <div className="text-slate-500 dark:text-slate-400">
-                        {config.kernel || "-"} / {config.root_device || "-"} / {config.run_level || "-"}
-                      </div>
-                    </div>
-                  )) : (
-                    <div className="text-sm text-slate-500 dark:text-slate-400">-</div>
-                  )}
-                </div>
-              </div>
-
-              <div className={cloudPanelSubcardClassName}>
-                <div className={cloudPanelTitleClassName}>
-                  {t("cloud.providers.linode.backups", "Backups")}
-                </div>
-                {detailData.backups ? (
-                  <div className="mt-3 space-y-2 text-sm text-slate-700 dark:text-slate-300">
-                    <div>
-                      {t("cloud.form.backups", "Enable backups")}: {detailData.backups.enabled ? t("common.yes", "Yes") : t("common.no", "No")}
-                    </div>
-                    <div>
-                      {t("cloud.providers.linode.last_successful", "Last Successful")}: {formatDateTime(detailData.backups.last_successful)}
-                    </div>
-                    <div>
-                      {t("cloud.providers.linode.backup_schedule", "Schedule")}: {detailData.backups.schedule.day || "-"} / {detailData.backups.schedule.window || "-"}
-                    </div>
-                    <div>
-                      {t("cloud.providers.linode.backup_automatic", "Automatic")}: {detailData.backups.automatic.length}
-                    </div>
+                    ))}
                   </div>
                 ) : (
-                  <div className="mt-3 text-sm text-slate-500 dark:text-slate-400">-</div>
+                  <div className="mt-2 text-sm text-slate-500 dark:text-slate-400">-</div>
                 )}
-                <Flex justify="end" gap="2" className="mt-3">
+              </section>
+
+              <section className={cloudDetailSectionClassName}>
+                <div className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">
+                  {t("cloud.providers.linode.configs", "Configs")}
+                </div>
+                {detailData.configs.length ? (
+                  <div className={`mt-2 ${cloudDetailListClassName}`}>
+                    {detailData.configs.map((config: LinodeConfig) => (
+                      <div key={config.id} className={cloudDetailListItemClassName}>
+                        <div className="font-medium text-slate-900 dark:text-slate-100">{config.label || `Config ${config.id}`}</div>
+                        <div className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+                          {config.kernel || "-"} / {config.root_device || "-"} / {config.run_level || "-"}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="mt-2 text-sm text-slate-500 dark:text-slate-400">-</div>
+                )}
+              </section>
+
+              <section className={cloudDetailSectionClassName}>
+                <Flex justify="between" align="center" wrap="wrap" gap="2">
+                  <div className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">
+                    {t("cloud.providers.linode.backups", "Backups")}
+                  </div>
                   <Button
                     size="1"
                     disabled={detailActionLoading}
@@ -2034,101 +2015,129 @@ export default function LinodePanel() {
                     {t("cloud.providers.linode.create_snapshot", "Create Snapshot")}
                   </Button>
                 </Flex>
-              </div>
-
-              <div className="grid gap-4 sm:grid-cols-2">
-                <div className={cloudPanelSubcardClassName}>
-                  <div className={cloudPanelTitleClassName}>
-                    {t("cloud.providers.linode.resize", "Resize")}
+                {detailData.backups ? (
+                  <div className="mt-2 grid gap-x-6 sm:grid-cols-2">
+                    <DetailItem
+                      variant="plain"
+                      label={t("cloud.form.backups", "Enable backups")}
+                      value={detailData.backups.enabled ? t("common.yes", "Yes") : t("common.no", "No")}
+                    />
+                    <DetailItem
+                      variant="plain"
+                      label={t("cloud.providers.linode.last_successful", "Last Successful")}
+                      value={formatDateTime(detailData.backups.last_successful)}
+                    />
+                    <DetailItem
+                      variant="plain"
+                      label={t("cloud.providers.linode.backup_schedule", "Schedule")}
+                      value={`${detailData.backups.schedule.day || "-"} / ${detailData.backups.schedule.window || "-"}`}
+                    />
+                    <DetailItem
+                      variant="plain"
+                      label={t("cloud.providers.linode.backup_automatic", "Automatic")}
+                      value={detailData.backups.automatic.length}
+                    />
                   </div>
-                  <Select.Root value={resizeTargetType || SELECT_NONE} onValueChange={(value) => setResizeTargetType(value === SELECT_NONE ? "" : value)}>
-                    <Select.Trigger className="mt-3" placeholder={t("cloud.form.size_placeholder", "Select a size")} />
-                    <Select.Content>
-                      <Select.Item value={SELECT_NONE}>{t("cloud.providers.aws.none", "None")}</Select.Item>
-                      {(catalog?.types || []).map((type) => (
-                        <Select.Item key={type.id} value={type.id}>
-                          {getLinodeTypeOptionLabel(type)}
-                        </Select.Item>
-                      ))}
-                    </Select.Content>
-                  </Select.Root>
-                  <Flex justify="end" gap="2" className="mt-3">
-                    <Button
-                      size="1"
-                      disabled={detailActionLoading || !resizeTargetType}
-                      onClick={() => {
-                        void handleDetailInstanceAction({
-                          type: "resize",
-                          target_type: resizeTargetType,
-                        });
-                      }}
-                    >
+                ) : (
+                  <div className="mt-2 text-sm text-slate-500 dark:text-slate-400">-</div>
+                )}
+              </section>
+
+              <section className={cloudDetailSectionClassName}>
+                <div className="grid gap-6 lg:grid-cols-2">
+                  <div>
+                    <div className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">
                       {t("cloud.providers.linode.resize", "Resize")}
-                    </Button>
-                  </Flex>
-                </div>
-
-                <div className={cloudPanelSubcardClassName}>
-                  <div className={cloudPanelTitleClassName}>
-                    {t("cloud.providers.linode.reset_password", "Reset Root Password")}
+                    </div>
+                    <Select.Root value={resizeTargetType || SELECT_NONE} onValueChange={(value) => setResizeTargetType(value === SELECT_NONE ? "" : value)}>
+                      <Select.Trigger className="mt-3" placeholder={t("cloud.form.size_placeholder", "Select a size")} />
+                      <Select.Content>
+                        <Select.Item value={SELECT_NONE}>{t("cloud.providers.aws.none", "None")}</Select.Item>
+                        {(catalog?.types || []).map((type) => (
+                          <Select.Item key={type.id} value={type.id}>
+                            {getLinodeTypeOptionLabel(type)}
+                          </Select.Item>
+                        ))}
+                      </Select.Content>
+                    </Select.Root>
+                    <Flex justify="end" gap="2" className="mt-3">
+                      <Button
+                        size="1"
+                        disabled={detailActionLoading || !resizeTargetType}
+                        onClick={() => {
+                          void handleDetailInstanceAction({
+                            type: "resize",
+                            target_type: resizeTargetType,
+                          });
+                        }}
+                      >
+                        {t("cloud.providers.linode.resize", "Resize")}
+                      </Button>
+                    </Flex>
                   </div>
-                  <Select.Root
-                    value={detailPasswordState.mode}
-                    onValueChange={(value) =>
-                      setDetailPasswordState((previous) => ({
-                        ...previous,
-                        mode: value as "custom" | "random",
-                        password: value === "custom" ? previous.password : "",
-                      }))
-                    }
-                  >
-                    <Select.Trigger className="mt-3" placeholder={t("cloud.form.root_access_placeholder", "Select access mode")} />
-                    <Select.Content>
-                      <Select.Item value="custom">
-                        {t("cloud.form.root_access_modes.custom", "Custom root password")}
-                      </Select.Item>
-                      <Select.Item value="random">
-                        {t("cloud.form.root_access_modes.random", "Random root password")}
-                      </Select.Item>
-                    </Select.Content>
-                  </Select.Root>
-                  {detailPasswordState.mode === "custom" ? (
-                    <TextField.Root
-                      className="mt-3"
-                      type="password"
-                      value={detailPasswordState.password}
-                      placeholder={t("cloud.form.root_password_placeholder", "Enter a root password")}
-                      onChange={(event) =>
+
+                  <div>
+                    <div className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">
+                      {t("cloud.providers.linode.reset_password", "Reset Root Password")}
+                    </div>
+                    <Select.Root
+                      value={detailPasswordState.mode}
+                      onValueChange={(value) =>
                         setDetailPasswordState((previous) => ({
                           ...previous,
-                          password: event.target.value,
+                          mode: value as "custom" | "random",
+                          password: value === "custom" ? previous.password : "",
                         }))
                       }
-                    />
-                  ) : null}
-                  <Flex justify="end" gap="2" className="mt-3">
-                    <Button
-                      size="1"
-                      disabled={detailActionLoading || (detailPasswordState.mode === "custom" && !detailPasswordState.password)}
-                      onClick={() => {
-                        void handleDetailInstanceAction({
-                          type: "reset_root_password",
-                          root_password_mode: detailPasswordState.mode,
-                          root_password: detailPasswordState.password,
-                        });
-                      }}
                     >
-                      {t("cloud.providers.linode.reset_password", "Reset Root Password")}
-                    </Button>
-                  </Flex>
+                      <Select.Trigger className="mt-3" placeholder={t("cloud.form.root_access_placeholder", "Select access mode")} />
+                      <Select.Content>
+                        <Select.Item value="custom">
+                          {t("cloud.form.root_access_modes.custom", "Custom root password")}
+                        </Select.Item>
+                        <Select.Item value="random">
+                          {t("cloud.form.root_access_modes.random", "Random root password")}
+                        </Select.Item>
+                      </Select.Content>
+                    </Select.Root>
+                    {detailPasswordState.mode === "custom" ? (
+                      <TextField.Root
+                        className="mt-3"
+                        type="password"
+                        value={detailPasswordState.password}
+                        placeholder={t("cloud.form.root_password_placeholder", "Enter a root password")}
+                        onChange={(event) =>
+                          setDetailPasswordState((previous) => ({
+                            ...previous,
+                            password: event.target.value,
+                          }))
+                        }
+                      />
+                    ) : null}
+                    <Flex justify="end" gap="2" className="mt-3">
+                      <Button
+                        size="1"
+                        disabled={detailActionLoading || (detailPasswordState.mode === "custom" && !detailPasswordState.password)}
+                        onClick={() => {
+                          void handleDetailInstanceAction({
+                            type: "reset_root_password",
+                            root_password_mode: detailPasswordState.mode,
+                            root_password: detailPasswordState.password,
+                          });
+                        }}
+                      >
+                        {t("cloud.providers.linode.reset_password", "Reset Root Password")}
+                      </Button>
+                    </Flex>
+                  </div>
                 </div>
-              </div>
+              </section>
 
-              <div className={cloudPanelSubcardClassName}>
-                <div className={cloudPanelTitleClassName}>
+              <section className={cloudDetailSectionClassName}>
+                <div className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">
                   {t("cloud.providers.linode.rebuild", "Rebuild")}
                 </div>
-                <div className="grid gap-3 sm:grid-cols-2 mt-3">
+                <div className="mt-3 grid gap-3 sm:grid-cols-2">
                   <Select.Root value={rebuildImage || SELECT_NONE} onValueChange={(value) => setRebuildImage(value === SELECT_NONE ? "" : value)}>
                     <Select.Trigger placeholder={t("cloud.form.image_placeholder", "Select an image")} />
                     <Select.Content>
@@ -2203,7 +2212,7 @@ export default function LinodePanel() {
                     {t("cloud.providers.linode.rebuild", "Rebuild")}
                   </Button>
                 </Flex>
-              </div>
+              </section>
             </div>
           ) : null}
         </Dialog.Content>
