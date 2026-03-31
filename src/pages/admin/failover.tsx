@@ -409,6 +409,22 @@ function getFailoverExecutionStepMessage(t: TFunction, step: FailoverExecutionSt
       return t("failover.execution.step_messages.dns_updated", { defaultValue: "DNS updated" });
     case "old instance deleted":
       return t("failover.execution.step_messages.old_instance_deleted", { defaultValue: "Old instance deleted" });
+    case "old instance already missing; no cleanup required":
+      return t("failover.execution.step_messages.old_instance_missing_no_cleanup", {
+        defaultValue: "Old instance already missing; no cleanup required",
+      });
+    case "original cloud credential was deleted; manual cleanup review required":
+      return t("failover.execution.step_messages.cleanup_manual_review_deleted_entry", {
+        defaultValue: "Original cloud credential was deleted; manual cleanup review required",
+      });
+    case "original cloud credential is unavailable; manual cleanup review required":
+      return t("failover.execution.step_messages.cleanup_manual_review_unavailable_entry", {
+        defaultValue: "Original cloud credential is unavailable; manual cleanup review required",
+      });
+    case "old instance cleanup could not be verified; manual review required":
+      return t("failover.execution.step_messages.cleanup_manual_review_unknown", {
+        defaultValue: "Old instance cleanup could not be verified; manual review required",
+      });
     case "failed new instance deleted":
       return t("failover.execution.step_messages.failed_new_instance_deleted", {
         defaultValue: "Failed new instance deleted",
@@ -428,6 +444,569 @@ function getFailoverExecutionStepMessage(t: TFunction, step: FailoverExecutionSt
     default:
       return message;
   }
+}
+
+type CleanupResultInfo = {
+  classification: string;
+  title: string;
+  description: string;
+  tone: "success" | "warning" | "destructive" | "secondary";
+  errorMessage: string;
+};
+
+type ExecutionEntryAttemptSummary = {
+  entry_id: string;
+  entry_name: string;
+  entry_group: string;
+  attempt: number;
+  status: string;
+  error: string;
+  failure_class: string;
+  preferred: boolean;
+  active: boolean;
+};
+
+type ExecutionPlanAttemptSummary = {
+  plan_id: number;
+  plan_name: string;
+  priority: number;
+  provider: string;
+  action_type: string;
+  preferred_entry_id: string;
+  preferred_entry_group: string;
+  provider_entry_id: string;
+  status: string;
+  error: string;
+  provider_entry_attempts: ExecutionEntryAttemptSummary[];
+};
+
+function asRecord(value: unknown) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return null;
+  }
+  return value as Record<string, unknown>;
+}
+
+function getCleanupFailureClassLabel(t: TFunction, failureClass: string) {
+  const normalized = String(failureClass || "").trim().toLowerCase();
+  switch (normalized) {
+    case "auth_invalid":
+      return t("failover.execution.cleanup_failure_classes.auth_invalid", {
+        defaultValue: "credential rejected",
+      });
+    case "billing_locked":
+      return t("failover.execution.cleanup_failure_classes.billing_locked", {
+        defaultValue: "account locked or billing restricted",
+      });
+    case "rate_limited":
+      return t("failover.execution.cleanup_failure_classes.rate_limited", {
+        defaultValue: "provider API rate limited the request",
+      });
+    case "quota_exhausted":
+      return t("failover.execution.cleanup_failure_classes.quota_exhausted", {
+        defaultValue: "provider quota or account limits blocked the request",
+      });
+    case "transient_error":
+      return t("failover.execution.cleanup_failure_classes.transient_error", {
+        defaultValue: "provider API query failed",
+      });
+    default:
+      return "";
+  }
+}
+
+function getCleanupResultInfo(
+  t: TFunction,
+  cleanupStatus: string,
+  cleanupResult: unknown,
+): CleanupResultInfo | null {
+  const raw = asRecord(cleanupResult);
+  const classification = getStringValue(raw?.classification).toLowerCase();
+  const backendSummary = getStringValue(raw?.summary);
+  const errorMessage = getStringValue(raw?.error_message);
+  const failureLabel = getCleanupFailureClassLabel(t, getStringValue(raw?.provider_failure_class));
+  const summaryWithReason = failureLabel
+    ? t("failover.execution.cleanup_messages.reason", {
+      defaultValue: "Reason: {{reason}}",
+      reason: failureLabel,
+    })
+    : "";
+
+  switch (classification) {
+    case "not_requested":
+    case "":
+      if (!backendSummary) {
+        return null;
+      }
+      break;
+    case "instance_deleted":
+      return {
+        classification,
+        title: t("failover.execution.cleanup_messages.instance_deleted_title", {
+          defaultValue: "Old instance deleted",
+        }),
+        description: t("failover.execution.cleanup_messages.instance_deleted_description", {
+          defaultValue: "The old instance was deleted successfully.",
+        }),
+        tone: "success",
+        errorMessage,
+      };
+    case "instance_missing":
+      return {
+        classification,
+        title: t("failover.execution.cleanup_messages.instance_missing_title", {
+          defaultValue: "Old instance already missing",
+        }),
+        description: t("failover.execution.cleanup_messages.instance_missing_description", {
+          defaultValue: "The system confirmed the old instance was already gone, so no cleanup action was required.",
+        }),
+        tone: "secondary",
+        errorMessage,
+      };
+    case "provider_entry_missing":
+      return {
+        classification,
+        title: t("failover.execution.cleanup_messages.provider_entry_missing_title", {
+          defaultValue: "Original cloud credential was deleted",
+        }),
+        description: t("failover.execution.cleanup_messages.provider_entry_missing_description", {
+          defaultValue: "The system can no longer access the original cloud account, so it could not confirm whether the old instance still exists or is still billing. Review the original cloud account manually.",
+        }),
+        tone: "warning",
+        errorMessage,
+      };
+    case "provider_entry_unhealthy":
+      return {
+        classification,
+        title: t("failover.execution.cleanup_messages.provider_entry_unhealthy_title", {
+          defaultValue: "Original cloud credential is unavailable",
+        }),
+        description: [t("failover.execution.cleanup_messages.provider_entry_unhealthy_description", {
+          defaultValue: "The original cloud credential is no longer usable, so the system could not confirm the old instance state. Review the original cloud account manually.",
+        }), summaryWithReason].filter(Boolean).join(" "),
+        tone: "warning",
+        errorMessage,
+      };
+    case "cleanup_status_unknown":
+      return {
+        classification,
+        title: t("failover.execution.cleanup_messages.cleanup_status_unknown_title", {
+          defaultValue: "Old instance cleanup status is unknown",
+        }),
+        description: [t("failover.execution.cleanup_messages.cleanup_status_unknown_description", {
+          defaultValue: "The system could not query the original cloud account successfully, so it could not confirm whether the old instance still exists. Review the original cloud account manually.",
+        }), summaryWithReason].filter(Boolean).join(" "),
+        tone: "warning",
+        errorMessage,
+      };
+    case "instance_confirmed_delete_failed":
+      return {
+        classification,
+        title: t("failover.execution.cleanup_messages.instance_confirmed_delete_failed_title", {
+          defaultValue: "Old instance still exists, but delete failed",
+        }),
+        description: t("failover.execution.cleanup_messages.instance_confirmed_delete_failed_description", {
+          defaultValue: "The system confirmed the old instance still existed before the delete failed, so it is likely still billing until removed.",
+        }),
+        tone: "destructive",
+        errorMessage,
+      };
+    default:
+      break;
+  }
+
+  const normalizedStatus = String(cleanupStatus || "").trim().toLowerCase();
+  if (!backendSummary && !errorMessage) {
+    return null;
+  }
+
+  return {
+    classification,
+    title: backendSummary || getStatusLabel(t, cleanupStatus),
+    description: "",
+    tone:
+      normalizedStatus === "failed"
+        ? "destructive"
+        : normalizedStatus === "warning"
+          ? "warning"
+          : normalizedStatus === "success"
+            ? "success"
+            : "secondary",
+    errorMessage,
+  };
+}
+
+function normalizeExecutionEntryAttempt(value: unknown): ExecutionEntryAttemptSummary {
+  const raw = asRecord(value);
+  return {
+    entry_id: getStringValue(raw?.entry_id),
+    entry_name: getStringValue(raw?.entry_name),
+    entry_group: getStringValue(raw?.entry_group),
+    attempt: getNumberValue(raw?.attempt, 0),
+    status: getStringValue(raw?.status),
+    error: getStringValue(raw?.error),
+    failure_class: getStringValue(raw?.failure_class),
+    preferred: getBooleanValue(raw?.preferred),
+    active: getBooleanValue(raw?.active),
+  };
+}
+
+function normalizeExecutionPlanAttempt(value: unknown): ExecutionPlanAttemptSummary {
+  const raw = asRecord(value);
+  return {
+    plan_id: getNumberValue(raw?.plan_id, 0),
+    plan_name: getStringValue(raw?.plan_name),
+    priority: getNumberValue(raw?.priority, 0),
+    provider: getStringValue(raw?.provider),
+    action_type: getStringValue(raw?.action_type),
+    preferred_entry_id: getStringValue(raw?.preferred_entry_id),
+    preferred_entry_group: getStringValue(raw?.preferred_entry_group),
+    provider_entry_id: getStringValue(raw?.provider_entry_id),
+    status: getStringValue(raw?.status),
+    error: getStringValue(raw?.error),
+    provider_entry_attempts: Array.isArray(raw?.provider_entry_attempts)
+      ? raw.provider_entry_attempts.map(normalizeExecutionEntryAttempt)
+      : [],
+  };
+}
+
+function getExecutionPlanAttempts(value: unknown) {
+  if (!Array.isArray(value)) {
+    return [] as ExecutionPlanAttemptSummary[];
+  }
+
+  return value
+    .map(normalizeExecutionPlanAttempt)
+    .filter((attempt) => (
+      attempt.plan_id > 0
+      || attempt.plan_name
+      || attempt.provider
+      || attempt.action_type
+      || attempt.status
+      || attempt.error
+      || attempt.provider_entry_attempts.length > 0
+    ));
+}
+
+function getLastExecutionPlanAttempt(value: unknown) {
+  const attempts = getExecutionPlanAttempts(value);
+  return attempts.length > 0 ? attempts[attempts.length - 1] : null;
+}
+
+function getLastExecutionEntryAttempt(attempt: ExecutionPlanAttemptSummary | null) {
+  if (!attempt) {
+    return null;
+  }
+  if (attempt.provider_entry_attempts.length > 0) {
+    return attempt.provider_entry_attempts[attempt.provider_entry_attempts.length - 1];
+  }
+  if (!attempt.provider_entry_id) {
+    return null;
+  }
+  return {
+    entry_id: attempt.provider_entry_id,
+    entry_name: "",
+    entry_group: attempt.preferred_entry_group,
+    attempt: 0,
+    status: attempt.status,
+    error: attempt.error,
+    failure_class: "",
+    preferred: false,
+    active: false,
+  } satisfies ExecutionEntryAttemptSummary;
+}
+
+function getSelectedTaskPlan(
+  plans: FailoverTask["plans"],
+  selectedPlanID: number | null | undefined,
+) {
+  if (!selectedPlanID) {
+    return null;
+  }
+  return plans.find((plan) => plan.id === selectedPlanID) || null;
+}
+
+function getExecutionPlanSummaryText(
+  t: TFunction,
+  taskPlan: FailoverTask["plans"][number] | null,
+  attempt: ExecutionPlanAttemptSummary | null,
+) {
+  const planName = taskPlan?.name || attempt?.plan_name || "";
+  const provider = taskPlan?.provider || attempt?.provider || "";
+  const actionType = taskPlan?.action_type || attempt?.action_type || "";
+  const parts = [
+    planName || (taskPlan?.id || attempt?.plan_id
+      ? t("failover.execution.summary.plan_id", {
+        defaultValue: "Plan #{{id}}",
+        id: taskPlan?.id || attempt?.plan_id || 0,
+      })
+      : ""),
+    provider ? getPlanProviderLabel(t, provider) : "",
+    actionType ? getActionTypeLabel(t, actionType) : "",
+  ].filter(Boolean);
+
+  return parts.join(" · ");
+}
+
+function getExecutionEntrySummaryText(
+  t: TFunction,
+  attempt: ExecutionPlanAttemptSummary | null,
+  entryAttempt: ExecutionEntryAttemptSummary | null,
+) {
+  if (!attempt && !entryAttempt) {
+    return "";
+  }
+
+  const entryID = entryAttempt?.entry_id || attempt?.provider_entry_id || attempt?.preferred_entry_id || "";
+  const entryName = entryAttempt?.entry_name || "";
+  const entryGroup = entryAttempt?.entry_group || attempt?.preferred_entry_group || "";
+  const parts = [
+    entryName || entryID,
+    entryGroup
+      ? t("failover.execution.summary.entry_group", {
+        defaultValue: "Group {{group}}",
+        group: entryGroup,
+      })
+      : "",
+    entryAttempt?.status
+      ? getStatusLabel(t, entryAttempt.status)
+      : attempt?.status
+        ? getStatusLabel(t, attempt.status)
+        : "",
+  ].filter(Boolean);
+
+  return parts.join(" · ");
+}
+
+function getFailureClassSummaryLabel(t: TFunction, value: string) {
+  const normalized = String(value || "").trim().toLowerCase();
+  if (!normalized) {
+    return "";
+  }
+
+  switch (normalized) {
+    case "pre_reclaim_error":
+      return t("failover.execution.failure_classes.pre_reclaim_error", {
+        defaultValue: "pre-cleanup failed",
+      });
+    case "post_provision_error":
+      return t("failover.execution.failure_classes.post_provision_error", {
+        defaultValue: "post-provision setup failed",
+      });
+    default:
+      return t(`failover.execution.failure_classes.${normalized}`, {
+        defaultValue: humanizeStatus(normalized),
+      });
+  }
+}
+
+type DetailItem = {
+  label: string;
+  value: string;
+};
+
+function buildDetailItem(label: string, value: string) {
+  const normalizedLabel = String(label || "").trim();
+  const normalizedValue = String(value || "").trim();
+  if (!normalizedLabel || !normalizedValue) {
+    return null;
+  }
+  return {
+    label: normalizedLabel,
+    value: normalizedValue,
+  } satisfies DetailItem;
+}
+
+function formatDetailValue(t: TFunction, key: string, value: unknown) {
+  if (value === null || value === undefined || value === "") {
+    return "";
+  }
+
+  switch (key) {
+    case "provider":
+      return getPlanProviderLabel(t, getStringValue(value));
+    case "action_type":
+      return getActionTypeLabel(t, getStringValue(value));
+    case "status":
+      return getStatusLabel(t, getStringValue(value));
+    case "retry_after_seconds":
+      return formatDurationSeconds(getNumberValue(value, 0), t);
+    case "latency":
+      return `${getNumberValue(value, 0)} ms`;
+    case "checked_at":
+      return formatDateTime(typeof value === "string" ? value : String(value));
+    case "preferred":
+    case "active":
+    case "output_truncated":
+    case "script_output_available":
+      return getBooleanValue(value)
+        ? t("common.yes", { defaultValue: "Yes" })
+        : t("common.no", { defaultValue: "No" });
+    case "availability":
+    case "availability_after_recycle": {
+      const raw = asRecord(value);
+      if (!raw) {
+        return "";
+      }
+      const status = getStringValue(raw.status);
+      const used = getNumberValue(raw.used, -1);
+      const limit = getNumberValue(raw.limit, -1);
+      if (used >= 0 && limit >= 0) {
+        return `${status || t("failover.status.unknown", { defaultValue: "Unknown" })} (${used}/${limit})`;
+      }
+      return status;
+    }
+    default:
+      if (typeof value === "boolean") {
+        return value
+          ? t("common.yes", { defaultValue: "Yes" })
+          : t("common.no", { defaultValue: "No" });
+      }
+      if (typeof value === "number") {
+        return String(value);
+      }
+      if (typeof value === "string") {
+        return value.trim();
+      }
+      if (Array.isArray(value)) {
+        return value.map((item) => String(item || "").trim()).filter(Boolean).join(", ");
+      }
+      return "";
+  }
+}
+
+function getDetailLabel(t: TFunction, key: string) {
+  switch (key) {
+    case "reason":
+      return t("failover.execution.detail_labels.reason", { defaultValue: "Reason" });
+    case "plan_name":
+      return t("failover.execution.detail_labels.plan_name", { defaultValue: "Plan" });
+    case "plan_id":
+      return t("failover.execution.detail_labels.plan_id", { defaultValue: "Plan ID" });
+    case "priority":
+      return t("failover.execution.detail_labels.priority", { defaultValue: "Priority" });
+    case "provider":
+      return t("failover.execution.detail_labels.provider", { defaultValue: "Provider" });
+    case "action_type":
+      return t("failover.execution.detail_labels.action", { defaultValue: "Action" });
+    case "entry_id":
+    case "provider_entry_id":
+      return t("failover.execution.detail_labels.entry_id", { defaultValue: "Provider entry" });
+    case "entry_name":
+      return t("failover.execution.detail_labels.entry_name", { defaultValue: "Entry name" });
+    case "entry_group":
+      return t("failover.execution.detail_labels.entry_group", { defaultValue: "Entry group" });
+    case "preferred_entry_id":
+      return t("failover.execution.detail_labels.preferred_entry_id", { defaultValue: "Preferred entry" });
+    case "preferred_entry_group":
+      return t("failover.execution.detail_labels.preferred_entry_group", { defaultValue: "Preferred group" });
+    case "status":
+      return t("failover.execution.detail_labels.status", { defaultValue: "Status" });
+    case "message":
+      return t("failover.execution.detail_labels.message", { defaultValue: "Message" });
+    case "error":
+    case "error_message":
+      return t("failover.execution.detail_labels.error", { defaultValue: "Error" });
+    case "failure_class":
+      return t("failover.execution.detail_labels.failure_class", { defaultValue: "Failure class" });
+    case "attempt":
+      return t("failover.execution.detail_labels.attempt", { defaultValue: "Attempt" });
+    case "next_attempt":
+      return t("failover.execution.detail_labels.next_attempt", { defaultValue: "Next attempt" });
+    case "retry_after_seconds":
+      return t("failover.execution.detail_labels.retry_after", { defaultValue: "Retry after" });
+    case "client_uuid":
+      return t("failover.execution.detail_labels.client", { defaultValue: "Client" });
+    case "clipboard_id":
+      return t("failover.execution.detail_labels.clipboard_id", { defaultValue: "Clipboard ID" });
+    case "script_name":
+      return t("failover.execution.detail_labels.script_name", { defaultValue: "Script" });
+    case "task_id":
+      return t("failover.execution.detail_labels.task_id", { defaultValue: "Task ID" });
+    case "exit_code":
+      return t("failover.execution.detail_labels.exit_code", { defaultValue: "Exit code" });
+    case "checked_at":
+      return t("failover.execution.detail_labels.checked_at", { defaultValue: "Checked at" });
+    case "latency":
+      return t("failover.execution.detail_labels.latency", { defaultValue: "Latency" });
+    case "consecutive_failures":
+      return t("failover.execution.detail_labels.consecutive_failures", { defaultValue: "Consecutive failures" });
+    case "strategy":
+      return t("failover.execution.detail_labels.strategy", { defaultValue: "Cleanup strategy" });
+    case "label":
+      return t("failover.execution.detail_labels.operation", { defaultValue: "Operation" });
+    case "output_truncated":
+      return t("failover.execution.detail_labels.output_truncated", { defaultValue: "Output truncated" });
+    case "script_output_available":
+      return t("failover.execution.detail_labels.output_available", { defaultValue: "Output captured" });
+    case "availability":
+      return t("failover.execution.detail_labels.availability", { defaultValue: "Availability" });
+    case "availability_after_recycle":
+      return t("failover.execution.detail_labels.availability_after_recycle", { defaultValue: "Availability after recycle" });
+    default:
+      return "";
+  }
+}
+
+function getExecutionStepDetailItems(t: TFunction, detail: unknown) {
+  const raw = asRecord(detail);
+  if (!raw) {
+    return [] as DetailItem[];
+  }
+
+  const orderedKeys = [
+    "reason",
+    "plan_name",
+    "plan_id",
+    "priority",
+    "provider",
+    "action_type",
+    "preferred_entry_id",
+    "preferred_entry_group",
+    "provider_entry_id",
+    "entry_id",
+    "entry_name",
+    "entry_group",
+    "client_uuid",
+    "status",
+    "message",
+    "consecutive_failures",
+    "latency",
+    "checked_at",
+    "clipboard_id",
+    "script_name",
+    "task_id",
+    "exit_code",
+    "failure_class",
+    "attempt",
+    "next_attempt",
+    "retry_after_seconds",
+    "strategy",
+    "label",
+    "output_truncated",
+    "script_output_available",
+    "availability",
+    "availability_after_recycle",
+    "error_message",
+    "error",
+  ] as const;
+
+  const items: DetailItem[] = [];
+  for (const key of orderedKeys) {
+    const label = getDetailLabel(t, key);
+    if (!label) {
+      continue;
+    }
+    const rawValue = raw[key];
+    const value = key === "failure_class"
+      ? getFailureClassSummaryLabel(t, getStringValue(rawValue))
+      : formatDetailValue(t, key, rawValue);
+    const item = buildDetailItem(label, value);
+    if (item) {
+      items.push(item);
+    }
+  }
+  return items;
 }
 
 function planRequiresInstanceCleanup(plan: Pick<PlanFormState, "enabled" | "action_type">) {
@@ -1058,6 +1637,7 @@ function getStatusVariant(
   if (kind === "dns" || kind === "cleanup") {
     if (normalized === "success") return "success";
     if (normalized === "failed") return "destructive";
+    if (normalized === "warning") return "warning";
     if (normalized === "skipped") return "outline";
     return "secondary";
   }
@@ -1964,6 +2544,166 @@ function JsonBlock({
   );
 }
 
+function DetailItemsList({
+  items,
+}: {
+  items: DetailItem[];
+}) {
+  if (items.length === 0) {
+    return null;
+  }
+
+  return (
+    <div className="mt-2 grid gap-1.5 text-xs text-muted-foreground sm:grid-cols-2">
+      {items.map((item) => (
+        <div key={`${item.label}:${item.value}`} className="min-w-0">
+          <span className="font-medium text-slate-600 dark:text-slate-300">{item.label}:</span>{" "}
+          <span className="break-all">{item.value}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function ExecutionAttemptSection({
+  execution,
+}: {
+  execution: FailoverExecution;
+}) {
+  const { t } = useTranslation();
+  const attempts = getExecutionPlanAttempts(execution.attempted_plans);
+  if (attempts.length === 0) {
+    return null;
+  }
+
+  return (
+    <div className="space-y-2 rounded-xl border border-slate-200/80 px-4 py-4 dark:border-slate-800/80">
+      <div className="space-y-1">
+        <div className="text-sm font-medium text-slate-900 dark:text-slate-50">
+          {t("failover.execution.attempt_overview", { defaultValue: "Attempt overview" })}
+        </div>
+        <div className="text-xs text-muted-foreground">
+          {t("failover.execution.attempt_overview_hint", {
+            defaultValue: "This shows which plan and provider entry the backend tried before the execution finished.",
+          })}
+        </div>
+      </div>
+      <div className="space-y-3">
+        {attempts.map((attempt, index) => {
+          const entryAttempts = attempt.provider_entry_attempts;
+          const lastEntryAttempt = getLastExecutionEntryAttempt(attempt);
+          const planTitle = attempt.plan_name
+            || t("failover.execution.summary.plan_id", {
+              defaultValue: "Plan #{{id}}",
+              id: attempt.plan_id || index + 1,
+            });
+          const planSummary = [
+            attempt.provider ? getPlanProviderLabel(t, attempt.provider) : "",
+            attempt.action_type ? getActionTypeLabel(t, attempt.action_type) : "",
+            attempt.priority > 0
+              ? t("failover.execution.detail_labels.priority_value", {
+                defaultValue: "Priority {{value}}",
+                value: attempt.priority,
+              })
+              : "",
+          ].filter(Boolean).join(" · ");
+          const planItems = [
+            buildDetailItem(
+              t("failover.execution.detail_labels.preferred_entry_id", { defaultValue: "Preferred entry" }),
+              attempt.preferred_entry_id,
+            ),
+            buildDetailItem(
+              t("failover.execution.detail_labels.preferred_entry_group", { defaultValue: "Preferred group" }),
+              attempt.preferred_entry_group,
+            ),
+            buildDetailItem(
+              t("failover.execution.detail_labels.entry_id", { defaultValue: "Provider entry" }),
+              lastEntryAttempt?.entry_id || attempt.provider_entry_id,
+            ),
+            buildDetailItem(
+              t("failover.execution.detail_labels.failure_class", { defaultValue: "Failure class" }),
+              getFailureClassSummaryLabel(t, lastEntryAttempt?.failure_class || ""),
+            ),
+            buildDetailItem(
+              t("failover.execution.detail_labels.error", { defaultValue: "Error" }),
+              lastEntryAttempt?.error || attempt.error,
+            ),
+          ].filter((item): item is DetailItem => Boolean(item));
+
+          return (
+            <div key={`${attempt.plan_id}:${index}`} className="rounded-lg border border-slate-200/80 p-3 dark:border-slate-800/80">
+              <div className="flex flex-wrap items-center gap-2">
+                <div className="min-w-0 flex-1 font-medium text-slate-900 dark:text-slate-50" title={planTitle}>
+                  {planTitle}
+                </div>
+                <Badge variant={getStatusVariant(attempt.status, "execution")}>
+                  {getStatusLabel(t, attempt.status)}
+                </Badge>
+              </div>
+              {planSummary ? (
+                <div className="mt-1 text-xs text-muted-foreground">{planSummary}</div>
+              ) : null}
+              <DetailItemsList items={planItems} />
+
+              {entryAttempts.length > 0 ? (
+                <div className="mt-3 space-y-2">
+                  <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+                    {t("failover.execution.entry_attempts", { defaultValue: "Provider entry attempts" })}
+                  </div>
+                  <div className="space-y-2">
+                    {entryAttempts.map((entryAttempt, entryIndex) => {
+                      const entryTitle = entryAttempt.entry_name || entryAttempt.entry_id || t("failover.execution.entry_attempt", {
+                        defaultValue: "Entry attempt {{index}}",
+                        index: entryIndex + 1,
+                      });
+                      const entryItems = [
+                        buildDetailItem(
+                          t("failover.execution.detail_labels.entry_id", { defaultValue: "Provider entry" }),
+                          entryAttempt.entry_id,
+                        ),
+                        buildDetailItem(
+                          t("failover.execution.detail_labels.entry_group", { defaultValue: "Entry group" }),
+                          entryAttempt.entry_group,
+                        ),
+                        buildDetailItem(
+                          t("failover.execution.detail_labels.attempt", { defaultValue: "Attempt" }),
+                          entryAttempt.attempt > 0 ? String(entryAttempt.attempt) : "",
+                        ),
+                        buildDetailItem(
+                          t("failover.execution.detail_labels.failure_class", { defaultValue: "Failure class" }),
+                          getFailureClassSummaryLabel(t, entryAttempt.failure_class),
+                        ),
+                        buildDetailItem(
+                          t("failover.execution.detail_labels.error", { defaultValue: "Error" }),
+                          entryAttempt.error,
+                        ),
+                      ].filter((item): item is DetailItem => Boolean(item));
+
+                      return (
+                        <div key={`${entryAttempt.entry_id}:${entryAttempt.attempt}:${entryIndex}`} className="rounded-md border border-dashed border-slate-200/80 p-3 dark:border-slate-800/80">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <div className="min-w-0 flex-1 text-sm font-medium text-slate-900 dark:text-slate-50" title={entryTitle}>
+                              {entryTitle}
+                            </div>
+                            <Badge variant={getStatusVariant(entryAttempt.status, "execution")}>
+                              {getStatusLabel(t, entryAttempt.status)}
+                            </Badge>
+                          </div>
+                          <DetailItemsList items={entryItems} />
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              ) : null}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 function ExecutionDetailDialog({
   executionID,
   taskName,
@@ -2051,6 +2791,9 @@ function ExecutionDetailDialog({
   };
 
   const executionScriptNames = splitScriptSnapshotNames(execution?.script_name_snapshot || "");
+  const cleanupInfo = execution
+    ? getCleanupResultInfo(t, execution.cleanup_status, execution.cleanup_result)
+    : null;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -2140,6 +2883,34 @@ function ExecutionDetailDialog({
                 </div>
               ) : null}
 
+              {cleanupInfo && cleanupInfo.classification !== "not_requested" && cleanupInfo.tone !== "success" ? (
+                <div
+                  className={cn(
+                    "rounded-xl border px-4 py-3",
+                    cleanupInfo.tone === "destructive"
+                      ? "border-red-200 bg-red-50 text-red-700 dark:border-red-900/40 dark:bg-red-950/30 dark:text-red-200"
+                      : cleanupInfo.tone === "warning"
+                        ? "border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-900/40 dark:bg-amber-950/30 dark:text-amber-200"
+                        : "border-slate-200 bg-slate-50 text-slate-700 dark:border-slate-800 dark:bg-slate-900/40 dark:text-slate-200",
+                  )}
+                >
+                  <div className="text-sm font-medium">{cleanupInfo.title}</div>
+                  {cleanupInfo.description ? (
+                    <div className="mt-1 text-sm leading-6">{cleanupInfo.description}</div>
+                  ) : null}
+                  {cleanupInfo.errorMessage ? (
+                    <div className="mt-2 text-xs opacity-90">
+                      {t("failover.execution.cleanup_messages.last_error", {
+                        defaultValue: "Last error: {{error}}",
+                        error: cleanupInfo.errorMessage,
+                      })}
+                    </div>
+                  ) : null}
+                </div>
+              ) : null}
+
+              <ExecutionAttemptSection execution={execution} />
+
               <div className="space-y-2 rounded-xl border border-slate-200/80 px-4 py-4 dark:border-slate-800/80">
                 <div className="space-y-1">
                   <div className="text-sm font-medium text-slate-900 dark:text-slate-50">
@@ -2158,6 +2929,7 @@ function ExecutionDetailDialog({
                     {execution.steps.map((step) => {
                       const stepLabel = getFailoverExecutionStepLabel(t, step);
                       const stepMessage = getFailoverExecutionStepMessage(t, step);
+                      const stepDetailItems = getExecutionStepDetailItems(t, step.detail);
 
                       return (
                         <div key={step.id} className="py-3 first:pt-0 last:pb-0">
@@ -2171,6 +2943,7 @@ function ExecutionDetailDialog({
                           {stepMessage ? (
                             <div className="mt-1.5 text-sm text-slate-700 dark:text-slate-300">{stepMessage}</div>
                           ) : null}
+                          <DetailItemsList items={stepDetailItems} />
                           <div className="mt-1.5 text-xs text-muted-foreground">
                             {formatDateTime(step.started_at)}
                             {step.finished_at ? ` → ${formatDateTime(step.finished_at)}` : ""}
@@ -2227,6 +3000,8 @@ function ExecutionDetailDialog({
                       <JsonBlock title={t("failover.execution.steps_raw", { defaultValue: "Steps raw data" })} value={execution.steps} />
                       <JsonBlock title={t("failover.execution.trigger_snapshot", { defaultValue: "Trigger snapshot" })} value={execution.trigger_snapshot} />
                       <JsonBlock title={t("failover.execution.attempted_plans", { defaultValue: "Attempted plans" })} value={execution.attempted_plans} />
+                      <JsonBlock title={t("failover.execution.old_instance", { defaultValue: "Old instance" })} value={execution.old_instance_ref} />
+                      <JsonBlock title={t("failover.execution.old_addresses", { defaultValue: "Old addresses" })} value={execution.old_addresses} />
                       <JsonBlock title={t("failover.execution.new_instance", { defaultValue: "New instance" })} value={execution.new_instance_ref} />
                       <JsonBlock title={t("failover.execution.new_addresses", { defaultValue: "New addresses" })} value={execution.new_addresses} />
                       <JsonBlock title={t("failover.execution.dns_result", { defaultValue: "DNS result" })} value={execution.dns_result} />
@@ -4876,8 +5651,29 @@ function FailoverPageContent() {
               const scriptNames = splitScriptSnapshotNames(scriptName);
               const scriptPreviewNames = scriptNames.slice(0, 2);
               const hiddenScriptCount = Math.max(0, scriptNames.length - scriptPreviewNames.length);
+              const latestCleanupInfo = latestExecution
+                ? getCleanupResultInfo(t, latestExecution.cleanup_status, latestExecution.cleanup_result)
+                : null;
+              const selectedExecutionPlan = latestExecution
+                ? getSelectedTaskPlan(task.plans, latestExecution.selected_plan_id)
+                : null;
+              const latestPlanAttempt = latestExecution
+                ? getLastExecutionPlanAttempt(latestExecution.attempted_plans)
+                : null;
+              const latestEntryAttempt = getLastExecutionEntryAttempt(latestPlanAttempt);
+              const latestPlanSummary = getExecutionPlanSummaryText(t, selectedExecutionPlan, latestPlanAttempt);
+              const latestEntrySummary = getExecutionEntrySummaryText(t, latestPlanAttempt, latestEntryAttempt);
+              const latestStep = latestExecution?.last_step || null;
+              const latestStepLabel = latestStep ? getFailoverExecutionStepLabel(t, latestStep) : "";
+              const latestStepMessage = latestStep ? getFailoverExecutionStepMessage(t, latestStep) : "";
               const latestExecutionSummary = latestExecution
-                ? latestExecution.error_message || formatDateTime(latestExecution.started_at)
+                ? latestExecution.error_message
+                  || (
+                    latestCleanupInfo
+                    && ["warning", "failed"].includes(String(latestExecution.cleanup_status || "").trim().toLowerCase())
+                      ? latestCleanupInfo.title
+                      : formatDateTime(latestExecution.started_at)
+                  )
                 : t("failover.task.no_execution", { defaultValue: "No execution recorded yet." });
               const cooldownSummary = task.cooldown_remaining_seconds > 0
                 ? formatDurationSeconds(task.cooldown_remaining_seconds, t)
@@ -5036,6 +5832,33 @@ function FailoverPageContent() {
                           </Button>
                         ) : null}
                       </div>
+                      {latestPlanSummary ? (
+                        <div className="text-xs text-muted-foreground">
+                          <span className="font-medium text-slate-600 dark:text-slate-300">
+                            {t("failover.execution.summary.plan", { defaultValue: "Plan" })}:
+                          </span>{" "}
+                          <span title={latestPlanSummary}>{latestPlanSummary}</span>
+                        </div>
+                      ) : null}
+                      {latestEntrySummary ? (
+                        <div className="text-xs text-muted-foreground">
+                          <span className="font-medium text-slate-600 dark:text-slate-300">
+                            {t("failover.execution.summary.entry", { defaultValue: "Entry" })}:
+                          </span>{" "}
+                          <span title={latestEntrySummary}>{latestEntrySummary}</span>
+                        </div>
+                      ) : null}
+                      {latestStepLabel ? (
+                        <div className="text-xs text-muted-foreground">
+                          <span className="font-medium text-slate-600 dark:text-slate-300">
+                            {t("failover.execution.summary.last_step", { defaultValue: "Last step" })}:
+                          </span>{" "}
+                          <span title={[latestStepLabel, latestStepMessage].filter(Boolean).join(" · ")}>
+                            {latestStepLabel}
+                            {latestStepMessage ? ` · ${latestStepMessage}` : ""}
+                          </span>
+                        </div>
+                      ) : null}
                     </div>
 
                     <div className="flex flex-wrap gap-2 lg:justify-end">

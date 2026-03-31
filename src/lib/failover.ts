@@ -50,6 +50,7 @@ export type FailoverExecutionSummary = {
   status: string;
   trigger_reason: string;
   selected_plan_id: number | null;
+  attempted_plans: unknown;
   script_name_snapshot: string;
   script_status: string;
   script_exit_code: number | null;
@@ -57,6 +58,8 @@ export type FailoverExecutionSummary = {
   dns_status: string;
   dns_result: unknown;
   cleanup_status: string;
+  cleanup_result: unknown;
+  last_step: FailoverExecutionStep | null;
   error_message: string;
   started_at: string;
   finished_at: string | null;
@@ -366,6 +369,7 @@ function normalizeExecutionSummary(execution: unknown): FailoverExecutionSummary
     status: normalizeString(raw.status),
     trigger_reason: normalizeString(raw.trigger_reason),
     selected_plan_id: normalizeNullableNumber(raw.selected_plan_id),
+    attempted_plans: normalizeUnknown(raw.attempted_plans),
     script_name_snapshot: normalizeString(raw.script_name_snapshot),
     script_status: normalizeString(raw.script_status),
     script_exit_code: normalizeNullableNumber(raw.script_exit_code),
@@ -373,6 +377,8 @@ function normalizeExecutionSummary(execution: unknown): FailoverExecutionSummary
     dns_status: normalizeString(raw.dns_status),
     dns_result: normalizeUnknown(raw.dns_result),
     cleanup_status: normalizeString(raw.cleanup_status),
+    cleanup_result: normalizeUnknown(raw.cleanup_result),
+    last_step: raw.last_step ? normalizeExecutionStep(raw.last_step) : null,
     error_message: normalizeString(raw.error_message),
     started_at: normalizeString(raw.started_at),
     finished_at: normalizeNullableString(raw.finished_at),
