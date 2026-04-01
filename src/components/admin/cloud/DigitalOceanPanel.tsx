@@ -557,15 +557,11 @@ export default function DigitalOceanPanel() {
   const defaultCreateGroup = getDefaultAutoConnectGroup("digitalocean", activeToken?.name || "");
   const passwordStorageEnabled = Boolean(tokenPool?.password_storage_enabled);
   const tokenRows = tokenPool?.tokens ?? [];
-  const existingTokenGroups = React.useMemo(
-    () =>
-      Array.from(new Set(
-        tokenRows
-          .map((token) => token.group.trim())
-          .filter(Boolean),
-      )),
-    [tokenRows],
-  );
+  const existingTokenGroups = Array.from(new Set(
+    tokenRows
+      .map((token) => token.group.trim())
+      .filter(Boolean),
+  ));
   const selectedTokens = tokenRows.filter((token) => selectedTokenIds.includes(token.id));
   const allTokensSelected = tokenRows.length > 0 && selectedTokenIds.length === tokenRows.length;
   const someTokensSelected = selectedTokenIds.length > 0 && selectedTokenIds.length < tokenRows.length;
