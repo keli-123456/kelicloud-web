@@ -117,6 +117,16 @@ export type FailoverExecutionStep = {
   updated_at: string;
 };
 
+export type FailoverExecutionAvailableAction = {
+  available: boolean;
+  reason: string;
+};
+
+export type FailoverExecutionAvailableActions = {
+  retry_dns: FailoverExecutionAvailableAction;
+  retry_cleanup: FailoverExecutionAvailableAction;
+};
+
 export type FailoverExecution = {
   id: number;
   task_id: number;
@@ -146,6 +156,7 @@ export type FailoverExecution = {
   dns_result: unknown;
   cleanup_status: string;
   cleanup_result: unknown;
+  available_actions: FailoverExecutionAvailableActions | null;
   error_message: string;
   started_at: string;
   finished_at: string | null;
@@ -428,6 +439,25 @@ function normalizeExecutionStep(step: unknown): FailoverExecutionStep {
   };
 }
 
+function normalizeExecutionAvailableAction(value: unknown): FailoverExecutionAvailableAction {
+  const raw = value && typeof value === "object" ? value as Record<string, unknown> : {};
+  return {
+    available: normalizeBoolean(raw.available),
+    reason: normalizeString(raw.reason),
+  };
+}
+
+function normalizeExecutionAvailableActions(value: unknown): FailoverExecutionAvailableActions | null {
+  if (!value || typeof value !== "object") {
+    return null;
+  }
+  const raw = value as Record<string, unknown>;
+  return {
+    retry_dns: normalizeExecutionAvailableAction(raw.retry_dns),
+    retry_cleanup: normalizeExecutionAvailableAction(raw.retry_cleanup),
+  };
+}
+
 function normalizePreviewCheck(check: unknown): FailoverPreviewCheck {
   const raw = check && typeof check === "object" ? check as Record<string, unknown> : {};
   return {
@@ -622,6 +652,7 @@ function normalizeExecution(execution: unknown): FailoverExecution {
     dns_result: normalizeUnknown(raw.dns_result),
     cleanup_status: normalizeString(raw.cleanup_status),
     cleanup_result: normalizeUnknown(raw.cleanup_result),
+    available_actions: normalizeExecutionAvailableActions(raw.available_actions),
     error_message: normalizeString(raw.error_message),
     started_at: normalizeString(raw.started_at),
     finished_at: normalizeNullableString(raw.finished_at),

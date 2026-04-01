@@ -820,26 +820,41 @@ function getCleanupResultInfo(
   };
 }
 
-function canRetryExecutionDNS(execution: FailoverExecution | null) {
-  if (!execution || isFailoverExecutionActive(execution.status)) {
-    return false;
+function getRetryExecutionDNSAvailability(execution: FailoverExecution | null) {
+  if (!execution) {
+    return { available: false, reason: "" };
   }
-  return String(execution.dns_status || "").trim().toLowerCase() === "failed";
+  if (execution.available_actions?.retry_dns) {
+    return execution.available_actions.retry_dns;
+  }
+  if (isFailoverExecutionActive(execution.status)) {
+    return { available: false, reason: "" };
+  }
+  return {
+    available: String(execution.dns_status || "").trim().toLowerCase() === "failed",
+    reason: "",
+  };
 }
 
-function canRetryExecutionCleanup(execution: FailoverExecution | null) {
-  if (!execution || isFailoverExecutionActive(execution.status)) {
-    return false;
+function getRetryExecutionCleanupAvailability(execution: FailoverExecution | null) {
+  if (!execution) {
+    return { available: false, reason: "" };
+  }
+  if (execution.available_actions?.retry_cleanup) {
+    return execution.available_actions.retry_cleanup;
+  }
+  if (isFailoverExecutionActive(execution.status)) {
+    return { available: false, reason: "" };
   }
   if (String(execution.dns_status || "").trim().toLowerCase() !== "success") {
-    return false;
+    return { available: false, reason: "" };
   }
   const cleanupStatus = String(execution.cleanup_status || "").trim().toLowerCase();
-  if (!["pending", "failed", "warning"].includes(cleanupStatus)) {
-    return false;
-  }
   const oldInstanceRef = asRecord(execution.old_instance_ref);
-  return Boolean(oldInstanceRef && Object.keys(oldInstanceRef).length > 0);
+  return {
+    available: ["pending", "failed", "warning"].includes(cleanupStatus) && Boolean(oldInstanceRef && Object.keys(oldInstanceRef).length > 0),
+    reason: "",
+  };
 }
 
 function normalizeExecutionEntryAttempt(value: unknown): ExecutionEntryAttemptSummary {
@@ -3373,8 +3388,26 @@ function ExecutionDetailDialog({
   const cleanupInfo = execution
     ? getCleanupResultInfo(t, execution.cleanup_status, execution.cleanup_result)
     : null;
-  const canRetryDNS = canRetryExecutionDNS(execution);
-  const canRetryCleanup = canRetryExecutionCleanup(execution);
+  const retryDNSAvailability = getRetryExecutionDNSAvailability(execution);
+  const retryCleanupAvailability = getRetryExecutionCleanupAvailability(execution);
+  const canRetryDNS = retryDNSAvailability.available;
+  const canRetryCleanup = retryCleanupAvailability.available;
+  const retryHints = [
+    execution && String(execution.dns_status || "").trim().toLowerCase() === "failed" && !canRetryDNS && retryDNSAvailability.reason
+      ? {
+        key: "retry-dns",
+        label: t("failover.actions.retry_dns", { defaultValue: "Retry DNS" }),
+        reason: retryDNSAvailability.reason,
+      }
+      : null,
+    execution && ["pending", "failed", "warning"].includes(String(execution.cleanup_status || "").trim().toLowerCase()) && !canRetryCleanup && retryCleanupAvailability.reason
+      ? {
+        key: "retry-cleanup",
+        label: t("failover.actions.retry_cleanup", { defaultValue: "Retry Cleanup" }),
+        reason: retryCleanupAvailability.reason,
+      }
+      : null,
+  ].filter((item): item is { key: string; label: string; reason: string } => Boolean(item));
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -3595,7 +3628,19 @@ function ExecutionDetailDialog({
           ) : null}
         </div>
 
-        <DialogFooter className="border-t px-5 py-4">
+        {retryHints.length > 0 ? (
+          <div className="border-t px-5 py-3 text-xs text-muted-foreground">
+            <div className="space-y-1">
+              {retryHints.map((hint) => (
+                <div key={hint.key}>
+                  {hint.label}: {hint.reason}
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : null}
+
+        <DialogFooter className={cn("px-5 py-4", retryHints.length > 0 ? "" : "border-t")}>
           {execution && isFailoverExecutionActive(execution.status) ? (
             <Button type="button" variant="outline" onClick={() => void handleStopExecution()} disabled={stopping || loading}>
               {stopping ? <LoaderCircle className="size-4 animate-spin" /> : <Square className="size-4" />}
