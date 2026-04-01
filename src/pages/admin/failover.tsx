@@ -3569,6 +3569,14 @@ function buildTaskInput(formState: TaskFormState, t: TFunction): FailoverTaskInp
   };
 }
 
+function tryBuildTaskInput(formState: TaskFormState, t: TFunction): FailoverTaskInput | null {
+  try {
+    return buildTaskInput(formState, t);
+  } catch {
+    return null;
+  }
+}
+
 function JsonBlock({
   title,
   value,
@@ -4807,11 +4815,11 @@ function TaskEditorDialog({
     [formState.plans],
   );
   const currentTaskInput = React.useMemo(
-    () => buildTaskInput(formState, t),
+    () => tryBuildTaskInput(formState, t),
     [formState, t],
   );
   const currentPreviewSignature = React.useMemo(
-    () => JSON.stringify(currentTaskInput),
+    () => (currentTaskInput ? JSON.stringify(currentTaskInput) : ""),
     [currentTaskInput],
   );
   const previewSummary = React.useMemo(
@@ -5148,14 +5156,15 @@ function TaskEditorDialog({
     setPreviewError("");
 
     try {
-      const preview = await previewFailoverTask(currentTaskInput);
+      const payload = buildTaskInput(formState, t);
+      const preview = await previewFailoverTask(payload);
       setPreviewResult(preview);
-      setPreviewPayloadSignature(currentPreviewSignature);
+      setPreviewPayloadSignature(JSON.stringify(payload));
     } catch (error) {
       const message = error instanceof Error ? error.message : t("common.unknown_error");
       setPreviewResult(null);
       setPreviewError(message);
-      setPreviewPayloadSignature(currentPreviewSignature);
+      setPreviewPayloadSignature("");
       toast.error(message);
     } finally {
       setPreviewing(false);
@@ -5183,7 +5192,7 @@ function TaskEditorDialog({
           }),
         );
       }
-      const payload = currentTaskInput;
+      const payload = buildTaskInput(formState, t);
       if (task) {
         await updateFailoverTask(task.id, payload);
         toast.success(t("failover.messages.updated", { defaultValue: "Failover task updated" }));
