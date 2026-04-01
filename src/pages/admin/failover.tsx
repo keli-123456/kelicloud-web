@@ -2248,6 +2248,28 @@ function toCloudflareRecordInput(recordName: string, zoneName: string) {
   return normalizedRecordName;
 }
 
+function normalizeAliyunRRInput(domainName: string, rr: string) {
+  const normalizedDomain = String(domainName || "").trim().replace(/\.+$/, "");
+  let normalizedRR = String(rr || "").trim().replace(/\.+$/, "");
+  if (!normalizedRR || normalizedRR === "@") {
+    return "@";
+  }
+  if (!normalizedDomain) {
+    return normalizedRR;
+  }
+  if (normalizedRR.toLowerCase() === normalizedDomain.toLowerCase()) {
+    return "@";
+  }
+  const suffix = `.${normalizedDomain}`;
+  if (normalizedRR.length > suffix.length && normalizedRR.toLowerCase().endsWith(suffix.toLowerCase())) {
+    normalizedRR = normalizedRR.slice(0, -suffix.length).trim();
+    if (!normalizedRR || normalizedRR === "@") {
+      return "@";
+    }
+  }
+  return normalizedRR;
+}
+
 function fillDnsFieldsFromRecord(
   current: TaskFormState,
   record: FailoverDnsRecordOption,
@@ -2365,7 +2387,8 @@ function getTaskDnsTargetLabel(task: FailoverTask) {
     return joinCloudflareRecordName(getStringValue(raw.zone_name), getStringValue(raw.record_name));
   }
   if (task.dns_provider === "aliyun") {
-    return joinRecordName(getStringValue(raw.domain_name), getStringValue(raw.rr));
+    const domainName = getStringValue(raw.domain_name);
+    return joinRecordName(domainName, normalizeAliyunRRInput(domainName, getStringValue(raw.rr)));
   }
   return "";
 }
@@ -2554,7 +2577,10 @@ function parseDnsPayloadFields(
   return {
     ...defaults,
     dns_domain_name: getStringValue(raw.domain_name) || defaults.dns_domain_name,
-    dns_rr: getStringValue(raw.rr) || defaults.dns_rr,
+    dns_rr: normalizeAliyunRRInput(
+      getStringValue(raw.domain_name) || defaults.dns_domain_name,
+      getStringValue(raw.rr) || defaults.dns_rr,
+    ),
     dns_record_type: normalizeDnsRecordType(getStringValue(raw.record_type)) || defaults.dns_record_type,
     dns_ttl: String(getNumberValue(raw.ttl, numberOrDefault(defaults.dns_ttl, 600))),
     dns_line: getStringValue(raw.line) || defaults.dns_line,
@@ -2706,6 +2732,7 @@ function buildTaskInput(formState: TaskFormState, t: TFunction): FailoverTaskInp
         .filter(Boolean),
     ),
   );
+  const normalizedAliyunRR = normalizeAliyunRRInput(formState.dns_domain_name, formState.dns_rr);
   if (dnsProvider && dnsTTL <= 0) {
     throw new Error(
       t("failover.validation.dns_ttl_invalid", {
@@ -2731,6 +2758,13 @@ function buildTaskInput(formState: TaskFormState, t: TFunction): FailoverTaskInp
     throw new Error(
       t("failover.validation.dns_domain_required", {
         defaultValue: "Aliyun domain is required",
+      }),
+    );
+  }
+  if (dnsProvider === "aliyun" && (normalizedAliyunRR.includes("://") || /[\/\\\s]/.test(normalizedAliyunRR) || normalizedAliyunRR.startsWith(".") || normalizedAliyunRR.endsWith(".") || normalizedAliyunRR.includes(".."))) {
+    throw new Error(
+      t("failover.validation.aliyun_rr_invalid", {
+        defaultValue: "Aliyun host record must be like @, www, or api. Do not enter a full URL or invalid separators.",
       }),
     );
   }
@@ -2793,7 +2827,7 @@ function buildTaskInput(formState: TaskFormState, t: TFunction): FailoverTaskInp
       : dnsProvider === "aliyun"
         ? {
           domain_name: formState.dns_domain_name.trim(),
-          rr: formState.dns_rr.trim() || "@",
+          rr: normalizedAliyunRR,
           record_type: dnsRecordType,
           sync_ipv6: dnsSyncIPv6,
           ttl: dnsTTL,
@@ -4430,8 +4464,14 @@ function TaskEditorDialog({
                           id="failover-rr"
                           value={formState.dns_rr}
                           onChange={(event) => updateTaskField("dns_rr", event.target.value)}
+                          onBlur={(event) => updateTaskField("dns_rr", normalizeAliyunRRInput(formState.dns_domain_name, event.target.value))}
                           placeholder="@ / www / api"
                         />
+                        <div className="text-xs text-muted-foreground">
+                          {t("failover.editor.aliyun_rr_hint", {
+                            defaultValue: "Use @ for the apex record. Enter only the host part such as www or api, not the full domain.",
+                          })}
+                        </div>
                       </div>
                       <div className="space-y-2">
                         <Label>{t("failover.editor.dns_sync_mode", { defaultValue: "DNS sync mode" })}</Label>
