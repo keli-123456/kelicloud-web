@@ -857,6 +857,509 @@ function getRetryExecutionCleanupAvailability(execution: FailoverExecution | nul
   };
 }
 
+type ExecutionSummaryCardData = {
+  title: string;
+  description: string;
+  items: DetailItem[];
+  detailLines: string[];
+  detailLinesTitle: string;
+  emptyLabel: string;
+};
+
+type RetryGuidanceItem = {
+  key: string;
+  label: string;
+  reason: string;
+  nextStep: string;
+};
+
+function firstNonEmptyString(...values: unknown[]) {
+  for (const value of values) {
+    if (typeof value === "string") {
+      const trimmed = value.trim();
+      if (trimmed) {
+        return trimmed;
+      }
+    }
+    if (typeof value === "number" && Number.isFinite(value)) {
+      const normalized = String(value).trim();
+      if (normalized) {
+        return normalized;
+      }
+    }
+  }
+  return "";
+}
+
+function isIPv4Address(value: string) {
+  const parts = value.split(".");
+  return parts.length === 4 && parts.every((part) => /^\d+$/.test(part) && Number(part) >= 0 && Number(part) <= 255);
+}
+
+function isIPv6Address(value: string) {
+  return value.includes(":") && /^[0-9a-f:]+$/i.test(value);
+}
+
+function normalizeExecutionIPAddress(value: string) {
+  const trimmed = String(value || "").trim();
+  if (!trimmed) {
+    return "";
+  }
+  const candidate = trimmed.includes("/") ? trimmed.split("/")[0].trim() : trimmed;
+  if (!candidate) {
+    return "";
+  }
+  if (isIPv4Address(candidate) || isIPv6Address(candidate)) {
+    return candidate;
+  }
+  return "";
+}
+
+function pickExecutionAddressFamily(value: string, family: "ipv4" | "ipv6") {
+  const normalized = normalizeExecutionIPAddress(value);
+  if (!normalized) {
+    return "";
+  }
+  if (family === "ipv4") {
+    return isIPv4Address(normalized) ? normalized : "";
+  }
+  return isIPv6Address(normalized) ? normalized : "";
+}
+
+function getPrimaryAddressFromNetworkEntries(value: unknown, family: "ipv4" | "ipv6") {
+  if (typeof value === "string") {
+    return pickExecutionAddressFamily(value, family);
+  }
+  if (!Array.isArray(value)) {
+    return "";
+  }
+
+  let fallback = "";
+  for (const entry of value) {
+    if (typeof entry === "string") {
+      const candidate = pickExecutionAddressFamily(entry, family);
+      if (candidate) {
+        return candidate;
+      }
+      continue;
+    }
+
+    const raw = asRecord(entry);
+    if (!raw) {
+      continue;
+    }
+
+    const candidate = pickExecutionAddressFamily(
+      firstNonEmptyString(raw.ip_address, raw.address, raw.public_ip),
+      family,
+    );
+    if (!candidate) {
+      continue;
+    }
+
+    if (!fallback) {
+      fallback = candidate;
+    }
+
+    const type = getStringValue(raw.type).toLowerCase();
+    if (!type || type === "public") {
+      return candidate;
+    }
+  }
+
+  return fallback;
+}
+
+function getPrimaryExecutionIPv4(value: unknown) {
+  const raw = asRecord(value);
+  if (!raw) {
+    return "";
+  }
+  return firstNonEmptyString(
+    pickExecutionAddressFamily(getStringValue(raw.public_ip), "ipv4"),
+    getPrimaryAddressFromNetworkEntries(raw.ipv4, "ipv4"),
+    pickExecutionAddressFamily(getStringValue(raw.ipv4), "ipv4"),
+    getPrimaryAddressFromNetworkEntries(raw.addresses, "ipv4"),
+  );
+}
+
+function getPrimaryExecutionIPv6(value: unknown) {
+  const raw = asRecord(value);
+  if (!raw) {
+    return "";
+  }
+  return firstNonEmptyString(
+    getPrimaryAddressFromNetworkEntries(raw.ipv6_addresses, "ipv6"),
+    pickExecutionAddressFamily(getStringValue(raw.ipv6), "ipv6"),
+    getPrimaryAddressFromNetworkEntries(raw.ipv6, "ipv6"),
+    getPrimaryAddressFromNetworkEntries(raw.addresses, "ipv6"),
+  );
+}
+
+function getExecutionProviderEntryLabel(ref: Record<string, unknown> | null) {
+  if (!ref) {
+    return "";
+  }
+  const entryName = getStringValue(ref.provider_entry_name);
+  const entryID = getStringValue(ref.provider_entry_id);
+  if (entryName && entryID && entryName !== entryID) {
+    return `${entryName} (${entryID})`;
+  }
+  return entryName || entryID;
+}
+
+function getExecutionInstanceIdentifier(t: TFunction, ref: Record<string, unknown> | null) {
+  if (!ref) {
+    return "";
+  }
+
+  const dropletID = firstNonEmptyString(ref.droplet_id);
+  const instanceID = firstNonEmptyString(ref.instance_id);
+  const instanceName = firstNonEmptyString(ref.instance_name);
+  const label = firstNonEmptyString(ref.label);
+  const name = firstNonEmptyString(ref.name);
+
+  if (dropletID) {
+    return [t("failover.execution.instance_identifier.droplet", {
+      defaultValue: "Droplet #{{id}}",
+      id: dropletID,
+    }), name].filter(Boolean).join(" · ");
+  }
+  if (instanceID) {
+    return [t("failover.execution.instance_identifier.instance", {
+      defaultValue: "Instance {{id}}",
+      id: instanceID,
+    }), label || name].filter(Boolean).join(" · ");
+  }
+  return instanceName || label || name;
+}
+
+function getExecutionServiceLabel(t: TFunction, ref: Record<string, unknown> | null) {
+  if (!ref) {
+    return "";
+  }
+  const provider = getStringValue(ref.provider);
+  const service = getStringValue(ref.service);
+  if (!service) {
+    return "";
+  }
+  if (provider === "aws") {
+    return service === "ec2"
+      ? t("failover.execution.services.ec2", { defaultValue: "EC2" })
+      : service === "lightsail"
+        ? t("failover.execution.services.lightsail", { defaultValue: "Lightsail" })
+        : humanizeStatus(service);
+  }
+  return humanizeStatus(service);
+}
+
+function getExecutionDnsRecordSummaries(value: unknown) {
+  const raw = asRecord(value);
+  if (!raw) {
+    return [] as string[];
+  }
+
+  const seen = new Set<string>();
+  const lines: string[] = [];
+  const appendSummary = (entry: unknown) => {
+    const record = asRecord(entry);
+    if (!record) {
+      return;
+    }
+    const line = [firstNonEmptyString(
+      getStringValue(record.name),
+      joinRecordName(getStringValue(record.domain), getStringValue(record.rr)),
+    ), [
+      normalizeDnsRecordType(getStringValue(record.type)),
+      getStringValue(record.value),
+      getStringValue(record.line) ? localizeAliyunLineLabel(getStringValue(record.line)) : "",
+    ].filter(Boolean).join(" · ")].filter(Boolean).join(" · ");
+    if (!line || seen.has(line)) {
+      return;
+    }
+    seen.add(line);
+    lines.push(line);
+  };
+
+  appendSummary(raw);
+  if (Array.isArray(raw.records)) {
+    raw.records.forEach(appendSummary);
+  }
+
+  return lines;
+}
+
+function collectDnsResultPrunedTypes(value: unknown) {
+  const raw = asRecord(value);
+  return new Set(
+    getStringArrayValue(raw?.pruned_types)
+      .map((item) => normalizeDnsRecordType(item))
+      .filter(Boolean),
+  );
+}
+
+function getExecutionDnsVerificationSummary(t: TFunction, value: unknown) {
+  const verification = asRecord(asRecord(value)?.verification);
+  if (!verification) {
+    return "";
+  }
+
+  const missingCount = Array.isArray(verification.missing_records) ? verification.missing_records.length : 0;
+  const unexpectedCount = Array.isArray(verification.unexpected_records) ? verification.unexpected_records.length : 0;
+  const attempts = getNumberValue(verification.attempts, 0);
+  const success = getBooleanValue(verification.success);
+
+  if (success && missingCount === 0 && unexpectedCount === 0) {
+    if (attempts > 0) {
+      return t("failover.execution.dns_verification_verified_after", {
+        defaultValue: "Verified after {{count}} attempt(s)",
+        count: attempts,
+      });
+    }
+    return t("failover.execution.dns_verification_verified", {
+      defaultValue: "Verified against provider records",
+    });
+  }
+
+  if (missingCount > 0 || unexpectedCount > 0) {
+    return t("failover.execution.dns_verification_needs_review", {
+      defaultValue: "Missing {{missing}}, unexpected {{unexpected}}",
+      missing: missingCount,
+      unexpected: unexpectedCount,
+    });
+  }
+
+  if (attempts > 0) {
+    return t("failover.execution.dns_verification_attempted", {
+      defaultValue: "Verification attempted {{count}} time(s)",
+      count: attempts,
+    });
+  }
+
+  return "";
+}
+
+function buildExecutionDnsSummaryCard(t: TFunction, execution: FailoverExecution): ExecutionSummaryCardData | null {
+  if (!execution.dns_provider && !asRecord(execution.new_addresses) && !asRecord(execution.dns_result)) {
+    return null;
+  }
+
+  const ipv4 = getPrimaryExecutionIPv4(execution.new_addresses);
+  const ipv6 = getPrimaryExecutionIPv6(execution.new_addresses);
+  const recordTypes = Array.from(collectDnsResultRecordTypes(execution.dns_result));
+  const skippedTypes = Array.from(new Set([
+    ...Array.from(collectDnsResultSkippedTypes(execution.dns_result)),
+    ...Array.from(collectDnsResultPrunedTypes(execution.dns_result)),
+  ]));
+  const verification = getExecutionDnsVerificationSummary(t, execution.dns_result);
+
+  return {
+    title: t("failover.execution.dns_target_title", { defaultValue: "DNS target" }),
+    description: t("failover.execution.dns_target_description", {
+      defaultValue: "Retry DNS reuses these saved addresses and record snapshots. No new instance will be created.",
+    }),
+    items: [
+      buildDetailItem(
+        t("failover.execution.detail_labels.provider", { defaultValue: "Provider" }),
+        execution.dns_provider ? getDnsProviderLabel(t, execution.dns_provider) : "",
+      ),
+      buildDetailItem(
+        t("failover.execution.detail_labels.status", { defaultValue: "Status" }),
+        getStatusLabel(t, execution.dns_status),
+      ),
+      buildDetailItem(
+        t("failover.execution.detail_labels.ipv4_target", { defaultValue: "IPv4 target" }),
+        ipv4,
+      ),
+      buildDetailItem(
+        t("failover.execution.detail_labels.ipv6_target", { defaultValue: "IPv6 target" }),
+        ipv6,
+      ),
+      buildDetailItem(
+        t("failover.execution.detail_labels.record_types", { defaultValue: "Record types" }),
+        recordTypes.join(", "),
+      ),
+      buildDetailItem(
+        t("failover.execution.detail_labels.skipped_types", { defaultValue: "Skipped types" }),
+        skippedTypes.join(", "),
+      ),
+      buildDetailItem(
+        t("failover.execution.detail_labels.verification", { defaultValue: "Verification" }),
+        verification,
+      ),
+    ].filter((item): item is DetailItem => Boolean(item)),
+    detailLines: getExecutionDnsRecordSummaries(execution.dns_result),
+    detailLinesTitle: t("failover.execution.latest_dns_records", { defaultValue: "Latest records" }),
+    emptyLabel: t("failover.execution.no_dns_target", {
+      defaultValue: "No saved DNS target details are available for this execution yet.",
+    }),
+  };
+}
+
+function buildExecutionOldInstanceSummaryCard(
+  t: TFunction,
+  execution: FailoverExecution,
+  cleanupInfo: CleanupResultInfo | null,
+): ExecutionSummaryCardData | null {
+  const cleanupRaw = asRecord(execution.cleanup_result);
+  const ref = asRecord(cleanupRaw?.instance_ref) || asRecord(execution.old_instance_ref);
+  const cleanupLabel = firstNonEmptyString(cleanupRaw?.cleanup_label);
+
+  if (!ref && !cleanupInfo && !cleanupLabel) {
+    return null;
+  }
+
+  return {
+    title: t("failover.execution.old_instance_title", { defaultValue: "Old instance" }),
+    description: t("failover.execution.old_instance_description", {
+      defaultValue: "Cleanup retry uses this saved provider reference. Confirm it before deleting anything.",
+    }),
+    items: [
+      buildDetailItem(
+        t("failover.execution.detail_labels.provider", { defaultValue: "Provider" }),
+        ref
+          ? getPlanProviderLabel(t, getStringValue(ref.provider))
+          : firstNonEmptyString(cleanupRaw?.provider)
+            ? getPlanProviderLabel(t, firstNonEmptyString(cleanupRaw?.provider))
+            : "",
+      ),
+      buildDetailItem(
+        t("failover.execution.detail_labels.entry_name", { defaultValue: "Entry name" }),
+        getExecutionProviderEntryLabel(ref) || firstNonEmptyString(cleanupRaw?.provider_entry_name, cleanupRaw?.provider_entry_id),
+      ),
+      buildDetailItem(
+        t("failover.execution.detail_labels.service", { defaultValue: "Service" }),
+        getExecutionServiceLabel(t, ref),
+      ),
+      buildDetailItem(
+        t("failover.execution.detail_labels.region", { defaultValue: "Region" }),
+        ref ? getStringValue(ref.region) : "",
+      ),
+      buildDetailItem(
+        t("failover.execution.detail_labels.instance", { defaultValue: "Instance" }),
+        getExecutionInstanceIdentifier(t, ref),
+      ),
+      buildDetailItem(
+        t("failover.execution.detail_labels.ipv4_target", { defaultValue: "IPv4 target" }),
+        getPrimaryExecutionIPv4(execution.old_addresses),
+      ),
+      buildDetailItem(
+        t("failover.execution.detail_labels.ipv6_target", { defaultValue: "IPv6 target" }),
+        getPrimaryExecutionIPv6(execution.old_addresses),
+      ),
+      buildDetailItem(
+        t("failover.execution.detail_labels.cleanup_state", { defaultValue: "Cleanup state" }),
+        cleanupInfo?.title || getStatusLabel(t, execution.cleanup_status),
+      ),
+      buildDetailItem(
+        t("failover.execution.detail_labels.cleanup_action", { defaultValue: "Cleanup action" }),
+        cleanupLabel,
+      ),
+    ].filter((item): item is DetailItem => Boolean(item)),
+    detailLines: [],
+    detailLinesTitle: "",
+    emptyLabel: t("failover.execution.no_old_instance", {
+      defaultValue: "No saved old instance reference is available for this execution.",
+    }),
+  };
+}
+
+function shouldShowRetryDNSGuidance(execution: FailoverExecution | null) {
+  const dnsStatus = String(execution?.dns_status || "").trim().toLowerCase();
+  return dnsStatus === "failed" || dnsStatus === "pending" || dnsStatus === "skipped";
+}
+
+function shouldShowRetryCleanupGuidance(execution: FailoverExecution | null) {
+  const cleanupStatus = String(execution?.cleanup_status || "").trim().toLowerCase();
+  const classification = getStringValue(asRecord(execution?.cleanup_result)?.classification).toLowerCase();
+  return (
+    cleanupStatus === "pending"
+    || cleanupStatus === "failed"
+    || cleanupStatus === "warning"
+    || classification === "provider_entry_missing"
+    || classification === "provider_entry_unhealthy"
+    || classification === "cleanup_status_unknown"
+  );
+}
+
+function getRetryActionNextStep(
+  t: TFunction,
+  action: "retry_dns" | "retry_cleanup",
+  reason: string,
+) {
+  const normalized = String(reason || "").trim().toLowerCase();
+  if (!normalized) {
+    return "";
+  }
+  if (normalized.includes("still running")) {
+    return t("failover.execution.retry_guidance.wait_or_stop", {
+      defaultValue: "Wait for the current execution to finish, or stop it first if it is stuck.",
+    });
+  }
+  if (normalized.includes("dns must succeed")) {
+    return t("failover.execution.retry_guidance.retry_dns_first", {
+      defaultValue: "Retry DNS first. Cleanup stays blocked until the DNS step succeeds.",
+    });
+  }
+  if (normalized.includes("no saved execution addresses")) {
+    return t("failover.execution.retry_guidance.inspect_addresses", {
+      defaultValue: "Review the execution timeline or rerun failover so a new target address is saved.",
+    });
+  }
+  if (normalized.includes("manual review is required")) {
+    return t("failover.execution.retry_guidance.manual_review", {
+      defaultValue: "Open the original cloud account directly and verify whether the old instance still exists or is still billing.",
+    });
+  }
+  if (normalized.includes("already succeeded") || normalized.includes("already missing")) {
+    return t("failover.execution.retry_guidance.no_retry_needed", {
+      defaultValue: "No retry is needed for this step unless you are validating it manually.",
+    });
+  }
+  if (normalized.includes("did not require old instance cleanup")) {
+    return t("failover.execution.retry_guidance.no_cleanup_required", {
+      defaultValue: "This execution did not create a saved old-instance cleanup action.",
+    });
+  }
+  return action === "retry_dns"
+    ? t("failover.execution.retry_guidance.review_dns_summary", {
+      defaultValue: "Review the DNS target summary and timeline before retrying the DNS step again.",
+    })
+    : t("failover.execution.retry_guidance.review_cleanup_summary", {
+      defaultValue: "Review the old instance summary and cleanup timeline before retrying deletion.",
+    });
+}
+
+function buildRetryGuidanceItems(
+  t: TFunction,
+  execution: FailoverExecution | null,
+  retryDNSAvailability: { available: boolean; reason: string },
+  retryCleanupAvailability: { available: boolean; reason: string },
+) {
+  if (!execution) {
+    return [] as RetryGuidanceItem[];
+  }
+
+  return [
+    !retryDNSAvailability.available && retryDNSAvailability.reason && shouldShowRetryDNSGuidance(execution)
+      ? {
+        key: "retry-dns",
+        label: t("failover.actions.retry_dns", { defaultValue: "Retry DNS" }),
+        reason: retryDNSAvailability.reason,
+        nextStep: getRetryActionNextStep(t, "retry_dns", retryDNSAvailability.reason),
+      }
+      : null,
+    !retryCleanupAvailability.available && retryCleanupAvailability.reason && shouldShowRetryCleanupGuidance(execution)
+      ? {
+        key: "retry-cleanup",
+        label: t("failover.actions.retry_cleanup", { defaultValue: "Retry Cleanup" }),
+        reason: retryCleanupAvailability.reason,
+        nextStep: getRetryActionNextStep(t, "retry_cleanup", retryCleanupAvailability.reason),
+      }
+      : null,
+  ].filter((item): item is RetryGuidanceItem => Boolean(item));
+}
+
 function normalizeExecutionEntryAttempt(value: unknown): ExecutionEntryAttemptSummary {
   const raw = asRecord(value);
   return {
@@ -2973,6 +3476,48 @@ function DetailItemsList({
   );
 }
 
+function ExecutionSummaryCard({
+  title,
+  description,
+  items,
+  detailLines,
+  detailLinesTitle,
+  emptyLabel,
+  className,
+}: ExecutionSummaryCardData & { className?: string }) {
+  return (
+    <div className={cn("space-y-3 rounded-xl border border-slate-200/80 px-4 py-4 dark:border-slate-800/80", className)}>
+      <div className="space-y-1">
+        <div className="text-sm font-medium text-slate-900 dark:text-slate-50">{title}</div>
+        {description ? (
+          <div className="text-xs leading-5 text-muted-foreground">{description}</div>
+        ) : null}
+      </div>
+      {items.length > 0 ? (
+        <DetailItemsList items={items} />
+      ) : (
+        <div className="rounded-lg border border-dashed px-3 py-3 text-xs leading-5 text-muted-foreground">
+          {emptyLabel}
+        </div>
+      )}
+      {detailLines.length > 0 ? (
+        <div className="space-y-1.5">
+          <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+            {detailLinesTitle}
+          </div>
+          <div className="space-y-1.5 text-xs text-muted-foreground">
+            {detailLines.map((line) => (
+              <div key={line} className="break-all rounded-md border border-dashed border-slate-200/80 px-3 py-2 dark:border-slate-800/80">
+                {line}
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 function PreviewCheckCard({
   check,
 }: {
@@ -3279,6 +3824,7 @@ function ExecutionDetailDialog({
   const [stopping, setStopping] = React.useState(false);
   const [retryingDNS, setRetryingDNS] = React.useState(false);
   const [retryingCleanup, setRetryingCleanup] = React.useState(false);
+  const [pendingRetryAction, setPendingRetryAction] = React.useState<"retry_dns" | "retry_cleanup" | null>(null);
 
   const loadExecution = React.useCallback(async (showLoading = true) => {
     if (!executionID) {
@@ -3328,6 +3874,12 @@ function ExecutionDetailDialog({
     };
   }, [execution, loadExecution, open]);
 
+  React.useEffect(() => {
+    if (!open) {
+      setPendingRetryAction(null);
+    }
+  }, [open]);
+
   const handleStopExecution = async () => {
     if (!executionID) {
       return;
@@ -3348,7 +3900,7 @@ function ExecutionDetailDialog({
 
   const handleRetryDNS = async () => {
     if (!executionID) {
-      return;
+      return false;
     }
 
     setRetryingDNS(true);
@@ -3357,9 +3909,11 @@ function ExecutionDetailDialog({
       setExecution(updated);
       toast.success(t("failover.messages.retry_dns_success", { defaultValue: "DNS retry finished" }));
       await onExecutionUpdated?.();
+      return true;
     } catch (nextError) {
       toast.error(nextError instanceof Error ? nextError.message : t("common.unknown_error"));
       await loadExecution(false);
+      return false;
     } finally {
       setRetryingDNS(false);
     }
@@ -3367,7 +3921,7 @@ function ExecutionDetailDialog({
 
   const handleRetryCleanup = async () => {
     if (!executionID) {
-      return;
+      return false;
     }
 
     setRetryingCleanup(true);
@@ -3376,9 +3930,11 @@ function ExecutionDetailDialog({
       setExecution(updated);
       toast.success(t("failover.messages.retry_cleanup_success", { defaultValue: "Cleanup retry finished" }));
       await onExecutionUpdated?.();
+      return true;
     } catch (nextError) {
       toast.error(nextError instanceof Error ? nextError.message : t("common.unknown_error"));
       await loadExecution(false);
+      return false;
     } finally {
       setRetryingCleanup(false);
     }
@@ -3392,43 +3948,61 @@ function ExecutionDetailDialog({
   const retryCleanupAvailability = getRetryExecutionCleanupAvailability(execution);
   const canRetryDNS = retryDNSAvailability.available;
   const canRetryCleanup = retryCleanupAvailability.available;
-  const retryHints = [
-    execution && String(execution.dns_status || "").trim().toLowerCase() === "failed" && !canRetryDNS && retryDNSAvailability.reason
-      ? {
-        key: "retry-dns",
-        label: t("failover.actions.retry_dns", { defaultValue: "Retry DNS" }),
-        reason: retryDNSAvailability.reason,
+  const retryGuidance = buildRetryGuidanceItems(t, execution, retryDNSAvailability, retryCleanupAvailability);
+  const dnsSummaryCard = execution ? buildExecutionDnsSummaryCard(t, execution) : null;
+  const oldInstanceSummaryCard = execution ? buildExecutionOldInstanceSummaryCard(t, execution, cleanupInfo) : null;
+  const confirmActionLoading = pendingRetryAction === "retry_dns" ? retryingDNS : retryingCleanup;
+
+  const handleConfirmRetryAction = async () => {
+    if (pendingRetryAction === "retry_dns") {
+      if (await handleRetryDNS()) {
+        setPendingRetryAction(null);
       }
-      : null,
-    execution && ["pending", "failed", "warning"].includes(String(execution.cleanup_status || "").trim().toLowerCase()) && !canRetryCleanup && retryCleanupAvailability.reason
-      ? {
-        key: "retry-cleanup",
-        label: t("failover.actions.retry_cleanup", { defaultValue: "Retry Cleanup" }),
-        reason: retryCleanupAvailability.reason,
+      return;
+    }
+    if (pendingRetryAction === "retry_cleanup") {
+      if (await handleRetryCleanup()) {
+        setPendingRetryAction(null);
       }
-      : null,
-  ].filter((item): item is { key: string; label: string; reason: string } => Boolean(item));
+    }
+  };
+
+  const confirmTitle = pendingRetryAction === "retry_cleanup"
+    ? t("failover.execution.retry_cleanup_confirm_title", {
+      defaultValue: "Retry old instance cleanup?",
+    })
+    : t("failover.execution.retry_dns_confirm_title", {
+      defaultValue: "Retry DNS update?",
+    });
+  const confirmDescription = pendingRetryAction === "retry_cleanup"
+    ? t("failover.execution.retry_cleanup_confirm_description", {
+      defaultValue: "This only reruns old-instance cleanup with the saved provider reference. Verify the target below before deleting anything.",
+    })
+    : t("failover.execution.retry_dns_confirm_description", {
+      defaultValue: "This only reruns the DNS step with the saved execution addresses. It will not create a new instance.",
+    });
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="flex max-h-[88vh] max-w-4xl flex-col overflow-hidden p-0">
-        <DialogHeader className="border-b px-5 py-4">
-          <DialogTitle>
-            {t("failover.execution.title", { defaultValue: "Execution details" })}
-          </DialogTitle>
-          <DialogDescription>
-            {taskName || t("failover.execution.description", { defaultValue: "Track failover progress, script results, and DNS changes." })}
-          </DialogDescription>
-        </DialogHeader>
+    <>
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="flex max-h-[88vh] max-w-4xl flex-col overflow-hidden p-0">
+          <DialogHeader className="border-b px-5 py-4">
+            <DialogTitle>
+              {t("failover.execution.title", { defaultValue: "Execution details" })}
+            </DialogTitle>
+            <DialogDescription>
+              {taskName || t("failover.execution.description", { defaultValue: "Track failover progress, script results, and DNS changes." })}
+            </DialogDescription>
+          </DialogHeader>
 
-        <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">
-          {loading && !execution ? <Loading /> : null}
+          <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">
+            {loading && !execution ? <Loading /> : null}
 
-          {!loading && error ? (
-            <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900/40 dark:bg-red-950/30 dark:text-red-200">
-              {error}
-            </div>
-          ) : null}
+            {!loading && error ? (
+              <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900/40 dark:bg-red-950/30 dark:text-red-200">
+                {error}
+              </div>
+            ) : null}
 
           {execution ? (
             <div className="space-y-4">
@@ -3520,6 +4094,13 @@ function ExecutionDetailDialog({
                       })}
                     </div>
                   ) : null}
+                </div>
+              ) : null}
+
+              {dnsSummaryCard || oldInstanceSummaryCard ? (
+                <div className={cn("grid gap-3", dnsSummaryCard && oldInstanceSummaryCard ? "xl:grid-cols-2" : "")}>
+                  {dnsSummaryCard ? <ExecutionSummaryCard {...dnsSummaryCard} /> : null}
+                  {oldInstanceSummaryCard ? <ExecutionSummaryCard {...oldInstanceSummaryCard} /> : null}
                 </div>
               ) : null}
 
@@ -3628,19 +4209,34 @@ function ExecutionDetailDialog({
           ) : null}
         </div>
 
-        {retryHints.length > 0 ? (
-          <div className="border-t px-5 py-3 text-xs text-muted-foreground">
-            <div className="space-y-1">
-              {retryHints.map((hint) => (
-                <div key={hint.key}>
-                  {hint.label}: {hint.reason}
+        {retryGuidance.length > 0 ? (
+          <div className="border-t px-5 py-3">
+            <div className="space-y-2">
+              <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+                {t("failover.execution.retry_guidance_title", { defaultValue: "Retry guidance" })}
+              </div>
+              {retryGuidance.map((guidance) => (
+                <div key={guidance.key} className="rounded-lg border border-dashed border-slate-200/80 px-3 py-3 text-xs text-muted-foreground dark:border-slate-800/80">
+                  <div className="font-medium text-slate-700 dark:text-slate-200">{guidance.label}</div>
+                  <div className="mt-1.5 leading-5">
+                    <span className="font-medium text-slate-600 dark:text-slate-300">
+                      {t("failover.execution.retry_guidance_blocked", { defaultValue: "Blocked because" })}:
+                    </span>{" "}
+                    {guidance.reason}
+                  </div>
+                  <div className="mt-1 leading-5">
+                    <span className="font-medium text-slate-600 dark:text-slate-300">
+                      {t("failover.execution.retry_guidance_next_step", { defaultValue: "Next step" })}:
+                    </span>{" "}
+                    {guidance.nextStep}
+                  </div>
                 </div>
               ))}
             </div>
           </div>
         ) : null}
 
-        <DialogFooter className={cn("px-5 py-4", retryHints.length > 0 ? "" : "border-t")}>
+        <DialogFooter className={cn("px-5 py-4", retryGuidance.length > 0 ? "" : "border-t")}>
           {execution && isFailoverExecutionActive(execution.status) ? (
             <Button type="button" variant="outline" onClick={() => void handleStopExecution()} disabled={stopping || loading}>
               {stopping ? <LoaderCircle className="size-4 animate-spin" /> : <Square className="size-4" />}
@@ -3651,7 +4247,7 @@ function ExecutionDetailDialog({
             <Button
               type="button"
               variant="outline"
-              onClick={() => void handleRetryDNS()}
+              onClick={() => setPendingRetryAction("retry_dns")}
               disabled={retryingDNS || retryingCleanup || loading}
             >
               {retryingDNS ? <LoaderCircle className="size-4 animate-spin" /> : <RefreshCw className="size-4" />}
@@ -3662,7 +4258,7 @@ function ExecutionDetailDialog({
             <Button
               type="button"
               variant="outline"
-              onClick={() => void handleRetryCleanup()}
+              onClick={() => setPendingRetryAction("retry_cleanup")}
               disabled={retryingCleanup || retryingDNS || loading}
             >
               {retryingCleanup ? <LoaderCircle className="size-4 animate-spin" /> : <RefreshCw className="size-4" />}
@@ -3674,8 +4270,50 @@ function ExecutionDetailDialog({
             {t("common.refresh", { defaultValue: "Refresh" })}
           </Button>
         </DialogFooter>
-      </DialogContent>
-    </Dialog>
+        </DialogContent>
+      </Dialog>
+
+      <AlertDialog
+        open={pendingRetryAction !== null}
+        onOpenChange={(nextOpen) => {
+          if (!nextOpen && !confirmActionLoading) {
+            setPendingRetryAction(null);
+          }
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{confirmTitle}</AlertDialogTitle>
+            <AlertDialogDescription>{confirmDescription}</AlertDialogDescription>
+          </AlertDialogHeader>
+
+          {pendingRetryAction === "retry_dns" && dnsSummaryCard ? (
+            <ExecutionSummaryCard {...dnsSummaryCard} className="mt-1" />
+          ) : null}
+          {pendingRetryAction === "retry_cleanup" && oldInstanceSummaryCard ? (
+            <ExecutionSummaryCard {...oldInstanceSummaryCard} className="mt-1" />
+          ) : null}
+
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={confirmActionLoading}>
+              {t("common.cancel", { defaultValue: "Cancel" })}
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(event) => {
+                event.preventDefault();
+                void handleConfirmRetryAction();
+              }}
+              disabled={confirmActionLoading}
+            >
+              {confirmActionLoading ? <LoaderCircle className="size-4 animate-spin" /> : null}
+              {pendingRetryAction === "retry_cleanup"
+                ? t("failover.actions.retry_cleanup", { defaultValue: "Retry Cleanup" })
+                : t("failover.actions.retry_dns", { defaultValue: "Retry DNS" })}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 }
 
