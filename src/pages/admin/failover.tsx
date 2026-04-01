@@ -2522,6 +2522,51 @@ function getPreviewStatusLabel(t: TFunction, status: string) {
   }
 }
 
+type FailoverPreviewSummary = {
+  total: number;
+  successCount: number;
+  warningCount: number;
+  errorCount: number;
+  infoCount: number;
+};
+
+function getFailoverPreviewChecks(preview: FailoverTaskPreview | null) {
+  if (!preview) {
+    return [] as FailoverPreviewCheck[];
+  }
+
+  return [
+    ...preview.checks,
+    ...preview.plans.flatMap((plan) => plan.checks),
+  ];
+}
+
+function summarizeFailoverPreview(preview: FailoverTaskPreview | null): FailoverPreviewSummary {
+  const summary: FailoverPreviewSummary = {
+    total: 0,
+    successCount: 0,
+    warningCount: 0,
+    errorCount: 0,
+    infoCount: 0,
+  };
+
+  for (const check of getFailoverPreviewChecks(preview)) {
+    summary.total += 1;
+    const normalized = String(check.status || "").trim().toLowerCase();
+    if (normalized === "success") {
+      summary.successCount += 1;
+    } else if (normalized === "warning") {
+      summary.warningCount += 1;
+    } else if (normalized === "error") {
+      summary.errorCount += 1;
+    } else if (normalized === "info") {
+      summary.infoCount += 1;
+    }
+  }
+
+  return summary;
+}
+
 function normalizeEntries(entries: ProviderEntry[]) {
   return [...entries]
     .map((entry) => ({
@@ -3126,6 +3171,94 @@ function getTaskScriptStatusLabel(
   return getStatusLabel(t, status);
 }
 
+type TaskRiskBadge = {
+  key: string;
+  label: string;
+  variant: React.ComponentProps<typeof Badge>["variant"];
+  title: string;
+};
+
+function getFailoverTaskRiskBadges(
+  t: TFunction,
+  latestExecution: FailoverTask["latest_execution"],
+  cleanupInfo: CleanupResultInfo | null,
+) {
+  if (!latestExecution) {
+    return [] as TaskRiskBadge[];
+  }
+
+  const badges: TaskRiskBadge[] = [];
+  const executionActive = isFailoverExecutionActive(latestExecution.status);
+  const dnsStatus = String(latestExecution.dns_status || "").trim().toLowerCase();
+  const cleanupStatus = String(latestExecution.cleanup_status || "").trim().toLowerCase();
+  const cleanupClassification = String(cleanupInfo?.classification || "").trim().toLowerCase();
+  const cleanupDescription = [cleanupInfo?.description, cleanupInfo?.errorMessage].filter(Boolean).join(" ");
+
+  if (dnsStatus === "failed") {
+    badges.push({
+      key: "dns-failed",
+      label: t("failover.task.risk_dns_failed", { defaultValue: "DNS failed" }),
+      variant: "destructive",
+      title: latestExecution.error_message || getDnsTaskStatusLabel(t, latestExecution.dns_status),
+    });
+  }
+
+  if (cleanupClassification === "instance_confirmed_delete_failed") {
+    badges.push({
+      key: "cleanup-billing-risk",
+      label: t("failover.task.risk_cleanup_billing", { defaultValue: "Old instance may still bill" }),
+      variant: "destructive",
+      title: cleanupDescription || cleanupInfo?.title || "",
+    });
+  } else if (["provider_entry_missing", "provider_entry_unhealthy", "cleanup_status_unknown"].includes(cleanupClassification)) {
+    badges.push({
+      key: "cleanup-review",
+      label: t("failover.task.risk_cleanup_review", { defaultValue: "Cleanup needs review" }),
+      variant: "warning",
+      title: cleanupDescription || cleanupInfo?.title || "",
+    });
+  }
+
+  const retryDNSAvailable = !executionActive && dnsStatus === "failed";
+  const retryCleanupAvailable = (
+    !executionActive
+    && String(latestExecution.dns_status || "").trim().toLowerCase() === "success"
+    && ["pending", "failed", "warning"].includes(cleanupStatus)
+    && ![
+      "not_requested",
+      "instance_deleted",
+      "instance_missing",
+      "provider_entry_missing",
+      "provider_entry_unhealthy",
+    ].includes(cleanupClassification)
+  );
+
+  if (retryDNSAvailable || retryCleanupAvailable) {
+    badges.push({
+      key: "retry-available",
+      label: retryDNSAvailable && retryCleanupAvailable
+        ? t("failover.task.risk_retry_available", { defaultValue: "Retry available" })
+        : retryDNSAvailable
+          ? t("failover.task.risk_retry_dns", { defaultValue: "Retry DNS" })
+          : t("failover.task.risk_retry_cleanup", { defaultValue: "Retry cleanup" }),
+      variant: "info",
+      title: retryDNSAvailable && retryCleanupAvailable
+        ? t("failover.task.risk_retry_available_hint", {
+          defaultValue: "The latest execution looks eligible for step-level retry actions.",
+        })
+        : retryDNSAvailable
+          ? t("failover.task.risk_retry_dns_hint", {
+            defaultValue: "The latest execution can retry the DNS step without reprovisioning.",
+          })
+          : t("failover.task.risk_retry_cleanup_hint", {
+            defaultValue: "The latest execution can retry old-instance cleanup.",
+          }),
+    });
+  }
+
+  return badges;
+}
+
 function parseDnsPayloadFields(
   task: FailoverTask,
   providerEntries: ProviderEntriesMap,
@@ -3558,16 +3691,44 @@ function TaskPreviewSection({
   preview,
   loading,
   error,
+  stale,
 }: {
   preview: FailoverTaskPreview | null;
   loading: boolean;
   error: string;
+  stale: boolean;
 }) {
   const { t } = useTranslation();
+  const previewSummary = React.useMemo(
+    () => summarizeFailoverPreview(preview),
+    [preview],
+  );
 
   if (!loading && !error && !preview) {
     return null;
   }
+
+  const statusMessage = stale
+    ? t("failover.preview.outdated_hint", {
+      defaultValue: "The form changed after the last preview. Run Preview again before saving.",
+    })
+    : error
+      ? t("failover.preview.failed_hint", {
+        defaultValue: "Preview failed for the current form. Saving is blocked until Preview succeeds.",
+      })
+      : previewSummary.errorCount > 0
+        ? t("failover.preview.blocking_hint", {
+          defaultValue: "Preview found blocking errors. Fix them before saving.",
+        })
+        : previewSummary.warningCount > 0
+          ? t("failover.preview.warning_hint", {
+            defaultValue: "Preview has warnings. You can still save, but review them first.",
+          })
+          : preview
+            ? t("failover.preview.fresh_hint", {
+              defaultValue: "Preview is up to date for the current form.",
+            })
+            : "";
 
   return (
     <section className="space-y-4">
@@ -3611,7 +3772,38 @@ function TaskPreviewSection({
                   })}
                 </div>
               ) : null}
+              {stale ? (
+                <Badge variant="warning">
+                  {t("failover.preview.outdated", { defaultValue: "Outdated" })}
+                </Badge>
+              ) : (
+                <Badge variant="outline">
+                  {t("failover.preview.fresh", { defaultValue: "Fresh" })}
+                </Badge>
+              )}
+              {previewSummary.errorCount > 0 ? (
+                <Badge variant="destructive">
+                  {t("failover.preview.error_count", {
+                    defaultValue: "{{count}} error(s)",
+                    count: previewSummary.errorCount,
+                  })}
+                </Badge>
+              ) : null}
+              {previewSummary.warningCount > 0 ? (
+                <Badge variant="warning">
+                  {t("failover.preview.warning_count", {
+                    defaultValue: "{{count}} warning(s)",
+                    count: previewSummary.warningCount,
+                  })}
+                </Badge>
+              ) : null}
             </div>
+
+            {statusMessage ? (
+              <div className="rounded-lg border border-dashed border-slate-200/80 px-3 py-3 text-xs leading-5 text-muted-foreground dark:border-slate-800/80">
+                {statusMessage}
+              </div>
+            ) : null}
 
             {preview.checks.length > 0 ? (
               <div className="space-y-3">
@@ -4358,6 +4550,7 @@ function TaskEditorDialog({
   const [previewResult, setPreviewResult] = React.useState<FailoverTaskPreview | null>(null);
   const [previewError, setPreviewError] = React.useState("");
   const [previewing, setPreviewing] = React.useState(false);
+  const [previewPayloadSignature, setPreviewPayloadSignature] = React.useState("");
   const lastEnabledDnsRef = React.useRef<{ provider: string; entryID: string } | null>(null);
   const dnsCatalogRequestRef = React.useRef(0);
   const planCatalogRequestRef = React.useRef(0);
@@ -4374,6 +4567,7 @@ function TaskEditorDialog({
   const resetPreviewState = React.useCallback(() => {
     setPreviewResult(null);
     setPreviewError("");
+    setPreviewPayloadSignature("");
   }, []);
 
   React.useEffect(() => {
@@ -4612,6 +4806,47 @@ function TaskEditorDialog({
     ),
     [formState.plans],
   );
+  const currentTaskInput = React.useMemo(
+    () => buildTaskInput(formState, t),
+    [formState, t],
+  );
+  const currentPreviewSignature = React.useMemo(
+    () => JSON.stringify(currentTaskInput),
+    [currentTaskInput],
+  );
+  const previewSummary = React.useMemo(
+    () => summarizeFailoverPreview(previewResult),
+    [previewResult],
+  );
+  const previewHasRun = Boolean(previewPayloadSignature);
+  const previewOutdated = previewHasRun && previewPayloadSignature !== currentPreviewSignature;
+  const previewSaveBlockedReason = previewOutdated
+    ? t("failover.preview.outdated_blocked", {
+      defaultValue: "Preview is outdated. Run Preview again before saving.",
+    })
+    : String(previewError || "").trim()
+      ? t("failover.preview.error_blocked", {
+        defaultValue: "Preview failed for the current form. Run Preview again before saving.",
+      })
+      : previewSummary.errorCount > 0
+        ? t("failover.preview.checks_blocked", {
+          defaultValue: "Preview found blocking errors. Fix them before saving.",
+        })
+        : "";
+  const previewFooterHint = previewSaveBlockedReason
+    || (
+      previewHasRun && previewSummary.warningCount > 0
+        ? t("failover.preview.warning_footer", {
+          defaultValue: "Preview has warnings. Saving is allowed, but review them first.",
+        })
+        : previewHasRun
+          ? t("failover.preview.ready_footer", {
+            defaultValue: "Preview is up to date for the current form.",
+          })
+          : t("failover.preview.recommended_footer", {
+            defaultValue: "Preview is recommended before saving cloud failover changes.",
+          })
+    );
 
   React.useEffect(() => {
     if (formState.plans.length === 0) {
@@ -4679,7 +4914,6 @@ function TaskEditorDialog({
   }, [open, formState.dns_provider, formState.dns_entry_id, refreshDnsCatalog]);
 
   const updateTaskField = <K extends keyof TaskFormState>(key: K, value: TaskFormState[K]) => {
-    resetPreviewState();
     setFormState((current) => {
       const nextState = { ...current, [key]: value };
       return {
@@ -4690,7 +4924,6 @@ function TaskEditorDialog({
   };
 
   const setDnsEnabled = React.useCallback((enabled: boolean) => {
-    resetPreviewState();
     if (!enabled) {
       if (formState.dns_provider.trim()) {
         lastEnabledDnsRef.current = {
@@ -4748,11 +4981,9 @@ function TaskEditorDialog({
     formState.dns_entry_id,
     formState.dns_provider,
     providerEntries,
-    resetPreviewState,
   ]);
 
   const updatePlan = (localID: string, updater: (plan: PlanFormState) => PlanFormState) => {
-    resetPreviewState();
     setFormState((current) => {
       const nextState = {
         ...current,
@@ -4882,7 +5113,6 @@ function TaskEditorDialog({
   }, [open, resetPlanCatalogState, selectedPlan?.local_id]);
 
   const addPlan = () => {
-    resetPreviewState();
     const nextPlan = {
       ...createEmptyPlanForm(providerEntries),
       priority: String(formState.plans.length + 1),
@@ -4901,7 +5131,6 @@ function TaskEditorDialog({
   };
 
   const removePlan = (localID: string) => {
-    resetPreviewState();
     setFormState((current) => {
       const nextState = {
         ...current,
@@ -4919,13 +5148,14 @@ function TaskEditorDialog({
     setPreviewError("");
 
     try {
-      const payload = buildTaskInput(formState, t);
-      const preview = await previewFailoverTask(payload);
+      const preview = await previewFailoverTask(currentTaskInput);
       setPreviewResult(preview);
+      setPreviewPayloadSignature(currentPreviewSignature);
     } catch (error) {
       const message = error instanceof Error ? error.message : t("common.unknown_error");
       setPreviewResult(null);
       setPreviewError(message);
+      setPreviewPayloadSignature(currentPreviewSignature);
       toast.error(message);
     } finally {
       setPreviewing(false);
@@ -4934,6 +5164,10 @@ function TaskEditorDialog({
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    if (previewSaveBlockedReason) {
+      toast.error(previewSaveBlockedReason);
+      return;
+    }
     setSubmitting(true);
 
     try {
@@ -4949,7 +5183,7 @@ function TaskEditorDialog({
           }),
         );
       }
-      const payload = buildTaskInput(formState, t);
+      const payload = currentTaskInput;
       if (task) {
         await updateFailoverTask(task.id, payload);
         toast.success(t("failover.messages.updated", { defaultValue: "Failover task updated" }));
@@ -6880,12 +7114,28 @@ function TaskEditorDialog({
                 preview={previewResult}
                 loading={previewing}
                 error={previewError}
+                stale={previewOutdated}
               />
             </div>
           </div>
 
-          <DialogFooter className="shrink-0 border-t bg-background/95 px-5 py-4 backdrop-blur">
-            <div className="flex flex-wrap gap-2">
+          <DialogFooter className="shrink-0 border-t bg-background/95 px-5 py-4 backdrop-blur sm:items-center sm:justify-between">
+            <div className="min-w-0 flex-1 text-xs text-muted-foreground">
+              <div
+                className={cn(
+                  "line-clamp-2",
+                  previewSaveBlockedReason
+                    ? "text-amber-700 dark:text-amber-300"
+                    : previewHasRun && previewSummary.warningCount > 0
+                      ? "text-amber-700 dark:text-amber-300"
+                      : "",
+                )}
+                title={previewFooterHint}
+              >
+                {previewFooterHint}
+              </div>
+            </div>
+            <div className="flex flex-wrap gap-2 sm:justify-end">
               <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={submitting}>
                 {t("common.cancel", { defaultValue: "Cancel" })}
               </Button>
@@ -6893,7 +7143,7 @@ function TaskEditorDialog({
                 {previewing ? <LoaderCircle className="size-4 animate-spin" /> : <Eye className="size-4" />}
                 {t("failover.preview.action", { defaultValue: "Preview" })}
               </Button>
-              <Button type="submit" disabled={submitting}>
+              <Button type="submit" disabled={submitting || Boolean(previewSaveBlockedReason)} title={previewSaveBlockedReason || undefined}>
                 {submitting ? <LoaderCircle className="size-4 animate-spin" /> : null}
                 {task
                   ? t("common.save", { defaultValue: "Save" })
@@ -7188,6 +7438,7 @@ function FailoverPageContent() {
               const latestStep = latestExecution?.last_step || null;
               const latestStepLabel = latestStep ? getFailoverExecutionStepLabel(t, latestStep) : "";
               const latestStepMessage = latestStep ? getFailoverExecutionStepMessage(t, latestStep) : "";
+              const taskRiskBadges = getFailoverTaskRiskBadges(t, latestExecution, latestCleanupInfo);
               const latestExecutionSummary = latestExecution
                 ? latestExecution.error_message
                   || (
@@ -7327,6 +7578,15 @@ function FailoverPageContent() {
                           </Badge>
                         ) : null}
                       </div>
+                      {taskRiskBadges.length > 0 ? (
+                        <div className="flex flex-wrap gap-2">
+                          {taskRiskBadges.map((badge) => (
+                            <Badge key={badge.key} variant={badge.variant} title={badge.title || undefined}>
+                              {badge.label}
+                            </Badge>
+                          ))}
+                        </div>
+                      ) : null}
                       <div
                         className={cn(
                           "truncate text-sm",
