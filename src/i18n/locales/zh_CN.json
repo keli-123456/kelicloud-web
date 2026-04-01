@@ -985,9 +985,10 @@
       "tokens": "令牌管理"
     },
     "share": {
-      "action": "分享",
       "access_count": "访问次数",
       "access_policy": "访问策略",
+      "action": "分享",
+      "consumed_at": "消耗时间",
       "copy_link": "复制链接",
       "create": "创建分享",
       "credentials": "共享凭据",
@@ -1033,8 +1034,7 @@
       "status_not_shared": "未分享",
       "unavailable": "分享不可用",
       "update": "更新分享",
-      "updated": "最近更新",
-      "consumed_at": "消耗时间"
+      "updated": "最近更新"
     },
     "stats": {
       "account": "账户",
