@@ -1,6 +1,7 @@
 import React from "react";
 import { Navigate } from "react-router-dom";
 import {
+  Check,
   ChevronDown,
   Eye,
   LoaderCircle,
@@ -51,6 +52,11 @@ import {
 } from "@/components/ui/collapsible";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import {
   Select,
   SelectContent as BaseSelectContent,
@@ -157,23 +163,143 @@ type ProviderEntryOption = {
 type EntryValues = Record<string, unknown>;
 type DnsSyncMode = "ipv4" | "ipv6" | "dual_stack";
 
-const FailoverSelectPortalContext = React.createContext<HTMLElement | null>(null);
+type SearchableCatalogSelectProps = {
+  value?: string;
+  options: FailoverCatalogOption[];
+  placeholder: string;
+  searchPlaceholder: string;
+  emptyLabel: string;
+  onValueChange: (value: string) => void;
+  formatOptionLabel?: (option: FailoverCatalogOption) => string;
+};
 
 function SelectContent({
   position = "popper",
   align = "start",
   sideOffset = 6,
+  className,
   ...props
 }: React.ComponentProps<typeof BaseSelectContent>) {
-  const portalContainer = React.useContext(FailoverSelectPortalContext);
   return (
     <BaseSelectContent
-      portalContainer={portalContainer}
       position={position}
       align={align}
       sideOffset={sideOffset}
+      className={cn("z-[60]", className)}
       {...props}
     />
+  );
+}
+
+function SearchableCatalogSelect({
+  value,
+  options,
+  placeholder,
+  searchPlaceholder,
+  emptyLabel,
+  onValueChange,
+  formatOptionLabel = formatCatalogOptionLabel,
+}: SearchableCatalogSelectProps) {
+  const [open, setOpen] = React.useState(false);
+  const [searchQuery, setSearchQuery] = React.useState("");
+  const deferredSearchQuery = React.useDeferredValue(searchQuery.trim().toLowerCase());
+  const selectedOption = React.useMemo(
+    () => options.find((option) => option.value === value) || null,
+    [options, value],
+  );
+  const filteredOptions = React.useMemo(
+    () => {
+      if (!deferredSearchQuery) {
+        return options;
+      }
+
+      return options.filter((option) => {
+        const label = formatOptionLabel(option);
+        const haystack = `${option.value} ${option.label} ${option.hint} ${label}`.toLowerCase();
+        return haystack.includes(deferredSearchQuery);
+      });
+    },
+    [deferredSearchQuery, formatOptionLabel, options],
+  );
+  const triggerLabel = selectedOption ? formatOptionLabel(selectedOption) : value || "";
+
+  React.useEffect(() => {
+    if (!open && searchQuery) {
+      setSearchQuery("");
+    }
+  }, [open, searchQuery]);
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button
+          type="button"
+          variant="outline"
+          role="combobox"
+          aria-expanded={open}
+          className="w-full min-w-0 justify-between font-normal"
+        >
+          <span
+            className={cn(
+              "min-w-0 flex-1 truncate text-left",
+              !triggerLabel ? "text-muted-foreground" : "",
+            )}
+            title={triggerLabel || placeholder}
+          >
+            {triggerLabel || placeholder}
+          </span>
+          <ChevronDown className="ml-2 size-4 shrink-0 opacity-60" />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent
+        align="start"
+        sideOffset={6}
+        className="z-[60] w-[var(--radix-popover-trigger-width)] min-w-[18rem] max-w-[calc(100vw-2rem)] p-0"
+      >
+        <div className="border-b p-2">
+          <Input
+            autoFocus
+            value={searchQuery}
+            onChange={(event) => setSearchQuery(event.target.value)}
+            placeholder={searchPlaceholder}
+          />
+        </div>
+        <div className="max-h-72 overflow-y-auto p-1">
+          {filteredOptions.length === 0 ? (
+            <div className="px-3 py-6 text-sm text-muted-foreground">
+              {emptyLabel}
+            </div>
+          ) : (
+            filteredOptions.map((option) => {
+              const optionLabel = formatOptionLabel(option);
+              const isSelected = option.value === value;
+              return (
+                <button
+                  key={option.value}
+                  type="button"
+                  className={cn(
+                    "flex w-full items-start gap-3 rounded-md px-3 py-2 text-left hover:bg-accent hover:text-accent-foreground",
+                    isSelected ? "bg-accent/60 text-accent-foreground" : "",
+                  )}
+                  onClick={() => {
+                    onValueChange(option.value);
+                    setOpen(false);
+                  }}
+                >
+                  <div className="min-w-0 flex-1">
+                    <div className="truncate text-sm font-medium">{optionLabel}</div>
+                    {option.value && option.value !== option.label ? (
+                      <div className="truncate text-xs text-muted-foreground">{option.value}</div>
+                    ) : null}
+                  </div>
+                  <Check className={cn("mt-0.5 size-4 shrink-0", isSelected ? "opacity-100" : "opacity-0")} />
+                </button>
+              );
+            })
+          )}
+        </div>
+      </PopoverContent>
+    </Popover>
   );
 }
 
@@ -207,6 +333,49 @@ const DNS_TTL_OPTIONS = [1, 60, 120, 300, 600, 900, 1800, 3600, 7200] as const;
 const DEFAULT_DIGITALOCEAN_IMAGE = "ubuntu-24-04-x64";
 const DEFAULT_LINODE_IMAGE = "linode/ubuntu24.04";
 const AUTOMATIC_PROVIDER_ENTRY_ID = "active";
+const COMMON_DIGITALOCEAN_REGIONS: FailoverCatalogOption[] = [
+  { value: "nyc3", label: "New York 3", hint: "" },
+  { value: "sfo3", label: "San Francisco 3", hint: "" },
+  { value: "tor1", label: "Toronto 1", hint: "" },
+  { value: "lon1", label: "London 1", hint: "" },
+  { value: "fra1", label: "Frankfurt 1", hint: "" },
+  { value: "ams3", label: "Amsterdam 3", hint: "" },
+  { value: "sgp1", label: "Singapore 1", hint: "" },
+  { value: "blr1", label: "Bangalore 1", hint: "" },
+];
+const COMMON_DIGITALOCEAN_SIZES: FailoverCatalogOption[] = [
+  { value: "s-1vcpu-1gb", label: "Basic 1 GB", hint: "1 vCPU · 1 GB" },
+  { value: "s-1vcpu-2gb", label: "Basic 2 GB", hint: "1 vCPU · 2 GB" },
+  { value: "s-2vcpu-2gb", label: "Basic 2 vCPU", hint: "2 vCPU · 2 GB" },
+  { value: "s-2vcpu-4gb", label: "Basic 4 GB", hint: "2 vCPU · 4 GB" },
+  { value: "s-4vcpu-8gb", label: "Basic 8 GB", hint: "4 vCPU · 8 GB" },
+];
+const COMMON_DIGITALOCEAN_IMAGES: FailoverCatalogOption[] = [
+  { value: "ubuntu-24-04-x64", label: "Ubuntu 24.04 LTS", hint: "" },
+  { value: "ubuntu-22-04-x64", label: "Ubuntu 22.04 LTS", hint: "" },
+  { value: "debian-12-x64", label: "Debian 12", hint: "" },
+];
+const COMMON_LINODE_REGIONS: FailoverCatalogOption[] = [
+  { value: "us-east", label: "Newark", hint: "us" },
+  { value: "us-central", label: "Dallas", hint: "us" },
+  { value: "us-west", label: "Fremont", hint: "us" },
+  { value: "ap-south", label: "Singapore", hint: "sg" },
+  { value: "ap-northeast", label: "Tokyo", hint: "jp" },
+  { value: "ap-west", label: "Mumbai", hint: "in" },
+  { value: "eu-central", label: "Frankfurt", hint: "de" },
+  { value: "eu-west", label: "London", hint: "gb" },
+];
+const COMMON_LINODE_TYPES: FailoverCatalogOption[] = [
+  { value: "g6-nanode-1", label: "Nanode 1 GB", hint: "1 vCPU · 1 GB" },
+  { value: "g6-standard-1", label: "Shared 2 GB", hint: "1 vCPU · 2 GB" },
+  { value: "g6-standard-2", label: "Shared 4 GB", hint: "2 vCPU · 4 GB" },
+  { value: "g6-standard-4", label: "Shared 8 GB", hint: "4 vCPU · 8 GB" },
+];
+const COMMON_LINODE_IMAGES: FailoverCatalogOption[] = [
+  { value: "linode/ubuntu24.04", label: "Ubuntu 24.04 LTS", hint: "" },
+  { value: "linode/ubuntu22.04", label: "Ubuntu 22.04 LTS", hint: "" },
+  { value: "linode/debian12", label: "Debian 12", hint: "" },
+];
 const DIGITALOCEAN_REGION_COUNTRIES: Record<string, string> = {
   ams: "nl",
   atl: "us",
@@ -1173,6 +1342,49 @@ function formatCatalogOptionLabel(option: { label: string; hint?: string }) {
   return option.hint ? `${option.label} · ${option.hint}` : option.label;
 }
 
+function appendCatalogOptionIfMissing(
+  options: FailoverCatalogOption[] = [],
+  value: string,
+  label?: string,
+) {
+  const normalizedValue = String(value || "").trim();
+  if (!normalizedValue) {
+    return options;
+  }
+  if (options.some((option) => String(option.value || "").trim() === normalizedValue)) {
+    return options;
+  }
+  return [
+    ...options,
+    {
+      value: normalizedValue,
+      label: String(label || normalizedValue).trim() || normalizedValue,
+      hint: "",
+    },
+  ];
+}
+
+function describeTaskAdvancedSettings(t: TFunction, state: TaskFormState) {
+  return [
+    `${t("failover.editor.failure_threshold", { defaultValue: "Failure threshold" })}: ${state.failure_threshold || "-"}`,
+    `${t("failover.editor.stale_after", { defaultValue: "Stale after (s)" })}: ${state.stale_after_seconds || "-"}`,
+    `${t("failover.editor.cooldown", { defaultValue: "Cooldown (s)" })}: ${state.cooldown_seconds || "-"}`,
+    `${t("failover.editor.provision_retry_limit", { defaultValue: "Blocked retry limit" })}: ${state.provision_retry_limit || "-"}`,
+  ].join(" · ");
+}
+
+function describePlanAdvancedSettings(t: TFunction, plan: PlanFormState | null) {
+  if (!plan) {
+    return "";
+  }
+
+  return [
+    `${t("failover.editor.priority", { defaultValue: "Priority" })}: ${plan.priority || "-"}`,
+    `${t("failover.editor.script_timeout", { defaultValue: "Script timeout (s)" })}: ${plan.script_timeout_sec || "-"}`,
+    `${t("failover.editor.wait_agent_timeout", { defaultValue: "Wait agent timeout (s)" })}: ${plan.wait_agent_timeout_sec || "-"}`,
+  ].join(" · ");
+}
+
 function localizeCountryLabel(t: TFunction, rawValue: string) {
   const normalized = String(rawValue || "").trim();
   if (!normalized) {
@@ -1463,6 +1675,91 @@ function keepPlanCatalogRegions(
     region,
     Array.isArray(catalog.regions) ? catalog.regions : [],
   );
+}
+
+function mergeCatalogOptions(
+  preferred: FailoverCatalogOption[] = [],
+  loaded: FailoverCatalogOption[] = [],
+) {
+  const loadedByValue = new Map(
+    loaded
+      .map((option) => [String(option.value || "").trim(), option] as const)
+      .filter(([value]) => Boolean(value)),
+  );
+  const seen = new Set<string>();
+  const merged: FailoverCatalogOption[] = [];
+
+  for (const option of preferred) {
+    const value = String(option.value || "").trim();
+    if (!value || seen.has(value)) {
+      continue;
+    }
+    seen.add(value);
+    merged.push(loadedByValue.get(value) || option);
+  }
+
+  for (const option of loaded) {
+    const value = String(option.value || "").trim();
+    if (!value || seen.has(value)) {
+      continue;
+    }
+    seen.add(value);
+    merged.push(option);
+  }
+
+  return merged;
+}
+
+function buildCommonDigitalOceanPlanCatalog(region = "") {
+  return {
+    ...createEmptyPlanCatalog("digitalocean", "provision_instance", "", region, COMMON_DIGITALOCEAN_REGIONS),
+    sizes: COMMON_DIGITALOCEAN_SIZES,
+    images: COMMON_DIGITALOCEAN_IMAGES,
+  } satisfies FailoverPlanCatalog;
+}
+
+function mergeDigitalOceanPlanCatalogWithCommon(
+  catalog: FailoverPlanCatalog | null,
+  region = "",
+) {
+  const commonCatalog = buildCommonDigitalOceanPlanCatalog(region);
+  if (!catalog || catalog.provider !== "digitalocean") {
+    return commonCatalog;
+  }
+
+  return {
+    ...catalog,
+    region: catalog.region || region,
+    regions: mergeCatalogOptions(commonCatalog.regions, catalog.regions),
+    sizes: mergeCatalogOptions(commonCatalog.sizes, catalog.sizes),
+    images: mergeCatalogOptions(commonCatalog.images, catalog.images),
+  } satisfies FailoverPlanCatalog;
+}
+
+function buildCommonLinodePlanCatalog(region = "") {
+  return {
+    ...createEmptyPlanCatalog("linode", "provision_instance", "", region, COMMON_LINODE_REGIONS),
+    types: COMMON_LINODE_TYPES,
+    images: COMMON_LINODE_IMAGES,
+  } satisfies FailoverPlanCatalog;
+}
+
+function mergeLinodePlanCatalogWithCommon(
+  catalog: FailoverPlanCatalog | null,
+  region = "",
+) {
+  const commonCatalog = buildCommonLinodePlanCatalog(region);
+  if (!catalog || catalog.provider !== "linode") {
+    return commonCatalog;
+  }
+
+  return {
+    ...catalog,
+    region: catalog.region || region,
+    regions: mergeCatalogOptions(commonCatalog.regions, catalog.regions),
+    types: mergeCatalogOptions(commonCatalog.types, catalog.types),
+    images: mergeCatalogOptions(commonCatalog.images, catalog.images),
+  } satisfies FailoverPlanCatalog;
 }
 
 function requirePlanField(
@@ -3056,7 +3353,10 @@ function TaskEditorDialog({
   } = useSettings();
   const [submitting, setSubmitting] = React.useState(false);
   const [formState, setFormState] = React.useState<TaskFormState>(() => createEmptyTaskForm(providerEntries));
+  const [taskAdvancedOpen, setTaskAdvancedOpen] = React.useState(false);
   const [selectedPlanID, setSelectedPlanID] = React.useState("");
+  const [planAdvancedOpenState, setPlanAdvancedOpenState] = React.useState<Record<string, boolean>>({});
+  const [customAutoConnectGroupModes, setCustomAutoConnectGroupModes] = React.useState<Record<string, boolean>>({});
   const [planScriptSearchQueries, setPlanScriptSearchQueries] = React.useState<Record<string, string>>({});
   const [dnsCatalog, setDnsCatalog] = React.useState<FailoverDnsCatalog | null>(null);
   const [dnsCatalogLoading, setDnsCatalogLoading] = React.useState(false);
@@ -3066,7 +3366,6 @@ function TaskEditorDialog({
   const [planCatalogLoading, setPlanCatalogLoading] = React.useState(false);
   const [planCatalogLoadMode, setPlanCatalogLoadMode] = React.useState<"regions" | "full">("regions");
   const [planCatalogError, setPlanCatalogError] = React.useState("");
-  const [selectPortalContainer, setSelectPortalContainer] = React.useState<HTMLDivElement | null>(null);
   const lastEnabledDnsRef = React.useRef<{ provider: string; entryID: string } | null>(null);
   const dnsCatalogRequestRef = React.useRef(0);
   const planCatalogRequestRef = React.useRef(0);
@@ -3077,7 +3376,14 @@ function TaskEditorDialog({
     }
     const nextFormState = task ? taskToForm(task, providerEntries) : createEmptyTaskForm(providerEntries);
     setFormState(nextFormState);
+    setTaskAdvancedOpen(false);
     setSelectedPlanID(nextFormState.plans[0]?.local_id || "");
+    setPlanAdvancedOpenState({});
+    setCustomAutoConnectGroupModes(
+      Object.fromEntries(
+        nextFormState.plans.map((plan) => [plan.local_id, !shouldSyncAutoConnectGroup(plan, providerEntries)]),
+      ),
+    );
     setPlanScriptSearchQueries({});
     setDnsCatalog(null);
     setDnsCatalogError("");
@@ -3163,11 +3469,96 @@ function TaskEditorDialog({
     () => getStringValue(selectedPlanPayload.region),
     [selectedPlanPayload],
   );
+  const selectedPlanSize = React.useMemo(
+    () => getStringValue(selectedPlanPayload.size),
+    [selectedPlanPayload],
+  );
+  const selectedPlanImage = React.useMemo(
+    () => getStringValue(selectedPlanPayload.image),
+    [selectedPlanPayload],
+  );
+  const selectedPlanType = React.useMemo(
+    () => getStringValue(selectedPlanPayload.type),
+    [selectedPlanPayload],
+  );
+  const isDigitalOceanProvisionPlan = selectedPlan?.provider === "digitalocean" && selectedPlan.action_type === "provision_instance";
+  const digitalOceanPlanCatalog = React.useMemo(
+    () => (
+      isDigitalOceanProvisionPlan
+        ? mergeDigitalOceanPlanCatalogWithCommon(planCatalog, selectedPlanRegion)
+        : null
+    ),
+    [isDigitalOceanProvisionPlan, planCatalog, selectedPlanRegion],
+  );
+  const isLinodeProvisionPlan = selectedPlan?.provider === "linode" && selectedPlan.action_type === "provision_instance";
+  const linodePlanCatalog = React.useMemo(
+    () => (
+      isLinodeProvisionPlan
+        ? mergeLinodePlanCatalogWithCommon(planCatalog, selectedPlanRegion)
+        : null
+    ),
+    [isLinodeProvisionPlan, planCatalog, selectedPlanRegion],
+  );
+  const digitalOceanRegionOptions = React.useMemo(
+    () => appendCatalogOptionIfMissing(digitalOceanPlanCatalog?.regions || [], selectedPlanRegion),
+    [digitalOceanPlanCatalog, selectedPlanRegion],
+  );
+  const digitalOceanSizeOptions = React.useMemo(
+    () => appendCatalogOptionIfMissing(digitalOceanPlanCatalog?.sizes || [], selectedPlanSize),
+    [digitalOceanPlanCatalog, selectedPlanSize],
+  );
+  const digitalOceanImageOptions = React.useMemo(
+    () => appendCatalogOptionIfMissing(digitalOceanPlanCatalog?.images || [], selectedPlanImage),
+    [digitalOceanPlanCatalog, selectedPlanImage],
+  );
+  const linodeRegionOptions = React.useMemo(
+    () => appendCatalogOptionIfMissing(linodePlanCatalog?.regions || [], selectedPlanRegion),
+    [linodePlanCatalog, selectedPlanRegion],
+  );
+  const linodeTypeOptions = React.useMemo(
+    () => appendCatalogOptionIfMissing(linodePlanCatalog?.types || [], selectedPlanType),
+    [linodePlanCatalog, selectedPlanType],
+  );
+  const linodeImageOptions = React.useMemo(
+    () => appendCatalogOptionIfMissing(linodePlanCatalog?.images || [], selectedPlanImage),
+    [linodePlanCatalog, selectedPlanImage],
+  );
   const canLoadPlanCatalog = Boolean(
     selectedPlan?.provider.trim()
     && (selectedPlan.provider_entry_id.trim() || selectedPlan.provider_entry_group.trim()),
   );
-  const canLoadPlanDetails = canLoadPlanCatalog && Boolean(selectedPlanRegion.trim());
+  const usesCommonPlanCatalogDefaults = isDigitalOceanProvisionPlan || isLinodeProvisionPlan;
+  const canLoadPlanDetails = canLoadPlanCatalog && (usesCommonPlanCatalogDefaults || Boolean(selectedPlanRegion.trim()));
+  const suggestedAutoConnectGroup = React.useMemo(
+    () => (
+      selectedPlan
+        ? buildSuggestedAutoConnectGroup(
+          selectedPlan.provider,
+          providerEntries,
+          selectedPlan.provider_entry_group,
+          selectedPlan.provider_entry_id,
+        )
+        : ""
+    ),
+    [providerEntries, selectedPlan],
+  );
+  const selectedPlanUsesCustomAutoConnectGroup = React.useMemo(
+    () => {
+      if (!selectedPlan) {
+        return false;
+      }
+      const explicitValue = customAutoConnectGroupModes[selectedPlan.local_id];
+      if (typeof explicitValue === "boolean") {
+        return explicitValue;
+      }
+      return !shouldSyncAutoConnectGroup(selectedPlan, providerEntries);
+    },
+    [customAutoConnectGroupModes, providerEntries, selectedPlan],
+  );
+  const selectedPlanDisplayedAutoConnectGroup = selectedPlanUsesCustomAutoConnectGroup
+    ? getStringValue(selectedPlan?.auto_connect_group)
+    : suggestedAutoConnectGroup;
+  const selectedPlanAdvancedOpen = selectedPlan ? Boolean(planAdvancedOpenState[selectedPlan.local_id]) : false;
   const dnsCatalogRecords = React.useMemo(
     () => (dnsCatalog?.records || []).filter((record) => {
       const recordType = normalizeDnsRecordType(record.type);
@@ -3374,6 +3765,34 @@ function TaskEditorDialog({
     });
   };
 
+  const setSelectedPlanAdvancedOpen = React.useCallback((openState: boolean) => {
+    if (!selectedPlan) {
+      return;
+    }
+    setPlanAdvancedOpenState((current) => ({
+      ...current,
+      [selectedPlan.local_id]: openState,
+    }));
+  }, [selectedPlan]);
+
+  const setSelectedPlanCustomAutoConnectGroup = React.useCallback((custom: boolean) => {
+    if (!selectedPlan) {
+      return;
+    }
+
+    setCustomAutoConnectGroupModes((current) => ({
+      ...current,
+      [selectedPlan.local_id]: custom,
+    }));
+
+    if (!custom) {
+      updatePlan(selectedPlan.local_id, (current) => ({
+        ...current,
+        auto_connect_group: suggestedAutoConnectGroup,
+      }));
+    }
+  }, [selectedPlan, suggestedAutoConnectGroup, updatePlan]);
+
   const togglePlanScript = React.useCallback((localID: string, scriptID: string, checked: boolean) => {
     updatePlan(localID, (current) => {
       const currentIDs = new Set(normalizePlanScriptClipboardIDs(current.script_clipboard_ids));
@@ -3528,12 +3947,21 @@ function TaskEditorDialog({
   };
 
   return (
-    <FailoverSelectPortalContext.Provider value={selectPortalContainer}>
-      <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent
-          ref={setSelectPortalContainer}
-          className="flex h-[95vh] min-h-0 w-[calc(100vw-2rem)] max-w-[96rem] flex-col overflow-hidden p-0 [&_button[data-slot=select-trigger]]:w-full [&_button[data-slot=select-trigger]]:min-w-0"
-        >
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent
+        className={cn(
+          "flex h-[95vh] min-h-0 w-[calc(100vw-2rem)] max-w-[96rem] flex-col overflow-hidden p-0",
+          "[&_.grid>*]:min-w-0",
+          "[&_button[data-slot=select-trigger]]:w-full",
+          "[&_button[data-slot=select-trigger]]:min-w-0",
+          "[&_button[data-slot=select-trigger]]:max-w-full",
+          "[&_button[data-slot=select-trigger]]:overflow-hidden",
+          "[&_button[data-slot=select-trigger]_[data-slot=select-value]]:min-w-0",
+          "[&_button[data-slot=select-trigger]_[data-slot=select-value]]:flex-1",
+          "[&_button[data-slot=select-trigger]_[data-slot=select-value]]:truncate",
+          "[&_button[data-slot=select-trigger]_[data-slot=select-value]]:text-left",
+        )}
+      >
         <DialogHeader className="shrink-0 border-b bg-background px-5 py-4">
           <DialogTitle>
             {task
@@ -3544,129 +3972,152 @@ function TaskEditorDialog({
 
         <form className="flex min-h-0 flex-1 flex-col overflow-hidden" onSubmit={handleSubmit}>
           <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden px-5 py-5">
-            <div className="space-y-6">
-              <section className="space-y-4">
-                <div className="space-y-1">
-                  <div className="text-sm font-medium text-slate-900 dark:text-slate-50">
-                    {t("failover.editor.step_task", { defaultValue: "1. Task" })}
-                  </div>
-                </div>
-                <div className="space-y-4 rounded-xl border px-4 py-4">
-                  <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
-                    <div className="space-y-2">
-                      <Label htmlFor="failover-name">{t("common.name", { defaultValue: "Name" })}</Label>
-                      <Input
-                        id="failover-name"
-                        value={formState.name}
-                        onChange={(event) => updateTaskField("name", event.target.value)}
-                        placeholder={t("failover.editor.name_placeholder", { defaultValue: "CN failover for production edge" })}
-                      />
+              <div className="space-y-6">
+                <section className="space-y-4">
+                  <div className="space-y-1">
+                    <div className="text-sm font-medium text-slate-900 dark:text-slate-50">
+                      {t("failover.editor.step_task", { defaultValue: "1. Task" })}
                     </div>
-                    <div className="flex items-center justify-between gap-4 rounded-xl bg-muted/20 px-4 py-3 lg:min-w-56">
-                      <div className="min-w-0">
-                        <div className="text-sm font-medium text-slate-900 dark:text-slate-50">
-                          {t("failover.editor.enabled", { defaultValue: "Task enabled" })}
-                        </div>
+                  </div>
+                  <div className="space-y-4 rounded-xl border px-4 py-4">
+                    <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
+                      <div className="space-y-2">
+                        <Label htmlFor="failover-name">{t("common.name", { defaultValue: "Name" })}</Label>
+                        <Input
+                          id="failover-name"
+                          value={formState.name}
+                          onChange={(event) => updateTaskField("name", event.target.value)}
+                          placeholder={t("failover.editor.name_placeholder", { defaultValue: "CN failover for production edge" })}
+                        />
                       </div>
-                      <Switch
-                        checked={formState.enabled}
-                        onCheckedChange={(checked) => updateTaskField("enabled", Boolean(checked))}
-                      />
-                    </div>
-                  </div>
-                  <div className="rounded-xl border bg-background px-4 py-3">
-                    <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
-                      {t("failover.editor.current_outlet", { defaultValue: "Current outlet" })}
-                    </div>
-                    {task?.current_client_uuid || task?.current_address ? (
-                      <div className="mt-2 space-y-1 text-sm">
-                        <div className="truncate font-medium text-slate-900 dark:text-slate-50" title={currentOutletNode ? getNodeLabel(currentOutletNode) : task.current_client_uuid || task.current_address || undefined}>
-                          {currentOutletNode ? getNodeLabel(currentOutletNode) : task.current_client_uuid || task.current_address}
-                        </div>
-                        <div className="truncate text-xs text-muted-foreground" title={task.current_address || undefined}>
-                          {task.current_address
-                            ? `${t("failover.editor.current_ip", { defaultValue: "IP" })}: ${task.current_address}`
-                            : t("failover.editor.current_ip_empty", { defaultValue: "IP not recorded yet." })}
-                        </div>
-                        {task.current_client_uuid ? (
-                          <div className="truncate text-xs text-muted-foreground" title={task.current_client_uuid}>
-                            {t("failover.editor.current_client", { defaultValue: "Client" })}: {task.current_client_uuid}
+                      <div className="flex items-center justify-between gap-4 rounded-xl bg-muted/20 px-4 py-3 lg:min-w-56">
+                        <div className="min-w-0">
+                          <div className="text-sm font-medium text-slate-900 dark:text-slate-50">
+                            {t("failover.editor.enabled", { defaultValue: "Task enabled" })}
                           </div>
-                        ) : null}
+                        </div>
+                        <Switch
+                          checked={formState.enabled}
+                          onCheckedChange={(checked) => updateTaskField("enabled", Boolean(checked))}
+                        />
                       </div>
-                    ) : (
-                      <div className="mt-2 text-xs text-muted-foreground">
-                        {t("failover.editor.current_outlet_hint", {
-                          defaultValue: "This task is not initialized yet. Save it first, then run initialization to create the first outlet.",
-                        })}
+                    </div>
+                    <div className="rounded-xl border bg-background px-4 py-3">
+                      <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+                        {t("failover.editor.current_outlet", { defaultValue: "Current outlet" })}
                       </div>
-                    )}
+                      {task?.current_client_uuid || task?.current_address ? (
+                        <div className="mt-2 space-y-1 text-sm">
+                          <div className="truncate font-medium text-slate-900 dark:text-slate-50" title={currentOutletNode ? getNodeLabel(currentOutletNode) : task.current_client_uuid || task.current_address || undefined}>
+                            {currentOutletNode ? getNodeLabel(currentOutletNode) : task.current_client_uuid || task.current_address}
+                          </div>
+                          <div className="truncate text-xs text-muted-foreground" title={task.current_address || undefined}>
+                            {task.current_address
+                              ? `${t("failover.editor.current_ip", { defaultValue: "IP" })}: ${task.current_address}`
+                              : t("failover.editor.current_ip_empty", { defaultValue: "IP not recorded yet." })}
+                          </div>
+                          {task.current_client_uuid ? (
+                            <div className="truncate text-xs text-muted-foreground" title={task.current_client_uuid}>
+                              {t("failover.editor.current_client", { defaultValue: "Client" })}: {task.current_client_uuid}
+                            </div>
+                          ) : null}
+                        </div>
+                      ) : (
+                        <div className="mt-2 text-xs text-muted-foreground">
+                          {t("failover.editor.current_outlet_hint", {
+                            defaultValue: "This task is not initialized yet. Save it first, then run initialization to create the first outlet.",
+                          })}
+                        </div>
+                      )}
+                    </div>
                   </div>
-                </div>
 
-                <div className="space-y-4 rounded-xl border px-4 py-4">
-                  <div className="text-sm font-medium text-slate-900 dark:text-slate-50">
-                    {t("failover.editor.show_task_advanced", {
-                      defaultValue: "Advanced monitoring settings",
-                    })}
-                  </div>
-                  <div className="grid gap-4 lg:grid-cols-3 xl:grid-cols-5">
-                    <div className="space-y-2">
-                      <Label htmlFor="failover-threshold">{t("failover.editor.failure_threshold", { defaultValue: "Failure threshold" })}</Label>
-                      <Input
-                        id="failover-threshold"
-                        type="number"
-                        min={1}
-                        value={formState.failure_threshold}
-                        onChange={(event) => updateTaskField("failure_threshold", event.target.value)}
-                      />
+                  <Collapsible open={taskAdvancedOpen} onOpenChange={setTaskAdvancedOpen}>
+                    <div className="rounded-xl border">
+                      <CollapsibleTrigger asChild>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          className="flex h-auto w-full items-center justify-between rounded-xl px-4 py-4 text-left"
+                        >
+                          <div className="space-y-1">
+                            <div className="text-sm font-medium text-slate-900 dark:text-slate-50">
+                              {t("failover.editor.show_task_advanced", {
+                                defaultValue: "Advanced monitoring settings",
+                              })}
+                            </div>
+                            <div className="line-clamp-2 text-xs text-muted-foreground">
+                              {describeTaskAdvancedSettings(t, formState)}
+                            </div>
+                          </div>
+                          <ChevronDown
+                            className={cn(
+                              "size-4 shrink-0 text-muted-foreground transition-transform",
+                              taskAdvancedOpen ? "rotate-180" : "",
+                            )}
+                          />
+                        </Button>
+                      </CollapsibleTrigger>
+                      <CollapsibleContent className="border-t px-4 py-4">
+                        <div className="grid gap-4 lg:grid-cols-3 xl:grid-cols-5">
+                          <div className="space-y-2">
+                            <Label htmlFor="failover-threshold">{t("failover.editor.failure_threshold", { defaultValue: "Failure threshold" })}</Label>
+                            <Input
+                              id="failover-threshold"
+                              type="number"
+                              min={1}
+                              value={formState.failure_threshold}
+                              onChange={(event) => updateTaskField("failure_threshold", event.target.value)}
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <Label htmlFor="failover-stale">{t("failover.editor.stale_after", { defaultValue: "Stale after (s)" })}</Label>
+                            <Input
+                              id="failover-stale"
+                              type="number"
+                              min={1}
+                              value={formState.stale_after_seconds}
+                              onChange={(event) => updateTaskField("stale_after_seconds", event.target.value)}
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <Label htmlFor="failover-cooldown">{t("failover.editor.cooldown", { defaultValue: "Cooldown (s)" })}</Label>
+                            <Input
+                              id="failover-cooldown"
+                              type="number"
+                              min={0}
+                              value={formState.cooldown_seconds}
+                              onChange={(event) => updateTaskField("cooldown_seconds", event.target.value)}
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <Label htmlFor="failover-provision-retry-limit">
+                              {t("failover.editor.provision_retry_limit", { defaultValue: "Blocked retry limit" })}
+                            </Label>
+                            <Input
+                              id="failover-provision-retry-limit"
+                              type="number"
+                              min={1}
+                              value={formState.provision_retry_limit}
+                              onChange={(event) => updateTaskField("provision_retry_limit", event.target.value)}
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <Label htmlFor="failover-provision-fallback-limit">
+                              {t("failover.editor.provision_failure_fallback_limit", { defaultValue: "Plan fallback after provision failures" })}
+                            </Label>
+                            <Input
+                              id="failover-provision-fallback-limit"
+                              type="number"
+                              min={1}
+                              value={formState.provision_failure_fallback_limit}
+                              onChange={(event) => updateTaskField("provision_failure_fallback_limit", event.target.value)}
+                            />
+                          </div>
+                        </div>
+                      </CollapsibleContent>
                     </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="failover-stale">{t("failover.editor.stale_after", { defaultValue: "Stale after (s)" })}</Label>
-                      <Input
-                        id="failover-stale"
-                        type="number"
-                        min={1}
-                        value={formState.stale_after_seconds}
-                        onChange={(event) => updateTaskField("stale_after_seconds", event.target.value)}
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="failover-cooldown">{t("failover.editor.cooldown", { defaultValue: "Cooldown (s)" })}</Label>
-                      <Input
-                        id="failover-cooldown"
-                        type="number"
-                        min={0}
-                        value={formState.cooldown_seconds}
-                        onChange={(event) => updateTaskField("cooldown_seconds", event.target.value)}
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="failover-provision-retry-limit">
-                        {t("failover.editor.provision_retry_limit", { defaultValue: "Blocked retry limit" })}
-                      </Label>
-                      <Input
-                        id="failover-provision-retry-limit"
-                        type="number"
-                        min={1}
-                        value={formState.provision_retry_limit}
-                        onChange={(event) => updateTaskField("provision_retry_limit", event.target.value)}
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="failover-provision-fallback-limit">
-                        {t("failover.editor.provision_failure_fallback_limit", { defaultValue: "Plan fallback after provision failures" })}
-                      </Label>
-                      <Input
-                        id="failover-provision-fallback-limit"
-                        type="number"
-                        min={1}
-                        value={formState.provision_failure_fallback_limit}
-                        onChange={(event) => updateTaskField("provision_failure_fallback_limit", event.target.value)}
-                      />
-                    </div>
-                  </div>
-                </div>
+                  </Collapsible>
               </section>
 
               <section className="space-y-4">
@@ -4383,16 +4834,18 @@ function TaskEditorDialog({
                           {t("failover.editor.plan_config", { defaultValue: "Instance configuration" })}
                         </div>
                         <div className="flex flex-wrap gap-2">
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            disabled={!canLoadPlanCatalog || planCatalogLoading}
-                            onClick={() => void refreshPlanCatalog({ mode: "regions" })}
-                          >
-                            {planCatalogLoading && planCatalogLoadMode === "regions" ? <LoaderCircle className="mr-2 size-4 animate-spin" /> : <RefreshCw className="mr-2 size-4" />}
-                            {t("failover.editor.load_plan_regions", { defaultValue: "Load regions" })}
-                          </Button>
+                          {!usesCommonPlanCatalogDefaults ? (
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              disabled={!canLoadPlanCatalog || planCatalogLoading}
+                              onClick={() => void refreshPlanCatalog({ mode: "regions" })}
+                            >
+                              {planCatalogLoading && planCatalogLoadMode === "regions" ? <LoaderCircle className="mr-2 size-4 animate-spin" /> : <RefreshCw className="mr-2 size-4" />}
+                              {t("failover.editor.load_plan_regions", { defaultValue: "Load regions" })}
+                            </Button>
+                          ) : null}
                           <Button
                             type="button"
                             variant="outline"
@@ -4401,10 +4854,30 @@ function TaskEditorDialog({
                             onClick={() => void refreshPlanCatalog({ mode: "full" })}
                           >
                             {planCatalogLoading && planCatalogLoadMode === "full" ? <LoaderCircle className="mr-2 size-4 animate-spin" /> : <RefreshCw className="mr-2 size-4" />}
-                            {t("failover.editor.load_plan_options", { defaultValue: "Load options" })}
+                            {isDigitalOceanProvisionPlan
+                              ? t("failover.editor.load_plan_options_full_digitalocean", { defaultValue: "Load full DigitalOcean list" })
+                              : isLinodeProvisionPlan
+                                ? t("failover.editor.load_plan_options_full_linode", { defaultValue: "Load full Linode list" })
+                                : t("failover.editor.load_plan_options", { defaultValue: "Load options" })}
                           </Button>
                         </div>
                       </div>
+
+                      {isDigitalOceanProvisionPlan ? (
+                        <div className="rounded-xl border border-dashed px-4 py-3 text-xs text-muted-foreground">
+                          {t("failover.editor.digitalocean_common_options_hint", {
+                            defaultValue: "Common DigitalOcean regions, sizes, and images are shown by default. Load the full DigitalOcean list only if you need uncommon options.",
+                          })}
+                        </div>
+                      ) : null}
+
+                      {isLinodeProvisionPlan ? (
+                        <div className="rounded-xl border border-dashed px-4 py-3 text-xs text-muted-foreground">
+                          {t("failover.editor.linode_common_options_hint", {
+                            defaultValue: "Common Linode regions, plans, and images are shown by default. Load the full Linode list only if you need account-specific or uncommon options.",
+                          })}
+                        </div>
+                      ) : null}
 
                       {planCatalogLoading ? (
                         <div className="rounded-xl border border-dashed px-4 py-3 text-sm text-muted-foreground">
@@ -4950,7 +5423,7 @@ function TaskEditorDialog({
                         <div className="grid gap-4 lg:grid-cols-2">
                           <div className="space-y-2">
                             <Label>{t("failover.editor.region", { defaultValue: "Region" })}</Label>
-                            {(planCatalog?.regions || []).length > 0 ? (
+                            {digitalOceanRegionOptions.length > 0 ? (
                               <Select
                                 value={getStringValue(selectedPlanPayload.region) || undefined}
                                 onValueChange={(value) => {
@@ -4971,7 +5444,7 @@ function TaskEditorDialog({
                                   <SelectValue placeholder={t("failover.editor.region_placeholder", { defaultValue: "Choose a region" })} />
                                 </SelectTrigger>
                                 <SelectContent>
-                                  {planCatalog?.regions?.map((option) => (
+                                  {digitalOceanRegionOptions.map((option) => (
                                     <SelectItem key={option.value} value={option.value}>
                                       {formatPlanRegionOptionLabel(t, selectedPlan.provider, option)}
                                     </SelectItem>
@@ -4988,25 +5461,18 @@ function TaskEditorDialog({
                           </div>
                           <div className="space-y-2">
                             <Label>{t("failover.editor.size", { defaultValue: "Size" })}</Label>
-                            {(planCatalog?.sizes || []).length > 0 ? (
-                              <Select
+                            {digitalOceanSizeOptions.length > 0 ? (
+                              <SearchableCatalogSelect
                                 value={getStringValue(selectedPlanPayload.size) || undefined}
+                                options={digitalOceanSizeOptions}
                                 onValueChange={(value) => updateSelectedPlanPayload((current) => ({
                                   ...current,
                                   size: value,
                                 }))}
-                              >
-                                <SelectTrigger>
-                                  <SelectValue placeholder={t("failover.editor.size_placeholder", { defaultValue: "Choose a size" })} />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  {planCatalog?.sizes?.map((option) => (
-                                    <SelectItem key={option.value} value={option.value}>
-                                      {formatCatalogOptionLabel(option)}
-                                    </SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
+                                placeholder={t("failover.editor.size_placeholder", { defaultValue: "Choose a size" })}
+                                searchPlaceholder={t("failover.editor.size_search_placeholder", { defaultValue: "Search sizes..." })}
+                                emptyLabel={t("failover.editor.size_search_empty", { defaultValue: "No matching size" })}
+                              />
                             ) : (
                               <div className="rounded-xl border border-dashed px-4 py-3 text-sm text-muted-foreground">
                                 {t("failover.editor.load_plan_options_first", {
@@ -5017,25 +5483,18 @@ function TaskEditorDialog({
                           </div>
                           <div className="space-y-2">
                             <Label>{t("failover.editor.image", { defaultValue: "Image" })}</Label>
-                            {(planCatalog?.images || []).length > 0 ? (
-                              <Select
+                            {digitalOceanImageOptions.length > 0 ? (
+                              <SearchableCatalogSelect
                                 value={getStringValue(selectedPlanPayload.image) || undefined}
+                                options={digitalOceanImageOptions}
                                 onValueChange={(value) => updateSelectedPlanPayload((current) => ({
                                   ...current,
                                   image: value,
                                 }))}
-                              >
-                                <SelectTrigger>
-                                  <SelectValue placeholder={t("failover.editor.image_placeholder", { defaultValue: "Choose an image" })} />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  {planCatalog?.images?.map((option) => (
-                                    <SelectItem key={option.value} value={option.value}>
-                                      {formatCatalogOptionLabel(option)}
-                                    </SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
+                                placeholder={t("failover.editor.image_placeholder", { defaultValue: "Choose an image" })}
+                                searchPlaceholder={t("failover.editor.image_search_placeholder", { defaultValue: "Search images..." })}
+                                emptyLabel={t("failover.editor.image_search_empty", { defaultValue: "No matching image" })}
+                              />
                             ) : (
                               <div className="rounded-xl border border-dashed px-4 py-3 text-sm text-muted-foreground">
                                 {t("failover.editor.load_plan_options_first", {
@@ -5091,7 +5550,7 @@ function TaskEditorDialog({
                         <div className="grid gap-4 lg:grid-cols-2">
                           <div className="space-y-2">
                             <Label>{t("failover.editor.region", { defaultValue: "Region" })}</Label>
-                            {(planCatalog?.regions || []).length > 0 ? (
+                            {linodeRegionOptions.length > 0 ? (
                               <Select
                                 value={getStringValue(selectedPlanPayload.region) || undefined}
                                 onValueChange={(value) => {
@@ -5112,7 +5571,7 @@ function TaskEditorDialog({
                                   <SelectValue placeholder={t("failover.editor.region_placeholder", { defaultValue: "Choose a region" })} />
                                 </SelectTrigger>
                                 <SelectContent>
-                                  {planCatalog?.regions?.map((option) => (
+                                  {linodeRegionOptions.map((option) => (
                                     <SelectItem key={option.value} value={option.value}>
                                       {formatPlanRegionOptionLabel(t, selectedPlan.provider, option)}
                                     </SelectItem>
@@ -5129,25 +5588,18 @@ function TaskEditorDialog({
                           </div>
                           <div className="space-y-2">
                             <Label>{t("failover.editor.type", { defaultValue: "Plan type" })}</Label>
-                            {(planCatalog?.types || []).length > 0 ? (
-                              <Select
+                            {linodeTypeOptions.length > 0 ? (
+                              <SearchableCatalogSelect
                                 value={getStringValue(selectedPlanPayload.type) || undefined}
+                                options={linodeTypeOptions}
                                 onValueChange={(value) => updateSelectedPlanPayload((current) => ({
                                   ...current,
                                   type: value,
                                 }))}
-                              >
-                                <SelectTrigger>
-                                  <SelectValue placeholder={t("failover.editor.type_placeholder", { defaultValue: "Choose a plan type" })} />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  {planCatalog?.types?.map((option) => (
-                                    <SelectItem key={option.value} value={option.value}>
-                                      {formatCatalogOptionLabel(option)}
-                                    </SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
+                                placeholder={t("failover.editor.type_placeholder", { defaultValue: "Choose a plan type" })}
+                                searchPlaceholder={t("failover.editor.type_search_placeholder", { defaultValue: "Search plan types..." })}
+                                emptyLabel={t("failover.editor.type_search_empty", { defaultValue: "No matching plan type" })}
+                              />
                             ) : (
                               <div className="rounded-xl border border-dashed px-4 py-3 text-sm text-muted-foreground">
                                 {t("failover.editor.load_plan_options_first", {
@@ -5158,25 +5610,18 @@ function TaskEditorDialog({
                           </div>
                           <div className="space-y-2">
                             <Label>{t("failover.editor.image", { defaultValue: "Image" })}</Label>
-                            {(planCatalog?.images || []).length > 0 ? (
-                              <Select
+                            {linodeImageOptions.length > 0 ? (
+                              <SearchableCatalogSelect
                                 value={getStringValue(selectedPlanPayload.image) || undefined}
+                                options={linodeImageOptions}
                                 onValueChange={(value) => updateSelectedPlanPayload((current) => ({
                                   ...current,
                                   image: value,
                                 }))}
-                              >
-                                <SelectTrigger>
-                                  <SelectValue placeholder={t("failover.editor.image_placeholder", { defaultValue: "Choose an image" })} />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  {planCatalog?.images?.map((option) => (
-                                    <SelectItem key={option.value} value={option.value}>
-                                      {formatCatalogOptionLabel(option)}
-                                    </SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
+                                placeholder={t("failover.editor.image_placeholder", { defaultValue: "Choose an image" })}
+                                searchPlaceholder={t("failover.editor.image_search_placeholder", { defaultValue: "Search images..." })}
+                                emptyLabel={t("failover.editor.image_search_empty", { defaultValue: "No matching image" })}
+                              />
                             ) : (
                               <div className="rounded-xl border border-dashed px-4 py-3 text-sm text-muted-foreground">
                                 {t("failover.editor.load_plan_options_first", {
@@ -5229,25 +5674,44 @@ function TaskEditorDialog({
                         </div>
                         <div className="space-y-2">
                           <Label>{t("failover.editor.auto_connect_group", { defaultValue: "Auto-connect group" })}</Label>
+                          <div className="rounded-xl bg-muted/20 px-4 py-3">
+                            <div className="flex items-center justify-between gap-4">
+                              <div className="space-y-1">
+                                <div className="text-sm font-medium text-slate-900 dark:text-slate-50">
+                                  {t("failover.editor.auto_connect_group_custom", { defaultValue: "Custom auto-connect group" })}
+                                </div>
+                                <div className="text-xs text-muted-foreground">
+                                  {selectedPlanUsesCustomAutoConnectGroup
+                                    ? t("failover.editor.auto_connect_group_custom_enabled_hint", {
+                                      defaultValue: "Manual mode is enabled. This value will not follow provider or token group changes.",
+                                    })
+                                    : t("failover.editor.auto_connect_group_custom_disabled_hint", {
+                                      defaultValue: "Recommended value follows the selected provider entry group automatically.",
+                                    })}
+                                </div>
+                              </div>
+                              <Switch
+                                checked={selectedPlanUsesCustomAutoConnectGroup}
+                                onCheckedChange={(checked) => setSelectedPlanCustomAutoConnectGroup(Boolean(checked))}
+                              />
+                            </div>
+                          </div>
                           <Input
-                            value={selectedPlan.auto_connect_group}
+                            value={selectedPlanDisplayedAutoConnectGroup}
+                            readOnly={!selectedPlanUsesCustomAutoConnectGroup}
                             onChange={(event) => updatePlan(selectedPlan.local_id, (current) => ({
                               ...current,
                               auto_connect_group: event.target.value,
                             }))}
+                            className={!selectedPlanUsesCustomAutoConnectGroup ? "bg-muted/30 text-muted-foreground" : ""}
                             placeholder={
-                              buildSuggestedAutoConnectGroup(
-                                selectedPlan.provider,
-                                providerEntries,
-                                selectedPlan.provider_entry_group,
-                                selectedPlan.provider_entry_id,
-                              )
+                              suggestedAutoConnectGroup
                               || t("failover.editor.auto_connect_group_placeholder", { defaultValue: "digitalocean/sg-prod" })
                             }
                           />
                           <div className="text-xs text-muted-foreground">
                             {t("failover.editor.auto_connect_group_hint", {
-                              defaultValue: "Defaults to provider/token-pool-group when available. Edit it only if this plan should register servers into a different group.",
+                              defaultValue: "Keep the recommended value unless this plan should register servers into a different group or disable auto-connect entirely.",
                             })}
                           </div>
                         </div>
@@ -5323,42 +5787,65 @@ function TaskEditorDialog({
                       </div>
                     </div>
 
-                    <div className="space-y-4 rounded-xl border px-4 py-4">
-                      <div className="text-sm font-medium text-slate-900 dark:text-slate-50">
-                        {t("failover.editor.show_plan_advanced", {
-                          defaultValue: "Advanced plan settings",
-                        })}
+                    <Collapsible open={selectedPlanAdvancedOpen} onOpenChange={setSelectedPlanAdvancedOpen}>
+                      <div className="rounded-xl border">
+                        <CollapsibleTrigger asChild>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            className="flex h-auto w-full items-center justify-between rounded-xl px-4 py-4 text-left"
+                          >
+                            <div className="space-y-1">
+                              <div className="text-sm font-medium text-slate-900 dark:text-slate-50">
+                                {t("failover.editor.show_plan_advanced", {
+                                  defaultValue: "Advanced plan settings",
+                                })}
+                              </div>
+                              <div className="line-clamp-2 text-xs text-muted-foreground">
+                                {describePlanAdvancedSettings(t, selectedPlan)}
+                              </div>
+                            </div>
+                            <ChevronDown
+                              className={cn(
+                                "size-4 shrink-0 text-muted-foreground transition-transform",
+                                selectedPlanAdvancedOpen ? "rotate-180" : "",
+                              )}
+                            />
+                          </Button>
+                        </CollapsibleTrigger>
+                        <CollapsibleContent className="border-t px-4 py-4">
+                          <div className="grid gap-4 lg:grid-cols-3">
+                            <div className="space-y-2">
+                              <Label>{t("failover.editor.priority", { defaultValue: "Priority" })}</Label>
+                              <Input
+                                type="number"
+                                min={1}
+                                value={selectedPlan.priority}
+                                onChange={(event) => updatePlan(selectedPlan.local_id, (current) => ({ ...current, priority: event.target.value }))}
+                              />
+                            </div>
+                            <div className="space-y-2">
+                              <Label>{t("failover.editor.script_timeout", { defaultValue: "Script timeout (s)" })}</Label>
+                              <Input
+                                type="number"
+                                min={1}
+                                value={selectedPlan.script_timeout_sec}
+                                onChange={(event) => updatePlan(selectedPlan.local_id, (current) => ({ ...current, script_timeout_sec: event.target.value }))}
+                              />
+                            </div>
+                            <div className="space-y-2">
+                              <Label>{t("failover.editor.wait_agent_timeout", { defaultValue: "Wait agent timeout (s)" })}</Label>
+                              <Input
+                                type="number"
+                                min={1}
+                                value={selectedPlan.wait_agent_timeout_sec}
+                                onChange={(event) => updatePlan(selectedPlan.local_id, (current) => ({ ...current, wait_agent_timeout_sec: event.target.value }))}
+                              />
+                            </div>
+                          </div>
+                        </CollapsibleContent>
                       </div>
-                      <div className="grid gap-4 lg:grid-cols-3">
-                        <div className="space-y-2">
-                          <Label>{t("failover.editor.priority", { defaultValue: "Priority" })}</Label>
-                          <Input
-                            type="number"
-                            min={1}
-                            value={selectedPlan.priority}
-                            onChange={(event) => updatePlan(selectedPlan.local_id, (current) => ({ ...current, priority: event.target.value }))}
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <Label>{t("failover.editor.script_timeout", { defaultValue: "Script timeout (s)" })}</Label>
-                          <Input
-                            type="number"
-                            min={1}
-                            value={selectedPlan.script_timeout_sec}
-                            onChange={(event) => updatePlan(selectedPlan.local_id, (current) => ({ ...current, script_timeout_sec: event.target.value }))}
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <Label>{t("failover.editor.wait_agent_timeout", { defaultValue: "Wait agent timeout (s)" })}</Label>
-                          <Input
-                            type="number"
-                            min={1}
-                            value={selectedPlan.wait_agent_timeout_sec}
-                            onChange={(event) => updatePlan(selectedPlan.local_id, (current) => ({ ...current, wait_agent_timeout_sec: event.target.value }))}
-                          />
-                        </div>
-                      </div>
-                    </div>
+                    </Collapsible>
                   </>
                 ) : null}
               </section>
@@ -5379,9 +5866,8 @@ function TaskEditorDialog({
             </div>
           </DialogFooter>
         </form>
-        </DialogContent>
-      </Dialog>
-    </FailoverSelectPortalContext.Provider>
+      </DialogContent>
+    </Dialog>
   );
 }
 
