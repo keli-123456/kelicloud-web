@@ -154,6 +154,31 @@ export type FailoverExecution = {
   updated_at: string;
 };
 
+export type FailoverPreviewCheck = {
+  key: string;
+  status: string;
+  title: string;
+  message: string;
+  detail: unknown;
+};
+
+export type FailoverPreviewPlan = {
+  index: number;
+  name: string;
+  provider: string;
+  action_type: string;
+  provider_entry_id: string;
+  provider_entry_group: string;
+  checks: FailoverPreviewCheck[];
+};
+
+export type FailoverTaskPreview = {
+  success: boolean;
+  generated_at: string | null;
+  checks: FailoverPreviewCheck[];
+  plans: FailoverPreviewPlan[];
+};
+
 export type FailoverTaskInput = {
   name: string;
   enabled: boolean;
@@ -400,6 +425,41 @@ function normalizeExecutionStep(step: unknown): FailoverExecutionStep {
     finished_at: normalizeNullableString(raw.finished_at),
     created_at: normalizeString(raw.created_at),
     updated_at: normalizeString(raw.updated_at),
+  };
+}
+
+function normalizePreviewCheck(check: unknown): FailoverPreviewCheck {
+  const raw = check && typeof check === "object" ? check as Record<string, unknown> : {};
+  return {
+    key: normalizeString(raw.key),
+    status: normalizeString(raw.status),
+    title: normalizeString(raw.title),
+    message: normalizeString(raw.message),
+    detail: normalizeUnknown(raw.detail),
+  };
+}
+
+function normalizePreviewPlan(plan: unknown): FailoverPreviewPlan {
+  const raw = plan && typeof plan === "object" ? plan as Record<string, unknown> : {};
+  const checks = Array.isArray(raw.checks) ? raw.checks.map(normalizePreviewCheck) : [];
+  return {
+    index: normalizeNumber(raw.index),
+    name: normalizeString(raw.name),
+    provider: normalizeString(raw.provider),
+    action_type: normalizeString(raw.action_type),
+    provider_entry_id: normalizeString(raw.provider_entry_id),
+    provider_entry_group: normalizeString(raw.provider_entry_group),
+    checks,
+  };
+}
+
+function normalizeTaskPreview(preview: unknown): FailoverTaskPreview {
+  const raw = preview && typeof preview === "object" ? preview as Record<string, unknown> : {};
+  return {
+    success: normalizeBoolean(raw.success),
+    generated_at: normalizeNullableString(raw.generated_at),
+    checks: Array.isArray(raw.checks) ? raw.checks.map(normalizePreviewCheck) : [],
+    plans: Array.isArray(raw.plans) ? raw.plans.map(normalizePreviewPlan) : [],
   };
 }
 
@@ -707,6 +767,17 @@ export async function createFailoverTask(input: FailoverTaskInput): Promise<Fail
     body: JSON.stringify(input),
   });
   return normalizeTask(data);
+}
+
+export async function previewFailoverTask(input: FailoverTaskInput): Promise<FailoverTaskPreview> {
+  const data = await requestEnvelope<unknown>("/api/admin/failover/tasks/preview", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(input),
+  });
+  return normalizeTaskPreview(data);
 }
 
 export async function updateFailoverTask(taskID: number, input: FailoverTaskInput): Promise<FailoverTask> {

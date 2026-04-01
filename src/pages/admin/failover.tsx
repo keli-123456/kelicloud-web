@@ -76,6 +76,8 @@ import { useSettings } from "@/lib/api";
 import {
   createFailoverTask,
   deleteFailoverTask,
+  type FailoverPreviewCheck,
+  type FailoverTaskPreview,
   type FailoverExecutionStep,
   getFailoverDnsCatalog,
   getFailoverPlanCatalog,
@@ -86,14 +88,15 @@ import {
   getFailoverTasks,
   isFailoverExecutionActive,
   normalizeProviderEntryID,
+  previewFailoverTask,
   runFailoverTask,
   stopFailoverExecution,
   toggleFailoverTask,
-	  updateFailoverTask,
-	  type FailoverCatalogOption,
-	  type FailoverExecution,
-	  type FailoverDnsOption,
-	  type FailoverPlanCatalog,
+  updateFailoverTask,
+  type FailoverCatalogOption,
+  type FailoverExecution,
+  type FailoverDnsOption,
+  type FailoverPlanCatalog,
   type FailoverDnsCatalog,
   type FailoverDnsRecordOption,
   type FailoverNodeOption,
@@ -1942,6 +1945,31 @@ function getStatusVariant(
   return "secondary";
 }
 
+function getPreviewStatusVariant(status: string): React.ComponentProps<typeof Badge>["variant"] {
+  const normalized = String(status || "").trim().toLowerCase();
+  if (normalized === "success") return "success";
+  if (normalized === "error") return "destructive";
+  if (normalized === "warning") return "warning";
+  if (normalized === "info") return "info";
+  return "secondary";
+}
+
+function getPreviewStatusLabel(t: TFunction, status: string) {
+  const normalized = String(status || "").trim().toLowerCase();
+  switch (normalized) {
+    case "success":
+      return t("common.success", { defaultValue: "Success" });
+    case "warning":
+      return t("common.warning", { defaultValue: "Warning" });
+    case "error":
+      return t("common.error", { defaultValue: "Error" });
+    case "info":
+      return t("common.info", { defaultValue: "Info" });
+    default:
+      return humanizeStatus(normalized || "unknown");
+  }
+}
+
 function normalizeEntries(entries: ProviderEntry[]) {
   return [...entries]
     .map((entry) => ({
@@ -2896,6 +2924,152 @@ function DetailItemsList({
   );
 }
 
+function PreviewCheckCard({
+  check,
+}: {
+  check: FailoverPreviewCheck;
+}) {
+  const { t } = useTranslation();
+
+  return (
+    <div className="rounded-lg border border-slate-200/80 p-3 dark:border-slate-800/80">
+      <div className="flex flex-wrap items-start gap-2">
+        <div className="min-w-0 flex-1">
+          <div className="text-sm font-medium text-slate-900 dark:text-slate-50">
+            {check.title || t("failover.preview.check", { defaultValue: "Check" })}
+          </div>
+          {check.message ? (
+            <div className="mt-1 text-xs leading-5 text-muted-foreground">
+              {check.message}
+            </div>
+          ) : null}
+        </div>
+        <Badge variant={getPreviewStatusVariant(check.status)}>
+          {getPreviewStatusLabel(t, check.status)}
+        </Badge>
+      </div>
+      {check.detail ? (
+        <div className="mt-3">
+          <JsonBlock
+            title={t("failover.preview.detail", { defaultValue: "Detail" })}
+            value={check.detail}
+          />
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function TaskPreviewSection({
+  preview,
+  loading,
+  error,
+}: {
+  preview: FailoverTaskPreview | null;
+  loading: boolean;
+  error: string;
+}) {
+  const { t } = useTranslation();
+
+  if (!loading && !error && !preview) {
+    return null;
+  }
+
+  return (
+    <section className="space-y-4">
+      <div className="space-y-1">
+        <div className="text-sm font-medium text-slate-900 dark:text-slate-50">
+          {t("failover.preview.title", { defaultValue: "Preview checks" })}
+        </div>
+        <div className="text-xs text-muted-foreground">
+          {t("failover.preview.hint", {
+            defaultValue: "Preview validates the current form and does not create resources or change DNS.",
+          })}
+        </div>
+      </div>
+      <div className="space-y-4 rounded-xl border px-4 py-4">
+        {loading ? (
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <LoaderCircle className="size-4 animate-spin" />
+            {t("failover.preview.loading", { defaultValue: "Running preview checks..." })}
+          </div>
+        ) : null}
+
+        {!loading && error ? (
+          <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-3 text-sm text-red-700 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-200">
+            {error}
+          </div>
+        ) : null}
+
+        {!loading && preview ? (
+          <div className="space-y-4">
+            <div className="flex flex-wrap items-center gap-2">
+              <Badge variant={preview.success ? "success" : "warning"}>
+                {preview.success
+                  ? t("failover.preview.ready", { defaultValue: "Ready" })
+                  : t("failover.preview.attention", { defaultValue: "Needs attention" })}
+              </Badge>
+              {preview.generated_at ? (
+                <div className="text-xs text-muted-foreground">
+                  {t("failover.preview.generated_at", {
+                    defaultValue: "Generated at {{value}}",
+                    value: formatDateTime(preview.generated_at),
+                  })}
+                </div>
+              ) : null}
+            </div>
+
+            {preview.checks.length > 0 ? (
+              <div className="space-y-3">
+                {preview.checks.map((check) => (
+                  <PreviewCheckCard key={`global:${check.key}:${check.title}`} check={check} />
+                ))}
+              </div>
+            ) : null}
+
+            {preview.plans.length > 0 ? (
+              <div className="space-y-3">
+                {preview.plans.map((plan) => {
+                  const title = plan.name || t("failover.editor.plan_label", {
+                    defaultValue: "Plan {{index}}",
+                    index: plan.index || 1,
+                  });
+                  const summary = [
+                    plan.provider ? getPlanProviderLabel(t, plan.provider) : "",
+                    plan.action_type ? getActionTypeLabel(t, plan.action_type) : "",
+                    plan.provider_entry_id
+                      ? t("failover.preview.entry", {
+                        defaultValue: "Entry {{value}}",
+                        value: plan.provider_entry_id,
+                      })
+                      : "",
+                  ].filter(Boolean).join(" · ");
+
+                  return (
+                    <div key={`plan:${plan.index}:${plan.name}`} className="rounded-lg border border-slate-200/80 p-3 dark:border-slate-800/80">
+                      <div className="space-y-1">
+                        <div className="text-sm font-medium text-slate-900 dark:text-slate-50">{title}</div>
+                        {summary ? (
+                          <div className="text-xs text-muted-foreground">{summary}</div>
+                        ) : null}
+                      </div>
+                      <div className="mt-3 space-y-3">
+                        {plan.checks.map((check) => (
+                          <PreviewCheckCard key={`plan:${plan.index}:${check.key}:${check.title}`} check={check} />
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : null}
+          </div>
+        ) : null}
+      </div>
+    </section>
+  );
+}
+
 function ExecutionAttemptSection({
   execution,
 }: {
@@ -3400,9 +3574,26 @@ function TaskEditorDialog({
   const [planCatalogLoading, setPlanCatalogLoading] = React.useState(false);
   const [planCatalogLoadMode, setPlanCatalogLoadMode] = React.useState<"regions" | "full">("regions");
   const [planCatalogError, setPlanCatalogError] = React.useState("");
+  const [previewResult, setPreviewResult] = React.useState<FailoverTaskPreview | null>(null);
+  const [previewError, setPreviewError] = React.useState("");
+  const [previewing, setPreviewing] = React.useState(false);
   const lastEnabledDnsRef = React.useRef<{ provider: string; entryID: string } | null>(null);
   const dnsCatalogRequestRef = React.useRef(0);
   const planCatalogRequestRef = React.useRef(0);
+  const resetPlanCatalogState = React.useCallback((
+    nextCatalog: FailoverPlanCatalog | null = null,
+    nextMode: "regions" | "full" = "regions",
+  ) => {
+    planCatalogRequestRef.current += 1;
+    setPlanCatalog(nextCatalog);
+    setPlanCatalogError("");
+    setPlanCatalogLoading(false);
+    setPlanCatalogLoadMode(nextMode);
+  }, []);
+  const resetPreviewState = React.useCallback(() => {
+    setPreviewResult(null);
+    setPreviewError("");
+  }, []);
 
   React.useEffect(() => {
     if (!open) {
@@ -3423,13 +3614,14 @@ function TaskEditorDialog({
     setDnsCatalogError("");
     setSelectedDnsRecordKey("");
     resetPlanCatalogState();
+    resetPreviewState();
     lastEnabledDnsRef.current = nextFormState.dns_provider
       ? {
           provider: nextFormState.dns_provider,
           entryID: nextFormState.dns_entry_id,
         }
       : null;
-  }, [open, providerEntries, task]);
+  }, [open, providerEntries, resetPlanCatalogState, resetPreviewState, task]);
 
   const nodeLookup = React.useMemo(
     () => new Map(nodes.map((node) => [node.uuid, node])),
@@ -3640,17 +3832,6 @@ function TaskEditorDialog({
     [formState.plans],
   );
 
-  const resetPlanCatalogState = React.useCallback((
-    nextCatalog: FailoverPlanCatalog | null = null,
-    nextMode: "regions" | "full" = "regions",
-  ) => {
-    planCatalogRequestRef.current += 1;
-    setPlanCatalog(nextCatalog);
-    setPlanCatalogError("");
-    setPlanCatalogLoading(false);
-    setPlanCatalogLoadMode(nextMode);
-  }, []);
-
   React.useEffect(() => {
     if (formState.plans.length === 0) {
       if (selectedPlanID) {
@@ -3717,6 +3898,7 @@ function TaskEditorDialog({
   }, [open, formState.dns_provider, formState.dns_entry_id, refreshDnsCatalog]);
 
   const updateTaskField = <K extends keyof TaskFormState>(key: K, value: TaskFormState[K]) => {
+    resetPreviewState();
     setFormState((current) => {
       const nextState = { ...current, [key]: value };
       return {
@@ -3727,6 +3909,7 @@ function TaskEditorDialog({
   };
 
   const setDnsEnabled = React.useCallback((enabled: boolean) => {
+    resetPreviewState();
     if (!enabled) {
       if (formState.dns_provider.trim()) {
         lastEnabledDnsRef.current = {
@@ -3784,9 +3967,11 @@ function TaskEditorDialog({
     formState.dns_entry_id,
     formState.dns_provider,
     providerEntries,
+    resetPreviewState,
   ]);
 
   const updatePlan = (localID: string, updater: (plan: PlanFormState) => PlanFormState) => {
+    resetPreviewState();
     setFormState((current) => {
       const nextState = {
         ...current,
@@ -3916,6 +4101,7 @@ function TaskEditorDialog({
   }, [open, resetPlanCatalogState, selectedPlan?.local_id]);
 
   const addPlan = () => {
+    resetPreviewState();
     const nextPlan = {
       ...createEmptyPlanForm(providerEntries),
       priority: String(formState.plans.length + 1),
@@ -3934,6 +4120,7 @@ function TaskEditorDialog({
   };
 
   const removePlan = (localID: string) => {
+    resetPreviewState();
     setFormState((current) => {
       const nextState = {
         ...current,
@@ -3944,6 +4131,24 @@ function TaskEditorDialog({
         delete_strategy: resolveTaskDeleteStrategy(nextState.delete_strategy, nextState.plans),
       };
     });
+  };
+
+  const handlePreview = async () => {
+    setPreviewing(true);
+    setPreviewError("");
+
+    try {
+      const payload = buildTaskInput(formState, t);
+      const preview = await previewFailoverTask(payload);
+      setPreviewResult(preview);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : t("common.unknown_error");
+      setPreviewResult(null);
+      setPreviewError(message);
+      toast.error(message);
+    } finally {
+      setPreviewing(false);
+    }
   };
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
@@ -5889,6 +6094,12 @@ function TaskEditorDialog({
                   </>
                 ) : null}
               </section>
+
+              <TaskPreviewSection
+                preview={previewResult}
+                loading={previewing}
+                error={previewError}
+              />
             </div>
           </div>
 
@@ -5896,6 +6107,10 @@ function TaskEditorDialog({
             <div className="flex flex-wrap gap-2">
               <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={submitting}>
                 {t("common.cancel", { defaultValue: "Cancel" })}
+              </Button>
+              <Button type="button" variant="outline" onClick={() => void handlePreview()} disabled={submitting || previewing}>
+                {previewing ? <LoaderCircle className="size-4 animate-spin" /> : <Eye className="size-4" />}
+                {t("failover.preview.action", { defaultValue: "Preview" })}
               </Button>
               <Button type="submit" disabled={submitting}>
                 {submitting ? <LoaderCircle className="size-4 animate-spin" /> : null}
