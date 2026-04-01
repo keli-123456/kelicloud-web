@@ -70,6 +70,13 @@ function getProviderLabel(share: CloudPublicShareData, t: ReturnType<typeof useT
   return t("cloud.providers.aws.title", "AWS EC2 / Lightsail");
 }
 
+function getAccessPolicyLabel(share: CloudPublicShareData, t: ReturnType<typeof useTranslation>["t"]) {
+  if (share.access_policy === "single_use") {
+    return t("cloud.share.policy_single_use", "Single Use");
+  }
+  return t("cloud.share.policy_public", "Public");
+}
+
 export default function CloudSharePage() {
   const { t } = useTranslation();
   const { token } = useParams<{ token: string }>();
@@ -338,6 +345,11 @@ export default function CloudSharePage() {
               <DetailCard label={t("cloud.share.provider", "Provider")} value={getProviderLabel(share, t)} />
               <DetailCard label={t("cloud.tokens.table.account", "Account")} value={share.credential_name || "-"} />
               <DetailCard label={t("cloud.table.region", "Region")} value={share.region || "-"} />
+              <DetailCard label={t("cloud.share.access_policy", "Access Policy")} value={getAccessPolicyLabel(share, t)} />
+              <DetailCard
+                label={t("cloud.share.expires_at", "Expires At")}
+                value={share.expires_at ? formatDateTime(share.expires_at) : t("cloud.share.never_expires", "Never")}
+              />
               <DetailCard label={t("cloud.share.updated", "Last Updated")} value={formatDateTime(share.updated_at)} />
             </div>
           </section>

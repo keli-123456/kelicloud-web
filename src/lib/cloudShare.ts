@@ -10,6 +10,8 @@ type ApiEnvelope<T> = {
 
 export type CloudShareProvider = "digitalocean" | "linode" | "aws";
 export type CloudShareResourceType = "droplet" | "instance" | "ec2" | "lightsail";
+export type CloudShareAccessPolicy = "public" | "single_use";
+export type CloudShareStatus = "not_shared" | "active" | "expired" | "consumed";
 
 export type CloudInstanceShareRecord = {
   token: string;
@@ -21,6 +23,14 @@ export type CloudInstanceShareRecord = {
   region: string;
   title: string;
   note: string;
+  access_policy: CloudShareAccessPolicy;
+  status: CloudShareStatus;
+  expires_at: string;
+  last_accessed_at: string;
+  consumed_at: string;
+  access_count: number;
+  is_expired: boolean;
+  is_consumed: boolean;
   share_password: boolean;
   share_managed_ssh_key: boolean;
   can_share_password: boolean;
@@ -32,6 +42,8 @@ export type CloudInstanceShareRecord = {
 export type SaveCloudInstanceShareInput = {
   title: string;
   note: string;
+  access_policy: CloudShareAccessPolicy;
+  expires_at: string | null;
   share_password: boolean;
   share_managed_ssh_key: boolean;
 };
@@ -53,6 +65,8 @@ export type CloudPublicShareData = {
   region: string;
   title: string;
   note: string;
+  access_policy: CloudShareAccessPolicy;
+  expires_at: string;
   share_password: boolean;
   share_managed_ssh_key: boolean;
   created_at: string;
@@ -80,6 +94,14 @@ function normalizeShareRecord(
     region: String(share?.region || ""),
     title: String(share?.title || ""),
     note: String(share?.note || ""),
+    access_policy: String(share?.access_policy || "public") as CloudShareAccessPolicy,
+    status: String(share?.status || (share?.token ? "active" : "not_shared")) as CloudShareStatus,
+    expires_at: String(share?.expires_at || ""),
+    last_accessed_at: String(share?.last_accessed_at || ""),
+    consumed_at: String(share?.consumed_at || ""),
+    access_count: Number(share?.access_count || 0),
+    is_expired: Boolean(share?.is_expired),
+    is_consumed: Boolean(share?.is_consumed),
     share_password: Boolean(share?.share_password),
     share_managed_ssh_key: Boolean(share?.share_managed_ssh_key),
     can_share_password: Boolean(share?.can_share_password),
@@ -180,6 +202,27 @@ export function buildCloudInstanceShareUrl(token: string) {
   return `${window.location.origin}/cloud/share/${token}`;
 }
 
+export function toCloudShareDateTimeLocalValue(value: string) {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  const hours = String(date.getHours()).padStart(2, "0");
+  const minutes = String(date.getMinutes()).padStart(2, "0");
+  return `${year}-${month}-${day}T${hours}:${minutes}`;
+}
+
+export function fromCloudShareDateTimeLocalValue(value: string): string | null {
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  const date = new Date(trimmed);
+  if (Number.isNaN(date.getTime())) return null;
+  return date.toISOString();
+}
+
 export async function getCloudInstanceShare(
   provider: CloudShareProvider,
   resourceType: CloudShareResourceType,
@@ -238,6 +281,8 @@ export async function getPublicCloudInstanceShare(token: string): Promise<CloudP
     region: String(data?.region || ""),
     title: String(data?.title || ""),
     note: String(data?.note || ""),
+    access_policy: String(data?.access_policy || "public") as CloudShareAccessPolicy,
+    expires_at: String(data?.expires_at || ""),
     share_password: Boolean(data?.share_password),
     share_managed_ssh_key: Boolean(data?.share_managed_ssh_key),
     created_at: String(data?.created_at || ""),

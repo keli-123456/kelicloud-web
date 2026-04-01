@@ -87,8 +87,11 @@ import { getCloudStatusLabel } from "@/lib/cloudStatus";
 import {
   buildCloudInstanceShareUrl,
   deleteCloudInstanceShare,
+  fromCloudShareDateTimeLocalValue,
   getCloudInstanceShare,
   saveCloudInstanceShare,
+  toCloudShareDateTimeLocalValue,
+  type CloudShareAccessPolicy,
   type CloudInstanceShareRecord,
 } from "@/lib/cloudShare";
 
@@ -396,6 +399,8 @@ export default function DigitalOceanPanel() {
   const [shareDeleting, setShareDeleting] = React.useState(false);
   const [shareTitle, setShareTitle] = React.useState("");
   const [shareNote, setShareNote] = React.useState("");
+  const [shareAccessPolicy, setShareAccessPolicy] = React.useState<CloudShareAccessPolicy>("public");
+  const [shareExpiresAt, setShareExpiresAt] = React.useState("");
   const [sharePassword, setSharePassword] = React.useState(false);
   const [shareManagedSSHKey, setShareManagedSSHKey] = React.useState(false);
   const [dropletPasswordLoading, setDropletPasswordLoading] = React.useState(false);
@@ -877,6 +882,8 @@ export default function DigitalOceanPanel() {
     setShareRecord(null);
     setShareTitle(droplet.name || "");
     setShareNote("");
+    setShareAccessPolicy("public");
+    setShareExpiresAt("");
     setSharePassword(false);
     setShareManagedSSHKey(false);
     setShareOpen(true);
@@ -887,6 +894,8 @@ export default function DigitalOceanPanel() {
       setShareRecord(nextShare.token ? nextShare : null);
       setShareTitle(nextShare.title || droplet.name || "");
       setShareNote(nextShare.note || "");
+      setShareAccessPolicy(nextShare.access_policy || "public");
+      setShareExpiresAt(toCloudShareDateTimeLocalValue(nextShare.expires_at));
       setSharePassword(Boolean(nextShare.share_password && nextTarget.canSharePassword));
       setShareManagedSSHKey(Boolean(nextShare.share_managed_ssh_key && nextTarget.canShareManagedSSHKey));
     } catch (shareError) {
@@ -908,6 +917,8 @@ export default function DigitalOceanPanel() {
         {
           title: shareTitle,
           note: shareNote,
+          access_policy: shareAccessPolicy,
+          expires_at: fromCloudShareDateTimeLocalValue(shareExpiresAt),
           share_password: sharePassword,
           share_managed_ssh_key: shareManagedSSHKey,
         },
@@ -915,6 +926,8 @@ export default function DigitalOceanPanel() {
       setShareRecord(nextShare);
       setShareTitle(nextShare.title || shareTarget.resourceName);
       setShareNote(nextShare.note || "");
+      setShareAccessPolicy(nextShare.access_policy || "public");
+      setShareExpiresAt(toCloudShareDateTimeLocalValue(nextShare.expires_at));
       setSharePassword(Boolean(nextShare.share_password));
       setShareManagedSSHKey(Boolean(nextShare.share_managed_ssh_key));
       toast.success(t("cloud.share.save_success", "Share link saved"));
@@ -948,6 +961,8 @@ export default function DigitalOceanPanel() {
       );
       setShareRecord(null);
       setShareNote("");
+      setShareAccessPolicy("public");
+      setShareExpiresAt("");
       setSharePassword(false);
       setShareManagedSSHKey(false);
       toast.success(t("cloud.share.delete_success", "Share link revoked"));
@@ -2041,6 +2056,8 @@ export default function DigitalOceanPanel() {
             setShareLoading(false);
             setShareSaving(false);
             setShareDeleting(false);
+            setShareAccessPolicy("public");
+            setShareExpiresAt("");
           }
         }}
         target={shareTarget}
@@ -2050,11 +2067,15 @@ export default function DigitalOceanPanel() {
         deleting={shareDeleting}
         title={shareTitle}
         note={shareNote}
+        accessPolicy={shareAccessPolicy}
+        expiresAt={shareExpiresAt}
         sharePassword={sharePassword}
         shareManagedSSHKey={shareManagedSSHKey}
         shareUrl={shareRecord?.token ? buildCloudInstanceShareUrl(shareRecord.token) : ""}
         onTitleChange={setShareTitle}
         onNoteChange={setShareNote}
+        onAccessPolicyChange={setShareAccessPolicy}
+        onExpiresAtChange={setShareExpiresAt}
         onSharePasswordChange={setSharePassword}
         onShareManagedSSHKeyChange={setShareManagedSSHKey}
         onCopyLink={() => {

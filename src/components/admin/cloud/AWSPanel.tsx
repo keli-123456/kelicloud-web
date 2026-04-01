@@ -100,8 +100,11 @@ import { getCloudStatusLabel } from "@/lib/cloudStatus";
 import {
   buildCloudInstanceShareUrl,
   deleteCloudInstanceShare,
+  fromCloudShareDateTimeLocalValue,
   getCloudInstanceShare,
   saveCloudInstanceShare,
+  toCloudShareDateTimeLocalValue,
+  type CloudShareAccessPolicy,
   type CloudInstanceShareRecord,
 } from "@/lib/cloudShare";
 
@@ -446,6 +449,8 @@ export default function AWSPanel() {
   const [shareDeleting, setShareDeleting] = React.useState(false);
   const [shareTitle, setShareTitle] = React.useState("");
   const [shareNote, setShareNote] = React.useState("");
+  const [shareAccessPolicy, setShareAccessPolicy] = React.useState<CloudShareAccessPolicy>("public");
+  const [shareExpiresAt, setShareExpiresAt] = React.useState("");
   const [error, setError] = React.useState("");
   const [lightsailError, setLightsailError] = React.useState("");
   const [createOpen, setCreateOpen] = React.useState(false);
@@ -1244,6 +1249,8 @@ export default function AWSPanel() {
     setShareRecord(null);
     setShareTitle(target.resourceName);
     setShareNote("");
+    setShareAccessPolicy("public");
+    setShareExpiresAt("");
     setShareOpen(true);
     setShareLoading(true);
 
@@ -1256,6 +1263,8 @@ export default function AWSPanel() {
       setShareRecord(nextShare.token ? nextShare : null);
       setShareTitle(nextShare.title || target.resourceName);
       setShareNote(nextShare.note || "");
+      setShareAccessPolicy(nextShare.access_policy || "public");
+      setShareExpiresAt(toCloudShareDateTimeLocalValue(nextShare.expires_at));
     } catch (shareError) {
       toast.error(toErrorMessage(shareError));
     } finally {
@@ -1275,6 +1284,8 @@ export default function AWSPanel() {
         {
           title: shareTitle,
           note: shareNote,
+          access_policy: shareAccessPolicy,
+          expires_at: fromCloudShareDateTimeLocalValue(shareExpiresAt),
           share_password: false,
           share_managed_ssh_key: false,
         },
@@ -1282,6 +1293,8 @@ export default function AWSPanel() {
       setShareRecord(nextShare);
       setShareTitle(nextShare.title || shareTarget.resourceName);
       setShareNote(nextShare.note || "");
+      setShareAccessPolicy(nextShare.access_policy || "public");
+      setShareExpiresAt(toCloudShareDateTimeLocalValue(nextShare.expires_at));
       toast.success(t("cloud.share.save_success", "Share link saved"));
     } catch (shareError) {
       toast.error(toErrorMessage(shareError));
@@ -1313,6 +1326,8 @@ export default function AWSPanel() {
       );
       setShareRecord(null);
       setShareNote("");
+      setShareAccessPolicy("public");
+      setShareExpiresAt("");
       toast.success(t("cloud.share.delete_success", "Share link revoked"));
     } catch (shareError) {
       toast.error(toErrorMessage(shareError));
@@ -3062,6 +3077,8 @@ export default function AWSPanel() {
             setShareLoading(false);
             setShareSaving(false);
             setShareDeleting(false);
+            setShareAccessPolicy("public");
+            setShareExpiresAt("");
           }
         }}
         target={shareTarget}
@@ -3071,11 +3088,15 @@ export default function AWSPanel() {
         deleting={shareDeleting}
         title={shareTitle}
         note={shareNote}
+        accessPolicy={shareAccessPolicy}
+        expiresAt={shareExpiresAt}
         sharePassword={false}
         shareManagedSSHKey={false}
         shareUrl={shareRecord?.token ? buildCloudInstanceShareUrl(shareRecord.token) : ""}
         onTitleChange={setShareTitle}
         onNoteChange={setShareNote}
+        onAccessPolicyChange={setShareAccessPolicy}
+        onExpiresAtChange={setShareExpiresAt}
         onSharePasswordChange={() => {}}
         onShareManagedSSHKeyChange={() => {}}
         onCopyLink={() => {

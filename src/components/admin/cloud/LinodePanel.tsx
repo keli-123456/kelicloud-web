@@ -91,8 +91,11 @@ import { getCloudStatusLabel } from "@/lib/cloudStatus";
 import {
   buildCloudInstanceShareUrl,
   deleteCloudInstanceShare,
+  fromCloudShareDateTimeLocalValue,
   getCloudInstanceShare,
   saveCloudInstanceShare,
+  toCloudShareDateTimeLocalValue,
+  type CloudShareAccessPolicy,
   type CloudInstanceShareRecord,
 } from "@/lib/cloudShare";
 
@@ -396,6 +399,8 @@ export default function LinodePanel() {
   const [shareDeleting, setShareDeleting] = React.useState(false);
   const [shareTitle, setShareTitle] = React.useState("");
   const [shareNote, setShareNote] = React.useState("");
+  const [shareAccessPolicy, setShareAccessPolicy] = React.useState<CloudShareAccessPolicy>("public");
+  const [shareExpiresAt, setShareExpiresAt] = React.useState("");
   const [sharePassword, setSharePassword] = React.useState(false);
   const [passwordLoading, setPasswordLoading] = React.useState(false);
   const [createdPassword, setCreatedPassword] = React.useState<CreatedPasswordState | null>(null);
@@ -829,6 +834,8 @@ export default function LinodePanel() {
     setShareRecord(null);
     setShareTitle(instance.label || "");
     setShareNote("");
+    setShareAccessPolicy("public");
+    setShareExpiresAt("");
     setSharePassword(false);
     setShareOpen(true);
     setShareLoading(true);
@@ -838,6 +845,8 @@ export default function LinodePanel() {
       setShareRecord(nextShare.token ? nextShare : null);
       setShareTitle(nextShare.title || instance.label || "");
       setShareNote(nextShare.note || "");
+      setShareAccessPolicy(nextShare.access_policy || "public");
+      setShareExpiresAt(toCloudShareDateTimeLocalValue(nextShare.expires_at));
       setSharePassword(Boolean(nextShare.share_password && nextTarget.canSharePassword));
     } catch (shareError) {
       toast.error(toErrorMessage(shareError));
@@ -858,6 +867,8 @@ export default function LinodePanel() {
         {
           title: shareTitle,
           note: shareNote,
+          access_policy: shareAccessPolicy,
+          expires_at: fromCloudShareDateTimeLocalValue(shareExpiresAt),
           share_password: sharePassword,
           share_managed_ssh_key: false,
         },
@@ -865,6 +876,8 @@ export default function LinodePanel() {
       setShareRecord(nextShare);
       setShareTitle(nextShare.title || shareTarget.resourceName);
       setShareNote(nextShare.note || "");
+      setShareAccessPolicy(nextShare.access_policy || "public");
+      setShareExpiresAt(toCloudShareDateTimeLocalValue(nextShare.expires_at));
       setSharePassword(Boolean(nextShare.share_password));
       toast.success(t("cloud.share.save_success", "Share link saved"));
     } catch (shareError) {
@@ -897,6 +910,8 @@ export default function LinodePanel() {
       );
       setShareRecord(null);
       setShareNote("");
+      setShareAccessPolicy("public");
+      setShareExpiresAt("");
       setSharePassword(false);
       toast.success(t("cloud.share.delete_success", "Share link revoked"));
     } catch (shareError) {
@@ -2259,6 +2274,8 @@ export default function LinodePanel() {
             setShareLoading(false);
             setShareSaving(false);
             setShareDeleting(false);
+            setShareAccessPolicy("public");
+            setShareExpiresAt("");
           }
         }}
         target={shareTarget}
@@ -2268,11 +2285,15 @@ export default function LinodePanel() {
         deleting={shareDeleting}
         title={shareTitle}
         note={shareNote}
+        accessPolicy={shareAccessPolicy}
+        expiresAt={shareExpiresAt}
         sharePassword={sharePassword}
         shareManagedSSHKey={false}
         shareUrl={shareRecord?.token ? buildCloudInstanceShareUrl(shareRecord.token) : ""}
         onTitleChange={setShareTitle}
         onNoteChange={setShareNote}
+        onAccessPolicyChange={setShareAccessPolicy}
+        onExpiresAtChange={setShareExpiresAt}
         onSharePasswordChange={setSharePassword}
         onShareManagedSSHKeyChange={() => {}}
         onCopyLink={() => {
