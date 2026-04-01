@@ -89,6 +89,8 @@ import {
   isFailoverExecutionActive,
   normalizeProviderEntryID,
   previewFailoverTask,
+  retryFailoverExecutionCleanup,
+  retryFailoverExecutionDNS,
   runFailoverTask,
   stopFailoverExecution,
   toggleFailoverTask,
@@ -532,8 +534,14 @@ function getFailoverExecutionStepLabel(t: TFunction, step: FailoverExecutionStep
   if (stepKey === "switch_dns") {
     return t("failover.execution.step_labels.switch_dns", { defaultValue: "Switch DNS" });
   }
+  if (stepKey === "retry_dns") {
+    return t("failover.execution.step_labels.retry_dns", { defaultValue: "Retry DNS" });
+  }
   if (stepKey === "cleanup_old") {
     return t("failover.execution.step_labels.cleanup_old", { defaultValue: "Cleanup old instance" });
+  }
+  if (stepKey === "retry_cleanup") {
+    return t("failover.execution.step_labels.retry_cleanup", { defaultValue: "Retry old instance cleanup" });
   }
   if (stepKey === "rollback_new") {
     return t("failover.execution.step_labels.rollback_new", { defaultValue: "Rollback new instance" });
@@ -579,6 +587,10 @@ function getFailoverExecutionStepMessage(t: TFunction, step: FailoverExecutionSt
       return t("failover.execution.step_messages.dns_switching_skipped", { defaultValue: "DNS switching skipped" });
     case "dns updated":
       return t("failover.execution.step_messages.dns_updated", { defaultValue: "DNS updated" });
+    case "dns updated and verified":
+      return t("failover.execution.step_messages.dns_updated_and_verified", {
+        defaultValue: "DNS updated and verified",
+      });
     case "old instance deleted":
       return t("failover.execution.step_messages.old_instance_deleted", { defaultValue: "Old instance deleted" });
     case "old instance already missing; no cleanup required":
@@ -806,6 +818,28 @@ function getCleanupResultInfo(
             : "secondary",
     errorMessage,
   };
+}
+
+function canRetryExecutionDNS(execution: FailoverExecution | null) {
+  if (!execution || isFailoverExecutionActive(execution.status)) {
+    return false;
+  }
+  return String(execution.dns_status || "").trim().toLowerCase() === "failed";
+}
+
+function canRetryExecutionCleanup(execution: FailoverExecution | null) {
+  if (!execution || isFailoverExecutionActive(execution.status)) {
+    return false;
+  }
+  if (String(execution.dns_status || "").trim().toLowerCase() !== "success") {
+    return false;
+  }
+  const cleanupStatus = String(execution.cleanup_status || "").trim().toLowerCase();
+  if (!["pending", "failed", "warning"].includes(cleanupStatus)) {
+    return false;
+  }
+  const oldInstanceRef = asRecord(execution.old_instance_ref);
+  return Boolean(oldInstanceRef && Object.keys(oldInstanceRef).length > 0);
 }
 
 function normalizeExecutionEntryAttempt(value: unknown): ExecutionEntryAttemptSummary {
@@ -3228,6 +3262,8 @@ function ExecutionDetailDialog({
   const [error, setError] = React.useState("");
   const [showRawData, setShowRawData] = React.useState(false);
   const [stopping, setStopping] = React.useState(false);
+  const [retryingDNS, setRetryingDNS] = React.useState(false);
+  const [retryingCleanup, setRetryingCleanup] = React.useState(false);
 
   const loadExecution = React.useCallback(async (showLoading = true) => {
     if (!executionID) {
@@ -3295,10 +3331,50 @@ function ExecutionDetailDialog({
     }
   };
 
+  const handleRetryDNS = async () => {
+    if (!executionID) {
+      return;
+    }
+
+    setRetryingDNS(true);
+    try {
+      const updated = await retryFailoverExecutionDNS(executionID);
+      setExecution(updated);
+      toast.success(t("failover.messages.retry_dns_success", { defaultValue: "DNS retry finished" }));
+      await onExecutionUpdated?.();
+    } catch (nextError) {
+      toast.error(nextError instanceof Error ? nextError.message : t("common.unknown_error"));
+      await loadExecution(false);
+    } finally {
+      setRetryingDNS(false);
+    }
+  };
+
+  const handleRetryCleanup = async () => {
+    if (!executionID) {
+      return;
+    }
+
+    setRetryingCleanup(true);
+    try {
+      const updated = await retryFailoverExecutionCleanup(executionID);
+      setExecution(updated);
+      toast.success(t("failover.messages.retry_cleanup_success", { defaultValue: "Cleanup retry finished" }));
+      await onExecutionUpdated?.();
+    } catch (nextError) {
+      toast.error(nextError instanceof Error ? nextError.message : t("common.unknown_error"));
+      await loadExecution(false);
+    } finally {
+      setRetryingCleanup(false);
+    }
+  };
+
   const executionScriptNames = splitScriptSnapshotNames(execution?.script_name_snapshot || "");
   const cleanupInfo = execution
     ? getCleanupResultInfo(t, execution.cleanup_status, execution.cleanup_result)
     : null;
+  const canRetryDNS = canRetryExecutionDNS(execution);
+  const canRetryCleanup = canRetryExecutionCleanup(execution);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -3524,6 +3600,28 @@ function ExecutionDetailDialog({
             <Button type="button" variant="outline" onClick={() => void handleStopExecution()} disabled={stopping || loading}>
               {stopping ? <LoaderCircle className="size-4 animate-spin" /> : <Square className="size-4" />}
               {t("failover.actions.stop", { defaultValue: "Stop" })}
+            </Button>
+          ) : null}
+          {canRetryDNS ? (
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => void handleRetryDNS()}
+              disabled={retryingDNS || retryingCleanup || loading}
+            >
+              {retryingDNS ? <LoaderCircle className="size-4 animate-spin" /> : <RefreshCw className="size-4" />}
+              {t("failover.actions.retry_dns", { defaultValue: "Retry DNS" })}
+            </Button>
+          ) : null}
+          {canRetryCleanup ? (
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => void handleRetryCleanup()}
+              disabled={retryingCleanup || retryingDNS || loading}
+            >
+              {retryingCleanup ? <LoaderCircle className="size-4 animate-spin" /> : <RefreshCw className="size-4" />}
+              {t("failover.actions.retry_cleanup", { defaultValue: "Retry Cleanup" })}
             </Button>
           ) : null}
           <Button type="button" variant="outline" onClick={() => void loadExecution()} disabled={!executionID || loading}>

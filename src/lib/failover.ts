@@ -826,6 +826,20 @@ export async function stopFailoverExecution(executionID: number): Promise<Failov
   return normalizeExecution(data);
 }
 
+export async function retryFailoverExecutionDNS(executionID: number): Promise<FailoverExecution> {
+  const data = await requestEnvelope<unknown>(`/api/admin/failover/executions/${executionID}/retry-dns`, {
+    method: "POST",
+  });
+  return normalizeExecution(data);
+}
+
+export async function retryFailoverExecutionCleanup(executionID: number): Promise<FailoverExecution> {
+  const data = await requestEnvelope<unknown>(`/api/admin/failover/executions/${executionID}/retry-cleanup`, {
+    method: "POST",
+  });
+  return normalizeExecution(data);
+}
+
 export async function getFailoverExecutions(taskID: number, limit = 20): Promise<FailoverExecutionSummary[]> {
   const data = await requestEnvelope<unknown[]>(`/api/admin/failover/tasks/${taskID}/executions?limit=${limit}`);
   return Array.isArray(data)
