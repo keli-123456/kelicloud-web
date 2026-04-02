@@ -106,17 +106,12 @@ import {
   type AWSEC2Quota,
   type AWSElasticAddress,
   type AWSFollowUpTask,
-  type AWSImage,
   type AWSInstance,
   type AWSInstanceDetail,
-  type AWSInstanceType,
-  type AWSLightsailBlueprint,
-  type AWSLightsailBundle,
   type AWSLightsailCatalog,
   type AWSLightsailInstance,
   type AWSLightsailInstanceDetail,
   type AWSLightsailStaticIP,
-  type AWSSubnet,
   type AWSTag,
   type AWSVolume,
   type CreateAWSInstanceInput,
@@ -149,6 +144,34 @@ type AWSRegionOption = {
   label: string;
   country?: string;
   endpoint?: string;
+};
+
+type StaticEC2InstanceTypePreset = {
+  value: string;
+  label: string;
+  summary: string;
+  architecture: "x86_64" | "arm64";
+};
+
+type StaticEC2ImagePreset = {
+  value: string;
+  label: string;
+  summary: string;
+  architecture: "x86_64" | "arm64";
+};
+
+type StaticLightsailBlueprintPreset = {
+  value: string;
+  label: string;
+  summary: string;
+  platform: "linux" | "windows";
+};
+
+type StaticLightsailBundlePreset = {
+  value: string;
+  label: string;
+  summary: string;
+  platform: "linux" | "windows";
 };
 
 const SELECT_NONE = "__none__";
@@ -195,6 +218,127 @@ const AWS_REGION_OPTIONS = [
   { name: "us-gov-east-1", label: "AWS GovCloud (US-East)", country: "gov" },
   { name: "us-gov-west-1", label: "AWS GovCloud (US-West)", country: "gov" },
 ] as const;
+
+const STATIC_EC2_INSTANCE_TYPE_PRESETS: StaticEC2InstanceTypePreset[] = [
+  { value: "t3.micro", label: "t3.micro", summary: "Burstable x86 general purpose", architecture: "x86_64" },
+  { value: "t3.small", label: "t3.small", summary: "Burstable x86 general purpose", architecture: "x86_64" },
+  { value: "t3.medium", label: "t3.medium", summary: "Burstable x86 general purpose", architecture: "x86_64" },
+  { value: "m7i.large", label: "m7i.large", summary: "Balanced x86 general purpose", architecture: "x86_64" },
+  { value: "c7i.large", label: "c7i.large", summary: "x86 compute optimized", architecture: "x86_64" },
+  { value: "r7i.large", label: "r7i.large", summary: "x86 memory optimized", architecture: "x86_64" },
+  { value: "t4g.micro", label: "t4g.micro", summary: "Burstable Graviton (ARM64)", architecture: "arm64" },
+  { value: "t4g.small", label: "t4g.small", summary: "Burstable Graviton (ARM64)", architecture: "arm64" },
+  { value: "t4g.medium", label: "t4g.medium", summary: "Burstable Graviton (ARM64)", architecture: "arm64" },
+  { value: "m7g.large", label: "m7g.large", summary: "Balanced Graviton (ARM64)", architecture: "arm64" },
+  { value: "c7g.large", label: "c7g.large", summary: "Graviton compute optimized", architecture: "arm64" },
+  { value: "r7g.large", label: "r7g.large", summary: "Graviton memory optimized", architecture: "arm64" },
+];
+
+const STATIC_EC2_IMAGE_PRESETS: StaticEC2ImagePreset[] = [
+  {
+    value: "resolve:ssm:/aws/service/ami-amazon-linux-latest/al2023-ami-kernel-default-x86_64",
+    label: "Amazon Linux 2023",
+    summary: "AWS public parameter, x86_64, default kernel",
+    architecture: "x86_64",
+  },
+  {
+    value: "resolve:ssm:/aws/service/ami-amazon-linux-latest/al2023-ami-minimal-kernel-default-x86_64",
+    label: "Amazon Linux 2023 Minimal",
+    summary: "AWS public parameter, x86_64, minimal image",
+    architecture: "x86_64",
+  },
+  {
+    value: "resolve:ssm:/aws/service/ami-amazon-linux-latest/al2023-ami-kernel-default-arm64",
+    label: "Amazon Linux 2023 ARM64",
+    summary: "AWS public parameter, arm64, Graviton-ready",
+    architecture: "arm64",
+  },
+  {
+    value: "resolve:ssm:/aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-x86_64-gp2",
+    label: "Amazon Linux 2",
+    summary: "AWS public parameter, x86_64, legacy-compatible",
+    architecture: "x86_64",
+  },
+  {
+    value: "resolve:ssm:/aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-arm64-gp2",
+    label: "Amazon Linux 2 ARM64",
+    summary: "AWS public parameter, arm64, legacy-compatible",
+    architecture: "arm64",
+  },
+  {
+    value: "resolve:ssm:/aws/service/ami-windows-latest/Windows_Server-2022-English-Full-Base",
+    label: "Windows Server 2022",
+    summary: "AWS public parameter, x86_64, English Full Base",
+    architecture: "x86_64",
+  },
+];
+
+const DEFAULT_STATIC_EC2_INSTANCE_TYPE = STATIC_EC2_INSTANCE_TYPE_PRESETS[0]?.value || "t3.micro";
+const DEFAULT_STATIC_EC2_IMAGE_ID = STATIC_EC2_IMAGE_PRESETS[0]?.value
+  || "resolve:ssm:/aws/service/ami-amazon-linux-latest/al2023-ami-kernel-default-x86_64";
+const STATIC_LIGHTSAIL_BLUEPRINT_PRESETS: StaticLightsailBlueprintPreset[] = [
+  {
+    value: "amazon_linux_2023",
+    label: "Amazon Linux 2023",
+    summary: "OS only, Linux",
+    platform: "linux",
+  },
+  {
+    value: "wordpress",
+    label: "WordPress",
+    summary: "Bitnami app image, Linux",
+    platform: "linux",
+  },
+  {
+    value: "windows_server_2022",
+    label: "Windows Server 2022",
+    summary: "OS only, Windows",
+    platform: "windows",
+  },
+];
+const STATIC_LIGHTSAIL_BUNDLE_PRESETS: StaticLightsailBundlePreset[] = [
+  {
+    value: "nano_3_0",
+    label: "Nano",
+    summary: "$5/mo, 0.5 GB RAM, 20 GB SSD",
+    platform: "linux",
+  },
+  {
+    value: "micro_3_0",
+    label: "Micro",
+    summary: "$7/mo, 1 GB RAM, 40 GB SSD",
+    platform: "linux",
+  },
+  {
+    value: "small_3_0",
+    label: "Small",
+    summary: "$12/mo, 2 GB RAM, 60 GB SSD",
+    platform: "linux",
+  },
+  {
+    value: "medium_3_0",
+    label: "Medium",
+    summary: "$24/mo, 4 GB RAM, 80 GB SSD",
+    platform: "linux",
+  },
+  {
+    value: "large_3_0",
+    label: "Large",
+    summary: "$44/mo, 8 GB RAM, 160 GB SSD",
+    platform: "linux",
+  },
+  {
+    value: "large_win_3_0",
+    label: "Large Windows",
+    summary: "Windows plan example from AWS docs",
+    platform: "windows",
+  },
+];
+const DEFAULT_STATIC_LIGHTSAIL_BLUEPRINT_ID = STATIC_LIGHTSAIL_BLUEPRINT_PRESETS[0]?.value || "amazon_linux_2023";
+const DEFAULT_STATIC_LIGHTSAIL_BUNDLE_ID = STATIC_LIGHTSAIL_BUNDLE_PRESETS.find((preset) => preset.platform === "linux")?.value
+  || "nano_3_0";
+const DEFAULT_STATIC_LIGHTSAIL_WINDOWS_BUNDLE_ID = STATIC_LIGHTSAIL_BUNDLE_PRESETS.find((preset) => preset.platform === "windows")?.value
+  || "large_win_3_0";
 
 type CredentialSecretState = {
   secret: AWSCredentialSecret;
@@ -377,6 +521,15 @@ function parseTags(tagsText: string): AWSTag[] {
     .filter((tag): tag is AWSTag => Boolean(tag));
 }
 
+function parseResourceIds(value: string): string[] {
+  return Array.from(new Set(
+    value
+      .split(/\r?\n|,/)
+      .map((entry) => entry.trim())
+      .filter(Boolean),
+  ));
+}
+
 function formatDateTime(value: string) {
   if (!value) return "-";
   const date = new Date(value);
@@ -467,12 +620,9 @@ function getCompactQuotaSummary(
     });
   }
   const instances = quota.max_instances > 0 ? `${quota.running_instances}/${quota.max_instances}` : String(quota.running_instances);
-  const elasticIps =
-    quota.max_elastic_ips > 0 ? `${quota.allocated_elastic_ips}/${quota.max_elastic_ips}` : String(quota.allocated_elastic_ips);
-  return t("cloud.providers.aws.quota_compact", {
+  return t("cloud.providers.aws.quota_compact_instances", {
     instances,
-    elastic_ips: elasticIps,
-    defaultValue: `EC2 ${instances} · EIP ${elasticIps}`,
+    defaultValue: `EC2 ${instances}`,
   });
 }
 
@@ -486,16 +636,9 @@ function formatAWSQuotaErrorMessage(
   }
 
   const lower = normalized.toLowerCase();
-  if (lower.includes("elastic ip usage:") && lower.includes("context deadline exceeded")) {
-    return t(
-      "cloud.providers.aws.quota_warning_elastic_ip_timeout",
-      "Elastic IP usage for the active region timed out. The quota summary may be incomplete, but instance operations can continue.",
-    );
-  }
   if (
     lower.includes("context deadline exceeded")
     || lower.includes("request timed out")
-    || lower.includes("describeaddresses")
   ) {
     return t(
       "cloud.providers.aws.quota_warning_timeout",
@@ -567,21 +710,6 @@ function getEC2QuotaItems(
       key: "total_instances",
       label: t("cloud.providers.aws.total_instances", "Tracked instances"),
       value: String(quota.total_instances),
-    },
-    {
-      key: "allocated_elastic_ips",
-      label: t("cloud.providers.aws.allocated_elastic_ips", "Allocated EIPs"),
-      value: quota.max_elastic_ips > 0 ? `${quota.allocated_elastic_ips} / ${quota.max_elastic_ips}` : String(quota.allocated_elastic_ips),
-    },
-    {
-      key: "associated_elastic_ips",
-      label: t("cloud.providers.aws.associated_elastic_ips", "Attached EIPs"),
-      value: String(quota.associated_elastic_ips),
-    },
-    {
-      key: "vpc_max_elastic_ips",
-      label: t("cloud.providers.aws.vpc_max_elastic_ips", "VPC EIPs"),
-      value: String(quota.vpc_max_elastic_ips),
     },
     {
       key: "vpc_max_security_groups_per_interface",
@@ -818,26 +946,80 @@ function getMachineImageSummary(
   });
 }
 
-function getSubnetVpcId(subnets: AWSSubnet[], subnetId: string) {
-  return subnets.find((subnet) => subnet.subnet_id === subnetId)?.vpc_id || "";
-}
-
-function getInstanceTypeAvailabilityZones(catalog: AWSCatalog | null, instanceType: string) {
-  const normalized = instanceType.trim();
-  if (!normalized) return [];
-  return (
-    catalog?.instance_type_offerings.find((offering) => offering.instance_type === normalized)?.availability_zones
-    || []
-  );
-}
-
-function getImageLabel(image: AWSImage) {
-  if (image.name && image.image_id) return `${image.name} (${image.image_id})`;
-  return image.name || image.image_id || "-";
-}
-
 function getAWSRegionOptionLabel(region: { label?: string; name: string }) {
   return region.label ? `${region.label} (${region.name})` : region.name;
+}
+
+function getStaticEC2ImagePresetLabel(preset: StaticEC2ImagePreset) {
+  return `${preset.label} (${preset.summary})`;
+}
+
+function getStaticEC2InstanceTypePresetLabel(preset: StaticEC2InstanceTypePreset) {
+  return `${preset.label} (${preset.summary})`;
+}
+
+function getStaticLightsailBlueprintPresetLabel(preset: StaticLightsailBlueprintPreset) {
+  return `${preset.label} (${preset.summary})`;
+}
+
+function getStaticLightsailBundlePresetLabel(preset: StaticLightsailBundlePreset) {
+  return `${preset.label} (${preset.summary})`;
+}
+
+function getDefaultLightsailAvailabilityZone(region: string) {
+  const normalized = region.trim();
+  if (!normalized) return "";
+  return `${normalized}a`;
+}
+
+function getDefaultLightsailBundleForPlatform(platform: "linux" | "windows" | "") {
+  if (platform === "windows") {
+    return DEFAULT_STATIC_LIGHTSAIL_WINDOWS_BUNDLE_ID;
+  }
+  return DEFAULT_STATIC_LIGHTSAIL_BUNDLE_ID;
+}
+
+function inferLightsailBlueprintPlatform(blueprintId: string): "linux" | "windows" | "" {
+  const normalized = blueprintId.trim().toLowerCase();
+  if (!normalized) return "";
+  if (normalized.includes("windows") || normalized.includes("sqlserver")) {
+    return "windows";
+  }
+  return STATIC_LIGHTSAIL_BLUEPRINT_PRESETS.some((preset) => preset.value === normalized)
+    ? STATIC_LIGHTSAIL_BLUEPRINT_PRESETS.find((preset) => preset.value === normalized)?.platform || ""
+    : "";
+}
+
+function inferLightsailBundlePlatform(bundleId: string): "linux" | "windows" | "" {
+  const normalized = bundleId.trim().toLowerCase();
+  if (!normalized) return "";
+  if (normalized.includes("_win_")) {
+    return "windows";
+  }
+  return STATIC_LIGHTSAIL_BUNDLE_PRESETS.some((preset) => preset.value === normalized)
+    ? STATIC_LIGHTSAIL_BUNDLE_PRESETS.find((preset) => preset.value === normalized)?.platform || ""
+    : "";
+}
+
+function inferEC2InstanceArchitecture(instanceType: string): "x86_64" | "arm64" | "" {
+  const normalized = instanceType.trim().toLowerCase();
+  if (!normalized) return "";
+  if (/^(a1|t4g|m6g|m7g|m6gd|m7gd|c6g|c7g|c6gd|c7gd|r6g|r7g|r6gd|r7gd|x2gd)\./.test(normalized)) {
+    return "arm64";
+  }
+  return "";
+}
+
+function inferEC2ImageArchitecture(imageId: string): "x86_64" | "arm64" | "" {
+  const normalized = imageId.trim().toLowerCase();
+  if (!normalized) return "";
+  if (normalized.includes("arm64")) {
+    return "arm64";
+  }
+  if (normalized.includes("x86_64") || normalized.includes("windows")) {
+    return "x86_64";
+  }
+  return "";
 }
 
 function AWSRegionSelect({
@@ -970,18 +1152,6 @@ function AWSRegionSelect({
   );
 }
 
-function getAWSInstanceTypeOptionLabel(instanceType: AWSInstanceType) {
-  return `${instanceType.name} / ${instanceType.vcpus} vCPU / ${(instanceType.memory_mib / 1024).toFixed(1)} GB`;
-}
-
-function getLightsailBundleOptionLabel(bundle: AWSLightsailBundle) {
-  return `${bundle.bundle_id} / ${bundle.cpu_count} vCPU / ${bundle.ram_size_in_gb} GB / $${bundle.price.toFixed(2)}`;
-}
-
-function getLightsailBlueprintLabel(blueprint: AWSLightsailBlueprint) {
-  return `${blueprint.platform ? `${blueprint.platform} / ` : ""}${blueprint.name || blueprint.blueprint_id}`;
-}
-
 function joinSummaryParts(parts: Array<React.ReactNode | null | undefined | false>) {
   const normalized = parts
     .map((part) => {
@@ -1084,21 +1254,16 @@ export default function AWSPanel() {
   const [lightsailError, setLightsailError] = React.useState("");
   const [createOpen, setCreateOpen] = React.useState(false);
   const [createRegion, setCreateRegion] = React.useState("");
-  const [createCatalog, setCreateCatalog] = React.useState<AWSCatalog | null>(null);
   const [createSubmitting, setCreateSubmitting] = React.useState(false);
-  const [ec2CatalogLoading, setEc2CatalogLoading] = React.useState(false);
   const [resourcesLoaded, setResourcesLoaded] = React.useState(false);
   const [createForm, setCreateForm] = React.useState<CreateFormState>(initialCreateForm);
   const [lightsailCreateOpen, setLightsailCreateOpen] = React.useState(false);
   const [lightsailCreateRegion, setLightsailCreateRegion] = React.useState("");
-  const [lightsailCreateCatalog, setLightsailCreateCatalog] = React.useState<AWSLightsailCatalog | null>(null);
   const [lightsailCreateSubmitting, setLightsailCreateSubmitting] = React.useState(false);
-  const [lightsailCatalogLoading, setLightsailCatalogLoading] = React.useState(false);
   const [lightsailCreateForm, setLightsailCreateForm] = React.useState<LightsailCreateFormState>(
     initialLightsailCreateForm,
   );
   const activeCredential = getActiveCredential(credentialPool);
-  const createCatalogBusy = ec2CatalogLoading || lightsailCatalogLoading;
   const resolvedActiveRegion =
     activeCredential
       ? credentialPool?.active_region || account?.region || activeCredential.default_region || DEFAULT_AWS_REGION
@@ -1246,30 +1411,6 @@ export default function AWSPanel() {
   }, [backgroundTasks, backgroundTasksOpen, loadBackgroundTasks]);
 
   React.useEffect(() => {
-    if (!createCatalog) return;
-    setCreateForm((previous) => ({
-      ...previous,
-      image_id: previous.image_id || createCatalog.images[0]?.image_id || "",
-      instance_type: previous.instance_type || createCatalog.instance_types[0]?.name || "",
-      subnet_id: previous.subnet_id || "",
-    }));
-  }, [createCatalog]);
-
-  React.useEffect(() => {
-    if (!lightsailCreateCatalog) return;
-    setLightsailCreateForm((previous) => ({
-      ...previous,
-      availability_zone:
-        previous.availability_zone ||
-        lightsailCreateCatalog.regions.find((region) => region.name === lightsailCreateRegion)?.availability_zones[0]?.name ||
-        lightsailCreateCatalog.regions[0]?.availability_zones[0]?.name ||
-        "",
-      blueprint_id: previous.blueprint_id || lightsailCreateCatalog.blueprints[0]?.blueprint_id || "",
-      bundle_id: previous.bundle_id || lightsailCreateCatalog.bundles[0]?.bundle_id || "",
-    }));
-  }, [lightsailCreateCatalog, lightsailCreateRegion]);
-
-  React.useEffect(() => {
     setSelectedCredentialIds((current) => {
       if (current.length === 0) {
         return current;
@@ -1293,19 +1434,22 @@ export default function AWSPanel() {
     setLightsailCreateOpen(false);
     setCreateRegion("");
     setLightsailCreateRegion("");
-    setCreateCatalog(null);
-    setLightsailCreateCatalog(null);
     setCreateForm({
       ...initialCreateForm,
+      image_id: DEFAULT_STATIC_EC2_IMAGE_ID,
+      instance_type: DEFAULT_STATIC_EC2_INSTANCE_TYPE,
       auto_connect: true,
       auto_connect_group: getDefaultAutoConnectGroup("aws", activeCredential?.name || ""),
     });
     setLightsailCreateForm({
       ...initialLightsailCreateForm,
+      availability_zone: getDefaultLightsailAvailabilityZone(activeCredential?.default_region || DEFAULT_AWS_REGION),
+      blueprint_id: DEFAULT_STATIC_LIGHTSAIL_BLUEPRINT_ID,
+      bundle_id: DEFAULT_STATIC_LIGHTSAIL_BUNDLE_ID,
       auto_connect: true,
       auto_connect_group: getDefaultAutoConnectGroup("aws", activeCredential?.name || ""),
     });
-  }, [activeCredential?.id, activeCredential?.name]);
+  }, [activeCredential?.default_region, activeCredential?.id, activeCredential?.name]);
   const activeContextReady = Boolean(activeCredential && activeRegion);
   const resolvedCreateRegion = createRegion || activeRegion || activeCredential?.default_region || DEFAULT_AWS_REGION;
   const resolvedLightsailCreateRegion =
@@ -1386,12 +1530,6 @@ export default function AWSPanel() {
   const runningInstanceLimitReached = Boolean(
     !standardVCPUQuotaReached && activeQuota && activeQuota.max_instances > 0 && activeQuota.running_instances >= activeQuota.max_instances,
   );
-  const elasticIPLimitReached = Boolean(
-    activeQuota && activeQuota.max_elastic_ips > 0 && activeQuota.allocated_elastic_ips >= activeQuota.max_elastic_ips,
-  );
-  const selectedSubnet = (createCatalog?.subnets || []).find((subnet) => subnet.subnet_id === createForm.subnet_id) || null;
-  const selectedSubnetVpcId = getSubnetVpcId(createCatalog?.subnets || [], createForm.subnet_id);
-  const selectedSubnetAz = selectedSubnet?.availability_zone || "";
   const regionOptions = React.useMemo(() => {
     const entries = new Map<string, AWSRegionOption>();
 
@@ -1416,22 +1554,14 @@ export default function AWSPanel() {
     lightsailCatalog?.regions.forEach((region) =>
       addRegion(region.name, entries.get(region.name)?.label, entries.get(region.name)?.country),
     );
-    createCatalog?.regions.forEach((region) =>
-      addRegion(region.name, entries.get(region.name)?.label, entries.get(region.name)?.country, region.endpoint),
-    );
-    lightsailCreateCatalog?.regions.forEach((region) =>
-      addRegion(region.name, entries.get(region.name)?.label, entries.get(region.name)?.country),
-    );
 
     return Array.from(entries.values());
   }, [
     account?.region,
     activeCredential?.default_region,
     catalog?.regions,
-    createCatalog?.regions,
     credentialPool?.active_region,
     lightsailCatalog?.regions,
-    lightsailCreateCatalog?.regions,
   ]);
   const regionSearchPlaceholder = t(
     "cloud.providers.aws.region_search_placeholder",
@@ -1441,35 +1571,31 @@ export default function AWSPanel() {
     "cloud.providers.aws.region_search_empty",
     "No matching AWS region found",
   );
-  const selectedInstanceTypeZones = getInstanceTypeAvailabilityZones(createCatalog, createForm.instance_type);
-  const instanceTypeAvailabilityKnown = Boolean(createCatalog?.instance_type_offerings.length);
-  const instanceTypeAvailableInRegion =
-    !instanceTypeAvailabilityKnown || !createForm.instance_type || selectedInstanceTypeZones.length > 0;
-  const instanceTypeAvailableForCreate =
-    !instanceTypeAvailabilityKnown ||
-    !selectedSubnetAz ||
-    selectedInstanceTypeZones.includes(selectedSubnetAz);
-  const filteredSecurityGroups = (createCatalog?.security_groups || []).filter((group) =>
-    selectedSubnetVpcId ? group.vpc_id === selectedSubnetVpcId : true,
-  );
   const selectedCreateRegionOption = regionOptions.find((region) => region.name === resolvedCreateRegion) || null;
   const selectedLightsailCreateRegionOption =
     regionOptions.find((region) => region.name === resolvedLightsailCreateRegion) || null;
-  const selectedImage = (createCatalog?.images || []).find((image) => image.image_id === createForm.image_id) || null;
-  const selectedInstanceType =
-    (createCatalog?.instance_types || []).find((instanceType) => instanceType.name === createForm.instance_type) || null;
-  const selectedSecurityGroups = (createCatalog?.security_groups || []).filter((group) =>
-    createForm.security_group_ids.includes(group.group_id),
+  const selectedImagePreset = STATIC_EC2_IMAGE_PRESETS.find((preset) => preset.value === createForm.image_id) || null;
+  const selectedInstanceTypePreset =
+    STATIC_EC2_INSTANCE_TYPE_PRESETS.find((preset) => preset.value === createForm.instance_type) || null;
+  const selectedImageArchitecture = selectedImagePreset?.architecture || inferEC2ImageArchitecture(createForm.image_id);
+  const selectedInstanceArchitecture =
+    selectedInstanceTypePreset?.architecture || inferEC2InstanceArchitecture(createForm.instance_type);
+  const ec2ArchitectureMismatch = Boolean(
+    selectedImageArchitecture
+    && selectedInstanceArchitecture
+    && selectedImageArchitecture !== selectedInstanceArchitecture,
   );
   const ec2CoreSummary = joinSummaryParts([
-    selectedImage ? getImageLabel(selectedImage) : createForm.image_id,
-    selectedInstanceType ? getAWSInstanceTypeOptionLabel(selectedInstanceType) : createForm.instance_type,
+    selectedImagePreset ? selectedImagePreset.label : createForm.image_id,
+    selectedInstanceTypePreset ? selectedInstanceTypePreset.label : createForm.instance_type,
+    selectedImageArchitecture ? selectedImageArchitecture.toUpperCase() : "",
   ]);
   const ec2NetworkSummary = joinSummaryParts([
-    selectedSubnet
-      ? `${selectedSubnet.availability_zone || selectedSubnet.subnet_id} / ${selectedSubnet.cidr_block || selectedSubnet.subnet_id}`
-      : t("cloud.providers.aws.default_network", "Default network"),
-    `${selectedSecurityGroups.length} ${t("cloud.providers.aws.security_groups", "Security Groups")}`,
+    createForm.key_name || t("cloud.providers.aws.none", "None"),
+    createForm.subnet_id || t("cloud.providers.aws.default_network", "Default network"),
+    createForm.security_group_ids.length > 0
+      ? `${createForm.security_group_ids.length} ${t("cloud.providers.aws.security_groups", "Security Groups")}`
+      : t("cloud.providers.aws.none", "None"),
     createForm.assign_public_ip
       ? t("cloud.providers.aws.public_ipv4", "Public IPv4")
       : t("cloud.providers.aws.private_only", "Private only"),
@@ -1488,21 +1614,23 @@ export default function AWSPanel() {
     `${parseTags(createForm.tagsText).length} ${t("cloud.form.tags", "Tags")}`,
     createForm.user_data.trim() ? t("cloud.form.user_data", "Cloud-Init / User Data") : "",
   ]);
-  const selectedLightsailRegion =
-    lightsailCreateCatalog?.regions.find((region) => region.name === resolvedLightsailCreateRegion)
-    || lightsailCreateCatalog?.regions[0]
-    || null;
-  const activeLightsailAvailabilityZones = selectedLightsailRegion?.availability_zones || [];
-  const selectedLightsailBlueprint =
-    (lightsailCreateCatalog?.blueprints || []).find((blueprint) => blueprint.blueprint_id === lightsailCreateForm.blueprint_id)
-    || null;
-  const selectedLightsailBundle =
-    (lightsailCreateCatalog?.bundles || []).find((bundle) => bundle.bundle_id === lightsailCreateForm.bundle_id)
-    || null;
+  const selectedLightsailBlueprintPreset =
+    STATIC_LIGHTSAIL_BLUEPRINT_PRESETS.find((preset) => preset.value === lightsailCreateForm.blueprint_id) || null;
+  const selectedLightsailBundlePreset =
+    STATIC_LIGHTSAIL_BUNDLE_PRESETS.find((preset) => preset.value === lightsailCreateForm.bundle_id) || null;
+  const selectedLightsailBlueprintPlatform =
+    selectedLightsailBlueprintPreset?.platform || inferLightsailBlueprintPlatform(lightsailCreateForm.blueprint_id);
+  const selectedLightsailBundlePlatform =
+    selectedLightsailBundlePreset?.platform || inferLightsailBundlePlatform(lightsailCreateForm.bundle_id);
+  const lightsailPlatformMismatch = Boolean(
+    selectedLightsailBlueprintPlatform
+    && selectedLightsailBundlePlatform
+    && selectedLightsailBlueprintPlatform !== selectedLightsailBundlePlatform,
+  );
   const lightsailCoreSummary = joinSummaryParts([
     lightsailCreateForm.availability_zone || resolvedLightsailCreateRegion,
-    selectedLightsailBlueprint ? getLightsailBlueprintLabel(selectedLightsailBlueprint) : lightsailCreateForm.blueprint_id,
-    selectedLightsailBundle ? getLightsailBundleOptionLabel(selectedLightsailBundle) : lightsailCreateForm.bundle_id,
+    selectedLightsailBlueprintPreset ? selectedLightsailBlueprintPreset.label : lightsailCreateForm.blueprint_id,
+    selectedLightsailBundlePreset ? selectedLightsailBundlePreset.label : lightsailCreateForm.bundle_id,
   ]);
   const lightsailAccessSummary = joinSummaryParts([
     lightsailCreateForm.key_pair_name || t("cloud.providers.aws.none", "None"),
@@ -1864,79 +1992,23 @@ export default function AWSPanel() {
     }
   };
 
-  const loadCreateCatalog = React.useCallback(async (region: string) => {
-    setEc2CatalogLoading(true);
-    try {
-      const nextCatalog = await getAWSCatalog(region);
-      setCreateCatalog(nextCatalog);
-      return nextCatalog;
-    } catch (catalogError) {
-      toast.error(toErrorMessage(catalogError));
-      return null;
-    } finally {
-      setEc2CatalogLoading(false);
-    }
-  }, []);
-
-  const ensureCreateCatalogLoaded = React.useCallback(
-    async (region: string) => {
-      if (createCatalog?.active_region === region) {
-        return createCatalog;
-      }
-      return loadCreateCatalog(region);
-    },
-    [createCatalog, loadCreateCatalog],
-  );
-
-  const loadLightsailCreateCatalog = React.useCallback(async (region: string) => {
-    setLightsailCatalogLoading(true);
-    try {
-      const nextCatalog = await getAWSLightsailCatalog(region);
-      setLightsailCreateCatalog(nextCatalog);
-      return nextCatalog;
-    } catch (catalogError) {
-      toast.error(toErrorMessage(catalogError));
-      return null;
-    } finally {
-      setLightsailCatalogLoading(false);
-    }
-  }, []);
-
-  const ensureLightsailCreateCatalogLoaded = React.useCallback(
-    async (region: string) => {
-      if (lightsailCreateCatalog?.active_region === region) {
-        return lightsailCreateCatalog;
-      }
-      return loadLightsailCreateCatalog(region);
-    },
-    [lightsailCreateCatalog, loadLightsailCreateCatalog],
-  );
-
-  const handleCreateDialogRegionChange = async (region: string) => {
+  const handleCreateDialogRegionChange = (region: string) => {
     setCreateRegion(region);
-    setCreateCatalog(null);
     setCreateForm((previous) => ({
       ...previous,
-      image_id: "",
-      instance_type: "",
       key_name: "",
       subnet_id: "",
       security_group_ids: [],
     }));
-    await loadCreateCatalog(region);
   };
 
-  const handleLightsailDialogRegionChange = async (region: string) => {
+  const handleLightsailDialogRegionChange = (region: string) => {
     setLightsailCreateRegion(region);
-    setLightsailCreateCatalog(null);
     setLightsailCreateForm((previous) => ({
       ...previous,
-      availability_zone: "",
-      blueprint_id: "",
-      bundle_id: "",
+      availability_zone: getDefaultLightsailAvailabilityZone(region),
       key_pair_name: "",
     }));
-    await loadLightsailCreateCatalog(region);
   };
 
   const handleCreateInstance = async () => {
@@ -1979,6 +2051,9 @@ export default function AWSPanel() {
         ...initialCreateForm,
         image_id: previous.image_id,
         instance_type: previous.instance_type,
+        key_name: "",
+        subnet_id: "",
+        security_group_ids: [],
         auto_connect: true,
         auto_connect_group: defaultCreateGroup,
       }));
@@ -2052,17 +2127,15 @@ export default function AWSPanel() {
     setCreateRegion(nextRegion);
     setCreateForm((previous) => ({
       ...previous,
+      image_id: previous.image_id || DEFAULT_STATIC_EC2_IMAGE_ID,
+      instance_type: previous.instance_type || DEFAULT_STATIC_EC2_INSTANCE_TYPE,
       auto_connect: true,
       auto_connect_group: defaultCreateGroup,
     }));
-    const nextCatalog = await ensureCreateCatalogLoaded(nextRegion);
-    if (!nextCatalog) {
-      return;
-    }
     setCreateOpen(true);
   };
 
-  const handleOpenLightsailCreateDialog = async () => {
+  const handleOpenLightsailCreateDialog = () => {
     if (!activeCredential) {
       return;
     }
@@ -2070,13 +2143,12 @@ export default function AWSPanel() {
     setLightsailCreateRegion(nextRegion);
     setLightsailCreateForm((previous) => ({
       ...previous,
+      availability_zone: previous.availability_zone || getDefaultLightsailAvailabilityZone(nextRegion),
+      blueprint_id: previous.blueprint_id || DEFAULT_STATIC_LIGHTSAIL_BLUEPRINT_ID,
+      bundle_id: previous.bundle_id || DEFAULT_STATIC_LIGHTSAIL_BUNDLE_ID,
       auto_connect: true,
       auto_connect_group: defaultCreateGroup,
     }));
-    const nextCatalog = await ensureLightsailCreateCatalogLoaded(nextRegion);
-    if (!nextCatalog) {
-      return;
-    }
     setLightsailCreateOpen(true);
   };
 
@@ -2469,17 +2541,6 @@ export default function AWSPanel() {
         />
       ) : null}
 
-      {elasticIPLimitReached ? (
-        <WarningAlert
-          tone="warning"
-          description={t("cloud.providers.aws.elastic_ip_quota_reached", {
-            used: activeQuota?.allocated_elastic_ips || 0,
-            limit: activeQuota?.max_elastic_ips || 0,
-            defaultValue: `Elastic IP usage has reached the current regional limit (${activeQuota?.allocated_elastic_ips || 0}/${activeQuota?.max_elastic_ips || 0}). Allocating a new Elastic IP may fail.`,
-          })}
-        />
-      ) : null}
-
       <div className={`order-1 ${cloudPanelCardClassName}`}>
             <div className={cloudPanelHeaderClassName}>
               <div className="flex flex-wrap items-center justify-between gap-3">
@@ -2767,13 +2828,8 @@ export default function AWSPanel() {
                         <Button
                           size="1"
                           disabled={!activeCredential}
-                          aria-busy={createCatalogBusy}
                         >
-                          {createCatalogBusy ? (
-                            <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
-                          ) : (
-                            <Plus className="mr-2 h-4 w-4" />
-                          )}
+                          <Plus className="mr-2 h-4 w-4" />
                           {t("common.create", "Create")}
                         </Button>
                       </DropdownMenuTrigger>
@@ -2785,17 +2841,17 @@ export default function AWSPanel() {
                             void handleOpenCreateDialog();
                           }}
                         >
-                          {ec2CatalogLoading ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+                          <Plus className="h-4 w-4" />
                           {t("cloud.providers.aws.create", "Launch EC2")}
                         </DropdownMenuItem>
                         <DropdownMenuItem
                           disabled={!activeCredential}
                           onSelect={() => {
                             setInstanceView("lightsail");
-                            void handleOpenLightsailCreateDialog();
+                            handleOpenLightsailCreateDialog();
                           }}
                         >
-                          {lightsailCatalogLoading ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+                          <Plus className="h-4 w-4" />
                           {t("cloud.providers.aws.lightsail_create", "Create Lightsail")}
                         </DropdownMenuItem>
                       </DropdownMenuContent>
@@ -3263,6 +3319,13 @@ export default function AWSPanel() {
           </Dialog.Description>
 
           <div className="mt-4 flex flex-col gap-4">
+            <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-600 dark:border-slate-800 dark:bg-slate-900/40 dark:text-slate-300">
+              {t(
+                "cloud.providers.aws.create_static_presets_help",
+                "This EC2 dialog uses built-in static presets instead of loading AWS catalogs. Regions are fixed in the UI, image presets use AWS public SSM parameters, and key pair / subnet / security groups are entered manually.",
+              )}
+            </div>
+
             <section className="pt-0">
               <div className="grid gap-x-6 gap-y-2 sm:grid-cols-2">
                 <CompactSummaryMetric
@@ -3275,11 +3338,11 @@ export default function AWSPanel() {
                 />
                 <CompactSummaryMetric
                   label={t("cloud.table.image", "Image")}
-                  value={selectedImage ? getImageLabel(selectedImage) : createForm.image_id || "-"}
+                  value={selectedImagePreset ? selectedImagePreset.label : createForm.image_id || "-"}
                 />
                 <CompactSummaryMetric
                   label={t("cloud.table.size", "Size")}
-                  value={selectedInstanceType ? getAWSInstanceTypeOptionLabel(selectedInstanceType) : createForm.instance_type || "-"}
+                  value={selectedInstanceTypePreset ? selectedInstanceTypePreset.label : createForm.instance_type || "-"}
                 />
                 <CompactSummaryMetric
                   label={t("cloud.providers.aws.create_network", "Network & Access")}
@@ -3288,41 +3351,24 @@ export default function AWSPanel() {
               </div>
             </section>
 
-            {!instanceTypeAvailableInRegion ? (
+            {ec2ArchitectureMismatch ? (
               <WarningAlert
                 tone="warning"
-                description={t("cloud.providers.aws.instance_type_unavailable_region", {
+                description={t("cloud.providers.aws.ec2_architecture_mismatch", {
+                  imageArch: selectedImageArchitecture,
                   instanceType: createForm.instance_type,
-                  region: resolvedCreateRegion,
-                  defaultValue: `${createForm.instance_type} is not currently offered in ${resolvedCreateRegion}. Choose another instance type or region.`,
+                  typeArch: selectedInstanceArchitecture,
+                  defaultValue: `The selected image expects ${selectedImageArchitecture}, but ${createForm.instance_type} is ${selectedInstanceArchitecture}. Use an ARM64 image with Graviton families like t4g/m7g/c7g/r7g, and use x86_64 images with t3/m7i/c7i/r7i families.`,
                 })}
               />
-            ) : selectedSubnetAz && !instanceTypeAvailableForCreate ? (
-              <WarningAlert
-                tone="warning"
-                description={t("cloud.providers.aws.instance_type_unavailable_az", {
-                  instanceType: createForm.instance_type,
-                  az: selectedSubnetAz,
-                  defaultValue: `${createForm.instance_type} is not currently offered in ${selectedSubnetAz}. Choose another subnet or instance type.`,
-                })}
-              />
-            ) : instanceTypeAvailabilityKnown && createForm.instance_type ? (
+            ) : (
               <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800 dark:border-emerald-900/50 dark:bg-emerald-950/30 dark:text-emerald-300">
-                {selectedSubnetAz
-                  ? t("cloud.providers.aws.instance_type_available_az", {
-                      instanceType: createForm.instance_type,
-                      az: selectedSubnetAz,
-                      count: selectedInstanceTypeZones.length,
-                      defaultValue: `${createForm.instance_type} is offered in ${selectedSubnetAz}. AWS reports ${selectedInstanceTypeZones.length} supported AZs in ${resolvedCreateRegion}.`,
-                    })
-                  : t("cloud.providers.aws.instance_type_available_region", {
-                      instanceType: createForm.instance_type,
-                      region: resolvedCreateRegion,
-                      count: selectedInstanceTypeZones.length,
-                      defaultValue: `${createForm.instance_type} is currently offered in ${selectedInstanceTypeZones.length} AZs in ${resolvedCreateRegion}.`,
-                    })}
+                {t(
+                  "cloud.providers.aws.ec2_static_rules_help",
+                  "Built-in type presets only cover common families. T3 / M7i / C7i / R7i are x86_64. T4g / M7g / C7g / R7g are Graviton ARM64. The built-in image presets use AWS public parameters, so they can stay current without loading a catalog.",
+                )}
               </div>
-            ) : null}
+            )}
 
             <CompactDetailSection
               title={t("cloud.providers.aws.create_core", "Core")}
@@ -3346,8 +3392,8 @@ export default function AWSPanel() {
                   />
                   <div className={`mt-2 text-xs ${cloudPanelBodyTextClassName}`}>
                     {t(
-                      "cloud.providers.aws.create_region_hint",
-                      "Switching region refreshes only the catalog used by this create dialog.",
+                      "cloud.providers.aws.ec2_create_region_hint",
+                      "Switching region only updates this dialog. Built-in presets stay available without loading AWS catalog data.",
                     )}
                   </div>
                 </div>
@@ -3361,9 +3407,9 @@ export default function AWSPanel() {
                   >
                     <Select.Trigger placeholder={t("cloud.form.size_placeholder", "Select a size")} />
                     <Select.Content>
-                      {(createCatalog?.instance_types || []).map((instanceType) => (
-                        <Select.Item key={instanceType.name} value={instanceType.name}>
-                          {getAWSInstanceTypeOptionLabel(instanceType)}
+                      {STATIC_EC2_INSTANCE_TYPE_PRESETS.map((instanceType) => (
+                        <Select.Item key={instanceType.value} value={instanceType.value}>
+                          {getStaticEC2InstanceTypePresetLabel(instanceType)}
                         </Select.Item>
                       ))}
                     </Select.Content>
@@ -3373,20 +3419,31 @@ export default function AWSPanel() {
 
               <div className="mt-4">
                 <label className={cloudPanelFieldLabelClassName}>
+                  {t("cloud.providers.aws.instance_type", "Instance Type")}
+                </label>
+                <TextField.Root
+                  value={createForm.instance_type}
+                  placeholder={t("cloud.providers.aws.instance_type_manual_placeholder", "Or enter an instance type manually")}
+                  onChange={(event) => setCreateForm((previous) => ({ ...previous, instance_type: event.target.value }))}
+                />
+              </div>
+
+              <div className="mt-4">
+                <label className={cloudPanelFieldLabelClassName}>
                   {t("cloud.providers.aws.ami", "AMI")}
                 </label>
-                <Select.Root
-                  value={createForm.image_id}
-                  onValueChange={(value) => setCreateForm((previous) => ({ ...previous, image_id: value }))}
-                >
-                  <Select.Trigger placeholder={t("cloud.form.image_placeholder", "Select an image")} />
-                  <Select.Content>
-                    {(createCatalog?.images || []).map((image) => (
-                      <Select.Item key={image.image_id} value={image.image_id}>
-                        {getImageLabel(image)}
-                      </Select.Item>
-                    ))}
-                  </Select.Content>
+                  <Select.Root
+                    value={createForm.image_id}
+                    onValueChange={(value) => setCreateForm((previous) => ({ ...previous, image_id: value }))}
+                  >
+                    <Select.Trigger placeholder={t("cloud.form.image_placeholder", "Select an image")} />
+                    <Select.Content>
+                      {STATIC_EC2_IMAGE_PRESETS.map((image) => (
+                        <Select.Item key={image.value} value={image.value}>
+                          {getStaticEC2ImagePresetLabel(image)}
+                        </Select.Item>
+                      ))}
+                    </Select.Content>
                 </Select.Root>
               </div>
 
@@ -3411,50 +3468,26 @@ export default function AWSPanel() {
                   <label className={cloudPanelFieldLabelClassName}>
                     {t("cloud.providers.aws.key_pair", "Key Pair")}
                   </label>
-                  <Select.Root
-                    value={createForm.key_name || SELECT_NONE}
-                    onValueChange={(value) =>
-                      setCreateForm((previous) => ({
-                        ...previous,
-                        key_name: value === SELECT_NONE ? "" : value,
-                      }))
-                    }
-                  >
-                    <Select.Trigger placeholder={t("cloud.providers.aws.key_pair_optional", "Optional")} />
-                    <Select.Content>
-                      <Select.Item value={SELECT_NONE}>{t("cloud.providers.aws.none", "None")}</Select.Item>
-                      {(createCatalog?.key_pairs || []).map((keyPair) => (
-                        <Select.Item key={keyPair.key_name} value={keyPair.key_name}>
-                          {keyPair.key_name}
-                        </Select.Item>
-                      ))}
-                    </Select.Content>
-                  </Select.Root>
+                  <TextField.Root
+                    value={createForm.key_name}
+                    placeholder={t("cloud.providers.aws.key_pair_manual_placeholder", "Optional key pair name")}
+                    onChange={(event) => setCreateForm((previous) => ({ ...previous, key_name: event.target.value }))}
+                  />
                 </div>
                 <div>
                   <label className={cloudPanelFieldLabelClassName}>
                     {t("cloud.providers.aws.subnet", "Subnet")}
                   </label>
-                  <Select.Root
-                    value={createForm.subnet_id || SELECT_NONE}
-                    onValueChange={(value) =>
+                  <TextField.Root
+                    value={createForm.subnet_id}
+                    placeholder={t("cloud.providers.aws.subnet_manual_placeholder", "Optional subnet ID, for example subnet-abc123")}
+                    onChange={(event) =>
                       setCreateForm((previous) => ({
                         ...previous,
-                        subnet_id: value === SELECT_NONE ? "" : value,
-                        security_group_ids: [],
+                        subnet_id: event.target.value,
                       }))
                     }
-                  >
-                    <Select.Trigger placeholder={t("cloud.providers.aws.subnet_optional", "Optional")} />
-                    <Select.Content>
-                      <Select.Item value={SELECT_NONE}>{t("cloud.providers.aws.none", "None")}</Select.Item>
-                      {(createCatalog?.subnets || []).map((subnet) => (
-                        <Select.Item key={subnet.subnet_id} value={subnet.subnet_id}>
-                          {subnet.subnet_id} / {subnet.availability_zone} / {subnet.cidr_block}
-                        </Select.Item>
-                      ))}
-                    </Select.Content>
-                  </Select.Root>
+                  />
                 </div>
               </div>
 
@@ -3463,53 +3496,21 @@ export default function AWSPanel() {
                   {t("cloud.providers.aws.security_groups", "Security Groups")}
                 </div>
                 <div className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-                  {selectedSubnetVpcId
-                    ? t("cloud.providers.aws.security_group_hint_vpc", {
-                        vpc: selectedSubnetVpcId,
-                        defaultValue: `Showing groups from VPC ${selectedSubnetVpcId}`,
-                      })
-                    : t(
-                        "cloud.providers.aws.security_group_hint",
-                        "Select matching security groups when you choose a subnet. Leave empty to let AWS use the subnet default behavior.",
-                      )}
-                </div>
-                <div className={`${cloudDetailListClassName} mt-3 max-h-52 overflow-auto overscroll-contain [scrollbar-gutter:stable]`}>
-                  {filteredSecurityGroups.length ? (
-                    filteredSecurityGroups.map((group) => {
-                      const checked = createForm.security_group_ids.includes(group.group_id);
-                      return (
-                        <label
-                          key={group.group_id}
-                          className={`${cloudDetailListItemClassName} flex items-start gap-2 text-sm text-slate-700 dark:text-slate-300`}
-                        >
-                          <Checkbox
-                            checked={checked}
-                            onCheckedChange={(nextChecked) =>
-                              setCreateForm((previous) => ({
-                                ...previous,
-                                security_group_ids: nextChecked === true
-                                  ? [...previous.security_group_ids, group.group_id]
-                                  : previous.security_group_ids.filter((value) => value !== group.group_id),
-                              }))
-                            }
-                          />
-                          <span className="min-w-0">
-                            <span className="block font-medium text-slate-900 dark:text-slate-100">
-                              {group.group_name}
-                            </span>
-                            <span className="block truncate text-xs text-slate-500 dark:text-slate-400">
-                              {group.group_id} / {group.vpc_id}
-                            </span>
-                          </span>
-                        </label>
-                      );
-                    })
-                  ) : (
-                    <div className={`${cloudDetailListItemClassName} text-sm text-slate-500 dark:text-slate-400`}>
-                      {t("cloud.providers.aws.security_groups_empty", "No security groups found")}
-                    </div>
+                  {t(
+                    "cloud.providers.aws.security_group_manual_hint",
+                    "Enter one or more security group IDs separated by commas or new lines. Leave empty to let AWS use the default network behavior.",
                   )}
                 </div>
+                <TextArea
+                  className="mt-3 min-h-24 font-mono text-xs [overflow-wrap:anywhere]"
+                  value={createForm.security_group_ids.join("\n")}
+                  onChange={(event) =>
+                    setCreateForm((previous) => ({
+                      ...previous,
+                      security_group_ids: parseResourceIds(event.target.value),
+                    }))
+                  }
+                />
               </div>
 
               <div className="mt-4 flex flex-col gap-3">
@@ -3690,8 +3691,7 @@ export default function AWSPanel() {
                   !createForm.image_id ||
                   !createForm.instance_type ||
                   (createForm.root_password_mode === "custom" && !(createForm.root_password || "").trim()) ||
-                  !instanceTypeAvailableInRegion ||
-                  !instanceTypeAvailableForCreate
+                  ec2ArchitectureMismatch
                 }
               >
                 {createSubmitting
@@ -3709,11 +3709,18 @@ export default function AWSPanel() {
           <Dialog.Description>
             {t(
               "cloud.providers.aws.lightsail_create_description",
-              "Create a Lightsail instance in the region selected for this dialog using a blueprint and bundle.",
+              "Create a Lightsail instance with built-in blueprint and bundle presets, or enter IDs manually without loading the AWS catalog.",
             )}
           </Dialog.Description>
 
           <div className="mt-4 flex flex-col gap-4">
+            <WarningAlert
+              tone="info"
+              description={t(
+                "cloud.providers.aws.lightsail_static_presets_help",
+                "This Lightsail dialog now uses built-in static presets instead of loading the AWS catalog. The availability zone defaults to region + a, blueprint and bundle can be selected from common presets or entered manually, and the key pair name is typed directly.",
+              )}
+            />
             <section className="pt-0">
               <div className="grid gap-x-6 gap-y-2 sm:grid-cols-2">
                 <CompactSummaryMetric
@@ -3730,11 +3737,19 @@ export default function AWSPanel() {
                 />
                 <CompactSummaryMetric
                   label={t("cloud.table.image", "Image")}
-                  value={selectedLightsailBlueprint ? getLightsailBlueprintLabel(selectedLightsailBlueprint) : lightsailCreateForm.blueprint_id || "-"}
+                  value={
+                    selectedLightsailBlueprintPreset
+                      ? selectedLightsailBlueprintPreset.label
+                      : lightsailCreateForm.blueprint_id || "-"
+                  }
                 />
                 <CompactSummaryMetric
                   label={t("cloud.table.size", "Size")}
-                  value={selectedLightsailBundle ? getLightsailBundleOptionLabel(selectedLightsailBundle) : lightsailCreateForm.bundle_id || "-"}
+                  value={
+                    selectedLightsailBundlePreset
+                      ? selectedLightsailBundlePreset.label
+                      : lightsailCreateForm.bundle_id || "-"
+                  }
                 />
               </div>
             </section>
@@ -3761,8 +3776,8 @@ export default function AWSPanel() {
                   />
                   <div className={`mt-2 text-xs ${cloudPanelBodyTextClassName}`}>
                     {t(
-                      "cloud.providers.aws.create_region_hint",
-                      "Switching region refreshes only the catalog used by this create dialog.",
+                      "cloud.providers.aws.lightsail_create_region_hint",
+                      "Switching region only updates this dialog. The default availability zone is regenerated as region + a, and the built-in presets stay available without loading any catalog.",
                     )}
                   </div>
                 </div>
@@ -3770,21 +3785,19 @@ export default function AWSPanel() {
                   <label className={cloudPanelFieldLabelClassName}>
                     {t("cloud.providers.aws.az", "AZ")}
                   </label>
-                  <Select.Root
+                  <TextField.Root
                     value={lightsailCreateForm.availability_zone}
-                    onValueChange={(value) =>
-                      setLightsailCreateForm((previous) => ({ ...previous, availability_zone: value }))
+                    placeholder={t("cloud.providers.aws.lightsail_az_manual_placeholder", "Availability zone, for example us-east-1a")}
+                    onChange={(event) =>
+                      setLightsailCreateForm((previous) => ({ ...previous, availability_zone: event.target.value }))
                     }
-                  >
-                    <Select.Trigger placeholder={t("cloud.providers.aws.az", "AZ")} />
-                    <Select.Content>
-                      {activeLightsailAvailabilityZones.map((zone) => (
-                        <Select.Item key={zone.name} value={zone.name}>
-                          {zone.name} / {zone.state || "-"}
-                        </Select.Item>
-                      ))}
-                    </Select.Content>
-                  </Select.Root>
+                  />
+                  <div className={`mt-2 text-xs ${cloudPanelBodyTextClassName}`}>
+                    {t("cloud.providers.aws.lightsail_static_rules_help", {
+                      az: getDefaultLightsailAvailabilityZone(resolvedLightsailCreateRegion),
+                      defaultValue: "Lightsail requires an availability zone such as us-east-1a. Komari defaults this field to {{az}}, but you can replace it manually if your account prefers another zone.",
+                    })}
+                  </div>
                 </div>
               </div>
 
@@ -3794,42 +3807,96 @@ export default function AWSPanel() {
                     {t("cloud.form.image", "Image")}
                   </label>
                   <Select.Root
-                    value={lightsailCreateForm.blueprint_id}
-                    onValueChange={(value) =>
-                      setLightsailCreateForm((previous) => ({ ...previous, blueprint_id: value }))
-                    }
+                    value={selectedLightsailBlueprintPreset?.value || SELECT_NONE}
+                    onValueChange={(value) => {
+                      if (value === SELECT_NONE) {
+                        return;
+                      }
+                      const nextBlueprint = STATIC_LIGHTSAIL_BLUEPRINT_PRESETS.find((preset) => preset.value === value);
+                      if (!nextBlueprint) {
+                        return;
+                      }
+                      setLightsailCreateForm((previous) => {
+                        const currentBundlePlatform =
+                          STATIC_LIGHTSAIL_BUNDLE_PRESETS.find((preset) => preset.value === previous.bundle_id)?.platform
+                          || inferLightsailBundlePlatform(previous.bundle_id);
+                        return {
+                          ...previous,
+                          blueprint_id: nextBlueprint.value,
+                          bundle_id:
+                            currentBundlePlatform && currentBundlePlatform !== nextBlueprint.platform
+                              ? getDefaultLightsailBundleForPlatform(nextBlueprint.platform)
+                              : previous.bundle_id || getDefaultLightsailBundleForPlatform(nextBlueprint.platform),
+                        };
+                      });
+                    }}
                   >
                     <Select.Trigger placeholder={t("cloud.form.image_placeholder", "Select an image")} />
                     <Select.Content>
-                      {(lightsailCreateCatalog?.blueprints || []).map((blueprint) => (
-                        <Select.Item key={blueprint.blueprint_id} value={blueprint.blueprint_id}>
-                          {getLightsailBlueprintLabel(blueprint)}
+                      <Select.Item value={SELECT_NONE}>
+                        {t("cloud.form.manual_entry", "Manual entry")}
+                      </Select.Item>
+                      {STATIC_LIGHTSAIL_BLUEPRINT_PRESETS.map((preset) => (
+                        <Select.Item key={preset.value} value={preset.value}>
+                          {getStaticLightsailBlueprintPresetLabel(preset)}
                         </Select.Item>
                       ))}
                     </Select.Content>
                   </Select.Root>
+                  <TextField.Root
+                    className="mt-3"
+                    value={lightsailCreateForm.blueprint_id}
+                    placeholder={t("cloud.providers.aws.lightsail_blueprint_manual_placeholder", "Or enter a blueprint ID manually")}
+                    onChange={(event) =>
+                      setLightsailCreateForm((previous) => ({ ...previous, blueprint_id: event.target.value }))
+                    }
+                  />
                 </div>
                 <div>
                   <label className={cloudPanelFieldLabelClassName}>
                     {t("cloud.form.size", "Size")}
                   </label>
                   <Select.Root
-                    value={lightsailCreateForm.bundle_id}
-                    onValueChange={(value) =>
-                      setLightsailCreateForm((previous) => ({ ...previous, bundle_id: value }))
-                    }
+                    value={selectedLightsailBundlePreset?.value || SELECT_NONE}
+                    onValueChange={(value) => {
+                      if (value === SELECT_NONE) {
+                        return;
+                      }
+                      setLightsailCreateForm((previous) => ({ ...previous, bundle_id: value }));
+                    }}
                   >
                     <Select.Trigger placeholder={t("cloud.form.size_placeholder", "Select a size")} />
                     <Select.Content>
-                      {(lightsailCreateCatalog?.bundles || []).map((bundle) => (
-                        <Select.Item key={bundle.bundle_id} value={bundle.bundle_id}>
-                          {getLightsailBundleOptionLabel(bundle)}
+                      <Select.Item value={SELECT_NONE}>
+                        {t("cloud.form.manual_entry", "Manual entry")}
+                      </Select.Item>
+                      {STATIC_LIGHTSAIL_BUNDLE_PRESETS.map((preset) => (
+                        <Select.Item key={preset.value} value={preset.value}>
+                          {getStaticLightsailBundlePresetLabel(preset)}
                         </Select.Item>
                       ))}
                     </Select.Content>
                   </Select.Root>
+                  <TextField.Root
+                    className="mt-3"
+                    value={lightsailCreateForm.bundle_id}
+                    placeholder={t("cloud.providers.aws.lightsail_bundle_manual_placeholder", "Or enter a bundle ID manually")}
+                    onChange={(event) =>
+                      setLightsailCreateForm((previous) => ({ ...previous, bundle_id: event.target.value }))
+                    }
+                  />
                 </div>
               </div>
+
+              {lightsailPlatformMismatch ? (
+                <WarningAlert
+                  tone="warning"
+                  description={t(
+                    "cloud.providers.aws.lightsail_platform_mismatch",
+                    "The selected Lightsail blueprint and bundle look incompatible. Linux blueprints should use Linux bundles, and Windows blueprints should use Windows bundles.",
+                  )}
+                />
+              ) : null}
             </CompactDetailSection>
 
             <CompactDetailSection
@@ -3841,25 +3908,13 @@ export default function AWSPanel() {
                   <label className={cloudPanelFieldLabelClassName}>
                     {t("cloud.providers.aws.key_pair", "Key Pair")}
                   </label>
-                  <Select.Root
-                    value={lightsailCreateForm.key_pair_name || SELECT_NONE}
-                    onValueChange={(value) =>
-                      setLightsailCreateForm((previous) => ({
-                        ...previous,
-                        key_pair_name: value === SELECT_NONE ? "" : value,
-                      }))
+                  <TextField.Root
+                    value={lightsailCreateForm.key_pair_name || ""}
+                    placeholder={t("cloud.providers.aws.key_pair_manual_placeholder", "Optional key pair name")}
+                    onChange={(event) =>
+                      setLightsailCreateForm((previous) => ({ ...previous, key_pair_name: event.target.value }))
                     }
-                  >
-                    <Select.Trigger placeholder={t("cloud.providers.aws.key_pair_optional", "Optional")} />
-                    <Select.Content>
-                      <Select.Item value={SELECT_NONE}>{t("cloud.providers.aws.none", "None")}</Select.Item>
-                      {(lightsailCreateCatalog?.key_pairs || []).map((keyPair) => (
-                        <Select.Item key={keyPair.name} value={keyPair.name}>
-                          {keyPair.name}
-                        </Select.Item>
-                      ))}
-                    </Select.Content>
-                  </Select.Root>
+                  />
                 </div>
                 <div>
                   <label className={`mb-2 flex items-center gap-2 ${cloudPanelBodyTextClassName}`}>
@@ -4061,6 +4116,7 @@ export default function AWSPanel() {
                   !lightsailCreateForm.availability_zone ||
                   !lightsailCreateForm.blueprint_id ||
                   !lightsailCreateForm.bundle_id ||
+                  lightsailPlatformMismatch ||
                   (lightsailCreateForm.root_password_mode === "custom" && !(lightsailCreateForm.root_password || "").trim())
                 }
               >
