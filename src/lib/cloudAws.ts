@@ -4,7 +4,7 @@ type ApiEnvelope<T> = {
   data: T;
 };
 
-const AWS_CLOUD_REQUEST_TIMEOUT_MS = 30000;
+const AWS_CLOUD_REQUEST_TIMEOUT_MS = 60000;
 
 class CloudApiError extends Error {
   status: number;

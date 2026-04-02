@@ -764,7 +764,7 @@
         "create_catalog_loading": "Loading Options...",
         "create_catalog_manual_help": "This dialog opens immediately and does not auto-load AWS option lists. Load them only when you need suggestions for instance type, AMI, key pair, subnet, or security group.",
         "create_static_presets_help": "This EC2 dialog now uses built-in static presets instead of loading the AWS catalog. Regions come from a fixed UI list, image presets use AWS public SSM parameters, and key pair / subnet / security groups are entered manually.",
-        "create_description": "Launch a single EC2 instance in the region selected for this dialog. If your account has no default VPC, choose a subnet and matching security groups.",
+        "create_description": "Launch a single EC2 instance in the region selected for this dialog. This panel assumes AWS can launch into a default VPC when subnet is left empty. If the account has no default VPC, create or restore one in AWS first, then retry.",
         "create_credentials_description": "Save this root password now. Random passwords are shown only once after creation succeeds.",
         "create_image": "Create AMI",
         "create_network": "Network & Access",

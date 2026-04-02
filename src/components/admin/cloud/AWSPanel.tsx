@@ -278,15 +278,15 @@ const STATIC_EC2_IMAGE_PRESETS: StaticEC2ImagePreset[] = [
     architecture: "arm64",
   },
   {
-    value: "resolve:ssm:/aws/service/canonical/ubuntu/server/22.04/stable/current/amd64/hvm/ebs-gp3/ami-id",
+    value: "resolve:ssm:/aws/service/canonical/ubuntu/server/22.04/stable/current/amd64/hvm/ebs-gp2/ami-id",
     label: "Ubuntu Server 22.04 LTS",
-    summary: "Canonical public parameter, amd64, gp3",
+    summary: "Canonical public parameter, amd64, gp2",
     architecture: "x86_64",
   },
   {
-    value: "resolve:ssm:/aws/service/canonical/ubuntu/server/22.04/stable/current/arm64/hvm/ebs-gp3/ami-id",
+    value: "resolve:ssm:/aws/service/canonical/ubuntu/server/22.04/stable/current/arm64/hvm/ebs-gp2/ami-id",
     label: "Ubuntu Server 22.04 LTS ARM64",
-    summary: "Canonical public parameter, arm64, gp3",
+    summary: "Canonical public parameter, arm64, gp2",
     architecture: "arm64",
   },
   {
@@ -2107,8 +2107,11 @@ export default function AWSPanel() {
         auto_connect: true,
         auto_connect_group: defaultCreateGroup,
       }));
-      if (activeContextReady && resolvedCreateRegion === activeRegion) {
-        await loadPanelData();
+      if (activeContextReady && resolvedCreateRegion === activeRegion && resourcesLoaded) {
+        setInstances((previous) => {
+          const withoutCurrent = previous.filter((instance) => instance.instance_id !== result.instance.instance_id);
+          return [result.instance, ...withoutCurrent];
+        });
       }
     } catch (createError) {
       toast.error(toErrorMessage(createError));
@@ -2159,9 +2162,6 @@ export default function AWSPanel() {
         auto_connect: true,
         auto_connect_group: defaultCreateGroup,
       }));
-      if (activeContextReady && resolvedLightsailCreateRegion === activeRegion) {
-        await loadPanelData();
-      }
     } catch (createError) {
       toast.error(toErrorMessage(createError));
     } finally {
@@ -3364,7 +3364,7 @@ export default function AWSPanel() {
           <Dialog.Description>
             {t(
               "cloud.providers.aws.create_description",
-              "Launch a single EC2 instance in the region selected for this dialog. If your account has no default VPC, choose a subnet and matching security groups.",
+              "Launch a single EC2 instance in the region selected for this dialog. This panel assumes AWS can launch into a default VPC when you leave subnet empty. If the account has no default VPC, create or restore one in AWS first, then retry.",
             )}
           </Dialog.Description>
 

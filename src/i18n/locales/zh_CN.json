@@ -765,7 +765,7 @@
         "create_catalog_manual_help": "这个弹窗会直接打开，不会自动读取 AWS 可选项。只有你需要实例规格、AMI、密钥对、子网或安全组建议时，再手动加载。",
         "create_core": "核心配置",
         "create_credentials_description": "请立即保存这个 root 密码。随机密码只会在创建成功后展示一次。",
-        "create_description": "在这个创建弹窗当前选择的区域启动一台 EC2 实例。如果你的账号没有默认 VPC，请手动选择子网和匹配的安全组。",
+        "create_description": "在这个创建弹窗当前选择的区域启动一台 EC2 实例。这里默认按 AWS 的默认 VPC 直接创建；如果你的账号没有默认 VPC，请先去 AWS 里创建或恢复默认 VPC，然后再重试。",
         "create_image": "创建 AMI",
         "create_network": "网络与访问",
         "create_region_hint": "切换区域后，只会刷新这个创建弹窗自己使用的目录数据。",
