@@ -4,6 +4,8 @@ type ApiEnvelope<T> = {
   data: T;
 };
 
+const AWS_CLOUD_REQUEST_TIMEOUT_MS = 30000;
+
 class CloudApiError extends Error {
   status: number;
 
@@ -842,18 +844,33 @@ async function requestCloud<T>(path: string, init?: RequestInit): Promise<T> {
       ? `${path}${path.includes("?") ? "&" : "?"}__ts=${Date.now()}`
       : path;
 
-  const response = await fetch(requestUrl, {
-    credentials: "same-origin",
-    cache: "no-store",
-    headers: {
-      Accept: "application/json",
-      "Cache-Control": "no-cache, no-store, max-age=0",
-      Pragma: "no-cache",
-      "X-Requested-With": "XMLHttpRequest",
-      ...(init?.headers || {}),
-    },
-    ...init,
-  });
+  const controller = new AbortController();
+  const timeoutID = setTimeout(() => controller.abort(), AWS_CLOUD_REQUEST_TIMEOUT_MS);
+
+  let response: Response;
+  try {
+    response = await fetch(requestUrl, {
+      credentials: "same-origin",
+      cache: "no-store",
+      headers: {
+        Accept: "application/json",
+        "Cache-Control": "no-cache, no-store, max-age=0",
+        Pragma: "no-cache",
+        "X-Requested-With": "XMLHttpRequest",
+        ...(init?.headers || {}),
+      },
+      ...init,
+      signal: controller.signal,
+    });
+  } catch (error) {
+    if (error instanceof DOMException && error.name === "AbortError") {
+      throw new CloudApiError(`Request timed out while loading ${path}`, 408);
+    }
+    throw error;
+  } finally {
+    clearTimeout(timeoutID);
+  }
+
   const text = await response.text();
   const contentType = response.headers.get("content-type") || "";
   const trimmed = text.trim();

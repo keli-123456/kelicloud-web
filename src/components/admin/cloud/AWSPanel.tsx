@@ -1152,7 +1152,7 @@ export default function AWSPanel() {
         if (!hasActiveCredential(nextPool) || needsRegionSelection) {
           clearPanelState();
         } else {
-          await loadPanelData();
+          void loadPanelData();
         }
       } catch (bootstrapError) {
         if (!cancelled) {
