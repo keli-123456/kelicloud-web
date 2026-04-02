@@ -343,6 +343,7 @@ export type AWSCatalog = {
 };
 
 export type CreateAWSInstanceInput = {
+  region?: string;
   name?: string;
   image_id: string;
   instance_type: string;
@@ -353,6 +354,8 @@ export type CreateAWSInstanceInput = {
   assign_public_ip: boolean;
   assign_ipv6: boolean;
   allow_all_traffic: boolean;
+  root_password_mode?: "none" | "custom" | "random";
+  root_password?: string;
   tags: AWSTag[];
   auto_connect: boolean;
   auto_connect_group: string;
@@ -361,6 +364,7 @@ export type CreateAWSInstanceInput = {
 export type CreateAWSInstanceResult = {
   instance: AWSInstance;
   warning: string;
+  generated_password: string;
 };
 
 export type CreateAWSInstanceActionInput = {
@@ -376,6 +380,7 @@ export type CreateAWSInstanceActionInput = {
 };
 
 export type CreateAWSLightsailInstanceInput = {
+  region?: string;
   name?: string;
   availability_zone: string;
   blueprint_id: string;
@@ -384,6 +389,8 @@ export type CreateAWSLightsailInstanceInput = {
   user_data?: string;
   ip_address_type?: string;
   allow_all_traffic: boolean;
+  root_password_mode?: "none" | "custom" | "random";
+  root_password?: string;
   tags?: AWSTag[];
   auto_connect: boolean;
   auto_connect_group: string;
@@ -393,6 +400,7 @@ export type CreateAWSLightsailInstanceResult = {
   name: string;
   status: string;
   warning: string;
+  generated_password: string;
 };
 
 export type AWSLightsailCatalog = {
@@ -1063,8 +1071,11 @@ export async function clearAWSFollowUpTerminalTasks(): Promise<number> {
   return Number(data?.deleted_count || 0);
 }
 
-export async function getAWSCatalog(): Promise<AWSCatalog> {
-  const data = await requestCloud<Partial<AWSCatalog>>("/api/admin/cloud/aws/catalog");
+export async function getAWSCatalog(region?: string): Promise<AWSCatalog> {
+  const path = region
+    ? `/api/admin/cloud/aws/catalog?region=${encodeURIComponent(region)}`
+    : "/api/admin/cloud/aws/catalog";
+  const data = await requestCloud<Partial<AWSCatalog>>(path);
   return {
     active_region: String(data?.active_region || "us-east-1"),
     regions: Array.isArray(data?.regions) ? data.regions.map(normalizeRegion) : [],
@@ -1106,6 +1117,7 @@ export async function createAWSInstance(
   const data = await requestCloud<{
     instance?: Partial<AWSInstance> | null;
     warning?: string | null;
+    generated_password?: string | null;
   }>("/api/admin/cloud/aws/instances", {
     method: "POST",
     headers: {
@@ -1116,6 +1128,7 @@ export async function createAWSInstance(
   return {
     instance: normalizeInstance(data?.instance),
     warning: String(data?.warning || ""),
+    generated_password: String(data?.generated_password || ""),
   };
 }
 
@@ -1138,10 +1151,11 @@ export async function postAWSInstanceAction(
   });
 }
 
-export async function getAWSLightsailCatalog(): Promise<AWSLightsailCatalog> {
-  const data = await requestCloud<Partial<AWSLightsailCatalog>>(
-    "/api/admin/cloud/aws/lightsail/catalog",
-  );
+export async function getAWSLightsailCatalog(region?: string): Promise<AWSLightsailCatalog> {
+  const path = region
+    ? `/api/admin/cloud/aws/lightsail/catalog?region=${encodeURIComponent(region)}`
+    : "/api/admin/cloud/aws/lightsail/catalog";
+  const data = await requestCloud<Partial<AWSLightsailCatalog>>(path);
   return {
     active_region: String(data?.active_region || "us-east-1"),
     regions: Array.isArray(data?.regions) ? data.regions.map(normalizeLightsailRegion) : [],
@@ -1179,6 +1193,7 @@ export async function createAWSLightsailInstance(
     name?: string | null;
     status?: string | null;
     warning?: string | null;
+    generated_password?: string | null;
   }>("/api/admin/cloud/aws/lightsail/instances", {
     method: "POST",
     headers: {
@@ -1190,6 +1205,7 @@ export async function createAWSLightsailInstance(
     name: String(data?.name || ""),
     status: String(data?.status || ""),
     warning: String(data?.warning || ""),
+    generated_password: String(data?.generated_password || ""),
   };
 }
 

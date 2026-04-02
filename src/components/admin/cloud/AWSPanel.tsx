@@ -142,6 +142,8 @@ type LightsailCreateFormState = Omit<CreateAWSLightsailInstanceInput, "tags"> & 
   tagsText: string;
 };
 
+type AWSRootPasswordMode = "none" | "custom" | "random";
+
 type AWSRegionOption = {
   name: string;
   label: string;
@@ -198,6 +200,13 @@ type CredentialSecretState = {
   secret: AWSCredentialSecret;
 };
 
+type CreatedPasswordState = {
+  resourceName: string;
+  rootPassword: string;
+  passwordMode: "custom" | "random";
+  resourceKind: "ec2" | "lightsail";
+};
+
 const initialCreateForm: CreateFormState = {
   name: "",
   image_id: "",
@@ -209,6 +218,8 @@ const initialCreateForm: CreateFormState = {
   assign_public_ip: true,
   assign_ipv6: true,
   allow_all_traffic: true,
+  root_password_mode: "none",
+  root_password: "",
   auto_connect: true,
   auto_connect_group: "",
   tagsText: "",
@@ -223,6 +234,8 @@ const initialLightsailCreateForm: LightsailCreateFormState = {
   user_data: "",
   ip_address_type: "dualstack",
   allow_all_traffic: true,
+  root_password_mode: "none",
+  root_password: "",
   auto_connect: true,
   auto_connect_group: "",
   tagsText: "",
@@ -463,6 +476,43 @@ function getCompactQuotaSummary(
   });
 }
 
+function formatAWSQuotaErrorMessage(
+  error: string | null | undefined,
+  t: ReturnType<typeof useTranslation>["t"],
+) {
+  const normalized = String(error || "").trim();
+  if (!normalized) {
+    return "";
+  }
+
+  const lower = normalized.toLowerCase();
+  if (lower.includes("elastic ip usage:") && lower.includes("context deadline exceeded")) {
+    return t(
+      "cloud.providers.aws.quota_warning_elastic_ip_timeout",
+      "Elastic IP usage for the active region timed out. The quota summary may be incomplete, but instance operations can continue.",
+    );
+  }
+  if (
+    lower.includes("context deadline exceeded")
+    || lower.includes("request timed out")
+    || lower.includes("describeaddresses")
+  ) {
+    return t(
+      "cloud.providers.aws.quota_warning_timeout",
+      "Reading EC2 quota details for the active region timed out. The panel will continue working, but quota data may be incomplete.",
+    );
+  }
+
+  return normalized;
+}
+
+function getRootPasswordModeLabel(
+  mode: AWSRootPasswordMode | "custom" | "random",
+  t: ReturnType<typeof useTranslation>["t"],
+) {
+  return t(`cloud.form.root_access_modes.${mode}`, mode);
+}
+
 function getEC2QuotaItems(
   quota: AWSEC2Quota | null | undefined,
   t: ReturnType<typeof useTranslation>["t"],
@@ -566,7 +616,7 @@ function AWSQuotaSummary({
           ))}
         </div>
       ) : null}
-      {error ? <div className="text-xs text-amber-700">{error}</div> : null}
+      {error ? <div className="text-xs text-amber-700">{formatAWSQuotaErrorMessage(error, t)}</div> : null}
     </div>
   );
 }
@@ -972,6 +1022,7 @@ export default function AWSPanel() {
   const [credentialGroupEditorOpen, setCredentialGroupEditorOpen] = React.useState(false);
   const [credentialGroupEditorValue, setCredentialGroupEditorValue] = React.useState("");
   const [credentialGroupEditorIds, setCredentialGroupEditorIds] = React.useState<string[]>([]);
+  const [createdPassword, setCreatedPassword] = React.useState<CreatedPasswordState | null>(null);
   const [account, setAccount] = React.useState<AWSAccount | null>(null);
   const [catalog, setCatalog] = React.useState<AWSCatalog | null>(null);
   const [lightsailCatalog, setLightsailCatalog] = React.useState<AWSLightsailCatalog | null>(null);
@@ -1014,11 +1065,15 @@ export default function AWSPanel() {
   const [error, setError] = React.useState("");
   const [lightsailError, setLightsailError] = React.useState("");
   const [createOpen, setCreateOpen] = React.useState(false);
+  const [createRegion, setCreateRegion] = React.useState("");
+  const [createCatalog, setCreateCatalog] = React.useState<AWSCatalog | null>(null);
   const [createSubmitting, setCreateSubmitting] = React.useState(false);
   const [ec2CatalogLoading, setEc2CatalogLoading] = React.useState(false);
   const [resourcesLoaded, setResourcesLoaded] = React.useState(false);
   const [createForm, setCreateForm] = React.useState<CreateFormState>(initialCreateForm);
   const [lightsailCreateOpen, setLightsailCreateOpen] = React.useState(false);
+  const [lightsailCreateRegion, setLightsailCreateRegion] = React.useState("");
+  const [lightsailCreateCatalog, setLightsailCreateCatalog] = React.useState<AWSLightsailCatalog | null>(null);
   const [lightsailCreateSubmitting, setLightsailCreateSubmitting] = React.useState(false);
   const [lightsailCatalogLoading, setLightsailCatalogLoading] = React.useState(false);
   const [lightsailCreateForm, setLightsailCreateForm] = React.useState<LightsailCreateFormState>(
@@ -1055,12 +1110,6 @@ export default function AWSPanel() {
     },
     [t],
   );
-
-  const loadCredentialPool = React.useCallback(async () => {
-    const nextPool = await getAWSCredentials();
-    setCredentialPool(nextPool);
-    return nextPool;
-  }, []);
 
   const loadBackgroundTasks = React.useCallback(
     async (showError = true, showLoading = true) => {
@@ -1129,16 +1178,6 @@ export default function AWSPanel() {
     }
   }, [loadLightsailData]);
 
-  const refreshAll = React.useCallback(async () => {
-    const nextPool = await loadCredentialPool();
-    if (hasActiveCredential(nextPool) && !regionSelectionRequired) {
-      await loadPanelData();
-    } else {
-      clearPanelState();
-    }
-    await loadBackgroundTasks(false);
-  }, [clearPanelState, loadBackgroundTasks, loadCredentialPool, loadPanelData, regionSelectionRequired]);
-
   React.useEffect(() => {
     let cancelled = false;
 
@@ -1149,11 +1188,7 @@ export default function AWSPanel() {
         setCredentialPool(nextPool);
         const needsRegionSelection = Boolean(nextPool.active_credential_id && !nextPool.active_region);
         setRegionSelectionRequired(needsRegionSelection);
-        if (!hasActiveCredential(nextPool) || needsRegionSelection) {
-          clearPanelState();
-        } else {
-          void loadPanelData();
-        }
+        clearPanelState();
       } catch (bootstrapError) {
         if (!cancelled) {
           setError(toErrorMessage(bootstrapError));
@@ -1168,7 +1203,7 @@ export default function AWSPanel() {
     return () => {
       cancelled = true;
     };
-  }, [clearPanelState, loadPanelData]);
+  }, [clearPanelState]);
 
   React.useEffect(() => {
     void loadBackgroundTasks(false);
@@ -1196,28 +1231,28 @@ export default function AWSPanel() {
   }, [backgroundTasks, backgroundTasksOpen, loadBackgroundTasks]);
 
   React.useEffect(() => {
-    if (!catalog) return;
+    if (!createCatalog) return;
     setCreateForm((previous) => ({
       ...previous,
-      image_id: previous.image_id || catalog.images[0]?.image_id || "",
-      instance_type: previous.instance_type || catalog.instance_types[0]?.name || "",
+      image_id: previous.image_id || createCatalog.images[0]?.image_id || "",
+      instance_type: previous.instance_type || createCatalog.instance_types[0]?.name || "",
       subnet_id: previous.subnet_id || "",
     }));
-  }, [catalog]);
+  }, [createCatalog]);
 
   React.useEffect(() => {
-    if (!lightsailCatalog) return;
+    if (!lightsailCreateCatalog) return;
     setLightsailCreateForm((previous) => ({
       ...previous,
       availability_zone:
         previous.availability_zone ||
-        lightsailCatalog.regions.find((region) => region.name === activeRegion)?.availability_zones[0]?.name ||
-        lightsailCatalog.regions[0]?.availability_zones[0]?.name ||
+        lightsailCreateCatalog.regions.find((region) => region.name === lightsailCreateRegion)?.availability_zones[0]?.name ||
+        lightsailCreateCatalog.regions[0]?.availability_zones[0]?.name ||
         "",
-      blueprint_id: previous.blueprint_id || lightsailCatalog.blueprints[0]?.blueprint_id || "",
-      bundle_id: previous.bundle_id || lightsailCatalog.bundles[0]?.bundle_id || "",
+      blueprint_id: previous.blueprint_id || lightsailCreateCatalog.blueprints[0]?.blueprint_id || "",
+      bundle_id: previous.bundle_id || lightsailCreateCatalog.bundles[0]?.bundle_id || "",
     }));
-  }, [activeRegion, lightsailCatalog]);
+  }, [lightsailCreateCatalog, lightsailCreateRegion]);
 
   React.useEffect(() => {
     setSelectedCredentialIds((current) => {
@@ -1238,9 +1273,31 @@ export default function AWSPanel() {
   const someCredentialsSelected =
     selectedCredentialIds.length > 0 && selectedCredentialIds.length < credentialRows.length;
   const defaultCreateGroup = getDefaultAutoConnectGroup("aws", activeCredential?.name || "");
+  React.useEffect(() => {
+    setCreateOpen(false);
+    setLightsailCreateOpen(false);
+    setCreateRegion("");
+    setLightsailCreateRegion("");
+    setCreateCatalog(null);
+    setLightsailCreateCatalog(null);
+    setCreateForm({
+      ...initialCreateForm,
+      auto_connect: true,
+      auto_connect_group: getDefaultAutoConnectGroup("aws", activeCredential?.name || ""),
+    });
+    setLightsailCreateForm({
+      ...initialLightsailCreateForm,
+      auto_connect: true,
+      auto_connect_group: getDefaultAutoConnectGroup("aws", activeCredential?.name || ""),
+    });
+  }, [activeCredential?.id, activeCredential?.name]);
   const activeContextReady = Boolean(activeCredential && activeRegion);
+  const resolvedCreateRegion = createRegion || activeRegion || activeCredential?.default_region || DEFAULT_AWS_REGION;
+  const resolvedLightsailCreateRegion =
+    lightsailCreateRegion || activeRegion || activeCredential?.default_region || DEFAULT_AWS_REGION;
   const activeQuota = activeContextReady ? account?.ec2_quota || activeCredential?.ec2_quota || null : null;
   const activeQuotaError = activeContextReady ? account?.ec2_quota_error || activeCredential?.ec2_quota_error || "" : "";
+  const activeQuotaWarningMessage = formatAWSQuotaErrorMessage(activeQuotaError, t);
   const pendingBackgroundTaskCount = backgroundTasks.filter((task) => task.status === "pending").length;
   const failedBackgroundTaskCount = backgroundTasks.filter((task) => task.status === "failed").length;
   const cancelledBackgroundTaskCount = backgroundTasks.filter((task) => task.status === "cancelled").length;
@@ -1317,8 +1374,8 @@ export default function AWSPanel() {
   const elasticIPLimitReached = Boolean(
     activeQuota && activeQuota.max_elastic_ips > 0 && activeQuota.allocated_elastic_ips >= activeQuota.max_elastic_ips,
   );
-  const selectedSubnet = (catalog?.subnets || []).find((subnet) => subnet.subnet_id === createForm.subnet_id) || null;
-  const selectedSubnetVpcId = getSubnetVpcId(catalog?.subnets || [], createForm.subnet_id);
+  const selectedSubnet = (createCatalog?.subnets || []).find((subnet) => subnet.subnet_id === createForm.subnet_id) || null;
+  const selectedSubnetVpcId = getSubnetVpcId(createCatalog?.subnets || [], createForm.subnet_id);
   const selectedSubnetAz = selectedSubnet?.availability_zone || "";
   const regionOptions = React.useMemo(() => {
     const entries = new Map<string, AWSRegionOption>();
@@ -1344,9 +1401,23 @@ export default function AWSPanel() {
     lightsailCatalog?.regions.forEach((region) =>
       addRegion(region.name, entries.get(region.name)?.label, entries.get(region.name)?.country),
     );
+    createCatalog?.regions.forEach((region) =>
+      addRegion(region.name, entries.get(region.name)?.label, entries.get(region.name)?.country, region.endpoint),
+    );
+    lightsailCreateCatalog?.regions.forEach((region) =>
+      addRegion(region.name, entries.get(region.name)?.label, entries.get(region.name)?.country),
+    );
 
     return Array.from(entries.values());
-  }, [account?.region, activeCredential?.default_region, catalog?.regions, credentialPool?.active_region, lightsailCatalog?.regions]);
+  }, [
+    account?.region,
+    activeCredential?.default_region,
+    catalog?.regions,
+    createCatalog?.regions,
+    credentialPool?.active_region,
+    lightsailCatalog?.regions,
+    lightsailCreateCatalog?.regions,
+  ]);
   const regionSearchPlaceholder = t(
     "cloud.providers.aws.region_search_placeholder",
     "Search region by name or code",
@@ -1355,22 +1426,24 @@ export default function AWSPanel() {
     "cloud.providers.aws.region_search_empty",
     "No matching AWS region found",
   );
-  const selectedInstanceTypeZones = getInstanceTypeAvailabilityZones(catalog, createForm.instance_type);
-  const instanceTypeAvailabilityKnown = Boolean(catalog?.instance_type_offerings.length);
+  const selectedInstanceTypeZones = getInstanceTypeAvailabilityZones(createCatalog, createForm.instance_type);
+  const instanceTypeAvailabilityKnown = Boolean(createCatalog?.instance_type_offerings.length);
   const instanceTypeAvailableInRegion =
     !instanceTypeAvailabilityKnown || !createForm.instance_type || selectedInstanceTypeZones.length > 0;
   const instanceTypeAvailableForCreate =
     !instanceTypeAvailabilityKnown ||
     !selectedSubnetAz ||
     selectedInstanceTypeZones.includes(selectedSubnetAz);
-  const filteredSecurityGroups = (catalog?.security_groups || []).filter((group) =>
+  const filteredSecurityGroups = (createCatalog?.security_groups || []).filter((group) =>
     selectedSubnetVpcId ? group.vpc_id === selectedSubnetVpcId : true,
   );
-  const selectedRegionOption = regionOptions.find((region) => region.name === activeRegion) || null;
-  const selectedImage = (catalog?.images || []).find((image) => image.image_id === createForm.image_id) || null;
+  const selectedCreateRegionOption = regionOptions.find((region) => region.name === resolvedCreateRegion) || null;
+  const selectedLightsailCreateRegionOption =
+    regionOptions.find((region) => region.name === resolvedLightsailCreateRegion) || null;
+  const selectedImage = (createCatalog?.images || []).find((image) => image.image_id === createForm.image_id) || null;
   const selectedInstanceType =
-    (catalog?.instance_types || []).find((instanceType) => instanceType.name === createForm.instance_type) || null;
-  const selectedSecurityGroups = (catalog?.security_groups || []).filter((group) =>
+    (createCatalog?.instance_types || []).find((instanceType) => instanceType.name === createForm.instance_type) || null;
+  const selectedSecurityGroups = (createCatalog?.security_groups || []).filter((group) =>
     createForm.security_group_ids.includes(group.group_id),
   );
   const ec2CoreSummary = joinSummaryParts([
@@ -1394,22 +1467,25 @@ export default function AWSPanel() {
   ]);
   const ec2BootstrapSummary = joinSummaryParts([
     createForm.name || t("cloud.providers.aws.auto_name", "Auto name"),
+    createForm.root_password_mode !== "none"
+      ? getRootPasswordModeLabel(createForm.root_password_mode || "none", t)
+      : "",
     `${parseTags(createForm.tagsText).length} ${t("cloud.form.tags", "Tags")}`,
     createForm.user_data.trim() ? t("cloud.form.user_data", "Cloud-Init / User Data") : "",
   ]);
   const selectedLightsailRegion =
-    lightsailCatalog?.regions.find((region) => region.name === activeRegion)
-    || lightsailCatalog?.regions[0]
+    lightsailCreateCatalog?.regions.find((region) => region.name === resolvedLightsailCreateRegion)
+    || lightsailCreateCatalog?.regions[0]
     || null;
   const activeLightsailAvailabilityZones = selectedLightsailRegion?.availability_zones || [];
   const selectedLightsailBlueprint =
-    (lightsailCatalog?.blueprints || []).find((blueprint) => blueprint.blueprint_id === lightsailCreateForm.blueprint_id)
+    (lightsailCreateCatalog?.blueprints || []).find((blueprint) => blueprint.blueprint_id === lightsailCreateForm.blueprint_id)
     || null;
   const selectedLightsailBundle =
-    (lightsailCatalog?.bundles || []).find((bundle) => bundle.bundle_id === lightsailCreateForm.bundle_id)
+    (lightsailCreateCatalog?.bundles || []).find((bundle) => bundle.bundle_id === lightsailCreateForm.bundle_id)
     || null;
   const lightsailCoreSummary = joinSummaryParts([
-    lightsailCreateForm.availability_zone || activeRegion,
+    lightsailCreateForm.availability_zone || resolvedLightsailCreateRegion,
     selectedLightsailBlueprint ? getLightsailBlueprintLabel(selectedLightsailBlueprint) : lightsailCreateForm.blueprint_id,
     selectedLightsailBundle ? getLightsailBundleOptionLabel(selectedLightsailBundle) : lightsailCreateForm.bundle_id,
   ]);
@@ -1422,6 +1498,9 @@ export default function AWSPanel() {
   ]);
   const lightsailBootstrapSummary = joinSummaryParts([
     lightsailCreateForm.name || t("cloud.providers.aws.auto_name", "Auto name"),
+    lightsailCreateForm.root_password_mode !== "none"
+      ? getRootPasswordModeLabel(lightsailCreateForm.root_password_mode || "none", t)
+      : "",
     `${parseTags(lightsailCreateForm.tagsText).length} ${t("cloud.form.tags", "Tags")}`,
     (lightsailCreateForm.user_data || "").trim() ? t("cloud.form.user_data", "Cloud-Init / User Data") : "",
   ]);
@@ -1771,7 +1850,37 @@ export default function AWSPanel() {
     }
   };
 
+  const loadCreateCatalog = React.useCallback(async (region: string) => {
+    setEc2CatalogLoading(true);
+    try {
+      const nextCatalog = await getAWSCatalog(region);
+      setCreateCatalog(nextCatalog);
+      return nextCatalog;
+    } catch (catalogError) {
+      toast.error(toErrorMessage(catalogError));
+      return null;
+    } finally {
+      setEc2CatalogLoading(false);
+    }
+  }, []);
+
+  const loadLightsailCreateCatalog = React.useCallback(async (region: string) => {
+    setLightsailCatalogLoading(true);
+    try {
+      const nextCatalog = await getAWSLightsailCatalog(region);
+      setLightsailCreateCatalog(nextCatalog);
+      return nextCatalog;
+    } catch (catalogError) {
+      toast.error(toErrorMessage(catalogError));
+      return null;
+    } finally {
+      setLightsailCatalogLoading(false);
+    }
+  }, []);
+
   const handleCreateDialogRegionChange = async (region: string) => {
+    setCreateRegion(region);
+    setCreateCatalog(null);
     setCreateForm((previous) => ({
       ...previous,
       image_id: "",
@@ -1780,23 +1889,27 @@ export default function AWSPanel() {
       subnet_id: "",
       security_group_ids: [],
     }));
-    await handleRegionChange(region);
+    await loadCreateCatalog(region);
   };
 
   const handleLightsailDialogRegionChange = async (region: string) => {
+    setLightsailCreateRegion(region);
+    setLightsailCreateCatalog(null);
     setLightsailCreateForm((previous) => ({
       ...previous,
       availability_zone: "",
       blueprint_id: "",
       bundle_id: "",
+      key_pair_name: "",
     }));
-    await handleRegionChange(region);
+    await loadLightsailCreateCatalog(region);
   };
 
   const handleCreateInstance = async () => {
     setCreateSubmitting(true);
     try {
       const payload: CreateAWSInstanceInput = {
+        region: resolvedCreateRegion,
         name: createForm.name,
         image_id: createForm.image_id,
         instance_type: createForm.instance_type,
@@ -1807,6 +1920,8 @@ export default function AWSPanel() {
         assign_public_ip: createForm.assign_public_ip,
         assign_ipv6: createForm.assign_ipv6,
         allow_all_traffic: createForm.allow_all_traffic,
+        root_password_mode: createForm.root_password_mode,
+        root_password: createForm.root_password,
         tags: parseTags(createForm.tagsText),
         auto_connect: true,
         auto_connect_group: createForm.auto_connect_group || defaultCreateGroup,
@@ -1818,6 +1933,14 @@ export default function AWSPanel() {
         await loadBackgroundTasks(false);
       }
       setCreateOpen(false);
+      if (result.generated_password) {
+        setCreatedPassword({
+          resourceName: result.instance.name || result.instance.instance_id,
+          rootPassword: result.generated_password,
+          passwordMode: "random",
+          resourceKind: "ec2",
+        });
+      }
       setCreateForm((previous) => ({
         ...initialCreateForm,
         image_id: previous.image_id,
@@ -1825,7 +1948,9 @@ export default function AWSPanel() {
         auto_connect: true,
         auto_connect_group: defaultCreateGroup,
       }));
-      await loadPanelData();
+      if (activeContextReady && resolvedCreateRegion === activeRegion) {
+        await loadPanelData();
+      }
     } catch (createError) {
       toast.error(toErrorMessage(createError));
     } finally {
@@ -1837,6 +1962,7 @@ export default function AWSPanel() {
     setLightsailCreateSubmitting(true);
     try {
       const payload: CreateAWSLightsailInstanceInput = {
+        region: resolvedLightsailCreateRegion,
         name: lightsailCreateForm.name,
         availability_zone: lightsailCreateForm.availability_zone,
         blueprint_id: lightsailCreateForm.blueprint_id,
@@ -1845,6 +1971,8 @@ export default function AWSPanel() {
         user_data: lightsailCreateForm.user_data || "",
         ip_address_type: lightsailCreateForm.ip_address_type || "dualstack",
         allow_all_traffic: lightsailCreateForm.allow_all_traffic,
+        root_password_mode: lightsailCreateForm.root_password_mode,
+        root_password: lightsailCreateForm.root_password,
         tags: parseTags(lightsailCreateForm.tagsText),
         auto_connect: true,
         auto_connect_group: lightsailCreateForm.auto_connect_group || defaultCreateGroup,
@@ -1856,6 +1984,14 @@ export default function AWSPanel() {
         await loadBackgroundTasks(false);
       }
       setLightsailCreateOpen(false);
+      if (result.generated_password) {
+        setCreatedPassword({
+          resourceName: result.name,
+          rootPassword: result.generated_password,
+          passwordMode: "random",
+          resourceKind: "lightsail",
+        });
+      }
       setLightsailCreateForm((previous) => ({
         ...initialLightsailCreateForm,
         availability_zone: previous.availability_zone,
@@ -1864,7 +2000,9 @@ export default function AWSPanel() {
         auto_connect: true,
         auto_connect_group: defaultCreateGroup,
       }));
-      await loadPanelData();
+      if (activeContextReady && resolvedLightsailCreateRegion === activeRegion) {
+        await loadPanelData();
+      }
     } catch (createError) {
       toast.error(toErrorMessage(createError));
     } finally {
@@ -1872,68 +2010,30 @@ export default function AWSPanel() {
     }
   };
 
-  const ensureEc2CatalogLoaded = React.useCallback(async () => {
-    if (catalog) {
-      return catalog;
-    }
-
-    setEc2CatalogLoading(true);
-    try {
-      const nextCatalog = await getAWSCatalog();
-      setCatalog(nextCatalog);
-      setError("");
-      return nextCatalog;
-    } catch (catalogError) {
-      toast.error(toErrorMessage(catalogError));
-      return null;
-    } finally {
-      setEc2CatalogLoading(false);
-    }
-  }, [catalog]);
-
-  const ensureLightsailCatalogLoaded = React.useCallback(async () => {
-    if (lightsailCatalog) {
-      return lightsailCatalog;
-    }
-
-    setLightsailCatalogLoading(true);
-    try {
-      const nextLightsailCatalog = await getAWSLightsailCatalog();
-      setLightsailCatalog(nextLightsailCatalog);
-      setLightsailError("");
-      return nextLightsailCatalog;
-    } catch (catalogError) {
-      toast.error(toErrorMessage(catalogError));
-      return null;
-    } finally {
-      setLightsailCatalogLoading(false);
-    }
-  }, [lightsailCatalog]);
-
   const handleOpenCreateDialog = async () => {
+    const nextRegion = activeRegion || activeCredential?.default_region || DEFAULT_AWS_REGION;
+    setCreateRegion(nextRegion);
+    setCreateCatalog(null);
     setCreateForm((previous) => ({
       ...previous,
       auto_connect: true,
       auto_connect_group: defaultCreateGroup,
     }));
-    const nextCatalog = await ensureEc2CatalogLoaded();
-    if (!nextCatalog) {
-      return;
-    }
     setCreateOpen(true);
+    void loadCreateCatalog(nextRegion);
   };
 
   const handleOpenLightsailCreateDialog = async () => {
+    const nextRegion = activeRegion || activeCredential?.default_region || DEFAULT_AWS_REGION;
+    setLightsailCreateRegion(nextRegion);
+    setLightsailCreateCatalog(null);
     setLightsailCreateForm((previous) => ({
       ...previous,
       auto_connect: true,
       auto_connect_group: defaultCreateGroup,
     }));
-    const nextCatalog = await ensureLightsailCatalogLoaded();
-    if (!nextCatalog) {
-      return;
-    }
     setLightsailCreateOpen(true);
+    void loadLightsailCreateCatalog(nextRegion);
   };
 
   const handleInstanceAction = async (instance: AWSInstance, type: string) => {
@@ -2276,7 +2376,7 @@ export default function AWSPanel() {
             variant="outline"
             size="1"
             onClick={() => {
-              void refreshAll();
+              window.location.reload();
             }}
             disabled={panelLoading || credentialChecking}
           >
@@ -2292,15 +2392,7 @@ export default function AWSPanel() {
       {activeQuotaError ? (
         <WarningAlert
           tone="warning"
-          description={
-            <>
-              {t(
-                "cloud.providers.aws.quota_warning",
-                "AWS credentials are valid, but Komari could not read EC2 account quotas for the active region.",
-              )}{" "}
-              {activeQuotaError}
-            </>
-          }
+          description={activeQuotaWarningMessage}
         />
       ) : null}
 
@@ -2612,7 +2704,7 @@ export default function AWSPanel() {
                       <DropdownMenuTrigger asChild>
                         <Button
                           size="1"
-                          disabled={!activeContextReady || (ec2CatalogLoading && lightsailCatalogLoading)}
+                          disabled={!activeCredential || (ec2CatalogLoading && lightsailCatalogLoading)}
                         >
                           <Plus className="mr-2 h-4 w-4" />
                           {t("common.create", "Create")}
@@ -2620,7 +2712,7 @@ export default function AWSPanel() {
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end" className="min-w-44">
                         <DropdownMenuItem
-                          disabled={!activeContextReady || ec2CatalogLoading}
+                          disabled={!activeCredential || ec2CatalogLoading}
                           onSelect={() => {
                             setInstanceView("ec2");
                             void handleOpenCreateDialog();
@@ -2630,7 +2722,7 @@ export default function AWSPanel() {
                           {t("cloud.providers.aws.create", "Launch EC2")}
                         </DropdownMenuItem>
                         <DropdownMenuItem
-                          disabled={!activeContextReady || lightsailCatalogLoading}
+                          disabled={!activeCredential || lightsailCatalogLoading}
                           onSelect={() => {
                             setInstanceView("lightsail");
                             void handleOpenLightsailCreateDialog();
@@ -3099,7 +3191,7 @@ export default function AWSPanel() {
           <Dialog.Description>
             {t(
               "cloud.providers.aws.create_description",
-              "Launch a single EC2 instance in the active region. If your account has no default VPC, choose a subnet and matching security groups.",
+              "Launch a single EC2 instance in the region selected for this dialog. If your account has no default VPC, choose a subnet and matching security groups.",
             )}
           </Dialog.Description>
 
@@ -3108,7 +3200,11 @@ export default function AWSPanel() {
               <div className="grid gap-x-6 gap-y-2 sm:grid-cols-2">
                 <CompactSummaryMetric
                   label={t("cloud.providers.aws.region", "Region")}
-                  value={selectedRegionOption ? getAWSRegionOptionLabel(selectedRegionOption) : activeRegion || "-"}
+                  value={
+                    selectedCreateRegionOption
+                      ? getAWSRegionOptionLabel(selectedCreateRegionOption)
+                      : resolvedCreateRegion || "-"
+                  }
                 />
                 <CompactSummaryMetric
                   label={t("cloud.table.image", "Image")}
@@ -3130,8 +3226,8 @@ export default function AWSPanel() {
                 tone="warning"
                 description={t("cloud.providers.aws.instance_type_unavailable_region", {
                   instanceType: createForm.instance_type,
-                  region: activeRegion,
-                  defaultValue: `${createForm.instance_type} is not currently offered in ${activeRegion}. Choose another instance type or region.`,
+                  region: resolvedCreateRegion,
+                  defaultValue: `${createForm.instance_type} is not currently offered in ${resolvedCreateRegion}. Choose another instance type or region.`,
                 })}
               />
             ) : selectedSubnetAz && !instanceTypeAvailableForCreate ? (
@@ -3150,13 +3246,13 @@ export default function AWSPanel() {
                       instanceType: createForm.instance_type,
                       az: selectedSubnetAz,
                       count: selectedInstanceTypeZones.length,
-                      defaultValue: `${createForm.instance_type} is offered in ${selectedSubnetAz}. AWS reports ${selectedInstanceTypeZones.length} supported AZs in ${activeRegion}.`,
+                      defaultValue: `${createForm.instance_type} is offered in ${selectedSubnetAz}. AWS reports ${selectedInstanceTypeZones.length} supported AZs in ${resolvedCreateRegion}.`,
                     })
                   : t("cloud.providers.aws.instance_type_available_region", {
                       instanceType: createForm.instance_type,
-                      region: activeRegion,
+                      region: resolvedCreateRegion,
                       count: selectedInstanceTypeZones.length,
-                      defaultValue: `${createForm.instance_type} is currently offered in ${selectedInstanceTypeZones.length} AZs in ${activeRegion}.`,
+                      defaultValue: `${createForm.instance_type} is currently offered in ${selectedInstanceTypeZones.length} AZs in ${resolvedCreateRegion}.`,
                     })}
               </div>
             ) : null}
@@ -3172,7 +3268,7 @@ export default function AWSPanel() {
                     {t("cloud.providers.aws.region", "Region")}
                   </label>
                   <AWSRegionSelect
-                    value={activeRegion || undefined}
+                    value={resolvedCreateRegion || undefined}
                     options={regionOptions}
                     placeholder={t("cloud.providers.aws.region", "Region")}
                     searchPlaceholder={regionSearchPlaceholder}
@@ -3181,6 +3277,12 @@ export default function AWSPanel() {
                       void handleCreateDialogRegionChange(value);
                     }}
                   />
+                  <div className={`mt-2 text-xs ${cloudPanelBodyTextClassName}`}>
+                    {t(
+                      "cloud.providers.aws.create_region_hint",
+                      "Switching region refreshes only the catalog used by this create dialog.",
+                    )}
+                  </div>
                 </div>
                 <div>
                   <label className={cloudPanelFieldLabelClassName}>
@@ -3192,7 +3294,7 @@ export default function AWSPanel() {
                   >
                     <Select.Trigger placeholder={t("cloud.form.size_placeholder", "Select a size")} />
                     <Select.Content>
-                      {(catalog?.instance_types || []).map((instanceType) => (
+                      {(createCatalog?.instance_types || []).map((instanceType) => (
                         <Select.Item key={instanceType.name} value={instanceType.name}>
                           {getAWSInstanceTypeOptionLabel(instanceType)}
                         </Select.Item>
@@ -3212,7 +3314,7 @@ export default function AWSPanel() {
                 >
                   <Select.Trigger placeholder={t("cloud.form.image_placeholder", "Select an image")} />
                   <Select.Content>
-                    {(catalog?.images || []).map((image) => (
+                    {(createCatalog?.images || []).map((image) => (
                       <Select.Item key={image.image_id} value={image.image_id}>
                         {getImageLabel(image)}
                       </Select.Item>
@@ -3254,7 +3356,7 @@ export default function AWSPanel() {
                     <Select.Trigger placeholder={t("cloud.providers.aws.key_pair_optional", "Optional")} />
                     <Select.Content>
                       <Select.Item value={SELECT_NONE}>{t("cloud.providers.aws.none", "None")}</Select.Item>
-                      {(catalog?.key_pairs || []).map((keyPair) => (
+                      {(createCatalog?.key_pairs || []).map((keyPair) => (
                         <Select.Item key={keyPair.key_name} value={keyPair.key_name}>
                           {keyPair.key_name}
                         </Select.Item>
@@ -3279,7 +3381,7 @@ export default function AWSPanel() {
                     <Select.Trigger placeholder={t("cloud.providers.aws.subnet_optional", "Optional")} />
                     <Select.Content>
                       <Select.Item value={SELECT_NONE}>{t("cloud.providers.aws.none", "None")}</Select.Item>
-                      {(catalog?.subnets || []).map((subnet) => (
+                      {(createCatalog?.subnets || []).map((subnet) => (
                         <Select.Item key={subnet.subnet_id} value={subnet.subnet_id}>
                           {subnet.subnet_id} / {subnet.availability_zone} / {subnet.cidr_block}
                         </Select.Item>
@@ -3406,6 +3508,87 @@ export default function AWSPanel() {
               <div className="mt-4 grid gap-4 lg:grid-cols-2">
                 <div>
                   <label className={cloudPanelFieldLabelClassName}>
+                    {t("cloud.form.root_access", "Root Access")}
+                  </label>
+                  <Select.Root
+                    value={createForm.root_password_mode || "none"}
+                    onValueChange={(value) =>
+                      setCreateForm((previous) => ({
+                        ...previous,
+                        root_password_mode: value as AWSRootPasswordMode,
+                        root_password:
+                          value === "custom"
+                            ? previous.root_password
+                            : "",
+                      }))
+                    }
+                  >
+                    <Select.Trigger placeholder={t("cloud.form.root_access_placeholder", "Select access mode")} />
+                    <Select.Content>
+                      <Select.Item value="none">
+                        {t("cloud.form.root_access_modes.none", "SSH key only")}
+                      </Select.Item>
+                      <Select.Item value="random">
+                        {t("cloud.form.root_access_modes.random", "Random root password")}
+                      </Select.Item>
+                      <Select.Item value="custom">
+                        {t("cloud.form.root_access_modes.custom", "Custom root password")}
+                      </Select.Item>
+                    </Select.Content>
+                  </Select.Root>
+                </div>
+                <div>
+                  {createForm.root_password_mode === "custom" ? (
+                    <>
+                      <label className={cloudPanelFieldLabelClassName}>
+                        {t("cloud.form.root_password", "Root Password")}
+                      </label>
+                      <TextField.Root
+                        type="password"
+                        value={createForm.root_password || ""}
+                        placeholder={t("cloud.form.root_password_placeholder", "Enter a root password")}
+                        onChange={(event) =>
+                          setCreateForm((previous) => ({ ...previous, root_password: event.target.value }))
+                        }
+                      />
+                    </>
+                  ) : (
+                    <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-300">
+                      {createForm.root_password_mode === "random"
+                        ? t(
+                            "cloud.form.root_password_random_help",
+                            "A random root password will be generated on the server and shown once after creation succeeds.",
+                          )
+                        : t(
+                            "cloud.providers.aws.root_access_none_help",
+                            "Use the selected key pair or image defaults only. Komari will not inject a root password.",
+                          )}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {createForm.root_password_mode !== "none" ? (
+                <>
+                  <WarningAlert
+                    tone="info"
+                    description={t(
+                      "cloud.providers.aws.root_access_help",
+                      "Komari will append a startup script to set the root password and enable password login on supported Linux images.",
+                    )}
+                  />
+                  <div className={`text-xs ${cloudPanelBodyTextClassName}`}>
+                    {t(
+                      "cloud.form.user_data_password_help",
+                      "When root password mode is enabled, this field is appended as shell commands. #cloud-config is not supported in this mode.",
+                    )}
+                  </div>
+                </>
+              ) : null}
+
+              <div className="mt-4 grid gap-4 lg:grid-cols-2">
+                <div>
+                  <label className={cloudPanelFieldLabelClassName}>
                     {t("cloud.form.tags", "Tags")}
                   </label>
                   <TextArea
@@ -3439,6 +3622,7 @@ export default function AWSPanel() {
                   createSubmitting ||
                   !createForm.image_id ||
                   !createForm.instance_type ||
+                  (createForm.root_password_mode === "custom" && !(createForm.root_password || "").trim()) ||
                   !instanceTypeAvailableInRegion ||
                   !instanceTypeAvailableForCreate
                 }
@@ -3458,7 +3642,7 @@ export default function AWSPanel() {
           <Dialog.Description>
             {t(
               "cloud.providers.aws.lightsail_create_description",
-              "Create a Lightsail instance in the active region using a blueprint and bundle.",
+              "Create a Lightsail instance in the region selected for this dialog using a blueprint and bundle.",
             )}
           </Dialog.Description>
 
@@ -3467,7 +3651,11 @@ export default function AWSPanel() {
               <div className="grid gap-x-6 gap-y-2 sm:grid-cols-2">
                 <CompactSummaryMetric
                   label={t("cloud.providers.aws.region", "Region")}
-                  value={selectedRegionOption ? getAWSRegionOptionLabel(selectedRegionOption) : activeRegion || "-"}
+                  value={
+                    selectedLightsailCreateRegionOption
+                      ? getAWSRegionOptionLabel(selectedLightsailCreateRegionOption)
+                      : resolvedLightsailCreateRegion || "-"
+                  }
                 />
                 <CompactSummaryMetric
                   label={t("cloud.providers.aws.az", "AZ")}
@@ -3495,7 +3683,7 @@ export default function AWSPanel() {
                     {t("cloud.providers.aws.region", "Region")}
                   </label>
                   <AWSRegionSelect
-                    value={activeRegion || undefined}
+                    value={resolvedLightsailCreateRegion || undefined}
                     options={regionOptions}
                     placeholder={t("cloud.providers.aws.region", "Region")}
                     searchPlaceholder={regionSearchPlaceholder}
@@ -3504,6 +3692,12 @@ export default function AWSPanel() {
                       void handleLightsailDialogRegionChange(value);
                     }}
                   />
+                  <div className={`mt-2 text-xs ${cloudPanelBodyTextClassName}`}>
+                    {t(
+                      "cloud.providers.aws.create_region_hint",
+                      "Switching region refreshes only the catalog used by this create dialog.",
+                    )}
+                  </div>
                 </div>
                 <div>
                   <label className={cloudPanelFieldLabelClassName}>
@@ -3540,7 +3734,7 @@ export default function AWSPanel() {
                   >
                     <Select.Trigger placeholder={t("cloud.form.image_placeholder", "Select an image")} />
                     <Select.Content>
-                      {(lightsailCatalog?.blueprints || []).map((blueprint) => (
+                      {(lightsailCreateCatalog?.blueprints || []).map((blueprint) => (
                         <Select.Item key={blueprint.blueprint_id} value={blueprint.blueprint_id}>
                           {getLightsailBlueprintLabel(blueprint)}
                         </Select.Item>
@@ -3560,7 +3754,7 @@ export default function AWSPanel() {
                   >
                     <Select.Trigger placeholder={t("cloud.form.size_placeholder", "Select a size")} />
                     <Select.Content>
-                      {(lightsailCatalog?.bundles || []).map((bundle) => (
+                      {(lightsailCreateCatalog?.bundles || []).map((bundle) => (
                         <Select.Item key={bundle.bundle_id} value={bundle.bundle_id}>
                           {getLightsailBundleOptionLabel(bundle)}
                         </Select.Item>
@@ -3592,7 +3786,7 @@ export default function AWSPanel() {
                     <Select.Trigger placeholder={t("cloud.providers.aws.key_pair_optional", "Optional")} />
                     <Select.Content>
                       <Select.Item value={SELECT_NONE}>{t("cloud.providers.aws.none", "None")}</Select.Item>
-                      {(lightsailCatalog?.key_pairs || []).map((keyPair) => (
+                      {(lightsailCreateCatalog?.key_pairs || []).map((keyPair) => (
                         <Select.Item key={keyPair.name} value={keyPair.name}>
                           {keyPair.name}
                         </Select.Item>
@@ -3607,7 +3801,7 @@ export default function AWSPanel() {
                       onCheckedChange={(checked) =>
                         setLightsailCreateForm((previous) => ({
                           ...previous,
-                          ip_address_type: Boolean(checked)
+                          ip_address_type: checked === true
                             ? previous.ip_address_type && previous.ip_address_type !== "ipv4"
                               ? previous.ip_address_type
                               : "dualstack"
@@ -3681,6 +3875,87 @@ export default function AWSPanel() {
               <div className="mt-4 grid gap-4 lg:grid-cols-2">
                 <div>
                   <label className={cloudPanelFieldLabelClassName}>
+                    {t("cloud.form.root_access", "Root Access")}
+                  </label>
+                  <Select.Root
+                    value={lightsailCreateForm.root_password_mode || "none"}
+                    onValueChange={(value) =>
+                      setLightsailCreateForm((previous) => ({
+                        ...previous,
+                        root_password_mode: value as AWSRootPasswordMode,
+                        root_password:
+                          value === "custom"
+                            ? previous.root_password
+                            : "",
+                      }))
+                    }
+                  >
+                    <Select.Trigger placeholder={t("cloud.form.root_access_placeholder", "Select access mode")} />
+                    <Select.Content>
+                      <Select.Item value="none">
+                        {t("cloud.form.root_access_modes.none", "SSH key only")}
+                      </Select.Item>
+                      <Select.Item value="random">
+                        {t("cloud.form.root_access_modes.random", "Random root password")}
+                      </Select.Item>
+                      <Select.Item value="custom">
+                        {t("cloud.form.root_access_modes.custom", "Custom root password")}
+                      </Select.Item>
+                    </Select.Content>
+                  </Select.Root>
+                </div>
+                <div>
+                  {lightsailCreateForm.root_password_mode === "custom" ? (
+                    <>
+                      <label className={cloudPanelFieldLabelClassName}>
+                        {t("cloud.form.root_password", "Root Password")}
+                      </label>
+                      <TextField.Root
+                        type="password"
+                        value={lightsailCreateForm.root_password || ""}
+                        placeholder={t("cloud.form.root_password_placeholder", "Enter a root password")}
+                        onChange={(event) =>
+                          setLightsailCreateForm((previous) => ({ ...previous, root_password: event.target.value }))
+                        }
+                      />
+                    </>
+                  ) : (
+                    <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-300">
+                      {lightsailCreateForm.root_password_mode === "random"
+                        ? t(
+                            "cloud.form.root_password_random_help",
+                            "A random root password will be generated on the server and shown once after creation succeeds.",
+                          )
+                        : t(
+                            "cloud.providers.aws.root_access_none_help",
+                            "Use the selected key pair or image defaults only. Komari will not inject a root password.",
+                          )}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {lightsailCreateForm.root_password_mode !== "none" ? (
+                <>
+                  <WarningAlert
+                    tone="info"
+                    description={t(
+                      "cloud.providers.aws.root_access_help",
+                      "Komari will append a startup script to set the root password and enable password login on supported Linux images.",
+                    )}
+                  />
+                  <div className={`text-xs ${cloudPanelBodyTextClassName}`}>
+                    {t(
+                      "cloud.form.user_data_password_help",
+                      "When root password mode is enabled, this field is appended as shell commands. #cloud-config is not supported in this mode.",
+                    )}
+                  </div>
+                </>
+              ) : null}
+
+              <div className="mt-4 grid gap-4 lg:grid-cols-2">
+                <div>
+                  <label className={cloudPanelFieldLabelClassName}>
                     {t("cloud.form.tags", "Tags")}
                   </label>
                   <TextArea
@@ -3718,7 +3993,8 @@ export default function AWSPanel() {
                   lightsailCreateSubmitting ||
                   !lightsailCreateForm.availability_zone ||
                   !lightsailCreateForm.blueprint_id ||
-                  !lightsailCreateForm.bundle_id
+                  !lightsailCreateForm.bundle_id ||
+                  (lightsailCreateForm.root_password_mode === "custom" && !(lightsailCreateForm.root_password || "").trim())
                 }
               >
                 {lightsailCreateSubmitting
@@ -4892,6 +5168,52 @@ export default function AWSPanel() {
                   value={credentialSecret.secret.session_token}
                 />
               ) : null}
+            </div>
+          ) : null}
+        </Dialog.Content>
+      </Dialog.Root>
+
+      <Dialog.Root open={Boolean(createdPassword)} onOpenChange={(open) => !open && setCreatedPassword(null)}>
+        <Dialog.Content className={cloudDialogContentClassName}>
+          <Dialog.Title>{t("cloud.access.dialog_title", "Connection Details")}</Dialog.Title>
+          <Dialog.Description>
+            {t(
+              "cloud.providers.aws.create_credentials_description",
+              "Save this root password now. Random passwords are only shown once after creation succeeds.",
+            )}
+          </Dialog.Description>
+
+          {createdPassword ? (
+            <div className="mt-4 flex flex-col gap-3">
+              <div className={cloudDetailListClassName}>
+                <div className={cloudDetailListItemClassName}>
+                  <PlainDetailItem label={t("cloud.table.name", "Name")} value={createdPassword.resourceName} />
+                  <PlainDetailItem
+                    label={t("cloud.password.mode", "Password Mode")}
+                    value={getRootPasswordModeLabel(createdPassword.passwordMode, t)}
+                  />
+                  <PlainDetailItem
+                    label={t("common.type", "Type")}
+                    value={
+                      createdPassword.resourceKind === "lightsail"
+                        ? t("cloud.providers.aws.lightsail_label", "AWS Lightsail")
+                        : t("cloud.providers.aws.ec2_label", "AWS EC2")
+                    }
+                  />
+                </div>
+              </div>
+
+              <CloudCopyBlock
+                title={t("cloud.access.root_password", "Root Password")}
+                copyLabel={t("copy", "Copy")}
+                onCopy={() => { void copyText(createdPassword.rootPassword); }}
+              >
+                <TextArea
+                  className="min-h-28 font-mono text-xs [overflow-wrap:anywhere]"
+                  readOnly
+                  value={createdPassword.rootPassword}
+                />
+              </CloudCopyBlock>
             </div>
           ) : null}
         </Dialog.Content>

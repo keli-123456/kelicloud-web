@@ -588,6 +588,14 @@ function getFailoverExecutionStepMessage(t: TFunction, step: FailoverExecutionSt
       return t("failover.execution.step_messages.new_outlet_healthy", {
         defaultValue: "New outlet connectivity looks healthy",
       });
+    case "new instance root password could not be saved; deleted the new instance automatically":
+      return t("failover.execution.step_messages.new_instance_password_cleanup_success", {
+        defaultValue: "New instance root password could not be saved; deleted the new instance automatically",
+      });
+    case "new instance root password could not be saved and automatic cleanup failed":
+      return t("failover.execution.step_messages.new_instance_password_cleanup_failed", {
+        defaultValue: "New instance root password could not be saved and automatic cleanup failed",
+      });
     case "scripts finished successfully":
       return t("failover.execution.step_messages.scripts_finished_successfully", { defaultValue: "Scripts finished successfully" });
     case "script finished successfully":
@@ -655,6 +663,9 @@ type ExecutionEntryAttemptSummary = {
   status: string;
   error: string;
   failure_class: string;
+  cleanup_status: string;
+  cleanup_error: string;
+  cleanup_label: string;
   preferred: boolean;
   active: boolean;
 };
@@ -1379,6 +1390,9 @@ function normalizeExecutionEntryAttempt(value: unknown): ExecutionEntryAttemptSu
     status: getStringValue(raw?.status),
     error: getStringValue(raw?.error),
     failure_class: getStringValue(raw?.failure_class),
+    cleanup_status: getStringValue(raw?.cleanup_status),
+    cleanup_error: getStringValue(raw?.cleanup_error),
+    cleanup_label: getStringValue(raw?.label),
     preferred: getBooleanValue(raw?.preferred),
     active: getBooleanValue(raw?.active),
   };
@@ -1444,6 +1458,9 @@ function getLastExecutionEntryAttempt(attempt: ExecutionPlanAttemptSummary | nul
     status: attempt.status,
     error: attempt.error,
     failure_class: "",
+    cleanup_status: "",
+    cleanup_error: "",
+    cleanup_label: "",
     preferred: false,
     active: false,
   } satisfies ExecutionEntryAttemptSummary;
@@ -1557,6 +1574,8 @@ function formatDetailValue(t: TFunction, key: string, value: unknown) {
       return getActionTypeLabel(t, getStringValue(value));
     case "status":
       return getStatusLabel(t, getStringValue(value));
+    case "cleanup_status":
+      return humanizeStatus(getStringValue(value));
     case "retry_after_seconds":
       return formatDurationSeconds(getNumberValue(value, 0), t);
     case "latency":
@@ -1617,6 +1636,10 @@ function getDetailLabel(t: TFunction, key: string) {
       return t("failover.execution.detail_labels.provider", { defaultValue: "Provider" });
     case "action_type":
       return t("failover.execution.detail_labels.action", { defaultValue: "Action" });
+    case "resource_type":
+      return t("failover.execution.detail_labels.resource_type", { defaultValue: "Resource type" });
+    case "resource_id":
+      return t("failover.execution.detail_labels.resource_id", { defaultValue: "Resource ID" });
     case "entry_id":
     case "provider_entry_id":
       return t("failover.execution.detail_labels.entry_id", { defaultValue: "Provider entry" });
@@ -1637,6 +1660,10 @@ function getDetailLabel(t: TFunction, key: string) {
       return t("failover.execution.detail_labels.error", { defaultValue: "Error" });
     case "failure_class":
       return t("failover.execution.detail_labels.failure_class", { defaultValue: "Failure class" });
+    case "cleanup_status":
+      return t("failover.execution.detail_labels.cleanup_result", { defaultValue: "Cleanup result" });
+    case "cleanup_error":
+      return t("failover.execution.detail_labels.cleanup_error", { defaultValue: "Cleanup error" });
     case "attempt":
       return t("failover.execution.detail_labels.attempt", { defaultValue: "Attempt" });
     case "next_attempt":
@@ -1689,6 +1716,8 @@ function getExecutionStepDetailItems(t: TFunction, detail: unknown) {
     "priority",
     "provider",
     "action_type",
+    "resource_type",
+    "resource_id",
     "preferred_entry_id",
     "preferred_entry_group",
     "provider_entry_id",
@@ -1711,6 +1740,8 @@ function getExecutionStepDetailItems(t: TFunction, detail: unknown) {
     "retry_after_seconds",
     "strategy",
     "label",
+    "cleanup_status",
+    "cleanup_error",
     "output_truncated",
     "script_output_available",
     "availability",
@@ -4216,6 +4247,18 @@ function ExecutionAttemptSection({
               getFailureClassSummaryLabel(t, lastEntryAttempt?.failure_class || ""),
             ),
             buildDetailItem(
+              t("failover.execution.detail_labels.cleanup_result", { defaultValue: "Cleanup result" }),
+              formatDetailValue(t, "cleanup_status", lastEntryAttempt?.cleanup_status),
+            ),
+            buildDetailItem(
+              t("failover.execution.detail_labels.cleanup_action", { defaultValue: "Cleanup action" }),
+              lastEntryAttempt?.cleanup_label,
+            ),
+            buildDetailItem(
+              t("failover.execution.detail_labels.cleanup_error", { defaultValue: "Cleanup error" }),
+              lastEntryAttempt?.cleanup_error,
+            ),
+            buildDetailItem(
               t("failover.execution.detail_labels.error", { defaultValue: "Error" }),
               lastEntryAttempt?.error || attempt.error,
             ),
@@ -4263,6 +4306,18 @@ function ExecutionAttemptSection({
                         buildDetailItem(
                           t("failover.execution.detail_labels.failure_class", { defaultValue: "Failure class" }),
                           getFailureClassSummaryLabel(t, entryAttempt.failure_class),
+                        ),
+                        buildDetailItem(
+                          t("failover.execution.detail_labels.cleanup_result", { defaultValue: "Cleanup result" }),
+                          formatDetailValue(t, "cleanup_status", entryAttempt.cleanup_status),
+                        ),
+                        buildDetailItem(
+                          t("failover.execution.detail_labels.cleanup_action", { defaultValue: "Cleanup action" }),
+                          entryAttempt.cleanup_label,
+                        ),
+                        buildDetailItem(
+                          t("failover.execution.detail_labels.cleanup_error", { defaultValue: "Cleanup error" }),
+                          entryAttempt.cleanup_error,
                         ),
                         buildDetailItem(
                           t("failover.execution.detail_labels.error", { defaultValue: "Error" }),

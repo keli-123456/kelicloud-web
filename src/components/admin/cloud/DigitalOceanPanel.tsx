@@ -432,12 +432,6 @@ export default function DigitalOceanPanel() {
     [t],
   );
 
-  const loadTokenPool = React.useCallback(async () => {
-    const nextPool = await getDigitalOceanTokens();
-    setTokenPool(nextPool);
-    return nextPool;
-  }, []);
-
   const loadPanelData = React.useCallback(async () => {
     setPanelLoading(true);
     try {
@@ -461,15 +455,6 @@ export default function DigitalOceanPanel() {
       setPanelLoading(false);
     }
   }, []);
-
-  const refreshAll = React.useCallback(async () => {
-    const nextPool = await loadTokenPool();
-    if (hasActiveToken(nextPool)) {
-      await loadPanelData();
-      return;
-    }
-    clearPanelState();
-  }, [clearPanelState, loadPanelData, loadTokenPool]);
 
   React.useEffect(() => {
     let cancelled = false;
@@ -1088,7 +1073,7 @@ export default function DigitalOceanPanel() {
               variant="outline"
               size="1"
               onClick={() => {
-                void refreshAll();
+                window.location.reload();
               }}
               disabled={panelLoading || tokenChecking}
             >

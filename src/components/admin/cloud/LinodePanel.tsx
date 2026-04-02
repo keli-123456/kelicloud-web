@@ -437,12 +437,6 @@ export default function LinodePanel() {
     [t],
   );
 
-  const loadTokenPool = React.useCallback(async () => {
-    const nextPool = await getLinodeTokens();
-    setTokenPool(nextPool);
-    return nextPool;
-  }, []);
-
   const loadPanelData = React.useCallback(async () => {
     setPanelLoading(true);
     try {
@@ -466,15 +460,6 @@ export default function LinodePanel() {
       setPanelLoading(false);
     }
   }, []);
-
-  const refreshAll = React.useCallback(async () => {
-    const nextPool = await loadTokenPool();
-    if (hasActiveToken(nextPool)) {
-      await loadPanelData();
-      return;
-    }
-    clearPanelState();
-  }, [clearPanelState, loadPanelData, loadTokenPool]);
 
   React.useEffect(() => {
     let cancelled = false;
@@ -1121,7 +1106,7 @@ export default function LinodePanel() {
               variant="outline"
               size="1"
               onClick={() => {
-                void refreshAll();
+                window.location.reload();
               }}
               disabled={panelLoading || tokenChecking}
             >
