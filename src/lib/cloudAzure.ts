@@ -151,6 +151,7 @@ export type CreateAzureInstanceInput = {
   ssh_public_key?: string;
   user_data?: string;
   public_ip: boolean;
+  assign_ipv6: boolean;
   image: AzureImageReference;
   auto_connect?: boolean;
   auto_connect_group?: string;

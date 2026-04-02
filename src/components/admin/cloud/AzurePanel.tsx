@@ -151,6 +151,7 @@ const initialCreateForm: AzureCreateFormState = {
   ssh_public_key: "",
   user_data: "",
   public_ip: true,
+  assign_ipv6: true,
   auto_connect: true,
   auto_connect_group: "",
   image_preset: initialAzureImagePreset.id,
@@ -539,6 +540,7 @@ export default function AzurePanel() {
         ssh_public_key: createForm.auth_mode === "ssh" ? createForm.ssh_public_key || "" : "",
         user_data: createForm.user_data || "",
         public_ip: createForm.public_ip,
+        assign_ipv6: createForm.assign_ipv6,
         auto_connect: true,
         image: {
           publisher: createForm.image_publisher,
@@ -1141,6 +1143,19 @@ export default function AzurePanel() {
                 }
               />
               {t("cloud.providers.azure.public_ip_toggle", "Allocate a public IPv4 address and open inbound traffic by default")}
+            </label>
+
+            <label className={`flex items-center gap-2 ${cloudPanelBodyTextClassName}`}>
+              <Checkbox
+                checked={createForm.assign_ipv6}
+                onCheckedChange={(checked) =>
+                  setCreateForm((previous) => ({ ...previous, assign_ipv6: Boolean(checked) }))
+                }
+              />
+              {t(
+                "cloud.providers.azure.assign_ipv6_toggle",
+                "Enable IPv6. Komari will prepare a dual-stack VNet/NIC and attach a public IPv6 address when public IP is also enabled",
+              )}
             </label>
 
             <Flex justify="end" gap="2">

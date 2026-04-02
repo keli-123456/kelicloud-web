@@ -5,6 +5,7 @@ type ApiEnvelope<T> = {
 };
 
 const AWS_CLOUD_REQUEST_TIMEOUT_MS = 60000;
+const AWS_CLOUD_CREATE_REQUEST_TIMEOUT_MS = 90000;
 
 class CloudApiError extends Error {
   status: number;
@@ -71,6 +72,7 @@ export type AWSCredentialRecord = {
 export type AWSCredentialPool = {
   active_credential_id: string;
   active_region: string;
+  password_storage_enabled: boolean;
   credentials: AWSCredentialRecord[];
 };
 
@@ -184,6 +186,18 @@ export type AWSInstance = {
   availability_zone: string;
   launch_time: string;
   tags: Record<string, string>;
+  saved_root_password: boolean;
+  saved_root_password_updated_at: string;
+};
+
+export type AWSResourcePassword = {
+  resource_type: string;
+  resource_id: string;
+  resource_name: string;
+  username: string;
+  password_mode: string;
+  root_password: string;
+  updated_at: string;
 };
 
 export type AWSVolume = {
@@ -297,6 +311,8 @@ export type AWSLightsailInstance = {
   ram_size_in_gb: number;
   disks: AWSLightsailDisk[];
   tags: Record<string, string>;
+  saved_root_password: boolean;
+  saved_root_password_updated_at: string;
 };
 
 export type AWSLightsailPort = {
@@ -365,6 +381,8 @@ export type CreateAWSInstanceResult = {
   instance: AWSInstance;
   warning: string;
   generated_password: string;
+  password_saved: boolean;
+  password_save_error: string;
 };
 
 export type CreateAWSInstanceActionInput = {
@@ -401,6 +419,8 @@ export type CreateAWSLightsailInstanceResult = {
   status: string;
   warning: string;
   generated_password: string;
+  password_saved: boolean;
+  password_save_error: string;
 };
 
 export type AWSLightsailCatalog = {
@@ -642,6 +662,22 @@ function normalizeInstance(
     availability_zone: String(instance?.availability_zone || ""),
     launch_time: String(instance?.launch_time || ""),
     tags,
+    saved_root_password: Boolean(instance?.saved_root_password),
+    saved_root_password_updated_at: String(instance?.saved_root_password_updated_at || ""),
+  };
+}
+
+function normalizeResourcePassword(
+  credential: Partial<AWSResourcePassword> | null | undefined,
+): AWSResourcePassword {
+  return {
+    resource_type: String(credential?.resource_type || ""),
+    resource_id: String(credential?.resource_id || ""),
+    resource_name: String(credential?.resource_name || ""),
+    username: String(credential?.username || ""),
+    password_mode: String(credential?.password_mode || ""),
+    root_password: String(credential?.root_password || ""),
+    updated_at: String(credential?.updated_at || ""),
   };
 }
 
@@ -795,6 +831,8 @@ function normalizeLightsailInstance(
     ram_size_in_gb: Number(instance?.ram_size_in_gb || 0),
     disks: Array.isArray(instance?.disks) ? instance.disks.map(normalizeLightsailDisk) : [],
     tags,
+    saved_root_password: Boolean(instance?.saved_root_password),
+    saved_root_password_updated_at: String(instance?.saved_root_password_updated_at || ""),
   };
 }
 
@@ -845,7 +883,7 @@ function normalizeLightsailInstanceDetail(
   };
 }
 
-async function requestCloud<T>(path: string, init?: RequestInit): Promise<T> {
+async function requestCloud<T>(path: string, init?: RequestInit, timeoutMs = AWS_CLOUD_REQUEST_TIMEOUT_MS): Promise<T> {
   const method = (init?.method || "GET").toUpperCase();
   const requestUrl =
     method === "GET"
@@ -853,7 +891,7 @@ async function requestCloud<T>(path: string, init?: RequestInit): Promise<T> {
       : path;
 
   const controller = new AbortController();
-  const timeoutID = setTimeout(() => controller.abort(), AWS_CLOUD_REQUEST_TIMEOUT_MS);
+  const timeoutID = setTimeout(() => controller.abort(), timeoutMs);
 
   let response: Response;
   try {
@@ -926,6 +964,7 @@ export async function getAWSCredentials(): Promise<AWSCredentialPool> {
   return {
     active_credential_id: String(data?.active_credential_id || ""),
     active_region: String(data?.active_region || "us-east-1"),
+    password_storage_enabled: Boolean(data?.password_storage_enabled),
     credentials: Array.isArray(data?.credentials)
       ? data.credentials.map(normalizeCredentialRecord)
       : [],
@@ -950,6 +989,7 @@ export async function saveAWSCredentials(input: {
   return {
     active_credential_id: String(data?.active_credential_id || ""),
     active_region: String(data?.active_region || "us-east-1"),
+    password_storage_enabled: Boolean(data?.password_storage_enabled),
     credentials: Array.isArray(data?.credentials)
       ? data.credentials.map(normalizeCredentialRecord)
       : [],
@@ -973,6 +1013,7 @@ export async function setAWSActiveCredential(
   return {
     active_credential_id: String(data?.active_credential_id || ""),
     active_region: String(data?.active_region || "us-east-1"),
+    password_storage_enabled: Boolean(data?.password_storage_enabled),
     credentials: Array.isArray(data?.credentials)
       ? data.credentials.map(normalizeCredentialRecord)
       : [],
@@ -994,6 +1035,7 @@ export async function setAWSActiveRegion(region: string): Promise<AWSCredentialP
   return {
     active_credential_id: String(data?.active_credential_id || ""),
     active_region: String(data?.active_region || "us-east-1"),
+    password_storage_enabled: Boolean(data?.password_storage_enabled),
     credentials: Array.isArray(data?.credentials)
       ? data.credentials.map(normalizeCredentialRecord)
       : [],
@@ -1017,6 +1059,7 @@ export async function checkAWSCredentials(
   return {
     active_credential_id: String(data?.active_credential_id || ""),
     active_region: String(data?.active_region || "us-east-1"),
+    password_storage_enabled: Boolean(data?.password_storage_enabled),
     credentials: Array.isArray(data?.credentials)
       ? data.credentials.map(normalizeCredentialRecord)
       : [],
@@ -1036,6 +1079,7 @@ export async function deleteAWSCredential(
   return {
     active_credential_id: String(data?.active_credential_id || ""),
     active_region: String(data?.active_region || "us-east-1"),
+    password_storage_enabled: Boolean(data?.password_storage_enabled),
     credentials: Array.isArray(data?.credentials)
       ? data.credentials.map(normalizeCredentialRecord)
       : [],
@@ -1114,6 +1158,15 @@ export async function getAWSInstanceDetail(instanceId: string): Promise<AWSInsta
   return normalizeInstanceDetail(data);
 }
 
+export async function getAWSInstancePassword(
+  instanceId: string,
+): Promise<AWSResourcePassword> {
+  const data = await requestCloud<Partial<AWSResourcePassword>>(
+    `/api/admin/cloud/aws/instances/${instanceId}/password`,
+  );
+  return normalizeResourcePassword(data);
+}
+
 export async function createAWSInstance(
   input: CreateAWSInstanceInput,
 ): Promise<CreateAWSInstanceResult> {
@@ -1121,17 +1174,21 @@ export async function createAWSInstance(
     instance?: Partial<AWSInstance> | null;
     warning?: string | null;
     generated_password?: string | null;
+    password_saved?: boolean;
+    password_save_error?: string | null;
   }>("/api/admin/cloud/aws/instances", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
     },
     body: JSON.stringify(input),
-  });
+  }, AWS_CLOUD_CREATE_REQUEST_TIMEOUT_MS);
   return {
     instance: normalizeInstance(data?.instance),
     warning: String(data?.warning || ""),
     generated_password: String(data?.generated_password || ""),
+    password_saved: Boolean(data?.password_saved),
+    password_save_error: String(data?.password_save_error || ""),
   };
 }
 
@@ -1189,6 +1246,15 @@ export async function getAWSLightsailInstanceDetail(
   return normalizeLightsailInstanceDetail(data);
 }
 
+export async function getAWSLightsailInstancePassword(
+  instanceName: string,
+): Promise<AWSResourcePassword> {
+  const data = await requestCloud<Partial<AWSResourcePassword>>(
+    `/api/admin/cloud/aws/lightsail/instances/${encodeURIComponent(instanceName)}/password`,
+  );
+  return normalizeResourcePassword(data);
+}
+
 export async function createAWSLightsailInstance(
   input: CreateAWSLightsailInstanceInput,
 ): Promise<CreateAWSLightsailInstanceResult> {
@@ -1197,6 +1263,8 @@ export async function createAWSLightsailInstance(
     status?: string | null;
     warning?: string | null;
     generated_password?: string | null;
+    password_saved?: boolean;
+    password_save_error?: string | null;
   }>("/api/admin/cloud/aws/lightsail/instances", {
     method: "POST",
     headers: {
@@ -1209,6 +1277,8 @@ export async function createAWSLightsailInstance(
     status: String(data?.status || ""),
     warning: String(data?.warning || ""),
     generated_password: String(data?.generated_password || ""),
+    password_saved: Boolean(data?.password_saved),
+    password_save_error: String(data?.password_save_error || ""),
   };
 }
 

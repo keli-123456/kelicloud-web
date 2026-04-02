@@ -6,6 +6,7 @@ import {
   ChevronDown,
   CheckCircle2,
   Eye,
+  KeyRound,
   MoreHorizontal,
   Plus,
   Power,
@@ -86,8 +87,10 @@ import {
   getAWSCredentialSecret,
   getAWSCredentials,
   getAWSInstanceDetail,
+  getAWSInstancePassword,
   getAWSLightsailCatalog,
   getAWSLightsailInstanceDetail,
+  getAWSLightsailInstancePassword,
   listAWSFollowUpTasks,
   listAWSInstances,
   listAWSLightsailInstances,
@@ -111,6 +114,7 @@ import {
   type AWSLightsailCatalog,
   type AWSLightsailInstance,
   type AWSLightsailInstanceDetail,
+  type AWSResourcePassword,
   type AWSLightsailStaticIP,
   type AWSTag,
   type AWSVolume,
@@ -397,6 +401,14 @@ type CreatedPasswordState = {
   rootPassword: string;
   passwordMode: "custom" | "random";
   resourceKind: "ec2" | "lightsail";
+  passwordSaved: boolean;
+  passwordSaveError: string;
+};
+
+type SavedPasswordState = {
+  resourceKind: "ec2" | "lightsail";
+  resourceName: string;
+  credential: AWSResourcePassword;
 };
 
 const initialCreateForm: CreateFormState = {
@@ -1261,6 +1273,7 @@ export default function AWSPanel() {
   const [credentialGroupEditorValue, setCredentialGroupEditorValue] = React.useState("");
   const [credentialGroupEditorIds, setCredentialGroupEditorIds] = React.useState<string[]>([]);
   const [createdPassword, setCreatedPassword] = React.useState<CreatedPasswordState | null>(null);
+  const [savedPassword, setSavedPassword] = React.useState<SavedPasswordState | null>(null);
   const [account, setAccount] = React.useState<AWSAccount | null>(null);
   const [catalog, setCatalog] = React.useState<AWSCatalog | null>(null);
   const [lightsailCatalog, setLightsailCatalog] = React.useState<AWSLightsailCatalog | null>(null);
@@ -1289,6 +1302,7 @@ export default function AWSPanel() {
   });
   const [credentialSecret, setCredentialSecret] = React.useState<CredentialSecretState | null>(null);
   const [credentialSecretLoading, setCredentialSecretLoading] = React.useState(false);
+  const [passwordLoading, setPasswordLoading] = React.useState(false);
   const [shareOpen, setShareOpen] = React.useState(false);
   const [shareTarget, setShareTarget] = React.useState<CloudInstanceShareTarget | null>(null);
   const [scriptTarget, setScriptTarget] = React.useState<CloudInstanceScriptTarget | null>(null);
@@ -1314,6 +1328,7 @@ export default function AWSPanel() {
     initialLightsailCreateForm,
   );
   const activeCredential = getActiveCredential(credentialPool);
+  const passwordStorageEnabled = Boolean(credentialPool?.password_storage_enabled);
   const resolvedActiveRegion =
     activeCredential
       ? credentialPool?.active_region || account?.region || activeCredential.default_region || DEFAULT_AWS_REGION
@@ -2031,6 +2046,38 @@ export default function AWSPanel() {
     }
   };
 
+  const handleViewInstancePassword = async (instance: AWSInstance) => {
+    setPasswordLoading(true);
+    try {
+      const credential = await getAWSInstancePassword(instance.instance_id);
+      setSavedPassword({
+        resourceKind: "ec2",
+        resourceName: instance.name || instance.instance_id,
+        credential,
+      });
+    } catch (viewError) {
+      toast.error(toErrorMessage(viewError));
+    } finally {
+      setPasswordLoading(false);
+    }
+  };
+
+  const handleViewLightsailPassword = async (instance: AWSLightsailInstance) => {
+    setPasswordLoading(true);
+    try {
+      const credential = await getAWSLightsailInstancePassword(instance.name);
+      setSavedPassword({
+        resourceKind: "lightsail",
+        resourceName: instance.name,
+        credential,
+      });
+    } catch (viewError) {
+      toast.error(toErrorMessage(viewError));
+    } finally {
+      setPasswordLoading(false);
+    }
+  };
+
   const handleRegionChange = async (region: string) => {
     try {
       const nextPool = await setAWSActiveRegion(region);
@@ -2064,6 +2111,7 @@ export default function AWSPanel() {
   const handleCreateInstance = async () => {
     setCreateSubmitting(true);
     try {
+      const submittedPasswordMode = createForm.root_password_mode || "none";
       const payload: CreateAWSInstanceInput = {
         region: resolvedCreateRegion,
         name: createForm.name,
@@ -2089,12 +2137,18 @@ export default function AWSPanel() {
         await loadBackgroundTasks(false);
       }
       setCreateOpen(false);
-      if (result.generated_password) {
+      const createdRootPassword =
+        submittedPasswordMode === "custom"
+          ? createForm.root_password
+          : result.generated_password;
+      if ((submittedPasswordMode === "custom" || submittedPasswordMode === "random") && createdRootPassword) {
         setCreatedPassword({
           resourceName: result.instance.name || result.instance.instance_id,
-          rootPassword: result.generated_password,
-          passwordMode: "random",
+          rootPassword: createdRootPassword,
+          passwordMode: submittedPasswordMode as "custom" | "random",
           resourceKind: "ec2",
+          passwordSaved: result.password_saved,
+          passwordSaveError: result.password_save_error,
         });
       }
       setCreateForm((previous) => ({
@@ -2123,6 +2177,7 @@ export default function AWSPanel() {
   const handleCreateLightsailInstance = async () => {
     setLightsailCreateSubmitting(true);
     try {
+      const submittedPasswordMode = lightsailCreateForm.root_password_mode || "none";
       const payload: CreateAWSLightsailInstanceInput = {
         region: resolvedLightsailCreateRegion,
         name: lightsailCreateForm.name,
@@ -2146,12 +2201,18 @@ export default function AWSPanel() {
         await loadBackgroundTasks(false);
       }
       setLightsailCreateOpen(false);
-      if (result.generated_password) {
+      const createdRootPassword =
+        submittedPasswordMode === "custom"
+          ? lightsailCreateForm.root_password
+          : result.generated_password;
+      if ((submittedPasswordMode === "custom" || submittedPasswordMode === "random") && createdRootPassword) {
         setCreatedPassword({
           resourceName: result.name,
-          rootPassword: result.generated_password,
-          passwordMode: "random",
+          rootPassword: createdRootPassword,
+          passwordMode: submittedPasswordMode as "custom" | "random",
           resourceKind: "lightsail",
+          passwordSaved: result.password_saved,
+          passwordSaveError: result.password_save_error,
         });
       }
       setLightsailCreateForm((previous) => ({
@@ -2921,6 +2982,7 @@ export default function AWSPanel() {
                       <TableHead>{t("cloud.table.size", "Size")}</TableHead>
                       <TableHead>{t("cloud.table.image", "Image")}</TableHead>
                       <TableHead>{t("cloud.providers.aws.key_pair", "Key Pair")}</TableHead>
+                      <TableHead>{t("cloud.table.password", "Root Password")}</TableHead>
                       <TableHead>{t("cloud.table.created_at", "Created")}</TableHead>
                       <TableHead className="text-right">{t("common.action", "Action")}</TableHead>
                     </TableRow>
@@ -2928,7 +2990,7 @@ export default function AWSPanel() {
                   <TableBody>
                     {instances.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={9} className="h-24 text-center text-slate-500">
+                        <TableCell colSpan={10} className="h-24 text-center text-slate-500">
                           {panelLoading
                             ? t("cloud.loading", "Loading cloud resources...")
                             : error
@@ -2966,9 +3028,42 @@ export default function AWSPanel() {
                           <TableCell>{instance.instance_type || "-"}</TableCell>
                           <TableCell>{instance.image_id || "-"}</TableCell>
                           <TableCell>{instance.key_name || "-"}</TableCell>
+                          <TableCell>
+                            {instance.saved_root_password ? (
+                              <div className="space-y-1">
+                                <Badge color={passwordStorageEnabled ? "green" : "amber"}>
+                                  {passwordStorageEnabled
+                                    ? t("cloud.password.saved", "Saved")
+                                    : t("cloud.password.locked", "Locked")}
+                                </Badge>
+                                {instance.saved_root_password_updated_at ? (
+                                  <div className="text-xs text-slate-500">
+                                    {formatDateTime(instance.saved_root_password_updated_at)}
+                                  </div>
+                                ) : null}
+                              </div>
+                            ) : (
+                              <span className="text-sm text-slate-400">
+                                {passwordStorageEnabled
+                                  ? t("cloud.password.not_saved", "Not saved")
+                                  : t("cloud.password.disabled_short", "Vault off")}
+                              </span>
+                            )}
+                          </TableCell>
                           <TableCell>{formatDateTime(instance.launch_time)}</TableCell>
                           <TableCell className="text-right">
                             <Flex justify="end" gap="2" wrap="nowrap">
+                              <Button
+                                variant="soft"
+                                size="1"
+                                disabled={!instance.saved_root_password || !passwordStorageEnabled || passwordLoading}
+                                onClick={() => {
+                                  void handleViewInstancePassword(instance);
+                                }}
+                              >
+                                <KeyRound className="mr-1 h-3.5 w-3.5" />
+                                {t("cloud.password.view", "View Password")}
+                              </Button>
                               {instance.state === "running" ? (
                                 <Button
                                   variant="soft"
@@ -3040,7 +3135,7 @@ export default function AWSPanel() {
                                         credentialName: getActiveCredential(credentialPool)?.name || "",
                                         region: activeRegion,
                                         primaryAddress: instance.public_ip || instance.private_ip || "",
-                                        canSharePassword: false,
+                                        canSharePassword: Boolean(instance.saved_root_password && passwordStorageEnabled),
                                         canShareManagedSSHKey: false,
                                       });
                                     }}
@@ -3085,6 +3180,7 @@ export default function AWSPanel() {
                       <TableHead>{t("cloud.table.size", "Size")}</TableHead>
                       <TableHead>{t("cloud.table.image", "Image")}</TableHead>
                       <TableHead>{t("cloud.providers.aws.static_ip", "Static IP")}</TableHead>
+                      <TableHead>{t("cloud.table.password", "Root Password")}</TableHead>
                       <TableHead>{t("cloud.table.created_at", "Created")}</TableHead>
                       <TableHead className="text-right">{t("common.action", "Action")}</TableHead>
                     </TableRow>
@@ -3092,7 +3188,7 @@ export default function AWSPanel() {
                   <TableBody>
                     {lightsailInstances.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={9} className="h-24 text-center text-slate-500">
+                        <TableCell colSpan={10} className="h-24 text-center text-slate-500">
                           {panelLoading
                             ? t("cloud.loading", "Loading cloud resources...")
                             : lightsailError || error
@@ -3130,9 +3226,42 @@ export default function AWSPanel() {
                           <TableCell>{instance.bundle_id || "-"}</TableCell>
                           <TableCell>{instance.blueprint_name || instance.blueprint_id || "-"}</TableCell>
                           <TableCell>{instance.is_static_ip ? t("common.yes", "Yes") : "-"}</TableCell>
+                          <TableCell>
+                            {instance.saved_root_password ? (
+                              <div className="space-y-1">
+                                <Badge color={passwordStorageEnabled ? "green" : "amber"}>
+                                  {passwordStorageEnabled
+                                    ? t("cloud.password.saved", "Saved")
+                                    : t("cloud.password.locked", "Locked")}
+                                </Badge>
+                                {instance.saved_root_password_updated_at ? (
+                                  <div className="text-xs text-slate-500">
+                                    {formatDateTime(instance.saved_root_password_updated_at)}
+                                  </div>
+                                ) : null}
+                              </div>
+                            ) : (
+                              <span className="text-sm text-slate-400">
+                                {passwordStorageEnabled
+                                  ? t("cloud.password.not_saved", "Not saved")
+                                  : t("cloud.password.disabled_short", "Vault off")}
+                              </span>
+                            )}
+                          </TableCell>
                           <TableCell>{formatDateTime(instance.created_at)}</TableCell>
                           <TableCell className="text-right">
                             <Flex justify="end" gap="2" wrap="nowrap">
+                              <Button
+                                variant="soft"
+                                size="1"
+                                disabled={!instance.saved_root_password || !passwordStorageEnabled || passwordLoading}
+                                onClick={() => {
+                                  void handleViewLightsailPassword(instance);
+                                }}
+                              >
+                                <KeyRound className="mr-1 h-3.5 w-3.5" />
+                                {t("cloud.password.view", "View Password")}
+                              </Button>
                               {instance.state === "running" ? (
                                 <Button
                                   variant="soft"
@@ -3202,7 +3331,7 @@ export default function AWSPanel() {
                                         credentialName: getActiveCredential(credentialPool)?.name || "",
                                         region: activeRegion,
                                         primaryAddress: instance.public_ip || instance.private_ip || "",
-                                        canSharePassword: false,
+                                        canSharePassword: Boolean(instance.saved_root_password && passwordStorageEnabled),
                                         canShareManagedSSHKey: false,
                                       });
                                     }}
@@ -3364,7 +3493,7 @@ export default function AWSPanel() {
           <Dialog.Description>
             {t(
               "cloud.providers.aws.create_description",
-              "Launch a single EC2 instance in the region selected for this dialog. This panel assumes AWS can launch into a default VPC when you leave subnet empty. If the account has no default VPC, create or restore one in AWS first, then retry.",
+              "Launch a single EC2 instance in the region selected for this dialog. Leave subnet empty to let Komari use the default VPC and default subnet automatically. If the account is missing them, Komari will try to create or repair the default network during launch.",
             )}
           </Dialog.Description>
 
@@ -3372,7 +3501,7 @@ export default function AWSPanel() {
             <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-600 dark:border-slate-800 dark:bg-slate-900/40 dark:text-slate-300">
               {t(
                 "cloud.providers.aws.create_static_presets_help",
-                "This EC2 dialog uses built-in static presets instead of loading AWS catalogs. Regions are fixed in the UI, image presets use AWS public SSM parameters, and key pair / subnet / security groups are entered manually.",
+                "This EC2 dialog uses built-in static presets instead of loading AWS catalogs. Regions, sizes, and image presets are built in. Key pair, subnet, and security groups are optional advanced overrides, and leaving subnet empty lets Komari prepare the default AWS network automatically.",
               )}
             </div>
 
@@ -3548,7 +3677,7 @@ export default function AWSPanel() {
                 <div className="mt-1 text-xs text-slate-500 dark:text-slate-400">
                   {t(
                     "cloud.providers.aws.security_group_manual_hint",
-                    "Enter one or more security group IDs separated by commas or new lines. Leave empty to let AWS use the default network behavior.",
+                    "Enter one or more security group IDs separated by commas or new lines. Leave empty to let Komari keep the default security group on the automatically selected default subnet.",
                   )}
                 </div>
                 <TextArea
@@ -4297,7 +4426,7 @@ export default function AWSPanel() {
                               credentialName: getActiveCredential(credentialPool)?.name || "",
                               region: activeRegion,
                               primaryAddress: detailData.instance.public_ip || detailData.instance.private_ip || "",
-                              canSharePassword: false,
+                              canSharePassword: Boolean(detailData.instance.saved_root_password && passwordStorageEnabled),
                               canShareManagedSSHKey: false,
                             });
                           }}
@@ -4326,6 +4455,26 @@ export default function AWSPanel() {
                   />
                   <PlainDetailItem label={t("cloud.table.image", "Image")} value={detailData.instance.image_id || "-"} />
                   <PlainDetailItem label={t("cloud.providers.aws.key_pair", "Key Pair")} value={detailData.instance.key_name || "-"} />
+                  <PlainDetailItem
+                    label={t("cloud.table.password", "Root Password")}
+                    value={
+                      detailData.instance.saved_root_password ? (
+                        <Button
+                          variant="soft"
+                          size="1"
+                          disabled={!passwordStorageEnabled || passwordLoading}
+                          onClick={() => {
+                            void handleViewInstancePassword(detailData.instance);
+                          }}
+                        >
+                          <KeyRound className="mr-1 h-3.5 w-3.5" />
+                          {t("cloud.password.view", "View Password")}
+                        </Button>
+                      ) : (
+                        t("cloud.password.not_saved", "Not saved")
+                      )
+                    }
+                  />
                   <PlainDetailItem label={t("cloud.table.created_at", "Created")} value={formatDateTime(detailData.instance.launch_time)} />
                   <PlainDetailItem label={t("cloud.providers.aws.vpc", "VPC")} value={detailData.vpc_id || "-"} />
                   <PlainDetailItem label={t("cloud.providers.aws.subnet", "Subnet")} value={detailData.subnet_id || "-"} />
@@ -4798,7 +4947,7 @@ export default function AWSPanel() {
                               credentialName: getActiveCredential(credentialPool)?.name || "",
                               region: activeRegion,
                               primaryAddress: lightsailDetailData.instance.public_ip || lightsailDetailData.instance.private_ip || "",
-                              canSharePassword: false,
+                              canSharePassword: Boolean(lightsailDetailData.instance.saved_root_password && passwordStorageEnabled),
                               canShareManagedSSHKey: false,
                             });
                           }}
@@ -4823,6 +4972,26 @@ export default function AWSPanel() {
                 <div className="mt-4 grid gap-x-6 sm:grid-cols-2 xl:grid-cols-3">
                   <PlainDetailItem label={t("cloud.table.image", "Image")} value={lightsailDetailData.instance.blueprint_name || lightsailDetailData.instance.blueprint_id || "-"} />
                   <PlainDetailItem label={t("cloud.providers.aws.key_pair", "Key Pair")} value={lightsailDetailData.instance.ssh_key_name || "-"} />
+                  <PlainDetailItem
+                    label={t("cloud.table.password", "Root Password")}
+                    value={
+                      lightsailDetailData.instance.saved_root_password ? (
+                        <Button
+                          variant="soft"
+                          size="1"
+                          disabled={!passwordStorageEnabled || passwordLoading}
+                          onClick={() => {
+                            void handleViewLightsailPassword(lightsailDetailData.instance);
+                          }}
+                        >
+                          <KeyRound className="mr-1 h-3.5 w-3.5" />
+                          {t("cloud.password.view", "View Password")}
+                        </Button>
+                      ) : (
+                        t("cloud.password.not_saved", "Not saved")
+                      )
+                    }
+                  />
                   <PlainDetailItem label={t("cloud.table.created_at", "Created")} value={formatDateTime(lightsailDetailData.instance.created_at)} />
                   <PlainDetailItem
                     label={t("cloud.providers.aws.static_ip", "Static IP")}
@@ -5346,18 +5515,67 @@ export default function AWSPanel() {
         </Dialog.Content>
       </Dialog.Root>
 
+      <Dialog.Root open={Boolean(savedPassword)} onOpenChange={(open) => !open && setSavedPassword(null)}>
+        <Dialog.Content className={`${cloudDialogContentClassName} max-h-[85vh] overflow-y-auto`}>
+          <Dialog.Title>{t("cloud.password.dialog_title", "Saved Root Password")}</Dialog.Title>
+          <Dialog.Description>
+            {t(
+              "cloud.providers.aws.password_dialog_description",
+              "View the saved root password for this AWS instance from the current active credential and region.",
+            )}
+          </Dialog.Description>
+
+          {savedPassword ? (
+            <div className="mt-4 flex flex-col gap-4">
+              <PlainDetailItem label={t("cloud.table.name", "Name")} value={savedPassword.resourceName} />
+              <PlainDetailItem
+                label={t("common.type", "Type")}
+                value={
+                  savedPassword.resourceKind === "lightsail"
+                    ? t("cloud.providers.aws.lightsail_label", "AWS Lightsail")
+                    : t("cloud.providers.aws.ec2_label", "AWS EC2")
+                }
+              />
+              <PlainDetailItem
+                label={t("cloud.password.username", "Username")}
+                value={savedPassword.credential.username || "root"}
+              />
+              <PlainDetailItem
+                label={t("cloud.password.mode", "Password Mode")}
+                value={savedPassword.credential.password_mode || "-"}
+              />
+              <PlainDetailItem
+                label={t("cloud.password.saved_at", "Saved At")}
+                value={formatDateTime(savedPassword.credential.updated_at)}
+              />
+              <CloudCopyBlock
+                title={t("cloud.form.root_password", "Root Password")}
+                copyLabel={t("copy", "Copy")}
+                onCopy={() => { void copyText(savedPassword.credential.root_password); }}
+              >
+                <TextArea
+                  className="min-h-28 font-mono text-xs [overflow-wrap:anywhere]"
+                  readOnly
+                  value={savedPassword.credential.root_password}
+                />
+              </CloudCopyBlock>
+            </div>
+          ) : null}
+        </Dialog.Content>
+      </Dialog.Root>
+
       <Dialog.Root open={Boolean(createdPassword)} onOpenChange={(open) => !open && setCreatedPassword(null)}>
         <Dialog.Content className={cloudDialogContentClassName}>
           <Dialog.Title>{t("cloud.access.dialog_title", "Connection Details")}</Dialog.Title>
           <Dialog.Description>
             {t(
               "cloud.providers.aws.create_credentials_description",
-              "Save this root password now. Random passwords are only shown once after creation succeeds.",
+              "Store this root password now. You can reopen it later only if vault storage is enabled and the save succeeded.",
             )}
           </Dialog.Description>
 
           {createdPassword ? (
-            <div className="mt-4 flex flex-col gap-3">
+            <div className="mt-4 flex flex-col gap-4">
               <div className={cloudDetailListClassName}>
                 <div className={cloudDetailListItemClassName}>
                   <PlainDetailItem label={t("cloud.table.name", "Name")} value={createdPassword.resourceName} />
@@ -5373,6 +5591,19 @@ export default function AWSPanel() {
                         : t("cloud.providers.aws.ec2_label", "AWS EC2")
                     }
                   />
+                </div>
+              </div>
+
+              <div className={`rounded-xl px-4 py-3 text-sm ${createdPassword.passwordSaved ? "border border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-300" : "border border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-300"}`}>
+                <div className={cloudLongTextClassName}>
+                  {createdPassword.passwordSaved
+                    ? t("cloud.password.create_saved", "This root password has been encrypted and saved. You can reopen it later from the instance list.")
+                    : createdPassword.passwordSaveError
+                      ? t("cloud.password.create_unsaved_reason", {
+                          reason: createdPassword.passwordSaveError,
+                          defaultValue: `Password save failed: ${createdPassword.passwordSaveError}`,
+                        })
+                      : t("cloud.password.create_unsaved", "This root password was not saved on the server. Save it now if you still need it later.")}
                 </div>
               </div>
 
