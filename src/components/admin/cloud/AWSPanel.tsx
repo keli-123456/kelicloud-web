@@ -266,6 +266,54 @@ const STATIC_EC2_IMAGE_PRESETS: StaticEC2ImagePreset[] = [
     architecture: "arm64",
   },
   {
+    value: "resolve:ssm:/aws/service/canonical/ubuntu/server/24.04/stable/current/amd64/hvm/ebs-gp3/ami-id",
+    label: "Ubuntu Server 24.04 LTS",
+    summary: "Canonical public parameter, amd64, gp3",
+    architecture: "x86_64",
+  },
+  {
+    value: "resolve:ssm:/aws/service/canonical/ubuntu/server/24.04/stable/current/arm64/hvm/ebs-gp3/ami-id",
+    label: "Ubuntu Server 24.04 LTS ARM64",
+    summary: "Canonical public parameter, arm64, gp3",
+    architecture: "arm64",
+  },
+  {
+    value: "resolve:ssm:/aws/service/canonical/ubuntu/server/22.04/stable/current/amd64/hvm/ebs-gp3/ami-id",
+    label: "Ubuntu Server 22.04 LTS",
+    summary: "Canonical public parameter, amd64, gp3",
+    architecture: "x86_64",
+  },
+  {
+    value: "resolve:ssm:/aws/service/canonical/ubuntu/server/22.04/stable/current/arm64/hvm/ebs-gp3/ami-id",
+    label: "Ubuntu Server 22.04 LTS ARM64",
+    summary: "Canonical public parameter, arm64, gp3",
+    architecture: "arm64",
+  },
+  {
+    value: "komari:debian-13-amd64",
+    label: "Debian 13",
+    summary: "Official Debian public AMI, latest amd64",
+    architecture: "x86_64",
+  },
+  {
+    value: "komari:debian-13-arm64",
+    label: "Debian 13 ARM64",
+    summary: "Official Debian public AMI, latest arm64",
+    architecture: "arm64",
+  },
+  {
+    value: "komari:debian-12-amd64",
+    label: "Debian 12",
+    summary: "Official Debian public AMI, latest amd64",
+    architecture: "x86_64",
+  },
+  {
+    value: "komari:debian-12-arm64",
+    label: "Debian 12 ARM64",
+    summary: "Official Debian public AMI, latest arm64",
+    architecture: "arm64",
+  },
+  {
     value: "resolve:ssm:/aws/service/ami-windows-latest/Windows_Server-2022-English-Full-Base",
     label: "Windows Server 2022",
     summary: "AWS public parameter, x86_64, English Full Base",
@@ -663,7 +711,9 @@ function buildAWSAccountFromCredential(
     user_id: credential.user_id || "",
     region: region || credential.default_region || DEFAULT_AWS_REGION,
     ec2_quota: credential.ec2_quota || null,
-    ec2_quota_error: credential.ec2_quota_error || "",
+    // Credential health checks may cache an old quota warning. The panel-level
+    // banner should only reflect the latest on-demand account read.
+    ec2_quota_error: "",
   };
 }
 
@@ -1455,7 +1505,7 @@ export default function AWSPanel() {
   const resolvedLightsailCreateRegion =
     lightsailCreateRegion || activeRegion || activeCredential?.default_region || DEFAULT_AWS_REGION;
   const activeQuota = activeContextReady ? account?.ec2_quota || activeCredential?.ec2_quota || null : null;
-  const activeQuotaError = activeContextReady ? account?.ec2_quota_error || activeCredential?.ec2_quota_error || "" : "";
+  const activeQuotaError = activeContextReady ? account?.ec2_quota_error || "" : "";
   const activeQuotaWarningMessage = formatAWSQuotaErrorMessage(activeQuotaError, t);
   const pendingBackgroundTaskCount = backgroundTasks.filter((task) => task.status === "pending").length;
   const failedBackgroundTaskCount = backgroundTasks.filter((task) => task.status === "failed").length;
