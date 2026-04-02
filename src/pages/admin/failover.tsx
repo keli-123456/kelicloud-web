@@ -4252,11 +4252,11 @@ function ExecutionAttemptSection({
             ),
             buildDetailItem(
               t("failover.execution.detail_labels.cleanup_action", { defaultValue: "Cleanup action" }),
-              lastEntryAttempt?.cleanup_label,
+              lastEntryAttempt?.cleanup_label || "",
             ),
             buildDetailItem(
               t("failover.execution.detail_labels.cleanup_error", { defaultValue: "Cleanup error" }),
-              lastEntryAttempt?.cleanup_error,
+              lastEntryAttempt?.cleanup_error || "",
             ),
             buildDetailItem(
               t("failover.execution.detail_labels.error", { defaultValue: "Error" }),
