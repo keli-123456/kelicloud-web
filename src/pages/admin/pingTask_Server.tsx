@@ -100,7 +100,6 @@ const ServerRow: React.FC<{
           id: task.id,
           name: task.name,
           type: task.type,
-          // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
           target: task.target!,
           clients: Array.from(current),
           interval: task.interval,

@@ -521,7 +521,7 @@ export default function AdminPanelBar({ content }: AdminPanelBarProps) {
             <span>{(latestRelease?.tag_name || latestRelease?.name) ?? ""}</span>
           </div>
 
-          <div className="max-h-80 overflow-auto rounded-md p-2">
+          <div className="max-h-80 overflow-auto overscroll-contain rounded-md p-2 [scrollbar-gutter:stable]">
             <div className="flex flex-col gap-4 text-sm">
               {releasesSince.map((release) => (
                 <div key={release.html_url} className="flex flex-col gap-2">
@@ -627,7 +627,7 @@ export default function AdminPanelBar({ content }: AdminPanelBarProps) {
 
         <nav
           className={cn(
-            "flex-1 space-y-1 overflow-y-auto px-3 py-4",
+            "flex-1 space-y-1 overflow-y-auto overscroll-contain px-3 py-4 [scrollbar-gutter:stable]",
             sidebarCollapsed && "md:px-2",
           )}
         >
@@ -885,7 +885,7 @@ export default function AdminPanelBar({ content }: AdminPanelBarProps) {
           </div>
         </header>
 
-        <main className="min-h-0 flex-1 overflow-y-auto">
+        <main className="min-h-0 flex-1 overflow-y-auto overscroll-contain [scrollbar-gutter:stable]">
           <div className="mx-auto flex w-full max-w-[1680px] flex-col gap-4 px-4 py-4 md:px-6 md:py-6">
             {!ishttps && (
               <div className="flex items-start gap-3 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-red-700 shadow-sm dark:border-red-900/60 dark:bg-red-950/30 dark:text-red-300">

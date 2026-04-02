@@ -25,10 +25,14 @@ export type AWSAccount = {
 
 export type AWSEC2Quota = {
   region: string;
+  max_standard_vcpus: number;
   max_instances: number;
   max_elastic_ips: number;
   vpc_max_elastic_ips: number;
   vpc_max_security_groups_per_interface: number;
+  instance_standard_vcpus: number;
+  reserved_standard_vcpus: number;
+  running_standard_vcpus: number;
   running_instances: number;
   total_instances: number;
   allocated_elastic_ips: number;
@@ -81,6 +85,24 @@ export type AWSCredentialSecret = {
   user_id: string;
   ec2_quota: AWSEC2Quota | null;
   ec2_quota_error: string;
+};
+
+export type AWSFollowUpTask = {
+  id: number;
+  credential_id: string;
+  credential_name: string;
+  region: string;
+  task_type: string;
+  resource_id: string;
+  status: string;
+  attempts: number;
+  max_attempts: number;
+  last_error: string;
+  last_attempt_at: string;
+  next_run_at: string;
+  completed_at: string;
+  created_at: string;
+  updated_at: string;
 };
 
 export type AWSRegion = {
@@ -327,6 +349,8 @@ export type CreateAWSInstanceInput = {
   security_group_ids: string[];
   user_data: string;
   assign_public_ip: boolean;
+  assign_ipv6: boolean;
+  allow_all_traffic: boolean;
   tags: AWSTag[];
   auto_connect: boolean;
   auto_connect_group: string;
@@ -334,6 +358,7 @@ export type CreateAWSInstanceInput = {
 
 export type CreateAWSInstanceResult = {
   instance: AWSInstance;
+  warning: string;
 };
 
 export type CreateAWSInstanceActionInput = {
@@ -356,9 +381,16 @@ export type CreateAWSLightsailInstanceInput = {
   key_pair_name?: string;
   user_data?: string;
   ip_address_type?: string;
+  allow_all_traffic: boolean;
   tags?: AWSTag[];
   auto_connect: boolean;
   auto_connect_group: string;
+};
+
+export type CreateAWSLightsailInstanceResult = {
+  name: string;
+  status: string;
+  warning: string;
 };
 
 export type AWSLightsailCatalog = {
@@ -387,10 +419,14 @@ function normalizeEC2Quota(quota: Partial<AWSEC2Quota> | null | undefined): AWSE
 
   const normalized = {
     region: String(quota.region || ""),
+    max_standard_vcpus: Number(quota.max_standard_vcpus || 0),
     max_instances: Number(quota.max_instances || 0),
     max_elastic_ips: Number(quota.max_elastic_ips || 0),
     vpc_max_elastic_ips: Number(quota.vpc_max_elastic_ips || 0),
     vpc_max_security_groups_per_interface: Number(quota.vpc_max_security_groups_per_interface || 0),
+    instance_standard_vcpus: Number(quota.instance_standard_vcpus || 0),
+    reserved_standard_vcpus: Number(quota.reserved_standard_vcpus || 0),
+    running_standard_vcpus: Number(quota.running_standard_vcpus || 0),
     running_instances: Number(quota.running_instances || 0),
     total_instances: Number(quota.total_instances || 0),
     allocated_elastic_ips: Number(quota.allocated_elastic_ips || 0),
@@ -399,10 +435,14 @@ function normalizeEC2Quota(quota: Partial<AWSEC2Quota> | null | undefined): AWSE
 
   if (
     !normalized.region
+    && normalized.max_standard_vcpus <= 0
     && normalized.max_instances <= 0
     && normalized.max_elastic_ips <= 0
     && normalized.vpc_max_elastic_ips <= 0
     && normalized.vpc_max_security_groups_per_interface <= 0
+    && normalized.instance_standard_vcpus <= 0
+    && normalized.reserved_standard_vcpus <= 0
+    && normalized.running_standard_vcpus <= 0
     && normalized.running_instances <= 0
     && normalized.total_instances <= 0
     && normalized.allocated_elastic_ips <= 0
@@ -462,6 +502,28 @@ function normalizeCredentialSecret(
     user_id: String(credential?.user_id || ""),
     ec2_quota: normalizeEC2Quota(credential?.ec2_quota),
     ec2_quota_error: String(credential?.ec2_quota_error || ""),
+  };
+}
+
+function normalizeFollowUpTask(
+  task: Partial<AWSFollowUpTask> | null | undefined,
+): AWSFollowUpTask {
+  return {
+    id: Number(task?.id || 0),
+    credential_id: String(task?.credential_id || ""),
+    credential_name: String(task?.credential_name || ""),
+    region: String(task?.region || ""),
+    task_type: String(task?.task_type || ""),
+    resource_id: String(task?.resource_id || ""),
+    status: String(task?.status || ""),
+    attempts: Number(task?.attempts || 0),
+    max_attempts: Number(task?.max_attempts || 0),
+    last_error: String(task?.last_error || ""),
+    last_attempt_at: String(task?.last_attempt_at || ""),
+    next_run_at: String(task?.next_run_at || ""),
+    completed_at: String(task?.completed_at || ""),
+    created_at: String(task?.created_at || ""),
+    updated_at: String(task?.updated_at || ""),
   };
 }
 
@@ -961,6 +1023,29 @@ export async function getAWSCredentialSecret(
   return normalizeCredentialSecret(data);
 }
 
+export async function listAWSFollowUpTasks(): Promise<AWSFollowUpTask[]> {
+  const data = await requestCloud<Partial<AWSFollowUpTask>[]>(
+    "/api/admin/cloud/aws/follow-up-tasks",
+  );
+  return Array.isArray(data) ? data.map(normalizeFollowUpTask) : [];
+}
+
+export async function retryAWSFollowUpTask(taskId: number): Promise<void> {
+  await requestCloud(`/api/admin/cloud/aws/follow-up-tasks/${taskId}/retry`, {
+    method: "POST",
+  });
+}
+
+export async function clearAWSFollowUpTerminalTasks(): Promise<number> {
+  const data = await requestCloud<{ deleted_count?: number | null }>(
+    "/api/admin/cloud/aws/follow-up-tasks/terminal",
+    {
+      method: "DELETE",
+    },
+  );
+  return Number(data?.deleted_count || 0);
+}
+
 export async function getAWSCatalog(): Promise<AWSCatalog> {
   const data = await requestCloud<Partial<AWSCatalog>>("/api/admin/cloud/aws/catalog");
   return {
@@ -1003,6 +1088,7 @@ export async function createAWSInstance(
 ): Promise<CreateAWSInstanceResult> {
   const data = await requestCloud<{
     instance?: Partial<AWSInstance> | null;
+    warning?: string | null;
   }>("/api/admin/cloud/aws/instances", {
     method: "POST",
     headers: {
@@ -1012,6 +1098,7 @@ export async function createAWSInstance(
   });
   return {
     instance: normalizeInstance(data?.instance),
+    warning: String(data?.warning || ""),
   };
 }
 
@@ -1070,14 +1157,23 @@ export async function getAWSLightsailInstanceDetail(
 
 export async function createAWSLightsailInstance(
   input: CreateAWSLightsailInstanceInput,
-): Promise<void> {
-  await requestCloud("/api/admin/cloud/aws/lightsail/instances", {
+): Promise<CreateAWSLightsailInstanceResult> {
+  const data = await requestCloud<{
+    name?: string | null;
+    status?: string | null;
+    warning?: string | null;
+  }>("/api/admin/cloud/aws/lightsail/instances", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
     },
     body: JSON.stringify(input),
   });
+  return {
+    name: String(data?.name || ""),
+    status: String(data?.status || ""),
+    warning: String(data?.warning || ""),
+  };
 }
 
 export async function deleteAWSLightsailInstance(instanceName: string): Promise<void> {

@@ -1,8 +1,11 @@
 import React from "react";
 import { Navigate } from "react-router-dom";
 import {
+  ArrowDown,
+  ArrowUp,
   Check,
   ChevronDown,
+  Copy,
   Eye,
   LoaderCircle,
   PencilLine,
@@ -109,6 +112,12 @@ import {
 } from "@/lib/failover";
 import { cn } from "@/lib/utils";
 import { getDefaultAdminPath, useAccount } from "@/contexts/AccountContext";
+import {
+  ActionSummaryCard,
+  DetailItemsList,
+  type DetailItem,
+  type SummaryStatusTone,
+} from "./failover/EditorSummarySections";
 import type { TFunction } from "i18next";
 
 type TaskFormState = {
@@ -259,7 +268,7 @@ function SearchableCatalogSelect({
       <PopoverContent
         align="start"
         sideOffset={6}
-        className="z-[60] w-[var(--radix-popover-trigger-width)] min-w-[18rem] max-w-[calc(100vw-2rem)] p-0"
+        className="z-[60] flex max-h-[min(24rem,calc(100vh-2rem))] w-[var(--radix-popover-trigger-width)] min-w-[18rem] max-w-[calc(100vw-2rem)] flex-col overflow-hidden p-0"
       >
         <div className="border-b p-2">
           <Input
@@ -269,7 +278,7 @@ function SearchableCatalogSelect({
             placeholder={searchPlaceholder}
           />
         </div>
-        <div className="max-h-72 overflow-y-auto p-1">
+        <div className="h-[min(18rem,calc(100vh-10rem))] min-h-0 overflow-y-auto overscroll-contain [scrollbar-gutter:stable] p-1">
           {filteredOptions.length === 0 ? (
             <div className="px-3 py-6 text-sm text-muted-foreground">
               {emptyLabel}
@@ -1524,11 +1533,6 @@ function getFailureClassSummaryLabel(t: TFunction, value: string) {
   }
 }
 
-type DetailItem = {
-  label: string;
-  value: string;
-};
-
 function buildDetailItem(label: string, value: string) {
   const normalizedLabel = String(label || "").trim();
   const normalizedValue = String(value || "").trim();
@@ -1919,12 +1923,21 @@ function appendCatalogOptionIfMissing(
   ];
 }
 
-function describeTaskAdvancedSettings(t: TFunction, state: TaskFormState) {
+function describeTaskMonitoringCoreSettings(t: TFunction, state: TaskFormState) {
   return [
     `${t("failover.editor.failure_threshold", { defaultValue: "Failure threshold" })}: ${state.failure_threshold || "-"}`,
     `${t("failover.editor.stale_after", { defaultValue: "Stale after (s)" })}: ${state.stale_after_seconds || "-"}`,
     `${t("failover.editor.cooldown", { defaultValue: "Cooldown (s)" })}: ${state.cooldown_seconds || "-"}`,
+  ].join(" · ")
+    || t("failover.editor.monitoring_core_hint", {
+      defaultValue: "Failure threshold, stale window, and cooldown usually stay near their defaults.",
+    });
+}
+
+function describeTaskRetrySettings(t: TFunction, state: TaskFormState) {
+  return [
     `${t("failover.editor.provision_retry_limit", { defaultValue: "Blocked retry limit" })}: ${state.provision_retry_limit || "-"}`,
+    `${t("failover.editor.provision_failure_fallback_limit", { defaultValue: "Plan fallback after provision failures" })}: ${state.provision_failure_fallback_limit || "-"}`,
   ].join(" · ");
 }
 
@@ -1938,6 +1951,165 @@ function describePlanAdvancedSettings(t: TFunction, plan: PlanFormState | null) 
     `${t("failover.editor.script_timeout", { defaultValue: "Script timeout (s)" })}: ${plan.script_timeout_sec || "-"}`,
     `${t("failover.editor.wait_agent_timeout", { defaultValue: "Wait agent timeout (s)" })}: ${plan.wait_agent_timeout_sec || "-"}`,
   ].join(" · ");
+}
+
+function describePlanCoreSettings(
+  t: TFunction,
+  plan: PlanFormState | null,
+  entrySummary: string,
+) {
+  if (!plan) {
+    return "";
+  }
+
+  const providerLabel = plan.provider ? getPlanProviderLabel(t, plan.provider) : "";
+  const actionLabel = plan.action_type ? getActionTypeLabel(t, plan.action_type) : "";
+
+  return [
+    providerLabel,
+    actionLabel,
+    entrySummary,
+  ].filter(Boolean).join(" · ")
+    || t("failover.editor.plan_core_hint", {
+      defaultValue: "A plan usually only needs provider, credentials, and action type.",
+    });
+}
+
+function describePlanConfigSettings(t: TFunction, plan: PlanFormState | null) {
+  if (!plan) {
+    return "";
+  }
+
+  const providerLabel = plan.provider ? getPlanProviderLabel(t, plan.provider) : "";
+  const actionLabel = plan.action_type ? getActionTypeLabel(t, plan.action_type) : "";
+  const payloadSummary = summarizePlanPayload(t, plan);
+
+  return [
+    providerLabel,
+    actionLabel,
+    payloadSummary,
+  ].filter(Boolean).join(" · ")
+    || t("failover.editor.plan_config_hint", {
+      defaultValue: "Choose provider options and instance parameters only when this plan needs them.",
+    });
+}
+
+function describePlanOptionalSettings(
+  t: TFunction,
+  plan: PlanFormState | null,
+  scriptNames: string[],
+) {
+  if (!plan) {
+    return "";
+  }
+
+  const normalizedName = String(plan.name || "").trim();
+  const normalizedGroup = String(plan.auto_connect_group || "").trim();
+  const summaryScriptNames = scriptNames.slice(0, 2).join(" -> ");
+  const scriptSummary = plan.script_clipboard_ids.length > 0
+    ? `${t("failover.editor.scripts", { defaultValue: "Scripts" })}: ${summaryScriptNames}${scriptNames.length > 2 ? ` +${scriptNames.length - 2}` : ""}`
+    : "";
+
+  return [
+    normalizedName
+      ? `${t("common.name", { defaultValue: "Name" })}: ${normalizedName}`
+      : "",
+    normalizedGroup
+      ? `${t("failover.editor.auto_connect_group", { defaultValue: "Auto-connect group" })}: ${normalizedGroup}`
+      : "",
+    scriptSummary,
+  ].filter(Boolean).join(" · ")
+    || t("failover.editor.show_plan_optional_hint", {
+      defaultValue: "Name, auto-connect group, and scripts can stay empty unless this plan needs them.",
+    });
+}
+
+function describePlanOrganizerSummary(
+  t: TFunction,
+  plan: PlanFormState | null,
+  planIndex: number,
+  totalPlans: number,
+  coreSummary: string,
+  scriptCount: number,
+) {
+  if (!plan) {
+    return "";
+  }
+
+  const displayIndex = planIndex >= 0 ? planIndex + 1 : 1;
+
+  return [
+    getPlanDisplayName(plan, displayIndex - 1, t),
+    t("failover.editor.priority_label", {
+      defaultValue: "Priority {{value}}",
+      value: displayIndex,
+    }),
+    totalPlans > 1
+      ? t("failover.editor.plan_count_summary", {
+        defaultValue: "{{count}} plan(s)",
+        count: totalPlans,
+      })
+      : t("failover.editor.plan_single", {
+        defaultValue: "1 plan",
+      }),
+    coreSummary,
+    scriptCount > 0
+      ? t("failover.editor.scripts_selected", {
+        defaultValue: "{{count}} selected",
+        count: scriptCount,
+      })
+      : "",
+  ].filter(Boolean).join(" · ");
+}
+
+function describeDnsCoreSettings(
+  t: TFunction,
+  enabled: boolean,
+  providerLabel: string,
+  entryLabel: string,
+  targetLabel: string,
+  syncModeLabel: string,
+  ttl: string,
+) {
+  if (!enabled) {
+    return t("failover.editor.no_dns_hint", {
+      defaultValue: "This task will skip DNS switching and only manage cloud failover actions.",
+    });
+  }
+
+  return [
+    providerLabel,
+    entryLabel,
+    targetLabel
+      ? `${t("failover.task.dns_target_label", { defaultValue: "DNS target" })}: ${targetLabel}`
+      : "",
+    syncModeLabel,
+    ttl
+      ? `${t("failover.editor.ttl", { defaultValue: "TTL" })}: ${ttl}`
+      : "",
+  ].filter(Boolean).join(" · ")
+    || t("failover.editor.dns_summary_hint", {
+      defaultValue: "Review the DNS target, sync mode, and old-instance cleanup here. Open the secondary dialog only when you need to change the details.",
+    });
+}
+
+function describeDnsAdvancedSettings(
+  t: TFunction,
+  deleteStrategyLabel: string,
+  deleteDelaySeconds: string,
+  deleteStrategy: string,
+) {
+  return [
+    deleteStrategyLabel
+      ? `${t("failover.editor.delete_strategy", { defaultValue: "Old instance strategy" })}: ${deleteStrategyLabel}`
+      : "",
+    deleteStrategy === "delete_after_success_delay" && deleteDelaySeconds
+      ? `${t("failover.editor.delete_delay", { defaultValue: "Delete delay (s)" })}: ${deleteDelaySeconds}`
+      : "",
+  ].filter(Boolean).join(" · ")
+    || t("failover.editor.show_dns_advanced_hint", {
+      defaultValue: "Cleanup strategy and custom DNS behavior usually stay on their defaults.",
+    });
 }
 
 function localizeCountryLabel(t: TFunction, rawValue: string) {
@@ -2426,21 +2598,18 @@ function normalizePlanScriptClipboardIDs(values: string[]) {
   ));
 }
 
-function orderPlanScriptClipboardIDs(values: string[], scripts: FailoverScriptOption[]) {
-  const normalized = normalizePlanScriptClipboardIDs(values);
-  if (normalized.length <= 1) {
-    return normalized;
+function moveItemInArray<T>(values: T[], currentIndex: number, targetIndex: number) {
+  if (currentIndex < 0 || currentIndex >= values.length) {
+    return values;
+  }
+  if (targetIndex < 0 || targetIndex >= values.length || targetIndex === currentIndex) {
+    return values;
   }
 
-  const ranks = new Map(scripts.map((script, index) => [String(script.id), index]));
-  return [...normalized].sort((left, right) => {
-    const leftRank = ranks.get(left) ?? Number.MAX_SAFE_INTEGER;
-    const rightRank = ranks.get(right) ?? Number.MAX_SAFE_INTEGER;
-    if (leftRank !== rightRank) {
-      return leftRank - rightRank;
-    }
-    return compareString(left, right);
-  });
+  const nextValues = [...values];
+  const [movedValue] = nextValues.splice(currentIndex, 1);
+  nextValues.splice(targetIndex, 0, movedValue);
+  return nextValues;
 }
 
 function splitScriptSnapshotNames(value: string) {
@@ -3335,6 +3504,13 @@ function createEmptyPlanForm(providerEntries: ProviderEntriesMap): PlanFormState
   };
 }
 
+function renumberPlanPriorities(plans: PlanFormState[]) {
+  return plans.map((plan, index) => ({
+    ...plan,
+    priority: String(index + 1),
+  }));
+}
+
 function createEmptyTaskForm(providerEntries: ProviderEntriesMap): TaskFormState {
   const defaultProvider = "";
   const dnsOptions = buildProviderEntryOptions({
@@ -3364,7 +3540,16 @@ function createEmptyTaskForm(providerEntries: ProviderEntriesMap): TaskFormState
 function taskToForm(task: FailoverTask, providerEntries: ProviderEntriesMap): TaskFormState {
   const dnsFields = parseDnsPayloadFields(task, providerEntries);
   const plans = task.plans.length > 0
-    ? task.plans.map((plan) => ({
+    ? renumberPlanPriorities(
+      [...task.plans]
+        .sort((left, right) => {
+          const priorityDiff = (left.priority || Number.MAX_SAFE_INTEGER) - (right.priority || Number.MAX_SAFE_INTEGER);
+          if (priorityDiff !== 0) {
+            return priorityDiff;
+          }
+          return left.id - right.id;
+        })
+        .map((plan) => ({
         local_id: createLocalID(),
         name: plan.name,
         priority: String(plan.priority || 1),
@@ -3390,7 +3575,8 @@ function taskToForm(task: FailoverTask, providerEntries: ProviderEntriesMap): Ta
         ),
         script_timeout_sec: String(plan.script_timeout_sec || 600),
         wait_agent_timeout_sec: String(plan.wait_agent_timeout_sec || 600),
-      }))
+        })),
+    )
     : [createEmptyPlanForm(providerEntries)];
 
   return {
@@ -3408,6 +3594,129 @@ function taskToForm(task: FailoverTask, providerEntries: ProviderEntriesMap): Ta
     delete_delay_seconds: String(task.delete_delay_seconds || 0),
     plans,
   };
+}
+
+function taskToDuplicateForm(
+  task: FailoverTask,
+  providerEntries: ProviderEntriesMap,
+  copyLabel: string,
+): TaskFormState {
+  const nextState = taskToForm(task, providerEntries);
+  const normalizedCopyLabel = String(copyLabel || "").trim();
+  const normalizedName = String(nextState.name || "").trim();
+
+  return {
+    ...nextState,
+    name: [normalizedName, normalizedCopyLabel].filter(Boolean).join(" ").trim(),
+    // Duplicated tasks should stay off until the operator confirms the copied setup.
+    enabled: false,
+  };
+}
+
+function getDnsFormTargetLabel(formState: TaskFormState) {
+  if (!formState.dns_provider.trim()) {
+    return "";
+  }
+
+  if (formState.dns_provider === "cloudflare") {
+    return joinCloudflareRecordName(formState.dns_zone_name, formState.dns_record_name);
+  }
+
+  if (formState.dns_provider === "aliyun") {
+    return joinRecordName(
+      formState.dns_domain_name,
+      normalizeAliyunRRInput(formState.dns_domain_name, formState.dns_rr),
+    );
+  }
+
+  return "";
+}
+
+function summarizePlanPayload(t: TFunction, plan: PlanFormState) {
+  const payload = parsePlanPayloadObject(plan.payload);
+  const region = getStringValue(payload.region);
+  const parts: string[] = [];
+
+  if (plan.provider === "aws") {
+    const service = normalizeAWSService(payload.service);
+    parts.push(service === "lightsail" ? "Lightsail" : "EC2");
+    if (region) {
+      parts.push(region);
+    }
+    if (plan.action_type === "provision_instance") {
+      if (service === "ec2") {
+        const instanceType = getStringValue(payload.instance_type);
+        const image = getStringValue(payload.image_id);
+        if (instanceType) {
+          parts.push(instanceType);
+        }
+        if (image) {
+          parts.push(image);
+        }
+      } else {
+        const zone = getStringValue(payload.availability_zone);
+        const blueprint = getStringValue(payload.blueprint_id);
+        const bundle = getStringValue(payload.bundle_id);
+        if (zone) {
+          parts.push(zone);
+        }
+        if (blueprint) {
+          parts.push(blueprint);
+        }
+        if (bundle) {
+          parts.push(bundle);
+        }
+      }
+    } else {
+      const instanceID = getStringValue(payload.instance_id);
+      const instanceName = getStringValue(payload.instance_name);
+      const staticIPName = getStringValue(payload.static_ip_name);
+      if (instanceID) {
+        parts.push(instanceID);
+      } else if (instanceName) {
+        parts.push(instanceName);
+      }
+      if (staticIPName) {
+        parts.push(staticIPName);
+      }
+    }
+    return parts.filter(Boolean).join(" · ");
+  }
+
+  if (plan.provider === "digitalocean") {
+    if (region) {
+      parts.push(region);
+    }
+    const size = getStringValue(payload.size);
+    const image = getStringValue(payload.image);
+    if (size) {
+      parts.push(size);
+    }
+    if (image) {
+      parts.push(image);
+    }
+    if (getBooleanValue(payload.ipv6, false)) {
+      parts.push(t("cloud.form.ipv6", { defaultValue: "Enable IPv6" }));
+    }
+    return parts.filter(Boolean).join(" · ");
+  }
+
+  if (plan.provider === "linode") {
+    if (region) {
+      parts.push(region);
+    }
+    const type = getStringValue(payload.type);
+    const image = getStringValue(payload.image);
+    if (type) {
+      parts.push(type);
+    }
+    if (image) {
+      parts.push(image);
+    }
+    return parts.filter(Boolean).join(" · ");
+  }
+
+  return region;
 }
 
 function getPlanDisplayName(plan: PlanFormState, index: number, t: TFunction) {
@@ -3474,7 +3783,7 @@ function buildTaskInput(formState: TaskFormState, t: TFunction): FailoverTaskInp
       }),
     );
   }
-  if (dnsProvider === "aliyun" && (normalizedAliyunRR.includes("://") || /[\/\\\s]/.test(normalizedAliyunRR) || normalizedAliyunRR.startsWith(".") || normalizedAliyunRR.endsWith(".") || normalizedAliyunRR.includes(".."))) {
+  if (dnsProvider === "aliyun" && (normalizedAliyunRR.includes("://") || /[/\\\s]/.test(normalizedAliyunRR) || normalizedAliyunRR.startsWith(".") || normalizedAliyunRR.endsWith(".") || normalizedAliyunRR.includes(".."))) {
     throw new Error(
       t("failover.validation.aliyun_rr_invalid", {
         defaultValue: "Aliyun host record must be like @, www, or api. Do not enter a full URL or invalid separators.",
@@ -3589,30 +3898,9 @@ function JsonBlock({
       <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
         {title}
       </div>
-      <pre className="max-h-56 overflow-auto rounded-lg border bg-muted/25 p-3 text-xs leading-6 text-slate-800 dark:text-slate-200">
+      <pre className="max-h-56 overflow-auto overscroll-contain rounded-lg border bg-muted/25 p-3 text-xs leading-6 text-slate-800 [scrollbar-gutter:stable] dark:text-slate-200">
         {prettyJson(value, "null")}
       </pre>
-    </div>
-  );
-}
-
-function DetailItemsList({
-  items,
-}: {
-  items: DetailItem[];
-}) {
-  if (items.length === 0) {
-    return null;
-  }
-
-  return (
-    <div className="mt-2 grid gap-1.5 text-xs text-muted-foreground sm:grid-cols-2">
-      {items.map((item) => (
-        <div key={`${item.label}:${item.value}`} className="min-w-0">
-          <span className="font-medium text-slate-600 dark:text-slate-300">{item.label}:</span>{" "}
-          <span className="break-all">{item.value}</span>
-        </div>
-      ))}
     </div>
   );
 }
@@ -3700,11 +3988,13 @@ function TaskPreviewSection({
   loading,
   error,
   stale,
+  hideHeader = false,
 }: {
   preview: FailoverTaskPreview | null;
   loading: boolean;
   error: string;
   stale: boolean;
+  hideHeader?: boolean;
 }) {
   const { t } = useTranslation();
   const previewSummary = React.useMemo(
@@ -3740,16 +4030,18 @@ function TaskPreviewSection({
 
   return (
     <section className="space-y-4">
-      <div className="space-y-1">
-        <div className="text-sm font-medium text-slate-900 dark:text-slate-50">
-          {t("failover.preview.title", { defaultValue: "Preview checks" })}
+      {!hideHeader ? (
+        <div className="space-y-1">
+          <div className="text-sm font-medium text-slate-900 dark:text-slate-50">
+            {t("failover.preview.title", { defaultValue: "Preview checks" })}
+          </div>
+          <div className="text-xs text-muted-foreground">
+            {t("failover.preview.hint", {
+              defaultValue: "Preview validates the current form and does not create resources or change DNS.",
+            })}
+          </div>
         </div>
-        <div className="text-xs text-muted-foreground">
-          {t("failover.preview.hint", {
-            defaultValue: "Preview validates the current form and does not create resources or change DNS.",
-          })}
-        </div>
-      </div>
+      ) : null}
       <div className="space-y-4 rounded-xl border px-4 py-4">
         {loading ? (
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -4195,7 +4487,7 @@ function ExecutionDetailDialog({
             </DialogDescription>
           </DialogHeader>
 
-          <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">
+          <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 py-4 [scrollbar-gutter:stable]">
             {loading && !execution ? <Loading /> : null}
 
             {!loading && error ? (
@@ -4362,7 +4654,7 @@ function ExecutionDetailDialog({
                         : t("failover.execution.script_output_full", { defaultValue: "Captured task output from the target agent." })}
                     </div>
                   </div>
-                  <pre className="max-h-72 overflow-auto rounded-lg border bg-muted/25 p-3 text-xs leading-6">{execution.script_output}</pre>
+                  <pre className="max-h-72 overflow-auto overscroll-contain rounded-lg border bg-muted/25 p-3 text-xs leading-6 [scrollbar-gutter:stable]">{execution.script_output}</pre>
                 </div>
               ) : null}
 
@@ -4519,7 +4811,9 @@ function ExecutionDetailDialog({
 
 function TaskEditorDialog({
   open,
+  mode,
   task,
+  templateTask,
   nodes,
   scripts,
   providerEntries,
@@ -4527,7 +4821,9 @@ function TaskEditorDialog({
   onSaved,
 }: {
   open: boolean;
+  mode: "create" | "edit";
   task: FailoverTask | null;
+  templateTask: FailoverTask | null;
   nodes: FailoverNodeOption[];
   scripts: FailoverScriptOption[];
   providerEntries: ProviderEntriesMap;
@@ -4540,11 +4836,25 @@ function TaskEditorDialog({
     loading: settingsLoading,
     refetch: refetchSettings,
   } = useSettings();
+  const copyLabel = t("copy", { defaultValue: "Copy" });
   const [submitting, setSubmitting] = React.useState(false);
   const [formState, setFormState] = React.useState<TaskFormState>(() => createEmptyTaskForm(providerEntries));
-  const [taskAdvancedOpen, setTaskAdvancedOpen] = React.useState(false);
+  const [taskDialogOpen, setTaskDialogOpen] = React.useState(false);
+  const [previewDialogOpen, setPreviewDialogOpen] = React.useState(false);
+  const [dnsDialogOpen, setDnsDialogOpen] = React.useState(false);
+  const [dnsCoreOpen, setDnsCoreOpen] = React.useState(true);
+  const [dnsAdvancedOpen, setDnsAdvancedOpen] = React.useState(false);
+  const [planDialogOpen, setPlanDialogOpen] = React.useState(false);
+  const [taskAdvancedOpen, setTaskAdvancedOpen] = React.useState(true);
+  const [taskRetryOpen, setTaskRetryOpen] = React.useState(false);
   const [selectedPlanID, setSelectedPlanID] = React.useState("");
   const [planAdvancedOpenState, setPlanAdvancedOpenState] = React.useState<Record<string, boolean>>({});
+  const [planSectionOpenState, setPlanSectionOpenState] = React.useState<Record<string, {
+    organizer?: boolean;
+    core?: boolean;
+    config?: boolean;
+    optional?: boolean;
+  }>>({});
   const [customAutoConnectGroupModes, setCustomAutoConnectGroupModes] = React.useState<Record<string, boolean>>({});
   const [planScriptSearchQueries, setPlanScriptSearchQueries] = React.useState<Record<string, string>>({});
   const [dnsCatalog, setDnsCatalog] = React.useState<FailoverDnsCatalog | null>(null);
@@ -4580,13 +4890,31 @@ function TaskEditorDialog({
 
   React.useEffect(() => {
     if (!open) {
+      setTaskDialogOpen(false);
+      setPreviewDialogOpen(false);
+      setTaskAdvancedOpen(true);
+      setTaskRetryOpen(false);
+      setDnsDialogOpen(false);
+      setDnsCoreOpen(true);
+      setDnsAdvancedOpen(false);
+      setPlanDialogOpen(false);
       return;
     }
-    const nextFormState = task ? taskToForm(task, providerEntries) : createEmptyTaskForm(providerEntries);
+    const nextFormState = mode === "edit" && task
+      ? taskToForm(task, providerEntries)
+      : templateTask
+        ? taskToDuplicateForm(templateTask, providerEntries, copyLabel)
+        : createEmptyTaskForm(providerEntries);
     setFormState(nextFormState);
-    setTaskAdvancedOpen(false);
+    setTaskDialogOpen(false);
+    setPreviewDialogOpen(false);
+    setTaskAdvancedOpen(true);
+    setTaskRetryOpen(false);
+    setDnsCoreOpen(true);
+    setDnsAdvancedOpen(false);
     setSelectedPlanID(nextFormState.plans[0]?.local_id || "");
     setPlanAdvancedOpenState({});
+    setPlanSectionOpenState({});
     setCustomAutoConnectGroupModes(
       Object.fromEntries(
         nextFormState.plans.map((plan) => [plan.local_id, !shouldSyncAutoConnectGroup(plan, providerEntries)]),
@@ -4604,7 +4932,7 @@ function TaskEditorDialog({
           entryID: nextFormState.dns_entry_id,
         }
       : null;
-  }, [open, providerEntries, resetPlanCatalogState, resetPreviewState, task]);
+  }, [copyLabel, mode, open, providerEntries, resetPlanCatalogState, resetPreviewState, task, templateTask]);
 
   const nodeLookup = React.useMemo(
     () => new Map(nodes.map((node) => [node.uuid, node])),
@@ -4612,10 +4940,12 @@ function TaskEditorDialog({
   );
   const currentOutletNode = React.useMemo(
     () => {
-      const currentClientUUID = task?.current_client_uuid || task?.watch_client_uuid || "";
+      const currentClientUUID = mode === "edit"
+        ? task?.current_client_uuid || task?.watch_client_uuid || ""
+        : "";
       return currentClientUUID ? nodeLookup.get(currentClientUUID) || null : null;
     },
-    [nodeLookup, task?.current_client_uuid, task?.watch_client_uuid],
+    [mode, nodeLookup, task?.current_client_uuid, task?.watch_client_uuid],
   );
   const sortedScripts = React.useMemo(
     () => [...scripts].sort((left, right) => {
@@ -4626,21 +4956,34 @@ function TaskEditorDialog({
     }),
     [scripts],
   );
+  const scriptLookup = React.useMemo(
+    () => new Map(scripts.map((script) => [String(script.id), script])),
+    [scripts],
+  );
   const selectedPlan = React.useMemo(
     () => formState.plans.find((plan) => plan.local_id === selectedPlanID) || formState.plans[0] || null,
     [formState.plans, selectedPlanID],
   );
-  const selectedPlanScriptNames = React.useMemo(
+  const selectedPlanScriptEntries = React.useMemo(
     () => {
       if (!selectedPlan) {
         return [];
       }
-      const selectedIDs = new Set(selectedPlan.script_clipboard_ids);
-      return sortedScripts
-        .filter((script) => selectedIDs.has(String(script.id)))
-        .map((script) => script.name);
+      return normalizePlanScriptClipboardIDs(selectedPlan.script_clipboard_ids).map((scriptID) => ({
+        id: scriptID,
+        script: scriptLookup.get(scriptID) || null,
+      }));
     },
-    [selectedPlan, sortedScripts],
+    [scriptLookup, selectedPlan],
+  );
+  const selectedPlanScriptNames = React.useMemo(
+    () => selectedPlanScriptEntries.map(({ id, script }) =>
+      script?.name
+      || t("failover.editor.script_missing", {
+        defaultValue: "Missing script #{{id}}",
+        id,
+      })),
+    [selectedPlanScriptEntries, t],
   );
   const selectedPlanScriptSearch = React.useMemo(
     () => (selectedPlan ? planScriptSearchQueries[selectedPlan.local_id] || "" : ""),
@@ -4768,6 +5111,18 @@ function TaskEditorDialog({
     ? getStringValue(selectedPlan?.auto_connect_group)
     : suggestedAutoConnectGroup;
   const selectedPlanAdvancedOpen = selectedPlan ? Boolean(planAdvancedOpenState[selectedPlan.local_id]) : false;
+  const selectedPlanOrganizerOpen = selectedPlan
+    ? planSectionOpenState[selectedPlan.local_id]?.organizer ?? false
+    : false;
+  const selectedPlanCoreOpen = selectedPlan
+    ? planSectionOpenState[selectedPlan.local_id]?.core ?? true
+    : true;
+  const selectedPlanConfigOpen = selectedPlan
+    ? planSectionOpenState[selectedPlan.local_id]?.config ?? true
+    : true;
+  const selectedPlanOptionalOpen = selectedPlan
+    ? planSectionOpenState[selectedPlan.local_id]?.optional ?? false
+    : false;
   const dnsCatalogRecords = React.useMemo(
     () => (dnsCatalog?.records || []).filter((record) => {
       const recordType = normalizeDnsRecordType(record.type);
@@ -4794,6 +5149,10 @@ function TaskEditorDialog({
   const dnsSyncModeOptions = React.useMemo(
     () => getDnsSyncModeOptions(t),
     [t],
+  );
+  const dnsSyncModeLabel = React.useMemo(
+    () => dnsSyncModeOptions.find((option) => option.value === dnsSyncMode)?.label || dnsSyncMode,
+    [dnsSyncMode, dnsSyncModeOptions],
   );
   const aliyunLineOptions = React.useMemo(
     () => getAliyunLineOptions(dnsCatalog, formState.dns_lines),
@@ -4855,6 +5214,330 @@ function TaskEditorDialog({
             defaultValue: "Preview is recommended before saving cloud failover changes.",
           })
     );
+  const hasPreviewDetail = previewing || Boolean(String(previewError || "").trim()) || Boolean(previewResult);
+  const previewSummaryStatusTone: SummaryStatusTone = String(previewError || "").trim()
+    ? "danger"
+    : previewSaveBlockedReason || (previewHasRun && previewSummary.warningCount > 0)
+      ? "warning"
+      : "neutral";
+  const previewSummaryStatusMessage = hasPreviewDetail
+    ? String(previewError || "").trim() || previewFooterHint
+    : "";
+  const previewSummaryItems = React.useMemo(
+    () => {
+      const statusLabel = previewing
+        ? t("failover.preview.running", { defaultValue: "Running" })
+        : String(previewError || "").trim()
+          ? t("failover.preview.failed", { defaultValue: "Failed" })
+          : previewResult
+            ? (previewResult.success
+              ? t("failover.preview.ready", { defaultValue: "Ready" })
+              : t("failover.preview.attention", { defaultValue: "Needs attention" }))
+            : t("failover.preview.not_run", { defaultValue: "Not run yet" });
+      const items = [
+        buildDetailItem(
+          t("failover.preview.status_label", { defaultValue: "Preview status" }),
+          statusLabel,
+        ),
+        buildDetailItem(
+          t("failover.preview.generated_at_label", { defaultValue: "Last preview" }),
+          previewResult?.generated_at ? formatDateTime(previewResult.generated_at) : "",
+        ),
+        buildDetailItem(
+          t("failover.preview.freshness_label", { defaultValue: "Freshness" }),
+          previewHasRun
+            ? (previewOutdated
+              ? t("failover.preview.outdated", { defaultValue: "Outdated" })
+              : t("failover.preview.fresh", { defaultValue: "Fresh" }))
+            : "",
+        ),
+        buildDetailItem(
+          t("failover.preview.check_total_label", { defaultValue: "Checks" }),
+          previewResult ? String(previewSummary.total) : "",
+        ),
+        buildDetailItem(
+          t("failover.preview.error_total_label", { defaultValue: "Errors" }),
+          previewResult ? String(previewSummary.errorCount) : "",
+        ),
+        buildDetailItem(
+          t("failover.preview.warning_total_label", { defaultValue: "Warnings" }),
+          previewResult ? String(previewSummary.warningCount) : "",
+        ),
+      ].filter((item): item is DetailItem => Boolean(item));
+      return items;
+    },
+    [
+      previewError,
+      previewHasRun,
+      previewOutdated,
+      previewResult,
+      previewSummary.errorCount,
+      previewSummary.total,
+      previewSummary.warningCount,
+      previewing,
+      t,
+    ],
+  );
+  const taskMonitoringSummaryItems = React.useMemo(
+    () => {
+      const items = [
+        buildDetailItem(
+          t("failover.editor.failure_threshold", { defaultValue: "Failure threshold" }),
+          formState.failure_threshold,
+        ),
+        buildDetailItem(
+          t("failover.editor.stale_after", { defaultValue: "Stale after (s)" }),
+          formState.stale_after_seconds,
+        ),
+        buildDetailItem(
+          t("failover.editor.cooldown", { defaultValue: "Cooldown (s)" }),
+          formState.cooldown_seconds,
+        ),
+        buildDetailItem(
+          t("failover.editor.provision_retry_limit", { defaultValue: "Blocked retry limit" }),
+          formState.provision_retry_limit,
+        ),
+        buildDetailItem(
+          t("failover.editor.provision_failure_fallback_limit", { defaultValue: "Plan fallback after provision failures" }),
+          formState.provision_failure_fallback_limit,
+        ),
+      ].filter((item): item is DetailItem => Boolean(item));
+      return items;
+    },
+    [
+      formState.cooldown_seconds,
+      formState.failure_threshold,
+      formState.provision_failure_fallback_limit,
+      formState.provision_retry_limit,
+      formState.stale_after_seconds,
+      t,
+    ],
+  );
+  const taskCoreSummary = React.useMemo(
+    () => describeTaskMonitoringCoreSettings(t, formState),
+    [
+      formState.cooldown_seconds,
+      formState.failure_threshold,
+      formState.stale_after_seconds,
+      t,
+    ],
+  );
+  const taskRetrySummary = React.useMemo(
+    () => describeTaskRetrySettings(t, formState),
+    [
+      formState.provision_failure_fallback_limit,
+      formState.provision_retry_limit,
+      t,
+    ],
+  );
+  const selectedDnsEntryLabel = React.useMemo(
+    () => {
+      if (!formState.dns_provider.trim()) {
+        return "";
+      }
+      const options = buildProviderEntryOptions({
+        entries: providerEntries[formState.dns_provider] || [],
+        currentValue: formState.dns_entry_id,
+      });
+      return options.find((option) => option.id === formState.dns_entry_id)?.label || formState.dns_entry_id;
+    },
+    [formState.dns_entry_id, formState.dns_provider, providerEntries],
+  );
+  const dnsTargetSummaryLabel = React.useMemo(
+    () => getDnsFormTargetLabel(formState),
+    [formState],
+  );
+  const deleteStrategyLabel = React.useMemo(
+    () => getDeleteStrategyOptions(t, formState.plans).find((option) => option.value === formState.delete_strategy)?.label || formState.delete_strategy,
+    [formState.delete_strategy, formState.plans, t],
+  );
+  const dnsSummaryItems = React.useMemo(
+    () => {
+      const items = [
+        buildDetailItem(
+          t("failover.editor.dns_provider", { defaultValue: "DNS provider" }),
+          formState.dns_provider ? getDnsProviderLabel(t, formState.dns_provider) : "",
+        ),
+        buildDetailItem(
+          t("failover.editor.dns_entry", { defaultValue: "DNS credential entry" }),
+          selectedDnsEntryLabel,
+        ),
+        buildDetailItem(
+          t("failover.task.dns_target_label", { defaultValue: "DNS target" }),
+          dnsTargetSummaryLabel,
+        ),
+        buildDetailItem(
+          t("failover.editor.dns_sync_mode", { defaultValue: "DNS sync mode" }),
+          formState.dns_provider ? dnsSyncModeLabel : "",
+        ),
+        buildDetailItem(
+          t("failover.editor.ttl", { defaultValue: "TTL" }),
+          formState.dns_provider ? formState.dns_ttl : "",
+        ),
+        buildDetailItem(
+          t("failover.editor.line", { defaultValue: "Routing line" }),
+          formState.dns_provider === "aliyun"
+            ? formState.dns_lines.map((line) => localizeAliyunLineLabel(line)).join(", ")
+            : "",
+        ),
+        buildDetailItem(
+          t("failover.editor.proxied", { defaultValue: "Cloudflare proxy" }),
+          formState.dns_provider === "cloudflare"
+            ? (formState.dns_proxied
+              ? t("common.yes", { defaultValue: "Yes" })
+              : t("common.no", { defaultValue: "No" }))
+            : "",
+        ),
+        buildDetailItem(
+          t("failover.editor.delete_strategy", { defaultValue: "Old instance strategy" }),
+          deleteStrategyLabel,
+        ),
+        buildDetailItem(
+          t("failover.editor.delete_delay", { defaultValue: "Delete delay (s)" }),
+          formState.delete_strategy === "delete_after_success_delay"
+            ? formState.delete_delay_seconds
+            : "",
+        ),
+      ].filter((item): item is DetailItem => Boolean(item));
+      return items;
+    },
+    [
+      deleteStrategyLabel,
+      dnsSyncModeLabel,
+      dnsTargetSummaryLabel,
+      formState.delete_delay_seconds,
+      formState.delete_strategy,
+      formState.dns_lines,
+      formState.dns_proxied,
+      formState.dns_provider,
+      formState.dns_ttl,
+      selectedDnsEntryLabel,
+      t,
+    ],
+  );
+  const dnsProviderSummaryLabel = React.useMemo(
+    () => formState.dns_provider ? getDnsProviderLabel(t, formState.dns_provider) : "",
+    [formState.dns_provider, t],
+  );
+  const dnsCoreSummary = React.useMemo(
+    () => describeDnsCoreSettings(
+      t,
+      hasDnsEnabled,
+      dnsProviderSummaryLabel,
+      selectedDnsEntryLabel,
+      dnsTargetSummaryLabel,
+      dnsSyncModeLabel,
+      formState.dns_ttl,
+    ),
+    [
+      dnsProviderSummaryLabel,
+      dnsSyncModeLabel,
+      dnsTargetSummaryLabel,
+      formState.dns_ttl,
+      hasDnsEnabled,
+      selectedDnsEntryLabel,
+      t,
+    ],
+  );
+  const dnsAdvancedSummary = React.useMemo(
+    () => describeDnsAdvancedSettings(
+      t,
+      deleteStrategyLabel,
+      formState.delete_delay_seconds,
+      formState.delete_strategy,
+    ),
+    [
+      deleteStrategyLabel,
+      formState.delete_delay_seconds,
+      formState.delete_strategy,
+      t,
+    ],
+  );
+  const getPlanEntrySummaryLabel = React.useCallback(
+    (plan: PlanFormState) => {
+      if (!plan.provider.trim()) {
+        return "";
+      }
+      const options = buildPlanProviderEntryOptions(
+        t,
+        plan.provider,
+        providerEntries,
+        plan.provider_entry_group,
+        plan.provider_entry_id,
+      );
+      return options.find((option) => option.id === plan.provider_entry_id)?.label || plan.provider_entry_id;
+    },
+    [providerEntries, t],
+  );
+  const getScriptDisplayName = React.useCallback((scriptID: string) => {
+    const script = scriptLookup.get(scriptID);
+    return script?.name || t("failover.editor.script_missing", {
+      defaultValue: "Missing script #{{id}}",
+      id: scriptID,
+    });
+  }, [scriptLookup, t]);
+  const getPlanScriptPreview = React.useCallback((scriptIDs: string[], limit = Number.MAX_SAFE_INTEGER) => (
+    normalizePlanScriptClipboardIDs(scriptIDs)
+      .slice(0, limit)
+      .map((scriptID) => getScriptDisplayName(scriptID))
+      .join(" · ")
+  ), [getScriptDisplayName]);
+  const selectedPlanEntrySummary = React.useMemo(
+    () => {
+      if (!selectedPlan) {
+        return "";
+      }
+      return [
+        selectedPlan.provider_entry_group
+          ? t("failover.execution.summary.entry_group", {
+            defaultValue: "Group {{group}}",
+            group: selectedPlan.provider_entry_group,
+          })
+          : "",
+        getPlanEntrySummaryLabel(selectedPlan),
+      ].filter(Boolean).join(" · ");
+    },
+    [getPlanEntrySummaryLabel, selectedPlan, t],
+  );
+  const setSelectedPlanSectionOpen = React.useCallback((section: "organizer" | "core" | "config" | "optional", openState: boolean) => {
+    if (!selectedPlan) {
+      return;
+    }
+    setPlanSectionOpenState((current) => ({
+      ...current,
+      [selectedPlan.local_id]: {
+        ...current[selectedPlan.local_id],
+        [section]: openState,
+      },
+    }));
+  }, [selectedPlan]);
+  const selectedPlanCoreSummary = React.useMemo(
+    () => describePlanCoreSettings(t, selectedPlan, selectedPlanEntrySummary),
+    [selectedPlan, selectedPlanEntrySummary, t],
+  );
+  const selectedPlanOrganizerSummary = React.useMemo(
+    () => describePlanOrganizerSummary(
+      t,
+      selectedPlan,
+      selectedPlanIndex,
+      formState.plans.length,
+      selectedPlanCoreSummary,
+      selectedPlan?.script_clipboard_ids.length || 0,
+    ),
+    [formState.plans.length, selectedPlan, selectedPlanCoreSummary, selectedPlanIndex, t],
+  );
+  const selectedPlanConfigSummary = React.useMemo(
+    () => describePlanConfigSettings(t, selectedPlan),
+    [selectedPlan, t],
+  );
+  const selectedPlanOptionalSummary = React.useMemo(
+    () => describePlanOptionalSettings(t, selectedPlan, selectedPlanScriptNames),
+    [selectedPlan, selectedPlanScriptNames, t],
+  );
+  const openPlanDialogFor = React.useCallback((localID: string) => {
+    setSelectedPlanID(localID);
+    setPlanDialogOpen(true);
+  }, []);
 
   React.useEffect(() => {
     if (formState.plans.length === 0) {
@@ -4991,7 +5674,7 @@ function TaskEditorDialog({
     providerEntries,
   ]);
 
-  const updatePlan = (localID: string, updater: (plan: PlanFormState) => PlanFormState) => {
+  const updatePlan = React.useCallback((localID: string, updater: (plan: PlanFormState) => PlanFormState) => {
     setFormState((current) => {
       const nextState = {
         ...current,
@@ -5002,7 +5685,7 @@ function TaskEditorDialog({
         delete_strategy: resolveTaskDeleteStrategy(nextState.delete_strategy, nextState.plans),
       };
     });
-  };
+  }, []);
 
   const setSelectedPlanAdvancedOpen = React.useCallback((openState: boolean) => {
     if (!selectedPlan) {
@@ -5034,18 +5717,50 @@ function TaskEditorDialog({
 
   const togglePlanScript = React.useCallback((localID: string, scriptID: string, checked: boolean) => {
     updatePlan(localID, (current) => {
-      const currentIDs = new Set(normalizePlanScriptClipboardIDs(current.script_clipboard_ids));
+      const currentIDs = normalizePlanScriptClipboardIDs(current.script_clipboard_ids);
       if (checked) {
-        currentIDs.add(scriptID);
-      } else {
-        currentIDs.delete(scriptID);
+        if (currentIDs.includes(scriptID)) {
+          return current;
+        }
+        return {
+          ...current,
+          script_clipboard_ids: [...currentIDs, scriptID],
+        };
       }
       return {
         ...current,
-        script_clipboard_ids: orderPlanScriptClipboardIDs(Array.from(currentIDs), sortedScripts),
+        script_clipboard_ids: currentIDs.filter((currentID) => currentID !== scriptID),
       };
     });
-  }, [sortedScripts]);
+  }, [updatePlan]);
+
+  const movePlanScriptToIndex = React.useCallback((localID: string, scriptID: string, targetIndex: number) => {
+    updatePlan(localID, (current) => {
+      const currentIDs = normalizePlanScriptClipboardIDs(current.script_clipboard_ids);
+      const currentIndex = currentIDs.indexOf(scriptID);
+      if (currentIndex < 0) {
+        return current;
+      }
+
+      const clampedIndex = Math.max(0, Math.min(targetIndex, currentIDs.length - 1));
+      if (clampedIndex === currentIndex) {
+        return current;
+      }
+
+      return {
+        ...current,
+        script_clipboard_ids: moveItemInArray(currentIDs, currentIndex, clampedIndex),
+      };
+    });
+  }, [updatePlan]);
+
+  const removePlanScript = React.useCallback((localID: string, scriptID: string) => {
+    updatePlan(localID, (current) => ({
+      ...current,
+      script_clipboard_ids: normalizePlanScriptClipboardIDs(current.script_clipboard_ids)
+        .filter((currentID) => currentID !== scriptID),
+    }));
+  }, [updatePlan]);
 
   const updateSelectedPlanPayload = React.useCallback((updater: (payload: Record<string, unknown>) => Record<string, unknown>) => {
     if (!selectedPlan) {
@@ -5060,6 +5775,34 @@ function TaskEditorDialog({
       };
     });
   }, [selectedPlan, updatePlan]);
+
+  const movePlanToIndex = React.useCallback((localID: string, targetIndex: number) => {
+    setFormState((current) => {
+      const currentIndex = current.plans.findIndex((plan) => plan.local_id === localID);
+      if (currentIndex < 0) {
+        return current;
+      }
+
+      const clampedIndex = Math.max(0, Math.min(targetIndex, current.plans.length - 1));
+      if (clampedIndex === currentIndex) {
+        return current;
+      }
+
+      const nextPlans = [...current.plans];
+      const [movedPlan] = nextPlans.splice(currentIndex, 1);
+      nextPlans.splice(clampedIndex, 0, movedPlan);
+
+      const nextState = {
+        ...current,
+        plans: renumberPlanPriorities(nextPlans),
+      };
+      return {
+        ...nextState,
+        delete_strategy: resolveTaskDeleteStrategy(nextState.delete_strategy, nextState.plans),
+      };
+    });
+    setSelectedPlanID(localID);
+  }, []);
 
   const refreshPlanCatalog = React.useCallback(async (overrides?: { service?: string; region?: string; mode?: "regions" | "full" }) => {
     if (!selectedPlan?.provider.trim() || (!selectedPlan.provider_entry_id.trim() && !selectedPlan.provider_entry_group.trim())) {
@@ -5105,6 +5848,7 @@ function TaskEditorDialog({
       }
     }
   }, [
+    resetPlanCatalogState,
     selectedPlan,
     selectedPlanRegion,
     selectedPlanService,
@@ -5128,7 +5872,7 @@ function TaskEditorDialog({
     setFormState((current) => {
       const nextState = {
         ...current,
-        plans: [...current.plans, nextPlan],
+        plans: renumberPlanPriorities([...current.plans, nextPlan]),
       };
       return {
         ...nextState,
@@ -5138,11 +5882,38 @@ function TaskEditorDialog({
     setSelectedPlanID(nextPlan.local_id);
   };
 
+  const duplicateSelectedPlan = React.useCallback(() => {
+    if (!selectedPlan) {
+      return;
+    }
+
+    const nextPlan: PlanFormState = {
+      ...selectedPlan,
+      local_id: createLocalID(),
+      name: [String(selectedPlan.name || "").trim(), copyLabel].filter(Boolean).join(" ").trim(),
+      enabled: false,
+      priority: String(formState.plans.length + 1),
+      script_clipboard_ids: [...selectedPlan.script_clipboard_ids],
+    };
+
+    setFormState((current) => {
+      const nextState = {
+        ...current,
+        plans: renumberPlanPriorities([...current.plans, nextPlan]),
+      };
+      return {
+        ...nextState,
+        delete_strategy: resolveTaskDeleteStrategy(nextState.delete_strategy, nextState.plans),
+      };
+    });
+    setSelectedPlanID(nextPlan.local_id);
+  }, [copyLabel, formState.plans.length, selectedPlan]);
+
   const removePlan = (localID: string) => {
     setFormState((current) => {
       const nextState = {
         ...current,
-        plans: current.plans.filter((plan) => plan.local_id !== localID),
+        plans: renumberPlanPriorities(current.plans.filter((plan) => plan.local_id !== localID)),
       };
       return {
         ...nextState,
@@ -5193,7 +5964,7 @@ function TaskEditorDialog({
         );
       }
       const payload = buildTaskInput(formState, t);
-      if (task) {
+      if (mode === "edit" && task) {
         await updateFailoverTask(task.id, payload);
         toast.success(t("failover.messages.updated", { defaultValue: "Failover task updated" }));
       } else {
@@ -5227,14 +5998,14 @@ function TaskEditorDialog({
       >
         <DialogHeader className="shrink-0 border-b bg-background px-5 py-4">
           <DialogTitle>
-            {task
+            {mode === "edit"
               ? t("failover.editor.edit_title", { defaultValue: "Edit failover task" })
               : t("failover.editor.create_title", { defaultValue: "Create failover task" })}
           </DialogTitle>
         </DialogHeader>
 
         <form className="flex min-h-0 flex-1 flex-col overflow-hidden" onSubmit={handleSubmit}>
-          <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden px-5 py-5">
+          <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-contain px-5 py-5 [scrollbar-gutter:stable]">
               <div className="space-y-6">
                 <section className="space-y-4">
                   <div className="space-y-1">
@@ -5269,7 +6040,7 @@ function TaskEditorDialog({
                       <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
                         {t("failover.editor.current_outlet", { defaultValue: "Current outlet" })}
                       </div>
-                      {task?.current_client_uuid || task?.current_address ? (
+                      {mode === "edit" && (task?.current_client_uuid || task?.current_address) ? (
                         <div className="mt-2 space-y-1 text-sm">
                           <div className="truncate font-medium text-slate-900 dark:text-slate-50" title={currentOutletNode ? getNodeLabel(currentOutletNode) : task.current_client_uuid || task.current_address || undefined}>
                             {currentOutletNode ? getNodeLabel(currentOutletNode) : task.current_client_uuid || task.current_address}
@@ -5295,93 +6066,162 @@ function TaskEditorDialog({
                     </div>
                   </div>
 
-                  <Collapsible open={taskAdvancedOpen} onOpenChange={setTaskAdvancedOpen}>
-                    <div className="rounded-xl border">
-                      <CollapsibleTrigger asChild>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          className="flex h-auto w-full items-center justify-between rounded-xl px-4 py-4 text-left"
-                        >
-                          <div className="space-y-1">
-                            <div className="text-sm font-medium text-slate-900 dark:text-slate-50">
-                              {t("failover.editor.show_task_advanced", {
-                                defaultValue: "Advanced monitoring settings",
-                              })}
-                            </div>
-                            <div className="line-clamp-2 text-xs text-muted-foreground">
-                              {describeTaskAdvancedSettings(t, formState)}
-                            </div>
-                          </div>
-                          <ChevronDown
-                            className={cn(
-                              "size-4 shrink-0 text-muted-foreground transition-transform",
-                              taskAdvancedOpen ? "rotate-180" : "",
-                            )}
-                          />
-                        </Button>
-                      </CollapsibleTrigger>
-                      <CollapsibleContent className="border-t px-4 py-4">
-                        <div className="grid gap-4 lg:grid-cols-3 xl:grid-cols-5">
-                          <div className="space-y-2">
-                            <Label htmlFor="failover-threshold">{t("failover.editor.failure_threshold", { defaultValue: "Failure threshold" })}</Label>
-                            <Input
-                              id="failover-threshold"
-                              type="number"
-                              min={1}
-                              value={formState.failure_threshold}
-                              onChange={(event) => updateTaskField("failure_threshold", event.target.value)}
-                            />
-                          </div>
-                          <div className="space-y-2">
-                            <Label htmlFor="failover-stale">{t("failover.editor.stale_after", { defaultValue: "Stale after (s)" })}</Label>
-                            <Input
-                              id="failover-stale"
-                              type="number"
-                              min={1}
-                              value={formState.stale_after_seconds}
-                              onChange={(event) => updateTaskField("stale_after_seconds", event.target.value)}
-                            />
-                          </div>
-                          <div className="space-y-2">
-                            <Label htmlFor="failover-cooldown">{t("failover.editor.cooldown", { defaultValue: "Cooldown (s)" })}</Label>
-                            <Input
-                              id="failover-cooldown"
-                              type="number"
-                              min={0}
-                              value={formState.cooldown_seconds}
-                              onChange={(event) => updateTaskField("cooldown_seconds", event.target.value)}
-                            />
-                          </div>
-                          <div className="space-y-2">
-                            <Label htmlFor="failover-provision-retry-limit">
-                              {t("failover.editor.provision_retry_limit", { defaultValue: "Blocked retry limit" })}
-                            </Label>
-                            <Input
-                              id="failover-provision-retry-limit"
-                              type="number"
-                              min={1}
-                              value={formState.provision_retry_limit}
-                              onChange={(event) => updateTaskField("provision_retry_limit", event.target.value)}
-                            />
-                          </div>
-                          <div className="space-y-2">
-                            <Label htmlFor="failover-provision-fallback-limit">
-                              {t("failover.editor.provision_failure_fallback_limit", { defaultValue: "Plan fallback after provision failures" })}
-                            </Label>
-                            <Input
-                              id="failover-provision-fallback-limit"
-                              type="number"
-                              min={1}
-                              value={formState.provision_failure_fallback_limit}
-                              onChange={(event) => updateTaskField("provision_failure_fallback_limit", event.target.value)}
-                            />
-                          </div>
-                        </div>
-                      </CollapsibleContent>
-                    </div>
-                  </Collapsible>
+                  <ActionSummaryCard
+                    title={t("failover.editor.show_task_advanced", {
+                      defaultValue: "Advanced monitoring settings",
+                    })}
+                    hint={t("failover.editor.task_summary_hint", {
+                      defaultValue: "Keep the main dialog focused on task identity and current outlet. Open the secondary dialog when you need to tune thresholds or retry behavior.",
+                    })}
+                    actionLabel={t("common.edit", { defaultValue: "Edit" })}
+                    onAction={() => setTaskDialogOpen(true)}
+                    items={taskMonitoringSummaryItems}
+                  />
               </section>
+
+              <Dialog open={taskDialogOpen} onOpenChange={setTaskDialogOpen}>
+                <DialogContent className="flex h-[82vh] min-h-0 w-[calc(100vw-2rem)] max-w-4xl flex-col overflow-hidden p-0">
+                  <DialogHeader className="shrink-0 border-b bg-background px-5 py-4">
+                    <DialogTitle>
+                      {t("failover.editor.show_task_advanced", {
+                        defaultValue: "Advanced monitoring settings",
+                      })}
+                    </DialogTitle>
+                    <DialogDescription>
+                      {t("failover.editor.task_dialog_description", {
+                        defaultValue: "Tune failure thresholds, stale-data windows, cooldown, and retry behavior without crowding the main task dialog.",
+                      })}
+                    </DialogDescription>
+                  </DialogHeader>
+                  <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-contain px-5 py-5 [scrollbar-gutter:stable]">
+                    <section className="space-y-4">
+                      <div className="space-y-1">
+                        <div className="text-sm font-medium text-slate-900 dark:text-slate-50">
+                          {t("failover.editor.step_task", { defaultValue: "1. Task" })}
+                        </div>
+                      </div>
+                      <Collapsible open={taskAdvancedOpen} onOpenChange={setTaskAdvancedOpen}>
+                        <div className="rounded-xl border">
+                          <CollapsibleTrigger asChild>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              className="flex h-auto w-full items-center justify-between rounded-xl px-4 py-4 text-left"
+                            >
+                              <div className="space-y-1">
+                                <div className="text-sm font-medium text-slate-900 dark:text-slate-50">
+                                  {t("failover.editor.monitoring_core", {
+                                    defaultValue: "Monitoring thresholds",
+                                  })}
+                                </div>
+                                <div className="line-clamp-2 text-xs text-muted-foreground">
+                                  {taskCoreSummary}
+                                </div>
+                              </div>
+                              <ChevronDown
+                                className={cn(
+                                  "size-4 shrink-0 text-muted-foreground transition-transform",
+                                  taskAdvancedOpen ? "rotate-180" : "",
+                                )}
+                              />
+                            </Button>
+                          </CollapsibleTrigger>
+                          <CollapsibleContent className="border-t px-4 py-4">
+                            <div className="grid gap-4 lg:grid-cols-3">
+                              <div className="space-y-2">
+                                <Label htmlFor="failover-threshold">{t("failover.editor.failure_threshold", { defaultValue: "Failure threshold" })}</Label>
+                                <Input
+                                  id="failover-threshold"
+                                  type="number"
+                                  min={1}
+                                  value={formState.failure_threshold}
+                                  onChange={(event) => updateTaskField("failure_threshold", event.target.value)}
+                                />
+                              </div>
+                              <div className="space-y-2">
+                                <Label htmlFor="failover-stale">{t("failover.editor.stale_after", { defaultValue: "Stale after (s)" })}</Label>
+                                <Input
+                                  id="failover-stale"
+                                  type="number"
+                                  min={1}
+                                  value={formState.stale_after_seconds}
+                                  onChange={(event) => updateTaskField("stale_after_seconds", event.target.value)}
+                                />
+                              </div>
+                              <div className="space-y-2">
+                                <Label htmlFor="failover-cooldown">{t("failover.editor.cooldown", { defaultValue: "Cooldown (s)" })}</Label>
+                                <Input
+                                  id="failover-cooldown"
+                                  type="number"
+                                  min={0}
+                                  value={formState.cooldown_seconds}
+                                  onChange={(event) => updateTaskField("cooldown_seconds", event.target.value)}
+                                />
+                              </div>
+                            </div>
+                          </CollapsibleContent>
+                        </div>
+                      </Collapsible>
+                      <Collapsible open={taskRetryOpen} onOpenChange={setTaskRetryOpen}>
+                        <div className="rounded-xl border">
+                          <CollapsibleTrigger asChild>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              className="flex h-auto w-full items-center justify-between rounded-xl px-4 py-4 text-left"
+                            >
+                              <div className="space-y-1">
+                                <div className="text-sm font-medium text-slate-900 dark:text-slate-50">
+                                  {t("failover.editor.task_retry", {
+                                    defaultValue: "Retry and fallback",
+                                  })}
+                                </div>
+                                <div className="line-clamp-2 text-xs text-muted-foreground">
+                                  {taskRetrySummary}
+                                </div>
+                              </div>
+                              <ChevronDown
+                                className={cn(
+                                  "size-4 shrink-0 text-muted-foreground transition-transform",
+                                  taskRetryOpen ? "rotate-180" : "",
+                                )}
+                              />
+                            </Button>
+                          </CollapsibleTrigger>
+                          <CollapsibleContent className="border-t px-4 py-4">
+                            <div className="grid gap-4 lg:grid-cols-2">
+                              <div className="space-y-2">
+                                <Label htmlFor="failover-provision-retry-limit">
+                                  {t("failover.editor.provision_retry_limit", { defaultValue: "Blocked retry limit" })}
+                                </Label>
+                                <Input
+                                  id="failover-provision-retry-limit"
+                                  type="number"
+                                  min={1}
+                                  value={formState.provision_retry_limit}
+                                  onChange={(event) => updateTaskField("provision_retry_limit", event.target.value)}
+                                />
+                              </div>
+                              <div className="space-y-2">
+                                <Label htmlFor="failover-provision-fallback-limit">
+                                  {t("failover.editor.provision_failure_fallback_limit", { defaultValue: "Plan fallback after provision failures" })}
+                                </Label>
+                                <Input
+                                  id="failover-provision-fallback-limit"
+                                  type="number"
+                                  min={1}
+                                  value={formState.provision_failure_fallback_limit}
+                                  onChange={(event) => updateTaskField("provision_failure_fallback_limit", event.target.value)}
+                                />
+                              </div>
+                            </div>
+                          </CollapsibleContent>
+                        </div>
+                      </Collapsible>
+                    </section>
+                  </div>
+                </DialogContent>
+              </Dialog>
 
               <section className="space-y-4">
                 <div className="space-y-1">
@@ -5390,439 +6230,586 @@ function TaskEditorDialog({
                   </div>
                 </div>
                 <div className="space-y-4 rounded-xl border px-4 py-4">
-                  <div className="text-sm font-medium text-slate-900 dark:text-slate-50">
-                    {t("failover.editor.dns", { defaultValue: "DNS and cleanup" })}
-                  </div>
-                  <div className="rounded-xl bg-muted/20 px-4 py-3">
-                    <div className="flex items-center justify-between gap-4">
+                  <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+                    <div className="space-y-1">
                       <div className="text-sm font-medium text-slate-900 dark:text-slate-50">
-                        {t("failover.editor.dns_enabled", { defaultValue: "Enable DNS switching" })}
+                        {t("failover.editor.dns", { defaultValue: "DNS and cleanup" })}
                       </div>
-                      <Switch
-                        checked={hasDnsEnabled}
-                        onCheckedChange={(checked) => setDnsEnabled(Boolean(checked))}
-                        disabled={!hasDnsEnabled && !hasAnyDnsCredential}
-                      />
+                      <div className="text-xs text-muted-foreground">
+                        {hasDnsEnabled
+                          ? t("failover.editor.dns_summary_hint", {
+                            defaultValue: "Review the DNS target, sync mode, and old-instance cleanup here. Open the secondary dialog only when you need to change the details.",
+                          })
+                          : t("failover.editor.no_dns_hint", {
+                            defaultValue: "This task will skip DNS switching and only manage cloud failover actions.",
+                          })}
+                      </div>
                     </div>
-                    {!hasDnsEnabled && !hasAnyDnsCredential ? (
-                      <div className="mt-3 rounded-lg border border-dashed px-3 py-2 text-xs text-muted-foreground">
-                        {t("failover.editor.no_dns_provider_configured", {
-                          defaultValue: "No DNS credential is configured yet. Add one first if you want this task to update DNS records.",
-                        })}
-                      </div>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => setDnsDialogOpen(true)}
+                      disabled={!hasDnsEnabled && !hasAnyDnsCredential}
+                    >
+                      <PencilLine className="size-4" />
+                      {t("common.edit", { defaultValue: "Edit" })}
+                    </Button>
+                  </div>
+
+                  <div className="flex flex-wrap gap-2">
+                    <Badge variant={hasDnsEnabled ? "success" : "outline"}>
+                      {hasDnsEnabled
+                        ? t("failover.editor.dns_enabled", { defaultValue: "Enable DNS switching" })
+                        : t("failover.editor.no_dns", { defaultValue: "Do not switch DNS" })}
+                    </Badge>
+                    {formState.dns_provider ? (
+                      <Badge variant="secondary">
+                        {getDnsProviderLabel(t, formState.dns_provider)}
+                      </Badge>
+                    ) : null}
+                    {dnsCatalogLoading && hasDnsEnabled ? (
+                      <Badge variant="info">
+                        {t("common.loading", { defaultValue: "Loading" })}
+                      </Badge>
                     ) : null}
                   </div>
-                  {hasDnsEnabled ? (
-                    <div className="grid gap-4 lg:grid-cols-2">
-                      <div className="space-y-2">
-                        <Label>{t("failover.editor.dns_provider", { defaultValue: "DNS provider" })}</Label>
-                        <Select
-                          value={formState.dns_provider || undefined}
-                          onValueChange={(value) => {
-                            const nextEntryOptions = buildProviderEntryOptions({
-                              entries: providerEntries[value] || [],
-                            });
-                            const nextEntryID = nextEntryOptions[0]?.id || "";
-                            setFormState((current) => ({
-                              ...current,
-                              dns_provider: value,
-                              dns_entry_id: nextEntryID,
-                              ...buildDefaultDnsFields(value, providerEntries, nextEntryID),
-                            }));
-                            setDnsCatalog(null);
-                            setDnsCatalogError("");
-                            setSelectedDnsRecordKey("");
-                          }}
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder={t("failover.editor.dns_provider_placeholder", { defaultValue: "Choose a DNS provider" })} />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {getDnsProviderOptions(t, providerEntries).map((option) => (
-                              <SelectItem key={option.value} value={option.value} disabled={option.disabled}>
-                                {option.label}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div className="space-y-2">
-                        <Label>{t("failover.editor.dns_entry", { defaultValue: "DNS credential entry" })}</Label>
-                        {(() => {
-                          const options = buildProviderEntryOptions({
-                            entries: providerEntries[formState.dns_provider] || [],
-                            currentValue: formState.dns_entry_id,
-                          });
-                          if (!formState.dns_provider) {
-                            return (
-                              <div className="rounded-xl border border-dashed px-4 py-3 text-sm text-muted-foreground">
-                                {t("failover.editor.dns_provider_required_hint", {
-                                  defaultValue: "Choose a DNS provider first.",
-                                })}
-                              </div>
-                            );
-                          }
-                          if (options.length === 0) {
-                            return (
-                              <div className="rounded-xl border border-dashed px-4 py-3 text-sm text-muted-foreground">
-                                {t("failover.editor.dns_entry_missing", {
-                                  defaultValue: "No DNS credential is configured for this provider yet.",
-                                })}
-                              </div>
-                            );
-                          }
-                          return (
-                            <Select
-                              value={formState.dns_entry_id || undefined}
-                              onValueChange={(value) => {
-                                setFormState((current) => ({
-                                  ...current,
-                                  dns_entry_id: value,
-                                  ...buildDefaultDnsFields(current.dns_provider, providerEntries, value),
-                                }));
-                                setDnsCatalog(null);
-                                setDnsCatalogError("");
-                                setSelectedDnsRecordKey("");
-                              }}
-                            >
-                              <SelectTrigger>
-                                <SelectValue placeholder={t("failover.editor.dns_entry_placeholder", { defaultValue: "Choose an entry" })} />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {options.map((option) => (
-                                  <SelectItem key={option.id} value={option.id}>
-                                    {option.label}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                          );
-                        })()}
-                      </div>
-                    </div>
-                  ) : null}
 
-                  {hasDnsEnabled ? (
-                    <div className="flex flex-wrap items-end gap-2">
-                      <div className="min-w-0 flex-1 space-y-2">
-                        <Label>{t("failover.editor.existing_record", { defaultValue: "Existing DNS record" })}</Label>
-                        <Select
-                          value={selectedDnsRecordKey || "__none"}
-                          onValueChange={(value) => {
-                            setSelectedDnsRecordKey(value);
-                            if (value === "__none") {
-                              return;
-                            }
-                            const record = dnsCatalogRecords.find((item) => getDnsRecordKey(item) === value);
-                            if (!record) {
-                              return;
-                            }
-                            setFormState((current) => {
-                              const nextState = fillDnsFieldsFromRecord(current, record);
-                              if (current.dns_provider === "aliyun") {
-                                const lines = collectAliyunRecordLines(dnsCatalogRecords, record);
-                                if (lines.length > 0) {
-                                  nextState.dns_lines = lines;
-                                  nextState.dns_line = lines[0];
-                                }
-                              }
-                              return nextState;
-                            });
-                          }}
-                          disabled={!dnsCatalogRecords.length}
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder={t("failover.editor.existing_record_placeholder", { defaultValue: "Choose an existing DNS record" })} />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="__none">
-                              {t("failover.editor.existing_record_placeholder", { defaultValue: "Choose an existing DNS record" })}
-                            </SelectItem>
-                            {dnsCatalogRecords.map((record) => (
-                              <SelectItem key={getDnsRecordKey(record)} value={getDnsRecordKey(record)}>
-                                {dnsRecordSummary(record)}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        onClick={() => void refreshDnsCatalog({
-                          zone_name: formState.dns_zone_name.trim(),
-                          domain_name: formState.dns_domain_name.trim(),
-                        })}
-                        disabled={dnsCatalogLoading || !formState.dns_provider.trim() || !formState.dns_entry_id.trim()}
-                      >
-                        <RefreshCw className={cn("size-4", dnsCatalogLoading ? "animate-spin" : "")} />
-                        {t("failover.editor.load_records", { defaultValue: "Load records" })}
-                      </Button>
+                  {!hasDnsEnabled && !hasAnyDnsCredential ? (
+                    <div className="rounded-xl border border-dashed px-4 py-3 text-sm text-muted-foreground">
+                      {t("failover.editor.no_dns_provider_configured", {
+                        defaultValue: "No DNS credential is configured yet. Add one first if you want this task to update DNS records.",
+                      })}
                     </div>
-                  ) : null}
+                  ) : hasDnsEnabled ? (
+                    <DetailItemsList items={dnsSummaryItems} />
+                  ) : (
+                    <div className="rounded-xl border border-dashed px-4 py-3 text-sm text-muted-foreground">
+                      {t("failover.editor.no_dns_hint", {
+                        defaultValue: "This task will skip DNS switching and only manage cloud failover actions.",
+                      })}
+                    </div>
+                  )}
 
                   {dnsCatalogError && hasDnsEnabled ? (
                     <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-xs text-red-700 dark:border-red-900/40 dark:bg-red-950/30 dark:text-red-200">
                       {dnsCatalogError}
                     </div>
                   ) : null}
-
-                  {formState.dns_provider === "cloudflare" ? (
-                    <div className="grid gap-4 lg:grid-cols-2">
-                      <div className="space-y-2">
-                        <Label>{t("failover.editor.zone_name", { defaultValue: "Zone / domain" })}</Label>
-                        <Select
-                          value={formState.dns_zone_name || undefined}
-                          onValueChange={(value) => {
-                            updateTaskField("dns_zone_name", value);
-                            setSelectedDnsRecordKey("");
-                            void refreshDnsCatalog({ zone_name: value });
-                          }}
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder="example.com" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {dnsZoneOptions.map((option) => (
-                              <SelectItem key={option.value} value={option.value}>
-                                {option.label}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="failover-record-name">{t("failover.editor.record_name", { defaultValue: "Record name" })}</Label>
-                        <Input
-                          id="failover-record-name"
-                          value={formState.dns_record_name}
-                          onChange={(event) => updateTaskField("dns_record_name", event.target.value)}
-                          placeholder="@ / www / api"
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label>{t("failover.editor.dns_sync_mode", { defaultValue: "DNS sync mode" })}</Label>
-                        <Select
-                          value={dnsSyncMode}
-                          onValueChange={(value) => {
-                            setFormState((current) => ({
-                              ...current,
-                              ...applyDnsSyncMode(value),
-                            }));
-                          }}
-                        >
-                          <SelectTrigger>
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {dnsSyncModeOptions.map((option) => (
-                              <SelectItem key={option.value} value={option.value}>
-                                {option.label}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        <div className="text-xs text-muted-foreground">
-                          {t("failover.editor.dns_sync_mode_hint", {
-                            defaultValue: "Dual stack always updates the A record and only adds AAAA when the new outlet reports IPv6. IPv6-only mode still requires an IPv6 address.",
-                          })}
-                        </div>
-                      </div>
-                      <div className="space-y-2">
-                        <Label>{t("failover.editor.ttl", { defaultValue: "TTL" })}</Label>
-                        <Select
-                          value={formState.dns_ttl || undefined}
-                          onValueChange={(value) => updateTaskField("dns_ttl", value)}
-                        >
-                          <SelectTrigger>
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {dnsTTLOptions.map((option) => (
-                              <SelectItem key={option.value} value={option.value}>
-                                {option.label}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div className="rounded-xl bg-muted/20 px-4 py-3 lg:col-span-2">
-                        <div className="flex items-center justify-between gap-4">
-                          <div className="space-y-1">
-                            <div className="text-sm font-medium text-slate-900 dark:text-slate-50">
-                              {t("failover.editor.proxied", { defaultValue: "Cloudflare proxy" })}
-                            </div>
-                            <div className="text-xs text-muted-foreground">
-                              {t("failover.editor.proxied_hint", { defaultValue: "Use the credential default unless this task needs a different proxy mode." })}
-                            </div>
-                          </div>
-                          <Switch
-                            checked={formState.dns_proxied}
-                            onCheckedChange={(checked) => updateTaskField("dns_proxied", Boolean(checked))}
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  ) : formState.dns_provider === "aliyun" ? (
-                    <div className="grid gap-4 lg:grid-cols-2">
-                      <div className="space-y-2">
-                        <Label>{t("failover.editor.domain_name", { defaultValue: "Domain" })}</Label>
-                        <Select
-                          value={formState.dns_domain_name || undefined}
-                          onValueChange={(value) => {
-                            updateTaskField("dns_domain_name", value);
-                            setSelectedDnsRecordKey("");
-                            void refreshDnsCatalog({ domain_name: value });
-                          }}
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder="example.com" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {dnsDomainOptions.map((option) => (
-                              <SelectItem key={option.value} value={option.value}>
-                                {option.label}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="failover-rr">{t("failover.editor.rr", { defaultValue: "Host / RR" })}</Label>
-                        <Input
-                          id="failover-rr"
-                          value={formState.dns_rr}
-                          onChange={(event) => updateTaskField("dns_rr", event.target.value)}
-                          onBlur={(event) => updateTaskField("dns_rr", normalizeAliyunRRInput(formState.dns_domain_name, event.target.value))}
-                          placeholder="@ / www / api"
-                        />
-                        <div className="text-xs text-muted-foreground">
-                          {t("failover.editor.aliyun_rr_hint", {
-                            defaultValue: "Use @ for the apex record. Enter only the host part such as www or api, not the full domain.",
-                          })}
-                        </div>
-                      </div>
-                      <div className="space-y-2">
-                        <Label>{t("failover.editor.dns_sync_mode", { defaultValue: "DNS sync mode" })}</Label>
-                        <Select
-                          value={dnsSyncMode}
-                          onValueChange={(value) => {
-                            setFormState((current) => ({
-                              ...current,
-                              ...applyDnsSyncMode(value),
-                            }));
-                          }}
-                        >
-                          <SelectTrigger>
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {dnsSyncModeOptions.map((option) => (
-                              <SelectItem key={option.value} value={option.value}>
-                                {option.label}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        <div className="text-xs text-muted-foreground">
-                          {t("failover.editor.dns_sync_mode_hint", {
-                            defaultValue: "Dual stack always updates the A record and only adds AAAA when the new outlet reports IPv6. IPv6-only mode still requires an IPv6 address.",
-                          })}
-                        </div>
-                      </div>
-                      <div className="space-y-2">
-                        <Label>{t("failover.editor.ttl", { defaultValue: "TTL" })}</Label>
-                        <Select
-                          value={formState.dns_ttl || undefined}
-                          onValueChange={(value) => updateTaskField("dns_ttl", value)}
-                        >
-                          <SelectTrigger>
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {dnsTTLOptions.map((option) => (
-                              <SelectItem key={option.value} value={option.value}>
-                                {option.label}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div className="space-y-2 lg:col-span-2">
-                        <Label>{t("failover.editor.line", { defaultValue: "Routing line" })}</Label>
-                        <div className="grid gap-3 rounded-xl border border-dashed p-4 sm:grid-cols-2">
-                          {aliyunLineOptions.map((line) => {
-                            const checked = formState.dns_lines.includes(line.value);
-                            return (
-                              <label
-                                key={line.value}
-                                className="flex items-center gap-3 rounded-lg border border-transparent px-2 py-1.5 text-sm hover:bg-muted/30"
-                              >
-                                <Checkbox
-                                  checked={checked}
-                                  onCheckedChange={(nextChecked) => {
-                                    setFormState((current) => {
-                                      const nextLines = toggleDnsLineSelection(
-                                        current.dns_lines,
-                                        line.value,
-                                        Boolean(nextChecked),
-                                      );
-                                      return {
-                                        ...current,
-                                        dns_lines: nextLines,
-                                        dns_line: nextLines[0] || "default",
-                                      };
-                                    });
-                                  }}
-                                />
-                                <span>{line.label}</span>
-                              </label>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    </div>
-                  ) : null}
-                </div>
-                <div className="space-y-4 rounded-xl border px-4 py-4">
-                  <div className="text-sm font-medium text-slate-900 dark:text-slate-50">
-                    {t("failover.editor.show_dns_advanced", {
-                      defaultValue: "Advanced DNS settings",
-                    })}
-                  </div>
-                  <div className="grid gap-4 lg:grid-cols-2">
-                    <div className="space-y-2">
-                      <Label>{t("failover.editor.delete_strategy", { defaultValue: "Old instance strategy" })}</Label>
-                      <Select
-                        value={formState.delete_strategy}
-                        onValueChange={(value) => updateTaskField("delete_strategy", value)}
-                      >
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {getDeleteStrategyOptions(t, formState.plans).map((option) => (
-                            <SelectItem key={option.value} value={option.value}>
-                              {option.label}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="failover-delete-delay">{t("failover.editor.delete_delay", { defaultValue: "Delete delay (s)" })}</Label>
-                      <Input
-                        id="failover-delete-delay"
-                        type="number"
-                        min={0}
-                        value={formState.delete_delay_seconds}
-                        onChange={(event) => updateTaskField("delete_delay_seconds", event.target.value)}
-                        disabled={formState.delete_strategy !== "delete_after_success_delay"}
-                      />
-                    </div>
-                  </div>
                 </div>
               </section>
+
+              <Dialog open={dnsDialogOpen} onOpenChange={setDnsDialogOpen}>
+                <DialogContent className="flex h-[90vh] min-h-0 w-[calc(100vw-2rem)] max-w-5xl flex-col overflow-hidden p-0">
+                  <DialogHeader className="shrink-0 border-b bg-background px-5 py-4">
+                    <DialogTitle>{t("failover.editor.dns", { defaultValue: "DNS and cleanup" })}</DialogTitle>
+                    <DialogDescription>
+                      {t("failover.editor.dns_dialog_description", {
+                        defaultValue: "Configure DNS provider credentials, target records, sync mode, and old-instance cleanup without leaving the task summary.",
+                      })}
+                    </DialogDescription>
+                  </DialogHeader>
+                  <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-contain px-5 py-5 [scrollbar-gutter:stable]">
+                    <section className="space-y-4">
+                      <div className="space-y-1">
+                        <div className="text-sm font-medium text-slate-900 dark:text-slate-50">
+                          {t("failover.editor.step_dns", { defaultValue: "2. DNS" })}
+                        </div>
+                      </div>
+                      <Collapsible open={dnsCoreOpen} onOpenChange={setDnsCoreOpen}>
+                        <div className="rounded-xl border">
+                          <CollapsibleTrigger asChild>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              className="flex h-auto w-full items-center justify-between rounded-xl px-4 py-4 text-left"
+                            >
+                              <div className="space-y-1">
+                                <div className="text-sm font-medium text-slate-900 dark:text-slate-50">
+                                  {t("failover.editor.dns", { defaultValue: "DNS and cleanup" })}
+                                </div>
+                                <div className="line-clamp-2 text-xs text-muted-foreground">
+                                  {dnsCoreSummary}
+                                </div>
+                              </div>
+                              <ChevronDown
+                                className={cn(
+                                  "size-4 shrink-0 text-muted-foreground transition-transform",
+                                  dnsCoreOpen ? "rotate-180" : "",
+                                )}
+                              />
+                            </Button>
+                          </CollapsibleTrigger>
+                          <CollapsibleContent className="border-t px-4 py-4">
+                            <div className="space-y-4">
+                              <div className="text-sm font-medium text-slate-900 dark:text-slate-50">
+                                {t("failover.editor.dns", { defaultValue: "DNS and cleanup" })}
+                              </div>
+                              <div className="rounded-xl bg-muted/20 px-4 py-3">
+                                <div className="flex items-center justify-between gap-4">
+                                  <div className="text-sm font-medium text-slate-900 dark:text-slate-50">
+                                    {t("failover.editor.dns_enabled", { defaultValue: "Enable DNS switching" })}
+                                  </div>
+                                  <Switch
+                                    checked={hasDnsEnabled}
+                                    onCheckedChange={(checked) => setDnsEnabled(Boolean(checked))}
+                                    disabled={!hasDnsEnabled && !hasAnyDnsCredential}
+                                  />
+                                </div>
+                                {!hasDnsEnabled && !hasAnyDnsCredential ? (
+                                  <div className="mt-3 rounded-lg border border-dashed px-3 py-2 text-xs text-muted-foreground">
+                                    {t("failover.editor.no_dns_provider_configured", {
+                                      defaultValue: "No DNS credential is configured yet. Add one first if you want this task to update DNS records.",
+                                    })}
+                                  </div>
+                                ) : null}
+                              </div>
+                              {hasDnsEnabled ? (
+                                <div className="grid gap-4 lg:grid-cols-2">
+                                  <div className="space-y-2">
+                                    <Label>{t("failover.editor.dns_provider", { defaultValue: "DNS provider" })}</Label>
+                                    <Select
+                                      value={formState.dns_provider || undefined}
+                                      onValueChange={(value) => {
+                                        const nextEntryOptions = buildProviderEntryOptions({
+                                          entries: providerEntries[value] || [],
+                                        });
+                                        const nextEntryID = nextEntryOptions[0]?.id || "";
+                                        setFormState((current) => ({
+                                          ...current,
+                                          dns_provider: value,
+                                          dns_entry_id: nextEntryID,
+                                          ...buildDefaultDnsFields(value, providerEntries, nextEntryID),
+                                        }));
+                                        setDnsCatalog(null);
+                                        setDnsCatalogError("");
+                                        setSelectedDnsRecordKey("");
+                                      }}
+                                    >
+                                      <SelectTrigger>
+                                        <SelectValue placeholder={t("failover.editor.dns_provider_placeholder", { defaultValue: "Choose a DNS provider" })} />
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        {getDnsProviderOptions(t, providerEntries).map((option) => (
+                                          <SelectItem key={option.value} value={option.value} disabled={option.disabled}>
+                                            {option.label}
+                                          </SelectItem>
+                                        ))}
+                                      </SelectContent>
+                                    </Select>
+                                  </div>
+                                  <div className="space-y-2">
+                                    <Label>{t("failover.editor.dns_entry", { defaultValue: "DNS credential entry" })}</Label>
+                                    {(() => {
+                                      const options = buildProviderEntryOptions({
+                                        entries: providerEntries[formState.dns_provider] || [],
+                                        currentValue: formState.dns_entry_id,
+                                      });
+                                      if (!formState.dns_provider) {
+                                        return (
+                                          <div className="rounded-xl border border-dashed px-4 py-3 text-sm text-muted-foreground">
+                                            {t("failover.editor.dns_provider_required_hint", {
+                                              defaultValue: "Choose a DNS provider first.",
+                                            })}
+                                          </div>
+                                        );
+                                      }
+                                      if (options.length === 0) {
+                                        return (
+                                          <div className="rounded-xl border border-dashed px-4 py-3 text-sm text-muted-foreground">
+                                            {t("failover.editor.dns_entry_missing", {
+                                              defaultValue: "No DNS credential is configured for this provider yet.",
+                                            })}
+                                          </div>
+                                        );
+                                      }
+                                      return (
+                                        <Select
+                                          value={formState.dns_entry_id || undefined}
+                                          onValueChange={(value) => {
+                                            setFormState((current) => ({
+                                              ...current,
+                                              dns_entry_id: value,
+                                              ...buildDefaultDnsFields(current.dns_provider, providerEntries, value),
+                                            }));
+                                            setDnsCatalog(null);
+                                            setDnsCatalogError("");
+                                            setSelectedDnsRecordKey("");
+                                          }}
+                                        >
+                                          <SelectTrigger>
+                                            <SelectValue placeholder={t("failover.editor.dns_entry_placeholder", { defaultValue: "Choose an entry" })} />
+                                          </SelectTrigger>
+                                          <SelectContent>
+                                            {options.map((option) => (
+                                              <SelectItem key={option.id} value={option.id}>
+                                                {option.label}
+                                              </SelectItem>
+                                            ))}
+                                          </SelectContent>
+                                        </Select>
+                                      );
+                                    })()}
+                                  </div>
+                                </div>
+                              ) : null}
+
+                              {hasDnsEnabled ? (
+                                <div className="flex flex-wrap items-end gap-2">
+                                  <div className="min-w-0 flex-1 space-y-2">
+                                    <Label>{t("failover.editor.existing_record", { defaultValue: "Existing DNS record" })}</Label>
+                                    <Select
+                                      value={selectedDnsRecordKey || "__none"}
+                                      onValueChange={(value) => {
+                                        setSelectedDnsRecordKey(value);
+                                        if (value === "__none") {
+                                          return;
+                                        }
+                                        const record = dnsCatalogRecords.find((item) => getDnsRecordKey(item) === value);
+                                        if (!record) {
+                                          return;
+                                        }
+                                        setFormState((current) => {
+                                          const nextState = fillDnsFieldsFromRecord(current, record);
+                                          if (current.dns_provider === "aliyun") {
+                                            const lines = collectAliyunRecordLines(dnsCatalogRecords, record);
+                                            if (lines.length > 0) {
+                                              nextState.dns_lines = lines;
+                                              nextState.dns_line = lines[0];
+                                            }
+                                          }
+                                          return nextState;
+                                        });
+                                      }}
+                                      disabled={!dnsCatalogRecords.length}
+                                    >
+                                      <SelectTrigger>
+                                        <SelectValue placeholder={t("failover.editor.existing_record_placeholder", { defaultValue: "Choose an existing DNS record" })} />
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        <SelectItem value="__none">
+                                          {t("failover.editor.existing_record_placeholder", { defaultValue: "Choose an existing DNS record" })}
+                                        </SelectItem>
+                                        {dnsCatalogRecords.map((record) => (
+                                          <SelectItem key={getDnsRecordKey(record)} value={getDnsRecordKey(record)}>
+                                            {dnsRecordSummary(record)}
+                                          </SelectItem>
+                                        ))}
+                                      </SelectContent>
+                                    </Select>
+                                  </div>
+                                  <Button
+                                    type="button"
+                                    variant="outline"
+                                    onClick={() => void refreshDnsCatalog({
+                                      zone_name: formState.dns_zone_name.trim(),
+                                      domain_name: formState.dns_domain_name.trim(),
+                                    })}
+                                    disabled={dnsCatalogLoading || !formState.dns_provider.trim() || !formState.dns_entry_id.trim()}
+                                  >
+                                    <RefreshCw className={cn("size-4", dnsCatalogLoading ? "animate-spin" : "")} />
+                                    {t("failover.editor.load_records", { defaultValue: "Load records" })}
+                                  </Button>
+                                </div>
+                              ) : null}
+
+                              {dnsCatalogError && hasDnsEnabled ? (
+                                <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-xs text-red-700 dark:border-red-900/40 dark:bg-red-950/30 dark:text-red-200">
+                                  {dnsCatalogError}
+                                </div>
+                              ) : null}
+
+                              {formState.dns_provider === "cloudflare" ? (
+                                <div className="grid gap-4 lg:grid-cols-2">
+                                  <div className="space-y-2">
+                                    <Label>{t("failover.editor.zone_name", { defaultValue: "Zone / domain" })}</Label>
+                                    <Select
+                                      value={formState.dns_zone_name || undefined}
+                                      onValueChange={(value) => {
+                                        updateTaskField("dns_zone_name", value);
+                                        setSelectedDnsRecordKey("");
+                                        void refreshDnsCatalog({ zone_name: value });
+                                      }}
+                                    >
+                                      <SelectTrigger>
+                                        <SelectValue placeholder="example.com" />
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        {dnsZoneOptions.map((option) => (
+                                          <SelectItem key={option.value} value={option.value}>
+                                            {option.label}
+                                          </SelectItem>
+                                        ))}
+                                      </SelectContent>
+                                    </Select>
+                                  </div>
+                                  <div className="space-y-2">
+                                    <Label htmlFor="failover-record-name">{t("failover.editor.record_name", { defaultValue: "Record name" })}</Label>
+                                    <Input
+                                      id="failover-record-name"
+                                      value={formState.dns_record_name}
+                                      onChange={(event) => updateTaskField("dns_record_name", event.target.value)}
+                                      placeholder="@ / www / api"
+                                    />
+                                  </div>
+                                  <div className="space-y-2">
+                                    <Label>{t("failover.editor.dns_sync_mode", { defaultValue: "DNS sync mode" })}</Label>
+                                    <Select
+                                      value={dnsSyncMode}
+                                      onValueChange={(value) => {
+                                        setFormState((current) => ({
+                                          ...current,
+                                          ...applyDnsSyncMode(value),
+                                        }));
+                                      }}
+                                    >
+                                      <SelectTrigger>
+                                        <SelectValue />
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        {dnsSyncModeOptions.map((option) => (
+                                          <SelectItem key={option.value} value={option.value}>
+                                            {option.label}
+                                          </SelectItem>
+                                        ))}
+                                      </SelectContent>
+                                    </Select>
+                                    <div className="text-xs text-muted-foreground">
+                                      {t("failover.editor.dns_sync_mode_hint", {
+                                        defaultValue: "Dual stack always updates the A record and only adds AAAA when the new outlet reports IPv6. IPv6-only mode still requires an IPv6 address.",
+                                      })}
+                                    </div>
+                                  </div>
+                                  <div className="space-y-2">
+                                    <Label>{t("failover.editor.ttl", { defaultValue: "TTL" })}</Label>
+                                    <Select
+                                      value={formState.dns_ttl || undefined}
+                                      onValueChange={(value) => updateTaskField("dns_ttl", value)}
+                                    >
+                                      <SelectTrigger>
+                                        <SelectValue />
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        {dnsTTLOptions.map((option) => (
+                                          <SelectItem key={option.value} value={option.value}>
+                                            {option.label}
+                                          </SelectItem>
+                                        ))}
+                                      </SelectContent>
+                                    </Select>
+                                  </div>
+                                  <div className="rounded-xl bg-muted/20 px-4 py-3 lg:col-span-2">
+                                    <div className="flex items-center justify-between gap-4">
+                                      <div className="space-y-1">
+                                        <div className="text-sm font-medium text-slate-900 dark:text-slate-50">
+                                          {t("failover.editor.proxied", { defaultValue: "Cloudflare proxy" })}
+                                        </div>
+                                        <div className="text-xs text-muted-foreground">
+                                          {t("failover.editor.proxied_hint", { defaultValue: "Use the credential default unless this task needs a different proxy mode." })}
+                                        </div>
+                                      </div>
+                                      <Switch
+                                        checked={formState.dns_proxied}
+                                        onCheckedChange={(checked) => updateTaskField("dns_proxied", Boolean(checked))}
+                                      />
+                                    </div>
+                                  </div>
+                                </div>
+                              ) : formState.dns_provider === "aliyun" ? (
+                                <div className="grid gap-4 lg:grid-cols-2">
+                                  <div className="space-y-2">
+                                    <Label>{t("failover.editor.domain_name", { defaultValue: "Domain" })}</Label>
+                                    <Select
+                                      value={formState.dns_domain_name || undefined}
+                                      onValueChange={(value) => {
+                                        updateTaskField("dns_domain_name", value);
+                                        setSelectedDnsRecordKey("");
+                                        void refreshDnsCatalog({ domain_name: value });
+                                      }}
+                                    >
+                                      <SelectTrigger>
+                                        <SelectValue placeholder="example.com" />
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        {dnsDomainOptions.map((option) => (
+                                          <SelectItem key={option.value} value={option.value}>
+                                            {option.label}
+                                          </SelectItem>
+                                        ))}
+                                      </SelectContent>
+                                    </Select>
+                                  </div>
+                                  <div className="space-y-2">
+                                    <Label htmlFor="failover-rr">{t("failover.editor.rr", { defaultValue: "Host / RR" })}</Label>
+                                    <Input
+                                      id="failover-rr"
+                                      value={formState.dns_rr}
+                                      onChange={(event) => updateTaskField("dns_rr", event.target.value)}
+                                      onBlur={(event) => updateTaskField("dns_rr", normalizeAliyunRRInput(formState.dns_domain_name, event.target.value))}
+                                      placeholder="@ / www / api"
+                                    />
+                                    <div className="text-xs text-muted-foreground">
+                                      {t("failover.editor.aliyun_rr_hint", {
+                                        defaultValue: "Use @ for the apex record. Enter only the host part such as www or api, not the full domain.",
+                                      })}
+                                    </div>
+                                  </div>
+                                  <div className="space-y-2">
+                                    <Label>{t("failover.editor.dns_sync_mode", { defaultValue: "DNS sync mode" })}</Label>
+                                    <Select
+                                      value={dnsSyncMode}
+                                      onValueChange={(value) => {
+                                        setFormState((current) => ({
+                                          ...current,
+                                          ...applyDnsSyncMode(value),
+                                        }));
+                                      }}
+                                    >
+                                      <SelectTrigger>
+                                        <SelectValue />
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        {dnsSyncModeOptions.map((option) => (
+                                          <SelectItem key={option.value} value={option.value}>
+                                            {option.label}
+                                          </SelectItem>
+                                        ))}
+                                      </SelectContent>
+                                    </Select>
+                                    <div className="text-xs text-muted-foreground">
+                                      {t("failover.editor.dns_sync_mode_hint", {
+                                        defaultValue: "Dual stack always updates the A record and only adds AAAA when the new outlet reports IPv6. IPv6-only mode still requires an IPv6 address.",
+                                      })}
+                                    </div>
+                                  </div>
+                                  <div className="space-y-2">
+                                    <Label>{t("failover.editor.ttl", { defaultValue: "TTL" })}</Label>
+                                    <Select
+                                      value={formState.dns_ttl || undefined}
+                                      onValueChange={(value) => updateTaskField("dns_ttl", value)}
+                                    >
+                                      <SelectTrigger>
+                                        <SelectValue />
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        {dnsTTLOptions.map((option) => (
+                                          <SelectItem key={option.value} value={option.value}>
+                                            {option.label}
+                                          </SelectItem>
+                                        ))}
+                                      </SelectContent>
+                                    </Select>
+                                  </div>
+                                  <div className="space-y-2 lg:col-span-2">
+                                    <Label>{t("failover.editor.line", { defaultValue: "Routing line" })}</Label>
+                                    <div className="grid gap-3 rounded-xl border border-dashed p-4 sm:grid-cols-2">
+                                      {aliyunLineOptions.map((line) => {
+                                        const checked = formState.dns_lines.includes(line.value);
+                                        return (
+                                          <label
+                                            key={line.value}
+                                            className="flex items-center gap-3 rounded-lg border border-transparent px-2 py-1.5 text-sm hover:bg-muted/30"
+                                          >
+                                            <Checkbox
+                                              checked={checked}
+                                              onCheckedChange={(nextChecked) => {
+                                                setFormState((current) => {
+                                                  const nextLines = toggleDnsLineSelection(
+                                                    current.dns_lines,
+                                                    line.value,
+                                                    Boolean(nextChecked),
+                                                  );
+                                                  return {
+                                                    ...current,
+                                                    dns_lines: nextLines,
+                                                    dns_line: nextLines[0] || "default",
+                                                  };
+                                                });
+                                              }}
+                                            />
+                                            <span>{line.label}</span>
+                                          </label>
+                                        );
+                                      })}
+                                    </div>
+                                  </div>
+                                </div>
+                              ) : null}
+                            </div>
+                          </CollapsibleContent>
+                        </div>
+                      </Collapsible>
+                      <Collapsible open={dnsAdvancedOpen} onOpenChange={setDnsAdvancedOpen}>
+                        <div className="rounded-xl border">
+                          <CollapsibleTrigger asChild>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              className="flex h-auto w-full items-center justify-between rounded-xl px-4 py-4 text-left"
+                            >
+                              <div className="space-y-1">
+                                <div className="text-sm font-medium text-slate-900 dark:text-slate-50">
+                                  {t("failover.editor.show_dns_advanced", {
+                                    defaultValue: "Advanced DNS settings",
+                                  })}
+                                </div>
+                                <div className="line-clamp-2 text-xs text-muted-foreground">
+                                  {dnsAdvancedSummary}
+                                </div>
+                              </div>
+                              <ChevronDown
+                                className={cn(
+                                  "size-4 shrink-0 text-muted-foreground transition-transform",
+                                  dnsAdvancedOpen ? "rotate-180" : "",
+                                )}
+                              />
+                            </Button>
+                          </CollapsibleTrigger>
+                          <CollapsibleContent className="border-t px-4 py-4">
+                            <div className="space-y-4">
+                              <div className="text-sm font-medium text-slate-900 dark:text-slate-50">
+                                {t("failover.editor.show_dns_advanced", {
+                                  defaultValue: "Advanced DNS settings",
+                                })}
+                              </div>
+                              <div className="grid gap-4 lg:grid-cols-2">
+                                <div className="space-y-2">
+                                  <Label>{t("failover.editor.delete_strategy", { defaultValue: "Old instance strategy" })}</Label>
+                                  <Select
+                                    value={formState.delete_strategy}
+                                    onValueChange={(value) => updateTaskField("delete_strategy", value)}
+                                  >
+                                    <SelectTrigger>
+                                      <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      {getDeleteStrategyOptions(t, formState.plans).map((option) => (
+                                        <SelectItem key={option.value} value={option.value}>
+                                          {option.label}
+                                        </SelectItem>
+                                      ))}
+                                    </SelectContent>
+                                  </Select>
+                                </div>
+                                <div className="space-y-2">
+                                  <Label htmlFor="failover-delete-delay">{t("failover.editor.delete_delay", { defaultValue: "Delete delay (s)" })}</Label>
+                                  <Input
+                                    id="failover-delete-delay"
+                                    type="number"
+                                    min={0}
+                                    value={formState.delete_delay_seconds}
+                                    onChange={(event) => updateTaskField("delete_delay_seconds", event.target.value)}
+                                    disabled={formState.delete_strategy !== "delete_after_success_delay"}
+                                  />
+                                </div>
+                              </div>
+                            </div>
+                          </CollapsibleContent>
+                        </div>
+                      </Collapsible>
+                    </section>
+                  </div>
+                </DialogContent>
+              </Dialog>
 
               <section className="space-y-4">
                 <div className="space-y-1">
@@ -5830,89 +6817,301 @@ function TaskEditorDialog({
                     {t("failover.editor.step_plans", { defaultValue: "3. Plans" })}
                   </div>
                 </div>
-                {selectedPlan ? (
-                  <>
-                    <div className="space-y-4 rounded-xl border px-4 py-4">
+                <div className="space-y-4 rounded-xl border px-4 py-4">
+                  <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+                    <div className="space-y-1">
                       <div className="text-sm font-medium text-slate-900 dark:text-slate-50">
                         {t("failover.editor.plans", { defaultValue: "Failover plans" })}
                       </div>
-                      <div className="flex flex-col gap-4 lg:flex-row lg:items-end">
-                        <div className="min-w-0 flex-1 space-y-2">
-                          {hasMultiplePlans ? (
-                            <div className="space-y-2">
-                              <Label>{t("failover.editor.current_plan", { defaultValue: "Current plan" })}</Label>
-                              <Select value={selectedPlan.local_id} onValueChange={setSelectedPlanID}>
-                                <SelectTrigger>
-                                  <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  {formState.plans.map((plan, index) => (
-                                    <SelectItem key={plan.local_id} value={plan.local_id}>
-                                      {getPlanDisplayName(plan, index, t)}
-                                    </SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
-                            </div>
-                          ) : (
-                            <div className="rounded-xl bg-muted/20 px-4 py-3 text-sm text-muted-foreground">
-                              {t("failover.editor.plan_single", {
-                                defaultValue: "1 plan",
-                              })}
-                            </div>
-                          )}
-                        </div>
-                        <div className="flex flex-wrap gap-2">
-                          <Button type="button" variant="outline" onClick={addPlan}>
-                            <Plus className="size-4" />
-                            {hasMultiplePlans
-                              ? t("failover.editor.add_plan", { defaultValue: "Add plan" })
-                              : t("failover.editor.add_backup_plan", { defaultValue: "Add backup plan" })}
-                          </Button>
-                          {hasMultiplePlans ? (
-                            <Button
-                              type="button"
-                              variant="outline"
-                              onClick={() => removePlan(selectedPlan.local_id)}
-                            >
-                              <Trash2 className="size-4" />
-                              {t("common.delete", { defaultValue: "Delete" })}
-                            </Button>
-                          ) : null}
-                        </div>
-                      </div>
-                      <div className="flex items-center justify-between rounded-xl bg-muted/20 px-4 py-3">
-                        <div className="min-w-0 space-y-1">
-                          <div className="truncate text-sm font-medium text-slate-900 dark:text-slate-50">
-                            {getPlanDisplayName(selectedPlan, selectedPlanIndex >= 0 ? selectedPlanIndex : 0, t)}
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-3">
-                          <Label className="text-sm">
-                            {t("failover.editor.plan_enabled", { defaultValue: "Plan enabled" })}
-                          </Label>
-                          <Switch
-                            checked={selectedPlan.enabled}
-                            onCheckedChange={(checked) => updatePlan(selectedPlan.local_id, (current) => ({ ...current, enabled: Boolean(checked) }))}
-                          />
-                        </div>
+                      <div className="text-xs text-muted-foreground">
+                        {t("failover.editor.plans_summary_hint", {
+                          defaultValue: "Keep the main dialog focused on plan order and outcomes. Open the secondary dialog when you need to edit provider details, instance options, or scripts.",
+                        })}
                       </div>
                     </div>
+                    <Button type="button" variant="outline" onClick={() => setPlanDialogOpen(true)} disabled={!selectedPlan}>
+                      <PencilLine className="size-4" />
+                      {t("common.edit", { defaultValue: "Edit" })}
+                    </Button>
+                  </div>
 
-	                    <div className="space-y-4 rounded-xl border px-4 py-4">
-                        {!settingsLoading && hasEnabledProvisionPlan && !configuredScriptDomain ? (
-                          <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-900/40 dark:bg-amber-950/30 dark:text-amber-100">
-                            {t("failover.editor.script_domain_required_hint", {
-                              defaultValue:
-                                "Agent connection address is not configured yet. Set it in Settings -> Site, otherwise failover-created instances cannot auto-connect back to Komari.",
-                            })}
+                  {!settingsLoading && hasEnabledProvisionPlan && !configuredScriptDomain ? (
+                    <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-900/40 dark:bg-amber-950/30 dark:text-amber-100">
+                      {t("failover.editor.script_domain_required_hint", {
+                        defaultValue:
+                          "Agent connection address is not configured yet. Set it in Settings -> Site, otherwise failover-created instances cannot auto-connect back to Komari.",
+                      })}
+                    </div>
+                  ) : null}
+
+                  <div className="space-y-3">
+                    {formState.plans.map((plan, index) => {
+                      const providerSummary = [
+                        plan.provider ? getPlanProviderLabel(t, plan.provider) : "",
+                        plan.action_type ? getActionTypeLabel(t, plan.action_type) : "",
+                      ].filter(Boolean).join(" · ");
+                      const entrySummary = [
+                        plan.provider_entry_group
+                          ? t("failover.execution.summary.entry_group", {
+                            defaultValue: "Group {{group}}",
+                            group: plan.provider_entry_group,
+                          })
+                          : "",
+                        getPlanEntrySummaryLabel(plan),
+                      ].filter(Boolean).join(" · ");
+                      const payloadSummary = summarizePlanPayload(t, plan);
+                      const selectedScriptIDs = normalizePlanScriptClipboardIDs(plan.script_clipboard_ids);
+                      const scriptPreview = getPlanScriptPreview(selectedScriptIDs, 2);
+
+                      return (
+                        <button
+                          key={plan.local_id}
+                          type="button"
+                          onClick={() => openPlanDialogFor(plan.local_id)}
+                          className={cn(
+                            "w-full rounded-xl border px-4 py-4 text-left transition-colors hover:bg-muted/20",
+                            selectedPlan?.local_id === plan.local_id
+                              ? "border-primary/40 bg-primary/5"
+                              : "border-border/70",
+                          )}
+                        >
+                          <div className="flex flex-wrap items-start gap-2">
+                            <div className="min-w-0 flex-1 space-y-1">
+                              <div className="flex flex-wrap items-center gap-2">
+                                <div className="truncate text-sm font-medium text-slate-900 dark:text-slate-50">
+                                  {getPlanDisplayName(plan, index, t)}
+                                </div>
+                                <Badge variant={plan.enabled ? "success" : "outline"}>
+                                  {plan.enabled
+                                    ? t("common.enabled", { defaultValue: "Enabled" })
+                                    : t("common.disabled", { defaultValue: "Disabled" })}
+                                </Badge>
+                                <Badge variant="secondary">
+                                  {t("failover.editor.priority_label", {
+                                    defaultValue: "Priority {{value}}",
+                                    value: index + 1,
+                                  })}
+                                </Badge>
+                              </div>
+                              {providerSummary ? (
+                                <div className="text-xs text-muted-foreground">{providerSummary}</div>
+                              ) : null}
+                            </div>
                           </div>
-                        ) : null}
-	                      <div className="text-sm font-medium text-slate-900 dark:text-slate-50">
-	                        {t("failover.editor.plan_core", { defaultValue: "Plan core fields" })}
+                          <div className="mt-2 grid gap-1.5 text-xs text-muted-foreground sm:grid-cols-2">
+                            {entrySummary ? (
+                              <div>{entrySummary}</div>
+                            ) : null}
+                            {plan.auto_connect_group ? (
+                              <div>
+                                {t("failover.editor.auto_connect_group", { defaultValue: "Auto-connect group" })}: {plan.auto_connect_group}
+                              </div>
+                            ) : null}
+                            {payloadSummary ? (
+                              <div className="sm:col-span-2">{payloadSummary}</div>
+                            ) : null}
+                            <div className="sm:col-span-2">
+                              {selectedScriptIDs.length > 0
+                                ? t("failover.editor.scripts_selected", {
+                                  defaultValue: "{{count}} selected",
+                                  count: selectedScriptIDs.length,
+                                })
+                                : t("failover.editor.no_script", { defaultValue: "No script" })}
+                              {scriptPreview ? ` · ${scriptPreview}` : ""}
+                            </div>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              </section>
+
+              <Dialog open={planDialogOpen} onOpenChange={setPlanDialogOpen}>
+                <DialogContent className="flex h-[92vh] min-h-0 w-[calc(100vw-2rem)] max-w-[96rem] flex-col overflow-hidden p-0">
+                  <DialogHeader className="shrink-0 border-b bg-background px-5 py-4">
+                    <DialogTitle>{t("failover.editor.plans", { defaultValue: "Failover plans" })}</DialogTitle>
+                    <DialogDescription>
+                      {t("failover.editor.plans_dialog_description", {
+                        defaultValue: "Adjust plan order, provider settings, instance options, scripts, and runtime details while keeping the main task dialog compact.",
+                      })}
+                    </DialogDescription>
+                  </DialogHeader>
+                  <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-contain px-5 py-5 [scrollbar-gutter:stable]">
+                    <section className="space-y-4">
+                      <div className="space-y-1">
+                        <div className="text-sm font-medium text-slate-900 dark:text-slate-50">
+                          {t("failover.editor.step_plans", { defaultValue: "3. Plans" })}
+                        </div>
                       </div>
-	                      <div className="grid gap-4 lg:grid-cols-2">
-	                        <div className="space-y-2">
+                      {selectedPlan ? (
+                        <>
+                    <Collapsible
+                      open={selectedPlanOrganizerOpen}
+                      onOpenChange={(openState) => setSelectedPlanSectionOpen("organizer", openState)}
+                    >
+                      <div className="rounded-xl border">
+                        <CollapsibleTrigger asChild>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            className="flex h-auto w-full items-center justify-between rounded-xl px-4 py-4 text-left"
+                          >
+                            <div className="space-y-1">
+                              <div className="text-sm font-medium text-slate-900 dark:text-slate-50">
+                                {t("failover.editor.plans", { defaultValue: "Failover plans" })}
+                              </div>
+                              <div className="line-clamp-2 text-xs text-muted-foreground">
+                                {selectedPlanOrganizerSummary}
+                              </div>
+                            </div>
+                            <ChevronDown
+                              className={cn(
+                                "size-4 shrink-0 text-muted-foreground transition-transform",
+                                selectedPlanOrganizerOpen ? "rotate-180" : "",
+                              )}
+                            />
+                          </Button>
+                        </CollapsibleTrigger>
+                        <CollapsibleContent className="border-t px-4 py-4">
+                          <div className="space-y-4">
+                            <div className="text-sm font-medium text-slate-900 dark:text-slate-50">
+                              {t("failover.editor.plans", { defaultValue: "Failover plans" })}
+                            </div>
+                            <div className="flex flex-col gap-4 lg:flex-row lg:items-end">
+                              <div className="min-w-0 flex-1 space-y-2">
+                                {hasMultiplePlans ? (
+                                  <div className="space-y-2">
+                                    <Label>{t("failover.editor.current_plan", { defaultValue: "Current plan" })}</Label>
+                                    <Select value={selectedPlan.local_id} onValueChange={setSelectedPlanID}>
+                                      <SelectTrigger>
+                                        <SelectValue />
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        {formState.plans.map((plan, index) => (
+                                          <SelectItem key={plan.local_id} value={plan.local_id}>
+                                            {getPlanDisplayName(plan, index, t)}
+                                          </SelectItem>
+                                        ))}
+                                      </SelectContent>
+                                    </Select>
+                                  </div>
+                                ) : (
+                                  <div className="rounded-xl bg-muted/20 px-4 py-3 text-sm text-muted-foreground">
+                                    {t("failover.editor.plan_single", {
+                                      defaultValue: "1 plan",
+                                    })}
+                                  </div>
+                                )}
+                              </div>
+                              <div className="flex flex-wrap gap-2">
+                                <Button type="button" variant="outline" onClick={addPlan}>
+                                  <Plus className="size-4" />
+                                  {hasMultiplePlans
+                                    ? t("failover.editor.add_plan", { defaultValue: "Add plan" })
+                                    : t("failover.editor.add_backup_plan", { defaultValue: "Add backup plan" })}
+                                </Button>
+                                <Button type="button" variant="outline" onClick={duplicateSelectedPlan}>
+                                  <Copy className="size-4" />
+                                  {t("copy", { defaultValue: "Copy" })}
+                                </Button>
+                                {hasMultiplePlans ? (
+                                  <>
+                                    <Button
+                                      type="button"
+                                      variant="outline"
+                                      onClick={() => movePlanToIndex(selectedPlan.local_id, selectedPlanIndex - 1)}
+                                      disabled={selectedPlanIndex <= 0}
+                                    >
+                                      <ArrowUp className="size-4" />
+                                      {t("failover.editor.move_plan_up", { defaultValue: "Move up" })}
+                                    </Button>
+                                    <Button
+                                      type="button"
+                                      variant="outline"
+                                      onClick={() => movePlanToIndex(selectedPlan.local_id, selectedPlanIndex + 1)}
+                                      disabled={selectedPlanIndex < 0 || selectedPlanIndex >= formState.plans.length - 1}
+                                    >
+                                      <ArrowDown className="size-4" />
+                                      {t("failover.editor.move_plan_down", { defaultValue: "Move down" })}
+                                    </Button>
+                                  </>
+                                ) : null}
+                                {hasMultiplePlans ? (
+                                  <Button
+                                    type="button"
+                                    variant="outline"
+                                    onClick={() => removePlan(selectedPlan.local_id)}
+                                  >
+                                    <Trash2 className="size-4" />
+                                    {t("common.delete", { defaultValue: "Delete" })}
+                                  </Button>
+                                ) : null}
+                              </div>
+                            </div>
+                            <div className="flex items-center justify-between rounded-xl bg-muted/20 px-4 py-3">
+                              <div className="min-w-0 space-y-1">
+                                <div className="truncate text-sm font-medium text-slate-900 dark:text-slate-50">
+                                  {getPlanDisplayName(selectedPlan, selectedPlanIndex >= 0 ? selectedPlanIndex : 0, t)}
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-3">
+                                <Label className="text-sm">
+                                  {t("failover.editor.plan_enabled", { defaultValue: "Plan enabled" })}
+                                </Label>
+                                <Switch
+                                  checked={selectedPlan.enabled}
+                                  onCheckedChange={(checked) => updatePlan(selectedPlan.local_id, (current) => ({ ...current, enabled: Boolean(checked) }))}
+                                />
+                              </div>
+                            </div>
+                          </div>
+                        </CollapsibleContent>
+                      </div>
+                    </Collapsible>
+
+                    <Collapsible
+                      open={selectedPlanCoreOpen}
+                      onOpenChange={(openState) => setSelectedPlanSectionOpen("core", openState)}
+                    >
+                      <div className="rounded-xl border">
+                        <CollapsibleTrigger asChild>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            className="flex h-auto w-full items-center justify-between rounded-xl px-4 py-4 text-left"
+                          >
+                            <div className="space-y-1">
+                              <div className="text-sm font-medium text-slate-900 dark:text-slate-50">
+                                {t("failover.editor.plan_core", { defaultValue: "Plan core fields" })}
+                              </div>
+                              <div className="line-clamp-2 text-xs text-muted-foreground">
+                                {selectedPlanCoreSummary}
+                              </div>
+                            </div>
+                            <ChevronDown
+                              className={cn(
+                                "size-4 shrink-0 text-muted-foreground transition-transform",
+                                selectedPlanCoreOpen ? "rotate-180" : "",
+                              )}
+                            />
+                          </Button>
+                        </CollapsibleTrigger>
+                        <CollapsibleContent className="border-t px-4 py-4">
+                          <div className="space-y-4">
+                            {!settingsLoading && hasEnabledProvisionPlan && !configuredScriptDomain ? (
+                              <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-900/40 dark:bg-amber-950/30 dark:text-amber-100">
+                                {t("failover.editor.script_domain_required_hint", {
+                                  defaultValue:
+                                    "Agent connection address is not configured yet. Set it in Settings -> Site, otherwise failover-created instances cannot auto-connect back to Komari.",
+                                })}
+                              </div>
+                            ) : null}
+                            <div className="text-sm font-medium text-slate-900 dark:text-slate-50">
+                              {t("failover.editor.plan_core", { defaultValue: "Plan core fields" })}
+                            </div>
+                            <div className="grid gap-4 lg:grid-cols-2">
+	                          <div className="space-y-2">
 	                          <Label>{t("cloud.title", { defaultValue: "Cloud" })}</Label>
 		                          <Select
 		                            value={selectedPlan.provider || undefined}
@@ -6084,9 +7283,9 @@ function TaskEditorDialog({
                           >
 	                            <SelectTrigger>
 	                              <SelectValue placeholder={t("failover.editor.action_type_placeholder", { defaultValue: "Choose an action" })} />
-	                            </SelectTrigger>
-	                            <SelectContent>
-	                              {getActionTypeOptions(t, selectedPlan.provider).map((option) => (
+		                            </SelectTrigger>
+		                            <SelectContent>
+		                              {getActionTypeOptions(t, selectedPlan.provider).map((option) => (
                                 <SelectItem key={option.value} value={option.value}>
                                   {option.label}
                                 </SelectItem>
@@ -6094,15 +7293,46 @@ function TaskEditorDialog({
                             </SelectContent>
                           </Select>
                         </div>
+                            </div>
+                          </div>
+                        </CollapsibleContent>
                       </div>
-                    </div>
+                    </Collapsible>
 
-                    <div className="space-y-4 rounded-xl border px-4 py-4">
-                      <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-                        <div className="text-sm font-medium text-slate-900 dark:text-slate-50">
-                          {t("failover.editor.plan_config", { defaultValue: "Instance configuration" })}
-                        </div>
-                        <div className="flex flex-wrap gap-2">
+                    <Collapsible
+                      open={selectedPlanConfigOpen}
+                      onOpenChange={(openState) => setSelectedPlanSectionOpen("config", openState)}
+                    >
+                      <div className="rounded-xl border">
+                        <CollapsibleTrigger asChild>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            className="flex h-auto w-full items-center justify-between rounded-xl px-4 py-4 text-left"
+                          >
+                            <div className="space-y-1">
+                              <div className="text-sm font-medium text-slate-900 dark:text-slate-50">
+                                {t("failover.editor.plan_config", { defaultValue: "Instance configuration" })}
+                              </div>
+                              <div className="line-clamp-2 text-xs text-muted-foreground">
+                                {selectedPlanConfigSummary}
+                              </div>
+                            </div>
+                            <ChevronDown
+                              className={cn(
+                                "size-4 shrink-0 text-muted-foreground transition-transform",
+                                selectedPlanConfigOpen ? "rotate-180" : "",
+                              )}
+                            />
+                          </Button>
+                        </CollapsibleTrigger>
+                        <CollapsibleContent className="border-t px-4 py-4">
+                          <div className="space-y-4">
+                            <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+                              <div className="text-sm font-medium text-slate-900 dark:text-slate-50">
+                                {t("failover.editor.plan_config", { defaultValue: "Instance configuration" })}
+                              </div>
+                              <div className="flex flex-wrap gap-2">
                           {!usesCommonPlanCatalogDefaults ? (
                             <Button
                               type="button"
@@ -6129,10 +7359,10 @@ function TaskEditorDialog({
                                 ? t("failover.editor.load_plan_options_full_linode", { defaultValue: "Load full Linode list" })
                                 : t("failover.editor.load_plan_options", { defaultValue: "Load options" })}
                           </Button>
-                        </div>
-                      </div>
+                              </div>
+                            </div>
 
-                      {isDigitalOceanProvisionPlan ? (
+                            {isDigitalOceanProvisionPlan ? (
                         <div className="rounded-xl border border-dashed px-4 py-3 text-xs text-muted-foreground">
                           {t("failover.editor.digitalocean_common_options_hint", {
                             defaultValue: "Common DigitalOcean regions, sizes, and images are shown by default. Load the full DigitalOcean list only if you need uncommon options.",
@@ -6140,7 +7370,7 @@ function TaskEditorDialog({
                         </div>
                       ) : null}
 
-                      {isLinodeProvisionPlan ? (
+                            {isLinodeProvisionPlan ? (
                         <div className="rounded-xl border border-dashed px-4 py-3 text-xs text-muted-foreground">
                           {t("failover.editor.linode_common_options_hint", {
                             defaultValue: "Common Linode regions, plans, and images are shown by default. Load the full Linode list only if you need account-specific or uncommon options.",
@@ -6922,15 +8152,48 @@ function TaskEditorDialog({
                       ) : null}
                         </>
                       ) : null}
-                    </div>
-
-                    <div className="space-y-4 rounded-xl border px-4 py-4">
-                      <div className="text-sm font-medium text-slate-900 dark:text-slate-50">
-                        {t("failover.editor.show_plan_optional", {
-                          defaultValue: "Optional plan settings",
-                        })}
+                          </div>
+                        </CollapsibleContent>
                       </div>
-                      <div className="grid gap-4 lg:grid-cols-2">
+                    </Collapsible>
+
+                    <Collapsible
+                      open={selectedPlanOptionalOpen}
+                      onOpenChange={(openState) => setSelectedPlanSectionOpen("optional", openState)}
+                    >
+                      <div className="rounded-xl border">
+                        <CollapsibleTrigger asChild>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            className="flex h-auto w-full items-center justify-between rounded-xl px-4 py-4 text-left"
+                          >
+                            <div className="space-y-1">
+                              <div className="text-sm font-medium text-slate-900 dark:text-slate-50">
+                                {t("failover.editor.show_plan_optional", {
+                                  defaultValue: "Optional plan settings",
+                                })}
+                              </div>
+                              <div className="line-clamp-2 text-xs text-muted-foreground">
+                                {selectedPlanOptionalSummary}
+                              </div>
+                            </div>
+                            <ChevronDown
+                              className={cn(
+                                "size-4 shrink-0 text-muted-foreground transition-transform",
+                                selectedPlanOptionalOpen ? "rotate-180" : "",
+                              )}
+                            />
+                          </Button>
+                        </CollapsibleTrigger>
+                        <CollapsibleContent className="border-t px-4 py-4">
+                          <div className="space-y-4">
+                            <div className="text-sm font-medium text-slate-900 dark:text-slate-50">
+                              {t("failover.editor.show_plan_optional", {
+                                defaultValue: "Optional plan settings",
+                              })}
+                            </div>
+                            <div className="grid gap-4 lg:grid-cols-2">
                         <div className="space-y-2">
                           <Label>{t("common.name", { defaultValue: "Name" })}</Label>
                           <Input
@@ -6996,6 +8259,94 @@ function TaskEditorDialog({
                                 : t("failover.editor.no_script", { defaultValue: "No script" })}
                             </div>
                           </div>
+                          <div className="space-y-2">
+                            <div className="flex flex-wrap items-center justify-between gap-2">
+                              <div className="text-xs font-medium uppercase tracking-[0.12em] text-muted-foreground">
+                                {t("failover.editor.scripts_execution_order_title", {
+                                  defaultValue: "Execution order",
+                                })}
+                              </div>
+                              {selectedPlanScriptEntries.length > 0 ? (
+                                <div className="text-xs text-muted-foreground">
+                                  {t("failover.editor.scripts_execution_order_hint", {
+                                    defaultValue: "Scripts run from top to bottom. Move entries here to change the actual execution order.",
+                                  })}
+                                </div>
+                              ) : null}
+                            </div>
+                            {selectedPlanScriptEntries.length > 0 ? (
+                              <div className="overflow-hidden rounded-xl border">
+                                {selectedPlanScriptEntries.map(({ id, script }, index) => {
+                                  const canMoveUp = index > 0;
+                                  const canMoveDown = index < selectedPlanScriptEntries.length - 1;
+                                  return (
+                                    <div
+                                      key={id}
+                                      className="flex items-start gap-3 border-b px-3 py-3 last:border-b-0"
+                                    >
+                                      <Badge variant="secondary" className="mt-0.5 min-w-8 justify-center">
+                                        {index + 1}
+                                      </Badge>
+                                      <div className="min-w-0 flex-1">
+                                        <div className="font-medium text-slate-900 dark:text-slate-50">
+                                          {getScriptDisplayName(id)}
+                                        </div>
+                                        {script?.remark ? (
+                                          <div className="truncate text-xs text-muted-foreground" title={script.remark}>
+                                            {script.remark}
+                                          </div>
+                                        ) : null}
+                                        {!script ? (
+                                          <div className="text-xs text-amber-700 dark:text-amber-300">
+                                            {t("failover.editor.script_missing_hint", {
+                                              defaultValue: "This script is no longer in the library, but it will stay in the saved execution order until you remove it.",
+                                            })}
+                                          </div>
+                                        ) : null}
+                                      </div>
+                                      <div className="flex shrink-0 items-center gap-1">
+                                        <Button
+                                          type="button"
+                                          variant="outline"
+                                          size="icon"
+                                          onClick={() => movePlanScriptToIndex(selectedPlan.local_id, id, index - 1)}
+                                          disabled={!canMoveUp}
+                                          title={t("failover.editor.move_script_up", { defaultValue: "Move script up" })}
+                                        >
+                                          <ArrowUp className="size-4" />
+                                        </Button>
+                                        <Button
+                                          type="button"
+                                          variant="outline"
+                                          size="icon"
+                                          onClick={() => movePlanScriptToIndex(selectedPlan.local_id, id, index + 1)}
+                                          disabled={!canMoveDown}
+                                          title={t("failover.editor.move_script_down", { defaultValue: "Move script down" })}
+                                        >
+                                          <ArrowDown className="size-4" />
+                                        </Button>
+                                        <Button
+                                          type="button"
+                                          variant="outline"
+                                          size="icon"
+                                          onClick={() => removePlanScript(selectedPlan.local_id, id)}
+                                          title={t("failover.editor.remove_script", { defaultValue: "Remove script" })}
+                                        >
+                                          <Trash2 className="size-4" />
+                                        </Button>
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            ) : (
+                              <div className="rounded-xl border border-dashed px-4 py-3 text-sm text-muted-foreground">
+                                {t("failover.editor.scripts_execution_order_empty_detail", {
+                                  defaultValue: "No scripts are selected yet. Pick scripts below, then reorder them here from top to bottom.",
+                                })}
+                              </div>
+                            )}
+                          </div>
                           <Input
                             value={selectedPlanScriptSearch}
                             onChange={(event) => {
@@ -7009,7 +8360,12 @@ function TaskEditorDialog({
                               defaultValue: "Search scripts by name or remark, e.g. sg1",
                             })}
                           />
-                          <div className="max-h-56 overflow-y-auto rounded-xl border">
+                          <div className="text-xs font-medium uppercase tracking-[0.12em] text-muted-foreground">
+                            {t("failover.editor.available_scripts", {
+                              defaultValue: "Available scripts",
+                            })}
+                          </div>
+                          <div className="max-h-56 overflow-y-auto overscroll-contain rounded-xl border [scrollbar-gutter:stable]">
                             {sortedScripts.length === 0 ? (
                               <div className="px-3 py-3 text-sm text-muted-foreground">
                                 {t("scripts.empty", { defaultValue: "No saved scripts yet." })}
@@ -7053,8 +8409,11 @@ function TaskEditorDialog({
                               })}
                           </div>
                         </div>
+                            </div>
+                          </div>
+                        </CollapsibleContent>
                       </div>
-                    </div>
+                    </Collapsible>
 
                     <Collapsible open={selectedPlanAdvancedOpen} onOpenChange={setSelectedPlanAdvancedOpen}>
                       <div className="rounded-xl border">
@@ -7089,9 +8448,21 @@ function TaskEditorDialog({
                               <Input
                                 type="number"
                                 min={1}
-                                value={selectedPlan.priority}
-                                onChange={(event) => updatePlan(selectedPlan.local_id, (current) => ({ ...current, priority: event.target.value }))}
+                                max={formState.plans.length}
+                                value={selectedPlanIndex >= 0 ? String(selectedPlanIndex + 1) : selectedPlan.priority}
+                                onChange={(event) => {
+                                  const nextPriority = Number.parseInt(event.target.value, 10);
+                                  if (!Number.isFinite(nextPriority)) {
+                                    return;
+                                  }
+                                  movePlanToIndex(selectedPlan.local_id, nextPriority - 1);
+                                }}
                               />
+                              <div className="text-xs text-muted-foreground">
+                                {t("failover.editor.priority_reorder_hint", {
+                                  defaultValue: "Priority always follows the visible plan order. Change this number or use move up/down to reorder.",
+                                })}
+                              </div>
                             </div>
                             <div className="space-y-2">
                               <Label>{t("failover.editor.script_timeout", { defaultValue: "Script timeout (s)" })}</Label>
@@ -7115,16 +8486,59 @@ function TaskEditorDialog({
                         </CollapsibleContent>
                       </div>
                     </Collapsible>
-                  </>
-                ) : null}
+                        </>
+                      ) : null}
+                    </section>
+                  </div>
+                </DialogContent>
+              </Dialog>
+
+              <section className="space-y-4">
+                <div className="space-y-1">
+                  <div className="text-sm font-medium text-slate-900 dark:text-slate-50">
+                    {t("failover.preview.title", { defaultValue: "Preview checks" })}
+                  </div>
+                </div>
+                <ActionSummaryCard
+                  title={t("failover.preview.title", { defaultValue: "Preview checks" })}
+                  hint={t("failover.preview.summary_hint", {
+                    defaultValue: "Keep the main dialog focused on preview status and save readiness. Open the secondary dialog only when you need to inspect check details.",
+                  })}
+                  actionLabel={t("failover.preview.details_action", { defaultValue: "View details" })}
+                  onAction={() => setPreviewDialogOpen(true)}
+                  actionDisabled={!hasPreviewDetail}
+                  actionIcon="view"
+                  items={previewSummaryItems}
+                  emptyLabel={t("failover.preview.summary_empty", {
+                    defaultValue: "Preview has not run yet. Use the Preview button below to validate the current task before saving.",
+                  })}
+                  showEmptyState={!hasPreviewDetail}
+                  statusMessage={previewSummaryStatusMessage}
+                  statusTone={previewSummaryStatusTone}
+                />
               </section>
 
-              <TaskPreviewSection
-                preview={previewResult}
-                loading={previewing}
-                error={previewError}
-                stale={previewOutdated}
-              />
+              <Dialog open={previewDialogOpen} onOpenChange={setPreviewDialogOpen}>
+                <DialogContent className="flex h-[88vh] min-h-0 w-[calc(100vw-2rem)] max-w-5xl flex-col overflow-hidden p-0">
+                  <DialogHeader className="shrink-0 border-b bg-background px-5 py-4">
+                    <DialogTitle>{t("failover.preview.title", { defaultValue: "Preview checks" })}</DialogTitle>
+                    <DialogDescription>
+                      {t("failover.preview.dialog_description", {
+                        defaultValue: "Inspect task-level and plan-level checks from the latest preview run without crowding the main task dialog.",
+                      })}
+                    </DialogDescription>
+                  </DialogHeader>
+                  <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-contain px-5 py-5 [scrollbar-gutter:stable]">
+                    <TaskPreviewSection
+                      preview={previewResult}
+                      loading={previewing}
+                      error={previewError}
+                      stale={previewOutdated}
+                      hideHeader
+                    />
+                  </div>
+                </DialogContent>
+              </Dialog>
             </div>
           </div>
 
@@ -7154,7 +8568,7 @@ function TaskEditorDialog({
               </Button>
               <Button type="submit" disabled={submitting || Boolean(previewSaveBlockedReason)} title={previewSaveBlockedReason || undefined}>
                 {submitting ? <LoaderCircle className="size-4 animate-spin" /> : null}
-                {task
+                {mode === "edit"
                   ? t("common.save", { defaultValue: "Save" })
                   : t("common.create", { defaultValue: "Create" })}
               </Button>
@@ -7177,7 +8591,9 @@ function FailoverPageContent() {
   const [error, setError] = React.useState("");
   const [refreshing, setRefreshing] = React.useState(false);
   const [editorOpen, setEditorOpen] = React.useState(false);
+  const [editorMode, setEditorMode] = React.useState<"create" | "edit">("create");
   const [editingTask, setEditingTask] = React.useState<FailoverTask | null>(null);
+  const [templateTask, setTemplateTask] = React.useState<FailoverTask | null>(null);
   const [deleteTarget, setDeleteTarget] = React.useState<FailoverTask | null>(null);
   const [selectedExecutionID, setSelectedExecutionID] = React.useState<number | null>(null);
   const [selectedExecutionTaskName, setSelectedExecutionTaskName] = React.useState("");
@@ -7271,7 +8687,9 @@ function FailoverPageContent() {
   }, []);
 
   const openCreateDialog = () => {
+    setEditorMode("create");
     setEditingTask(null);
+    setTemplateTask(null);
     setEditorOpen(true);
     void refreshResources();
   };
@@ -7280,7 +8698,25 @@ function FailoverPageContent() {
     setBusyTaskID(task.id);
     try {
       const detail = await getFailoverTask(task.id);
+      setEditorMode("edit");
       setEditingTask(detail);
+      setTemplateTask(null);
+      setEditorOpen(true);
+      void refreshResources();
+    } catch (nextError) {
+      toast.error(nextError instanceof Error ? nextError.message : t("common.unknown_error"));
+    } finally {
+      setBusyTaskID(null);
+    }
+  };
+
+  const openDuplicateDialog = async (task: FailoverTask) => {
+    setBusyTaskID(task.id);
+    try {
+      const detail = await getFailoverTask(task.id);
+      setEditorMode("create");
+      setEditingTask(null);
+      setTemplateTask(detail);
       setEditorOpen(true);
       void refreshResources();
     } catch (nextError) {
@@ -7657,6 +9093,10 @@ function FailoverPageContent() {
                         {taskBusy ? <LoaderCircle className="size-4 animate-spin" /> : <PencilLine className="size-4" />}
                         {t("common.edit", { defaultValue: "Edit" })}
                       </Button>
+                      <Button type="button" size="sm" variant="outline" onClick={() => void openDuplicateDialog(task)} disabled={taskBusy || taskRunning}>
+                        {taskBusy ? <LoaderCircle className="size-4 animate-spin" /> : <Copy className="size-4" />}
+                        {t("copy", { defaultValue: "Copy" })}
+                      </Button>
                       <Button
                         type="button"
                         size="sm"
@@ -7701,14 +9141,18 @@ function FailoverPageContent() {
 
       <TaskEditorDialog
         open={editorOpen}
+        mode={editorMode}
         task={editingTask}
+        templateTask={templateTask}
         nodes={nodes}
         scripts={scripts}
         providerEntries={providerEntries}
         onOpenChange={(nextOpen) => {
           setEditorOpen(nextOpen);
           if (!nextOpen) {
+            setEditorMode("create");
             setEditingTask(null);
+            setTemplateTask(null);
           }
         }}
         onSaved={async () => {

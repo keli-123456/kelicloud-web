@@ -1,16 +1,24 @@
 import React from "react";
 import { Navigate, useSearchParams } from "react-router-dom";
 
-import AzurePanel from "@/components/admin/cloud/AzurePanel";
-import AWSPanel from "@/components/admin/cloud/AWSPanel";
-import DigitalOceanPanel from "@/components/admin/cloud/DigitalOceanPanel";
-import LinodePanel from "@/components/admin/cloud/LinodePanel";
 import Loading from "@/components/loading";
 import { CommandClipboardProvider } from "@/contexts/CommandClipboardContext";
 import { getDefaultAdminPath, useAccount } from "@/contexts/AccountContext";
 import { NodeDetailsProvider } from "@/contexts/NodeDetailsContext";
 
 type ProviderKey = "digitalocean" | "linode" | "azure" | "aws";
+
+const providerPanels: Record<
+  ProviderKey,
+  React.LazyExoticComponent<React.ComponentType>
+> = {
+  digitalocean: React.lazy(
+    () => import("@/components/admin/cloud/DigitalOceanPanel"),
+  ),
+  linode: React.lazy(() => import("@/components/admin/cloud/LinodePanel")),
+  azure: React.lazy(() => import("@/components/admin/cloud/AzurePanel")),
+  aws: React.lazy(() => import("@/components/admin/cloud/AWSPanel")),
+};
 
 export default function CloudPage() {
   const { account, hasFeature, loading: accountLoading } = useAccount();
@@ -55,6 +63,16 @@ export default function CloudPage() {
     return allowedProviders[0] || "digitalocean";
   }, [allowedProviders, providerParam]);
 
+  React.useEffect(() => {
+    if (accountLoading || allowedProviders.length === 0 || providerParam === provider) {
+      return;
+    }
+
+    const nextSearchParams = new URLSearchParams(searchParams);
+    nextSearchParams.set("provider", provider);
+    setSearchParams(nextSearchParams, { replace: true });
+  }, [accountLoading, allowedProviders.length, provider, providerParam, searchParams, setSearchParams]);
+
   if (accountLoading) {
     return <Loading />;
   }
@@ -63,23 +81,14 @@ export default function CloudPage() {
     return <Navigate to={getDefaultAdminPath(account)} replace />;
   }
 
-  React.useEffect(() => {
-    if (providerParam === provider) {
-      return;
-    }
-
-    const nextSearchParams = new URLSearchParams(searchParams);
-    nextSearchParams.set("provider", provider);
-    setSearchParams(nextSearchParams, { replace: true });
-  }, [provider, providerParam, searchParams, setSearchParams]);
+  const ActiveProviderPanel = providerPanels[provider];
 
   return (
     <NodeDetailsProvider>
       <CommandClipboardProvider>
-        {provider === "digitalocean" ? <DigitalOceanPanel /> : null}
-        {provider === "linode" ? <LinodePanel /> : null}
-        {provider === "azure" ? <AzurePanel /> : null}
-        {provider === "aws" ? <AWSPanel /> : null}
+        <React.Suspense fallback={<Loading />}>
+          <ActiveProviderPanel />
+        </React.Suspense>
       </CommandClipboardProvider>
     </NodeDetailsProvider>
   );

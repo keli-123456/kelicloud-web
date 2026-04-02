@@ -13,7 +13,6 @@ import type { LiveData, Record } from "../types/LiveData";
 import { formatUptime } from "./Node";
 import { DetailsGrid } from "./DetailsGrid";
 import Flag from "./Flag";
-import MiniPingChart from "./MiniPingChart";
 import PriceTags from "./PriceTags";
 import Tips from "./ui/tips";
 import {
@@ -25,6 +24,8 @@ import {
   TableRow,
 } from "./ui/table";
 import UsageBar from "./UsageBar";
+
+const MiniPingChart = React.lazy(() => import("./MiniPingChart"));
 
 interface NodeTableProps {
   nodes: NodeBasicInfo[];
@@ -456,7 +457,15 @@ const ExpandedNodeDetails: React.FC<ExpandedNodeDetailsProps> = ({ node }) => {
     <div className="space-y-4 p-4">
       <DetailsGrid gap="0" uuid={node.uuid} />
       <div>
-        <MiniPingChart hours={24} uuid={node.uuid} />
+        <React.Suspense
+          fallback={
+            <div className="rounded-xl border border-dashed border-border/60 px-4 py-8 text-center text-sm text-muted-foreground">
+              Loading...
+            </div>
+          }
+        >
+          <MiniPingChart hours={24} uuid={node.uuid} />
+        </React.Suspense>
       </div>
     </div>
   );

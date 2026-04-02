@@ -3,8 +3,10 @@ import { StreamLanguage } from "@codemirror/language"
 import { shell } from "@codemirror/legacy-modes/mode/shell"
 import { oneDark } from "@codemirror/theme-one-dark"
 import { EditorView } from "@codemirror/view"
-import { useTheme } from "next-themes"
+import * as React from "react"
 
+import { ThemeContext } from "@/contexts/ThemeContext"
+import { useSystemTheme } from "@/hooks/useSystemTheme"
 import { cn } from "@/lib/utils"
 
 type CodeEditorProps = {
@@ -148,7 +150,8 @@ function CodeEditor({
   maxHeight = "50vh",
   ariaLabel,
 }: CodeEditorProps) {
-  const { resolvedTheme } = useTheme()
+  const { appearance } = React.useContext(ThemeContext)
+  const resolvedAppearance = useSystemTheme(appearance)
 
   return (
     <div
@@ -165,7 +168,9 @@ function CodeEditor({
         height="auto"
         minHeight={minHeight}
         maxHeight={maxHeight}
-        theme={resolvedTheme === "dark" ? darkEditorTheme : lightEditorTheme}
+        theme={
+          resolvedAppearance === "dark" ? darkEditorTheme : lightEditorTheme
+        }
         extensions={shellExtensions}
         basicSetup={{
           lineNumbers: true,

@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState, useCallback } from "react";
+import React, { createContext, useContext, useEffect, useState, useCallback, useMemo } from "react";
 import { RPC2Client } from "../lib/rpc2";
 import type { RPC2ConnectionStateType } from "../types/rpc2";
 
@@ -63,7 +63,7 @@ export const RPC2Provider: React.FC<{ children: React.ReactNode }> = ({ children
     };
   }, [client]);
 
-  const connect = async () => {
+  const connect = useCallback(async () => {
     try {
       setError(null);
       await client.connect();
@@ -71,27 +71,28 @@ export const RPC2Provider: React.FC<{ children: React.ReactNode }> = ({ children
       setError(err instanceof Error ? err.message : "连接失败");
       throw err;
     }
-  };
+  }, [client]);
 
-  const disconnect = () => {
+  const disconnect = useCallback(() => {
     client.disconnect();
-  };
+  }, [client]);
 
   const isConnected = connectionState === "connected";
 
+  const value = useMemo(
+    () => ({
+      client,
+      connectionState,
+      isConnected,
+      error,
+      connect,
+      disconnect,
+    }),
+    [client, connectionState, isConnected, error, connect, disconnect],
+  );
+
   return (
-    <RPC2Context.Provider
-      value={{
-        client,
-        connectionState,
-        isConnected,
-        error,
-        connect,
-        disconnect
-      }}
-    >
-      {children}
-    </RPC2Context.Provider>
+    <RPC2Context.Provider value={value}>{children}</RPC2Context.Provider>
   );
 };
 

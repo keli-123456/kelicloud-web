@@ -818,20 +818,23 @@ export default function AzurePanel() {
             </div>
           </section>
 
-          <section className={cloudPanelCardClassName}>
-            <div className={cloudPanelHeaderClassName}>
-              <Flex justify="between" align="center" wrap="wrap" gap="2">
-                <div>
-                  <div className={cloudPanelTitleClassName}>
-                    {t("cloud.providers.azure.account_snapshot", "Account Snapshot")}
-                  </div>
-                  <div className={cloudPanelDescriptionClassName}>
-                    {t(
-                      "cloud.providers.azure.account_snapshot_description",
-                      "Shows the currently active Azure credential, subscription identity, and preferred location for future operations.",
-                    )}
-                  </div>
+        </div>
+
+        <section className={cloudPanelCardClassName}>
+          <div className={cloudPanelHeaderClassName}>
+            <Flex justify="between" align="center" wrap="wrap" gap="2">
+              <div>
+                <div className={cloudPanelTitleClassName}>
+                  {t("cloud.providers.azure.instance_list", "Virtual Machines")}
                 </div>
+                <div className={cloudPanelDescriptionClassName}>
+                  {t(
+                    "cloud.providers.azure.instance_list_description",
+                    "Lists all VMs under the current subscription. Open details to inspect network interfaces, disks, and runtime state.",
+                  )}
+                </div>
+              </div>
+              <Flex align="center" wrap="wrap" gap="2">
                 {catalog?.locations.length ? (
                   <div className="w-full sm:w-72">
                     <Select.Root
@@ -850,60 +853,8 @@ export default function AzurePanel() {
                     </Select.Root>
                   </div>
                 ) : null}
+                <Badge color="blue">{instances.length}</Badge>
               </Flex>
-            </div>
-            <div className="p-5">
-              {!activeCredential || !account ? (
-                <div className={cloudPanelBodyTextClassName}>
-                  {t("cloud.providers.azure.no_active_credential", "Select an active Azure credential first")}
-                </div>
-              ) : (
-                <div className="grid gap-3 sm:grid-cols-2">
-                  <CloudDetailItem
-                    label={t("cloud.providers.azure.active_credential", "Active Credential")}
-                    value={account.credential_name || activeCredential.name || "-"}
-                  />
-                  <CloudDetailItem
-                    label={t("cloud.providers.azure.subscription", "Subscription")}
-                    value={account.subscription_display_name || account.subscription_id || "-"}
-                  />
-                  <CloudDetailItem
-                    label={t("cloud.providers.azure.subscription_state", "Subscription State")}
-                    value={getCloudStatusLabel(account.subscription_state, t)}
-                  />
-                  <CloudDetailItem
-                    label={t("cloud.providers.azure.tenant_id", "Tenant ID")}
-                    value={account.tenant_id || "-"}
-                  />
-                  <CloudDetailItem
-                    label={t("cloud.providers.azure.client_id", "Client ID")}
-                    value={account.client_id || "-"}
-                  />
-                  <CloudDetailItem
-                    label={t("cloud.providers.azure.active_location", "Active Location")}
-                    value={getLocationLabel(catalog, account.active_location || activeCredential.default_location)}
-                  />
-                </div>
-              )}
-            </div>
-          </section>
-        </div>
-
-        <section className={cloudPanelCardClassName}>
-          <div className={cloudPanelHeaderClassName}>
-            <Flex justify="between" align="center" wrap="wrap" gap="2">
-              <div>
-                <div className={cloudPanelTitleClassName}>
-                  {t("cloud.providers.azure.instance_list", "Virtual Machines")}
-                </div>
-                <div className={cloudPanelDescriptionClassName}>
-                  {t(
-                    "cloud.providers.azure.instance_list_description",
-                    "Lists all VMs under the current subscription. Open details to inspect network interfaces, disks, and runtime state.",
-                  )}
-                </div>
-              </div>
-              <Badge color="blue">{instances.length}</Badge>
             </Flex>
           </div>
           <div className="p-5">

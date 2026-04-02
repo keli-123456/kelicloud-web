@@ -179,7 +179,7 @@ export default function GeneralSettings() {
               <div className="w-full">
                 {geoip_testResult && (
                   <pre
-                    className="w-full whitespace-pre-wrap text-sm p-3 rounded-md overflow-auto max-h-96"
+                    className="max-h-96 w-full overflow-auto whitespace-pre-wrap rounded-md p-3 text-sm overscroll-contain [scrollbar-gutter:stable]"
                   >
                     {geoip_testResult}
                   </pre>

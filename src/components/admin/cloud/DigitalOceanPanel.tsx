@@ -1383,7 +1383,7 @@ export default function DigitalOceanPanel() {
               </div>
             </div>
 
-            <div className="max-h-[560px] overflow-auto">
+            <div className="max-h-[560px] overflow-auto overscroll-contain [scrollbar-gutter:stable]">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -1392,7 +1392,7 @@ export default function DigitalOceanPanel() {
                         <Checkbox
                           checked={allTokensSelected || (someTokensSelected && "indeterminate")}
                           onCheckedChange={(checked) => {
-                            setSelectedTokenIds(Boolean(checked) ? tokenRows.map((token) => token.id) : []);
+                            setSelectedTokenIds(checked === true ? tokenRows.map((token) => token.id) : []);
                           }}
                           aria-label={t("cloud.tokens.select_all", "Select all tokens")}
                         />

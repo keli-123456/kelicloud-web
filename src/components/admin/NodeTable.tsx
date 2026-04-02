@@ -385,7 +385,7 @@ export function DataTable() {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2"></div>
           </div>
-          <div className="relative flex flex-col gap-4 overflow-auto">
+          <div className="relative flex flex-col gap-4 overflow-auto overscroll-contain [scrollbar-gutter:stable]">
             <div className="overflow-hidden rounded-lg">
               <DndContext
                 collisionDetection={closestCenter}

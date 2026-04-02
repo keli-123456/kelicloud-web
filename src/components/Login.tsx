@@ -48,7 +48,7 @@ const LoginDialog = ({
   redirectAuthenticatedTo,
   className,
 }: LoginDialogProps) => {
-  const InnerLayout = () => {
+  const InnerLayout = ({ autoOpen }: { autoOpen: boolean }) => {
     const { account, loading, error, refresh } = useAccount();
     const [t] = useTranslation();
     const [username, setUsername] = React.useState("");
@@ -310,7 +310,7 @@ const LoginDialog = ({
 
   return (
     <AccountProvider>
-      <InnerLayout />
+      <InnerLayout autoOpen={autoOpen} />
     </AccountProvider>
   );
 };

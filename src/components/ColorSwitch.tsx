@@ -51,7 +51,7 @@ const ColorSwitch = ({ icon }: ColorSwitchProps = {}) => {
         </TooltipTrigger>
         <TooltipContent>Accent</TooltipContent>
       </Tooltip>
-      <DropdownMenuContent className="max-h-80 min-w-52 overflow-y-auto">
+      <DropdownMenuContent className="max-h-80 min-w-52 overflow-y-auto overscroll-contain [scrollbar-gutter:stable]">
         <DropdownMenuLabel>Accent</DropdownMenuLabel>
         <DropdownMenuSeparator />
         {allowedColors.map((item) => (

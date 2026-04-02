@@ -15,10 +15,10 @@ import {
 import { cn } from "@/lib/utils";
 
 const cloudDialogContentClassName =
-  "w-[calc(100vw-1rem)] max-w-[calc(100vw-1rem)] min-w-0 overflow-x-hidden sm:max-w-3xl";
+  "w-[calc(100vw-1rem)] max-w-[calc(100vw-1rem)] min-w-0 overflow-x-hidden overscroll-contain [scrollbar-gutter:stable] sm:max-w-3xl";
 
 const cloudDialogWideContentClassName =
-  "w-[calc(100vw-1rem)] max-w-[calc(100vw-1rem)] min-w-0 overflow-x-hidden sm:max-w-5xl";
+  "w-[calc(100vw-1rem)] max-w-[calc(100vw-1rem)] min-w-0 overflow-x-hidden overscroll-contain [scrollbar-gutter:stable] sm:max-w-5xl";
 
 const cloudLongTextClassName =
   "min-w-0 whitespace-pre-wrap break-words [overflow-wrap:anywhere]";
@@ -108,6 +108,7 @@ type CloudCopyBlockProps = {
   copyLabel?: React.ReactNode;
   className?: string;
   titleClassName?: string;
+  contentClassName?: string;
   children: React.ReactNode;
 };
 
@@ -117,6 +118,7 @@ function CloudCopyBlock({
   copyLabel = "Copy",
   className,
   titleClassName,
+  contentClassName,
   children,
 }: CloudCopyBlockProps) {
   return (
@@ -146,7 +148,7 @@ function CloudCopyBlock({
           {copyLabel}
         </Button>
       </div>
-      <div className="mt-3 min-w-0">{children}</div>
+      <div className={cn("mt-3 min-w-0", contentClassName)}>{children}</div>
     </div>
   );
 }

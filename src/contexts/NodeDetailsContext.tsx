@@ -92,8 +92,13 @@ export const NodeDetailsProvider: React.FC<NodeDetailsProviderProps> = ({
     void refresh();
   }, [refresh]);
 
+  const value = React.useMemo(
+    () => ({ nodeDetail, isLoading, error, refresh }),
+    [nodeDetail, isLoading, error, refresh],
+  );
+
   return (
-    <NodeDetailsContext.Provider value={{ nodeDetail, isLoading, error, refresh }}>
+    <NodeDetailsContext.Provider value={value}>
       {children}
     </NodeDetailsContext.Provider>
   );

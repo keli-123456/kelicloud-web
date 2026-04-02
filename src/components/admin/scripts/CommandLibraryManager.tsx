@@ -1,4 +1,13 @@
-import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
+import {
+  Suspense,
+  lazy,
+  useCallback,
+  useDeferredValue,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { Copy, PencilLine, Play, Plus, Search, Trash2 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Link, useLocation, useNavigate } from "react-router-dom";
@@ -21,7 +30,6 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { CodeEditor } from "@/components/ui/code-editor";
 import {
   Dialog,
   DialogClose,
@@ -64,6 +72,11 @@ const EMPTY_FORM_VALUES: CommandFormValues = {
 };
 
 const DEFAULT_PAGE_SIZE = 20;
+
+const CodeEditor = lazy(async () => {
+  const module = await import("@/components/ui/code-editor");
+  return { default: module.CodeEditor };
+});
 
 const toFormValues = (
   command?: Partial<Pick<CommandClipboard, "name" | "text" | "remark" | "weight">>,
@@ -772,7 +785,7 @@ export default function CommandLibraryManager() {
           </DialogHeader>
 
           <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col overflow-hidden">
-            <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto pr-1">
+            <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto overscroll-contain pr-1 [scrollbar-gutter:stable]">
               <div className="space-y-2">
                 <label className="text-sm font-medium text-slate-900 dark:text-slate-100">
                   {t("common.name")}
@@ -790,17 +803,25 @@ export default function CommandLibraryManager() {
                 <label className="text-sm font-medium text-slate-900 dark:text-slate-100">
                   {t("common.content")}
                 </label>
-                <CodeEditor
-                  value={formValues.text}
-                  onChange={(value) => handleEditorChange("text", value)}
-                  placeholder={t("command_clipboard.editor.content_placeholder", {
-                    defaultValue: "#!/usr/bin/env bash",
-                  })}
-                  className="min-h-0"
-                  minHeight="320px"
-                  maxHeight="min(50vh, calc(100vh - 20rem))"
-                  ariaLabel={t("common.content")}
-                />
+                <Suspense
+                  fallback={
+                    <div className="flex min-h-[320px] items-center justify-center rounded-md border border-dashed border-border/60 bg-muted/20 text-sm text-muted-foreground">
+                      {t("common.loading", { defaultValue: "Loading..." })}
+                    </div>
+                  }
+                >
+                  <CodeEditor
+                    value={formValues.text}
+                    onChange={(value) => handleEditorChange("text", value)}
+                    placeholder={t("command_clipboard.editor.content_placeholder", {
+                      defaultValue: "#!/usr/bin/env bash",
+                    })}
+                    className="min-h-0"
+                    minHeight="320px"
+                    maxHeight="min(50vh, calc(100vh - 20rem))"
+                    ariaLabel={t("common.content")}
+                  />
+                </Suspense>
               </div>
 
               <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_160px]">

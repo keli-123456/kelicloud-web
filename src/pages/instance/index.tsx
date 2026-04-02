@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { Suspense, lazy, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useParams } from "react-router-dom";
 
@@ -12,8 +12,9 @@ import { useNodeList } from "@/contexts/NodeListContext";
 import { DetailsGrid } from "@/components/DetailsGrid";
 import { liveDataToRecords } from "@/utils/RecordHelper";
 import { formatBytes } from "@/utils/unitHelper";
-import LoadChart from "./LoadChart";
-import PingChart from "./PingChart";
+
+const LoadChart = lazy(() => import("./LoadChart"));
+const PingChart = lazy(() => import("./PingChart"));
 
 export default function InstancePage() {
   const { t } = useTranslation();
@@ -32,7 +33,7 @@ export default function InstancePage() {
       .then((res) => res.json())
       .then((data) => setRecent(data.data.slice(-length)))
       .catch((err) => console.error("Failed to fetch recent data:", err));
-  }, [uuid]);
+  }, [length, uuid]);
 
   useEffect(() => {
     const unsubscribe = onRefresh((resp) => {
@@ -51,7 +52,7 @@ export default function InstancePage() {
     });
 
     return unsubscribe;
-  }, [onRefresh, uuid]);
+  }, [length, onRefresh, uuid]);
 
   return (
     <div className="mx-auto flex w-full max-w-[1440px] flex-col gap-4 px-2 pb-6">
@@ -150,11 +151,19 @@ export default function InstancePage() {
         </div>
       </Card>
 
-      {chartView === "load" ? (
-        <LoadChart data={liveDataToRecords(uuid ?? "", recent)} />
-      ) : (
-        <PingChart uuid={uuid ?? ""} />
-      )}
+      <Suspense
+        fallback={
+          <Card className="rounded-[30px] border border-border/60 bg-background/95 px-4 py-10 text-center text-sm text-muted-foreground shadow-[0_24px_70px_-42px_rgba(15,23,42,0.45)]">
+            {t("common.loading", { defaultValue: "Loading..." })}
+          </Card>
+        }
+      >
+        {chartView === "load" ? (
+          <LoadChart data={liveDataToRecords(uuid ?? "", recent)} />
+        ) : (
+          <PingChart uuid={uuid ?? ""} />
+        )}
+      </Suspense>
     </div>
   );
 }

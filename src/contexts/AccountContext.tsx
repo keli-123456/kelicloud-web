@@ -170,7 +170,7 @@ export const AccountProvider: React.FC<{ children: React.ReactNode }> = ({
     [account],
   );
 
-  const refresh = async () => {
+  const refresh = React.useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
@@ -196,18 +196,26 @@ export const AccountProvider: React.FC<{ children: React.ReactNode }> = ({
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   React.useEffect(() => {
     void refresh();
-  }, []);
+  }, [refresh]);
+
+  const value = React.useMemo(
+    () => ({
+      account,
+      loading,
+      platformAdmin,
+      error,
+      refresh,
+      hasFeature,
+    }),
+    [account, loading, platformAdmin, error, refresh, hasFeature],
+  );
 
   return (
-    <AccountContext.Provider
-      value={{ account, loading, platformAdmin, error, refresh, hasFeature }}
-    >
-      {children}
-    </AccountContext.Provider>
+    <AccountContext.Provider value={value}>{children}</AccountContext.Provider>
   );
 };
 

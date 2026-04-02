@@ -83,7 +83,7 @@ const MiniPingChart = ({
         setLoading(false);
       }
     })();
-  }, [uuid, hours]);
+  }, [call, hours, uuid]);
 
   const chartData = useMemo(() => {
     // 思路：仅保留真实采样时间点（各任务原始时间点的并集），
@@ -174,7 +174,7 @@ const MiniPingChart = ({
       };
     });
     return config;
-  }, [tasks]);
+  }, [t, tasks]);
 
   const handleLegendClick = useCallback((e: any) => {
     const key = e.dataKey;

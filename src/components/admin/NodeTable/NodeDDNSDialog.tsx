@@ -479,7 +479,10 @@ export function NodeDDNSDialog({
           </IconButton>
         </Dialog.Trigger>
       )}
-      <Dialog.Content maxWidth={720} className="max-h-[85vh] overflow-y-auto">
+      <Dialog.Content
+        maxWidth={720}
+        className="max-h-[85vh] overflow-y-auto overscroll-contain [scrollbar-gutter:stable]"
+      >
         <Dialog.Title>{t("admin.nodeTable.ddns.title", "DDNS")}</Dialog.Title>
         <Dialog.Description>
           {t(

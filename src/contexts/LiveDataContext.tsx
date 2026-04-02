@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState } from "react";
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import type { LiveDataResponse } from "../types/LiveData";
 import { useRPC2Call } from "./RPC2Context";
 
@@ -6,31 +6,34 @@ import { useRPC2Call } from "./RPC2Context";
 interface LiveDataContextType {
   live_data: LiveDataResponse | null;
   showCallout: boolean;
-  onRefresh: (callback: (data: LiveDataResponse) => void) => void;
+  onRefresh: (callback: (data: LiveDataResponse) => void) => () => void;
 }
 
 const LiveDataContext = createContext<LiveDataContextType>({
   live_data: null,
   showCallout: true,
-  onRefresh: () => { },
+  onRefresh: () => () => {},
 });
 
 // 创建Provider组件
 export const LiveDataProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [live_data, setLiveData] = useState<LiveDataResponse | null>(null);
   const [showCallout, setShowCallout] = useState(false);
-  const [refreshCallbacks] = useState<Set<(data: LiveDataResponse) => void>>(new Set());
+  const refreshCallbacksRef = useRef<Set<(data: LiveDataResponse) => void>>(new Set());
   const { call } = useRPC2Call();
 
   // 注册刷新回调函数
-  const onRefresh = (callback: (data: LiveDataResponse) => void) => {
-    refreshCallbacks.add(callback);
-  };
+  const onRefresh = useCallback((callback: (data: LiveDataResponse) => void) => {
+    refreshCallbacksRef.current.add(callback);
+    return () => {
+      refreshCallbacksRef.current.delete(callback);
+    };
+  }, []);
 
   // 当数据更新时通知所有回调函数
-  const notifyRefreshCallbacks = (data: LiveDataResponse) => {
-    refreshCallbacks.forEach(callback => callback(data));
-  };
+  const notifyRefreshCallbacks = useCallback((data: LiveDataResponse) => {
+    refreshCallbacksRef.current.forEach((callback) => callback(data));
+  }, []);
 
   // 采用 RPC2 轮询最新状态，替代 WebSocket
   useEffect(() => {
@@ -109,10 +112,15 @@ export const LiveDataProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       stopped = true;
       if (timer) window.clearTimeout(timer);
     };
-  }, [call]);
+  }, [call, notifyRefreshCallbacks]);
+
+  const contextValue = useMemo(
+    () => ({ live_data, showCallout, onRefresh }),
+    [live_data, onRefresh, showCallout],
+  );
 
   return (
-    <LiveDataContext.Provider value={{ live_data, showCallout, onRefresh }}>
+    <LiveDataContext.Provider value={contextValue}>
       {children}
     </LiveDataContext.Provider>
   );

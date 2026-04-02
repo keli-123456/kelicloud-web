@@ -1,60 +1,209 @@
-import i18next from "i18next";
+import i18next, { type ResourceLanguage } from "i18next";
 import { initReactI18next } from "react-i18next";
 import LanguageDetector from "i18next-browser-languagedetector";
-import en from "./locales/en.json";
-import zh_CN from "./locales/zh_CN.json";
-import zh_TW from "./locales/zh_TW.json";
-import ja_JP from "./locales/ja_JP.json"; 
-import id_ID from "./locales/id_ID.json";
 
-// 不添加 name 字段的语言将不会在语言切换菜单中显示
-// not adding the name field will hide the language from the language switcher menu
-const resources = {
+type SupportedLanguage =
+  | "en-US"
+  | "zh-CN"
+  | "zh-TW"
+  | "ja-JP"
+  | "id-ID";
+
+type LanguageDefinition = {
+  aliases: string[];
+  loader: () => Promise<{ default: ResourceLanguage }>;
+  name?: string;
+};
+
+const FALLBACK_LANGUAGE: SupportedLanguage = "zh-CN";
+
+const languageDefinitions: Record<SupportedLanguage, LanguageDefinition> = {
   "en-US": {
-    translation: en,
+    aliases: ["en"],
+    loader: () => import("./locales/en.json"),
     name: "English",
   },
   "zh-CN": {
-    translation: zh_CN,
+    aliases: ["zh", "zh-SG"],
+    loader: () => import("./locales/zh_CN.json"),
     name: "简体中文",
   },
-  "zh-SG": {
-    translation: zh_CN,  // Singapore uses Simplified Chinese
-  },
   "zh-TW": {
-    translation: zh_TW,
+    aliases: ["zh-HK", "zh-MO"],
+    loader: () => import("./locales/zh_TW.json"),
     name: "繁體中文",
   },
-  "zh-HK": {
-    translation: zh_TW,  // Hong Kong uses Traditional Chinese
-  },
-  "zh-MO": {
-    translation: zh_TW,  // Macau uses Traditional Chinese
-  },
   "ja-JP": {
-    translation: ja_JP,
+    aliases: ["ja"],
+    loader: () => import("./locales/ja_JP.json"),
     name: "日本語",
   },
   "id-ID": {
-    translation: id_ID,
+    aliases: ["id"],
+    loader: () => import("./locales/id_ID.json"),
     name: "Bahasa Indonesia",
   },
 };
 
-const i18n = i18next
-  .use(LanguageDetector)
-  .use(initReactI18next)
-  .init({
-    resources,
-    fallbackLng: "zh-CN",
-    interpolation: {
-      escapeValue: false, // React handles XSS
-    },
-    detection: {
-      order: ["querystring", "cookie", "localStorage", "navigator", "htmlTag"],
-      caches: ["localStorage", "cookie"],
-    },
-  });
+const supportedLanguageMap = new Map<string, string>();
+const canonicalLanguageMap = new Map<string, SupportedLanguage>();
+const resourceLoadPromises = new Map<SupportedLanguage, Promise<void>>();
 
-export default i18n;
-export { resources };
+for (const [canonicalLanguage, definition] of Object.entries(
+  languageDefinitions,
+) as [SupportedLanguage, LanguageDefinition][]) {
+  supportedLanguageMap.set(canonicalLanguage.toLowerCase(), canonicalLanguage);
+  canonicalLanguageMap.set(canonicalLanguage, canonicalLanguage);
+
+  for (const alias of definition.aliases) {
+    supportedLanguageMap.set(alias.toLowerCase(), alias);
+    canonicalLanguageMap.set(alias, canonicalLanguage);
+  }
+}
+
+export const availableLanguages = (
+  Object.entries(languageDefinitions) as [SupportedLanguage, LanguageDefinition][]
+)
+  .filter(([, definition]) => typeof definition.name === "string")
+  .map(([code, definition]) => ({
+    code,
+    name: definition.name as string,
+  }))
+  .sort((a, b) => a.code.localeCompare(b.code));
+
+const supportedLanguageCodes = [
+  ...new Set(
+    (
+      Object.entries(languageDefinitions) as [SupportedLanguage, LanguageDefinition][]
+    ).flatMap(([canonicalLanguage, definition]) => [
+      canonicalLanguage,
+      ...definition.aliases,
+    ]),
+  ),
+];
+
+function normalizeLanguageInput(language?: string | null) {
+  return language?.trim().replace(/_/g, "-") ?? "";
+}
+
+export function resolveSupportedLanguage(language?: string | null) {
+  const normalizedLanguage = normalizeLanguageInput(language).toLowerCase();
+  if (!normalizedLanguage) {
+    return FALLBACK_LANGUAGE;
+  }
+
+  return (
+    supportedLanguageMap.get(normalizedLanguage) ??
+    supportedLanguageMap.get(normalizedLanguage.split("-")[0]) ??
+    FALLBACK_LANGUAGE
+  );
+}
+
+export function resolveCanonicalLanguage(
+  language?: string | null,
+): SupportedLanguage {
+  const supportedLanguage = resolveSupportedLanguage(language);
+  return canonicalLanguageMap.get(supportedLanguage) ?? FALLBACK_LANGUAGE;
+}
+
+async function ensureCanonicalLanguageResources(language: SupportedLanguage) {
+  if (i18next.hasResourceBundle(language, "translation")) {
+    return;
+  }
+
+  const existingPromise = resourceLoadPromises.get(language);
+  if (existingPromise) {
+    await existingPromise;
+    return;
+  }
+
+  const loadPromise = languageDefinitions[language]
+    .loader()
+    .then(({ default: translation }) => {
+      i18next.addResourceBundle(
+        language,
+        "translation",
+        translation,
+        true,
+        true,
+      );
+    })
+    .finally(() => {
+      resourceLoadPromises.delete(language);
+    });
+
+  resourceLoadPromises.set(language, loadPromise);
+  await loadPromise;
+}
+
+function ensureAliasResources(language: string, canonicalLanguage: SupportedLanguage) {
+  if (language === canonicalLanguage || i18next.hasResourceBundle(language, "translation")) {
+    return;
+  }
+
+  const translation = i18next.getResourceBundle(
+    canonicalLanguage,
+    "translation",
+  );
+  if (!translation) {
+    return;
+  }
+
+  i18next.addResourceBundle(language, "translation", translation, true, true);
+}
+
+export async function loadLanguageResources(language?: string | null) {
+  const supportedLanguage = resolveSupportedLanguage(language);
+  const canonicalLanguage = resolveCanonicalLanguage(supportedLanguage);
+
+  await ensureCanonicalLanguageResources(canonicalLanguage);
+  ensureAliasResources(supportedLanguage, canonicalLanguage);
+
+  return supportedLanguage;
+}
+
+export async function changeLanguage(language: string) {
+  const supportedLanguage = await loadLanguageResources(language);
+  await i18next.changeLanguage(supportedLanguage);
+  return supportedLanguage;
+}
+
+let initPromise: Promise<typeof i18next> | null = null;
+
+export async function initI18n() {
+  if (!initPromise) {
+    initPromise = (async () => {
+      await i18next.use(LanguageDetector).use(initReactI18next).init({
+        resources: {},
+        fallbackLng: FALLBACK_LANGUAGE,
+        supportedLngs: supportedLanguageCodes,
+        load: "currentOnly",
+        interpolation: {
+          escapeValue: false,
+        },
+        partialBundledLanguages: true,
+        detection: {
+          order: [
+            "querystring",
+            "cookie",
+            "localStorage",
+            "navigator",
+            "htmlTag",
+          ],
+          caches: ["localStorage", "cookie"],
+        },
+      });
+
+      const initialLanguage = await loadLanguageResources(
+        i18next.resolvedLanguage || i18next.language || FALLBACK_LANGUAGE,
+      );
+      await i18next.changeLanguage(initialLanguage);
+
+      return i18next;
+    })();
+  }
+
+  return initPromise;
+}
+
+export default i18next;

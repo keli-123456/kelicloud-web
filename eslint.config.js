@@ -27,4 +27,16 @@ export default tseslint.config(
       'prefer-const': 'off',
     },
   },
+  {
+    files: [
+      'src/components/ui/**/*.{ts,tsx}',
+      'src/components/admin/cloud/cloud-ui.tsx',
+      'src/contexts/**/*.{ts,tsx}',
+      'src/components/Node.tsx',
+      'src/main.tsx',
+    ],
+    rules: {
+      'react-refresh/only-export-components': 'off',
+    },
+  },
 )

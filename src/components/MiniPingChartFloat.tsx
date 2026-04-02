@@ -1,10 +1,18 @@
-import React, { useState, useRef, useCallback } from "react";
+import React, {
+  Suspense,
+  lazy,
+  useState,
+  useRef,
+  useCallback,
+  useEffect,
+} from "react";
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import MiniPingChart from "./MiniPingChart"; 
+
+const MiniPingChart = lazy(() => import("./MiniPingChart"));
 
 interface FloatMiniPingChartProps {
   uuid: string;
@@ -23,6 +31,14 @@ const MiniPingChartFloat: React.FC<FloatMiniPingChartProps> = ({
 }) => {
   const [open, setOpen] = useState(false);
   const hoverTimeoutRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (hoverTimeoutRef.current) {
+        clearTimeout(hoverTimeoutRef.current);
+      }
+    };
+  }, []);
 
   const handleMouseEnter = useCallback(() => {
     if (hoverTimeoutRef.current) {
@@ -74,7 +90,25 @@ const MiniPingChartFloat: React.FC<FloatMiniPingChartProps> = ({
           zIndex: 5,
         }}
       >
-        <MiniPingChart hours={hours} uuid={uuid} width={chartWidth} height={chartHeight} />
+        {open ? (
+          <Suspense
+            fallback={
+              <div
+                className="flex items-center justify-center text-sm text-muted-foreground"
+                style={{ width: chartWidth, height: chartHeight }}
+              >
+                Loading...
+              </div>
+            }
+          >
+            <MiniPingChart
+              hours={hours}
+              uuid={uuid}
+              width={chartWidth}
+              height={chartHeight}
+            />
+          </Suspense>
+        ) : null}
       </PopoverContent>
     </Popover>
   );

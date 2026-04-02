@@ -1,23 +1,28 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  Suspense,
+  lazy,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { Cross1Icon } from "@radix-ui/react-icons";
 import { motion } from "framer-motion";
 import throttle from "lodash/throttle";
-import { SearchAddon } from "xterm-addon-search";
-import { FitAddon } from "xterm-addon-fit";
-import { WebLinksAddon } from "xterm-addon-web-links";
-import { Terminal } from "xterm";
 import { useTranslation } from "react-i18next";
-import "xterm/css/xterm.css";
+import type { Terminal as XTermTerminal } from "xterm";
 
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Toaster } from "@/components/ui/sonner";
-import CommandClipboardPanel from "@/pages/terminal/CommandClipboard";
 import { TerminalContext } from "@/contexts/TerminalContext";
 
 import { TablerAlertTriangleFilled } from "../../components/Icones/Tabler";
 
 import "./Terminal.css";
+
+const CommandClipboardPanel = lazy(() => import("@/pages/terminal/CommandClipboard"));
 
 interface TerminalAreaProps {
   terminalRef: React.RefObject<HTMLDivElement | null>;
@@ -61,13 +66,21 @@ const Divider: React.FC<{
 
 const ClipboardPanel: React.FC = () => (
   <div className="h-screen min-w-64 p-2" style={{ flex: 1 }}>
-    <CommandClipboardPanel className="h-full w-full" />
+    <Suspense
+      fallback={
+        <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
+          Loading...
+        </div>
+      }
+    >
+      <CommandClipboardPanel className="h-full w-full" />
+    </Suspense>
   </div>
 );
 
 const TerminalPage = () => {
   const terminalRef = useRef<HTMLDivElement>(null);
-  const terminalInstance = useRef<Terminal | null>(null);
+  const terminalInstance = useRef<XTermTerminal | null>(null);
   const wsRef = useRef<WebSocket | null>(null);
   const heartbeatIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const params = new URLSearchParams(window.location.search);
@@ -78,7 +91,7 @@ const TerminalPage = () => {
   const [isClipboardOpen, setIsClipboardOpen] = useState(false);
   const [leftWidth, setLeftWidth] = useState<number>(window.innerWidth * 0.7);
   const draggingRef = useRef(false);
-  const fitAddonRef = useRef<any>(null);
+  const fitAddonRef = useRef<{ fit: () => void } | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
   const resizeTerminal = useCallback(() => {
@@ -110,8 +123,8 @@ const TerminalPage = () => {
     }
   }, [resizeTerminal]);
 
-  const onMouseMove = useCallback(
-    throttle((e: MouseEvent | TouchEvent) => {
+  const onMouseMove = useMemo(
+    () => throttle((e: MouseEvent | TouchEvent) => {
       if (!draggingRef.current || !containerRef.current) return;
 
       const containerRect = containerRef.current.getBoundingClientRect();
@@ -165,42 +178,27 @@ const TerminalPage = () => {
     setCallout(window.location.protocol !== "https:");
     if (!terminalRef.current) return;
 
-    const term = new Terminal({
-      cursorBlink: true,
-      macOptionIsMeta: true,
-      scrollback: 5000,
-      convertEol: true,
-      fontFamily: "'Cascadia Mono', 'Noto Sans SC', monospace",
-      fontSize: 16,
-    });
+    let disposed = false;
+    let term: XTermTerminal | null = null;
+    let ws: WebSocket | null = null;
+    let searchAddon: { findNext: (value: string) => boolean } | null = null;
+    let handleResize: (() => void) | null = null;
+    let handleKeyDown: ((e: KeyboardEvent) => void) | null = null;
+    let handleContextMenu: ((e: MouseEvent) => void) | null = null;
 
-    const fitAddon = new FitAddon();
-    fitAddonRef.current = fitAddon;
-    const webLinksAddon = new WebLinksAddon();
-    const searchAddon = new SearchAddon();
-
-    term.loadAddon(fitAddon);
-    term.loadAddon(webLinksAddon);
-    term.loadAddon(searchAddon);
-
-    term.open(terminalRef.current);
-    terminalInstance.current = term;
-
-    const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-    const host = window.location.host;
-    const baseUrl = `${protocol}//${host}`;
-    const ws = new WebSocket(`${baseUrl}/api/admin/client/${uuid}/terminal`);
-    ws.binaryType = "arraybuffer";
-    wsRef.current = ws;
-
-    ws.onopen = () => {
-      resizeTerminal();
-      startHeartbeat();
+    const stopHeartbeat = () => {
+      if (heartbeatIntervalRef.current) {
+        clearInterval(heartbeatIntervalRef.current);
+        heartbeatIntervalRef.current = null;
+      }
     };
 
     const startHeartbeat = () => {
+      if (!ws) {
+        return;
+      }
       heartbeatIntervalRef.current = setInterval(() => {
-        if (ws.readyState === WebSocket.OPEN) {
+        if (ws?.readyState === WebSocket.OPEN) {
           ws.send(
             JSON.stringify({
               type: "heartbeat",
@@ -211,96 +209,157 @@ const TerminalPage = () => {
       }, 10000);
     };
 
-    const stopHeartbeat = () => {
-      if (heartbeatIntervalRef.current) {
-        clearInterval(heartbeatIntervalRef.current);
-        heartbeatIntervalRef.current = null;
-      }
-    };
+    void (async () => {
+      const [
+        { Terminal },
+        { FitAddon },
+        { WebLinksAddon },
+        { SearchAddon },
+      ] = await Promise.all([
+        import("xterm"),
+        import("xterm-addon-fit"),
+        import("xterm-addon-web-links"),
+        import("xterm-addon-search"),
+        import("xterm/css/xterm.css"),
+      ]);
 
-    ws.onmessage = (event) => {
-      if (event.data instanceof ArrayBuffer) {
-        const uint8Array = new Uint8Array(event.data);
-        term.write(uint8Array);
-      } else {
-        term.write(event.data);
-      }
-      if (!firstBinary.current && event.data instanceof ArrayBuffer) {
-        firstBinary.current = true;
-        setTimeout(() => {
-          const currentTerm = terminalInstance.current;
-          if (currentTerm) {
-            currentTerm.resize(currentTerm.cols - 1, currentTerm.rows);
-          }
-          resizeTerminal();
-        }, 200);
-      }
-    };
-
-    ws.onclose = () => {
-      stopHeartbeat();
-      term.write(`\n ${t("terminal.disconnect")}`);
-    };
-
-    term.onData((data) => {
-      if (ws.readyState === WebSocket.OPEN) {
-        const encoder = new TextEncoder();
-        const uint8Array = encoder.encode(data);
-        ws.send(uint8Array);
-      }
-    });
-
-    const handleResize = () => {
-      resizeTerminal();
-    };
-    window.addEventListener("resize", handleResize);
-
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.ctrlKey && (e.key === "f" || e.key === "d")) {
-        searchAddon.findNext("");
-        e.preventDefault();
-      }
-    };
-    document.addEventListener("keydown", handleKeyDown);
-
-    const handleContextMenu = (e: MouseEvent) => {
-      if (e.ctrlKey || ws.readyState !== WebSocket.OPEN) {
+      if (disposed || !terminalRef.current) {
         return;
       }
-      const selection = window.getSelection();
-      const hasSelection = selection && selection.toString().length > 0;
-      if (hasSelection) {
-        e.preventDefault();
-        const selectedText = selection.toString();
-        navigator.clipboard.writeText(selectedText).finally(() => {
-          term.focus();
-          term.clearSelection();
-        });
-      } else {
-        e.preventDefault();
-        term.focus();
-        navigator.clipboard.readText().then((text) => {
-          const encoder = new TextEncoder();
-          const uint8Array = encoder.encode(text.replace(/\r?\n/g, "\r"));
-          ws.send(uint8Array);
-        });
-      }
-    };
 
-    document.addEventListener("contextmenu", handleContextMenu);
+      term = new Terminal({
+        cursorBlink: true,
+        macOptionIsMeta: true,
+        scrollback: 5000,
+        convertEol: true,
+        fontFamily: "'Cascadia Mono', 'Noto Sans SC', monospace",
+        fontSize: 16,
+      });
+
+      const fitAddon = new FitAddon();
+      fitAddonRef.current = fitAddon;
+      const webLinksAddon = new WebLinksAddon();
+      const searchAddonInstance = new SearchAddon();
+      searchAddon = searchAddonInstance;
+
+      term.loadAddon(fitAddon);
+      term.loadAddon(webLinksAddon);
+      term.loadAddon(searchAddonInstance);
+
+      term.open(terminalRef.current);
+      terminalInstance.current = term;
+
+      const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+      const host = window.location.host;
+      const baseUrl = `${protocol}//${host}`;
+      ws = new WebSocket(`${baseUrl}/api/admin/client/${uuid}/terminal`);
+      ws.binaryType = "arraybuffer";
+      wsRef.current = ws;
+
+      ws.onopen = () => {
+        resizeTerminal();
+        startHeartbeat();
+      };
+
+      ws.onmessage = (event) => {
+        if (!term) {
+          return;
+        }
+
+        if (event.data instanceof ArrayBuffer) {
+          const uint8Array = new Uint8Array(event.data);
+          term.write(uint8Array);
+        } else {
+          term.write(event.data);
+        }
+        if (!firstBinary.current && event.data instanceof ArrayBuffer) {
+          firstBinary.current = true;
+          setTimeout(() => {
+            const currentTerm = terminalInstance.current;
+            if (currentTerm) {
+              currentTerm.resize(currentTerm.cols - 1, currentTerm.rows);
+            }
+            resizeTerminal();
+          }, 200);
+        }
+      };
+
+      ws.onclose = () => {
+        stopHeartbeat();
+        term?.write(`\n ${t("terminal.disconnect")}`);
+      };
+
+      term.onData((data) => {
+        if (ws?.readyState === WebSocket.OPEN) {
+          const encoder = new TextEncoder();
+          const uint8Array = encoder.encode(data);
+          ws.send(uint8Array);
+        }
+      });
+
+      handleResize = () => {
+        resizeTerminal();
+      };
+      window.addEventListener("resize", handleResize);
+
+      handleKeyDown = (e: KeyboardEvent) => {
+        if (e.ctrlKey && (e.key === "f" || e.key === "d")) {
+          searchAddon?.findNext("");
+          e.preventDefault();
+        }
+      };
+      document.addEventListener("keydown", handleKeyDown);
+
+      handleContextMenu = (e: MouseEvent) => {
+        if (e.ctrlKey || ws?.readyState !== WebSocket.OPEN || !term) {
+          return;
+        }
+        const selection = window.getSelection();
+        const hasSelection = selection && selection.toString().length > 0;
+        if (hasSelection) {
+          e.preventDefault();
+          const selectedText = selection.toString();
+          navigator.clipboard.writeText(selectedText).finally(() => {
+            term?.focus();
+            term?.clearSelection();
+          });
+        } else {
+          e.preventDefault();
+          term.focus();
+          navigator.clipboard.readText().then((text) => {
+            const encoder = new TextEncoder();
+            const uint8Array = encoder.encode(text.replace(/\r?\n/g, "\r"));
+            ws?.send(uint8Array);
+          });
+        }
+      };
+
+      document.addEventListener("contextmenu", handleContextMenu);
+    })().catch((error) => {
+      console.error("Failed to initialize terminal runtime:", error);
+    });
 
     return () => {
+      disposed = true;
       stopHeartbeat();
-      term.dispose();
+      fitAddonRef.current = null;
+      terminalInstance.current = null;
+      term?.dispose();
       if (
-        ws.readyState === WebSocket.OPEN ||
-        ws.readyState === WebSocket.CONNECTING
+        ws?.readyState === WebSocket.OPEN ||
+        ws?.readyState === WebSocket.CONNECTING
       ) {
         ws.close();
       }
-      window.removeEventListener("resize", handleResize);
-      document.removeEventListener("keydown", handleKeyDown);
-      document.removeEventListener("contextmenu", handleContextMenu);
+      if (handleResize) {
+        window.removeEventListener("resize", handleResize);
+      }
+      if (handleKeyDown) {
+        document.removeEventListener("keydown", handleKeyDown);
+      }
+      if (handleContextMenu) {
+        document.removeEventListener("contextmenu", handleContextMenu);
+      }
     };
   }, [t, uuid, resizeTerminal]);
 

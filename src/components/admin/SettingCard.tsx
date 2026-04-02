@@ -298,7 +298,7 @@ export function SettingCardShortTextInput({
   description = "",
   bordless = false,
   showSaveButton = true,
-  label = useTranslation().t("save"),
+  label,
   autoDisabled = true,
   isSaving,
   OnSave = () => {},
@@ -310,6 +310,7 @@ export function SettingCardShortTextInput({
   className = "w-full",
   ...restProps
 }: SettingCardShortTextInputProps) {
+  const { t } = useTranslation();
   const [internalDisabled, setInternalDisabled] = React.useState(false);
   const savingState = isSaving !== undefined ? isSaving : internalDisabled;
   const [internalValue, setInternalValue] = React.useState(
@@ -318,6 +319,7 @@ export function SettingCardShortTextInput({
   const currentValue = value !== undefined ? value : internalValue;
   const inputRef = React.useRef<HTMLInputElement>(null);
   const buttonRef = React.useRef<HTMLButtonElement>(null);
+  const resolvedLabel = label ?? t("save");
 
   React.useEffect(() => {
     if (value !== undefined) {
@@ -381,7 +383,7 @@ export function SettingCardShortTextInput({
           size="sm"
           className="rounded-md text-[13px]"
         >
-          {label}
+          {resolvedLabel}
         </Button>
       </div>
     </SettingCard>
@@ -391,7 +393,7 @@ export function SettingCardShortTextInput({
 export function SettingCardLongTextInput({
   title = "",
   description = "",
-  label = useTranslation().t("save"),
+  label,
   defaultValue = "",
   OnSave = () => {},
   onChange,
@@ -415,11 +417,13 @@ export function SettingCardLongTextInput({
   bordless?: boolean;
   showSaveButton?: boolean;
 }) {
+  const { t } = useTranslation();
   const [disabled, setDisabled] = React.useState(false);
   const savingState = isSaving !== undefined ? isSaving : disabled;
   const [value, setValue] = React.useState(defaultValue);
   const textAreaRef = React.useRef<HTMLTextAreaElement>(null);
   const buttonRef = React.useRef<HTMLButtonElement>(null);
+  const resolvedLabel = label ?? t("save");
 
   React.useEffect(() => {
     setValue(defaultValue);
@@ -464,7 +468,7 @@ export function SettingCardLongTextInput({
             size="sm"
             className="rounded-md text-[13px]"
           >
-            {label}
+            {resolvedLabel}
           </Button>
         ) : null}
       </div>
@@ -477,7 +481,7 @@ export function SettingCardSelect({
   description,
   defaultValue = "",
   value,
-  label = useTranslation().t("select"),
+  label,
   options = [],
   OnSave = () => {},
   autoDisabled = true,
@@ -495,12 +499,14 @@ export function SettingCardSelect({
   isSaving?: boolean;
   bordless?: boolean;
 }) {
+  const { t } = useTranslation();
   const [disabled, setDisabled] = React.useState(false);
   const savingState = isSaving !== undefined ? isSaving : disabled;
   const [selectedValue, setSelectedValue] = React.useState(
     value !== undefined ? value : defaultValue,
   );
   const triggerRef = React.useRef<HTMLButtonElement>(null);
+  const resolvedLabel = label ?? t("select");
 
   React.useEffect(() => {
     if (value !== undefined) {
@@ -544,7 +550,7 @@ export function SettingCardSelect({
             size="sm"
             className="min-w-48 rounded-md text-[13px]"
           >
-            <SelectValue placeholder={label} />
+            <SelectValue placeholder={resolvedLabel} />
           </SelectTrigger>
           <SelectContent align="end">
             {options.map((option) => (

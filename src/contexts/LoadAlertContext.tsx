@@ -23,11 +23,11 @@ interface LoadAlertContextType {
   loadAlerts: LoadAlert[] | null;
   isLoading: boolean;
   error: string | null;
-  refresh: () => void;
+  refresh: () => Promise<void>;
 }
 
 const LoadAlertContext = React.createContext<LoadAlertContextType | undefined>(
-  undefined
+  undefined,
 );
 
 export const LoadAlertProvider: React.FC<{ children: React.ReactNode }> = ({
@@ -37,39 +37,38 @@ export const LoadAlertProvider: React.FC<{ children: React.ReactNode }> = ({
   const [isLoading, setIsLoading] = React.useState<boolean>(false);
   const [error, setError] = React.useState<string | null>(null);
 
-  const refresh = () => {
-    setError(null);
-    fetch("/api/admin/notification/load")
-      .then((response) => {
-        if (!response.ok) {
-          throw new Error("Failed to fetch notification tasks");
-        }
-        return response.json();
-      })
-      .then((resp: Response) => {
-        if (resp && Array.isArray(resp.data)) {
-          setLoadAlerts(resp.data);
-        } else {
-          setLoadAlerts([]);
-        }
-      })
-      .catch((err) => {
-        setError(err.message || "An error occurred while fetching load alerts");
-      })
-      .finally(() => {
-        setIsLoading(false);
-      });
-  };
-
-  React.useEffect(() => {
+  const refresh = React.useCallback(async () => {
     setIsLoading(true);
-
-    refresh();
-    setIsLoading(false);
+    setError(null);
+    try {
+      const response = await fetch("/api/admin/notification/load");
+      if (!response.ok) {
+        throw new Error("Failed to fetch notification tasks");
+      }
+      const resp = (await response.json()) as Response;
+      setLoadAlerts(Array.isArray(resp?.data) ? resp.data : []);
+    } catch (err) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : "An error occurred while fetching load alerts",
+      );
+    } finally {
+      setIsLoading(false);
+    }
   }, []);
 
+  React.useEffect(() => {
+    void refresh();
+  }, [refresh]);
+
+  const value = React.useMemo(
+    () => ({ loadAlerts, isLoading, error, refresh }),
+    [loadAlerts, isLoading, error, refresh],
+  );
+
   return (
-    <LoadAlertContext.Provider value={{ loadAlerts, isLoading, error, refresh }}>
+    <LoadAlertContext.Provider value={value}>
       {children}
     </LoadAlertContext.Provider>
   );

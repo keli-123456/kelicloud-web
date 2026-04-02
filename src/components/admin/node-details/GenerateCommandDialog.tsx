@@ -1,0 +1,1061 @@
+import * as React from "react";
+import { t as translate } from "i18next";
+import { useTranslation } from "react-i18next";
+import { toast } from "sonner";
+import {
+  Button,
+  Checkbox,
+  Dialog,
+  Flex,
+  SegmentedControl,
+  Text,
+  TextArea,
+  TextField,
+} from "@/components/admin/admin-ui";
+import Tips from "@/components/ui/tips";
+import type { NodeDetail } from "@/contexts/NodeDetailsContext";
+import type { SettingsResponse } from "@/lib/api";
+import { buildAgentInstallScriptURL } from "@/lib/installScriptSource";
+
+const NODE_DIALOG_CONTENT_CLASS =
+  "max-h-[85vh] overflow-y-auto overscroll-contain rounded-2xl border-slate-200/80 p-5 [scrollbar-gutter:stable] sm:p-6 dark:border-slate-800/80";
+const NODE_DIALOG_SECTION_CLASS =
+  "rounded-xl border border-slate-200/80 bg-slate-50/60 p-4 dark:border-slate-800/80 dark:bg-slate-900/40";
+const NODE_DIALOG_HINT_CLASS =
+  "text-[13px] leading-6 text-slate-500 dark:text-slate-400";
+const NODE_DIALOG_FOOTER_CLASS =
+  "mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end";
+const NODE_INPUT_CLASS =
+  "rounded-xl border-slate-200 bg-white text-[14px] shadow-none dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100";
+
+type Platform = "linux" | "windows" | "macos";
+
+type InstallOptions = {
+  disableWebSsh: boolean;
+  disableAutoUpdate: boolean;
+  ignoreUnsafeCert: boolean;
+  memoryIncludeCache: boolean;
+  ghproxy: string;
+  dir: string;
+  serviceName: string;
+  includeNics: string;
+  excludeNics: string;
+  includeMountpoints: string;
+  monthRotate: string;
+};
+
+type GenerateCommandPreferences = {
+  selectedPlatform: Platform;
+  installOptions: InstallOptions;
+  enableGhproxy: boolean;
+  enableCustomDir: boolean;
+  enableCustomServiceName: boolean;
+  enableIncludeNics: boolean;
+  enableExcludeNics: boolean;
+  enableIncludeMountpoints: boolean;
+  enableMonthRotate: boolean;
+};
+
+const INSTALL_COMMAND_PREFERENCES_STORAGE_KEY =
+  "komari-node-install-command-preferences-v1";
+
+const DEFAULT_INSTALL_OPTIONS: InstallOptions = {
+  disableWebSsh: false,
+  disableAutoUpdate: false,
+  ignoreUnsafeCert: false,
+  memoryIncludeCache: false,
+  ghproxy: "",
+  dir: "",
+  serviceName: "",
+  includeNics: "",
+  excludeNics: "",
+  includeMountpoints: "",
+  monthRotate: "",
+};
+
+const DEFAULT_GENERATE_COMMAND_PREFERENCES: GenerateCommandPreferences = {
+  selectedPlatform: "linux",
+  installOptions: DEFAULT_INSTALL_OPTIONS,
+  enableGhproxy: false,
+  enableCustomDir: false,
+  enableCustomServiceName: false,
+  enableIncludeNics: false,
+  enableExcludeNics: false,
+  enableIncludeMountpoints: false,
+  enableMonthRotate: false,
+};
+
+let cachedGenerateCommandPreferences: GenerateCommandPreferences | null = null;
+
+const shellQuote = (value: string) => `'${value.replace(/'/g, `'"'"'`)}'`;
+
+const powershellQuote = (value: string) => `'${value.replace(/'/g, "''")}'`;
+
+const encodeBase64Url = (value: string) => {
+  const binary = Array.from(new TextEncoder().encode(value), (byte) =>
+    String.fromCharCode(byte),
+  ).join("");
+  return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
+};
+
+const encodeScopedAutoDiscoveryKey = (key: string, group: string) =>
+  group ? `${key}::group-b64=${encodeBase64Url(group)}` : key;
+
+const getDefaultGroupLabel = () =>
+  translate("admin.nodeTable.defaultGroup", {
+    defaultValue: "Default group",
+  });
+
+const getDefaultInstallDir = (platform: Platform) => {
+  switch (platform) {
+    case "windows":
+      return "$Env:ProgramFiles\\Komari";
+    case "macos":
+      return "/usr/local/komari";
+    default:
+      return "/opt/komari";
+  }
+};
+
+const loadGenerateCommandPreferences = (): GenerateCommandPreferences => {
+  if (cachedGenerateCommandPreferences) {
+    return cachedGenerateCommandPreferences;
+  }
+
+  if (typeof window === "undefined") {
+    return DEFAULT_GENERATE_COMMAND_PREFERENCES;
+  }
+
+  try {
+    const raw = window.localStorage.getItem(
+      INSTALL_COMMAND_PREFERENCES_STORAGE_KEY,
+    );
+    if (!raw) {
+      cachedGenerateCommandPreferences = DEFAULT_GENERATE_COMMAND_PREFERENCES;
+      return DEFAULT_GENERATE_COMMAND_PREFERENCES;
+    }
+
+    const parsed = JSON.parse(raw) as Partial<GenerateCommandPreferences>;
+    const next: GenerateCommandPreferences = {
+      ...DEFAULT_GENERATE_COMMAND_PREFERENCES,
+      ...parsed,
+      selectedPlatform:
+        parsed.selectedPlatform === "windows"
+        || parsed.selectedPlatform === "macos"
+        || parsed.selectedPlatform === "linux"
+          ? parsed.selectedPlatform
+          : "linux",
+      installOptions: {
+        ...DEFAULT_INSTALL_OPTIONS,
+        ...(parsed.installOptions || {}),
+      },
+    };
+    cachedGenerateCommandPreferences = next;
+    return next;
+  } catch {
+    cachedGenerateCommandPreferences = DEFAULT_GENERATE_COMMAND_PREFERENCES;
+    return DEFAULT_GENERATE_COMMAND_PREFERENCES;
+  }
+};
+
+const saveGenerateCommandPreferences = (
+  preferences: GenerateCommandPreferences,
+) => {
+  cachedGenerateCommandPreferences = preferences;
+  if (typeof window === "undefined") return;
+  window.localStorage.setItem(
+    INSTALL_COMMAND_PREFERENCES_STORAGE_KEY,
+    JSON.stringify(preferences),
+  );
+};
+
+export default function GenerateCommandDialog({
+  open,
+  onOpenChange,
+  node,
+  nodes,
+  settings,
+  toolbar = false,
+  groupMode = false,
+  presetGroupName,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  node?: NodeDetail;
+  nodes?: NodeDetail[];
+  settings: SettingsResponse;
+  toolbar?: boolean;
+  groupMode?: boolean;
+  presetGroupName?: string;
+}) {
+  const availableNodes = React.useMemo(
+    () => nodes ?? (node ? [node] : []),
+    [node, nodes],
+  );
+  const initialPreferences = React.useMemo(
+    () => loadGenerateCommandPreferences(),
+    [],
+  );
+  const [selectedNodeId, setSelectedNodeId] = React.useState(
+    node?.uuid ?? availableNodes[0]?.uuid ?? "",
+  );
+  const [selectedPlatform, setSelectedPlatform] = React.useState<Platform>(
+    initialPreferences.selectedPlatform,
+  );
+  const [installOptions, setInstallOptions] = React.useState<InstallOptions>(
+    initialPreferences.installOptions,
+  );
+  const [enableGhproxy, setEnableGhproxy] = React.useState(
+    initialPreferences.enableGhproxy,
+  );
+  const [enableCustomDir, setEnableCustomDir] = React.useState(
+    initialPreferences.enableCustomDir,
+  );
+  const [enableCustomServiceName, setEnableCustomServiceName] =
+    React.useState(initialPreferences.enableCustomServiceName);
+  const [enableIncludeNics, setEnableIncludeNics] = React.useState(
+    initialPreferences.enableIncludeNics,
+  );
+  const [enableExcludeNics, setEnableExcludeNics] = React.useState(
+    initialPreferences.enableExcludeNics,
+  );
+  const [enableIncludeMountpoints, setEnableIncludeMountpoints] =
+    React.useState(initialPreferences.enableIncludeMountpoints);
+  const [enableMonthRotate, setEnableMonthRotate] = React.useState(
+    initialPreferences.enableMonthRotate,
+  );
+  const scopedGroupName =
+    groupMode && presetGroupName && presetGroupName !== getDefaultGroupLabel()
+      ? presetGroupName.trim()
+      : "";
+  const [groupName, setGroupName] = React.useState(scopedGroupName);
+  const autoDiscoveryKey = String(settings?.auto_discovery_key || "").trim();
+  const useAutoDiscovery = autoDiscoveryKey.length >= 12;
+  const normalizedGroupName = groupName.trim();
+  const scopedAutoDiscoveryKey = encodeScopedAutoDiscoveryKey(
+    autoDiscoveryKey,
+    normalizedGroupName,
+  );
+  const availableGroups = React.useMemo(
+    () =>
+      Array.from(
+        new Set(
+          availableNodes
+            .map((item) => String(item.group || "").trim())
+            .filter(Boolean),
+        ),
+      ).sort((left, right) => left.localeCompare(right)),
+    [availableNodes],
+  );
+  const activeNode =
+    node
+    ?? availableNodes.find((item) => item.uuid === selectedNodeId)
+    ?? availableNodes[0];
+  const hasMountedPreferenceSync = React.useRef(false);
+  const { t } = useTranslation();
+
+  React.useEffect(() => {
+    if (!groupMode) return;
+    setGroupName(scopedGroupName);
+  }, [groupMode, scopedGroupName]);
+
+  React.useEffect(() => {
+    if (!hasMountedPreferenceSync.current) {
+      hasMountedPreferenceSync.current = true;
+      return;
+    }
+
+    saveGenerateCommandPreferences({
+      selectedPlatform,
+      installOptions,
+      enableGhproxy,
+      enableCustomDir,
+      enableCustomServiceName,
+      enableIncludeNics,
+      enableExcludeNics,
+      enableIncludeMountpoints,
+      enableMonthRotate,
+    });
+  }, [
+    enableCustomDir,
+    enableCustomServiceName,
+    enableExcludeNics,
+    enableGhproxy,
+    enableIncludeMountpoints,
+    enableIncludeNics,
+    enableMonthRotate,
+    installOptions,
+    selectedPlatform,
+  ]);
+
+  React.useEffect(() => {
+    if (useAutoDiscovery || groupMode) {
+      return;
+    }
+    if (node?.uuid) {
+      setSelectedNodeId(node.uuid);
+      return;
+    }
+
+    if (
+      availableNodes.length > 0
+      && !availableNodes.some((item) => item.uuid === selectedNodeId)
+    ) {
+      setSelectedNodeId(availableNodes[0].uuid);
+    }
+  }, [availableNodes, groupMode, node?.uuid, selectedNodeId, useAutoDiscovery]);
+
+  const generateCommand = () => {
+    if (groupMode && (!useAutoDiscovery || !normalizedGroupName)) return "";
+    if (!useAutoDiscovery && !activeNode) return "";
+
+    const host = (() => {
+      if (!settings.script_domain) {
+        return window.location.origin;
+      }
+      if (settings.script_domain.startsWith("http")) {
+        return settings.script_domain.replace(/\/+$/, "");
+      }
+      return `http://${settings.script_domain.replace(/\/+$/, "")}`;
+    })();
+
+    const args = ["-e", host];
+    if (useAutoDiscovery) {
+      args.push(
+        "--auto-discovery",
+        groupMode ? scopedAutoDiscoveryKey : autoDiscoveryKey,
+      );
+    } else {
+      args.push("-t", activeNode?.token || "");
+    }
+
+    if (installOptions.disableWebSsh) {
+      args.push("--disable-web-ssh");
+    }
+    if (installOptions.disableAutoUpdate) {
+      args.push("--disable-auto-update");
+    }
+    if (installOptions.ignoreUnsafeCert) {
+      args.push("--ignore-unsafe-cert");
+    }
+    if (installOptions.memoryIncludeCache) {
+      args.push("--memory-include-cache");
+    }
+    if (enableGhproxy && installOptions.ghproxy) {
+      const finalUrl = (
+        installOptions.ghproxy.startsWith("http")
+          ? installOptions.ghproxy
+          : `http://${installOptions.ghproxy}`
+      ).replace(/\/+$/, "");
+      args.push("--install-ghproxy");
+      args.push(finalUrl);
+    }
+    if (enableCustomDir && installOptions.dir) {
+      args.push("--install-dir");
+      args.push(installOptions.dir);
+    }
+    if (enableCustomServiceName && installOptions.serviceName) {
+      args.push("--install-service-name");
+      args.push(installOptions.serviceName);
+    }
+    if (enableIncludeNics && installOptions.includeNics) {
+      args.push("--include-nics");
+      args.push(installOptions.includeNics);
+    }
+    if (enableExcludeNics && installOptions.excludeNics) {
+      args.push("--exclude-nics");
+      args.push(installOptions.excludeNics);
+    }
+    if (enableIncludeMountpoints && installOptions.includeMountpoints) {
+      args.push("--include-mountpoint");
+      args.push(installOptions.includeMountpoints);
+    }
+    if (enableMonthRotate) {
+      const rotateVal = (installOptions.monthRotate || "").trim() || "1";
+      args.push("--month-rotate");
+      args.push(rotateVal);
+    }
+
+    const effectiveInstallDir =
+      enableCustomDir && installOptions.dir.trim()
+        ? installOptions.dir.trim()
+        : getDefaultInstallDir(selectedPlatform);
+    const scriptFile = selectedPlatform === "windows" ? "install.ps1" : "install.sh";
+    let scriptUrl = buildAgentInstallScriptURL(
+      settings.base_scripts_url,
+      scriptFile,
+    );
+
+    if (enableGhproxy && installOptions.ghproxy) {
+      scriptUrl = scriptUrl.slice(8);
+      if (installOptions.ghproxy.endsWith("/")) {
+        scriptUrl = `${installOptions.ghproxy}${scriptUrl}`;
+      } else {
+        scriptUrl = `${installOptions.ghproxy}/${scriptUrl}`;
+      }
+      if (!scriptUrl.startsWith("http")) {
+        scriptUrl = `http://${scriptUrl}`;
+      }
+    }
+
+    const shellArgs = args.map(shellQuote).join(" ");
+    switch (selectedPlatform) {
+      case "linux":
+        return groupMode && useAutoDiscovery
+          ? `AUTO_DISCOVERY_FILE=${shellQuote(`${effectiveInstallDir}/auto-discovery.json`)}; if [ -f "$AUTO_DISCOVERY_FILE" ]; then if [ "$(id -u)" -ne 0 ] && command -v sudo >/dev/null 2>&1; then sudo rm -f "$AUTO_DISCOVERY_FILE"; else rm -f "$AUTO_DISCOVERY_FILE"; fi; fi; if [ "$(id -u)" -ne 0 ] && command -v sudo >/dev/null 2>&1; then wget -qO- ${shellQuote(
+              scriptUrl,
+            )} | sudo bash -s -- ${shellArgs}; else wget -qO- ${shellQuote(
+              scriptUrl,
+            )} | bash -s -- ${shellArgs}; fi`
+          : `wget -qO- ${shellQuote(scriptUrl)} | sudo bash -s -- ${shellArgs}`;
+      case "windows": {
+        let finalCommand = `powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "`;
+        if (groupMode && useAutoDiscovery) {
+          const windowsInstallDir =
+            enableCustomDir && installOptions.dir.trim()
+              ? powershellQuote(installOptions.dir.trim())
+              : "$Env:ProgramFiles\\Komari";
+          finalCommand += `$ksBindFile = Join-Path ${windowsInstallDir} 'auto-discovery.json'; if (Test-Path $ksBindFile) { Remove-Item $ksBindFile -Force }; `;
+        }
+        finalCommand +=
+          `iwr ${powershellQuote(scriptUrl)}` +
+          ` -UseBasicParsing -OutFile 'install.ps1'; &` +
+          ` '.\\install.ps1'`;
+        args.forEach((arg) => {
+          finalCommand += ` ${powershellQuote(arg)}`;
+        });
+        finalCommand += `"`;
+        return finalCommand;
+      }
+      case "macos":
+        if (groupMode && useAutoDiscovery) {
+          const macInstallDir =
+            enableCustomDir && installOptions.dir.trim()
+              ? shellQuote(installOptions.dir.trim())
+              : `$(if [ "$(id -u)" -eq 0 ] || [ -w /usr/local ]; then printf %s /usr/local/komari; else printf %s "$HOME/.komari"; fi)`;
+          return (
+            `AUTO_DISCOVERY_DIR=${macInstallDir}; AUTO_DISCOVERY_FILE="$AUTO_DISCOVERY_DIR/auto-discovery.json"; ` +
+            `if [ -f "$AUTO_DISCOVERY_FILE" ]; then rm -f "$AUTO_DISCOVERY_FILE"; fi; ` +
+            `zsh <(curl -sL ${shellQuote(scriptUrl)}) ${shellArgs}`
+          );
+        }
+        return `zsh <(curl -sL ${shellQuote(scriptUrl)}) ${shellArgs}`;
+    }
+  };
+
+  const command = generateCommand();
+  const copyDisabled = groupMode
+    ? !useAutoDiscovery || !normalizedGroupName
+    : !useAutoDiscovery && !activeNode;
+
+  const copyToClipboard = async (text: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      toast.success(t("copy_success", "Copied!"));
+    } catch (error) {
+      console.error("Failed to copy text: ", error);
+    }
+  };
+
+  return (
+    <Dialog.Root open={open} onOpenChange={onOpenChange}>
+      <Dialog.Content className={NODE_DIALOG_CONTENT_CLASS} maxWidth={1040}>
+        <Dialog.Title>
+          {groupMode
+            ? scopedGroupName
+              ? `${t("admin.nodeTable.installCommand", "Install command")} · ${scopedGroupName}`
+              : t("admin.nodeTable.groupInstallCommand", "Create group install command")
+            : useAutoDiscovery
+              ? `${t("admin.nodeTable.installCommand", "Install command")} · ${t("admin.nodeTable.autoEnroll", "Auto-enroll")}`
+              : node
+                ? `${t("admin.nodeTable.installCommand", "Install command")} · ${activeNode?.name || "-"}`
+                : t("admin.nodeTable.installCommand", "Install command")}
+        </Dialog.Title>
+        <Dialog.Description className="mt-2">
+          {t(
+            "admin.nodeTable.installDialogDescription",
+            "Platform selection and install parameters are remembered and reused next time.",
+          )}
+        </Dialog.Description>
+        <div className="mt-4 flex flex-col gap-4">
+          {useAutoDiscovery && !groupMode ? (
+            <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/30 dark:text-emerald-300">
+              {t(
+                "admin.nodeTable.autoDiscoveryGeneralHint",
+                "This currently uses the general auto-enroll command. Run it on any server and the node will register to your panel automatically.",
+              )}
+            </div>
+          ) : null}
+          {groupMode && useAutoDiscovery ? (
+            <div className="rounded-xl border border-sky-200 bg-sky-50 px-3 py-2 text-sm text-sky-700 dark:border-sky-900/60 dark:bg-sky-950/30 dark:text-sky-300">
+              {t(
+                "admin.nodeTable.autoDiscoveryGroupHint",
+                "After you enter a group name, run this command on any server. The node will register automatically into that group. If the machine was previously bound, the command will clear the old binding automatically before re-enrolling.",
+              )}
+            </div>
+          ) : null}
+          {groupMode ? (
+            <div className={`${NODE_DIALOG_SECTION_CLASS} flex flex-col gap-3`}>
+              <div className="flex flex-col gap-2">
+                <label className="text-[14px] font-semibold text-slate-900 dark:text-slate-100">
+                  {t("admin.nodeTable.groupName", "Group name")}
+                </label>
+                <TextField.Root
+                  className={NODE_INPUT_CLASS}
+                  placeholder={t(
+                    "admin.nodeTable.groupNamePlaceholder",
+                    "For example: Hong Kong / Japan / Production",
+                  )}
+                  value={groupName}
+                  onChange={(event) => setGroupName(event.target.value)}
+                />
+              </div>
+              {availableGroups.length > 0 ? (
+                <div className="flex flex-wrap gap-2">
+                  {availableGroups.map((group) => (
+                    <button
+                      key={group}
+                      type="button"
+                      className={`rounded-full border px-3 py-1 text-[13px] font-medium transition-colors ${
+                        normalizedGroupName === group
+                          ? "border-sky-300 bg-sky-100 text-sky-700 dark:border-sky-800 dark:bg-sky-950/50 dark:text-sky-300"
+                          : "border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:text-slate-900 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-300 dark:hover:border-slate-600 dark:hover:text-slate-100"
+                      }`}
+                      onClick={() => setGroupName(group)}
+                    >
+                      {group}
+                    </button>
+                  ))}
+                </div>
+              ) : null}
+              <Text size="1" className="text-slate-500 dark:text-slate-400">
+                {t(
+                  "admin.nodeTable.groupNameHelp",
+                  "The group will be created automatically after the first server runs this command. You do not need to create an empty group first.",
+                )}
+              </Text>
+            </div>
+          ) : null}
+          {!groupMode && !useAutoDiscovery && !node && availableNodes.length > 0 ? (
+            <div className={NODE_DIALOG_SECTION_CLASS}>
+              <label className="text-[14px] font-semibold text-slate-900 dark:text-slate-100">
+                {t("admin.nodeTable.selectNode", "Select node")}
+              </label>
+              <select
+                className="mt-3 h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-900 outline-none dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
+                value={selectedNodeId}
+                onChange={(event) => setSelectedNodeId(event.target.value)}
+              >
+                {availableNodes.map((item) => (
+                  <option key={item.uuid} value={item.uuid}>
+                    {item.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          ) : null}
+          {!useAutoDiscovery && toolbar && !groupMode ? (
+            <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-700 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-300">
+              {t(
+                "admin.nodeTable.autoDiscoveryDisabledSingle",
+                "Auto Discovery Key is not enabled yet, so this still uses the legacy single-node mode. Set it in Settings > General to switch to the general onboarding command.",
+              )}
+            </div>
+          ) : null}
+          {!useAutoDiscovery && groupMode ? (
+            <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-700 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-300">
+              {t(
+                "admin.nodeTable.autoDiscoveryDisabledGroup",
+                "Set the Auto Discovery Key in Settings > General first, then group install commands can be used.",
+              )}
+            </div>
+          ) : null}
+          <div className="grid gap-4 xl:grid-cols-[minmax(0,1.3fr)_minmax(320px,0.9fr)]">
+            <div className="flex flex-col gap-4">
+              <div className={NODE_DIALOG_SECTION_CLASS}>
+                <label className="text-[14px] font-semibold text-slate-900 dark:text-slate-100">
+                  {t("admin.nodeTable.platform", "Platform")}
+                </label>
+                <div className="mt-3">
+                  <SegmentedControl.Root
+                    value={selectedPlatform}
+                    onValueChange={(value) => setSelectedPlatform(value as Platform)}
+                  >
+                    <SegmentedControl.Item value="linux">Linux</SegmentedControl.Item>
+                    <SegmentedControl.Item value="windows">Windows</SegmentedControl.Item>
+                    <SegmentedControl.Item value="macos">macOS</SegmentedControl.Item>
+                  </SegmentedControl.Root>
+                </div>
+              </div>
+
+              <div className={NODE_DIALOG_SECTION_CLASS}>
+                <label className="text-[14px] font-semibold text-slate-900 dark:text-slate-100">
+                  {t("admin.nodeTable.installOptions", "Install options")}
+                </label>
+                <div className="mt-3 grid gap-3 text-slate-900 dark:text-slate-100 md:grid-cols-2">
+                  <Flex gap="2" align="center">
+                    <Checkbox
+                      checked={installOptions.disableWebSsh}
+                      onCheckedChange={(checked) => {
+                        setInstallOptions((previous) => ({
+                          ...previous,
+                          disableWebSsh: Boolean(checked),
+                        }));
+                      }}
+                    />
+                    <label
+                      className="text-sm font-normal"
+                      onClick={() => {
+                        setInstallOptions((previous) => ({
+                          ...previous,
+                          disableWebSsh: !previous.disableWebSsh,
+                        }));
+                      }}
+                    >
+                      {t("admin.nodeTable.disableWebSsh")}
+                    </label>
+                  </Flex>
+                  <Flex gap="2" align="center">
+                    <Checkbox
+                      checked={installOptions.disableAutoUpdate}
+                      onCheckedChange={(checked) => {
+                        setInstallOptions((previous) => ({
+                          ...previous,
+                          disableAutoUpdate: Boolean(checked),
+                        }));
+                      }}
+                    />
+                    <label
+                      className="text-sm font-normal"
+                      onClick={() => {
+                        setInstallOptions((previous) => ({
+                          ...previous,
+                          disableAutoUpdate: !previous.disableAutoUpdate,
+                        }));
+                      }}
+                    >
+                      {t("admin.nodeTable.disableAutoUpdate", "Disable auto update")}
+                    </label>
+                  </Flex>
+                  <Flex gap="2" align="center">
+                    <Checkbox
+                      checked={installOptions.ignoreUnsafeCert}
+                      onCheckedChange={(checked) => {
+                        setInstallOptions((previous) => ({
+                          ...previous,
+                          ignoreUnsafeCert: Boolean(checked),
+                        }));
+                      }}
+                    />
+                    <label
+                      className="text-sm font-normal"
+                      onClick={() => {
+                        setInstallOptions((previous) => ({
+                          ...previous,
+                          ignoreUnsafeCert: !previous.ignoreUnsafeCert,
+                        }));
+                      }}
+                    >
+                      {t("admin.nodeTable.ignoreUnsafeCert", "Ignore unsafe cert")}
+                    </label>
+                  </Flex>
+                  <Flex gap="2" align="center">
+                    <Checkbox
+                      checked={installOptions.memoryIncludeCache}
+                      onCheckedChange={(checked) => {
+                        setInstallOptions((previous) => ({
+                          ...previous,
+                          memoryIncludeCache: Boolean(checked),
+                        }));
+                      }}
+                    />
+                    <label
+                      className="text-sm font-normal"
+                      onClick={() => {
+                        setInstallOptions((previous) => ({
+                          ...previous,
+                          memoryIncludeCache: !previous.memoryIncludeCache,
+                        }));
+                      }}
+                    >
+                      {t("admin.nodeTable.memoryModeAvailable", "Include cache memory")}
+                    </label>
+                    <Tips size="14">
+                      {t("admin.nodeTable.memoryModeAvailable_tip")}
+                    </Tips>
+                  </Flex>
+                </div>
+              </div>
+
+              <div className={NODE_DIALOG_SECTION_CLASS}>
+                <label className="text-[14px] font-semibold text-slate-900 dark:text-slate-100">
+                  {t("admin.nodeTable.advancedParameters", "Advanced parameters")}
+                </label>
+                <div className="mt-3 flex flex-col gap-3 text-slate-900 dark:text-slate-100">
+                  <Flex gap="2" align="center">
+                    <Checkbox
+                      checked={enableGhproxy}
+                      onCheckedChange={(checked) => {
+                        setEnableGhproxy(Boolean(checked));
+                        if (!checked) {
+                          setInstallOptions((previous) => ({
+                            ...previous,
+                            ghproxy: "",
+                          }));
+                        }
+                      }}
+                    />
+                    <label
+                      className="cursor-pointer text-sm font-bold"
+                      onClick={() => {
+                        setEnableGhproxy(!enableGhproxy);
+                        if (enableGhproxy) {
+                          setInstallOptions((previous) => ({
+                            ...previous,
+                            ghproxy: "",
+                          }));
+                        }
+                      }}
+                    >
+                      {t("admin.nodeTable.ghproxy", "GitHub proxy")}
+                    </label>
+                  </Flex>
+                  {enableGhproxy ? (
+                    <TextField.Root
+                      placeholder="https://ghfast.top/"
+                      className={NODE_INPUT_CLASS}
+                      value={installOptions.ghproxy}
+                      onChange={(event) =>
+                        setInstallOptions((previous) => ({
+                          ...previous,
+                          ghproxy: event.target.value,
+                        }))
+                      }
+                    />
+                  ) : null}
+
+                  <Flex gap="2" align="center">
+                    <Checkbox
+                      checked={enableCustomDir}
+                      onCheckedChange={(checked) => {
+                        setEnableCustomDir(Boolean(checked));
+                        if (!checked) {
+                          setInstallOptions((previous) => ({
+                            ...previous,
+                            dir: "",
+                          }));
+                        }
+                      }}
+                    />
+                    <label
+                      className="cursor-pointer text-sm font-bold"
+                      onClick={() => {
+                        setEnableCustomDir(!enableCustomDir);
+                        if (enableCustomDir) {
+                          setInstallOptions((previous) => ({
+                            ...previous,
+                            dir: "",
+                          }));
+                        }
+                      }}
+                    >
+                      {t("admin.nodeTable.install_dir", "Installation directory")}
+                    </label>
+                  </Flex>
+                  {enableCustomDir ? (
+                    <TextField.Root
+                      className={NODE_INPUT_CLASS}
+                      placeholder={t(
+                        "admin.nodeTable.install_dir_placeholder",
+                        "Installation directory, leave empty to use the default directory (/opt/komari-agent)",
+                      )}
+                      value={installOptions.dir}
+                      onChange={(event) =>
+                        setInstallOptions((previous) => ({
+                          ...previous,
+                          dir: event.target.value,
+                        }))
+                      }
+                    />
+                  ) : null}
+
+                  <Flex gap="2" align="center">
+                    <Checkbox
+                      checked={enableCustomServiceName}
+                      onCheckedChange={(checked) => {
+                        setEnableCustomServiceName(Boolean(checked));
+                        if (!checked) {
+                          setInstallOptions((previous) => ({
+                            ...previous,
+                            serviceName: "",
+                          }));
+                        }
+                      }}
+                    />
+                    <label
+                      className="cursor-pointer text-sm font-bold"
+                      onClick={() => {
+                        setEnableCustomServiceName(!enableCustomServiceName);
+                        if (enableCustomServiceName) {
+                          setInstallOptions((previous) => ({
+                            ...previous,
+                            serviceName: "",
+                          }));
+                        }
+                      }}
+                    >
+                      {t("admin.nodeTable.serviceName", "Service name")}
+                    </label>
+                  </Flex>
+                  {enableCustomServiceName ? (
+                    <TextField.Root
+                      className={NODE_INPUT_CLASS}
+                      placeholder={t(
+                        "admin.nodeTable.serviceName_placeholder",
+                        "Service name, leave empty to use the default name (komari-agent)",
+                      )}
+                      value={installOptions.serviceName}
+                      onChange={(event) =>
+                        setInstallOptions((previous) => ({
+                          ...previous,
+                          serviceName: event.target.value,
+                        }))
+                      }
+                    />
+                  ) : null}
+
+                  <Flex gap="2" align="center">
+                    <Checkbox
+                      checked={enableIncludeNics}
+                      onCheckedChange={(checked) => {
+                        setEnableIncludeNics(Boolean(checked));
+                        if (!checked) {
+                          setInstallOptions((previous) => ({
+                            ...previous,
+                            includeNics: "",
+                          }));
+                        }
+                      }}
+                    />
+                    <label
+                      className="cursor-pointer text-sm font-bold"
+                      onClick={() => {
+                        setEnableIncludeNics(!enableIncludeNics);
+                        if (enableIncludeNics) {
+                          setInstallOptions((previous) => ({
+                            ...previous,
+                            includeNics: "",
+                          }));
+                        }
+                      }}
+                    >
+                      {t("admin.nodeTable.includeNics", "Specific network interfaces only.")}
+                    </label>
+                  </Flex>
+                  {enableIncludeNics ? (
+                    <TextField.Root
+                      className={NODE_INPUT_CLASS}
+                      placeholder="eth0,eth1"
+                      value={installOptions.includeNics}
+                      onChange={(event) =>
+                        setInstallOptions((previous) => ({
+                          ...previous,
+                          includeNics: event.target.value,
+                        }))
+                      }
+                    />
+                  ) : null}
+
+                  <Flex gap="2" align="center">
+                    <Checkbox
+                      checked={enableExcludeNics}
+                      onCheckedChange={(checked) => {
+                        setEnableExcludeNics(Boolean(checked));
+                        if (!checked) {
+                          setInstallOptions((previous) => ({
+                            ...previous,
+                            excludeNics: "",
+                          }));
+                        }
+                      }}
+                    />
+                    <label
+                      className="cursor-pointer text-sm font-bold"
+                      onClick={() => {
+                        setEnableExcludeNics(!enableExcludeNics);
+                        if (enableExcludeNics) {
+                          setInstallOptions((previous) => ({
+                            ...previous,
+                            excludeNics: "",
+                          }));
+                        }
+                      }}
+                    >
+                      {t("admin.nodeTable.excludeNics", "Exclude specific network interfaces.")}
+                    </label>
+                  </Flex>
+                  {enableExcludeNics ? (
+                    <TextField.Root
+                      className={NODE_INPUT_CLASS}
+                      placeholder="lo"
+                      value={installOptions.excludeNics}
+                      onChange={(event) =>
+                        setInstallOptions((previous) => ({
+                          ...previous,
+                          excludeNics: event.target.value,
+                        }))
+                      }
+                    />
+                  ) : null}
+
+                  <Flex gap="2" align="center">
+                    <Checkbox
+                      checked={enableIncludeMountpoints}
+                      onCheckedChange={(checked) => {
+                        setEnableIncludeMountpoints(Boolean(checked));
+                        if (!checked) {
+                          setInstallOptions((previous) => ({
+                            ...previous,
+                            includeMountpoints: "",
+                          }));
+                        }
+                      }}
+                    />
+                    <label
+                      className="cursor-pointer text-sm font-bold"
+                      onClick={() => {
+                        setEnableIncludeMountpoints(!enableIncludeMountpoints);
+                        if (enableIncludeMountpoints) {
+                          setInstallOptions((previous) => ({
+                            ...previous,
+                            includeMountpoints: "",
+                          }));
+                        }
+                      }}
+                    >
+                      {t("admin.nodeTable.includeMountpoints", "Specific mountpoints only.")}
+                    </label>
+                  </Flex>
+                  {enableIncludeMountpoints ? (
+                    <TextField.Root
+                      className={NODE_INPUT_CLASS}
+                      placeholder="/;/home;/var"
+                      value={installOptions.includeMountpoints}
+                      onChange={(event) =>
+                        setInstallOptions((previous) => ({
+                          ...previous,
+                          includeMountpoints: event.target.value,
+                        }))
+                      }
+                    />
+                  ) : null}
+
+                  <Flex gap="2" align="center">
+                    <Checkbox
+                      checked={enableMonthRotate}
+                      onCheckedChange={(checked) => {
+                        const enabled = Boolean(checked);
+                        setEnableMonthRotate(enabled);
+                        if (!enabled) {
+                          setInstallOptions((previous) => ({
+                            ...previous,
+                            monthRotate: "",
+                          }));
+                        } else {
+                          setInstallOptions((previous) => ({
+                            ...previous,
+                            monthRotate: previous.monthRotate?.trim()
+                              ? previous.monthRotate
+                              : "1",
+                          }));
+                        }
+                      }}
+                    />
+                    <label
+                      className="cursor-pointer text-sm font-bold"
+                      onClick={() => {
+                        const willEnable = !enableMonthRotate;
+                        setEnableMonthRotate(willEnable);
+                        if (!willEnable) {
+                          setInstallOptions((previous) => ({
+                            ...previous,
+                            monthRotate: "",
+                          }));
+                        } else {
+                          setInstallOptions((previous) => ({
+                            ...previous,
+                            monthRotate: previous.monthRotate?.trim()
+                              ? previous.monthRotate
+                              : "1",
+                          }));
+                        }
+                      }}
+                    >
+                      {t("admin.nodeTable.monthRotate", "Month reset for network statistics")}
+                    </label>
+                  </Flex>
+                  {enableMonthRotate ? (
+                    <TextField.Root
+                      className={NODE_INPUT_CLASS}
+                      placeholder="1"
+                      type="number"
+                      min="1"
+                      max="31"
+                      value={installOptions.monthRotate}
+                      onChange={(event) =>
+                        setInstallOptions((previous) => ({
+                          ...previous,
+                          monthRotate: event.target.value,
+                        }))
+                      }
+                    />
+                  ) : null}
+                </div>
+              </div>
+            </div>
+
+            <div className="flex flex-col gap-4">
+              <div className={NODE_DIALOG_SECTION_CLASS}>
+                <label className="text-[14px] font-semibold text-slate-900 dark:text-slate-100">
+                  {t("admin.nodeTable.generatedCommand", "Command")}
+                </label>
+                <p className={`mt-1 ${NODE_DIALOG_HINT_CLASS}`}>
+                  {t(
+                    "admin.nodeTable.generatedCommandHelp",
+                    "Copy this command and run it directly on the target server.",
+                  )}
+                </p>
+                <div className="relative mt-3">
+                  <TextArea
+                    disabled
+                    className="min-h-[220px] w-full rounded-xl border border-slate-200 bg-white font-mono text-[13px] leading-6 text-slate-700 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200"
+                    value={command}
+                  />
+                </div>
+              </div>
+
+              <div className={NODE_DIALOG_FOOTER_CLASS}>
+                <Dialog.Close>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="w-full sm:w-auto"
+                  >
+                    {t("close", "Close")}
+                  </Button>
+                </Dialog.Close>
+                <Button
+                  className="w-full sm:w-auto"
+                  disabled={copyDisabled}
+                  onClick={() => void copyToClipboard(command)}
+                >
+                  {t("copy")}
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </Dialog.Content>
+    </Dialog.Root>
+  );
+}

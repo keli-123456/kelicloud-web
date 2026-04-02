@@ -15,14 +15,28 @@ interface CommandClipboardContextType {
   loading: boolean;
   error: Error | null;
   refresh: () => Promise<void>;
-  addCommand: (name: string, text: string, remark: string, weight: number) => Promise<void>;
-  updateCommand: (id: number, name: string, text: string, remark: string, weight: number) => Promise<void>;
-  deleteCommand: (id:number) => Promise<void>;
+  addCommand: (
+    name: string,
+    text: string,
+    remark: string,
+    weight: number,
+  ) => Promise<void>;
+  updateCommand: (
+    id: number,
+    name: string,
+    text: string,
+    remark: string,
+    weight: number,
+  ) => Promise<void>;
+  deleteCommand: (id: number) => Promise<void>;
 }
 
 const CommandClipboardContext = React.createContext<
   CommandClipboardContextType | undefined
 >(undefined);
+
+const toError = (error: unknown, fallback: string) =>
+  error instanceof Error ? error : new Error(fallback);
 
 export const CommandClipboardProvider: React.FC<{
   children: React.ReactNode;
@@ -36,9 +50,6 @@ export const CommandClipboardProvider: React.FC<{
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState<Error | null>(null);
   const [commands, setCommands] = React.useState<CommandClipboard[]>([]);
-
-  const toError = (error: unknown, fallback: string) =>
-    error instanceof Error ? error : new Error(fallback);
 
   const refresh = React.useCallback(async () => {
     setLoading(true);
@@ -62,7 +73,13 @@ export const CommandClipboardProvider: React.FC<{
       setLoading(false);
     }
   }, []);
-  const addCommand = async (name: string, text: string, remark: string, weight: number) => {
+
+  const addCommand = React.useCallback(async (
+    name: string,
+    text: string,
+    remark: string,
+    weight: number,
+  ) => {
     setLoading(true);
     setError(null);
     try {
@@ -86,14 +103,14 @@ export const CommandClipboardProvider: React.FC<{
     } finally {
       setLoading(false);
     }
-  };
+  }, [refresh, refreshAfterMutations]);
 
-  const updateCommand = async (
+  const updateCommand = React.useCallback(async (
     id: number,
     name: string,
     text: string,
     remark: string,
-    weight: number
+    weight: number,
   ) => {
     setLoading(true);
     setError(null);
@@ -118,9 +135,9 @@ export const CommandClipboardProvider: React.FC<{
     } finally {
       setLoading(false);
     }
-  };
+  }, [refresh, refreshAfterMutations]);
 
-  const deleteCommand = async (id: number) => {
+  const deleteCommand = React.useCallback(async (id: number) => {
     setLoading(true);
     setError(null);
     try {
@@ -140,7 +157,7 @@ export const CommandClipboardProvider: React.FC<{
     } finally {
       setLoading(false);
     }
-  };
+  }, [refresh, refreshAfterMutations]);
 
   React.useEffect(() => {
     if (!autoLoad) {
@@ -149,18 +166,30 @@ export const CommandClipboardProvider: React.FC<{
     }
     void refresh();
   }, [autoLoad, refresh]);
+
+  const value = React.useMemo(
+    () => ({
+      commands,
+      loading,
+      error,
+      refresh,
+      addCommand,
+      updateCommand,
+      deleteCommand,
+    }),
+    [
+      commands,
+      loading,
+      error,
+      refresh,
+      addCommand,
+      updateCommand,
+      deleteCommand,
+    ],
+  );
+
   return (
-    <CommandClipboardContext.Provider
-      value={{
-        commands,
-        loading,
-        error,
-        refresh,
-        addCommand,
-        updateCommand,
-        deleteCommand,
-      }}
-    >
+    <CommandClipboardContext.Provider value={value}>
       {children}
     </CommandClipboardContext.Provider>
   );

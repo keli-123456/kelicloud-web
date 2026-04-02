@@ -44,7 +44,7 @@ export function TableCellViewer({ item }: { item: z.infer<typeof schema> }) {
             {t("admin.nodeDetail.machineDetail", "Machine details")}
           </DrawerDescription>
         </DrawerHeader>
-        <div className="flex flex-col gap-4 overflow-y-auto px-4 text-sm">
+        <div className="flex flex-col gap-4 overflow-y-auto overscroll-contain px-4 text-sm [scrollbar-gutter:stable]">
           <form className="flex flex-col gap-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="flex flex-col gap-3">

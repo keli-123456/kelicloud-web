@@ -12,8 +12,6 @@ import {
 import { useLocalStorage } from "./hooks/useLocalStorage";
 import { useSystemTheme } from "./hooks/useSystemTheme";
 import { BrowserRouter } from "react-router-dom";
-// Ensure i18n is initialized before any component renders
-import "./i18n/config";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { Suspense } from "react";
 import { useRoutes } from "react-router-dom";
@@ -27,6 +25,7 @@ import { Toaster } from "./components/ui/sonner";
 import { TooltipProvider } from "./components/ui/tooltip";
 import { RPC2Provider } from "./contexts/RPC2Context";
 import { ThemeShell } from "./components/ui/theme-shell";
+import { initI18n } from "./i18n/config";
 
 const SW_RECOVERY_VERSION = "2026-03-30-pagination-recovery-1";
 
@@ -109,12 +108,22 @@ const App = () => {
   );
 };
 
-createRoot(document.getElementById("root")!).render(
-  <ErrorBoundary>
-    <StrictMode>
-      <BrowserRouter>
-        <App />
-      </BrowserRouter>
-    </StrictMode>
-  </ErrorBoundary>,
-);
+async function bootstrap() {
+  try {
+    await initI18n();
+  } catch (error) {
+    console.error("Failed to initialize i18n resources:", error);
+  }
+
+  createRoot(document.getElementById("root")!).render(
+    <ErrorBoundary>
+      <StrictMode>
+        <BrowserRouter>
+          <App />
+        </BrowserRouter>
+      </StrictMode>
+    </ErrorBoundary>,
+  );
+}
+
+void bootstrap();

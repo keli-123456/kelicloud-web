@@ -32,7 +32,7 @@ const AdminLayoutContent = () => {
         <Dialog.Content>
           <Dialog.Title>{t("about.eula_title")}</Dialog.Title>
           <div className="flex flex-col gap-2">
-            <div className="max-h-[70vh] overflow-y-auto space-y-4">
+            <div className="max-h-[70vh] space-y-4 overflow-y-auto overscroll-contain [scrollbar-gutter:stable]">
               <pre className="text-wrap">{Eula}</pre>
             </div>
             <div className="flex flex-row items-center justify-end gap-2">

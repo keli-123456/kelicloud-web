@@ -1,13 +1,17 @@
-import { useTheme } from "next-themes"
+import * as React from "react"
 import { Toaster as Sonner, type ToasterProps } from "sonner"
 
+import { ThemeContext } from "@/contexts/ThemeContext"
+import { useSystemTheme } from "@/hooks/useSystemTheme"
+
 const Toaster = ({ ...props }: ToasterProps) => {
-  const { theme = "system" } = useTheme()
+  const { appearance } = React.useContext(ThemeContext)
+  const resolvedAppearance = useSystemTheme(appearance)
 
   return (
     <Sonner
       position={props.position ?? "top-center"}
-      theme={theme as ToasterProps["theme"]}
+      theme={resolvedAppearance as ToasterProps["theme"]}
       className="toaster group"
       style={
         {

@@ -13,21 +13,13 @@ import {
   Badge,
   Button,
   Card,
-  Checkbox,
-  Dialog,
-  Flex,
   IconButton,
-  SegmentedControl,
   Text,
-  TextArea,
   TextField,
 } from "@/components/admin/admin-ui";
 import {
-  Copy,
   Download,
   Globe,
-  LoaderCircle,
-  RefreshCw,
   Search,
   Settings2,
   Terminal,
@@ -58,10 +50,8 @@ import {
 } from "@/components/ui/table";
 import { formatBytes } from "@/utils/unitHelper";
 import Loading from "@/components/loading";
-import Tips from "@/components/ui/tips";
 import {
   type SettingsResponse,
-  updateSettingsWithToast,
   useSettings,
 } from "@/lib/api";
 import {
@@ -70,17 +60,25 @@ import {
 } from "@/lib/clientDDNS";
 import { useRPC2Call } from "@/contexts/RPC2Context";
 import type { Record as LiveRecord } from "@/types/LiveData";
-import { buildAgentInstallScriptURL } from "@/lib/installScriptSource";
 import {
   formatCNConnectivityTargetsSummary,
-  normalizeCNConnectivityTargets,
   parseCNConnectivityTargets,
 } from "@/lib/cnConnectivityTargets";
 import { Navigate } from "react-router-dom";
-import {
-  SettingCard,
-} from "@/components/admin/SettingCard";
-import { NodeDDNSDialog } from "@/components/admin/NodeTable/NodeDDNSDialog";
+const LazyNodeAccessSettingsDialog = React.lazy(
+  () => import("@/components/admin/node-details/NodeAccessSettingsDialog"),
+);
+const LazyGenerateCommandDialog = React.lazy(
+  () => import("@/components/admin/node-details/GenerateCommandDialog"),
+);
+const LazyGroupUpgradeDialog = React.lazy(
+  () => import("@/components/admin/node-details/GroupUpgradeDialog"),
+);
+const LazyNodeDDNSDialog = React.lazy(() =>
+  import("@/components/admin/NodeTable/NodeDDNSDialog").then((module) => ({
+    default: module.NodeDDNSDialog,
+  })),
+);
 
 type AdminScopedUser = {
   uuid: string;
@@ -238,67 +236,6 @@ type NodeLiveSnapshot = {
   record: LiveRecord;
 };
 
-type ExecResponse = {
-  success?: boolean;
-  task_id?: string;
-  message?: string;
-  status?: string;
-  data?: {
-    task_id?: string;
-  };
-};
-
-type TaskResult = {
-  task_id: string;
-  client: string;
-  result: string;
-  exit_code: number | null;
-  finished_at: string | null;
-  created_at: string;
-};
-
-type TaskResultResponse = {
-  success?: boolean;
-  results?: TaskResult[];
-  message?: string;
-  status?: string;
-  data?: TaskResult[];
-};
-
-type GithubReleaseAsset = {
-  name?: string | null;
-};
-
-type GithubReleasePayload = {
-  tag_name?: string | null;
-  name?: string | null;
-  draft?: boolean;
-  prerelease?: boolean;
-  assets?: GithubReleaseAsset[] | null;
-};
-
-type UpgradeExecutionStatus =
-  | "idle"
-  | "pending"
-  | "running"
-  | "success"
-  | "failed"
-  | "timeout";
-
-type UpgradeTask = {
-  taskId: string;
-  platform: Platform;
-  clientIds: string[];
-};
-
-type NodeUpgradeState = {
-  status: UpgradeExecutionStatus;
-  taskId?: string;
-  output: string;
-  exitCode: number | null;
-  finishedAt: string | null;
-};
-
 type ActionResponsePayload = {
   status?: string;
   message?: string;
@@ -427,44 +364,6 @@ const buildDDNSDomainLabel = (binding: ClientDDNSBinding | null | undefined) => 
   return "";
 };
 
-const NODE_DIALOG_CONTENT_CLASS =
-  "max-h-[85vh] overflow-y-auto rounded-2xl border-slate-200/80 p-5 sm:p-6 dark:border-slate-800/80";
-const NODE_DIALOG_SECTION_CLASS =
-  "rounded-xl border border-slate-200/80 bg-slate-50/60 p-4 dark:border-slate-800/80 dark:bg-slate-900/40";
-const NODE_DIALOG_HINT_CLASS =
-  "text-[13px] leading-6 text-slate-500 dark:text-slate-400";
-const NODE_DIALOG_FOOTER_CLASS =
-  "mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end";
-const NODE_INPUT_CLASS =
-  "rounded-xl border-slate-200 bg-white text-[14px] shadow-none dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100";
-
-const normalizeDailyCleanupTime = (value: string) => {
-  const trimmed = String(value || "").trim();
-  if (!trimmed) {
-    return "03:00";
-  }
-
-  const match = /^(\d{2}):(\d{2})$/.exec(trimmed);
-  if (!match) {
-    return null;
-  }
-
-  const hour = Number(match[1]);
-  const minute = Number(match[2]);
-  if (
-    !Number.isInteger(hour) ||
-    !Number.isInteger(minute) ||
-    hour < 0 ||
-    hour > 23 ||
-    minute < 0 ||
-    minute > 59
-  ) {
-    return null;
-  }
-
-  return `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
-};
-
 const normalizeLiveSnapshot = (value: any): NodeLiveSnapshot => {
   const fallback = createEmptyLiveRecord();
 
@@ -542,244 +441,6 @@ const getActionErrorMessage = (
   return detail || `${fallback} (HTTP ${response.status})`;
 };
 
-const formatDateTimeLabel = (value?: string) => {
-  const normalized = String(value || "").trim();
-  if (!normalized) return "-";
-
-  const parsed = new Date(normalized);
-  if (Number.isNaN(parsed.getTime())) {
-    return normalized;
-  }
-
-  return parsed.toLocaleString("zh-CN", { hour12: false });
-};
-
-const detectNodePlatform = (node: NodeDetail): Platform => {
-  const osLabel = String(node.os || "").toLowerCase();
-  if (
-    osLabel.includes("windows") ||
-    osLabel.includes("win32") ||
-    osLabel.includes("win64")
-  ) {
-    return "windows";
-  }
-  if (
-    osLabel.includes("mac") ||
-    osLabel.includes("macos") ||
-    osLabel.includes("darwin") ||
-    osLabel.includes("os x")
-  ) {
-    return "macos";
-  }
-  return "linux";
-};
-
-const normalizeAgentReleaseTag = (value?: string | null) => {
-  const trimmed = String(value || "").trim();
-  if (!trimmed) {
-    return "";
-  }
-  return trimmed.startsWith("v") || trimmed.startsWith("V")
-    ? trimmed
-    : `v${trimmed}`;
-};
-
-const normalizeAgentReleaseArch = (value?: string | null) => {
-  const arch = String(value || "").trim().toLowerCase();
-  if (!arch) {
-    return null;
-  }
-  if (arch === "amd64" || arch === "x86_64" || arch === "x64") {
-    return "amd64";
-  }
-  if (
-    arch === "arm64" ||
-    arch === "aarch64" ||
-    arch === "armv8" ||
-    arch === "armv8l"
-  ) {
-    return "arm64";
-  }
-  if (
-    arch === "386" ||
-    arch === "i386" ||
-    arch === "i686" ||
-    arch === "x86"
-  ) {
-    return "386";
-  }
-  if (
-    arch === "arm" ||
-    arch.startsWith("armv7") ||
-    arch.startsWith("armv6")
-  ) {
-    return "arm";
-  }
-  return null;
-};
-
-const buildAgentReleaseAssetName = (node: NodeDetail) => {
-  const arch = normalizeAgentReleaseArch(node.arch);
-  if (!arch) {
-    return null;
-  }
-
-  const platform = detectNodePlatform(node);
-  if (platform === "windows") {
-    return `komari-agent-windows-${arch}.exe`;
-  }
-  if (platform === "macos") {
-    return `komari-agent-darwin-${arch}`;
-  }
-  return `komari-agent-linux-${arch}`;
-};
-
-const resolveLatestAgentUpgradeVersion = async (nodes: NodeDetail[]) => {
-  const response = await fetch(
-    "https://api.github.com/repos/keli-123456/kelicloud-agent/releases/latest",
-    {
-      headers: {
-        Accept: "application/vnd.github+json",
-      },
-      cache: "no-cache",
-    }
-  );
-
-  if (!response.ok) {
-    throw new Error(`Failed to load latest agent release (GitHub HTTP ${response.status})`);
-  }
-
-  const payload = (await response.json()) as GithubReleasePayload;
-  const releaseTag = normalizeAgentReleaseTag(payload.tag_name || payload.name);
-  if (!releaseTag) {
-    throw new Error("Latest agent release tag is unavailable");
-  }
-
-  const requiredAssets = Array.from(
-    new Set(
-      nodes
-        .map((node) => buildAgentReleaseAssetName(node))
-        .filter((value): value is string => Boolean(value))
-    )
-  );
-  if (requiredAssets.length === 0) {
-    return releaseTag;
-  }
-
-  const publishedAssets = new Set(
-    (payload.assets || [])
-      .map((asset) => String(asset?.name || "").trim())
-      .filter(Boolean)
-  );
-  const missingAssets = requiredAssets.filter(
-    (assetName) => !publishedAssets.has(assetName)
-  );
-  if (missingAssets.length > 0) {
-    throw new Error(
-      `Agent release ${releaseTag} is not fully published yet. Missing assets: ${missingAssets.join(", ")}`
-    );
-  }
-
-  return releaseTag;
-};
-
-const resolveScriptHost = (settings: SettingsResponse) => {
-  const raw = String(settings?.script_domain || "").trim();
-  if (!raw) {
-    return window.location.origin;
-  }
-  if (raw.startsWith("http://") || raw.startsWith("https://")) {
-    return raw.replace(/\/+$/, "");
-  }
-  return `http://${raw.replace(/\/+$/, "")}`;
-};
-
-const buildAgentUpgradeCommand = (
-  node: NodeDetail,
-  settings: SettingsResponse,
-  installVersion?: string
-) => {
-  const host = resolveScriptHost(settings);
-  const token = String(node.token || "").trim();
-  const platform = detectNodePlatform(node);
-  const pinnedVersion = normalizeAgentReleaseTag(installVersion);
-  const targetVersionMessage = pinnedVersion
-    ? ` Target version: ${pinnedVersion}.`
-    : "";
-
-  if (!token) {
-    return "";
-  }
-
-  if (platform === "windows") {
-    const scriptUrl = buildAgentInstallScriptURL(
-      settings.base_scripts_url,
-      "install.ps1"
-    );
-    const jobArgs = [
-      "'-NoProfile'",
-      "'-ExecutionPolicy'",
-      "'Bypass'",
-      "'-File'",
-      "$scriptPath",
-      "'-e'",
-      powershellQuote(host),
-      "'-t'",
-      powershellQuote(token),
-    ];
-    if (pinnedVersion) {
-      jobArgs.push("'--install-version'", powershellQuote(pinnedVersion));
-    }
-    return (
-      "powershell.exe -NoProfile -ExecutionPolicy Bypass -Command " +
-      powershellQuote(
-        `$scriptPath = Join-Path $env:TEMP ('komari-install-' + [guid]::NewGuid().ToString() + '.ps1'); ` +
-          `Invoke-WebRequest ${powershellQuote(scriptUrl)} -UseBasicParsing -OutFile $scriptPath; ` +
-          `$jobArgs = @(${jobArgs.join(",")}); ` +
-          `Start-Process -FilePath 'powershell.exe' -ArgumentList $jobArgs -WindowStyle Hidden; ` +
-          `Write-Output 'Agent upgrade scheduled. The node may go offline briefly while the service restarts.${targetVersionMessage}'`
-      )
-    );
-  }
-
-  const scriptUrl = buildAgentInstallScriptURL(
-    settings.base_scripts_url,
-    "install.sh"
-  );
-  const shellArgsList = ["-e", host, "-t", token];
-  if (pinnedVersion) {
-    shellArgsList.push("--install-version", pinnedVersion);
-  }
-  const shellArgs = shellArgsList.map(shellQuote).join(" ");
-  const shellName = platform === "macos" ? "zsh" : "bash";
-  const installCommand = [
-    "set -eu",
-    'TMP_SCRIPT="$(mktemp)"',
-    'cleanup() { rm -f "$TMP_SCRIPT"; }',
-    "trap cleanup EXIT",
-    `if command -v curl >/dev/null 2>&1; then curl -fsSL ${shellQuote(
-      scriptUrl
-    )} > "$TMP_SCRIPT"; else wget -qO- ${shellQuote(scriptUrl)} > "$TMP_SCRIPT"; fi`,
-    'chmod +x "$TMP_SCRIPT"',
-    `if [ "$(id -u)" -ne 0 ] && command -v sudo >/dev/null 2>&1; then sudo ${shellName} "$TMP_SCRIPT" ${shellArgs}; else ${shellName} "$TMP_SCRIPT" ${shellArgs}; fi`,
-  ].join("; ");
-
-  return [
-    `INSTALL_CMD=${shellQuote(installCommand)}`,
-    'if command -v systemd-run >/dev/null 2>&1 && systemctl list-units >/dev/null 2>&1; then UNIT="komari-agent-upgrade-$(date +%s)"; systemd-run --unit "$UNIT" --collect /bin/sh -lc "$INSTALL_CMD"; STATUS=$?; else nohup /bin/sh -lc "$INSTALL_CMD" >/tmp/komari-agent-upgrade.log 2>&1 </dev/null & STATUS=$?; fi',
-    'if [ "$STATUS" -ne 0 ]; then exit "$STATUS"; fi',
-    `echo ${shellQuote(`Agent upgrade scheduled. The node may go offline briefly while the service restarts.${targetVersionMessage}`)}`,
-    "exit 0",
-  ].join("; ");
-};
-
-const getNodePrimaryAddress = (node: NodeDetail) =>
-  formatNodeIp(node.ipv4) !== "-"
-    ? formatNodeIp(node.ipv4)
-    : formatNodeIp(node.ipv6) !== "-"
-      ? formatNodeIp(node.ipv6)
-      : node.uuid.slice(0, 8);
-
 const isNodeConnectivityBlocked = (live?: NodeLiveSnapshot) =>
   live?.record.cn_connectivity?.status === "blocked_suspected";
 
@@ -813,36 +474,35 @@ const Layout = ({
   );
   const [liveLoaded, setLiveLoaded] = useState(false);
   const [liveError, setLiveError] = useState<string | null>(null);
-  const allNodes = Array.isArray(nodeDetail)
-    ? [...nodeDetail].sort((a, b) => {
-        const leftGroup = getNodeGroupLabel(a);
-        const rightGroup = getNodeGroupLabel(b);
-        const defaultGroupLabel = getDefaultGroupLabel();
+  const allNodes = React.useMemo(
+    () => (Array.isArray(nodeDetail)
+      ? [...nodeDetail].sort((a, b) => {
+          const leftGroup = getNodeGroupLabel(a);
+          const rightGroup = getNodeGroupLabel(b);
+          const defaultGroupLabel = getDefaultGroupLabel();
 
-        if (leftGroup === defaultGroupLabel && rightGroup !== defaultGroupLabel) {
-          return 1;
-        }
-        if (leftGroup !== defaultGroupLabel && rightGroup === defaultGroupLabel) {
-          return -1;
-        }
+          if (leftGroup === defaultGroupLabel && rightGroup !== defaultGroupLabel) {
+            return 1;
+          }
+          if (leftGroup !== defaultGroupLabel && rightGroup === defaultGroupLabel) {
+            return -1;
+          }
 
-        const groupDiff = leftGroup.localeCompare(rightGroup);
-        if (groupDiff !== 0) return groupDiff;
+          const groupDiff = leftGroup.localeCompare(rightGroup);
+          if (groupDiff !== 0) return groupDiff;
 
-        if ((a.weight ?? 0) !== (b.weight ?? 0)) {
-          return (a.weight ?? 0) - (b.weight ?? 0);
-        }
+          if ((a.weight ?? 0) !== (b.weight ?? 0)) {
+            return (a.weight ?? 0) - (b.weight ?? 0);
+          }
 
-        return String(a.name || "").localeCompare(String(b.name || ""), "zh-CN");
-      })
-    : [];
+          return String(a.name || "").localeCompare(String(b.name || ""), "zh-CN");
+        })
+      : []),
+    [nodeDetail],
+  );
   const liveScopeUUIDs = React.useMemo(
     () => allNodes.map((node) => node.uuid),
     [allNodes],
-  );
-  const liveScopeKey = React.useMemo(
-    () => liveScopeUUIDs.join(","),
-    [liveScopeUUIDs],
   );
   const installActionsEnabled = !platformAdmin || !selectedUserUUID;
 
@@ -904,7 +564,7 @@ const Layout = ({
         window.clearTimeout(timer);
       }
     };
-  }, [call, liveScopeKey]);
+  }, [call, liveScopeUUIDs]);
 
   if (isLoading) return <Loading text="" />;
   if (error) return <div>{error}</div>;
@@ -945,16 +605,6 @@ const Layout = ({
   );
 };
 
-const generateRandomAutoDiscoveryKey = () => {
-  const chars =
-    "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
-  let result = "";
-  for (let index = 0; index < 24; index += 1) {
-    result += chars.charAt(Math.floor(Math.random() * chars.length));
-  }
-  return result;
-};
-
 const NodeAccessSettingsDialogButton = ({
   settings,
   platformAdmin,
@@ -968,443 +618,28 @@ const NodeAccessSettingsDialogButton = ({
 }) => {
   const { t } = useTranslation();
   const [dialogOpen, setDialogOpen] = React.useState(false);
-  const [autoDiscoveryKey, setAutoDiscoveryKey] = React.useState(
-    String(settings?.auto_discovery_key || ""),
-  );
-  const [cnConnectivityEnabled, setCnConnectivityEnabled] = React.useState(
-    Boolean(settings?.cn_connectivity_enabled),
-  );
-  const [cnConnectivityTarget, setCnConnectivityTarget] = React.useState(
-    normalizeCNConnectivityTargets(String(settings?.cn_connectivity_target || "")),
-  );
-  const [cnConnectivityInterval, setCnConnectivityInterval] =
-    React.useState(String(settings?.cn_connectivity_interval || 60));
-  const [cnConnectivityRetryAttempts, setCnConnectivityRetryAttempts] =
-    React.useState(String(settings?.cn_connectivity_retry_attempts || 3));
-  const [cnConnectivityRetryDelaySeconds, setCnConnectivityRetryDelaySeconds] =
-    React.useState(String(settings?.cn_connectivity_retry_delay_seconds || 1));
-  const [cnConnectivityTimeoutSeconds, setCnConnectivityTimeoutSeconds] =
-    React.useState(String(settings?.cn_connectivity_timeout_seconds || 5));
-  const [offlineCleanupEnabled, setOfflineCleanupEnabled] = React.useState(
-    Boolean(settings?.offline_cleanup_enabled),
-  );
-  const [offlineCleanupTime, setOfflineCleanupTime] = React.useState(
-    normalizeDailyCleanupTime(String(settings?.offline_cleanup_time || "03:00")) ||
-      "03:00",
-  );
-  const [offlineCleanupGraceHours, setOfflineCleanupGraceHours] = React.useState(
-    String(settings?.offline_cleanup_grace_hours || 24),
-  );
-  const [settingsSaving, setSettingsSaving] = React.useState(false);
-
-  const resetForm = React.useCallback(() => {
-    setAutoDiscoveryKey(String(settings?.auto_discovery_key || ""));
-    setCnConnectivityEnabled(Boolean(settings?.cn_connectivity_enabled));
-    setCnConnectivityTarget(
-      normalizeCNConnectivityTargets(String(settings?.cn_connectivity_target || "")),
-    );
-    setCnConnectivityInterval(String(settings?.cn_connectivity_interval || 60));
-    setCnConnectivityRetryAttempts(
-      String(settings?.cn_connectivity_retry_attempts || 3),
-    );
-    setCnConnectivityRetryDelaySeconds(
-      String(settings?.cn_connectivity_retry_delay_seconds || 1),
-    );
-    setCnConnectivityTimeoutSeconds(
-      String(settings?.cn_connectivity_timeout_seconds || 5),
-    );
-    setOfflineCleanupEnabled(Boolean(settings?.offline_cleanup_enabled));
-    setOfflineCleanupTime(
-      normalizeDailyCleanupTime(String(settings?.offline_cleanup_time || "03:00")) ||
-        "03:00",
-    );
-    setOfflineCleanupGraceHours(String(settings?.offline_cleanup_grace_hours || 24));
-  }, [
-    settings?.auto_discovery_key,
-    settings?.cn_connectivity_enabled,
-    settings?.cn_connectivity_interval,
-    settings?.cn_connectivity_retry_attempts,
-    settings?.cn_connectivity_retry_delay_seconds,
-    settings?.cn_connectivity_target,
-    settings?.cn_connectivity_timeout_seconds,
-    settings?.offline_cleanup_enabled,
-    settings?.offline_cleanup_time,
-    settings?.offline_cleanup_grace_hours,
-  ]);
-
-  React.useEffect(() => {
-    resetForm();
-  }, [resetForm]);
-
-  const handleSaveSettings = async () => {
-    if (autoDiscoveryKey && autoDiscoveryKey.length < 12) {
-      toast.error(t("settings.api.key_length_error"));
-      return;
-    }
-
-    const payload: Record<string, string | number | boolean> = {
-      auto_discovery_key: autoDiscoveryKey,
-    };
-
-    if (canManageCNConnectivity) {
-      const interval = parseInt(cnConnectivityInterval, 10);
-      if (Number.isNaN(interval) || interval <= 0) {
-        toast.error(t("settings.general.cn_connectivity_interval_invalid"));
-        return;
-      }
-      const retryAttempts = parseInt(cnConnectivityRetryAttempts, 10);
-      if (Number.isNaN(retryAttempts) || retryAttempts <= 0) {
-        toast.error(t("settings.general.cn_connectivity_retry_attempts_invalid"));
-        return;
-      }
-      const retryDelaySeconds = parseInt(cnConnectivityRetryDelaySeconds, 10);
-      if (Number.isNaN(retryDelaySeconds) || retryDelaySeconds <= 0) {
-        toast.error(t("settings.general.cn_connectivity_retry_delay_seconds_invalid"));
-        return;
-      }
-      const timeoutSeconds = parseInt(cnConnectivityTimeoutSeconds, 10);
-      if (Number.isNaN(timeoutSeconds) || timeoutSeconds <= 0) {
-        toast.error(t("settings.general.cn_connectivity_timeout_seconds_invalid"));
-        return;
-      }
-
-      payload.cn_connectivity_enabled = cnConnectivityEnabled;
-      payload.cn_connectivity_target = normalizeCNConnectivityTargets(
-        cnConnectivityTarget,
-      );
-      payload.cn_connectivity_interval = interval;
-      payload.cn_connectivity_retry_attempts = retryAttempts;
-      payload.cn_connectivity_retry_delay_seconds = retryDelaySeconds;
-      payload.cn_connectivity_timeout_seconds = timeoutSeconds;
-    }
-
-    if (platformAdmin) {
-      const normalizedCleanupTime = normalizeDailyCleanupTime(offlineCleanupTime);
-      if (!normalizedCleanupTime) {
-        toast.error(
-          t("settings.general.offline_cleanup_time_invalid", "Please use HH:MM"),
-        );
-        return;
-      }
-      const parsedGraceHours = parseInt(offlineCleanupGraceHours, 10);
-      if (Number.isNaN(parsedGraceHours) || parsedGraceHours <= 0) {
-        toast.error(
-          t(
-            "settings.general.offline_cleanup_grace_hours_invalid",
-            "Grace period must be greater than 0",
-          ),
-        );
-        return;
-      }
-
-      payload.offline_cleanup_enabled = offlineCleanupEnabled;
-      payload.offline_cleanup_time = normalizedCleanupTime;
-      payload.offline_cleanup_grace_hours = parsedGraceHours;
-    }
-
-    setSettingsSaving(true);
-    try {
-      await updateSettingsWithToast(payload, t);
-      await onRefreshSettings();
-      setDialogOpen(false);
-    } finally {
-      setSettingsSaving(false);
-    }
-  };
-
   return (
-    <Dialog.Root
-      open={dialogOpen}
-      onOpenChange={(open) => {
-        if (open) {
-          resetForm();
-        }
-        setDialogOpen(open);
-      }}
-    >
-      <Dialog.Trigger>
-        <Button className="rounded-lg bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900">
-          <Settings2 size={16} />
-          {t("common.settings")}
-        </Button>
-      </Dialog.Trigger>
-      <Dialog.Content
-        className={NODE_DIALOG_CONTENT_CLASS}
-        maxWidth={640}
+    <>
+      <Button
+        className="rounded-lg bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900"
+        onClick={() => setDialogOpen(true)}
       >
-        <Dialog.Title>
-          {t("admin.nodeTable.accessSettingsTitle")}
-        </Dialog.Title>
-        <Dialog.Description className="mt-2">
-          {t("admin.nodeTable.accessSettingsDescription")}
-        </Dialog.Description>
-        <div className="mt-4 space-y-4">
-          <div className="rounded-xl border border-slate-200 bg-slate-50/80 p-4 dark:border-slate-800 dark:bg-slate-900/50">
-            <div className="space-y-1">
-              <Text className="text-sm font-semibold text-slate-900 dark:text-slate-100">
-                {t("settings.general.auto_discovery")}
-              </Text>
-              <Text className="text-sm text-slate-500 dark:text-slate-400">
-                {t("settings.general.auto_discovery_key_description")}
-              </Text>
-            </div>
-            <div className="mt-4 space-y-4">
-              <TextField.Root
-                className={NODE_INPUT_CLASS}
-                value={autoDiscoveryKey}
-                onChange={(event) =>
-                  setAutoDiscoveryKey(event.target.value)
-                }
-              />
-              <div className="flex flex-wrap gap-2">
-                <Button
-                  variant="outline"
-                  type="button"
-                  onClick={() =>
-                    setAutoDiscoveryKey(generateRandomAutoDiscoveryKey())
-                  }
-                >
-                  {t("common.generate")}
-                </Button>
-                <Button
-                  variant="outline"
-                  type="button"
-                  onClick={() => {
-                    window.open(
-                      "https://komari-document.pages.dev/install/agent-ad.html",
-                      "_blank",
-                    );
-                  }}
-                >
-                  {t("common.help")}
-                </Button>
-              </div>
-            </div>
-          </div>
-
-          {canManageCNConnectivity ? (
-            <div className="rounded-xl border border-slate-200 bg-slate-50/80 p-4 dark:border-slate-800 dark:bg-slate-900/50">
-              <div className="space-y-2">
-                <Flex justify="between" align="center" gap="2" wrap="wrap">
-                  <Text className="text-sm font-semibold text-slate-900 dark:text-slate-100">
-                    {t("settings.general.cn_connectivity")}
-                  </Text>
-                  <Badge
-                    color={cnConnectivityEnabled ? "green" : "gray"}
-                    variant="soft"
-                  >
-                    {cnConnectivityEnabled
-                      ? t("common.enabled")
-                      : t("common.disabled")}
-                  </Badge>
-                </Flex>
-                <Text className="text-sm text-slate-500 dark:text-slate-400">
-                  {t("admin.nodeTable.cnConnectivityManageHint")}
-                </Text>
-              </div>
-              <div className="mt-4 space-y-4">
-                <SettingCard
-                  title={t("settings.general.cn_connectivity_enabled")}
-                  description={t(
-                    "settings.general.cn_connectivity_enabled_description",
-                  )}
-                  bordless
-                >
-                  <SettingCard.Action>
-                    <Checkbox
-                      checked={cnConnectivityEnabled}
-                      onCheckedChange={(checked) =>
-                        setCnConnectivityEnabled(Boolean(checked))
-                      }
-                    />
-                  </SettingCard.Action>
-                </SettingCard>
-                <div className="space-y-2">
-                  <label className="text-[14px] font-semibold text-slate-900 dark:text-slate-100">
-                    {t("settings.general.cn_connectivity_target")}
-                  </label>
-                  <TextArea
-                    className="min-h-32 text-[13px] leading-6"
-                    placeholder={
-                      "223.5.5.5\n119.29.29.29\ndns.alidns.com"
-                    }
-                    value={cnConnectivityTarget}
-                    onChange={(event) =>
-                      setCnConnectivityTarget(event.target.value)
-                    }
-                  />
-                  <Text className="text-xs text-slate-500 dark:text-slate-400">
-                    {t("settings.general.cn_connectivity_target_help")}
-                  </Text>
-                </div>
-                <div className="space-y-2">
-                  <label className="text-[14px] font-semibold text-slate-900 dark:text-slate-100">
-                    {t("settings.general.cn_connectivity_interval")}
-                  </label>
-                  <TextField.Root
-                    className={NODE_INPUT_CLASS}
-                    type="number"
-                    min={1}
-                    value={cnConnectivityInterval}
-                    onChange={(event) =>
-                      setCnConnectivityInterval(event.target.value)
-                    }
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-[14px] font-semibold text-slate-900 dark:text-slate-100">
-                    {t("settings.general.cn_connectivity_retry_attempts")}
-                  </label>
-                  <TextField.Root
-                    className={NODE_INPUT_CLASS}
-                    type="number"
-                    min={1}
-                    step={1}
-                    value={cnConnectivityRetryAttempts}
-                    onChange={(event) =>
-                      setCnConnectivityRetryAttempts(event.target.value)
-                    }
-                  />
-                  <Text className="text-xs text-slate-500 dark:text-slate-400">
-                    {t("settings.general.cn_connectivity_retry_attempts_description")}
-                  </Text>
-                </div>
-                <div className="space-y-2">
-                  <label className="text-[14px] font-semibold text-slate-900 dark:text-slate-100">
-                    {t("settings.general.cn_connectivity_timeout_seconds")}
-                  </label>
-                  <TextField.Root
-                    className={NODE_INPUT_CLASS}
-                    type="number"
-                    min={1}
-                    step={1}
-                    value={cnConnectivityTimeoutSeconds}
-                    onChange={(event) =>
-                      setCnConnectivityTimeoutSeconds(event.target.value)
-                    }
-                  />
-                  <Text className="text-xs text-slate-500 dark:text-slate-400">
-                    {t("settings.general.cn_connectivity_timeout_seconds_description")}
-                  </Text>
-                </div>
-                <div className="space-y-2">
-                  <label className="text-[14px] font-semibold text-slate-900 dark:text-slate-100">
-                    {t("settings.general.cn_connectivity_retry_delay_seconds")}
-                  </label>
-                  <TextField.Root
-                    className={NODE_INPUT_CLASS}
-                    type="number"
-                    min={1}
-                    step={1}
-                    value={cnConnectivityRetryDelaySeconds}
-                    onChange={(event) =>
-                      setCnConnectivityRetryDelaySeconds(event.target.value)
-                    }
-                  />
-                  <Text className="text-xs text-slate-500 dark:text-slate-400">
-                    {t("settings.general.cn_connectivity_retry_delay_seconds_description")}
-                  </Text>
-                </div>
-              </div>
-            </div>
-          ) : null}
-
-          {platformAdmin ? (
-            <div className="rounded-xl border border-slate-200 bg-slate-50/80 p-4 dark:border-slate-800 dark:bg-slate-900/50">
-              <div className="space-y-2">
-                <Flex justify="between" align="center" gap="2" wrap="wrap">
-                  <Text className="text-sm font-semibold text-slate-900 dark:text-slate-100">
-                    {t("settings.general.offline_cleanup")}
-                  </Text>
-                  <Badge
-                    color={offlineCleanupEnabled ? "green" : "gray"}
-                    variant="soft"
-                  >
-                    {offlineCleanupEnabled
-                      ? t("common.enabled")
-                      : t("common.disabled")}
-                  </Badge>
-                </Flex>
-                <Text className="text-sm text-slate-500 dark:text-slate-400">
-                  {t("admin.nodeTable.offlineCleanupManageHint")}
-                </Text>
-              </div>
-              <div className="mt-4 space-y-4">
-                <SettingCard
-                  title={t("settings.general.offline_cleanup_enabled")}
-                  description={t(
-                    "settings.general.offline_cleanup_enabled_description",
-                  )}
-                  bordless
-                >
-                  <SettingCard.Action>
-                    <Checkbox
-                      checked={offlineCleanupEnabled}
-                      onCheckedChange={(checked) =>
-                        setOfflineCleanupEnabled(Boolean(checked))
-                      }
-                    />
-                  </SettingCard.Action>
-                </SettingCard>
-                <div className="space-y-2">
-                  <label className="text-[14px] font-semibold text-slate-900 dark:text-slate-100">
-                    {t("settings.general.offline_cleanup_time")}
-                  </label>
-                  <TextField.Root
-                    className={NODE_INPUT_CLASS}
-                    type="time"
-                    step={60}
-                    value={offlineCleanupTime}
-                    onChange={(event) =>
-                      setOfflineCleanupTime(event.target.value)
-                    }
-                  />
-                  <Text className="text-xs text-slate-500 dark:text-slate-400">
-                    {t("settings.general.offline_cleanup_time_description")}
-                  </Text>
-                </div>
-                <div className="space-y-2">
-                  <label className="text-[14px] font-semibold text-slate-900 dark:text-slate-100">
-                    {t("settings.general.offline_cleanup_grace_hours")}
-                  </label>
-                  <TextField.Root
-                    className={NODE_INPUT_CLASS}
-                    type="number"
-                    min={1}
-                    step={1}
-                    value={offlineCleanupGraceHours}
-                    onChange={(event) =>
-                      setOfflineCleanupGraceHours(event.target.value)
-                    }
-                  />
-                  <Text className="text-xs text-slate-500 dark:text-slate-400">
-                    {t("settings.general.offline_cleanup_grace_hours_description")}
-                  </Text>
-                </div>
-              </div>
-            </div>
-          ) : null}
-        </div>
-        <div className={NODE_DIALOG_FOOTER_CLASS}>
-          <Dialog.Close>
-            <Button
-              type="button"
-              variant="outline"
-              className="w-full sm:w-auto"
-            >
-              {t("common.cancel")}
-            </Button>
-          </Dialog.Close>
-          <Button
-            className="w-full sm:w-auto"
-            onClick={() => void handleSaveSettings()}
-            disabled={settingsSaving}
-          >
-            {t("save")}
-          </Button>
-        </div>
-      </Dialog.Content>
-    </Dialog.Root>
+        <Settings2 size={16} />
+        {t("common.settings")}
+      </Button>
+      {dialogOpen ? (
+        <React.Suspense fallback={null}>
+          <LazyNodeAccessSettingsDialog
+            open={dialogOpen}
+            settings={settings}
+            platformAdmin={platformAdmin}
+            canManageCNConnectivity={canManageCNConnectivity}
+            onOpenChange={setDialogOpen}
+            onSaved={onRefreshSettings}
+          />
+        </React.Suspense>
+      ) : null}
+    </>
   );
 };
 
@@ -1691,31 +926,6 @@ const clampPercent = (value: number) =>
   Math.max(0, Math.min(100, Number.isFinite(value) ? value : 0));
 
 const formatPercent = (value: number) => `${Math.round(clampPercent(value))}%`;
-
-const shellQuote = (value: string) => `'${value.replace(/'/g, `'"'"'`)}'`;
-
-const powershellQuote = (value: string) => `'${value.replace(/'/g, "''")}'`;
-
-const encodeBase64Url = (value: string) => {
-  const binary = Array.from(new TextEncoder().encode(value), (byte) =>
-    String.fromCharCode(byte)
-  ).join("");
-  return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
-};
-
-const encodeScopedAutoDiscoveryKey = (key: string, group: string) =>
-  group ? `${key}::group-b64=${encodeBase64Url(group)}` : key;
-
-const getDefaultInstallDir = (platform: Platform) => {
-  switch (platform) {
-    case "windows":
-      return "$Env:ProgramFiles\\Komari";
-    case "macos":
-      return "/usr/local/komari";
-    default:
-      return "/opt/komari";
-  }
-};
 
 const StatusSummary = ({
   live,
@@ -2017,145 +1227,6 @@ const UsageBar = ({
   );
 };
 
-const buildNodeConfigTooltip = ({
-  node,
-  live,
-}: {
-  node: NodeDetail;
-  live?: NodeLiveSnapshot;
-}) => {
-  const snapshot = live?.record || createEmptyLiveRecord();
-  const memoryUsed = snapshot.ram.used ?? 0;
-  const diskUsed = snapshot.disk.used ?? 0;
-  const swapUsed = snapshot.swap.used ?? 0;
-  const connectivity = snapshot.cn_connectivity;
-  const connectivityLabel = connectivity
-    ? connectivity.status === "ok"
-      ? `${translate("admin.nodeTable.cnConnectivityOk", {
-          defaultValue: "CN reachable",
-        })}${typeof connectivity.latency === "number" && connectivity.latency > 0 ? ` ${connectivity.latency}ms` : ""}`
-      : connectivity.status === "blocked_suspected"
-        ? translate("admin.nodeTable.cnConnectivityBlocked", {
-            defaultValue: "Suspected blocked",
-          })
-        : connectivity.status === "degraded"
-          ? translate("admin.nodeTable.cnConnectivityDegraded", {
-              defaultValue: "CN abnormal",
-            })
-          : translate("admin.nodeTable.cnConnectivityUnknown", {
-              defaultValue: "Pending probe",
-            })
-    : translate("admin.nodeTable.detailTooltip.notConfigured", {
-        defaultValue: "Not configured",
-      });
-  const lines = [
-    `${translate("admin.nodeTable.detailTooltip.nodeName", {
-      defaultValue: "Node",
-    })}: ${node.name || "-"}`,
-    `${translate("admin.nodeTable.detailTooltip.uuid", {
-      defaultValue: "UUID",
-    })}: ${node.uuid || "-"}`,
-    `${translate("admin.nodeTable.detailTooltip.group", {
-      defaultValue: "Group",
-    })}: ${getNodeGroupLabel(node)}`,
-    `${translate("admin.nodeTable.detailTooltip.status", {
-      defaultValue: "Status",
-    })}: ${live?.online ? translate("nodeCard.online", { defaultValue: "Online" }) : translate("nodeCard.offline", { defaultValue: "Offline" })}`,
-    `${translate("admin.nodeTable.detailTooltip.connectivity", {
-      defaultValue: "CN probe",
-    })}: ${connectivityLabel}`,
-    `${translate("admin.nodeTable.detailTooltip.version", {
-      defaultValue: "Version",
-    })}: ${node.version || "-"}`,
-    `${translate("admin.nodeTable.detailTooltip.region", {
-      defaultValue: "Region",
-    })}: ${node.region || "-"}`,
-    `${translate("admin.nodeTable.detailTooltip.os", {
-      defaultValue: "OS",
-    })}: ${node.os || "-"}`,
-    `${translate("admin.nodeTable.detailTooltip.architecture", {
-      defaultValue: "Architecture",
-    })}: ${node.arch || "-"}`,
-    `${translate("admin.nodeTable.detailTooltip.cpu", {
-      defaultValue: "CPU",
-    })}: ${node.cpu_name || "-"} / ${node.cpu_cores || 0} ${translate("admin.nodeTable.cpuCoresShort", {
-      defaultValue: "cores",
-    })}`,
-    `${translate("admin.nodeTable.detailTooltip.gpu", {
-      defaultValue: "GPU",
-    })}: ${node.gpu_name || "-"}`,
-    `${translate("admin.nodeTable.detailTooltip.memory", {
-      defaultValue: "Memory",
-    })}: ${formatBytes(memoryUsed)} / ${formatBytes(node.mem_total || 0)}`,
-    `${translate("admin.nodeTable.detailTooltip.swap", {
-      defaultValue: "Swap",
-    })}: ${formatBytes(swapUsed)} / ${formatBytes(node.swap_total || 0)}`,
-    `${translate("admin.nodeTable.detailTooltip.storage", {
-      defaultValue: "Storage",
-    })}: ${formatBytes(diskUsed)} / ${formatBytes(node.disk_total || 0)}`,
-    `${translate("admin.nodeTable.detailTooltip.rate", {
-      defaultValue: "Rate",
-    })}: ↑ ${formatBytes(snapshot.network.up)}/s / ↓ ${formatBytes(
-      snapshot.network.down
-    )}/s`,
-    `${translate("admin.nodeTable.detailTooltip.traffic", {
-      defaultValue: "Traffic",
-    })}: ↑ ${formatBytes(snapshot.network.totalUp)} / ↓ ${formatBytes(
-      snapshot.network.totalDown
-    )}`,
-    `IPv4: ${formatNodeIp(node.ipv4)}`,
-    `IPv6: ${formatNodeIp(node.ipv6)}`,
-    `${translate("admin.nodeTable.detailTooltip.billingCycle", {
-      defaultValue: "Billing cycle",
-    })}: ${node.billing_cycle || "-"}`,
-    `${translate("admin.nodeTable.detailTooltip.publicRemark", {
-      defaultValue: "Public remark",
-    })}: ${node.public_remark || "-"}`,
-    `${translate("admin.nodeTable.detailTooltip.privateRemark", {
-      defaultValue: "Private remark",
-    })}: ${node.remark || "-"}`,
-    `${translate("admin.nodeTable.detailTooltip.createdAt", {
-      defaultValue: "Created at",
-    })}: ${formatDateTimeLabel(node.created_at)}`,
-    `${translate("admin.nodeTable.detailTooltip.panelUpdatedAt", {
-      defaultValue: "Panel updated at",
-    })}: ${formatDateTimeLabel(node.updated_at)}`,
-    `${translate("admin.nodeTable.detailTooltip.statusUpdatedAt", {
-      defaultValue: "Status updated at",
-    })}: ${formatDateTimeLabel(snapshot.updated_at)}`,
-  ];
-
-  if (node.virtualization) {
-    lines.splice(
-      8,
-      0,
-      `${translate("admin.nodeTable.detailTooltip.virtualization", {
-        defaultValue: "Virtualization",
-      })}: ${node.virtualization}`,
-    );
-  }
-  if (connectivity?.target) {
-    lines.splice(
-      5,
-      0,
-      `${translate("admin.nodeTable.detailTooltip.probeTarget", {
-        defaultValue: "Probe target",
-      })}: ${connectivity.target}`,
-    );
-  }
-  if (connectivity?.message) {
-    lines.splice(
-      6,
-      0,
-      `${translate("admin.nodeTable.detailTooltip.probeMessage", {
-        defaultValue: "Probe message",
-      })}: ${connectivity.message}`,
-    );
-  }
-
-  return lines.join("\n");
-};
-
 const openNodeTerminal = (uuid: string) => {
   window.open(`/terminal?uuid=${uuid}`, "_blank");
 };
@@ -2264,13 +1335,15 @@ const SortableRow = ({
           ) : null}
         </ContextMenuContent>
       </ContextMenu>
-      {hasFeature("cloud_dns") ? (
-        <NodeDDNSDialog
-          item={node}
-          open={ddnsOpen}
-          onOpenChange={setDdnsOpen}
-          trigger={null}
-        />
+      {hasFeature("cloud_dns") && ddnsOpen ? (
+        <React.Suspense fallback={null}>
+          <LazyNodeDDNSDialog
+            item={node}
+            open={ddnsOpen}
+            onOpenChange={setDdnsOpen}
+            trigger={null}
+          />
+        </React.Suspense>
       ) : null}
     </>
   );
@@ -2354,557 +1427,47 @@ const GroupUpgradeButton = ({
   settings: SettingsResponse;
 }) => {
   const { t } = useTranslation();
-  const { refresh } = useNodeDetails();
-  const [open, setOpen] = React.useState(false);
-  const [submitting, setSubmitting] = React.useState(false);
-  const [status, setStatus] = React.useState<UpgradeExecutionStatus>("idle");
-  const [resultState, setResultState] = React.useState<
-    Record<string, NodeUpgradeState>
-  >({});
-  const resultStateRef = React.useRef<Record<string, NodeUpgradeState>>({});
-  const taskRefs = React.useRef<UpgradeTask[]>([]);
-  const pollIntervalRef = React.useRef<number | null>(null);
-  const pollTimeoutRef = React.useRef<number | null>(null);
+  const [dialogOpen, setDialogOpen] = React.useState(false);
+  const [dialogMounted, setDialogMounted] = React.useState(false);
 
   const onlineNodes = React.useMemo(
     () =>
       nodes.filter(
         (node) =>
           Boolean(liveByNode[node.uuid]?.online) &&
-          String(node.token || "").trim().length > 0
+          String(node.token || "").trim().length > 0,
       ),
-    [liveByNode, nodes]
+    [liveByNode, nodes],
   );
 
-  const updateResultState = React.useCallback(
-    (
-      updater:
-        | Record<string, NodeUpgradeState>
-        | ((
-            previous: Record<string, NodeUpgradeState>
-          ) => Record<string, NodeUpgradeState>)
-    ) => {
-      const next =
-        typeof updater === "function"
-          ? updater(resultStateRef.current)
-          : updater;
-      resultStateRef.current = next;
-      setResultState(next);
-    },
-    []
-  );
-
-  const clearPolling = React.useCallback(() => {
-    if (pollIntervalRef.current !== null) {
-      window.clearInterval(pollIntervalRef.current);
-      pollIntervalRef.current = null;
-    }
-    if (pollTimeoutRef.current !== null) {
-      window.clearTimeout(pollTimeoutRef.current);
-      pollTimeoutRef.current = null;
-    }
+  const handleOpen = React.useCallback(() => {
+    setDialogMounted(true);
+    setDialogOpen(true);
   }, []);
 
-  React.useEffect(() => () => clearPolling(), [clearPolling]);
-
-  const finalizeExecution = React.useCallback(
-    async (forceTimeout = false) => {
-      const finalStates = resultStateRef.current;
-      const failedCount = Object.values(finalStates).filter(
-        (item) => item.status === "failed" || item.status === "timeout"
-      ).length;
-      const successCount = Object.values(finalStates).filter(
-        (item) => item.status === "success"
-      ).length;
-
-      setStatus(
-        forceTimeout
-          ? "timeout"
-          : failedCount > 0
-            ? "failed"
-            : successCount > 0
-              ? "success"
-              : "idle"
-      );
-
-      if (forceTimeout) {
-        toast.warning(
-          t("admin.nodeTable.upgradeTimeoutToast", {
-            groupName,
-            defaultValue:
-              "{{groupName}} upgrade timed out. Please check node status manually.",
-          })
-        );
-      } else if (failedCount > 0) {
-        toast.error(
-          t("admin.nodeTable.upgradeMixedResultToast", {
-            groupName,
-            successCount,
-            failedCount,
-            defaultValue:
-              "{{groupName}} upgrade finished: {{successCount}} succeeded, {{failedCount}} failed.",
-          })
-        );
-      } else {
-        toast.success(
-          t("admin.nodeTable.upgradeSuccessToast", {
-            groupName,
-            successCount,
-            defaultValue:
-              "{{groupName}} upgrade finished on {{successCount}} node(s).",
-          })
-        );
-      }
-
-      await refresh();
-    },
-    [groupName, refresh, t]
-  );
-
-  const pollTaskResult = React.useCallback(
-    async (task: UpgradeTask) => {
-      const response = await fetch(`/api/admin/task/${task.taskId}/result`);
-      const payload = (await response.json().catch(() => ({}))) as TaskResultResponse;
-      if (!response.ok || payload.status === "error") {
-        throw new Error(payload.message || `HTTP ${response.status}`);
-      }
-
-      const matchedResult = (payload.results || payload.data || []).find(
-        (item) => item.client === task.clientIds[0]
-      );
-      const clientId = task.clientIds[0];
-
-      updateResultState((previous) => {
-        const current =
-          previous[clientId] ||
-          ({
-            status: "pending",
-            output: "",
-            exitCode: null,
-            finishedAt: null,
-          } as NodeUpgradeState);
-
-        if (!matchedResult) {
-          return {
-            ...previous,
-            [clientId]: {
-              ...current,
-              status:
-                current.status === "pending" ? "running" : current.status,
-            },
-          };
-        }
-
-        return {
-          ...previous,
-          [clientId]: {
-            status: matchedResult.finished_at
-              ? matchedResult.exit_code === 0
-                ? "success"
-                : "failed"
-              : "running",
-            taskId: task.taskId,
-            output: matchedResult.result || "",
-            exitCode: matchedResult.exit_code,
-            finishedAt: matchedResult.finished_at,
-          },
-        };
-      });
-
-      return Boolean(matchedResult?.finished_at);
-    },
-    [updateResultState]
-  );
-
-  const startPolling = React.useCallback(
-    (tasks: UpgradeTask[]) => {
-      clearPolling();
-      taskRefs.current = tasks;
-      setStatus("running");
-
-      const run = () => {
-        void Promise.all(
-          taskRefs.current.map((task) =>
-            pollTaskResult(task).catch((error) => {
-              updateResultState((previous) => ({
-                ...previous,
-                [task.clientIds[0]]: {
-                  ...(previous[task.clientIds[0]] || {
-                    output: "",
-                    exitCode: null,
-                    finishedAt: null,
-                  }),
-                  status: "failed",
-                  taskId: task.taskId,
-                  output:
-                    error instanceof Error
-                      ? error.message
-                      : String(error),
-                  exitCode: -1,
-                  finishedAt: new Date().toISOString(),
-                },
-              }));
-              return true;
-            })
-          )
-        ).then((states) => {
-          if (states.every(Boolean)) {
-            clearPolling();
-            void finalizeExecution(false);
-          }
-        });
-      };
-
-      run();
-      pollIntervalRef.current = window.setInterval(run, 2000);
-      pollTimeoutRef.current = window.setTimeout(() => {
-        clearPolling();
-        updateResultState((previous) => {
-          const next = { ...previous };
-          Object.keys(next).forEach((uuid) => {
-            if (
-              next[uuid]?.status === "pending" ||
-              next[uuid]?.status === "running"
-            ) {
-              next[uuid] = {
-                ...next[uuid],
-                status: "timeout",
-                finishedAt: new Date().toISOString(),
-              };
-            }
-          });
-          return next;
-        });
-        void finalizeExecution(true);
-      }, 60000);
-    },
-    [clearPolling, finalizeExecution, pollTaskResult, updateResultState]
-  );
-
-  const handleUpgrade = async () => {
-    if (onlineNodes.length === 0) {
-      toast.error(
-        t("admin.nodeTable.upgradeNoOnlineToast", {
-          groupName,
-          defaultValue: "No online nodes available in {{groupName}} for upgrade.",
-        })
-      );
-      return;
-    }
-
-    setSubmitting(true);
-    setStatus("pending");
-    const initialState = Object.fromEntries(
-      onlineNodes.map((node) => [
-        node.uuid,
-        {
-          status: "pending",
-          output: "",
-          exitCode: null,
-          finishedAt: null,
-        } satisfies NodeUpgradeState,
-      ])
-    );
-    updateResultState(initialState);
-
-    try {
-      const installVersion = await resolveLatestAgentUpgradeVersion(onlineNodes);
-      const settled = await Promise.allSettled(
-        onlineNodes.map(async (node) => {
-          const command = buildAgentUpgradeCommand(node, settings, installVersion);
-          if (!command) {
-            throw new Error(
-              t("admin.nodeTable.upgradeMissingToken", {
-                defaultValue: "Node is missing a token and cannot be upgraded.",
-              })
-            );
-          }
-
-          const response = await fetch("/api/admin/task/exec", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              command,
-              clients: [node.uuid],
-            }),
-          });
-
-          const payload = (await response.json().catch(() => ({}))) as ExecResponse;
-          if (!response.ok || payload.status === "error") {
-            throw new Error(payload.message || `HTTP ${response.status}`);
-          }
-
-          const taskId = payload.data?.task_id || payload.task_id || "";
-          if (!taskId) {
-            throw new Error(
-              t("admin.nodeTable.upgradeMissingTaskId", {
-                defaultValue: "No task ID was returned.",
-              })
-            );
-          }
-
-          updateResultState((previous) => ({
-            ...previous,
-            [node.uuid]: {
-              ...(previous[node.uuid] || {
-                output: "",
-                exitCode: null,
-                finishedAt: null,
-              }),
-              status: "running",
-              taskId,
-            },
-          }));
-
-          return {
-            taskId,
-            platform: detectNodePlatform(node),
-            clientIds: [node.uuid],
-          } satisfies UpgradeTask;
-        })
-      );
-
-      const tasks = settled
-        .filter(
-          (
-            item
-          ): item is PromiseFulfilledResult<UpgradeTask> =>
-            item.status === "fulfilled"
-        )
-        .map((item) => item.value);
-
-      settled.forEach((item, index) => {
-        if (item.status === "rejected") {
-          const failedNode = onlineNodes[index];
-          updateResultState((previous) => ({
-            ...previous,
-            [failedNode.uuid]: {
-              status: "failed",
-              output:
-                item.reason instanceof Error
-                  ? item.reason.message
-                  : String(item.reason),
-              exitCode: -1,
-              finishedAt: new Date().toISOString(),
-            },
-          }));
-        }
-      });
-
-      if (tasks.length === 0) {
-        await finalizeExecution(false);
-        return;
-      }
-
-      toast.success(
-        t("admin.nodeTable.upgradeTasksDispatched", {
-          groupName,
-          count: tasks.length,
-          defaultValue:
-            "{{groupName}} dispatched {{count}} upgrade task(s).",
-        })
-      );
-      startPolling(tasks);
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  const summary = React.useMemo(() => {
-    const values = Object.values(resultState);
-    return {
-      pending: values.filter((item) => item.status === "pending").length,
-      running: values.filter((item) => item.status === "running").length,
-      success: values.filter((item) => item.status === "success").length,
-      failed: values.filter(
-        (item) => item.status === "failed" || item.status === "timeout"
-      ).length,
-    };
-  }, [resultState]);
-
-  const combinedOutput = React.useMemo(
-    () =>
-      onlineNodes
-        .map((node) => {
-          const result = resultState[node.uuid];
-          if (!result?.output) return null;
-          return `[${getNodePrimaryAddress(node)}]\n${result.output}`;
-        })
-        .filter(Boolean)
-        .join("\n\n--------------------------------\n\n"),
-    [onlineNodes, resultState]
-  );
-
   return (
-    <Dialog.Root open={open} onOpenChange={setOpen}>
-      <Dialog.Trigger>
-        <Button
-          variant="outline"
-          className="rounded-full"
-          disabled={onlineNodes.length === 0}
-        >
-          {status === "running" || submitting ? (
-            <LoaderCircle className="h-4 w-4 animate-spin" />
-          ) : (
-            <RefreshCw className="h-4 w-4" />
-          )}
-          {t("admin.nodeTable.upgradeAgent", "Upgrade agent")}
-        </Button>
-      </Dialog.Trigger>
-      <Dialog.Content className={NODE_DIALOG_CONTENT_CLASS} maxWidth={760}>
-        <Dialog.Title>
-          {t("admin.nodeTable.upgradeDialogTitle", {
-            groupName,
-            defaultValue: "{{groupName}} · Upgrade agent",
-          })}
-        </Dialog.Title>
-        <Dialog.Description className="mt-2">
-          {t("admin.nodeTable.upgradeDialogDescription", {
-            defaultValue:
-              "Only online nodes in the current group will receive the upgrade script. The terminal entry remains available from the node row context menu.",
-          })}
-        </Dialog.Description>
-
-        <div className="mt-4 grid gap-3 sm:grid-cols-4">
-          <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 dark:border-slate-800 dark:bg-slate-900/50">
-            <div className="text-xs text-slate-500 dark:text-slate-400">
-              {t("admin.nodeTable.upgradeOnlineNodes", "Online nodes")}
-            </div>
-            <div className="mt-1 text-base font-semibold text-slate-900 dark:text-slate-100">
-              {onlineNodes.length}
-            </div>
-          </div>
-          <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 dark:border-slate-800 dark:bg-slate-900/50">
-            <div className="text-xs text-slate-500 dark:text-slate-400">
-              {t("admin.nodeTable.upgradeRunning", "Running")}
-            </div>
-            <div className="mt-1 text-base font-semibold text-slate-900 dark:text-slate-100">
-              {summary.pending + summary.running}
-            </div>
-          </div>
-          <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 dark:border-emerald-900/60 dark:bg-emerald-950/30">
-            <div className="text-xs text-emerald-700 dark:text-emerald-300">
-              {t("admin.nodeTable.upgradeSuccessShort", "Succeeded")}
-            </div>
-            <div className="mt-1 text-base font-semibold text-emerald-800">
-              {summary.success}
-            </div>
-          </div>
-          <div className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 dark:border-rose-900/60 dark:bg-rose-950/30">
-            <div className="text-xs text-rose-700 dark:text-rose-300">
-              {t("admin.nodeTable.upgradeFailedShort", "Failed")}
-            </div>
-            <div className="mt-1 text-base font-semibold text-rose-800">
-              {summary.failed}
-            </div>
-          </div>
-        </div>
-
-        <div className="mt-4 rounded-xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-950/40">
-          <div className="border-b border-slate-200 px-4 py-3 text-sm text-slate-600 dark:border-slate-800 dark:text-slate-300">
-            {t("admin.nodeTable.upgradeStatusTitle", "Node execution status")}
-          </div>
-          <div className="max-h-72 space-y-2 overflow-y-auto p-4">
-            {onlineNodes.length === 0 ? (
-              <div className="rounded-lg border border-dashed border-slate-200 px-3 py-4 text-sm text-slate-500 dark:border-slate-800 dark:text-slate-400">
-                {t("admin.nodeTable.upgradeNoOnlineState", {
-                  defaultValue:
-                    "There are no online nodes in this group, so the upgrade cannot start.",
-                })}
-              </div>
-            ) : (
-              onlineNodes.map((node) => {
-                const result = resultState[node.uuid];
-                const statusLabel =
-                  result?.status === "success"
-                    ? t("admin.nodeTable.upgradeSuccessShort", "Succeeded")
-                    : result?.status === "failed"
-                      ? t("admin.nodeTable.upgradeFailedShort", "Failed")
-                      : result?.status === "timeout"
-                        ? t("exec.status.timeout", "Timeout")
-                        : result?.status === "running"
-                          ? t("admin.nodeTable.upgradeRunning", "Running")
-                          : result?.status === "pending"
-                            ? t("admin.nodeTable.upgradePending", "Queued")
-                            : t("admin.nodeTable.upgradeNotStarted", "Not started");
-                const statusClass =
-                  result?.status === "success"
-                    ? "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/30 dark:text-emerald-300"
-                    : result?.status === "failed" ||
-                        result?.status === "timeout"
-                      ? "border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-900/60 dark:bg-rose-950/30 dark:text-rose-300"
-                      : "border-slate-200 bg-slate-50 text-slate-600 dark:border-slate-800 dark:bg-slate-900/50 dark:text-slate-300";
-
-                return (
-                  <div
-                    key={node.uuid}
-                    title={result?.output || buildNodeConfigTooltip({ node, live: liveByNode[node.uuid] })}
-                    className="flex flex-col gap-3 rounded-xl border border-slate-200 px-3 py-3 dark:border-slate-800 sm:flex-row sm:items-center sm:justify-between"
-                  >
-                    <div className="min-w-0">
-                      <div className="truncate text-sm font-medium text-slate-900 dark:text-slate-100">
-                        {getNodePrimaryAddress(node)}
-                      </div>
-                      <div className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-                        {detectNodePlatform(node)} / {node.version || "-"}
-                        {result?.taskId
-                          ? ` / ${t("exec.task_id_label", {
-                              defaultValue: "Task ID",
-                            })} ${result.taskId}`
-                          : ""}
-                      </div>
-                    </div>
-                    <div
-                      className={`inline-flex w-fit items-center gap-2 rounded-full border px-3 py-1 text-xs ${statusClass}`}
-                    >
-                      {result?.status === "running" ? (
-                        <LoaderCircle className="h-3.5 w-3.5 animate-spin" />
-                      ) : null}
-                      {statusLabel}
-                    </div>
-                  </div>
-                );
-              })
-            )}
-          </div>
-        </div>
-
-        {combinedOutput ? (
-          <div className="mt-4">
-            <div className="mb-2 text-xs text-slate-500 dark:text-slate-400">
-              {t("admin.nodeTable.upgradeLatestOutput", "Latest output")}
-            </div>
-            <TextArea
-              readOnly
-              value={combinedOutput}
-              className="min-h-44 border-slate-200 bg-slate-50 font-mono text-xs text-slate-700 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-200"
-            />
-          </div>
-        ) : null}
-
-        <div className={NODE_DIALOG_FOOTER_CLASS}>
-          <Dialog.Close>
-            <Button variant="outline" className="w-full sm:w-auto">
-              {t("common.close", "Close")}
-            </Button>
-          </Dialog.Close>
-          <Button
-            className="w-full sm:w-auto"
-            onClick={() => void handleUpgrade()}
-            disabled={submitting || status === "running" || onlineNodes.length === 0}
-          >
-            {submitting || status === "running" ? (
-              <LoaderCircle className="h-4 w-4 animate-spin" />
-            ) : (
-              <RefreshCw className="h-4 w-4" />
-            )}
-            {t("admin.nodeTable.upgradeStart", "Start upgrade")}
-          </Button>
-        </div>
-      </Dialog.Content>
-    </Dialog.Root>
+    <>
+      <Button
+        variant="outline"
+        className="rounded-full"
+        disabled={onlineNodes.length === 0}
+        onClick={handleOpen}
+      >
+        {t("admin.nodeTable.upgradeAgent", "Upgrade agent")}
+      </Button>
+      {dialogMounted ? (
+        <React.Suspense fallback={null}>
+          <LazyGroupUpgradeDialog
+            open={dialogOpen}
+            onOpenChange={setDialogOpen}
+            groupName={groupName}
+            nodes={nodes}
+            liveByNode={liveByNode}
+            settings={settings}
+          />
+        </React.Suspense>
+      ) : null}
+    </>
   );
 };
 
@@ -3073,116 +1636,8 @@ const NodeTable = ({
   );
 };
 
-type Platform = "linux" | "windows" | "macos";
-type GenerateCommandPreferences = {
-  selectedPlatform: Platform;
-  installOptions: InstallOptions;
-  enableGhproxy: boolean;
-  enableCustomDir: boolean;
-  enableCustomServiceName: boolean;
-  enableIncludeNics: boolean;
-  enableExcludeNics: boolean;
-  enableIncludeMountpoints: boolean;
-  enableMonthRotate: boolean;
-};
-
-const INSTALL_COMMAND_PREFERENCES_STORAGE_KEY =
-  "komari-node-install-command-preferences-v1";
-
-const DEFAULT_INSTALL_OPTIONS: InstallOptions = {
-  disableWebSsh: false,
-  disableAutoUpdate: false,
-  ignoreUnsafeCert: false,
-  memoryIncludeCache: false,
-  ghproxy: "",
-  dir: "",
-  serviceName: "",
-  includeNics: "",
-  excludeNics: "",
-  includeMountpoints: "",
-  monthRotate: "",
-};
-
-const DEFAULT_GENERATE_COMMAND_PREFERENCES: GenerateCommandPreferences = {
-  selectedPlatform: "linux",
-  installOptions: DEFAULT_INSTALL_OPTIONS,
-  enableGhproxy: false,
-  enableCustomDir: false,
-  enableCustomServiceName: false,
-  enableIncludeNics: false,
-  enableExcludeNics: false,
-  enableIncludeMountpoints: false,
-  enableMonthRotate: false,
-};
-
-let cachedGenerateCommandPreferences: GenerateCommandPreferences | null = null;
-
-const loadGenerateCommandPreferences = (): GenerateCommandPreferences => {
-  if (cachedGenerateCommandPreferences) {
-    return cachedGenerateCommandPreferences;
-  }
-
-  if (typeof window === "undefined") {
-    return DEFAULT_GENERATE_COMMAND_PREFERENCES;
-  }
-
-  try {
-    const raw = window.localStorage.getItem(
-      INSTALL_COMMAND_PREFERENCES_STORAGE_KEY
-    );
-    if (!raw) {
-      cachedGenerateCommandPreferences = DEFAULT_GENERATE_COMMAND_PREFERENCES;
-      return DEFAULT_GENERATE_COMMAND_PREFERENCES;
-    }
-
-    const parsed = JSON.parse(raw) as Partial<GenerateCommandPreferences>;
-    const next: GenerateCommandPreferences = {
-      ...DEFAULT_GENERATE_COMMAND_PREFERENCES,
-      ...parsed,
-      selectedPlatform:
-        parsed.selectedPlatform === "windows" ||
-        parsed.selectedPlatform === "macos" ||
-        parsed.selectedPlatform === "linux"
-          ? parsed.selectedPlatform
-          : "linux",
-      installOptions: {
-        ...DEFAULT_INSTALL_OPTIONS,
-        ...(parsed.installOptions || {}),
-      },
-    };
-    cachedGenerateCommandPreferences = next;
-    return next;
-  } catch {
-    cachedGenerateCommandPreferences = DEFAULT_GENERATE_COMMAND_PREFERENCES;
-    return DEFAULT_GENERATE_COMMAND_PREFERENCES;
-  }
-};
-
-const saveGenerateCommandPreferences = (
-  preferences: GenerateCommandPreferences
-) => {
-  cachedGenerateCommandPreferences = preferences;
-  if (typeof window === "undefined") return;
-  window.localStorage.setItem(
-    INSTALL_COMMAND_PREFERENCES_STORAGE_KEY,
-    JSON.stringify(preferences)
-  );
-};
-
 export default NodeDetailsPage;
-type InstallOptions = {
-  disableWebSsh: boolean;
-  disableAutoUpdate: boolean;
-  ignoreUnsafeCert: boolean;
-  memoryIncludeCache: boolean;
-  ghproxy: string;
-  dir: string;
-  serviceName: string;
-  includeNics: string;
-  excludeNics: string;
-  includeMountpoints: string;
-  monthRotate: string;
-};
+
 function GenerateCommandButton({
   node,
   nodes,
@@ -3195,923 +1650,58 @@ function GenerateCommandButton({
 }: {
   node?: NodeDetail;
   nodes?: NodeDetail[];
-  settings: any;
+  settings: SettingsResponse;
   toolbar?: boolean;
   groupMode?: boolean;
   presetGroupName?: string;
   toolbarLabel?: string;
   disabled?: boolean;
 }) {
-  const availableNodes = nodes ?? (node ? [node] : []);
-  const initialPreferences = React.useMemo(
-    () => loadGenerateCommandPreferences(),
-    []
-  );
-  const [selectedNodeId, setSelectedNodeId] = React.useState(
-    node?.uuid ?? availableNodes[0]?.uuid ?? ""
-  );
-  const [selectedPlatform, setSelectedPlatform] = React.useState<Platform>(
-    initialPreferences.selectedPlatform
-  );
-  const [installOptions, setInstallOptions] = React.useState<InstallOptions>(
-    initialPreferences.installOptions
-  );
-
-  const [enableGhproxy, setEnableGhproxy] = React.useState(
-    initialPreferences.enableGhproxy
-  );
-  const [enableCustomDir, setEnableCustomDir] = React.useState(
-    initialPreferences.enableCustomDir
-  );
-  const [enableCustomServiceName, setEnableCustomServiceName] =
-    React.useState(initialPreferences.enableCustomServiceName);
-  const [enableIncludeNics, setEnableIncludeNics] = React.useState(
-    initialPreferences.enableIncludeNics
-  );
-  const [enableExcludeNics, setEnableExcludeNics] = React.useState(
-    initialPreferences.enableExcludeNics
-  );
-  const [enableIncludeMountpoints, setEnableIncludeMountpoints] =
-    React.useState(initialPreferences.enableIncludeMountpoints);
-  const [enableMonthRotate, setEnableMonthRotate] = React.useState(
-    initialPreferences.enableMonthRotate
-  );
-  const scopedGroupName =
-    groupMode && presetGroupName && presetGroupName !== getDefaultGroupLabel()
-      ? presetGroupName.trim()
-      : "";
-  const [groupName, setGroupName] = React.useState(scopedGroupName);
-  const autoDiscoveryKey = String(settings?.auto_discovery_key || "").trim();
-  const useAutoDiscovery = autoDiscoveryKey.length >= 12;
-  const normalizedGroupName = groupName.trim();
-  const scopedAutoDiscoveryKey = encodeScopedAutoDiscoveryKey(
-    autoDiscoveryKey,
-    normalizedGroupName
-  );
-  const availableGroups = React.useMemo(
-    () =>
-      Array.from(
-        new Set(
-          availableNodes
-            .map((item) => String(item.group || "").trim())
-            .filter(Boolean)
-        )
-      ).sort((left, right) => left.localeCompare(right)),
-    [availableNodes]
-  );
-  const activeNode =
-    node ??
-    availableNodes.find((item) => item.uuid === selectedNodeId) ??
-    availableNodes[0];
-  const hasMountedPreferenceSync = React.useRef(false);
-
-  React.useEffect(() => {
-    if (!groupMode) return;
-    setGroupName(scopedGroupName);
-  }, [groupMode, scopedGroupName]);
-
-  React.useEffect(() => {
-    if (!hasMountedPreferenceSync.current) {
-      hasMountedPreferenceSync.current = true;
-      return;
-    }
-
-    saveGenerateCommandPreferences({
-      selectedPlatform,
-      installOptions,
-      enableGhproxy,
-      enableCustomDir,
-      enableCustomServiceName,
-      enableIncludeNics,
-      enableExcludeNics,
-      enableIncludeMountpoints,
-      enableMonthRotate,
-    });
-  }, [
-    enableCustomDir,
-    enableCustomServiceName,
-    enableExcludeNics,
-    enableGhproxy,
-    enableIncludeMountpoints,
-    enableIncludeNics,
-    enableMonthRotate,
-    installOptions,
-    selectedPlatform,
-  ]);
-
-  React.useEffect(() => {
-    if (useAutoDiscovery || groupMode) {
-      return;
-    }
-    if (node?.uuid) {
-      setSelectedNodeId(node.uuid);
-      return;
-    }
-
-    if (
-      availableNodes.length > 0 &&
-      !availableNodes.some((item) => item.uuid === selectedNodeId)
-    ) {
-      setSelectedNodeId(availableNodes[0].uuid);
-    }
-  }, [availableNodes, groupMode, node?.uuid, selectedNodeId, useAutoDiscovery]);
-
-  const generateCommand = () => {
-    if (groupMode && (!useAutoDiscovery || !normalizedGroupName)) return "";
-    if (!useAutoDiscovery && !activeNode) return "";
-
-    const host = function () {
-      if (!settings.script_domain) {
-        return window.location.origin;
-      }
-      if (settings.script_domain.startsWith("http")) {
-        return settings.script_domain.replace(/\/+$/, "");
-      }
-      return `http://${settings.script_domain.replace(/\/+$/, "")}`;
-    }();
-    let args = ["-e", host];
-    if (useAutoDiscovery) {
-      args.push(
-        "--auto-discovery",
-        groupMode ? scopedAutoDiscoveryKey : autoDiscoveryKey
-      );
-    } else {
-      const token = activeNode?.token || "";
-      args.push("-t", token);
-    }
-    // 根据安装选项生成参数
-    if (installOptions.disableWebSsh) {
-      args.push("--disable-web-ssh");
-    }
-    if (installOptions.disableAutoUpdate) {
-      args.push("--disable-auto-update");
-    }
-    if (installOptions.ignoreUnsafeCert) {
-      args.push("--ignore-unsafe-cert");
-    }
-    if (installOptions.memoryIncludeCache) {
-      args.push("--memory-include-cache");
-    }
-    if (enableGhproxy && installOptions.ghproxy) {
-      const finalUrl = (
-        installOptions.ghproxy.startsWith("http")
-          ? installOptions.ghproxy
-          : `http://${installOptions.ghproxy}`
-      ).replace(/\/+$/, "");
-      args.push(`--install-ghproxy`);
-      args.push(finalUrl);
-    }
-    if (enableCustomDir && installOptions.dir) {
-      args.push(`--install-dir`);
-      args.push(installOptions.dir);
-    }
-    if (enableCustomServiceName && installOptions.serviceName) {
-      args.push(`--install-service-name`);
-      args.push(installOptions.serviceName);
-    }
-    if (enableIncludeNics && installOptions.includeNics) {
-      args.push(`--include-nics`);
-      args.push(installOptions.includeNics);
-    }
-    if (enableExcludeNics && installOptions.excludeNics) {
-      args.push(`--exclude-nics`);
-      args.push(installOptions.excludeNics);
-    }
-    if (enableIncludeMountpoints && installOptions.includeMountpoints) {
-      args.push(`--include-mountpoint`);
-      args.push(installOptions.includeMountpoints);
-    }
-    if (enableMonthRotate) {
-      const rotateVal = (installOptions.monthRotate || "").trim() || "1"; // 默认 1
-      args.push(`--month-rotate`);
-      args.push(rotateVal);
-    }
-    const effectiveInstallDir =
-      enableCustomDir && installOptions.dir.trim()
-        ? installOptions.dir.trim()
-        : getDefaultInstallDir(selectedPlatform);
-    let scriptFile = "install.sh";
-    if (selectedPlatform === "windows") {
-      scriptFile = "install.ps1";
-    }
-    let scriptUrl = buildAgentInstallScriptURL(
-      settings.base_scripts_url,
-      scriptFile
-    );
-    if (enableGhproxy) {
-      if (enableGhproxy && installOptions.ghproxy) {
-        scriptUrl = scriptUrl.slice(8); // 去掉 https://
-        if (installOptions.ghproxy.endsWith("/")) {
-          scriptUrl = `${installOptions.ghproxy}${scriptUrl}`;
-        } else {
-          scriptUrl = `${installOptions.ghproxy}/${scriptUrl}`;
-        }
-        if (!scriptUrl.startsWith("http")) {
-          scriptUrl = `http://${scriptUrl}`;
-        }
-      }
-    }
-    let finalCommand = "";
-    const shellArgs = args.map(shellQuote).join(" ");
-    switch (selectedPlatform) {
-      case "linux":
-        finalCommand =
-          groupMode && useAutoDiscovery
-            ? `AUTO_DISCOVERY_FILE=${shellQuote(`${effectiveInstallDir}/auto-discovery.json`)}; if [ -f "$AUTO_DISCOVERY_FILE" ]; then if [ "$(id -u)" -ne 0 ] && command -v sudo >/dev/null 2>&1; then sudo rm -f "$AUTO_DISCOVERY_FILE"; else rm -f "$AUTO_DISCOVERY_FILE"; fi; fi; if [ "$(id -u)" -ne 0 ] && command -v sudo >/dev/null 2>&1; then wget -qO- ${shellQuote(
-                scriptUrl
-              )} | sudo bash -s -- ${shellArgs}; else wget -qO- ${shellQuote(
-                scriptUrl
-              )} | bash -s -- ${shellArgs}; fi`
-            :
-          `wget -qO- ${shellQuote(scriptUrl)} | sudo bash -s -- ` + shellArgs;
-        break;
-      case "windows":
-        finalCommand = `powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "`;
-        if (groupMode && useAutoDiscovery) {
-          const windowsInstallDir =
-            enableCustomDir && installOptions.dir.trim()
-              ? powershellQuote(installOptions.dir.trim())
-              : "$Env:ProgramFiles\\Komari";
-          finalCommand += `$ksBindFile = Join-Path ${windowsInstallDir} 'auto-discovery.json'; if (Test-Path $ksBindFile) { Remove-Item $ksBindFile -Force }; `;
-        }
-        finalCommand +=
-          `iwr ${powershellQuote(scriptUrl)}` +
-          ` -UseBasicParsing -OutFile 'install.ps1'; &` +
-          ` '.\\install.ps1'`;
-        args.forEach((arg) => {
-          finalCommand += ` ${powershellQuote(arg)}`;
-        });
-        finalCommand += `"`;
-        break;
-      case "macos":
-        if (groupMode && useAutoDiscovery) {
-          const macInstallDir =
-            enableCustomDir && installOptions.dir.trim()
-              ? shellQuote(installOptions.dir.trim())
-              : `$(if [ "$(id -u)" -eq 0 ] || [ -w /usr/local ]; then printf %s /usr/local/komari; else printf %s "$HOME/.komari"; fi)`;
-          finalCommand =
-            `AUTO_DISCOVERY_DIR=${macInstallDir}; AUTO_DISCOVERY_FILE="$AUTO_DISCOVERY_DIR/auto-discovery.json"; ` +
-            `if [ -f "$AUTO_DISCOVERY_FILE" ]; then rm -f "$AUTO_DISCOVERY_FILE"; fi; ` +
-            `zsh <(curl -sL ${shellQuote(scriptUrl)}) ${shellArgs}`;
-        } else {
-          finalCommand = `zsh <(curl -sL ${shellQuote(scriptUrl)}) ` + shellArgs;
-        }
-        break;
-    }
-    return finalCommand;
-  };
-
-  const copyToClipboard = async (text: string) => {
-    try {
-      await navigator.clipboard.writeText(text);
-      toast.success(t("copy_success", "Copied!"));
-    } catch (err) {
-      console.error("Failed to copy text: ", err);
-    }
-  };
   const { t } = useTranslation();
-  const copyDisabled = groupMode
-    ? !useAutoDiscovery || !normalizedGroupName
-    : !useAutoDiscovery && !activeNode;
+  const [dialogOpen, setDialogOpen] = React.useState(false);
 
   return (
-    <Dialog.Root>
-      <Dialog.Trigger>
-        {toolbar ? (
-          <Button
-            variant="soft"
-            color={groupMode ? "green" : "blue"}
-            className="shrink-0 rounded-2xl"
-            disabled={disabled}
-          >
-            <Download size={16} />
-            {toolbarLabel ||
-              (groupMode
-                ? t("admin.nodeTable.createGroup", "Create group")
-                : t("admin.nodeTable.installCommand", "Install command"))}
-          </Button>
-        ) : (
+    <>
+      {toolbar ? (
+        <Button
+          variant="soft"
+          color={groupMode ? "green" : "blue"}
+          className="shrink-0 rounded-2xl"
+          disabled={disabled}
+          onClick={() => setDialogOpen(true)}
+        >
+          <Download size={16} />
+          {toolbarLabel ||
+            (groupMode
+              ? t("admin.nodeTable.createGroup", "Create group")
+              : t("admin.nodeTable.installCommand", "Install command"))}
+        </Button>
+      ) : (
         <IconButton
           variant="ghost"
           title={t("admin.nodeTable.installCommand")}
           className="h-8 w-8 rounded-lg"
           disabled={disabled}
+          onClick={() => setDialogOpen(true)}
         >
           <Download size="18" />
         </IconButton>
-        )}
-      </Dialog.Trigger>
-      <Dialog.Content
-        className={NODE_DIALOG_CONTENT_CLASS}
-        maxWidth={1040}
-      >
-        <Dialog.Title>
-          {groupMode
-            ? scopedGroupName
-              ? `${t("admin.nodeTable.installCommand", "Install command")} · ${scopedGroupName}`
-              : t("admin.nodeTable.groupInstallCommand", "Create group install command")
-            : useAutoDiscovery
-            ? `${t("admin.nodeTable.installCommand", "Install command")} · ${t("admin.nodeTable.autoEnroll", "Auto-enroll")}`
-            : node
-              ? `${t("admin.nodeTable.installCommand", "Install command")} · ${activeNode?.name || "-"}`
-              : t("admin.nodeTable.installCommand", "Install command")}
-        </Dialog.Title>
-        <Dialog.Description className="mt-2">
-          {t(
-            "admin.nodeTable.installDialogDescription",
-            "Platform selection and install parameters are remembered and reused next time.",
-          )}
-        </Dialog.Description>
-        <div className="mt-4 flex flex-col gap-4">
-          {useAutoDiscovery && !groupMode && (
-            <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/30 dark:text-emerald-300">
-              {t(
-                "admin.nodeTable.autoDiscoveryGeneralHint",
-                "This currently uses the general auto-enroll command. Run it on any server and the node will register to your panel automatically.",
-              )}
-            </div>
-          )}
-          {groupMode && useAutoDiscovery && (
-            <div className="rounded-xl border border-sky-200 bg-sky-50 px-3 py-2 text-sm text-sky-700 dark:border-sky-900/60 dark:bg-sky-950/30 dark:text-sky-300">
-              {t(
-                "admin.nodeTable.autoDiscoveryGroupHint",
-                "After you enter a group name, run this command on any server. The node will register automatically into that group. If the machine was previously bound, the command will clear the old binding automatically before re-enrolling.",
-              )}
-            </div>
-          )}
-          {groupMode && (
-            <div className={`${NODE_DIALOG_SECTION_CLASS} flex flex-col gap-3`}>
-              <div className="flex flex-col gap-2">
-                <label className="text-[14px] font-semibold text-slate-900 dark:text-slate-100">
-                  {t("admin.nodeTable.groupName", "Group name")}
-                </label>
-                <TextField.Root
-                  className={NODE_INPUT_CLASS}
-                  placeholder={t(
-                    "admin.nodeTable.groupNamePlaceholder",
-                    "For example: Hong Kong / Japan / Production",
-                  )}
-                  value={groupName}
-                  onChange={(event) => setGroupName(event.target.value)}
-                />
-              </div>
-              {availableGroups.length > 0 && (
-                <div className="flex flex-wrap gap-2">
-                  {availableGroups.map((group) => (
-                    <button
-                      key={group}
-                      type="button"
-                      className={`rounded-full border px-3 py-1 text-[13px] font-medium transition-colors ${
-                        normalizedGroupName === group
-                          ? "border-sky-300 bg-sky-100 text-sky-700 dark:border-sky-800 dark:bg-sky-950/50 dark:text-sky-300"
-                          : "border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:text-slate-900 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-300 dark:hover:border-slate-600 dark:hover:text-slate-100"
-                      }`}
-                      onClick={() => setGroupName(group)}
-                    >
-                      {group}
-                    </button>
-                  ))}
-                </div>
-              )}
-              <Text size="1" className="text-slate-500 dark:text-slate-400">
-                {t(
-                  "admin.nodeTable.groupNameHelp",
-                  "The group will be created automatically after the first server runs this command. You do not need to create an empty group first.",
-                )}
-              </Text>
-            </div>
-          )}
-          {!groupMode && !useAutoDiscovery && !node && availableNodes.length > 0 && (
-            <div className={NODE_DIALOG_SECTION_CLASS}>
-              <label className="text-[14px] font-semibold text-slate-900 dark:text-slate-100">
-                {t("admin.nodeTable.selectNode", "Select node")}
-              </label>
-              <select
-                className="mt-3 h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-900 outline-none dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
-                value={selectedNodeId}
-                onChange={(event) => setSelectedNodeId(event.target.value)}
-              >
-                {availableNodes.map((item) => (
-                  <option key={item.uuid} value={item.uuid}>
-                    {item.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
-          {!useAutoDiscovery && toolbar && !groupMode && (
-            <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-700 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-300">
-              {t(
-                "admin.nodeTable.autoDiscoveryDisabledSingle",
-                "Auto Discovery Key is not enabled yet, so this still uses the legacy single-node mode. Set it in Settings > General to switch to the general onboarding command.",
-              )}
-            </div>
-          )}
-          {!useAutoDiscovery && groupMode && (
-            <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-700 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-300">
-              {t(
-                "admin.nodeTable.autoDiscoveryDisabledGroup",
-                "Set the Auto Discovery Key in Settings > General first, then group install commands can be used.",
-              )}
-            </div>
-          )}
-          <div className="grid gap-4 xl:grid-cols-[minmax(0,1.3fr)_minmax(320px,0.9fr)]">
-            <div className="flex flex-col gap-4">
-              <div className={NODE_DIALOG_SECTION_CLASS}>
-                <label className="text-[14px] font-semibold text-slate-900 dark:text-slate-100">
-                  {t("admin.nodeTable.platform", "Platform")}
-                </label>
-                <div className="mt-3">
-                  <SegmentedControl.Root
-                    value={selectedPlatform}
-                    onValueChange={(value) => setSelectedPlatform(value as Platform)}
-                  >
-                    <SegmentedControl.Item value="linux">Linux</SegmentedControl.Item>
-                    <SegmentedControl.Item value="windows">
-                      Windows
-                    </SegmentedControl.Item>
-                    <SegmentedControl.Item value="macos">macOS</SegmentedControl.Item>
-                  </SegmentedControl.Root>
-                </div>
-              </div>
+      )}
 
-              <div className={NODE_DIALOG_SECTION_CLASS}>
-                <label className="text-[14px] font-semibold text-slate-900 dark:text-slate-100">
-                  {t("admin.nodeTable.installOptions", "Install options")}
-                </label>
-                <div className="mt-3 grid gap-3 text-slate-900 dark:text-slate-100 md:grid-cols-2">
-              <Flex gap="2" align="center">
-                <Checkbox
-                  checked={installOptions.disableWebSsh}
-                  onCheckedChange={(checked) => {
-                    setInstallOptions((prev) => ({
-                      ...prev,
-                      disableWebSsh: Boolean(checked),
-                    }));
-                  }}
-                />
-                <label
-                  className="text-sm font-normal"
-                  onClick={() => {
-                    setInstallOptions((prev) => ({
-                      ...prev,
-                      disableWebSsh: !prev.disableWebSsh,
-                    }));
-                  }}
-                >
-                  {t("admin.nodeTable.disableWebSsh")}
-                </label>
-              </Flex>
-              <Flex gap="2" align="center">
-                <Checkbox
-                  checked={installOptions.disableAutoUpdate}
-                  onCheckedChange={(checked) => {
-                    setInstallOptions((prev) => ({
-                      ...prev,
-                      disableAutoUpdate: Boolean(checked),
-                    }));
-                  }}
-                ></Checkbox>
-                <label
-                  className="text-sm font-normal"
-                  onClick={() => {
-                    setInstallOptions((prev) => ({
-                      ...prev,
-                      disableAutoUpdate: !prev.disableAutoUpdate,
-                    }));
-                  }}
-                >
-                  {t("admin.nodeTable.disableAutoUpdate", "Disable auto update")}
-                </label>
-              </Flex>
-              <Flex gap="2" align="center">
-                <Checkbox
-                  checked={installOptions.ignoreUnsafeCert}
-                  onCheckedChange={(checked) => {
-                    setInstallOptions((prev) => ({
-                      ...prev,
-                      ignoreUnsafeCert: Boolean(checked),
-                    }));
-                  }}
-                />
-                <label
-                  className="text-sm font-normal"
-                  onClick={() => {
-                    setInstallOptions((prev) => ({
-                      ...prev,
-                      ignoreUnsafeCert: !prev.ignoreUnsafeCert,
-                    }));
-                  }}
-                >
-                  {t("admin.nodeTable.ignoreUnsafeCert", "Ignore unsafe cert")}
-                </label>
-              </Flex>
-              <Flex gap="2" align="center">
-                <Checkbox
-                  checked={installOptions.memoryIncludeCache}
-                  onCheckedChange={(checked) => {
-                    setInstallOptions((prev) => ({
-                      ...prev,
-                      memoryIncludeCache: Boolean(checked),
-                    }));
-                  }}
-                />
-                <label
-                  className="text-sm font-normal"
-                  onClick={() => {
-                    setInstallOptions((prev) => ({
-                      ...prev,
-                      memoryIncludeCache: !prev.memoryIncludeCache,
-                    }));
-                  }}
-                >
-                  {t("admin.nodeTable.memoryModeAvailable", "Include cache memory")}
-                </label>
-                <Tips size="14">
-                  {t("admin.nodeTable.memoryModeAvailable_tip")}
-                </Tips>
-              </Flex>
-                </div>
-              </div>
-
-              <div className={NODE_DIALOG_SECTION_CLASS}>
-                <label className="text-[14px] font-semibold text-slate-900 dark:text-slate-100">
-                  {t("admin.nodeTable.advancedParameters", "Advanced parameters")}
-                </label>
-                <div className="mt-3 flex flex-col gap-3 text-slate-900 dark:text-slate-100">
-              <Flex gap="2" align="center">
-                <Checkbox
-                  checked={enableGhproxy}
-                  onCheckedChange={(checked) => {
-                    setEnableGhproxy(Boolean(checked));
-                    if (!checked) {
-                      setInstallOptions((prev) => ({
-                        ...prev,
-                        ghproxy: "",
-                      }));
-                    }
-                  }}
-                />
-                <label
-                  className="text-sm font-bold cursor-pointer"
-                  onClick={() => {
-                    setEnableGhproxy(!enableGhproxy);
-                    if (enableGhproxy) {
-                      setInstallOptions((prev) => ({
-                        ...prev,
-                        ghproxy: "",
-                      }));
-                    }
-                  }}
-                >
-                  {t("admin.nodeTable.ghproxy", "GitHub proxy")}
-                </label>
-              </Flex>
-              {enableGhproxy && (
-                <TextField.Root
-                  // placeholder={t(
-                  //   "admin.nodeTable.ghproxy_placeholder",
-                  //   "GitHub 代理，为空则不使用代理"
-                  // )}
-                  placeholder="https://ghfast.top/"
-                  className={NODE_INPUT_CLASS}
-                  value={installOptions.ghproxy}
-                  onChange={(e) =>
-                    setInstallOptions((prev) => ({
-                      ...prev,
-                      ghproxy: e.target.value,
-                    }))
-                  }
-                />
-              )}
-
-              <Flex gap="2" align="center">
-                <Checkbox
-                  checked={enableCustomDir}
-                  onCheckedChange={(checked) => {
-                    setEnableCustomDir(Boolean(checked));
-                    if (!checked) {
-                      setInstallOptions((prev) => ({
-                        ...prev,
-                        dir: "",
-                      }));
-                    }
-                  }}
-                />
-                <label
-                  className="text-sm font-bold cursor-pointer"
-                  onClick={() => {
-                    setEnableCustomDir(!enableCustomDir);
-                    if (enableCustomDir) {
-                      setInstallOptions((prev) => ({
-                        ...prev,
-                        dir: "",
-                      }));
-                    }
-                  }}
-                >
-                  {t("admin.nodeTable.install_dir", "Installation directory")}
-                </label>
-              </Flex>
-              {enableCustomDir && (
-                <TextField.Root
-                  className={NODE_INPUT_CLASS}
-                  placeholder={t(
-                    "admin.nodeTable.install_dir_placeholder",
-                    "Installation directory, leave empty to use the default directory (/opt/komari-agent)"
-                  )}
-                  value={installOptions.dir}
-                  onChange={(e) =>
-                    setInstallOptions((prev) => ({
-                      ...prev,
-                      dir: e.target.value,
-                    }))
-                  }
-                />
-              )}
-
-              <Flex gap="2" align="center">
-                <Checkbox
-                  checked={enableCustomServiceName}
-                  onCheckedChange={(checked) => {
-                    setEnableCustomServiceName(Boolean(checked));
-                    if (!checked) {
-                      setInstallOptions((prev) => ({
-                        ...prev,
-                        serviceName: "",
-                      }));
-                    }
-                  }}
-                />
-                <label
-                  className="text-sm font-bold cursor-pointer"
-                  onClick={() => {
-                    setEnableCustomServiceName(!enableCustomServiceName);
-                    if (enableCustomServiceName) {
-                      setInstallOptions((prev) => ({
-                        ...prev,
-                        serviceName: "",
-                      }));
-                    }
-                  }}
-                >
-                  {t("admin.nodeTable.serviceName", "Service name")}
-                </label>
-              </Flex>
-              {enableCustomServiceName && (
-                <TextField.Root
-                  className={NODE_INPUT_CLASS}
-                  placeholder={t(
-                    "admin.nodeTable.serviceName_placeholder",
-                    "Service name, leave empty to use the default name (komari-agent)"
-                  )}
-                  value={installOptions.serviceName}
-                  onChange={(e) =>
-                    setInstallOptions((prev) => ({
-                      ...prev,
-                      serviceName: e.target.value,
-                    }))
-                  }
-                />
-              )}
-              <Flex gap="2" align="center">
-                <Checkbox
-                  checked={enableIncludeNics}
-                  onCheckedChange={(checked) => {
-                    setEnableIncludeNics(Boolean(checked));
-                    if (!checked) {
-                      setInstallOptions((prev) => ({
-                        ...prev,
-                        includeNics: "",
-                      }));
-                    }
-                  }}
-                />
-                <label
-                  className="text-sm font-bold cursor-pointer"
-                  onClick={() => {
-                    setEnableIncludeNics(!enableIncludeNics);
-                    if (enableIncludeNics) {
-                      setInstallOptions((prev) => ({
-                        ...prev,
-                        includeNics: "",
-                      }));
-                    }
-                  }}
-                >
-                  {t("admin.nodeTable.includeNics", "Specific network interfaces only.")}
-                </label>
-              </Flex>
-              {enableIncludeNics && (
-                <TextField.Root
-                  className={NODE_INPUT_CLASS}
-                  // placeholder={t(
-                  //   "admin.nodeTable.includeNics_placeholder",
-                  //   "多个网卡使用逗号隔开"
-                  // )}
-                  placeholder="eth0,eth1"
-                  value={installOptions.includeNics}
-                  onChange={(e) =>
-                    setInstallOptions((prev) => ({
-                      ...prev,
-                      includeNics: e.target.value,
-                    }))
-                  }
-                />
-              )}
-              <Flex gap="2" align="center">
-                <Checkbox
-                  checked={enableExcludeNics}
-                  onCheckedChange={(checked) => {
-                    setEnableExcludeNics(Boolean(checked));
-                    if (!checked) {
-                      setInstallOptions((prev) => ({
-                        ...prev,
-                        excludeNics: "",
-                      }));
-                    }
-                  }}
-                />
-                <label
-                  className="text-sm font-bold cursor-pointer"
-                  onClick={() => {
-                    setEnableExcludeNics(!enableExcludeNics);
-                    if (enableExcludeNics) {
-                      setInstallOptions((prev) => ({
-                        ...prev,
-                        excludeNics: "",
-                      }));
-                    }
-                  }}
-                >
-                  {t("admin.nodeTable.excludeNics", "Exclude specific network interfaces.")}
-                </label>
-              </Flex>
-              {enableExcludeNics && (
-                <TextField.Root
-                  className={NODE_INPUT_CLASS}
-                  // placeholder={t(
-                  //   "admin.nodeTable.excludeNics_placeholder",
-                  //   "多个网卡使用逗号隔开"
-                  // )}
-                  placeholder="lo"
-                  value={installOptions.excludeNics}
-                  onChange={(e) =>
-                    setInstallOptions((prev) => ({
-                      ...prev,
-                      excludeNics: e.target.value,
-                    }))
-                  }
-                />
-              )}
-              <Flex gap="2" align="center">
-                <Checkbox
-                  checked={enableIncludeMountpoints}
-                  onCheckedChange={(checked) => {
-                    setEnableIncludeMountpoints(Boolean(checked));
-                    if (!checked) {
-                      setInstallOptions((prev) => ({
-                        ...prev,
-                        includeMountpoints: "",
-                      }));
-                    }
-                  }}
-                />
-                <label
-                  className="text-sm font-bold cursor-pointer"
-                  onClick={() => {
-                    setEnableIncludeMountpoints(!enableIncludeMountpoints);
-                    if (enableIncludeMountpoints) {
-                      setInstallOptions((prev) => ({
-                        ...prev,
-                        includeMountpoints: "",
-                      }));
-                    }
-                  }}
-                >
-                  {t("admin.nodeTable.includeMountpoints", "Specific mountpoints only.")}
-                </label>
-              </Flex>
-              {enableIncludeMountpoints && (
-                <TextField.Root
-                  className={NODE_INPUT_CLASS}
-                  placeholder="/;/home;/var"
-                  value={installOptions.includeMountpoints}
-                  onChange={(e) =>
-                    setInstallOptions((prev) => ({
-                      ...prev,
-                      includeMountpoints: e.target.value,
-                    }))
-                  }
-                />
-              )}
-              <Flex gap="2" align="center">
-                <Checkbox
-                  checked={enableMonthRotate}
-                  onCheckedChange={(checked) => {
-                    const enabled = Boolean(checked);
-                    setEnableMonthRotate(enabled);
-                    if (!enabled) {
-                      setInstallOptions((prev) => ({
-                        ...prev,
-                        monthRotate: "",
-                      }));
-                    } else {
-                      setInstallOptions((prev) => ({
-                        ...prev,
-                        monthRotate: prev.monthRotate?.trim()
-                          ? prev.monthRotate
-                          : "1",
-                      }));
-                    }
-                  }}
-                />
-                <label
-                  className="text-sm font-bold cursor-pointer"
-                  onClick={() => {
-                    const willEnable = !enableMonthRotate;
-                    setEnableMonthRotate(willEnable);
-                    if (!willEnable) {
-                      setInstallOptions((prev) => ({
-                        ...prev,
-                        monthRotate: "",
-                      }));
-                    } else {
-                      setInstallOptions((prev) => ({
-                        ...prev,
-                        monthRotate: prev.monthRotate?.trim()
-                          ? prev.monthRotate
-                          : "1",
-                      }));
-                    }
-                  }}
-                >
-                  {t("admin.nodeTable.monthRotate", "Month reset for network statistics")}
-                </label>
-              </Flex>
-              {enableMonthRotate && (
-                <TextField.Root
-                  className={NODE_INPUT_CLASS}
-                  placeholder="1"
-                  type="number"
-                  min="1"
-                  max="31"
-                  value={installOptions.monthRotate}
-                  onChange={(e) =>
-                    setInstallOptions((prev) => ({
-                      ...prev,
-                      monthRotate: e.target.value,
-                    }))
-                  }
-                />
-              )}
-                </div>
-              </div>
-            </div>
-
-            <div className="flex flex-col gap-4">
-              <div className={NODE_DIALOG_SECTION_CLASS}>
-                <label className="text-[14px] font-semibold text-slate-900 dark:text-slate-100">
-                  {t("admin.nodeTable.generatedCommand", "Command")}
-                </label>
-                <p className={`mt-1 ${NODE_DIALOG_HINT_CLASS}`}>
-                  {t(
-                    "admin.nodeTable.generatedCommandHelp",
-                    "Copy this command and run it directly on the target server.",
-                  )}
-                </p>
-                <div className="relative mt-3">
-                  <TextArea
-                    disabled
-                    className="min-h-[220px] w-full rounded-xl border border-slate-200 bg-white font-mono text-[13px] leading-6 text-slate-700 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200"
-                    value={generateCommand()}
-                  />
-                </div>
-              </div>
-
-              <div className={NODE_DIALOG_FOOTER_CLASS}>
-                <Dialog.Close>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="w-full sm:w-auto"
-                  >
-                    {t("close", "Close")}
-                  </Button>
-                </Dialog.Close>
-                <Button
-                  className="w-full sm:w-auto"
-                  disabled={copyDisabled}
-                  onClick={() => copyToClipboard(generateCommand())}
-                >
-                  <Copy size={16} />
-                  {t("copy")}
-                </Button>
-              </div>
-            </div>
-          </div>
-        </div>
-      </Dialog.Content>
-    </Dialog.Root>
+      {dialogOpen ? (
+        <React.Suspense fallback={null}>
+          <LazyGenerateCommandDialog
+            open={dialogOpen}
+            onOpenChange={setDialogOpen}
+            node={node}
+            nodes={nodes}
+            settings={settings}
+            toolbar={toolbar}
+            groupMode={groupMode}
+            presetGroupName={presetGroupName}
+          />
+        </React.Suspense>
+      ) : null}
+    </>
   );
 }

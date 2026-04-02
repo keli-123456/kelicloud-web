@@ -528,7 +528,7 @@ export default function LinodePanel() {
   }, [tokenPool]);
 
   const passwordStorageEnabled = Boolean(tokenPool?.password_storage_enabled);
-  const tokenRows = tokenPool?.tokens ?? [];
+  const tokenRows = React.useMemo(() => tokenPool?.tokens ?? [], [tokenPool?.tokens]);
   const existingTokenGroups = React.useMemo(
     () =>
       Array.from(new Set(
@@ -1424,7 +1424,7 @@ export default function LinodePanel() {
               </div>
             </div>
 
-            <div className="max-h-[560px] overflow-auto">
+            <div className="max-h-[560px] overflow-auto overscroll-contain [scrollbar-gutter:stable]">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -1433,7 +1433,7 @@ export default function LinodePanel() {
                         <Checkbox
                           checked={allTokensSelected || (someTokensSelected && "indeterminate")}
                           onCheckedChange={(checked) => {
-                            setSelectedTokenIds(Boolean(checked) ? tokenRows.map((token) => token.id) : []);
+                            setSelectedTokenIds(checked === true ? tokenRows.map((token) => token.id) : []);
                           }}
                           aria-label={t("cloud.tokens.select_all", "Select all tokens")}
                         />
@@ -1798,7 +1798,7 @@ export default function LinodePanel() {
                   "You can leave this empty. The selected keys are only attached as additional login methods.",
                 )}
               </div>
-              <div className="mt-3 flex max-h-48 flex-col gap-2 overflow-y-auto">
+              <div className="mt-3 flex max-h-48 flex-col gap-2 overflow-y-auto overscroll-contain [scrollbar-gutter:stable]">
                 {(catalog?.ssh_keys || []).length ? (
                   catalog!.ssh_keys.map((sshKey) => {
                     const checked = createForm.authorized_keys.includes(sshKey.ssh_key);

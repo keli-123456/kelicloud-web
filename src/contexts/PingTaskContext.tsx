@@ -20,11 +20,11 @@ interface PingTaskContextType {
   pingTasks: PingTask[] | null;
   isLoading: boolean;
   error: string | null;
-  refresh: () => void;
+  refresh: () => Promise<void>;
 }
 
 const PingTaskContext = React.createContext<PingTaskContextType | undefined>(
-  undefined
+  undefined,
 );
 
 export const PingTaskProvider: React.FC<{ children: React.ReactNode }> = ({
@@ -34,39 +34,38 @@ export const PingTaskProvider: React.FC<{ children: React.ReactNode }> = ({
   const [isLoading, setIsLoading] = React.useState<boolean>(false);
   const [error, setError] = React.useState<string | null>(null);
 
-  const refresh = () => {
-    setError(null);
-    fetch("/api/admin/ping")
-      .then((response) => {
-        if (!response.ok) {
-          throw new Error("Failed to fetch ping tasks");
-        }
-        return response.json();
-      })
-      .then((resp: Response) => {
-        if (resp && Array.isArray(resp.data)) {
-          setPingTasks(resp.data);
-        } else {
-          setPingTasks([]);
-        }
-      })
-      .catch((err) => {
-        setError(err.message || "An error occurred while fetching ping tasks");
-      })
-      .finally(() => {
-        setIsLoading(false);
-      });
-  };
-
-  React.useEffect(() => {
+  const refresh = React.useCallback(async () => {
     setIsLoading(true);
-
-    refresh();
-    setIsLoading(false);
+    setError(null);
+    try {
+      const response = await fetch("/api/admin/ping");
+      if (!response.ok) {
+        throw new Error("Failed to fetch ping tasks");
+      }
+      const resp = (await response.json()) as Response;
+      setPingTasks(Array.isArray(resp?.data) ? resp.data : []);
+    } catch (err) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : "An error occurred while fetching ping tasks",
+      );
+    } finally {
+      setIsLoading(false);
+    }
   }, []);
 
+  React.useEffect(() => {
+    void refresh();
+  }, [refresh]);
+
+  const value = React.useMemo(
+    () => ({ pingTasks, isLoading, error, refresh }),
+    [pingTasks, isLoading, error, refresh],
+  );
+
   return (
-    <PingTaskContext.Provider value={{ pingTasks, isLoading, error, refresh }}>
+    <PingTaskContext.Provider value={value}>
       {children}
     </PingTaskContext.Provider>
   );

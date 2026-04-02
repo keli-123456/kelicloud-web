@@ -249,7 +249,7 @@ export function SelectOrInput<T extends Primitive = string>(
         <div
           className={cn(
             "absolute left-0 right-0 z-50 mt-1 rounded-md border bg-accent-1 text-popover-foreground shadow-md",
-            "max-h-60 overflow-auto",
+            "h-[min(15rem,calc(100vh-6rem))] overflow-y-auto overscroll-contain [scrollbar-gutter:stable]",
             listClassName
           )}
           style={{ minWidth: 0 }}

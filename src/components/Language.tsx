@@ -15,29 +15,22 @@ import {
 import { Languages } from "lucide-react";
 import { type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
-import { resources } from "../i18n/config";
+import {
+  availableLanguages,
+  changeLanguage,
+  resolveCanonicalLanguage,
+} from "../i18n/config";
 
 interface LanguageSwitchProps {
   icon?: ReactNode;
 }
 
-const languages: { code: string; name: string }[] = Object.entries(resources)
-  .filter(
-    ([, res]) =>
-      typeof res === "object" &&
-      res !== null &&
-      "name" in res &&
-      typeof (res as { name?: unknown }).name === "string",
-  )
-  .map(([code, res]) => ({
-    code,
-    name: (res as { name: string }).name,
-  }))
-  .sort((a, b) => a.code.localeCompare(b.code));
-
 const LanguageSwitch = ({ icon }: LanguageSwitchProps = {}) => {
   const { i18n, t } = useTranslation();
-  const currentLanguage = languages.find((lang) => lang.code === i18n.language);
+  const currentLanguageCode = resolveCanonicalLanguage(i18n.language);
+  const currentLanguage = availableLanguages.find(
+    (lang) => lang.code === currentLanguageCode,
+  );
 
   return (
     <DropdownMenu>
@@ -62,11 +55,13 @@ const LanguageSwitch = ({ icon }: LanguageSwitchProps = {}) => {
       <DropdownMenuContent className="min-w-52">
         <DropdownMenuLabel>{t("common.language", "Language")}</DropdownMenuLabel>
         <DropdownMenuSeparator />
-        {languages.map((lang) => (
+        {availableLanguages.map((lang) => (
           <DropdownMenuCheckboxItem
             key={lang.code}
-            checked={lang.code === i18n.language}
-            onSelect={() => i18n.changeLanguage(lang.code)}
+            checked={lang.code === currentLanguageCode}
+            onSelect={() => {
+              void changeLanguage(lang.code);
+            }}
           >
             {lang.name}
             <span className="ml-auto text-xs uppercase text-muted-foreground">

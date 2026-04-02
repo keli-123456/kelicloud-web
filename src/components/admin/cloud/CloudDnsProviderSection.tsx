@@ -882,7 +882,7 @@ export default function CloudDnsProviderSection({
       </div>
 
       <Dialog open={Boolean(dialogState)} onOpenChange={(open) => !open && closeDialog()}>
-        <DialogContent className="max-h-[85vh] overflow-y-auto border-slate-200 bg-white sm:max-w-2xl dark:border-slate-800 dark:bg-slate-950">
+        <DialogContent className="max-h-[85vh] overflow-y-auto overscroll-contain border-slate-200 bg-white [scrollbar-gutter:stable] sm:max-w-2xl dark:border-slate-800 dark:bg-slate-950">
           <DialogHeader>
             <DialogTitle>
               {dialogState?.entryId
