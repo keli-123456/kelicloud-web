@@ -63,11 +63,11 @@ export function ActionSummaryCard({
   return (
     <div className={cn("space-y-4 rounded-xl border px-4 py-4", className)}>
       <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-        <div className="space-y-1">
-          <div className="text-sm font-medium text-slate-900 dark:text-slate-50">
+        <div className="min-w-0 flex-1 space-y-1">
+          <div className="break-words text-sm font-medium text-slate-900 dark:text-slate-50">
             {title}
           </div>
-          <div className="text-xs text-muted-foreground">
+          <div className="break-words text-xs text-muted-foreground">
             {hint}
           </div>
         </div>
@@ -80,7 +80,7 @@ export function ActionSummaryCard({
       <DetailItemsList items={items} />
 
       {showEmptyState ? (
-        <div className="rounded-xl border border-dashed px-4 py-3 text-sm text-muted-foreground">
+        <div className="break-words rounded-xl border border-dashed px-4 py-3 text-sm text-muted-foreground">
           {emptyLabel}
         </div>
       ) : null}
@@ -88,7 +88,7 @@ export function ActionSummaryCard({
       {statusMessage ? (
         <div
           className={cn(
-            "rounded-xl px-4 py-3 text-sm",
+            "break-words rounded-xl px-4 py-3 text-sm",
             statusTone === "danger"
               ? "border border-red-200 bg-red-50 text-red-700 dark:border-red-900/40 dark:bg-red-950/30 dark:text-red-200"
               : statusTone === "warning"

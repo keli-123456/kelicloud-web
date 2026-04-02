@@ -301,9 +301,9 @@ function SearchableCatalogSelect({
                   }}
                 >
                   <div className="min-w-0 flex-1">
-                    <div className="truncate text-sm font-medium">{optionLabel}</div>
+                    <div className="break-words text-sm font-medium leading-5">{optionLabel}</div>
                     {option.value && option.value !== option.label ? (
-                      <div className="truncate text-xs text-muted-foreground">{option.value}</div>
+                      <div className="break-all text-xs text-muted-foreground">{option.value}</div>
                     ) : null}
                   </div>
                   <Check className={cn("mt-0.5 size-4 shrink-0", isSelected ? "opacity-100" : "opacity-0")} />
@@ -4576,7 +4576,7 @@ function ExecutionDetailDialog({
                       </Badge>
                     ) : null}
                   </div>
-                  <div className="line-clamp-2 text-xs leading-5 text-muted-foreground" title={execution.script_name_snapshot || undefined}>
+                  <div className="line-clamp-2 break-words text-xs leading-5 text-muted-foreground" title={execution.script_name_snapshot || undefined}>
                     {executionScriptNames.length > 0
                       ? executionScriptNames.join(" · ")
                       : t("failover.execution.no_script", { defaultValue: "No script recorded" })}
@@ -6161,15 +6161,15 @@ function TaskEditorDialog({
                             <Button
                               type="button"
                               variant="ghost"
-                              className="flex h-auto w-full items-center justify-between rounded-xl px-4 py-4 text-left"
+                              className="flex min-w-0 h-auto w-full items-center justify-between rounded-xl px-4 py-4 text-left"
                             >
-                              <div className="space-y-1">
+                              <div className="min-w-0 flex-1 space-y-1">
                                 <div className="text-sm font-medium text-slate-900 dark:text-slate-50">
                                   {t("failover.editor.monitoring_core", {
                                     defaultValue: "Monitoring thresholds",
                                   })}
                                 </div>
-                                <div className="line-clamp-2 text-xs text-muted-foreground">
+                                <div className="line-clamp-2 break-words text-xs text-muted-foreground">
                                   {taskCoreSummary}
                                 </div>
                               </div>
@@ -6223,15 +6223,15 @@ function TaskEditorDialog({
                             <Button
                               type="button"
                               variant="ghost"
-                              className="flex h-auto w-full items-center justify-between rounded-xl px-4 py-4 text-left"
+                              className="flex min-w-0 h-auto w-full items-center justify-between rounded-xl px-4 py-4 text-left"
                             >
-                              <div className="space-y-1">
+                              <div className="min-w-0 flex-1 space-y-1">
                                 <div className="text-sm font-medium text-slate-900 dark:text-slate-50">
                                   {t("failover.editor.task_retry", {
                                     defaultValue: "Retry and fallback",
                                   })}
                                 </div>
-                                <div className="line-clamp-2 text-xs text-muted-foreground">
+                                <div className="line-clamp-2 break-words text-xs text-muted-foreground">
                                   {taskRetrySummary}
                                 </div>
                               </div>
@@ -6376,13 +6376,13 @@ function TaskEditorDialog({
                             <Button
                               type="button"
                               variant="ghost"
-                              className="flex h-auto w-full items-center justify-between rounded-xl px-4 py-4 text-left"
+                              className="flex min-w-0 h-auto w-full items-center justify-between rounded-xl px-4 py-4 text-left"
                             >
-                              <div className="space-y-1">
+                              <div className="min-w-0 flex-1 space-y-1">
                                 <div className="text-sm font-medium text-slate-900 dark:text-slate-50">
                                   {t("failover.editor.dns", { defaultValue: "DNS and cleanup" })}
                                 </div>
-                                <div className="line-clamp-2 text-xs text-muted-foreground">
+                                <div className="line-clamp-2 break-words text-xs text-muted-foreground">
                                   {dnsCoreSummary}
                                 </div>
                               </div>
@@ -6799,15 +6799,15 @@ function TaskEditorDialog({
                             <Button
                               type="button"
                               variant="ghost"
-                              className="flex h-auto w-full items-center justify-between rounded-xl px-4 py-4 text-left"
+                              className="flex min-w-0 h-auto w-full items-center justify-between rounded-xl px-4 py-4 text-left"
                             >
-                              <div className="space-y-1">
+                              <div className="min-w-0 flex-1 space-y-1">
                                 <div className="text-sm font-medium text-slate-900 dark:text-slate-50">
                                   {t("failover.editor.show_dns_advanced", {
                                     defaultValue: "Advanced DNS settings",
                                   })}
                                 </div>
-                                <div className="line-clamp-2 text-xs text-muted-foreground">
+                                <div className="line-clamp-2 break-words text-xs text-muted-foreground">
                                   {dnsAdvancedSummary}
                                 </div>
                               </div>
@@ -6949,23 +6949,23 @@ function TaskEditorDialog({
                                 </Badge>
                               </div>
                               {providerSummary ? (
-                                <div className="text-xs text-muted-foreground">{providerSummary}</div>
+                                <div className="break-words text-xs text-muted-foreground">{providerSummary}</div>
                               ) : null}
                             </div>
                           </div>
                           <div className="mt-2 grid gap-1.5 text-xs text-muted-foreground sm:grid-cols-2">
                             {entrySummary ? (
-                              <div>{entrySummary}</div>
+                              <div className="min-w-0 break-words">{entrySummary}</div>
                             ) : null}
                             {plan.auto_connect_group ? (
-                              <div>
+                              <div className="min-w-0 break-words">
                                 {t("failover.editor.auto_connect_group", { defaultValue: "Auto-connect group" })}: {plan.auto_connect_group}
                               </div>
                             ) : null}
                             {payloadSummary ? (
-                              <div className="sm:col-span-2">{payloadSummary}</div>
+                              <div className="min-w-0 break-words sm:col-span-2">{payloadSummary}</div>
                             ) : null}
-                            <div className="sm:col-span-2">
+                            <div className="min-w-0 break-words sm:col-span-2">
                               {selectedScriptIDs.length > 0
                                 ? t("failover.editor.scripts_selected", {
                                   defaultValue: "{{count}} selected",
@@ -7010,13 +7010,13 @@ function TaskEditorDialog({
                           <Button
                             type="button"
                             variant="ghost"
-                            className="flex h-auto w-full items-center justify-between rounded-xl px-4 py-4 text-left"
+                            className="flex min-w-0 h-auto w-full items-center justify-between rounded-xl px-4 py-4 text-left"
                           >
-                            <div className="space-y-1">
+                            <div className="min-w-0 flex-1 space-y-1">
                               <div className="text-sm font-medium text-slate-900 dark:text-slate-50">
                                 {t("failover.editor.plans", { defaultValue: "Failover plans" })}
                               </div>
-                              <div className="line-clamp-2 text-xs text-muted-foreground">
+                              <div className="line-clamp-2 break-words text-xs text-muted-foreground">
                                 {selectedPlanOrganizerSummary}
                               </div>
                             </div>
@@ -7134,13 +7134,13 @@ function TaskEditorDialog({
                           <Button
                             type="button"
                             variant="ghost"
-                            className="flex h-auto w-full items-center justify-between rounded-xl px-4 py-4 text-left"
+                            className="flex min-w-0 h-auto w-full items-center justify-between rounded-xl px-4 py-4 text-left"
                           >
-                            <div className="space-y-1">
+                            <div className="min-w-0 flex-1 space-y-1">
                               <div className="text-sm font-medium text-slate-900 dark:text-slate-50">
                                 {t("failover.editor.plan_core", { defaultValue: "Plan core fields" })}
                               </div>
-                              <div className="line-clamp-2 text-xs text-muted-foreground">
+                              <div className="line-clamp-2 break-words text-xs text-muted-foreground">
                                 {selectedPlanCoreSummary}
                               </div>
                             </div>
@@ -7363,13 +7363,13 @@ function TaskEditorDialog({
                           <Button
                             type="button"
                             variant="ghost"
-                            className="flex h-auto w-full items-center justify-between rounded-xl px-4 py-4 text-left"
+                            className="flex min-w-0 h-auto w-full items-center justify-between rounded-xl px-4 py-4 text-left"
                           >
-                            <div className="space-y-1">
+                            <div className="min-w-0 flex-1 space-y-1">
                               <div className="text-sm font-medium text-slate-900 dark:text-slate-50">
                                 {t("failover.editor.plan_config", { defaultValue: "Instance configuration" })}
                               </div>
-                              <div className="line-clamp-2 text-xs text-muted-foreground">
+                              <div className="line-clamp-2 break-words text-xs text-muted-foreground">
                                 {selectedPlanConfigSummary}
                               </div>
                             </div>
@@ -8221,15 +8221,15 @@ function TaskEditorDialog({
                           <Button
                             type="button"
                             variant="ghost"
-                            className="flex h-auto w-full items-center justify-between rounded-xl px-4 py-4 text-left"
+                            className="flex min-w-0 h-auto w-full items-center justify-between rounded-xl px-4 py-4 text-left"
                           >
-                            <div className="space-y-1">
+                            <div className="min-w-0 flex-1 space-y-1">
                               <div className="text-sm font-medium text-slate-900 dark:text-slate-50">
                                 {t("failover.editor.show_plan_optional", {
                                   defaultValue: "Optional plan settings",
                                 })}
                               </div>
-                              <div className="line-clamp-2 text-xs text-muted-foreground">
+                              <div className="line-clamp-2 break-words text-xs text-muted-foreground">
                                 {selectedPlanOptionalSummary}
                               </div>
                             </div>
@@ -8456,7 +8456,7 @@ function TaskEditorDialog({
                               })
                             )}
                           </div>
-                          <div className="line-clamp-2 text-xs leading-5 text-muted-foreground">
+                          <div className="line-clamp-2 break-words text-xs leading-5 text-muted-foreground">
                             {selectedPlanScriptNames.length > 0
                               ? selectedPlanScriptNames.join(" -> ")
                               : t("failover.editor.scripts_execution_order_empty", {
@@ -8476,15 +8476,15 @@ function TaskEditorDialog({
                           <Button
                             type="button"
                             variant="ghost"
-                            className="flex h-auto w-full items-center justify-between rounded-xl px-4 py-4 text-left"
+                            className="flex min-w-0 h-auto w-full items-center justify-between rounded-xl px-4 py-4 text-left"
                           >
-                            <div className="space-y-1">
+                            <div className="min-w-0 flex-1 space-y-1">
                               <div className="text-sm font-medium text-slate-900 dark:text-slate-50">
                                 {t("failover.editor.show_plan_advanced", {
                                   defaultValue: "Advanced plan settings",
                                 })}
                               </div>
-                              <div className="line-clamp-2 text-xs text-muted-foreground">
+                              <div className="line-clamp-2 break-words text-xs text-muted-foreground">
                                 {describePlanAdvancedSettings(t, selectedPlan)}
                               </div>
                             </div>
@@ -8601,7 +8601,7 @@ function TaskEditorDialog({
             <div className="min-w-0 flex-1 text-xs text-muted-foreground">
               <div
                 className={cn(
-                  "line-clamp-2",
+                  "line-clamp-2 break-words",
                   previewSaveBlockedReason
                     ? "text-amber-700 dark:text-amber-300"
                     : previewHasRun && previewSummary.warningCount > 0
@@ -9087,9 +9087,9 @@ function FailoverPageContent() {
                           ))}
                         </div>
                       ) : null}
-                      <div
-                        className={cn(
-                          "truncate text-sm",
+                        <div
+                          className={cn(
+                          "break-words text-sm leading-5",
                           latestExecution?.error_message ? "text-red-600 dark:text-red-300" : "text-slate-900 dark:text-slate-50",
                         )}
                         title={latestExecution?.error_message || latestExecutionSummary}
@@ -9115,27 +9115,27 @@ function FailoverPageContent() {
                         ) : null}
                       </div>
                       {latestPlanSummary ? (
-                        <div className="text-xs text-muted-foreground">
+                        <div className="min-w-0 text-xs text-muted-foreground">
                           <span className="font-medium text-slate-600 dark:text-slate-300">
                             {t("failover.execution.summary.plan", { defaultValue: "Plan" })}:
                           </span>{" "}
-                          <span title={latestPlanSummary}>{latestPlanSummary}</span>
+                          <span className="break-words" title={latestPlanSummary}>{latestPlanSummary}</span>
                         </div>
                       ) : null}
                       {latestEntrySummary ? (
-                        <div className="text-xs text-muted-foreground">
+                        <div className="min-w-0 text-xs text-muted-foreground">
                           <span className="font-medium text-slate-600 dark:text-slate-300">
                             {t("failover.execution.summary.entry", { defaultValue: "Entry" })}:
                           </span>{" "}
-                          <span title={latestEntrySummary}>{latestEntrySummary}</span>
+                          <span className="break-words" title={latestEntrySummary}>{latestEntrySummary}</span>
                         </div>
                       ) : null}
                       {latestStepLabel ? (
-                        <div className="text-xs text-muted-foreground">
+                        <div className="min-w-0 text-xs text-muted-foreground">
                           <span className="font-medium text-slate-600 dark:text-slate-300">
                             {t("failover.execution.summary.last_step", { defaultValue: "Last step" })}:
                           </span>{" "}
-                          <span title={[latestStepLabel, latestStepMessage].filter(Boolean).join(" · ")}>
+                          <span className="break-words" title={[latestStepLabel, latestStepMessage].filter(Boolean).join(" · ")}>
                             {latestStepLabel}
                             {latestStepMessage ? ` · ${latestStepMessage}` : ""}
                           </span>

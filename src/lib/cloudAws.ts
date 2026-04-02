@@ -911,8 +911,11 @@ async function requestCloud<T>(path: string, init?: RequestInit): Promise<T> {
   return payload?.data as T;
 }
 
-export async function getAWSAccount(): Promise<AWSAccount> {
-  const data = await requestCloud<Partial<AWSAccount>>("/api/admin/cloud/aws/account");
+export async function getAWSAccount(includeQuota = false): Promise<AWSAccount> {
+  const path = includeQuota
+    ? "/api/admin/cloud/aws/account?include_quota=1"
+    : "/api/admin/cloud/aws/account";
+  const data = await requestCloud<Partial<AWSAccount>>(path);
   return normalizeAccount(data);
 }
 

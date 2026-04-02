@@ -506,6 +506,24 @@ function formatAWSQuotaErrorMessage(
   return normalized;
 }
 
+function buildAWSAccountFromCredential(
+  credential: AWSCredentialRecord | null | undefined,
+  region: string,
+): AWSAccount | null {
+  if (!credential) {
+    return null;
+  }
+
+  return {
+    account_id: credential.account_id || "",
+    arn: credential.arn || "",
+    user_id: credential.user_id || "",
+    region: region || credential.default_region || DEFAULT_AWS_REGION,
+    ec2_quota: credential.ec2_quota || null,
+    ec2_quota_error: credential.ec2_quota_error || "",
+  };
+}
+
 function getRootPasswordModeLabel(
   mode: AWSRootPasswordMode | "custom" | "random",
   t: ReturnType<typeof useTranslation>["t"],
@@ -1080,6 +1098,7 @@ export default function AWSPanel() {
     initialLightsailCreateForm,
   );
   const activeCredential = getActiveCredential(credentialPool);
+  const createCatalogBusy = ec2CatalogLoading || lightsailCatalogLoading;
   const resolvedActiveRegion =
     activeCredential
       ? credentialPool?.active_region || account?.region || activeCredential.default_region || DEFAULT_AWS_REGION
@@ -1154,7 +1173,7 @@ export default function AWSPanel() {
     setPanelLoading(true);
     try {
       const [nextAccount, nextCatalog, nextInstances] = await Promise.all([
-        getAWSAccount(),
+        getAWSAccount(false),
         getAWSCatalog(),
         listAWSInstances(),
       ]);
@@ -1204,10 +1223,6 @@ export default function AWSPanel() {
       cancelled = true;
     };
   }, [clearPanelState]);
-
-  React.useEffect(() => {
-    void loadBackgroundTasks(false);
-  }, [loadBackgroundTasks]);
 
   React.useEffect(() => {
     if (!backgroundTasksOpen) {
@@ -1533,11 +1548,7 @@ export default function AWSPanel() {
   ) => {
     setCredentialPool(nextPool);
     setSelectedCredentialIds((current) => current.filter((id) => !removedCredentialIds.includes(id)));
-    if (hasActiveCredential(nextPool) && !regionSelectionRequired) {
-      await loadPanelData();
-    } else {
-      clearPanelState();
-    }
+    clearPanelState();
   };
 
   const toggleCredentialSelection = (credentialId: string, checked: boolean) => {
@@ -1639,11 +1650,7 @@ export default function AWSPanel() {
           defaultValue: `Imported ${credentials.length} credentials`,
         }),
       );
-      if (hasActiveCredential(nextPool) && !regionSelectionRequired) {
-        await loadPanelData();
-      } else {
-        clearPanelState();
-      }
+      clearPanelState();
     } catch (saveError) {
       toast.error(toErrorMessage(saveError));
     } finally {
@@ -1696,20 +1703,31 @@ export default function AWSPanel() {
     setCredentialChecking(true);
     try {
       let requiresRegionSelection = regionSelectionRequired;
+      let regionChanged = false;
       if (regionOverride && regionOverride !== credentialPool?.active_region) {
         const regionPool = await setAWSActiveRegion(regionOverride);
         setCredentialPool(regionPool);
         setRegionSelectionRequired(false);
         requiresRegionSelection = false;
+        regionChanged = true;
       }
       const nextPool = await checkAWSCredentials(credentialIds);
       setCredentialPool(nextPool);
-      toast.success(t("cloud.tokens.check_success", "Token health check finished"));
-      if (hasActiveCredential(nextPool) && !requiresRegionSelection) {
-        await loadPanelData();
-      } else {
+      if (regionChanged) {
         clearPanelState();
       }
+      const nextActiveCredential = getActiveCredential(nextPool);
+      if (nextActiveCredential && !requiresRegionSelection) {
+        setAccount(
+          buildAWSAccountFromCredential(
+            nextActiveCredential,
+            nextPool.active_region || nextActiveCredential.default_region || DEFAULT_AWS_REGION,
+          ),
+        );
+      } else if (regionChanged || !resourcesLoaded) {
+        setAccount(null);
+      }
+      toast.success(t("cloud.tokens.check_success", "Token health check finished"));
     } catch (checkError) {
       toast.error(toErrorMessage(checkError));
     } finally {
@@ -1840,11 +1858,7 @@ export default function AWSPanel() {
       const nextPool = await setAWSActiveRegion(region);
       setCredentialPool(nextPool);
       setRegionSelectionRequired(false);
-      if (hasActiveCredential(nextPool)) {
-        await loadPanelData();
-      } else {
-        clearPanelState();
-      }
+      clearPanelState();
     } catch (regionError) {
       toast.error(toErrorMessage(regionError));
     }
@@ -1864,6 +1878,16 @@ export default function AWSPanel() {
     }
   }, []);
 
+  const ensureCreateCatalogLoaded = React.useCallback(
+    async (region: string) => {
+      if (createCatalog?.active_region === region) {
+        return createCatalog;
+      }
+      return loadCreateCatalog(region);
+    },
+    [createCatalog, loadCreateCatalog],
+  );
+
   const loadLightsailCreateCatalog = React.useCallback(async (region: string) => {
     setLightsailCatalogLoading(true);
     try {
@@ -1877,6 +1901,16 @@ export default function AWSPanel() {
       setLightsailCatalogLoading(false);
     }
   }, []);
+
+  const ensureLightsailCreateCatalogLoaded = React.useCallback(
+    async (region: string) => {
+      if (lightsailCreateCatalog?.active_region === region) {
+        return lightsailCreateCatalog;
+      }
+      return loadLightsailCreateCatalog(region);
+    },
+    [lightsailCreateCatalog, loadLightsailCreateCatalog],
+  );
 
   const handleCreateDialogRegionChange = async (region: string) => {
     setCreateRegion(region);
@@ -2011,29 +2045,46 @@ export default function AWSPanel() {
   };
 
   const handleOpenCreateDialog = async () => {
+    if (!activeCredential) {
+      return;
+    }
     const nextRegion = activeRegion || activeCredential?.default_region || DEFAULT_AWS_REGION;
     setCreateRegion(nextRegion);
-    setCreateCatalog(null);
     setCreateForm((previous) => ({
       ...previous,
       auto_connect: true,
       auto_connect_group: defaultCreateGroup,
     }));
+    const nextCatalog = await ensureCreateCatalogLoaded(nextRegion);
+    if (!nextCatalog) {
+      return;
+    }
     setCreateOpen(true);
-    void loadCreateCatalog(nextRegion);
   };
 
   const handleOpenLightsailCreateDialog = async () => {
+    if (!activeCredential) {
+      return;
+    }
     const nextRegion = activeRegion || activeCredential?.default_region || DEFAULT_AWS_REGION;
     setLightsailCreateRegion(nextRegion);
-    setLightsailCreateCatalog(null);
     setLightsailCreateForm((previous) => ({
       ...previous,
       auto_connect: true,
       auto_connect_group: defaultCreateGroup,
     }));
+    const nextCatalog = await ensureLightsailCreateCatalogLoaded(nextRegion);
+    if (!nextCatalog) {
+      return;
+    }
     setLightsailCreateOpen(true);
-    void loadLightsailCreateCatalog(nextRegion);
+  };
+
+  const handleLoadResources = async () => {
+    if (!activeContextReady) {
+      return;
+    }
+    await loadPanelData();
   };
 
   const handleInstanceAction = async (instance: AWSInstance, type: string) => {
@@ -2700,35 +2751,51 @@ export default function AWSPanel() {
                         {t("cloud.providers.aws.lightsail_instances", "Lightsail")} ({lightsailInstances.length})
                       </Tabs.Trigger>
                     </Tabs.List>
+                    <Button
+                      variant="outline"
+                      size="1"
+                      onClick={() => {
+                        void handleLoadResources();
+                      }}
+                      disabled={!activeContextReady || panelLoading}
+                    >
+                      <Eye className="mr-2 h-4 w-4" />
+                      {t("cloud.view", "View")}
+                    </Button>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
                         <Button
                           size="1"
-                          disabled={!activeCredential || (ec2CatalogLoading && lightsailCatalogLoading)}
+                          disabled={!activeCredential}
+                          aria-busy={createCatalogBusy}
                         >
-                          <Plus className="mr-2 h-4 w-4" />
+                          {createCatalogBusy ? (
+                            <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+                          ) : (
+                            <Plus className="mr-2 h-4 w-4" />
+                          )}
                           {t("common.create", "Create")}
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end" className="min-w-44">
                         <DropdownMenuItem
-                          disabled={!activeCredential || ec2CatalogLoading}
+                          disabled={!activeCredential}
                           onSelect={() => {
                             setInstanceView("ec2");
                             void handleOpenCreateDialog();
                           }}
                         >
-                          <Plus className="h-4 w-4" />
+                          {ec2CatalogLoading ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
                           {t("cloud.providers.aws.create", "Launch EC2")}
                         </DropdownMenuItem>
                         <DropdownMenuItem
-                          disabled={!activeCredential || lightsailCatalogLoading}
+                          disabled={!activeCredential}
                           onSelect={() => {
                             setInstanceView("lightsail");
                             void handleOpenLightsailCreateDialog();
                           }}
                         >
-                          <Plus className="h-4 w-4" />
+                          {lightsailCatalogLoading ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
                           {t("cloud.providers.aws.lightsail_create", "Create Lightsail")}
                         </DropdownMenuItem>
                       </DropdownMenuContent>
@@ -2765,7 +2832,7 @@ export default function AWSPanel() {
                                 : !activeContextReady
                                   ? t("cloud.providers.aws.select_region_to_load", "Select a region first to load resources in this AWS account.")
                                 : !resourcesLoaded
-                                  ? t("cloud.load_resources_prompt", "Click Refresh to load cloud resources on demand.")
+                                  ? t("cloud.load_resources_prompt", "Click View to load cloud resources on demand.")
                                   : t("cloud.providers.aws.empty", "No EC2 instances found in this region")}
                         </TableCell>
                       </TableRow>
@@ -2929,7 +2996,7 @@ export default function AWSPanel() {
                                 : !activeContextReady
                                   ? t("cloud.providers.aws.select_region_to_load", "Select a region first to load resources in this AWS account.")
                                 : !resourcesLoaded
-                                  ? t("cloud.load_resources_prompt", "Click Refresh to load cloud resources on demand.")
+                                  ? t("cloud.load_resources_prompt", "Click View to load cloud resources on demand.")
                                   : t("cloud.providers.aws.lightsail_empty", "No Lightsail instances found in this region")}
                         </TableCell>
                       </TableRow>

@@ -539,19 +539,16 @@ export default function LinodePanel() {
     }
   };
 
-  const syncTokenPoolAfterDelete = async (
+  const shouldPreserveLoadedResources = (nextPool: LinodeTokenPool) =>
+    resourcesLoaded && Boolean(activeToken?.id) && nextPool.active_token_id === activeToken?.id;
+
+  const syncTokenPoolAfterDelete = (
     nextPool: LinodeTokenPool,
     removedTokenIds: string[],
   ) => {
     setTokenPool(nextPool);
     setSelectedTokenIds((current) => current.filter((id) => !removedTokenIds.includes(id)));
-    if (hasActiveToken(nextPool)) {
-      if (resourcesLoaded) {
-        await loadPanelData();
-      } else {
-        clearPanelState();
-      }
-    } else {
+    if (!hasActiveToken(nextPool) || !shouldPreserveLoadedResources(nextPool)) {
       clearPanelState();
     }
   };
@@ -603,13 +600,7 @@ export default function LinodePanel() {
           defaultValue: `Imported ${tokens.length} tokens`,
         }),
       );
-      if (hasActiveToken(nextPool)) {
-        if (resourcesLoaded) {
-          await loadPanelData();
-        } else {
-          clearPanelState();
-        }
-      } else {
+      if (!hasActiveToken(nextPool) || !shouldPreserveLoadedResources(nextPool)) {
         clearPanelState();
       }
     } catch (saveError) {
@@ -663,13 +654,7 @@ export default function LinodePanel() {
       const nextPool = await checkLinodeTokens();
       setTokenPool(nextPool);
       toast.success(t("cloud.tokens.check_success", "Token health check finished"));
-      if (hasActiveToken(nextPool)) {
-        if (resourcesLoaded) {
-          await loadPanelData();
-        } else {
-          clearPanelState();
-        }
-      } else {
+      if (!hasActiveToken(nextPool) || !shouldPreserveLoadedResources(nextPool)) {
         clearPanelState();
       }
     } catch (checkError) {
@@ -1055,6 +1040,9 @@ export default function LinodePanel() {
   }, [catalog]);
 
   const handleOpenCreateDialog = async () => {
+    if (!activeToken) {
+      return;
+    }
     setCreateForm((previous) => ({
       ...previous,
       auto_connect: true,
@@ -1094,6 +1082,13 @@ export default function LinodePanel() {
     }
   };
 
+  const handleLoadResources = async () => {
+    if (!activeToken) {
+      return;
+    }
+    await loadPanelData();
+  };
+
   if (initializing) {
     return <Loading text="" />;
   }
@@ -1114,13 +1109,29 @@ export default function LinodePanel() {
               {t("cloud.refresh", "Refresh")}
             </Button>
             <Button
+              variant="outline"
+              size="1"
+              onClick={() => {
+                void handleLoadResources();
+              }}
+              disabled={!activeToken || panelLoading}
+            >
+              <Eye className="mr-2 h-4 w-4" />
+              {t("cloud.view", "View")}
+            </Button>
+            <Button
               size="1"
               onClick={() => {
                 void handleOpenCreateDialog();
               }}
-              disabled={!activeToken || createCatalogLoading}
+              disabled={!activeToken}
+              aria-busy={createCatalogLoading}
             >
-              <Plus className="mr-2 h-4 w-4" />
+              {createCatalogLoading ? (
+                <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <Plus className="mr-2 h-4 w-4" />
+              )}
               {t("cloud.providers.linode.create", "Create Instance")}
             </Button>
           </>
@@ -1191,7 +1202,7 @@ export default function LinodePanel() {
                           : !hasActiveToken(tokenPool)
                             ? t("cloud.providers.linode.no_active_token", "Select an active Linode token first")
                             : !resourcesLoaded
-                              ? t("cloud.load_resources_prompt", "Click Refresh to load cloud resources on demand.")
+                              ? t("cloud.load_resources_prompt", "Click View to load cloud resources on demand.")
                               : t("cloud.providers.linode.instance_empty", "No Linode instances found")}
                     </TableCell>
                   </TableRow>
