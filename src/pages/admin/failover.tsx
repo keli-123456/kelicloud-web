@@ -337,7 +337,7 @@ const DNS_PROVIDER_VALUES = ["cloudflare", "aliyun"] as const;
 const PLAN_PROVIDER_VALUES = ["aws", "digitalocean", "linode"] as const;
 
 const ACTION_TYPE_VALUES: Record<string, string[]> = {
-  aws: ["provision_instance", "rebind_public_ip"],
+  aws: ["rebind_public_ip"],
   digitalocean: ["provision_instance"],
   linode: ["provision_instance"],
 };
@@ -1781,13 +1781,13 @@ function getExecutionStepDetailItems(t: TFunction, detail: unknown) {
   return items;
 }
 
-function planRequiresInstanceCleanup(plan: Pick<PlanFormState, "enabled" | "action_type">) {
-  return Boolean(plan.enabled) && String(plan.action_type || "").trim() === "provision_instance";
+function planRequiresInstanceCleanup(plan: Pick<PlanFormState, "enabled" | "provider" | "action_type">) {
+  return Boolean(plan.enabled) && planCanProvision(plan.provider, plan.action_type);
 }
 
 function resolveTaskDeleteStrategy(
   currentValue: string,
-  plans: Array<Pick<PlanFormState, "enabled" | "action_type">>,
+  plans: Array<Pick<PlanFormState, "enabled" | "provider" | "action_type">>,
 ) {
   const hasProvisionPlan = plans.some(planRequiresInstanceCleanup);
   if (!hasProvisionPlan) {
@@ -1803,7 +1803,7 @@ function resolveTaskDeleteStrategy(
 
 function getDeleteStrategyOptions(
   t: TFunction,
-  plans: Array<Pick<PlanFormState, "enabled" | "action_type">>,
+  plans: Array<Pick<PlanFormState, "enabled" | "provider" | "action_type">>,
 ) {
   const values = plans.some(planRequiresInstanceCleanup)
     ? DELETE_STRATEGY_VALUES.filter((value) => value !== "keep")
@@ -1921,19 +1921,29 @@ function getActionTypeLabel(t: TFunction, value: string) {
   return t(`failover.action_type.${value}`, {
     defaultValue:
       value === "rebind_public_ip"
-        ? "Rebind public IP"
+        ? "Reuse IP or create"
         : value === "provision_instance"
           ? "Provision instance"
           : humanizeStatus(value),
   });
 }
 
-function getActionTypeOptions(t: TFunction, provider: string) {
-  const values = ACTION_TYPE_VALUES[provider] || [];
-  return values.map((value) => ({
-    value,
-    label: getActionTypeLabel(t, value),
-  }));
+function getDefaultPlanActionType(provider: string) {
+  return (ACTION_TYPE_VALUES[provider] || [])[0] || "";
+}
+
+function normalizePlanActionTypeForProvider(provider: string, actionType: string) {
+  const normalizedProvider = String(provider || "").trim().toLowerCase();
+  const forced = getDefaultPlanActionType(normalizedProvider);
+  if (forced) {
+    return forced;
+  }
+  return String(actionType || "").trim();
+}
+
+function planCanProvision(provider: string, actionType: string) {
+  return String(provider || "").trim().toLowerCase() === "aws"
+    || String(actionType || "").trim() === "provision_instance";
 }
 
 function normalizeAWSService(value: unknown) {
@@ -2357,12 +2367,31 @@ function parsePlanPayloadObject(value: string) {
   }
 }
 
+function defaultAWSProvisionLikePayload() {
+  return {
+    service: "ec2",
+    region: "",
+    image_id: DEFAULT_AWS_FAILOVER_EC2_IMAGE_ID,
+    instance_type: "",
+    key_name: "",
+    subnet_id: "",
+    security_group_ids: [],
+    assign_public_ip: true,
+    assign_ipv6: true,
+    allow_all_traffic: true,
+    availability_zone: "",
+    blueprint_id: DEFAULT_AWS_FAILOVER_LIGHTSAIL_BLUEPRINT_ID,
+    bundle_id: DEFAULT_AWS_FAILOVER_LIGHTSAIL_BUNDLE_ID,
+    key_pair_name: "",
+    ip_address_type: "dualstack",
+  };
+}
+
 function defaultPlanPayload(provider: string, actionType: string) {
   if (provider === "aws") {
     if (actionType === "rebind_public_ip") {
       return {
-        service: "ec2",
-        region: "",
+        ...defaultAWSProvisionLikePayload(),
         instance_id: "",
         private_ip: "",
         instance_name: "",
@@ -2370,23 +2399,7 @@ function defaultPlanPayload(provider: string, actionType: string) {
       };
     }
 
-    return {
-      service: "ec2",
-      region: "",
-      image_id: DEFAULT_AWS_FAILOVER_EC2_IMAGE_ID,
-      instance_type: "",
-      key_name: "",
-      subnet_id: "",
-      security_group_ids: [],
-      assign_public_ip: true,
-      assign_ipv6: true,
-      allow_all_traffic: true,
-      availability_zone: "",
-      blueprint_id: DEFAULT_AWS_FAILOVER_LIGHTSAIL_BLUEPRINT_ID,
-      bundle_id: DEFAULT_AWS_FAILOVER_LIGHTSAIL_BUNDLE_ID,
-      key_pair_name: "",
-      ip_address_type: "dualstack",
-    };
+    return defaultAWSProvisionLikePayload();
   }
 
   if (provider === "digitalocean") {
@@ -2586,13 +2599,16 @@ function validatePlanPayload(
   }
 
   if (provider === "aws" && actionType === "rebind_public_ip") {
-    const service = normalizeAWSService(payload.service);
     requirePlanField(t, index, t("failover.editor.region", { defaultValue: "Region" }), payload.region);
+    const service = normalizeAWSService(payload.service);
     if (service === "ec2") {
-      requirePlanField(t, index, t("failover.editor.instance_id", { defaultValue: "Instance ID" }), payload.instance_id);
+      requirePlanField(t, index, t("failover.editor.image", { defaultValue: "Image" }), payload.image_id);
+      requirePlanField(t, index, t("failover.editor.instance_type", { defaultValue: "Instance type" }), payload.instance_type);
       return;
     }
-    requirePlanField(t, index, t("failover.editor.instance_name", { defaultValue: "Instance name" }), payload.instance_name);
+    requirePlanField(t, index, t("failover.editor.availability_zone", { defaultValue: "Availability zone" }), payload.availability_zone);
+    requirePlanField(t, index, t("failover.editor.blueprint", { defaultValue: "Blueprint" }), payload.blueprint_id);
+    requirePlanField(t, index, t("failover.editor.bundle", { defaultValue: "Bundle" }), payload.bundle_id);
     return;
   }
 
@@ -2622,6 +2638,36 @@ function normalizePlanPayloadForSubmit(
     const region = getStringValue(nextPayload.region);
     nextPayload.service = service;
     nextPayload.region = region;
+    nextPayload.allow_all_traffic = getBooleanValue(nextPayload.allow_all_traffic, true);
+
+    if (service === "ec2") {
+      nextPayload.image_id = getStringValue(nextPayload.image_id) || DEFAULT_AWS_FAILOVER_EC2_IMAGE_ID;
+      nextPayload.instance_type = getStringValue(nextPayload.instance_type);
+      nextPayload.key_name = getStringValue(nextPayload.key_name);
+      nextPayload.subnet_id = getStringValue(nextPayload.subnet_id);
+      nextPayload.security_group_ids = getStringArrayValue(nextPayload.security_group_ids);
+      nextPayload.assign_public_ip = getBooleanValue(nextPayload.assign_public_ip, true);
+      nextPayload.assign_ipv6 = getBooleanValue(nextPayload.assign_ipv6, true);
+      return nextPayload;
+    }
+
+    nextPayload.availability_zone = getStringValue(nextPayload.availability_zone) || getDefaultLightsailAvailabilityZone(region);
+    nextPayload.blueprint_id = getStringValue(nextPayload.blueprint_id) || DEFAULT_AWS_FAILOVER_LIGHTSAIL_BLUEPRINT_ID;
+    nextPayload.bundle_id = getStringValue(nextPayload.bundle_id) || DEFAULT_AWS_FAILOVER_LIGHTSAIL_BUNDLE_ID;
+    nextPayload.key_pair_name = getStringValue(nextPayload.key_pair_name);
+    nextPayload.ip_address_type = getStringValue(nextPayload.ip_address_type) || "dualstack";
+    return nextPayload;
+  }
+
+  if (provider === "aws" && actionType === "rebind_public_ip") {
+    const service = normalizeAWSService(nextPayload.service);
+    const region = getStringValue(nextPayload.region);
+    nextPayload.service = service;
+    nextPayload.region = region;
+    nextPayload.instance_id = getStringValue(nextPayload.instance_id);
+    nextPayload.private_ip = getStringValue(nextPayload.private_ip);
+    nextPayload.instance_name = getStringValue(nextPayload.instance_name);
+    nextPayload.static_ip_name = getStringValue(nextPayload.static_ip_name);
     nextPayload.allow_all_traffic = getBooleanValue(nextPayload.allow_all_traffic, true);
 
     if (service === "ec2") {
@@ -3562,7 +3608,7 @@ function parseDnsPayloadFields(
 
 function createEmptyPlanForm(providerEntries: ProviderEntriesMap): PlanFormState {
   const defaultProvider = getFirstConfiguredProvider(providerEntries, PLAN_PROVIDER_VALUES);
-  const defaultActionType = (ACTION_TYPE_VALUES[defaultProvider] || [])[0] || "";
+  const defaultActionType = getDefaultPlanActionType(defaultProvider);
 
   return {
     local_id: createLocalID(),
@@ -3632,6 +3678,7 @@ function taskToForm(task: FailoverTask, providerEntries: ProviderEntriesMap): Ta
           return left.id - right.id;
         })
         .map((plan) => ({
+        action_type: normalizePlanActionTypeForProvider(plan.provider, plan.action_type),
         local_id: createLocalID(),
         name: plan.name,
         priority: String(plan.priority || 1),
@@ -3639,11 +3686,13 @@ function taskToForm(task: FailoverTask, providerEntries: ProviderEntriesMap): Ta
         provider: plan.provider,
         provider_entry_id: normalizePlanProviderEntryID(plan.provider, plan.provider_entry_id) || AUTOMATIC_PROVIDER_ENTRY_ID,
         provider_entry_group: plan.provider_entry_group.trim(),
-        action_type: plan.action_type,
         payload: prettyJson(normalizePlanPayloadForSubmit(
           plan.provider,
-          plan.action_type,
-          asRecord(plan.payload) || {},
+          normalizePlanActionTypeForProvider(plan.provider, plan.action_type),
+          {
+            ...defaultPlanPayload(plan.provider, normalizePlanActionTypeForProvider(plan.provider, plan.action_type)),
+            ...(asRecord(plan.payload) || {}),
+          },
         )),
         auto_connect_group: plan.auto_connect_group.trim() || buildSuggestedAutoConnectGroup(
           plan.provider,
@@ -3781,9 +3830,45 @@ function summarizePlanPayload(t: TFunction, plan: PlanFormState) {
         parts.push(instanceID);
       } else if (instanceName) {
         parts.push(instanceName);
+      } else {
+        parts.push(t("failover.editor.use_tracked_current_instance", {
+          defaultValue: "Use tracked current instance",
+        }));
       }
       if (staticIPName) {
         parts.push(staticIPName);
+      }
+      if (service === "ec2") {
+        const instanceType = getStringValue(payload.instance_type);
+        const image = getStringValue(payload.image_id);
+        if (instanceType) {
+          parts.push(instanceType);
+        }
+        if (image) {
+          parts.push(image);
+        }
+        if (getBooleanValue(payload.assign_ipv6, false)) {
+          parts.push(t("cloud.form.ipv6", { defaultValue: "Enable IPv6" }));
+        }
+        if (getBooleanValue(payload.allow_all_traffic, false)) {
+          parts.push(t("cloud.providers.aws.allow_all_traffic", { defaultValue: "Allow All Traffic" }));
+        }
+      } else {
+        const zone = getStringValue(payload.availability_zone);
+        const blueprint = getStringValue(payload.blueprint_id);
+        const bundle = getStringValue(payload.bundle_id);
+        if (zone) {
+          parts.push(zone);
+        }
+        if (blueprint) {
+          parts.push(blueprint);
+        }
+        if (bundle) {
+          parts.push(bundle);
+        }
+        if (getBooleanValue(payload.allow_all_traffic, false)) {
+          parts.push(t("cloud.providers.aws.allow_all_traffic", { defaultValue: "Allow All Traffic" }));
+        }
       }
     }
     return parts.filter(Boolean).join(" · ");
@@ -3898,6 +3983,7 @@ function buildTaskInput(formState: TaskFormState, t: TFunction): FailoverTaskInp
   }
 
   const plans: FailoverPlanInput[] = formState.plans.map((plan, index) => {
+    const normalizedActionType = normalizePlanActionTypeForProvider(plan.provider, plan.action_type);
     if (!plan.provider.trim()) {
       throw new Error(
         t("failover.validation.plan_provider_required", {
@@ -3906,7 +3992,7 @@ function buildTaskInput(formState: TaskFormState, t: TFunction): FailoverTaskInp
         }),
       );
     }
-    if (!plan.action_type.trim()) {
+    if (!normalizedActionType.trim()) {
       throw new Error(
         t("failover.validation.plan_action_required", {
           defaultValue: "Plan {{index}} requires an action type",
@@ -3916,10 +4002,10 @@ function buildTaskInput(formState: TaskFormState, t: TFunction): FailoverTaskInp
     }
     const planPayload = normalizePlanPayloadForSubmit(
       plan.provider,
-      plan.action_type,
+      normalizedActionType,
       parsePlanPayloadObject(plan.payload),
     );
-    validatePlanPayload(t, index, plan.provider, plan.action_type, planPayload);
+    validatePlanPayload(t, index, plan.provider, normalizedActionType, planPayload);
 
     const scriptClipboardIDs = normalizePlanScriptClipboardIDs(plan.script_clipboard_ids);
     return {
@@ -3929,7 +4015,7 @@ function buildTaskInput(formState: TaskFormState, t: TFunction): FailoverTaskInp
       provider: plan.provider,
       provider_entry_id: normalizePlanProviderEntryID(plan.provider, plan.provider_entry_id.trim() || AUTOMATIC_PROVIDER_ENTRY_ID),
       provider_entry_group: plan.provider_entry_group.trim(),
-      action_type: plan.action_type,
+      action_type: normalizedActionType,
       payload: planPayload,
       auto_connect_group: plan.auto_connect_group.trim(),
       script_clipboard_id: scriptClipboardIDs.length > 0
@@ -5299,7 +5385,7 @@ function TaskEditorDialog({
     () => formState.plans.some((plan) =>
       plan.enabled
       && plan.provider.trim()
-      && plan.action_type === "provision_instance",
+      && planCanProvision(plan.provider, plan.action_type),
     ),
     [formState.plans],
   );
@@ -7246,8 +7332,7 @@ function TaskEditorDialog({
 		                          <Select
 		                            value={selectedPlan.provider || undefined}
 		                            onValueChange={(value) => {
-		                              const nextActionOptions = ACTION_TYPE_VALUES[value] || [];
-	                              const nextActionType = nextActionOptions[0] || "";
+	                              const nextActionType = getDefaultPlanActionType(value);
 	                              updatePlan(selectedPlan.local_id, (current) => applySuggestedAutoConnectGroup(
                                   current,
                                   providerEntries,
@@ -7398,30 +7483,17 @@ function TaskEditorDialog({
                             );
                           })()}
                         </div>
-	                        <div className="space-y-2 lg:col-span-2">
+                        <div className="space-y-2 lg:col-span-2">
 	                          <Label>{t("failover.editor.action_type", { defaultValue: "Action type" })}</Label>
-                          <Select
-                            value={selectedPlan.action_type || undefined}
-                            onValueChange={(value) => {
-                              updatePlan(selectedPlan.local_id, (current) => ({
-                                ...current,
-                                action_type: value,
-                                payload: prettyJson(defaultPlanPayload(current.provider, value)),
-                              }));
-                              resetPlanCatalogState();
-                            }}
-                          >
-	                            <SelectTrigger>
-	                              <SelectValue placeholder={t("failover.editor.action_type_placeholder", { defaultValue: "Choose an action" })} />
-		                            </SelectTrigger>
-		                            <SelectContent>
-		                              {getActionTypeOptions(t, selectedPlan.provider).map((option) => (
-                                <SelectItem key={option.value} value={option.value}>
-                                  {option.label}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
+                          <div className="rounded-xl border border-dashed px-4 py-3 text-sm text-muted-foreground">
+                            {selectedPlan.provider === "aws"
+                              ? t("failover.editor.aws_action_auto_hint", {
+                                defaultValue: "AWS automatically checks whether the selected credential already has the current outlet IP. If it does, Komari only replaces the public IP; otherwise it creates a new instance.",
+                              })
+                              : t("failover.editor.provision_action_auto_hint", {
+                                defaultValue: "This provider always creates a new instance for failover.",
+                              })}
+                          </div>
                         </div>
                             </div>
                           </div>
@@ -8042,6 +8114,9 @@ function TaskEditorDialog({
                                   updateSelectedPlanPayload((current) => ({
                                     ...current,
                                     region: value,
+                                    availability_zone: selectedPlanService === "lightsail" && !getStringValue(current.availability_zone)
+                                      ? getDefaultLightsailAvailabilityZone(value)
+                                      : getStringValue(current.availability_zone),
                                   }));
                                   resetPlanCatalogState(keepPlanCatalogRegions(
                                     planCatalog,
@@ -8071,6 +8146,9 @@ function TaskEditorDialog({
                                   updateSelectedPlanPayload((current) => ({
                                     ...current,
                                     region: value,
+                                    availability_zone: selectedPlanService === "lightsail" && !getStringValue(current.availability_zone)
+                                      ? getDefaultLightsailAvailabilityZone(value)
+                                      : getStringValue(current.availability_zone),
                                   }));
                                   resetPlanCatalogState(keepPlanCatalogRegions(
                                     planCatalog,
@@ -8086,22 +8164,26 @@ function TaskEditorDialog({
                           </div>
                           {selectedPlanService === "ec2" ? (
                             <>
+                              <div className="rounded-xl border border-dashed px-4 py-3 text-xs text-muted-foreground lg:col-span-2">
+                                {t("failover.editor.aws_rebind_by_ip_hint", {
+                                  defaultValue: "Komari will first check whether this AWS credential already has an EC2 instance with the task's current IP. If it does, Komari only replaces that instance's public IP. If it does not, Komari creates a new EC2 instance with the configuration below.",
+                                })}
+                              </div>
                               <div className="space-y-2">
-                                <Label>{t("failover.editor.instance_id", { defaultValue: "Instance ID" })}</Label>
-                                {(planCatalog?.instances || []).length > 0 ? (
+                                <Label>{t("failover.editor.image", { defaultValue: "Image" })}</Label>
+                                {(planCatalog?.images || []).length > 0 ? (
                                   <Select
-                                    value={getStringValue(selectedPlanPayload.instance_id) || undefined}
+                                    value={getStringValue(selectedPlanPayload.image_id) || undefined}
                                     onValueChange={(value) => updateSelectedPlanPayload((current) => ({
                                       ...current,
-                                      instance_id: value,
-                                      private_ip: "",
+                                      image_id: value,
                                     }))}
                                   >
                                     <SelectTrigger>
-                                      <SelectValue placeholder={t("failover.editor.instance_name", { defaultValue: "Choose an instance" })} />
+                                      <SelectValue placeholder={t("failover.editor.image_placeholder", { defaultValue: "Choose an image" })} />
                                     </SelectTrigger>
                                     <SelectContent>
-                                      {planCatalog?.instances?.map((option) => (
+                                      {planCatalog?.images?.map((option) => (
                                         <SelectItem key={option.value} value={option.value}>
                                           {formatCatalogOptionLabel(option)}
                                         </SelectItem>
@@ -8110,34 +8192,220 @@ function TaskEditorDialog({
                                   </Select>
                                 ) : (
                                   <Input
-                                    value={getStringValue(selectedPlanPayload.instance_id)}
+                                    value={getStringValue(selectedPlanPayload.image_id)}
                                     onChange={(event) => updateSelectedPlanPayload((current) => ({
                                       ...current,
-                                      instance_id: event.target.value,
+                                      image_id: event.target.value,
                                     }))}
-                                    placeholder="i-..."
+                                    placeholder="ami-..."
                                   />
                                 )}
+                              </div>
+                              <div className="space-y-2">
+                                <Label>{t("failover.editor.instance_type", { defaultValue: "Instance type" })}</Label>
+                                {(planCatalog?.instance_types || []).length > 0 ? (
+                                  <Select
+                                    value={getStringValue(selectedPlanPayload.instance_type) || undefined}
+                                    onValueChange={(value) => updateSelectedPlanPayload((current) => ({
+                                      ...current,
+                                      instance_type: value,
+                                    }))}
+                                  >
+                                    <SelectTrigger>
+                                      <SelectValue placeholder={t("failover.editor.instance_type_placeholder", { defaultValue: "Choose an instance type" })} />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      {planCatalog?.instance_types?.map((option) => (
+                                        <SelectItem key={option.value} value={option.value}>
+                                          {formatCatalogOptionLabel(option)}
+                                        </SelectItem>
+                                      ))}
+                                    </SelectContent>
+                                  </Select>
+                                ) : (
+                                  <Input
+                                    value={getStringValue(selectedPlanPayload.instance_type)}
+                                    onChange={(event) => updateSelectedPlanPayload((current) => ({
+                                      ...current,
+                                      instance_type: event.target.value,
+                                    }))}
+                                    placeholder="t3.small"
+                                  />
+                                )}
+                              </div>
+                              <div className="space-y-2">
+                                <Label>{t("failover.editor.subnet", { defaultValue: "Subnet" })}</Label>
+                                {(planCatalog?.subnets || []).length > 0 ? (
+                                  <Select
+                                    value={getStringValue(selectedPlanPayload.subnet_id) || undefined}
+                                    onValueChange={(value) => updateSelectedPlanPayload((current) => ({
+                                      ...current,
+                                      subnet_id: value,
+                                    }))}
+                                  >
+                                    <SelectTrigger>
+                                      <SelectValue placeholder={t("failover.editor.subnet_placeholder", { defaultValue: "Choose a subnet" })} />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      {planCatalog?.subnets?.map((option) => (
+                                        <SelectItem key={option.value} value={option.value}>
+                                          {formatCatalogOptionLabel(option)}
+                                        </SelectItem>
+                                      ))}
+                                    </SelectContent>
+                                  </Select>
+                                ) : (
+                                  <Input
+                                    value={getStringValue(selectedPlanPayload.subnet_id)}
+                                    onChange={(event) => updateSelectedPlanPayload((current) => ({
+                                      ...current,
+                                      subnet_id: event.target.value,
+                                    }))}
+                                    placeholder="subnet-..."
+                                  />
+                                )}
+                              </div>
+                              <div className="space-y-2">
+                                <Label>{t("failover.editor.key_pair", { defaultValue: "Key pair" })}</Label>
+                                {(planCatalog?.key_pairs || []).length > 0 ? (
+                                  <Select
+                                    value={getStringValue(selectedPlanPayload.key_name) || "__none"}
+                                    onValueChange={(value) => updateSelectedPlanPayload((current) => ({
+                                      ...current,
+                                      key_name: value === "__none" ? "" : value,
+                                    }))}
+                                  >
+                                    <SelectTrigger>
+                                      <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      <SelectItem value="__none">{t("failover.editor.no_key_pair", { defaultValue: "No key pair" })}</SelectItem>
+                                      {planCatalog?.key_pairs?.map((option) => (
+                                        <SelectItem key={option.value} value={option.value}>
+                                          {formatCatalogOptionLabel(option)}
+                                        </SelectItem>
+                                      ))}
+                                    </SelectContent>
+                                  </Select>
+                                ) : (
+                                  <Input
+                                    value={getStringValue(selectedPlanPayload.key_name)}
+                                    onChange={(event) => updateSelectedPlanPayload((current) => ({
+                                      ...current,
+                                      key_name: event.target.value,
+                                    }))}
+                                    placeholder={t("failover.editor.no_key_pair", { defaultValue: "No key pair" })}
+                                  />
+                                )}
+                              </div>
+                              <div className="space-y-2 lg:col-span-2">
+                                <Label>{t("cloud.providers.aws.security_groups", { defaultValue: "Security Groups" })}</Label>
+                                <div className="text-xs text-muted-foreground">
+                                  {t("failover.editor.security_groups_hint", {
+                                    defaultValue: "Enter one or more security group IDs separated by commas or new lines. Leave empty to keep the default security group on the selected subnet.",
+                                  })}
+                                </div>
+                                <Textarea
+                                  className="min-h-24 font-mono text-xs [overflow-wrap:anywhere]"
+                                  value={getStringArrayValue(selectedPlanPayload.security_group_ids).join("\n")}
+                                  onChange={(event) => updateSelectedPlanPayload((current) => ({
+                                    ...current,
+                                    security_group_ids: parseResourceIds(event.target.value),
+                                  }))}
+                                />
+                                {planCatalog?.security_groups?.length ? (
+                                  <div className="text-xs text-muted-foreground">
+                                    {t("failover.editor.security_groups_loaded_hint", {
+                                      defaultValue: "Loaded options: {{options}}",
+                                      options: planCatalog.security_groups.map((option) => option.value).join(", "),
+                                    })}
+                                  </div>
+                                ) : null}
+                              </div>
+                              <div className="rounded-xl bg-muted/20 px-4 py-3 lg:col-span-2">
+                                <div className="flex items-center justify-between gap-4">
+                                  <div className="space-y-1">
+                                    <div className="text-sm font-medium text-slate-900 dark:text-slate-50">
+                                      {t("failover.editor.assign_public_ip", { defaultValue: "Assign public IP" })}
+                                    </div>
+                                    <div className="text-xs text-muted-foreground">
+                                      {t("failover.editor.assign_public_ip_hint", { defaultValue: "Keep this enabled so the new outlet gets a reachable IPv4 address." })}
+                                    </div>
+                                  </div>
+                                  <Switch
+                                    checked={Boolean(selectedPlanPayload.assign_public_ip)}
+                                    onCheckedChange={(checked) => updateSelectedPlanPayload((current) => ({
+                                      ...current,
+                                      assign_public_ip: Boolean(checked),
+                                    }))}
+                                  />
+                                </div>
+                              </div>
+                              <div className="rounded-xl bg-muted/20 px-4 py-3 lg:col-span-2">
+                                <div className="flex items-center justify-between gap-4">
+                                  <div className="space-y-1">
+                                    <div className="text-sm font-medium text-slate-900 dark:text-slate-50">
+                                      {t("cloud.form.ipv6", { defaultValue: "Enable IPv6" })}
+                                    </div>
+                                    <div className="text-xs text-muted-foreground">
+                                      {t("failover.editor.assign_ipv6_hint", {
+                                        defaultValue: "Request an IPv6 address during instance creation and verify it after launch.",
+                                      })}
+                                    </div>
+                                  </div>
+                                  <Switch
+                                    checked={getBooleanValue(selectedPlanPayload.assign_ipv6, true)}
+                                    onCheckedChange={(checked) => updateSelectedPlanPayload((current) => ({
+                                      ...current,
+                                      assign_ipv6: Boolean(checked),
+                                    }))}
+                                  />
+                                </div>
+                              </div>
+                              <div className="rounded-xl bg-muted/20 px-4 py-3 lg:col-span-2">
+                                <div className="flex items-center justify-between gap-4">
+                                  <div className="space-y-1">
+                                    <div className="text-sm font-medium text-slate-900 dark:text-slate-50">
+                                      {t("cloud.providers.aws.allow_all_traffic", { defaultValue: "Allow All Traffic" })}
+                                    </div>
+                                    <div className="text-xs text-muted-foreground">
+                                      {t("cloud.providers.aws.allow_all_traffic_on_create", {
+                                        defaultValue: "After launch, allow all IPv4 and IPv6 traffic",
+                                      })}
+                                    </div>
+                                  </div>
+                                  <Switch
+                                    checked={getBooleanValue(selectedPlanPayload.allow_all_traffic, true)}
+                                    onCheckedChange={(checked) => updateSelectedPlanPayload((current) => ({
+                                      ...current,
+                                      allow_all_traffic: Boolean(checked),
+                                    }))}
+                                  />
+                                </div>
                               </div>
                             </>
                           ) : (
                             <>
+                              <div className="rounded-xl border border-dashed px-4 py-3 text-xs text-muted-foreground lg:col-span-2">
+                                {t("failover.editor.aws_rebind_by_ip_hint_lightsail", {
+                                  defaultValue: "Komari will first check whether this AWS credential already has a Lightsail instance with the task's current IP. If it does, Komari only replaces that instance's public IP. If it does not, Komari creates a new Lightsail instance with the configuration below.",
+                                })}
+                              </div>
                               <div className="space-y-2">
-                                <Label>{t("failover.editor.instance_name", { defaultValue: "Instance name" })}</Label>
-                                {(planCatalog?.instances || []).length > 0 ? (
+                                <Label>{t("failover.editor.availability_zone", { defaultValue: "Availability zone" })}</Label>
+                                {(planCatalog?.availability_zones || []).length > 0 ? (
                                   <Select
-                                    value={getStringValue(selectedPlanPayload.instance_name) || undefined}
+                                    value={getStringValue(selectedPlanPayload.availability_zone) || undefined}
                                     onValueChange={(value) => updateSelectedPlanPayload((current) => ({
                                       ...current,
-                                      instance_name: value,
-                                      static_ip_name: "",
+                                      availability_zone: value,
                                     }))}
                                   >
                                     <SelectTrigger>
-                                      <SelectValue placeholder={t("failover.editor.instance_name", { defaultValue: "Choose an instance" })} />
+                                      <SelectValue placeholder={t("failover.editor.availability_zone_placeholder", { defaultValue: "Choose an availability zone" })} />
                                     </SelectTrigger>
                                     <SelectContent>
-                                      {planCatalog?.instances?.map((option) => (
+                                      {planCatalog?.availability_zones?.map((option) => (
                                         <SelectItem key={option.value} value={option.value}>
                                           {formatCatalogOptionLabel(option)}
                                         </SelectItem>
@@ -8146,14 +8414,151 @@ function TaskEditorDialog({
                                   </Select>
                                 ) : (
                                   <Input
-                                    value={getStringValue(selectedPlanPayload.instance_name)}
+                                    value={getStringValue(selectedPlanPayload.availability_zone)}
                                     onChange={(event) => updateSelectedPlanPayload((current) => ({
                                       ...current,
-                                      instance_name: event.target.value,
+                                      availability_zone: event.target.value,
                                     }))}
-                                    placeholder="komari-edge-1"
+                                    placeholder="us-east-1a"
                                   />
                                 )}
+                              </div>
+                              <div className="space-y-2">
+                                <Label>{t("failover.editor.blueprint", { defaultValue: "Blueprint" })}</Label>
+                                {(planCatalog?.blueprints || []).length > 0 ? (
+                                  <Select
+                                    value={getStringValue(selectedPlanPayload.blueprint_id) || undefined}
+                                    onValueChange={(value) => updateSelectedPlanPayload((current) => ({
+                                      ...current,
+                                      blueprint_id: value,
+                                    }))}
+                                  >
+                                    <SelectTrigger>
+                                      <SelectValue placeholder={t("failover.editor.blueprint_placeholder", { defaultValue: "Choose a blueprint" })} />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      {planCatalog?.blueprints?.map((option) => (
+                                        <SelectItem key={option.value} value={option.value}>
+                                          {formatCatalogOptionLabel(option)}
+                                        </SelectItem>
+                                      ))}
+                                    </SelectContent>
+                                  </Select>
+                                ) : (
+                                  <Input
+                                    value={getStringValue(selectedPlanPayload.blueprint_id)}
+                                    onChange={(event) => updateSelectedPlanPayload((current) => ({
+                                      ...current,
+                                      blueprint_id: event.target.value,
+                                    }))}
+                                    placeholder="ubuntu_24_04"
+                                  />
+                                )}
+                              </div>
+                              <div className="space-y-2">
+                                <Label>{t("failover.editor.bundle", { defaultValue: "Bundle" })}</Label>
+                                {(planCatalog?.bundles || []).length > 0 ? (
+                                  <Select
+                                    value={getStringValue(selectedPlanPayload.bundle_id) || undefined}
+                                    onValueChange={(value) => updateSelectedPlanPayload((current) => ({
+                                      ...current,
+                                      bundle_id: value,
+                                    }))}
+                                  >
+                                    <SelectTrigger>
+                                      <SelectValue placeholder={t("failover.editor.bundle_placeholder", { defaultValue: "Choose a bundle" })} />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      {planCatalog?.bundles?.map((option) => (
+                                        <SelectItem key={option.value} value={option.value}>
+                                          {formatCatalogOptionLabel(option)}
+                                        </SelectItem>
+                                      ))}
+                                    </SelectContent>
+                                  </Select>
+                                ) : (
+                                  <Input
+                                    value={getStringValue(selectedPlanPayload.bundle_id)}
+                                    onChange={(event) => updateSelectedPlanPayload((current) => ({
+                                      ...current,
+                                      bundle_id: event.target.value,
+                                    }))}
+                                    placeholder="micro_3_0"
+                                  />
+                                )}
+                              </div>
+                              <div className="space-y-2">
+                                <Label>{t("failover.editor.key_pair", { defaultValue: "Key pair" })}</Label>
+                                {(planCatalog?.key_pairs || []).length > 0 ? (
+                                  <Select
+                                    value={getStringValue(selectedPlanPayload.key_pair_name) || "__none"}
+                                    onValueChange={(value) => updateSelectedPlanPayload((current) => ({
+                                      ...current,
+                                      key_pair_name: value === "__none" ? "" : value,
+                                    }))}
+                                  >
+                                    <SelectTrigger>
+                                      <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      <SelectItem value="__none">{t("failover.editor.no_key_pair", { defaultValue: "No key pair" })}</SelectItem>
+                                      {planCatalog?.key_pairs?.map((option) => (
+                                        <SelectItem key={option.value} value={option.value}>
+                                          {formatCatalogOptionLabel(option)}
+                                        </SelectItem>
+                                      ))}
+                                    </SelectContent>
+                                  </Select>
+                                ) : (
+                                  <Input
+                                    value={getStringValue(selectedPlanPayload.key_pair_name)}
+                                    onChange={(event) => updateSelectedPlanPayload((current) => ({
+                                      ...current,
+                                      key_pair_name: event.target.value,
+                                    }))}
+                                    placeholder={t("failover.editor.no_key_pair", { defaultValue: "No key pair" })}
+                                  />
+                                )}
+                              </div>
+                              <div className="space-y-2">
+                                <Label>{t("cloud.providers.aws.ip_address_type", { defaultValue: "IP Address Type" })}</Label>
+                                <Select
+                                  value={getStringValue(selectedPlanPayload.ip_address_type) || "dualstack"}
+                                  onValueChange={(value) => updateSelectedPlanPayload((current) => ({
+                                    ...current,
+                                    ip_address_type: value,
+                                  }))}
+                                >
+                                  <SelectTrigger>
+                                    <SelectValue placeholder={t("cloud.providers.aws.ip_address_type", { defaultValue: "IP Address Type" })} />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="dualstack">dualstack</SelectItem>
+                                    <SelectItem value="ipv4">ipv4</SelectItem>
+                                    <SelectItem value="ipv6">ipv6</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                              <div className="rounded-xl bg-muted/20 px-4 py-3 lg:col-span-2">
+                                <div className="flex items-center justify-between gap-4">
+                                  <div className="space-y-1">
+                                    <div className="text-sm font-medium text-slate-900 dark:text-slate-50">
+                                      {t("cloud.providers.aws.allow_all_traffic", { defaultValue: "Allow All Traffic" })}
+                                    </div>
+                                    <div className="text-xs text-muted-foreground">
+                                      {t("cloud.providers.aws.allow_all_traffic_on_create", {
+                                        defaultValue: "After launch, allow all IPv4 and IPv6 traffic",
+                                      })}
+                                    </div>
+                                  </div>
+                                  <Switch
+                                    checked={getBooleanValue(selectedPlanPayload.allow_all_traffic, true)}
+                                    onCheckedChange={(checked) => updateSelectedPlanPayload((current) => ({
+                                      ...current,
+                                      allow_all_traffic: Boolean(checked),
+                                    }))}
+                                  />
+                                </div>
                               </div>
                             </>
                           )}
