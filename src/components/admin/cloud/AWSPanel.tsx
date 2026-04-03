@@ -88,7 +88,6 @@ import {
   getAWSCredentials,
   getAWSInstanceDetail,
   getAWSInstancePassword,
-  getAWSLightsailCatalog,
   getAWSLightsailInstanceDetail,
   getAWSLightsailInstancePassword,
   listAWSFollowUpTasks,
@@ -111,7 +110,6 @@ import {
   type AWSFollowUpTask,
   type AWSInstance,
   type AWSInstanceDetail,
-  type AWSLightsailCatalog,
   type AWSLightsailInstance,
   type AWSLightsailInstanceDetail,
   type AWSResourcePassword,
@@ -332,6 +330,36 @@ const STATIC_LIGHTSAIL_BLUEPRINT_PRESETS: StaticLightsailBlueprintPreset[] = [
   {
     value: "amazon_linux_2023",
     label: "Amazon Linux 2023",
+    summary: "OS only, Linux",
+    platform: "linux",
+  },
+  {
+    value: "ubuntu_24_04",
+    label: "Ubuntu 24.04 LTS",
+    summary: "OS only, Linux",
+    platform: "linux",
+  },
+  {
+    value: "ubuntu_22_04",
+    label: "Ubuntu 22.04 LTS",
+    summary: "OS only, Linux",
+    platform: "linux",
+  },
+  {
+    value: "ubuntu_20_04",
+    label: "Ubuntu 20.04 LTS",
+    summary: "OS only, Linux",
+    platform: "linux",
+  },
+  {
+    value: "debian_12",
+    label: "Debian 12",
+    summary: "OS only, Linux",
+    platform: "linux",
+  },
+  {
+    value: "debian_11",
+    label: "Debian 11",
     summary: "OS only, Linux",
     platform: "linux",
   },
@@ -1285,7 +1313,6 @@ export default function AWSPanel() {
   const [savedPassword, setSavedPassword] = React.useState<SavedPasswordState | null>(null);
   const [account, setAccount] = React.useState<AWSAccount | null>(null);
   const [catalog, setCatalog] = React.useState<AWSCatalog | null>(null);
-  const [lightsailCatalog, setLightsailCatalog] = React.useState<AWSLightsailCatalog | null>(null);
   const [instances, setInstances] = React.useState<AWSInstance[]>([]);
   const [lightsailInstances, setLightsailInstances] = React.useState<AWSLightsailInstance[]>([]);
   const [detailInstance, setDetailInstance] = React.useState<AWSInstance | null>(null);
@@ -1347,7 +1374,6 @@ export default function AWSPanel() {
   const clearPanelState = React.useCallback(() => {
     setAccount(null);
     setCatalog(null);
-    setLightsailCatalog(null);
     setInstances([]);
     setLightsailInstances([]);
     setDetailData(null);
@@ -1394,15 +1420,10 @@ export default function AWSPanel() {
 
   const loadLightsailData = React.useCallback(async () => {
     try {
-      const [nextLightsailCatalog, nextLightsailInstances] = await Promise.all([
-        getAWSLightsailCatalog(),
-        listAWSLightsailInstances(),
-      ]);
-      setLightsailCatalog(nextLightsailCatalog);
+      const nextLightsailInstances = await listAWSLightsailInstances();
       setLightsailInstances(nextLightsailInstances);
       setLightsailError("");
     } catch (lightsailLoadError) {
-      setLightsailCatalog(null);
       setLightsailInstances([]);
       setLightsailError(toErrorMessage(lightsailLoadError));
     }
@@ -1425,7 +1446,6 @@ export default function AWSPanel() {
     } catch (panelError) {
       setAccount(null);
       setCatalog(null);
-      setLightsailCatalog(null);
       setInstances([]);
       setLightsailInstances([]);
       setError(toErrorMessage(panelError));
@@ -1625,9 +1645,6 @@ export default function AWSPanel() {
     catalog?.regions.forEach((region) =>
       addRegion(region.name, entries.get(region.name)?.label, entries.get(region.name)?.country, region.endpoint),
     );
-    lightsailCatalog?.regions.forEach((region) =>
-      addRegion(region.name, entries.get(region.name)?.label, entries.get(region.name)?.country),
-    );
 
     return Array.from(entries.values());
   }, [
@@ -1635,7 +1652,6 @@ export default function AWSPanel() {
     activeCredential?.default_region,
     catalog?.regions,
     credentialPool?.active_region,
-    lightsailCatalog?.regions,
   ]);
   const regionSearchPlaceholder = t(
     "cloud.providers.aws.region_search_placeholder",
@@ -2385,6 +2401,34 @@ export default function AWSPanel() {
     });
   };
 
+  const handleQuickReplaceEc2Address = async (instance: AWSInstance) => {
+    const confirmed = await confirm({
+      title: t("cloud.providers.aws.replace_ip", "Replace IP"),
+      description: t("cloud.providers.aws.replace_ip_confirm", {
+        name: instance.name || instance.instance_id,
+        current: instance.public_ip || "-",
+        defaultValue: `Allocate a new public IP for "${instance.name || instance.instance_id}" and release the old IP ${instance.public_ip || ""}?`,
+      }),
+      confirmLabel: t("cloud.providers.aws.replace_ip", "Replace IP"),
+      tone: "warning",
+    });
+    if (!confirmed) return;
+
+    try {
+      await postAWSInstanceAction(instance.instance_id, {
+        type: "replace_address",
+        private_ip: instance.private_ip || "",
+      });
+      toast.success(t("cloud.action_success", "Operation submitted"));
+      await loadPanelData();
+      if (detailInstance?.instance_id === instance.instance_id) {
+        await loadInstanceDetail(instance);
+      }
+    } catch (actionError) {
+      toast.error(toErrorMessage(actionError));
+    }
+  };
+
   const handleLightsailInstanceAction = async (instance: AWSLightsailInstance, type: string) => {
     try {
       await postAWSLightsailInstanceAction(instance.name, { type });
@@ -2471,6 +2515,34 @@ export default function AWSPanel() {
       type: "replace_static_ip",
       static_ip_name: lightsailDetailActionForm.staticIpName,
     });
+  };
+
+  const handleQuickReplaceLightsailStaticIP = async (instance: AWSLightsailInstance) => {
+    const confirmed = await confirm({
+      title: t("cloud.providers.aws.replace_ip", "Replace IP"),
+      description: t("cloud.providers.aws.replace_static_ip_confirm", {
+        name: instance.name,
+        current: instance.public_ip || "-",
+        defaultValue: `Allocate a new static IP for "${instance.name}" and release the old IP ${instance.public_ip || ""}?`,
+      }),
+      confirmLabel: t("cloud.providers.aws.replace_ip", "Replace IP"),
+      tone: "warning",
+    });
+    if (!confirmed) return;
+
+    try {
+      await postAWSLightsailInstanceAction(instance.name, {
+        type: "replace_static_ip",
+        static_ip_name: `${instance.name}-ip-${Date.now()}`,
+      });
+      toast.success(t("cloud.action_success", "Operation submitted"));
+      await loadPanelData();
+      if (lightsailDetailInstance?.name === instance.name) {
+        await loadLightsailDetail(instance);
+      }
+    } catch (actionError) {
+      toast.error(toErrorMessage(actionError));
+    }
   };
 
   const handleDeleteInstance = async (instance: AWSInstance) => {
@@ -3126,6 +3198,15 @@ export default function AWSPanel() {
                                     {t("cloud.reboot", "Reboot")}
                                   </DropdownMenuItem>
                                   <DropdownMenuItem
+                                    disabled={instance.state === "terminated"}
+                                    onSelect={() => {
+                                      void handleQuickReplaceEc2Address(instance);
+                                    }}
+                                  >
+                                    <RefreshCw className="h-4 w-4" />
+                                    {t("cloud.providers.aws.replace_ip", "Replace IP")}
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem
                                     onSelect={() => {
                                       setScriptTarget({
                                         providerLabel: t("cloud.providers.aws.ec2_label", "AWS EC2"),
@@ -3320,6 +3401,14 @@ export default function AWSPanel() {
                                   >
                                     <RotateCcw className="h-4 w-4" />
                                     {t("cloud.reboot", "Reboot")}
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem
+                                    onSelect={() => {
+                                      void handleQuickReplaceLightsailStaticIP(instance);
+                                    }}
+                                  >
+                                    <RefreshCw className="h-4 w-4" />
+                                    {t("cloud.providers.aws.replace_ip", "Replace IP")}
                                   </DropdownMenuItem>
                                   <DropdownMenuItem
                                     onSelect={() => {
