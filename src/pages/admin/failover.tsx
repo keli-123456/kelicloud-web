@@ -68,6 +68,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
+import { Textarea } from "@/components/ui/textarea";
 import {
   getCloudProviderEntries,
   getDigitalOceanTokens,
@@ -344,6 +345,9 @@ const ACTION_TYPE_VALUES: Record<string, string[]> = {
 const DNS_RECORD_TYPE_VALUES = ["A", "AAAA"] as const;
 const AWS_SERVICE_VALUES = ["ec2", "lightsail"] as const;
 const DNS_TTL_OPTIONS = [1, 60, 120, 300, 600, 900, 1800, 3600, 7200] as const;
+const DEFAULT_AWS_FAILOVER_EC2_IMAGE_ID = "resolve:ssm:/aws/service/ami-amazon-linux-latest/al2023-ami-kernel-default-x86_64";
+const DEFAULT_AWS_FAILOVER_LIGHTSAIL_BLUEPRINT_ID = "amazon_linux_2023";
+const DEFAULT_AWS_FAILOVER_LIGHTSAIL_BUNDLE_ID = "nano_3_0";
 const DEFAULT_DIGITALOCEAN_IMAGE = "ubuntu-24-04-x64";
 const DEFAULT_LINODE_IMAGE = "linode/ubuntu24.04";
 const AUTOMATIC_PROVIDER_ENTRY_ID = "active";
@@ -413,6 +417,15 @@ function getStringValue(value: unknown) {
 
 function getBooleanValue(value: unknown, fallback = false) {
   return typeof value === "boolean" ? value : fallback;
+}
+
+function parseResourceIds(value: string) {
+  return Array.from(new Set(
+    String(value || "")
+      .split(/\r?\n|,/)
+      .map((entry) => entry.trim())
+      .filter(Boolean),
+  ));
 }
 
 function getNumberValue(value: unknown, fallback: number) {
@@ -1928,6 +1941,14 @@ function normalizeAWSService(value: unknown) {
   return AWS_SERVICE_VALUES.includes(normalized as (typeof AWS_SERVICE_VALUES)[number]) ? normalized : "ec2";
 }
 
+function getDefaultLightsailAvailabilityZone(region: string) {
+  const normalized = region.trim();
+  if (!normalized) {
+    return "";
+  }
+  return `${normalized}a`;
+}
+
 function formatCatalogOptionLabel(option: { label: string; hint?: string }) {
   return option.hint ? `${option.label} · ${option.hint}` : option.label;
 }
@@ -2352,15 +2373,19 @@ function defaultPlanPayload(provider: string, actionType: string) {
     return {
       service: "ec2",
       region: "",
-      image_id: "",
+      image_id: DEFAULT_AWS_FAILOVER_EC2_IMAGE_ID,
       instance_type: "",
       key_name: "",
       subnet_id: "",
+      security_group_ids: [],
       assign_public_ip: true,
+      assign_ipv6: true,
+      allow_all_traffic: true,
       availability_zone: "",
-      blueprint_id: "",
-      bundle_id: "",
+      blueprint_id: DEFAULT_AWS_FAILOVER_LIGHTSAIL_BLUEPRINT_ID,
+      bundle_id: DEFAULT_AWS_FAILOVER_LIGHTSAIL_BUNDLE_ID,
       key_pair_name: "",
+      ip_address_type: "dualstack",
     };
   }
 
@@ -2591,6 +2616,32 @@ function normalizePlanPayloadForSubmit(
   payload: Record<string, unknown>,
 ) {
   const nextPayload = { ...payload };
+
+  if (provider === "aws" && actionType === "provision_instance") {
+    const service = normalizeAWSService(nextPayload.service);
+    const region = getStringValue(nextPayload.region);
+    nextPayload.service = service;
+    nextPayload.region = region;
+    nextPayload.allow_all_traffic = getBooleanValue(nextPayload.allow_all_traffic, true);
+
+    if (service === "ec2") {
+      nextPayload.image_id = getStringValue(nextPayload.image_id) || DEFAULT_AWS_FAILOVER_EC2_IMAGE_ID;
+      nextPayload.instance_type = getStringValue(nextPayload.instance_type);
+      nextPayload.key_name = getStringValue(nextPayload.key_name);
+      nextPayload.subnet_id = getStringValue(nextPayload.subnet_id);
+      nextPayload.security_group_ids = getStringArrayValue(nextPayload.security_group_ids);
+      nextPayload.assign_public_ip = getBooleanValue(nextPayload.assign_public_ip, true);
+      nextPayload.assign_ipv6 = getBooleanValue(nextPayload.assign_ipv6, true);
+      return nextPayload;
+    }
+
+    nextPayload.availability_zone = getStringValue(nextPayload.availability_zone) || getDefaultLightsailAvailabilityZone(region);
+    nextPayload.blueprint_id = getStringValue(nextPayload.blueprint_id) || DEFAULT_AWS_FAILOVER_LIGHTSAIL_BLUEPRINT_ID;
+    nextPayload.bundle_id = getStringValue(nextPayload.bundle_id) || DEFAULT_AWS_FAILOVER_LIGHTSAIL_BUNDLE_ID;
+    nextPayload.key_pair_name = getStringValue(nextPayload.key_pair_name);
+    nextPayload.ip_address_type = getStringValue(nextPayload.ip_address_type) || "dualstack";
+    return nextPayload;
+  }
 
   if (provider === "digitalocean" && actionType === "provision_instance") {
     const rootPassword = getStringValue(nextPayload.root_password);
@@ -3589,7 +3640,11 @@ function taskToForm(task: FailoverTask, providerEntries: ProviderEntriesMap): Ta
         provider_entry_id: normalizePlanProviderEntryID(plan.provider, plan.provider_entry_id) || AUTOMATIC_PROVIDER_ENTRY_ID,
         provider_entry_group: plan.provider_entry_group.trim(),
         action_type: plan.action_type,
-        payload: prettyJson(plan.payload),
+        payload: prettyJson(normalizePlanPayloadForSubmit(
+          plan.provider,
+          plan.action_type,
+          asRecord(plan.payload) || {},
+        )),
         auto_connect_group: plan.auto_connect_group.trim() || buildSuggestedAutoConnectGroup(
           plan.provider,
           providerEntries,
@@ -3678,16 +3733,30 @@ function summarizePlanPayload(t: TFunction, plan: PlanFormState) {
       if (service === "ec2") {
         const instanceType = getStringValue(payload.instance_type);
         const image = getStringValue(payload.image_id);
+        const securityGroupIDs = getStringArrayValue(payload.security_group_ids);
         if (instanceType) {
           parts.push(instanceType);
         }
         if (image) {
           parts.push(image);
         }
+        if (securityGroupIDs.length > 0) {
+          parts.push(t("failover.editor.security_groups_summary", {
+            defaultValue: "{{count}} security groups",
+            count: securityGroupIDs.length,
+          }));
+        }
+        if (getBooleanValue(payload.assign_ipv6, false)) {
+          parts.push(t("cloud.form.ipv6", { defaultValue: "Enable IPv6" }));
+        }
+        if (getBooleanValue(payload.allow_all_traffic, false)) {
+          parts.push(t("cloud.providers.aws.allow_all_traffic", { defaultValue: "Allow All Traffic" }));
+        }
       } else {
         const zone = getStringValue(payload.availability_zone);
         const blueprint = getStringValue(payload.blueprint_id);
         const bundle = getStringValue(payload.bundle_id);
+        const ipAddressType = getStringValue(payload.ip_address_type);
         if (zone) {
           parts.push(zone);
         }
@@ -3696,6 +3765,12 @@ function summarizePlanPayload(t: TFunction, plan: PlanFormState) {
         }
         if (bundle) {
           parts.push(bundle);
+        }
+        if (ipAddressType) {
+          parts.push(ipAddressType);
+        }
+        if (getBooleanValue(payload.allow_all_traffic, false)) {
+          parts.push(t("cloud.providers.aws.allow_all_traffic", { defaultValue: "Allow All Traffic" }));
         }
       }
     } else {
@@ -7491,6 +7566,9 @@ function TaskEditorDialog({
                                   updateSelectedPlanPayload((current) => ({
                                     ...current,
                                     region: value,
+                                    availability_zone: selectedPlanService === "lightsail" && !getStringValue(current.availability_zone)
+                                      ? getDefaultLightsailAvailabilityZone(value)
+                                      : getStringValue(current.availability_zone),
                                   }));
                                   resetPlanCatalogState(keepPlanCatalogRegions(
                                     planCatalog,
@@ -7520,6 +7598,9 @@ function TaskEditorDialog({
                                   updateSelectedPlanPayload((current) => ({
                                     ...current,
                                     region: value,
+                                    availability_zone: selectedPlanService === "lightsail" && !getStringValue(current.availability_zone)
+                                      ? getDefaultLightsailAvailabilityZone(value)
+                                      : getStringValue(current.availability_zone),
                                   }));
                                   resetPlanCatalogState(keepPlanCatalogRegions(
                                     planCatalog,
@@ -7665,6 +7746,30 @@ function TaskEditorDialog({
                                   />
                                 )}
                               </div>
+                              <div className="space-y-2 lg:col-span-2">
+                                <Label>{t("cloud.providers.aws.security_groups", { defaultValue: "Security Groups" })}</Label>
+                                <div className="text-xs text-muted-foreground">
+                                  {t("failover.editor.security_groups_hint", {
+                                    defaultValue: "Enter one or more security group IDs separated by commas or new lines. Leave empty to keep the default security group on the selected subnet.",
+                                  })}
+                                </div>
+                                <Textarea
+                                  className="min-h-24 font-mono text-xs [overflow-wrap:anywhere]"
+                                  value={getStringArrayValue(selectedPlanPayload.security_group_ids).join("\n")}
+                                  onChange={(event) => updateSelectedPlanPayload((current) => ({
+                                    ...current,
+                                    security_group_ids: parseResourceIds(event.target.value),
+                                  }))}
+                                />
+                                {planCatalog?.security_groups?.length ? (
+                                  <div className="text-xs text-muted-foreground">
+                                    {t("failover.editor.security_groups_loaded_hint", {
+                                      defaultValue: "Loaded options: {{options}}",
+                                      options: planCatalog.security_groups.map((option) => option.value).join(", "),
+                                    })}
+                                  </div>
+                                ) : null}
+                              </div>
                               <div className="rounded-xl bg-muted/20 px-4 py-3 lg:col-span-2">
                                 <div className="flex items-center justify-between gap-4">
                                   <div className="space-y-1">
@@ -7680,6 +7785,48 @@ function TaskEditorDialog({
                                     onCheckedChange={(checked) => updateSelectedPlanPayload((current) => ({
                                       ...current,
                                       assign_public_ip: Boolean(checked),
+                                    }))}
+                                  />
+                                </div>
+                              </div>
+                              <div className="rounded-xl bg-muted/20 px-4 py-3 lg:col-span-2">
+                                <div className="flex items-center justify-between gap-4">
+                                  <div className="space-y-1">
+                                    <div className="text-sm font-medium text-slate-900 dark:text-slate-50">
+                                      {t("cloud.form.ipv6", { defaultValue: "Enable IPv6" })}
+                                    </div>
+                                    <div className="text-xs text-muted-foreground">
+                                      {t("failover.editor.assign_ipv6_hint", {
+                                        defaultValue: "Request an IPv6 address during instance creation and verify it after launch.",
+                                      })}
+                                    </div>
+                                  </div>
+                                  <Switch
+                                    checked={getBooleanValue(selectedPlanPayload.assign_ipv6, true)}
+                                    onCheckedChange={(checked) => updateSelectedPlanPayload((current) => ({
+                                      ...current,
+                                      assign_ipv6: Boolean(checked),
+                                    }))}
+                                  />
+                                </div>
+                              </div>
+                              <div className="rounded-xl bg-muted/20 px-4 py-3 lg:col-span-2">
+                                <div className="flex items-center justify-between gap-4">
+                                  <div className="space-y-1">
+                                    <div className="text-sm font-medium text-slate-900 dark:text-slate-50">
+                                      {t("cloud.providers.aws.allow_all_traffic", { defaultValue: "Allow All Traffic" })}
+                                    </div>
+                                    <div className="text-xs text-muted-foreground">
+                                      {t("cloud.providers.aws.allow_all_traffic_on_create", {
+                                        defaultValue: "After launch, allow all IPv4 and IPv6 traffic",
+                                      })}
+                                    </div>
+                                  </div>
+                                  <Switch
+                                    checked={getBooleanValue(selectedPlanPayload.allow_all_traffic, true)}
+                                    onCheckedChange={(checked) => updateSelectedPlanPayload((current) => ({
+                                      ...current,
+                                      allow_all_traffic: Boolean(checked),
                                     }))}
                                   />
                                 </div>
@@ -7815,6 +7962,46 @@ function TaskEditorDialog({
                                     placeholder={t("failover.editor.no_key_pair", { defaultValue: "No key pair" })}
                                   />
                                 )}
+                              </div>
+                              <div className="space-y-2">
+                                <Label>{t("cloud.providers.aws.ip_address_type", { defaultValue: "IP Address Type" })}</Label>
+                                <Select
+                                  value={getStringValue(selectedPlanPayload.ip_address_type) || "dualstack"}
+                                  onValueChange={(value) => updateSelectedPlanPayload((current) => ({
+                                    ...current,
+                                    ip_address_type: value,
+                                  }))}
+                                >
+                                  <SelectTrigger>
+                                    <SelectValue placeholder={t("cloud.providers.aws.ip_address_type", { defaultValue: "IP Address Type" })} />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="dualstack">dualstack</SelectItem>
+                                    <SelectItem value="ipv4">ipv4</SelectItem>
+                                    <SelectItem value="ipv6">ipv6</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                              <div className="rounded-xl bg-muted/20 px-4 py-3 lg:col-span-2">
+                                <div className="flex items-center justify-between gap-4">
+                                  <div className="space-y-1">
+                                    <div className="text-sm font-medium text-slate-900 dark:text-slate-50">
+                                      {t("cloud.providers.aws.allow_all_traffic", { defaultValue: "Allow All Traffic" })}
+                                    </div>
+                                    <div className="text-xs text-muted-foreground">
+                                      {t("cloud.providers.aws.allow_all_traffic_on_create", {
+                                        defaultValue: "After launch, allow all IPv4 and IPv6 traffic",
+                                      })}
+                                    </div>
+                                  </div>
+                                  <Switch
+                                    checked={getBooleanValue(selectedPlanPayload.allow_all_traffic, true)}
+                                    onCheckedChange={(checked) => updateSelectedPlanPayload((current) => ({
+                                      ...current,
+                                      allow_all_traffic: Boolean(checked),
+                                    }))}
+                                  />
+                                </div>
                               </div>
                             </>
                           )}
