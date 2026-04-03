@@ -422,7 +422,7 @@ const initialCreateForm: CreateFormState = {
   assign_public_ip: true,
   assign_ipv6: true,
   allow_all_traffic: true,
-  root_password_mode: "none",
+  root_password_mode: "random",
   root_password: "",
   auto_connect: true,
   auto_connect_group: "",
@@ -1236,6 +1236,15 @@ function formatElasticAddress(address: AWSElasticAddress) {
   return parts.join(" / ") || "-";
 }
 
+function formatAddressList(values: string[]) {
+  const normalized = values.map((value) => value.trim()).filter(Boolean);
+  return normalized.length ? normalized.join(", ") : "-";
+}
+
+function getEC2PrimaryAddress(instance: AWSInstance) {
+  return instance.public_ip || instance.ipv6_addresses[0] || instance.private_ip || "";
+}
+
 function getCreateFollowUpWarningMessage(t: ReturnType<typeof useTranslation>["t"], warning: string) {
   return t("cloud.providers.aws.post_create_warning", {
     message: warning,
@@ -1657,7 +1666,6 @@ export default function AWSPanel() {
   ]);
   const ec2NetworkSummary = joinSummaryParts([
     createForm.key_name || t("cloud.providers.aws.none", "None"),
-    createForm.subnet_id || t("cloud.providers.aws.default_network", "Default network"),
     createForm.security_group_ids.length > 0
       ? `${createForm.security_group_ids.length} ${t("cloud.providers.aws.security_groups", "Security Groups")}`
       : t("cloud.providers.aws.none", "None"),
@@ -2118,7 +2126,7 @@ export default function AWSPanel() {
         image_id: createForm.image_id,
         instance_type: createForm.instance_type,
         key_name: createForm.key_name,
-        subnet_id: createForm.subnet_id,
+        subnet_id: "",
         security_group_ids: createForm.security_group_ids,
         user_data: createForm.user_data,
         assign_public_ip: createForm.assign_public_ip,
@@ -2131,6 +2139,12 @@ export default function AWSPanel() {
         auto_connect_group: createForm.auto_connect_group || defaultCreateGroup,
       };
       const result = await createAWSInstance(payload);
+      const createdInstance = {
+        ...result.instance,
+        saved_root_password: result.instance.saved_root_password || result.password_saved,
+        saved_root_password_updated_at:
+          result.instance.saved_root_password_updated_at || (result.password_saved ? new Date().toISOString() : ""),
+      };
       toast.success(t("cloud.providers.aws.create_success", "EC2 instance launch submitted"));
       if (result.warning) {
         toast.warning(getCreateFollowUpWarningMessage(t, result.warning));
@@ -2143,7 +2157,7 @@ export default function AWSPanel() {
           : result.generated_password;
       if ((submittedPasswordMode === "custom" || submittedPasswordMode === "random") && createdRootPassword) {
         setCreatedPassword({
-          resourceName: result.instance.name || result.instance.instance_id,
+          resourceName: createdInstance.name || createdInstance.instance_id,
           rootPassword: createdRootPassword,
           passwordMode: submittedPasswordMode as "custom" | "random",
           resourceKind: "ec2",
@@ -2163,8 +2177,8 @@ export default function AWSPanel() {
       }));
       if (activeContextReady && resolvedCreateRegion === activeRegion && resourcesLoaded) {
         setInstances((previous) => {
-          const withoutCurrent = previous.filter((instance) => instance.instance_id !== result.instance.instance_id);
-          return [result.instance, ...withoutCurrent];
+          const withoutCurrent = previous.filter((instance) => instance.instance_id !== createdInstance.instance_id);
+          return [createdInstance, ...withoutCurrent];
         });
       }
     } catch (createError) {
@@ -2979,9 +2993,9 @@ export default function AWSPanel() {
                       <TableHead>{t("cloud.table.status", "Status")}</TableHead>
                       <TableHead>{t("cloud.providers.aws.az", "AZ")}</TableHead>
                       <TableHead>{t("cloud.table.ip", "Public IP")}</TableHead>
+                      <TableHead>{t("cloud.detail.ipv6", "IPv6 Networks")}</TableHead>
                       <TableHead>{t("cloud.table.size", "Size")}</TableHead>
                       <TableHead>{t("cloud.table.image", "Image")}</TableHead>
-                      <TableHead>{t("cloud.providers.aws.key_pair", "Key Pair")}</TableHead>
                       <TableHead>{t("cloud.table.password", "Root Password")}</TableHead>
                       <TableHead>{t("cloud.table.created_at", "Created")}</TableHead>
                       <TableHead className="text-right">{t("common.action", "Action")}</TableHead>
@@ -3025,9 +3039,9 @@ export default function AWSPanel() {
                           </TableCell>
                           <TableCell>{instance.availability_zone || "-"}</TableCell>
                           <TableCell>{instance.public_ip || instance.private_ip || "-"}</TableCell>
+                          <TableCell>{formatAddressList(instance.ipv6_addresses)}</TableCell>
                           <TableCell>{instance.instance_type || "-"}</TableCell>
                           <TableCell>{instance.image_id || "-"}</TableCell>
-                          <TableCell>{instance.key_name || "-"}</TableCell>
                           <TableCell>
                             {instance.saved_root_password ? (
                               <div className="space-y-1">
@@ -3117,7 +3131,7 @@ export default function AWSPanel() {
                                         providerLabel: t("cloud.providers.aws.ec2_label", "AWS EC2"),
                                         instanceName: instance.name || instance.instance_id,
                                         instanceIdentifier: instance.instance_id,
-                                        addresses: [instance.public_ip, instance.private_ip].filter(Boolean),
+                                        addresses: [instance.public_ip, ...instance.ipv6_addresses, instance.private_ip].filter(Boolean),
                                         groupHint: getDefaultAutoConnectGroup("aws", activeCredential?.name || ""),
                                       });
                                     }}
@@ -3134,7 +3148,7 @@ export default function AWSPanel() {
                                         providerLabel: t("cloud.providers.aws.ec2_label", "AWS EC2"),
                                         credentialName: getActiveCredential(credentialPool)?.name || "",
                                         region: activeRegion,
-                                        primaryAddress: instance.public_ip || instance.private_ip || "",
+                                        primaryAddress: getEC2PrimaryAddress(instance),
                                         canSharePassword: Boolean(instance.saved_root_password && passwordStorageEnabled),
                                         canShareManagedSSHKey: false,
                                       });
@@ -3651,21 +3665,6 @@ export default function AWSPanel() {
                     value={createForm.key_name}
                     placeholder={t("cloud.providers.aws.key_pair_manual_placeholder", "Optional key pair name")}
                     onChange={(event) => setCreateForm((previous) => ({ ...previous, key_name: event.target.value }))}
-                  />
-                </div>
-                <div>
-                  <label className={cloudPanelFieldLabelClassName}>
-                    {t("cloud.providers.aws.subnet", "Subnet")}
-                  </label>
-                  <TextField.Root
-                    value={createForm.subnet_id}
-                    placeholder={t("cloud.providers.aws.subnet_manual_placeholder", "Optional subnet ID, for example subnet-abc123")}
-                    onChange={(event) =>
-                      setCreateForm((previous) => ({
-                        ...previous,
-                        subnet_id: event.target.value,
-                      }))
-                    }
                   />
                 </div>
               </div>
@@ -4408,7 +4407,7 @@ export default function AWSPanel() {
                               providerLabel: t("cloud.providers.aws.ec2_label", "AWS EC2"),
                               instanceName: detailData.instance.name || detailData.instance.instance_id,
                               instanceIdentifier: detailData.instance.instance_id,
-                              addresses: [detailData.instance.public_ip, detailData.instance.private_ip].filter(Boolean),
+                              addresses: [detailData.instance.public_ip, ...detailData.instance.ipv6_addresses, detailData.instance.private_ip].filter(Boolean),
                               groupHint: getDefaultAutoConnectGroup("aws", activeCredential?.name || ""),
                             });
                           }}
@@ -4425,7 +4424,7 @@ export default function AWSPanel() {
                               providerLabel: t("cloud.providers.aws.ec2_label", "AWS EC2"),
                               credentialName: getActiveCredential(credentialPool)?.name || "",
                               region: activeRegion,
-                              primaryAddress: detailData.instance.public_ip || detailData.instance.private_ip || "",
+                              primaryAddress: getEC2PrimaryAddress(detailData.instance),
                               canSharePassword: Boolean(detailData.instance.saved_root_password && passwordStorageEnabled),
                               canShareManagedSSHKey: false,
                             });
@@ -4455,6 +4454,7 @@ export default function AWSPanel() {
                   />
                   <PlainDetailItem label={t("cloud.table.image", "Image")} value={detailData.instance.image_id || "-"} />
                   <PlainDetailItem label={t("cloud.providers.aws.key_pair", "Key Pair")} value={detailData.instance.key_name || "-"} />
+                  <PlainDetailItem label={t("cloud.detail.ipv6", "IPv6 Networks")} value={formatAddressList(detailData.instance.ipv6_addresses)} />
                   <PlainDetailItem
                     label={t("cloud.table.password", "Root Password")}
                     value={

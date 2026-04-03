@@ -183,6 +183,7 @@ export type AWSInstance = {
   key_name: string;
   public_ip: string;
   private_ip: string;
+  ipv6_addresses: string[];
   availability_zone: string;
   launch_time: string;
   tags: Record<string, string>;
@@ -659,6 +660,7 @@ function normalizeInstance(
     key_name: String(instance?.key_name || ""),
     public_ip: String(instance?.public_ip || ""),
     private_ip: String(instance?.private_ip || ""),
+    ipv6_addresses: normalizeStringArray(instance?.ipv6_addresses),
     availability_zone: String(instance?.availability_zone || ""),
     launch_time: String(instance?.launch_time || ""),
     tags,
