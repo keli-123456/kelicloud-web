@@ -466,7 +466,7 @@ const initialLightsailCreateForm: LightsailCreateFormState = {
   user_data: "",
   ip_address_type: "dualstack",
   allow_all_traffic: true,
-  root_password_mode: "none",
+  root_password_mode: "random",
   root_password: "",
   auto_connect: true,
   auto_connect_group: "",
@@ -2253,6 +2253,9 @@ export default function AWSPanel() {
         auto_connect: true,
         auto_connect_group: defaultCreateGroup,
       }));
+      if (activeContextReady && resolvedLightsailCreateRegion === activeRegion && resourcesLoaded) {
+        await loadLightsailData();
+      }
     } catch (createError) {
       toast.error(toErrorMessage(createError));
     } finally {
