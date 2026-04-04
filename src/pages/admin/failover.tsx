@@ -178,6 +178,37 @@ type ProviderEntryOption = {
 type EntryValues = Record<string, unknown>;
 type DnsSyncMode = "ipv4" | "ipv6" | "dual_stack";
 
+type StaticEC2InstanceTypePreset = {
+  value: string;
+  label: string;
+  summary: string;
+};
+
+type StaticEC2ImagePreset = {
+  value: string;
+  label: string;
+  summary: string;
+};
+
+type StaticLightsailBlueprintPreset = {
+  value: string;
+  label: string;
+  summary: string;
+  platform: "linux" | "windows";
+};
+
+type StaticLightsailBundlePreset = {
+  value: string;
+  label: string;
+  summary: string;
+  platform: "linux" | "windows";
+};
+
+type AWSPlanTag = {
+  key: string;
+  value: string;
+};
+
 type SearchableCatalogSelectProps = {
   value?: string;
   options: FailoverCatalogOption[];
@@ -244,6 +275,10 @@ function SearchableCatalogSelect({
     }
   }, [open, searchQuery]);
 
+  const stopScrollPropagation = React.useCallback((event: React.SyntheticEvent) => {
+    event.stopPropagation();
+  }, []);
+
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
@@ -270,6 +305,8 @@ function SearchableCatalogSelect({
         align="start"
         sideOffset={6}
         className="z-[60] flex max-h-[min(24rem,calc(100vh-2rem))] w-[var(--radix-popover-trigger-width)] min-w-[18rem] max-w-[calc(100vw-2rem)] flex-col overflow-hidden p-0"
+        onWheelCapture={stopScrollPropagation}
+        onTouchMoveCapture={stopScrollPropagation}
       >
         <div className="border-b p-2">
           <Input
@@ -279,7 +316,11 @@ function SearchableCatalogSelect({
             placeholder={searchPlaceholder}
           />
         </div>
-        <div className="h-[min(18rem,calc(100vh-10rem))] min-h-0 overflow-y-auto overscroll-contain [scrollbar-gutter:stable] p-1">
+        <div
+          className="h-[min(18rem,calc(100vh-10rem))] min-h-0 overflow-y-auto overscroll-contain touch-pan-y [scrollbar-gutter:stable] p-1"
+          onWheelCapture={stopScrollPropagation}
+          onTouchMoveCapture={stopScrollPropagation}
+        >
           {filteredOptions.length === 0 ? (
             <div className="px-3 py-6 text-sm text-muted-foreground">
               {emptyLabel}
@@ -345,9 +386,154 @@ const ACTION_TYPE_VALUES: Record<string, string[]> = {
 const DNS_RECORD_TYPE_VALUES = ["A", "AAAA"] as const;
 const AWS_SERVICE_VALUES = ["ec2", "lightsail"] as const;
 const DNS_TTL_OPTIONS = [1, 60, 120, 300, 600, 900, 1800, 3600, 7200] as const;
-const DEFAULT_AWS_FAILOVER_EC2_IMAGE_ID = "resolve:ssm:/aws/service/ami-amazon-linux-latest/al2023-ami-kernel-default-x86_64";
-const DEFAULT_AWS_FAILOVER_LIGHTSAIL_BLUEPRINT_ID = "amazon_linux_2023";
-const DEFAULT_AWS_FAILOVER_LIGHTSAIL_BUNDLE_ID = "nano_3_0";
+const COMMON_AWS_REGIONS: FailoverCatalogOption[] = [
+  { value: "us-east-2", label: "US East (Ohio)", hint: "" },
+  { value: "us-east-1", label: "US East (N. Virginia)", hint: "" },
+  { value: "us-west-1", label: "US West (N. California)", hint: "" },
+  { value: "us-west-2", label: "US West (Oregon)", hint: "" },
+  { value: "af-south-1", label: "Africa (Cape Town)", hint: "" },
+  { value: "ap-east-1", label: "Asia Pacific (Hong Kong)", hint: "" },
+  { value: "ap-south-2", label: "Asia Pacific (Hyderabad)", hint: "" },
+  { value: "ap-southeast-3", label: "Asia Pacific (Jakarta)", hint: "" },
+  { value: "ap-southeast-5", label: "Asia Pacific (Malaysia)", hint: "" },
+  { value: "ap-southeast-4", label: "Asia Pacific (Melbourne)", hint: "" },
+  { value: "ap-south-1", label: "Asia Pacific (Mumbai)", hint: "" },
+  { value: "ap-southeast-6", label: "Asia Pacific (New Zealand)", hint: "" },
+  { value: "ap-northeast-3", label: "Asia Pacific (Osaka)", hint: "" },
+  { value: "ap-northeast-2", label: "Asia Pacific (Seoul)", hint: "" },
+  { value: "ap-southeast-1", label: "Asia Pacific (Singapore)", hint: "" },
+  { value: "ap-southeast-2", label: "Asia Pacific (Sydney)", hint: "" },
+  { value: "ap-east-2", label: "Asia Pacific (Taipei)", hint: "" },
+  { value: "ap-southeast-7", label: "Asia Pacific (Thailand)", hint: "" },
+  { value: "ap-northeast-1", label: "Asia Pacific (Tokyo)", hint: "" },
+  { value: "ca-central-1", label: "Canada (Central)", hint: "" },
+  { value: "ca-west-1", label: "Canada West (Calgary)", hint: "" },
+  { value: "cn-north-1", label: "China (Beijing)", hint: "" },
+  { value: "cn-northwest-1", label: "China (Ningxia)", hint: "" },
+  { value: "eu-central-1", label: "Europe (Frankfurt)", hint: "" },
+  { value: "eu-west-1", label: "Europe (Ireland)", hint: "" },
+  { value: "eu-west-2", label: "Europe (London)", hint: "" },
+  { value: "eu-south-1", label: "Europe (Milan)", hint: "" },
+  { value: "eu-west-3", label: "Europe (Paris)", hint: "" },
+  { value: "eu-south-2", label: "Europe (Spain)", hint: "" },
+  { value: "eu-north-1", label: "Europe (Stockholm)", hint: "" },
+  { value: "eu-central-2", label: "Europe (Zurich)", hint: "" },
+  { value: "il-central-1", label: "Israel (Tel Aviv)", hint: "" },
+  { value: "mx-central-1", label: "Mexico (Central)", hint: "" },
+  { value: "me-south-1", label: "Middle East (Bahrain)", hint: "" },
+  { value: "me-central-1", label: "Middle East (UAE)", hint: "" },
+  { value: "sa-east-1", label: "South America (Sao Paulo)", hint: "" },
+  { value: "us-gov-east-1", label: "AWS GovCloud (US-East)", hint: "" },
+  { value: "us-gov-west-1", label: "AWS GovCloud (US-West)", hint: "" },
+];
+const STATIC_EC2_INSTANCE_TYPE_PRESETS: StaticEC2InstanceTypePreset[] = [
+  { value: "t3.micro", label: "t3.micro", summary: "Burstable x86 general purpose" },
+  { value: "t3.small", label: "t3.small", summary: "Burstable x86 general purpose" },
+  { value: "t3.medium", label: "t3.medium", summary: "Burstable x86 general purpose" },
+  { value: "m7i.large", label: "m7i.large", summary: "Balanced x86 general purpose" },
+  { value: "c7i.large", label: "c7i.large", summary: "x86 compute optimized" },
+  { value: "r7i.large", label: "r7i.large", summary: "x86 memory optimized" },
+  { value: "t4g.micro", label: "t4g.micro", summary: "Burstable Graviton (ARM64)" },
+  { value: "t4g.small", label: "t4g.small", summary: "Burstable Graviton (ARM64)" },
+  { value: "t4g.medium", label: "t4g.medium", summary: "Burstable Graviton (ARM64)" },
+  { value: "m7g.large", label: "m7g.large", summary: "Balanced Graviton (ARM64)" },
+  { value: "c7g.large", label: "c7g.large", summary: "Graviton compute optimized" },
+  { value: "r7g.large", label: "r7g.large", summary: "Graviton memory optimized" },
+];
+const STATIC_EC2_IMAGE_PRESETS: StaticEC2ImagePreset[] = [
+  {
+    value: "resolve:ssm:/aws/service/ami-amazon-linux-latest/al2023-ami-kernel-default-x86_64",
+    label: "Amazon Linux 2023",
+    summary: "AWS public parameter, x86_64, default kernel",
+  },
+  {
+    value: "resolve:ssm:/aws/service/ami-amazon-linux-latest/al2023-ami-minimal-kernel-default-x86_64",
+    label: "Amazon Linux 2023 Minimal",
+    summary: "AWS public parameter, x86_64, minimal image",
+  },
+  {
+    value: "resolve:ssm:/aws/service/ami-amazon-linux-latest/al2023-ami-kernel-default-arm64",
+    label: "Amazon Linux 2023 ARM64",
+    summary: "AWS public parameter, arm64, Graviton-ready",
+  },
+  {
+    value: "resolve:ssm:/aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-x86_64-gp2",
+    label: "Amazon Linux 2",
+    summary: "AWS public parameter, x86_64, legacy-compatible",
+  },
+  {
+    value: "resolve:ssm:/aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-arm64-gp2",
+    label: "Amazon Linux 2 ARM64",
+    summary: "AWS public parameter, arm64, legacy-compatible",
+  },
+  {
+    value: "resolve:ssm:/aws/service/canonical/ubuntu/server/24.04/stable/current/amd64/hvm/ebs-gp3/ami-id",
+    label: "Ubuntu Server 24.04 LTS",
+    summary: "Canonical public parameter, amd64, gp3",
+  },
+  {
+    value: "resolve:ssm:/aws/service/canonical/ubuntu/server/24.04/stable/current/arm64/hvm/ebs-gp3/ami-id",
+    label: "Ubuntu Server 24.04 LTS ARM64",
+    summary: "Canonical public parameter, arm64, gp3",
+  },
+  {
+    value: "resolve:ssm:/aws/service/canonical/ubuntu/server/22.04/stable/current/amd64/hvm/ebs-gp2/ami-id",
+    label: "Ubuntu Server 22.04 LTS",
+    summary: "Canonical public parameter, amd64, gp2",
+  },
+  {
+    value: "resolve:ssm:/aws/service/canonical/ubuntu/server/22.04/stable/current/arm64/hvm/ebs-gp2/ami-id",
+    label: "Ubuntu Server 22.04 LTS ARM64",
+    summary: "Canonical public parameter, arm64, gp2",
+  },
+  {
+    value: "komari:debian-13-amd64",
+    label: "Debian 13",
+    summary: "Official Debian public AMI, latest amd64",
+  },
+  {
+    value: "komari:debian-13-arm64",
+    label: "Debian 13 ARM64",
+    summary: "Official Debian public AMI, latest arm64",
+  },
+  {
+    value: "komari:debian-12-amd64",
+    label: "Debian 12",
+    summary: "Official Debian public AMI, latest amd64",
+  },
+  {
+    value: "komari:debian-12-arm64",
+    label: "Debian 12 ARM64",
+    summary: "Official Debian public AMI, latest arm64",
+  },
+  {
+    value: "resolve:ssm:/aws/service/ami-windows-latest/Windows_Server-2022-English-Full-Base",
+    label: "Windows Server 2022",
+    summary: "AWS public parameter, x86_64, English Full Base",
+  },
+];
+const STATIC_LIGHTSAIL_BLUEPRINT_PRESETS: StaticLightsailBlueprintPreset[] = [
+  { value: "amazon_linux_2023", label: "Amazon Linux 2023", summary: "OS only, Linux", platform: "linux" },
+  { value: "ubuntu_24_04", label: "Ubuntu 24.04 LTS", summary: "OS only, Linux", platform: "linux" },
+  { value: "ubuntu_22_04", label: "Ubuntu 22.04 LTS", summary: "OS only, Linux", platform: "linux" },
+  { value: "ubuntu_20_04", label: "Ubuntu 20.04 LTS", summary: "OS only, Linux", platform: "linux" },
+  { value: "debian_12", label: "Debian 12", summary: "OS only, Linux", platform: "linux" },
+  { value: "debian_11", label: "Debian 11", summary: "OS only, Linux", platform: "linux" },
+  { value: "wordpress", label: "WordPress", summary: "Bitnami app image, Linux", platform: "linux" },
+  { value: "windows_server_2022", label: "Windows Server 2022", summary: "OS only, Windows", platform: "windows" },
+];
+const STATIC_LIGHTSAIL_BUNDLE_PRESETS: StaticLightsailBundlePreset[] = [
+  { value: "nano_3_0", label: "Nano", summary: "$5/mo, 0.5 GB RAM, 20 GB SSD", platform: "linux" },
+  { value: "micro_3_0", label: "Micro", summary: "$7/mo, 1 GB RAM, 40 GB SSD", platform: "linux" },
+  { value: "small_3_0", label: "Small", summary: "$12/mo, 2 GB RAM, 60 GB SSD", platform: "linux" },
+  { value: "medium_3_0", label: "Medium", summary: "$24/mo, 4 GB RAM, 80 GB SSD", platform: "linux" },
+  { value: "large_3_0", label: "Large", summary: "$44/mo, 8 GB RAM, 160 GB SSD", platform: "linux" },
+  { value: "large_win_3_0", label: "Large Windows", summary: "Windows plan example from AWS docs", platform: "windows" },
+];
+const DEFAULT_AWS_FAILOVER_EC2_INSTANCE_TYPE = STATIC_EC2_INSTANCE_TYPE_PRESETS[0]?.value || "t3.micro";
+const DEFAULT_AWS_FAILOVER_EC2_IMAGE_ID = STATIC_EC2_IMAGE_PRESETS[0]?.value || "resolve:ssm:/aws/service/ami-amazon-linux-latest/al2023-ami-kernel-default-x86_64";
+const DEFAULT_AWS_FAILOVER_LIGHTSAIL_BLUEPRINT_ID = STATIC_LIGHTSAIL_BLUEPRINT_PRESETS[0]?.value || "amazon_linux_2023";
+const DEFAULT_AWS_FAILOVER_LIGHTSAIL_BUNDLE_ID = STATIC_LIGHTSAIL_BUNDLE_PRESETS.find((preset) => preset.platform === "linux")?.value || "nano_3_0";
 const DEFAULT_DIGITALOCEAN_IMAGE = "ubuntu-24-04-x64";
 const DEFAULT_LINODE_IMAGE = "linode/ubuntu24.04";
 const AUTOMATIC_PROVIDER_ENTRY_ID = "active";
@@ -419,13 +605,78 @@ function getBooleanValue(value: unknown, fallback = false) {
   return typeof value === "boolean" ? value : fallback;
 }
 
-function parseResourceIds(value: string) {
-  return Array.from(new Set(
-    String(value || "")
-      .split(/\r?\n|,/)
-      .map((entry) => entry.trim())
-      .filter(Boolean),
-  ));
+function normalizeAWSTag(tag: unknown): AWSPlanTag | null {
+  if (!tag || typeof tag !== "object") {
+    return null;
+  }
+
+  const key = getStringValue((tag as { key?: unknown }).key);
+  const value = getStringValue((tag as { value?: unknown }).value);
+  if (!key || !value) {
+    return null;
+  }
+
+  return { key, value };
+}
+
+function getAWSTagArrayValue(value: unknown) {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  const tags: AWSPlanTag[] = [];
+  const seen = new Set<string>();
+  for (const item of value) {
+    const tag = normalizeAWSTag(item);
+    if (!tag) {
+      continue;
+    }
+
+    const dedupeKey = `${tag.key}\u0000${tag.value}`;
+    if (seen.has(dedupeKey)) {
+      continue;
+    }
+    seen.add(dedupeKey);
+    tags.push(tag);
+  }
+
+  return tags;
+}
+
+function parseAWSTagsText(value: string) {
+  const tags: AWSPlanTag[] = [];
+  const seen = new Set<string>();
+
+  for (const entry of String(value || "").split(/\r?\n|,/)) {
+    const normalized = entry.trim();
+    if (!normalized) {
+      continue;
+    }
+
+    const separatorIndex = normalized.indexOf("=");
+    if (separatorIndex <= 0) {
+      continue;
+    }
+
+    const key = normalized.slice(0, separatorIndex).trim();
+    const tagValue = normalized.slice(separatorIndex + 1).trim();
+    if (!key || !tagValue) {
+      continue;
+    }
+
+    const dedupeKey = `${key}\u0000${tagValue}`;
+    if (seen.has(dedupeKey)) {
+      continue;
+    }
+    seen.add(dedupeKey);
+    tags.push({ key, value: tagValue });
+  }
+
+  return tags;
+}
+
+function formatAWSTagsText(tags: AWSPlanTag[]) {
+  return tags.map((tag) => `${tag.key}=${tag.value}`).join("\n");
 }
 
 function getNumberValue(value: unknown, fallback: number) {
@@ -1086,7 +1337,7 @@ function getExecutionServiceLabel(t: TFunction, ref: Record<string, unknown> | n
   return humanizeStatus(service);
 }
 
-function getExecutionDnsRecordSummaries(value: unknown) {
+function getExecutionDnsRecordSummaries(t: TFunction, value: unknown) {
   const raw = asRecord(value);
   if (!raw) {
     return [] as string[];
@@ -1105,7 +1356,7 @@ function getExecutionDnsRecordSummaries(value: unknown) {
     ), [
       normalizeDnsRecordType(getStringValue(record.type)),
       getStringValue(record.value),
-      getStringValue(record.line) ? localizeAliyunLineLabel(getStringValue(record.line)) : "",
+      getStringValue(record.line) ? localizeAliyunLineLabel(t, getStringValue(record.line)) : "",
     ].filter(Boolean).join(" · ")].filter(Boolean).join(" · ");
     if (!line || seen.has(line)) {
       return;
@@ -1221,7 +1472,7 @@ function buildExecutionDnsSummaryCard(t: TFunction, execution: FailoverExecution
         verification,
       ),
     ].filter((item): item is DetailItem => Boolean(item)),
-    detailLines: getExecutionDnsRecordSummaries(execution.dns_result),
+    detailLines: getExecutionDnsRecordSummaries(t, execution.dns_result),
     detailLinesTitle: t("failover.execution.latest_dns_records", { defaultValue: "Latest records" }),
     emptyLabel: t("failover.execution.no_dns_target", {
       defaultValue: "No saved DNS target details are available for this execution yet.",
@@ -1959,6 +2210,78 @@ function getDefaultLightsailAvailabilityZone(region: string) {
   return `${normalized}a`;
 }
 
+function inferLightsailBundlePlatform(bundleId: string): "linux" | "windows" | "" {
+  const normalized = bundleId.trim().toLowerCase();
+  if (!normalized) {
+    return "";
+  }
+  return STATIC_LIGHTSAIL_BUNDLE_PRESETS.find((preset) => preset.value === normalized)?.platform || "";
+}
+
+function inferLightsailBlueprintPlatform(blueprintId: string): "linux" | "windows" | "" {
+  const normalized = blueprintId.trim().toLowerCase();
+  if (!normalized) {
+    return "";
+  }
+  if (normalized.includes("windows") || normalized.includes("sqlserver")) {
+    return "windows";
+  }
+  return STATIC_LIGHTSAIL_BLUEPRINT_PRESETS.find((preset) => preset.value === normalized)?.platform || "";
+}
+
+function inferEC2InstanceArchitecture(instanceType: string): "x86_64" | "arm64" | "" {
+  const normalized = instanceType.trim().toLowerCase();
+  if (!normalized) {
+    return "";
+  }
+  if (/^(a1|t4g|m6g|m7g|m6gd|m7gd|c6g|c7g|c6gd|c7gd|r6g|r7g|r6gd|r7gd|x2gd)\./.test(normalized)) {
+    return "arm64";
+  }
+  return "x86_64";
+}
+
+function inferEC2ImageArchitecture(imageId: string): "x86_64" | "arm64" | "" {
+  const normalized = imageId.trim().toLowerCase();
+  if (!normalized) {
+    return "";
+  }
+  if (normalized.includes("arm64")) {
+    return "arm64";
+  }
+  if (normalized.includes("x86_64") || normalized.includes("amd64") || normalized.includes("windows")) {
+    return "x86_64";
+  }
+  return "";
+}
+
+function getDefaultLightsailBundleForPlatform(platform: "linux" | "windows" | "") {
+  if (platform === "windows") {
+    return STATIC_LIGHTSAIL_BUNDLE_PRESETS.find((preset) => preset.platform === "windows")?.value || "large_win_3_0";
+  }
+  return STATIC_LIGHTSAIL_BUNDLE_PRESETS.find((preset) => preset.platform === "linux")?.value || DEFAULT_AWS_FAILOVER_LIGHTSAIL_BUNDLE_ID;
+}
+
+function getAWSRegionOptionLabel(option: { value: string; label: string }) {
+  const value = String(option.value || "").trim();
+  return option.label ? `${option.label} (${value})` : value;
+}
+
+function getStaticEC2ImagePresetLabel(preset: StaticEC2ImagePreset) {
+  return `${preset.label} (${preset.summary})`;
+}
+
+function getStaticEC2InstanceTypePresetLabel(preset: StaticEC2InstanceTypePreset) {
+  return `${preset.label} (${preset.summary})`;
+}
+
+function getStaticLightsailBlueprintPresetLabel(preset: StaticLightsailBlueprintPreset) {
+  return `${preset.label} (${preset.summary})`;
+}
+
+function getStaticLightsailBundlePresetLabel(preset: StaticLightsailBundlePreset) {
+  return `${preset.label} (${preset.summary})`;
+}
+
 function formatCatalogOptionLabel(option: { label: string; hint?: string }) {
   return option.hint ? `${option.label} · ${option.hint}` : option.label;
 }
@@ -2217,8 +2540,8 @@ function formatPlanRegionOptionLabel(
   return formatCatalogOptionLabel(option);
 }
 
-function formatDnsTTLLabel(ttl: number) {
-  return `${ttl} 秒`;
+function formatDnsTTLLabel(t: TFunction, ttl: number) {
+  return t("failover.editor.ttl_option", { count: ttl });
 }
 
 function buildSelectableDnsOptions(
@@ -2283,56 +2606,64 @@ function getDNSDomainOptions(catalog: FailoverDnsCatalog | null, currentValue: s
   return buildSelectableDnsOptions(fallbackOptions, currentValue);
 }
 
-function getDNSTTLOptions(catalog: FailoverDnsCatalog | null, currentValue: string) {
+function getDNSTTLOptions(
+  t: TFunction,
+  catalog: FailoverDnsCatalog | null,
+  currentValue: string,
+) {
   const options = (catalog?.ttls?.length
     ? catalog.ttls
     : DNS_TTL_OPTIONS.map((value) => ({
         value: String(value),
-        label: formatDnsTTLLabel(value),
+        label: formatDnsTTLLabel(t, value),
       }))).map((option) => {
         const numericValue = Number.parseInt(String(option.value || "").trim(), 10);
         return {
           value: String(option.value || "").trim(),
           label: Number.isFinite(numericValue) && numericValue > 0
-            ? formatDnsTTLLabel(numericValue)
+            ? formatDnsTTLLabel(t, numericValue)
             : String(option.label || option.value || "").trim(),
         };
       });
   return buildSelectableDnsOptions(options, currentValue);
 }
 
-function localizeAliyunLineLabel(value: string, fallback?: string) {
+function localizeAliyunLineLabel(t: TFunction, value: string, fallback?: string) {
   const normalized = String(value || "").trim().toLowerCase();
   switch (normalized) {
     case "default":
-      return "默认";
+      return t("failover.editor.aliyun_line_default");
     case "telecom":
-      return "电信";
+      return t("failover.editor.aliyun_line_telecom");
     case "unicom":
-      return "联通";
+      return t("failover.editor.aliyun_line_unicom");
     case "mobile":
-      return "移动";
+      return t("failover.editor.aliyun_line_mobile");
     case "edu":
-      return "教育网";
+      return t("failover.editor.aliyun_line_edu");
     case "oversea":
-      return "境外";
+      return t("failover.editor.aliyun_line_oversea");
     case "search":
-      return "搜索引擎";
+      return t("failover.editor.aliyun_line_search");
     case "school":
-      return "校园网";
+      return t("failover.editor.aliyun_line_school");
     default:
       return String(fallback || value || "").trim() || normalized;
   }
 }
 
-function getAliyunLineOptions(catalog: FailoverDnsCatalog | null, currentValues: string[]) {
+function getAliyunLineOptions(
+  t: TFunction,
+  catalog: FailoverDnsCatalog | null,
+  currentValues: string[],
+) {
   const normalizedOptions = (catalog?.lines || []).map((option) => ({
     value: option.value,
-    label: localizeAliyunLineLabel(option.value, option.label),
+    label: localizeAliyunLineLabel(t, option.value, option.label),
   }));
   const currentOptions = (currentValues.length > 0 ? currentValues : ["default"]).map((value) => ({
     value,
-    label: localizeAliyunLineLabel(value),
+    label: localizeAliyunLineLabel(t, value),
   }));
   return buildSelectableDnsOptions(
     [...normalizedOptions, ...currentOptions],
@@ -2371,11 +2702,14 @@ function defaultAWSProvisionLikePayload() {
   return {
     service: "ec2",
     region: "",
+    name: "",
     image_id: DEFAULT_AWS_FAILOVER_EC2_IMAGE_ID,
-    instance_type: "",
+    instance_type: DEFAULT_AWS_FAILOVER_EC2_INSTANCE_TYPE,
     key_name: "",
     subnet_id: "",
     security_group_ids: [],
+    user_data: "",
+    tags: [],
     assign_public_ip: true,
     assign_ipv6: true,
     allow_all_traffic: true,
@@ -2638,11 +2972,14 @@ function normalizePlanPayloadForSubmit(
     const region = getStringValue(nextPayload.region);
     nextPayload.service = service;
     nextPayload.region = region;
+    nextPayload.name = getStringValue(nextPayload.name);
+    nextPayload.user_data = typeof nextPayload.user_data === "string" ? String(nextPayload.user_data).trim() : "";
+    nextPayload.tags = getAWSTagArrayValue(nextPayload.tags);
     nextPayload.allow_all_traffic = getBooleanValue(nextPayload.allow_all_traffic, true);
 
     if (service === "ec2") {
       nextPayload.image_id = getStringValue(nextPayload.image_id) || DEFAULT_AWS_FAILOVER_EC2_IMAGE_ID;
-      nextPayload.instance_type = getStringValue(nextPayload.instance_type);
+      nextPayload.instance_type = getStringValue(nextPayload.instance_type) || DEFAULT_AWS_FAILOVER_EC2_INSTANCE_TYPE;
       nextPayload.key_name = getStringValue(nextPayload.key_name);
       nextPayload.subnet_id = getStringValue(nextPayload.subnet_id);
       nextPayload.security_group_ids = getStringArrayValue(nextPayload.security_group_ids);
@@ -2664,6 +3001,9 @@ function normalizePlanPayloadForSubmit(
     const region = getStringValue(nextPayload.region);
     nextPayload.service = service;
     nextPayload.region = region;
+    nextPayload.name = getStringValue(nextPayload.name);
+    nextPayload.user_data = typeof nextPayload.user_data === "string" ? String(nextPayload.user_data).trim() : "";
+    nextPayload.tags = getAWSTagArrayValue(nextPayload.tags);
     nextPayload.instance_id = getStringValue(nextPayload.instance_id);
     nextPayload.private_ip = getStringValue(nextPayload.private_ip);
     nextPayload.instance_name = getStringValue(nextPayload.instance_name);
@@ -2672,7 +3012,7 @@ function normalizePlanPayloadForSubmit(
 
     if (service === "ec2") {
       nextPayload.image_id = getStringValue(nextPayload.image_id) || DEFAULT_AWS_FAILOVER_EC2_IMAGE_ID;
-      nextPayload.instance_type = getStringValue(nextPayload.instance_type);
+      nextPayload.instance_type = getStringValue(nextPayload.instance_type) || DEFAULT_AWS_FAILOVER_EC2_INSTANCE_TYPE;
       nextPayload.key_name = getStringValue(nextPayload.key_name);
       nextPayload.subnet_id = getStringValue(nextPayload.subnet_id);
       nextPayload.security_group_ids = getStringArrayValue(nextPayload.security_group_ids);
@@ -3255,12 +3595,12 @@ function toggleDnsLineSelection(current: string[], value: string, checked: boole
   return next.length > 0 ? next : ["default"];
 }
 
-function dnsRecordSummary(record: FailoverDnsRecordOption) {
+function dnsRecordSummary(t: TFunction, record: FailoverDnsRecordOption) {
   const left = record.name || joinRecordName(record.domain_name, record.rr);
   const right = [
     record.type,
     record.value,
-    record.line ? localizeAliyunLineLabel(record.line) : "",
+    record.line ? localizeAliyunLineLabel(t, record.line) : "",
   ].filter(Boolean).join(" · ");
   return [left, right].filter(Boolean).join(" · ");
 }
@@ -3774,6 +4114,9 @@ function summarizePlanPayload(t: TFunction, plan: PlanFormState) {
 
   if (plan.provider === "aws") {
     const service = normalizeAWSService(payload.service);
+    const name = getStringValue(payload.name);
+    const userData = typeof payload.user_data === "string" ? String(payload.user_data).trim() : "";
+    const tags = getAWSTagArrayValue(payload.tags);
     parts.push(service === "lightsail" ? "Lightsail" : "EC2");
     if (region) {
       parts.push(region);
@@ -3870,6 +4213,18 @@ function summarizePlanPayload(t: TFunction, plan: PlanFormState) {
           parts.push(t("cloud.providers.aws.allow_all_traffic", { defaultValue: "Allow All Traffic" }));
         }
       }
+    }
+    if (name) {
+      parts.push(name);
+    }
+    if (tags.length > 0) {
+      parts.push(t("failover.editor.tags_summary", {
+        defaultValue: "{{count}} tags",
+        count: tags.length,
+      }));
+    }
+    if (userData) {
+      parts.push(t("cloud.form.user_data", { defaultValue: "Cloud-Init / User Data" }));
     }
     return parts.filter(Boolean).join(" · ");
   }
@@ -5249,6 +5604,104 @@ function TaskEditorDialog({
     () => getStringValue(selectedPlanPayload.type),
     [selectedPlanPayload],
   );
+  const selectedAWSEC2ImageID = React.useMemo(
+    () => getStringValue(selectedPlanPayload.image_id),
+    [selectedPlanPayload],
+  );
+  const selectedAWSEC2InstanceType = React.useMemo(
+    () => getStringValue(selectedPlanPayload.instance_type),
+    [selectedPlanPayload],
+  );
+  const selectedAWSEC2ImageArchitecture = React.useMemo(
+    () => inferEC2ImageArchitecture(selectedAWSEC2ImageID),
+    [selectedAWSEC2ImageID],
+  );
+  const selectedAWSEC2InstanceArchitecture = React.useMemo(
+    () => inferEC2InstanceArchitecture(selectedAWSEC2InstanceType),
+    [selectedAWSEC2InstanceType],
+  );
+  const awsEc2ArchitectureMismatch = Boolean(
+    selectedAWSEC2ImageArchitecture
+      && selectedAWSEC2InstanceArchitecture
+      && selectedAWSEC2ImageArchitecture !== selectedAWSEC2InstanceArchitecture,
+  );
+  const selectedLightsailBlueprintID = React.useMemo(
+    () => getStringValue(selectedPlanPayload.blueprint_id),
+    [selectedPlanPayload],
+  );
+  const selectedLightsailBundleID = React.useMemo(
+    () => getStringValue(selectedPlanPayload.bundle_id),
+    [selectedPlanPayload],
+  );
+  const selectedLightsailBlueprintPlatform = React.useMemo(
+    () => inferLightsailBlueprintPlatform(selectedLightsailBlueprintID),
+    [selectedLightsailBlueprintID],
+  );
+  const selectedLightsailBundlePlatform = React.useMemo(
+    () => inferLightsailBundlePlatform(selectedLightsailBundleID),
+    [selectedLightsailBundleID],
+  );
+  const awsLightsailPlatformMismatch = Boolean(
+    selectedLightsailBlueprintPlatform
+      && selectedLightsailBundlePlatform
+      && selectedLightsailBlueprintPlatform !== selectedLightsailBundlePlatform,
+  );
+  const selectedAWSTagsText = React.useMemo(
+    () => formatAWSTagsText(getAWSTagArrayValue(selectedPlanPayload.tags)),
+    [selectedPlanPayload],
+  );
+  const isAWSPlan = selectedPlan?.provider === "aws";
+  const awsRegionOptions = React.useMemo(
+    () => appendCatalogOptionIfMissing(
+      mergeCatalogOptions(COMMON_AWS_REGIONS, planCatalog?.regions || []),
+      selectedPlanRegion,
+    ),
+    [planCatalog, selectedPlanRegion],
+  );
+  const awsEc2ImageOptions = React.useMemo(
+    () => appendCatalogOptionIfMissing(
+      STATIC_EC2_IMAGE_PRESETS.map((preset) => ({
+        value: preset.value,
+        label: preset.label,
+        hint: preset.summary,
+      })),
+      getStringValue(selectedPlanPayload.image_id),
+    ),
+    [selectedPlanPayload],
+  );
+  const awsEc2InstanceTypeOptions = React.useMemo(
+    () => appendCatalogOptionIfMissing(
+      STATIC_EC2_INSTANCE_TYPE_PRESETS.map((preset) => ({
+        value: preset.value,
+        label: preset.label,
+        hint: preset.summary,
+      })),
+      getStringValue(selectedPlanPayload.instance_type),
+    ),
+    [selectedPlanPayload],
+  );
+  const awsLightsailBlueprintOptions = React.useMemo(
+    () => appendCatalogOptionIfMissing(
+      STATIC_LIGHTSAIL_BLUEPRINT_PRESETS.map((preset) => ({
+        value: preset.value,
+        label: preset.label,
+        hint: preset.summary,
+      })),
+      getStringValue(selectedPlanPayload.blueprint_id),
+    ),
+    [selectedPlanPayload],
+  );
+  const awsLightsailBundleOptions = React.useMemo(
+    () => appendCatalogOptionIfMissing(
+      STATIC_LIGHTSAIL_BUNDLE_PRESETS.map((preset) => ({
+        value: preset.value,
+        label: preset.label,
+        hint: preset.summary,
+      })),
+      getStringValue(selectedPlanPayload.bundle_id),
+    ),
+    [selectedPlanPayload],
+  );
   const isDigitalOceanProvisionPlan = selectedPlan?.provider === "digitalocean" && selectedPlan.action_type === "provision_instance";
   const digitalOceanPlanCatalog = React.useMemo(
     () => (
@@ -5296,6 +5749,7 @@ function TaskEditorDialog({
     && (selectedPlan.provider_entry_id.trim() || selectedPlan.provider_entry_group.trim()),
   );
   const usesCommonPlanCatalogDefaults = isDigitalOceanProvisionPlan || isLinodeProvisionPlan;
+  const showPlanCatalogLoadActions = !isAWSPlan;
   const canLoadPlanDetails = canLoadPlanCatalog && (usesCommonPlanCatalogDefaults || Boolean(selectedPlanRegion.trim()));
   const suggestedAutoConnectGroup = React.useMemo(
     () => (
@@ -5355,8 +5809,8 @@ function TaskEditorDialog({
     [dnsCatalog, formState.dns_domain_name],
   );
   const dnsTTLOptions = React.useMemo(
-    () => getDNSTTLOptions(dnsCatalog, formState.dns_ttl),
-    [dnsCatalog, formState.dns_ttl],
+    () => getDNSTTLOptions(t, dnsCatalog, formState.dns_ttl),
+    [dnsCatalog, formState.dns_ttl, t],
   );
   const dnsSyncMode = React.useMemo(
     () => getDnsSyncMode(formState.dns_record_type, formState.dns_sync_ipv6),
@@ -5371,8 +5825,8 @@ function TaskEditorDialog({
     [dnsSyncMode, dnsSyncModeOptions],
   );
   const aliyunLineOptions = React.useMemo(
-    () => getAliyunLineOptions(dnsCatalog, formState.dns_lines),
-    [dnsCatalog, formState.dns_lines],
+    () => getAliyunLineOptions(t, dnsCatalog, formState.dns_lines),
+    [dnsCatalog, formState.dns_lines, t],
   );
   const hasDnsEnabled = Boolean(formState.dns_provider.trim());
   const firstConfiguredDnsProvider = React.useMemo(
@@ -5593,7 +6047,7 @@ function TaskEditorDialog({
         buildDetailItem(
           t("failover.editor.line", { defaultValue: "Routing line" }),
           formState.dns_provider === "aliyun"
-            ? formState.dns_lines.map((line) => localizeAliyunLineLabel(line)).join(", ")
+            ? formState.dns_lines.map((line) => localizeAliyunLineLabel(t, line)).join(", ")
             : "",
         ),
         buildDetailItem(
@@ -6707,7 +7161,7 @@ function TaskEditorDialog({
                                         </SelectItem>
                                         {dnsCatalogRecords.map((record) => (
                                           <SelectItem key={getDnsRecordKey(record)} value={getDnsRecordKey(record)}>
-                                            {dnsRecordSummary(record)}
+                                            {dnsRecordSummary(t, record)}
                                           </SelectItem>
                                         ))}
                                       </SelectContent>
@@ -7535,7 +7989,7 @@ function TaskEditorDialog({
                                 {t("failover.editor.plan_config", { defaultValue: "Instance configuration" })}
                               </div>
                               <div className="flex flex-wrap gap-2">
-                          {!usesCommonPlanCatalogDefaults ? (
+                          {showPlanCatalogLoadActions && !usesCommonPlanCatalogDefaults ? (
                             <Button
                               type="button"
                               variant="outline"
@@ -7547,22 +8001,32 @@ function TaskEditorDialog({
                               {t("failover.editor.load_plan_regions", { defaultValue: "Load regions" })}
                             </Button>
                           ) : null}
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            disabled={!canLoadPlanDetails || planCatalogLoading}
-                            onClick={() => void refreshPlanCatalog({ mode: "full" })}
-                          >
-                            {planCatalogLoading && planCatalogLoadMode === "full" ? <LoaderCircle className="mr-2 size-4 animate-spin" /> : <RefreshCw className="mr-2 size-4" />}
-                            {isDigitalOceanProvisionPlan
-                              ? t("failover.editor.load_plan_options_full_digitalocean", { defaultValue: "Load full DigitalOcean list" })
-                              : isLinodeProvisionPlan
-                                ? t("failover.editor.load_plan_options_full_linode", { defaultValue: "Load full Linode list" })
-                                : t("failover.editor.load_plan_options", { defaultValue: "Load options" })}
-                          </Button>
+                          {showPlanCatalogLoadActions ? (
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              disabled={!canLoadPlanDetails || planCatalogLoading}
+                              onClick={() => void refreshPlanCatalog({ mode: "full" })}
+                            >
+                              {planCatalogLoading && planCatalogLoadMode === "full" ? <LoaderCircle className="mr-2 size-4 animate-spin" /> : <RefreshCw className="mr-2 size-4" />}
+                              {isDigitalOceanProvisionPlan
+                                ? t("failover.editor.load_plan_options_full_digitalocean", { defaultValue: "Load full DigitalOcean list" })
+                                : isLinodeProvisionPlan
+                                  ? t("failover.editor.load_plan_options_full_linode", { defaultValue: "Load full Linode list" })
+                                  : t("failover.editor.load_plan_options", { defaultValue: "Load options" })}
+                            </Button>
+                          ) : null}
                               </div>
                             </div>
+
+                            {isAWSPlan ? (
+                        <div className="rounded-xl border border-dashed px-4 py-3 text-xs text-muted-foreground">
+                          {t("failover.editor.aws_static_presets_hint", {
+                            defaultValue: "AWS failover uses the same built-in region, image, and instance-size presets as the AWS create-instance page. No catalog request is required for the basic form.",
+                          })}
+                        </div>
+                      ) : null}
 
                             {isDigitalOceanProvisionPlan ? (
                         <div className="rounded-xl border border-dashed px-4 py-3 text-xs text-muted-foreground">
@@ -7631,216 +8095,61 @@ function TaskEditorDialog({
                           </div>
                           <div className="space-y-2">
                             <Label>{t("failover.editor.region", { defaultValue: "Region" })}</Label>
-                            {(planCatalog?.regions || []).length > 0 ? (
-                              <Select
-                                value={selectedPlanRegion || undefined}
-                                onValueChange={(value) => {
-                                  updateSelectedPlanPayload((current) => ({
-                                    ...current,
-                                    region: value,
-                                    availability_zone: selectedPlanService === "lightsail" && !getStringValue(current.availability_zone)
-                                      ? getDefaultLightsailAvailabilityZone(value)
-                                      : getStringValue(current.availability_zone),
-                                  }));
-                                  resetPlanCatalogState(keepPlanCatalogRegions(
-                                    planCatalog,
-                                    selectedPlan.provider,
-                                    selectedPlan.action_type,
-                                    selectedPlanService,
-                                    value,
-                                  ));
-                                }}
-                              >
-                                <SelectTrigger>
-                                  <SelectValue placeholder={t("failover.editor.region_placeholder", { defaultValue: "Choose a region" })} />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  {planCatalog?.regions?.map((option) => (
-                                    <SelectItem key={option.value} value={option.value}>
-                                      {formatCatalogOptionLabel(option)}
-                                    </SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
-                            ) : (
-                              <Input
-                                value={selectedPlanRegion}
-                                onChange={(event) => {
-                                  const value = event.target.value;
-                                  updateSelectedPlanPayload((current) => ({
-                                    ...current,
-                                    region: value,
-                                    availability_zone: selectedPlanService === "lightsail" && !getStringValue(current.availability_zone)
-                                      ? getDefaultLightsailAvailabilityZone(value)
-                                      : getStringValue(current.availability_zone),
-                                  }));
-                                  resetPlanCatalogState(keepPlanCatalogRegions(
-                                    planCatalog,
-                                    selectedPlan.provider,
-                                    selectedPlan.action_type,
-                                    selectedPlanService,
-                                    value,
-                                  ));
-                                }}
-                                placeholder="us-east-1"
-                              />
-                            )}
+                            <SearchableCatalogSelect
+                              value={selectedPlanRegion || undefined}
+                              options={awsRegionOptions}
+                              onValueChange={(value) => {
+                                updateSelectedPlanPayload((current) => ({
+                                  ...current,
+                                  region: value,
+                                  availability_zone: selectedPlanService === "lightsail" && !getStringValue(current.availability_zone)
+                                    ? getDefaultLightsailAvailabilityZone(value)
+                                    : getStringValue(current.availability_zone),
+                                }));
+                                resetPlanCatalogState(keepPlanCatalogRegions(
+                                  planCatalog,
+                                  selectedPlan.provider,
+                                  selectedPlan.action_type,
+                                  selectedPlanService,
+                                  value,
+                                ));
+                              }}
+                              placeholder={t("failover.editor.region_placeholder", { defaultValue: "Choose a region" })}
+                              searchPlaceholder={t("failover.editor.region_search_placeholder", { defaultValue: "Search regions..." })}
+                              emptyLabel={t("failover.editor.region_search_empty", { defaultValue: "No matching region" })}
+                              formatOptionLabel={(option) => formatPlanRegionOptionLabel(t, "aws", option)}
+                            />
                           </div>
 
                           {selectedPlanService === "ec2" ? (
                             <>
                               <div className="space-y-2">
                                 <Label>{t("failover.editor.image", { defaultValue: "Image" })}</Label>
-                                {(planCatalog?.images || []).length > 0 ? (
-                                  <Select
-                                    value={getStringValue(selectedPlanPayload.image_id) || undefined}
-                                    onValueChange={(value) => updateSelectedPlanPayload((current) => ({
-                                      ...current,
-                                      image_id: value,
-                                    }))}
-                                  >
-                                    <SelectTrigger>
-                                      <SelectValue placeholder={t("failover.editor.image_placeholder", { defaultValue: "Choose an image" })} />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                      {planCatalog?.images?.map((option) => (
-                                        <SelectItem key={option.value} value={option.value}>
-                                          {formatCatalogOptionLabel(option)}
-                                        </SelectItem>
-                                      ))}
-                                    </SelectContent>
-                                  </Select>
-                                ) : (
-                                  <Input
-                                    value={getStringValue(selectedPlanPayload.image_id)}
-                                    onChange={(event) => updateSelectedPlanPayload((current) => ({
-                                      ...current,
-                                      image_id: event.target.value,
-                                    }))}
-                                    placeholder="ami-..."
-                                  />
-                                )}
+                                <SearchableCatalogSelect
+                                  value={getStringValue(selectedPlanPayload.image_id) || undefined}
+                                  options={awsEc2ImageOptions}
+                                  onValueChange={(value) => updateSelectedPlanPayload((current) => ({
+                                    ...current,
+                                    image_id: value,
+                                  }))}
+                                  placeholder={t("failover.editor.image_placeholder", { defaultValue: "Choose an image" })}
+                                  searchPlaceholder={t("failover.editor.image_search_placeholder", { defaultValue: "Search images..." })}
+                                  emptyLabel={t("failover.editor.image_search_empty", { defaultValue: "No matching image" })}
+                                />
                               </div>
                               <div className="space-y-2">
                                 <Label>{t("failover.editor.instance_type", { defaultValue: "Instance type" })}</Label>
-                                {(planCatalog?.instance_types || []).length > 0 ? (
-                                  <Select
-                                    value={getStringValue(selectedPlanPayload.instance_type) || undefined}
-                                    onValueChange={(value) => updateSelectedPlanPayload((current) => ({
-                                      ...current,
-                                      instance_type: value,
-                                    }))}
-                                  >
-                                    <SelectTrigger>
-                                      <SelectValue placeholder={t("failover.editor.instance_type_placeholder", { defaultValue: "Choose an instance type" })} />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                      {planCatalog?.instance_types?.map((option) => (
-                                        <SelectItem key={option.value} value={option.value}>
-                                          {formatCatalogOptionLabel(option)}
-                                        </SelectItem>
-                                      ))}
-                                    </SelectContent>
-                                  </Select>
-                                ) : (
-                                  <Input
-                                    value={getStringValue(selectedPlanPayload.instance_type)}
-                                    onChange={(event) => updateSelectedPlanPayload((current) => ({
-                                      ...current,
-                                      instance_type: event.target.value,
-                                    }))}
-                                    placeholder="t3.small"
-                                  />
-                                )}
-                              </div>
-                              <div className="space-y-2">
-                                <Label>{t("failover.editor.subnet", { defaultValue: "Subnet" })}</Label>
-                                {(planCatalog?.subnets || []).length > 0 ? (
-                                  <Select
-                                    value={getStringValue(selectedPlanPayload.subnet_id) || undefined}
-                                    onValueChange={(value) => updateSelectedPlanPayload((current) => ({
-                                      ...current,
-                                      subnet_id: value,
-                                    }))}
-                                  >
-                                    <SelectTrigger>
-                                      <SelectValue placeholder={t("failover.editor.subnet_placeholder", { defaultValue: "Choose a subnet" })} />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                      {planCatalog?.subnets?.map((option) => (
-                                        <SelectItem key={option.value} value={option.value}>
-                                          {formatCatalogOptionLabel(option)}
-                                        </SelectItem>
-                                      ))}
-                                    </SelectContent>
-                                  </Select>
-                                ) : (
-                                  <Input
-                                    value={getStringValue(selectedPlanPayload.subnet_id)}
-                                    onChange={(event) => updateSelectedPlanPayload((current) => ({
-                                      ...current,
-                                      subnet_id: event.target.value,
-                                    }))}
-                                    placeholder="subnet-..."
-                                  />
-                                )}
-                              </div>
-                              <div className="space-y-2">
-                                <Label>{t("failover.editor.key_pair", { defaultValue: "Key pair" })}</Label>
-                                {(planCatalog?.key_pairs || []).length > 0 ? (
-                                  <Select
-                                    value={getStringValue(selectedPlanPayload.key_name) || "__none"}
-                                    onValueChange={(value) => updateSelectedPlanPayload((current) => ({
-                                      ...current,
-                                      key_name: value === "__none" ? "" : value,
-                                    }))}
-                                  >
-                                    <SelectTrigger>
-                                      <SelectValue />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                      <SelectItem value="__none">{t("failover.editor.no_key_pair", { defaultValue: "No key pair" })}</SelectItem>
-                                      {planCatalog?.key_pairs?.map((option) => (
-                                        <SelectItem key={option.value} value={option.value}>
-                                          {formatCatalogOptionLabel(option)}
-                                        </SelectItem>
-                                      ))}
-                                    </SelectContent>
-                                  </Select>
-                                ) : (
-                                  <Input
-                                    value={getStringValue(selectedPlanPayload.key_name)}
-                                    onChange={(event) => updateSelectedPlanPayload((current) => ({
-                                      ...current,
-                                      key_name: event.target.value,
-                                    }))}
-                                    placeholder={t("failover.editor.no_key_pair", { defaultValue: "No key pair" })}
-                                  />
-                                )}
-                              </div>
-                              <div className="space-y-2 lg:col-span-2">
-                                <Label>{t("cloud.providers.aws.security_groups", { defaultValue: "Security Groups" })}</Label>
-                                <div className="text-xs text-muted-foreground">
-                                  {t("failover.editor.security_groups_hint", {
-                                    defaultValue: "Enter one or more security group IDs separated by commas or new lines. Leave empty to keep the default security group on the selected subnet.",
-                                  })}
-                                </div>
-                                <Textarea
-                                  className="min-h-24 font-mono text-xs [overflow-wrap:anywhere]"
-                                  value={getStringArrayValue(selectedPlanPayload.security_group_ids).join("\n")}
-                                  onChange={(event) => updateSelectedPlanPayload((current) => ({
+                                <SearchableCatalogSelect
+                                  value={getStringValue(selectedPlanPayload.instance_type) || undefined}
+                                  options={awsEc2InstanceTypeOptions}
+                                  onValueChange={(value) => updateSelectedPlanPayload((current) => ({
                                     ...current,
-                                    security_group_ids: parseResourceIds(event.target.value),
+                                    instance_type: value,
                                   }))}
+                                  placeholder={t("failover.editor.instance_type_placeholder", { defaultValue: "Choose an instance type" })}
+                                  searchPlaceholder={t("failover.editor.instance_type_search_placeholder", { defaultValue: "Search instance types..." })}
+                                  emptyLabel={t("failover.editor.instance_type_search_empty", { defaultValue: "No matching instance type" })}
                                 />
-                                {planCatalog?.security_groups?.length ? (
-                                  <div className="text-xs text-muted-foreground">
-                                    {t("failover.editor.security_groups_loaded_hint", {
-                                      defaultValue: "Loaded options: {{options}}",
-                                      options: planCatalog.security_groups.map((option) => option.value).join(", "),
-                                    })}
-                                  </div>
-                                ) : null}
                               </div>
                               <div className="rounded-xl bg-muted/20 px-4 py-3 lg:col-span-2">
                                 <div className="flex items-center justify-between gap-4">
@@ -7940,100 +8249,48 @@ function TaskEditorDialog({
                               </div>
                               <div className="space-y-2">
                                 <Label>{t("failover.editor.blueprint", { defaultValue: "Blueprint" })}</Label>
-                                {(planCatalog?.blueprints || []).length > 0 ? (
-                                  <Select
-                                    value={getStringValue(selectedPlanPayload.blueprint_id) || undefined}
-                                    onValueChange={(value) => updateSelectedPlanPayload((current) => ({
-                                      ...current,
-                                      blueprint_id: value,
-                                    }))}
-                                  >
-                                    <SelectTrigger>
-                                      <SelectValue placeholder={t("failover.editor.blueprint_placeholder", { defaultValue: "Choose a blueprint" })} />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                      {planCatalog?.blueprints?.map((option) => (
-                                        <SelectItem key={option.value} value={option.value}>
-                                          {formatCatalogOptionLabel(option)}
-                                        </SelectItem>
-                                      ))}
-                                    </SelectContent>
-                                  </Select>
-                                ) : (
-                                  <Input
-                                    value={getStringValue(selectedPlanPayload.blueprint_id)}
-                                    onChange={(event) => updateSelectedPlanPayload((current) => ({
-                                      ...current,
-                                      blueprint_id: event.target.value,
-                                    }))}
-                                    placeholder="ubuntu_24_04"
-                                  />
-                                )}
+                                <SearchableCatalogSelect
+                                  value={getStringValue(selectedPlanPayload.blueprint_id) || undefined}
+                                  options={awsLightsailBlueprintOptions}
+                                  onValueChange={(value) => {
+                                    const nextBlueprint = STATIC_LIGHTSAIL_BLUEPRINT_PRESETS.find((preset) => preset.value === value);
+                                    if (!nextBlueprint) {
+                                      updateSelectedPlanPayload((current) => ({
+                                        ...current,
+                                        blueprint_id: value,
+                                      }));
+                                      return;
+                                    }
+                                    updateSelectedPlanPayload((current) => {
+                                      const currentBundlePlatform = inferLightsailBundlePlatform(getStringValue(current.bundle_id));
+                                      return {
+                                        ...current,
+                                        blueprint_id: nextBlueprint.value,
+                                        bundle_id:
+                                          currentBundlePlatform && currentBundlePlatform !== nextBlueprint.platform
+                                            ? getDefaultLightsailBundleForPlatform(nextBlueprint.platform)
+                                            : getStringValue(current.bundle_id) || getDefaultLightsailBundleForPlatform(nextBlueprint.platform),
+                                      };
+                                    });
+                                  }}
+                                  placeholder={t("failover.editor.blueprint_placeholder", { defaultValue: "Choose a blueprint" })}
+                                  searchPlaceholder={t("failover.editor.blueprint_search_placeholder", { defaultValue: "Search blueprints..." })}
+                                  emptyLabel={t("failover.editor.blueprint_search_empty", { defaultValue: "No matching blueprint" })}
+                                />
                               </div>
                               <div className="space-y-2">
                                 <Label>{t("failover.editor.bundle", { defaultValue: "Bundle" })}</Label>
-                                {(planCatalog?.bundles || []).length > 0 ? (
-                                  <Select
-                                    value={getStringValue(selectedPlanPayload.bundle_id) || undefined}
-                                    onValueChange={(value) => updateSelectedPlanPayload((current) => ({
-                                      ...current,
-                                      bundle_id: value,
-                                    }))}
-                                  >
-                                    <SelectTrigger>
-                                      <SelectValue placeholder={t("failover.editor.bundle_placeholder", { defaultValue: "Choose a bundle" })} />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                      {planCatalog?.bundles?.map((option) => (
-                                        <SelectItem key={option.value} value={option.value}>
-                                          {formatCatalogOptionLabel(option)}
-                                        </SelectItem>
-                                      ))}
-                                    </SelectContent>
-                                  </Select>
-                                ) : (
-                                  <Input
-                                    value={getStringValue(selectedPlanPayload.bundle_id)}
-                                    onChange={(event) => updateSelectedPlanPayload((current) => ({
-                                      ...current,
-                                      bundle_id: event.target.value,
-                                    }))}
-                                    placeholder="micro_3_0"
-                                  />
-                                )}
-                              </div>
-                              <div className="space-y-2">
-                                <Label>{t("failover.editor.key_pair", { defaultValue: "Key pair" })}</Label>
-                                {(planCatalog?.key_pairs || []).length > 0 ? (
-                                  <Select
-                                    value={getStringValue(selectedPlanPayload.key_pair_name) || "__none"}
-                                    onValueChange={(value) => updateSelectedPlanPayload((current) => ({
-                                      ...current,
-                                      key_pair_name: value === "__none" ? "" : value,
-                                    }))}
-                                  >
-                                    <SelectTrigger>
-                                      <SelectValue />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                      <SelectItem value="__none">{t("failover.editor.no_key_pair", { defaultValue: "No key pair" })}</SelectItem>
-                                      {planCatalog?.key_pairs?.map((option) => (
-                                        <SelectItem key={option.value} value={option.value}>
-                                          {formatCatalogOptionLabel(option)}
-                                        </SelectItem>
-                                      ))}
-                                    </SelectContent>
-                                  </Select>
-                                ) : (
-                                  <Input
-                                    value={getStringValue(selectedPlanPayload.key_pair_name)}
-                                    onChange={(event) => updateSelectedPlanPayload((current) => ({
-                                      ...current,
-                                      key_pair_name: event.target.value,
-                                    }))}
-                                    placeholder={t("failover.editor.no_key_pair", { defaultValue: "No key pair" })}
-                                  />
-                                )}
+                                <SearchableCatalogSelect
+                                  value={getStringValue(selectedPlanPayload.bundle_id) || undefined}
+                                  options={awsLightsailBundleOptions}
+                                  onValueChange={(value) => updateSelectedPlanPayload((current) => ({
+                                    ...current,
+                                    bundle_id: value,
+                                  }))}
+                                  placeholder={t("failover.editor.bundle_placeholder", { defaultValue: "Choose a bundle" })}
+                                  searchPlaceholder={t("failover.editor.bundle_search_placeholder", { defaultValue: "Search bundles..." })}
+                                  emptyLabel={t("failover.editor.bundle_search_empty", { defaultValue: "No matching bundle" })}
+                                />
                               </div>
                               <div className="space-y-2">
                                 <Label>{t("cloud.providers.aws.ip_address_type", { defaultValue: "IP Address Type" })}</Label>
@@ -8107,60 +8364,30 @@ function TaskEditorDialog({
                           </div>
                           <div className="space-y-2">
                             <Label>{t("failover.editor.region", { defaultValue: "Region" })}</Label>
-                            {(planCatalog?.regions || []).length > 0 ? (
-                              <Select
-                                value={selectedPlanRegion || undefined}
-                                onValueChange={(value) => {
-                                  updateSelectedPlanPayload((current) => ({
-                                    ...current,
-                                    region: value,
-                                    availability_zone: selectedPlanService === "lightsail" && !getStringValue(current.availability_zone)
-                                      ? getDefaultLightsailAvailabilityZone(value)
-                                      : getStringValue(current.availability_zone),
-                                  }));
-                                  resetPlanCatalogState(keepPlanCatalogRegions(
-                                    planCatalog,
-                                    selectedPlan.provider,
-                                    selectedPlan.action_type,
-                                    selectedPlanService,
-                                    value,
-                                  ));
-                                }}
-                              >
-                                <SelectTrigger>
-                                  <SelectValue placeholder={t("failover.editor.region_placeholder", { defaultValue: "Choose a region" })} />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  {planCatalog?.regions?.map((option) => (
-                                    <SelectItem key={option.value} value={option.value}>
-                                      {formatCatalogOptionLabel(option)}
-                                    </SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
-                            ) : (
-                              <Input
-                                value={selectedPlanRegion}
-                                onChange={(event) => {
-                                  const value = event.target.value;
-                                  updateSelectedPlanPayload((current) => ({
-                                    ...current,
-                                    region: value,
-                                    availability_zone: selectedPlanService === "lightsail" && !getStringValue(current.availability_zone)
-                                      ? getDefaultLightsailAvailabilityZone(value)
-                                      : getStringValue(current.availability_zone),
-                                  }));
-                                  resetPlanCatalogState(keepPlanCatalogRegions(
-                                    planCatalog,
-                                    selectedPlan.provider,
-                                    selectedPlan.action_type,
-                                    selectedPlanService,
-                                    value,
-                                  ));
-                                }}
-                                placeholder="us-east-1"
-                              />
-                            )}
+                            <SearchableCatalogSelect
+                              value={selectedPlanRegion || undefined}
+                              options={awsRegionOptions}
+                              onValueChange={(value) => {
+                                updateSelectedPlanPayload((current) => ({
+                                  ...current,
+                                  region: value,
+                                  availability_zone: selectedPlanService === "lightsail" && !getStringValue(current.availability_zone)
+                                    ? getDefaultLightsailAvailabilityZone(value)
+                                    : getStringValue(current.availability_zone),
+                                }));
+                                resetPlanCatalogState(keepPlanCatalogRegions(
+                                  planCatalog,
+                                  selectedPlan.provider,
+                                  selectedPlan.action_type,
+                                  selectedPlanService,
+                                  value,
+                                ));
+                              }}
+                              placeholder={t("failover.editor.region_placeholder", { defaultValue: "Choose a region" })}
+                              searchPlaceholder={t("failover.editor.region_search_placeholder", { defaultValue: "Search regions..." })}
+                              emptyLabel={t("failover.editor.region_search_empty", { defaultValue: "No matching region" })}
+                              formatOptionLabel={(option) => getAWSRegionOptionLabel(option)}
+                            />
                           </div>
                           {selectedPlanService === "ec2" ? (
                             <>
@@ -8169,158 +8396,72 @@ function TaskEditorDialog({
                                   defaultValue: "Komari will first check whether this AWS credential already has an EC2 instance with the task's current IP. If it does, Komari only replaces that instance's public IP. If it does not, Komari creates a new EC2 instance with the configuration below.",
                                 })}
                               </div>
+                              <div className="rounded-xl border border-dashed px-4 py-3 text-xs text-muted-foreground lg:col-span-2">
+                                {t("failover.editor.aws_rebind_static_presets_hint", {
+                                  defaultValue: "The replacement-instance form follows the AWS create-instance page: common regions, AMIs, and instance types are built in, and you can still type uncommon values manually below.",
+                                })}
+                              </div>
+                              {awsEc2ArchitectureMismatch ? (
+                                <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs text-amber-800 dark:border-amber-900/40 dark:bg-amber-950/30 dark:text-amber-200 lg:col-span-2">
+                                  {t("failover.editor.aws_ec2_architecture_mismatch", {
+                                    imageArch: selectedAWSEC2ImageArchitecture,
+                                    instanceType: selectedAWSEC2InstanceType,
+                                    typeArch: selectedAWSEC2InstanceArchitecture,
+                                    defaultValue: "The selected image expects {{imageArch}}, but {{instanceType}} is {{typeArch}}. Use ARM64 images with Graviton families such as t4g/m7g/c7g/r7g, and use x86_64 images with t3/m7i/c7i/r7i families.",
+                                  })}
+                                </div>
+                              ) : null}
                               <div className="space-y-2">
                                 <Label>{t("failover.editor.image", { defaultValue: "Image" })}</Label>
-                                {(planCatalog?.images || []).length > 0 ? (
-                                  <Select
-                                    value={getStringValue(selectedPlanPayload.image_id) || undefined}
-                                    onValueChange={(value) => updateSelectedPlanPayload((current) => ({
-                                      ...current,
-                                      image_id: value,
-                                    }))}
-                                  >
-                                    <SelectTrigger>
-                                      <SelectValue placeholder={t("failover.editor.image_placeholder", { defaultValue: "Choose an image" })} />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                      {planCatalog?.images?.map((option) => (
-                                        <SelectItem key={option.value} value={option.value}>
-                                          {formatCatalogOptionLabel(option)}
-                                        </SelectItem>
-                                      ))}
-                                    </SelectContent>
-                                  </Select>
-                                ) : (
-                                  <Input
-                                    value={getStringValue(selectedPlanPayload.image_id)}
-                                    onChange={(event) => updateSelectedPlanPayload((current) => ({
-                                      ...current,
-                                      image_id: event.target.value,
-                                    }))}
-                                    placeholder="ami-..."
-                                  />
-                                )}
+                                <SearchableCatalogSelect
+                                  value={selectedAWSEC2ImageID || undefined}
+                                  options={awsEc2ImageOptions}
+                                  onValueChange={(value) => updateSelectedPlanPayload((current) => ({
+                                    ...current,
+                                    image_id: value,
+                                  }))}
+                                  placeholder={t("failover.editor.image_placeholder", { defaultValue: "Choose an image" })}
+                                  searchPlaceholder={t("failover.editor.image_search_placeholder", { defaultValue: "Search images..." })}
+                                  emptyLabel={t("failover.editor.image_search_empty", { defaultValue: "No matching image" })}
+                                  formatOptionLabel={(option) => {
+                                    const preset = STATIC_EC2_IMAGE_PRESETS.find((item) => item.value === option.value);
+                                    return preset ? getStaticEC2ImagePresetLabel(preset) : formatCatalogOptionLabel(option);
+                                  }}
+                                />
+                                <Input
+                                  value={selectedAWSEC2ImageID}
+                                  onChange={(event) => updateSelectedPlanPayload((current) => ({
+                                    ...current,
+                                    image_id: event.target.value,
+                                  }))}
+                                  placeholder={t("cloud.providers.aws.ami_manual_placeholder", { defaultValue: "Or enter an AMI ID manually" })}
+                                />
                               </div>
                               <div className="space-y-2">
                                 <Label>{t("failover.editor.instance_type", { defaultValue: "Instance type" })}</Label>
-                                {(planCatalog?.instance_types || []).length > 0 ? (
-                                  <Select
-                                    value={getStringValue(selectedPlanPayload.instance_type) || undefined}
-                                    onValueChange={(value) => updateSelectedPlanPayload((current) => ({
-                                      ...current,
-                                      instance_type: value,
-                                    }))}
-                                  >
-                                    <SelectTrigger>
-                                      <SelectValue placeholder={t("failover.editor.instance_type_placeholder", { defaultValue: "Choose an instance type" })} />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                      {planCatalog?.instance_types?.map((option) => (
-                                        <SelectItem key={option.value} value={option.value}>
-                                          {formatCatalogOptionLabel(option)}
-                                        </SelectItem>
-                                      ))}
-                                    </SelectContent>
-                                  </Select>
-                                ) : (
-                                  <Input
-                                    value={getStringValue(selectedPlanPayload.instance_type)}
-                                    onChange={(event) => updateSelectedPlanPayload((current) => ({
-                                      ...current,
-                                      instance_type: event.target.value,
-                                    }))}
-                                    placeholder="t3.small"
-                                  />
-                                )}
-                              </div>
-                              <div className="space-y-2">
-                                <Label>{t("failover.editor.subnet", { defaultValue: "Subnet" })}</Label>
-                                {(planCatalog?.subnets || []).length > 0 ? (
-                                  <Select
-                                    value={getStringValue(selectedPlanPayload.subnet_id) || undefined}
-                                    onValueChange={(value) => updateSelectedPlanPayload((current) => ({
-                                      ...current,
-                                      subnet_id: value,
-                                    }))}
-                                  >
-                                    <SelectTrigger>
-                                      <SelectValue placeholder={t("failover.editor.subnet_placeholder", { defaultValue: "Choose a subnet" })} />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                      {planCatalog?.subnets?.map((option) => (
-                                        <SelectItem key={option.value} value={option.value}>
-                                          {formatCatalogOptionLabel(option)}
-                                        </SelectItem>
-                                      ))}
-                                    </SelectContent>
-                                  </Select>
-                                ) : (
-                                  <Input
-                                    value={getStringValue(selectedPlanPayload.subnet_id)}
-                                    onChange={(event) => updateSelectedPlanPayload((current) => ({
-                                      ...current,
-                                      subnet_id: event.target.value,
-                                    }))}
-                                    placeholder="subnet-..."
-                                  />
-                                )}
-                              </div>
-                              <div className="space-y-2">
-                                <Label>{t("failover.editor.key_pair", { defaultValue: "Key pair" })}</Label>
-                                {(planCatalog?.key_pairs || []).length > 0 ? (
-                                  <Select
-                                    value={getStringValue(selectedPlanPayload.key_name) || "__none"}
-                                    onValueChange={(value) => updateSelectedPlanPayload((current) => ({
-                                      ...current,
-                                      key_name: value === "__none" ? "" : value,
-                                    }))}
-                                  >
-                                    <SelectTrigger>
-                                      <SelectValue />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                      <SelectItem value="__none">{t("failover.editor.no_key_pair", { defaultValue: "No key pair" })}</SelectItem>
-                                      {planCatalog?.key_pairs?.map((option) => (
-                                        <SelectItem key={option.value} value={option.value}>
-                                          {formatCatalogOptionLabel(option)}
-                                        </SelectItem>
-                                      ))}
-                                    </SelectContent>
-                                  </Select>
-                                ) : (
-                                  <Input
-                                    value={getStringValue(selectedPlanPayload.key_name)}
-                                    onChange={(event) => updateSelectedPlanPayload((current) => ({
-                                      ...current,
-                                      key_name: event.target.value,
-                                    }))}
-                                    placeholder={t("failover.editor.no_key_pair", { defaultValue: "No key pair" })}
-                                  />
-                                )}
-                              </div>
-                              <div className="space-y-2 lg:col-span-2">
-                                <Label>{t("cloud.providers.aws.security_groups", { defaultValue: "Security Groups" })}</Label>
-                                <div className="text-xs text-muted-foreground">
-                                  {t("failover.editor.security_groups_hint", {
-                                    defaultValue: "Enter one or more security group IDs separated by commas or new lines. Leave empty to keep the default security group on the selected subnet.",
-                                  })}
-                                </div>
-                                <Textarea
-                                  className="min-h-24 font-mono text-xs [overflow-wrap:anywhere]"
-                                  value={getStringArrayValue(selectedPlanPayload.security_group_ids).join("\n")}
+                                <SearchableCatalogSelect
+                                  value={selectedAWSEC2InstanceType || undefined}
+                                  options={awsEc2InstanceTypeOptions}
+                                  onValueChange={(value) => updateSelectedPlanPayload((current) => ({
+                                    ...current,
+                                    instance_type: value,
+                                  }))}
+                                  placeholder={t("failover.editor.instance_type_placeholder", { defaultValue: "Choose an instance type" })}
+                                  searchPlaceholder={t("failover.editor.instance_type_search_placeholder", { defaultValue: "Search instance types..." })}
+                                  emptyLabel={t("failover.editor.instance_type_search_empty", { defaultValue: "No matching instance type" })}
+                                  formatOptionLabel={(option) => {
+                                    const preset = STATIC_EC2_INSTANCE_TYPE_PRESETS.find((item) => item.value === option.value);
+                                    return preset ? getStaticEC2InstanceTypePresetLabel(preset) : formatCatalogOptionLabel(option);
+                                  }}
+                                />
+                                <Input
+                                  value={selectedAWSEC2InstanceType}
                                   onChange={(event) => updateSelectedPlanPayload((current) => ({
                                     ...current,
-                                    security_group_ids: parseResourceIds(event.target.value),
+                                    instance_type: event.target.value,
                                   }))}
+                                  placeholder={t("cloud.providers.aws.instance_type_manual_placeholder", { defaultValue: "Or enter an instance type manually" })}
                                 />
-                                {planCatalog?.security_groups?.length ? (
-                                  <div className="text-xs text-muted-foreground">
-                                    {t("failover.editor.security_groups_loaded_hint", {
-                                      defaultValue: "Loaded options: {{options}}",
-                                      options: planCatalog.security_groups.map((option) => option.value).join(", "),
-                                    })}
-                                  </div>
-                                ) : null}
                               </div>
                               <div className="rounded-xl bg-muted/20 px-4 py-3 lg:col-span-2">
                                 <div className="flex items-center justify-between gap-4">
@@ -8383,6 +8524,49 @@ function TaskEditorDialog({
                                   />
                                 </div>
                               </div>
+                              <div className="space-y-2">
+                                <Label>{t("cloud.form.name", { defaultValue: "Name" })}</Label>
+                                <Input
+                                  value={getStringValue(selectedPlanPayload.name)}
+                                  onChange={(event) => updateSelectedPlanPayload((current) => ({
+                                    ...current,
+                                    name: event.target.value,
+                                  }))}
+                                  placeholder={t("cloud.providers.aws.auto_name", { defaultValue: "Auto name" })}
+                                />
+                              </div>
+                              <div className="space-y-2 lg:col-span-2">
+                                <Label>{t("cloud.form.tags", { defaultValue: "Tags" })}</Label>
+                                <div className="text-xs text-muted-foreground">
+                                  {t("failover.editor.aws_tags_hint", {
+                                    defaultValue: "Use key=value pairs separated by commas or new lines. These tags are applied only when Komari needs to create a replacement instance.",
+                                  })}
+                                </div>
+                                <Textarea
+                                  className="min-h-24 font-mono text-xs [overflow-wrap:anywhere]"
+                                  value={selectedAWSTagsText}
+                                  onChange={(event) => updateSelectedPlanPayload((current) => ({
+                                    ...current,
+                                    tags: parseAWSTagsText(event.target.value),
+                                  }))}
+                                />
+                              </div>
+                              <div className="space-y-2 lg:col-span-2">
+                                <Label>{t("cloud.form.user_data", { defaultValue: "Cloud-Init / User Data" })}</Label>
+                                <Textarea
+                                  className="min-h-28 font-mono text-xs [overflow-wrap:anywhere]"
+                                  value={typeof selectedPlanPayload.user_data === "string" ? selectedPlanPayload.user_data : ""}
+                                  onChange={(event) => updateSelectedPlanPayload((current) => ({
+                                    ...current,
+                                    user_data: event.target.value,
+                                  }))}
+                                />
+                                <div className="text-xs text-muted-foreground">
+                                  {t("failover.editor.aws_user_data_hint", {
+                                    defaultValue: "This runs before Komari's auto-connect bootstrap. Use shell script or cloud-init that is compatible with your selected image.",
+                                  })}
+                                </div>
+                              </div>
                             </>
                           ) : (
                             <>
@@ -8391,135 +8575,104 @@ function TaskEditorDialog({
                                   defaultValue: "Komari will first check whether this AWS credential already has a Lightsail instance with the task's current IP. If it does, Komari only replaces that instance's public IP. If it does not, Komari creates a new Lightsail instance with the configuration below.",
                                 })}
                               </div>
+                              <div className="rounded-xl border border-dashed px-4 py-3 text-xs text-muted-foreground lg:col-span-2">
+                                {t("failover.editor.aws_lightsail_static_presets_hint", {
+                                  defaultValue: "This replacement-instance form follows the AWS Lightsail create page: common blueprints and bundles are built in, and you can still type uncommon values manually below.",
+                                })}
+                              </div>
                               <div className="space-y-2">
                                 <Label>{t("failover.editor.availability_zone", { defaultValue: "Availability zone" })}</Label>
-                                {(planCatalog?.availability_zones || []).length > 0 ? (
-                                  <Select
-                                    value={getStringValue(selectedPlanPayload.availability_zone) || undefined}
-                                    onValueChange={(value) => updateSelectedPlanPayload((current) => ({
-                                      ...current,
-                                      availability_zone: value,
-                                    }))}
-                                  >
-                                    <SelectTrigger>
-                                      <SelectValue placeholder={t("failover.editor.availability_zone_placeholder", { defaultValue: "Choose an availability zone" })} />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                      {planCatalog?.availability_zones?.map((option) => (
-                                        <SelectItem key={option.value} value={option.value}>
-                                          {formatCatalogOptionLabel(option)}
-                                        </SelectItem>
-                                      ))}
-                                    </SelectContent>
-                                  </Select>
-                                ) : (
-                                  <Input
-                                    value={getStringValue(selectedPlanPayload.availability_zone)}
-                                    onChange={(event) => updateSelectedPlanPayload((current) => ({
-                                      ...current,
-                                      availability_zone: event.target.value,
-                                    }))}
-                                    placeholder="us-east-1a"
-                                  />
-                                )}
+                                <Input
+                                  value={getStringValue(selectedPlanPayload.availability_zone)}
+                                  onChange={(event) => updateSelectedPlanPayload((current) => ({
+                                    ...current,
+                                    availability_zone: event.target.value,
+                                  }))}
+                                  placeholder={t("cloud.providers.aws.lightsail_az_manual_placeholder", { defaultValue: "Availability zone, for example us-east-1a" })}
+                                />
+                                <div className="text-xs text-muted-foreground">
+                                  {t("failover.editor.aws_lightsail_az_hint", {
+                                    az: getDefaultLightsailAvailabilityZone(selectedPlanRegion),
+                                    defaultValue: "Lightsail requires a concrete availability zone. Komari usually starts with {{az}} when you pick a region, but you can replace it manually if the account prefers another zone.",
+                                  })}
+                                </div>
                               </div>
                               <div className="space-y-2">
                                 <Label>{t("failover.editor.blueprint", { defaultValue: "Blueprint" })}</Label>
-                                {(planCatalog?.blueprints || []).length > 0 ? (
-                                  <Select
-                                    value={getStringValue(selectedPlanPayload.blueprint_id) || undefined}
-                                    onValueChange={(value) => updateSelectedPlanPayload((current) => ({
-                                      ...current,
-                                      blueprint_id: value,
-                                    }))}
-                                  >
-                                    <SelectTrigger>
-                                      <SelectValue placeholder={t("failover.editor.blueprint_placeholder", { defaultValue: "Choose a blueprint" })} />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                      {planCatalog?.blueprints?.map((option) => (
-                                        <SelectItem key={option.value} value={option.value}>
-                                          {formatCatalogOptionLabel(option)}
-                                        </SelectItem>
-                                      ))}
-                                    </SelectContent>
-                                  </Select>
-                                ) : (
-                                  <Input
-                                    value={getStringValue(selectedPlanPayload.blueprint_id)}
-                                    onChange={(event) => updateSelectedPlanPayload((current) => ({
-                                      ...current,
-                                      blueprint_id: event.target.value,
-                                    }))}
-                                    placeholder="ubuntu_24_04"
-                                  />
-                                )}
+                                <SearchableCatalogSelect
+                                  value={selectedLightsailBlueprintID || undefined}
+                                  options={awsLightsailBlueprintOptions}
+                                  onValueChange={(value) => {
+                                    const nextBlueprint = STATIC_LIGHTSAIL_BLUEPRINT_PRESETS.find((preset) => preset.value === value);
+                                    if (!nextBlueprint) {
+                                      updateSelectedPlanPayload((current) => ({
+                                        ...current,
+                                        blueprint_id: value,
+                                      }));
+                                      return;
+                                    }
+                                    updateSelectedPlanPayload((current) => {
+                                      const currentBundlePlatform = inferLightsailBundlePlatform(getStringValue(current.bundle_id));
+                                      return {
+                                        ...current,
+                                        blueprint_id: nextBlueprint.value,
+                                        bundle_id:
+                                          currentBundlePlatform && currentBundlePlatform !== nextBlueprint.platform
+                                            ? getDefaultLightsailBundleForPlatform(nextBlueprint.platform)
+                                            : getStringValue(current.bundle_id) || getDefaultLightsailBundleForPlatform(nextBlueprint.platform),
+                                      };
+                                    });
+                                  }}
+                                  placeholder={t("failover.editor.blueprint_placeholder", { defaultValue: "Choose a blueprint" })}
+                                  searchPlaceholder={t("failover.editor.blueprint_search_placeholder", { defaultValue: "Search blueprints..." })}
+                                  emptyLabel={t("failover.editor.blueprint_search_empty", { defaultValue: "No matching blueprint" })}
+                                  formatOptionLabel={(option) => {
+                                    const preset = STATIC_LIGHTSAIL_BLUEPRINT_PRESETS.find((item) => item.value === option.value);
+                                    return preset ? getStaticLightsailBlueprintPresetLabel(preset) : formatCatalogOptionLabel(option);
+                                  }}
+                                />
+                                <Input
+                                  value={selectedLightsailBlueprintID}
+                                  onChange={(event) => updateSelectedPlanPayload((current) => ({
+                                    ...current,
+                                    blueprint_id: event.target.value,
+                                  }))}
+                                  placeholder={t("cloud.providers.aws.lightsail_blueprint_manual_placeholder", { defaultValue: "Or enter a blueprint ID manually" })}
+                                />
                               </div>
                               <div className="space-y-2">
                                 <Label>{t("failover.editor.bundle", { defaultValue: "Bundle" })}</Label>
-                                {(planCatalog?.bundles || []).length > 0 ? (
-                                  <Select
-                                    value={getStringValue(selectedPlanPayload.bundle_id) || undefined}
-                                    onValueChange={(value) => updateSelectedPlanPayload((current) => ({
-                                      ...current,
-                                      bundle_id: value,
-                                    }))}
-                                  >
-                                    <SelectTrigger>
-                                      <SelectValue placeholder={t("failover.editor.bundle_placeholder", { defaultValue: "Choose a bundle" })} />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                      {planCatalog?.bundles?.map((option) => (
-                                        <SelectItem key={option.value} value={option.value}>
-                                          {formatCatalogOptionLabel(option)}
-                                        </SelectItem>
-                                      ))}
-                                    </SelectContent>
-                                  </Select>
-                                ) : (
-                                  <Input
-                                    value={getStringValue(selectedPlanPayload.bundle_id)}
-                                    onChange={(event) => updateSelectedPlanPayload((current) => ({
-                                      ...current,
-                                      bundle_id: event.target.value,
-                                    }))}
-                                    placeholder="micro_3_0"
-                                  />
-                                )}
+                                <SearchableCatalogSelect
+                                  value={selectedLightsailBundleID || undefined}
+                                  options={awsLightsailBundleOptions}
+                                  onValueChange={(value) => updateSelectedPlanPayload((current) => ({
+                                    ...current,
+                                    bundle_id: value,
+                                  }))}
+                                  placeholder={t("failover.editor.bundle_placeholder", { defaultValue: "Choose a bundle" })}
+                                  searchPlaceholder={t("failover.editor.bundle_search_placeholder", { defaultValue: "Search bundles..." })}
+                                  emptyLabel={t("failover.editor.bundle_search_empty", { defaultValue: "No matching bundle" })}
+                                  formatOptionLabel={(option) => {
+                                    const preset = STATIC_LIGHTSAIL_BUNDLE_PRESETS.find((item) => item.value === option.value);
+                                    return preset ? getStaticLightsailBundlePresetLabel(preset) : formatCatalogOptionLabel(option);
+                                  }}
+                                />
+                                <Input
+                                  value={selectedLightsailBundleID}
+                                  onChange={(event) => updateSelectedPlanPayload((current) => ({
+                                    ...current,
+                                    bundle_id: event.target.value,
+                                  }))}
+                                  placeholder={t("cloud.providers.aws.lightsail_bundle_manual_placeholder", { defaultValue: "Or enter a bundle ID manually" })}
+                                />
                               </div>
-                              <div className="space-y-2">
-                                <Label>{t("failover.editor.key_pair", { defaultValue: "Key pair" })}</Label>
-                                {(planCatalog?.key_pairs || []).length > 0 ? (
-                                  <Select
-                                    value={getStringValue(selectedPlanPayload.key_pair_name) || "__none"}
-                                    onValueChange={(value) => updateSelectedPlanPayload((current) => ({
-                                      ...current,
-                                      key_pair_name: value === "__none" ? "" : value,
-                                    }))}
-                                  >
-                                    <SelectTrigger>
-                                      <SelectValue />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                      <SelectItem value="__none">{t("failover.editor.no_key_pair", { defaultValue: "No key pair" })}</SelectItem>
-                                      {planCatalog?.key_pairs?.map((option) => (
-                                        <SelectItem key={option.value} value={option.value}>
-                                          {formatCatalogOptionLabel(option)}
-                                        </SelectItem>
-                                      ))}
-                                    </SelectContent>
-                                  </Select>
-                                ) : (
-                                  <Input
-                                    value={getStringValue(selectedPlanPayload.key_pair_name)}
-                                    onChange={(event) => updateSelectedPlanPayload((current) => ({
-                                      ...current,
-                                      key_pair_name: event.target.value,
-                                    }))}
-                                    placeholder={t("failover.editor.no_key_pair", { defaultValue: "No key pair" })}
-                                  />
-                                )}
-                              </div>
+                              {awsLightsailPlatformMismatch ? (
+                                <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs text-amber-800 dark:border-amber-900/40 dark:bg-amber-950/30 dark:text-amber-200 lg:col-span-2">
+                                  {t("failover.editor.aws_lightsail_platform_mismatch", {
+                                    defaultValue: "The selected Lightsail blueprint and bundle look incompatible. Linux blueprints should use Linux bundles, and Windows blueprints should use Windows bundles.",
+                                  })}
+                                </div>
+                              ) : null}
                               <div className="space-y-2">
                                 <Label>{t("cloud.providers.aws.ip_address_type", { defaultValue: "IP Address Type" })}</Label>
                                 <Select
@@ -8538,6 +8691,17 @@ function TaskEditorDialog({
                                     <SelectItem value="ipv6">ipv6</SelectItem>
                                   </SelectContent>
                                 </Select>
+                              </div>
+                              <div className="space-y-2">
+                                <Label>{t("cloud.form.name", { defaultValue: "Name" })}</Label>
+                                <Input
+                                  value={getStringValue(selectedPlanPayload.name)}
+                                  onChange={(event) => updateSelectedPlanPayload((current) => ({
+                                    ...current,
+                                    name: event.target.value,
+                                  }))}
+                                  placeholder={t("cloud.providers.aws.auto_name", { defaultValue: "Auto name" })}
+                                />
                               </div>
                               <div className="rounded-xl bg-muted/20 px-4 py-3 lg:col-span-2">
                                 <div className="flex items-center justify-between gap-4">
@@ -8559,6 +8723,33 @@ function TaskEditorDialog({
                                     }))}
                                   />
                                 </div>
+                              </div>
+                              <div className="space-y-2 lg:col-span-2">
+                                <Label>{t("cloud.form.tags", { defaultValue: "Tags" })}</Label>
+                                <div className="text-xs text-muted-foreground">
+                                  {t("failover.editor.aws_tags_hint", {
+                                    defaultValue: "Use key=value pairs separated by commas or new lines. These tags are applied only when Komari needs to create a replacement instance.",
+                                  })}
+                                </div>
+                                <Textarea
+                                  className="min-h-24 font-mono text-xs [overflow-wrap:anywhere]"
+                                  value={selectedAWSTagsText}
+                                  onChange={(event) => updateSelectedPlanPayload((current) => ({
+                                    ...current,
+                                    tags: parseAWSTagsText(event.target.value),
+                                  }))}
+                                />
+                              </div>
+                              <div className="space-y-2 lg:col-span-2">
+                                <Label>{t("cloud.form.user_data", { defaultValue: "Cloud-Init / User Data" })}</Label>
+                                <Textarea
+                                  className="min-h-28 font-mono text-xs [overflow-wrap:anywhere]"
+                                  value={typeof selectedPlanPayload.user_data === "string" ? selectedPlanPayload.user_data : ""}
+                                  onChange={(event) => updateSelectedPlanPayload((current) => ({
+                                    ...current,
+                                    user_data: event.target.value,
+                                  }))}
+                                />
                               </div>
                             </>
                           )}

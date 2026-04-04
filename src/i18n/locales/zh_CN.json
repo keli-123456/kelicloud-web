@@ -435,7 +435,8 @@
       "standard": "普通用户",
       "title": "用户管理",
       "total": "用户总数",
-      "update_failed": "更新用户失败"
+      "update_failed": "更新用户失败",
+      "feature_cn_connectivity": "国内连通探测"
     }
   },
   "chart": {
@@ -475,7 +476,9 @@
       "private_key": "托管私钥",
       "root_password": "Root 密码",
       "ssh_hint": "SSH 登录示例",
-      "title": "登录凭据"
+      "title": "登录凭据",
+      "dialog_title": "连接信息",
+      "public_key": "公钥"
     },
     "action_success": "操作请求已提交",
     "connection_description": "保存拥有 Droplet 读写权限的 Personal Access Token。面板将通过 DigitalOcean 官方 v2 API 进行操作。",
@@ -502,7 +505,11 @@
       "title": "Droplet 详情",
       "vcpus": "vCPU",
       "volume_ids": "卷 ID",
-      "vpc_uuid": "VPC UUID"
+      "vpc_uuid": "VPC UUID",
+      "access": "访问",
+      "network": "网络",
+      "resources": "资源",
+      "summary": "概览"
     },
     "dns": {
       "add_entry": "添加凭证",
@@ -917,7 +924,10 @@
         "view_credential": "查看凭证",
         "view_instances": "查看实例",
         "volume_summary": "{{count}} 块卷 · {{size}} GiB",
-        "vpc": "VPC"
+        "vpc": "VPC",
+        "ec2_quota": "EC2 配额",
+        "max_security_groups_per_interface": "安全组 / ENI",
+        "volumes": "卷"
       },
       "azure": {
         "account_snapshot": "账户概览",
@@ -1070,7 +1080,8 @@
         "tokens_description": "保存多个 Linode 个人访问令牌，选择当前操作令牌，并批量检测令牌可用性。",
         "tokens_empty": "当前还没有保存任何 Linode 令牌",
         "username": "用户名",
-        "view_instances": "查看实例"
+        "view_instances": "查看实例",
+        "restricted_account_help": "这个 Linode 账号当前处于受限状态。在 Linode 解除限制前，新建健康检查和实例操作可能仍会失败。"
       }
     },
     "reboot": "重启",
@@ -1175,7 +1186,9 @@
       "status_not_shared": "未分享",
       "unavailable": "分享不可用",
       "update": "更新分享",
-      "updated": "最近更新"
+      "updated": "最近更新",
+      "delete": "撤销分享链接",
+      "public_link": "公开链接"
     },
     "stats": {
       "account": "账户",
@@ -1274,8 +1287,15 @@
       "view_droplets": "查看实例",
       "view_key": "查看密钥",
       "view_managed_key": "查看托管密钥",
-      "view_token": "查看令牌"
-    }
+      "view_token": "查看令牌",
+      "managed_key_pending_registration": "当前账号还没有注册这个密钥。Komari 会在此凭证首次以 root 密码模式创建 Droplet 时自动注册共享公钥。",
+      "managed_key_registered": "已为当前账号注册为密钥 #{{keyId}}",
+      "managed_key_registration": "账号注册状态",
+      "shared_managed_key_ready": "共享托管 SSH 密钥：{{name}}"
+    },
+    "active": "已激活",
+    "select": "选择",
+    "view": "查看"
   },
   "color": {
     "amber": "琥珀色",
@@ -1371,6 +1391,7 @@
     "deleted_successfully": "已删除",
     "disabled": "禁用",
     "documentation": "文档",
+    "details": "详情",
     "done": "完毕",
     "edit": "编辑",
     "empty_error": "不能为空",
@@ -1392,11 +1413,14 @@
     "name": "名称",
     "no": "否",
     "none": "无",
+    "no_result": "无结果",
+    "not_implemented": "暂未实现",
     "once": "一次性",
     "quarterly": "季",
     "quinquennial": "五年",
     "real_time": "实时",
     "refresh": "刷新",
+    "region_flag": "地区旗帜：{{code}}",
     "remark": "备注",
     "save": "保存",
     "search": "搜索",
@@ -1417,7 +1441,15 @@
     "update_available": "有新版本",
     "updated_successfully": "成功更新",
     "weight": "权重",
-    "yes": "是"
+    "yes": "是",
+    "actions": "操作",
+    "copy": "复制",
+    "info": "信息",
+    "loading": "加载中",
+    "optional": "可选",
+    "saving": "保存中...",
+    "type": "类型",
+    "warning": "警告"
   },
   "copy": "复制",
   "copy_success": "已复制到剪贴板",
@@ -1494,7 +1526,10 @@
       "enable": "启用",
       "initialize": "初始化",
       "next": "下一步",
-      "run": "执行"
+      "run": "执行",
+      "retry_cleanup": "重试清理",
+      "retry_dns": "重试 DNS",
+      "stop": "停止"
     },
     "cooldown": {
       "immediate": "现在即可执行。",
@@ -1584,6 +1619,14 @@
       "instance_type_placeholder": "选择实例规格",
       "key_pair": "密钥对",
       "line": "解析线路",
+      "aliyun_line_default": "默认",
+      "aliyun_line_telecom": "电信",
+      "aliyun_line_unicom": "联通",
+      "aliyun_line_mobile": "移动",
+      "aliyun_line_edu": "教育网",
+      "aliyun_line_oversea": "境外",
+      "aliyun_line_search": "搜索引擎",
+      "aliyun_line_school": "校园网",
       "load_plan_options_first": "先选择地区，再点击“加载可选配置”。",
       "load_plan_regions_first": "先点击“加载区域”再选择地区。",
       "load_records": "读取现有解析",
@@ -1687,12 +1730,58 @@
       "task_summary_hint": "主弹窗只保留任务标识和当前出口；需要调失败阈值或重试策略时，再进入二级弹窗。",
       "toggle_plan": "展开或收起方案详情",
       "ttl": "TTL",
+      "ttl_option": "{{count}} 秒",
       "type": "机型",
       "type_placeholder": "选择机型",
       "wait_agent_timeout": "等待 Agent 超时（秒）",
       "watch_node": "监控节点",
       "watch_node_placeholder": "选择一个节点",
-      "zone_name": "Zone / 主域名"
+      "zone_name": "Zone / 主域名",
+      "aliyun_rr_hint": "根域名请使用 @。这里只填写主机部分，例如 www 或 api，不要填写完整域名。",
+      "assign_ipv6_hint": "在创建实例时同时申请 IPv6，并在启动后校验是否分配成功。",
+      "auto_connect_group_custom": "自定义自动接入分组",
+      "auto_connect_group_custom_disabled_hint": "推荐值会自动跟随所选云凭证条目分组变化。",
+      "auto_connect_group_custom_enabled_hint": "已启用手动模式。这个值不会再跟随云厂商或令牌分组变化。",
+      "aws_action_auto_hint": "AWS 会自动检查所选凭证下是否已经存在与任务当前出口 IP 相同的实例；如果存在，Komari 只会替换该实例的公网 IP，否则会新建实例。",
+      "aws_ec2_architecture_mismatch": "所选镜像需要 {{imageArch}} 架构，但 {{instanceType}} 属于 {{typeArch}}。Graviton 家族如 t4g/m7g/c7g/r7g 请搭配 ARM64 镜像，t3/m7i/c7i/r7i 等家族请搭配 x86_64 镜像。",
+      "aws_lightsail_az_hint": "Lightsail 必须指定具体可用区。选择地域后，Komari 通常会先使用 {{az}}，如果账号更适合其他可用区，也可以手动修改。",
+      "aws_lightsail_platform_mismatch": "所选 Lightsail 蓝图和套餐看起来不兼容。Linux 蓝图应使用 Linux 套餐，Windows 蓝图应使用 Windows 套餐。",
+      "aws_lightsail_static_presets_hint": "这个替换实例表单参考 AWS Lightsail 创建页面：内置了常用蓝图和套餐，你仍然可以在下方手动输入非常用值。",
+      "aws_rebind_by_ip_hint": "Komari 会先检查当前 AWS 凭证下是否已有与任务当前 IP 相同的 EC2 实例；如果有，只会替换该实例的公网 IP；如果没有，则按下方配置新建 EC2 实例。",
+      "aws_rebind_by_ip_hint_lightsail": "Komari 会先检查当前 AWS 凭证下是否已有与任务当前 IP 相同的 Lightsail 实例；如果有，只会替换该实例的公网 IP；如果没有，则按下方配置新建 Lightsail 实例。",
+      "aws_rebind_static_presets_hint": "这个替换实例表单参考 AWS 创建实例页面：内置了常用地域、AMI 和实例规格，你仍然可以在下方手动输入非常用值。",
+      "aws_static_presets_hint": "AWS 故障切换使用与 AWS 创建实例页相同的内置地域、镜像和实例规格预设，基础表单无需再加载目录。",
+      "aws_tags_hint": "使用 key=value 形式，多个标签可用逗号或换行分隔。只有在 Komari 需要新建替换实例时才会应用这些标签。",
+      "aws_user_data_hint": "这段内容会在 Komari 自动接入 bootstrap 之前执行。请使用与你所选镜像兼容的 shell 脚本或 cloud-init。",
+      "blueprint_search_empty": "没有匹配的蓝图",
+      "blueprint_search_placeholder": "搜索蓝图...",
+      "bundle_search_empty": "没有匹配的套餐",
+      "bundle_search_placeholder": "搜索套餐...",
+      "digitalocean_common_options_hint": "默认展示常用的 DigitalOcean 区域、规格和镜像。只有需要非常用选项时，再加载完整的 DigitalOcean 列表。",
+      "image_search_empty": "没有匹配的镜像",
+      "image_search_placeholder": "搜索镜像...",
+      "instance_type_search_empty": "没有匹配的实例规格",
+      "instance_type_search_placeholder": "搜索实例规格...",
+      "linode_common_options_hint": "默认展示常用的 Linode 区域、方案和镜像。只有需要账号相关或非常用选项时，再加载完整的 Linode 列表。",
+      "load_plan_options": "加载可选配置",
+      "load_plan_options_full_digitalocean": "加载完整 DigitalOcean 列表",
+      "load_plan_options_full_linode": "加载完整 Linode 列表",
+      "load_plan_regions": "加载区域",
+      "loading_plan_regions": "正在加载可用区域...",
+      "plan_count_summary": "{{count}} 个方案",
+      "provision_action_auto_hint": "这个云厂商在故障切换时始终会新建实例。",
+      "region_search_empty": "没有匹配的地域",
+      "region_search_placeholder": "搜索地域...",
+      "scripts": "脚本",
+      "scripts_execution_order_empty": "已选脚本会按从上到下的顺序执行。",
+      "scripts_selected": "已选 {{count}} 个",
+      "security_groups_summary": "{{count}} 个安全组",
+      "size_search_empty": "没有匹配的规格",
+      "size_search_placeholder": "搜索规格...",
+      "tags_summary": "{{count}} 个标签",
+      "type_search_empty": "没有匹配的机型",
+      "type_search_placeholder": "搜索机型...",
+      "use_tracked_current_instance": "使用已跟踪的当前实例"
     },
     "empty_description": "创建第一个任务，监控中国大陆连通性，执行云修复方案，可选运行脚本，并在需要时再切换 DNS。",
     "empty_title": "还没有故障切换任务",
@@ -1759,7 +1848,21 @@
         "script_name": "脚本",
         "status": "状态",
         "strategy": "清理策略",
-        "task_id": "任务 ID"
+        "task_id": "任务 ID",
+        "cleanup_action": "清理动作",
+        "cleanup_error": "清理错误",
+        "cleanup_result": "清理结果",
+        "cleanup_state": "清理状态",
+        "instance": "实例",
+        "ipv4_target": "IPv4 目标",
+        "ipv6_target": "IPv6 目标",
+        "record_types": "记录类型",
+        "region": "地域",
+        "resource_id": "资源 ID",
+        "resource_type": "资源类型",
+        "service": "服务",
+        "skipped_types": "已跳过的记录类型",
+        "verification": "校验结果"
       },
       "dns": "DNS",
       "dns_result": "DNS 结果",
@@ -1794,7 +1897,9 @@
         "run_scripts": "执行脚本",
         "switch_dns": "切换 DNS",
         "validate_outlet": "验证新出口",
-        "wait_agent": "等待 Agent 上线"
+        "wait_agent": "等待 Agent 上线",
+        "retry_cleanup": "重试旧实例清理",
+        "retry_dns": "重试 DNS"
       },
       "step_messages": {
         "agent_connected": "Agent 已连接",
@@ -1815,7 +1920,10 @@
         "script_finished_successfully": "脚本执行成功",
         "scripts_finished_successfully": "全部脚本执行成功",
         "trigger_snapshot_recorded": "已记录触发快照",
-        "validation_skipped_no_target_client": "没有可用的新节点，已跳过连通性校验"
+        "validation_skipped_no_target_client": "没有可用的新节点，已跳过连通性校验",
+        "dns_updated_and_verified": "DNS 已更新并校验通过",
+        "new_instance_password_cleanup_failed": "新实例 root 密码无法保存，且自动清理失败",
+        "new_instance_password_cleanup_success": "新实例 root 密码无法保存；已自动删除新实例"
       },
       "steps_empty": "还没有步骤数据。",
       "steps_raw": "步骤原始数据",
@@ -1829,7 +1937,43 @@
       "timeline": "时间线",
       "timeline_hint": "后端会持久化每个步骤，方便准确定位失败位置。",
       "title": "执行详情",
-      "trigger_snapshot": "触发快照"
+      "trigger_snapshot": "触发快照",
+      "dns_target_description": "重试 DNS 时会复用这些已保存的地址和记录快照，不会新建实例。",
+      "dns_target_title": "DNS 目标",
+      "dns_verification_attempted": "已尝试校验 {{count}} 次",
+      "dns_verification_needs_review": "缺失 {{missing}}，异常 {{unexpected}}",
+      "dns_verification_verified": "已与服务商记录校验一致",
+      "dns_verification_verified_after": "在第 {{count}} 次尝试后校验通过",
+      "instance_identifier": {
+        "droplet": "Droplet #{{id}}",
+        "instance": "实例 {{id}}"
+      },
+      "latest_dns_records": "最新记录",
+      "no_dns_target": "当前执行还没有保存可用于展示的 DNS 目标详情。",
+      "no_old_instance": "当前执行还没有保存旧实例引用。",
+      "old_instance_description": "重试清理会使用这里保存的云厂商引用。执行删除前请先确认目标是否正确。",
+      "old_instance_title": "旧实例",
+      "retry_cleanup_confirm_description": "这只会使用已保存的云厂商引用重新执行旧实例清理。请先确认下方目标，再删除任何资源。",
+      "retry_cleanup_confirm_title": "重试旧实例清理？",
+      "retry_dns_confirm_description": "这只会使用已保存的执行地址重新执行 DNS 步骤，不会新建实例。",
+      "retry_dns_confirm_title": "重试 DNS 更新？",
+      "retry_guidance": {
+        "inspect_addresses": "请检查执行时间线，或重新运行故障切换，让系统重新保存目标地址。",
+        "manual_review": "请直接登录原云账号，确认旧实例是否仍然存在或仍在计费。",
+        "no_cleanup_required": "这次执行没有生成可重试的旧实例清理动作。",
+        "no_retry_needed": "除非你只是手动复核，否则这个步骤当前不需要重试。",
+        "retry_dns_first": "请先重试 DNS。只有 DNS 步骤成功后，清理才会解除阻塞。",
+        "review_cleanup_summary": "重试删除前，请先检查旧实例摘要和清理时间线。",
+        "review_dns_summary": "再次重试 DNS 前，请先检查 DNS 目标摘要和执行时间线。",
+        "wait_or_stop": "请等待当前执行结束；如果它已经卡住，可以先停止再重试。"
+      },
+      "retry_guidance_blocked": "受阻原因",
+      "retry_guidance_next_step": "下一步",
+      "retry_guidance_title": "重试建议",
+      "services": {
+        "ec2": "EC2",
+        "lightsail": "Lightsail"
+      }
     },
     "messages": {
       "created": "故障切换任务已创建",
@@ -1839,7 +1983,10 @@
       "load_execution_failed": "加载执行详情失败",
       "load_tasks_failed": "加载故障切换任务失败",
       "started": "故障切换任务已启动",
-      "updated": "故障切换任务已更新"
+      "updated": "故障切换任务已更新",
+      "retry_cleanup_success": "清理重试已完成",
+      "retry_dns_success": "DNS 重试已完成",
+      "stopped": "故障切换执行已停止"
     },
     "page_description": "创建自动故障切换任务，持续监控中国大陆连通性，按优先级执行云修复方案，可选运行脚本，并在新出口准备完成后再切换 DNS。",
     "page_title": "中国大陆连通性故障切换",
@@ -1963,7 +2110,17 @@
       "script_pending": "未执行",
       "script_status_label": "脚本状态",
       "uninitialized": "未初始化",
-      "uninitialized_hint": "先保存任务，再执行一次初始化来创建首个出口。"
+      "uninitialized_hint": "先保存任务，再执行一次初始化来创建首个出口。",
+      "risk_cleanup_billing": "旧实例可能仍在计费",
+      "risk_cleanup_review": "清理需要人工复核",
+      "risk_dns_failed": "DNS 失败",
+      "risk_retry_available": "可重试",
+      "risk_retry_available_hint": "最近一次执行看起来满足步骤级重试条件。",
+      "risk_retry_cleanup": "重试清理",
+      "risk_retry_cleanup_hint": "最近一次执行可以重试旧实例清理。",
+      "risk_retry_dns": "重试 DNS",
+      "risk_retry_dns_hint": "最近一次执行可以在不重新创建实例的前提下重试 DNS 步骤。",
+      "script_count": "{{count}} 个脚本"
     },
     "validation": {
       "dns_domain_required": "阿里云域名不能为空",
@@ -1980,12 +2137,18 @@
       "plan_required": "至少需要一个故障切换方案",
       "script_domain_required": "故障切换自动接入需要先配置 Agent 连接地址，请到“设置 -> 站点”填写后再保存或执行这个任务",
       "task_name_required": "任务名称不能为空",
-      "watch_node_required": "请选择监控节点"
+      "watch_node_required": "请选择监控节点",
+      "aliyun_rr_invalid": "阿里云主机记录应类似 @、www 或 api。不要填写完整 URL，也不要包含无效分隔符。"
     }
   },
   "go_to_home": "回到主页",
   "home_title": "Komari Monitor",
   "just_now": "刚刚",
+  "instance": {
+    "details_eyebrow": "节点详情",
+    "details_title": "硬件配置与运行时快照",
+    "summary_description": "聚焦单节点的实时负载、连通性和历史趋势。这个页把节点身份、当前状态和图表入口拆成了更清晰的阅读层级。"
+  },
   "loadAlert": {
     "add_failed": "添加负载警报失败：{{statusText}}",
     "add_failed_generic": "添加负载警报失败",
@@ -2271,10 +2434,12 @@
     "geoip": {
       "enable_description": "显示节点的地理位置信息",
       "enable_title": "启用地理位置信息",
+      "no_result": "无结果",
       "provider_description": "选择提供地理位置信息的服务商",
       "provider_title": "地理位置数据提供商",
       "test_button": "测试",
       "test_description": "测试选定的GEOIP数据库",
+      "test_placeholder": "1.1.1.1 或 2606:4700:4700::1111",
       "test_title": "测试GeoIP",
       "title": "GeoIP",
       "update_error": "更新 GeoIP 数据库失败",
@@ -2459,6 +2624,7 @@
       },
       "provider": "单点登录提供商",
       "provider_description": "选择用于单点登录的身份验证提供商",
+      "provider_description_unimplemented": "选择用于单点登录的身份验证提供商 [暂未实现]",
       "provider_fields": "登录参数",
       "provider_fields_description": "设置您选择登录方式的详细信息",
       "save_error": "保存登录设置失败",
@@ -2550,5 +2716,8 @@
     "mode": "显示模式"
   },
   "warn_https": "当前连接不是 HTTPS！您的敏感数据存在严重风险。请立即采取措施确保连接安全！复制操作可能无法使用！",
-  "warn_websocket": "RPC2 请求失败，请检查网络连接或服务器状态！"
+  "warn_websocket": "RPC2 请求失败，请检查网络连接或服务器状态！",
+  "scripts": {
+    "empty": "还没有已保存的脚本。"
+  }
 }

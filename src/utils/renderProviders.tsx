@@ -307,7 +307,7 @@ export const renderProviderInputs = ({
     return (
         <div key={currentProvider}>
             <SettingCardCollapse
-                title={title ?? "详情"}
+                title={title ?? t("common.details")}
                 description={description}
                 defaultOpen={true}
             >

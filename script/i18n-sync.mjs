@@ -19,6 +19,17 @@ const OPENAI_BASE_URL = process.env.OPENAI_BASE_URL || process.env.OPENAI_API_BA
 const OPENAI_MODEL = process.env.OPENAI_MODEL || 'gpt-4o-mini';
 const DRY_RUN = process.argv.includes('--dry-run');
 const FILL_AI = !process.argv.includes('--no-ai');
+const TARGET_LOCALES = (process.env.I18N_TARGET_LOCALES || getArg('--locales', ''))
+  .split(',')
+  .map(v => v.trim())
+  .filter(Boolean);
+
+const DEFAULT_FALLBACK_FILL_LOCALES = {
+  en: [SOURCE_LOCALE],
+  zh_TW: [SOURCE_LOCALE, 'en'],
+  ja_JP: ['en', SOURCE_LOCALE],
+  id_ID: ['en', SOURCE_LOCALE],
+};
 
 function getArg(name, def = undefined) {
   // supports --name=value
@@ -26,6 +37,11 @@ function getArg(name, def = undefined) {
   if (!hit) return def;
   const v = hit.split('=')[1];
   return v ?? def;
+}
+
+function getFallbackFillLocales(locale, availableLocales) {
+  const configured = DEFAULT_FALLBACK_FILL_LOCALES[locale] ?? [SOURCE_LOCALE];
+  return [...new Set(configured)].filter(candidate => candidate && candidate !== locale && availableLocales.includes(candidate));
 }
 
 // Batching config: either limit by number of keys or by input char size approximation
@@ -166,6 +182,7 @@ async function aiTranslateBatch(pairs, targetLocale) {
 
 async function aiTranslateAll(pairs, targetLocale) {
   // Split pairs into multiple requests based on configured batch limits
+  if (!FILL_AI) return pairs.map(({ key }) => ({ key, text: '' }));
   const chunks = chunkPairs(pairs);
   const out = [];
   for (let i = 0; i < chunks.length; i++) {
@@ -217,29 +234,41 @@ function batchPairs(keys, sourceFlat, targetFlat) {
 
 async function main() {
   const localeFiles = fs.readdirSync(LOCALES_DIR).filter(f => f.endsWith('.json'));
-  const locales = localeFiles.map(f => path.basename(f, '.json'));
-  if (!locales.includes(SOURCE_LOCALE)) {
+  const allLocales = localeFiles.map(f => path.basename(f, '.json'));
+  if (!allLocales.includes(SOURCE_LOCALE)) {
     console.error(`Source locale ${SOURCE_LOCALE} not found in ${LOCALES_DIR}`);
     process.exit(1);
   }
+  const locales = TARGET_LOCALES.length
+    ? allLocales.filter(locale => locale === SOURCE_LOCALE || TARGET_LOCALES.includes(locale))
+    : allLocales;
 
   const sourcePath = getLocalePath(SOURCE_LOCALE);
   const sourceObj = readJson(sourcePath);
   const sourceSorted = sortKeysDeep(sourceObj);
   const sourceChanged = JSON.stringify(sourceObj) !== JSON.stringify(sourceSorted);
-  if (!DRY_RUN && sourceChanged) {
+  const shouldWriteSource = TARGET_LOCALES.length === 0 || TARGET_LOCALES.includes(SOURCE_LOCALE);
+  if (!DRY_RUN && sourceChanged && shouldWriteSource) {
     writeJson(sourcePath, sourceSorted);
     console.log(`Source ${SOURCE_LOCALE}: updated (sorted keys)`);
+  } else if (sourceChanged && !shouldWriteSource) {
+    console.log(`Source ${SOURCE_LOCALE}: skipped (targeted sync)`);
   } else {
     console.log(`Source ${SOURCE_LOCALE}: ${sourceChanged ? 'would update (sorted keys)' : 'no change'}`);
   }
   const sourceFlat = flatten(sourceSorted);
+  const localeFlats = new Map([[SOURCE_LOCALE, sourceFlat]]);
+
+  for (const locale of allLocales) {
+    if (locale === SOURCE_LOCALE) continue;
+    localeFlats.set(locale, flatten(readJson(getLocalePath(locale))));
+  }
 
   for (const locale of locales) {
     if (locale === SOURCE_LOCALE) continue;
     const targetPath = getLocalePath(locale);
     const targetObj = readJson(targetPath);
-    const targetFlat = flatten(targetObj);
+    const targetFlat = localeFlats.get(locale) ?? flatten(targetObj);
 
     const { result, added, removed } = diffAndMerge(sourceFlat, targetFlat);
 
@@ -249,9 +278,25 @@ async function main() {
     let aiFilled = [];
     if (missingPairs.length > 0) {
       aiFilled = await aiTranslateAll(missingPairs, locale);
-      for (const { key, text } of aiFilled) {
-        if (typeof text === 'string' && text.trim() !== '') {
-          result[key] = text; // only add when AI returns non-empty
+    }
+
+    const aiFilledMap = new Map(aiFilled.map(({ key, text }) => [key, text]));
+    const fallbackFillLocales = getFallbackFillLocales(locale, allLocales);
+    const fallbackFilled = [];
+
+    for (const { key } of missingPairs) {
+      const aiText = aiFilledMap.get(key);
+      if (typeof aiText === 'string' && aiText.trim() !== '') {
+        result[key] = aiText;
+        continue;
+      }
+
+      for (const fallbackLocale of fallbackFillLocales) {
+        const fallbackValue = localeFlats.get(fallbackLocale)?.[key];
+        if (typeof fallbackValue === 'string' && fallbackValue.trim() !== '') {
+          result[key] = fallbackValue;
+          fallbackFilled.push({ key, locale: fallbackLocale });
+          break;
         }
       }
     }
@@ -262,13 +307,25 @@ async function main() {
     const before = JSON.stringify(sortKeysDeep(targetObj));
     const after = JSON.stringify(merged);
     const hasChange = before !== after;
+    const aiFilledKeys = aiFilled.filter(x => x.text).map(x => x.key);
+    const stillEmpty = missingPairs
+      .map(({ key }) => key)
+      .filter(key => !(key in result));
+    const fallbackLocaleCounts = fallbackFilled.reduce((acc, item) => {
+      acc[item.locale] = (acc[item.locale] || 0) + 1;
+      return acc;
+    }, {});
 
     const changes = {
       locale,
-      added,
-      removed,
-      aiFilled: aiFilled.filter(x => x.text).map(x => x.key),
-      stillEmpty: aiFilled.filter(x => !x.text).map(x => x.key),
+      added: added.length,
+      removed: removed.length,
+      aiFilled: aiFilledKeys.length,
+      fallbackFilled: fallbackFilled.length,
+      fallbackLocales: fallbackLocaleCounts,
+      stillEmpty: stillEmpty.length,
+      sampleAdded: added.slice(0, 12),
+      sampleStillEmpty: stillEmpty.slice(0, 12),
     };
 
   if (!DRY_RUN && hasChange) writeJson(targetPath, merged);

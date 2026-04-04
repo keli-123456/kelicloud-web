@@ -155,7 +155,7 @@ export default function GeneralSettings() {
               <Input
                 value={geoIpQuery}
                 onChange={(event) => setGeoIpQuery(event.target.value)}
-                placeholder="1.1.1.1 or 2606:4700:4700::1111"
+                placeholder={t("settings.geoip.test_placeholder")}
                 className="text-[13px]"
               />
               <div>
@@ -169,7 +169,7 @@ export default function GeneralSettings() {
                     const result = await fetch(`/api/admin/test/geoip?ip=${ip}`);
                     const data = await result.json();
                     setGeoipTestResult(
-                      JSON.stringify(data.data, null, 2) || "无结果"
+                      JSON.stringify(data.data, null, 2) || t("settings.geoip.no_result")
                     );
                   }}
                 >

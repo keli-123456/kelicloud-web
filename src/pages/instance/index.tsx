@@ -72,7 +72,7 @@ export default function InstancePage() {
                 variant={isOnline ? "success" : "warning"}
                 className="rounded-full px-3 py-1"
               >
-                {isOnline ? "Online" : "Offline"}
+                {isOnline ? t("nodeCard.online") : t("nodeCard.offline")}
               </Badge>
               <Badge variant="secondary" className="rounded-full px-3 py-1">
                 {node?.region || "UN"}
@@ -95,7 +95,7 @@ export default function InstancePage() {
                 {node?.uuid}
               </div>
               <p className="max-w-2xl text-sm leading-6 text-muted-foreground md:text-base">
-                聚焦单节点的实时负载、连通性和历史趋势。这个页现在把节点身份、当前状态和图表入口拆成更清晰的阅读层级。
+                {t("instance.summary_description")}
               </p>
             </div>
           </div>
@@ -127,10 +127,10 @@ export default function InstancePage() {
         <div className="flex flex-col gap-3 border-b border-border/60 pb-4 md:flex-row md:items-center md:justify-between">
           <div>
             <div className="text-[11px] uppercase tracking-[0.24em] text-muted-foreground">
-              Node Details
+              {t("instance.details_eyebrow")}
             </div>
             <div className="mt-1 text-xl font-semibold tracking-tight">
-              Hardware profile and runtime snapshot
+              {t("instance.details_title")}
             </div>
           </div>
           <SegmentedControl.Root

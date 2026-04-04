@@ -39,7 +39,7 @@ export default function SsoSettings() {
       />
       <SettingCardSelect
         title={t("settings.sso.provider")}
-        description={t("settings.sso.provider_description") + " [Not Implemented, 暂未实现]"}
+        description={t("settings.sso.provider_description_unimplemented")}
         defaultValue={"Github"}
         OnSave={async (data) => {
           await updateSettingsWithToast({ o_auth_provider: data }, t, "system");

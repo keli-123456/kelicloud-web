@@ -16,6 +16,15 @@ type LanguageDefinition = {
 };
 
 const FALLBACK_LANGUAGE: SupportedLanguage = "zh-CN";
+const INTERMEDIATE_FALLBACK_LANGUAGE: SupportedLanguage = "en-US";
+
+const fallbackLanguageMap: Record<SupportedLanguage, SupportedLanguage[]> = {
+  "en-US": [FALLBACK_LANGUAGE],
+  "zh-CN": [],
+  "zh-TW": [FALLBACK_LANGUAGE, INTERMEDIATE_FALLBACK_LANGUAGE],
+  "ja-JP": [INTERMEDIATE_FALLBACK_LANGUAGE, FALLBACK_LANGUAGE],
+  "id-ID": [INTERMEDIATE_FALLBACK_LANGUAGE, FALLBACK_LANGUAGE],
+};
 
 const languageDefinitions: Record<SupportedLanguage, LanguageDefinition> = {
   "en-US": {
@@ -106,6 +115,11 @@ export function resolveCanonicalLanguage(
   return canonicalLanguageMap.get(supportedLanguage) ?? FALLBACK_LANGUAGE;
 }
 
+function resolveFallbackLanguages(language?: string | null) {
+  const canonicalLanguage = resolveCanonicalLanguage(language);
+  return fallbackLanguageMap[canonicalLanguage];
+}
+
 async function ensureCanonicalLanguageResources(language: SupportedLanguage) {
   if (i18next.hasResourceBundle(language, "translation")) {
     return;
@@ -155,8 +169,15 @@ function ensureAliasResources(language: string, canonicalLanguage: SupportedLang
 export async function loadLanguageResources(language?: string | null) {
   const supportedLanguage = resolveSupportedLanguage(language);
   const canonicalLanguage = resolveCanonicalLanguage(supportedLanguage);
+  const languagesToLoad = [
+    canonicalLanguage,
+    ...resolveFallbackLanguages(canonicalLanguage),
+  ];
 
-  await ensureCanonicalLanguageResources(canonicalLanguage);
+  for (const languageToLoad of new Set(languagesToLoad)) {
+    await ensureCanonicalLanguageResources(languageToLoad);
+  }
+
   ensureAliasResources(supportedLanguage, canonicalLanguage);
 
   return supportedLanguage;
@@ -175,12 +196,13 @@ export async function initI18n() {
     initPromise = (async () => {
       await i18next.use(LanguageDetector).use(initReactI18next).init({
         resources: {},
-        fallbackLng: FALLBACK_LANGUAGE,
+        fallbackLng: (language) => resolveFallbackLanguages(language),
         supportedLngs: supportedLanguageCodes,
         load: "currentOnly",
         interpolation: {
           escapeValue: false,
         },
+        returnEmptyString: false,
         partialBundledLanguages: true,
         detection: {
           order: [

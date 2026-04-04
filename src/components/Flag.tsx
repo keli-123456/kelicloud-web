@@ -1,4 +1,5 @@
 import * as React from "react";
+import { useTranslation } from "react-i18next";
 
 interface FlagProps {
   flag: string; // 地区代码 (例如 "SG", "US") 或旗帜 emoji (例如 "🇸🇬", "🇺🇳")
@@ -44,6 +45,7 @@ const getCountryCodeFromFlagEmoji = (emoji: string): string | null => {
 };
 
 const Flag = React.memo(({ flag, size }: FlagProps) => {
+  const { t } = useTranslation();
   let imgSrc: string;
   let altText: string;
   let resolvedFlagFileName: string; // 最终用于构建文件名的字符串 (例如 "SG", "UN")
@@ -74,7 +76,7 @@ const Flag = React.memo(({ flag, size }: FlagProps) => {
   // 构建本地图片路径
   imgSrc = `/assets/flags/${resolvedFlagFileName}.svg`;
   // 构建 alt 文本和 aria-label
-  altText = `地区旗帜: ${resolvedFlagFileName}`;
+  altText = t("common.region_flag", { code: resolvedFlagFileName });
 
   return (
     <span
