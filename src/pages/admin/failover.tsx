@@ -124,6 +124,7 @@ import type { TFunction } from "i18next";
 type TaskFormState = {
   name: string;
   enabled: boolean;
+  current_client_uuid: string;
   failure_threshold: string;
   stale_after_seconds: string;
   cooldown_seconds: string;
@@ -3991,6 +3992,7 @@ function createEmptyTaskForm(providerEntries: ProviderEntriesMap): TaskFormState
   return {
     name: "",
     enabled: true,
+    current_client_uuid: "",
     failure_threshold: "2",
     stale_after_seconds: "300",
     cooldown_seconds: "1800",
@@ -4057,6 +4059,7 @@ function taskToForm(task: FailoverTask, providerEntries: ProviderEntriesMap): Ta
   return {
     name: task.name,
     enabled: task.enabled,
+    current_client_uuid: task.current_client_uuid || task.watch_client_uuid || "",
     failure_threshold: String(task.failure_threshold || 2),
     stale_after_seconds: String(task.stale_after_seconds || 300),
     cooldown_seconds: String(task.cooldown_seconds || 1800),
@@ -4281,6 +4284,14 @@ function buildTaskInput(formState: TaskFormState, t: TFunction): FailoverTaskInp
       }),
     );
   }
+  const currentClientUUID = formState.current_client_uuid.trim();
+  if (!currentClientUUID) {
+    throw new Error(
+      t("failover.validation.current_client_required", {
+        defaultValue: "Current client is required",
+      }),
+    );
+  }
   if (formState.plans.length === 0) {
     throw new Error(
       t("failover.validation.plan_required", {
@@ -4408,6 +4419,7 @@ function buildTaskInput(formState: TaskFormState, t: TFunction): FailoverTaskInp
   return {
     name: taskName,
     enabled: formState.enabled,
+    current_client_uuid: currentClientUUID,
     failure_threshold: numberOrDefault(formState.failure_threshold, 2),
     stale_after_seconds: numberOrDefault(formState.stale_after_seconds, 300),
     cooldown_seconds: numberOrDefault(formState.cooldown_seconds, 1800),
@@ -5508,6 +5520,24 @@ function TaskEditorDialog({
   const nodeLookup = React.useMemo(
     () => new Map(nodes.map((node) => [node.uuid, node])),
     [nodes],
+  );
+  const currentClientOptions = React.useMemo(
+    () => {
+      const options = nodes.map((node) => ({
+        value: node.uuid,
+        label: node.name || node.uuid,
+        hint: [node.group, node.ipv4 || node.ipv6].filter(Boolean).join(" · "),
+      }));
+      return appendCatalogOptionIfMissing(options, formState.current_client_uuid, formState.current_client_uuid);
+    },
+    [formState.current_client_uuid, nodes],
+  );
+  const selectedCurrentClientNode = React.useMemo(
+    () => {
+      const currentClientUUID = formState.current_client_uuid.trim();
+      return currentClientUUID ? nodeLookup.get(currentClientUUID) || null : null;
+    },
+    [formState.current_client_uuid, nodeLookup],
   );
   const currentOutletNode = React.useMemo(
     () => {
@@ -6704,6 +6734,24 @@ function TaskEditorDialog({
                           checked={formState.enabled}
                           onCheckedChange={(checked) => updateTaskField("enabled", Boolean(checked))}
                         />
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>{t("failover.editor.current_client", { defaultValue: "Current client" })}</Label>
+                      <SearchableCatalogSelect
+                        value={formState.current_client_uuid || undefined}
+                        options={currentClientOptions}
+                        placeholder={t("failover.editor.current_client_placeholder", { defaultValue: "Choose a current client" })}
+                        searchPlaceholder={t("failover.editor.current_client_search_placeholder", { defaultValue: "Search clients..." })}
+                        emptyLabel={t("failover.editor.current_client_search_empty", { defaultValue: "No matching client" })}
+                        onValueChange={(value) => updateTaskField("current_client_uuid", value)}
+                      />
+                      <div className="text-xs text-muted-foreground">
+                        {selectedCurrentClientNode
+                          ? `${t("failover.editor.current_ip", { defaultValue: "IP" })}: ${selectedCurrentClientNode.ipv4 || selectedCurrentClientNode.ipv6 || t("failover.editor.current_ip_empty", { defaultValue: "IP not recorded yet." })}`
+                          : t("failover.editor.current_client_hint", {
+                            defaultValue: "Select the client that represents the current outlet so failover can match the existing instance before deciding to create a replacement.",
+                          })}
                       </div>
                     </div>
                     <div className="rounded-xl border bg-background px-4 py-3">
