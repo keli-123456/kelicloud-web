@@ -90,24 +90,6 @@ function buildSearchTokens(value: string) {
     .filter(Boolean);
 }
 
-function fuzzyTokenMatch(value: string, token: string) {
-  if (!token) {
-    return true;
-  }
-
-  let tokenIndex = 0;
-  for (const char of value) {
-    if (char === token[tokenIndex]) {
-      tokenIndex += 1;
-      if (tokenIndex === token.length) {
-        return true;
-      }
-    }
-  }
-
-  return false;
-}
-
 function commandMatchesSearch(command: {
   name: string;
   text: string;
@@ -124,7 +106,7 @@ function commandMatchesSearch(command: {
     command.text,
   ].join("\n"));
 
-  return tokens.every((token) => fuzzyTokenMatch(haystack, token));
+  return tokens.every((token) => haystack.includes(token));
 }
 
 function normalizeAddresses(addresses: string[]) {
