@@ -1,6 +1,7 @@
 import React from "react";
+import type { TFunction } from "i18next";
 import { Navigate, useNavigate } from "react-router-dom";
-import { LoaderCircle, PencilLine, Play, Plus, RefreshCw, Trash2 } from "lucide-react";
+import { ArrowDown, ArrowUp, Check, ChevronDown, LoaderCircle, PencilLine, Play, Plus, RefreshCw, Trash2 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
@@ -29,11 +30,12 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   Select,
   SelectContent,
   SelectItem,
-  SelectTrigger,
+  SelectTrigger as BaseSelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
@@ -45,8 +47,12 @@ import {
   type CloudProviderCredentialEntry,
 } from "@/lib/cloud";
 import {
+  type FailoverDnsCatalog,
+  type FailoverDnsOption,
+  type FailoverDnsRecordOption,
   type FailoverNodeOption,
   type FailoverScriptOption,
+  getFailoverDnsCatalog,
   getFailoverNodes,
   getFailoverScripts,
 } from "@/lib/failover";
@@ -85,6 +91,31 @@ import {
   validateFailoverV2Member,
   validateFailoverV2Service,
 } from "@/lib/failoverV2";
+import {
+  COMMON_AWS_REGIONS,
+  COMMON_DIGITALOCEAN_IMAGES,
+  COMMON_DIGITALOCEAN_REGIONS,
+  COMMON_DIGITALOCEAN_SIZES,
+  COMMON_LINODE_IMAGES,
+  COMMON_LINODE_REGIONS,
+  COMMON_LINODE_TYPES,
+  DEFAULT_AWS_REGION,
+  DEFAULT_DIGITALOCEAN_IMAGE,
+  DEFAULT_DIGITALOCEAN_REGION,
+  DEFAULT_DIGITALOCEAN_SIZE,
+  DEFAULT_LINODE_IMAGE,
+  DEFAULT_LINODE_REGION,
+  DEFAULT_LINODE_TYPE,
+  DEFAULT_STATIC_EC2_IMAGE_ID,
+  DEFAULT_STATIC_EC2_INSTANCE_TYPE,
+  DEFAULT_STATIC_LIGHTSAIL_BLUEPRINT_ID,
+  DEFAULT_STATIC_LIGHTSAIL_BUNDLE_ID,
+  STATIC_EC2_IMAGE_PRESETS,
+  STATIC_EC2_INSTANCE_TYPE_PRESETS,
+  STATIC_LIGHTSAIL_BLUEPRINT_PRESETS,
+  STATIC_LIGHTSAIL_BUNDLE_PRESETS,
+  type BuiltinPlanOption,
+} from "@/lib/failoverV2Presets";
 
 type ServiceFormState = {
   name: string;
@@ -114,6 +145,11 @@ type MemberFormState = {
   failure_threshold: string;
   stale_after_seconds: string;
   cooldown_seconds: string;
+};
+
+type AWSPlanTag = {
+  key: string;
+  value: string;
 };
 
 type DeleteTarget =
@@ -173,10 +209,288 @@ const FAILOVER_V2_ACTIVE_EXECUTION_STATUSES = new Set([
   "verifying_attach_dns",
   "cleaning_old",
 ]);
+const FORM_SECTION_CLASS = "border-t border-slate-200/70 pt-4 first:border-t-0 first:pt-0 dark:border-slate-800/70";
+const FORM_SECTION_HEADER_CLASS = "mb-3 flex flex-wrap items-start justify-between gap-3";
+const FORM_FIELD_CLASS = "grid min-w-0 gap-1.5 [&>[data-slot=label]]:h-5 [&>[data-slot=label]]:min-w-0 [&>[data-slot=label]]:overflow-hidden [&>[data-slot=label]]:text-ellipsis [&>[data-slot=label]]:whitespace-nowrap [&>[data-slot=label]]:leading-5";
+const FORM_GRID_2_CLASS = "grid items-start gap-3 md:grid-cols-2";
+const FORM_GRID_3_CLASS = "grid items-start gap-3 md:grid-cols-3";
+const FORM_GRID_4_CLASS = "grid items-start gap-3 md:grid-cols-2 xl:grid-cols-4";
+const FORM_TOGGLE_CLASS = "flex min-h-10 items-center justify-between gap-3 border-b border-slate-200/70 py-2 last:border-b-0 dark:border-slate-800/70";
+const FORM_SELECT_TRIGGER_CLASS = "min-w-0 w-full max-w-full overflow-hidden [&_[data-slot=select-value]]:min-w-0 [&_[data-slot=select-value]]:truncate";
+const DNS_TTL_OPTIONS = [1, 60, 120, 300, 600, 900, 1800, 3600, 7200] as const;
+
+function RequiredMark() {
+  return <span className="shrink-0 text-rose-500">*</span>;
+}
+
+function SelectTrigger({
+  className,
+  ...props
+}: React.ComponentProps<typeof BaseSelectTrigger>) {
+  return (
+    <BaseSelectTrigger
+      className={[FORM_SELECT_TRIGGER_CLASS, className].filter(Boolean).join(" ")}
+      {...props}
+    />
+  );
+}
+
+function FormSection({
+  title,
+  description,
+  actions,
+  tone = "default",
+  children,
+}: {
+  title: React.ReactNode;
+  description?: React.ReactNode;
+  actions?: React.ReactNode;
+  tone?: "default" | "warning";
+  children: React.ReactNode;
+}) {
+  const sectionClass = tone === "warning"
+    ? "border-t border-amber-200/80 pt-4 first:border-t-0 first:pt-0 dark:border-amber-900/60"
+    : FORM_SECTION_CLASS;
+
+  return (
+    <section className={sectionClass}>
+      <div className={FORM_SECTION_HEADER_CLASS}>
+        <div className="min-w-0 space-y-1">
+          <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-50">{title}</h3>
+          {description ? <p className="text-xs text-slate-500 dark:text-slate-400">{description}</p> : null}
+        </div>
+        {actions ? <div className="flex shrink-0 items-center gap-2">{actions}</div> : null}
+      </div>
+      {children}
+    </section>
+  );
+}
+
+function ToggleCard({
+  title,
+  description,
+  children,
+}: {
+  title: React.ReactNode;
+  description?: React.ReactNode;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className={FORM_TOGGLE_CLASS}>
+      <div className="min-w-0">
+        <div className="text-sm font-medium text-slate-900 dark:text-slate-50">{title}</div>
+        {description ? <div className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">{description}</div> : null}
+      </div>
+      <div className="shrink-0">{children}</div>
+    </div>
+  );
+}
 
 function normalizeProviderKey(value: string, fallback: string) {
   const normalized = String(value || "").trim().toLowerCase();
   return normalized || fallback;
+}
+
+function normalizeDnsRecordType(value: string) {
+  const normalized = String(value || "").trim().toUpperCase();
+  return normalized === "AAAA" ? "AAAA" : "A";
+}
+
+function formatDnsTTLLabel(t: TFunction, ttl: number) {
+  return t("failover.editor.ttl_option", { count: ttl });
+}
+
+function buildSelectableDnsOptions(
+  options: FailoverDnsOption[],
+  currentValue: string,
+) {
+  const result: FailoverDnsOption[] = [];
+  const seen = new Set<string>();
+
+  for (const option of options) {
+    const value = String(option.value || "").trim();
+    if (!value || seen.has(value)) {
+      continue;
+    }
+    result.push({
+      value,
+      label: String(option.label || value).trim() || value,
+    });
+    seen.add(value);
+  }
+
+  const normalizedCurrentValue = String(currentValue || "").trim();
+  if (normalizedCurrentValue && !seen.has(normalizedCurrentValue)) {
+    result.push({
+      value: normalizedCurrentValue,
+      label: normalizedCurrentValue,
+    });
+  }
+
+  return result;
+}
+
+function getDNSZoneOptions(catalog: FailoverDnsCatalog | null, currentValue: string) {
+  const options = catalog?.zones || [];
+  if (options.length > 0) {
+    return buildSelectableDnsOptions(options, currentValue);
+  }
+
+  const fallbackOptions: FailoverDnsOption[] = [];
+  if (catalog?.defaults.zone_name) {
+    fallbackOptions.push({
+      value: catalog.defaults.zone_name,
+      label: catalog.defaults.zone_name,
+    });
+  }
+  return buildSelectableDnsOptions(fallbackOptions, currentValue);
+}
+
+function getDNSDomainOptions(catalog: FailoverDnsCatalog | null, currentValue: string) {
+  const options = catalog?.domains || [];
+  if (options.length > 0) {
+    return buildSelectableDnsOptions(options, currentValue);
+  }
+
+  const fallbackOptions: FailoverDnsOption[] = [];
+  if (catalog?.defaults.domain_name) {
+    fallbackOptions.push({
+      value: catalog.defaults.domain_name,
+      label: catalog.defaults.domain_name,
+    });
+  }
+  return buildSelectableDnsOptions(fallbackOptions, currentValue);
+}
+
+function getDNSTTLOptions(
+  t: TFunction,
+  catalog: FailoverDnsCatalog | null,
+  currentValue: string,
+) {
+  const options = (catalog?.ttls?.length
+    ? catalog.ttls
+    : DNS_TTL_OPTIONS.map((value) => ({
+        value: String(value),
+        label: formatDnsTTLLabel(t, value),
+      }))).map((option) => {
+        const numericValue = Number.parseInt(String(option.value || "").trim(), 10);
+        return {
+          value: String(option.value || "").trim(),
+          label: Number.isFinite(numericValue) && numericValue > 0
+            ? formatDnsTTLLabel(t, numericValue)
+            : String(option.label || option.value || "").trim(),
+        };
+      });
+  return buildSelectableDnsOptions(options, currentValue);
+}
+
+function localizeAliyunLineLabel(t: TFunction, value: string, fallback?: string) {
+  const normalized = String(value || "").trim().toLowerCase();
+  switch (normalized) {
+    case "default":
+      return t("failover.editor.aliyun_line_default");
+    case "telecom":
+      return t("failover.editor.aliyun_line_telecom");
+    case "unicom":
+      return t("failover.editor.aliyun_line_unicom");
+    case "mobile":
+      return t("failover.editor.aliyun_line_mobile");
+    case "edu":
+      return t("failover.editor.aliyun_line_edu");
+    case "oversea":
+      return t("failover.editor.aliyun_line_oversea");
+    case "search":
+      return t("failover.editor.aliyun_line_search");
+    case "school":
+      return t("failover.editor.aliyun_line_school");
+    default:
+      return String(fallback || value || "").trim() || normalized;
+  }
+}
+
+function getAliyunLineOptions(
+  t: TFunction,
+  catalog: FailoverDnsCatalog | null,
+  currentValues: string[],
+) {
+  const normalizedOptions = (catalog?.lines || []).map((option) => ({
+    value: option.value,
+    label: localizeAliyunLineLabel(t, option.value, option.label),
+  }));
+  const currentOptions = (currentValues.length > 0 ? currentValues : ["default"]).map((value) => ({
+    value,
+    label: localizeAliyunLineLabel(t, value),
+  }));
+  return buildSelectableDnsOptions(
+    [...normalizedOptions, ...currentOptions],
+    "",
+  );
+}
+
+function normalizeAliyunRRInput(domainName: string, rr: string) {
+  const normalizedDomain = String(domainName || "").trim().replace(/\.+$/, "");
+  let normalizedRR = String(rr || "").trim().replace(/\.+$/, "");
+  if (!normalizedRR || normalizedRR === "@") {
+    return "@";
+  }
+  if (!normalizedDomain) {
+    return normalizedRR;
+  }
+  if (normalizedRR.toLowerCase() === normalizedDomain.toLowerCase()) {
+    return "@";
+  }
+  const suffix = `.${normalizedDomain}`;
+  if (normalizedRR.length > suffix.length && normalizedRR.toLowerCase().endsWith(suffix.toLowerCase())) {
+    normalizedRR = normalizedRR.slice(0, -suffix.length).trim();
+    if (!normalizedRR || normalizedRR === "@") {
+      return "@";
+    }
+  }
+  return normalizedRR;
+}
+
+function toCloudflareRecordInput(recordName: string, zoneName: string) {
+  const normalizedRecordName = String(recordName || "").trim().replace(/\.+$/, "");
+  const normalizedZoneName = String(zoneName || "").trim().replace(/\.+$/, "");
+  if (!normalizedRecordName) {
+    return "";
+  }
+  if (!normalizedZoneName) {
+    return normalizedRecordName;
+  }
+  if (normalizedRecordName.toLowerCase() === normalizedZoneName.toLowerCase()) {
+    return "@";
+  }
+  const suffix = `.${normalizedZoneName}`;
+  if (normalizedRecordName.length > suffix.length && normalizedRecordName.toLowerCase().endsWith(suffix.toLowerCase())) {
+    const shortName = normalizedRecordName.slice(0, -suffix.length).trim();
+    return shortName || "@";
+  }
+  return normalizedRecordName;
+}
+
+function getDnsRecordKey(record: FailoverDnsRecordOption) {
+  return [
+    record.id,
+    record.zone_id,
+    record.zone_name,
+    record.domain_name,
+    record.name,
+    record.rr,
+    record.type,
+    record.value,
+    record.line,
+  ].map((value) => String(value || "").trim()).join("\u0000");
+}
+
+function dnsRecordSummary(t: TFunction, record: FailoverDnsRecordOption) {
+  const parts = [
+    record.name || record.rr,
+    normalizeDnsRecordType(record.type),
+    record.value,
+    record.line ? localizeAliyunLineLabel(t, record.line) : "",
+  ].map((value) => String(value || "").trim()).filter(Boolean);
+  return parts.join(" / ");
 }
 
 function getStatusBadgeColor(status: string): "gray" | "green" | "amber" | "red" | "blue" {
@@ -296,6 +610,134 @@ function formatJsonTextareaValue(value: unknown, fallback: string) {
   }
 }
 
+function parseJsonObjectTextareaValue(value: string, fallback = "{}") {
+  const raw = String(value || "").trim() || fallback;
+  try {
+    const parsed = JSON.parse(raw);
+    if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+      return parsed as Record<string, unknown>;
+    }
+  } catch {
+    // Keep structured controls usable even if the advanced JSON textarea is temporarily invalid.
+  }
+  return {};
+}
+
+function getJsonStringValue(payload: Record<string, unknown>, key: string) {
+  const value = payload[key];
+  if (value === null || value === undefined) {
+    return "";
+  }
+  return typeof value === "string" ? value : String(value);
+}
+
+function getJsonNumberInputValue(payload: Record<string, unknown>, key: string, fallback: number) {
+  const value = payload[key];
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return String(value);
+  }
+  if (typeof value === "string") {
+    return value;
+  }
+  return String(fallback);
+}
+
+function getJsonBooleanValue(payload: Record<string, unknown>, key: string, fallback = false) {
+  const value = payload[key];
+  return typeof value === "boolean" ? value : fallback;
+}
+
+function getJsonStringArrayValue(payload: Record<string, unknown>, key: string) {
+  const value = payload[key];
+  if (!Array.isArray(value)) {
+    return [];
+  }
+  return value.map((item) => (typeof item === "string" ? item.trim() : "")).filter(Boolean);
+}
+
+function formatStringArrayText(values: string[]) {
+  return values.join("\n");
+}
+
+function parseStringArrayText(value: string) {
+  return String(value || "")
+    .split(/\r?\n|,/)
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
+function normalizeAWSTag(tag: unknown): AWSPlanTag | null {
+  if (!tag || typeof tag !== "object") {
+    return null;
+  }
+  const key = getJsonStringValue(tag as Record<string, unknown>, "key");
+  const value = getJsonStringValue(tag as Record<string, unknown>, "value");
+  return key && value ? { key, value } : null;
+}
+
+function getJsonAWSTagsValue(payload: Record<string, unknown>, key: string) {
+  const value = payload[key];
+  if (!Array.isArray(value)) {
+    return [];
+  }
+  return value.map(normalizeAWSTag).filter((tag): tag is AWSPlanTag => Boolean(tag));
+}
+
+function parseAWSTagsText(value: string) {
+  const tags: AWSPlanTag[] = [];
+  const seen = new Set<string>();
+  for (const entry of String(value || "").split(/\r?\n|,/)) {
+    const normalized = entry.trim();
+    if (!normalized) {
+      continue;
+    }
+    const separatorIndex = normalized.indexOf("=");
+    if (separatorIndex <= 0) {
+      continue;
+    }
+    const key = normalized.slice(0, separatorIndex).trim();
+    const tagValue = normalized.slice(separatorIndex + 1).trim();
+    if (!key || !tagValue) {
+      continue;
+    }
+    const dedupeKey = `${key}\u0000${tagValue}`;
+    if (seen.has(dedupeKey)) {
+      continue;
+    }
+    seen.add(dedupeKey);
+    tags.push({ key, value: tagValue });
+  }
+  return tags;
+}
+
+function formatAWSTagsText(tags: AWSPlanTag[]) {
+  return tags.map((tag) => `${tag.key}=${tag.value}`).join("\n");
+}
+
+function mergeJsonObjectTextareaValue(rawValue: string, fallback: string, updates: Record<string, unknown>) {
+  const nextPayload = { ...parseJsonObjectTextareaValue(rawValue, fallback) };
+  Object.entries(updates).forEach(([key, value]) => {
+    if (value === undefined) {
+      delete nextPayload[key];
+      return;
+    }
+    nextPayload[key] = value;
+  });
+  return JSON.stringify(nextPayload, null, 2);
+}
+
+function parseJsonIntegerInputValue(rawValue: string, fallback: number) {
+  const parsed = Number(rawValue);
+  if (!Number.isFinite(parsed)) {
+    return fallback;
+  }
+  return Math.max(0, Math.trunc(parsed));
+}
+
+function normalizeAWSPlanService(service: string) {
+  return normalizeProviderKey(service, "ec2") === "lightsail" ? "lightsail" : "ec2";
+}
+
 function formatProviderLabel(provider: string) {
   switch (normalizeProviderKey(provider, "")) {
     case "aliyun":
@@ -348,9 +790,9 @@ function getDefaultMemberPlanPayload(provider: string) {
   switch (normalizeProviderKey(provider, FAILOVER_V2_MEMBER_PROVIDER)) {
     case "linode":
       return JSON.stringify({
-        region: "",
-        type: "",
-        image: "",
+        region: DEFAULT_LINODE_REGION,
+        type: DEFAULT_LINODE_TYPE,
+        image: DEFAULT_LINODE_IMAGE,
         backups_enabled: false,
         tags: [],
         user_data: "",
@@ -358,9 +800,9 @@ function getDefaultMemberPlanPayload(provider: string) {
     case "aws":
       return JSON.stringify({
         service: "ec2",
-        region: "",
-        image_id: "",
-        instance_type: "",
+        region: DEFAULT_AWS_REGION,
+        image_id: DEFAULT_STATIC_EC2_IMAGE_ID,
+        instance_type: DEFAULT_STATIC_EC2_INSTANCE_TYPE,
         subnet_id: "",
         security_group_ids: [],
         assign_public_ip: true,
@@ -371,9 +813,9 @@ function getDefaultMemberPlanPayload(provider: string) {
       }, null, 2);
     default:
       return JSON.stringify({
-        region: "",
-        size: "",
-        image: "",
+        region: DEFAULT_DIGITALOCEAN_REGION,
+        size: DEFAULT_DIGITALOCEAN_SIZE,
+        image: DEFAULT_DIGITALOCEAN_IMAGE,
         ipv6: true,
         monitoring: true,
         tags: [],
@@ -436,7 +878,7 @@ function createEmptyMemberForm(): MemberFormState {
     enabled: true,
     priority: "1",
     watch_client_uuid: "",
-    dns_line: "",
+    dns_line: "default",
     dns_record_refs: "{}",
     current_address: "",
     current_instance_ref: "null",
@@ -615,6 +1057,178 @@ function formatEntryLabel(entry: CloudProviderCredentialEntry) {
   return parts.join(" / ");
 }
 
+function buildPlanSelectOptions(options: BuiltinPlanOption[], currentValue: string) {
+  const result: BuiltinPlanOption[] = [];
+  const seen = new Set<string>();
+  options.forEach((option) => {
+    const value = String(option.value || "").trim();
+    if (!value || seen.has(value)) {
+      return;
+    }
+    result.push({
+      ...option,
+      value,
+      label: String(option.label || value).trim() || value,
+      hint: String(option.hint || "").trim(),
+      zh: String(option.zh || "").trim(),
+    });
+    seen.add(value);
+  });
+
+  const normalizedCurrentValue = String(currentValue || "").trim();
+  if (normalizedCurrentValue && !seen.has(normalizedCurrentValue)) {
+    result.unshift({
+      value: normalizedCurrentValue,
+      label: normalizedCurrentValue,
+      hint: "Custom value",
+    });
+  }
+  return result;
+}
+
+function formatPlanOptionLabel(option: BuiltinPlanOption) {
+  return option.zh ? `${option.label || option.value} / ${option.zh}` : option.label || option.value;
+}
+
+function getPlanOptionSearchText(option: BuiltinPlanOption) {
+  return [option.value, option.label, option.zh, option.hint]
+    .map((value) => String(value || "").trim().toLowerCase())
+    .filter(Boolean)
+    .join(" ");
+}
+
+function PlanPresetSelect({
+  value,
+  options,
+  onValueChange,
+  placeholder,
+  searchPlaceholder,
+  emptyText,
+}: {
+  value?: string;
+  options: BuiltinPlanOption[];
+  onValueChange: (value: string) => void;
+  placeholder?: string;
+  searchPlaceholder?: string;
+  emptyText?: string;
+}) {
+  const { t } = useTranslation();
+  const [open, setOpen] = React.useState(false);
+  const [query, setQuery] = React.useState("");
+  const resolvedPlaceholder = placeholder || t("failover_v2.plan_preset_placeholder", { defaultValue: "Select preset" });
+  const resolvedSearchPlaceholder = searchPlaceholder || t("failover_v2.plan_preset_search", { defaultValue: "Search presets..." });
+  const resolvedEmptyText = emptyText || t("failover_v2.plan_preset_empty", { defaultValue: "No matching preset" });
+  const normalizedValue = String(value || "").trim();
+  const selectedOption = React.useMemo(
+    () => options.find((option) => option.value === normalizedValue),
+    [normalizedValue, options],
+  );
+  const selectedLabel = selectedOption
+    ? formatPlanOptionLabel(selectedOption)
+    : normalizedValue || resolvedPlaceholder;
+  const filteredOptions = React.useMemo(() => {
+    const normalizedQuery = query.trim().toLowerCase();
+    if (!normalizedQuery) {
+      return options;
+    }
+    return options.filter((option) => getPlanOptionSearchText(option).includes(normalizedQuery));
+  }, [options, query]);
+
+  React.useEffect(() => {
+    if (!open) {
+      setQuery("");
+    }
+  }, [open]);
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button
+          type="button"
+          variant="outline"
+          className="h-9 w-full min-w-0 justify-between gap-2 overflow-hidden px-3 font-normal"
+          title={selectedLabel}
+        >
+          <span className={normalizedValue ? "min-w-0 truncate" : "min-w-0 truncate text-muted-foreground"}>
+            {selectedLabel}
+          </span>
+          <ChevronDown className="size-4 shrink-0 opacity-60" />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent
+        align="start"
+        className="w-[var(--radix-popover-trigger-width)] min-w-80 p-2"
+      >
+        <Input
+          value={query}
+          onChange={(event) => setQuery(event.target.value)}
+          placeholder={resolvedSearchPlaceholder}
+          className="mb-2 h-8"
+        />
+        <div className="max-h-72 overflow-y-auto overscroll-contain pr-1">
+          {filteredOptions.length > 0 ? (
+            <div className="space-y-1">
+              {filteredOptions.map((option) => {
+                const label = formatPlanOptionLabel(option);
+                const selected = option.value === normalizedValue;
+                return (
+                  <button
+                    key={option.value}
+                    type="button"
+                    className={[
+                      "flex w-full min-w-0 items-center gap-2 rounded-md px-2 py-2 text-left text-sm transition-colors",
+                      selected
+                        ? "bg-slate-100 text-slate-950 dark:bg-slate-800 dark:text-slate-50"
+                        : "hover:bg-slate-100 dark:hover:bg-slate-800",
+                    ].join(" ")}
+                    title={label}
+                    onClick={() => {
+                      onValueChange(option.value);
+                      setOpen(false);
+                    }}
+                  >
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate">{label}</span>
+                      <span className="block truncate text-xs text-muted-foreground">
+                        {[option.value, option.hint].filter(Boolean).join(" / ")}
+                      </span>
+                    </span>
+                    {selected ? <Check className="size-4 shrink-0" /> : null}
+                  </button>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="px-2 py-6 text-center text-sm text-muted-foreground">{resolvedEmptyText}</div>
+          )}
+        </div>
+      </PopoverContent>
+    </Popover>
+  );
+}
+
+function getDefaultLightsailAvailabilityZone(region: string) {
+  const normalizedRegion = String(region || "").trim() || DEFAULT_AWS_REGION;
+  return `${normalizedRegion}a`;
+}
+
+function inferLightsailBlueprintPlatform(blueprintID: string) {
+  const normalized = String(blueprintID || "").trim();
+  return STATIC_LIGHTSAIL_BLUEPRINT_PRESETS.find((preset) => preset.value === normalized)?.platform || "";
+}
+
+function inferLightsailBundlePlatform(bundleID: string) {
+  const normalized = String(bundleID || "").trim();
+  return STATIC_LIGHTSAIL_BUNDLE_PRESETS.find((preset) => preset.value === normalized)?.platform || "";
+}
+
+function getDefaultLightsailBundleID(platform: string) {
+  if (platform === "windows") {
+    return STATIC_LIGHTSAIL_BUNDLE_PRESETS.find((preset) => preset.platform === "windows")?.value || "large_win_3_0";
+  }
+  return DEFAULT_STATIC_LIGHTSAIL_BUNDLE_ID;
+}
+
 function findMemberLabel(service: FailoverV2Service, memberID: number) {
   const member = service.members.find((item) => item.id === memberID);
   if (!member) {
@@ -668,12 +1282,22 @@ function formatJsonBlock(value: unknown) {
   }
 }
 
+function parseServiceDNSPayload(provider: string, payload: unknown) {
+  return parseJsonObjectTextareaValue(
+    formatJsonTextareaValue(payload, getDefaultServiceDNSPayload(provider)),
+    getDefaultServiceDNSPayload(provider),
+  );
+}
+
 export default function FailoverV2Page() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const { account, hasFeature, loading, platformAdmin } = useAccount();
   const systemState = useSettings("system", { enabled: platformAdmin });
   const serviceLoadSeqRef = React.useRef(0);
+  const serviceDNSCatalogSeqRef = React.useRef(0);
+  const memberDNSCatalogSeqRef = React.useRef(0);
+  const serviceDNSPayloadRef = React.useRef<Record<string, unknown>>({});
 
   const [services, setServices] = React.useState<FailoverV2Service[]>([]);
   const [loadingServices, setLoadingServices] = React.useState(true);
@@ -691,6 +1315,12 @@ export default function FailoverV2Page() {
   const [serviceDialogOpen, setServiceDialogOpen] = React.useState(false);
   const [editingService, setEditingService] = React.useState<FailoverV2Service | null>(null);
   const [serviceForm, setServiceForm] = React.useState<ServiceFormState>(createEmptyServiceForm());
+  const [serviceDNSAdvancedOpen, setServiceDNSAdvancedOpen] = React.useState(false);
+  const [serviceDNSCatalog, setServiceDNSCatalog] = React.useState<FailoverDnsCatalog | null>(null);
+  const [serviceDNSCatalogLoading, setServiceDNSCatalogLoading] = React.useState(false);
+  const [serviceDNSCatalogError, setServiceDNSCatalogError] = React.useState("");
+  const [serviceSelectedDNSRecordKey, setServiceSelectedDNSRecordKey] = React.useState("");
+  const [serviceScriptSearchQuery, setServiceScriptSearchQuery] = React.useState("");
   const [savingService, setSavingService] = React.useState(false);
   const [validatingService, setValidatingService] = React.useState(false);
   const [validatingServiceID, setValidatingServiceID] = React.useState<number | null>(null);
@@ -703,7 +1333,11 @@ export default function FailoverV2Page() {
   const [savingMember, setSavingMember] = React.useState(false);
   const [validatingMember, setValidatingMember] = React.useState(false);
   const [togglingMemberKey, setTogglingMemberKey] = React.useState("");
+  const [memberPlanAdvancedOpen, setMemberPlanAdvancedOpen] = React.useState(false);
   const [memberAdvancedOpen, setMemberAdvancedOpen] = React.useState(false);
+  const [memberDNSCatalog, setMemberDNSCatalog] = React.useState<FailoverDnsCatalog | null>(null);
+  const [memberDNSCatalogLoading, setMemberDNSCatalogLoading] = React.useState(false);
+  const [memberDNSCatalogError, setMemberDNSCatalogError] = React.useState("");
 
   const [deleteTarget, setDeleteTarget] = React.useState<DeleteTarget>(null);
   const [deleting, setDeleting] = React.useState(false);
@@ -847,6 +1481,45 @@ export default function FailoverV2Page() {
     ),
     [dnsEntriesByProvider, serviceForm.dns_entry_id, serviceForm.dns_provider],
   );
+  const serviceDNSProvider = normalizeProviderKey(serviceForm.dns_provider, FAILOVER_V2_DNS_PROVIDER);
+  const serviceDNSPayload = React.useMemo(
+    () => parseJsonObjectTextareaValue(
+      serviceForm.dns_payload,
+      getDefaultServiceDNSPayload(serviceForm.dns_provider),
+    ),
+    [serviceForm.dns_payload, serviceForm.dns_provider],
+  );
+  React.useEffect(() => {
+    serviceDNSPayloadRef.current = serviceDNSPayload;
+  }, [serviceDNSPayload]);
+  const serviceDNSRecordType = (() => {
+    const recordType = getJsonStringValue(serviceDNSPayload, "record_type").toUpperCase();
+    return recordType === "AAAA" ? "AAAA" : "A";
+  })();
+  const serviceDNSCatalogRecords = React.useMemo(
+    () => serviceDNSCatalog?.records || [],
+    [serviceDNSCatalog],
+  );
+  const serviceDNSZoneOptions = React.useMemo(
+    () => getDNSZoneOptions(serviceDNSCatalog, getJsonStringValue(serviceDNSPayload, "zone_name")),
+    [serviceDNSCatalog, serviceDNSPayload],
+  );
+  const serviceDNSDomainOptions = React.useMemo(
+    () => getDNSDomainOptions(serviceDNSCatalog, getJsonStringValue(serviceDNSPayload, "domain_name")),
+    [serviceDNSCatalog, serviceDNSPayload],
+  );
+  const serviceDNSTTLOptions = React.useMemo(
+    () => getDNSTTLOptions(
+      t,
+      serviceDNSCatalog,
+      getJsonNumberInputValue(serviceDNSPayload, "ttl", serviceDNSProvider === "cloudflare" ? 120 : 600),
+    ),
+    [serviceDNSCatalog, serviceDNSPayload, serviceDNSProvider, t],
+  );
+  const serviceDNSLineOptions = React.useMemo(
+    () => getAliyunLineOptions(t, serviceDNSCatalog, ["default"]),
+    [serviceDNSCatalog, t],
+  );
   const currentProviderEntries = React.useMemo(
     () => mergeCurrentEntry(
       providerEntriesByProvider[normalizeProviderKey(memberForm.provider, FAILOVER_V2_MEMBER_PROVIDER)] || [],
@@ -854,13 +1527,133 @@ export default function FailoverV2Page() {
     ),
     [memberForm.provider, memberForm.provider_entry_id, providerEntriesByProvider],
   );
+  const memberProvider = normalizeProviderKey(memberForm.provider, FAILOVER_V2_MEMBER_PROVIDER);
+  const memberServiceDNSProvider = normalizeProviderKey(memberDialogService?.dns_provider || "", FAILOVER_V2_DNS_PROVIDER);
+  const memberServiceDNSPayload = React.useMemo(
+    () => parseServiceDNSPayload(
+      memberDialogService?.dns_provider || FAILOVER_V2_DNS_PROVIDER,
+      memberDialogService?.dns_payload,
+    ),
+    [memberDialogService],
+  );
+  const memberServiceDNSDomainName = memberServiceDNSProvider === "cloudflare"
+    ? getJsonStringValue(memberServiceDNSPayload, "zone_name")
+    : getJsonStringValue(memberServiceDNSPayload, "domain_name");
+  const memberDNSLineOptions = React.useMemo(
+    () => getAliyunLineOptions(t, memberDNSCatalog, [memberForm.dns_line || "default"]),
+    [memberDNSCatalog, memberForm.dns_line, t],
+  );
+  const memberPlanPayload = React.useMemo(
+    () => parseJsonObjectTextareaValue(
+      memberForm.plan_payload,
+      getDefaultMemberPlanPayload(memberForm.provider),
+    ),
+    [memberForm.plan_payload, memberForm.provider],
+  );
+  const awsPlanService = normalizeAWSPlanService(getJsonStringValue(memberPlanPayload, "service"));
+  const awsLightsailIPAddressType = getJsonStringValue(memberPlanPayload, "ip_address_type") === "dualstack" ? "dualstack" : "ipv4";
+  const memberPlanRootPasswordMode = getJsonStringValue(memberPlanPayload, "root_password_mode")
+    || (memberProvider === "digitalocean" ? "none" : "random");
+  const memberPlanRegion = getJsonStringValue(memberPlanPayload, "region");
+  const awsLightsailBlueprintPlatform = inferLightsailBlueprintPlatform(getJsonStringValue(memberPlanPayload, "blueprint_id"));
+  const awsLightsailBundlePresetSource = awsLightsailBlueprintPlatform
+    ? STATIC_LIGHTSAIL_BUNDLE_PRESETS.filter((preset) => preset.platform === awsLightsailBlueprintPlatform)
+    : STATIC_LIGHTSAIL_BUNDLE_PRESETS;
+  const awsRegionOptions = React.useMemo(
+    () => buildPlanSelectOptions(COMMON_AWS_REGIONS, memberPlanRegion || DEFAULT_AWS_REGION),
+    [memberPlanRegion],
+  );
+  const awsEC2ImageOptions = React.useMemo(
+    () => buildPlanSelectOptions(STATIC_EC2_IMAGE_PRESETS, getJsonStringValue(memberPlanPayload, "image_id") || DEFAULT_STATIC_EC2_IMAGE_ID),
+    [memberPlanPayload],
+  );
+  const awsEC2InstanceTypeOptions = React.useMemo(
+    () => buildPlanSelectOptions(STATIC_EC2_INSTANCE_TYPE_PRESETS, getJsonStringValue(memberPlanPayload, "instance_type") || DEFAULT_STATIC_EC2_INSTANCE_TYPE),
+    [memberPlanPayload],
+  );
+  const awsLightsailAvailabilityZoneOptions = React.useMemo(
+    () => buildPlanSelectOptions(
+      ["a", "b", "c"].map((suffix) => ({
+        value: `${memberPlanRegion || DEFAULT_AWS_REGION}${suffix}`,
+        label: `${memberPlanRegion || DEFAULT_AWS_REGION}${suffix}`,
+      })),
+      getJsonStringValue(memberPlanPayload, "availability_zone") || getDefaultLightsailAvailabilityZone(memberPlanRegion),
+    ),
+    [memberPlanPayload, memberPlanRegion],
+  );
+  const awsLightsailBlueprintOptions = React.useMemo(
+    () => buildPlanSelectOptions(STATIC_LIGHTSAIL_BLUEPRINT_PRESETS, getJsonStringValue(memberPlanPayload, "blueprint_id") || DEFAULT_STATIC_LIGHTSAIL_BLUEPRINT_ID),
+    [memberPlanPayload],
+  );
+  const awsLightsailBundleOptions = React.useMemo(
+    () => buildPlanSelectOptions(awsLightsailBundlePresetSource, getJsonStringValue(memberPlanPayload, "bundle_id") || getDefaultLightsailBundleID(awsLightsailBlueprintPlatform)),
+    [awsLightsailBlueprintPlatform, awsLightsailBundlePresetSource, memberPlanPayload],
+  );
+  const digitalOceanRegionOptions = React.useMemo(
+    () => buildPlanSelectOptions(COMMON_DIGITALOCEAN_REGIONS, getJsonStringValue(memberPlanPayload, "region") || DEFAULT_DIGITALOCEAN_REGION),
+    [memberPlanPayload],
+  );
+  const digitalOceanSizeOptions = React.useMemo(
+    () => buildPlanSelectOptions(COMMON_DIGITALOCEAN_SIZES, getJsonStringValue(memberPlanPayload, "size") || DEFAULT_DIGITALOCEAN_SIZE),
+    [memberPlanPayload],
+  );
+  const digitalOceanImageOptions = React.useMemo(
+    () => buildPlanSelectOptions(COMMON_DIGITALOCEAN_IMAGES, getJsonStringValue(memberPlanPayload, "image") || DEFAULT_DIGITALOCEAN_IMAGE),
+    [memberPlanPayload],
+  );
+  const linodeRegionOptions = React.useMemo(
+    () => buildPlanSelectOptions(COMMON_LINODE_REGIONS, getJsonStringValue(memberPlanPayload, "region") || DEFAULT_LINODE_REGION),
+    [memberPlanPayload],
+  );
+  const linodeTypeOptions = React.useMemo(
+    () => buildPlanSelectOptions(COMMON_LINODE_TYPES, getJsonStringValue(memberPlanPayload, "type") || DEFAULT_LINODE_TYPE),
+    [memberPlanPayload],
+  );
+  const linodeImageOptions = React.useMemo(
+    () => buildPlanSelectOptions(COMMON_LINODE_IMAGES, getJsonStringValue(memberPlanPayload, "image") || DEFAULT_LINODE_IMAGE),
+    [memberPlanPayload],
+  );
   const currentNodeOptions = React.useMemo(
     () => mergeCurrentNode(nodes, memberForm.watch_client_uuid),
     [memberForm.watch_client_uuid, nodes],
   );
+  const serviceScriptLookup = React.useMemo(
+    () => new Map(scripts.map((script) => [script.id, script])),
+    [scripts],
+  );
+  const selectedServiceScriptEntries = React.useMemo(
+    () => serviceForm.script_clipboard_ids.map((id) => ({
+      id,
+      script: serviceScriptLookup.get(id),
+    })),
+    [serviceForm.script_clipboard_ids, serviceScriptLookup],
+  );
+  const filteredServiceScripts = React.useMemo(() => {
+    const query = serviceScriptSearchQuery.trim().toLowerCase();
+    return [...scripts]
+      .sort((left, right) => {
+        const leftName = left.name || `#${left.id}`;
+        const rightName = right.name || `#${right.id}`;
+        return leftName.localeCompare(rightName);
+      })
+      .filter((script) => {
+        if (!query) {
+          return true;
+        }
+        return [
+          script.name,
+          script.remark,
+          String(script.id),
+        ].some((value) => String(value || "").toLowerCase().includes(query));
+      });
+  }, [scripts, serviceScriptSearchQuery]);
 
   const handleServiceDNSProviderChange = React.useCallback((provider: string) => {
     const nextProvider = normalizeProviderKey(provider, FAILOVER_V2_DNS_PROVIDER);
+    setServiceDNSAdvancedOpen(false);
+    setServiceDNSCatalog(null);
+    setServiceDNSCatalogError("");
+    setServiceSelectedDNSRecordKey("");
     setServiceForm((current) => ({
       ...current,
       dns_provider: nextProvider,
@@ -869,8 +1662,191 @@ export default function FailoverV2Page() {
     }));
   }, []);
 
+  const updateServiceDNSPayload = React.useCallback((updates: Record<string, unknown>) => {
+    setServiceForm((current) => ({
+      ...current,
+      dns_payload: mergeJsonObjectTextareaValue(
+        current.dns_payload,
+        getDefaultServiceDNSPayload(current.dns_provider),
+        updates,
+      ),
+    }));
+  }, []);
+
+  const loadServiceDNSCatalog = React.useCallback(async ({
+    provider,
+    entryID,
+    payload,
+    zoneName,
+    domainName,
+  }: {
+    provider: string;
+    entryID: string;
+    payload: Record<string, unknown>;
+    zoneName?: string;
+    domainName?: string;
+  }) => {
+    const normalizedProvider = normalizeProviderKey(provider, FAILOVER_V2_DNS_PROVIDER);
+    const normalizedEntryID = String(entryID || "").trim();
+    const requestSeq = serviceDNSCatalogSeqRef.current + 1;
+    serviceDNSCatalogSeqRef.current = requestSeq;
+
+    if (!normalizedEntryID) {
+      setServiceDNSCatalog(null);
+      setServiceDNSCatalogError("");
+      setServiceDNSCatalogLoading(false);
+      setServiceSelectedDNSRecordKey("");
+      return;
+    }
+
+    setServiceDNSCatalogLoading(true);
+    setServiceDNSCatalogError("");
+    try {
+      const catalog = await getFailoverDnsCatalog({
+        provider: normalizedProvider,
+        entry_id: normalizedEntryID,
+        zone_name: zoneName ?? getJsonStringValue(payload, "zone_name"),
+        domain_name: domainName ?? getJsonStringValue(payload, "domain_name"),
+      });
+      if (serviceDNSCatalogSeqRef.current !== requestSeq) {
+        return;
+      }
+
+      setServiceDNSCatalog(catalog);
+      setServiceForm((current) => {
+        if (normalizeProviderKey(current.dns_provider, FAILOVER_V2_DNS_PROVIDER) !== normalizedProvider
+          || String(current.dns_entry_id || "").trim() !== normalizedEntryID) {
+          return current;
+        }
+
+        const currentPayload = parseJsonObjectTextareaValue(
+          current.dns_payload,
+          getDefaultServiceDNSPayload(current.dns_provider),
+        );
+        const updates: Record<string, unknown> = {};
+        if (normalizedProvider === "cloudflare") {
+          if (!getJsonStringValue(currentPayload, "zone_name") && catalog.defaults.zone_name) {
+            updates.zone_name = catalog.defaults.zone_name;
+          }
+          if (!getJsonStringValue(currentPayload, "zone_id") && catalog.defaults.zone_id) {
+            updates.zone_id = catalog.defaults.zone_id;
+          }
+          if (catalog.defaults.proxied !== null && currentPayload.proxied === undefined) {
+            updates.proxied = catalog.defaults.proxied;
+          }
+        } else if (!getJsonStringValue(currentPayload, "domain_name") && catalog.defaults.domain_name) {
+          updates.domain_name = catalog.defaults.domain_name;
+        }
+
+        if (Object.keys(updates).length === 0) {
+          return current;
+        }
+        return {
+          ...current,
+          dns_payload: mergeJsonObjectTextareaValue(
+            current.dns_payload,
+            getDefaultServiceDNSPayload(current.dns_provider),
+            updates,
+          ),
+        };
+      });
+    } catch (loadError) {
+      if (serviceDNSCatalogSeqRef.current !== requestSeq) {
+        return;
+      }
+      const message = loadError instanceof Error
+        ? loadError.message
+        : t("failover_v2.dns_catalog_error", { defaultValue: "Failed to load DNS options." });
+      setServiceDNSCatalog(null);
+      setServiceDNSCatalogError(message);
+      setServiceSelectedDNSRecordKey("");
+    } finally {
+      if (serviceDNSCatalogSeqRef.current === requestSeq) {
+        setServiceDNSCatalogLoading(false);
+      }
+    }
+  }, [t]);
+
+  const loadMemberDNSCatalog = React.useCallback(async (service: FailoverV2Service) => {
+    const normalizedProvider = normalizeProviderKey(service.dns_provider, FAILOVER_V2_DNS_PROVIDER);
+    const normalizedEntryID = String(service.dns_entry_id || "").trim();
+    const requestSeq = memberDNSCatalogSeqRef.current + 1;
+    memberDNSCatalogSeqRef.current = requestSeq;
+
+    if (!normalizedEntryID) {
+      setMemberDNSCatalog(null);
+      setMemberDNSCatalogError("");
+      setMemberDNSCatalogLoading(false);
+      return;
+    }
+
+    const payload = parseServiceDNSPayload(normalizedProvider, service.dns_payload);
+    setMemberDNSCatalogLoading(true);
+    setMemberDNSCatalogError("");
+    try {
+      const catalog = await getFailoverDnsCatalog({
+        provider: normalizedProvider,
+        entry_id: normalizedEntryID,
+        zone_name: getJsonStringValue(payload, "zone_name"),
+        domain_name: getJsonStringValue(payload, "domain_name"),
+      });
+      if (memberDNSCatalogSeqRef.current !== requestSeq) {
+        return;
+      }
+      setMemberDNSCatalog(catalog);
+    } catch (loadError) {
+      if (memberDNSCatalogSeqRef.current !== requestSeq) {
+        return;
+      }
+      const message = loadError instanceof Error
+        ? loadError.message
+        : t("failover_v2.dns_catalog_error", { defaultValue: "Failed to load DNS options." });
+      setMemberDNSCatalog(null);
+      setMemberDNSCatalogError(message);
+    } finally {
+      if (memberDNSCatalogSeqRef.current === requestSeq) {
+        setMemberDNSCatalogLoading(false);
+      }
+    }
+  }, [t]);
+
+  React.useEffect(() => {
+    if (!serviceDialogOpen) {
+      setServiceDNSCatalog(null);
+      setServiceDNSCatalogError("");
+      setServiceDNSCatalogLoading(false);
+      setServiceSelectedDNSRecordKey("");
+      return;
+    }
+    if (!String(serviceForm.dns_entry_id || "").trim()) {
+      setServiceDNSCatalog(null);
+      setServiceDNSCatalogError("");
+      setServiceDNSCatalogLoading(false);
+      setServiceSelectedDNSRecordKey("");
+      return;
+    }
+
+    void loadServiceDNSCatalog({
+      provider: serviceDNSProvider,
+      entryID: serviceForm.dns_entry_id,
+      payload: serviceDNSPayloadRef.current,
+    });
+  }, [loadServiceDNSCatalog, serviceDNSProvider, serviceDialogOpen, serviceForm.dns_entry_id]);
+
+  React.useEffect(() => {
+    if (!memberDialogOpen || !memberDialogService) {
+      setMemberDNSCatalog(null);
+      setMemberDNSCatalogError("");
+      setMemberDNSCatalogLoading(false);
+      return;
+    }
+
+    void loadMemberDNSCatalog(memberDialogService);
+  }, [loadMemberDNSCatalog, memberDialogOpen, memberDialogService]);
+
   const handleMemberProviderChange = React.useCallback((provider: string) => {
     const nextProvider = normalizeProviderKey(provider, FAILOVER_V2_MEMBER_PROVIDER);
+    setMemberPlanAdvancedOpen(false);
     setMemberForm((current) => ({
       ...current,
       provider: nextProvider,
@@ -879,15 +1855,36 @@ export default function FailoverV2Page() {
     }));
   }, []);
 
+  const updateMemberPlanPayload = React.useCallback((updates: Record<string, unknown>) => {
+    setMemberForm((current) => ({
+      ...current,
+      plan_payload: mergeJsonObjectTextareaValue(
+        current.plan_payload,
+        getDefaultMemberPlanPayload(current.provider),
+        updates,
+      ),
+    }));
+  }, []);
+
   const openCreateServiceDialog = React.useCallback(() => {
     setEditingService(null);
     setServiceForm(createEmptyServiceForm());
+    setServiceDNSAdvancedOpen(false);
+    setServiceDNSCatalog(null);
+    setServiceDNSCatalogError("");
+    setServiceSelectedDNSRecordKey("");
+    setServiceScriptSearchQuery("");
     setServiceDialogOpen(true);
   }, []);
 
   const openEditServiceDialog = React.useCallback((service: FailoverV2Service) => {
     setEditingService(service);
     setServiceForm(createServiceForm(service));
+    setServiceDNSAdvancedOpen(false);
+    setServiceDNSCatalog(null);
+    setServiceDNSCatalogError("");
+    setServiceSelectedDNSRecordKey("");
+    setServiceScriptSearchQuery("");
     setServiceDialogOpen(true);
   }, []);
 
@@ -895,7 +1892,10 @@ export default function FailoverV2Page() {
     setMemberDialogService(service);
     setEditingMember(null);
     setMemberForm(createEmptyMemberForm());
+    setMemberPlanAdvancedOpen(false);
     setMemberAdvancedOpen(false);
+    setMemberDNSCatalog(null);
+    setMemberDNSCatalogError("");
     setMemberDialogOpen(true);
   }, []);
 
@@ -903,21 +1903,43 @@ export default function FailoverV2Page() {
     setMemberDialogService(service);
     setEditingMember(member);
     setMemberForm(createMemberForm(member));
+    setMemberPlanAdvancedOpen(false);
     setMemberAdvancedOpen(false);
+    setMemberDNSCatalog(null);
+    setMemberDNSCatalogError("");
     setMemberDialogOpen(true);
   }, []);
 
   const handleServiceScriptToggle = React.useCallback((scriptID: number, checked: boolean) => {
     setServiceForm((current) => {
-      const nextIDs = new Set(current.script_clipboard_ids);
       if (checked) {
-        nextIDs.add(scriptID);
-      } else {
-        nextIDs.delete(scriptID);
+        if (current.script_clipboard_ids.includes(scriptID)) {
+          return current;
+        }
+        return {
+          ...current,
+          script_clipboard_ids: [...current.script_clipboard_ids, scriptID],
+        };
       }
       return {
         ...current,
-        script_clipboard_ids: Array.from(nextIDs).sort((left, right) => left - right),
+        script_clipboard_ids: current.script_clipboard_ids.filter((id) => id !== scriptID),
+      };
+    });
+  }, []);
+
+  const moveServiceScriptToIndex = React.useCallback((scriptID: number, targetIndex: number) => {
+    setServiceForm((current) => {
+      const currentIndex = current.script_clipboard_ids.indexOf(scriptID);
+      if (currentIndex < 0) {
+        return current;
+      }
+      const nextIDs = [...current.script_clipboard_ids];
+      const [item] = nextIDs.splice(currentIndex, 1);
+      nextIDs.splice(Math.max(0, Math.min(targetIndex, nextIDs.length)), 0, item);
+      return {
+        ...current,
+        script_clipboard_ids: nextIDs,
       };
     });
   }, []);
@@ -1862,7 +2884,7 @@ export default function FailoverV2Page() {
       </Dialog>
 
       <Dialog open={serviceDialogOpen} onOpenChange={setServiceDialogOpen}>
-        <DialogContent className="flex max-h-[88vh] max-w-4xl flex-col overflow-hidden">
+        <DialogContent className="flex max-h-[88vh] max-w-5xl flex-col overflow-hidden">
           <DialogHeader>
             <DialogTitle>
               {editingService
@@ -1876,182 +2898,722 @@ export default function FailoverV2Page() {
             </DialogDescription>
           </DialogHeader>
 
-          <div className="grid gap-5 overflow-y-auto pr-1">
-            <div className="grid gap-4 md:grid-cols-2">
-              <div className="space-y-2">
-                <Label htmlFor="v2-service-name">{t("common.name", { defaultValue: "Name" })}</Label>
-                <Input
-                  id="v2-service-name"
-                  value={serviceForm.name}
-                  onChange={(event) => setServiceForm((current) => ({ ...current, name: event.target.value }))}
-                />
+          <div className="space-y-3 overflow-y-auto pr-1">
+            <section className={FORM_SECTION_CLASS}>
+              <div className="mb-4 flex flex-col gap-1">
+                <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-50">
+                  {t("failover_v2.service_section_basic", { defaultValue: "Basic" })}
+                </h3>
+                <p className="text-xs text-slate-500 dark:text-slate-400">
+                  {t("failover_v2.service_section_basic_hint", {
+                    defaultValue: "Name the service and decide whether it can participate in automatic scheduling.",
+                  })}
+                </p>
               </div>
-              <div className="flex items-center justify-between rounded-2xl border px-4 py-3">
-                <div>
-                  <div className="text-sm font-medium text-slate-900 dark:text-slate-50">
-                    {t("common.enabled", { defaultValue: "Enabled" })}
-                  </div>
-                  <div className="text-xs text-slate-500 dark:text-slate-400">
-                    {t("failover_v2.enabled_hint", {
-                      defaultValue: "Disabled services are skipped by automatic scheduling. Manual actions remain available from the service card.",
-                    })}
-                  </div>
+              <div className="grid items-start gap-3 md:grid-cols-[minmax(0,1fr)_18rem]">
+                <div className={FORM_FIELD_CLASS}>
+                  <Label htmlFor="v2-service-name" className="flex items-center gap-1">
+                    {t("common.name", { defaultValue: "Name" })}
+                    <RequiredMark />
+                  </Label>
+                  <Input
+                    id="v2-service-name"
+                    value={serviceForm.name}
+                    onChange={(event) => setServiceForm((current) => ({ ...current, name: event.target.value }))}
+                    placeholder={t("failover_v2.service_name_placeholder", { defaultValue: "e.g. Hong Kong outlet pool" })}
+                  />
                 </div>
-                <Switch
-                  checked={serviceForm.enabled}
-                  onCheckedChange={(checked) => setServiceForm((current) => ({ ...current, enabled: checked }))}
-                />
+                <div className={FORM_TOGGLE_CLASS}>
+                  <div>
+                    <div className="text-sm font-medium text-slate-900 dark:text-slate-50">
+                      {t("common.enabled", { defaultValue: "Enabled" })}
+                    </div>
+                    <div className="text-xs text-slate-500 dark:text-slate-400">
+                      {t("failover_v2.enabled_hint", {
+                        defaultValue: "Disabled services are skipped by automatic scheduling. Manual actions remain available from the service card.",
+                      })}
+                    </div>
+                  </div>
+                  <Switch
+                    checked={serviceForm.enabled}
+                    onCheckedChange={(checked) => setServiceForm((current) => ({ ...current, enabled: checked }))}
+                  />
+                </div>
               </div>
-            </div>
+            </section>
 
-            <div className="grid gap-4 md:grid-cols-2">
-              <div className="space-y-2">
-                <Label>{t("failover_v2.dns_provider", { defaultValue: "DNS provider" })}</Label>
-                <Select value={serviceForm.dns_provider} onValueChange={handleServiceDNSProviderChange}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {FAILOVER_V2_DNS_PROVIDERS.map((provider) => (
-                      <SelectItem key={provider.value} value={provider.value}>
-                        {provider.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+            <section className={FORM_SECTION_CLASS}>
+              <div className="mb-4 flex flex-col gap-1">
+                <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-50">
+                  {t("failover_v2.service_section_dns", { defaultValue: "DNS target" })}
+                </h3>
+                <p className="text-xs text-slate-500 dark:text-slate-400">
+                  {t("failover_v2.service_section_dns_hint", {
+                    defaultValue: "V2 owns this shared DNS record target. Members bind their individual DNS lines later.",
+                  })}
+                </p>
               </div>
-              <div className="space-y-2">
-                <Label>{t("failover_v2.dns_entry", { defaultValue: "DNS entry" })}</Label>
-                {currentDnsEntries.length > 0 ? (
-                  <Select
-                    value={serviceForm.dns_entry_id}
-                    onValueChange={(value) => setServiceForm((current) => ({ ...current, dns_entry_id: value }))}
-                  >
+              <div className={FORM_GRID_2_CLASS}>
+                <div className={FORM_FIELD_CLASS}>
+                  <Label className="flex items-center gap-1">
+                    {t("failover_v2.dns_provider", { defaultValue: "DNS provider" })}
+                    <RequiredMark />
+                  </Label>
+                  <Select value={serviceForm.dns_provider} onValueChange={handleServiceDNSProviderChange}>
                     <SelectTrigger>
-                      <SelectValue
-                        placeholder={t("failover_v2.dns_entry_placeholder", {
-                          defaultValue: `Choose a ${formatProviderLabel(serviceForm.dns_provider)} entry`,
-                          provider: formatProviderLabel(serviceForm.dns_provider),
-                        })}
-                      />
+                      <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      {currentDnsEntries.map((entry) => (
-                        <SelectItem key={entry.id} value={entry.id}>
-                          {formatEntryLabel(entry)}
+                      {FAILOVER_V2_DNS_PROVIDERS.map((provider) => (
+                        <SelectItem key={provider.value} value={provider.value}>
+                          {provider.label}
                         </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
-                ) : (
-                  <Input
-                    value={serviceForm.dns_entry_id}
-                    onChange={(event) => setServiceForm((current) => ({ ...current, dns_entry_id: event.target.value }))}
-                    placeholder={t("failover_v2.dns_entry_id_placeholder", {
-                      defaultValue: `${formatProviderLabel(serviceForm.dns_provider)} entry id`,
-                      provider: formatProviderLabel(serviceForm.dns_provider),
-                    })}
-                  />
-                )}
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label>{t("failover_v2.dns_payload", { defaultValue: "DNS payload" })}</Label>
-              <p className="text-xs text-slate-500 dark:text-slate-400">
-                {normalizeProviderKey(serviceForm.dns_provider, FAILOVER_V2_DNS_PROVIDER) === "cloudflare"
-                  ? t("failover_v2.dns_payload_hint_cloudflare", {
-                    defaultValue: getServiceDNSPayloadHint(serviceForm.dns_provider),
-                  })
-                  : t("failover_v2.dns_payload_hint_aliyun", {
-                    defaultValue: getServiceDNSPayloadHint(serviceForm.dns_provider),
-                  })}
-              </p>
-              <Textarea
-                className="min-h-40 font-mono text-xs"
-                value={serviceForm.dns_payload}
-                onChange={(event) => setServiceForm((current) => ({ ...current, dns_payload: event.target.value }))}
-              />
-            </div>
-
-            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-              <div className="space-y-2">
-                <Label>{t("failover_v2.script_timeout", { defaultValue: "Script timeout" })}</Label>
-                <Input
-                  type="number"
-                  min={1}
-                  value={serviceForm.script_timeout_sec}
-                  onChange={(event) => setServiceForm((current) => ({ ...current, script_timeout_sec: event.target.value }))}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>{t("failover_v2.wait_agent_timeout", { defaultValue: "Wait agent timeout" })}</Label>
-                <Input
-                  type="number"
-                  min={1}
-                  value={serviceForm.wait_agent_timeout_sec}
-                  onChange={(event) => setServiceForm((current) => ({ ...current, wait_agent_timeout_sec: event.target.value }))}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>{t("failover_v2.delete_strategy", { defaultValue: "Delete strategy" })}</Label>
-                <Select
-                  value={serviceForm.delete_strategy}
-                  onValueChange={(value) => setServiceForm((current) => ({ ...current, delete_strategy: value }))}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="keep">keep</SelectItem>
-                    <SelectItem value="delete_after_success">delete_after_success</SelectItem>
-                    <SelectItem value="delete_after_success_delay">delete_after_success_delay</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label>{t("failover_v2.delete_delay", { defaultValue: "Delete delay" })}</Label>
-                <Input
-                  type="number"
-                  min={0}
-                  value={serviceForm.delete_delay_seconds}
-                  onChange={(event) => setServiceForm((current) => ({ ...current, delete_delay_seconds: event.target.value }))}
-                  disabled={serviceForm.delete_strategy !== "delete_after_success_delay"}
-                />
-              </div>
-            </div>
-
-            <div className="space-y-3">
-              <Label>{t("failover_v2.service_scripts", { defaultValue: "Scripts" })}</Label>
-              {scripts.length === 0 ? (
-                <div className="rounded-2xl border border-dashed px-4 py-4 text-sm text-slate-500 dark:border-slate-700 dark:text-slate-400">
-                  {t("failover_v2.no_scripts", { defaultValue: "No clipboard scripts available." })}
                 </div>
-              ) : (
-                <div className="grid max-h-56 gap-3 overflow-y-auto rounded-2xl border p-4 md:grid-cols-2">
-                  {scripts.map((script) => {
-                    const checked = serviceForm.script_clipboard_ids.includes(script.id);
-                    return (
-                      <label
-                        key={script.id}
-                        className="flex items-start gap-3 rounded-xl border border-slate-200 bg-slate-50/60 px-3 py-3 text-sm dark:border-slate-800 dark:bg-slate-950/30"
-                      >
-                        <Checkbox
-                          checked={checked}
-                          onCheckedChange={(nextChecked) => handleServiceScriptToggle(script.id, Boolean(nextChecked))}
+                <div className={FORM_FIELD_CLASS}>
+                  <Label className="flex items-center gap-1">
+                    {t("failover_v2.dns_entry", { defaultValue: "DNS entry" })}
+                    <RequiredMark />
+                  </Label>
+                  {currentDnsEntries.length > 0 ? (
+                    <Select
+                      value={serviceForm.dns_entry_id}
+                      onValueChange={(value) => {
+                        setServiceSelectedDNSRecordKey("");
+                        setServiceForm((current) => ({ ...current, dns_entry_id: value }));
+                      }}
+                    >
+                      <SelectTrigger>
+                        <SelectValue
+                          placeholder={t("failover_v2.dns_entry_placeholder", {
+                            defaultValue: `Choose a ${formatProviderLabel(serviceForm.dns_provider)} entry`,
+                            provider: formatProviderLabel(serviceForm.dns_provider),
+                          })}
                         />
-                        <span className="min-w-0">
-                          <span className="block font-medium text-slate-900 dark:text-slate-50">{script.name || `#${script.id}`}</span>
-                          <span className="block text-xs text-slate-500 dark:text-slate-400">
-                            {script.remark || `ID ${script.id}`}
+                      </SelectTrigger>
+                      <SelectContent>
+                        {currentDnsEntries.map((entry) => (
+                          <SelectItem key={entry.id} value={entry.id}>
+                            {formatEntryLabel(entry)}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  ) : (
+                    <Input
+                      value={serviceForm.dns_entry_id}
+                      onChange={(event) => {
+                        setServiceSelectedDNSRecordKey("");
+                        setServiceForm((current) => ({ ...current, dns_entry_id: event.target.value }));
+                      }}
+                      placeholder={t("failover_v2.dns_entry_id_placeholder", {
+                        defaultValue: `${formatProviderLabel(serviceForm.dns_provider)} entry id`,
+                        provider: formatProviderLabel(serviceForm.dns_provider),
+                      })}
+                    />
+                  )}
+                </div>
+              </div>
+
+              <div className="mt-4 space-y-4">
+                <div className="flex flex-wrap items-start justify-between gap-2">
+                  <div>
+                    <Label className="flex items-center gap-1">
+                      {t("failover_v2.dns_payload", { defaultValue: "DNS payload" })}
+                      <RequiredMark />
+                    </Label>
+                    <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                      {serviceDNSProvider === "cloudflare"
+                        ? t("failover_v2.dns_payload_hint_cloudflare", {
+                          defaultValue: getServiceDNSPayloadHint(serviceForm.dns_provider),
+                        })
+                        : t("failover_v2.dns_payload_hint_aliyun", {
+                          defaultValue: getServiceDNSPayloadHint(serviceForm.dns_provider),
+                        })}
+                    </p>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setServiceDNSAdvancedOpen(false);
+                      setServiceForm((current) => ({
+                        ...current,
+                        dns_payload: getDefaultServiceDNSPayload(current.dns_provider),
+                      }));
+                    }}
+                  >
+                    {t("failover_v2.reset_dns_template", { defaultValue: "Use template" })}
+                  </Button>
+                </div>
+
+                <div className="space-y-4">
+                    <div className="flex flex-wrap items-end gap-2">
+                      <div className={`${FORM_FIELD_CLASS} min-w-64 flex-1`}>
+                        <Label>{t("failover_v2.dns_existing_record", { defaultValue: "Existing DNS record" })}</Label>
+                        <Select
+                          value={serviceSelectedDNSRecordKey || "__none"}
+                          onValueChange={(value) => {
+                            setServiceSelectedDNSRecordKey(value);
+                            if (value === "__none") {
+                              return;
+                            }
+                            const record = serviceDNSCatalogRecords.find((item) => getDnsRecordKey(item) === value);
+                            if (!record) {
+                              return;
+                            }
+                            if (serviceDNSProvider === "cloudflare") {
+                              updateServiceDNSPayload({
+                                zone_name: record.zone_name || getJsonStringValue(serviceDNSPayload, "zone_name"),
+                                zone_id: record.zone_id || getJsonStringValue(serviceDNSPayload, "zone_id"),
+                                record_name: toCloudflareRecordInput(record.name, record.zone_name || getJsonStringValue(serviceDNSPayload, "zone_name")) || record.name,
+                                record_type: normalizeDnsRecordType(record.type),
+                                ttl: record.ttl || parseJsonIntegerInputValue(getJsonNumberInputValue(serviceDNSPayload, "ttl", 120), 120),
+                                proxied: record.proxied === null ? getJsonBooleanValue(serviceDNSPayload, "proxied") : record.proxied,
+                              });
+                              return;
+                            }
+                            updateServiceDNSPayload({
+                              domain_name: record.domain_name || getJsonStringValue(serviceDNSPayload, "domain_name"),
+                              rr: record.rr || getJsonStringValue(serviceDNSPayload, "rr") || "@",
+                              record_type: normalizeDnsRecordType(record.type),
+                              ttl: record.ttl || parseJsonIntegerInputValue(getJsonNumberInputValue(serviceDNSPayload, "ttl", 600), 600),
+                            });
+                          }}
+                          disabled={serviceDNSCatalogRecords.length === 0}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder={t("failover_v2.dns_existing_record_placeholder", { defaultValue: "Choose an existing DNS record" })} />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="__none">
+                              {t("failover_v2.dns_existing_record_placeholder", { defaultValue: "Choose an existing DNS record" })}
+                            </SelectItem>
+                            {serviceDNSCatalogRecords.map((record) => (
+                              <SelectItem key={getDnsRecordKey(record)} value={getDnsRecordKey(record)}>
+                                {dnsRecordSummary(t, record)}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => void loadServiceDNSCatalog({
+                          provider: serviceDNSProvider,
+                          entryID: serviceForm.dns_entry_id,
+                          payload: serviceDNSPayload,
+                        })}
+                        disabled={serviceDNSCatalogLoading || !serviceForm.dns_provider.trim() || !serviceForm.dns_entry_id.trim()}
+                      >
+                        <RefreshCw className={`mr-2 size-4 ${serviceDNSCatalogLoading ? "animate-spin" : ""}`} />
+                        {serviceDNSCatalogLoading
+                          ? t("failover_v2.dns_catalog_loading", { defaultValue: "Loading DNS options" })
+                          : t("failover_v2.dns_catalog_load", { defaultValue: "Load DNS options" })}
+                      </Button>
+                    </div>
+
+                    {serviceDNSCatalogError ? (
+                      <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-xs text-red-700 dark:border-red-900/40 dark:bg-red-950/30 dark:text-red-200">
+                        {serviceDNSCatalogError}
+                      </div>
+                    ) : null}
+                </div>
+
+                {serviceDNSProvider === "cloudflare" ? (
+                  <div className={FORM_GRID_2_CLASS}>
+                    <div className={FORM_FIELD_CLASS}>
+                      <Label>{t("failover_v2.cloudflare_zone_name", { defaultValue: "Zone name" })}</Label>
+                      {serviceDNSZoneOptions.length > 0 ? (
+                        <Select
+                          value={getJsonStringValue(serviceDNSPayload, "zone_name") || undefined}
+                          onValueChange={(value) => {
+                            setServiceSelectedDNSRecordKey("");
+                            updateServiceDNSPayload({ zone_name: value });
+                            void loadServiceDNSCatalog({
+                              provider: serviceDNSProvider,
+                              entryID: serviceForm.dns_entry_id,
+                              payload: { ...serviceDNSPayload, zone_name: value },
+                              zoneName: value,
+                            });
+                          }}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="example.com" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {serviceDNSZoneOptions.map((option) => (
+                              <SelectItem key={option.value} value={option.value}>
+                                {option.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      ) : (
+                        <Input
+                          value={getJsonStringValue(serviceDNSPayload, "zone_name")}
+                          onChange={(event) => updateServiceDNSPayload({ zone_name: event.target.value })}
+                          placeholder="example.com"
+                        />
+                      )}
+                    </div>
+                    <div className={FORM_FIELD_CLASS}>
+                      <Label>{t("failover_v2.cloudflare_zone_id", { defaultValue: "Zone ID" })}</Label>
+                      <Input
+                        value={getJsonStringValue(serviceDNSPayload, "zone_id")}
+                        onChange={(event) => updateServiceDNSPayload({ zone_id: event.target.value })}
+                        placeholder={t("failover_v2.cloudflare_zone_id_placeholder", { defaultValue: "Optional when zone name is filled" })}
+                      />
+                    </div>
+                    <div className={`${FORM_FIELD_CLASS} md:col-span-2`}>
+                      <Label className="flex items-center gap-1">
+                        {t("failover_v2.dns_record_name", { defaultValue: "Record name" })}
+                        <RequiredMark />
+                      </Label>
+                      <Input
+                        value={getJsonStringValue(serviceDNSPayload, "record_name")}
+                        onChange={(event) => updateServiceDNSPayload({ record_name: event.target.value })}
+                        placeholder="api.example.com"
+                      />
+                    </div>
+                  </div>
+                ) : (
+                  <div className={FORM_GRID_2_CLASS}>
+                    <div className={FORM_FIELD_CLASS}>
+                      <Label className="flex items-center gap-1">
+                        {t("failover_v2.dns_domain_name", { defaultValue: "Domain name" })}
+                        <RequiredMark />
+                      </Label>
+                      {serviceDNSDomainOptions.length > 0 ? (
+                        <Select
+                          value={getJsonStringValue(serviceDNSPayload, "domain_name") || undefined}
+                          onValueChange={(value) => {
+                            setServiceSelectedDNSRecordKey("");
+                            updateServiceDNSPayload({ domain_name: value });
+                            void loadServiceDNSCatalog({
+                              provider: serviceDNSProvider,
+                              entryID: serviceForm.dns_entry_id,
+                              payload: { ...serviceDNSPayload, domain_name: value },
+                              domainName: value,
+                            });
+                          }}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="example.com" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {serviceDNSDomainOptions.map((option) => (
+                              <SelectItem key={option.value} value={option.value}>
+                                {option.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      ) : (
+                        <Input
+                          value={getJsonStringValue(serviceDNSPayload, "domain_name")}
+                          onChange={(event) => updateServiceDNSPayload({ domain_name: event.target.value })}
+                          placeholder="example.com"
+                        />
+                      )}
+                    </div>
+                    <div className={FORM_FIELD_CLASS}>
+                      <Label className="flex items-center gap-1">
+                        {t("failover_v2.dns_rr", { defaultValue: "RR" })}
+                        <RequiredMark />
+                      </Label>
+                      <Input
+                        value={getJsonStringValue(serviceDNSPayload, "rr") || "@"}
+                        onChange={(event) => updateServiceDNSPayload({ rr: event.target.value })}
+                        onBlur={(event) => updateServiceDNSPayload({
+                          rr: normalizeAliyunRRInput(getJsonStringValue(serviceDNSPayload, "domain_name"), event.target.value),
+                        })}
+                        placeholder="@"
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {serviceDNSProvider === "aliyun" ? (
+                  <div className={FORM_FIELD_CLASS}>
+                    <Label>{t("failover_v2.dns_available_lines", { defaultValue: "Available routing lines" })}</Label>
+                    <div className="flex flex-wrap gap-2 rounded-xl border border-dashed border-slate-200 px-3 py-2 dark:border-slate-800">
+                      {serviceDNSCatalog && serviceDNSLineOptions.length > 0 ? (
+                        serviceDNSLineOptions.map((line) => (
+                          <span
+                            key={line.value}
+                            className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-700 dark:bg-slate-900 dark:text-slate-300"
+                          >
+                            {line.label}
                           </span>
+                        ))
+                      ) : (
+                        <span className="text-xs text-slate-500 dark:text-slate-400">
+                          {t("failover_v2.dns_lines_empty", { defaultValue: "No routing lines loaded yet." })}
                         </span>
-                      </label>
-                    );
+                      )}
+                    </div>
+                    <p className="text-xs text-slate-500 dark:text-slate-400">
+                      {t("failover_v2.dns_available_lines_hint", {
+                        defaultValue: "Lines are loaded from the DNS provider and selected on each member.",
+                      })}
+                    </p>
+                  </div>
+                ) : null}
+
+                <div className={FORM_GRID_2_CLASS}>
+                  <div className={FORM_FIELD_CLASS}>
+                    <Label>{t("failover_v2.dns_record_type", { defaultValue: "Record type" })}</Label>
+                    <Select
+                      value={serviceDNSRecordType}
+                      onValueChange={(value) => updateServiceDNSPayload({ record_type: value })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="A">A</SelectItem>
+                        <SelectItem value="AAAA">AAAA</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className={FORM_FIELD_CLASS}>
+                    <Label>{t("failover_v2.dns_ttl", { defaultValue: "TTL" })}</Label>
+                    <Select
+                      value={getJsonNumberInputValue(serviceDNSPayload, "ttl", serviceDNSProvider === "cloudflare" ? 120 : 600)}
+                      onValueChange={(value) => updateServiceDNSPayload({
+                        ttl: parseJsonIntegerInputValue(value, serviceDNSProvider === "cloudflare" ? 120 : 600),
+                      })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {serviceDNSTTLOptions.map((option) => (
+                          <SelectItem key={option.value} value={option.value}>
+                            {option.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                <div className="grid gap-3 md:grid-cols-2">
+                  <div className={FORM_TOGGLE_CLASS}>
+                    <div>
+                      <div className="text-sm font-medium text-slate-900 dark:text-slate-50">
+                        {t("failover_v2.sync_ipv6", { defaultValue: "Sync IPv6" })}
+                      </div>
+                      <div className="text-xs text-slate-500 dark:text-slate-400">
+                        {t("failover_v2.sync_ipv6_hint", { defaultValue: "Also manage the counterpart AAAA/A record when an address is available." })}
+                      </div>
+                    </div>
+                    <Switch
+                      checked={getJsonBooleanValue(serviceDNSPayload, "sync_ipv6")}
+                      onCheckedChange={(checked) => updateServiceDNSPayload({ sync_ipv6: checked })}
+                    />
+                  </div>
+                  {serviceDNSProvider === "cloudflare" ? (
+                    <div className={FORM_TOGGLE_CLASS}>
+                      <div>
+                        <div className="text-sm font-medium text-slate-900 dark:text-slate-50">
+                          {t("failover_v2.cloudflare_proxied", { defaultValue: "Cloudflare proxy" })}
+                        </div>
+                        <div className="text-xs text-slate-500 dark:text-slate-400">
+                          {t("failover_v2.cloudflare_proxied_hint", { defaultValue: "Override the credential default proxied setting for this record." })}
+                        </div>
+                      </div>
+                      <Switch
+                        checked={getJsonBooleanValue(serviceDNSPayload, "proxied")}
+                        onCheckedChange={(checked) => updateServiceDNSPayload({ proxied: checked })}
+                      />
+                    </div>
+                  ) : null}
+                </div>
+
+                <div className="space-y-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setServiceDNSAdvancedOpen((open) => !open)}
+                  >
+                    {serviceDNSAdvancedOpen
+                      ? t("failover_v2.hide_dns_json", { defaultValue: "Hide JSON" })
+                      : t("failover_v2.show_dns_json", { defaultValue: "Edit JSON" })}
+                  </Button>
+                  {serviceDNSAdvancedOpen ? (
+                    <div className="space-y-2 border-l border-slate-200 pl-3 dark:border-slate-800">
+                      <p className="text-xs text-slate-500 dark:text-slate-400">
+                        {t("failover_v2.dns_payload_advanced_hint", {
+                          defaultValue: "Advanced: edit the raw DNS payload only when importing or repairing unsupported fields.",
+                        })}
+                      </p>
+                      <Textarea
+                        className="min-h-36 font-mono text-xs"
+                        value={serviceForm.dns_payload}
+                        onChange={(event) => setServiceForm((current) => ({ ...current, dns_payload: event.target.value }))}
+                      />
+                    </div>
+                  ) : null}
+                </div>
+              </div>
+            </section>
+
+            <section className={FORM_SECTION_CLASS}>
+              <div className="mb-4 flex flex-col gap-1">
+                <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-50">
+                  {t("failover_v2.service_section_policy", { defaultValue: "Execution policy" })}
+                </h3>
+                <p className="text-xs text-slate-500 dark:text-slate-400">
+                  {t("failover_v2.service_section_policy_hint", {
+                    defaultValue: "Tune failover waiting time and old-instance cleanup behavior for every member in this service.",
+                  })}
+                </p>
+              </div>
+              <div className={FORM_GRID_4_CLASS}>
+                <div className={FORM_FIELD_CLASS}>
+                  <Label>{t("failover_v2.script_timeout", { defaultValue: "Script timeout" })}</Label>
+                  <Input
+                    type="number"
+                    min={1}
+                    value={serviceForm.script_timeout_sec}
+                    onChange={(event) => setServiceForm((current) => ({ ...current, script_timeout_sec: event.target.value }))}
+                  />
+                  <p className="text-xs text-slate-500 dark:text-slate-400">
+                    {t("failover_v2.timeout_seconds_hint", { defaultValue: "Unit: seconds." })}
+                  </p>
+                </div>
+                <div className={FORM_FIELD_CLASS}>
+                  <Label>{t("failover_v2.wait_agent_timeout", { defaultValue: "Wait agent timeout" })}</Label>
+                  <Input
+                    type="number"
+                    min={1}
+                    value={serviceForm.wait_agent_timeout_sec}
+                    onChange={(event) => setServiceForm((current) => ({ ...current, wait_agent_timeout_sec: event.target.value }))}
+                  />
+                  <p className="text-xs text-slate-500 dark:text-slate-400">
+                    {t("failover_v2.timeout_seconds_hint", { defaultValue: "Unit: seconds." })}
+                  </p>
+                </div>
+                <div className={FORM_FIELD_CLASS}>
+                  <Label>{t("failover_v2.delete_strategy", { defaultValue: "Delete strategy" })}</Label>
+                  <Select
+                    value={serviceForm.delete_strategy}
+                    onValueChange={(value) => setServiceForm((current) => ({ ...current, delete_strategy: value }))}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="keep">
+                        {t("failover_v2.delete_strategy_keep", { defaultValue: "Keep old instance" })}
+                      </SelectItem>
+                      <SelectItem value="delete_after_success">
+                        {t("failover_v2.delete_strategy_delete_after_success", { defaultValue: "Delete after success" })}
+                      </SelectItem>
+                      <SelectItem value="delete_after_success_delay">
+                        {t("failover_v2.delete_strategy_delete_after_success_delay", { defaultValue: "Delete after delay" })}
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className={FORM_FIELD_CLASS}>
+                  <Label>{t("failover_v2.delete_delay", { defaultValue: "Delete delay" })}</Label>
+                  <Input
+                    type="number"
+                    min={0}
+                    value={serviceForm.delete_delay_seconds}
+                    onChange={(event) => setServiceForm((current) => ({ ...current, delete_delay_seconds: event.target.value }))}
+                    disabled={serviceForm.delete_strategy !== "delete_after_success_delay"}
+                  />
+                  <p className="text-xs text-slate-500 dark:text-slate-400">
+                    {t("failover_v2.delete_delay_hint", {
+                      defaultValue: "Only used by the delayed delete strategy. Unit: seconds.",
+                    })}
+                  </p>
+                </div>
+              </div>
+            </section>
+
+            <section className={FORM_SECTION_CLASS}>
+              <div className="mb-4 flex flex-col gap-1">
+                <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-50">
+                  {t("failover_v2.service_scripts", { defaultValue: "Scripts" })}
+                </h3>
+                <p className="text-xs text-slate-500 dark:text-slate-400">
+                  {t("failover_v2.service_section_scripts_hint", {
+                    defaultValue: "Optional clipboard scripts run after the replacement instance passes connectivity checks.",
+                  })}
+                </p>
+              </div>
+              <div className={FORM_FIELD_CLASS}>
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <Label>{t("failover.editor.scripts", { defaultValue: "Scripts" })}</Label>
+                  <div className="text-xs text-muted-foreground">
+                    {serviceForm.script_clipboard_ids.length > 0
+                      ? t("failover.editor.scripts_selected", {
+                        defaultValue: "{{count}} selected",
+                        count: serviceForm.script_clipboard_ids.length,
+                      })
+                      : t("failover.editor.no_script", { defaultValue: "No script" })}
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div className="text-xs font-medium uppercase tracking-[0.12em] text-muted-foreground">
+                      {t("failover.editor.scripts_execution_order_title", {
+                        defaultValue: "Execution order",
+                      })}
+                    </div>
+                    {selectedServiceScriptEntries.length > 0 ? (
+                      <div className="text-xs text-muted-foreground">
+                        {t("failover.editor.scripts_execution_order_hint", {
+                          defaultValue: "Scripts run from top to bottom. Move entries here to change the actual execution order.",
+                        })}
+                      </div>
+                    ) : null}
+                  </div>
+                  {selectedServiceScriptEntries.length > 0 ? (
+                    <div className="overflow-hidden rounded-xl border">
+                      {selectedServiceScriptEntries.map(({ id, script }, index) => {
+                        const canMoveUp = index > 0;
+                        const canMoveDown = index < selectedServiceScriptEntries.length - 1;
+                        return (
+                          <div
+                            key={id}
+                            className="flex items-start gap-3 border-b px-3 py-3 text-sm last:border-b-0"
+                          >
+                            <Badge color="gray" className="mt-0.5 min-w-8 justify-center">
+                              {index + 1}
+                            </Badge>
+                            <div className="min-w-0 flex-1">
+                              <div className="truncate font-medium text-slate-900 dark:text-slate-50">
+                                {script?.name || `#${id}`}
+                              </div>
+                              {script?.remark ? (
+                                <div className="truncate text-xs text-muted-foreground" title={script.remark}>
+                                  {script.remark}
+                                </div>
+                              ) : null}
+                              {!script ? (
+                                <div className="text-xs text-amber-700 dark:text-amber-300">
+                                  {t("failover.editor.script_missing_hint", {
+                                    defaultValue: "This script is no longer in the library, but it will stay in the saved execution order until you remove it.",
+                                  })}
+                                </div>
+                              ) : null}
+                            </div>
+                            <div className="flex shrink-0 items-center gap-1">
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="icon"
+                                onClick={() => moveServiceScriptToIndex(id, index - 1)}
+                                disabled={!canMoveUp}
+                                title={t("failover.editor.move_script_up", { defaultValue: "Move script up" })}
+                              >
+                                <ArrowUp className="size-4" />
+                              </Button>
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="icon"
+                                onClick={() => moveServiceScriptToIndex(id, index + 1)}
+                                disabled={!canMoveDown}
+                                title={t("failover.editor.move_script_down", { defaultValue: "Move script down" })}
+                              >
+                                <ArrowDown className="size-4" />
+                              </Button>
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="icon"
+                                onClick={() => handleServiceScriptToggle(id, false)}
+                                title={t("failover.editor.remove_script", { defaultValue: "Remove script" })}
+                              >
+                                <Trash2 className="size-4" />
+                              </Button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <div className="rounded-xl border border-dashed px-4 py-3 text-sm text-muted-foreground">
+                      {t("failover.editor.scripts_execution_order_empty_detail", {
+                        defaultValue: "No scripts are selected yet. Pick scripts below, then reorder them here from top to bottom.",
+                      })}
+                    </div>
+                  )}
+                </div>
+
+                <Input
+                  value={serviceScriptSearchQuery}
+                  onChange={(event) => setServiceScriptSearchQuery(event.target.value)}
+                  placeholder={t("failover.editor.scripts_search_placeholder", {
+                    defaultValue: "Search scripts by name or remark, e.g. sg1",
+                  })}
+                />
+
+                <div className="text-xs font-medium uppercase tracking-[0.12em] text-muted-foreground">
+                  {t("failover.editor.available_scripts", {
+                    defaultValue: "Available scripts",
                   })}
                 </div>
-              )}
-            </div>
+                <div className="max-h-56 overflow-y-auto overscroll-contain rounded-xl border [scrollbar-gutter:stable]">
+                  {scripts.length === 0 ? (
+                    <div className="px-3 py-3 text-sm text-muted-foreground">
+                      {t("scripts.empty", { defaultValue: "No saved scripts yet." })}
+                    </div>
+                  ) : filteredServiceScripts.length === 0 ? (
+                    <div className="px-3 py-3 text-sm text-muted-foreground">
+                      {t("failover.editor.scripts_search_empty", {
+                        defaultValue: "No matching scripts",
+                      })}
+                    </div>
+                  ) : (
+                    filteredServiceScripts.map((script) => {
+                      const checked = serviceForm.script_clipboard_ids.includes(script.id);
+                      return (
+                        <label
+                          key={script.id}
+                          className="flex cursor-pointer items-start gap-3 border-b px-3 py-3 text-sm last:border-b-0"
+                        >
+                          <Checkbox
+                            checked={checked}
+                            onCheckedChange={(nextChecked) => handleServiceScriptToggle(script.id, Boolean(nextChecked))}
+                          />
+                          <div className="min-w-0 flex-1">
+                            <div className="truncate font-medium text-slate-900 dark:text-slate-50">
+                              {script.name || `#${script.id}`}
+                            </div>
+                            {script.remark ? (
+                              <div className="truncate text-xs text-muted-foreground" title={script.remark}>
+                                {script.remark}
+                              </div>
+                            ) : null}
+                          </div>
+                        </label>
+                      );
+                    })
+                  )}
+                </div>
+                <div className="line-clamp-2 break-words text-xs leading-5 text-muted-foreground">
+                  {selectedServiceScriptEntries.length > 0
+                    ? selectedServiceScriptEntries.map(({ id, script }) => script?.name || `#${id}`).join(" -> ")
+                    : t("failover.editor.scripts_execution_order_empty", {
+                      defaultValue: "Selected scripts run from top to bottom.",
+                    })}
+                </div>
+              </div>
+            </section>
           </div>
 
           <DialogFooter>
@@ -2073,7 +3635,7 @@ export default function FailoverV2Page() {
       </Dialog>
 
       <Dialog open={memberDialogOpen} onOpenChange={setMemberDialogOpen}>
-        <DialogContent className="flex max-h-[88vh] max-w-4xl flex-col overflow-hidden">
+        <DialogContent className="flex max-h-[88vh] max-w-5xl flex-col overflow-hidden">
           <DialogHeader>
             <DialogTitle>
               {editingMember
@@ -2087,39 +3649,57 @@ export default function FailoverV2Page() {
             </DialogDescription>
           </DialogHeader>
 
-          <div className="grid gap-5 overflow-y-auto pr-1">
-            <div className="grid gap-4 md:grid-cols-2">
-              <div className="space-y-2">
-                <Label>{t("common.name", { defaultValue: "Name" })}</Label>
+          <div className="space-y-3 overflow-y-auto pr-1">
+            <FormSection
+              title={t("failover_v2.member_section_basic", { defaultValue: "Member basics" })}
+              description={t("failover_v2.member_section_basic_hint", {
+                defaultValue: "Name the member and decide whether it can participate in automatic checks.",
+              })}
+            >
+              <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_20rem]">
+              <div className={FORM_FIELD_CLASS}>
+                <Label className="flex items-center gap-1">
+                  {t("common.name", { defaultValue: "Name" })}
+                  <RequiredMark />
+                </Label>
                 <Input
                   value={memberForm.name}
                   onChange={(event) => setMemberForm((current) => ({ ...current, name: event.target.value }))}
                 />
               </div>
-              <div className="flex items-center justify-between rounded-2xl border px-4 py-3">
-                <div>
-                  <div className="text-sm font-medium text-slate-900 dark:text-slate-50">
-                    {t("common.enabled", { defaultValue: "Enabled" })}
-                  </div>
-                  <div className="text-xs text-slate-500 dark:text-slate-400">
-                    {memberDialogService?.name || "-"}
-                  </div>
-                  <div className="text-xs text-slate-500 dark:text-slate-400">
+                <ToggleCard
+                  title={t("common.enabled", { defaultValue: "Enabled" })}
+                  description={(
+                    <>
+                      <span className="block">{memberDialogService?.name || "-"}</span>
+                      <span className="block">
                     {t("failover_v2.member_enabled_hint", {
                       defaultValue: "Disabled members are skipped by automatic checks. Manual actions remain available from the member card.",
                     })}
-                  </div>
-                </div>
-                <Switch
-                  checked={memberForm.enabled}
-                  onCheckedChange={(checked) => setMemberForm((current) => ({ ...current, enabled: checked }))}
-                />
+                      </span>
+                    </>
+                  )}
+                >
+                  <Switch
+                    checked={memberForm.enabled}
+                    onCheckedChange={(checked) => setMemberForm((current) => ({ ...current, enabled: checked }))}
+                  />
+                </ToggleCard>
               </div>
-            </div>
+            </FormSection>
 
-            <div className="grid gap-4 md:grid-cols-2">
-              <div className="space-y-2">
-                <Label>{t("failover_v2.watch_client", { defaultValue: "Current client" })}</Label>
+            <FormSection
+              title={t("failover_v2.member_section_target", { defaultValue: "Current outlet and target" })}
+              description={t("failover_v2.member_section_target_hint", {
+                defaultValue: "Bind the monitored current outlet, DNS line, and cloud provider credential used for replacement.",
+              })}
+            >
+              <div className={FORM_GRID_2_CLASS}>
+              <div className={FORM_FIELD_CLASS}>
+                <Label className="flex items-center gap-1">
+                  {t("failover_v2.watch_client", { defaultValue: "Current client" })}
+                  <RequiredMark />
+                </Label>
                 {currentNodeOptions.length > 0 ? (
                   <Select
                     value={memberForm.watch_client_uuid}
@@ -2150,25 +3730,76 @@ export default function FailoverV2Page() {
                   />
                 )}
               </div>
-              <div className="space-y-2">
-                <Label>{t("failover_v2.current_address", { defaultValue: "Current address" })}</Label>
+              <div className={FORM_FIELD_CLASS}>
+                <Label className="flex items-center gap-1">
+                  {t("failover_v2.current_address", { defaultValue: "Current address" })}
+                  <RequiredMark />
+                </Label>
                 <Input
                   value={memberForm.current_address}
                   onChange={(event) => setMemberForm((current) => ({ ...current, current_address: event.target.value }))}
                 />
               </div>
-            </div>
-
-            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-              <div className="space-y-2">
-                <Label>{t("failover_v2.dns_line", { defaultValue: "DNS line" })}</Label>
-                <Input
-                  value={memberForm.dns_line}
-                  onChange={(event) => setMemberForm((current) => ({ ...current, dns_line: event.target.value }))}
-                />
               </div>
-              <div className="space-y-2">
-                <Label>{t("failover_v2.provider", { defaultValue: "Provider" })}</Label>
+
+              <div className={`${FORM_GRID_4_CLASS} mt-3`}>
+              <div className={FORM_FIELD_CLASS}>
+                <Label className="flex items-center gap-1">
+                  {t("failover_v2.dns_line", { defaultValue: "DNS line" })}
+                  <RequiredMark />
+                </Label>
+                <div className="flex gap-2">
+                  {memberServiceDNSProvider === "aliyun" && memberDNSCatalog ? (
+                    <Select
+                      value={memberForm.dns_line || "default"}
+                      onValueChange={(value) => setMemberForm((current) => ({ ...current, dns_line: value }))}
+                    >
+                      <SelectTrigger className="min-w-0 flex-1">
+                        <SelectValue placeholder={t("failover_v2.dns_line_placeholder", { defaultValue: "Choose a routing line" })} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {memberDNSLineOptions.map((line) => (
+                          <SelectItem key={line.value} value={line.value}>
+                            {line.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  ) : (
+                    <Input
+                      className="min-w-0 flex-1"
+                      value={memberForm.dns_line}
+                      onChange={(event) => setMemberForm((current) => ({ ...current, dns_line: event.target.value }))}
+                      placeholder="default"
+                    />
+                  )}
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    onClick={() => {
+                      if (memberDialogService) {
+                        void loadMemberDNSCatalog(memberDialogService);
+                      }
+                    }}
+                    disabled={memberDNSCatalogLoading || !memberDialogService?.dns_entry_id}
+                    title={t("failover_v2.dns_catalog_load", { defaultValue: "Load DNS options" })}
+                  >
+                    <RefreshCw className={`size-4 ${memberDNSCatalogLoading ? "animate-spin" : ""}`} />
+                  </Button>
+                </div>
+                <p className="text-xs text-slate-500 dark:text-slate-400">
+                  {memberDNSCatalogError || t("failover_v2.dns_line_catalog_hint", {
+                    defaultValue: "Loaded from {{domain}}. Use default if you do not need ISP-specific routing.",
+                    domain: memberServiceDNSDomainName || memberDialogService?.dns_entry_id || "-",
+                  })}
+                </p>
+              </div>
+              <div className={FORM_FIELD_CLASS}>
+                <Label className="flex items-center gap-1">
+                  {t("failover_v2.provider", { defaultValue: "Provider" })}
+                  <RequiredMark />
+                </Label>
                 <Select value={memberForm.provider} onValueChange={handleMemberProviderChange}>
                   <SelectTrigger>
                     <SelectValue />
@@ -2182,8 +3813,11 @@ export default function FailoverV2Page() {
                   </SelectContent>
                 </Select>
               </div>
-              <div className="space-y-2 xl:col-span-2">
-                <Label>{t("failover_v2.provider_entry", { defaultValue: "Provider entry" })}</Label>
+              <div className={`${FORM_FIELD_CLASS} xl:col-span-2`}>
+                <Label className="flex items-center gap-1">
+                  {t("failover_v2.provider_entry", { defaultValue: "Provider entry" })}
+                  <RequiredMark />
+                </Label>
                 {currentProviderEntries.length > 0 ? (
                   <Select
                     value={memberForm.provider_entry_id}
@@ -2216,10 +3850,17 @@ export default function FailoverV2Page() {
                   />
                 )}
               </div>
-            </div>
+              </div>
+            </FormSection>
 
-            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-              <div className="space-y-2">
+            <FormSection
+              title={t("failover_v2.member_section_policy", { defaultValue: "Check policy" })}
+              description={t("failover_v2.member_section_policy_hint", {
+                defaultValue: "Tune member priority, failure threshold, stale window, and cooldown.",
+              })}
+            >
+              <div className={FORM_GRID_4_CLASS}>
+              <div className={FORM_FIELD_CLASS}>
                 <Label>{t("failover_v2.priority", { defaultValue: "Priority" })}</Label>
                 <Input
                   type="number"
@@ -2228,7 +3869,7 @@ export default function FailoverV2Page() {
                   onChange={(event) => setMemberForm((current) => ({ ...current, priority: event.target.value }))}
                 />
               </div>
-              <div className="space-y-2">
+              <div className={FORM_FIELD_CLASS}>
                 <Label>{t("failover_v2.failure_threshold", { defaultValue: "Failure threshold" })}</Label>
                 <Input
                   type="number"
@@ -2237,7 +3878,7 @@ export default function FailoverV2Page() {
                   onChange={(event) => setMemberForm((current) => ({ ...current, failure_threshold: event.target.value }))}
                 />
               </div>
-              <div className="space-y-2">
+              <div className={FORM_FIELD_CLASS}>
                 <Label>{t("failover_v2.stale_after", { defaultValue: "Stale after" })}</Label>
                 <Input
                   type="number"
@@ -2246,7 +3887,7 @@ export default function FailoverV2Page() {
                   onChange={(event) => setMemberForm((current) => ({ ...current, stale_after_seconds: event.target.value }))}
                 />
               </div>
-              <div className="space-y-2">
+              <div className={FORM_FIELD_CLASS}>
                 <Label>{t("failover_v2.cooldown", { defaultValue: "Cooldown" })}</Label>
                 <Input
                   type="number"
@@ -2255,42 +3896,451 @@ export default function FailoverV2Page() {
                   onChange={(event) => setMemberForm((current) => ({ ...current, cooldown_seconds: event.target.value }))}
                 />
               </div>
-            </div>
+              </div>
+            </FormSection>
 
-            <div className="space-y-2">
-              <Label>{t("failover_v2.plan_payload", { defaultValue: "Plan payload" })}</Label>
-              <p className="text-xs text-slate-500 dark:text-slate-400">
-                {normalizeProviderKey(memberForm.provider, FAILOVER_V2_MEMBER_PROVIDER) === "linode"
-                  ? t("failover_v2.plan_payload_hint_linode", {
+            <FormSection
+              title={t("failover_v2.plan_payload", { defaultValue: "Plan payload" })}
+              description={memberProvider === "linode"
+                ? t("failover_v2.plan_payload_hint_linode", {
+                  defaultValue: getMemberPlanPayloadHint(memberForm.provider),
+                })
+                : memberProvider === "aws"
+                  ? t("failover_v2.plan_payload_hint_aws", {
                     defaultValue: getMemberPlanPayloadHint(memberForm.provider),
                   })
-                  : normalizeProviderKey(memberForm.provider, FAILOVER_V2_MEMBER_PROVIDER) === "aws"
-                    ? t("failover_v2.plan_payload_hint_aws", {
-                      defaultValue: getMemberPlanPayloadHint(memberForm.provider),
-                    })
-                    : t("failover_v2.plan_payload_hint_digitalocean", {
-                      defaultValue: getMemberPlanPayloadHint(memberForm.provider),
-                    })}
-              </p>
-              <Textarea
-                className="min-h-32 font-mono text-xs"
-                value={memberForm.plan_payload}
-                onChange={(event) => setMemberForm((current) => ({ ...current, plan_payload: event.target.value }))}
-              />
-            </div>
-
-            <div className="rounded-2xl border border-amber-200 bg-amber-50/60 p-4 dark:border-amber-900/60 dark:bg-amber-950/20">
-              <div className="flex flex-wrap items-start justify-between gap-3">
-                <div className="space-y-1">
-                  <div className="text-sm font-medium text-slate-900 dark:text-slate-50">
-                    {t("failover_v2.advanced_state_fields", { defaultValue: "Advanced state fields" })}
+                  : t("failover_v2.plan_payload_hint_digitalocean", {
+                    defaultValue: getMemberPlanPayloadHint(memberForm.provider),
+                  })}
+              actions={(
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    setMemberPlanAdvancedOpen(false);
+                    setMemberForm((current) => ({
+                      ...current,
+                      plan_payload: getDefaultMemberPlanPayload(current.provider),
+                    }));
+                  }}
+                >
+                  {t("failover_v2.reset_plan_template", { defaultValue: "Use template" })}
+                </Button>
+              )}
+            >
+              {memberProvider === "aws" ? (
+                <div className="space-y-4">
+                  <div className={FORM_GRID_2_CLASS}>
+                    <div className={FORM_FIELD_CLASS}>
+                      <Label>{t("failover_v2.aws_service", { defaultValue: "AWS service" })}</Label>
+                      <Select
+                        value={awsPlanService}
+                        onValueChange={(value) => updateMemberPlanPayload({
+                          service: value,
+                          ...(value === "lightsail"
+                            ? {
+                              availability_zone: getJsonStringValue(memberPlanPayload, "availability_zone")
+                                || getDefaultLightsailAvailabilityZone(memberPlanRegion),
+                              blueprint_id: getJsonStringValue(memberPlanPayload, "blueprint_id")
+                                || DEFAULT_STATIC_LIGHTSAIL_BLUEPRINT_ID,
+                              bundle_id: getJsonStringValue(memberPlanPayload, "bundle_id")
+                                || DEFAULT_STATIC_LIGHTSAIL_BUNDLE_ID,
+                            }
+                            : {
+                              image_id: getJsonStringValue(memberPlanPayload, "image_id")
+                                || DEFAULT_STATIC_EC2_IMAGE_ID,
+                              instance_type: getJsonStringValue(memberPlanPayload, "instance_type")
+                                || DEFAULT_STATIC_EC2_INSTANCE_TYPE,
+                            }),
+                        })}
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="ec2">EC2</SelectItem>
+                          <SelectItem value="lightsail">Lightsail</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className={FORM_FIELD_CLASS}>
+                      <Label className="flex items-center gap-1">
+                        {t("failover_v2.plan_region", { defaultValue: "Region" })}
+                        <RequiredMark />
+                      </Label>
+                      <PlanPresetSelect
+                        value={memberPlanRegion || undefined}
+                        onValueChange={(value) => updateMemberPlanPayload({
+                          region: value,
+                          ...(awsPlanService === "lightsail"
+                            ? { availability_zone: getDefaultLightsailAvailabilityZone(value) }
+                            : {}),
+                        })}
+                        options={awsRegionOptions}
+                      />
+                    </div>
+                    <div className={`${FORM_FIELD_CLASS} md:col-span-2`}>
+                      <Label>{t("failover_v2.plan_instance_name", { defaultValue: "Instance name" })}</Label>
+                      <Input
+                        value={getJsonStringValue(memberPlanPayload, "name")}
+                        onChange={(event) => updateMemberPlanPayload({ name: event.target.value })}
+                        placeholder={t("failover_v2.plan_instance_name_placeholder", { defaultValue: "Optional; generated automatically when empty" })}
+                      />
+                    </div>
                   </div>
-                  <p className="text-xs text-slate-500 dark:text-slate-400">
-                    {t("failover_v2.advanced_state_fields_hint", {
-                      defaultValue: "DNS record refs and current instance refs are V2 recovery anchors. Leave them unchanged unless you are importing or repairing state.",
+
+                  {awsPlanService === "lightsail" ? (
+                    <div className={FORM_GRID_2_CLASS}>
+                      <div className={FORM_FIELD_CLASS}>
+                        <Label className="flex items-center gap-1">
+                          {t("failover_v2.aws_availability_zone", { defaultValue: "Availability zone" })}
+                          <RequiredMark />
+                        </Label>
+                        <PlanPresetSelect
+                          value={getJsonStringValue(memberPlanPayload, "availability_zone") || undefined}
+                          onValueChange={(value) => updateMemberPlanPayload({ availability_zone: value })}
+                          options={awsLightsailAvailabilityZoneOptions}
+                        />
+                      </div>
+                      <div className={FORM_FIELD_CLASS}>
+                        <Label>{t("failover_v2.aws_ip_address_type", { defaultValue: "IP address type" })}</Label>
+                        <Select
+                          value={awsLightsailIPAddressType}
+                          onValueChange={(value) => updateMemberPlanPayload({ ip_address_type: value === "dualstack" ? "dualstack" : "" })}
+                        >
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="ipv4">{t("failover_v2.aws_ip_address_type_ipv4", { defaultValue: "IPv4 only" })}</SelectItem>
+                            <SelectItem value="dualstack">{t("failover_v2.aws_ip_address_type_dualstack", { defaultValue: "IPv4 + IPv6" })}</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className={FORM_FIELD_CLASS}>
+                        <Label className="flex items-center gap-1">
+                          {t("failover_v2.aws_blueprint_id", { defaultValue: "Blueprint ID" })}
+                          <RequiredMark />
+                        </Label>
+                        <PlanPresetSelect
+                          value={getJsonStringValue(memberPlanPayload, "blueprint_id") || undefined}
+                          onValueChange={(value) => {
+                            const nextPlatform = inferLightsailBlueprintPlatform(value);
+                            const currentBundleID = getJsonStringValue(memberPlanPayload, "bundle_id");
+                            const currentBundlePlatform = inferLightsailBundlePlatform(currentBundleID);
+                            updateMemberPlanPayload({
+                              blueprint_id: value,
+                              bundle_id: nextPlatform && currentBundlePlatform && currentBundlePlatform !== nextPlatform
+                                ? getDefaultLightsailBundleID(nextPlatform)
+                                : currentBundleID || getDefaultLightsailBundleID(nextPlatform),
+                            });
+                          }}
+                          options={awsLightsailBlueprintOptions}
+                        />
+                      </div>
+                      <div className={FORM_FIELD_CLASS}>
+                        <Label className="flex items-center gap-1">
+                          {t("failover_v2.aws_bundle_id", { defaultValue: "Bundle ID" })}
+                          <RequiredMark />
+                        </Label>
+                        <PlanPresetSelect
+                          value={getJsonStringValue(memberPlanPayload, "bundle_id") || undefined}
+                          onValueChange={(value) => updateMemberPlanPayload({ bundle_id: value })}
+                          options={awsLightsailBundleOptions}
+                        />
+                      </div>
+                      <div className={`${FORM_FIELD_CLASS} md:col-span-2`}>
+                        <Label>{t("failover_v2.aws_key_pair_name", { defaultValue: "Key pair name" })}</Label>
+                        <Input
+                          value={getJsonStringValue(memberPlanPayload, "key_pair_name")}
+                          onChange={(event) => updateMemberPlanPayload({ key_pair_name: event.target.value })}
+                        />
+                      </div>
+                    </div>
+                  ) : (
+                    <div className={FORM_GRID_2_CLASS}>
+                      <div className={FORM_FIELD_CLASS}>
+                        <Label className="flex items-center gap-1">
+                          {t("failover_v2.aws_image_id", { defaultValue: "AMI image ID" })}
+                          <RequiredMark />
+                        </Label>
+                        <PlanPresetSelect
+                          value={getJsonStringValue(memberPlanPayload, "image_id") || undefined}
+                          onValueChange={(value) => updateMemberPlanPayload({ image_id: value })}
+                          options={awsEC2ImageOptions}
+                        />
+                      </div>
+                      <div className={FORM_FIELD_CLASS}>
+                        <Label className="flex items-center gap-1">
+                          {t("failover_v2.aws_instance_type", { defaultValue: "Instance type" })}
+                          <RequiredMark />
+                        </Label>
+                        <PlanPresetSelect
+                          value={getJsonStringValue(memberPlanPayload, "instance_type") || undefined}
+                          onValueChange={(value) => updateMemberPlanPayload({ instance_type: value })}
+                          options={awsEC2InstanceTypeOptions}
+                        />
+                      </div>
+                      <div className={FORM_FIELD_CLASS}>
+                        <Label>{t("failover_v2.aws_subnet_id", { defaultValue: "Subnet ID" })}</Label>
+                        <Input
+                          value={getJsonStringValue(memberPlanPayload, "subnet_id")}
+                          onChange={(event) => updateMemberPlanPayload({ subnet_id: event.target.value })}
+                          placeholder="subnet-..."
+                        />
+                      </div>
+                      <div className={FORM_FIELD_CLASS}>
+                        <Label>{t("failover_v2.aws_key_name", { defaultValue: "Key name" })}</Label>
+                        <Input
+                          value={getJsonStringValue(memberPlanPayload, "key_name")}
+                          onChange={(event) => updateMemberPlanPayload({ key_name: event.target.value })}
+                        />
+                      </div>
+                      <div className={`${FORM_FIELD_CLASS} md:col-span-2`}>
+                        <Label>{t("failover_v2.aws_security_group_ids", { defaultValue: "Security group IDs" })}</Label>
+                        <Textarea
+                          className="min-h-20 font-mono text-xs"
+                          value={formatStringArrayText(getJsonStringArrayValue(memberPlanPayload, "security_group_ids"))}
+                          onChange={(event) => updateMemberPlanPayload({ security_group_ids: parseStringArrayText(event.target.value) })}
+                          placeholder="sg-..."
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="grid gap-3 md:grid-cols-3">
+                    {awsPlanService === "ec2" ? (
+                      <>
+                        <ToggleCard title={t("failover_v2.assign_public_ip", { defaultValue: "Assign public IPv4" })}>
+                          <Switch
+                            checked={getJsonBooleanValue(memberPlanPayload, "assign_public_ip", true)}
+                            onCheckedChange={(checked) => updateMemberPlanPayload({ assign_public_ip: checked })}
+                          />
+                        </ToggleCard>
+                        <ToggleCard title={t("failover_v2.assign_ipv6", { defaultValue: "Assign IPv6" })}>
+                          <Switch
+                            checked={getJsonBooleanValue(memberPlanPayload, "assign_ipv6", true)}
+                            onCheckedChange={(checked) => updateMemberPlanPayload({ assign_ipv6: checked })}
+                          />
+                        </ToggleCard>
+                      </>
+                    ) : null}
+                    <ToggleCard title={t("failover_v2.allow_all_traffic", { defaultValue: "Allow all traffic" })}>
+                      <Switch
+                        checked={getJsonBooleanValue(memberPlanPayload, "allow_all_traffic")}
+                        onCheckedChange={(checked) => updateMemberPlanPayload({ allow_all_traffic: checked })}
+                      />
+                    </ToggleCard>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <div className={FORM_GRID_3_CLASS}>
+                    <div className={FORM_FIELD_CLASS}>
+                      <Label className="flex items-center gap-1">
+                        {t("failover_v2.plan_region", { defaultValue: "Region" })}
+                        <RequiredMark />
+                      </Label>
+                      <PlanPresetSelect
+                        value={getJsonStringValue(memberPlanPayload, "region") || undefined}
+                        onValueChange={(value) => updateMemberPlanPayload({ region: value })}
+                        options={memberProvider === "linode" ? linodeRegionOptions : digitalOceanRegionOptions}
+                      />
+                    </div>
+                    <div className={FORM_FIELD_CLASS}>
+                      <Label className="flex items-center gap-1">
+                        {memberProvider === "linode"
+                          ? t("failover_v2.linode_type", { defaultValue: "Type" })
+                          : t("failover_v2.digitalocean_size", { defaultValue: "Size" })}
+                        <RequiredMark />
+                      </Label>
+                      <PlanPresetSelect
+                        value={getJsonStringValue(memberPlanPayload, memberProvider === "linode" ? "type" : "size") || undefined}
+                        onValueChange={(value) => updateMemberPlanPayload({ [memberProvider === "linode" ? "type" : "size"]: value })}
+                        options={memberProvider === "linode" ? linodeTypeOptions : digitalOceanSizeOptions}
+                      />
+                    </div>
+                    <div className={FORM_FIELD_CLASS}>
+                      <Label className="flex items-center gap-1">
+                        {t("failover_v2.plan_image", { defaultValue: "Image" })}
+                        <RequiredMark />
+                      </Label>
+                      <PlanPresetSelect
+                        value={getJsonStringValue(memberPlanPayload, "image") || undefined}
+                        onValueChange={(value) => updateMemberPlanPayload({ image: value })}
+                        options={memberProvider === "linode" ? linodeImageOptions : digitalOceanImageOptions}
+                      />
+                    </div>
+                  </div>
+
+                  <div className={FORM_GRID_2_CLASS}>
+                    <div className={FORM_FIELD_CLASS}>
+                      <Label>
+                        {memberProvider === "linode"
+                          ? t("failover_v2.linode_label_prefix", { defaultValue: "Label prefix" })
+                          : t("failover_v2.digitalocean_name_prefix", { defaultValue: "Name prefix" })}
+                      </Label>
+                      <Input
+                        value={getJsonStringValue(memberPlanPayload, memberProvider === "linode" ? "label_prefix" : "name_prefix")}
+                        onChange={(event) => updateMemberPlanPayload({ [memberProvider === "linode" ? "label_prefix" : "name_prefix"]: event.target.value })}
+                        placeholder="failover-v2"
+                      />
+                    </div>
+                    {memberProvider === "digitalocean" ? (
+                      <div className={FORM_FIELD_CLASS}>
+                        <Label>{t("failover_v2.digitalocean_vpc_uuid", { defaultValue: "VPC UUID" })}</Label>
+                        <Input
+                          value={getJsonStringValue(memberPlanPayload, "vpc_uuid")}
+                          onChange={(event) => updateMemberPlanPayload({ vpc_uuid: event.target.value })}
+                        />
+                      </div>
+                    ) : (
+                      <div className={FORM_FIELD_CLASS}>
+                        <Label>{t("failover_v2.linode_authorized_keys", { defaultValue: "Authorized keys" })}</Label>
+                        <Textarea
+                          className="min-h-20 font-mono text-xs"
+                          value={formatStringArrayText(getJsonStringArrayValue(memberPlanPayload, "authorized_keys"))}
+                          onChange={(event) => updateMemberPlanPayload({ authorized_keys: parseStringArrayText(event.target.value) })}
+                        />
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="grid gap-3 md:grid-cols-3">
+                    {memberProvider === "digitalocean" ? (
+                      <>
+                        <ToggleCard title={t("failover_v2.assign_ipv6", { defaultValue: "Assign IPv6" })}>
+                          <Switch
+                            checked={getJsonBooleanValue(memberPlanPayload, "ipv6", true)}
+                            onCheckedChange={(checked) => updateMemberPlanPayload({ ipv6: checked })}
+                          />
+                        </ToggleCard>
+                        <ToggleCard title={t("failover_v2.monitoring", { defaultValue: "Monitoring" })}>
+                          <Switch
+                            checked={getJsonBooleanValue(memberPlanPayload, "monitoring", true)}
+                            onCheckedChange={(checked) => updateMemberPlanPayload({ monitoring: checked })}
+                          />
+                        </ToggleCard>
+                      </>
+                    ) : null}
+                    <ToggleCard title={t("failover_v2.backups", { defaultValue: "Backups" })}>
+                      <Switch
+                        checked={getJsonBooleanValue(memberPlanPayload, memberProvider === "linode" ? "backups_enabled" : "backups")}
+                        onCheckedChange={(checked) => updateMemberPlanPayload({ [memberProvider === "linode" ? "backups_enabled" : "backups"]: checked })}
+                      />
+                    </ToggleCard>
+                  </div>
+                </div>
+              )}
+
+              <div className={`${FORM_GRID_2_CLASS} mt-3`}>
+                <div className={FORM_FIELD_CLASS}>
+                  <Label>{t("failover_v2.plan_tags", { defaultValue: "Tags" })}</Label>
+                  <Textarea
+                    className="min-h-20 font-mono text-xs"
+                    value={memberProvider === "aws"
+                      ? formatAWSTagsText(getJsonAWSTagsValue(memberPlanPayload, "tags"))
+                      : formatStringArrayText(getJsonStringArrayValue(memberPlanPayload, "tags"))}
+                    onChange={(event) => updateMemberPlanPayload({
+                      tags: memberProvider === "aws"
+                        ? parseAWSTagsText(event.target.value)
+                        : parseStringArrayText(event.target.value),
                     })}
+                    placeholder={memberProvider === "aws" ? "Role=failover" : "failover-v2"}
+                  />
+                  <p className="text-xs text-slate-500 dark:text-slate-400">
+                    {memberProvider === "aws"
+                      ? t("failover_v2.aws_tags_hint", { defaultValue: "Use key=value pairs separated by commas or new lines." })
+                      : t("failover_v2.tags_hint", { defaultValue: "Use commas or new lines to separate tags." })}
                   </p>
                 </div>
+                <div className={FORM_FIELD_CLASS}>
+                  <Label>{t("failover_v2.auto_connect_group", { defaultValue: "Auto-connect group" })}</Label>
+                  <Input
+                    value={getJsonStringValue(memberPlanPayload, "auto_connect_group")}
+                    onChange={(event) => updateMemberPlanPayload({ auto_connect_group: event.target.value })}
+                    placeholder={t("failover_v2.auto_connect_group_placeholder", { defaultValue: "Optional; generated automatically when empty" })}
+                  />
+                </div>
+              </div>
+
+              <div className={`${FORM_GRID_2_CLASS} mt-3`}>
+                <div className={FORM_FIELD_CLASS}>
+                  <Label>{t("failover_v2.root_password_mode", { defaultValue: "Root password mode" })}</Label>
+                  <Select
+                    value={memberPlanRootPasswordMode}
+                    onValueChange={(value) => updateMemberPlanPayload({ root_password_mode: value, root_password: value === "custom" ? getJsonStringValue(memberPlanPayload, "root_password") : "" })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">{t("failover_v2.root_password_mode_none", { defaultValue: "None" })}</SelectItem>
+                      <SelectItem value="random">{t("failover_v2.root_password_mode_random", { defaultValue: "Random" })}</SelectItem>
+                      <SelectItem value="custom">{t("failover_v2.root_password_mode_custom", { defaultValue: "Custom" })}</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className={FORM_FIELD_CLASS}>
+                  <Label>{t("failover_v2.root_password", { defaultValue: "Root password" })}</Label>
+                  <Input
+                    type="password"
+                    value={getJsonStringValue(memberPlanPayload, "root_password")}
+                    onChange={(event) => updateMemberPlanPayload({ root_password: event.target.value, root_password_mode: event.target.value ? "custom" : memberPlanRootPasswordMode })}
+                    disabled={memberPlanRootPasswordMode !== "custom"}
+                    placeholder={t("failover_v2.root_password_placeholder", { defaultValue: "Only required when mode is Custom" })}
+                  />
+                </div>
+              </div>
+
+              <div className={`${FORM_FIELD_CLASS} mt-3`}>
+                <Label>{t("failover_v2.user_data", { defaultValue: "User data" })}</Label>
+                <Textarea
+                  className="min-h-24 font-mono text-xs"
+                  value={getJsonStringValue(memberPlanPayload, "user_data")}
+                  onChange={(event) => updateMemberPlanPayload({ user_data: event.target.value })}
+                />
+                <p className="text-xs text-slate-500 dark:text-slate-400">
+                  {t("failover_v2.user_data_hint", { defaultValue: "Optional. V2 auto-connect script is injected automatically." })}
+                </p>
+              </div>
+
+              <div className={`${FORM_FIELD_CLASS} mt-3`}>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setMemberPlanAdvancedOpen((open) => !open)}
+                >
+                  {memberPlanAdvancedOpen
+                    ? t("failover_v2.hide_plan_json", { defaultValue: "Hide JSON" })
+                    : t("failover_v2.show_plan_json", { defaultValue: "Edit JSON" })}
+                </Button>
+                {memberPlanAdvancedOpen ? (
+                  <div className={`${FORM_FIELD_CLASS} border-l border-slate-200 pl-3 dark:border-slate-800`}>
+                    <p className="text-xs text-slate-500 dark:text-slate-400">
+                      {t("failover_v2.plan_payload_advanced_hint", {
+                        defaultValue: "Advanced: edit the raw plan payload only when importing or repairing unsupported fields.",
+                      })}
+                    </p>
+                    <Textarea
+                      className="min-h-32 font-mono text-xs"
+                      value={memberForm.plan_payload}
+                      onChange={(event) => setMemberForm((current) => ({ ...current, plan_payload: event.target.value }))}
+                    />
+                  </div>
+                ) : null}
+              </div>
+            </FormSection>
+
+            <FormSection
+              tone="warning"
+              title={t("failover_v2.advanced_state_fields", { defaultValue: "Advanced state fields" })}
+              description={t("failover_v2.advanced_state_fields_hint", {
+                defaultValue: "DNS record refs and current instance refs are V2 recovery anchors. Leave them unchanged unless you are importing or repairing state.",
+              })}
+              actions={(
                 <Button
                   type="button"
                   size="sm"
@@ -2301,11 +4351,11 @@ export default function FailoverV2Page() {
                     ? t("failover_v2.hide_advanced_fields", { defaultValue: "Hide advanced" })
                     : t("failover_v2.show_advanced_fields", { defaultValue: "Show advanced" })}
                 </Button>
-              </div>
-
+              )}
+            >
               {memberAdvancedOpen ? (
-                <div className="mt-4 grid gap-4 md:grid-cols-2">
-                  <div className="space-y-2">
+                <div className={FORM_GRID_2_CLASS}>
+                  <div className={FORM_FIELD_CLASS}>
                     <Label>{t("failover_v2.dns_record_refs", { defaultValue: "DNS record refs" })}</Label>
                     <Textarea
                       className="min-h-28 font-mono text-xs"
@@ -2313,7 +4363,7 @@ export default function FailoverV2Page() {
                       onChange={(event) => setMemberForm((current) => ({ ...current, dns_record_refs: event.target.value }))}
                     />
                   </div>
-                  <div className="space-y-2">
+                  <div className={FORM_FIELD_CLASS}>
                     <Label>{t("failover_v2.current_instance_ref", { defaultValue: "Current instance ref" })}</Label>
                     <Textarea
                       className="min-h-32 font-mono text-xs"
@@ -2323,7 +4373,7 @@ export default function FailoverV2Page() {
                   </div>
                 </div>
               ) : null}
-            </div>
+            </FormSection>
           </div>
 
           <DialogFooter>
