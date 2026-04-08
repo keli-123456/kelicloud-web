@@ -21,6 +21,7 @@ export interface SettingsResponse {
   offline_cleanup_enabled: boolean;
   offline_cleanup_time: string;
   offline_cleanup_grace_hours: number;
+  failover_v2_scheduler_enabled: boolean;
   outbound_proxy_enabled: boolean;
   outbound_proxy_protocol: string;
   outbound_proxy_host: string;
@@ -73,6 +74,7 @@ const DEFAULT_SETTINGS: SettingsResponse = {
   offline_cleanup_enabled: false,
   offline_cleanup_time: "03:00",
   offline_cleanup_grace_hours: 24,
+  failover_v2_scheduler_enabled: false,
   outbound_proxy_enabled: false,
   outbound_proxy_protocol: "socks5",
   outbound_proxy_host: "",

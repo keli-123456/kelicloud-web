@@ -34,6 +34,11 @@
           "labelKey": "cloud.failover.title",
           "path": "/admin/failover",
           "icon": "RefreshCw"
+        },
+        {
+          "labelKey": "cloud.failover_v2.title",
+          "path": "/admin/failover-v2",
+          "icon": "ShieldAlert"
         }
       ]
     },

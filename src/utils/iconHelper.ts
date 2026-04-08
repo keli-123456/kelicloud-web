@@ -21,6 +21,7 @@ import {
   ShipWheel,
   Building2,
   RefreshCw,
+  ShieldAlert,
   ShieldCheck,
 } from "lucide-react";
 
@@ -47,5 +48,6 @@ export const iconMap: Record<string, React.ComponentType<any>> = {
   ShipWheel,
   Building2,
   RefreshCw,
+  ShieldAlert,
   ShieldCheck,
 };

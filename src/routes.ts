@@ -61,6 +61,10 @@ export const routes: RouteObject[] = [
         element: React.createElement(lazy(() => import("./pages/admin/failover"))),
       },
       {
+        path: "failover-v2",
+        element: React.createElement(lazy(() => import("./pages/admin/failover-v2"))),
+      },
+      {
         path: "settings",
         element: React.createElement(
           lazy(() => import("./pages/admin/settings/_layout"))

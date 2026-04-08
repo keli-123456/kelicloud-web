@@ -155,6 +155,9 @@ const getRequiredFeatureForPath = (target: string) => {
   const targetUrl = new URL(target, "https://komari.local");
   const normalizedPath = normalizePath(targetUrl.pathname);
 
+  if (normalizedPath === "/admin/failover-v2" || normalizedPath.startsWith("/admin/failover-v2/")) {
+    return "cloud_failover";
+  }
   if (normalizedPath === "/admin/failover" || normalizedPath.startsWith("/admin/failover/")) {
     return "cloud_failover";
   }
@@ -342,7 +345,12 @@ export default function AdminPanelBar({ content }: AdminPanelBarProps) {
           ]);
         }
       }
-      if (normalizedPath === "/admin/failover") {
+      if (
+        normalizedPath === "/admin/failover-v2"
+        || normalizedPath.startsWith("/admin/failover-v2/")
+        || normalizedPath === "/admin/failover"
+        || normalizedPath.startsWith("/admin/failover/")
+      ) {
         return hasFeature("cloud_failover") && hasFeature("cn_connectivity");
       }
       const feature = getRequiredFeatureForPath(target);
