@@ -1,3 +1,15 @@
+# AGENTS.md
+
+## Frontend working rules
+- 优先最小改动，避免无关重构。
+- 不修改后端 API 协议。
+- 不引入新的大型第三方 UI 依赖。
+- 新增文案必须走现有 i18n 方案。
+- 修改前先定位页面、相关组件、状态管理和样式来源。
+- 修改后必须运行项目已有的 lint、typecheck、build、test。
+- 危险操作必须有确认与禁用态。
+- 批量操作必须明确作用范围。
+- 能复用现有 design token 和组件时，不要重新发明一套样式体系。
 # UI Rules
 
 ## Scope
