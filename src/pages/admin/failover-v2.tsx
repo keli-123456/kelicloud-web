@@ -71,6 +71,7 @@ import {
   FailoverV2ApiError,
   type FailoverV2BulkValidationResult,
   type FailoverV2Execution,
+  type FailoverV2ExecutionAvailableActions,
   type FailoverV2ExecutionSummary,
   type FailoverV2Member,
   type FailoverV2MemberInput,
@@ -905,6 +906,100 @@ function localizeFailoverV2ActionReason(t: TFunction, reason: string | null | un
   return t(`failover_v2.action_reasons.${normalizeTranslationToken(normalizedReason)}`, {
     defaultValue: reason,
   });
+}
+
+function asJsonObject(value: unknown): Record<string, unknown> | null {
+  const parsed = parseJsonValue(value);
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+    return null;
+  }
+  return parsed as Record<string, unknown>;
+}
+
+function firstNonEmptyValue(values: Array<unknown>) {
+  for (const value of values) {
+    const normalized = String(value ?? "").trim();
+    if (normalized) {
+      return normalized;
+    }
+  }
+  return "";
+}
+
+function resolveExecutionActionsFallback(execution: FailoverV2Execution): FailoverV2ExecutionAvailableActions {
+  if (execution.available_actions) {
+    return execution.available_actions;
+  }
+
+  const isActive = !execution.finished_at && isFailoverV2ExecutionStatusActive(execution.status);
+  const detachStatus = String(execution.detach_dns_status || "").trim().toLowerCase();
+  const attachStatus = String(execution.attach_dns_status || "").trim().toLowerCase();
+  const cleanupStatus = String(execution.cleanup_status || "").trim().toLowerCase();
+  const cleanupResult = asJsonObject(execution.cleanup_result);
+  const cleanupClassification = String(cleanupResult?.classification ?? "").trim().toLowerCase();
+  const oldInstanceRef = asJsonObject(execution.old_instance_ref);
+  const newInstanceRef = asJsonObject(execution.new_instance_ref);
+  const newAddresses = asJsonObject(execution.new_addresses);
+  const ipv4 = firstNonEmptyValue([
+    newAddresses?.public_ip,
+    newAddresses?.ipv4,
+  ]);
+  const ipv6List = Array.isArray(newAddresses?.ipv6_addresses)
+    ? (newAddresses?.ipv6_addresses as unknown[])
+    : [];
+  const ipv6 = firstNonEmptyValue([
+    ipv6List[0],
+    newAddresses?.ipv6,
+  ]);
+  const hasReplacementAddress = Boolean(ipv4 || ipv6);
+
+  const stop = isActive
+    ? { available: true, reason: "" }
+    : { available: false, reason: "execution is not running" };
+
+  let retryAttachDNS: FailoverV2ExecutionAvailableActions["retry_attach_dns"];
+  if (isActive) {
+    retryAttachDNS = { available: false, reason: "execution is still running" };
+  } else if (detachStatus !== "success") {
+    retryAttachDNS = { available: false, reason: "member dns detach must succeed before attach retry is available" };
+  } else if (attachStatus === "success") {
+    retryAttachDNS = { available: false, reason: "replacement dns already succeeded for this execution" };
+  } else if (attachStatus === "skipped") {
+    retryAttachDNS = { available: false, reason: "replacement dns was skipped for this execution" };
+  } else if (attachStatus !== "failed") {
+    retryAttachDNS = { available: false, reason: "attach retry is only available after a failed dns attach" };
+  } else if (!hasReplacementAddress) {
+    retryAttachDNS = { available: false, reason: "no saved replacement addresses are available for attach retry" };
+  } else if (!String(execution.new_client_uuid || "").trim() && !newInstanceRef) {
+    retryAttachDNS = { available: false, reason: "replacement instance context is incomplete for attach retry" };
+  } else {
+    retryAttachDNS = { available: true, reason: "" };
+  }
+
+  let retryCleanup: FailoverV2ExecutionAvailableActions["retry_cleanup"];
+  if (isActive) {
+    retryCleanup = { available: false, reason: "execution is still running" };
+  } else if (attachStatus !== "success") {
+    retryCleanup = { available: false, reason: "replacement dns must succeed before old instance cleanup can be retried" };
+  } else if (!oldInstanceRef) {
+    retryCleanup = { available: false, reason: "no saved old instance reference is available for cleanup retry" };
+  } else if (cleanupClassification === "instance_deleted") {
+    retryCleanup = { available: false, reason: "old instance cleanup already succeeded" };
+  } else if (cleanupClassification === "not_requested") {
+    retryCleanup = { available: false, reason: "this execution did not require old instance cleanup" };
+  } else if (cleanupStatus === "success") {
+    retryCleanup = { available: false, reason: "old instance cleanup already succeeded" };
+  } else if (cleanupStatus === "pending" || cleanupStatus === "failed" || cleanupStatus === "warning" || cleanupStatus === "skipped") {
+    retryCleanup = { available: true, reason: "" };
+  } else {
+    retryCleanup = { available: false, reason: "cleanup retry is only available when cleanup is pending, failed, or needs review" };
+  }
+
+  return {
+    stop,
+    retry_attach_dns: retryAttachDNS,
+    retry_cleanup: retryCleanup,
+  };
 }
 
 function parseJsonValue(value: unknown): unknown {
@@ -2763,6 +2858,14 @@ export default function FailoverV2Page() {
     });
   }, []);
 
+  const closeMemberDialog = React.useCallback(() => {
+    setEditingMember(null);
+    setMemberDialogOpen(false);
+    setMemberDNSCatalog(null);
+    setMemberDNSCatalogError("");
+    setMemberPlanAdvancedOpen(false);
+  }, []);
+
   const handleSaveService = React.useCallback(async () => {
     try {
       const input = buildServiceInput(t, serviceForm);
@@ -2799,7 +2902,7 @@ export default function FailoverV2Page() {
         await createFailoverV2Member(memberDialogService.id, input);
         toast.success(t("common.created_successfully", { defaultValue: "Created successfully" }));
       }
-      setMemberDialogOpen(false);
+      closeMemberDialog();
       await loadServices();
     } catch (saveError) {
       const message = saveError instanceof Error ? saveError.message : t("common.error", { defaultValue: "Error" });
@@ -2807,7 +2910,7 @@ export default function FailoverV2Page() {
     } finally {
       setSavingMember(false);
     }
-  }, [editingMember, loadServices, memberDialogService, memberForm, t]);
+  }, [closeMemberDialog, editingMember, loadServices, memberDialogService, memberForm, t]);
 
   const showValidationResult = React.useCallback((title: string, result: FailoverV2ValidationResult) => {
     setValidationDialogTarget({ title, result });
@@ -3101,6 +3204,13 @@ export default function FailoverV2Page() {
     const summary = executionSummaries.find((execution) => execution.id === selectedExecutionID);
     return Boolean(summary && !summary.finished_at && isFailoverV2ExecutionStatusActive(summary.status));
   }, [executionSummaries, selectedExecution, selectedExecutionID]);
+
+  const selectedExecutionActions = React.useMemo(() => {
+    if (!selectedExecution) {
+      return null;
+    }
+    return resolveExecutionActionsFallback(selectedExecution);
+  }, [selectedExecution]);
 
   React.useEffect(() => {
     if (!executionDialogTarget || !selectedExecutionID || !selectedExecutionActive) {
@@ -4464,7 +4574,16 @@ export default function FailoverV2Page() {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={memberDialogOpen} onOpenChange={setMemberDialogOpen}>
+      <Dialog
+        open={memberDialogOpen}
+        onOpenChange={(open) => {
+          if (!open) {
+            closeMemberDialog();
+            return;
+          }
+          setMemberDialogOpen(true);
+        }}
+      >
         <DialogContent className="flex max-h-[90vh] max-w-4xl flex-col gap-0 overflow-hidden p-0">
           <DialogHeader className="gap-3 border-b px-6 py-6">
             <div className="flex flex-wrap items-start justify-between gap-3">
@@ -5203,9 +5322,13 @@ export default function FailoverV2Page() {
               {t("failover_v2.validate", { defaultValue: "Validate" })}
             </Button>
             <div className="flex flex-col-reverse gap-2 sm:flex-row">
-              <Button variant="outline" onClick={() => setMemberDialogOpen(false)} disabled={savingMember || validatingMember}>
-                {t("common.cancel", { defaultValue: "Cancel" })}
-              </Button>
+            <Button
+              variant="outline"
+              onClick={() => closeMemberDialog()}
+              disabled={savingMember || validatingMember}
+            >
+              {t("common.cancel", { defaultValue: "Cancel" })}
+            </Button>
               <Button onClick={() => void handleSaveMember()} disabled={savingMember || validatingMember}>
                 {savingMember ? <LoaderCircle className="mr-2 size-4 animate-spin" /> : null}
                 {editingMember
@@ -5939,8 +6062,8 @@ export default function FailoverV2Page() {
                         description={t("failover_v2.stop_execution_hint", {
                           defaultValue: "停止当前仍在进行的执行，阻止继续进入后续步骤。已完成的步骤不会自动回滚。",
                         })}
-                        reason={!selectedExecution.available_actions?.stop.available
-                          ? localizeFailoverV2ActionReason(t, selectedExecution.available_actions?.stop.reason)
+                        reason={!selectedExecutionActions?.stop.available
+                          ? localizeFailoverV2ActionReason(t, selectedExecutionActions?.stop.reason)
                           : undefined}
                       >
                         <Button
@@ -5952,7 +6075,7 @@ export default function FailoverV2Page() {
                             serviceID: executionDialogTarget.service.id,
                             executionID: selectedExecution.id,
                           })}
-                          disabled={!selectedExecution.available_actions?.stop.available}
+                          disabled={!selectedExecutionActions?.stop.available}
                         >
                           {t("failover_v2.stop_execution", { defaultValue: "停止执行" })}
                         </Button>
@@ -5963,8 +6086,8 @@ export default function FailoverV2Page() {
                         description={t("failover_v2.retry_attach_dns_hint", {
                           defaultValue: "复用已保存的替换地址重新挂载 DNS，不会重新创建实例。",
                         })}
-                        reason={!selectedExecution.available_actions?.retry_attach_dns.available
-                          ? localizeFailoverV2ActionReason(t, selectedExecution.available_actions?.retry_attach_dns.reason)
+                        reason={!selectedExecutionActions?.retry_attach_dns.available
+                          ? localizeFailoverV2ActionReason(t, selectedExecutionActions?.retry_attach_dns.reason)
                           : undefined}
                       >
                         <Button
@@ -5975,7 +6098,7 @@ export default function FailoverV2Page() {
                             serviceID: executionDialogTarget.service.id,
                             executionID: selectedExecution.id,
                           })}
-                          disabled={!selectedExecution.available_actions?.retry_attach_dns.available}
+                          disabled={!selectedExecutionActions?.retry_attach_dns.available}
                         >
                           {t("failover_v2.retry_attach_dns", { defaultValue: "重试挂载 DNS" })}
                         </Button>
@@ -5986,8 +6109,8 @@ export default function FailoverV2Page() {
                         description={t("failover_v2.retry_cleanup_hint", {
                           defaultValue: "仅重试旧实例清理，不会触碰 DNS，也不会再创建机器。",
                         })}
-                        reason={!selectedExecution.available_actions?.retry_cleanup.available
-                          ? localizeFailoverV2ActionReason(t, selectedExecution.available_actions?.retry_cleanup.reason)
+                        reason={!selectedExecutionActions?.retry_cleanup.available
+                          ? localizeFailoverV2ActionReason(t, selectedExecutionActions?.retry_cleanup.reason)
                           : undefined}
                       >
                         <Button
@@ -5999,7 +6122,7 @@ export default function FailoverV2Page() {
                             serviceID: executionDialogTarget.service.id,
                             executionID: selectedExecution.id,
                           })}
-                          disabled={!selectedExecution.available_actions?.retry_cleanup.available}
+                          disabled={!selectedExecutionActions?.retry_cleanup.available}
                         >
                           {t("failover_v2.retry_cleanup", { defaultValue: "重试清理" })}
                         </Button>

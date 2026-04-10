@@ -441,10 +441,20 @@ function normalizeExecutionAvailableActions(value: unknown): FailoverV2Execution
     return null;
   }
   const raw = value as Record<string, unknown>;
+  const stopRaw = raw.stop ?? raw.stop_execution ?? raw.stopExecution;
+  const retryAttachRaw = raw.retry_attach_dns ?? raw.retry_dns_attach ?? raw.retry_attach ?? raw.retryAttachDNS;
+  const retryCleanupRaw = raw.retry_cleanup ?? raw.cleanup_retry ?? raw.retryCleanup;
+  const hasKnownAction =
+    stopRaw !== undefined
+    || retryAttachRaw !== undefined
+    || retryCleanupRaw !== undefined;
+  if (!hasKnownAction) {
+    return null;
+  }
   return {
-    stop: normalizeExecutionAvailableAction(raw.stop),
-    retry_attach_dns: normalizeExecutionAvailableAction(raw.retry_attach_dns),
-    retry_cleanup: normalizeExecutionAvailableAction(raw.retry_cleanup),
+    stop: normalizeExecutionAvailableAction(stopRaw),
+    retry_attach_dns: normalizeExecutionAvailableAction(retryAttachRaw),
+    retry_cleanup: normalizeExecutionAvailableAction(retryCleanupRaw),
   };
 }
 
