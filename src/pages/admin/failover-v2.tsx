@@ -834,6 +834,7 @@ function getStatusBadgeColor(status: string): "gray" | "green" | "amber" | "red"
     case "triggered":
     case "cooldown":
     case "pending":
+    case "warning":
     case "manual_review":
       return "amber";
     case "failed":
@@ -868,6 +869,17 @@ function localizeFailoverV2Status(t: TFunction, status: string | null | undefine
   if (!normalized) {
     return t("failover_v2.status.unknown", { defaultValue: "Unknown" });
   }
+
+  const cooldownUntilMatch = String(status || "").trim().match(/^cooldown\s+until\s+(.+)$/i);
+  if (cooldownUntilMatch) {
+    const untilRaw = cooldownUntilMatch[1]?.trim();
+    const until = untilRaw ? formatTimestamp(untilRaw) : untilRaw;
+    return t("failover_v2.status.cooldown_until", {
+      until,
+      defaultValue: `Cooldown until ${untilRaw || "..."}`,
+    });
+  }
+
   return t(`failover_v2.status.${normalized}`, {
     defaultValue: humanizeBackendToken(String(status || "")),
   });
@@ -1384,6 +1396,38 @@ function localizeFailoverV2RuntimeMessage(t: TFunction, message: string | null |
   }
 
   return normalized;
+}
+
+function getMemberProbeBadgeLabel(
+  t: TFunction,
+  member: FailoverV2Member,
+) {
+  const staleWithRetryText = member.probe?.stale && member.failure_threshold > 0
+    ? t("failover_v2.probe.stale_with_retry", {
+      defaultValue: "Stale ({{current}}/{{total}})",
+      current: Math.min(Math.max(0, member.probe?.consecutive_failures || 0), member.failure_threshold),
+      total: member.failure_threshold,
+    })
+    : null;
+
+  if (member.probe?.stale) {
+    return {
+      type: "warning" as const,
+      label: staleWithRetryText || t("failover_v2.probe.stale", { defaultValue: "Stale" }),
+      status: "warning" as const,
+    };
+  }
+
+  const probeStatus = member.probe?.status || "unknown";
+  return {
+    type: "status" as const,
+    label: `${t("failover_v2.table.probe", { defaultValue: "Probe" })}: ${localizeFailoverV2Status(t, probeStatus)}`,
+    status: probeStatus,
+  };
+}
+
+function getMemberHealthMessage(member: FailoverV2Member) {
+  return member.probe?.message || "";
 }
 
 function findLatestMemberExecutionSummary(service: FailoverV2Service, memberID: number) {
@@ -4010,6 +4054,7 @@ export default function FailoverV2Page() {
                     const memberActionsDisabled = memberBusy;
                     const memberLineCodes = getMemberLineCodes(member);
                     const latestMemberExecution = findLatestMemberExecutionSummary(service, member.id);
+                    const memberHealthMessage = getMemberHealthMessage(member);
                     const memberBusyTitle = memberActionsDisabled
                       ? t("failover_v2.active_member_execution_action_disabled", {
                         defaultValue: "Actions are disabled while this member has an active execution.",
@@ -4034,9 +4079,14 @@ export default function FailoverV2Page() {
                             <Badge color={normalizeMemberModeValue(member.mode) === "existing_client" ? "amber" : "blue"}>
                               {formatMemberModeLabel(t, member.mode)}
                             </Badge>
-                            <Badge color={getStatusBadgeColor(member.last_status || "unknown")}>
-                              {localizeFailoverV2Status(t, member.last_status || "unknown")}
-                            </Badge>
+                            {member.probe ? (() => {
+                              const probeBadge = getMemberProbeBadgeLabel(t, member);
+                              return (
+                                <Badge color={getStatusBadgeColor(probeBadge.status)}>
+                                  {probeBadge.label}
+                                </Badge>
+                              );
+                            })() : null}
                           </div>
                           <div className="text-xs text-slate-500 dark:text-slate-400">
                             {memberLineCodes.length > 0
@@ -4050,7 +4100,7 @@ export default function FailoverV2Page() {
                           <div>{t("failover_v2.member_dns_status", { defaultValue: "DNS status" })}: {formatMemberDnsStatusSummary(t, latestMemberExecution)}</div>
                           <div>{t("failover_v2.member_script_status", { defaultValue: "Script status" })}: {formatMemberScriptStatusSummary(t, latestMemberExecution)}</div>
                           <div>{member.current_address || t("failover_v2.no_current_ip", { defaultValue: "No current IP" })}</div>
-                          {member.last_message ? <div className="truncate">{localizeFailoverV2RuntimeMessage(t, member.last_message)}</div> : null}
+                          {memberHealthMessage ? <div className="truncate">{localizeFailoverV2RuntimeMessage(t, memberHealthMessage)}</div> : null}
                         </div>
 
                         <div className="flex items-center justify-between gap-3 rounded-xl bg-slate-50/80 px-3 py-2 ring-1 ring-slate-200 dark:bg-slate-900/50 dark:ring-slate-800">
