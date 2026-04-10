@@ -1401,7 +1401,25 @@ function localizeFailoverV2RuntimeMessage(t: TFunction, message: string | null |
 function getMemberProbeBadgeLabel(
   t: TFunction,
   member: FailoverV2Member,
+  memberBusy: boolean,
 ) {
+  if (memberBusy) {
+    return {
+      type: "status" as const,
+      label: localizeFailoverV2Status(t, "running"),
+      status: "running",
+    };
+  }
+
+  const runtimeStatus = String(member.last_status || "").trim().toLowerCase();
+  if (runtimeStatus && runtimeStatus !== "healthy" && runtimeStatus !== "disabled") {
+    return {
+      type: "status" as const,
+      label: localizeFailoverV2Status(t, member.last_status || runtimeStatus),
+      status: runtimeStatus,
+    };
+  }
+
   const staleWithRetryText = member.probe?.stale && member.failure_threshold > 0
     ? t("failover_v2.probe.stale_with_retry", {
       defaultValue: "Stale ({{current}}/{{total}})",
@@ -4080,7 +4098,7 @@ export default function FailoverV2Page() {
                               {formatMemberModeLabel(t, member.mode)}
                             </Badge>
                             {member.probe ? (() => {
-                              const probeBadge = getMemberProbeBadgeLabel(t, member);
+                              const probeBadge = getMemberProbeBadgeLabel(t, member, memberBusy);
                               return (
                                 <Badge color={getStatusBadgeColor(probeBadge.status)}>
                                   {probeBadge.label}
