@@ -49,11 +49,6 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
-import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
@@ -99,134 +94,23 @@ const LazyNodeDDNSDialog = React.lazy(() =>
   })),
 );
 
-type AdminScopedUser = {
-  uuid: string;
-  username: string;
-  client_count?: number;
-};
-
-type AdminUsersEnvelope = {
-  status?: string;
-  message?: string;
-  data?: {
-    items?: AdminScopedUser[];
-  };
-};
-
 const NodeDetailsPage = () => {
   const { account, hasFeature, loading, platformAdmin } = useAccount();
-  const selfUUID = String(account?.uuid || "").trim();
   const canManageCNConnectivity = platformAdmin || hasFeature("cn_connectivity");
-  const [scopeUsers, setScopeUsers] = useState<AdminScopedUser[]>([]);
-  const [selectedUserUUID, setSelectedUserUUID] = useState("");
-  const [userSearchQuery, setUserSearchQuery] = useState("");
+  const [toolbarSearchDraft, setToolbarSearchDraft] = useState("");
+  const [toolbarSearchKeyword, setToolbarSearchKeyword] = useState("");
+  const listEndpoint = "/api/admin/client/list";
 
-  React.useEffect(() => {
-    if (!platformAdmin) {
-      setScopeUsers([]);
-      setSelectedUserUUID("");
-      setUserSearchQuery("");
-      return;
+  const handleToolbarSearchDraftChange = React.useCallback((value: string) => {
+    setToolbarSearchDraft(value);
+    if (!value.trim()) {
+      setToolbarSearchKeyword("");
     }
+  }, []);
 
-    let cancelled = false;
-
-    const loadScopeUsers = async () => {
-      try {
-        const response = await fetch("/api/admin/users");
-        const payload = (await response
-          .json()
-          .catch(() => ({}))) as AdminUsersEnvelope;
-        if (!response.ok || payload.status === "error") {
-          throw new Error(payload.message || "Failed to load users");
-        }
-
-        const items = (payload.data?.items || [])
-          .map((item) => ({
-            uuid: String(item.uuid || "").trim(),
-            username: String(item.username || "").trim(),
-            client_count: Number(item.client_count || 0),
-          }))
-          .filter(
-            (item) =>
-              item.uuid &&
-              item.username &&
-              item.uuid !== selfUUID,
-          )
-          .sort((left, right) =>
-            left.username.localeCompare(right.username, "zh-CN"),
-          );
-
-        if (cancelled) {
-          return;
-        }
-
-        setScopeUsers(items);
-        setSelectedUserUUID((current) =>
-          current && items.some((item) => item.uuid === current) ? current : "",
-        );
-      } catch (loadError) {
-        console.error("Failed to load admin node scope users:", loadError);
-        if (cancelled) {
-          return;
-        }
-        setScopeUsers([]);
-        setSelectedUserUUID("");
-        setUserSearchQuery("");
-      }
-    };
-
-    void loadScopeUsers();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [platformAdmin, selfUUID]);
-
-  const listEndpoint = React.useMemo(() => {
-    if (!platformAdmin) {
-      return "/api/admin/client/list";
-    }
-    if (selectedUserUUID) {
-      return `/api/admin/client/list?user_uuid=${encodeURIComponent(
-        selectedUserUUID,
-      )}`;
-    }
-    return "/api/admin/client/list";
-  }, [platformAdmin, selectedUserUUID]);
-
-  const handleUserSearch = React.useCallback(() => {
-    if (!platformAdmin) {
-      return;
-    }
-
-    const keyword = userSearchQuery.trim().toLowerCase();
-    if (!keyword) {
-      setSelectedUserUUID("");
-      return;
-    }
-
-    const exactMatch = scopeUsers.find(
-      (item) => item.username.toLowerCase() === keyword,
-    );
-    const partialMatch =
-      exactMatch ||
-      scopeUsers.find((item) =>
-        item.username.toLowerCase().includes(keyword),
-      );
-
-    if (!partialMatch) {
-      toast.error(
-        translate("admin.nodeTable.userSearchNoMatch", {
-          query: userSearchQuery,
-        }),
-      );
-      return;
-    }
-
-    setSelectedUserUUID(partialMatch.uuid);
-    setUserSearchQuery(partialMatch.username);
-  }, [platformAdmin, scopeUsers, userSearchQuery]);
+  const handleToolbarSearch = React.useCallback(() => {
+    setToolbarSearchKeyword(toolbarSearchDraft.trim().toLowerCase());
+  }, [toolbarSearchDraft]);
 
   if (loading) {
     return <Loading />;
@@ -239,11 +123,10 @@ const NodeDetailsPage = () => {
     <NodeDetailsProvider listEndpoint={listEndpoint}>
       <Layout
         platformAdmin={platformAdmin}
-        scopeUsers={scopeUsers}
-        selectedUserUUID={selectedUserUUID}
-        userSearchQuery={userSearchQuery}
-        onUserSearchQueryChange={setUserSearchQuery}
-        onUserSearch={handleUserSearch}
+        toolbarSearchDraft={toolbarSearchDraft}
+        toolbarSearchKeyword={toolbarSearchKeyword}
+        onToolbarSearchDraftChange={handleToolbarSearchDraftChange}
+        onToolbarSearch={handleToolbarSearch}
         canManageCNConnectivity={canManageCNConnectivity}
       />
     </NodeDetailsProvider>
@@ -463,28 +346,11 @@ const getActionErrorMessage = (
 const isNodeConnectivityBlocked = (live?: NodeLiveSnapshot) =>
   live?.record.cn_connectivity?.status === "blocked_suspected";
 
-type NodeStatusFilter = "all" | "online" | "offline";
-type NodeAbnormalFilter = "all" | "abnormal" | "normal";
 type NodeSortField = "none" | "cpu" | "ram" | "traffic" | "uptime";
 type NodeSortDirection = "asc" | "desc";
 
 const RISK_WARNING_THRESHOLD = 75;
 const RISK_DANGER_THRESHOLD = 90;
-
-const buildSearchText = (node: NodeDetail) =>
-  [
-    node.name,
-    node.group,
-    node.os,
-    node.arch,
-    node.region,
-    node.version,
-    node.ipv4,
-    node.ipv6,
-  ]
-    .map((value) => String(value || "").toLowerCase().trim())
-    .filter(Boolean)
-    .join(" ");
 
 const truncateMiddle = (value: string, head = 12, tail = 8) => {
   if (value.length <= head + tail + 1) {
@@ -548,19 +414,17 @@ const getNodeSortMetric = (
 
 const Layout = ({
   platformAdmin,
-  scopeUsers,
-  selectedUserUUID,
-  userSearchQuery,
-  onUserSearchQueryChange,
-  onUserSearch,
+  toolbarSearchDraft,
+  toolbarSearchKeyword,
+  onToolbarSearchDraftChange,
+  onToolbarSearch,
   canManageCNConnectivity,
 }: {
   platformAdmin: boolean;
-  scopeUsers: AdminScopedUser[];
-  selectedUserUUID: string;
-  userSearchQuery: string;
-  onUserSearchQueryChange: (value: string) => void;
-  onUserSearch: () => void;
+  toolbarSearchDraft: string;
+  toolbarSearchKeyword: string;
+  onToolbarSearchDraftChange: (value: string) => void;
+  onToolbarSearch: () => void;
   canManageCNConnectivity: boolean;
 }) => {
   const { nodeDetail, isLoading, error, refresh } = useNodeDetails();
@@ -606,118 +470,26 @@ const Layout = ({
     () => allNodes.map((node) => node.uuid),
     [allNodes],
   );
-  const installActionsEnabled = !platformAdmin || !selectedUserUUID;
-  const [nodeSearchQuery, setNodeSearchQuery] = React.useState("");
-  const [groupFilter, setGroupFilter] = React.useState("all");
-  const [statusFilter, setStatusFilter] = React.useState<NodeStatusFilter>("all");
-  const [regionFilter, setRegionFilter] = React.useState("all");
-  const [versionFilter, setVersionFilter] = React.useState("all");
-  const [abnormalFilter, setAbnormalFilter] =
-    React.useState<NodeAbnormalFilter>("all");
+  const installActionsEnabled = true;
   const [sortField, setSortField] = React.useState<NodeSortField>("none");
   const [sortDirection, setSortDirection] =
     React.useState<NodeSortDirection>("desc");
-
-  const groupOptions = React.useMemo(
-    () =>
-      Array.from(
-        new Set(allNodes.map((node) => getNodeGroupLabel(node)).filter(Boolean)),
-      ).sort((left, right) => left.localeCompare(right, "zh-CN")),
-    [allNodes],
-  );
-  const regionOptions = React.useMemo(
-    () =>
-      Array.from(
-        new Set(
-          allNodes
-            .map((node) => String(node.region || "").trim())
-            .filter(Boolean),
-        ),
-      ).sort((left, right) => left.localeCompare(right, "zh-CN")),
-    [allNodes],
-  );
-  const versionOptions = React.useMemo(
-    () =>
-      Array.from(
-        new Set(
-          allNodes
-            .map((node) => String(node.version || "").trim())
-            .filter(Boolean),
-        ),
-      ).sort((left, right) => right.localeCompare(left, "zh-CN")),
-    [allNodes],
-  );
-
-  React.useEffect(() => {
-    if (groupFilter !== "all" && !groupOptions.includes(groupFilter)) {
-      setGroupFilter("all");
-    }
-  }, [groupFilter, groupOptions]);
-
-  React.useEffect(() => {
-    if (regionFilter !== "all" && !regionOptions.includes(regionFilter)) {
-      setRegionFilter("all");
-    }
-  }, [regionFilter, regionOptions]);
-
-  React.useEffect(() => {
-    if (versionFilter !== "all" && !versionOptions.includes(versionFilter)) {
-      setVersionFilter("all");
-    }
-  }, [versionFilter, versionOptions]);
-
+  const normalizedToolbarSearchKeyword = toolbarSearchKeyword.trim().toLowerCase();
   const visibleNodes = React.useMemo(() => {
-    const normalizedKeyword = nodeSearchQuery.toLowerCase().trim();
-
+    if (!normalizedToolbarSearchKeyword) {
+      return allNodes;
+    }
     return allNodes.filter((node) => {
-      const live = liveByNode[node.uuid];
-
-      if (groupFilter !== "all" && getNodeGroupLabel(node) !== groupFilter) {
-        return false;
-      }
-
-      if (statusFilter === "online" && !isNodeOnline(live)) {
-        return false;
-      }
-      if (statusFilter === "offline" && !isNodeOffline(live, liveLoaded)) {
-        return false;
-      }
-
-      if (regionFilter !== "all" && String(node.region || "").trim() !== regionFilter) {
-        return false;
-      }
-      if (
-        versionFilter !== "all"
-        && String(node.version || "").trim() !== versionFilter
-      ) {
-        return false;
-      }
-
-      const abnormal = isNodeAbnormal(node, live, liveLoaded);
-      if (abnormalFilter === "abnormal" && !abnormal) {
-        return false;
-      }
-      if (abnormalFilter === "normal" && abnormal) {
-        return false;
-      }
-
-      if (!normalizedKeyword) {
-        return true;
-      }
-
-      return buildSearchText(node).includes(normalizedKeyword);
+      const name = String(node.name || "").toLowerCase();
+      const ipv4 = String(node.ipv4 || "").toLowerCase();
+      const ipv6 = String(node.ipv6 || "").toLowerCase();
+      return (
+        name.includes(normalizedToolbarSearchKeyword)
+        || ipv4.includes(normalizedToolbarSearchKeyword)
+        || ipv6.includes(normalizedToolbarSearchKeyword)
+      );
     });
-  }, [
-    abnormalFilter,
-    allNodes,
-    groupFilter,
-    liveByNode,
-    liveLoaded,
-    nodeSearchQuery,
-    regionFilter,
-    statusFilter,
-    versionFilter,
-  ]);
+  }, [allNodes, normalizedToolbarSearchKeyword]);
 
   useEffect(() => {
     const interval = window.setInterval(() => {
@@ -800,29 +572,13 @@ const Layout = ({
         settingsLoading={settingsLoading}
         settingsError={settingsError}
         platformAdmin={platformAdmin}
-        scopeUsers={scopeUsers}
-        selectedUserUUID={selectedUserUUID}
-        userSearchQuery={userSearchQuery}
-        onUserSearchQueryChange={onUserSearchQueryChange}
-        onUserSearch={onUserSearch}
+        toolbarSearchDraft={toolbarSearchDraft}
+        toolbarSearchKeyword={normalizedToolbarSearchKeyword}
+        onToolbarSearchDraftChange={onToolbarSearchDraftChange}
+        onToolbarSearch={onToolbarSearch}
         installActionsEnabled={installActionsEnabled}
         canManageCNConnectivity={canManageCNConnectivity}
         onRefreshSettings={refetchSettings}
-        nodeSearchQuery={nodeSearchQuery}
-        onNodeSearchQueryChange={setNodeSearchQuery}
-        statusFilter={statusFilter}
-        onStatusFilterChange={setStatusFilter}
-        regionFilter={regionFilter}
-        onRegionFilterChange={setRegionFilter}
-        versionFilter={versionFilter}
-        onVersionFilterChange={setVersionFilter}
-        abnormalFilter={abnormalFilter}
-        onAbnormalFilterChange={setAbnormalFilter}
-        groupFilter={groupFilter}
-        onGroupFilterChange={setGroupFilter}
-        groupOptions={groupOptions}
-        regionOptions={regionOptions}
-        versionOptions={versionOptions}
       />
 
       <NodeTable
@@ -890,29 +646,13 @@ const Header = ({
   settingsLoading,
   settingsError,
   platformAdmin,
-  scopeUsers,
-  selectedUserUUID,
-  userSearchQuery,
-  onUserSearchQueryChange,
-  onUserSearch,
+  toolbarSearchDraft,
+  toolbarSearchKeyword,
+  onToolbarSearchDraftChange,
+  onToolbarSearch,
   installActionsEnabled,
   canManageCNConnectivity,
   onRefreshSettings,
-  nodeSearchQuery,
-  onNodeSearchQueryChange,
-  statusFilter,
-  onStatusFilterChange,
-  regionFilter,
-  onRegionFilterChange,
-  versionFilter,
-  onVersionFilterChange,
-  abnormalFilter,
-  onAbnormalFilterChange,
-  groupFilter,
-  onGroupFilterChange,
-  groupOptions,
-  regionOptions,
-  versionOptions,
 }: {
   nodes: NodeDetail[];
   visibleNodes: NodeDetail[];
@@ -923,29 +663,13 @@ const Header = ({
   settingsLoading: boolean;
   settingsError: string | null;
   platformAdmin: boolean;
-  scopeUsers: AdminScopedUser[];
-  selectedUserUUID: string;
-  userSearchQuery: string;
-  onUserSearchQueryChange: (value: string) => void;
-  onUserSearch: () => void;
+  toolbarSearchDraft: string;
+  toolbarSearchKeyword: string;
+  onToolbarSearchDraftChange: (value: string) => void;
+  onToolbarSearch: () => void;
   installActionsEnabled: boolean;
   canManageCNConnectivity: boolean;
   onRefreshSettings: () => Promise<SettingsResponse>;
-  nodeSearchQuery: string;
-  onNodeSearchQueryChange: (value: string) => void;
-  statusFilter: NodeStatusFilter;
-  onStatusFilterChange: (value: NodeStatusFilter) => void;
-  regionFilter: string;
-  onRegionFilterChange: (value: string) => void;
-  versionFilter: string;
-  onVersionFilterChange: (value: string) => void;
-  abnormalFilter: NodeAbnormalFilter;
-  onAbnormalFilterChange: (value: NodeAbnormalFilter) => void;
-  groupFilter: string;
-  onGroupFilterChange: (value: string) => void;
-  groupOptions: string[];
-  regionOptions: string[];
-  versionOptions: string[];
 }) => {
   const { t, i18n } = useTranslation();
   const { refresh } = useNodeDetails();
@@ -963,14 +687,6 @@ const Header = ({
     (sum, node) => sum + (liveByNode[node.uuid]?.record.network.down ?? 0),
     0
   );
-  const currentUploadSpeed = visibleNodes.reduce(
-    (sum, node) => sum + (liveByNode[node.uuid]?.record.network.up ?? 0),
-    0,
-  );
-  const currentDownloadSpeed = visibleNodes.reduce(
-    (sum, node) => sum + (liveByNode[node.uuid]?.record.network.down ?? 0),
-    0,
-  );
   const globalOnlineCount = nodes.filter((node) =>
     isNodeOnline(liveByNode[node.uuid]),
   ).length;
@@ -983,51 +699,7 @@ const Header = ({
   const currentAbnormalCount = visibleNodes.filter((node) =>
     isNodeAbnormal(node, liveByNode[node.uuid], liveLoaded),
   ).length;
-  const selectedScopeUser = selectedUserUUID
-    ? scopeUsers.find((user) => user.uuid === selectedUserUUID)
-    : undefined;
-  const currentScopeLabel = selectedScopeUser
-    ? t("admin.nodeTable.currentUserScopeStat", {
-      user: selectedScopeUser.username,
-      defaultValue: `当前用户：${selectedScopeUser.username}`,
-    })
-    : groupFilter === "all"
-      ? t("admin.nodeTable.currentScopeStat", { defaultValue: "当前筛选范围" })
-      : t("admin.nodeTable.currentGroupStat", {
-        group: groupFilter,
-        defaultValue: `当前分组：${groupFilter}`,
-      });
-  const hasEffectiveFilters =
-    nodeSearchQuery.trim().length > 0
-    || statusFilter !== "all"
-    || regionFilter !== "all"
-    || abnormalFilter !== "all"
-    || groupFilter !== "all"
-    || versionFilter !== "all"
-    || Boolean(selectedUserUUID);
-  const extraFilterCount =
-    (groupFilter !== "all" ? 1 : 0)
-    + (versionFilter !== "all" ? 1 : 0)
-    + (selectedUserUUID ? 1 : 0);
-  const primaryStats = hasEffectiveFilters
-    ? {
-      label: currentScopeLabel,
-      total: visibleNodes.length,
-      online: currentOnlineCount,
-      abnormal: currentAbnormalCount,
-      uploadSpeed: currentUploadSpeed,
-      downloadSpeed: currentDownloadSpeed,
-    }
-    : {
-      label: t("admin.nodeTable.globalStatsTitle", {
-        defaultValue: "全局统计",
-      }),
-      total: nodes.length,
-      online: globalOnlineCount,
-      abnormal: globalAbnormalCount,
-      uploadSpeed: totalUploadSpeed,
-      downloadSpeed: totalDownloadSpeed,
-    };
+  const hasEffectiveFilters = Boolean(toolbarSearchKeyword);
   const cnConnectivityEnabled = Boolean(settings?.cn_connectivity_enabled);
   const cnConnectivityTargets = parseCNConnectivityTargets(
     String(settings?.cn_connectivity_target || "")
@@ -1153,8 +825,6 @@ const Header = ({
   };
   const canDeleteOffline =
     liveLoaded && !liveError && offlineNodes.length > 0 && !cleanupLoading;
-  const toolbarSelectClass =
-    "h-9 rounded-md border border-input bg-background px-3 text-sm text-foreground outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring/50";
 
   return (
     <div className="flex flex-col gap-4">
@@ -1170,251 +840,91 @@ const Header = ({
         </Alert>
       ) : null}
 
-      <div className="rounded-lg border border-border/50 bg-background/60 px-3 py-2 shadow-none">
+      <div className="border-b border-border/50 pb-2">
         <div className="flex flex-wrap items-center gap-2 xl:flex-nowrap xl:gap-3">
-          <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
-            <div className="relative min-w-[220px] flex-1 xl:max-w-[360px]">
-              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <div className="min-w-[260px] flex-1 xl:max-w-[360px]">
+            <form
+              className="relative"
+              onSubmit={(event) => {
+                event.preventDefault();
+                onToolbarSearch();
+              }}
+            >
+              <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
               <Input
-                className="h-9 pl-9"
-                placeholder={t("admin.nodeTable.nodeSearchPlaceholder", {
-                  defaultValue: "搜索节点名称、IP、系统、分组",
+                className="h-9 rounded-md border-border/60 pl-9"
+                placeholder={t("admin.nodeTable.toolbarSearchPlaceholder", {
+                  defaultValue: "搜索节点名称 / IP",
                 })}
-                value={nodeSearchQuery}
-                onChange={(event) => onNodeSearchQueryChange(event.target.value)}
-                aria-label={t("admin.nodeTable.nodeSearchPlaceholder", {
-                  defaultValue: "搜索节点名称、IP、系统、分组",
+                value={toolbarSearchDraft}
+                onChange={(event) => onToolbarSearchDraftChange(event.target.value)}
+                aria-label={t("admin.nodeTable.toolbarSearchPlaceholder", {
+                  defaultValue: "搜索节点名称 / IP",
                 })}
               />
-            </div>
-            <select
-              className={`${toolbarSelectClass} min-w-[116px]`}
-              value={statusFilter}
-              onChange={(event) =>
-                onStatusFilterChange(event.target.value as NodeStatusFilter)
-              }
-              aria-label={t("admin.nodeTable.filterStatus", {
-                defaultValue: "状态筛选",
-              })}
-            >
-              <option value="all">
-                {t("admin.nodeTable.filterStatusAll", {
-                  defaultValue: "状态：全部",
-                })}
-              </option>
-              <option value="online">
-                {t("admin.nodeTable.filterStatusOnline", {
-                  defaultValue: "状态：在线",
-                })}
-              </option>
-              <option value="offline">
-                {t("admin.nodeTable.filterStatusOffline", {
-                  defaultValue: "状态：离线",
-                })}
-              </option>
-            </select>
-            <select
-              className={`${toolbarSelectClass} min-w-[116px]`}
-              value={regionFilter}
-              onChange={(event) => onRegionFilterChange(event.target.value)}
-              aria-label={t("admin.nodeTable.filterRegion", {
-                defaultValue: "地区筛选",
-              })}
-            >
-              <option value="all">
-                {t("admin.nodeTable.filterRegionAll", {
-                  defaultValue: "地区：全部",
-                })}
-              </option>
-              {regionOptions.map((regionName) => (
-                <option key={regionName} value={regionName}>
-                  {regionName}
-                </option>
-              ))}
-            </select>
-            <select
-              className={`${toolbarSelectClass} min-w-[138px]`}
-              value={abnormalFilter}
-              onChange={(event) =>
-                onAbnormalFilterChange(event.target.value as NodeAbnormalFilter)
-              }
-              aria-label={t("admin.nodeTable.filterAbnormal", {
-                defaultValue: "异常筛选",
-              })}
-            >
-              <option value="all">
-                {t("admin.nodeTable.filterAbnormalAll", {
-                  defaultValue: "异常：全部",
-                })}
-              </option>
-              <option value="abnormal">
-                {t("admin.nodeTable.filterAbnormalOnly", {
-                  defaultValue: "仅异常/疑似故障",
-                })}
-              </option>
-              <option value="normal">
-                {t("admin.nodeTable.filterAbnormalNormal", {
-                  defaultValue: "仅正常",
-                })}
-              </option>
-            </select>
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="h-9 rounded-md"
-                  aria-label={t("admin.nodeTable.moreFilters", {
-                    defaultValue: "更多筛选",
-                  })}
-                >
-                  {t("admin.nodeTable.moreFilters", {
-                    defaultValue: "更多筛选",
-                  })}
-                  {extraFilterCount > 0 ? (
-                    <Badge variant="secondary" className="rounded-sm px-1.5 py-0 text-[11px]">
-                      {extraFilterCount}
-                    </Badge>
-                  ) : null}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent align="start" className="w-[340px] p-3">
-                <div className="space-y-3">
-                  <div className="grid gap-2 sm:grid-cols-2">
-                    <select
-                      className={toolbarSelectClass}
-                      value={groupFilter}
-                      onChange={(event) => onGroupFilterChange(event.target.value)}
-                      aria-label={t("admin.nodeTable.filterGroup", {
-                        defaultValue: "分组筛选",
-                      })}
-                    >
-                      <option value="all">
-                        {t("admin.nodeTable.filterGroupAll", {
-                          defaultValue: "分组：全部",
-                        })}
-                      </option>
-                      {groupOptions.map((groupName) => (
-                        <option key={groupName} value={groupName}>
-                          {groupName}
-                        </option>
-                      ))}
-                    </select>
-                    <select
-                      className={toolbarSelectClass}
-                      value={versionFilter}
-                      onChange={(event) => onVersionFilterChange(event.target.value)}
-                      aria-label={t("admin.nodeTable.filterVersion", {
-                        defaultValue: "版本筛选",
-                      })}
-                    >
-                      <option value="all">
-                        {t("admin.nodeTable.filterVersionAll", {
-                          defaultValue: "版本：全部",
-                        })}
-                      </option>
-                      {versionOptions.map((versionName) => (
-                        <option key={versionName} value={versionName}>
-                          {versionName}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  {platformAdmin ? (
-                    <form
-                      className="space-y-2"
-                      onSubmit={(event) => {
-                        event.preventDefault();
-                        onUserSearch();
-                      }}
-                    >
-                      <div className="flex items-center justify-between text-xs text-muted-foreground">
-                        <span>
-                          {t("admin.nodeTable.userScopeLabel", {
-                            defaultValue: "用户范围",
-                          })}
-                        </span>
-                        {selectedScopeUser ? (
-                          <span className="truncate text-right">
-                            {t("admin.nodeTable.userScopeActive", {
-                              user: selectedScopeUser.username,
-                              defaultValue: "当前：{{user}}",
-                            })}
-                          </span>
-                        ) : null}
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Input
-                          className="h-9"
-                          placeholder={t("admin.nodeTable.userSearchPlaceholder")}
-                          value={userSearchQuery}
-                          list="admin-node-user-search"
-                          onChange={(event) => onUserSearchQueryChange(event.target.value)}
-                          aria-label={t("admin.nodeTable.userSearchPlaceholder")}
-                        />
-                        <Button type="submit" size="sm" className="h-9 rounded-md px-3">
-                          {t("common.search", { defaultValue: "搜索" })}
-                        </Button>
-                      </div>
-                      <div className="text-[11px] text-muted-foreground">
-                        {t("admin.nodeTable.userScopeHint", {
-                          defaultValue: "留空后点击搜索可恢复为全部用户范围。",
-                        })}
-                      </div>
-                      <datalist id="admin-node-user-search">
-                        {scopeUsers.map((user) => (
-                          <option key={user.uuid} value={user.username} />
-                        ))}
-                      </datalist>
-                    </form>
-                  ) : null}
-                </div>
-              </PopoverContent>
-            </Popover>
+            </form>
           </div>
 
-          <div className="min-w-[240px] flex-1 xl:max-w-[360px]">
-            <div className="rounded-md border border-border/60 bg-muted/15 px-3 py-1.5">
-              <div className="text-[11px] text-muted-foreground">
-                {primaryStats.label}
-              </div>
-              <div className="mt-0.5 text-sm font-medium text-foreground">
-                {t("admin.nodeTable.statsNodeOnlineOffline", {
-                  total: primaryStats.total,
-                  online: primaryStats.online,
-                  offline: Math.max(primaryStats.total - primaryStats.online, 0),
-                  defaultValue: "{{total}} 台，在线 {{online}}，离线 {{offline}}",
-                })}
-              </div>
-              <div className="text-xs text-muted-foreground">
-                {t("admin.nodeTable.statsAbnormal", {
-                  count: primaryStats.abnormal,
-                  defaultValue: "异常/疑似故障：{{count}}",
-                })}
-              </div>
-              <div className="text-xs text-muted-foreground">
-                ↑ {formatBytes(primaryStats.uploadSpeed)}/s · ↓ {formatBytes(primaryStats.downloadSpeed)}/s
-              </div>
-              {hasEffectiveFilters ? (
-                <div className="mt-1 text-[11px] text-muted-foreground">
-                  {t("admin.nodeTable.globalStatsInline", {
+          <div className="min-w-0 flex-1 text-xs text-muted-foreground">
+            {hasEffectiveFilters ? (
+              <div className="truncate">
+                <span className="font-medium text-foreground">
+                  {t("admin.nodeTable.currentFilterSummary", {
+                    visible: visibleNodes.length,
                     total: nodes.length,
+                    defaultValue: "当前筛选 {{visible}} / {{total}}",
+                  })}
+                </span>
+                <span>
+                  {" "}
+                  ·{" "}
+                  {t("admin.nodeTable.inlineOnlineAbnormal", {
+                    online: currentOnlineCount,
+                    abnormal: currentAbnormalCount,
+                    defaultValue: "在线 {{online}} · 异常 {{abnormal}}",
+                  })}
+                </span>
+                <span className="text-muted-foreground/80">
+                  {" "}
+                  ·{" "}
+                  {t("admin.nodeTable.inlineGlobalSummary", {
                     online: globalOnlineCount,
                     offline: Math.max(nodes.length - globalOnlineCount, 0),
-                    defaultValue: "全局：{{total}} 台，在线 {{online}}，离线 {{offline}}",
+                    defaultValue: "全局 在线 {{online}} · 离线 {{offline}}",
                   })}
-                </div>
-              ) : null}
-            </div>
+                </span>
+              </div>
+            ) : (
+              <div className="truncate">
+                {t("admin.nodeTable.inlineStats", {
+                  online: globalOnlineCount,
+                  offline: Math.max(nodes.length - globalOnlineCount, 0),
+                  abnormal: globalAbnormalCount,
+                  upload: `${formatBytes(totalUploadSpeed)}/s`,
+                  download: `${formatBytes(totalDownloadSpeed)}/s`,
+                  defaultValue:
+                    "在线 {{online}} · 离线 {{offline}} · 异常 {{abnormal}} · ↑{{upload}} · ↓{{download}}",
+                })}
+              </div>
+            )}
           </div>
 
-          <div className="ml-auto flex shrink-0 flex-wrap items-center gap-2">
-            <GroupSummaryPill
-              label={t("settings.general.cn_connectivity")}
-              value={cnConnectivityStatusLabel}
-              tone={cnConnectivityTone}
+          <div className="ml-auto flex shrink-0 items-center gap-2">
+            <Badge
+              variant="secondary"
+              className={`h-9 shrink-0 rounded-md border border-border/60 bg-transparent px-2.5 text-xs font-medium shadow-none ${
+                cnConnectivityTone === "green"
+                  ? "text-emerald-600 dark:text-emerald-400"
+                  : cnConnectivityTone === "red"
+                    ? "text-rose-600 dark:text-rose-400"
+                    : "text-muted-foreground"
+              }`}
               title={cnConnectivityDetail}
-            />
+            >
+              {t("settings.general.cn_connectivity")}
+              {" · "}
+              {cnConnectivityStatusLabel}
+            </Badge>
             <GenerateCommandButton
               nodes={nodes}
               settings={settings}

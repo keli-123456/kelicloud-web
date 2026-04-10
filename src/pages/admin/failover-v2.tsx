@@ -68,7 +68,6 @@ import {
   deleteFailoverV2Member,
   deleteFailoverV2Service,
   detachFailoverV2MemberDNS,
-  FailoverV2ApiError,
   type FailoverV2BulkValidationResult,
   type FailoverV2Execution,
   type FailoverV2ExecutionAvailableActions,
@@ -135,6 +134,7 @@ type ServiceFormState = {
   script_clipboard_ids: number[];
   script_timeout_sec: string;
   wait_agent_timeout_sec: string;
+  check_interval_seconds: string;
   delete_strategy: string;
   delete_delay_seconds: string;
 };
@@ -213,6 +213,7 @@ const FAILOVER_V2_SELECT_NONE = "__none__";
 const FAILOVER_V2_PROVIDER_ENTRY_GROUP_ALL = "__all__";
 const FAILOVER_V2_AUTOMATIC_PROVIDER_ENTRY_ID = "active";
 const FAILOVER_V2_POLL_INTERVAL_MS = 5000;
+const FAILOVER_V2_COUNTDOWN_TICK_MS = 1000;
 const FAILOVER_V2_ACTIVE_EXECUTION_STATUSES = new Set([
   "running",
   "queued",
@@ -923,6 +924,79 @@ function localizeFailoverV2ActionReason(t: TFunction, reason: string | null | un
   });
 }
 
+function localizeFailoverV2BackendReason(t: TFunction, reason: string | null | undefined) {
+  const normalizedReason = String(reason || "").trim();
+  if (!normalizedReason) {
+    return "";
+  }
+  const lowerReason = normalizedReason.toLowerCase();
+
+  const serviceRunningMatch = lowerReason.match(/^failover v2 service (\d+) is already running$/);
+  if (serviceRunningMatch) {
+    return t("failover_v2.error_reasons.service_running", {
+      id: serviceRunningMatch[1],
+      defaultValue: `服务 #${serviceRunningMatch[1]} 当前已有执行在进行，请稍后重试。`,
+    });
+  }
+  const serviceActiveMatch = lowerReason.match(/^failover v2 service (\d+) already has an active execution$/);
+  if (serviceActiveMatch) {
+    return t("failover_v2.error_reasons.service_has_active_execution", {
+      id: serviceActiveMatch[1],
+      defaultValue: `服务 #${serviceActiveMatch[1]} 当前已有活动执行，请稍后重试。`,
+    });
+  }
+  if (lowerReason === "provider credential is busy provisioning another member") {
+    return t("failover_v2.error_reasons.provider_credential_busy", {
+      defaultValue: "同一云凭证正在创建实例，请稍后重试。",
+    });
+  }
+  if (lowerReason.startsWith("failover v2 run lock ") && lowerReason.endsWith(" is already held")) {
+    return t("failover_v2.error_reasons.provider_credential_busy", {
+      defaultValue: "同一云凭证正在创建实例，请稍后重试。",
+    });
+  }
+
+  return localizeFailoverV2ActionReason(t, normalizedReason);
+}
+
+function localizeFailoverV2ApiMessage(t: TFunction, message: string | null | undefined) {
+  const rawMessage = String(message || "").trim();
+  if (!rawMessage) {
+    return "";
+  }
+
+  const separatorIndex = rawMessage.indexOf(":");
+  if (separatorIndex > 0) {
+    const prefix = rawMessage.slice(0, separatorIndex).trim().toLowerCase();
+    const reason = rawMessage.slice(separatorIndex + 1).trim();
+    const localizedReason = localizeFailoverV2BackendReason(t, reason) || reason;
+    if (prefix === "failed to start failover v2 execution") {
+      return t("failover_v2.api_errors.start_execution_failed", {
+        reason: localizedReason,
+        defaultValue: `启动故障切换 V2 执行失败：${localizedReason}`,
+      });
+    }
+    if (prefix === "failed to start failover v2 dns detach") {
+      return t("failover_v2.api_errors.start_detach_failed", {
+        reason: localizedReason,
+        defaultValue: `启动 DNS 摘除失败：${localizedReason}`,
+      });
+    }
+  }
+
+  return localizeFailoverV2BackendReason(t, rawMessage);
+}
+
+function resolveFailoverV2ErrorMessage(t: TFunction, error: unknown, fallbackMessage: string) {
+  if (error instanceof Error) {
+    const localized = localizeFailoverV2ApiMessage(t, error.message);
+    if (localized) {
+      return localized;
+    }
+  }
+  return fallbackMessage;
+}
+
 function asJsonObject(value: unknown): Record<string, unknown> | null {
   const parsed = parseJsonValue(value);
   if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
@@ -1150,23 +1224,27 @@ function isFailoverV2ExecutionStatusActive(status: string | null | undefined) {
 }
 
 function isFailoverV2ServiceBusy(service: FailoverV2Service) {
-  if (String(service.last_status || "").trim().toLowerCase() === "running") {
-    return true;
-  }
+  // Do not lock by `last_status` alone: it can be stale after interruption/restart.
+  // Rely on execution records (finished_at + status) as the source of truth.
   return service.recent_executions.some((execution) => (
     !execution.finished_at && isFailoverV2ExecutionStatusActive(execution.status)
   ));
 }
 
 function isFailoverV2MemberBusy(service: FailoverV2Service, member: FailoverV2Member) {
-  if (String(member.last_status || "").trim().toLowerCase() === "running") {
-    return true;
-  }
+  // Same rule as service busy detection: do not trust stale member last_status.
   return service.recent_executions.some((execution) => (
     execution.member_id === member.id
     && !execution.finished_at
     && isFailoverV2ExecutionStatusActive(execution.status)
   ));
+}
+
+function findActiveFailoverV2ExecutionID(executions: FailoverV2ExecutionSummary[]) {
+  const activeExecution = executions.find((execution) => (
+    !execution.finished_at && isFailoverV2ExecutionStatusActive(execution.status)
+  ));
+  return activeExecution?.id ?? null;
 }
 
 function getValidationBadgeColor(status: string): "gray" | "green" | "amber" | "red" | "blue" {
@@ -1269,8 +1347,139 @@ function getMemberLineCodes(member: FailoverV2Member) {
   );
 }
 
-function formatMemberLinesSummary(lines: string[]) {
-  return lines.join(", ");
+function formatMemberLinesSummary(t: TFunction, lines: string[]) {
+  return lines
+    .map((line) => localizeAliyunLineLabel(t, line))
+    .filter(Boolean)
+    .join(", ");
+}
+
+function localizeFailoverV2RuntimeMessage(t: TFunction, message: string | null | undefined) {
+  const normalized = String(message || "").trim();
+  if (!normalized) {
+    return "";
+  }
+
+  const healthyMatch = normalized.match(/^(\d+)\s*\/\s*(\d+)\s+members\s+healthy$/i);
+  if (healthyMatch) {
+    return t("failover_v2.runtime_message_members_healthy", {
+      healthy: healthyMatch[1],
+      total: healthyMatch[2],
+      defaultValue: `${healthyMatch[1]}/${healthyMatch[2]} members healthy`,
+    });
+  }
+
+  const detachedLinesMatch = normalized.match(/^dns detached for lines\s+(.+)$/i);
+  if (detachedLinesMatch) {
+    const localizedLines = detachedLinesMatch[1]
+      .split(",")
+      .map((line) => localizeAliyunLineLabel(t, String(line || "").trim()))
+      .filter(Boolean)
+      .join(", ");
+    return t("failover_v2.runtime_message_dns_detached_lines", {
+      lines: localizedLines || detachedLinesMatch[1],
+      defaultValue: `DNS detached for lines ${localizedLines || detachedLinesMatch[1]}`,
+    });
+  }
+
+  return normalized;
+}
+
+function findLatestMemberExecutionSummary(service: FailoverV2Service, memberID: number) {
+  let latestExecution: FailoverV2ExecutionSummary | null = null;
+  let latestStartedAt = -1;
+  for (const execution of service.recent_executions) {
+    if (execution.member_id !== memberID) {
+      continue;
+    }
+    const startedAt = new Date(String(execution.started_at || "")).getTime();
+    if (Number.isNaN(startedAt)) {
+      if (!latestExecution) {
+        latestExecution = execution;
+      }
+      continue;
+    }
+    if (startedAt > latestStartedAt) {
+      latestExecution = execution;
+      latestStartedAt = startedAt;
+    }
+  }
+  return latestExecution;
+}
+
+function formatMemberDnsStatusSummary(t: TFunction, execution: FailoverV2ExecutionSummary | null) {
+  if (!execution) {
+    return localizeFailoverV2Status(t, "unknown");
+  }
+  const detachStatus = String(execution.detach_dns_status || "").trim() || "pending";
+  const attachStatus = String(execution.attach_dns_status || "").trim() || "pending";
+  return `${localizeFailoverV2Stage(t, "detach_dns")}: ${localizeFailoverV2Status(t, detachStatus)} / ${localizeFailoverV2Stage(t, "attach_dns")}: ${localizeFailoverV2Status(t, attachStatus)}`;
+}
+
+function inferMemberScriptStatus(execution: FailoverV2ExecutionSummary | null) {
+  if (!execution) {
+    return "unknown";
+  }
+
+  const normalizedExecutionStatus = normalizeTranslationToken(execution.status);
+  if (normalizedExecutionStatus === "running_scripts") {
+    return "running";
+  }
+
+  const attachResult = asJsonObject(execution.attach_dns_result);
+  const scriptsDetailRaw = attachResult ? (attachResult as Record<string, unknown>).scripts : null;
+  const scriptsDetail = asJsonObject(scriptsDetailRaw);
+  if (scriptsDetail) {
+    if ((scriptsDetail as Record<string, unknown>).skipped) {
+      return "skipped";
+    }
+    const detailError = String((scriptsDetail as Record<string, unknown>).error || "").trim();
+    if (detailError) {
+      return "failed";
+    }
+    const scriptItems = (scriptsDetail as Record<string, unknown>).scripts;
+    if (Array.isArray(scriptItems)) {
+      if (scriptItems.length === 0) {
+        return "skipped";
+      }
+      for (const item of scriptItems) {
+        const script = item && typeof item === "object" ? item as Record<string, unknown> : null;
+        if (!script) {
+          continue;
+        }
+        const scriptError = String(script.error || "").trim();
+        if (scriptError) {
+          return "failed";
+        }
+        const exitCode = script.exit_code;
+        if (typeof exitCode === "number" && Number.isFinite(exitCode) && exitCode !== 0) {
+          return "failed";
+        }
+      }
+      return "success";
+    }
+  }
+
+  if (normalizedExecutionStatus === "success") {
+    return "success";
+  }
+  if (normalizedExecutionStatus === "failed") {
+    return "failed";
+  }
+  if (normalizedExecutionStatus === "warning") {
+    return "warning";
+  }
+  if (normalizedExecutionStatus === "skipped") {
+    return "skipped";
+  }
+  if (FAILOVER_V2_ACTIVE_EXECUTION_STATUSES.has(normalizedExecutionStatus)) {
+    return "running";
+  }
+  return "unknown";
+}
+
+function formatMemberScriptStatusSummary(t: TFunction, execution: FailoverV2ExecutionSummary | null) {
+  return localizeFailoverV2Status(t, inferMemberScriptStatus(execution));
 }
 
 function getReadonlyJsonText(value: string, fallback: string) {
@@ -1557,6 +1766,7 @@ function createEmptyServiceForm(): ServiceFormState {
     script_clipboard_ids: [],
     script_timeout_sec: "600",
     wait_agent_timeout_sec: "600",
+    check_interval_seconds: "60",
     delete_strategy: "keep",
     delete_delay_seconds: "0",
   };
@@ -1579,6 +1789,7 @@ function createServiceForm(service?: FailoverV2Service | null): ServiceFormState
     script_clipboard_ids: Array.isArray(service.script_clipboard_ids) ? service.script_clipboard_ids : [],
     script_timeout_sec: String(service.script_timeout_sec || 600),
     wait_agent_timeout_sec: String(service.wait_agent_timeout_sec || 600),
+    check_interval_seconds: String(service.check_interval_seconds || 60),
     delete_strategy: service.delete_strategy || "keep",
     delete_delay_seconds: String(service.delete_delay_seconds || 0),
   };
@@ -1695,6 +1906,7 @@ function buildServiceInput(t: TFunction, formState: ServiceFormState): FailoverV
     script_clipboard_ids: Array.from(new Set(formState.script_clipboard_ids.filter((id) => Number.isFinite(id) && id > 0))),
     script_timeout_sec: parseNumberField(t, formState.script_timeout_sec, t("failover_v2.script_timeout", { defaultValue: "Script timeout" }), 600, { min: 1 }),
     wait_agent_timeout_sec: parseNumberField(t, formState.wait_agent_timeout_sec, t("failover_v2.wait_agent_timeout", { defaultValue: "Wait agent timeout" }), 600, { min: 1 }),
+    check_interval_seconds: parseNumberField(t, formState.check_interval_seconds, t("failover_v2.check_interval", { defaultValue: "Check interval" }), 60, { min: 60 }),
     delete_strategy: String(formState.delete_strategy || "keep").trim() || "keep",
     delete_delay_seconds: parseNumberField(t, formState.delete_delay_seconds, t("failover_v2.delete_delay", { defaultValue: "Delete delay" }), 0, { min: 0 }),
   };
@@ -2210,6 +2422,7 @@ export default function FailoverV2Page() {
   const serviceDNSPayloadRef = React.useRef<Record<string, unknown>>({});
 
   const [services, setServices] = React.useState<FailoverV2Service[]>([]);
+  const [nowTickMs, setNowTickMs] = React.useState(() => Date.now());
   const [loadingServices, setLoadingServices] = React.useState(true);
   const [error, setError] = React.useState("");
   const [savingSchedulerSetting, setSavingSchedulerSetting] = React.useState(false);
@@ -2290,12 +2503,13 @@ export default function FailoverV2Page() {
         setServices(Array.isArray(data) ? data : []);
       }
     } catch (loadError) {
-      const message =
-        loadError instanceof FailoverV2ApiError
-          ? loadError.message
-          : t("failover_v2.load_failed", {
-            defaultValue: "Failed to load failover v2 services",
-          });
+      const message = resolveFailoverV2ErrorMessage(
+        t,
+        loadError,
+        t("failover_v2.load_failed", {
+          defaultValue: "Failed to load failover v2 services",
+        }),
+      );
       if (!silent && serviceLoadSeqRef.current === requestSeq) {
         setError(message);
       }
@@ -2356,6 +2570,13 @@ export default function FailoverV2Page() {
     void loadCatalogs();
   }, [hasFeature, loadCatalogs, loadServices, loading]);
 
+  React.useEffect(() => {
+    const intervalID = window.setInterval(() => {
+      setNowTickMs(Date.now());
+    }, FAILOVER_V2_COUNTDOWN_TICK_MS);
+    return () => window.clearInterval(intervalID);
+  }, []);
+
   const enabledServiceCount = React.useMemo(
     () => services.filter((service) => service.enabled).length,
     [services],
@@ -2371,6 +2592,35 @@ export default function FailoverV2Page() {
     () => services.some((service) => isFailoverV2ServiceBusy(service)),
     [services],
   );
+  const formatServiceNextCheckCountdown = React.useCallback((service: FailoverV2Service) => {
+    const intervalSeconds = Math.max(60, Number(service.check_interval_seconds) || 60);
+    const lastCheckedRaw = String(service.last_checked_at || "").trim();
+    if (!lastCheckedRaw) {
+      return t("failover_v2.summary.next_check_unknown", { defaultValue: "Pending first check" });
+    }
+
+    const lastCheckedAt = new Date(lastCheckedRaw);
+    if (Number.isNaN(lastCheckedAt.getTime())) {
+      return t("failover_v2.summary.next_check_unknown", { defaultValue: "Pending first check" });
+    }
+
+    const remainingMs = (lastCheckedAt.getTime() + (intervalSeconds * 1000)) - nowTickMs;
+    if (remainingMs <= 0) {
+      return t("failover_v2.summary.next_check_due", { defaultValue: "Due now" });
+    }
+
+    const totalSeconds = Math.ceil(remainingMs / 1000);
+    const hours = Math.floor(totalSeconds / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    const seconds = totalSeconds % 60;
+    if (hours > 0) {
+      return `${hours}h ${minutes}m ${seconds}s`;
+    }
+    if (minutes > 0) {
+      return `${minutes}m ${seconds}s`;
+    }
+    return `${seconds}s`;
+  }, [nowTickMs, t]);
 
   React.useEffect(() => {
     if (loading || !hasFeature("cloud_failover") || !hasFeature("cn_connectivity") || !hasBusyService) {
@@ -2906,7 +3156,11 @@ export default function FailoverV2Page() {
       setServiceDialogOpen(false);
       await loadServices();
     } catch (saveError) {
-      const message = saveError instanceof Error ? saveError.message : t("common.error", { defaultValue: "Error" });
+      const message = resolveFailoverV2ErrorMessage(
+        t,
+        saveError,
+        t("common.error", { defaultValue: "Error" }),
+      );
       toast.error(message);
     } finally {
       setSavingService(false);
@@ -2931,7 +3185,11 @@ export default function FailoverV2Page() {
       closeMemberDialog();
       await loadServices();
     } catch (saveError) {
-      const message = saveError instanceof Error ? saveError.message : t("common.error", { defaultValue: "Error" });
+      const message = resolveFailoverV2ErrorMessage(
+        t,
+        saveError,
+        t("common.error", { defaultValue: "Error" }),
+      );
       toast.error(message);
     } finally {
       setSavingMember(false);
@@ -2963,7 +3221,11 @@ export default function FailoverV2Page() {
         result,
       );
     } catch (validateError) {
-      const message = validateError instanceof Error ? validateError.message : t("common.error", { defaultValue: "Error" });
+      const message = resolveFailoverV2ErrorMessage(
+        t,
+        validateError,
+        t("common.error", { defaultValue: "Error" }),
+      );
       toast.error(message);
     } finally {
       setValidatingService(false);
@@ -2983,7 +3245,11 @@ export default function FailoverV2Page() {
         result,
       );
     } catch (validateError) {
-      const message = validateError instanceof Error ? validateError.message : t("common.error", { defaultValue: "Error" });
+      const message = resolveFailoverV2ErrorMessage(
+        t,
+        validateError,
+        t("common.error", { defaultValue: "Error" }),
+      );
       toast.error(message);
     } finally {
       setValidatingServiceID(null);
@@ -3005,7 +3271,11 @@ export default function FailoverV2Page() {
         result,
       );
     } catch (validateError) {
-      const message = validateError instanceof Error ? validateError.message : t("common.error", { defaultValue: "Error" });
+      const message = resolveFailoverV2ErrorMessage(
+        t,
+        validateError,
+        t("common.error", { defaultValue: "Error" }),
+      );
       toast.error(message);
     } finally {
       setValidatingMember(false);
@@ -3039,7 +3309,11 @@ export default function FailoverV2Page() {
           : t("failover_v2.service_paused", { defaultValue: "Service paused from automatic scheduling" }),
       );
     } catch (toggleError) {
-      const message = toggleError instanceof Error ? toggleError.message : t("common.error", { defaultValue: "Error" });
+      const message = resolveFailoverV2ErrorMessage(
+        t,
+        toggleError,
+        t("common.error", { defaultValue: "Error" }),
+      );
       toast.error(message);
     } finally {
       setTogglingServiceID(null);
@@ -3062,7 +3336,11 @@ export default function FailoverV2Page() {
           : t("failover_v2.member_paused", { defaultValue: "Member paused from automatic checks" }),
       );
     } catch (toggleError) {
-      const message = toggleError instanceof Error ? toggleError.message : t("common.error", { defaultValue: "Error" });
+      const message = resolveFailoverV2ErrorMessage(
+        t,
+        toggleError,
+        t("common.error", { defaultValue: "Error" }),
+      );
       toast.error(message);
     } finally {
       setTogglingMemberKey("");
@@ -3085,7 +3363,11 @@ export default function FailoverV2Page() {
       setDeleteTarget(null);
       await loadServices();
     } catch (deleteError) {
-      const message = deleteError instanceof Error ? deleteError.message : t("common.error", { defaultValue: "Error" });
+      const message = resolveFailoverV2ErrorMessage(
+        t,
+        deleteError,
+        t("common.error", { defaultValue: "Error" }),
+      );
       toast.error(message);
     } finally {
       setDeleting(false);
@@ -3104,7 +3386,11 @@ export default function FailoverV2Page() {
       setDetachTarget(null);
       await loadServices();
     } catch (detachError) {
-      const message = detachError instanceof Error ? detachError.message : t("common.error", { defaultValue: "Error" });
+      const message = resolveFailoverV2ErrorMessage(
+        t,
+        detachError,
+        t("common.error", { defaultValue: "Error" }),
+      );
       toast.error(message);
     } finally {
       setDetachingDNS(false);
@@ -3123,7 +3409,11 @@ export default function FailoverV2Page() {
       setFailoverTarget(null);
       await loadServices();
     } catch (failoverError) {
-      const message = failoverError instanceof Error ? failoverError.message : t("common.error", { defaultValue: "Error" });
+      const message = resolveFailoverV2ErrorMessage(
+        t,
+        failoverError,
+        t("common.error", { defaultValue: "Error" }),
+      );
       toast.error(message);
     } finally {
       setRunningFailover(false);
@@ -3145,12 +3435,13 @@ export default function FailoverV2Page() {
       setSelectedExecutionID(executionID);
       setExecutionError("");
     } catch (loadError) {
-      const message =
-        loadError instanceof FailoverV2ApiError
-          ? loadError.message
-          : t("failover_v2.execution_load_failed", {
-            defaultValue: "Failed to load execution details",
-          });
+      const message = resolveFailoverV2ErrorMessage(
+        t,
+        loadError,
+        t("failover_v2.execution_load_failed", {
+          defaultValue: "Failed to load execution details",
+        }),
+      );
       if (!silent) {
         setExecutionError(message);
         setSelectedExecution(null);
@@ -3176,7 +3467,25 @@ export default function FailoverV2Page() {
       const data = await getFailoverV2Executions(service.id, 30);
       setExecutionSummaries(data);
 
-      const nextExecutionID = preferredExecutionID ?? data[0]?.id ?? null;
+      const activeExecutionID = findActiveFailoverV2ExecutionID(data);
+      const preferredExecution = preferredExecutionID
+        ? data.find((execution) => execution.id === preferredExecutionID)
+        : null;
+      const preferredExecutionIsActive = Boolean(
+        preferredExecution
+        && !preferredExecution.finished_at
+        && isFailoverV2ExecutionStatusActive(preferredExecution.status),
+      );
+
+      let nextExecutionID: number | null = null;
+      if (activeExecutionID && (!preferredExecutionID || !preferredExecutionIsActive)) {
+        nextExecutionID = activeExecutionID;
+      } else if (preferredExecutionID && preferredExecution) {
+        nextExecutionID = preferredExecutionID;
+      } else {
+        nextExecutionID = data[0]?.id ?? null;
+      }
+
       if (nextExecutionID) {
         await loadExecutionDetail(service.id, nextExecutionID, options);
       } else {
@@ -3184,12 +3493,13 @@ export default function FailoverV2Page() {
         setSelectedExecution(null);
       }
     } catch (loadError) {
-      const message =
-        loadError instanceof FailoverV2ApiError
-          ? loadError.message
-          : t("failover_v2.execution_history_failed", {
-            defaultValue: "Failed to load execution history",
-          });
+      const message = resolveFailoverV2ErrorMessage(
+        t,
+        loadError,
+        t("failover_v2.execution_history_failed", {
+          defaultValue: "Failed to load execution history",
+        }),
+      );
       if (!silent) {
         setExecutionError(message);
         setExecutionSummaries([]);
@@ -3204,7 +3514,11 @@ export default function FailoverV2Page() {
   }, [loadExecutionDetail, t]);
 
   const openExecutionDialog = React.useCallback((service: FailoverV2Service, preferredExecutionID?: number | null) => {
-    const nextPreferredID = preferredExecutionID ?? service.last_execution_id ?? null;
+    const nextPreferredID =
+      findActiveFailoverV2ExecutionID(service.recent_executions) ??
+      preferredExecutionID ??
+      service.last_execution_id ??
+      null;
     setExecutionDialogTarget({ service, preferredExecutionID: nextPreferredID });
     setExecutionSummaries([]);
     setSelectedExecutionID(nextPreferredID);
@@ -3279,7 +3593,11 @@ export default function FailoverV2Page() {
         setSelectedExecutionID(updated.id);
       }
     } catch (actionError) {
-      const message = actionError instanceof Error ? actionError.message : t("common.error", { defaultValue: "Error" });
+      const message = resolveFailoverV2ErrorMessage(
+        t,
+        actionError,
+        t("common.error", { defaultValue: "Error" }),
+      );
       toast.error(message);
     } finally {
       setStoppingExecution(false);
@@ -3295,12 +3613,13 @@ export default function FailoverV2Page() {
       const data = await getFailoverV2PendingCleanups(service.id, 50);
       setPendingCleanups(data);
     } catch (loadError) {
-      const message =
-        loadError instanceof FailoverV2ApiError
-          ? loadError.message
-          : t("failover_v2.pending_cleanup_load_failed", {
-            defaultValue: "Failed to load pending cleanups",
-          });
+      const message = resolveFailoverV2ErrorMessage(
+        t,
+        loadError,
+        t("failover_v2.pending_cleanup_load_failed", {
+          defaultValue: "Failed to load pending cleanups",
+        }),
+      );
       setPendingCleanupError(message);
       setPendingCleanups([]);
     } finally {
@@ -3357,7 +3676,11 @@ export default function FailoverV2Page() {
         await loadPendingCleanupHistory(pendingCleanupDialogTarget.service);
       }
     } catch (actionError) {
-      const message = actionError instanceof Error ? actionError.message : t("common.error", { defaultValue: "Error" });
+      const message = resolveFailoverV2ErrorMessage(
+        t,
+        actionError,
+        t("common.error", { defaultValue: "Error" }),
+      );
       toast.error(message);
     } finally {
       setRetryingPendingCleanup(false);
@@ -3375,7 +3698,11 @@ export default function FailoverV2Page() {
       await updateSettingsWithToast({ failover_v2_scheduler_enabled: checked }, t, "system");
       await systemState.refetch();
     } catch (saveError) {
-      const message = saveError instanceof Error ? saveError.message : t("common.error", { defaultValue: "Error" });
+      const message = resolveFailoverV2ErrorMessage(
+        t,
+        saveError,
+        t("common.error", { defaultValue: "Error" }),
+      );
       toast.error(message);
     } finally {
       setSavingSchedulerSetting(false);
@@ -3430,7 +3757,11 @@ export default function FailoverV2Page() {
       setSchedulerPreflightResult(null);
       await handleToggleScheduler(true);
     } catch (preflightError) {
-      const message = preflightError instanceof Error ? preflightError.message : t("common.error", { defaultValue: "Error" });
+      const message = resolveFailoverV2ErrorMessage(
+        t,
+        preflightError,
+        t("common.error", { defaultValue: "Error" }),
+      );
       toast.error(message);
     } finally {
       setValidatingSchedulerPreflight(false);
@@ -3556,16 +3887,18 @@ export default function FailoverV2Page() {
                             : t("common.disabled", { defaultValue: "Disabled" })}
                         </Badge>
                         <Badge color={getStatusBadgeColor(service.last_status || "unknown")}>
-                          {service.last_status || t("common.unknown", { defaultValue: "Unknown" })}
+                          {localizeFailoverV2Status(t, service.last_status || "unknown")}
                         </Badge>
                       </div>
                       <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-slate-500 dark:text-slate-400">
                         <span>{service.dns_provider ? formatProviderLabel(service.dns_provider) : "-"} / {service.dns_entry_id || "-"}</span>
+                        <span>{t("failover_v2.summary.check_interval", { defaultValue: "Check interval" })}: {service.check_interval_seconds || 60}s</span>
+                        <span>{t("failover_v2.summary.next_check", { defaultValue: "Next check" })}: {formatServiceNextCheckCountdown(service)}</span>
                         <span>{t("failover_v2.summary.delete_strategy", { defaultValue: "Delete strategy" })}: {service.delete_strategy || "-"}</span>
                       </div>
                       {service.last_message ? (
                         <p className="text-xs text-slate-500 dark:text-slate-400">
-                          {service.last_message}
+                          {localizeFailoverV2RuntimeMessage(t, service.last_message)}
                         </p>
                       ) : null}
                       {serviceBusy ? (
@@ -3655,11 +3988,12 @@ export default function FailoverV2Page() {
 
                   {service.members.map((member) => {
                     const memberBusy = isFailoverV2MemberBusy(service, member);
-                    const memberActionsDisabled = serviceBusy || memberBusy;
+                    const memberActionsDisabled = memberBusy;
                     const memberLineCodes = getMemberLineCodes(member);
+                    const latestMemberExecution = findLatestMemberExecutionSummary(service, member.id);
                     const memberBusyTitle = memberActionsDisabled
-                      ? t("failover_v2.active_execution_action_disabled", {
-                        defaultValue: "Actions are disabled while this service has an active execution.",
+                      ? t("failover_v2.active_member_execution_action_disabled", {
+                        defaultValue: "Actions are disabled while this member has an active execution.",
                       })
                       : undefined;
 
@@ -3682,20 +4016,22 @@ export default function FailoverV2Page() {
                               {formatMemberModeLabel(t, member.mode)}
                             </Badge>
                             <Badge color={getStatusBadgeColor(member.last_status || "unknown")}>
-                              {member.last_status || t("common.unknown", { defaultValue: "Unknown" })}
+                              {localizeFailoverV2Status(t, member.last_status || "unknown")}
                             </Badge>
                           </div>
                           <div className="text-xs text-slate-500 dark:text-slate-400">
                             {memberLineCodes.length > 0
-                              ? formatMemberLinesSummary(memberLineCodes)
+                              ? formatMemberLinesSummary(t, memberLineCodes)
                               : "-"}
                           </div>
                         </div>
 
                         <div className="min-w-0 space-y-1 text-xs text-slate-500 dark:text-slate-400">
                           <div>{formatMemberSubtitle(member) || "-"}</div>
+                          <div>{t("failover_v2.member_dns_status", { defaultValue: "DNS status" })}: {formatMemberDnsStatusSummary(t, latestMemberExecution)}</div>
+                          <div>{t("failover_v2.member_script_status", { defaultValue: "Script status" })}: {formatMemberScriptStatusSummary(t, latestMemberExecution)}</div>
                           <div>{member.current_address || t("failover_v2.no_current_ip", { defaultValue: "No current IP" })}</div>
-                          {member.last_message ? <div className="truncate">{member.last_message}</div> : null}
+                          {member.last_message ? <div className="truncate">{localizeFailoverV2RuntimeMessage(t, member.last_message)}</div> : null}
                         </div>
 
                         <div className="flex items-center justify-between gap-3 rounded-xl bg-slate-50/80 px-3 py-2 ring-1 ring-slate-200 dark:bg-slate-900/50 dark:ring-slate-800">
@@ -4365,6 +4701,20 @@ export default function FailoverV2Page() {
                   />
                   <p className="text-xs text-slate-500 dark:text-slate-400">
                     {t("failover_v2.timeout_seconds_hint", { defaultValue: "Unit: seconds." })}
+                  </p>
+                </div>
+                <div className={FORM_FIELD_CLASS}>
+                  <Label>{t("failover_v2.check_interval", { defaultValue: "Check interval" })}</Label>
+                  <Input
+                    type="number"
+                    min={60}
+                    value={serviceForm.check_interval_seconds}
+                    onChange={(event) => setServiceForm((current) => ({ ...current, check_interval_seconds: event.target.value }))}
+                  />
+                  <p className="text-xs text-slate-500 dark:text-slate-400">
+                    {t("failover_v2.check_interval_hint", {
+                      defaultValue: "Controls how often this service runs automatic health checks. Unit: seconds.",
+                    })}
                   </p>
                 </div>
                 <div className={FORM_FIELD_CLASS}>

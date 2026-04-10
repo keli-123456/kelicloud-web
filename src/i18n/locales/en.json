@@ -2346,11 +2346,16 @@
   },
   "failover_v2": {
     "active_execution_action_disabled": "Actions are disabled while this service has an active execution.",
+    "active_member_execution_action_disabled": "Actions are disabled while this member has an active execution.",
     "active_execution_notice": "An execution is active. Configuration and destructive actions are temporarily locked.",
     "add_member": "Add V2 member",
     "advanced_state_fields": "Advanced state fields",
     "advanced_state_fields_hint": "DNS record refs and current instance refs are V2 recovery anchors. Leave them unchanged unless you are importing or repairing state.",
     "allow_all_traffic": "Allow all traffic",
+    "api_errors": {
+      "start_detach_failed": "Failed to start DNS detach: {{reason}}",
+      "start_execution_failed": "Failed to start failover v2 execution: {{reason}}"
+    },
     "assign_ipv6": "Assign IPv6",
     "assign_public_ip": "Assign public IPv4",
     "auto_connect_group": "Auto-connect group",
@@ -2461,6 +2466,11 @@
     "execution_key_info": "Key information",
     "execution_key_info_hint": "Structured summaries stay visible by default. Expand raw JSON only when needed.",
     "execution_key_info_empty": "No structured details were recorded for this execution.",
+    "error_reasons": {
+      "provider_credential_busy": "The same cloud credential is provisioning another instance. Please try again later.",
+      "service_has_active_execution": "Service #{{id}} already has an active execution. Please try again later.",
+      "service_running": "Service #{{id}} already has a running execution. Please try again later."
+    },
     "execution_actions": "Actions",
     "execution_actions_hint": "These controls reuse the saved execution state without changing backend contracts or flow.",
     "failing_over": "Starting",
@@ -2498,6 +2508,8 @@
     "member_dns_lines_add": "Add line",
     "member_dns_lines_input_placeholder": "Add a line, or separate multiple lines with commas",
     "member_dns_lines_empty": "No DNS lines selected yet.",
+    "member_dns_status": "DNS status",
+    "member_script_status": "Script status",
     "member_paused": "Member paused from automatic checks",
     "member_resumed": "Member resumed for automatic checks",
     "monitoring": "Monitoring",
@@ -2592,6 +2604,8 @@
       "title": "Automatic Scheduler"
     },
     "script_timeout": "Script timeout",
+    "check_interval": "Check interval",
+    "check_interval_hint": "Controls how often this service runs automatic health checks. Unit: seconds.",
     "service_dialog_description": "This service owns the shared DNS target and script policy for its members.",
     "service_name_placeholder": "e.g. Hong Kong outlet pool",
     "service_paused": "Service paused from automatic scheduling",
@@ -2769,11 +2783,17 @@
     "runtime_fields_hint": "Runtime fields are managed by V2 executions and shown here for inspection only.",
     "runtime_instance_hint": "Provider-side instance reference recorded by the last execution.",
     "runtime_not_initialized": "Not initialized yet",
+    "runtime_message_dns_detached_lines": "DNS detached for lines {{lines}}",
+    "runtime_message_members_healthy": "{{healthy}}/{{total}} members healthy",
     "runtime_state": "Runtime state",
     "summary": {
+      "check_interval": "Check interval",
       "delete_strategy": "Delete strategy",
       "enabled_members": "Enabled members",
       "members": "Members",
+      "next_check": "Next check",
+      "next_check_due": "Due now",
+      "next_check_unknown": "Pending first check",
       "scripts": "Scripts"
     },
     "sync_ipv6": "Sync IPv6",
