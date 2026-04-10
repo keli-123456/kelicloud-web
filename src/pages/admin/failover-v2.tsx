@@ -213,6 +213,7 @@ const FAILOVER_V2_SELECT_NONE = "__none__";
 const FAILOVER_V2_PROVIDER_ENTRY_GROUP_ALL = "__all__";
 const FAILOVER_V2_AUTOMATIC_PROVIDER_ENTRY_ID = "active";
 const FAILOVER_V2_POLL_INTERVAL_MS = 5000;
+const FAILOVER_V2_SCHEDULER_STATUS_POLL_INTERVAL_MS = 15000;
 const FAILOVER_V2_COUNTDOWN_TICK_MS = 1000;
 const FAILOVER_V2_ACTIVE_EXECUTION_STATUSES = new Set([
   "running",
@@ -2632,6 +2633,24 @@ export default function FailoverV2Page() {
     }, FAILOVER_V2_POLL_INTERVAL_MS);
     return () => window.clearInterval(intervalID);
   }, [hasBusyService, hasFeature, loadServices, loading]);
+
+  React.useEffect(() => {
+    if (
+      loading
+      || !hasFeature("cloud_failover")
+      || !hasFeature("cn_connectivity")
+      || hasBusyService
+      || !schedulerEnabled
+      || enabledServiceCount <= 0
+    ) {
+      return undefined;
+    }
+
+    const intervalID = window.setInterval(() => {
+      void loadServices({ silent: true });
+    }, FAILOVER_V2_SCHEDULER_STATUS_POLL_INTERVAL_MS);
+    return () => window.clearInterval(intervalID);
+  }, [enabledServiceCount, hasBusyService, hasFeature, loadServices, loading, schedulerEnabled]);
 
   const currentDnsEntries = React.useMemo(
     () => mergeCurrentEntry(
