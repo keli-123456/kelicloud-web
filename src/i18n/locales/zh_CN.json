@@ -2228,8 +2228,8 @@
       "this_execution_did_not_require_old_instance_cleanup": "本次执行不需要旧实例清理"
     },
     "active_execution_action_disabled": "服务存在活动执行时操作会被禁用。",
-    "active_member_execution_action_disabled": "当前成员有执行正在运行，操作已临时锁定。",
     "active_execution_notice": "当前有执行正在运行，配置和破坏性操作已临时锁定。",
+    "active_member_execution_action_disabled": "当前成员有执行正在运行，操作已临时锁定。",
     "add_member": "添加 V2 成员",
     "advanced_state_fields": "高级状态字段",
     "advanced_state_fields_hint": "DNS 记录引用和当前实例引用是 V2 的恢复锚点。除非正在导入或修复状态，否则保持不变。",
@@ -2259,6 +2259,8 @@
     "aws_tags_hint": "使用英文逗号或换行分隔 key=value 标签。",
     "backups": "备份",
     "bound_client_uuid": "绑定客户端 UUID",
+    "check_interval": "检测间隔",
+    "check_interval_hint": "控制该服务自动健康检测的频率，单位为秒。",
     "cloudflare_proxied": "Cloudflare 代理",
     "cloudflare_proxied_hint": "覆盖该记录的凭证默认 proxied 设置。",
     "cloudflare_zone_id": "Zone ID",
@@ -2533,9 +2535,9 @@
     "runtime_dns_refs_hint": "按线路保存的 DNS 记录引用，用于摘除和恢复。",
     "runtime_fields_hint": "运行态字段由 V2 执行管理，这里仅供查看。",
     "runtime_instance_hint": "最近一次执行记录的供应商侧实例引用。",
-    "runtime_not_initialized": "尚未初始化",
     "runtime_message_dns_detached_lines": "已从 DNS 摘除线路：{{lines}}",
     "runtime_message_members_healthy": "{{healthy}}/{{total}} 个成员健康",
+    "runtime_not_initialized": "尚未初始化",
     "runtime_state": "运行态",
     "scheduler": {
       "description": "此全局开关控制 V2 是否基于 CN 连通性健康检查自动触发成员故障转移。关闭时手动操作仍可使用。",
@@ -2555,8 +2557,6 @@
       "title": "自动调度器"
     },
     "script_timeout": "脚本超时",
-    "check_interval": "检测间隔",
-    "check_interval_hint": "控制该服务自动健康检测的频率，单位为秒。",
     "service_dialog_description": "该服务拥有共享 DNS 目标和成员使用的脚本策略。",
     "service_name_placeholder": "例如：香港出口池",
     "service_paused": "服务已暂停自动调度",
