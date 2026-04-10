@@ -2228,11 +2228,16 @@
       "this_execution_did_not_require_old_instance_cleanup": "本次执行不需要旧实例清理"
     },
     "active_execution_action_disabled": "服務存在活動執行時操作會被停用。",
+    "active_member_execution_action_disabled": "目前成員有執行正在進行，操作已暫時鎖定。",
     "active_execution_notice": "目前有執行正在執行，設定和破壞性操作已暫時鎖定。",
     "add_member": "新增 V2 成員",
     "advanced_state_fields": "進階狀態欄位",
     "advanced_state_fields_hint": "DNS 記錄參照和目前實例參照是 V2 的恢復錨點。除非正在匯入或修復狀態，否则保持不变。",
     "allow_all_traffic": "放行所有流量",
+    "api_errors": {
+      "start_detach_failed": "啟動 DNS 摘除失敗：{{reason}}",
+      "start_execution_failed": "啟動故障切換 V2 執行失敗：{{reason}}"
+    },
     "assign_ipv6": "分配 IPv6",
     "assign_public_ip": "分配公網 IPv4",
     "auto_connect_group": "自動接入分組",
@@ -2349,6 +2354,11 @@
     "empty_description": "建立第一個隔離的 V2 服務。每個服務可以管理多個綁定線路的成員，且不影響 V1。",
     "empty_title": "暫無 V2 服務",
     "enabled_hint": "停用的服務會跳過自動調度，服務卡片上的手動操作仍可使用。",
+    "error_reasons": {
+      "provider_credential_busy": "同一雲端憑證正在建立實例，請稍後再試。",
+      "service_has_active_execution": "服務 #{{id}} 目前已有活動執行，請稍後再試。",
+      "service_running": "服務 #{{id}} 目前已有執行在進行中，請稍後再試。"
+    },
     "execution_actions": "操作区",
     "execution_actions_hint": "操作按当前执行保存的数据进行复用，不会改动后端接口或既有流程。",
     "execution_basic_info": "基础信息",
@@ -2414,12 +2424,14 @@
     "member_dns_lines_empty": "尚未選擇任何 DNS 線路。",
     "member_dns_lines_hint": "新增屬於此成員的 DNS 路由線路；若不需要營運商分流，可使用 default。網域：{{domain}}",
     "member_dns_lines_input_placeholder": "新增線路，多個線路可用逗號分隔",
+    "member_dns_status": "DNS 狀態",
     "member_enabled_hint": "停用的成員會跳過自動檢查，成員卡片上的手動操作仍可使用。",
     "member_mode": "模式",
     "member_mode_existing_client": "現有客戶端",
     "member_mode_provider_template": "提供者模板",
     "member_paused": "成員已暫停自動檢查",
     "member_resumed": "成員已恢復自動檢查",
+    "member_script_status": "腳本狀態",
     "member_section_basic": "成員基礎資訊",
     "member_section_basic_hint": "設定成員名稱，並決定是否參與自動檢查。",
     "member_section_mode": "模式選擇",
@@ -2522,6 +2534,8 @@
     "runtime_fields_hint": "運行態欄位由 V2 執行管理，這裡僅供查看。",
     "runtime_instance_hint": "最近一次執行記錄的提供者側實例參照。",
     "runtime_not_initialized": "尚未初始化",
+    "runtime_message_dns_detached_lines": "已從 DNS 摘除線路：{{lines}}",
+    "runtime_message_members_healthy": "{{healthy}}/{{total}} 個成員健康",
     "runtime_state": "運行態",
     "scheduler": {
       "description": "此全域開關控制 V2 是否基於 CN 連通性健康檢查自動觸發成員故障轉移。關閉時手動操作仍可使用。",
@@ -2541,6 +2555,8 @@
       "title": "自動調度器"
     },
     "script_timeout": "指令碼逾時",
+    "check_interval": "檢測間隔",
+    "check_interval_hint": "控制該服務自動健康檢測的頻率，單位為秒。",
     "service_dialog_description": "該服務擁有共享 DNS 目標和成員使用的指令碼策略。",
     "service_name_placeholder": "例如：香港出口池",
     "service_paused": "服務已暫停自動調度",
@@ -2640,9 +2656,13 @@
     "stop_execution_hint": "停止目前 V2 活動執行，防止繼續進入後續步驟。已完成的工作不會自動回滾。",
     "stop_execution_success": "執行已停止",
     "summary": {
+      "check_interval": "檢測間隔",
       "delete_strategy": "刪除策略",
       "enabled_members": "已啟用成員",
       "members": "成員",
+      "next_check": "下次檢測",
+      "next_check_due": "即將檢測",
+      "next_check_unknown": "等待首次檢測",
       "scripts": "指令碼"
     },
     "sync_ipv6": "同步 IPv6",

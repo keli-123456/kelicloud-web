@@ -2228,11 +2228,16 @@
       "this_execution_did_not_require_old_instance_cleanup": "This execution did not require old instance cleanup"
     },
     "active_execution_action_disabled": "Aksi dinonaktifkan saat layanan ini memiliki eksekusi aktif.",
+    "active_member_execution_action_disabled": "Aksi dinonaktifkan saat member ini memiliki eksekusi aktif.",
     "active_execution_notice": "Ada eksekusi aktif. Konfigurasi dan aksi destruktif dikunci sementara.",
     "add_member": "Tambah member V2",
     "advanced_state_fields": "Kolom status lanjutan",
     "advanced_state_fields_hint": "DNS record refs dan current instance refs adalah anchor pemulihan V2. Biarkan tetap sama kecuali saat impor atau perbaikan status.",
     "allow_all_traffic": "Izinkan semua traffic",
+    "api_errors": {
+      "start_detach_failed": "Gagal memulai pelepasan DNS: {{reason}}",
+      "start_execution_failed": "Gagal memulai eksekusi failover v2: {{reason}}"
+    },
     "assign_ipv6": "Tetapkan IPv6",
     "assign_public_ip": "Tetapkan IPv4 publik",
     "auto_connect_group": "Grup auto-connect",
@@ -2349,6 +2354,11 @@
     "empty_description": "Buat layanan V2 terisolasi pertama. Setiap layanan dapat mengelola beberapa member berbasis line tanpa memengaruhi V1.",
     "empty_title": "Belum ada layanan V2",
     "enabled_hint": "Layanan nonaktif dilewati oleh penjadwalan otomatis. Aksi manual tetap tersedia dari kartu layanan.",
+    "error_reasons": {
+      "provider_credential_busy": "Kredensial cloud yang sama sedang memprovisikan instance lain. Coba lagi nanti.",
+      "service_has_active_execution": "Layanan #{{id}} sudah memiliki eksekusi aktif. Coba lagi nanti.",
+      "service_running": "Layanan #{{id}} sudah memiliki eksekusi yang sedang berjalan. Coba lagi nanti."
+    },
     "execution_actions": "Actions",
     "execution_actions_hint": "These controls reuse the saved execution state without changing backend contracts or flow.",
     "execution_basic_info": "Basic information",
@@ -2414,12 +2424,14 @@
     "member_dns_lines_empty": "Belum ada jalur DNS yang dipilih.",
     "member_dns_lines_hint": "Tambahkan jalur routing DNS milik member ini. Gunakan default jika tidak perlu routing ISP khusus. Domain: {{domain}}",
     "member_dns_lines_input_placeholder": "Tambahkan jalur; pisahkan beberapa jalur dengan koma",
+    "member_dns_status": "Status DNS",
     "member_enabled_hint": "Member nonaktif dilewati oleh pemeriksaan otomatis. Aksi manual tetap tersedia dari kartu member.",
     "member_mode": "Mode",
     "member_mode_existing_client": "Klien yang sudah ada",
     "member_mode_provider_template": "Template provider",
     "member_paused": "Member dijeda dari pemeriksaan otomatis",
     "member_resumed": "Member dilanjutkan untuk pemeriksaan otomatis",
+    "member_script_status": "Status skrip",
     "member_section_basic": "Dasar member",
     "member_section_basic_hint": "Tetapkan nama member dan apakah member ini ikut pemeriksaan otomatis.",
     "member_section_mode": "Pilihan mode",
@@ -2522,6 +2534,8 @@
     "runtime_fields_hint": "Field runtime dikelola oleh eksekusi V2 dan hanya ditampilkan di sini untuk inspeksi.",
     "runtime_instance_hint": "Referensi instance sisi provider yang dicatat oleh eksekusi terakhir.",
     "runtime_not_initialized": "Belum diinisialisasi",
+    "runtime_message_dns_detached_lines": "DNS dilepas untuk line {{lines}}",
+    "runtime_message_members_healthy": "{{healthy}}/{{total}} member sehat",
     "runtime_state": "Status runtime",
     "scheduler": {
       "description": "Switch global ini mengontrol apakah V2 otomatis memicu failover member dari health check konektivitas CN. Aksi manual tetap tersedia saat switch mati.",
@@ -2541,6 +2555,8 @@
       "title": "Scheduler Otomatis"
     },
     "script_timeout": "Timeout skrip",
+    "check_interval": "Interval cek",
+    "check_interval_hint": "Mengatur seberapa sering layanan ini menjalankan pemeriksaan kesehatan otomatis. Unit: detik.",
     "service_dialog_description": "Layanan ini memiliki target DNS bersama dan kebijakan skrip untuk membernya.",
     "service_name_placeholder": "mis. Hong Kong outlet pool",
     "service_paused": "Layanan dijeda dari penjadwalan otomatis",
@@ -2640,9 +2656,13 @@
     "stop_execution_hint": "Hentikan eksekusi V2 aktif dan cegah langkah berikutnya berlanjut. Pekerjaan yang sudah selesai tidak otomatis dibatalkan.",
     "stop_execution_success": "Eksekusi dihentikan",
     "summary": {
+      "check_interval": "Interval cek",
       "delete_strategy": "Strategi hapus",
       "enabled_members": "Member aktif",
       "members": "Member",
+      "next_check": "Pemeriksaan berikutnya",
+      "next_check_due": "Segera diperiksa",
+      "next_check_unknown": "Menunggu pemeriksaan pertama",
       "scripts": "Skrip"
     },
     "sync_ipv6": "Sinkronkan IPv6",

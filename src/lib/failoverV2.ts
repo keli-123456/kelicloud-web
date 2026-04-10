@@ -25,6 +25,7 @@ export type FailoverV2ServiceInput = {
   script_clipboard_ids: number[];
   script_timeout_sec: number;
   wait_agent_timeout_sec: number;
+  check_interval_seconds: number;
   delete_strategy: string;
   delete_delay_seconds: number;
 };
@@ -235,11 +236,13 @@ export type FailoverV2Service = {
   script_clipboard_ids: number[];
   script_timeout_sec: number;
   wait_agent_timeout_sec: number;
+  check_interval_seconds: number;
   delete_strategy: string;
   delete_delay_seconds: number;
   last_execution_id: number | null;
   last_status: string;
   last_message: string;
+  last_checked_at: string | null;
   member_count: number;
   enabled_member_count: number;
   members: FailoverV2Member[];
@@ -546,11 +549,13 @@ function normalizeService(service: unknown): FailoverV2Service {
     script_clipboard_ids: normalizeNumberArray(raw.script_clipboard_ids),
     script_timeout_sec: normalizeNumber(raw.script_timeout_sec),
     wait_agent_timeout_sec: normalizeNumber(raw.wait_agent_timeout_sec),
+    check_interval_seconds: Math.max(60, normalizeNumber(raw.check_interval_seconds) || 60),
     delete_strategy: normalizeString(raw.delete_strategy),
     delete_delay_seconds: normalizeNumber(raw.delete_delay_seconds),
     last_execution_id: normalizeNullableNumber(raw.last_execution_id),
     last_status: normalizeString(raw.last_status),
     last_message: normalizeString(raw.last_message),
+    last_checked_at: normalizeNullableString(raw.last_checked_at),
     member_count: normalizeNumber(raw.member_count),
     enabled_member_count: normalizeNumber(raw.enabled_member_count),
     members: Array.isArray(raw.members) ? raw.members.map(normalizeMember) : [],
