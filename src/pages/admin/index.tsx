@@ -16,7 +16,6 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import {
-  ArrowDownUp,
   Copy,
   Download,
   Globe,
@@ -346,9 +345,6 @@ const getActionErrorMessage = (
 const isNodeConnectivityBlocked = (live?: NodeLiveSnapshot) =>
   live?.record.cn_connectivity?.status === "blocked_suspected";
 
-type NodeSortField = "none" | "cpu" | "ram" | "traffic" | "uptime";
-type NodeSortDirection = "asc" | "desc";
-
 const RISK_WARNING_THRESHOLD = 75;
 const RISK_DANGER_THRESHOLD = 90;
 
@@ -373,9 +369,6 @@ const getNodeDiskUsagePercent = (node: NodeDetail, live?: NodeLiveSnapshot) => {
   return ((live?.record.disk.used ?? 0) / node.disk_total) * 100;
 };
 
-const getNodeTrafficTotal = (live?: NodeLiveSnapshot) =>
-  (live?.record.network.totalUp ?? 0) + (live?.record.network.totalDown ?? 0);
-
 const isNodeAbnormal = (
   node: NodeDetail,
   live: NodeLiveSnapshot | undefined,
@@ -390,26 +383,6 @@ const isNodeAbnormal = (
     || clampPercent(getNodeRamUsagePercent(node, live)) >= RISK_DANGER_THRESHOLD
     || clampPercent(getNodeDiskUsagePercent(node, live)) >= RISK_DANGER_THRESHOLD;
   return offline || connectivityAbnormal || highUsage;
-};
-
-const getNodeSortMetric = (
-  node: NodeDetail,
-  live: NodeLiveSnapshot | undefined,
-  sortField: NodeSortField,
-) => {
-  if (sortField === "cpu") {
-    return clampPercent(live?.record.cpu.usage ?? 0);
-  }
-  if (sortField === "ram") {
-    return clampPercent(getNodeRamUsagePercent(node, live));
-  }
-  if (sortField === "traffic") {
-    return getNodeTrafficTotal(live);
-  }
-  if (sortField === "uptime") {
-    return live?.record.uptime ?? 0;
-  }
-  return 0;
 };
 
 const Layout = ({
@@ -471,9 +444,6 @@ const Layout = ({
     [allNodes],
   );
   const installActionsEnabled = true;
-  const [sortField, setSortField] = React.useState<NodeSortField>("none");
-  const [sortDirection, setSortDirection] =
-    React.useState<NodeSortDirection>("desc");
   const normalizedToolbarSearchKeyword = toolbarSearchKeyword.trim().toLowerCase();
   const visibleNodes = React.useMemo(() => {
     if (!normalizedToolbarSearchKeyword) {
@@ -587,10 +557,6 @@ const Layout = ({
         liveByNode={liveByNode}
         settings={settings}
         installActionsEnabled={installActionsEnabled}
-        sortField={sortField}
-        onSortFieldChange={setSortField}
-        sortDirection={sortDirection}
-        onSortDirectionChange={setSortDirection}
       />
     </div>
   );
@@ -1782,20 +1748,12 @@ const NodeTable = ({
   liveByNode,
   settings,
   installActionsEnabled,
-  sortField,
-  onSortFieldChange,
-  sortDirection,
-  onSortDirectionChange,
 }: {
   nodes: NodeDetail[];
   totalNodesCount: number;
   liveByNode: Record<string, NodeLiveSnapshot>;
   settings: SettingsResponse;
   installActionsEnabled: boolean;
-  sortField: NodeSortField;
-  onSortFieldChange: (value: NodeSortField) => void;
-  sortDirection: NodeSortDirection;
-  onSortDirectionChange: (value: NodeSortDirection) => void;
 }) => {
   const { t } = useTranslation();
   const hasActiveFilters = nodes.length !== totalNodesCount;
@@ -1813,91 +1771,12 @@ const NodeTable = ({
 
     return Array.from(groups.entries()).map(([groupName, groupNodes]) => ({
       groupName,
-      nodes:
-        sortField === "none"
-          ? groupNodes
-          : [...groupNodes].sort((left, right) => {
-            const leftMetric = getNodeSortMetric(
-              left,
-              liveByNode[left.uuid],
-              sortField,
-            );
-            const rightMetric = getNodeSortMetric(
-              right,
-              liveByNode[right.uuid],
-              sortField,
-            );
-            if (leftMetric !== rightMetric) {
-              return sortDirection === "asc"
-                ? leftMetric - rightMetric
-                : rightMetric - leftMetric;
-            }
-            return String(left.name || "").localeCompare(
-              String(right.name || ""),
-              "zh-CN",
-            );
-          }),
+      nodes: groupNodes,
     }));
-  }, [liveByNode, nodes, sortDirection, sortField]);
+  }, [nodes]);
 
   return (
     <div className="flex min-w-0 flex-col gap-4">
-      <div className="flex flex-wrap items-center justify-end gap-2">
-        <span className="text-xs text-muted-foreground">
-          {t("admin.nodeTable.sortBy", { defaultValue: "排序方式" })}
-        </span>
-        <select
-          className="h-8 min-w-[150px] rounded-md border border-input bg-background px-2.5 text-sm text-foreground outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring/50"
-          value={sortField}
-          onChange={(event) => onSortFieldChange(event.target.value as NodeSortField)}
-          aria-label={t("admin.nodeTable.sortBy", {
-            defaultValue: "排序方式",
-          })}
-        >
-          <option value="none">
-            {t("admin.nodeTable.sortNone", {
-              defaultValue: "排序：默认",
-            })}
-          </option>
-          <option value="cpu">
-            {t("admin.nodeTable.sortCpu", {
-              defaultValue: "按 CPU",
-            })}
-          </option>
-          <option value="ram">
-            {t("admin.nodeTable.sortRam", {
-              defaultValue: "按 RAM",
-            })}
-          </option>
-          <option value="traffic">
-            {t("admin.nodeTable.sortTraffic", {
-              defaultValue: "按流量",
-            })}
-          </option>
-          <option value="uptime">
-            {t("admin.nodeTable.sortUptime", {
-              defaultValue: "按开机时长",
-            })}
-          </option>
-        </select>
-        <Button
-          variant="outline"
-          size="sm"
-          className="h-8 rounded-md px-2"
-          disabled={sortField === "none"}
-          onClick={() =>
-            onSortDirectionChange(sortDirection === "desc" ? "asc" : "desc")
-          }
-          aria-label={t("admin.nodeTable.sortDirection", {
-            defaultValue: "切换排序方向",
-          })}
-        >
-          <ArrowDownUp size={14} />
-          {sortDirection === "desc"
-            ? t("admin.nodeTable.sortDesc", { defaultValue: "降序" })
-            : t("admin.nodeTable.sortAsc", { defaultValue: "升序" })}
-        </Button>
-      </div>
       {nodes.length === 0 ? (
         <Card className="rounded-xl border-dashed border-border/70 py-10 text-center text-sm text-muted-foreground shadow-none">
           {hasActiveFilters
