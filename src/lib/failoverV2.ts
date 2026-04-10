@@ -14,6 +14,8 @@ export class FailoverV2ApiError extends Error {
   }
 }
 
+export type FailoverV2MemberMode = "existing_client" | "provider_template";
+
 export type FailoverV2ServiceInput = {
   name: string;
   enabled: boolean;
@@ -59,17 +61,25 @@ export type FailoverV2MemberInput = {
   name: string;
   enabled: boolean;
   priority: number;
+  mode: FailoverV2MemberMode;
   watch_client_uuid: string;
+  dns_lines: string[];
   dns_line: string;
-  dns_record_refs: unknown;
-  current_address: string;
-  current_instance_ref: unknown;
+  dns_record_refs?: unknown;
+  current_address?: string;
+  current_instance_ref?: unknown;
   provider: string;
   provider_entry_id: string;
+  provider_entry_group: string;
   plan_payload: unknown;
   failure_threshold: number;
   stale_after_seconds: number;
   cooldown_seconds: number;
+};
+
+export type FailoverV2MemberLine = {
+  line_code: string;
+  dns_record_refs: unknown;
 };
 
 export type FailoverV2Member = {
@@ -78,13 +88,17 @@ export type FailoverV2Member = {
   name: string;
   enabled: boolean;
   priority: number;
+  mode: FailoverV2MemberMode;
   watch_client_uuid: string;
+  dns_lines: string[];
+  lines: FailoverV2MemberLine[];
   dns_line: string;
   dns_record_refs: unknown;
   current_address: string;
   current_instance_ref: unknown;
   provider: string;
   provider_entry_id: string;
+  provider_entry_group: string;
   plan_payload: unknown;
   failure_threshold: number;
   stale_after_seconds: number;
@@ -259,6 +273,29 @@ function normalizeUnknown(value: unknown) {
   return value ?? null;
 }
 
+function normalizeStringArray(value: unknown) {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+  return value
+    .map((entry) => normalizeString(entry).trim())
+    .filter(Boolean);
+}
+
+function normalizeMemberMode(value: unknown): FailoverV2MemberMode {
+  return normalizeString(value).trim() === "existing_client"
+    ? "existing_client"
+    : "provider_template";
+}
+
+function normalizeMemberLine(line: unknown): FailoverV2MemberLine {
+  const raw = line && typeof line === "object" ? line as Record<string, unknown> : {};
+  return {
+    line_code: normalizeString(raw.line_code),
+    dns_record_refs: normalizeUnknown(raw.dns_record_refs),
+  };
+}
+
 function normalizeNumberArray(value: unknown) {
   if (!Array.isArray(value)) {
     return [];
@@ -271,19 +308,25 @@ function normalizeNumberArray(value: unknown) {
 
 function normalizeMember(member: unknown): FailoverV2Member {
   const raw = member && typeof member === "object" ? member as Record<string, unknown> : {};
+  const dnsLine = normalizeString(raw.dns_line);
+  const dnsLines = normalizeStringArray(raw.dns_lines);
   return {
     id: normalizeNumber(raw.id),
     service_id: normalizeNumber(raw.service_id),
     name: normalizeString(raw.name),
     enabled: normalizeBoolean(raw.enabled),
     priority: normalizeNumber(raw.priority),
+    mode: normalizeMemberMode(raw.mode),
     watch_client_uuid: normalizeString(raw.watch_client_uuid),
-    dns_line: normalizeString(raw.dns_line),
+    dns_lines: dnsLines.length > 0 ? dnsLines : (dnsLine ? [dnsLine] : []),
+    lines: Array.isArray(raw.lines) ? raw.lines.map(normalizeMemberLine) : [],
+    dns_line: dnsLine,
     dns_record_refs: normalizeUnknown(raw.dns_record_refs),
     current_address: normalizeString(raw.current_address),
     current_instance_ref: normalizeUnknown(raw.current_instance_ref),
     provider: normalizeString(raw.provider),
     provider_entry_id: normalizeString(raw.provider_entry_id),
+    provider_entry_group: normalizeString(raw.provider_entry_group),
     plan_payload: normalizeUnknown(raw.plan_payload),
     failure_threshold: normalizeNumber(raw.failure_threshold),
     stale_after_seconds: normalizeNumber(raw.stale_after_seconds),
