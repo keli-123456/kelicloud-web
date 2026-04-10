@@ -484,6 +484,120 @@ function ReadonlyValueField({
   );
 }
 
+function ExecutionDetailSection({
+  title,
+  description,
+  action,
+  children,
+}: {
+  title: React.ReactNode;
+  description?: React.ReactNode;
+  action?: React.ReactNode;
+  children: React.ReactNode;
+}) {
+  return (
+    <section className="space-y-3">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="min-w-0 space-y-1">
+          <h3 className="text-sm font-semibold text-slate-950 dark:text-slate-50">{title}</h3>
+          {description ? <p className="text-sm leading-5 text-slate-500 dark:text-slate-400">{description}</p> : null}
+        </div>
+        {action ? <div className="shrink-0">{action}</div> : null}
+      </div>
+      {children}
+    </section>
+  );
+}
+
+function ExecutionJsonBlock({
+  label,
+  expandLabel,
+  collapseLabel,
+  content,
+  summaryItems = [],
+}: {
+  label: React.ReactNode;
+  expandLabel: React.ReactNode;
+  collapseLabel: React.ReactNode;
+  content: string;
+  summaryItems?: Array<{
+    key: string;
+    label: React.ReactNode;
+    value: React.ReactNode;
+  }>;
+}) {
+  if (!content) {
+    return null;
+  }
+
+  return (
+    <div className="min-w-0 px-4 py-3 first:pt-0 last:pb-0 sm:px-5">
+      <div className="text-sm font-medium text-slate-900 dark:text-slate-50">{label}</div>
+      {summaryItems.length > 0 ? (
+        <dl className="mt-2 grid gap-x-4 gap-y-2 text-sm sm:grid-cols-2">
+          {summaryItems.map((item) => (
+            <div key={item.key} className="min-w-0">
+              <dt className="text-xs text-slate-500 dark:text-slate-400">{item.label}</dt>
+              <dd className="mt-1 break-words font-medium text-slate-800 dark:text-slate-100">{item.value}</dd>
+            </div>
+          ))}
+        </dl>
+      ) : null}
+      <details className="group mt-2 border-t border-dashed border-slate-200 pt-2 dark:border-slate-800">
+        <summary className="flex cursor-pointer list-none items-center justify-between gap-3 text-sm font-medium text-slate-600 marker:hidden dark:text-slate-300 [&::-webkit-details-marker]:hidden">
+          <span className="text-xs text-slate-500 dark:text-slate-400">
+            <span className="group-open:hidden">{expandLabel}</span>
+            <span className="hidden group-open:inline">{collapseLabel}</span>
+          </span>
+        </summary>
+        <pre className="mt-2 max-h-64 overflow-auto whitespace-pre-wrap break-words rounded-md bg-slate-50 px-3 py-3 text-xs leading-5 text-slate-700 dark:bg-slate-900 dark:text-slate-200">
+          {content}
+        </pre>
+      </details>
+    </div>
+  );
+}
+
+function ExecutionActionCard({
+  tone = "neutral",
+  title,
+  description,
+  reason,
+  children,
+}: {
+  tone?: "neutral" | "danger";
+  title: React.ReactNode;
+  description: React.ReactNode;
+  reason?: React.ReactNode;
+  children: React.ReactNode;
+}) {
+  return (
+    <div
+      className={cn(
+        "flex flex-col gap-3 px-4 py-4 sm:flex-row sm:items-start sm:justify-between sm:px-5",
+        tone === "danger"
+          ? "bg-red-50/50 dark:bg-red-950/10"
+          : "",
+      )}
+    >
+      <div className="min-w-0 space-y-1">
+        <div className="flex items-center gap-2">
+          <span
+            className={cn(
+              "size-2 shrink-0 rounded-full",
+              tone === "danger" ? "bg-red-500" : "bg-slate-300 dark:bg-slate-700",
+            )}
+          />
+          <div className="text-sm font-semibold text-slate-950 dark:text-slate-50">{title}</div>
+        </div>
+        <p className="text-sm leading-5 text-slate-500 dark:text-slate-400">{description}</p>
+        {reason ? <p className="pt-1 text-xs text-slate-500 dark:text-slate-400">{reason}</p> : null}
+      </div>
+      <div className="shrink-0 sm:w-44">{children}</div>
+    </div>
+  );
+}
+
 function normalizeProviderKey(value: string, fallback: string) {
   const normalized = String(value || "").trim().toLowerCase();
   return normalized || fallback;
@@ -709,6 +823,205 @@ function getStatusBadgeColor(status: string): "gray" | "green" | "amber" | "red"
     default:
       return "gray";
   }
+}
+
+function normalizeTranslationToken(value: string) {
+  return String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "");
+}
+
+function humanizeBackendToken(value: string) {
+  const normalized = String(value || "").trim();
+  if (!normalized) {
+    return "Unknown";
+  }
+  return normalized
+    .split(/[_\s-]+/)
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
+}
+
+function localizeFailoverV2Status(t: TFunction, status: string | null | undefined) {
+  const normalized = normalizeTranslationToken(String(status || ""));
+  if (!normalized) {
+    return t("failover_v2.status.unknown", { defaultValue: "Unknown" });
+  }
+  return t(`failover_v2.status.${normalized}`, {
+    defaultValue: humanizeBackendToken(String(status || "")),
+  });
+}
+
+function localizeFailoverV2Stage(t: TFunction, stage: string) {
+  const normalized = normalizeTranslationToken(stage);
+  return t(`failover_v2.stage.${normalized}`, {
+    defaultValue: humanizeBackendToken(stage),
+  });
+}
+
+function localizeFailoverV2TriggerReason(t: TFunction, triggerReason: string | null | undefined) {
+  const normalized = normalizeTranslationToken(String(triggerReason || ""));
+  if (!normalized) {
+    return t("failover_v2.execution_manual", { defaultValue: "manual" });
+  }
+  if (normalized.startsWith("cn_connectivity")) {
+    return t("failover_v2.trigger_reason.cn_connectivity", {
+      defaultValue: "CN connectivity automation",
+    });
+  }
+  return t(`failover_v2.trigger_reason.${normalized}`, {
+    defaultValue: humanizeBackendToken(String(triggerReason || "")),
+  });
+}
+
+function getFailoverV2ExecutionStepLabel(t: TFunction, step: { step_key: string; step_label: string }) {
+  const normalized = normalizeTranslationToken(step.step_key);
+  if (!normalized) {
+    return step.step_label || t("failover_v2.step_labels.unknown", { defaultValue: "Unknown step" });
+  }
+  return t(`failover_v2.step_labels.${normalized}`, {
+    defaultValue: humanizeBackendToken(step.step_label || step.step_key),
+  });
+}
+
+function getFailoverV2ExecutionStepMessage(t: TFunction, message: string | null | undefined) {
+  const normalizedMessage = String(message || "").trim().toLowerCase();
+  if (!normalizedMessage) {
+    return "";
+  }
+  return t(`failover_v2.step_messages.${normalizeTranslationToken(normalizedMessage)}`, {
+    defaultValue: message,
+  });
+}
+
+function localizeFailoverV2ActionReason(t: TFunction, reason: string | null | undefined) {
+  const normalizedReason = String(reason || "").trim().toLowerCase();
+  if (!normalizedReason) {
+    return "";
+  }
+  return t(`failover_v2.action_reasons.${normalizeTranslationToken(normalizedReason)}`, {
+    defaultValue: reason,
+  });
+}
+
+function parseJsonValue(value: unknown): unknown {
+  if (value === null || value === undefined) {
+    return null;
+  }
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    if (!trimmed || trimmed === "null") {
+      return null;
+    }
+    try {
+      return JSON.parse(trimmed) as unknown;
+    } catch {
+      return trimmed;
+    }
+  }
+  return value;
+}
+
+function formatDetailSummaryValue(t: TFunction, key: string, value: unknown): string {
+  if (value === null || value === undefined) {
+    return "";
+  }
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    if (!trimmed) {
+      return "";
+    }
+    if (key === "classification" || key === "status" || key === "step_status") {
+      return t(`failover_v2.detail_values.${normalizeTranslationToken(trimmed)}`, {
+        defaultValue: humanizeBackendToken(trimmed),
+      });
+    }
+    return trimmed;
+  }
+  if (typeof value === "number" || typeof value === "boolean") {
+    return String(value);
+  }
+  if (Array.isArray(value)) {
+    return value
+      .map((entry) => formatDetailSummaryValue(t, key, entry))
+      .filter(Boolean)
+      .slice(0, 3)
+      .join(", ");
+  }
+  if (typeof value === "object") {
+    const object = value as Record<string, unknown>;
+    return formatDetailSummaryValue(t, key, object.label ?? object.name ?? object.id ?? object.uuid ?? object.value ?? "");
+  }
+  return "";
+}
+
+function getFailoverV2DetailSummaryItems(t: TFunction, detail: unknown, maxItems = 6) {
+  const parsed = parseJsonValue(detail);
+  if (!parsed) {
+    return [];
+  }
+  if (Array.isArray(parsed)) {
+    const summaryValue = parsed
+      .map((entry) => formatDetailSummaryValue(t, "addresses", entry))
+      .filter(Boolean)
+      .slice(0, 3)
+      .join(", ");
+    return summaryValue
+      ? [
+        {
+          key: "addresses",
+          label: t("failover_v2.detail_fields.addresses", { defaultValue: "Addresses" }),
+          value: summaryValue,
+        },
+      ]
+      : [];
+  }
+  if (typeof parsed !== "object") {
+    return [
+      {
+        key: "summary",
+        label: t("failover_v2.detail_fields.summary", { defaultValue: "Summary" }),
+        value: String(parsed),
+      },
+    ];
+  }
+
+  const object = parsed as Record<string, unknown>;
+  const candidates = [
+    ["summary", t("failover_v2.detail_fields.summary", { defaultValue: "Summary" })],
+    ["classification", t("failover_v2.detail_fields.classification", { defaultValue: "Classification" })],
+    ["provider", t("failover_v2.detail_fields.provider", { defaultValue: "Provider" })],
+    ["provider_entry_id", t("failover_v2.detail_fields.provider_entry_id", { defaultValue: "Credential ID" })],
+    ["resource_type", t("failover_v2.detail_fields.resource_type", { defaultValue: "Resource type" })],
+    ["resource_id", t("failover_v2.detail_fields.resource_id", { defaultValue: "Resource ID" })],
+    ["record_name", t("failover_v2.detail_fields.record_name", { defaultValue: "Record" })],
+    ["domain_name", t("failover_v2.detail_fields.domain_name", { defaultValue: "Domain" })],
+    ["line", t("failover_v2.detail_fields.line", { defaultValue: "Line" })],
+    ["region", t("failover_v2.detail_fields.region", { defaultValue: "Region" })],
+    ["instance_id", t("failover_v2.detail_fields.instance_id", { defaultValue: "Instance ID" })],
+    ["instance_name", t("failover_v2.detail_fields.instance_name", { defaultValue: "Instance name" })],
+    ["public_ip", t("failover_v2.detail_fields.public_ip", { defaultValue: "Public IP" })],
+    ["ipv4", t("failover_v2.detail_fields.ipv4", { defaultValue: "IPv4" })],
+    ["ipv6", t("failover_v2.detail_fields.ipv6", { defaultValue: "IPv6" })],
+    ["addresses", t("failover_v2.detail_fields.addresses", { defaultValue: "Addresses" })],
+    ["new_client_uuid", t("failover_v2.execution_new_client", { defaultValue: "New client" })],
+    ["old_client_uuid", t("failover_v2.execution_old_client", { defaultValue: "Old client" })],
+    ["pending_cleanup_id", t("failover_v2.detail_fields.pending_cleanup_id", { defaultValue: "Pending cleanup" })],
+    ["cleanup_label", t("failover_v2.detail_fields.cleanup_label", { defaultValue: "Cleanup target" })],
+    ["error", t("failover_v2.detail_fields.error", { defaultValue: "Error" })],
+  ] as const;
+
+  return candidates
+    .map(([key, label]) => ({
+      key,
+      label,
+      value: formatDetailSummaryValue(t, key, object[key]),
+    }))
+    .filter((item) => Boolean(item.value))
+    .slice(0, maxItems);
 }
 
 function isFailoverV2ExecutionStatusActive(status: string | null | undefined) {
@@ -5233,8 +5546,8 @@ export default function FailoverV2Page() {
           }
         }}
       >
-        <DialogContent className="flex max-h-[90vh] max-w-6xl flex-col overflow-hidden">
-          <DialogHeader>
+        <DialogContent className="flex max-h-[92vh] w-[96vw] max-w-[1320px] flex-col gap-0 overflow-hidden p-0 sm:max-w-[1320px]">
+          <DialogHeader className="shrink-0 border-b border-slate-200 px-6 py-5 pr-14 dark:border-slate-800">
             <DialogTitle>
               {t("failover_v2.execution_history", { defaultValue: "Executions" })}
             </DialogTitle>
@@ -5249,11 +5562,16 @@ export default function FailoverV2Page() {
             </DialogDescription>
           </DialogHeader>
 
-          <div className="grid min-h-0 flex-1 gap-4 overflow-hidden lg:grid-cols-[300px_minmax(0,1fr)]">
-            <div className="overflow-y-auto rounded-2xl border border-slate-200 bg-slate-50/70 p-3 dark:border-slate-800 dark:bg-slate-950/40">
+          <div className="grid min-h-0 flex-1 overflow-hidden lg:grid-cols-[260px_minmax(0,1fr)]">
+            <aside className="min-h-0 overflow-y-auto border-b border-slate-200 bg-slate-50/80 p-3 dark:border-slate-800 dark:bg-slate-950/40 lg:border-b-0 lg:border-r">
               <div className="mb-3 flex items-center justify-between gap-2">
-                <div className="text-sm font-semibold text-slate-900 dark:text-slate-50">
-                  {t("failover_v2.execution_list", { defaultValue: "History" })}
+                <div>
+                  <div className="text-sm font-semibold text-slate-900 dark:text-slate-50">
+                    {t("failover_v2.execution_list", { defaultValue: "History" })}
+                  </div>
+                  <div className="text-xs text-slate-500 dark:text-slate-400">
+                    {t("failover_v2.execution_list_hint", { defaultValue: "Select one run" })}
+                  </div>
                 </div>
                 <Button
                   size="sm"
@@ -5261,19 +5579,19 @@ export default function FailoverV2Page() {
                   onClick={() => executionDialogTarget && void loadExecutionHistory(executionDialogTarget.service, selectedExecutionID)}
                   disabled={!executionDialogTarget || loadingExecutions}
                 >
-                  {loadingExecutions ? <LoaderCircle className="mr-2 size-4 animate-spin" /> : <RefreshCw className="mr-2 size-4" />}
-                  {t("common.refresh", { defaultValue: "Refresh" })}
+                  {loadingExecutions ? <LoaderCircle className="size-4 animate-spin" /> : <RefreshCw className="size-4" />}
+                  <span className="sr-only">{t("common.refresh", { defaultValue: "Refresh" })}</span>
                 </Button>
               </div>
 
               {loadingExecutions && executionSummaries.length === 0 ? (
-                <div className="rounded-2xl border border-dashed border-slate-300 px-4 py-6 text-sm text-slate-500 dark:border-slate-700 dark:text-slate-400">
+                <div className="rounded-xl border border-dashed border-slate-300 px-4 py-6 text-sm text-slate-500 dark:border-slate-700 dark:text-slate-400">
                   {t("failover_v2.execution_loading", { defaultValue: "Loading executions..." })}
                 </div>
               ) : null}
 
               {!loadingExecutions && executionSummaries.length === 0 ? (
-                <div className="rounded-2xl border border-dashed border-slate-300 px-4 py-6 text-sm text-slate-500 dark:border-slate-700 dark:text-slate-400">
+                <div className="rounded-xl border border-dashed border-slate-300 px-4 py-6 text-sm text-slate-500 dark:border-slate-700 dark:text-slate-400">
                   {t("failover_v2.execution_empty", { defaultValue: "No executions recorded yet." })}
                 </div>
               ) : null}
@@ -5283,35 +5601,38 @@ export default function FailoverV2Page() {
                   <button
                     key={execution.id}
                     type="button"
-                    className={`w-full rounded-2xl border px-3 py-3 text-left transition ${
+                    className={cn(
+                      "w-full rounded-xl border px-3 py-3 text-left transition",
                       execution.id === selectedExecutionID
-                        ? "border-sky-300 bg-sky-50 dark:border-sky-800 dark:bg-sky-950/30"
-                        : "border-slate-200 bg-white hover:border-slate-300 dark:border-slate-800 dark:bg-slate-950/40 dark:hover:border-slate-700"
-                    }`}
+                        ? "border-sky-300 bg-sky-50 shadow-sm dark:border-sky-800 dark:bg-sky-950/30"
+                        : "border-slate-200 bg-white hover:border-slate-300 dark:border-slate-800 dark:bg-slate-950/40 dark:hover:border-slate-700",
+                    )}
                     onClick={() => handleSelectExecution(execution.id)}
                   >
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="min-w-0">
-                        <div className="truncate text-sm font-semibold text-slate-900 dark:text-slate-50">
-                          {findMemberLabel(executionDialogTarget.service, execution.member_id)}
+                    <div className="min-w-0 space-y-2">
+                      <div className="flex min-w-0 items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <div className="truncate text-sm font-semibold text-slate-900 dark:text-slate-50">
+                            {findMemberLabel(executionDialogTarget.service, execution.member_id)}
+                          </div>
+                          <div className="mt-1 truncate text-xs text-slate-500 dark:text-slate-400">
+                            #{execution.id} · {localizeFailoverV2TriggerReason(t, execution.trigger_reason)}
+                          </div>
                         </div>
-                        <div className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-                          #{execution.id} · {execution.trigger_reason || t("failover_v2.execution_manual", { defaultValue: "manual" })}
-                        </div>
+                        <Badge color={getStatusBadgeColor(execution.status || "unknown")}>
+                          {localizeFailoverV2Status(t, execution.status)}
+                        </Badge>
                       </div>
-                      <Badge color={getStatusBadgeColor(execution.status || "unknown")}>
-                        {execution.status || t("common.unknown", { defaultValue: "Unknown" })}
-                      </Badge>
-                    </div>
-                    <div className="mt-2 text-xs text-slate-500 dark:text-slate-400">
-                      {formatTimestamp(execution.started_at)}
+                      <div className="text-xs text-slate-500 dark:text-slate-400">
+                        {formatTimestamp(execution.started_at)}
+                      </div>
                     </div>
                   </button>
                 ))}
               </div>
-            </div>
+            </aside>
 
-            <div className="overflow-y-auto rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-950/40">
+            <main className="min-h-0 overflow-y-auto bg-slate-100/60 p-4 dark:bg-slate-950/20 sm:p-5">
               {executionError ? (
                 <div className="rounded-2xl border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900/70 dark:bg-red-950/20 dark:text-red-300">
                   {executionError}
@@ -5332,81 +5653,300 @@ export default function FailoverV2Page() {
               ) : null}
 
               {!loadingExecutionDetail && selectedExecution && executionDialogTarget ? (
-                <div className="space-y-5">
-                  <div className="flex flex-wrap items-start justify-between gap-3">
-                    <div className="space-y-1">
-                      <div className="text-lg font-semibold text-slate-900 dark:text-slate-50">
-                        {findMemberLabel(executionDialogTarget.service, selectedExecution.member_id)}
+                <div className="space-y-4">
+                  <ExecutionDetailSection
+                    title={t("failover_v2.execution_summary", { defaultValue: "执行摘要" })}
+                    description={t("failover_v2.execution_summary_hint", {
+                      defaultValue: "集中展示执行对象、触发类型、总状态和基础元信息。",
+                    })}
+                  >
+                    <div className="space-y-4">
+                      <div className="space-y-2 border-b border-slate-200 pb-4 dark:border-slate-800">
+                        <div className="text-xs font-medium text-slate-500 dark:text-slate-400">
+                          {t("failover_v2.execution_member", { defaultValue: "执行对象" })}
+                        </div>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <div className="min-w-0 text-lg font-semibold text-slate-950 dark:text-slate-50">
+                            {findMemberLabel(executionDialogTarget.service, selectedExecution.member_id)}
+                          </div>
+                          <Badge color={getStatusBadgeColor(selectedExecution.status || "unknown")}>
+                            {localizeFailoverV2Status(t, selectedExecution.status)}
+                          </Badge>
+                          <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-600 dark:bg-slate-900 dark:text-slate-300">
+                            {localizeFailoverV2TriggerReason(t, selectedExecution.trigger_reason)}
+                          </span>
+                        </div>
                       </div>
-                      <div className="text-sm text-slate-500 dark:text-slate-400">
-                        #{selectedExecution.id} · {selectedExecution.trigger_reason || t("failover_v2.execution_manual", { defaultValue: "manual" })}
-                      </div>
-                    </div>
-                    <div className="flex flex-wrap gap-2">
-                      <Badge color={getStatusBadgeColor(selectedExecution.status || "unknown")}>
-                        {selectedExecution.status || t("common.unknown", { defaultValue: "Unknown" })}
-                      </Badge>
-                      <Badge color={getStatusBadgeColor(selectedExecution.detach_dns_status || "pending")}>
-                        detach:{selectedExecution.detach_dns_status || "pending"}
-                      </Badge>
-                      <Badge color={getStatusBadgeColor(selectedExecution.attach_dns_status || "pending")}>
-                        attach:{selectedExecution.attach_dns_status || "pending"}
-                      </Badge>
-                      <Badge color={getStatusBadgeColor(selectedExecution.cleanup_status || "pending")}>
-                        cleanup:{selectedExecution.cleanup_status || "pending"}
-                      </Badge>
-                    </div>
-                  </div>
 
-                  <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-                    <div className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4 dark:border-slate-800 dark:bg-slate-950/30">
-                      <div className="text-xs uppercase tracking-wide text-slate-500 dark:text-slate-400">
-                        {t("failover_v2.execution_started", { defaultValue: "Started" })}
-                      </div>
-                      <div className="mt-2 text-sm font-semibold text-slate-900 dark:text-slate-50">
-                        {formatTimestamp(selectedExecution.started_at)}
-                      </div>
-                    </div>
-                    <div className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4 dark:border-slate-800 dark:bg-slate-950/30">
-                      <div className="text-xs uppercase tracking-wide text-slate-500 dark:text-slate-400">
-                        {t("failover_v2.execution_finished", { defaultValue: "Finished" })}
-                      </div>
-                      <div className="mt-2 text-sm font-semibold text-slate-900 dark:text-slate-50">
-                        {formatTimestamp(selectedExecution.finished_at)}
-                      </div>
-                    </div>
-                    <div className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4 dark:border-slate-800 dark:bg-slate-950/30">
-                      <div className="text-xs uppercase tracking-wide text-slate-500 dark:text-slate-400">
-                        {t("failover_v2.execution_old_client", { defaultValue: "Old client" })}
-                      </div>
-                      <div className="mt-2 text-sm font-semibold text-slate-900 dark:text-slate-50">
-                        {selectedExecution.old_client_uuid || "-"}
-                      </div>
-                    </div>
-                    <div className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4 dark:border-slate-800 dark:bg-slate-950/30">
-                      <div className="text-xs uppercase tracking-wide text-slate-500 dark:text-slate-400">
-                        {t("failover_v2.execution_new_client", { defaultValue: "New client" })}
-                      </div>
-                      <div className="mt-2 text-sm font-semibold text-slate-900 dark:text-slate-50">
-                        {selectedExecution.new_client_uuid || "-"}
-                      </div>
-                    </div>
-                  </div>
+                      <div className="grid gap-5 xl:grid-cols-[minmax(0,1.45fr)_minmax(240px,0.85fr)]">
+                        <div>
+                          <div className="mb-3 text-xs font-medium text-slate-500 dark:text-slate-400">
+                            {t("failover_v2.execution_basic_info", { defaultValue: "基础信息" })}
+                          </div>
+                          <dl className="grid gap-x-5 gap-y-3 text-sm sm:grid-cols-2 xl:grid-cols-3">
+                            <div className="min-w-0">
+                              <dt className="text-xs text-slate-500 dark:text-slate-400">
+                                {t("failover_v2.execution_id", { defaultValue: "执行 ID" })}
+                              </dt>
+                              <dd className="mt-1 font-semibold text-slate-950 dark:text-slate-50">#{selectedExecution.id}</dd>
+                            </div>
+                            <div className="min-w-0">
+                              <dt className="text-xs text-slate-500 dark:text-slate-400">
+                                {t("failover_v2.execution_started", { defaultValue: "开始时间" })}
+                              </dt>
+                              <dd className="mt-1 font-semibold text-slate-950 dark:text-slate-50">{formatTimestamp(selectedExecution.started_at)}</dd>
+                            </div>
+                            <div className="min-w-0">
+                              <dt className="text-xs text-slate-500 dark:text-slate-400">
+                                {t("failover_v2.execution_finished", { defaultValue: "结束时间" })}
+                              </dt>
+                              <dd className="mt-1 font-semibold text-slate-950 dark:text-slate-50">{formatTimestamp(selectedExecution.finished_at)}</dd>
+                            </div>
+                            <div className="min-w-0">
+                              <dt className="text-xs text-slate-500 dark:text-slate-400">
+                                {t("failover_v2.execution_old_client", { defaultValue: "旧客户端" })}
+                              </dt>
+                              <dd className="mt-1 break-words font-mono text-xs font-semibold text-slate-950 dark:text-slate-50">{selectedExecution.old_client_uuid || "-"}</dd>
+                            </div>
+                            <div className="min-w-0">
+                              <dt className="text-xs text-slate-500 dark:text-slate-400">
+                                {t("failover_v2.execution_new_client", { defaultValue: "新客户端" })}
+                              </dt>
+                              <dd className="mt-1 break-words font-mono text-xs font-semibold text-slate-950 dark:text-slate-50">{selectedExecution.new_client_uuid || "-"}</dd>
+                            </div>
+                          </dl>
+                        </div>
 
-                  <div className="grid gap-3 lg:grid-cols-3">
-                    <div className="rounded-2xl border border-red-200 bg-red-50/70 p-4 dark:border-red-900/60 dark:bg-red-950/20">
-                      <div className="text-sm font-semibold text-slate-900 dark:text-slate-50">
-                        {t("failover_v2.stop_execution", { defaultValue: "Stop Execution" })}
+                        <div className="border-t border-slate-200 pt-4 xl:border-l xl:border-t-0 xl:pl-5 xl:pt-0 dark:border-slate-800">
+                          <div className="mb-3 text-xs font-medium text-slate-500 dark:text-slate-400">
+                            {t("failover_v2.execution_stage_status", { defaultValue: "阶段状态" })}
+                          </div>
+                          <div className="space-y-2">
+                            {[
+                              ["detach_dns", selectedExecution.detach_dns_status],
+                              ["attach_dns", selectedExecution.attach_dns_status],
+                              ["cleanup", selectedExecution.cleanup_status],
+                            ].map(([stage, status]) => (
+                              <div
+                                key={stage}
+                                className="flex items-center justify-between gap-3 border-b border-slate-200 py-2 last:border-b-0 dark:border-slate-800"
+                              >
+                                <span className="text-sm font-medium text-slate-700 dark:text-slate-200">
+                                  {localizeFailoverV2Stage(t, stage)}
+                                </span>
+                                <Badge color={getStatusBadgeColor(status || "pending")}>
+                                  {localizeFailoverV2Status(t, status || "pending")}
+                                </Badge>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
                       </div>
-                      <div className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-                        {t("failover_v2.stop_execution_hint", {
-                          defaultValue: "Stop the active V2 execution and prevent it from continuing to later steps. Already completed work is not reverted automatically.",
+                    </div>
+
+                    {selectedExecution.error_message ? (
+                      <div className="mt-4 rounded-xl border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900/70 dark:bg-red-950/20 dark:text-red-300">
+                        {selectedExecution.error_message}
+                      </div>
+                    ) : null}
+                  </ExecutionDetailSection>
+
+                  <ExecutionDetailSection
+                    title={t("failover_v2.execution_steps", { defaultValue: "步骤状态" })}
+                    description={t("failover_v2.execution_steps_hint", {
+                      defaultValue: "按时间顺序展示每个阶段的状态、摘要和排障信息。",
+                    })}
+                  >
+                    {selectedExecution.steps.length === 0 ? (
+                      <div className="rounded-xl border border-dashed border-slate-300 px-4 py-6 text-sm text-slate-500 dark:border-slate-700 dark:text-slate-400">
+                        {t("failover_v2.execution_steps_empty", { defaultValue: "暂无步骤记录。" })}
+                      </div>
+                    ) : (
+                      <ol className="relative overflow-hidden rounded-xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-950/40">
+                        {selectedExecution.steps.map((step, stepIndex) => {
+                          const detailBlock = formatJsonBlock(step.detail);
+                          const detailSummaryItems = getFailoverV2DetailSummaryItems(t, step.detail);
+                          const localizedStepMessage = getFailoverV2ExecutionStepMessage(t, step.message);
+                          return (
+                            <li
+                              key={step.id}
+                              className="relative grid gap-3 border-b border-slate-200 px-4 py-4 pl-12 last:border-b-0 dark:border-slate-800"
+                            >
+                              <div className="absolute left-5 top-0 h-full w-px bg-slate-200 dark:bg-slate-800" />
+                              <div className="absolute left-[13px] top-5 flex size-4 items-center justify-center rounded-full border border-slate-300 bg-white text-[10px] font-semibold text-slate-500 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-400">
+                                {stepIndex + 1}
+                              </div>
+                              <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+                                <div className="min-w-0 space-y-1">
+                                  <div className="text-sm font-semibold text-slate-950 dark:text-slate-50">
+                                    {getFailoverV2ExecutionStepLabel(t, step)}
+                                  </div>
+                                  <div className="font-mono text-xs text-slate-500 dark:text-slate-400">
+                                    {t("failover_v2.step_key", { defaultValue: "步骤键" })}: {step.step_key || "-"}
+                                  </div>
+                                </div>
+                                <div className="flex flex-col gap-2 lg:items-end">
+                                  <Badge color={getStatusBadgeColor(step.status || "pending")}>
+                                    {localizeFailoverV2Status(t, step.status || "pending")}
+                                  </Badge>
+                                  <dl className="grid gap-2 text-xs text-slate-500 dark:text-slate-400 sm:grid-cols-2">
+                                    <div className="flex gap-1">
+                                      <dt>{t("failover_v2.execution_started", { defaultValue: "开始时间" })}:</dt>
+                                      <dd>{formatTimestamp(step.started_at)}</dd>
+                                    </div>
+                                    <div className="flex gap-1">
+                                      <dt>{t("failover_v2.execution_finished", { defaultValue: "结束时间" })}:</dt>
+                                      <dd>{formatTimestamp(step.finished_at)}</dd>
+                                    </div>
+                                  </dl>
+                                </div>
+                              </div>
+                              {localizedStepMessage || detailSummaryItems.length > 0 ? (
+                                <div className="grid gap-x-5 gap-y-3 border-t border-dashed border-slate-200 pt-3 xl:grid-cols-[minmax(0,1.1fr)_minmax(260px,0.9fr)] dark:border-slate-800">
+                                  {localizedStepMessage ? (
+                                    <div className="min-w-0">
+                                      <div className="text-xs font-medium text-slate-500 dark:text-slate-400">
+                                        {t("failover_v2.step_summary", { defaultValue: "步骤摘要" })}
+                                      </div>
+                                      <div className="mt-2 text-sm text-slate-600 dark:text-slate-300">
+                                        {localizedStepMessage}
+                                      </div>
+                                    </div>
+                                  ) : null}
+                                  {detailSummaryItems.length > 0 ? (
+                                    <div className="min-w-0">
+                                      <div className="mb-2 text-xs font-medium text-slate-500 dark:text-slate-400">
+                                        {t("failover_v2.step_detail_summary", { defaultValue: "关键信息" })}
+                                      </div>
+                                      <dl className="grid gap-x-4 gap-y-2 text-sm sm:grid-cols-2">
+                                        {detailSummaryItems.map((item) => (
+                                          <div key={item.key} className="min-w-0">
+                                            <dt className="text-xs text-slate-500 dark:text-slate-400">{item.label}</dt>
+                                            <dd className="mt-1 break-words font-medium text-slate-800 dark:text-slate-100">{item.value}</dd>
+                                          </div>
+                                        ))}
+                                      </dl>
+                                    </div>
+                                  ) : null}
+                                </div>
+                              ) : null}
+                              {detailBlock ? (
+                                <details className="group border-t border-dashed border-slate-200 pt-3 dark:border-slate-800">
+                                  <summary className="flex cursor-pointer list-none items-center justify-between gap-3 text-sm font-medium text-slate-600 marker:hidden dark:text-slate-300 [&::-webkit-details-marker]:hidden">
+                                    <span>{t("failover_v2.raw_detail", { defaultValue: "原始 JSON" })}</span>
+                                    <span className="text-xs text-slate-500 dark:text-slate-400">
+                                      <span className="group-open:hidden">{t("failover_v2.expand_raw_detail", { defaultValue: "展开原始 JSON" })}</span>
+                                      <span className="hidden group-open:inline">{t("failover_v2.collapse_raw_detail", { defaultValue: "收起原始 JSON" })}</span>
+                                    </span>
+                                  </summary>
+                                  <pre className="mt-2 max-h-48 overflow-auto whitespace-pre-wrap break-words rounded-md bg-slate-50 px-3 py-3 text-xs leading-5 text-slate-700 dark:bg-slate-900 dark:text-slate-200">
+                                    {detailBlock}
+                                  </pre>
+                                </details>
+                              ) : null}
+                            </li>
+                          );
                         })}
-                      </div>
-                      <div className="mt-3 flex items-center gap-3">
+                      </ol>
+                    )}
+                  </ExecutionDetailSection>
+
+                  <ExecutionDetailSection
+                    title={t("failover_v2.execution_key_info", { defaultValue: "关键信息" })}
+                    description={t("failover_v2.execution_key_info_hint", {
+                      defaultValue: "默认先看结构化摘要，需要排障时再展开原始 JSON。",
+                    })}
+                  >
+                    {(() => {
+                      const infoBlocks = [
+                        {
+                          key: "trigger_snapshot",
+                          label: t("failover_v2.execution_block_trigger_snapshot", { defaultValue: "触发快照" }),
+                          rawValue: selectedExecution.trigger_snapshot,
+                        },
+                        {
+                          key: "old_instance",
+                          label: t("failover_v2.execution_block_old_instance", { defaultValue: "旧实例" }),
+                          rawValue: selectedExecution.old_instance_ref,
+                        },
+                        {
+                          key: "old_addresses",
+                          label: t("failover_v2.execution_block_old_addresses", { defaultValue: "旧地址" }),
+                          rawValue: selectedExecution.old_addresses,
+                        },
+                        {
+                          key: "detach_dns_result",
+                          label: t("failover_v2.execution_block_detach_dns_result", { defaultValue: "DNS 摘除结果" }),
+                          rawValue: selectedExecution.detach_dns_result,
+                        },
+                        {
+                          key: "new_instance",
+                          label: t("failover_v2.execution_block_new_instance", { defaultValue: "新实例" }),
+                          rawValue: selectedExecution.new_instance_ref,
+                        },
+                        {
+                          key: "new_addresses",
+                          label: t("failover_v2.execution_block_new_addresses", { defaultValue: "新地址" }),
+                          rawValue: selectedExecution.new_addresses,
+                        },
+                        {
+                          key: "attach_dns_result",
+                          label: t("failover_v2.execution_block_attach_dns_result", { defaultValue: "DNS 挂载结果" }),
+                          rawValue: selectedExecution.attach_dns_result,
+                        },
+                        {
+                          key: "cleanup_result",
+                          label: t("failover_v2.execution_block_cleanup_result", { defaultValue: "清理结果" }),
+                          rawValue: selectedExecution.cleanup_result,
+                        },
+                      ].map((block) => ({
+                        ...block,
+                        content: formatJsonBlock(block.rawValue),
+                        summaryItems: getFailoverV2DetailSummaryItems(t, block.rawValue, 4),
+                      })).filter((block) => Boolean(block.content));
+
+                      return infoBlocks.length > 0 ? (
+                        <div className="overflow-hidden rounded-xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-950/40 [&>*:not(:last-child)]:border-b [&>*:not(:last-child)]:border-slate-200 dark:[&>*:not(:last-child)]:border-slate-800">
+                          {infoBlocks.map((block) => (
+                            <ExecutionJsonBlock
+                              key={block.key}
+                              label={block.label}
+                              expandLabel={t("failover_v2.expand_raw_detail", { defaultValue: "展开原始 JSON" })}
+                              collapseLabel={t("failover_v2.collapse_raw_detail", { defaultValue: "收起原始 JSON" })}
+                              content={block.content}
+                              summaryItems={block.summaryItems}
+                            />
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="rounded-xl border border-dashed border-slate-300 px-4 py-6 text-sm text-slate-500 dark:border-slate-700 dark:text-slate-400">
+                          {t("failover_v2.execution_key_info_empty", { defaultValue: "本次执行没有记录结构化详情。" })}
+                        </div>
+                      );
+                    })()}
+                  </ExecutionDetailSection>
+
+                  <ExecutionDetailSection
+                    title={t("failover_v2.execution_actions", { defaultValue: "操作区" })}
+                    description={t("failover_v2.execution_actions_hint", {
+                      defaultValue: "操作按当前执行保存的数据进行复用，不会改动后端接口或既有流程。",
+                    })}
+                  >
+                    <div className="overflow-hidden rounded-xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-950/40 [&>*:not(:last-child)]:border-b [&>*:not(:last-child)]:border-slate-200 dark:[&>*:not(:last-child)]:border-slate-800">
+                      <ExecutionActionCard
+                        tone="danger"
+                        title={t("failover_v2.stop_execution", { defaultValue: "停止执行" })}
+                        description={t("failover_v2.stop_execution_hint", {
+                          defaultValue: "停止当前仍在进行的执行，阻止继续进入后续步骤。已完成的步骤不会自动回滚。",
+                        })}
+                        reason={!selectedExecution.available_actions?.stop.available
+                          ? localizeFailoverV2ActionReason(t, selectedExecution.available_actions?.stop.reason)
+                          : undefined}
+                      >
                         <Button
                           size="sm"
                           variant="outline"
+                          className="w-full"
                           onClick={() => setExecutionActionTarget({
                             action: "stop",
                             serviceID: executionDialogTarget.service.id,
@@ -5414,28 +5954,22 @@ export default function FailoverV2Page() {
                           })}
                           disabled={!selectedExecution.available_actions?.stop.available}
                         >
-                          {t("failover_v2.stop_execution", { defaultValue: "Stop Execution" })}
+                          {t("failover_v2.stop_execution", { defaultValue: "停止执行" })}
                         </Button>
-                        {!selectedExecution.available_actions?.stop.available && selectedExecution.available_actions?.stop.reason ? (
-                          <div className="text-xs text-slate-500 dark:text-slate-400">
-                            {selectedExecution.available_actions.stop.reason}
-                          </div>
-                        ) : null}
-                      </div>
-                    </div>
+                      </ExecutionActionCard>
 
-                    <div className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4 dark:border-slate-800 dark:bg-slate-950/30">
-                      <div className="text-sm font-semibold text-slate-900 dark:text-slate-50">
-                        {t("failover_v2.retry_attach_dns", { defaultValue: "Retry Attach DNS" })}
-                      </div>
-                      <div className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-                        {t("failover_v2.retry_attach_dns_hint", {
-                          defaultValue: "Reuse the saved replacement IPs and attach this member line back to DNS. No new instance will be created.",
+                      <ExecutionActionCard
+                        title={t("failover_v2.retry_attach_dns", { defaultValue: "重试挂载 DNS" })}
+                        description={t("failover_v2.retry_attach_dns_hint", {
+                          defaultValue: "复用已保存的替换地址重新挂载 DNS，不会重新创建实例。",
                         })}
-                      </div>
-                      <div className="mt-3 flex items-center gap-3">
+                        reason={!selectedExecution.available_actions?.retry_attach_dns.available
+                          ? localizeFailoverV2ActionReason(t, selectedExecution.available_actions?.retry_attach_dns.reason)
+                          : undefined}
+                      >
                         <Button
                           size="sm"
+                          className="w-full"
                           onClick={() => setExecutionActionTarget({
                             action: "retry_attach_dns",
                             serviceID: executionDialogTarget.service.id,
@@ -5443,29 +5977,23 @@ export default function FailoverV2Page() {
                           })}
                           disabled={!selectedExecution.available_actions?.retry_attach_dns.available}
                         >
-                          {t("failover_v2.retry_attach_dns", { defaultValue: "Retry Attach DNS" })}
+                          {t("failover_v2.retry_attach_dns", { defaultValue: "重试挂载 DNS" })}
                         </Button>
-                        {!selectedExecution.available_actions?.retry_attach_dns.available && selectedExecution.available_actions?.retry_attach_dns.reason ? (
-                          <div className="text-xs text-slate-500 dark:text-slate-400">
-                            {selectedExecution.available_actions.retry_attach_dns.reason}
-                          </div>
-                        ) : null}
-                      </div>
-                    </div>
+                      </ExecutionActionCard>
 
-                    <div className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4 dark:border-slate-800 dark:bg-slate-950/30">
-                      <div className="text-sm font-semibold text-slate-900 dark:text-slate-50">
-                        {t("failover_v2.retry_cleanup", { defaultValue: "Retry Cleanup" })}
-                      </div>
-                      <div className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-                        {t("failover_v2.retry_cleanup_hint", {
-                          defaultValue: "Retry deletion of the saved old instance without touching DNS or provisioning another machine.",
+                      <ExecutionActionCard
+                        title={t("failover_v2.retry_cleanup", { defaultValue: "重试清理" })}
+                        description={t("failover_v2.retry_cleanup_hint", {
+                          defaultValue: "仅重试旧实例清理，不会触碰 DNS，也不会再创建机器。",
                         })}
-                      </div>
-                      <div className="mt-3 flex items-center gap-3">
+                        reason={!selectedExecution.available_actions?.retry_cleanup.available
+                          ? localizeFailoverV2ActionReason(t, selectedExecution.available_actions?.retry_cleanup.reason)
+                          : undefined}
+                      >
                         <Button
                           size="sm"
                           variant="outline"
+                          className="w-full"
                           onClick={() => setExecutionActionTarget({
                             action: "retry_cleanup",
                             serviceID: executionDialogTarget.service.id,
@@ -5473,100 +6001,17 @@ export default function FailoverV2Page() {
                           })}
                           disabled={!selectedExecution.available_actions?.retry_cleanup.available}
                         >
-                          {t("failover_v2.retry_cleanup", { defaultValue: "Retry Cleanup" })}
+                          {t("failover_v2.retry_cleanup", { defaultValue: "重试清理" })}
                         </Button>
-                        {!selectedExecution.available_actions?.retry_cleanup.available && selectedExecution.available_actions?.retry_cleanup.reason ? (
-                          <div className="text-xs text-slate-500 dark:text-slate-400">
-                            {selectedExecution.available_actions.retry_cleanup.reason}
-                          </div>
-                        ) : null}
-                      </div>
+                      </ExecutionActionCard>
                     </div>
-                  </div>
-
-                  {selectedExecution.error_message ? (
-                    <div className="rounded-2xl border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900/70 dark:bg-red-950/20 dark:text-red-300">
-                      {selectedExecution.error_message}
-                    </div>
-                  ) : null}
-
-                  <div className="grid gap-4 xl:grid-cols-2">
-                    {[
-                      [t("failover_v2.execution_block_trigger_snapshot", { defaultValue: "Trigger snapshot" }), formatJsonBlock(selectedExecution.trigger_snapshot)],
-                      [t("failover_v2.execution_block_old_instance", { defaultValue: "Old instance" }), formatJsonBlock(selectedExecution.old_instance_ref)],
-                      [t("failover_v2.execution_block_old_addresses", { defaultValue: "Old addresses" }), formatJsonBlock(selectedExecution.old_addresses)],
-                      [t("failover_v2.execution_block_detach_dns_result", { defaultValue: "Detach DNS result" }), formatJsonBlock(selectedExecution.detach_dns_result)],
-                      [t("failover_v2.execution_block_new_instance", { defaultValue: "New instance" }), formatJsonBlock(selectedExecution.new_instance_ref)],
-                      [t("failover_v2.execution_block_new_addresses", { defaultValue: "New addresses" }), formatJsonBlock(selectedExecution.new_addresses)],
-                      [t("failover_v2.execution_block_attach_dns_result", { defaultValue: "Attach DNS result" }), formatJsonBlock(selectedExecution.attach_dns_result)],
-                      [t("failover_v2.execution_block_cleanup_result", { defaultValue: "Cleanup result" }), formatJsonBlock(selectedExecution.cleanup_result)],
-                    ].map(([label, content]) => content ? (
-                      <div
-                        key={label}
-                        className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4 dark:border-slate-800 dark:bg-slate-950/30"
-                      >
-                        <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
-                          {label}
-                        </div>
-                        <pre className="overflow-x-auto whitespace-pre-wrap break-all text-xs text-slate-700 dark:text-slate-200">
-                          {content}
-                        </pre>
-                      </div>
-                    ) : null)}
-                  </div>
-
-                  <div className="space-y-3">
-                    <div className="text-sm font-semibold text-slate-900 dark:text-slate-50">
-                      {t("failover_v2.execution_steps", { defaultValue: "Steps" })}
-                    </div>
-                    {selectedExecution.steps.length === 0 ? (
-                      <div className="rounded-2xl border border-dashed border-slate-300 px-4 py-6 text-sm text-slate-500 dark:border-slate-700 dark:text-slate-400">
-                        {t("failover_v2.execution_steps_empty", { defaultValue: "No step records yet." })}
-                      </div>
-                    ) : (
-                      <div className="space-y-3">
-                        {selectedExecution.steps.map((step) => {
-                          const detailBlock = formatJsonBlock(step.detail);
-                          return (
-                            <div
-                              key={step.id}
-                              className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4 dark:border-slate-800 dark:bg-slate-950/30"
-                            >
-                              <div className="flex flex-wrap items-start justify-between gap-3">
-                                <div className="space-y-1">
-                                  <div className="text-sm font-semibold text-slate-900 dark:text-slate-50">
-                                    {step.step_label || step.step_key}
-                                  </div>
-                                  <div className="text-xs text-slate-500 dark:text-slate-400">
-                                    {step.step_key || "-"} · {formatTimestamp(step.started_at)}{" -> "}{formatTimestamp(step.finished_at)}
-                                  </div>
-                                </div>
-                                <Badge color={getStatusBadgeColor(step.status || "pending")}>
-                                  {step.status || "pending"}
-                                </Badge>
-                              </div>
-                              {step.message ? (
-                                <div className="mt-3 text-sm text-slate-600 dark:text-slate-300">
-                                  {step.message}
-                                </div>
-                              ) : null}
-                              {detailBlock ? (
-                                <pre className="mt-3 overflow-x-auto whitespace-pre-wrap break-all rounded-xl border border-slate-200 bg-white px-3 py-3 text-xs text-slate-700 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-200">
-                                  {detailBlock}
-                                </pre>
-                              ) : null}
-                            </div>
-                          );
-                        })}
-                      </div>
-                    )}
-                  </div>
+                  </ExecutionDetailSection>
                 </div>
               ) : null}
-            </div>
+            </main>
           </div>
 
-          <DialogFooter>
+          <DialogFooter className="shrink-0 border-t border-slate-200 bg-background/95 px-6 py-4 backdrop-blur dark:border-slate-800">
             <Button
               variant="outline"
               onClick={() => setExecutionDialogTarget(null)}
