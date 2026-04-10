@@ -1403,6 +1403,7 @@
     "enabled": "Diaktifkan",
     "error": "Kesalahan",
     "execute": "Eksekusi",
+    "unknown": "Tidak diketahui",
     "expand_sidebar": "Buka sidebar",
     "expired": "Kedaluwarsa",
     "expired_in": "Kedaluwarsa dalam {{days}} hari",
@@ -1608,6 +1609,10 @@
       "cooldown": "Cooldown (s)",
       "create_title": "Create failover task",
       "current_client": "Client",
+      "current_client_hint": "Pilih klien yang saat ini melayani lalu lintas untuk tugas failover ini.",
+      "current_client_placeholder": "Pilih klien saat ini",
+      "current_client_search_empty": "Tidak ada klien yang cocok",
+      "current_client_search_placeholder": "Cari klien...",
       "current_ip": "IP",
       "current_ip_empty": "IP not recorded yet.",
       "current_outlet": "Current outlet",
@@ -2141,13 +2146,17 @@
       "plan_required": "At least one failover plan is required",
       "script_domain_required": "Agent connection address is required for failover auto-connect. Set it in Settings -> Site before saving or running this task.",
       "task_name_required": "Task name is required",
-      "watch_node_required": "Choose a watch node"
+      "watch_node_required": "Choose a watch node",
+      "current_client_required": "Silakan pilih klien saat ini"
     }
   },
   "go_to_home": "Kembali ke Beranda",
   "home_title": "Pemantau Komari",
   "instance": {
+    "chart_summary": "Riwayat beban dan kualitas jaringan kini ditempatkan di bagian tren terpisah, sehingga halaman terasa seperti produk operasi alih-alih panel debug.",
+    "chart_title": "Tren realtime dan riwayat kesehatan",
     "details_eyebrow": "Node details",
+    "details_summary": "Profil dasar, kapasitas, dan informasi waktu diringkas dalam satu blok yang lebih mudah dibaca agar tidak terasa seperti panel teknis yang terpecah.",
     "details_title": "Hardware profile and runtime snapshot",
     "summary_description": "Focus on a single node's live load, connectivity, and historical trends. This page separates node identity, current status, and chart entry points into clearer reading layers."
   },
@@ -2172,6 +2181,8 @@
   "login": {
     "desc": "Masuk ke panel kontrol {{siteName}}.",
     "failed": "Gagal masuk",
+    "inline_hint": "Gunakan akun yang ada untuk melanjutkan. Login kata sandi dan OAuth tetap berada pada satu pintu masuk.",
+    "inline_summary": "Satukan akses akun, operasi node, dan kontrol brand dalam satu alur login yang konsisten.",
     "logging_in": "Sedang masuk...",
     "login_with": "Masuk dengan {{provider}}",
     "login_with_github": "Masuk dengan GitHub",
@@ -2210,6 +2221,17 @@
     },
     "title": "Log"
   },
+  "site": {
+    "badge": "Node Live",
+    "brand_consistency": "Satukan pintu masuk node, informasi merek, dan akses konsol dalam satu struktur halaman yang konsisten.",
+    "build_time": "Waktu build: {{time}}",
+    "console_summary": "Gunakan satu pintu masuk untuk login, halaman detail instance, dan manajemen node agar kontrol tidak terasa tersebar.",
+    "description": "Pantau kesehatan node, lalu lintas, dan cakupan wilayah dalam satu tampilan.",
+    "github": "GitHub",
+    "powered_by": "Didukung oleh {{siteName}}.",
+    "readable_experience": "Pertahankan hierarki dan ritme interaksi yang lebih jelas di desktop maupun mobile.",
+    "subtitle": "Komari Monitor"
+  },
   "network_speed": "Kecepatan Jaringan",
   "nodeCard": {
     "actions": "Aksi",
@@ -2221,7 +2243,7 @@
     "disk": "Disk",
     "groupNodes": "Grup {{group}}: total {{total}} server, {{online}} server online",
     "kernelVersion": "Versi Kernel",
-    "last_updated": "Pembaruan Terakhir",
+    "last_updated": "Laporan terakhir",
     "load": "Beban",
     "monitoring": "Pemantauan",
     "name": "Nama Node",
@@ -2231,6 +2253,7 @@
     "networkUploadSpeed": "Kecepatan Unggah",
     "offline": "Mati",
     "online": "Hidup",
+    "node_updated_at": "Waktu pembaruan node",
     "os": "Sistem Operasi",
     "ping": "Ping",
     "price": "Harga",
@@ -2882,8 +2905,12 @@
       "custom": "Kustomisasi",
       "description": "Deskripsi Situs",
       "description_description": "Atur deskripsi situs Anda untuk meta info dan kartu media sosial.",
+      "github_url": "URL GitHub",
+      "github_url_description": "Atur tautan GitHub eksternal yang ditampilkan di navigasi publik.",
       "name": "Nama Situs",
       "name_description": "Atur nama situs",
+      "subtitle": "Subjudul Situs",
+      "subtitle_description": "Atur subjudul singkat yang ditampilkan di bawah nama situs publik.",
       "script_domain": "Alamat koneksi Agen",
       "script_domain_description": "Tentukan alamat koneksi panel untuk skrip instalasi, memudahkan pengguna dengan beberapa domain, dan tidak akan mempengaruhi akses domain lain. Biarkan kosong untuk menggunakan domain saat ini.",
       "title": "Situs"

@@ -156,6 +156,22 @@ export default function SiteSettings() {
           await updateSettingsWithToast({ description: value }, t, "system");
         }}
       />
+      <SettingCardShortTextInput
+        title={t("settings.site.subtitle")}
+        description={t("settings.site.subtitle_description")}
+        defaultValue={settings.site_subtitle || ""}
+        OnSave={async (value) => {
+          await updateSettingsWithToast({ site_subtitle: value }, t, "system");
+        }}
+      />
+      <SettingCardShortTextInput
+        title={t("settings.site.github_url")}
+        description={t("settings.site.github_url_description")}
+        defaultValue={settings.github_url || ""}
+        OnSave={async (value) => {
+          await updateSettingsWithToast({ github_url: value }, t, "system");
+        }}
+      />
 
       <SettingCardLabel>{t("settings.platform_tools_title")}</SettingCardLabel>
       <label className="-mt-4 text-sm text-muted-foreground">

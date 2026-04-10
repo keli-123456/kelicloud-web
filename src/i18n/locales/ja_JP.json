@@ -1403,6 +1403,7 @@
     "enabled": "有効",
     "error": "エラー",
     "execute": "実行",
+    "unknown": "不明",
     "expand_sidebar": "サイドバーを展開",
     "expired": "期限切れ",
     "expired_in": "残り{{days}}日",
@@ -1608,6 +1609,10 @@
       "cooldown": "Cooldown (s)",
       "create_title": "Create failover task",
       "current_client": "Client",
+      "current_client_hint": "このフェイルオーバータスクで現在トラフィックを処理しているクライアントを選択してください。",
+      "current_client_placeholder": "現在のクライアントを選択",
+      "current_client_search_empty": "一致するクライアントがありません",
+      "current_client_search_placeholder": "クライアントを検索...",
       "current_ip": "IP",
       "current_ip_empty": "IP not recorded yet.",
       "current_outlet": "Current outlet",
@@ -2141,13 +2146,17 @@
       "plan_required": "At least one failover plan is required",
       "script_domain_required": "Agent connection address is required for failover auto-connect. Set it in Settings -> Site before saving or running this task.",
       "task_name_required": "Task name is required",
-      "watch_node_required": "Choose a watch node"
+      "watch_node_required": "Choose a watch node",
+      "current_client_required": "現在のクライアントを選択してください"
     }
   },
   "go_to_home": "ホームに戻る",
   "home_title": "Komari Monitor",
   "instance": {
+    "chart_summary": "負荷推移とネットワーク品質の履歴を独立したトレンド領域にまとめ、デバッグ画面ではなく運用向けの製品画面として読めるようにしました。",
+    "chart_title": "リアルタイム推移と健全性の履歴",
     "details_eyebrow": "Node details",
+    "details_summary": "基本情報、容量、時間情報をひとつの読みやすいブロックにまとめ、技術項目の散らばりを減らしました。",
     "details_title": "Hardware profile and runtime snapshot",
     "summary_description": "Focus on a single node's live load, connectivity, and historical trends. This page separates node identity, current status, and chart entry points into clearer reading layers."
   },
@@ -2172,6 +2181,8 @@
   "login": {
     "desc": "{{siteName}} コントロールパネルにログインします。",
     "failed": "ログインに失敗しました",
+    "inline_hint": "既存のアカウントで続行できます。パスワードログインと OAuth は同じ入口にまとまっています。",
+    "inline_summary": "アカウント導線、ノード運用、ブランド設定をひとつのログイン導線にまとめ、画面の分断を減らします。",
     "logging_in": "ログイン中...",
     "login_with": "{{provider}} でログイン",
     "login_with_github": "GitHubでログイン",
@@ -2210,6 +2221,17 @@
     },
     "title": "ログ"
   },
+  "site": {
+    "badge": "ライブノード",
+    "brand_consistency": "ノード入口、ブランド情報、コンソール導線を同じページ骨格にまとめます。",
+    "build_time": "ビルド時刻: {{time}}",
+    "console_summary": "ログイン、インスタンス詳細、ノード管理をひとつの入口に集約し、コントロールの分散を減らします。",
+    "description": "ノードの稼働状況、トラフィック、地域カバレッジを 1 つの画面で確認できます。",
+    "github": "GitHub",
+    "powered_by": "{{siteName}} によって提供",
+    "readable_experience": "デスクトップでもモバイルでも、より明確な階層と操作リズムを保ちます。",
+    "subtitle": "Komari Monitor"
+  },
   "network_speed": "ネットワーク速度",
   "nodeCard": {
     "actions": "アクション",
@@ -2221,7 +2243,7 @@
     "disk": "ディスク",
     "groupNodes": "{{group}} グループ: 合計 {{total}} 台のサーバー、{{online}} 台がオンライン",
     "kernelVersion": "カーネルバージョン",
-    "last_updated": "最終報告",
+    "last_updated": "最終報告時刻",
     "load": "負荷",
     "monitoring": "監視情報",
     "name": "ノード名",
@@ -2231,6 +2253,7 @@
     "networkUploadSpeed": "アップロード速度",
     "offline": "オフライン",
     "online": "オンライン",
+    "node_updated_at": "ノード更新時刻",
     "os": "オペレーティングシステム",
     "ping": "遅延",
     "price": "価格",
@@ -2882,8 +2905,12 @@
       "custom": "カスタム",
       "description": "サイトの説明",
       "description_description": "メタ情報やソーシャルメディアカード用のウェブサイトの説明を設定します。",
+      "github_url": "GitHub URL",
+      "github_url_description": "公開ナビゲーションに表示する GitHub 外部リンクを設定します。",
       "name": "サイト名",
       "name_description": "サイト名を設定します",
+      "subtitle": "サイトサブタイトル",
+      "subtitle_description": "公開サイト名の下に表示する短いサブタイトルを設定します。",
       "script_domain": "エージェント接続アドレス",
       "script_domain_description": "インストールスクリプトの接続アドレスを定義します。複数のドメインのユーザーに便利で、他のドメインのアクセスには影響しません。空白の場合は現在のドメインを使用します。",
       "title": "サイト"

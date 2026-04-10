@@ -36,34 +36,39 @@ export function AdminPageShell({
 }) {
   const hasHeaderCopy = Boolean(eyebrow || title || description);
   const statToneClasses: Record<AdminStatTone, string> = {
-    blue: "border-sky-200 bg-sky-50/80 dark:border-sky-900/60 dark:bg-sky-950/30",
+    blue: "border-border/70 bg-card",
     emerald:
-      "border-emerald-200 bg-emerald-50/80 dark:border-emerald-900/60 dark:bg-emerald-950/30",
+      "border-emerald-200/70 bg-emerald-50/70 dark:border-emerald-900/60 dark:bg-emerald-950/20",
     amber:
-      "border-amber-200 bg-amber-50/80 dark:border-amber-900/60 dark:bg-amber-950/30",
-    rose: "border-rose-200 bg-rose-50/80 dark:border-rose-900/60 dark:bg-rose-950/30",
-    slate: "border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-950/40",
+      "border-amber-200/70 bg-amber-50/70 dark:border-amber-900/60 dark:bg-amber-950/20",
+    rose: "border-rose-200/70 bg-rose-50/70 dark:border-rose-900/60 dark:bg-rose-950/20",
+    slate: "border-border/70 bg-card",
   };
 
   return (
-    <section className={cn("flex flex-col gap-5 px-1 py-1", className)}>
+    <section
+      className={cn(
+        "flex min-w-0 flex-col gap-4 p-4 md:gap-6 md:p-6",
+        className,
+      )}
+    >
       {hasHeaderCopy || actions ? (
-        <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
+        <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
           {hasHeaderCopy ? (
-            <div className="space-y-2">
+            <div className="min-w-0 space-y-1">
               {eyebrow && (
-                <div className="text-[12px] font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">
+                <div className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
                   {eyebrow}
                 </div>
               )}
-              <div className="space-y-2">
+              <div className="space-y-1">
                 {title ? (
-                  <h1 className="text-3xl font-semibold tracking-tight text-slate-900 dark:text-slate-50">
+                  <h1 className="text-xl font-semibold tracking-tight text-foreground md:text-2xl">
                     {title}
                   </h1>
                 ) : null}
                 {description && (
-                  <p className="max-w-3xl text-[14px] leading-6 text-slate-600 dark:text-slate-300">
+                  <p className="max-w-3xl text-sm leading-6 text-muted-foreground">
                     {description}
                   </p>
                 )}
@@ -71,7 +76,7 @@ export function AdminPageShell({
             </div>
           ) : null}
           {actions ? (
-            <div className="flex w-full flex-wrap gap-2 xl:w-auto xl:justify-end">
+            <div className="flex w-full flex-wrap items-center gap-2 md:w-auto md:justify-end">
               {actions}
             </div>
           ) : null}
@@ -86,18 +91,18 @@ export function AdminPageShell({
                 <div
                   key={`${index}-${String(stat.label)}`}
                   className={cn(
-                    "rounded-2xl border px-4 py-4",
+                    "rounded-lg border px-4 py-4 shadow-none",
                     statToneClasses[stat.tone || "slate"],
                   )}
                 >
-                  <div className="text-[12px] font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">
+                  <div className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
                     {stat.label}
                   </div>
-                  <div className="mt-2 text-lg font-semibold text-slate-900 dark:text-slate-50">
+                  <div className="mt-2 text-2xl font-semibold tracking-tight text-foreground">
                     {stat.value}
                   </div>
                   {stat.hint ? (
-                    <div className="mt-1 text-xs leading-5 text-slate-500 dark:text-slate-400">
+                    <div className="mt-1 text-xs leading-5 text-muted-foreground">
                       {stat.hint}
                     </div>
                   ) : null}
@@ -106,11 +111,11 @@ export function AdminPageShell({
             </div>
           )
           : (
-            <div className="flex flex-wrap gap-x-5 gap-y-2 border-b border-slate-200/80 pb-4 text-[13px] text-slate-500 dark:border-slate-800/80 dark:text-slate-400">
+            <div className="flex flex-wrap gap-x-5 gap-y-2 rounded-lg border border-border/70 bg-card px-4 py-3 text-sm text-muted-foreground shadow-none">
               {stats.map((stat, index) => (
                 <div key={`${index}-${String(stat.label)}`} className="flex items-center gap-2">
-                  <span className="font-medium text-slate-700 dark:text-slate-300">{stat.label}:</span>
-                  <span className="text-slate-900 dark:text-slate-50">{stat.value}</span>
+                  <span className="font-medium text-foreground">{stat.label}:</span>
+                  <span className="text-foreground">{stat.value}</span>
                 </div>
               ))}
             </div>
@@ -118,12 +123,12 @@ export function AdminPageShell({
         : null}
 
       {subnav ? (
-        <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white p-3 dark:border-slate-800 dark:bg-slate-950/40">
+        <div className="min-w-0 overflow-x-auto rounded-lg border border-border/70 bg-card p-3 shadow-none">
           <div className="min-w-max">{subnav}</div>
         </div>
       ) : null}
 
-      <div className={cn("flex flex-col gap-4", contentClassName)}>{children}</div>
+      <div className={cn("flex min-w-0 flex-col gap-4", contentClassName)}>{children}</div>
     </section>
   );
 }
@@ -135,7 +140,7 @@ export function AdminSurface({
   children: ReactNode;
   className?: string;
 }) {
-  return <div className={cn("min-w-0", className)}>{children}</div>;
+  return <div className={cn("min-h-0 min-w-0", className)}>{children}</div>;
 }
 
 export function AdminSubnav({
@@ -148,7 +153,7 @@ export function AdminSubnav({
   return (
     <div
       className={cn(
-        "flex flex-wrap gap-2 border-b border-slate-200/80 pb-3 dark:border-slate-800/80",
+        "flex flex-wrap gap-2 border-b border-border/70 pb-3",
         className,
       )}
     >

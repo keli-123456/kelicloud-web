@@ -42,7 +42,7 @@ export function liveDataToRecords(
   if (!liveData) return [];
   return liveData.map((data) => ({
     client: client,
-    time: data.updated_at || "",
+    time: data.time || "",
     cpu: data.cpu.usage ?? 0,
     gpu: 0,
     gpu_usage: data.gpu?.average_usage ?? 0,

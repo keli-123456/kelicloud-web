@@ -1,6 +1,12 @@
 import * as React from "react";
 import { useTranslation } from "react-i18next";
+import { AlertCircle } from "lucide-react";
 
+import {
+  Alert,
+  AlertDescription,
+  AlertTitle,
+} from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -13,10 +19,12 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
+  DialogHeader,
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { Separator } from "@/components/ui/separator";
 import {
   AccountProvider,
   getDefaultAdminPath,
@@ -24,6 +32,8 @@ import {
 } from "@/contexts/AccountContext";
 import { usePublicInfo } from "@/contexts/PublicInfoContext";
 import { Navigate } from "react-router-dom";
+import { getSiteName } from "@/constants/siteBrand";
+import { cn } from "@/lib/utils";
 
 import { TablerSettings } from "./Icones/Tabler";
 
@@ -59,7 +69,7 @@ const LoginDialog = ({
     const [require2FA, setRequire2FA] = React.useState(false);
     const [open, setOpen] = React.useState(autoOpen || false);
     const { publicInfo } = usePublicInfo();
-    const siteName = String(publicInfo?.sitename || "Komari").trim() || "Komari";
+    const siteName = getSiteName(publicInfo?.sitename);
 
     const passwordLoginEnabled = !publicInfo?.disable_password_login;
     const oauthEnabled = !!publicInfo?.oauth_enable;
@@ -197,12 +207,15 @@ const LoginDialog = ({
             void handleLogin();
           }
         }}
+        className="flex flex-col gap-4"
       >
-        <div className="flex flex-col gap-3">
-          {passwordLoginEnabled && (
-            <>
-              <label>
-                <div className="mb-1 text-sm font-bold">{t("login.username")}</div>
+        {passwordLoginEnabled && (
+          <>
+            <div className="grid gap-4">
+              <label className="grid gap-2">
+                <div className="text-sm font-medium text-foreground">
+                  {t("login.username")}
+                </div>
                 <Input
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
@@ -210,10 +223,13 @@ const LoginDialog = ({
                   placeholder="admin"
                   disabled={isLoading}
                   autoFocus
+                  className="h-11"
                 />
               </label>
-              <label>
-                <div className="mb-1 text-sm font-bold">{t("login.password")}</div>
+              <label className="grid gap-2">
+                <div className="text-sm font-medium text-foreground">
+                  {t("login.password")}
+                </div>
                 <Input
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
@@ -221,10 +237,13 @@ const LoginDialog = ({
                   type="password"
                   placeholder={t("login.password_placeholder")}
                   disabled={isLoading}
+                  className="h-11"
                 />
               </label>
-              <label hidden={!require2FA}>
-                <div className="mb-1 text-sm font-bold">{t("login.two_factor")}</div>
+              <label hidden={!require2FA} className="grid gap-2">
+                <div className="text-sm font-medium text-foreground">
+                  {t("login.two_factor")}
+                </div>
                 <Input
                   value={twoFac}
                   onChange={(e) => setTwoFac(e.target.value)}
@@ -232,59 +251,77 @@ const LoginDialog = ({
                   type="text"
                   placeholder="000000"
                   disabled={isLoading}
+                  className="h-11"
                 />
               </label>
-              {errorMsg ? (
-                <div className="text-sm text-red-600 dark:text-red-400">
-                  {errorMsg}
-                </div>
-              ) : null}
-              <Button
-                type="submit"
-                disabled={isLoading || !isFormValid}
-                style={{ opacity: isLoading || !isFormValid ? 0.6 : 1 }}
-              >
-                {isLoading
-                  ? t("login.logging_in", "Logging in...")
-                  : t("login.title")}
-              </Button>
-            </>
-          )}
-          {publicInfo?.oauth_enable && (
-            <Button
-              onClick={() => {
-                window.location.href = "/api/oauth";
-              }}
-              variant={passwordLoginEnabled ? "outline" : "default"}
-              disabled={isLoading}
-              type="button"
-            >
-              {t("login.login_with", {
-                provider:
-                  publicInfo?.oauth_provider === "generic"
-                    ? "OAuth"
-                    : publicInfo?.oauth_provider
-                      ? publicInfo.oauth_provider.charAt(0).toUpperCase() +
-                        publicInfo.oauth_provider.slice(1)
-                      : "",
-              })}
+            </div>
+            {errorMsg ? (
+              <Alert variant="destructive">
+                <AlertCircle />
+                <AlertTitle>{t("common.error", "Error")}</AlertTitle>
+                <AlertDescription>{errorMsg}</AlertDescription>
+              </Alert>
+            ) : null}
+            <Button type="submit" disabled={isLoading || !isFormValid} className="h-11 w-full">
+              {isLoading
+                ? t("login.logging_in", "Logging in...")
+                : t("login.title")}
             </Button>
-          )}
-        </div>
+          </>
+        )}
+        {publicInfo?.oauth_enable && passwordLoginEnabled ? (
+          <div className="flex items-center gap-3 text-xs uppercase tracking-[0.2em] text-muted-foreground">
+            <Separator className="flex-1" />
+            <span>OAuth</span>
+            <Separator className="flex-1" />
+          </div>
+        ) : null}
+        {publicInfo?.oauth_enable && (
+          <Button
+            onClick={() => {
+              window.location.href = "/api/oauth";
+            }}
+            variant={passwordLoginEnabled ? "outline" : "default"}
+            disabled={isLoading}
+            type="button"
+            className="h-11 w-full"
+          >
+            {t("login.login_with", {
+              provider:
+                publicInfo?.oauth_provider === "generic"
+                  ? "OAuth"
+                  : publicInfo?.oauth_provider
+                    ? publicInfo.oauth_provider.charAt(0).toUpperCase() +
+                      publicInfo.oauth_provider.slice(1)
+                    : "",
+            })}
+          </Button>
+        )}
       </form>
     );
 
     if (inline) {
       return (
-        <Card className={className}>
-          <CardHeader className="space-y-2">
-            <CardTitle>{t("login.title")}</CardTitle>
-            <CardDescription className="space-y-2">
-              <div>{t("login.desc", { siteName })}</div>
-              {info ? <div>{info}</div> : null}
+        <Card className={cn("rounded-xl border-border/70 shadow-none", className)}>
+          <CardHeader className="gap-3">
+            <div className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
+              {t("common.admin_console", { defaultValue: "Admin Console" })}
+              {onlyOAuthLogin ? " / OAuth" : ""}
+            </div>
+            <CardTitle className="text-xl tracking-tight">{t("login.title")}</CardTitle>
+            <CardDescription className="text-sm leading-6">
+              {t("login.desc", { siteName })}
             </CardDescription>
           </CardHeader>
-          <CardContent>{loginFields}</CardContent>
+          <CardContent className="flex flex-col gap-4">
+            {info ? (
+              <Alert>
+                <AlertTitle>Notice</AlertTitle>
+                <AlertDescription>{info}</AlertDescription>
+              </Alert>
+            ) : null}
+            {loginFields}
+          </CardContent>
         </Card>
       );
     }
@@ -294,14 +331,22 @@ const LoginDialog = ({
         <DialogTrigger asChild>
           {React.isValidElement(triggerNode) ? triggerNode : <span>{triggerNode}</span>}
         </DialogTrigger>
-        <DialogContent className="sm:max-w-[450px]">
-          <DialogTitle>{t("login.title")}</DialogTitle>
-          <DialogDescription asChild>
-            <div className="flex flex-col justify-center gap-2">
-              <label>{t("login.desc", { siteName })}</label>
-              {info && <label>{info}</label>}
+        <DialogContent className="sm:max-w-[440px]">
+          <DialogHeader className="gap-3">
+            <div className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
+              {t("common.admin_console", { defaultValue: "Admin Console" })}
             </div>
-          </DialogDescription>
+            <DialogTitle className="text-xl tracking-tight">{t("login.title")}</DialogTitle>
+            <DialogDescription className="leading-6">
+              {t("login.desc", { siteName })}
+            </DialogDescription>
+          </DialogHeader>
+          {info ? (
+            <Alert>
+              <AlertTitle>Notice</AlertTitle>
+              <AlertDescription>{info}</AlertDescription>
+            </Alert>
+          ) : null}
           {loginFields}
         </DialogContent>
       </Dialog>

@@ -6,6 +6,7 @@ import { formatUptime } from "./Node";
 import { formatBytes } from "@/utils/unitHelper";
 import { Card } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
+import type { ReactNode } from "react";
 
 type DetailsGridProps = {
   uuid: string;
@@ -20,124 +21,97 @@ export const DetailsGrid = ({ uuid, gap, box, align }: DetailsGridProps) => {
   const { nodeList } = useNodeList();
   const { live_data } = useLiveData();
   const node = nodeList?.find((n) => n.uuid === uuid);
+  const liveRecord = live_data?.data.data[uuid ?? ""];
   const Container = box ? Card : "div";
-  const alignToEnd = align === "center";
-  const gapClass = gap === "0" ? "gap-0" : "gap-4";
+  const tileAlign = align === "end" ? "end" : align === "center" ? "center" : "start";
+
+  const formatDateTime = (value?: string) => {
+    const normalized = String(value || "").trim();
+    if (!normalized) return "-";
+
+    const parsed = new Date(normalized);
+    if (Number.isNaN(parsed.getTime())) {
+      return normalized;
+    }
+    return parsed.toLocaleString();
+  };
+
+  const items: Array<{ label: string; value: ReactNode }> = [
+    {
+      label: "CPU",
+      value: `${node?.cpu_name || "Unknown"}${node?.cpu_cores ? ` (x${node.cpu_cores})` : ""}`,
+    },
+    {
+      label: t("nodeCard.arch"),
+      value: node?.arch ?? "Unknown",
+    },
+    {
+      label: t("nodeCard.virtualization"),
+      value: node?.virtualization ?? "Unknown",
+    },
+    {
+      label: "GPU",
+      value: node?.gpu_name ?? "Unknown",
+    },
+    {
+      label: t("nodeCard.os"),
+      value: `${node?.os ?? "Unknown"}\n${t("nodeCard.kernelVersion")}: ${node?.kernel_version ?? "Unknown"}`,
+    },
+    {
+      label: t("nodeCard.networkSpeed"),
+      value: `↑ ${formatBytes(liveRecord?.network.up || 0)}/s\n↓ ${formatBytes(liveRecord?.network.down || 0)}/s`,
+    },
+    {
+      label: t("nodeCard.totalTraffic"),
+      value: `↑ ${formatBytes(liveRecord?.network.totalUp || 0)}\n↓ ${formatBytes(liveRecord?.network.totalDown || 0)}`,
+    },
+    {
+      label: t("nodeCard.ram"),
+      value: formatBytes(node?.mem_total || 0),
+    },
+    {
+      label: t("nodeCard.swap"),
+      value: formatBytes(node?.swap_total || 0),
+    },
+    {
+      label: t("nodeCard.disk"),
+      value: formatBytes(node?.disk_total || 0),
+    },
+    {
+      label: t("nodeCard.uptime"),
+      value: liveRecord?.uptime ? formatUptime(liveRecord.uptime, t) : "-",
+    },
+    {
+      label: t("nodeCard.last_updated"),
+      value: formatDateTime(liveRecord?.time),
+    },
+    {
+      label: t("nodeCard.node_updated_at"),
+      value: formatDateTime(node?.updated_at),
+    },
+  ];
 
   return (
     <Container
-      className={cn("DetailsGrid max-w-[900px]", box && "px-4 py-4 sm:px-6")}
+      className={cn(
+        "DetailsGrid",
+        box && "page-section px-4 py-4 sm:px-6",
+      )}
     >
       <div
         className={cn(
-          "flex basis-full flex-wrap justify-center",
-          gapClass,
-          alignToEnd && "justify-between",
+          "grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3",
+          gap === "0" && "gap-2",
         )}
       >
-        <UpDownStack
-          className="md:w-128 flex-[0_0_calc(50%-0.5rem)]"
-          up="CPU"
-          down={`${node?.cpu_name} (x${node?.cpu_cores})`}
-        />
-        <label
-          className={cn(
-            "flex flex-[0_0_calc(50%-0.5rem)] flex-wrap gap-2 gap-x-8",
-            alignToEnd && "justify-end",
-          )}
-        >
-          <UpDownStack up={t("nodeCard.arch")} down={node?.arch ?? "Unknown"} />
-
+        {items.map((item) => (
           <UpDownStack
-            up={t("nodeCard.virtualization")}
-            align={alignToEnd ? "end" : "start"}
-            down={node?.virtualization ?? "Unknown"}
+            key={item.label}
+            up={item.label}
+            down={item.value}
+            align={tileAlign}
           />
-        </label>
-        <UpDownStack up="GPU" down={node?.gpu_name ?? "Unknown"} className="flex-[0_0_calc(50%-0.5rem)]" />
-        <div
-          className={cn(
-            "flex flex-[0_0_calc(50%-0.5rem)] flex-col gap-0",
-            alignToEnd ? "items-end text-right" : "items-start",
-          )}
-        >
-          <label className="text-base font-bold">{t("nodeCard.os")}</label>
-          <label className="text-sm text-muted-foreground -mt-1">{node?.os ?? "Unknown"}</label>
-          <label className="text-xs text-muted-foreground opacity-75">
-            {t("nodeCard.kernelVersion")}: {node?.kernel_version ?? "Unknown"}
-          </label>
-        </div>
-
-        <UpDownStack
-          className="md:w-64 w-full flex-[0_0_calc(50%-0.5rem)]"
-          up={t("nodeCard.networkSpeed")}
-          down={` ↑ ${formatBytes(
-            live_data?.data.data[uuid ?? ""]?.network.up || 0
-          )}/s
-          ↓
-          ${formatBytes(
-            live_data?.data.data[uuid ?? ""]?.network.down || 0
-          )}/s`}
-        />
-        <UpDownStack
-          up={t("nodeCard.totalTraffic")}
-          align={alignToEnd ? "end" : "start"}
-          className="flex-[0_0_calc(50%-0.5rem)]"
-          down={`↑
-          ${formatBytes(
-            live_data?.data.data[uuid ?? ""]?.network.totalUp || 0
-          )}
-          ↓
-          ${formatBytes(
-            live_data?.data.data[uuid ?? ""]?.network.totalDown || 0
-          )}`}
-        />
-        <UpDownStack
-          className="md:w-70 w-full flex-[0_0_calc(50%-0.5rem)]"
-          up={t("nodeCard.ram")}
-          down={formatBytes(node?.mem_total || 0)}
-        />
-        <UpDownStack
-          up={t("nodeCard.swap")}
-          className="flex-[0_0_calc(50%-0.5rem)]"
-          align={alignToEnd ? "end" : "start"}
-          down={formatBytes(node?.swap_total || 0)}
-        />
-        <UpDownStack
-          className="md:w-64 w-full flex-[0_0_calc(50%-0.5rem)]"
-          up={t("nodeCard.disk")}
-          down={formatBytes(node?.disk_total || 0)}
-        />
-        <div className="flex-[0_0_calc(50%-0.5rem)]" />
-        <UpDownStack
-          up={t("nodeCard.uptime")}
-          className="flex-[0_0_calc(50%-0.5rem)]"
-          down={
-            live_data?.data.data[uuid ?? ""]?.uptime
-              ? formatUptime(live_data?.data.data[uuid ?? ""]?.uptime, t)
-              : "-"
-          }
-        />
-        <label
-          className={cn(
-            "flex flex-[0_0_calc(50%-0.5rem)] flex-wrap gap-2",
-            alignToEnd && "justify-end",
-          )}
-        >
-          <div className="flex items-center gap-2">
-            <span className="whitespace-nowrap text-sm font-bold">
-              {t("nodeCard.last_updated")}
-            </span>
-            <span className="text-sm">
-              {node?.updated_at
-                ? new Date(
-                    live_data?.data.data[uuid ?? ""]?.updated_at ||
-                      node.updated_at,
-                  ).toLocaleString()
-                : "-"}
-            </span>
-          </div>
-        </label>
+        ))}
       </div>
     </Container>
   );

@@ -53,7 +53,7 @@ export type Record = {
     checked_at?: string;
     consecutive_failures?: number;
   };
-  updated_at: string;
+  time: string;
 };
 
 export type LiveDataResponse = {

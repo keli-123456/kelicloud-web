@@ -16,7 +16,10 @@ const LiveDataContext = createContext<LiveDataContextType>({
 });
 
 // 创建Provider组件
-export const LiveDataProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+export const LiveDataProvider: React.FC<{ children: React.ReactNode; uuid?: string }> = ({
+  children,
+  uuid,
+}) => {
   const [live_data, setLiveData] = useState<LiveDataResponse | null>(null);
   const [showCallout, setShowCallout] = useState(false);
   const refreshCallbacksRef = useRef<Set<(data: LiveDataResponse) => void>>(new Set());
@@ -46,8 +49,8 @@ export const LiveDataProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       if (running) return; // 如果上次请求还在，跳过
       running = true;
       try {
-        // 策略由 RPC2Client 内部实现
-        const result: Record<string, any> = await call("common:getNodesLatestStatus");
+        const params = uuid ? { uuids: [uuid] } : undefined;
+        const result: Record<string, any> = await call("common:getNodesLatestStatus", params);
         // 将返回转换为 LiveDataResponse 结构
         const online = Object.values(result)
           .filter((v: any) => v?.online)
@@ -81,7 +84,7 @@ export const LiveDataProvider: React.FC<{ children: React.ReactNode }> = ({ chil
             process: rec.process ?? 0,
             message: "",
             cn_connectivity: rec.cn_connectivity ?? undefined,
-            updated_at: rec.time ?? 0,
+            time: rec.time ?? "",
           };
         }
 
@@ -112,7 +115,7 @@ export const LiveDataProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       stopped = true;
       if (timer) window.clearTimeout(timer);
     };
-  }, [call, notifyRefreshCallbacks]);
+  }, [call, notifyRefreshCallbacks, uuid]);
 
   const contextValue = useMemo(
     () => ({ live_data, showCallout, onRefresh }),

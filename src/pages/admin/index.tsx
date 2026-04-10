@@ -11,12 +11,10 @@ import {
 import { t as translate } from "i18next";
 import {
   Badge,
-  Button,
-  Card,
-  IconButton,
-  Text,
-  TextField,
-} from "@/components/admin/admin-ui";
+} from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import {
   Download,
   Globe,
@@ -34,6 +32,11 @@ import {
   ContextMenuItem,
   ContextMenuTrigger,
 } from "@/components/ui/context-menu";
+import {
+  Alert,
+  AlertDescription,
+  AlertTitle,
+} from "@/components/ui/alert";
 import {
   Tooltip,
   TooltipContent,
@@ -269,7 +272,7 @@ const createEmptyLiveRecord = (): LiveRecord => ({
   process: 0,
   message: "",
   cn_connectivity: undefined,
-  updated_at: "",
+  time: "",
 });
 
 const formatUptimeLabel = (secondsValue?: number) => {
@@ -401,7 +404,7 @@ const normalizeLiveSnapshot = (value: any): NodeLiveSnapshot => {
       process: value.process ?? 0,
       message: "",
       cn_connectivity: value.cn_connectivity ?? undefined,
-      updated_at: value.time ?? "",
+      time: value.time ?? "",
     },
   };
 };
@@ -571,7 +574,7 @@ const Layout = ({
 
   return (
     <div
-      className="flex flex-col gap-4"
+      className="flex min-w-0 flex-col gap-4 p-4 md:gap-6 md:p-6"
       style={{
         fontFamily:
           '"Manrope","Noto Sans SC","PingFang SC","Microsoft YaHei",sans-serif',
@@ -621,7 +624,9 @@ const NodeAccessSettingsDialogButton = ({
   return (
     <>
       <Button
-        className="rounded-lg bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900"
+        variant="outline"
+        size="sm"
+        className="rounded-md"
         onClick={() => setDialogOpen(true)}
       >
         <Settings2 size={16} />
@@ -709,6 +714,31 @@ const Header = ({
     String(settings?.cn_connectivity_target || ""),
     i18n.language.startsWith("zh") ? "zh" : "en"
   );
+  const cnConnectivityStatusLabel = settingsLoading
+    ? t("common.loading", { defaultValue: "Loading" })
+    : settingsError
+      ? t("common.error", { defaultValue: "Error" })
+      : cnConnectivityEnabled
+        ? t("common.enabled", { defaultValue: "Enabled" })
+        : t("common.disabled", { defaultValue: "Disabled" });
+  const cnConnectivityTone: "slate" | "green" | "red" | "blue" = settingsError
+    ? "red"
+    : cnConnectivityEnabled
+      ? "green"
+      : "slate";
+  const cnConnectivityDetail = settingsError
+    ? t("admin.nodeTable.cnConnectivityLoadFailed", {
+        defaultValue: "Failed to load CN connectivity probe settings.",
+      })
+    : cnConnectivityConfigured
+      ? cnConnectivitySummary
+      : cnConnectivityEnabled
+        ? t("admin.nodeTable.cnConnectivityMissingTarget", {
+            defaultValue: "No targets configured yet.",
+          })
+        : t("admin.nodeTable.cnConnectivityDisabledMessage", {
+            defaultValue: "Probe is disabled.",
+          });
   const handleDeleteOffline = async () => {
     if (offlineNodes.length === 0) return;
 
@@ -798,127 +828,115 @@ const Header = ({
     }
   };
   return (
-    <Card className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-950/50">
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-        <div className="min-w-0 space-y-3">
-          <div className="flex flex-wrap items-center gap-2">
-            <Text className="text-xl font-semibold tracking-tight text-slate-900 dark:text-slate-50">
-              {t("admin.nodeTable.nodeList")}
-            </Text>
-            {liveError && (
-              <Text size="2" className="text-rose-600 dark:text-rose-400">
-                {t("admin.nodeTable.liveErrorPausedDeletion", {
-                  defaultValue:
-                    "Live status API failed, so bulk offline deletion is paused.",
-                })}
-              </Text>
-            )}
-          </div>
-          <div className="text-sm text-slate-500 dark:text-slate-400">
-            {settingsLoading
-              ? t("admin.nodeTable.cnConnectivityLoading", {
-                  defaultValue: "Loading CN connectivity probe settings...",
-                })
-              : settingsError
-                ? t("admin.nodeTable.cnConnectivityLoadFailed", {
-                    defaultValue: "Failed to load CN connectivity probe settings.",
-                  })
-                : cnConnectivityConfigured
-                  ? t("admin.nodeTable.cnConnectivitySummary", {
-                      summary: cnConnectivitySummary,
-                      defaultValue: "CN connectivity probe: {{summary}}",
-                    })
-                  : cnConnectivityEnabled
-                    ? t("admin.nodeTable.cnConnectivityMissingTarget", {
-                        defaultValue:
-                          "CN connectivity probe is enabled, but no targets are configured yet.",
-                      })
-                    : t("admin.nodeTable.cnConnectivityDisabledMessage", {
-                        defaultValue: "CN connectivity probe is disabled.",
-                      })}
-          </div>
-        </div>
+    <div className="flex flex-col gap-4">
+      {liveError ? (
+        <Alert variant="destructive">
+          <AlertTitle>{t("common.error", { defaultValue: "Error" })}</AlertTitle>
+          <AlertDescription>
+            {t("admin.nodeTable.liveErrorPausedDeletion", {
+              defaultValue:
+                "Live status API failed, so bulk offline deletion is paused.",
+            })}
+          </AlertDescription>
+        </Alert>
+      ) : null}
 
-        <div className="flex flex-wrap items-center gap-2 lg:justify-end">
-            <div className="flex shrink-0 items-center gap-2 whitespace-nowrap rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1.5 text-xs text-slate-600 dark:border-slate-800 dark:bg-slate-900/60 dark:text-slate-300">
-              <span className="font-medium text-slate-900 dark:text-slate-100">
-                {t("admin.nodeTable.totalRate", "Total rate")}
-              </span>
-              <span>↑ {formatBytes(totalUploadSpeed)}/s</span>
-              <span>↓ {formatBytes(totalDownloadSpeed)}/s</span>
-              <span className="text-slate-300 dark:text-slate-700">·</span>
-              <span className="font-medium text-slate-900 dark:text-slate-100">
-                {t("admin.nodeTable.totalTraffic", "Total traffic")}
-              </span>
-              <span>↑ {formatBytes(totalUploadTraffic)}</span>
-              <span>↓ {formatBytes(totalDownloadTraffic)}</span>
+      <Card className="rounded-lg border-border/60 shadow-none dark:bg-slate-950/50">
+        <div className="flex flex-col gap-2 px-3 py-2.5 md:px-3.5 md:py-3">
+          <div className="flex flex-col gap-2 xl:flex-row xl:items-center xl:justify-between">
+            <div className="text-sm font-medium text-foreground">
+              {t("admin.nodeTable.nodeList")}
             </div>
-            {platformAdmin ? (
-              <form
-                className="flex min-w-[260px] flex-1 items-center sm:min-w-[320px] lg:max-w-sm lg:flex-none"
-                onSubmit={(event) => {
-                  event.preventDefault();
-                  onUserSearch();
-                }}
-              >
-                <TextField.Root
-                  className="w-full rounded-lg sm:flex-1"
-                  placeholder={t("admin.nodeTable.userSearchPlaceholder")}
-                  value={userSearchQuery}
-                  list="admin-node-user-search"
-                  onChange={(event) => onUserSearchQueryChange(event.target.value)}
+
+            <div className="flex shrink-0 flex-wrap items-center gap-2 xl:justify-end">
+              {platformAdmin ? (
+                <form
+                  className="flex min-w-[220px] flex-1 items-center sm:min-w-[260px] xl:w-[300px] xl:flex-none"
+                  onSubmit={(event) => {
+                    event.preventDefault();
+                    onUserSearch();
+                  }}
                 >
-                  <TextField.Slot side="left">
-                    <Search size={16} className="text-slate-400" />
-                  </TextField.Slot>
-                </TextField.Root>
-                <datalist id="admin-node-user-search">
-                  {scopeUsers.map((user) => (
-                    <option key={user.uuid} value={user.username} />
-                  ))}
-                </datalist>
-              </form>
-            ) : null}
-            <GenerateCommandButton
-              nodes={nodes}
-              settings={settings}
-              toolbar
-              disabled={!installActionsEnabled}
-            />
-            <GenerateCommandButton
-              nodes={nodes}
-              settings={settings}
-              toolbar
-              groupMode
-              disabled={!installActionsEnabled}
-            />
-            <Button
-              variant="soft"
-              color="red"
-              disabled={
-                !liveLoaded ||
-                Boolean(liveError) ||
-                offlineNodes.length === 0 ||
-                cleanupLoading
-              }
-              className="rounded-2xl"
-              onClick={() => void handleDeleteOffline()}
-            >
-              <Trash2Icon size={16} />
-              {t("admin.nodeTable.deleteOffline", "Delete offline nodes")}
-            </Button>
-            {platformAdmin ? (
-              <NodeAccessSettingsDialogButton
-                settings={settings}
-                platformAdmin={platformAdmin}
-                canManageCNConnectivity={canManageCNConnectivity}
-                onRefreshSettings={onRefreshSettings}
+                  <div className="relative w-full sm:flex-1">
+                    <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                    <Input
+                      className="h-9 pl-9"
+                      placeholder={t("admin.nodeTable.userSearchPlaceholder")}
+                      value={userSearchQuery}
+                      list="admin-node-user-search"
+                      onChange={(event) => onUserSearchQueryChange(event.target.value)}
+                    />
+                  </div>
+                  <datalist id="admin-node-user-search">
+                    {scopeUsers.map((user) => (
+                      <option key={user.uuid} value={user.username} />
+                    ))}
+                  </datalist>
+                </form>
+              ) : null}
+              <GroupSummaryPill
+                label={t("admin.nodeTable.totalRate", "Total rate")}
+                value={`↑ ${formatBytes(totalUploadSpeed)}/s · ↓ ${formatBytes(
+                  totalDownloadSpeed
+                )}/s`}
+                tone="blue"
               />
-            ) : null}
+              <GroupSummaryPill
+                label={t("admin.nodeTable.totalTraffic", "Total traffic")}
+                value={`↑ ${formatBytes(totalUploadTraffic)} · ↓ ${formatBytes(
+                  totalDownloadTraffic
+                )}`}
+              />
+              <GroupSummaryPill
+                label={t("settings.general.cn_connectivity")}
+                value={cnConnectivityStatusLabel}
+                tone={cnConnectivityTone}
+                title={cnConnectivityDetail}
+              />
+              <GenerateCommandButton
+                nodes={nodes}
+                settings={settings}
+                toolbar
+                buttonSize="sm"
+                disabled={!installActionsEnabled}
+              />
+              <GenerateCommandButton
+                nodes={nodes}
+                settings={settings}
+                toolbar
+                groupMode
+                buttonSize="sm"
+                disabled={!installActionsEnabled}
+              />
+              <Button
+                variant="destructive"
+                size="sm"
+                disabled={
+                  !liveLoaded ||
+                  Boolean(liveError) ||
+                  offlineNodes.length === 0 ||
+                  cleanupLoading
+                }
+                className="rounded-md"
+                onClick={() => void handleDeleteOffline()}
+              >
+                <Trash2Icon size={16} />
+                {t("admin.nodeTable.deleteOffline", "Delete offline nodes")}
+              </Button>
+              {platformAdmin ? (
+                <NodeAccessSettingsDialogButton
+                  settings={settings}
+                  platformAdmin={platformAdmin}
+                  canManageCNConnectivity={canManageCNConnectivity}
+                  onRefreshSettings={onRefreshSettings}
+                />
+              ) : null}
+            </div>
+          </div>
         </div>
-      </div>
+      </Card>
       {dialog}
-    </Card>
+    </div>
   );
 };
 
@@ -943,19 +961,15 @@ const StatusSummary = ({
   return (
     <div className="min-w-[120px] space-y-1">
       <Badge
-        variant="soft"
-        className={
-          online
-            ? "rounded-full border border-emerald-200 bg-emerald-100 px-2 py-0.5 text-[12px] text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/40 dark:text-emerald-300"
-            : "rounded-full border border-rose-200 bg-rose-100 px-2 py-0.5 text-[12px] text-rose-700 dark:border-rose-900/60 dark:bg-rose-950/40 dark:text-rose-300"
-        }
+        variant={online ? "success" : "destructive"}
+        className="rounded-md"
       >
         {online ? t("nodeCard.online", "Online") : t("nodeCard.offline", "Offline")}
       </Badge>
       {cnBadge ? (
         <Badge
-          variant="soft"
-          className={cnBadge.className}
+          variant={cnBadge.variant}
+          className="rounded-md"
           title={cnBadge.title}
         >
           {cnBadge.label}
@@ -985,29 +999,25 @@ const buildCNConnectivityBadge = (
     case "ok":
       return {
         label: `${t("admin.nodeTable.cnConnectivityOk", "CN reachable")}${latencyLabel}`,
-        className:
-          "rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[11px] text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/30 dark:text-emerald-300",
+        variant: "success" as const,
         title,
       };
     case "blocked_suspected":
       return {
         label: t("admin.nodeTable.cnConnectivityBlocked", "Suspected blocked"),
-        className:
-          "rounded-full border border-rose-200 bg-rose-50 px-2 py-0.5 text-[11px] text-rose-700 dark:border-rose-900/60 dark:bg-rose-950/30 dark:text-rose-300",
+        variant: "destructive" as const,
         title,
       };
     case "degraded":
       return {
         label: t("admin.nodeTable.cnConnectivityDegraded", "CN abnormal"),
-        className:
-          "rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[11px] text-amber-700 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-300",
+        variant: "warning" as const,
         title,
       };
     default:
       return {
         label: t("admin.nodeTable.cnConnectivityUnknown", "Pending probe"),
-        className:
-          "rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-[11px] text-slate-600 dark:border-slate-800 dark:bg-slate-900/50 dark:text-slate-300",
+        variant: "secondary" as const,
         title,
       };
   }
@@ -1015,9 +1025,9 @@ const buildCNConnectivityBadge = (
 
 const VersionSummary = ({ node }: { node: NodeDetail }) => (
   <div className="min-w-[112px]">
-    <span className="inline-flex rounded-md border border-slate-200 bg-slate-50 px-2 py-1 font-mono text-[12px] text-slate-700 dark:border-slate-800 dark:bg-slate-900/50 dark:text-slate-200">
+    <Badge variant="outline" className="rounded-md font-mono text-[12px]">
       {String(node.version || "").trim() || "-"}
-    </span>
+    </Badge>
   </div>
 );
 
@@ -1154,7 +1164,7 @@ const NodeInfoTooltip = ({
     <TooltipTrigger asChild>{children}</TooltipTrigger>
     <TooltipContent
       sideOffset={8}
-      className="rounded-xl border border-border/50 bg-background px-3 py-2 text-xs text-foreground shadow-xl"
+      className="rounded-lg border border-border/70 bg-popover px-3 py-2 text-xs text-foreground shadow-none"
     >
       {content}
     </TooltipContent>
@@ -1166,12 +1176,12 @@ const RateSummary = ({ live }: { live?: NodeLiveSnapshot }) => {
 
   return (
     <div className="min-w-[120px] space-y-0.5">
-      <Text size="1" className="block text-[13px] font-medium text-slate-900 dark:text-slate-100">
+      <div className="block text-[13px] font-medium text-slate-900 dark:text-slate-100">
         ↑ {formatBytes(snapshot.network.up)}/s
-      </Text>
-      <Text size="1" className="block text-[13px] text-slate-600 dark:text-slate-400">
+      </div>
+      <div className="block text-[13px] text-slate-600 dark:text-slate-400">
         ↓ {formatBytes(snapshot.network.down)}/s
-      </Text>
+      </div>
     </div>
   );
 };
@@ -1181,21 +1191,21 @@ const TrafficSummary = ({ live }: { live?: NodeLiveSnapshot }) => {
 
   return (
     <div className="min-w-[132px] space-y-0.5">
-      <Text size="1" className="block text-[13px] font-medium text-slate-900 dark:text-slate-100">
+      <div className="block text-[13px] font-medium text-slate-900 dark:text-slate-100">
         ↑ {formatBytes(snapshot.network.totalUp)}
-      </Text>
-      <Text size="1" className="block text-[13px] text-slate-600 dark:text-slate-400">
+      </div>
+      <div className="block text-[13px] text-slate-600 dark:text-slate-400">
         ↓ {formatBytes(snapshot.network.totalDown)}
-      </Text>
+      </div>
     </div>
   );
 };
 
 const UptimeSummary = ({ live }: { live?: NodeLiveSnapshot }) => {
   return (
-    <Text size="1" className="block min-w-[72px] text-[13px] text-slate-700 dark:text-slate-300">
+    <div className="block min-w-[72px] text-[13px] text-slate-700 dark:text-slate-300">
       {formatUptimeLabel(live?.record.uptime)}
-    </Text>
+    </div>
   );
 };
 
@@ -1213,7 +1223,7 @@ const UsageBar = ({
   return (
     <NodeInfoTooltip content={tooltipContent}>
       <div className="w-[136px] cursor-help">
-        <div className="relative h-5 overflow-hidden rounded-full border border-slate-200/80 bg-slate-100 dark:border-slate-800/80 dark:bg-slate-900/60">
+        <div className="relative h-5 overflow-hidden rounded-full border border-slate-200/80 bg-slate-100/90 dark:border-slate-800/80 dark:bg-slate-900/60">
           <div
             className={`h-full rounded-full transition-all duration-300 ${colorClass}`}
             style={{ width: `${safePercent}%` }}
@@ -1246,7 +1256,7 @@ const SortableRow = ({
     <>
       <ContextMenu>
         <ContextMenuTrigger asChild>
-          <TableRow className="cursor-context-menu border-b border-slate-200/70 bg-white text-[13px] transition-colors hover:bg-slate-50 dark:border-slate-800/70 dark:bg-slate-950/20 dark:hover:bg-slate-900/50">
+          <TableRow className="cursor-context-menu text-[13px]">
             <TableCell>
               <NodeEndpointSummary node={node} />
             </TableCell>
@@ -1353,7 +1363,7 @@ const NodeTableColumns = () => {
   const { t } = useTranslation();
 
   return (
-    <TableHeader className="bg-slate-50/90 dark:bg-slate-900/60">
+    <TableHeader className="bg-muted/40">
       <TableRow>
         <TableHead className="w-[240px]">
           {t("admin.nodeTable.columns.endpoint", { defaultValue: "Public IP" })}
@@ -1391,27 +1401,31 @@ const GroupSummaryPill = ({
   label,
   value,
   tone = "slate",
+  title,
 }: {
   label: string;
   value: string;
   tone?: "slate" | "green" | "red" | "blue";
+  title?: string;
 }) => {
-  const toneClass =
+  const variant: "success" | "destructive" | "outline" | "secondary" =
     tone === "green"
-      ? "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/30 dark:text-emerald-300"
+      ? "success"
       : tone === "red"
-        ? "border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-900/60 dark:bg-rose-950/30 dark:text-rose-300"
+        ? "destructive"
         : tone === "blue"
-          ? "border-sky-200 bg-sky-50 text-sky-700 dark:border-sky-900/60 dark:bg-sky-950/30 dark:text-sky-300"
-          : "border-slate-200 bg-slate-50 text-slate-600 dark:border-slate-800 dark:bg-slate-900/50 dark:text-slate-300";
+          ? "outline"
+          : "secondary";
 
   return (
-    <div
-      className={`inline-flex items-center gap-2 whitespace-nowrap rounded-full border px-3 py-1 text-[12px] ${toneClass}`}
+    <Badge
+      variant={variant}
+      className="inline-flex items-center gap-2 whitespace-nowrap rounded-md px-2.5 py-0.5 text-[12px] shadow-none"
+      title={title}
     >
       <span>{label}</span>
       <span className="font-semibold">{value}</span>
-    </div>
+    </Badge>
   );
 };
 
@@ -1449,7 +1463,7 @@ const GroupUpgradeButton = ({
     <>
       <Button
         variant="outline"
-        className="rounded-full"
+        className="rounded-md"
         disabled={onlineNodes.length === 0}
         onClick={handleOpen}
       >
@@ -1507,17 +1521,16 @@ const NodeGroupSection = ({
   ).length;
 
   return (
-    <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-950/40">
-      <div className="flex flex-col gap-3 border-b border-slate-200 bg-slate-50/80 px-4 py-4 dark:border-slate-800 dark:bg-slate-900/40 xl:flex-row xl:items-center xl:justify-between">
+    <div className="min-w-0 overflow-hidden rounded-xl border border-border/70 bg-card shadow-none">
+      <div className="flex flex-col gap-4 border-b border-border/70 px-4 py-4 md:px-5 xl:flex-row xl:items-center xl:justify-between">
         <div className="min-w-0 flex-1 overflow-x-auto pb-1">
           <div className="flex min-w-max items-center gap-2 pr-2 whitespace-nowrap">
-            <Text className="shrink-0 text-base font-semibold text-slate-900 dark:text-slate-100">
+            <div className="shrink-0 text-base font-semibold tracking-tight text-foreground">
               {groupName}
-            </Text>
+            </div>
             <Badge
-              variant="soft"
-              color="blue"
-              className="shrink-0 rounded-full px-3 py-1"
+              variant="outline"
+              className="shrink-0 rounded-md px-2.5 py-1"
             >
               {t("admin.nodeTable.groupNodeCount", {
                 count: nodes.length,
@@ -1567,7 +1580,6 @@ const NodeGroupSection = ({
           />
         </div>
       </div>
-
       <Table className="min-w-[1320px]">
         <NodeTableColumns />
         <TableBody>
@@ -1615,11 +1627,11 @@ const NodeTable = ({
   }, [nodes]);
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex min-w-0 flex-col gap-4">
       {nodes.length === 0 ? (
-        <div className="rounded-xl border border-slate-200 bg-white px-6 py-8 text-center text-sm text-slate-500 shadow-sm dark:border-slate-800 dark:bg-slate-950/40 dark:text-slate-400">
+        <Card className="rounded-xl border-dashed border-border/70 py-10 text-center text-sm text-muted-foreground shadow-none">
           {t("admin.nodeTable.noNodes", "No nodes")}
-        </div>
+        </Card>
       ) : (
         groupedNodes.map((group) => (
           <NodeGroupSection
@@ -1642,11 +1654,12 @@ function GenerateCommandButton({
   node,
   nodes,
   settings,
-  toolbar = false,
-  groupMode = false,
-  presetGroupName,
-  toolbarLabel,
-  disabled = false,
+      toolbar = false,
+      groupMode = false,
+      presetGroupName,
+      toolbarLabel,
+      buttonSize = "default",
+      disabled = false,
 }: {
   node?: NodeDetail;
   nodes?: NodeDetail[];
@@ -1655,6 +1668,7 @@ function GenerateCommandButton({
   groupMode?: boolean;
   presetGroupName?: string;
   toolbarLabel?: string;
+  buttonSize?: "default" | "sm";
   disabled?: boolean;
 }) {
   const { t } = useTranslation();
@@ -1664,9 +1678,9 @@ function GenerateCommandButton({
     <>
       {toolbar ? (
         <Button
-          variant="soft"
-          color={groupMode ? "green" : "blue"}
-          className="shrink-0 rounded-2xl"
+          variant={groupMode ? "secondary" : "default"}
+          size={buttonSize}
+          className="shrink-0 rounded-md"
           disabled={disabled}
           onClick={() => setDialogOpen(true)}
         >
@@ -1677,15 +1691,16 @@ function GenerateCommandButton({
               : t("admin.nodeTable.installCommand", "Install command"))}
         </Button>
       ) : (
-        <IconButton
+        <Button
           variant="ghost"
+          size="icon"
           title={t("admin.nodeTable.installCommand")}
-          className="h-8 w-8 rounded-lg"
+          className="h-8 w-8 rounded-md"
           disabled={disabled}
           onClick={() => setDialogOpen(true)}
         >
           <Download size="18" />
-        </IconButton>
+        </Button>
       )}
 
       {dialogOpen ? (

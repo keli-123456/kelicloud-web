@@ -1,20 +1,17 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import { AnimatePresence, motion } from "framer-motion";
 import {
   ChevronDown,
   ChevronRight,
   ChevronsLeft,
   ChevronsRight,
   CircleFadingArrowUp,
-  ExternalLink,
   LogOut,
   Menu,
   X,
 } from "lucide-react";
 
-import ColorSwitch from "../ColorSwitch";
 import LanguageSwitch from "../Language";
 import ThemeSwitch from "../ThemeSwitch";
 import LoginDialog from "../Login";
@@ -25,6 +22,11 @@ import {
 } from "@/contexts/AccountContext";
 import { usePublicInfo } from "@/contexts/PublicInfoContext";
 import { useRPC2Call } from "@/contexts/RPC2Context";
+import {
+  Alert,
+  AlertDescription,
+  AlertTitle,
+} from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {
   Collapsible,
@@ -39,6 +41,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Separator } from "@/components/ui/separator";
 import { iconMap } from "@/utils/iconHelper";
 import { cn } from "@/lib/utils";
 import type { MenuItem } from "@/types/menu";
@@ -70,8 +73,6 @@ interface MenuEntry {
   active: boolean;
   activeChild: MenuItem | null;
 }
-
-const footerMenuPaths = new Set<string>();
 
 const isExternalPath = (target: string) =>
   target.startsWith("http://") || target.startsWith("https://");
@@ -386,15 +387,9 @@ export default function AdminPanelBar({ content }: AdminPanelBarProps) {
     () =>
       combinedMenuItems.filter(
         (item) =>
-          !footerMenuPaths.has(item.path) &&
           !item.newTab &&
           !isExternalPath(String(item.path || "")),
       ),
-    [combinedMenuItems],
-  );
-
-  const footerMenuItems = useMemo(
-    () => combinedMenuItems.filter((item) => footerMenuPaths.has(item.path)),
     [combinedMenuItems],
   );
 
@@ -431,14 +426,6 @@ export default function AdminPanelBar({ content }: AdminPanelBarProps) {
       : activeTopItem
         ? getMenuLabel(activeTopItem)
         : "Komari";
-  const currentSectionTitle =
-    activeChildItem && activeTopItem
-      ? getMenuLabel(activeTopItem)
-      : t("common.admin_console", "Admin Console");
-  const versionLabel =
-    (publicInfo as any)?.version ||
-    (versionInfo && `${versionInfo.version} (${versionInfo.hash})`) ||
-    null;
   useEffect(() => {
     setOpenMenus((prev) => {
       let changed = false;
@@ -513,14 +500,37 @@ export default function AdminPanelBar({ content }: AdminPanelBarProps) {
     </span>
   );
 
+  const navItemClass = (active = false, collapsed = false) =>
+    cn(
+      "flex min-h-9 items-center gap-2.5 rounded-md px-2.5 text-[14px] font-medium leading-5 text-foreground/80 transition-colors hover:bg-muted/60 hover:text-foreground",
+      collapsed && "md:justify-center md:px-2",
+      active && "bg-primary/10 font-semibold text-primary",
+    );
+
+  const subNavItemClass = (active = false) =>
+    cn(
+      "flex min-h-8 items-center gap-2 rounded-md px-2.5 py-1 text-[14px] leading-5 text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground",
+      active && "bg-primary/10 font-medium text-primary",
+    );
+
   const renderUpdateTrigger =
     updateAvailable && latestRelease && releasesSince.length > 0 ? (
       <Tips
         mode="dialog"
-        trigger={<CircleFadingArrowUp color="#FB4141" size="16" />}
+        trigger={
+          <Button variant="outline" size="sm" className="h-7 rounded-md px-2 text-xs shadow-none">
+            <CircleFadingArrowUp className="h-3.5 w-3.5" />
+            {t("common.update_available")}
+          </Button>
+        }
       >
         <div className="flex max-w-[80vw] flex-col gap-2 md:max-w-[720px]">
-          <label className="font-bold">{t("common.update_available")}</label>
+          <div className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
+            Release
+          </div>
+          <label className="text-lg font-semibold tracking-tight">
+            {t("common.update_available")}
+          </label>
           <div className="text-sm text-muted-foreground">
             <span style={{ marginRight: 8 }}>
               {(publicInfo as any)?.version || versionInfo?.version}
@@ -578,255 +588,203 @@ export default function AdminPanelBar({ content }: AdminPanelBarProps) {
     ) : null;
 
   return (
-    <div className="flex h-screen overflow-hidden bg-[radial-gradient(circle_at_top,_rgba(148,163,184,0.12),_transparent_38%),linear-gradient(180deg,_#ffffff_0%,_#f8fafc_100%)] dark:bg-[radial-gradient(circle_at_top,_rgba(56,189,248,0.10),_transparent_35%),linear-gradient(180deg,_#020617_0%,_#0f172a_100%)]">
-      <AnimatePresence>
-        {mobileMenuOpen && (
-          <motion.div
-            className="fixed inset-0 z-40 bg-slate-950/40 backdrop-blur-sm md:hidden"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            onClick={() => setMobileMenuOpen(false)}
-          />
-        )}
-      </AnimatePresence>
+    <div className="relative flex h-[100dvh] min-h-[100dvh] overflow-hidden bg-background">
+      {mobileMenuOpen ? (
+        <button
+          type="button"
+          className="fixed inset-0 z-40 bg-foreground/20 md:hidden"
+          aria-label={t("common.collapse_sidebar", "Collapse sidebar")}
+          onClick={() => setMobileMenuOpen(false)}
+        />
+      ) : null}
 
       <aside
         className={cn(
-          "fixed inset-y-0 left-0 z-50 flex w-64 flex-col border-r border-slate-200/80 bg-white/95 shadow-sm transition-[transform,width] duration-200 ease-in-out md:static md:inset-0 md:translate-x-0 dark:border-slate-800/80 dark:bg-slate-950/90",
+          "fixed inset-y-0 left-0 z-50 flex w-60 flex-col border-r border-border/80 bg-card shadow-sm transition-transform duration-200 ease-out motion-reduce:transition-none md:static md:inset-0 md:translate-x-0 md:transition-[width]",
           mobileMenuOpen ? "translate-x-0" : "-translate-x-full",
-          sidebarCollapsed && "md:w-[76px]",
+          sidebarCollapsed && "md:w-[72px]",
         )}
       >
         <div
           className={cn(
-            "grid h-16 grid-cols-[1fr_auto_1fr] items-center border-b border-slate-200/80 px-4 dark:border-slate-800/80",
+            "grid h-16 shrink-0 grid-cols-[1fr_auto_1fr] items-center border-b border-border/70 px-5",
             sidebarCollapsed && "md:px-2",
           )}
         >
           <div />
           <Link
             to="/admin"
-            className="justify-self-center flex items-center gap-2 text-slate-900 dark:text-slate-50"
+            className="justify-self-center text-lg font-semibold text-foreground"
           >
-            <span className="flex h-8 w-8 items-center justify-center rounded-md bg-slate-900 text-sm font-semibold text-white dark:bg-slate-100 dark:text-slate-900">
-              {appName.slice(0, 1).toUpperCase()}
-            </span>
-            <span
-              className={cn(
-                "truncate text-sm font-semibold tracking-tight",
-                sidebarCollapsed && "md:hidden",
-              )}
-            >
-              {appName}
-            </span>
+            <span className={cn(sidebarCollapsed && "md:hidden")}>{appName}</span>
+            {sidebarCollapsed ? (
+              <span className="hidden md:inline">
+                {(appName || "K").trim().slice(0, 1).toUpperCase()}
+              </span>
+            ) : null}
           </Link>
           <div className="justify-self-end">
             <Button
               variant="ghost"
               size="icon"
-              className="h-8 w-8 md:hidden"
+              className="md:hidden"
               onClick={() => setMobileMenuOpen(false)}
             >
-              <X className="h-4 w-4" />
+              <X className="h-5 w-5" />
             </Button>
           </div>
         </div>
 
         <nav
           className={cn(
-            "flex-1 space-y-1 overflow-y-auto overscroll-contain px-3 py-4 [scrollbar-gutter:stable]",
+            "flex-1 overflow-y-auto px-2.5 py-2.5",
             sidebarCollapsed && "md:px-2",
           )}
         >
-          {primaryMenuEntries.map((entry) => {
-            const { item, active } = entry;
-            const label = getMenuLabel(item);
-            const menuKey = item.path;
-
-            if (item.children?.length) {
-              const isOpen = Boolean(openMenus[menuKey]);
-
-              return (
-                <div key={item.path} className="space-y-1">
-                  {sidebarCollapsed ? (
-                    <div className="hidden md:block">
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className={cn(
-                              "h-9 w-full rounded-md text-slate-600 hover:bg-slate-50 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-900 dark:hover:text-slate-100",
-                              active && "bg-slate-100 text-slate-900 dark:bg-slate-800 dark:text-slate-100",
-                            )}
-                            title={label}
-                            aria-label={label}
-                          >
-                            {renderMenuLeadingIcon(item.icon, label, active)}
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent
-                          side="right"
-                          align="start"
-                          className="min-w-[220px]"
-                        >
-                          <DropdownMenuLabel>{label}</DropdownMenuLabel>
-                          <DropdownMenuSeparator />
-                          {item.children.map((child) => {
-                            const childLabel = getMenuLabel(child);
-                            const childActive = isPathActive(
-                              child.path,
-                              location.pathname,
-                              location.search,
-                            );
-
-                            return (
-                              <DropdownMenuItem
-                                key={child.path}
-                                className={cn(
-                                  "cursor-pointer",
-                                  childActive && "bg-slate-100 text-slate-900 dark:bg-slate-800 dark:text-slate-100",
-                                )}
-                                onSelect={() => navigate(child.path)}
-                              >
-                                {renderMenuIcon(
-                                  child.icon,
-                                  childLabel,
-                                  childActive,
-                                  "h-4 w-4",
-                                )}
-                                <span className="truncate">{childLabel}</span>
-                              </DropdownMenuItem>
-                            );
-                          })}
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </div>
-                  ) : null}
-
-                  <Collapsible
-                    open={isOpen}
-                    onOpenChange={(open) => setMenuOpen(menuKey, open)}
-                    className={cn(sidebarCollapsed && "md:hidden")}
-                  >
-                    <CollapsibleTrigger asChild>
-                      <Button
-                        variant="ghost"
-                        className={cn(
-                          "h-10 w-full justify-between rounded-md px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-900 dark:hover:text-slate-100",
-                          active && "bg-slate-100 text-slate-900 dark:bg-slate-800 dark:text-slate-100",
-                        )}
-                      >
-                        <span className="flex min-w-0 items-center gap-3">
-                          {renderMenuLeadingIcon(item.icon, label, active)}
-                          <span className="truncate">{label}</span>
-                        </span>
-                        <span className="flex h-4 w-4 shrink-0 items-center justify-center text-slate-400 dark:text-slate-500">
-                          {isOpen ? (
-                            <ChevronDown className="h-4 w-4" />
-                          ) : (
-                            <ChevronRight className="h-4 w-4" />
-                          )}
-                        </span>
-                      </Button>
-                    </CollapsibleTrigger>
-                    <CollapsibleContent className="space-y-1 pl-4 pt-1">
-                      {item.children.map((child) => {
-                        const childLabel = getMenuLabel(child);
-                        const childActive = isPathActive(
-                          child.path,
-                          location.pathname,
-                          location.search,
-                        );
-
-                        return (
-                          <Link
-                            key={child.path}
-                            to={child.path}
-                            onClick={() => setMobileMenuOpen(false)}
-                            className={cn(
-                              "flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors",
-                              childActive
-                                ? "bg-slate-100 text-slate-900 font-medium dark:bg-slate-800 dark:text-slate-100"
-                                : "text-slate-500 hover:bg-slate-50 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-900 dark:hover:text-slate-100",
-                            )}
-                          >
-                            {renderMenuIcon(
-                              child.icon,
-                              childLabel,
-                              childActive,
-                              "h-4 w-4",
-                            )}
-                            <span className="truncate">{childLabel}</span>
-                          </Link>
-                        );
-                      })}
-                    </CollapsibleContent>
-                  </Collapsible>
-                </div>
-              );
-            }
-
-            return (
-              <Link
-                key={item.path}
-                to={item.path}
-                onClick={() => setMobileMenuOpen(false)}
-                title={label}
-                className={cn(
-                  "flex items-center gap-3 rounded-md px-4 py-2 text-sm font-medium transition-colors",
-                  sidebarCollapsed && "md:justify-center md:px-2",
-                  active
-                    ? "bg-slate-100 text-slate-900 dark:bg-slate-800 dark:text-slate-100"
-                    : "text-slate-600 hover:bg-slate-50 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-900 dark:hover:text-slate-100",
-                )}
-              >
-                {renderMenuLeadingIcon(item.icon, label, active)}
-                <span className={cn(sidebarCollapsed && "md:hidden")}>{label}</span>
-              </Link>
-            );
-          })}
-        </nav>
-
-        <div
-          className={cn(
-            "border-t border-slate-200/80 px-3 py-3 dark:border-slate-800/80",
-            sidebarCollapsed && "md:px-2",
-          )}
-        >
-          {!sidebarCollapsed && versionLabel ? (
-            <div className="mb-3 px-1 text-xs text-slate-500 dark:text-slate-400">{versionLabel}</div>
-          ) : null}
-          <div className="space-y-1">
-            {footerMenuItems.map((item) => {
+          <div className="flex flex-col gap-0.5">
+            {primaryMenuEntries.map((entry) => {
+              const { item, active } = entry;
               const label = getMenuLabel(item);
-              const active = isPathActive(
-                item.path,
-                location.pathname,
-                location.search,
-              );
+              const menuKey = item.path;
+
+              if (item.children?.length) {
+                const isOpen = Boolean(openMenus[menuKey]);
+
+                return (
+                  <div key={item.path} className="space-y-0.5">
+                    {sidebarCollapsed ? (
+                      <div className="hidden md:block">
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className={cn(navItemClass(active, true), "!flex !h-9 !w-full !rounded-md !p-0")}
+                              title={label}
+                              aria-label={label}
+                            >
+                              {renderMenuLeadingIcon(item.icon, label, active)}
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent
+                            side="right"
+                            align="start"
+                            className="min-w-[240px]"
+                          >
+                            <DropdownMenuLabel>{label}</DropdownMenuLabel>
+                            <DropdownMenuSeparator />
+                            {item.children.map((child) => {
+                              const childLabel = getMenuLabel(child);
+                              const childActive = isPathActive(
+                                child.path,
+                                location.pathname,
+                                location.search,
+                              );
+
+                              return (
+                                <DropdownMenuItem
+                                  key={child.path}
+                                  className={cn(
+                                    "cursor-pointer",
+                                    childActive && "bg-accent text-accent-foreground",
+                                  )}
+                                  onSelect={() => navigate(child.path)}
+                                >
+                                  {renderMenuIcon(
+                                    child.icon,
+                                    childLabel,
+                                    childActive,
+                                    "h-4 w-4",
+                                  )}
+                                  <span className="truncate">{childLabel}</span>
+                                </DropdownMenuItem>
+                              );
+                            })}
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </div>
+                    ) : null}
+
+                    <Collapsible
+                      open={isOpen}
+                      onOpenChange={(open) => setMenuOpen(menuKey, open)}
+                      className={cn(sidebarCollapsed && "md:hidden")}
+                    >
+                      <CollapsibleTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          className={cn(
+                            navItemClass(active),
+                            "h-9 w-full justify-between px-2.5",
+                          )}
+                        >
+                          <span className="flex min-w-0 items-center gap-3">
+                            {renderMenuLeadingIcon(item.icon, label, active)}
+                            <span className="truncate">{label}</span>
+                          </span>
+                          <span className="flex h-4 w-4 shrink-0 items-center justify-center text-slate-400 dark:text-slate-500">
+                            {isOpen ? (
+                              <ChevronDown className="h-4 w-4" />
+                            ) : (
+                              <ChevronRight className="h-4 w-4" />
+                            )}
+                          </span>
+                        </Button>
+                      </CollapsibleTrigger>
+                      <CollapsibleContent className="space-y-0.5 pl-4 pt-0.5">
+                        {item.children.map((child) => {
+                          const childLabel = getMenuLabel(child);
+                          const childActive = isPathActive(
+                            child.path,
+                            location.pathname,
+                            location.search,
+                          );
+
+                          return (
+                            <Link
+                              key={child.path}
+                              to={child.path}
+                              onClick={() => setMobileMenuOpen(false)}
+                              className={subNavItemClass(childActive)}
+                            >
+                              {renderMenuIcon(
+                                child.icon,
+                                childLabel,
+                                childActive,
+                                "h-4 w-4",
+                              )}
+                              <span className="truncate">{childLabel}</span>
+                            </Link>
+                          );
+                        })}
+                      </CollapsibleContent>
+                    </Collapsible>
+                  </div>
+                );
+              }
 
               return (
-                <FooterNavItem
+                <Link
                   key={item.path}
-                  item={item}
-                  label={label}
-                  icon={renderMenuIcon(item.icon, label, active, "h-4 w-4")}
-                  collapsed={sidebarCollapsed}
-                  active={active}
-                />
+                  to={item.path}
+                  onClick={() => setMobileMenuOpen(false)}
+                  title={label}
+                  className={navItemClass(active, sidebarCollapsed)}
+                >
+                  {renderMenuLeadingIcon(item.icon, label, active)}
+                  <span className={cn(sidebarCollapsed && "md:hidden")}>{label}</span>
+                </Link>
               );
             })}
           </div>
-        </div>
+        </nav>
 
-        <div className="hidden border-t border-slate-200/80 p-2 dark:border-slate-800/80 md:block">
+        <div className="hidden border-t border-border/70 p-2 md:block">
           <Button
             type="button"
             variant="ghost"
             size="icon"
-            className="h-9 w-full rounded-md"
+            className="w-full"
             onClick={toggleSidebarCollapsed}
             title={t(
               sidebarCollapsed ? "common.expand_sidebar" : "common.collapse_sidebar",
@@ -846,27 +804,24 @@ export default function AdminPanelBar({ content }: AdminPanelBarProps) {
         </div>
       </aside>
 
-      <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
-        <header className="flex h-16 shrink-0 items-center justify-between border-b border-slate-200/80 bg-white/90 px-4 backdrop-blur md:px-6 dark:border-slate-800/80 dark:bg-slate-950/75">
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+        <header className="flex h-16 shrink-0 items-center justify-between gap-4 border-b border-border/70 bg-background px-4 md:px-6">
           <div className="flex min-w-0 items-center gap-3">
             <Button
               variant="ghost"
               size="icon"
-              className="h-9 w-9 md:hidden"
+              className="md:hidden"
               onClick={() => setMobileMenuOpen(true)}
             >
-              <Menu className="h-4 w-4" />
+              <Menu className="h-5 w-5" />
             </Button>
 
             <div className="min-w-0">
               <div className="flex min-w-0 items-center gap-2">
-                <div className="truncate text-base font-semibold text-slate-900 dark:text-slate-50 md:text-lg">
+                <div className="truncate text-base font-semibold text-foreground md:text-lg">
                   {currentPageTitle}
                 </div>
                 {renderUpdateTrigger}
-              </div>
-              <div className="truncate text-xs text-slate-500 dark:text-slate-400 md:text-sm">
-                {currentSectionTitle}
               </div>
             </div>
           </div>
@@ -880,8 +835,8 @@ export default function AdminPanelBar({ content }: AdminPanelBarProps) {
               />
             )}
             <ThemeSwitch />
-            <ColorSwitch />
             <LanguageSwitch />
+            <Separator orientation="vertical" className="h-5" />
             <Button
               variant="ghost"
               size="icon"
@@ -893,22 +848,27 @@ export default function AdminPanelBar({ content }: AdminPanelBarProps) {
           </div>
         </header>
 
-        <main className="min-h-0 flex-1 overflow-y-auto overscroll-contain [scrollbar-gutter:stable]">
-          <div className="mx-auto flex w-full max-w-[1680px] flex-col gap-4 px-4 py-4 md:px-6 md:py-6">
+        <main className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-contain bg-background">
+          <div className="mx-auto flex min-h-full w-full max-w-[1680px] min-w-0 flex-col">
             {!ishttps && (
-              <div className="flex items-start gap-3 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-red-700 shadow-sm dark:border-red-900/60 dark:bg-red-950/30 dark:text-red-300">
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  width="18"
-                  viewBox="0 0 24 24"
-                  className="mt-0.5 shrink-0"
-                >
-                  <path
-                    fill="currentColor"
-                    d="M10.03 3.659c.856-1.548 3.081-1.548 3.937 0l7.746 14.001c.83 1.5-.255 3.34-1.969 3.34H4.254c-1.715 0-2.8-1.84-1.97-3.34zM12.997 17A.999.999 0 1 0 11 17a.999.999 0 0 0 1.997 0m-.259-7.853a.75.75 0 0 0-1.493.103l.004 4.501l.007.102a.75.75 0 0 0 1.493-.103l-.004-4.502z"
-                  />
-                </svg>
-                <span className="text-sm font-medium">{t("warn_https")}</span>
+              <div className="px-4 pt-4 md:px-6 md:pt-6">
+                <Alert>
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    width="18"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      fill="currentColor"
+                      d="M10.03 3.659c.856-1.548 3.081-1.548 3.937 0l7.746 14.001c.83 1.5-.255 3.34-1.969 3.34H4.254c-1.715 0-2.8-1.84-1.97-3.34zM12.997 17A.999.999 0 1 0 11 17a.999.999 0 0 0 1.997 0m-.259-7.853a.75.75 0 0 0-1.493.103l.004 4.501l.007.102a.75.75 0 0 0 1.493-.103l-.004-4.502z"
+                    />
+                  </svg>
+                  <AlertTitle>{t("warn_https")}</AlertTitle>
+                  <AlertDescription>
+                    HTTP is currently in use. Switch the admin console to HTTPS to
+                    avoid mixed security expectations.
+                  </AlertDescription>
+                </Alert>
               </div>
             )}
 
@@ -917,50 +877,5 @@ export default function AdminPanelBar({ content }: AdminPanelBarProps) {
         </main>
       </div>
     </div>
-  );
-}
-
-function FooterNavItem({
-  item,
-  label,
-  icon,
-  collapsed = false,
-  active = false,
-}: {
-  item: MenuItem;
-  label: string;
-  icon: ReactNode;
-  collapsed?: boolean;
-  active?: boolean;
-}) {
-  const className = cn(
-    "flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors",
-    collapsed && "justify-center px-2",
-    active
-      ? "bg-slate-100 text-slate-900 dark:bg-slate-800 dark:text-slate-100"
-      : "text-slate-600 hover:bg-slate-50 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-900 dark:hover:text-slate-100",
-  );
-
-  if (item.newTab) {
-    return (
-      <a
-        href={item.path}
-        target="_blank"
-        rel="noopener noreferrer"
-        title={label}
-        className={className}
-      >
-        {icon}
-        {!collapsed && <span className="truncate">{label}</span>}
-        {!collapsed && <ExternalLink className="ml-auto h-3.5 w-3.5" />}
-      </a>
-    );
-  }
-
-  return (
-    <Link to={item.path} title={label} className={className}>
-      {icon}
-      {!collapsed && <span className="truncate">{label}</span>}
-    </Link>
   );
 }

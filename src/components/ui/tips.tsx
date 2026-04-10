@@ -39,7 +39,7 @@ const Tips: React.FC<TipsProps & React.HTMLAttributes<HTMLDivElement>> = ({
   const triggerButton = (
     <button
       type="button"
-      className="flex cursor-pointer items-center justify-center rounded-full font-bold text-muted-foreground transition-colors hover:text-foreground"
+      className="inline-flex min-h-6 min-w-6 cursor-pointer items-center justify-center rounded-full border border-transparent bg-transparent font-bold text-muted-foreground transition-all hover:border-border/60 hover:bg-background/70 hover:text-foreground"
       onMouseEnter={!isDialog && !isMobile ? () => setIsOpen(true) : undefined}
       onMouseLeave={!isDialog && !isMobile ? () => setIsOpen(false) : undefined}
       aria-label="Open tips"

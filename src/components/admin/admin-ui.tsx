@@ -438,7 +438,7 @@ function DialogContent({
 }) {
   return (
     <ShadDialogContent
-      className={className}
+      className={cn("min-h-0", className)}
       style={{ ...style, maxWidth }}
       {...props}
     />

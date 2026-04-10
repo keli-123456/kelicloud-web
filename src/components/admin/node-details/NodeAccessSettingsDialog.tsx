@@ -20,10 +20,13 @@ import { normalizeCNConnectivityTargets } from "@/lib/cnConnectivityTargets";
 
 const NODE_DIALOG_CONTENT_CLASS =
   "max-h-[90vh] w-[min(96vw,860px)] overflow-y-auto overscroll-contain rounded-[28px] border border-slate-200/80 bg-white/95 p-6 shadow-2xl [scrollbar-gutter:stable] backdrop-blur dark:border-slate-800/80 dark:bg-slate-950/95";
+const NODE_DIALOG_SECTION_CLASS = "dialog-section space-y-4";
 const NODE_DIALOG_FOOTER_CLASS =
-  "mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end";
+  "mt-6 flex flex-col-reverse gap-2.5 sm:flex-row sm:justify-end";
 const NODE_INPUT_CLASS =
-  "h-11 rounded-xl border border-slate-200 bg-white px-3 text-sm dark:border-slate-700 dark:bg-slate-950";
+  "h-11 rounded-xl border border-slate-200 bg-white px-3 text-sm shadow-none dark:border-slate-700 dark:bg-slate-950";
+const NODE_TEXTAREA_CLASS =
+  "min-h-32 rounded-[20px] border border-slate-200 bg-slate-50/80 px-4 py-3 text-[13px] leading-6 shadow-none dark:border-slate-800 dark:bg-slate-900/50";
 
 const normalizeDailyCleanupTime = (value: string) => {
   const trimmed = String(value || "").trim();
@@ -224,11 +227,11 @@ export default function NodeAccessSettingsDialog({
           {t("admin.nodeTable.accessSettingsDescription")}
         </Dialog.Description>
         <div className="mt-4 space-y-4">
-          <div className="rounded-xl border border-slate-200 bg-slate-50/80 p-4 dark:border-slate-800 dark:bg-slate-900/50">
+          <div className={NODE_DIALOG_SECTION_CLASS}>
             <div className="space-y-1">
-              <Text className="text-sm font-semibold text-slate-900 dark:text-slate-100">
+              <div className="section-kicker">
                 {t("settings.general.auto_discovery")}
-              </Text>
+              </div>
               <Text className="text-sm text-slate-500 dark:text-slate-400">
                 {t("settings.general.auto_discovery_key_description")}
               </Text>
@@ -268,12 +271,12 @@ export default function NodeAccessSettingsDialog({
           </div>
 
           {canManageCNConnectivity ? (
-            <div className="rounded-xl border border-slate-200 bg-slate-50/80 p-4 dark:border-slate-800 dark:bg-slate-900/50">
+            <div className={NODE_DIALOG_SECTION_CLASS}>
               <div className="space-y-2">
                 <Flex justify="between" align="center" gap="2" wrap="wrap">
-                  <Text className="text-sm font-semibold text-slate-900 dark:text-slate-100">
+                  <div className="section-kicker">
                     {t("settings.general.cn_connectivity")}
-                  </Text>
+                  </div>
                   <Badge
                     color={cnConnectivityEnabled ? "green" : "gray"}
                     variant="soft"
@@ -309,7 +312,7 @@ export default function NodeAccessSettingsDialog({
                     {t("settings.general.cn_connectivity_target")}
                   </label>
                   <TextArea
-                    className="min-h-32 text-[13px] leading-6"
+                    className={NODE_TEXTAREA_CLASS}
                     placeholder={"223.5.5.5\n119.29.29.29\ndns.alidns.com"}
                     value={cnConnectivityTarget}
                     onChange={(event) =>
@@ -393,12 +396,12 @@ export default function NodeAccessSettingsDialog({
           ) : null}
 
           {platformAdmin ? (
-            <div className="rounded-xl border border-slate-200 bg-slate-50/80 p-4 dark:border-slate-800 dark:bg-slate-900/50">
+            <div className={NODE_DIALOG_SECTION_CLASS}>
               <div className="space-y-2">
                 <Flex justify="between" align="center" gap="2" wrap="wrap">
-                  <Text className="text-sm font-semibold text-slate-900 dark:text-slate-100">
+                  <div className="section-kicker">
                     {t("settings.general.offline_cleanup")}
-                  </Text>
+                  </div>
                   <Badge
                     color={offlineCleanupEnabled ? "green" : "gray"}
                     variant="soft"

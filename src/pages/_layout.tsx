@@ -1,37 +1,37 @@
+import { Outlet, useLocation } from "react-router-dom";
 import { LiveDataProvider } from "@/contexts/LiveDataContext";
+import { NodeListProvider } from "@/contexts/NodeListContext";
 import Footer from "../components/Footer";
 import NavBar from "../components/NavBar";
-import { Outlet, useLocation } from "react-router-dom";
-import { NodeListProvider } from "@/contexts/NodeListContext";
 
 const IndexLayout = () => {
-  // 使用我们的LiveDataContext
-  const InnerLayout = () => {
-    const location = useLocation();
-    const isStandalonePublicPage = location.pathname === "/";
-    return (
-      <>
-        <div
-          className="layout flex min-h-screen w-full flex-col bg-[radial-gradient(circle_at_top,_rgba(148,163,184,0.12),_transparent_32%),linear-gradient(180deg,_var(--background)_0%,_var(--accent-1)_100%)]"
-        >
-          <main
-            className="main-content mx-auto my-1 h-full w-full max-w-[1600px]"
-          >
-            {!isStandalonePublicPage ? <NavBar /> : null}
-            <Outlet />
-          </main>
-          {!isStandalonePublicPage ? <Footer /> : null}
-        </div>
-      </>
-    );
-  };
+  const location = useLocation();
+  const isStandalonePublicPage = location.pathname === "/";
+  const instanceMatch = location.pathname.match(/^\/instance\/([^/]+)/);
+  const instanceUUID = instanceMatch?.[1]
+    ? decodeURIComponent(instanceMatch[1])
+    : undefined;
+
+  const content = (
+    <div className="layout flex min-h-screen min-h-[100dvh] w-full flex-col bg-background">
+      <main className="main-content mx-auto my-1 flex w-full max-w-[1600px] flex-1 min-h-0 flex-col">
+        {!isStandalonePublicPage ? <NavBar /> : null}
+        <Outlet />
+      </main>
+      {!isStandalonePublicPage ? <Footer /> : null}
+    </div>
+  );
 
   return (
-    <LiveDataProvider>
-      <NodeListProvider>
-        <InnerLayout />
-      </NodeListProvider>
-    </LiveDataProvider>
+    <NodeListProvider>
+      {location.pathname === "/" ? (
+        <LiveDataProvider>{content}</LiveDataProvider>
+      ) : instanceUUID ? (
+        <LiveDataProvider uuid={instanceUUID}>{content}</LiveDataProvider>
+      ) : (
+        content
+      )}
+    </NodeListProvider>
   );
 };
 

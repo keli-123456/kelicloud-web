@@ -1403,6 +1403,7 @@
     "enabled": "启用",
     "error": "错误",
     "execute": "执行",
+    "unknown": "未知",
     "expand_sidebar": "展开侧边栏",
     "expired": "已到期",
     "expired_in": "余{{days}}天",
@@ -1608,6 +1609,10 @@
       "cooldown": "冷却时间（秒）",
       "create_title": "新建故障切换任务",
       "current_client": "客户端",
+      "current_client_hint": "选择这个故障切换任务当前正在承载流量的客户端。",
+      "current_client_placeholder": "选择当前客户端",
+      "current_client_search_empty": "没有匹配的客户端",
+      "current_client_search_placeholder": "搜索客户端...",
       "current_ip": "IP",
       "current_ip_empty": "当前还没有记录 IP。",
       "current_outlet": "当前出口",
@@ -2141,7 +2146,8 @@
       "plan_required": "至少需要一个故障切换方案",
       "script_domain_required": "故障切换自动接入需要先配置 Agent 连接地址，请到“设置 -> 站点”填写后再保存或执行这个任务",
       "task_name_required": "任务名称不能为空",
-      "watch_node_required": "请选择监控节点"
+      "watch_node_required": "请选择监控节点",
+      "current_client_required": "请选择当前客户端"
     }
   },
   "failover_v2": {
@@ -2430,7 +2436,10 @@
   "go_to_home": "回到主页",
   "home_title": "Komari Monitor",
   "instance": {
+    "chart_summary": "把负载曲线与网络质量历史单独放在趋势区，和节点身份信息分开，页面会更像运维产品而不是调试面板。",
+    "chart_title": "实时趋势与健康历史",
     "details_eyebrow": "节点详情",
+    "details_summary": "把基础身份、容量和时间线信息收在一个可读区块里，减少技术字段平铺造成的阅读噪音。",
     "details_title": "硬件配置与运行时快照",
     "summary_description": "聚焦单节点的实时负载、连通性和历史趋势。这个页把节点身份、当前状态和图表入口拆成了更清晰的阅读层级。"
   },
@@ -2455,6 +2464,8 @@
   "login": {
     "desc": "登录到 {{siteName}} 控制面板。",
     "failed": "登录失败",
+    "inline_hint": "使用现有账号继续。密码登录和 OAuth 会保留在同一个入口里。",
+    "inline_summary": "把账号入口、节点运维和品牌设置收口到同一条登录路径，减少跳转和界面割裂感。",
     "logging_in": "登录中...",
     "login_with": "使用 {{provider}} 登录",
     "login_with_github": "使用 GitHub 登录",
@@ -2493,6 +2504,17 @@
     },
     "title": "日志"
   },
+  "site": {
+    "badge": "实时节点",
+    "brand_consistency": "把节点入口、品牌信息和控制台访问放进同一套页面骨架。",
+    "build_time": "构建时间：{{time}}",
+    "console_summary": "统一用一个入口承载登录、实例详情和节点管理，减少控件散落造成的理解成本。",
+    "description": "在一个界面里查看节点健康、流量和地域覆盖。",
+    "github": "GitHub",
+    "powered_by": "由 {{siteName}} 提供支持。",
+    "readable_experience": "在桌面和移动端都保持更清晰的信息层级和交互节奏。",
+    "subtitle": "Komari Monitor"
+  },
   "network_speed": "网络速率",
   "nodeCard": {
     "actions": "操作",
@@ -2504,7 +2526,7 @@
     "disk": "磁盘",
     "groupNodes": "{{group}} 分组: 共 {{total}} 个服务器，{{online}} 个服务器在线",
     "kernelVersion": "内核版本",
-    "last_updated": "最后上报",
+    "last_updated": "最后上报时间",
     "load": "负载",
     "monitoring": "监控信息",
     "name": "节点名称",
@@ -2514,6 +2536,7 @@
     "networkUploadSpeed": "上传速度",
     "offline": "离线",
     "online": "在线",
+    "node_updated_at": "节点更新时间",
     "os": "操作系统",
     "ping": "延迟",
     "price": "价格",
@@ -2882,8 +2905,12 @@
       "custom": "自定义",
       "description": "站点描述",
       "description_description": "设置网站描述，用于元信息及社交媒体卡片。",
+      "github_url": "GitHub 链接",
+      "github_url_description": "设置公开导航栏中展示的 GitHub 外链。",
       "name": "站点名称",
       "name_description": "设置站点名称",
+      "subtitle": "站点副标题",
+      "subtitle_description": "设置公开站点名称下方显示的简短副标题。",
       "script_domain": "Agent 连接地址",
       "script_domain_description": "为安装脚本定义面板的连接地址，方便多个域名的用户，并不会影响其他域名的访问。云服务商页面留空时会使用当前域名，但故障切换这类异步任务建议显式填写。",
       "title": "站点"

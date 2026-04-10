@@ -16,6 +16,14 @@ import {
   TextField,
 } from "@/components/admin/admin-ui";
 
+const NODE_DIALOG_CONTENT_CLASS =
+  "max-h-[90vh] w-[min(96vw,720px)] overflow-y-auto overscroll-contain rounded-[28px] border border-slate-200/80 bg-white/95 p-6 shadow-2xl [scrollbar-gutter:stable] backdrop-blur dark:border-slate-800/80 dark:bg-slate-950/95";
+const NODE_DIALOG_SECTION_CLASS = "dialog-section space-y-4";
+const NODE_DIALOG_FOOTER_CLASS =
+  "mt-6 flex flex-col-reverse gap-2.5 sm:flex-row sm:justify-end";
+const NODE_INPUT_CLASS =
+  "h-11 rounded-xl border border-slate-200 bg-white px-3 text-[14px] shadow-none dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100";
+
 export function EditDialog({ item }: { item: z.infer<typeof schema> }) {
   const [form, setForm] = React.useState<ClientFormData & { weight: number }>({
     name: item.name || "",
@@ -56,77 +64,111 @@ export function EditDialog({ item }: { item: z.infer<typeof schema> }) {
   }
   return (
     <Dialog.Root open={open} onOpenChange={setOpen}>
-        <Dialog.Trigger>
-          <IconButton variant="ghost">
-            <Pencil className="p-1" />
+      <Dialog.Trigger>
+        <IconButton variant="ghost">
+          <Pencil className="p-1" />
         </IconButton>
       </Dialog.Trigger>
-      <Dialog.Content>
+      <Dialog.Content className={NODE_DIALOG_CONTENT_CLASS}>
         <Dialog.Title>{t("admin.nodeEdit.editInfo", "Edit information")}</Dialog.Title>
-        <div className="flex flex-col gap-4">
-          <div>
-            <label className="block mb-1 text-sm font-medium text-muted-foreground">
+        <Dialog.Description className="mt-2">
+          Adjust the node identity and remarks shown across the management console.
+        </Dialog.Description>
+        <div className="mt-4 flex flex-col gap-4">
+          <div className={NODE_DIALOG_SECTION_CLASS}>
+            <div>
+              <div className="section-kicker">Identity</div>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Keep naming and notes consistent so list view, details view, and public
+                labels all read as one system.
+              </p>
+            </div>
+            <div>
+              <label className="mb-1 block text-sm font-medium text-muted-foreground">
               {t("admin.nodeEdit.name", "Name")}
-            </label>
-            <TextField.Root
-              value={form.name}
-              onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
-              placeholder={t("admin.nodeEdit.namePlaceholder", "Please enter a name")}
-              disabled={loading}
-            />
-          </div>
-          <div>
-            <label className="block mb-1 text-sm font-medium text-muted-foreground">
+              </label>
+              <TextField.Root
+                value={form.name}
+                onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
+                placeholder={t("admin.nodeEdit.namePlaceholder", "Please enter a name")}
+                disabled={loading}
+                className={NODE_INPUT_CLASS}
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-sm font-medium text-muted-foreground">
               {t("admin.nodeEdit.token", "Token")}
-            </label>
-            <TextField.Root
-              value={form.token}
-              onChange={(e) =>
-                setForm((f) => ({ ...f, token: e.target.value }))
-              }
-              placeholder={t("admin.nodeEdit.tokenPlaceholder", "Please enter Token")}
-              disabled={loading}
-              readOnly
-              className="bg-slate-100 dark:bg-slate-900"
-            />
+              </label>
+              <TextField.Root
+                value={form.token}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, token: e.target.value }))
+                }
+                placeholder={t("admin.nodeEdit.tokenPlaceholder", "Please enter Token")}
+                disabled={loading}
+                readOnly
+                className={`${NODE_INPUT_CLASS} bg-slate-100 dark:bg-slate-900`}
+              />
+            </div>
           </div>
-          <div>
-            <label className="block mb-1 text-sm font-medium text-muted-foreground">
+          <div className={NODE_DIALOG_SECTION_CLASS}>
+            <div>
+              <div className="section-kicker">Notes</div>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Private notes stay internal. Public notes travel with the node into
+                user-facing surfaces.
+              </p>
+            </div>
+            <div>
+              <label className="mb-1 block text-sm font-medium text-muted-foreground">
               {t("admin.nodeEdit.remark", "Private Notes")}
-            </label>
-            <TextField.Root
-              value={form.remark}
-              onChange={(e) =>
-                setForm((f) => ({ ...f, remark: e.target.value }))
-              }
-              placeholder={t(
-                "admin.nodeEdit.remarkPlaceholder",
-                "Please enter private notes"
-              )}
-              disabled={loading}
-            />
-          </div>
-          <div>
-            <label className="block mb-1 text-sm font-medium text-muted-foreground">
+              </label>
+              <TextField.Root
+                value={form.remark}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, remark: e.target.value }))
+                }
+                placeholder={t(
+                  "admin.nodeEdit.remarkPlaceholder",
+                  "Please enter private notes"
+                )}
+                disabled={loading}
+                className={NODE_INPUT_CLASS}
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-sm font-medium text-muted-foreground">
               {t("admin.nodeEdit.publicRemark", "Public Notes")}
-            </label>
-            <TextField.Root
-              value={form.public_remark}
-              onChange={(e) =>
-                setForm((f) => ({ ...f, public_remark: e.target.value }))
-              }
-              placeholder={t(
-                "admin.nodeEdit.publicRemarkPlaceholder",
-                "Please enter public notes"
-              )}
-              disabled={loading}
-            />
+              </label>
+              <TextField.Root
+                value={form.public_remark}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, public_remark: e.target.value }))
+                }
+                placeholder={t(
+                  "admin.nodeEdit.publicRemarkPlaceholder",
+                  "Please enter public notes"
+                )}
+                disabled={loading}
+                className={NODE_INPUT_CLASS}
+              />
+            </div>
           </div>
         </div>
-        <Flex gap="2" align={"start"} className="mt-4">
+        <Flex gap="2" align={"start"} className={NODE_DIALOG_FOOTER_CLASS}>
+          <Dialog.Close>
+            <Button
+              type="button"
+              variant="outline"
+              className="w-full sm:w-auto"
+              disabled={loading}
+            >
+              {t("common.cancel", "Cancel")}
+            </Button>
+          </Dialog.Close>
           <Button
             type="submit"
-            className="w-full"
+            className="w-full sm:w-auto"
             onClick={() => {
               const payload: ClientFormData = {
                 name: form.name,

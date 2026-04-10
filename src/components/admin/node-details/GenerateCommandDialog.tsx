@@ -18,15 +18,15 @@ import type { SettingsResponse } from "@/lib/api";
 import { buildAgentInstallScriptURL } from "@/lib/installScriptSource";
 
 const NODE_DIALOG_CONTENT_CLASS =
-  "max-h-[85vh] overflow-y-auto overscroll-contain rounded-2xl border-slate-200/80 p-5 [scrollbar-gutter:stable] sm:p-6 dark:border-slate-800/80";
+  "max-h-[90vh] w-[min(96vw,1040px)] overflow-y-auto overscroll-contain rounded-[28px] border border-slate-200/80 bg-white/95 p-6 shadow-2xl [scrollbar-gutter:stable] backdrop-blur dark:border-slate-800/80 dark:bg-slate-950/95";
 const NODE_DIALOG_SECTION_CLASS =
-  "rounded-xl border border-slate-200/80 bg-slate-50/60 p-4 dark:border-slate-800/80 dark:bg-slate-900/40";
+  "rounded-[24px] border border-slate-200/80 bg-white/72 p-4 shadow-sm backdrop-blur dark:border-slate-800/80 dark:bg-slate-900/40";
 const NODE_DIALOG_HINT_CLASS =
   "text-[13px] leading-6 text-slate-500 dark:text-slate-400";
 const NODE_DIALOG_FOOTER_CLASS =
-  "mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end";
+  "mt-6 flex flex-col-reverse gap-2.5 sm:flex-row sm:justify-end";
 const NODE_INPUT_CLASS =
-  "rounded-xl border-slate-200 bg-white text-[14px] shadow-none dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100";
+  "h-11 rounded-xl border border-slate-200 bg-white px-3 text-[14px] shadow-none dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100";
 
 type Platform = "linux" | "windows" | "macos";
 
@@ -1028,7 +1028,7 @@ export default function GenerateCommandDialog({
                 <div className="relative mt-3">
                   <TextArea
                     disabled
-                    className="min-h-[220px] w-full rounded-xl border border-slate-200 bg-white font-mono text-[13px] leading-6 text-slate-700 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200"
+                    className="min-h-[220px] w-full rounded-[20px] border border-slate-200 bg-slate-50/80 font-mono text-[13px] leading-6 text-slate-700 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200"
                     value={command}
                   />
                 </div>

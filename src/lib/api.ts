@@ -10,6 +10,8 @@ export type SettingsScope = "user" | "system";
 export interface SettingsResponse {
   sitename: string;
   description: string;
+  site_subtitle: string;
+  github_url: string;
   allow_cors: boolean;
   base_scripts_url: string;
   cn_connectivity_enabled: boolean;
@@ -63,6 +65,8 @@ type UpdateSettingsEnvelope = {
 const DEFAULT_SETTINGS: SettingsResponse = {
   sitename: "",
   description: "",
+  site_subtitle: "",
+  github_url: "",
   allow_cors: false,
   base_scripts_url: "",
   cn_connectivity_enabled: false,

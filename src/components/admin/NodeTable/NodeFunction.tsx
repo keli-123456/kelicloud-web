@@ -86,6 +86,18 @@ type InstallOptions = {
 
 type Platform = "linux" | "windows" | "macos";
 
+const NODE_DIALOG_CONTENT_CLASS =
+  "max-h-[90vh] w-[min(96vw,840px)] overflow-y-auto overscroll-contain rounded-[28px] border border-slate-200/80 bg-white/95 p-6 shadow-2xl [scrollbar-gutter:stable] backdrop-blur dark:border-slate-800/80 dark:bg-slate-950/95";
+const NODE_DIALOG_COMPACT_CONTENT_CLASS =
+  "max-h-[90vh] w-[min(96vw,560px)] overflow-y-auto overscroll-contain rounded-[28px] border border-slate-200/80 bg-white/95 p-6 shadow-2xl [scrollbar-gutter:stable] backdrop-blur dark:border-slate-800/80 dark:bg-slate-950/95";
+const NODE_DIALOG_SECTION_CLASS = "dialog-section space-y-4";
+const NODE_DIALOG_FOOTER_CLASS =
+  "mt-6 flex flex-col-reverse gap-2.5 sm:flex-row sm:justify-end";
+const NODE_INPUT_CLASS =
+  "h-11 rounded-xl border border-slate-200 bg-white px-3 text-[14px] shadow-none dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100";
+const NODE_TEXTAREA_CLASS =
+  "min-h-[120px] rounded-[20px] border border-slate-200 bg-slate-50/80 px-4 py-3 font-mono text-[13px] leading-6 shadow-none dark:border-slate-800 dark:bg-slate-900/50";
+
 export function ActionsCell({ row }: { row: Row<z.infer<typeof schema>> }) {
   const refreshTable = React.useContext(DataTableRefreshContext);
   const { settings } = useSettings();
@@ -184,28 +196,51 @@ export function ActionsCell({ row }: { row: Row<z.infer<typeof schema>> }) {
             <Download className="p-1" />
           </IconButton>
         </Dialog.Trigger>
-        <Dialog.Content>
+        <Dialog.Content className={NODE_DIALOG_CONTENT_CLASS}>
           <Dialog.Title>
             {t("admin.nodeTable.installCommand", "Install command")}
           </Dialog.Title>
-          <div className="flex flex-col gap-4">
-            <SegmentedControl.Root
-              value={selectedPlatform}
-              onValueChange={(value) => setSelectedPlatform(value as Platform)}
-            >
-              <SegmentedControl.Item value="linux">Linux</SegmentedControl.Item>
-              <SegmentedControl.Item value="windows">
-                Windows
-              </SegmentedControl.Item>
-              <SegmentedControl.Item value="macos">macOS</SegmentedControl.Item>
-            </SegmentedControl.Root>
+          <Dialog.Description className="mt-2">
+            Generate a ready-to-run agent install command without leaving the node
+            table workflow.
+          </Dialog.Description>
+          <div className="mt-4 flex flex-col gap-4">
+            <div className={NODE_DIALOG_SECTION_CLASS}>
+              <div>
+                <div className="section-kicker">
+                  {t("admin.nodeTable.platform", "Platform")}
+                </div>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Switch the target environment first, then refine the command for
+                  that runtime.
+                </p>
+              </div>
+              <div className="panel-muted p-1">
+                <SegmentedControl.Root
+                  value={selectedPlatform}
+                  onValueChange={(value) => setSelectedPlatform(value as Platform)}
+                >
+                  <SegmentedControl.Item value="linux">Linux</SegmentedControl.Item>
+                  <SegmentedControl.Item value="windows">
+                    Windows
+                  </SegmentedControl.Item>
+                  <SegmentedControl.Item value="macos">macOS</SegmentedControl.Item>
+                </SegmentedControl.Root>
+              </div>
+            </div>
 
-            <Flex direction="column" gap="2">
-              <label className="text-base font-bold">
-                {t("admin.nodeTable.installOptions", "Install options")}
-              </label>
-              <div className="grid grid-cols-2 gap-2">
-                <Flex gap="2">
+            <div className={NODE_DIALOG_SECTION_CLASS}>
+              <div>
+                <div className="section-kicker">
+                  {t("admin.nodeTable.installOptions", "Install options")}
+                </div>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Optional flags stay grouped here so the generated command and its
+                  intent remain easy to scan.
+                </p>
+              </div>
+              <div className="grid gap-3 md:grid-cols-2">
+                <label className="flex items-center gap-2 rounded-2xl border border-slate-200/80 bg-white/70 px-3 py-3 text-sm dark:border-slate-800/80 dark:bg-slate-900/40">
                   <Checkbox
                     checked={installOptions.disableWebSsh}
                     onCheckedChange={(checked) => {
@@ -215,19 +250,11 @@ export function ActionsCell({ row }: { row: Row<z.infer<typeof schema>> }) {
                       }));
                     }}
                   />
-                  <label
-                    className="text-sm font-normal"
-                    onClick={() => {
-                      setInstallOptions((prev) => ({
-                        ...prev,
-                        disableWebSsh: !prev.disableWebSsh,
-                      }));
-                    }}
-                  >
+                  <span>
                     {t("admin.nodeTable.disableWebSsh", "Disable remote control")}
-                  </label>
-                </Flex>
-                <Flex gap="2">
+                  </span>
+                </label>
+                <label className="flex items-center gap-2 rounded-2xl border border-slate-200/80 bg-white/70 px-3 py-3 text-sm dark:border-slate-800/80 dark:bg-slate-900/40">
                   <Checkbox
                     checked={installOptions.disableAutoUpdate}
                     onCheckedChange={(checked) => {
@@ -236,20 +263,12 @@ export function ActionsCell({ row }: { row: Row<z.infer<typeof schema>> }) {
                         disableAutoUpdate: Boolean(checked),
                       }));
                     }}
-                  ></Checkbox>
-                  <label
-                    className="text-sm font-normal"
-                    onClick={() => {
-                      setInstallOptions((prev) => ({
-                        ...prev,
-                        disableAutoUpdate: !prev.disableAutoUpdate,
-                      }));
-                    }}
-                  >
+                  />
+                  <span>
                     {t("admin.nodeTable.disableAutoUpdate", "Disable auto update")}
-                  </label>
-                </Flex>
-                <Flex gap="2">
+                  </span>
+                </label>
+                <label className="flex items-center gap-2 rounded-2xl border border-slate-200/80 bg-white/70 px-3 py-3 text-sm dark:border-slate-800/80 dark:bg-slate-900/40">
                   <Checkbox
                     checked={installOptions.ignoreUnsafeCert}
                     onCheckedChange={(checked) => {
@@ -259,83 +278,88 @@ export function ActionsCell({ row }: { row: Row<z.infer<typeof schema>> }) {
                       }));
                     }}
                   />
-                  <label
-                    className="text-sm font-normal"
-                    onClick={() => {
+                  <span>
+                    {t("admin.nodeTable.ignoreUnsafeCert", "Ignore unsafe cert")}
+                  </span>
+                </label>
+              </div>
+              <Flex direction="column" gap="3">
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-muted-foreground">
+                    {t("admin.nodeTable.ghproxy", "GitHub proxy")}
+                  </label>
+                  <TextField.Root
+                    className={NODE_INPUT_CLASS}
+                    placeholder={t(
+                      "admin.nodeTable.ghproxy_placeholder",
+                      "GitHub 代理，为空则不使用代理"
+                    )}
+                    onChange={(e) =>
                       setInstallOptions((prev) => ({
                         ...prev,
-                        ignoreUnsafeCert: !prev.ignoreUnsafeCert,
-                      }));
-                    }}
-                  >
-                    {t("admin.nodeTable.ignoreUnsafeCert", "Ignore unsafe cert")}
+                        ghproxy: e.target.value,
+                      }))
+                    }
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-muted-foreground">
+                    {t("admin.nodeTable.install_dir", "Installation directory")}
                   </label>
-                </Flex>
-              </div>
-              <Flex direction="column" gap="2">
-                <label className="text-sm font-bold">
-                  {t("admin.nodeTable.ghproxy", "GitHub proxy")}
-                </label>
-                <TextField.Root
-                  placeholder={t(
-                    "admin.nodeTable.ghproxy_placeholder",
-                    "GitHub 代理，为空则不使用代理"
-                  )}
-                  onChange={(e) =>
-                    setInstallOptions((prev) => ({
-                      ...prev,
-                      ghproxy: e.target.value,
-                    }))
-                  }
-                ></TextField.Root>
-                <label className="text-sm font-bold">
-                  {t("admin.nodeTable.install_dir", "Installation directory")}
-                </label>
-                <TextField.Root
-                  placeholder={t(
-                    "admin.nodeTable.install_dir_placeholder",
-                    "安装目录，为空则使用默认目录(/opt/komari-agent)"
-                  )}
-                  onChange={(e) =>
-                    setInstallOptions((prev) => ({
-                      ...prev,
-                      dir: e.target.value,
-                    }))
-                  }
-                ></TextField.Root>
-                <label className="text-sm font-bold">
-                  {t("admin.nodeTable.serviceName", "Service name")}
-                </label>
-                <TextField.Root
-                  placeholder={t(
-                    "admin.nodeTable.serviceName_placeholder",
-                    "服务名称，为空则使用默认名称(komari-agent)"
-                  )}
-                  onChange={(e) =>
-                    setInstallOptions((prev) => ({
-                      ...prev,
-                      serviceName: e.target.value,
-                    }))
-                  }
-                ></TextField.Root>
+                  <TextField.Root
+                    className={NODE_INPUT_CLASS}
+                    placeholder={t(
+                      "admin.nodeTable.install_dir_placeholder",
+                      "安装目录，为空则使用默认目录(/opt/komari-agent)"
+                    )}
+                    onChange={(e) =>
+                      setInstallOptions((prev) => ({
+                        ...prev,
+                        dir: e.target.value,
+                      }))
+                    }
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-muted-foreground">
+                    {t("admin.nodeTable.serviceName", "Service name")}
+                  </label>
+                  <TextField.Root
+                    className={NODE_INPUT_CLASS}
+                    placeholder={t(
+                      "admin.nodeTable.serviceName_placeholder",
+                      "服务名称，为空则使用默认名称(komari-agent)"
+                    )}
+                    onChange={(e) =>
+                      setInstallOptions((prev) => ({
+                        ...prev,
+                        serviceName: e.target.value,
+                      }))
+                    }
+                  />
+                </div>
               </Flex>
-            </Flex>
-            <Flex direction="column" gap="2">
-              <label className="text-base font-bold">
-                {t("admin.nodeTable.generatedCommand", "Command")}
-              </label>
-              <div className="relative">
-                <TextArea
-                  disabled
-                  className="w-full"
-                  style={{ minHeight: "80px" }}
-                  value={generateCommand()}
-                />
+            </div>
+
+            <div className={NODE_DIALOG_SECTION_CLASS}>
+              <div>
+                <div className="section-kicker">
+                  {t("admin.nodeTable.generatedCommand", "Command")}
+                </div>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Copy the final command directly into the target host shell.
+                </p>
               </div>
-            </Flex>
-            <Flex justify="center">
+              <TextArea
+                disabled
+                className={`w-full ${NODE_TEXTAREA_CLASS}`}
+                value={generateCommand()}
+              />
+            </div>
+
+            <Flex justify="center" className={NODE_DIALOG_FOOTER_CLASS}>
               <Button
-                style={{ width: "100%" }}
+                className="w-full sm:w-auto"
                 onClick={() => copyToClipboard(generateCommand())}
               >
                 <Copy size={16} />
@@ -360,11 +384,22 @@ export function ActionsCell({ row }: { row: Row<z.infer<typeof schema>> }) {
            <DollarSign className="p-1" />
           </IconButton>
         </Dialog.Trigger>
-        <Dialog.Content>
+        <Dialog.Content className={NODE_DIALOG_COMPACT_CONTENT_CLASS}>
           <Dialog.Title>{t("admin.nodeTable.editNodePrice")}</Dialog.Title>
-          <label>
-            123
-          </label>
+          <Dialog.Description className="mt-2">
+            This entry is still pending a proper pricing form and currently remains
+            a placeholder surface.
+          </Dialog.Description>
+          <div className="dialog-section mt-4">
+            <label className="block text-sm font-medium text-muted-foreground">
+              Placeholder
+            </label>
+            <TextField.Root
+              className={`${NODE_INPUT_CLASS} mt-2`}
+              value="123"
+              readOnly
+            />
+          </div>
         </Dialog.Content>
       </Dialog.Root>
       {/** Delete Button */}
@@ -374,19 +409,32 @@ export function ActionsCell({ row }: { row: Row<z.infer<typeof schema>> }) {
             <Trash2 className="p-1" />
           </IconButton>
         </Dialog.Trigger>
-        <Dialog.Content>
+        <Dialog.Content className={NODE_DIALOG_COMPACT_CONTENT_CLASS}>
           <Dialog.Title>{t("admin.nodeTable.confirmDelete")}</Dialog.Title>
-          <Dialog.Description>
+          <Dialog.Description className="mt-2">
             {t("admin.nodeTable.cannotUndo")}
           </Dialog.Description>
-          <Flex gap="2" justify={"end"}>
+          <div className="dialog-danger mt-4">
+            <p className="text-sm leading-6 text-red-700 dark:text-red-200">
+              Deleting a node removes it from the management console immediately.
+              This action cannot be undone.
+            </p>
+          </div>
+          <Flex gap="2" justify={"end"} className={NODE_DIALOG_FOOTER_CLASS}>
             <Dialog.Close>
-              <Button variant="soft">{t("admin.nodeTable.cancel")}</Button>
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full sm:w-auto"
+              >
+                {t("admin.nodeTable.cancel")}
+              </Button>
             </Dialog.Close>
             <Dialog.Trigger>
               <Button
                 disabled={removing}
                 color="red"
+                className="w-full sm:w-auto"
                 onClick={async () => {
                   setRemoving(true);
                   try {

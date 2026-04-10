@@ -1,13 +1,32 @@
 import { Suspense, lazy, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useParams } from "react-router-dom";
+import { AlertCircle } from "lucide-react";
 
 import Flag from "../../components/Flag";
 import { useLiveData } from "../../contexts/LiveDataContext";
 import type { Record } from "../../types/LiveData";
+import {
+  Alert,
+  AlertDescription,
+  AlertTitle,
+} from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
-import { Card } from "@/components/ui/card";
-import { SegmentedControl } from "@/components/ui/segmented-control";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Separator } from "@/components/ui/separator";
+import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "@/components/ui/tabs";
 import { useNodeList } from "@/contexts/NodeListContext";
 import { DetailsGrid } from "@/components/DetailsGrid";
 import { liveDataToRecords } from "@/utils/RecordHelper";
@@ -31,7 +50,10 @@ export default function InstancePage() {
   useEffect(() => {
     fetch(`/api/recent/${uuid}`)
       .then((res) => res.json())
-      .then((data) => setRecent(data.data.slice(-length)))
+      .then((data) => {
+        const records = Array.isArray(data?.data) ? data.data.slice(-length) : [];
+        setRecent(records);
+      })
       .catch((err) => console.error("Failed to fetch recent data:", err));
   }, [length, uuid]);
 
@@ -43,9 +65,7 @@ export default function InstancePage() {
 
       setRecent((prev) => {
         const newRecord: Record = data;
-        const exists = prev.some(
-          (item) => item.updated_at === newRecord.updated_at,
-        );
+        const exists = prev.some((item) => item.time === newRecord.time);
         if (exists) return prev;
         return [...prev, newRecord].slice(-length);
       });
@@ -55,115 +75,133 @@ export default function InstancePage() {
   }, [length, onRefresh, uuid]);
 
   return (
-    <div className="mx-auto flex w-full max-w-[1440px] flex-col gap-4 px-2 pb-6">
-      <Card className="relative overflow-hidden rounded-[32px] border border-border/60 bg-background/90 px-5 py-5 shadow-[0_24px_70px_-38px_rgba(15,23,42,0.5)]">
-        <div
-          className="pointer-events-none absolute inset-y-0 right-0 w-1/2 opacity-40"
-          style={{
-            background:
-              "radial-gradient(circle at top right, var(--accent-a8), transparent 58%)",
-          }}
-        />
-
-        <div className="relative grid gap-5 xl:grid-cols-[1.2fr_0.8fr]">
-          <div className="space-y-4">
-            <div className="flex flex-wrap items-center gap-2">
-              <Badge
-                variant={isOnline ? "success" : "warning"}
-                className="rounded-full px-3 py-1"
-              >
-                {isOnline ? t("nodeCard.online") : t("nodeCard.offline")}
-              </Badge>
-              <Badge variant="secondary" className="rounded-full px-3 py-1">
-                {node?.region || "UN"}
-              </Badge>
-              {node?.group ? (
-                <Badge variant="info" className="rounded-full px-3 py-1">
-                  {node.group}
+    <div className="mx-auto flex w-full max-w-7xl flex-col gap-5 px-4 py-5 md:px-6 md:py-6">
+      <Card className="rounded-xl border-border/70 shadow-none">
+        <CardHeader className="gap-5">
+          <div className="flex flex-col gap-5 xl:flex-row xl:items-start xl:justify-between">
+            <div className="min-w-0 space-y-3">
+              <div className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
+                {t("instance.details_title")}
+              </div>
+              <div className="flex min-w-0 items-start gap-3">
+                <div className="pt-1">
+                  <Flag flag={node?.region ?? ""} />
+                </div>
+                <div className="min-w-0">
+                  <CardTitle className="truncate text-2xl tracking-tight md:text-3xl">
+                    {node?.name ?? uuid}
+                  </CardTitle>
+                  <CardDescription className="mt-1 truncate font-mono text-xs">
+                    {node?.uuid}
+                  </CardDescription>
+                </div>
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <Badge variant={isOnline ? "success" : "warning"}>
+                  {isOnline ? t("nodeCard.online") : t("nodeCard.offline")}
                 </Badge>
-              ) : null}
+                <Badge variant="outline">{node?.region || "UN"}</Badge>
+                {node?.group ? <Badge variant="secondary">{node.group}</Badge> : null}
+              </div>
             </div>
 
-            <div className="space-y-3">
-              <div className="flex flex-wrap items-center gap-3">
-                <Flag flag={node?.region ?? ""} />
-                <h1 className="text-3xl font-semibold tracking-tight md:text-4xl">
-                  {node?.name ?? uuid}
-                </h1>
-              </div>
-              <div className="rounded-full border border-border/60 bg-background/80 px-4 py-2 text-sm text-muted-foreground shadow-sm backdrop-blur-sm">
-                {node?.uuid}
-              </div>
-              <p className="max-w-2xl text-sm leading-6 text-muted-foreground md:text-base">
-                {t("instance.summary_description")}
-              </p>
+            <div className="grid gap-3 sm:grid-cols-2 xl:w-[420px]">
+              <InstanceStat
+                label={t("nodeCard.arch")}
+                value={node?.arch ?? "Unknown"}
+              />
+              <InstanceStat
+                label={t("nodeCard.os")}
+                value={node?.os ?? "Unknown"}
+              />
+              <InstanceStat
+                label={t("nodeCard.networkSpeed")}
+                value={`↑ ${formatBytes(liveRecord?.network.up || 0)}/s`}
+                helper={`↓ ${formatBytes(liveRecord?.network.down || 0)}/s`}
+              />
+              <InstanceStat
+                label={t("nodeCard.totalTraffic")}
+                value={`↑ ${formatBytes(liveRecord?.network.totalUp || 0)}`}
+                helper={`↓ ${formatBytes(liveRecord?.network.totalDown || 0)}`}
+              />
             </div>
           </div>
-
-          <div className="grid gap-3 sm:grid-cols-2">
-            <InstanceStat
-              label={t("nodeCard.arch")}
-              value={node?.arch ?? "Unknown"}
-            />
-            <InstanceStat
-              label={t("nodeCard.os")}
-              value={node?.os ?? "Unknown"}
-            />
-            <InstanceStat
-              label={t("nodeCard.networkSpeed")}
-              value={`↑ ${formatBytes(liveRecord?.network.up || 0)}/s`}
-              helper={`↓ ${formatBytes(liveRecord?.network.down || 0)}/s`}
-            />
-            <InstanceStat
-              label={t("nodeCard.totalTraffic")}
-              value={`↑ ${formatBytes(liveRecord?.network.totalUp || 0)}`}
-              helper={`↓ ${formatBytes(liveRecord?.network.totalDown || 0)}`}
-            />
-          </div>
-        </div>
+        </CardHeader>
       </Card>
 
-      <Card className="rounded-[30px] border border-border/60 bg-background/95 px-4 py-4 shadow-[0_24px_70px_-42px_rgba(15,23,42,0.45)]">
-        <div className="flex flex-col gap-3 border-b border-border/60 pb-4 md:flex-row md:items-center md:justify-between">
-          <div>
-            <div className="text-[11px] uppercase tracking-[0.24em] text-muted-foreground">
-              {t("instance.details_eyebrow")}
-            </div>
-            <div className="mt-1 text-xl font-semibold tracking-tight">
-              {t("instance.details_title")}
-            </div>
+      {!isOnline ? (
+        <Alert variant="destructive">
+          <AlertCircle />
+          <AlertTitle>{t("nodeCard.offline")}</AlertTitle>
+          <AlertDescription>
+            This instance is currently offline. Historical details and charts remain
+            available, but live readings may lag behind.
+          </AlertDescription>
+        </Alert>
+      ) : null}
+
+      <Card className="rounded-xl border-border/70 shadow-none">
+        <CardHeader className="gap-2">
+          <div className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
+            {t("instance.details_title")}
           </div>
-          <SegmentedControl.Root
-            radius="full"
-            value={chartView}
-            onValueChange={(value) => setChartView(value as "load" | "ping")}
-          >
-            <SegmentedControl.Item value="load">
-              {t("nodeCard.load")}
-            </SegmentedControl.Item>
-            <SegmentedControl.Item value="ping">
-              {t("nodeCard.ping")}
-            </SegmentedControl.Item>
-          </SegmentedControl.Root>
-        </div>
-        <div className="pt-4">
+          <CardTitle className="text-base tracking-tight">
+            {t("instance.summary_description")}
+          </CardTitle>
+          <CardDescription className="text-sm leading-6">
+            Base profile, capacity, and recent status remain in one compact section.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
           <DetailsGrid uuid={uuid ?? ""} />
-        </div>
+        </CardContent>
       </Card>
 
-      <Suspense
-        fallback={
-          <Card className="rounded-[30px] border border-border/60 bg-background/95 px-4 py-10 text-center text-sm text-muted-foreground shadow-[0_24px_70px_-42px_rgba(15,23,42,0.45)]">
-            {t("common.loading", { defaultValue: "Loading..." })}
-          </Card>
-        }
+      <Tabs
+        value={chartView}
+        onValueChange={(value) => setChartView(value as "load" | "ping")}
+        className="gap-4"
       >
-        {chartView === "load" ? (
-          <LoadChart data={liveDataToRecords(uuid ?? "", recent)} />
-        ) : (
-          <PingChart uuid={uuid ?? ""} />
-        )}
-      </Suspense>
+        <Card className="rounded-xl border-border/70 shadow-none">
+          <CardHeader className="gap-4">
+            <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+              <div className="space-y-2">
+                <div className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
+                  {t("nodeCard.status")}
+                </div>
+                <CardTitle className="text-base tracking-tight">
+                  Realtime history
+                </CardTitle>
+                <CardDescription className="text-sm leading-6">
+                  Load and latency share one consistent monitoring panel.
+                </CardDescription>
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <Badge variant="outline" className="font-normal">
+                  {liveRecord?.time ? new Date(liveRecord.time).toLocaleString() : "-"}
+                </Badge>
+                <TabsList className="h-9">
+                  <TabsTrigger value="load">{t("nodeCard.load")}</TabsTrigger>
+                  <TabsTrigger value="ping">{t("nodeCard.ping")}</TabsTrigger>
+                </TabsList>
+              </div>
+            </div>
+          </CardHeader>
+          <Separator />
+          <CardContent className="pt-6">
+            <TabsContent value="load" className="mt-0">
+              <Suspense fallback={<ChartSkeleton />}>
+                <LoadChart data={liveDataToRecords(uuid ?? "", recent)} />
+              </Suspense>
+            </TabsContent>
+            <TabsContent value="ping" className="mt-0">
+              <Suspense fallback={<ChartSkeleton />}>
+                <PingChart uuid={uuid ?? ""} />
+              </Suspense>
+            </TabsContent>
+          </CardContent>
+        </Card>
+      </Tabs>
     </div>
   );
 }
@@ -178,14 +216,34 @@ const InstanceStat = ({
   helper?: string;
 }) => {
   return (
-    <div className="rounded-[24px] border border-border/60 bg-background/80 px-4 py-4 shadow-sm backdrop-blur-sm">
-      <div className="text-[11px] uppercase tracking-[0.22em] text-muted-foreground">
-        {label}
-      </div>
-      <div className="mt-2 text-lg font-semibold tracking-tight">{value}</div>
-      {helper ? (
-        <div className="mt-1 text-sm text-muted-foreground">{helper}</div>
-      ) : null}
+    <Card className="gap-3 rounded-lg border-border/70 py-4 shadow-none">
+      <CardContent className="px-4">
+        <div className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
+          {label}
+        </div>
+        <div className="mt-2 text-lg font-semibold tracking-tight">{value}</div>
+        {helper ? (
+          <div className="mt-1 text-sm text-muted-foreground">{helper}</div>
+        ) : null}
+      </CardContent>
+    </Card>
+  );
+};
+
+const ChartSkeleton = () => {
+  return (
+    <div className="grid gap-4 xl:grid-cols-2">
+      {Array.from({ length: 4 }).map((_, index) => (
+        <Card key={index} className="gap-4 rounded-lg border-border/70 py-4 shadow-none">
+          <CardHeader className="gap-2 px-4 pb-0">
+            <Skeleton className="h-4 w-24" />
+            <Skeleton className="h-6 w-40" />
+          </CardHeader>
+          <CardContent className="px-4">
+            <Skeleton className="h-56 w-full rounded-lg" />
+          </CardContent>
+        </Card>
+      ))}
     </div>
   );
 };

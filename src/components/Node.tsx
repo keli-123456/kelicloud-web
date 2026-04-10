@@ -7,7 +7,6 @@ import { useTranslation } from "react-i18next";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
 import type { NodeBasicInfo } from "@/contexts/NodeListContext";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -21,7 +20,6 @@ import PriceTags from "./PriceTags";
 import Tips from "./ui/tips";
 import UsageBar from "./UsageBar";
 
-/** 格式化秒*/
 export function formatUptime(seconds: number, t: TFunction): string {
   if (!seconds || seconds < 0) return t("nodeCard.time_second", { val: 0 });
   const d = Math.floor(seconds / 86400);
@@ -56,29 +54,25 @@ function buildCNConnectivityBadge(
     case "ok":
       return {
         label: `${t("admin.nodeTable.cnConnectivityOk")}${latencyLabel}`,
-        className:
-          "rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[11px] text-emerald-700",
+        variant: "success" as const,
         title,
       };
     case "blocked_suspected":
       return {
         label: t("admin.nodeTable.cnConnectivityBlocked"),
-        className:
-          "rounded-full border border-rose-200 bg-rose-50 px-2 py-0.5 text-[11px] text-rose-700",
+        variant: "destructive" as const,
         title,
       };
     case "degraded":
       return {
         label: t("admin.nodeTable.cnConnectivityDegraded"),
-        className:
-          "rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[11px] text-amber-700",
+        variant: "warning" as const,
         title,
       };
     default:
       return {
         label: t("admin.nodeTable.cnConnectivityUnknown"),
-        className:
-          "rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-[11px] text-slate-600",
+        variant: "secondary" as const,
         title,
       };
   }
@@ -87,18 +81,38 @@ function buildCNConnectivityBadge(
 function InfoRow({
   label,
   value,
-  mobile = false,
 }: {
   label: React.ReactNode;
   value: React.ReactNode;
-  mobile?: boolean;
 }) {
   return (
-    <div className={cn("flex justify-between", mobile && "gap-2")}>
-      <span className={cn("text-sm", !mobile && "text-muted-foreground")}>
+    <div className="flex items-center justify-between gap-3">
+      <span className="text-sm text-muted-foreground">{label}</span>
+      <span className="text-sm text-foreground">{value}</span>
+    </div>
+  );
+}
+
+function NodeMetricTile({
+  label,
+  value,
+  helper,
+}: {
+  label: React.ReactNode;
+  value: React.ReactNode;
+  helper?: React.ReactNode;
+}) {
+  return (
+    <div className="panel-muted px-4 py-4">
+      <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-muted-foreground">
         {label}
-      </span>
-      <span className="text-sm">{value}</span>
+      </div>
+      <div className="mt-2 text-sm font-semibold leading-6 text-foreground">
+        {value}
+      </div>
+      {helper ? (
+        <div className="mt-1 truncate text-sm text-muted-foreground">{helper}</div>
+      ) : null}
     </div>
   );
 }
@@ -114,9 +128,16 @@ const Node = React.memo(({ basic, live, online }: NodeProps) => {
   const isMobile = useIsMobile();
   const defaultLive = {
     cpu: { usage: 0 },
+    swap: { used: 0 },
+    load: { load1: 0, load5: 0, load15: 0 },
     ram: { used: 0 },
     disk: { used: 0 },
     network: { up: 0, down: 0, totalUp: 0, totalDown: 0 },
+    connections: { tcp: 0, udp: 0 },
+    uptime: 0,
+    process: 0,
+    message: "",
+    time: "",
   } as Record;
 
   const liveData = live || defaultLive;
@@ -137,132 +158,129 @@ const Node = React.memo(({ basic, live, online }: NodeProps) => {
   return (
     <Card
       id={basic.uuid}
-      style={{
-        width: "100%",
-        margin: "0 auto",
-        transition: "all 0.2s ease-in-out",
-      }}
-      className="node-card gap-0 px-4 py-4 hover:cursor-pointer hover:bg-accent-2 hover:shadow-lg"
+      className="node-card group gap-0 rounded-[28px] border border-border/60 bg-background/94 px-4 py-4 shadow-[0_18px_50px_-38px_rgba(15,23,42,0.42)] transition-all duration-200 hover:-translate-y-0.5 hover:cursor-pointer hover:border-border hover:bg-background hover:shadow-[0_24px_60px_-38px_rgba(15,23,42,0.5)]"
     >
-      <div className="flex flex-col gap-2">
-        <div
-          className={cn(
-            "flex items-center justify-between gap-3",
-            isMobile && "-my-1",
-          )}
-        >
-          <div className="flex min-w-0 flex-1 items-center">
-            <Flag flag={basic.region} />
-            <Link
-              to={`/instance/${basic.uuid}`}
-              style={{ flex: 1, minWidth: 0 }}
-              className="min-w-0"
-            >
-              <div className="min-w-0">
+      <div className="flex flex-col gap-4">
+        <div className="flex items-start justify-between gap-4">
+          <div className="flex min-w-0 flex-1 items-start gap-3">
+            <div className="pt-1">
+              <Flag flag={basic.region} />
+            </div>
+            <div className="min-w-0 flex-1 space-y-2">
+              <Link to={`/instance/${basic.uuid}`} className="block min-w-0">
                 <div
                   className={cn(
-                    "truncate font-bold",
-                    isMobile ? "text-base" : "text-xl",
+                    "truncate font-semibold tracking-tight text-foreground transition-colors group-hover:text-[var(--accent-11)]",
+                    isMobile ? "text-lg" : "text-[1.35rem]",
                   )}
                 >
                   {basic.name}
                 </div>
-                {isMobile && (
-                  <div
-                    className="text-sm text-muted-foreground"
-                    style={{
-                      marginTop: "-3px",
-                      fontSize: "0.728rem",
-                    }}
-                  >
-                    {formatUptime(liveData.uptime, t)}
-                  </div>
-                )}
-                <PriceTags
-                  hidden={isMobile}
-                  price={basic.price}
-                  billing_cycle={basic.billing_cycle}
-                  expired_at={basic.expired_at}
-                  currency={basic.currency}
-                  tags={basic.tags}
-                  ip4={undefined}
-                  ip6={undefined}
-                />
+              </Link>
+              <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                <span>{basic.region || "UN"}</span>
+                {basic.group ? (
+                  <>
+                    <span className="text-border">/</span>
+                    <span>{basic.group}</span>
+                  </>
+                ) : null}
+                {!isMobile ? (
+                  <>
+                    <span className="text-border">/</span>
+                    <span>
+                      {getOSName(basic.os)} / {basic.arch}
+                    </span>
+                  </>
+                ) : null}
               </div>
-            </Link>
+            </div>
           </div>
 
-          <div className="flex items-center gap-2" style={{ flex: "none" }}>
-            {live?.message && <Tips color="#CE282E">{live.message}</Tips>}
-            <MiniPingChartFloat
-              uuid={basic.uuid}
-              hours={24}
-              trigger={
-                <Button type="button" variant="ghost" size="icon" className="h-8 w-8">
-                  <TrendingUp size={14} />
-                </Button>
-              }
-            />
+          <div className="flex flex-wrap items-center justify-end gap-2">
             {cnConnectivityBadge ? (
-              <span
-                className={cnConnectivityBadge.className}
+              <Badge
+                variant={cnConnectivityBadge.variant}
+                className="rounded-full px-2.5 py-1"
                 title={cnConnectivityBadge.title}
               >
                 {cnConnectivityBadge.label}
-              </span>
+              </Badge>
             ) : null}
-            <Badge variant={online ? "success" : "destructive"}>
+            <Badge
+              variant={online ? "success" : "destructive"}
+              className="rounded-full px-3 py-1"
+            >
               {online ? t("nodeCard.online") : t("nodeCard.offline")}
             </Badge>
           </div>
         </div>
 
-        <Separator className="-mt-1" />
+        <div className="flex flex-wrap items-center gap-2">
+          <PriceTags
+            hidden={false}
+            price={basic.price}
+            billing_cycle={basic.billing_cycle}
+            expired_at={basic.expired_at}
+            currency={basic.currency}
+            tags={basic.tags}
+            ip4={undefined}
+            ip6={undefined}
+          />
+          {live?.message ? <Tips color="#CE282E">{live.message}</Tips> : null}
+          <MiniPingChartFloat
+            uuid={basic.uuid}
+            hours={24}
+            trigger={
+              <Button type="button" variant="ghost" size="icon" className="h-8 w-8 rounded-full">
+                <TrendingUp size={14} />
+              </Button>
+            }
+          />
+        </div>
 
-        <div className="flex flex-col gap-2">
-          {!isMobile && (
-            <InfoRow
-              label="OS"
-              value={
-                <span className="flex items-center">
-                  <img
-                    src={getOSImage(basic.os)}
-                    alt={basic.os}
-                    className="mr-2 h-5 w-5"
-                  />
-                  {getOSName(basic.os)} / {basic.arch}
-                </span>
-              }
-            />
-          )}
+        <div className="panel-muted px-4 py-4">
+          <div className="space-y-3">
+            {!isMobile ? (
+              <InfoRow
+                label="OS"
+                value={
+                  <span className="flex items-center">
+                    <img
+                      src={getOSImage(basic.os)}
+                      alt={basic.os}
+                      className="mr-2 h-5 w-5"
+                    />
+                    {getOSName(basic.os)} / {basic.arch}
+                  </span>
+                }
+              />
+            ) : null}
 
-          <div className="flex flex-row gap-4 md:flex-col md:gap-1">
-            <UsageBar label={t("nodeCard.cpu")} value={liveData.cpu.usage} />
+            <div className="flex flex-col gap-3">
+              <UsageBar label={t("nodeCard.cpu")} value={liveData.cpu.usage} />
 
-            <div>
-              <UsageBar label={t("nodeCard.ram")} value={memoryUsagePercent} />
-              <div
-                className="hidden text-sm text-muted-foreground md:block"
-                style={{ marginTop: "-4px" }}
-              >
-                ({formatBytes(liveData.ram.used)} / {formatBytes(basic.mem_total)})
+              <div>
+                <UsageBar label={t("nodeCard.ram")} value={memoryUsagePercent} />
+                <div className="mt-1 text-sm text-muted-foreground">
+                  {formatBytes(liveData.ram.used)} / {formatBytes(basic.mem_total)}
+                </div>
               </div>
-            </div>
 
-            <div>
-              <UsageBar label={t("nodeCard.disk")} value={diskUsagePercent} />
-              <div
-                className="hidden text-sm text-muted-foreground md:block"
-                style={{ marginTop: "-4px" }}
-              >
-                ({formatBytes(liveData.disk.used)} / {formatBytes(basic.disk_total)})
+              <div>
+                <UsageBar label={t("nodeCard.disk")} value={diskUsagePercent} />
+                <div className="mt-1 text-sm text-muted-foreground">
+                  {formatBytes(liveData.disk.used)} / {formatBytes(basic.disk_total)}
+                </div>
               </div>
             </div>
           </div>
+        </div>
 
+        <div className="grid gap-3 sm:grid-cols-2">
           {basic.traffic_limit > 0 ? (
-            !isMobile ? (
-              <div className="flex flex-col justify-between">
+            <div className="panel-muted px-4 py-4 sm:col-span-2">
+              <div className="space-y-2">
                 <UsageBar
                   label={t("nodeCard.totalTraffic")}
                   value={getTrafficPercentage(
@@ -273,7 +291,7 @@ const Node = React.memo(({ basic, live, online }: NodeProps) => {
                   )}
                   max={Infinity}
                 />
-                <div className="flex justify-between whitespace-nowrap">
+                <div className="flex flex-wrap items-center justify-between gap-2 whitespace-nowrap">
                   <span className="text-sm text-muted-foreground">
                     ↑ {totalUpload} ↓ {totalDownload}
                   </span>
@@ -285,64 +303,35 @@ const Node = React.memo(({ basic, live, online }: NodeProps) => {
                   </span>
                 </div>
               </div>
-            ) : (
-              <UsageBar
-                label={`${
-                  basic.traffic_limit_type &&
-                  basic.traffic_limit_type.charAt(0).toUpperCase() +
-                    basic.traffic_limit_type.slice(1)
-                }(${formatBytes(basic.traffic_limit)})`}
-                max={Infinity}
-                value={getTrafficPercentage(
-                  liveData.network.totalUp,
-                  liveData.network.totalDown,
-                  basic.traffic_limit,
-                  basic.traffic_limit_type ?? "sum",
-                )}
-              />
-            )
-          ) : !isMobile ? (
-            <InfoRow
+            </div>
+          ) : (
+            <NodeMetricTile
               label={t("nodeCard.totalTraffic")}
-              value={`↑ ${totalUpload} ↓ ${totalDownload}`}
+              value={`↑ ${totalUpload}`}
+              helper={`↓ ${totalDownload}`}
+            />
+          )}
+
+          <NodeMetricTile
+            label={t("nodeCard.networkSpeed")}
+            value={`↑ ${uploadSpeed}/s`}
+            helper={`↓ ${downloadSpeed}/s`}
+          />
+
+          <NodeMetricTile
+            label={t("nodeCard.uptime")}
+            value={online ? formatUptime(liveData.uptime, t) : "-"}
+            helper={basic.uuid}
+          />
+
+          {isMobile ? (
+            <NodeMetricTile
+              label="OS"
+              value={getOSName(basic.os)}
+              helper={basic.arch}
             />
           ) : null}
-
-          {!isMobile ? (
-            <>
-              <InfoRow
-                label={t("nodeCard.networkSpeed")}
-                value={`↑ ${uploadSpeed}/s ↓ ${downloadSpeed}/s`}
-              />
-              <InfoRow
-                label={t("nodeCard.uptime")}
-                value={online ? formatUptime(liveData.uptime, t) : "-"}
-              />
-            </>
-          ) : (
-            <>
-              <InfoRow
-                mobile
-                label={t("nodeCard.networkSpeed")}
-                value={`↑ ${uploadSpeed}/s ↓ ${downloadSpeed}/s`}
-              />
-              <InfoRow
-                mobile
-                label={t("nodeCard.totalTraffic")}
-                value={`↑ ${totalUpload} ↓ ${totalDownload}`}
-              />
-            </>
-          )}
         </div>
-
-        <PriceTags
-          hidden={!isMobile}
-          price={basic.price}
-          billing_cycle={basic.billing_cycle}
-          expired_at={basic.expired_at}
-          currency={basic.currency}
-          tags={basic.tags || ""}
-        />
       </div>
     </Card>
   );
@@ -370,9 +359,9 @@ export const NodeGrid = ({ nodes, liveData }: NodeGridProps) => {
 
   return (
     <div
-      className="grid w-full box-border gap-2 p-4 md:gap-4"
+      className="grid w-full box-border gap-4 p-4 md:gap-5"
       style={{
-        gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))",
+        gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))",
       }}
     >
       {sortedNodes.map((node) => {

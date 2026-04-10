@@ -129,10 +129,16 @@ const NodeTable: React.FC<NodeTableProps> = ({ nodes, liveData }) => {
   const getNodeData = (uuid: string): Record => {
     const defaultLive = {
       cpu: { usage: 0 },
+      swap: { used: 0 },
+      load: { load1: 0, load5: 0, load15: 0 },
       ram: { used: 0 },
       disk: { used: 0 },
       network: { up: 0, down: 0, totalUp: 0, totalDown: 0 },
+      connections: { tcp: 0, udp: 0 },
       uptime: 0,
+      process: 0,
+      message: "",
+      time: "",
     } as Record;
 
     return liveData && liveData.data
@@ -206,13 +212,32 @@ const NodeTable: React.FC<NodeTableProps> = ({ nodes, liveData }) => {
   });
 
   return (
-    <div className="node-table-container mx-4 overflow-x-auto rounded-xl">
+    <div className="node-table-container mx-4 overflow-hidden rounded-[28px] border border-border/60 bg-background/95 shadow-[0_20px_60px_-42px_rgba(15,23,42,0.42)]">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/60 px-4 py-4 md:px-5">
+        <div>
+          <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-muted-foreground">
+            {t("nodes.table_view", { defaultValue: "Table" })}
+          </div>
+          <div className="mt-1 text-lg font-semibold tracking-tight text-foreground">
+            {t("nodeCard.totalNodes", {
+              total: sortedNodes.length,
+              online: onlineNodes.length,
+              defaultValue: `共 ${sortedNodes.length} 个节点，${onlineNodes.length} 个在线`,
+            })}
+          </div>
+        </div>
+        <div className="rounded-full border border-border/60 bg-background/80 px-3 py-2 text-sm text-muted-foreground">
+          {t("nodeCard.sortTooltip")}
+        </div>
+      </div>
+
+      <div className="overflow-x-auto">
       <Table>
         <TableHeader>
-          <TableRow>
+          <TableRow className="bg-muted/35 hover:bg-muted/35">
             <TableHead className="w-[24px]" />
             <TableHead
-              className="w-[200px] min-w-[150px] cursor-pointer select-none hover:bg-accent-2"
+              className="w-[200px] min-w-[150px] cursor-pointer select-none hover:bg-muted/60"
               onClick={handleSort("name")}
               title={t("nodeCard.sortTooltip")}
             >
@@ -221,7 +246,7 @@ const NodeTable: React.FC<NodeTableProps> = ({ nodes, liveData }) => {
               </HeaderLabel>
             </TableHead>
             <TableHead
-              className="cursor-pointer select-none hover:bg-accent-2"
+              className="cursor-pointer select-none hover:bg-muted/60"
               onClick={handleSort("os")}
               title={t("nodeCard.sortTooltip")}
             >
@@ -230,7 +255,7 @@ const NodeTable: React.FC<NodeTableProps> = ({ nodes, liveData }) => {
               </HeaderLabel>
             </TableHead>
             <TableHead
-              className="max-w-[128px] cursor-pointer select-none hover:bg-accent-2"
+              className="max-w-[128px] cursor-pointer select-none hover:bg-muted/60"
               onClick={handleSort("status")}
               title={t("nodeCard.sortTooltip")}
             >
@@ -239,7 +264,7 @@ const NodeTable: React.FC<NodeTableProps> = ({ nodes, liveData }) => {
               </HeaderLabel>
             </TableHead>
             <TableHead
-              className="cursor-pointer select-none hover:bg-accent-2"
+              className="cursor-pointer select-none hover:bg-muted/60"
               onClick={handleSort("cpu")}
               title={t("nodeCard.sortTooltip")}
             >
@@ -248,7 +273,7 @@ const NodeTable: React.FC<NodeTableProps> = ({ nodes, liveData }) => {
               </HeaderLabel>
             </TableHead>
             <TableHead
-              className="cursor-pointer select-none hover:bg-accent-2"
+              className="cursor-pointer select-none hover:bg-muted/60"
               onClick={handleSort("ram")}
               title={t("nodeCard.sortTooltip")}
             >
@@ -257,7 +282,7 @@ const NodeTable: React.FC<NodeTableProps> = ({ nodes, liveData }) => {
               </HeaderLabel>
             </TableHead>
             <TableHead
-              className="cursor-pointer select-none hover:bg-accent-2"
+              className="cursor-pointer select-none hover:bg-muted/60"
               onClick={handleSort("disk")}
               title={t("nodeCard.sortTooltip")}
             >
@@ -266,7 +291,7 @@ const NodeTable: React.FC<NodeTableProps> = ({ nodes, liveData }) => {
               </HeaderLabel>
             </TableHead>
             <TableHead
-              className="cursor-pointer select-none hover:bg-accent-2"
+              className="cursor-pointer select-none hover:bg-muted/60"
               onClick={handleSort("price")}
               title={t("nodeCard.sortTooltip")}
             >
@@ -275,7 +300,7 @@ const NodeTable: React.FC<NodeTableProps> = ({ nodes, liveData }) => {
               </HeaderLabel>
             </TableHead>
             <TableHead
-              className="min-w-[80px] cursor-pointer select-none text-center hover:bg-accent-2"
+              className="min-w-[80px] cursor-pointer select-none text-center hover:bg-muted/60"
               onClick={handleSort("networkUp")}
               title={t("nodeCard.sortTooltip")}
             >
@@ -284,7 +309,7 @@ const NodeTable: React.FC<NodeTableProps> = ({ nodes, liveData }) => {
               </HeaderLabel>
             </TableHead>
             <TableHead
-              className="min-w-[80px] cursor-pointer select-none text-center hover:bg-accent-2"
+              className="min-w-[80px] cursor-pointer select-none text-center hover:bg-muted/60"
               onClick={handleSort("networkDown")}
               title={t("nodeCard.sortTooltip")}
             >
@@ -293,7 +318,7 @@ const NodeTable: React.FC<NodeTableProps> = ({ nodes, liveData }) => {
               </HeaderLabel>
             </TableHead>
             <TableHead
-              className="min-w-[80px] cursor-pointer select-none text-center hover:bg-accent-2"
+              className="min-w-[80px] cursor-pointer select-none text-center hover:bg-muted/60"
               onClick={handleSort("totalUp")}
               title={t("nodeCard.sortTooltip")}
             >
@@ -302,7 +327,7 @@ const NodeTable: React.FC<NodeTableProps> = ({ nodes, liveData }) => {
               </HeaderLabel>
             </TableHead>
             <TableHead
-              className="min-w-[80px] cursor-pointer select-none text-center hover:bg-accent-2"
+              className="min-w-[80px] cursor-pointer select-none text-center hover:bg-muted/60"
               onClick={handleSort("totalDown")}
               title={t("nodeCard.sortTooltip")}
             >
@@ -329,7 +354,7 @@ const NodeTable: React.FC<NodeTableProps> = ({ nodes, liveData }) => {
             return (
               <React.Fragment key={node.uuid}>
                 <TableRow
-                  className="table-row-hover cursor-pointer transition-colors duration-200 hover:bg-accent-2"
+                  className="table-row-hover cursor-pointer border-b border-border/50 transition-colors duration-200 hover:bg-muted/40"
                   onClick={() => toggleRowExpansion(node.uuid)}
                 >
                   <TableCell>
@@ -338,7 +363,7 @@ const NodeTable: React.FC<NodeTableProps> = ({ nodes, liveData }) => {
                         type="button"
                         variant="ghost"
                         size="icon"
-                        className={`expand-button h-8 w-8 ${
+                        className={`expand-button h-8 w-8 rounded-full ${
                           isExpanded ? "expanded" : ""
                         }`}
                         aria-label="Expand row"
@@ -353,11 +378,11 @@ const NodeTable: React.FC<NodeTableProps> = ({ nodes, liveData }) => {
                       <Flag flag={node.region} />
                       <Link
                         to={`/instance/${node.uuid}`}
-                        className="hover:underline"
+                        className="hover:text-[var(--accent-11)]"
                         onClick={(e) => e.stopPropagation()}
                       >
                         <div>
-                          <label className="max-w-[150px] truncate text-lg font-bold">
+                          <label className="max-w-[150px] truncate text-lg font-semibold tracking-tight">
                             {node.name}
                           </label>
                           <div className="-mt-1 text-xs text-muted-foreground">
@@ -432,7 +457,7 @@ const NodeTable: React.FC<NodeTableProps> = ({ nodes, liveData }) => {
 
                 {isExpanded && (
                   <TableRow className="expanded-row">
-                    <TableCell colSpan={12} className="bg-accent-1">
+                    <TableCell colSpan={12} className="bg-muted/20 p-0">
                       <div className="expand-content">
                         <ExpandedNodeDetails node={node} />
                       </div>
@@ -444,6 +469,7 @@ const NodeTable: React.FC<NodeTableProps> = ({ nodes, liveData }) => {
           })}
         </TableBody>
       </Table>
+      </div>
     </div>
   );
 };
@@ -454,12 +480,12 @@ interface ExpandedNodeDetailsProps {
 
 const ExpandedNodeDetails: React.FC<ExpandedNodeDetailsProps> = ({ node }) => {
   return (
-    <div className="space-y-4 p-4">
+    <div className="space-y-4 px-4 py-5 md:px-5">
       <DetailsGrid gap="0" uuid={node.uuid} />
       <div>
         <React.Suspense
           fallback={
-            <div className="rounded-xl border border-dashed border-border/60 px-4 py-8 text-center text-sm text-muted-foreground">
+            <div className="panel-muted border-dashed px-4 py-8 text-center text-sm text-muted-foreground">
               Loading...
             </div>
           }

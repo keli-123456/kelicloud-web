@@ -1,23 +1,45 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
+import {
+  Alert,
+  AlertDescription,
+} from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
-import { SegmentedControl } from "@/components/ui/segmented-control";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
+import {
+  Tabs,
+  TabsList,
+  TabsTrigger,
+} from "@/components/ui/tabs";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { usePublicInfo } from "@/contexts/PublicInfoContext";
-import Loading from "@/components/loading";
 import {
   ChartContainer,
   ChartTooltip,
   ChartTooltipContent,
-  ChartLegend,
 } from "@/components/ui/chart";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid } from "recharts";
 import { cutPeakValues, interpolateNullsLinear } from "@/utils/RecordHelper";
-import Tips from "@/components/ui/tips";
-import { Eye, EyeOff } from "lucide-react";
+import { Eye, EyeOff, Info, MoreHorizontal } from "lucide-react";
 import { useRPC2Call } from "@/contexts/RPC2Context";
-import { DotsHorizontalIcon } from "@radix-ui/react-icons";
 
 interface PingRecord {
   client: string;
@@ -44,15 +66,46 @@ interface TaskInfo {
 
 //const MAX_POINTS = 1000;
 const colors = [
-  "#F38181",
-  "#347433",
-  "#898AC4",
-  "#03A6A1",
-  "#7AD6F0",
-  "#B388FF",
-  "#FF8A65",
-  "#FFD600",
+  "var(--chart-1)",
+  "var(--chart-2)",
+  "var(--chart-3)",
+  "var(--chart-4)",
+  "var(--chart-5)",
+  "#3b82f6",
+  "#f97316",
+  "#10b981",
 ];
+
+const PingChartSkeleton = () => (
+  <div className="space-y-4">
+    <Card>
+      <CardHeader className="space-y-3">
+        <Skeleton className="h-4 w-16" />
+        <Skeleton className="h-6 w-40" />
+        <Skeleton className="h-4 w-64" />
+      </CardHeader>
+      <CardContent>
+        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+          {Array.from({ length: 3 }).map((_, index) => (
+            <Skeleton key={index} className="h-28 w-full rounded-lg" />
+          ))}
+        </div>
+      </CardContent>
+    </Card>
+    <Card>
+      <CardHeader className="space-y-3">
+        <Skeleton className="h-4 w-16" />
+        <div className="flex items-center justify-between gap-4">
+          <Skeleton className="h-6 w-40" />
+          <Skeleton className="h-9 w-48" />
+        </div>
+      </CardHeader>
+      <CardContent>
+        <Skeleton className="h-[320px] w-full rounded-md" />
+      </CardContent>
+    </Card>
+  </div>
+);
 
 const PingChart = ({ uuid }: { uuid: string }) => {
   const { t } = useTranslation();
@@ -344,8 +397,7 @@ const PingChart = ({ uuid }: { uuid: string }) => {
   }, [remoteData, tasks]);
 
   const [hiddenLines, setHiddenLines] = useState<Record<string, boolean>>({});
-  const handleLegendClick = useCallback((e: any) => {
-    const key = e.dataKey;
+  const toggleLine = useCallback((key: string) => {
     setHiddenLines((prev) => ({ ...prev, [key]: !prev[key] }));
   }, []);
 
@@ -357,74 +409,115 @@ const PingChart = ({ uuid }: { uuid: string }) => {
     });
     setHiddenLines(newHiddenState);
   }, [tasks, hiddenLines]);
+  const allLinesHidden =
+    tasks.length > 0 && tasks.every((task) => hiddenLines[String(task.id)]);
 
   return (
-    <div className="flex w-full max-w-screen flex-col items-center gap-4">
-      <div className="w-full overflow-x-auto px-2">
-        <div className="w-max mx-auto">
-          <SegmentedControl.Root
-            value={view}
-            onValueChange={(newView) => {
-              setView(newView);
-              const selected = avaliableView.find((v) => v.label === newView);
-              if (selected && selected.hours !== undefined) {
-                setHours(selected.hours);
-              }
-            }}
-          >
+    <div className="flex w-full flex-col gap-4">
+      <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+        <div className="min-w-0 space-y-2">
+          <div className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
+            Latency
+          </div>
+          <div className="space-y-1">
+            <h3 className="text-sm font-semibold tracking-tight">
+              Ping history
+            </h3>
+            <p className="max-w-2xl text-xs leading-5 text-muted-foreground">
+              Task summaries, curves and visibility controls share one shell.
+            </p>
+          </div>
+        </div>
+        <Tabs
+          value={view}
+          onValueChange={(newView) => {
+            setView(newView);
+            const selected = avaliableView.find((v) => v.label === newView);
+            if (selected && selected.hours !== undefined) {
+              setHours(selected.hours);
+            }
+          }}
+          className="w-full md:w-auto"
+        >
+          <TabsList className="h-9 w-full flex-wrap justify-start md:w-auto">
             {avaliableView.map((v) => (
-              <SegmentedControl.Item
+              <TabsTrigger
                 key={v.label}
                 value={v.label}
                 className="capitalize"
               >
                 {v.label}
-              </SegmentedControl.Item>
+              </TabsTrigger>
             ))}
-          </SegmentedControl.Root>
-        </div>
+          </TabsList>
+        </Tabs>
       </div>
 
-      {loading && (
-        <div style={{ textAlign: "center", width: "100%" }}>
-          <Loading />
-        </div>
-      )}
-      {error && (
-        <div style={{ color: "red", textAlign: "center", width: "100%" }}>
-          {error}
-        </div>
-      )}
+      {loading ? <PingChartSkeleton /> : null}
+      {error ? (
+        <Alert variant="destructive">
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      ) : null}
+
       {latestValues.length > 0 ? (
-        <Card className="mb-2 w-full max-w-[900px] px-4 py-4 sm:px-6">
-          <Tips className="absolute top-0 right-0 m-2">
-            <label>{t("chart.loss_tips")}</label>
-          </Tips>
-          <div
-            className="grid gap-2 mb-2 w-full"
-            style={{
-              gridTemplateColumns: `repeat(auto-fit, minmax(240px,1fr))`,
-            }}
-          >
+        <Card className="rounded-xl border-border/70 shadow-none">
+          <CardHeader>
+            <div className="flex items-start justify-between gap-4">
+              <div className="min-w-0 space-y-1">
+                <div className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
+                  Overview
+                </div>
+                <CardTitle className="text-sm tracking-tight">Task summaries</CardTitle>
+                <CardDescription className="text-xs leading-5">
+                  Latest latency, loss and stability use the same summary rhythm.
+                </CardDescription>
+              </div>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button variant="ghost" size="icon" className="shrink-0">
+                    <Info className="h-4 w-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="left" className="max-w-xs">
+                  <p>{t("chart.loss_tips")}</p>
+                </TooltipContent>
+              </Tooltip>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div
+              className="grid gap-3"
+              style={{
+                gridTemplateColumns: `repeat(auto-fit, minmax(240px,1fr))`,
+              }}
+            >
             {latestValues.map((task) => (
-              <div key={task.id} className="flex flex-row items-center rounded">
-                <div
-                  className="w-1 h-6 rounded-xs "
-                  style={{ backgroundColor: task.color }}
-                />
-                <div className="flex items-start justify-center ml-1 flex-col">
-                  <div className="flex items-center gap-1 -mb-1">
-                    <label className="font-bold text-md">{task.name}</label>
-                    <Tips
-                      side="top"
-                      trigger={
-                        <DotsHorizontalIcon
-                          className="cursor-pointer"
-                          color="gray"
-                        />
-                      }
-                    >
-                      <div className="grid grid-cols-2 gap-x-3 gap-y-1">
+              <Card key={task.id} className="rounded-lg border-border/70 bg-card shadow-none">
+                <CardHeader className="pb-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex min-w-0 items-start gap-3">
+                      <div
+                        className="mt-1 h-10 w-1.5 rounded-full"
+                        style={{ backgroundColor: task.color }}
+                      />
+                      <div className="min-w-0">
+                        <div className="truncate text-sm font-semibold text-foreground">
+                          {task.name}
+                        </div>
+                        <div className="mt-1 text-xs text-muted-foreground">
+                          {task.time ? lableFormatter(task.time) : t("common.none")}
+                        </div>
+                      </div>
+                    </div>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0">
+                          <MoreHorizontal className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" className="w-64">
+                        <div className="grid grid-cols-2 gap-x-3 gap-y-1 px-2 py-1.5 text-sm">
                         {typeof task.min === "number" && (
                           <>
                             <span className="text-muted-foreground">
@@ -527,141 +620,191 @@ const PingChart = ({ uuid }: { uuid: string }) => {
                             <span className="font-mono">{task.total}</span>
                           </>
                         )}
-                      </div>
-                    </Tips>
+                        </div>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </div>
-                  <div className="flex gap-2 text-sm text-muted-foreground">
-                    <span>
+                </CardHeader>
+                <CardContent className="pt-0">
+                  <div className="flex items-end justify-between gap-3">
+                    <div className="text-xl font-semibold tracking-tight text-foreground">
                       {task.value !== null
                         ? `${Number(task.value).toFixed(0)} ms`
                         : "-"}
-                    </span>
-                    <span>
-                      {`${Number(task.loss).toFixed(1)}%${t("chart.lossRate")}`}
-                    </span>
+                    </div>
+                    <div className="flex flex-wrap justify-end gap-2 text-xs text-muted-foreground">
+                      <Badge variant="outline">
+                        {`${Number(task.loss).toFixed(1)}% ${t("chart.lossRate")}`}
+                      </Badge>
                     {typeof task.p99_p50_ratio === "number" && (
-                      <span title="p99/p50">
+                      <Badge title="p99/p50" variant="secondary">
                         {task.p99_p50_ratio.toFixed(1)}
                         {t("chart.volatility")}
-                      </span>
+                      </Badge>
                     )}
+                    </div>
                   </div>
-                </div>
-              </div>
+                </CardContent>
+              </Card>
             ))}
-          </div>
+            </div>
+          </CardContent>
         </Card>
-      ) : (
-        <div className="w-full max-w-[900px] text-center text-muted-foreground mb-2">
-          {t("common.none")}
-        </div>
-      )}
-      <Card className="w-full max-w-[900px] px-4 py-4 sm:px-6">
-        {chartData.length === 0 ? (
-          <div className="w-full h-40 flex items-center justify-center text-muted-foreground">
-            {t("common.none")}
-          </div>
-        ) : (
-          <ChartContainer config={chartConfig}>
-            <LineChart
-              data={chartData}
-              accessibilityLayer
-              margin={{ top: 0, right: 16, bottom: 0, left: 16 }}
-            >
-              <CartesianGrid vertical={false} />
-              <XAxis
-                dataKey="time"
-                tickLine={false}
-                tickFormatter={timeFormatter}
-                interval="preserveStartEnd"
-                minTickGap={30}
-                allowDuplicatedCategory={false}
-              />
-              <YAxis
-                tickLine={false}
-                axisLine={false}
-                unit="ms"
-                allowDecimals={false}
-                orientation="left"
-                type="number"
-                tick={{ dx: -10 }}
-                mirror={true}
-              />
-              <ChartTooltip
-                cursor={false}
-                formatter={(v: any) => `${Math.round(v)} ms`}
-                content={
-                  <ChartTooltipContent
-                    labelFormatter={lableFormatter}
-                    indicator="dot"
+      ) : !loading && !error ? (
+        <Alert>
+          <AlertDescription>{t("common.none")}</AlertDescription>
+        </Alert>
+      ) : null}
+      {!loading && !error ? (
+        <Card className="rounded-xl border-border/70 shadow-none">
+          <CardHeader>
+            <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+              <div className="min-w-0 space-y-1">
+                <div className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
+                  Trend
+                </div>
+                <CardTitle className="text-sm tracking-tight">Latency history</CardTitle>
+                <CardDescription className="text-xs leading-5">
+                  Tooltip, legend and chart controls sit in one shared panel.
+                </CardDescription>
+              </div>
+              <div className="flex flex-wrap items-center gap-2 lg:justify-end">
+                <div className="flex items-center gap-2 rounded-md border bg-muted/30 px-3 py-2">
+                  <Switch
+                    id="cut-peak"
+                    checked={cutPeak}
+                    onCheckedChange={setCutPeak}
                   />
-                }
-              />
-              <ChartLegend onClick={handleLegendClick} />
-              {(() => {
-                return tasks.map((task, idx) => {
-                  const connect = false; // 由插值控制连贯性，避免跨越大空洞的错误连接
+                  <label
+                    htmlFor="cut-peak"
+                    className="flex items-center gap-1 text-sm font-medium"
+                  >
+                    {t("chart.cutPeak")}
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button variant="ghost" size="icon" className="h-6 w-6">
+                          <Info className="h-3.5 w-3.5" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent side="top" className="max-w-xs">
+                        <span
+                          dangerouslySetInnerHTML={{ __html: t("chart.cutPeak_tips") }}
+                        />
+                      </TooltipContent>
+                    </Tooltip>
+                  </label>
+                </div>
+                <Button
+                  variant="outline"
+                  onClick={toggleAllLines}
+                  className="flex items-center gap-2"
+                >
+                  {allLinesHidden ? (
+                    <>
+                      <Eye size={16} />
+                      {t("chart.showAll")}
+                    </>
+                  ) : (
+                    <>
+                      <EyeOff size={16} />
+                      {t("chart.hideAll")}
+                    </>
+                  )}
+                </Button>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-4">
+          {chartData.length === 0 ? (
+            <Alert>
+              <AlertDescription>{t("common.none")}</AlertDescription>
+            </Alert>
+          ) : (
+            <>
+              <ChartContainer
+                className="h-[320px] w-full"
+                config={chartConfig}
+              >
+                <LineChart
+                  data={chartData}
+                  accessibilityLayer
+                  margin={{ top: 0, right: 16, bottom: 0, left: 16 }}
+                >
+                  <CartesianGrid vertical={false} />
+                  <XAxis
+                    dataKey="time"
+                    tickLine={false}
+                    tickFormatter={timeFormatter}
+                    interval="preserveStartEnd"
+                    minTickGap={30}
+                    allowDuplicatedCategory={false}
+                  />
+                  <YAxis
+                    tickLine={false}
+                    axisLine={false}
+                    unit="ms"
+                    allowDecimals={false}
+                    orientation="left"
+                    type="number"
+                    tick={{ dx: -10 }}
+                    mirror={true}
+                  />
+                  <ChartTooltip
+                    cursor={false}
+                    formatter={(v: any) => `${Math.round(v)} ms`}
+                    content={
+                      <ChartTooltipContent
+                        labelFormatter={lableFormatter}
+                        indicator="dot"
+                      />
+                    }
+                  />
+                  {tasks.map((task, idx) => {
+                    const connect = false;
+                    return (
+                      <Line
+                        key={task.id}
+                        dataKey={String(task.id)}
+                        name={task.name}
+                        stroke={colors[idx % colors.length]}
+                        dot={false}
+                        isAnimationActive={false}
+                        strokeWidth={2}
+                        connectNulls={connect}
+                        type={cutPeak ? "basis" : "linear"}
+                        hide={!!hiddenLines[String(task.id)]}
+                      />
+                    );
+                  })}
+                </LineChart>
+              </ChartContainer>
+              <div className="flex flex-wrap gap-2">
+                {tasks.map((task, idx) => {
+                  const key = String(task.id);
+                  const hidden = !!hiddenLines[key];
+
                   return (
-                    <Line
+                    <Button
                       key={task.id}
-                      dataKey={String(task.id)}
-                      name={task.name}
-                      stroke={colors[idx % colors.length]}
-                      dot={false}
-                      isAnimationActive={false}
-                      strokeWidth={2}
-                      connectNulls={connect}
-                      type={cutPeak ? "basis" : "linear"}
-                      hide={!!hiddenLines[String(task.id)]}
-                    />
+                      onClick={() => toggleLine(key)}
+                      variant={hidden ? "outline" : "secondary"}
+                      size="sm"
+                      className="h-8"
+                    >
+                      <span
+                        className="h-2.5 w-2.5 rounded-full"
+                        style={{ backgroundColor: colors[idx % colors.length] }}
+                      />
+                      <span className="truncate">{task.name}</span>
+                    </Button>
                   );
-                });
-              })()}
-            </LineChart>
-          </ChartContainer>
-        )}
-        {/* Cut Peak 开关和显示/隐藏所有按钮 */}
-        <div
-          className="flex items-center justify-between gap-4"
-          style={{ display: loading ? "none" : "flex" }}
-        >
-          <div className="flex items-center gap-2">
-            <Switch
-              id="cut-peak"
-              checked={cutPeak}
-              onCheckedChange={setCutPeak}
-            />
-            <label
-              htmlFor="cut-peak"
-              className="text-sm font-medium flex items-center gap-1 flex-row"
-            >
-              {t("chart.cutPeak")}
-              <Tips>
-                <span
-                  dangerouslySetInnerHTML={{ __html: t("chart.cutPeak_tips") }}
-                />
-              </Tips>
-            </label>
-          </div>
-          <Button
-            variant="outline"
-            onClick={toggleAllLines}
-            className="flex items-center gap-2"
-          >
-            {tasks.every((task) => hiddenLines[String(task.id)]) ? (
-              <>
-                <Eye size={16} />
-                {t("chart.showAll")}
-              </>
-            ) : (
-              <>
-                <EyeOff size={16} />
-                {t("chart.hideAll")}
-              </>
-            )}
-          </Button>
-        </div>
-      </Card>
+                })}
+              </div>
+            </>
+          )}
+          </CardContent>
+        </Card>
+      ) : null}
     </div>
   );
 };

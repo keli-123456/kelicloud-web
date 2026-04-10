@@ -1,9 +1,20 @@
-import { useEffect, useMemo, useState } from "react";
+import { type ReactNode, useEffect, useMemo, useState } from "react";
 import { useParams } from "react-router-dom";
 import { useLiveData } from "../../contexts/LiveDataContext";
 import { useTranslation } from "react-i18next";
-import { Card } from "@/components/ui/card";
-import { SegmentedControl } from "@/components/ui/segmented-control";
+import {
+  Alert,
+  AlertDescription,
+} from "@/components/ui/alert";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { formatBytes } from "@/utils/unitHelper";
 import { useNodeList } from "@/contexts/NodeListContext";
 import fillMissingTimePoints, { type RecordFormat } from "@/utils/RecordHelper";
@@ -22,12 +33,66 @@ import {
   YAxis,
 } from "recharts";
 import { usePublicInfo } from "@/contexts/PublicInfoContext";
-import Loading from "@/components/loading";
+
 // #region 图表
 type LoadChartProps = {
   data: RecordFormat[];
   intervalSec?: number; // 数据间隔，单位秒
 };
+
+const ChartGridSkeleton = () => (
+  <div
+    className="grid gap-4"
+    style={{ gridTemplateColumns: "repeat(auto-fit, minmax(288px, 1fr))" }}
+  >
+    {Array.from({ length: 4 }).map((_, index) => (
+      <Card key={index}>
+        <CardHeader className="space-y-3">
+          <Skeleton className="h-4 w-20" />
+          <div className="flex items-center justify-between gap-4">
+            <Skeleton className="h-6 w-28" />
+            <Skeleton className="h-4 w-24" />
+          </div>
+        </CardHeader>
+        <CardContent>
+          <Skeleton className="h-[220px] w-full rounded-md" />
+        </CardContent>
+      </Card>
+    ))}
+  </div>
+);
+
+const MetricCard = ({
+  title,
+  description,
+  latest,
+  children,
+}: {
+  title: string;
+  description?: string;
+  latest: ReactNode;
+  children: ReactNode;
+}) => (
+  <Card className="overflow-hidden rounded-lg border-border/70 shadow-none">
+    <CardHeader className="pb-3">
+      <div className="flex items-start justify-between gap-4">
+        <div className="min-w-0 space-y-1">
+          <div className="text-[10px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
+            Metric
+          </div>
+          <CardTitle className="truncate text-sm tracking-tight">{title}</CardTitle>
+          {description ? (
+            <CardDescription className="text-xs leading-5">{description}</CardDescription>
+          ) : null}
+        </div>
+        <div className="min-w-0 text-right text-xs text-muted-foreground">
+          {latest}
+        </div>
+      </div>
+    </CardHeader>
+    <CardContent className="pt-0">{children}</CardContent>
+  </Card>
+);
 
 const LoadChart = ({ data = [] }: LoadChartProps) => {
   const { t } = useTranslation();
@@ -192,11 +257,14 @@ const LoadChart = ({ data = [] }: LoadChartProps) => {
   }, [avaliableView, hoursView, uuid]);
 
   // colors
-  const colors = ["#F38181", "#FCE38A", "#EAFFD0", "#95E1D3"];
+  const colors = [
+    "var(--chart-1)",
+    "var(--chart-2)",
+    "var(--chart-4)",
+    "var(--chart-3)",
+  ];
   const primaryColor = colors[0];
   const secondaryColor = colors[1];
-  const cn = "max-w-72 min-w-72 flex flex-col w-full h-full gap-4";
-  const chartCardClassName = `${cn} px-4 py-4 sm:px-6`;
   const chartMargin = {
     top: 0,
     right: 16,
@@ -243,14 +311,6 @@ const LoadChart = ({ data = [] }: LoadChartProps) => {
   const percentageFormatter = (value: number) => {
     return `${value.toFixed(2)}%`;
   };
-  const ChartTitle = (text: string, left: React.ReactNode) => {
-    return (
-      <div className="mb-2 flex items-center justify-between gap-3">
-        <label className="text-xl font-bold">{text}</label>
-        <label className="text-sm text-muted-foreground">{left}</label>
-      </div>
-    );
-  };
   const minute = 60;
   const hour = minute * 60;
   // 限制实时模式的数据点数量，避免长时间运行时数据无限增长
@@ -281,12 +341,25 @@ const LoadChart = ({ data = [] }: LoadChartProps) => {
       })();
 
   return (
-    <div className="flex w-full max-w-screen flex-col items-center gap-4">
-      <div className="w-full overflow-x-auto px-2">
-        <div className="w-max mx-auto">
-          <SegmentedControl.Root value={hoursView} onValueChange={setHoursView}>
+    <div className="flex w-full flex-col gap-4">
+      <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+        <div className="min-w-0 space-y-2">
+          <div className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
+            Performance
+          </div>
+          <div className="space-y-1">
+            <h3 className="text-sm font-semibold tracking-tight">
+              Resource history
+            </h3>
+            <p className="max-w-2xl text-xs leading-5 text-muted-foreground">
+              CPU, memory, storage, network and process metrics share one panel.
+            </p>
+          </div>
+        </div>
+        <Tabs value={hoursView} onValueChange={setHoursView} className="w-full md:w-auto">
+          <TabsList className="h-9 w-full flex-wrap justify-start md:w-auto">
             {avaliableView.map((view) => (
-              <SegmentedControl.Item
+              <TabsTrigger
                 key={view.label}
                 value={view.label}
                 className="capitalize"
@@ -294,35 +367,38 @@ const LoadChart = ({ data = [] }: LoadChartProps) => {
                 {view.label === "real-time"
                   ? t("common.real_time")
                   : view.label}
-              </SegmentedControl.Item>
+              </TabsTrigger>
             ))}
-          </SegmentedControl.Root>
-        </div>
+          </TabsList>
+        </Tabs>
       </div>
-      {/* 新增 loading/error 提示 */}
-      {loading && (
-        <div style={{ textAlign: "center", width: "100%" }}>
-          <Loading />
-        </div>
-      )}
-      {error && (
-        <div style={{ color: "red", textAlign: "center", width: "100%" }}>
-          {error}
-        </div>
-      )}
+
+      {loading ? <ChartGridSkeleton /> : null}
+      {error ? (
+        <Alert variant="destructive">
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      ) : null}
+      {!loading && !error && chartData.length === 0 ? (
+        <Alert>
+          <AlertDescription>{t("common.none")}</AlertDescription>
+        </Alert>
+      ) : null}
       <div
-        className="gap-2 grid w-full justify-items-center mx-auto max-w-[900px]"
+        className="grid w-full gap-4"
         style={{
           gridTemplateColumns: "repeat(auto-fit, minmax(288px, 1fr))",
+          display:
+            loading || error || chartData.length === 0 ? "none" : undefined,
         }}
       >
         {/* CPU */}
-        <Card className={chartCardClassName}>
-          {ChartTitle(
-            "CPU",
-            live_data?.cpu?.usage ? `${live_data.cpu.usage.toFixed(2)}%` : "-"
-          )}
+        <MetricCard
+          title="CPU"
+          latest={live_data?.cpu?.usage ? `${live_data.cpu.usage.toFixed(2)}%` : "-"}
+        >
           <ChartContainer
+            className="h-[220px] w-full"
             config={{
               cpu: {
                 label: "CPU",
@@ -370,11 +446,11 @@ const LoadChart = ({ data = [] }: LoadChartProps) => {
               />
             </AreaChart>
           </ChartContainer>
-        </Card>
+        </MetricCard>
         {/* Ram */}
-        <Card className={chartCardClassName}>
-          {ChartTitle(
-            "Ram",
+        <MetricCard
+          title="RAM"
+          latest={
             <div className="flex flex-col items-end gap-0 text-sm">
               <label>
                 {live_data?.ram?.used
@@ -391,8 +467,10 @@ const LoadChart = ({ data = [] }: LoadChartProps) => {
                   : "-"}
               </label>
             </div>
-          )}
+          }
+        >
           <ChartContainer
+            className="h-[220px] w-full"
             config={{
               ram: {
                 label: "Ram",
@@ -488,18 +566,20 @@ const LoadChart = ({ data = [] }: LoadChartProps) => {
               />
             </AreaChart>
           </ChartContainer>
-        </Card>
+        </MetricCard>
         {/* Disk */}
-        <Card className={chartCardClassName}>
-          {ChartTitle(
-            "Disk",
+        <MetricCard
+          title="Disk"
+          latest={
             live_data?.disk?.used
               ? `${formatBytes(live_data.disk.used)} / ${formatBytes(
                   node?.disk_total || 0
                 )}`
               : "-"
-          )}
+          }
+        >
           <ChartContainer
+            className="h-[220px] w-full"
             config={{
               disk: {
                 label: "Disk",
@@ -547,11 +627,11 @@ const LoadChart = ({ data = [] }: LoadChartProps) => {
               />
             </AreaChart>
           </ChartContainer>
-        </Card>
+        </MetricCard>
         {/* Netwodk */}
-        <Card className={chartCardClassName}>
-          {ChartTitle(
-            t("nodeCard.networkSpeed"),
+        <MetricCard
+          title={t("nodeCard.networkSpeed")}
+          latest={
             <div className="flex flex-col items-end gap-0 text-sm">
               <span>
                 ↑ {formatBytes(live_data?.network.up || 0)}
@@ -562,8 +642,10 @@ const LoadChart = ({ data = [] }: LoadChartProps) => {
                 /s
               </span>
             </div>
-          )}
+          }
+        >
           <ChartContainer
+            className="h-[220px] w-full"
             config={{
               net_in: {
                 label: t("chart.network_down"),
@@ -622,17 +704,19 @@ const LoadChart = ({ data = [] }: LoadChartProps) => {
               />
             </LineChart>
           </ChartContainer>
-        </Card>
+        </MetricCard>
         {/* Connections */}
-        <Card className={chartCardClassName}>
-          {ChartTitle(
-            t("chart.connections"),
+        <MetricCard
+          title={t("chart.connections")}
+          latest={
             <div className="flex flex-col items-end gap-0 text-sm">
               <span>TCP: {live_data?.connections.tcp}</span>
               <span>UDP: {live_data?.connections.udp}</span>
             </div>
-          )}
+          }
+        >
           <ChartContainer
+            className="h-[220px] w-full"
             config={{
               connections: {
                 label: "TCP",
@@ -690,11 +774,14 @@ const LoadChart = ({ data = [] }: LoadChartProps) => {
               />
             </LineChart>
           </ChartContainer>
-        </Card>
+        </MetricCard>
         {/* Process */}
-        <Card className={chartCardClassName}>
-          {ChartTitle(t("chart.process"), live_data?.process)}
+        <MetricCard
+          title={t("chart.process")}
+          latest={live_data?.process ?? "-"}
+        >
           <ChartContainer
+            className="h-[220px] w-full"
             config={{
               process: {
                 label: t("chart.process"),
@@ -741,45 +828,45 @@ const LoadChart = ({ data = [] }: LoadChartProps) => {
               />
             </LineChart>
           </ChartContainer>
-        </Card>
+        </MetricCard>
         {/* GPU Charts - Each GPU gets its own chart */}
         {live_data?.gpu &&
           live_data.gpu.count > 0 &&
           live_data.gpu.detailed_info?.map((gpu, index) => (
-            <Card key={`gpu-${index}`} className={chartCardClassName}>
-              <div className="mb-2 flex flex-col gap-2">
-                <div className="flex items-center justify-between">
-                  <label className="text-xl font-bold">{`GPU ${index + 1}: ${
-                    gpu.name
-                  }`}</label>
-                  <span className="text-sm text-muted-foreground">
-                    {formatBytes(gpu.memory_total)}
-                  </span>
+            <MetricCard
+              key={`gpu-${index}`}
+              title={`GPU ${index + 1}: ${gpu.name}`}
+              description={t("chart.gpu_memory", { defaultValue: "GPU memory" })}
+              latest={formatBytes(gpu.memory_total)}
+            >
+              <div className="mb-4 grid gap-3 sm:grid-cols-3">
+                <div className="rounded-lg border bg-muted/30 px-3 py-3 text-center">
+                  <div className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
+                    {t("chart.usage")}
+                  </div>
+                  <div className="mt-2 text-lg font-semibold text-foreground">
+                    {gpu.utilization}%
+                  </div>
                 </div>
-                <div className="grid grid-cols-3 gap-4 text-sm text-muted-foreground">
-                  <div className="text-center">
-                    <div className="font-medium">{t("chart.usage")}</div>
-                    <div className="text-lg font-bold text-foreground">
-                      {gpu.utilization}%
-                    </div>
+                <div className="rounded-lg border bg-muted/30 px-3 py-3 text-center">
+                  <div className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
+                    {t("chart.gpu_memory")}
                   </div>
-                  <div className="text-center">
-                    <div className="font-medium">{t("chart.gpu_memory")}</div>
-                    <div className="text-lg font-bold text-foreground">
-                      {((gpu.memory_used / gpu.memory_total) * 100).toFixed(1)}%
-                    </div>
+                  <div className="mt-2 text-lg font-semibold text-foreground">
+                    {((gpu.memory_used / gpu.memory_total) * 100).toFixed(1)}%
                   </div>
-                  <div className="text-center">
-                    <div className="font-medium">
-                      {t("nodeCard.temperature")}
-                    </div>
-                    <div className="text-lg font-bold text-foreground">
-                      {gpu.temperature}°C
-                    </div>
+                </div>
+                <div className="rounded-lg border bg-muted/30 px-3 py-3 text-center">
+                  <div className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
+                    {t("nodeCard.temperature")}
+                  </div>
+                  <div className="mt-2 text-lg font-semibold text-foreground">
+                    {gpu.temperature}°C
                   </div>
                 </div>
               </div>
               <ChartContainer
+                className="h-[220px] w-full"
                 config={{
                   gpu_usage: {
                     label: "GPU",
@@ -883,7 +970,7 @@ const LoadChart = ({ data = [] }: LoadChartProps) => {
                   />
                 </AreaChart>
               </ChartContainer>
-            </Card>
+            </MetricCard>
           ))}
       </div>
     </div>

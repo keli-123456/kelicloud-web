@@ -7,11 +7,13 @@ export interface PublicInfo {
   custom_head: string;
   description: string;
   disable_password_login: boolean;
+  github_url?: string;
   oauth_provider: string;
   oauth_enable: boolean;
   ping_record_preserve_time: number;
   record_enabled: boolean;
   record_preserve_time: number;
+  site_subtitle?: string;
   sitename: string;
   [property: string]: any;
 }

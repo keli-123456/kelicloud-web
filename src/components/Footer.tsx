@@ -1,7 +1,16 @@
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useRPC2Call } from "@/contexts/RPC2Context";
+import { usePublicInfo } from "@/contexts/PublicInfoContext";
+import { Separator } from "@/components/ui/separator";
+import {
+  getSiteName,
+  getSiteSubtitle,
+} from "@/constants/siteBrand";
 
 const Footer = () => {
+  const { t } = useTranslation();
+  const { publicInfo } = usePublicInfo();
   const formatBuildTime = (isoString: string) => {
     const date = new Date(isoString);
     return (
@@ -19,6 +28,8 @@ const Footer = () => {
 
   const buildTime =
     typeof __BUILD_TIME__ !== "undefined" ? __BUILD_TIME__ : null;
+  const siteName = getSiteName(publicInfo?.sitename);
+  const siteSubtitle = getSiteSubtitle(publicInfo?.site_subtitle, t("site.subtitle"));
   const [versionInfo, setVersionInfo] = useState<{
     hash: string;
     version: string;
@@ -39,22 +50,29 @@ const Footer = () => {
   }, [call]);
 
   return (
-    <footer className="mt-auto px-2 pb-2">
-      <div className="rounded-2xl border border-border/70 bg-background/70 px-4 py-3 shadow-sm backdrop-blur-xl">
-        <div className="flex flex-col items-center justify-between gap-3 md:flex-row md:items-start">
-          <div className="min-w-0 text-center md:text-left">
-            <div className="text-sm text-muted-foreground">Powered by Komari Monitor.</div>
-            {buildTime ? (
-              <div className="text-xs text-muted-foreground">
-                Build Time: {formatBuildTime(buildTime)}
-              </div>
-            ) : null}
+    <footer className="mt-auto border-t border-border/80 bg-background">
+      <div className="mx-auto flex w-full max-w-7xl flex-col gap-3 px-4 py-4 md:flex-row md:items-center md:justify-between md:px-6">
+        <div className="min-w-0 space-y-1 text-center md:text-left">
+          <div className="text-sm font-semibold tracking-tight text-foreground">
+            {siteName}
           </div>
-          <div className="min-w-0 text-center md:text-right">
+          <div className="text-xs text-muted-foreground">{siteSubtitle}</div>
+          <div className="text-sm text-muted-foreground">
+            {t("site.powered_by", { siteName })}
+          </div>
+        </div>
+
+        <Separator orientation="vertical" className="hidden h-8 md:block" />
+
+        <div className="min-w-0 space-y-1 text-center md:text-right">
+          <div className="text-xs text-muted-foreground">
+            {versionInfo ? `${versionInfo.version} (${versionInfo.hash})` : " "}
+          </div>
+          {buildTime ? (
             <div className="text-xs text-muted-foreground">
-              {versionInfo ? `${versionInfo.version} (${versionInfo.hash})` : " "}
+              {t("site.build_time", { time: formatBuildTime(buildTime) })}
             </div>
-          </div>
+          ) : null}
         </div>
       </div>
     </footer>

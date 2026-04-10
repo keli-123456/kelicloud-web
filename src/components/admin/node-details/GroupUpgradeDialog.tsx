@@ -18,9 +18,9 @@ import type { Record as LiveRecord } from "@/types/LiveData";
 import { formatBytes } from "@/utils/unitHelper";
 
 const NODE_DIALOG_CONTENT_CLASS =
-  "max-h-[85vh] overflow-y-auto overscroll-contain rounded-2xl border-slate-200/80 p-5 [scrollbar-gutter:stable] sm:p-6 dark:border-slate-800/80";
+  "max-h-[90vh] w-[min(96vw,760px)] overflow-y-auto overscroll-contain rounded-[28px] border border-slate-200/80 bg-white/95 p-6 shadow-2xl [scrollbar-gutter:stable] backdrop-blur dark:border-slate-800/80 dark:bg-slate-950/95";
 const NODE_DIALOG_FOOTER_CLASS =
-  "mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end";
+  "mt-6 flex flex-col-reverse gap-2.5 sm:flex-row sm:justify-end";
 
 type NodeLiveSnapshot = {
   online: boolean;
@@ -111,7 +111,7 @@ const createEmptyLiveRecord = (): LiveRecord => ({
   process: 0,
   message: "",
   cn_connectivity: undefined,
-  updated_at: "",
+  time: "",
 });
 
 const formatNodeIp = (value?: string) => {
@@ -468,7 +468,7 @@ const buildNodeConfigTooltip = ({
     })}: ${formatDateTimeLabel(node.updated_at)}`,
     `${translate("admin.nodeTable.detailTooltip.statusUpdatedAt", {
       defaultValue: "Status updated at",
-    })}: ${formatDateTimeLabel(snapshot.updated_at)}`,
+    })}: ${formatDateTimeLabel(snapshot.time)}`,
   ];
 
   if (node.virtualization) {
@@ -914,7 +914,7 @@ export default function GroupUpgradeDialog({
         </Dialog.Description>
 
         <div className="mt-4 grid gap-3 sm:grid-cols-4">
-          <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 dark:border-slate-800 dark:bg-slate-900/50">
+          <div className="dialog-section px-3 py-3">
             <div className="text-xs text-slate-500 dark:text-slate-400">
               {t("admin.nodeTable.upgradeOnlineNodes", "Online nodes")}
             </div>
@@ -922,7 +922,7 @@ export default function GroupUpgradeDialog({
               {onlineNodes.length}
             </div>
           </div>
-          <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 dark:border-slate-800 dark:bg-slate-900/50">
+          <div className="dialog-section px-3 py-3">
             <div className="text-xs text-slate-500 dark:text-slate-400">
               {t("admin.nodeTable.upgradeRunning", "Running")}
             </div>
@@ -930,7 +930,7 @@ export default function GroupUpgradeDialog({
               {summary.pending + summary.running}
             </div>
           </div>
-          <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 dark:border-emerald-900/60 dark:bg-emerald-950/30">
+          <div className="rounded-[24px] border border-emerald-200/80 bg-emerald-50/92 px-3 py-3 shadow-sm dark:border-emerald-900/60 dark:bg-emerald-950/30">
             <div className="text-xs text-emerald-700 dark:text-emerald-300">
               {t("admin.nodeTable.upgradeSuccessShort", "Succeeded")}
             </div>
@@ -938,7 +938,7 @@ export default function GroupUpgradeDialog({
               {summary.success}
             </div>
           </div>
-          <div className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 dark:border-rose-900/60 dark:bg-rose-950/30">
+          <div className="rounded-[24px] border border-rose-200/80 bg-rose-50/92 px-3 py-3 shadow-sm dark:border-rose-900/60 dark:bg-rose-950/30">
             <div className="text-xs text-rose-700 dark:text-rose-300">
               {t("admin.nodeTable.upgradeFailedShort", "Failed")}
             </div>
@@ -948,13 +948,13 @@ export default function GroupUpgradeDialog({
           </div>
         </div>
 
-        <div className="mt-4 rounded-xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-950/40">
-          <div className="border-b border-slate-200 px-4 py-3 text-sm text-slate-600 dark:border-slate-800 dark:text-slate-300">
+        <div className="dialog-section mt-4 overflow-hidden px-0 py-0">
+          <div className="border-b border-slate-200/80 px-4 py-3 text-sm text-slate-600 dark:border-slate-800/80 dark:text-slate-300">
             {t("admin.nodeTable.upgradeStatusTitle", "Node execution status")}
           </div>
           <div className="max-h-72 space-y-2 overflow-y-auto overscroll-contain p-4 [scrollbar-gutter:stable]">
             {onlineNodes.length === 0 ? (
-              <div className="rounded-lg border border-dashed border-slate-200 px-3 py-4 text-sm text-slate-500 dark:border-slate-800 dark:text-slate-400">
+              <div className="rounded-[20px] border border-dashed border-slate-200 px-3 py-4 text-sm text-slate-500 dark:border-slate-800 dark:text-slate-400">
                 {t("admin.nodeTable.upgradeNoOnlineState", {
                   defaultValue:
                     "There are no online nodes in this group, so the upgrade cannot start.",
@@ -987,7 +987,7 @@ export default function GroupUpgradeDialog({
                   <div
                     key={node.uuid}
                     title={result?.output || buildNodeConfigTooltip({ node, live: liveByNode[node.uuid] })}
-                    className="flex flex-col gap-3 rounded-xl border border-slate-200 px-3 py-3 dark:border-slate-800 sm:flex-row sm:items-center sm:justify-between"
+                    className="flex flex-col gap-3 rounded-[20px] border border-slate-200/80 bg-white/76 px-3 py-3 shadow-sm dark:border-slate-800/80 dark:bg-slate-950/30 sm:flex-row sm:items-center sm:justify-between"
                   >
                     <div className="min-w-0">
                       <div className="truncate text-sm font-medium text-slate-900 dark:text-slate-100">
@@ -1025,7 +1025,7 @@ export default function GroupUpgradeDialog({
             <TextArea
               readOnly
               value={combinedOutput}
-              className="min-h-44 border-slate-200 bg-slate-50 font-mono text-xs text-slate-700 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-200"
+              className="min-h-44 rounded-[20px] border-slate-200 bg-slate-50/90 font-mono text-xs text-slate-700 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-200"
             />
           </div>
         ) : null}

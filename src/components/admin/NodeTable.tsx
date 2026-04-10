@@ -66,7 +66,7 @@ import {
   TextField,
 } from "@/components/admin/admin-ui";
 import Loading from "../loading";
-import { useAccount } from "@/contexts/AccountContext";
+import { useNodeDetails } from "@/contexts/NodeDetailsContext";
 
 const columns: ColumnDef<z.infer<typeof schema>>[] = [
   {
@@ -161,10 +161,13 @@ const columns: ColumnDef<z.infer<typeof schema>>[] = [
 ];
 
 export function DataTable() {
-  const { platformAdmin } = useAccount();
+  const {
+    nodeDetail,
+    isLoading,
+    error: providerError,
+    refresh,
+  } = useNodeDetails();
   const [data, setData] = React.useState<z.infer<typeof schema>[]>([]);
-  const [isLoading, setIsLoading] = React.useState(true);
-  const [error, setError] = React.useState<string | null>(null);
 
   const [rowSelection, setRowSelection] = React.useState({});
   const [columnVisibility, setColumnVisibility] =
@@ -186,10 +189,10 @@ export function DataTable() {
   );
   const [newNodeName, setNewNodeName] = React.useState("");
   const [isAddingNode, setIsAddingNode] = React.useState(false);
-  const listEndpoint = React.useMemo(
-    () => (platformAdmin ? "/api/admin/client/list?all=1" : "/api/admin/client/list"),
-    [platformAdmin],
-  );
+
+  React.useEffect(() => {
+    setData([...nodeDetail].sort((a, b) => (a.weight ?? 0) - (b.weight ?? 0)));
+  }, [nodeDetail]);
 
   async function handleAddNode() {
     setIsAddingNode(true);
@@ -203,34 +206,14 @@ export function DataTable() {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
       setNewNodeName("");
-      refreshTable?.();
+      await refresh({ silent: true });
     } catch (error) {
       console.error("Failed to add node:", error);
+      toast.error(t("admin.nodeTable.errorRefreshNodeList"));
     } finally {
       setIsAddingNode(false);
     }
   }
-
-  React.useEffect(() => {
-    setIsLoading(true);
-    setError(null);
-    fetch(listEndpoint)
-      .then((res) => {
-        if (!res.ok) {
-          toast.error(t("admin.nodeTable.errorLoadNodeList"));
-          throw new Error(`HTTP error! status: ${res.status}`);
-        }
-        return res.json();
-      })
-      .then((list: z.infer<typeof schema>[]) => {
-        setData([...list].sort((a, b) => (a.weight ?? 0) - (b.weight ?? 0)));
-        setIsLoading(false);
-      })
-      .catch((e) => {
-        console.error("Failed to fetch node list:", e);
-        if (data.length > 0) setError(t("admin.nodeTable.errorLoadNodeList"));
-      });
-  }, [data.length, listEndpoint]);
 
   const table = useReactTable({
     data,
@@ -295,25 +278,8 @@ export function DataTable() {
 
   // 新增：刷新数据的方法
   const refreshTable = React.useCallback(() => {
-    // setIsLoading(true);
-    setError(null);
-    fetch(listEndpoint)
-      .then((res) => {
-        if (!res.ok) {
-          throw new Error(`HTTP error! status: ${res.status}`);
-        }
-        return res.json();
-      })
-      .then((list) => {
-        setData([...list].sort((a, b) => (a.weight ?? 0) - (b.weight ?? 0)));
-        setIsLoading(false);
-      })
-      .catch((e) => {
-        console.error("Failed to refresh node list:", e);
-        setError(t("admin.nodeTable.errorRefreshNodeList"));
-        setIsLoading(false);
-      });
-  }, [listEndpoint]);
+    void refresh({ silent: true });
+  }, [refresh]);
 
   if (isLoading) {
     return (
@@ -321,14 +287,14 @@ export function DataTable() {
     );
   }
 
-  if (error) {
-    return <div className="p-4 text-center text-red-500">{error}</div>;
+  if (providerError) {
+    return <div className="p-4 text-center text-red-500">{providerError}</div>;
   }
 
   return (
     <div
       className={`
-        mb-6
+        mb-6 min-w-0
         ${!isMobile ? "p-4" : ""}
       `}
     >
@@ -381,64 +347,62 @@ export function DataTable() {
         </Dialog.Root>
       </div>
       <DataTableRefreshContext.Provider value={refreshTable}>
-        <div className="w-full flex-col justify-start gap-6">
+        <div className="flex min-w-0 w-full flex-col justify-start gap-6">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2"></div>
           </div>
-          <div className="relative flex flex-col gap-4 overflow-auto overscroll-contain [scrollbar-gutter:stable]">
-            <div className="overflow-hidden rounded-lg">
-              <DndContext
-                collisionDetection={closestCenter}
-                modifiers={[restrictToVerticalAxis]}
-                onDragEnd={handleDragEnd}
-                sensors={sensors}
-                id={sortableId}
-              >
-                <Table>
-                  <TableHeader className="bg-muted sticky top-0 z-10">
-                    {table.getHeaderGroups().map((headerGroup) => (
-                      <TableRow key={headerGroup.id}>
-                        {headerGroup.headers.map((header) => {
-                          return (
-                            <TableHead key={header.id} colSpan={header.colSpan}>
-                              {header.isPlaceholder
-                                ? null
-                                : flexRender(
-                                    header.column.columnDef.header,
-                                    header.getContext()
-                                  )}
-                            </TableHead>
-                          );
-                        })}
-                      </TableRow>
-                    ))}
-                  </TableHeader>
-                  <TableBody className="**:data-[slot=table-cell]:first:w-8">
-                    {table.getRowModel().rows?.length ? (
-                      <SortableContext
-                        items={dataIds}
-                        strategy={verticalListSortingStrategy}
+          <div className="relative flex min-w-0 flex-col gap-4">
+            <DndContext
+              collisionDetection={closestCenter}
+              modifiers={[restrictToVerticalAxis]}
+              onDragEnd={handleDragEnd}
+              sensors={sensors}
+              id={sortableId}
+            >
+              <Table className="min-w-[960px]">
+                <TableHeader className="bg-muted">
+                  {table.getHeaderGroups().map((headerGroup) => (
+                    <TableRow key={headerGroup.id}>
+                      {headerGroup.headers.map((header) => {
+                        return (
+                          <TableHead key={header.id} colSpan={header.colSpan}>
+                            {header.isPlaceholder
+                              ? null
+                              : flexRender(
+                                  header.column.columnDef.header,
+                                  header.getContext()
+                                )}
+                          </TableHead>
+                        );
+                      })}
+                    </TableRow>
+                  ))}
+                </TableHeader>
+                <TableBody className="**:data-[slot=table-cell]:first:w-8">
+                  {table.getRowModel().rows?.length ? (
+                    <SortableContext
+                      items={dataIds}
+                      strategy={verticalListSortingStrategy}
+                    >
+                      {table.getRowModel().rows.map((row) => (
+                        <DraggableRow key={row.id} row={row} />
+                      ))}
+                    </SortableContext>
+                  ) : (
+                    <TableRow>
+                      <TableCell
+                        colSpan={columns.length}
+                        className="h-24 text-center"
                       >
-                        {table.getRowModel().rows.map((row) => (
-                          <DraggableRow key={row.id} row={row} />
-                        ))}
-                      </SortableContext>
-                    ) : (
-                      <TableRow>
-                        <TableCell
-                          colSpan={columns.length}
-                          className="h-24 text-center"
-                        >
-                          {data.length === 0 && !isLoading
-                            ? t("admin.nodeTable.noData")
-                            : t("admin.nodeTable.noResults")}
-                        </TableCell>
-                      </TableRow>
-                    )}
-                  </TableBody>
-                </Table>
-              </DndContext>
-            </div>
+                        {data.length === 0 && !isLoading
+                          ? t("admin.nodeTable.noData")
+                          : t("admin.nodeTable.noResults")}
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </DndContext>
             <div className="flex items-center justify-between">
               <div className="text-muted-foreground flex-1 text-sm">
                 {table.getFilteredSelectedRowModel().rows.length} of{" "}

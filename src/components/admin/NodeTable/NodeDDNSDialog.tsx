@@ -62,6 +62,15 @@ const DEFAULT_ALIYUN_FORM: AliyunFormState = {
   line: "default",
 };
 
+const NODE_DIALOG_CONTENT_CLASS =
+  "max-h-[90vh] w-[min(96vw,760px)] overflow-y-auto overscroll-contain rounded-[28px] border border-slate-200/80 bg-white/95 p-6 shadow-2xl [scrollbar-gutter:stable] backdrop-blur dark:border-slate-800/80 dark:bg-slate-950/95";
+const NODE_DIALOG_SECTION_CLASS =
+  "dialog-section px-4 py-4";
+const NODE_DIALOG_INFO_CLASS =
+  "rounded-[20px] border border-border/60 bg-background/76 p-4 shadow-sm backdrop-blur-sm";
+const NODE_DIALOG_DANGER_CLASS =
+  "dialog-danger px-3 py-2";
+
 function normalizeProvider(value: string): DDNSProvider {
   return value === "aliyun" ? "aliyun" : "cloudflare";
 }
@@ -481,7 +490,7 @@ export function NodeDDNSDialog({
       )}
       <Dialog.Content
         maxWidth={720}
-        className="max-h-[85vh] overflow-y-auto overscroll-contain [scrollbar-gutter:stable]"
+        className={NODE_DIALOG_CONTENT_CLASS}
       >
         <Dialog.Title>{t("admin.nodeTable.ddns.title", "DDNS")}</Dialog.Title>
         <Dialog.Description>
@@ -492,7 +501,7 @@ export function NodeDDNSDialog({
         </Dialog.Description>
 
         <div className="mt-4 flex flex-col gap-4">
-          <div className="rounded-lg border border-border/60 bg-muted/20 p-3">
+          <div className={NODE_DIALOG_SECTION_CLASS}>
             <div className="text-sm font-semibold">
               {t("admin.nodeTable.ddns.currentIPs", "Current node IPs")}
             </div>
@@ -512,7 +521,7 @@ export function NodeDDNSDialog({
             <label className="text-sm font-semibold">
               {t("admin.nodeTable.ddns.enabled", "Enable DDNS")}
             </label>
-            <div className="flex items-center justify-between rounded-lg border border-border/60 p-3">
+            <div className={NODE_DIALOG_INFO_CLASS}>
               <div className="text-sm text-muted-foreground">
                 {t(
                   "admin.nodeTable.ddns.enabledHint",
@@ -584,7 +593,7 @@ export function NodeDDNSDialog({
             </SegmentedControl.Root>
           </Flex>
 
-          <div className="rounded-lg border border-border/60 p-4">
+          <div className={NODE_DIALOG_SECTION_CLASS}>
             <div className="mb-3 text-sm font-semibold">
               {providerLabel}
             </div>
@@ -680,7 +689,7 @@ export function NodeDDNSDialog({
                   <label className="text-sm font-semibold">
                     {t("admin.nodeTable.ddns.proxied", "Cloudflare proxy")}
                   </label>
-                  <div className="flex items-center justify-between rounded-lg border border-border/60 p-3">
+                  <div className={NODE_DIALOG_INFO_CLASS}>
                     <div className="text-sm text-muted-foreground">
                       {t(
                         "admin.nodeTable.ddns.proxiedHint",
@@ -823,12 +832,12 @@ export function NodeDDNSDialog({
           </div>
 
           {catalogError ? (
-            <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-700">
+            <div className="rounded-[20px] border border-amber-200/80 bg-amber-50/92 px-3 py-2 text-sm text-amber-700 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-300">
               {catalogError}
             </div>
           ) : null}
 
-          <div className="rounded-lg border border-border/60 p-4">
+          <div className={NODE_DIALOG_SECTION_CLASS}>
             <div className="mb-3 flex items-center justify-between">
               <div className="text-sm font-semibold">
                 {t("admin.nodeTable.ddns.syncState", "Sync status")}
@@ -866,7 +875,7 @@ export function NodeDDNSDialog({
             </div>
 
             {binding?.last_error ? (
-              <div className="mt-3 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+              <div className={`mt-3 ${NODE_DIALOG_DANGER_CLASS}`}>
                 {binding.last_error}
               </div>
             ) : null}
@@ -878,7 +887,7 @@ export function NodeDDNSDialog({
                 </div>
                 <TextArea
                   disabled
-                  className="min-h-[100px] font-mono text-xs"
+                  className="min-h-[100px] rounded-[20px] border-border/70 bg-slate-50/90 font-mono text-xs dark:bg-slate-950"
                   value={JSON.stringify(binding.last_result, null, 2)}
                 />
               </div>

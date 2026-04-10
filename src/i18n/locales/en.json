@@ -1403,6 +1403,7 @@
     "execute": "Execute",
     "expand_sidebar": "Expand sidebar",
     "expired": "Expired",
+    "unknown": "Unknown",
     "expired_in": "{{days}} day",
     "free": "Free",
     "generate": "Generate",
@@ -1640,6 +1641,10 @@
       "cooldown": "Cooldown (s)",
       "create_title": "Create failover task",
       "current_client": "Client",
+      "current_client_hint": "Select the node currently serving traffic for this failover task.",
+      "current_client_placeholder": "Choose a current client",
+      "current_client_search_empty": "No matching client",
+      "current_client_search_placeholder": "Search clients...",
       "current_ip": "IP",
       "current_ip_empty": "IP not recorded yet.",
       "current_outlet": "Current outlet",
@@ -2049,7 +2054,8 @@
       "dns_record_type_required": "Record type must be A",
       "invalid_json": "{{label}} must be valid JSON",
       "plan_provider_entry_required": "Plan {{index}} requires a provider entry",
-      "watch_node_required": "Choose a watch node"
+      "watch_node_required": "Choose a watch node",
+      "current_client_required": "Please select a current client"
     },
     "cooldown": {
       "ready": "Ready",
@@ -2148,7 +2154,10 @@
   "home_title": "Komari Monitor",
   "just_now": "Just now",
   "instance": {
+    "chart_summary": "Load history and network quality now sit in their own trend section, so the page reads like an operations product instead of a debugging panel.",
+    "chart_title": "Realtime trends and health history",
     "details_eyebrow": "Node details",
+    "details_summary": "Keep the base profile, capacity, and timeline in one readable block instead of a split technical panel.",
     "details_title": "Hardware profile and runtime snapshot",
     "summary_description": "Focus on a single node's live load, connectivity, and historical trends. This page separates node identity, current status, and chart entry points into clearer reading layers."
   },
@@ -2172,6 +2181,8 @@
   "login": {
     "desc": "Log in to the {{siteName}} control panel.",
     "failed": "Login failed",
+    "inline_hint": "Use your existing account to continue. Password login and OAuth stay in the same entry point.",
+    "inline_summary": "Keep account access, node operations, and brand controls in one consistent login flow.",
     "logging_in": "Logging in...",
     "login_with": "Login with {{provider}}",
     "login_with_github": "Login with GitHub",
@@ -2210,6 +2221,17 @@
     },
     "title": "Logs"
   },
+  "site": {
+    "badge": "Live Fleet",
+    "brand_consistency": "Bring node entry points, brand details, and console access into one shared page structure.",
+    "build_time": "Build Time: {{time}}",
+    "console_summary": "Use one focused entry for sign-in, instance detail pages, and node management instead of scattering controls across separate modules.",
+    "description": "Realtime node health, traffic, and region coverage in one surface.",
+    "github": "GitHub",
+    "powered_by": "Powered by {{siteName}}.",
+    "readable_experience": "Keep clearer hierarchy and interaction rhythm on both desktop and mobile.",
+    "subtitle": "Komari Monitor"
+  },
   "network_speed": "Network Speed",
   "nodeCard": {
     "actions": "Actions",
@@ -2221,7 +2243,7 @@
     "disk": "Disk",
     "groupNodes": "{{group}} group: total {{total}} servers, {{online}} servers online",
     "kernelVersion": "Kernel Version",
-    "last_updated": "Last Update",
+    "last_updated": "Last report",
     "load": "Load",
     "monitoring": "Monitoring",
     "name": "Node Name",
@@ -2231,6 +2253,7 @@
     "networkUploadSpeed": "Upload Speed",
     "offline": "Offline",
     "online": "Online",
+    "node_updated_at": "Node updated at",
     "os": "OS",
     "ping": "Ping",
     "price": "Price",
@@ -2879,8 +2902,12 @@
       "custom": "Customize",
       "description": "Site Description",
       "description_description": "Set your site's description for meta info and social media cards.",
+      "github_url": "GitHub URL",
+      "github_url_description": "Set the external GitHub link exposed in the public navigation.",
       "name": "Site Name",
       "name_description": "Set the name of the site",
+      "subtitle": "Site Subtitle",
+      "subtitle_description": "Set the short subtitle shown under the public site name.",
       "script_domain": "Agent connection address",
       "script_domain_description": "Define the connection address for the installation script panel, convenient for users with multiple domains, and it will not affect access to other domains. Cloud pages can fall back to the current domain when left empty, but async failover tasks should set this explicitly.",
       "title": "Site"
