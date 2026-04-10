@@ -111,8 +111,20 @@ export type FailoverV2Member = {
   last_triggered_at: string | null;
   last_succeeded_at: string | null;
   last_failed_at: string | null;
+  probe: FailoverV2Probe | null;
   created_at: string;
   updated_at: string;
+};
+
+export type FailoverV2Probe = {
+  status: string;
+  target: string | null;
+  message: string | null;
+  latency: number;
+  checked_at: string | null;
+  report_updated_at: string | null;
+  consecutive_failures: number;
+  stale: boolean;
 };
 
 export type FailoverV2ExecutionSummary = {
@@ -291,11 +303,37 @@ function normalizeMemberMode(value: unknown): FailoverV2MemberMode {
     : "provider_template";
 }
 
+interface FailoverV2ProbeRaw {
+  status?: string | null;
+  target?: string | null;
+  message?: string | null;
+  latency?: number | null;
+  checked_at?: string | null;
+  report_updated_at?: string | null;
+  consecutive_failures?: number | null;
+  stale?: boolean | null;
+}
+
 function normalizeMemberLine(line: unknown): FailoverV2MemberLine {
   const raw = line && typeof line === "object" ? line as Record<string, unknown> : {};
   return {
     line_code: normalizeString(raw.line_code),
     dns_record_refs: normalizeUnknown(raw.dns_record_refs),
+  };
+}
+
+function normalizeProbe(raw: unknown): FailoverV2Probe {
+  const data = raw && typeof raw === "object" ? raw as Record<string, unknown> : {};
+  const normalized = data as FailoverV2ProbeRaw;
+  return {
+    status: normalizeString(normalized.status) || "unavailable",
+    target: normalizeNullableString(normalized.target),
+    message: normalizeNullableString(normalized.message),
+    latency: normalizeNumber(normalized.latency),
+    checked_at: normalizeNullableString(normalized.checked_at),
+    report_updated_at: normalizeNullableString(normalized.report_updated_at),
+    consecutive_failures: normalizeNumber(normalized.consecutive_failures),
+    stale: normalizeBoolean(normalized.stale),
   };
 }
 
@@ -341,6 +379,7 @@ function normalizeMember(member: unknown): FailoverV2Member {
     last_triggered_at: normalizeNullableString(raw.last_triggered_at),
     last_succeeded_at: normalizeNullableString(raw.last_succeeded_at),
     last_failed_at: normalizeNullableString(raw.last_failed_at),
+    probe: normalizeProbe(raw.probe),
     created_at: normalizeString(raw.created_at),
     updated_at: normalizeString(raw.updated_at),
   };

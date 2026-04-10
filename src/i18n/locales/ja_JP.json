@@ -326,6 +326,9 @@
       "ghproxy_placeholder": "GitHubプロキシ、空の場合はプロキシを使用しません",
       "globalStatsInline": "Global: {{total}} nodes, {{online}} online, {{offline}} offline",
       "globalStatsTitle": "Global stats",
+      "inlineGlobalSummary": "グローバルオンライン {{online}} · オフライン {{offline}}",
+      "inlineOnlineAbnormal": "オンライン {{online}} · 異常 {{abnormal}}",
+      "inlineStats": "オンライン {{online}} · オフライン {{offline}} · 異常 {{abnormal}} · ↑{{upload}} · ↓{{download}}",
       "groupInstallCommand": "Create group install command",
       "groupName": "Group name",
       "groupNameHelp": "The group will be created automatically after the first server runs this command. You do not need to create an empty group first.",
@@ -423,6 +426,8 @@
       "userScopeHint": "Leave empty and search again to clear the user scope.",
       "userScopeLabel": "User scope",
       "userSearchNoMatch": "「{{query}}」に一致するユーザーが見つかりません。",
+      "currentFilterSummary": "現在のフィルター {{visible}} / {{total}}",
+      "toolbarSearchPlaceholder": "ノード名、IP で検索",
       "userSearchPlaceholder": "ユーザーのノードを検索"
     },
     "notification": {
@@ -1478,6 +1483,7 @@
     "none": "なし",
     "not_implemented": "Not implemented yet",
     "once": "一回限り",
+    "more": "もっと",
     "optional": "Optional",
     "quarterly": "四半期",
     "quinquennial": "5年",
@@ -2138,6 +2144,10 @@
       "timeout": "Timed out",
       "unavailable": "Unavailable",
       "unknown": "Unknown",
+      "cooldown": "Cooldown",
+      "cooldown_until": "Cooldown until {{until}}",
+      "manual_review": "Needs manual review",
+      "triggered": "Triggered",
       "waiting_agent": "Waiting for agent",
       "warning": "Warning"
     },
@@ -2600,11 +2610,22 @@
       "skipped": "Skipped",
       "success": "Success",
       "unknown": "Unknown",
+      "cooldown": "Cooldown",
+      "cooldown_until": "Cooldown until {{until}}",
+      "manual_review": "Needs manual review",
+      "triggered": "Triggered",
       "validating_outlet": "Validating outlet connectivity",
       "verifying_attach_dns": "Verifying DNS attach",
       "verifying_detach_dns": "Verifying DNS detach",
       "waiting_agent": "Waiting for agent",
       "warning": "Needs review"
+    },
+    "table": {
+      "probe": "プローブ"
+    },
+    "probe": {
+      "stale": "期限切れ",
+      "stale_with_retry": "期限切れ ({{current}}/{{total}})"
     },
     "step_detail_summary": "Key details",
     "step_key": "Step key",

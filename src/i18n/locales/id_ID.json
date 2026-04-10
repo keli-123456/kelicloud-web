@@ -326,6 +326,9 @@
       "ghproxy_placeholder": "Proxy GitHub, biarkan kosong jika tidak perlu proxy",
       "globalStatsInline": "Global: {{total}} nodes, {{online}} online, {{offline}} offline",
       "globalStatsTitle": "Global stats",
+      "inlineGlobalSummary": "Global online {{online}} · Offline {{offline}}",
+      "inlineOnlineAbnormal": "Daring {{online}} · Tidak normal {{abnormal}}",
+      "inlineStats": "Daring {{online}} · Luring {{offline}} · Tidak normal {{abnormal}} · ↑{{upload}} · ↓{{download}}",
       "groupInstallCommand": "Create group install command",
       "groupName": "Group name",
       "groupNameHelp": "The group will be created automatically after the first server runs this command. You do not need to create an empty group first.",
@@ -423,6 +426,8 @@
       "userScopeHint": "Leave empty and search again to clear the user scope.",
       "userScopeLabel": "User scope",
       "userSearchNoMatch": "Tidak ada pengguna yang cocok dengan \"{{query}}\".",
+      "currentFilterSummary": "Filter saat ini {{visible}} / {{total}}",
+      "toolbarSearchPlaceholder": "Cari nama node, IP",
       "userSearchPlaceholder": "Cari node pengguna"
     },
     "notification": {
@@ -1478,6 +1483,7 @@
     "none": "Tidak ada",
     "not_implemented": "Not implemented yet",
     "once": "Sekali",
+    "more": "Lainnya",
     "optional": "Optional",
     "quarterly": "Triwulanan",
     "quinquennial": "Lima Tahunan",
@@ -2138,6 +2144,10 @@
       "timeout": "Timed out",
       "unavailable": "Unavailable",
       "unknown": "Unknown",
+      "cooldown": "Cooldown",
+      "cooldown_until": "Cooldown until {{until}}",
+      "manual_review": "Needs manual review",
+      "triggered": "Triggered",
       "waiting_agent": "Waiting for agent",
       "warning": "Warning"
     },
@@ -2600,11 +2610,22 @@
       "skipped": "Skipped",
       "success": "Success",
       "unknown": "Unknown",
+      "cooldown": "Cooldown",
+      "cooldown_until": "Cooldown until {{until}}",
+      "manual_review": "Needs manual review",
+      "triggered": "Triggered",
       "validating_outlet": "Validating outlet connectivity",
       "verifying_attach_dns": "Verifying DNS attach",
       "verifying_detach_dns": "Verifying DNS detach",
       "waiting_agent": "Waiting for agent",
       "warning": "Needs review"
+    },
+    "table": {
+      "probe": "Probe"
+    },
+    "probe": {
+      "stale": "Stale",
+      "stale_with_retry": "Stale ({{current}}/{{total}})"
     },
     "step_detail_summary": "Key details",
     "step_key": "Step key",

@@ -326,6 +326,9 @@
       "ghproxy_placeholder": "GitHub 代理，為空則不使用代理",
       "globalStatsInline": "全局：{{total}} 台，在线 {{online}}，离线 {{offline}}",
       "globalStatsTitle": "全局统计",
+      "inlineGlobalSummary": "全局 在線 {{online}} · 離線 {{offline}}",
+      "inlineOnlineAbnormal": "上線 {{online}} · 異常 {{abnormal}}",
+      "inlineStats": "上線 {{online}} · 離線 {{offline}} · 異常 {{abnormal}} · ↑{{upload}} · ↓{{download}}",
       "groupInstallCommand": "创建分组安装命令",
       "groupName": "分组名称",
       "groupNameHelp": "分组在首台服务器执行命令后会自动创建，不需要先手动建空分组。",
@@ -423,6 +426,8 @@
       "userScopeHint": "留空后点击搜索可恢复为全部用户范围。",
       "userScopeLabel": "用户范围",
       "userSearchNoMatch": "找不到符合「{{query}}」的使用者。",
+      "currentFilterSummary": "目前篩選 {{visible}} / {{total}}",
+      "toolbarSearchPlaceholder": "搜尋節點名稱、IP",
       "userSearchPlaceholder": "搜尋使用者節點"
     },
     "notification": {
@@ -1478,6 +1483,7 @@
     "none": "無",
     "not_implemented": "暂未实现",
     "once": "一次性",
+    "more": "更多",
     "optional": "可选",
     "quarterly": "季",
     "quinquennial": "五年",
@@ -2138,6 +2144,10 @@
       "timeout": "超时",
       "unavailable": "不可用",
       "unknown": "未知",
+      "cooldown": "冷卻中",
+      "cooldown_until": "冷卻至 {{until}}",
+      "manual_review": "待人工複核",
+      "triggered": "已觸發",
       "waiting_agent": "等待 Agent 上线",
       "warning": "警告"
     },
@@ -2600,11 +2610,22 @@
       "skipped": "已跳过",
       "success": "成功",
       "unknown": "未知",
+      "cooldown": "冷卻中",
+      "cooldown_until": "冷卻至 {{until}}",
+      "manual_review": "待人工複核",
+      "triggered": "已觸發",
       "validating_outlet": "校验出口连通性",
       "verifying_attach_dns": "正在校验 DNS 挂载",
       "verifying_detach_dns": "正在校验 DNS 摘除",
       "waiting_agent": "等待 Agent",
       "warning": "需关注"
+    },
+    "table": {
+      "probe": "探測"
+    },
+    "probe": {
+      "stale": "過期",
+      "stale_with_retry": "過期 ({{current}}/{{total}})"
     },
     "step_detail_summary": "关键信息",
     "step_key": "步骤键",
