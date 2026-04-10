@@ -214,6 +214,7 @@ const FAILOVER_V2_PROVIDER_ENTRY_GROUP_ALL = "__all__";
 const FAILOVER_V2_AUTOMATIC_PROVIDER_ENTRY_ID = "active";
 const FAILOVER_V2_POLL_INTERVAL_MS = 5000;
 const FAILOVER_V2_ACTIVE_EXECUTION_STATUSES = new Set([
+  "running",
   "queued",
   "detaching_dns",
   "verifying_detach_dns",
@@ -224,6 +225,20 @@ const FAILOVER_V2_ACTIVE_EXECUTION_STATUSES = new Set([
   "attaching_dns",
   "verifying_attach_dns",
   "cleaning_old",
+  "stopping",
+  "stop_requested",
+]);
+const FAILOVER_V2_TERMINAL_EXECUTION_STATUSES = new Set([
+  "success",
+  "failed",
+  "warning",
+  "skipped",
+  "stopped",
+  "completed",
+  "cancelled",
+  "canceled",
+  "aborted",
+  "timeout",
 ]);
 const FORM_SECTION_CLASS = "border-t border-slate-200/70 pt-4 first:border-t-0 first:pt-0 dark:border-slate-800/70";
 const FORM_FIELD_CLASS = "grid min-w-0 gap-1.5 [&>[data-slot=label]]:h-5 [&>[data-slot=label]]:min-w-0 [&>[data-slot=label]]:overflow-hidden [&>[data-slot=label]]:text-ellipsis [&>[data-slot=label]]:whitespace-nowrap [&>[data-slot=label]]:leading-5";
@@ -1120,7 +1135,18 @@ function getFailoverV2DetailSummaryItems(t: TFunction, detail: unknown, maxItems
 }
 
 function isFailoverV2ExecutionStatusActive(status: string | null | undefined) {
-  return FAILOVER_V2_ACTIVE_EXECUTION_STATUSES.has(String(status || "").trim().toLowerCase());
+  const normalized = String(status || "").trim().toLowerCase();
+  if (!normalized) {
+    return false;
+  }
+  if (FAILOVER_V2_ACTIVE_EXECUTION_STATUSES.has(normalized)) {
+    return true;
+  }
+  if (FAILOVER_V2_TERMINAL_EXECUTION_STATUSES.has(normalized)) {
+    return false;
+  }
+  // Keep future in-progress statuses operable until they are explicitly marked terminal.
+  return true;
 }
 
 function isFailoverV2ServiceBusy(service: FailoverV2Service) {

@@ -16,8 +16,11 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import {
+  ArrowDownUp,
+  Copy,
   Download,
   Globe,
+  MoreHorizontal,
   Search,
   Settings2,
   Terminal,
@@ -37,6 +40,19 @@ import {
   AlertDescription,
   AlertTitle,
 } from "@/components/ui/alert";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import {
   Tooltip,
   TooltipContent,
@@ -447,6 +463,89 @@ const getActionErrorMessage = (
 const isNodeConnectivityBlocked = (live?: NodeLiveSnapshot) =>
   live?.record.cn_connectivity?.status === "blocked_suspected";
 
+type NodeStatusFilter = "all" | "online" | "offline";
+type NodeAbnormalFilter = "all" | "abnormal" | "normal";
+type NodeSortField = "none" | "cpu" | "ram" | "traffic" | "uptime";
+type NodeSortDirection = "asc" | "desc";
+
+const RISK_WARNING_THRESHOLD = 75;
+const RISK_DANGER_THRESHOLD = 90;
+
+const buildSearchText = (node: NodeDetail) =>
+  [
+    node.name,
+    node.group,
+    node.os,
+    node.arch,
+    node.region,
+    node.version,
+    node.ipv4,
+    node.ipv6,
+  ]
+    .map((value) => String(value || "").toLowerCase().trim())
+    .filter(Boolean)
+    .join(" ");
+
+const truncateMiddle = (value: string, head = 12, tail = 8) => {
+  if (value.length <= head + tail + 1) {
+    return value;
+  }
+  return `${value.slice(0, head)}…${value.slice(-tail)}`;
+};
+
+const getNodeRamUsagePercent = (node: NodeDetail, live?: NodeLiveSnapshot) => {
+  if (!node.mem_total) {
+    return 0;
+  }
+  return ((live?.record.ram.used ?? 0) / node.mem_total) * 100;
+};
+
+const getNodeDiskUsagePercent = (node: NodeDetail, live?: NodeLiveSnapshot) => {
+  if (!node.disk_total) {
+    return 0;
+  }
+  return ((live?.record.disk.used ?? 0) / node.disk_total) * 100;
+};
+
+const getNodeTrafficTotal = (live?: NodeLiveSnapshot) =>
+  (live?.record.network.totalUp ?? 0) + (live?.record.network.totalDown ?? 0);
+
+const isNodeAbnormal = (
+  node: NodeDetail,
+  live: NodeLiveSnapshot | undefined,
+  liveLoaded: boolean,
+) => {
+  const offline = isNodeOffline(live, liveLoaded);
+  const connectivityAbnormal =
+    live?.record.cn_connectivity?.status === "blocked_suspected"
+    || live?.record.cn_connectivity?.status === "degraded";
+  const highUsage =
+    clampPercent(live?.record.cpu.usage ?? 0) >= RISK_DANGER_THRESHOLD
+    || clampPercent(getNodeRamUsagePercent(node, live)) >= RISK_DANGER_THRESHOLD
+    || clampPercent(getNodeDiskUsagePercent(node, live)) >= RISK_DANGER_THRESHOLD;
+  return offline || connectivityAbnormal || highUsage;
+};
+
+const getNodeSortMetric = (
+  node: NodeDetail,
+  live: NodeLiveSnapshot | undefined,
+  sortField: NodeSortField,
+) => {
+  if (sortField === "cpu") {
+    return clampPercent(live?.record.cpu.usage ?? 0);
+  }
+  if (sortField === "ram") {
+    return clampPercent(getNodeRamUsagePercent(node, live));
+  }
+  if (sortField === "traffic") {
+    return getNodeTrafficTotal(live);
+  }
+  if (sortField === "uptime") {
+    return live?.record.uptime ?? 0;
+  }
+  return 0;
+};
+
 const Layout = ({
   platformAdmin,
   scopeUsers,
@@ -508,6 +607,117 @@ const Layout = ({
     [allNodes],
   );
   const installActionsEnabled = !platformAdmin || !selectedUserUUID;
+  const [nodeSearchQuery, setNodeSearchQuery] = React.useState("");
+  const [groupFilter, setGroupFilter] = React.useState("all");
+  const [statusFilter, setStatusFilter] = React.useState<NodeStatusFilter>("all");
+  const [regionFilter, setRegionFilter] = React.useState("all");
+  const [versionFilter, setVersionFilter] = React.useState("all");
+  const [abnormalFilter, setAbnormalFilter] =
+    React.useState<NodeAbnormalFilter>("all");
+  const [sortField, setSortField] = React.useState<NodeSortField>("none");
+  const [sortDirection, setSortDirection] =
+    React.useState<NodeSortDirection>("desc");
+
+  const groupOptions = React.useMemo(
+    () =>
+      Array.from(
+        new Set(allNodes.map((node) => getNodeGroupLabel(node)).filter(Boolean)),
+      ).sort((left, right) => left.localeCompare(right, "zh-CN")),
+    [allNodes],
+  );
+  const regionOptions = React.useMemo(
+    () =>
+      Array.from(
+        new Set(
+          allNodes
+            .map((node) => String(node.region || "").trim())
+            .filter(Boolean),
+        ),
+      ).sort((left, right) => left.localeCompare(right, "zh-CN")),
+    [allNodes],
+  );
+  const versionOptions = React.useMemo(
+    () =>
+      Array.from(
+        new Set(
+          allNodes
+            .map((node) => String(node.version || "").trim())
+            .filter(Boolean),
+        ),
+      ).sort((left, right) => right.localeCompare(left, "zh-CN")),
+    [allNodes],
+  );
+
+  React.useEffect(() => {
+    if (groupFilter !== "all" && !groupOptions.includes(groupFilter)) {
+      setGroupFilter("all");
+    }
+  }, [groupFilter, groupOptions]);
+
+  React.useEffect(() => {
+    if (regionFilter !== "all" && !regionOptions.includes(regionFilter)) {
+      setRegionFilter("all");
+    }
+  }, [regionFilter, regionOptions]);
+
+  React.useEffect(() => {
+    if (versionFilter !== "all" && !versionOptions.includes(versionFilter)) {
+      setVersionFilter("all");
+    }
+  }, [versionFilter, versionOptions]);
+
+  const visibleNodes = React.useMemo(() => {
+    const normalizedKeyword = nodeSearchQuery.toLowerCase().trim();
+
+    return allNodes.filter((node) => {
+      const live = liveByNode[node.uuid];
+
+      if (groupFilter !== "all" && getNodeGroupLabel(node) !== groupFilter) {
+        return false;
+      }
+
+      if (statusFilter === "online" && !isNodeOnline(live)) {
+        return false;
+      }
+      if (statusFilter === "offline" && !isNodeOffline(live, liveLoaded)) {
+        return false;
+      }
+
+      if (regionFilter !== "all" && String(node.region || "").trim() !== regionFilter) {
+        return false;
+      }
+      if (
+        versionFilter !== "all"
+        && String(node.version || "").trim() !== versionFilter
+      ) {
+        return false;
+      }
+
+      const abnormal = isNodeAbnormal(node, live, liveLoaded);
+      if (abnormalFilter === "abnormal" && !abnormal) {
+        return false;
+      }
+      if (abnormalFilter === "normal" && abnormal) {
+        return false;
+      }
+
+      if (!normalizedKeyword) {
+        return true;
+      }
+
+      return buildSearchText(node).includes(normalizedKeyword);
+    });
+  }, [
+    abnormalFilter,
+    allNodes,
+    groupFilter,
+    liveByNode,
+    liveLoaded,
+    nodeSearchQuery,
+    regionFilter,
+    statusFilter,
+    versionFilter,
+  ]);
 
   useEffect(() => {
     const interval = window.setInterval(() => {
@@ -582,6 +792,7 @@ const Layout = ({
     >
       <Header
         nodes={allNodes}
+        visibleNodes={visibleNodes}
         liveByNode={liveByNode}
         liveLoaded={liveLoaded}
         liveError={liveError}
@@ -590,19 +801,40 @@ const Layout = ({
         settingsError={settingsError}
         platformAdmin={platformAdmin}
         scopeUsers={scopeUsers}
+        selectedUserUUID={selectedUserUUID}
         userSearchQuery={userSearchQuery}
         onUserSearchQueryChange={onUserSearchQueryChange}
         onUserSearch={onUserSearch}
         installActionsEnabled={installActionsEnabled}
         canManageCNConnectivity={canManageCNConnectivity}
         onRefreshSettings={refetchSettings}
+        nodeSearchQuery={nodeSearchQuery}
+        onNodeSearchQueryChange={setNodeSearchQuery}
+        statusFilter={statusFilter}
+        onStatusFilterChange={setStatusFilter}
+        regionFilter={regionFilter}
+        onRegionFilterChange={setRegionFilter}
+        versionFilter={versionFilter}
+        onVersionFilterChange={setVersionFilter}
+        abnormalFilter={abnormalFilter}
+        onAbnormalFilterChange={setAbnormalFilter}
+        groupFilter={groupFilter}
+        onGroupFilterChange={setGroupFilter}
+        groupOptions={groupOptions}
+        regionOptions={regionOptions}
+        versionOptions={versionOptions}
       />
 
       <NodeTable
-        nodes={allNodes}
+        nodes={visibleNodes}
+        totalNodesCount={allNodes.length}
         liveByNode={liveByNode}
         settings={settings}
         installActionsEnabled={installActionsEnabled}
+        sortField={sortField}
+        onSortFieldChange={setSortField}
+        sortDirection={sortDirection}
+        onSortDirectionChange={setSortDirection}
       />
     </div>
   );
@@ -650,6 +882,7 @@ const NodeAccessSettingsDialogButton = ({
 
 const Header = ({
   nodes,
+  visibleNodes,
   liveByNode,
   liveLoaded,
   liveError,
@@ -658,14 +891,31 @@ const Header = ({
   settingsError,
   platformAdmin,
   scopeUsers,
+  selectedUserUUID,
   userSearchQuery,
   onUserSearchQueryChange,
   onUserSearch,
   installActionsEnabled,
   canManageCNConnectivity,
   onRefreshSettings,
+  nodeSearchQuery,
+  onNodeSearchQueryChange,
+  statusFilter,
+  onStatusFilterChange,
+  regionFilter,
+  onRegionFilterChange,
+  versionFilter,
+  onVersionFilterChange,
+  abnormalFilter,
+  onAbnormalFilterChange,
+  groupFilter,
+  onGroupFilterChange,
+  groupOptions,
+  regionOptions,
+  versionOptions,
 }: {
   nodes: NodeDetail[];
+  visibleNodes: NodeDetail[];
   liveByNode: Record<string, NodeLiveSnapshot>;
   liveLoaded: boolean;
   liveError: string | null;
@@ -674,17 +924,34 @@ const Header = ({
   settingsError: string | null;
   platformAdmin: boolean;
   scopeUsers: AdminScopedUser[];
+  selectedUserUUID: string;
   userSearchQuery: string;
   onUserSearchQueryChange: (value: string) => void;
   onUserSearch: () => void;
   installActionsEnabled: boolean;
   canManageCNConnectivity: boolean;
   onRefreshSettings: () => Promise<SettingsResponse>;
+  nodeSearchQuery: string;
+  onNodeSearchQueryChange: (value: string) => void;
+  statusFilter: NodeStatusFilter;
+  onStatusFilterChange: (value: NodeStatusFilter) => void;
+  regionFilter: string;
+  onRegionFilterChange: (value: string) => void;
+  versionFilter: string;
+  onVersionFilterChange: (value: string) => void;
+  abnormalFilter: NodeAbnormalFilter;
+  onAbnormalFilterChange: (value: NodeAbnormalFilter) => void;
+  groupFilter: string;
+  onGroupFilterChange: (value: string) => void;
+  groupOptions: string[];
+  regionOptions: string[];
+  versionOptions: string[];
 }) => {
   const { t, i18n } = useTranslation();
   const { refresh } = useNodeDetails();
   const { confirm, dialog } = useWarningDialog();
   const [cleanupLoading, setCleanupLoading] = useState(false);
+  const [groupCommandDialogOpen, setGroupCommandDialogOpen] = React.useState(false);
   const offlineNodes = nodes.filter((node) =>
     isNodeOffline(liveByNode[node.uuid], liveLoaded)
   );
@@ -696,14 +963,71 @@ const Header = ({
     (sum, node) => sum + (liveByNode[node.uuid]?.record.network.down ?? 0),
     0
   );
-  const totalUploadTraffic = nodes.reduce(
-    (sum, node) => sum + (liveByNode[node.uuid]?.record.network.totalUp ?? 0),
-    0
+  const currentUploadSpeed = visibleNodes.reduce(
+    (sum, node) => sum + (liveByNode[node.uuid]?.record.network.up ?? 0),
+    0,
   );
-  const totalDownloadTraffic = nodes.reduce(
-    (sum, node) => sum + (liveByNode[node.uuid]?.record.network.totalDown ?? 0),
-    0
+  const currentDownloadSpeed = visibleNodes.reduce(
+    (sum, node) => sum + (liveByNode[node.uuid]?.record.network.down ?? 0),
+    0,
   );
+  const globalOnlineCount = nodes.filter((node) =>
+    isNodeOnline(liveByNode[node.uuid]),
+  ).length;
+  const globalAbnormalCount = nodes.filter((node) =>
+    isNodeAbnormal(node, liveByNode[node.uuid], liveLoaded),
+  ).length;
+  const currentOnlineCount = visibleNodes.filter((node) =>
+    isNodeOnline(liveByNode[node.uuid]),
+  ).length;
+  const currentAbnormalCount = visibleNodes.filter((node) =>
+    isNodeAbnormal(node, liveByNode[node.uuid], liveLoaded),
+  ).length;
+  const selectedScopeUser = selectedUserUUID
+    ? scopeUsers.find((user) => user.uuid === selectedUserUUID)
+    : undefined;
+  const currentScopeLabel = selectedScopeUser
+    ? t("admin.nodeTable.currentUserScopeStat", {
+      user: selectedScopeUser.username,
+      defaultValue: `当前用户：${selectedScopeUser.username}`,
+    })
+    : groupFilter === "all"
+      ? t("admin.nodeTable.currentScopeStat", { defaultValue: "当前筛选范围" })
+      : t("admin.nodeTable.currentGroupStat", {
+        group: groupFilter,
+        defaultValue: `当前分组：${groupFilter}`,
+      });
+  const hasEffectiveFilters =
+    nodeSearchQuery.trim().length > 0
+    || statusFilter !== "all"
+    || regionFilter !== "all"
+    || abnormalFilter !== "all"
+    || groupFilter !== "all"
+    || versionFilter !== "all"
+    || Boolean(selectedUserUUID);
+  const extraFilterCount =
+    (groupFilter !== "all" ? 1 : 0)
+    + (versionFilter !== "all" ? 1 : 0)
+    + (selectedUserUUID ? 1 : 0);
+  const primaryStats = hasEffectiveFilters
+    ? {
+      label: currentScopeLabel,
+      total: visibleNodes.length,
+      online: currentOnlineCount,
+      abnormal: currentAbnormalCount,
+      uploadSpeed: currentUploadSpeed,
+      downloadSpeed: currentDownloadSpeed,
+    }
+    : {
+      label: t("admin.nodeTable.globalStatsTitle", {
+        defaultValue: "全局统计",
+      }),
+      total: nodes.length,
+      online: globalOnlineCount,
+      abnormal: globalAbnormalCount,
+      uploadSpeed: totalUploadSpeed,
+      downloadSpeed: totalDownloadSpeed,
+    };
   const cnConnectivityEnabled = Boolean(settings?.cn_connectivity_enabled);
   const cnConnectivityTargets = parseCNConnectivityTargets(
     String(settings?.cn_connectivity_target || "")
@@ -747,7 +1071,7 @@ const Header = ({
       title: t("admin.nodeTable.cleanupOfflineTitle", "Delete offline nodes"),
       description: t(
         "admin.nodeTable.cleanupOfflineDescription",
-        "Delete the {{count}} nodes currently confirmed offline. This action cannot be undone.",
+        "将删除当前范围内已确认离线的 {{count}} 个节点。该操作不可撤销。",
         { count: offlineNodes.length },
       ),
       confirmLabel: t("common.delete", "Delete"),
@@ -827,6 +1151,11 @@ const Header = ({
       setCleanupLoading(false);
     }
   };
+  const canDeleteOffline =
+    liveLoaded && !liveError && offlineNodes.length > 0 && !cleanupLoading;
+  const toolbarSelectClass =
+    "h-9 rounded-md border border-input bg-background px-3 text-sm text-foreground outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring/50";
+
   return (
     <div className="flex flex-col gap-4">
       {liveError ? (
@@ -841,100 +1170,325 @@ const Header = ({
         </Alert>
       ) : null}
 
-      <Card className="rounded-lg border-border/60 shadow-none dark:bg-slate-950/50">
-        <div className="flex flex-col gap-2 px-3 py-2.5 md:px-3.5 md:py-3">
-          <div className="flex flex-col gap-2 xl:flex-row xl:items-center xl:justify-between">
-            <div className="text-sm font-medium text-foreground">
-              {t("admin.nodeTable.nodeList")}
+      <div className="rounded-lg border border-border/50 bg-background/60 px-3 py-2 shadow-none">
+        <div className="flex flex-wrap items-center gap-2 xl:flex-nowrap xl:gap-3">
+          <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
+            <div className="relative min-w-[220px] flex-1 xl:max-w-[360px]">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                className="h-9 pl-9"
+                placeholder={t("admin.nodeTable.nodeSearchPlaceholder", {
+                  defaultValue: "搜索节点名称、IP、系统、分组",
+                })}
+                value={nodeSearchQuery}
+                onChange={(event) => onNodeSearchQueryChange(event.target.value)}
+                aria-label={t("admin.nodeTable.nodeSearchPlaceholder", {
+                  defaultValue: "搜索节点名称、IP、系统、分组",
+                })}
+              />
             </div>
-
-            <div className="flex shrink-0 flex-wrap items-center gap-2 xl:justify-end">
-              {platformAdmin ? (
-                <form
-                  className="flex min-w-[220px] flex-1 items-center sm:min-w-[260px] xl:w-[300px] xl:flex-none"
-                  onSubmit={(event) => {
-                    event.preventDefault();
-                    onUserSearch();
-                  }}
+            <select
+              className={`${toolbarSelectClass} min-w-[116px]`}
+              value={statusFilter}
+              onChange={(event) =>
+                onStatusFilterChange(event.target.value as NodeStatusFilter)
+              }
+              aria-label={t("admin.nodeTable.filterStatus", {
+                defaultValue: "状态筛选",
+              })}
+            >
+              <option value="all">
+                {t("admin.nodeTable.filterStatusAll", {
+                  defaultValue: "状态：全部",
+                })}
+              </option>
+              <option value="online">
+                {t("admin.nodeTable.filterStatusOnline", {
+                  defaultValue: "状态：在线",
+                })}
+              </option>
+              <option value="offline">
+                {t("admin.nodeTable.filterStatusOffline", {
+                  defaultValue: "状态：离线",
+                })}
+              </option>
+            </select>
+            <select
+              className={`${toolbarSelectClass} min-w-[116px]`}
+              value={regionFilter}
+              onChange={(event) => onRegionFilterChange(event.target.value)}
+              aria-label={t("admin.nodeTable.filterRegion", {
+                defaultValue: "地区筛选",
+              })}
+            >
+              <option value="all">
+                {t("admin.nodeTable.filterRegionAll", {
+                  defaultValue: "地区：全部",
+                })}
+              </option>
+              {regionOptions.map((regionName) => (
+                <option key={regionName} value={regionName}>
+                  {regionName}
+                </option>
+              ))}
+            </select>
+            <select
+              className={`${toolbarSelectClass} min-w-[138px]`}
+              value={abnormalFilter}
+              onChange={(event) =>
+                onAbnormalFilterChange(event.target.value as NodeAbnormalFilter)
+              }
+              aria-label={t("admin.nodeTable.filterAbnormal", {
+                defaultValue: "异常筛选",
+              })}
+            >
+              <option value="all">
+                {t("admin.nodeTable.filterAbnormalAll", {
+                  defaultValue: "异常：全部",
+                })}
+              </option>
+              <option value="abnormal">
+                {t("admin.nodeTable.filterAbnormalOnly", {
+                  defaultValue: "仅异常/疑似故障",
+                })}
+              </option>
+              <option value="normal">
+                {t("admin.nodeTable.filterAbnormalNormal", {
+                  defaultValue: "仅正常",
+                })}
+              </option>
+            </select>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-9 rounded-md"
+                  aria-label={t("admin.nodeTable.moreFilters", {
+                    defaultValue: "更多筛选",
+                  })}
                 >
-                  <div className="relative w-full sm:flex-1">
-                    <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                    <Input
-                      className="h-9 pl-9"
-                      placeholder={t("admin.nodeTable.userSearchPlaceholder")}
-                      value={userSearchQuery}
-                      list="admin-node-user-search"
-                      onChange={(event) => onUserSearchQueryChange(event.target.value)}
-                    />
+                  {t("admin.nodeTable.moreFilters", {
+                    defaultValue: "更多筛选",
+                  })}
+                  {extraFilterCount > 0 ? (
+                    <Badge variant="secondary" className="rounded-sm px-1.5 py-0 text-[11px]">
+                      {extraFilterCount}
+                    </Badge>
+                  ) : null}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent align="start" className="w-[340px] p-3">
+                <div className="space-y-3">
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    <select
+                      className={toolbarSelectClass}
+                      value={groupFilter}
+                      onChange={(event) => onGroupFilterChange(event.target.value)}
+                      aria-label={t("admin.nodeTable.filterGroup", {
+                        defaultValue: "分组筛选",
+                      })}
+                    >
+                      <option value="all">
+                        {t("admin.nodeTable.filterGroupAll", {
+                          defaultValue: "分组：全部",
+                        })}
+                      </option>
+                      {groupOptions.map((groupName) => (
+                        <option key={groupName} value={groupName}>
+                          {groupName}
+                        </option>
+                      ))}
+                    </select>
+                    <select
+                      className={toolbarSelectClass}
+                      value={versionFilter}
+                      onChange={(event) => onVersionFilterChange(event.target.value)}
+                      aria-label={t("admin.nodeTable.filterVersion", {
+                        defaultValue: "版本筛选",
+                      })}
+                    >
+                      <option value="all">
+                        {t("admin.nodeTable.filterVersionAll", {
+                          defaultValue: "版本：全部",
+                        })}
+                      </option>
+                      {versionOptions.map((versionName) => (
+                        <option key={versionName} value={versionName}>
+                          {versionName}
+                        </option>
+                      ))}
+                    </select>
                   </div>
-                  <datalist id="admin-node-user-search">
-                    {scopeUsers.map((user) => (
-                      <option key={user.uuid} value={user.username} />
-                    ))}
-                  </datalist>
-                </form>
-              ) : null}
-              <GroupSummaryPill
-                label={t("admin.nodeTable.totalRate", "Total rate")}
-                value={`↑ ${formatBytes(totalUploadSpeed)}/s · ↓ ${formatBytes(
-                  totalDownloadSpeed
-                )}/s`}
-                tone="blue"
-              />
-              <GroupSummaryPill
-                label={t("admin.nodeTable.totalTraffic", "Total traffic")}
-                value={`↑ ${formatBytes(totalUploadTraffic)} · ↓ ${formatBytes(
-                  totalDownloadTraffic
-                )}`}
-              />
-              <GroupSummaryPill
-                label={t("settings.general.cn_connectivity")}
-                value={cnConnectivityStatusLabel}
-                tone={cnConnectivityTone}
-                title={cnConnectivityDetail}
-              />
-              <GenerateCommandButton
-                nodes={nodes}
-                settings={settings}
-                toolbar
-                buttonSize="sm"
-                disabled={!installActionsEnabled}
-              />
-              <GenerateCommandButton
-                nodes={nodes}
-                settings={settings}
-                toolbar
-                groupMode
-                buttonSize="sm"
-                disabled={!installActionsEnabled}
-              />
-              <Button
-                variant="destructive"
-                size="sm"
-                disabled={
-                  !liveLoaded ||
-                  Boolean(liveError) ||
-                  offlineNodes.length === 0 ||
-                  cleanupLoading
-                }
-                className="rounded-md"
-                onClick={() => void handleDeleteOffline()}
-              >
-                <Trash2Icon size={16} />
-                {t("admin.nodeTable.deleteOffline", "Delete offline nodes")}
-              </Button>
-              {platformAdmin ? (
-                <NodeAccessSettingsDialogButton
-                  settings={settings}
-                  platformAdmin={platformAdmin}
-                  canManageCNConnectivity={canManageCNConnectivity}
-                  onRefreshSettings={onRefreshSettings}
-                />
+                  {platformAdmin ? (
+                    <form
+                      className="space-y-2"
+                      onSubmit={(event) => {
+                        event.preventDefault();
+                        onUserSearch();
+                      }}
+                    >
+                      <div className="flex items-center justify-between text-xs text-muted-foreground">
+                        <span>
+                          {t("admin.nodeTable.userScopeLabel", {
+                            defaultValue: "用户范围",
+                          })}
+                        </span>
+                        {selectedScopeUser ? (
+                          <span className="truncate text-right">
+                            {t("admin.nodeTable.userScopeActive", {
+                              user: selectedScopeUser.username,
+                              defaultValue: "当前：{{user}}",
+                            })}
+                          </span>
+                        ) : null}
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Input
+                          className="h-9"
+                          placeholder={t("admin.nodeTable.userSearchPlaceholder")}
+                          value={userSearchQuery}
+                          list="admin-node-user-search"
+                          onChange={(event) => onUserSearchQueryChange(event.target.value)}
+                          aria-label={t("admin.nodeTable.userSearchPlaceholder")}
+                        />
+                        <Button type="submit" size="sm" className="h-9 rounded-md px-3">
+                          {t("common.search", { defaultValue: "搜索" })}
+                        </Button>
+                      </div>
+                      <div className="text-[11px] text-muted-foreground">
+                        {t("admin.nodeTable.userScopeHint", {
+                          defaultValue: "留空后点击搜索可恢复为全部用户范围。",
+                        })}
+                      </div>
+                      <datalist id="admin-node-user-search">
+                        {scopeUsers.map((user) => (
+                          <option key={user.uuid} value={user.username} />
+                        ))}
+                      </datalist>
+                    </form>
+                  ) : null}
+                </div>
+              </PopoverContent>
+            </Popover>
+          </div>
+
+          <div className="min-w-[240px] flex-1 xl:max-w-[360px]">
+            <div className="rounded-md border border-border/60 bg-muted/15 px-3 py-1.5">
+              <div className="text-[11px] text-muted-foreground">
+                {primaryStats.label}
+              </div>
+              <div className="mt-0.5 text-sm font-medium text-foreground">
+                {t("admin.nodeTable.statsNodeOnlineOffline", {
+                  total: primaryStats.total,
+                  online: primaryStats.online,
+                  offline: Math.max(primaryStats.total - primaryStats.online, 0),
+                  defaultValue: "{{total}} 台，在线 {{online}}，离线 {{offline}}",
+                })}
+              </div>
+              <div className="text-xs text-muted-foreground">
+                {t("admin.nodeTable.statsAbnormal", {
+                  count: primaryStats.abnormal,
+                  defaultValue: "异常/疑似故障：{{count}}",
+                })}
+              </div>
+              <div className="text-xs text-muted-foreground">
+                ↑ {formatBytes(primaryStats.uploadSpeed)}/s · ↓ {formatBytes(primaryStats.downloadSpeed)}/s
+              </div>
+              {hasEffectiveFilters ? (
+                <div className="mt-1 text-[11px] text-muted-foreground">
+                  {t("admin.nodeTable.globalStatsInline", {
+                    total: nodes.length,
+                    online: globalOnlineCount,
+                    offline: Math.max(nodes.length - globalOnlineCount, 0),
+                    defaultValue: "全局：{{total}} 台，在线 {{online}}，离线 {{offline}}",
+                  })}
+                </div>
               ) : null}
             </div>
           </div>
+
+          <div className="ml-auto flex shrink-0 flex-wrap items-center gap-2">
+            <GroupSummaryPill
+              label={t("settings.general.cn_connectivity")}
+              value={cnConnectivityStatusLabel}
+              tone={cnConnectivityTone}
+              title={cnConnectivityDetail}
+            />
+            <GenerateCommandButton
+              nodes={nodes}
+              settings={settings}
+              toolbar
+              buttonSize="sm"
+              toolbarLabel={t("admin.nodeTable.installCommand", {
+                defaultValue: "一键部署指令",
+              })}
+              disabled={!installActionsEnabled}
+            />
+            {platformAdmin ? (
+              <NodeAccessSettingsDialogButton
+                settings={settings}
+                platformAdmin={platformAdmin}
+                canManageCNConnectivity={canManageCNConnectivity}
+                onRefreshSettings={onRefreshSettings}
+              />
+            ) : null}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm" className="rounded-md">
+                  <MoreHorizontal size={16} />
+                  {t("common.more", { defaultValue: "更多" })}
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-60">
+                <DropdownMenuItem
+                  disabled={!installActionsEnabled}
+                  onSelect={(event) => {
+                    event.preventDefault();
+                    setGroupCommandDialogOpen(true);
+                  }}
+                >
+                  <Download size={16} />
+                  {t("admin.nodeTable.installCommandForGroup", {
+                    defaultValue: "为指定分组生成接入命令",
+                  })}
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuLabel>
+                  {t("admin.nodeTable.dangerZone", { defaultValue: "危险操作" })}
+                </DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  variant="destructive"
+                  disabled={!canDeleteOffline}
+                  onSelect={(event) => {
+                    event.preventDefault();
+                    void handleDeleteOffline();
+                  }}
+                >
+                  <Trash2Icon size={16} />
+                  {t("admin.nodeTable.deleteOfflineWithCount", {
+                    count: offlineNodes.length,
+                    defaultValue: "删除离线节点（{{count}}）",
+                  })}
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
         </div>
-      </Card>
+      </div>
+      {groupCommandDialogOpen ? (
+        <React.Suspense fallback={null}>
+          <LazyGenerateCommandDialog
+            open={groupCommandDialogOpen}
+            onOpenChange={setGroupCommandDialogOpen}
+            nodes={nodes}
+            settings={settings}
+            toolbar
+            groupMode
+          />
+        </React.Suspense>
+      ) : null}
       {dialog}
     </div>
   );
@@ -1038,6 +1592,9 @@ const NodeEndpointSummary = ({ node }: { node: NodeDetail }) => {
   const [ddnsBinding, setDdnsBinding] = React.useState<ClientDDNSBinding | null>(null);
   const [ddnsLoading, setDdnsLoading] = React.useState(false);
   const [ddnsLoadError, setDdnsLoadError] = React.useState("");
+  const ipv4Value = formatNodeIp(node.ipv4);
+  const ipv6Value = formatNodeIp(node.ipv6);
+  const ipv6Short = ipv6Value === "-" ? "-" : truncateMiddle(ipv6Value, 14, 10);
 
   React.useEffect(() => {
     if (!tooltipOpen || !hasFeature("cloud_dns")) {
@@ -1093,6 +1650,20 @@ const NodeEndpointSummary = ({ node }: { node: NodeDetail }) => {
           ? `${t("admin.nodeTable.ddnsDomain", { defaultValue: "DDNS domain" })}: ${ddnsDomain}`
           : undefined
     : undefined;
+  const copyIp = React.useCallback(
+    async (address: string) => {
+      if (!address || address === "-") {
+        return;
+      }
+      try {
+        await navigator.clipboard.writeText(address);
+        toast.success(t("copy_success", { defaultValue: "Copied!" }));
+      } catch (error) {
+        console.error("Failed to copy ip address:", error);
+      }
+    },
+    [t],
+  );
 
   return (
     <NodeInfoTooltip
@@ -1108,18 +1679,55 @@ const NodeEndpointSummary = ({ node }: { node: NodeDetail }) => {
         />
       }
     >
-      <div className="flex min-w-[200px] items-start gap-2 text-[13px] text-slate-700 dark:text-slate-200">
+      <div className="flex min-w-[220px] items-start gap-2 text-[13px] text-slate-700 dark:text-slate-200">
         <div className="pt-0.5">
           <Flag flag={node.region} size="4" />
         </div>
-        <div className="min-w-0 space-y-0.5">
-          <div className="truncate">
-            <span className="mr-1 text-slate-400 dark:text-slate-500">IPv4</span>
-            {formatNodeIp(node.ipv4)}
+        <div className="min-w-0 space-y-1">
+          <div className="flex items-center gap-1">
+            <span className="text-slate-400 dark:text-slate-500">IPv4</span>
+            <span className="min-w-0 truncate font-mono text-[12px]">{ipv4Value}</span>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-6 w-6 rounded-md"
+              aria-label={t("admin.nodeTable.copyIpv4", {
+                defaultValue: "复制 IPv4 地址",
+              })}
+              disabled={ipv4Value === "-"}
+              onClick={(event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                void copyIp(ipv4Value);
+              }}
+            >
+              <Copy size={14} />
+            </Button>
           </div>
-          <div className="truncate">
-            <span className="mr-1 text-slate-400 dark:text-slate-500">IPv6</span>
-            {formatNodeIp(node.ipv6)}
+          <div className="flex items-center gap-1">
+            <span className="text-slate-400 dark:text-slate-500">IPv6</span>
+            <span
+              className="min-w-0 truncate font-mono text-[12px]"
+              title={ipv6Value}
+            >
+              {ipv6Short}
+            </span>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-6 w-6 rounded-md"
+              aria-label={t("admin.nodeTable.copyIpv6", {
+                defaultValue: "复制 IPv6 地址",
+              })}
+              disabled={ipv6Value === "-"}
+              onClick={(event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                void copyIp(ipv6Value);
+              }}
+            >
+              <Copy size={14} />
+            </Button>
           </div>
         </div>
       </div>
@@ -1211,26 +1819,49 @@ const UptimeSummary = ({ live }: { live?: NodeLiveSnapshot }) => {
 
 const UsageBar = ({
   percent,
-  colorClass,
+  valueLabel,
   tooltipContent,
 }: {
   percent: number;
-  colorClass: string;
+  valueLabel: string;
   tooltipContent: React.ReactNode;
 }) => {
   const safePercent = clampPercent(percent);
+  const tone =
+    safePercent >= RISK_DANGER_THRESHOLD
+      ? "danger"
+      : safePercent >= RISK_WARNING_THRESHOLD
+        ? "warning"
+        : "normal";
+  const barClass =
+    tone === "danger"
+      ? "bg-red-500"
+      : tone === "warning"
+        ? "bg-amber-500"
+        : "bg-emerald-500";
+  const percentTextClass =
+    tone === "danger"
+      ? "text-red-600 dark:text-red-400"
+      : tone === "warning"
+        ? "text-amber-600 dark:text-amber-400"
+        : "text-slate-600 dark:text-slate-300";
 
   return (
     <NodeInfoTooltip content={tooltipContent}>
-      <div className="w-[136px] cursor-help">
-        <div className="relative h-5 overflow-hidden rounded-full border border-slate-200/80 bg-slate-100/90 dark:border-slate-800/80 dark:bg-slate-900/60">
+      <div className="w-[188px] cursor-help">
+        <div className="mb-1 flex items-center justify-between gap-2">
+          <span className="truncate font-mono text-[11px] text-slate-600 dark:text-slate-300">
+            {valueLabel}
+          </span>
+          <span className={`shrink-0 text-[11px] font-semibold ${percentTextClass}`}>
+            {formatPercent(safePercent)}
+          </span>
+        </div>
+        <div className="relative h-2.5 overflow-hidden rounded-full border border-slate-200/80 bg-slate-100/90 dark:border-slate-800/80 dark:bg-slate-900/60">
           <div
-            className={`h-full rounded-full transition-all duration-300 ${colorClass}`}
+            className={`h-full rounded-full transition-all duration-300 ${barClass}`}
             style={{ width: `${safePercent}%` }}
           />
-          <div className="absolute inset-0 flex items-center justify-center text-[11px] font-semibold tracking-tight text-slate-700 dark:text-slate-200">
-            {formatPercent(safePercent)}
-          </div>
         </div>
       </div>
     </NodeInfoTooltip>
@@ -1251,6 +1882,24 @@ const SortableRow = ({
   const { t } = useTranslation();
   const { hasFeature } = useAccount();
   const [ddnsOpen, setDdnsOpen] = React.useState(false);
+  const cpuPercent = clampPercent(live?.record.cpu.usage ?? 0);
+  const cpuCoreCount = Number(node.cpu_cores || 0);
+  const usedCpuCores = cpuCoreCount
+    ? `${(cpuCoreCount * cpuPercent / 100).toFixed(1)} / ${cpuCoreCount} ${t(
+      "admin.nodeTable.cpuCoresShort",
+      {
+        defaultValue: "cores",
+      },
+    )}`
+    : formatPercent(cpuPercent);
+  const ramPercent = clampPercent(getNodeRamUsagePercent(node, live));
+  const ramLabel = node.mem_total
+    ? `${formatBytes(live?.record.ram.used ?? 0)} / ${formatBytes(node.mem_total)}`
+    : formatPercent(ramPercent);
+  const diskPercent = clampPercent(getNodeDiskUsagePercent(node, live));
+  const diskLabel = node.disk_total
+    ? `${formatBytes(live?.record.disk.used ?? 0)} / ${formatBytes(node.disk_total)}`
+    : formatPercent(diskPercent);
 
   return (
     <>
@@ -1277,50 +1926,36 @@ const SortableRow = ({
             </TableCell>
             <TableCell>
               <UsageBar
-                percent={live?.record.cpu.usage ?? 0}
-                colorClass="bg-sky-500"
+                percent={cpuPercent}
+                valueLabel={usedCpuCores}
                 tooltipContent={
                   <NodeTooltipBody
                     label="CPU"
-                    primary={
-                      node.cpu_cores
-                        ? `${node.cpu_cores} ${t("admin.nodeTable.cpuCoresShort", {
-                            defaultValue: "cores",
-                          })}`
-                        : "-"
-                    }
+                    primary={usedCpuCores}
                   />
                 }
               />
             </TableCell>
             <TableCell>
               <UsageBar
-                percent={
-                  node.mem_total
-                    ? ((live?.record.ram.used ?? 0) / node.mem_total) * 100
-                    : 0
-                }
-                colorClass="bg-emerald-500"
+                percent={ramPercent}
+                valueLabel={ramLabel}
                 tooltipContent={
                   <NodeTooltipBody
                     label={t("nodeCard.ram", { defaultValue: "RAM" })}
-                    primary={`${formatBytes(live?.record.ram.used ?? 0)} / ${formatBytes(node.mem_total || 0)}`}
+                    primary={ramLabel}
                   />
                 }
               />
             </TableCell>
             <TableCell>
               <UsageBar
-                percent={
-                  node.disk_total
-                    ? ((live?.record.disk.used ?? 0) / node.disk_total) * 100
-                    : 0
-                }
-                colorClass="bg-amber-500"
+                percent={diskPercent}
+                valueLabel={diskLabel}
                 tooltipContent={
                   <NodeTooltipBody
                     label={t("nodeCard.disk", { defaultValue: "Disk" })}
-                    primary={`${formatBytes(live?.record.disk.used ?? 0)} / ${formatBytes(node.disk_total || 0)}`}
+                    primary={diskLabel}
                   />
                 }
               />
@@ -1361,35 +1996,37 @@ const SortableRow = ({
 
 const NodeTableColumns = () => {
   const { t } = useTranslation();
+  const stickyHeadClass =
+    "sticky top-0 z-20 bg-muted/95 backdrop-blur supports-[backdrop-filter]:bg-muted/80";
 
   return (
     <TableHeader className="bg-muted/40">
       <TableRow>
-        <TableHead className="w-[240px]">
+        <TableHead className={`${stickyHeadClass} w-[260px]`}>
           {t("admin.nodeTable.columns.endpoint", { defaultValue: "Public IP" })}
         </TableHead>
-        <TableHead>
+        <TableHead className={stickyHeadClass}>
           {t("admin.nodeTable.columns.status", { defaultValue: "Status" })}
         </TableHead>
-        <TableHead className="w-[132px]">
+        <TableHead className={`${stickyHeadClass} w-[132px]`}>
           {t("admin.nodeTable.columns.version", { defaultValue: "Version" })}
         </TableHead>
-        <TableHead>
+        <TableHead className={stickyHeadClass}>
           {t("admin.nodeTable.columns.rate", { defaultValue: "Rate" })}
         </TableHead>
-        <TableHead>
+        <TableHead className={stickyHeadClass}>
           {t("admin.nodeTable.columns.traffic", { defaultValue: "Traffic" })}
         </TableHead>
-        <TableHead>
+        <TableHead className={stickyHeadClass}>
           {t("admin.nodeTable.columns.uptime", { defaultValue: "Uptime" })}
         </TableHead>
-        <TableHead className="w-[168px]">
+        <TableHead className={`${stickyHeadClass} w-[220px]`}>
           {t("admin.nodeTable.columns.cpu", { defaultValue: "CPU" })}
         </TableHead>
-        <TableHead className="w-[168px]">
+        <TableHead className={`${stickyHeadClass} w-[220px]`}>
           {t("admin.nodeTable.columns.ram", { defaultValue: "RAM" })}
         </TableHead>
-        <TableHead className="w-[168px]">
+        <TableHead className={`${stickyHeadClass} w-[220px]`}>
           {t("admin.nodeTable.columns.storage", { defaultValue: "Storage" })}
         </TableHead>
       </TableRow>
@@ -1467,7 +2104,7 @@ const GroupUpgradeButton = ({
         disabled={onlineNodes.length === 0}
         onClick={handleOpen}
       >
-        {t("admin.nodeTable.upgradeAgent", "Upgrade agent")}
+        {t("admin.nodeTable.upgradeCurrentGroupAgent", "为当前分组升级 Agent")}
       </Button>
       {dialogMounted ? (
         <React.Suspense fallback={null}>
@@ -1521,8 +2158,8 @@ const NodeGroupSection = ({
   ).length;
 
   return (
-    <div className="min-w-0 overflow-hidden rounded-xl border border-border/70 bg-card shadow-none">
-      <div className="flex flex-col gap-4 border-b border-border/70 px-4 py-4 md:px-5 xl:flex-row xl:items-center xl:justify-between">
+    <div className="min-w-0 rounded-lg border border-border/60 bg-card shadow-none">
+      <div className="flex flex-col gap-4 border-b border-border/60 px-4 py-4 md:px-5 xl:flex-row xl:items-center xl:justify-between">
         <div className="min-w-0 flex-1 overflow-x-auto pb-1">
           <div className="flex min-w-max items-center gap-2 pr-2 whitespace-nowrap">
             <div className="shrink-0 text-base font-semibold tracking-tight text-foreground">
@@ -1569,7 +2206,7 @@ const NodeGroupSection = ({
             toolbar
             groupMode
             presetGroupName={groupName}
-            toolbarLabel={t("admin.nodeTable.installAgent", "Install agent")}
+            toolbarLabel={t("admin.nodeTable.installCurrentGroupAgent", "为当前分组安装 Agent")}
             disabled={!installActionsEnabled}
           />
           <GroupUpgradeButton
@@ -1580,7 +2217,7 @@ const NodeGroupSection = ({
           />
         </div>
       </div>
-      <Table className="min-w-[1320px]">
+      <Table className="min-w-[1480px]">
         <NodeTableColumns />
         <TableBody>
           {nodes.map((node) => (
@@ -1598,16 +2235,27 @@ const NodeGroupSection = ({
 
 const NodeTable = ({
   nodes,
+  totalNodesCount,
   liveByNode,
   settings,
   installActionsEnabled,
+  sortField,
+  onSortFieldChange,
+  sortDirection,
+  onSortDirectionChange,
 }: {
   nodes: NodeDetail[];
+  totalNodesCount: number;
   liveByNode: Record<string, NodeLiveSnapshot>;
   settings: SettingsResponse;
   installActionsEnabled: boolean;
+  sortField: NodeSortField;
+  onSortFieldChange: (value: NodeSortField) => void;
+  sortDirection: NodeSortDirection;
+  onSortDirectionChange: (value: NodeSortDirection) => void;
 }) => {
   const { t } = useTranslation();
+  const hasActiveFilters = nodes.length !== totalNodesCount;
   const groupedNodes = React.useMemo(() => {
     const groups = new Map<string, NodeDetail[]>();
     nodes.forEach((node) => {
@@ -1622,15 +2270,98 @@ const NodeTable = ({
 
     return Array.from(groups.entries()).map(([groupName, groupNodes]) => ({
       groupName,
-      nodes: groupNodes,
+      nodes:
+        sortField === "none"
+          ? groupNodes
+          : [...groupNodes].sort((left, right) => {
+            const leftMetric = getNodeSortMetric(
+              left,
+              liveByNode[left.uuid],
+              sortField,
+            );
+            const rightMetric = getNodeSortMetric(
+              right,
+              liveByNode[right.uuid],
+              sortField,
+            );
+            if (leftMetric !== rightMetric) {
+              return sortDirection === "asc"
+                ? leftMetric - rightMetric
+                : rightMetric - leftMetric;
+            }
+            return String(left.name || "").localeCompare(
+              String(right.name || ""),
+              "zh-CN",
+            );
+          }),
     }));
-  }, [nodes]);
+  }, [liveByNode, nodes, sortDirection, sortField]);
 
   return (
     <div className="flex min-w-0 flex-col gap-4">
+      <div className="flex flex-wrap items-center justify-end gap-2">
+        <span className="text-xs text-muted-foreground">
+          {t("admin.nodeTable.sortBy", { defaultValue: "排序方式" })}
+        </span>
+        <select
+          className="h-8 min-w-[150px] rounded-md border border-input bg-background px-2.5 text-sm text-foreground outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring/50"
+          value={sortField}
+          onChange={(event) => onSortFieldChange(event.target.value as NodeSortField)}
+          aria-label={t("admin.nodeTable.sortBy", {
+            defaultValue: "排序方式",
+          })}
+        >
+          <option value="none">
+            {t("admin.nodeTable.sortNone", {
+              defaultValue: "排序：默认",
+            })}
+          </option>
+          <option value="cpu">
+            {t("admin.nodeTable.sortCpu", {
+              defaultValue: "按 CPU",
+            })}
+          </option>
+          <option value="ram">
+            {t("admin.nodeTable.sortRam", {
+              defaultValue: "按 RAM",
+            })}
+          </option>
+          <option value="traffic">
+            {t("admin.nodeTable.sortTraffic", {
+              defaultValue: "按流量",
+            })}
+          </option>
+          <option value="uptime">
+            {t("admin.nodeTable.sortUptime", {
+              defaultValue: "按开机时长",
+            })}
+          </option>
+        </select>
+        <Button
+          variant="outline"
+          size="sm"
+          className="h-8 rounded-md px-2"
+          disabled={sortField === "none"}
+          onClick={() =>
+            onSortDirectionChange(sortDirection === "desc" ? "asc" : "desc")
+          }
+          aria-label={t("admin.nodeTable.sortDirection", {
+            defaultValue: "切换排序方向",
+          })}
+        >
+          <ArrowDownUp size={14} />
+          {sortDirection === "desc"
+            ? t("admin.nodeTable.sortDesc", { defaultValue: "降序" })
+            : t("admin.nodeTable.sortAsc", { defaultValue: "升序" })}
+        </Button>
+      </div>
       {nodes.length === 0 ? (
         <Card className="rounded-xl border-dashed border-border/70 py-10 text-center text-sm text-muted-foreground shadow-none">
-          {t("admin.nodeTable.noNodes", "No nodes")}
+          {hasActiveFilters
+            ? t("admin.nodeTable.noFilteredNodes", {
+              defaultValue: "没有匹配当前筛选条件的节点",
+            })
+            : t("admin.nodeTable.noNodes", "No nodes")}
         </Card>
       ) : (
         groupedNodes.map((group) => (
@@ -1687,7 +2418,7 @@ function GenerateCommandButton({
           <Download size={16} />
           {toolbarLabel ||
             (groupMode
-              ? t("admin.nodeTable.createGroup", "Create group")
+              ? t("admin.nodeTable.installCommandForGroup", "为指定分组生成接入命令")
               : t("admin.nodeTable.installCommand", "Install command"))}
         </Button>
       ) : (

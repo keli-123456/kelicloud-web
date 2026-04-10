@@ -454,6 +454,18 @@ export default function AdminPanelBar({ content }: AdminPanelBarProps) {
     window.open("/api/logout", "_self");
   };
 
+  const handleEnableHttps = useCallback(() => {
+    console.info("[TODO] HTTPS setup entry is not wired yet.");
+  }, []);
+
+  const handleHttpsLearnMore = useCallback(() => {
+    console.info("[TODO] HTTPS documentation link is not wired yet.");
+  }, []);
+
+  const handleHttpsLater = useCallback(() => {
+    console.info("[TODO] HTTPS reminder postpone action is not wired yet.");
+  }, []);
+
   const renderMenuIcon = (
     icon: string,
     label: string,
@@ -852,7 +864,7 @@ export default function AdminPanelBar({ content }: AdminPanelBarProps) {
           <div className="mx-auto flex min-h-full w-full max-w-[1680px] min-w-0 flex-col">
             {!ishttps && (
               <div className="px-4 pt-4 md:px-6 md:pt-6">
-                <Alert>
+                <Alert className="border-amber-200/80 bg-amber-50/70 dark:border-amber-900/50 dark:bg-amber-950/30">
                   <svg
                     xmlns="http://www.w3.org/2000/svg"
                     width="18"
@@ -863,10 +875,43 @@ export default function AdminPanelBar({ content }: AdminPanelBarProps) {
                       d="M10.03 3.659c.856-1.548 3.081-1.548 3.937 0l7.746 14.001c.83 1.5-.255 3.34-1.969 3.34H4.254c-1.715 0-2.8-1.84-1.97-3.34zM12.997 17A.999.999 0 1 0 11 17a.999.999 0 0 0 1.997 0m-.259-7.853a.75.75 0 0 0-1.493.103l.004 4.501l.007.102a.75.75 0 0 0 1.493-.103l-.004-4.502z"
                     />
                   </svg>
-                  <AlertTitle>{t("warn_https")}</AlertTitle>
+                  <AlertTitle>
+                    {t("admin.httpsNotice.title", {
+                      defaultValue: "当前正在使用 HTTP，建议尽快启用 HTTPS",
+                    })}
+                  </AlertTitle>
                   <AlertDescription>
-                    HTTP is currently in use. Switch the admin console to HTTPS to
-                    avoid mixed security expectations.
+                    <p>
+                      {t("admin.httpsNotice.description", {
+                        defaultValue:
+                          "未加密连接可能暴露登录凭据和管理指令，建议立即切换到 HTTPS。",
+                      })}
+                    </p>
+                    <div className="mt-2 flex flex-wrap items-center gap-2">
+                      <Button size="sm" onClick={handleEnableHttps}>
+                        {t("admin.httpsNotice.enableNow", {
+                          defaultValue: "立即启用 HTTPS",
+                        })}
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={handleHttpsLater}
+                      >
+                        {t("admin.httpsNotice.later", {
+                          defaultValue: "稍后处理",
+                        })}
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={handleHttpsLearnMore}
+                      >
+                        {t("admin.httpsNotice.learnMore", {
+                          defaultValue: "了解更多",
+                        })}
+                      </Button>
+                    </div>
                   </AlertDescription>
                 </Alert>
               </div>

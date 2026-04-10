@@ -1,5 +1,6 @@
 import * as React from "react";
 import { t as translate } from "i18next";
+import { Copy, RotateCcw } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import {
@@ -8,6 +9,7 @@ import {
   Dialog,
   Flex,
   SegmentedControl,
+  Switch,
   Text,
   TextArea,
   TextField,
@@ -169,6 +171,64 @@ const saveGenerateCommandPreferences = (
   );
 };
 
+type AdvancedToggleInputFieldProps = {
+  id: string;
+  label: string;
+  enabled: boolean;
+  placeholder: string;
+  value: string;
+  onEnabledChange: (enabled: boolean) => void;
+  onValueChange: (value: string) => void;
+  type?: "text" | "number";
+  min?: string;
+  max?: string;
+  hint?: string;
+};
+
+const AdvancedToggleInputField = ({
+  id,
+  label,
+  enabled,
+  placeholder,
+  value,
+  onEnabledChange,
+  onValueChange,
+  type = "text",
+  min,
+  max,
+  hint,
+}: AdvancedToggleInputFieldProps) => (
+  <div className="rounded-xl border border-slate-200/80 bg-white/60 px-3 py-2.5 dark:border-slate-700/70 dark:bg-slate-950/30">
+    <div className="flex items-center justify-between gap-3">
+      <label htmlFor={id} className="text-sm font-semibold text-slate-900 dark:text-slate-100">
+        {label}
+      </label>
+      <Switch
+        id={id}
+        checked={enabled}
+        onCheckedChange={(checked) => onEnabledChange(Boolean(checked))}
+        aria-label={label}
+      />
+    </div>
+    {hint ? (
+      <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+        {hint}
+      </p>
+    ) : null}
+    {enabled ? (
+      <TextField.Root
+        className={`${NODE_INPUT_CLASS} mt-2`}
+        placeholder={placeholder}
+        value={value}
+        type={type}
+        min={min}
+        max={max}
+        onChange={(event) => onValueChange(event.target.value)}
+      />
+    ) : null}
+  </div>
+);
+
 export default function GenerateCommandDialog({
   open,
   onOpenChange,
@@ -304,6 +364,27 @@ export default function GenerateCommandDialog({
       setSelectedNodeId(availableNodes[0].uuid);
     }
   }, [availableNodes, groupMode, node?.uuid, selectedNodeId, useAutoDiscovery]);
+
+  const restoreDefaults = React.useCallback(() => {
+    setSelectedPlatform(DEFAULT_GENERATE_COMMAND_PREFERENCES.selectedPlatform);
+    setInstallOptions(DEFAULT_GENERATE_COMMAND_PREFERENCES.installOptions);
+    setEnableGhproxy(DEFAULT_GENERATE_COMMAND_PREFERENCES.enableGhproxy);
+    setEnableCustomDir(DEFAULT_GENERATE_COMMAND_PREFERENCES.enableCustomDir);
+    setEnableCustomServiceName(
+      DEFAULT_GENERATE_COMMAND_PREFERENCES.enableCustomServiceName,
+    );
+    setEnableIncludeNics(DEFAULT_GENERATE_COMMAND_PREFERENCES.enableIncludeNics);
+    setEnableExcludeNics(DEFAULT_GENERATE_COMMAND_PREFERENCES.enableExcludeNics);
+    setEnableIncludeMountpoints(
+      DEFAULT_GENERATE_COMMAND_PREFERENCES.enableIncludeMountpoints,
+    );
+    setEnableMonthRotate(DEFAULT_GENERATE_COMMAND_PREFERENCES.enableMonthRotate);
+    toast.success(
+      t("admin.nodeTable.restoreDefaultsSuccess", {
+        defaultValue: "已恢复默认参数",
+      }),
+    );
+  }, [t]);
 
   const generateCommand = () => {
     if (groupMode && (!useAutoDiscovery || !normalizedGroupName)) return "";
@@ -570,7 +651,7 @@ export default function GenerateCommandDialog({
               )}
             </div>
           ) : null}
-          <div className="grid gap-4 xl:grid-cols-[minmax(0,1.3fr)_minmax(320px,0.9fr)]">
+          <div className="grid gap-4 xl:grid-cols-[minmax(0,0.9fr)_minmax(420px,1.1fr)]">
             <div className="flex flex-col gap-4">
               <div className={NODE_DIALOG_SECTION_CLASS}>
                 <label className="text-[14px] font-semibold text-slate-900 dark:text-slate-100">
@@ -685,12 +766,34 @@ export default function GenerateCommandDialog({
                     </Tips>
                   </Flex>
                 </div>
+                {installOptions.ignoreUnsafeCert ? (
+                  <div className="mt-3 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs leading-5 text-red-700 dark:border-red-900/60 dark:bg-red-950/30 dark:text-red-300">
+                    {t("admin.nodeTable.ignoreUnsafeCertWarning", {
+                      defaultValue:
+                        "已开启“忽略不安全证书”。仅在你确认网络可信且证书链无法暂时修复时使用。",
+                    })}
+                  </div>
+                ) : null}
               </div>
 
               <div className={NODE_DIALOG_SECTION_CLASS}>
-                <label className="text-[14px] font-semibold text-slate-900 dark:text-slate-100">
-                  {t("admin.nodeTable.advancedParameters", "Advanced parameters")}
-                </label>
+                <div className="flex items-center justify-between gap-2">
+                  <label className="text-[14px] font-semibold text-slate-900 dark:text-slate-100">
+                    {t("admin.nodeTable.advancedParameters", "Advanced parameters")}
+                  </label>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={restoreDefaults}
+                    className="h-8 rounded-md"
+                  >
+                    <RotateCcw size={14} />
+                    {t("admin.nodeTable.restoreDefaults", {
+                      defaultValue: "恢复默认",
+                    })}
+                  </Button>
+                </div>
                 <div className="mt-3 flex flex-col gap-3 text-slate-900 dark:text-slate-100">
                   <Flex gap="2" align="center">
                     <Checkbox
@@ -734,282 +837,154 @@ export default function GenerateCommandDialog({
                     />
                   ) : null}
 
-                  <Flex gap="2" align="center">
-                    <Checkbox
-                      checked={enableCustomDir}
-                      onCheckedChange={(checked) => {
-                        setEnableCustomDir(Boolean(checked));
-                        if (!checked) {
-                          setInstallOptions((previous) => ({
-                            ...previous,
-                            dir: "",
-                          }));
-                        }
-                      }}
-                    />
-                    <label
-                      className="cursor-pointer text-sm font-bold"
-                      onClick={() => {
-                        setEnableCustomDir(!enableCustomDir);
-                        if (enableCustomDir) {
-                          setInstallOptions((previous) => ({
-                            ...previous,
-                            dir: "",
-                          }));
-                        }
-                      }}
-                    >
-                      {t("admin.nodeTable.install_dir", "Installation directory")}
-                    </label>
-                  </Flex>
-                  {enableCustomDir ? (
-                    <TextField.Root
-                      className={NODE_INPUT_CLASS}
-                      placeholder={t(
-                        "admin.nodeTable.install_dir_placeholder",
-                        "Installation directory, leave empty to use the default directory (/opt/komari-agent)",
-                      )}
-                      value={installOptions.dir}
-                      onChange={(event) =>
+                  <AdvancedToggleInputField
+                    id="node-install-dir"
+                    label={t("admin.nodeTable.install_dir", "Installation directory")}
+                    enabled={enableCustomDir}
+                    placeholder={t(
+                      "admin.nodeTable.install_dir_placeholder",
+                      "Installation directory, leave empty to use the default directory (/opt/komari-agent)",
+                    )}
+                    value={installOptions.dir}
+                    onEnabledChange={(enabled) => {
+                      setEnableCustomDir(enabled);
+                      if (!enabled) {
                         setInstallOptions((previous) => ({
                           ...previous,
-                          dir: event.target.value,
-                        }))
+                          dir: "",
+                        }));
                       }
-                    />
-                  ) : null}
+                    }}
+                    onValueChange={(value) =>
+                      setInstallOptions((previous) => ({
+                        ...previous,
+                        dir: value,
+                      }))
+                    }
+                  />
 
-                  <Flex gap="2" align="center">
-                    <Checkbox
-                      checked={enableCustomServiceName}
-                      onCheckedChange={(checked) => {
-                        setEnableCustomServiceName(Boolean(checked));
-                        if (!checked) {
-                          setInstallOptions((previous) => ({
-                            ...previous,
-                            serviceName: "",
-                          }));
-                        }
-                      }}
-                    />
-                    <label
-                      className="cursor-pointer text-sm font-bold"
-                      onClick={() => {
-                        setEnableCustomServiceName(!enableCustomServiceName);
-                        if (enableCustomServiceName) {
-                          setInstallOptions((previous) => ({
-                            ...previous,
-                            serviceName: "",
-                          }));
-                        }
-                      }}
-                    >
-                      {t("admin.nodeTable.serviceName", "Service name")}
-                    </label>
-                  </Flex>
-                  {enableCustomServiceName ? (
-                    <TextField.Root
-                      className={NODE_INPUT_CLASS}
-                      placeholder={t(
-                        "admin.nodeTable.serviceName_placeholder",
-                        "Service name, leave empty to use the default name (komari-agent)",
-                      )}
-                      value={installOptions.serviceName}
-                      onChange={(event) =>
+                  <AdvancedToggleInputField
+                    id="node-service-name"
+                    label={t("admin.nodeTable.serviceName", "Service name")}
+                    enabled={enableCustomServiceName}
+                    placeholder={t(
+                      "admin.nodeTable.serviceName_placeholder",
+                      "Service name, leave empty to use the default name (komari-agent)",
+                    )}
+                    value={installOptions.serviceName}
+                    onEnabledChange={(enabled) => {
+                      setEnableCustomServiceName(enabled);
+                      if (!enabled) {
                         setInstallOptions((previous) => ({
                           ...previous,
-                          serviceName: event.target.value,
-                        }))
+                          serviceName: "",
+                        }));
                       }
-                    />
-                  ) : null}
+                    }}
+                    onValueChange={(value) =>
+                      setInstallOptions((previous) => ({
+                        ...previous,
+                        serviceName: value,
+                      }))
+                    }
+                  />
 
-                  <Flex gap="2" align="center">
-                    <Checkbox
-                      checked={enableIncludeNics}
-                      onCheckedChange={(checked) => {
-                        setEnableIncludeNics(Boolean(checked));
-                        if (!checked) {
-                          setInstallOptions((previous) => ({
-                            ...previous,
-                            includeNics: "",
-                          }));
-                        }
-                      }}
-                    />
-                    <label
-                      className="cursor-pointer text-sm font-bold"
-                      onClick={() => {
-                        setEnableIncludeNics(!enableIncludeNics);
-                        if (enableIncludeNics) {
-                          setInstallOptions((previous) => ({
-                            ...previous,
-                            includeNics: "",
-                          }));
-                        }
-                      }}
-                    >
-                      {t("admin.nodeTable.includeNics", "Specific network interfaces only.")}
-                    </label>
-                  </Flex>
-                  {enableIncludeNics ? (
-                    <TextField.Root
-                      className={NODE_INPUT_CLASS}
-                      placeholder="eth0,eth1"
-                      value={installOptions.includeNics}
-                      onChange={(event) =>
+                  <AdvancedToggleInputField
+                    id="node-include-nics"
+                    label={t("admin.nodeTable.includeNics", "Specific network interfaces only.")}
+                    enabled={enableIncludeNics}
+                    placeholder="eth0,eth1"
+                    value={installOptions.includeNics}
+                    onEnabledChange={(enabled) => {
+                      setEnableIncludeNics(enabled);
+                      if (!enabled) {
                         setInstallOptions((previous) => ({
                           ...previous,
-                          includeNics: event.target.value,
-                        }))
+                          includeNics: "",
+                        }));
                       }
-                    />
-                  ) : null}
+                    }}
+                    onValueChange={(value) =>
+                      setInstallOptions((previous) => ({
+                        ...previous,
+                        includeNics: value,
+                      }))
+                    }
+                  />
 
-                  <Flex gap="2" align="center">
-                    <Checkbox
-                      checked={enableExcludeNics}
-                      onCheckedChange={(checked) => {
-                        setEnableExcludeNics(Boolean(checked));
-                        if (!checked) {
-                          setInstallOptions((previous) => ({
-                            ...previous,
-                            excludeNics: "",
-                          }));
-                        }
-                      }}
-                    />
-                    <label
-                      className="cursor-pointer text-sm font-bold"
-                      onClick={() => {
-                        setEnableExcludeNics(!enableExcludeNics);
-                        if (enableExcludeNics) {
-                          setInstallOptions((previous) => ({
-                            ...previous,
-                            excludeNics: "",
-                          }));
-                        }
-                      }}
-                    >
-                      {t("admin.nodeTable.excludeNics", "Exclude specific network interfaces.")}
-                    </label>
-                  </Flex>
-                  {enableExcludeNics ? (
-                    <TextField.Root
-                      className={NODE_INPUT_CLASS}
-                      placeholder="lo"
-                      value={installOptions.excludeNics}
-                      onChange={(event) =>
+                  <AdvancedToggleInputField
+                    id="node-exclude-nics"
+                    label={t("admin.nodeTable.excludeNics", "Exclude specific network interfaces.")}
+                    enabled={enableExcludeNics}
+                    placeholder="lo"
+                    value={installOptions.excludeNics}
+                    onEnabledChange={(enabled) => {
+                      setEnableExcludeNics(enabled);
+                      if (!enabled) {
                         setInstallOptions((previous) => ({
                           ...previous,
-                          excludeNics: event.target.value,
-                        }))
+                          excludeNics: "",
+                        }));
                       }
-                    />
-                  ) : null}
+                    }}
+                    onValueChange={(value) =>
+                      setInstallOptions((previous) => ({
+                        ...previous,
+                        excludeNics: value,
+                      }))
+                    }
+                  />
 
-                  <Flex gap="2" align="center">
-                    <Checkbox
-                      checked={enableIncludeMountpoints}
-                      onCheckedChange={(checked) => {
-                        setEnableIncludeMountpoints(Boolean(checked));
-                        if (!checked) {
-                          setInstallOptions((previous) => ({
-                            ...previous,
-                            includeMountpoints: "",
-                          }));
-                        }
-                      }}
-                    />
-                    <label
-                      className="cursor-pointer text-sm font-bold"
-                      onClick={() => {
-                        setEnableIncludeMountpoints(!enableIncludeMountpoints);
-                        if (enableIncludeMountpoints) {
-                          setInstallOptions((previous) => ({
-                            ...previous,
-                            includeMountpoints: "",
-                          }));
-                        }
-                      }}
-                    >
-                      {t("admin.nodeTable.includeMountpoints", "Specific mountpoints only.")}
-                    </label>
-                  </Flex>
-                  {enableIncludeMountpoints ? (
-                    <TextField.Root
-                      className={NODE_INPUT_CLASS}
-                      placeholder="/;/home;/var"
-                      value={installOptions.includeMountpoints}
-                      onChange={(event) =>
+                  <AdvancedToggleInputField
+                    id="node-include-mountpoints"
+                    label={t("admin.nodeTable.includeMountpoints", "Specific mountpoints only.")}
+                    enabled={enableIncludeMountpoints}
+                    placeholder="/;/home;/var"
+                    value={installOptions.includeMountpoints}
+                    onEnabledChange={(enabled) => {
+                      setEnableIncludeMountpoints(enabled);
+                      if (!enabled) {
                         setInstallOptions((previous) => ({
                           ...previous,
-                          includeMountpoints: event.target.value,
-                        }))
+                          includeMountpoints: "",
+                        }));
                       }
-                    />
-                  ) : null}
+                    }}
+                    onValueChange={(value) =>
+                      setInstallOptions((previous) => ({
+                        ...previous,
+                        includeMountpoints: value,
+                      }))
+                    }
+                  />
 
-                  <Flex gap="2" align="center">
-                    <Checkbox
-                      checked={enableMonthRotate}
-                      onCheckedChange={(checked) => {
-                        const enabled = Boolean(checked);
-                        setEnableMonthRotate(enabled);
-                        if (!enabled) {
-                          setInstallOptions((previous) => ({
-                            ...previous,
-                            monthRotate: "",
-                          }));
-                        } else {
-                          setInstallOptions((previous) => ({
-                            ...previous,
-                            monthRotate: previous.monthRotate?.trim()
-                              ? previous.monthRotate
-                              : "1",
-                          }));
-                        }
-                      }}
-                    />
-                    <label
-                      className="cursor-pointer text-sm font-bold"
-                      onClick={() => {
-                        const willEnable = !enableMonthRotate;
-                        setEnableMonthRotate(willEnable);
-                        if (!willEnable) {
-                          setInstallOptions((previous) => ({
-                            ...previous,
-                            monthRotate: "",
-                          }));
-                        } else {
-                          setInstallOptions((previous) => ({
-                            ...previous,
-                            monthRotate: previous.monthRotate?.trim()
-                              ? previous.monthRotate
-                              : "1",
-                          }));
-                        }
-                      }}
-                    >
-                      {t("admin.nodeTable.monthRotate", "Month reset for network statistics")}
-                    </label>
-                  </Flex>
-                  {enableMonthRotate ? (
-                    <TextField.Root
-                      className={NODE_INPUT_CLASS}
-                      placeholder="1"
-                      type="number"
-                      min="1"
-                      max="31"
-                      value={installOptions.monthRotate}
-                      onChange={(event) =>
-                        setInstallOptions((previous) => ({
-                          ...previous,
-                          monthRotate: event.target.value,
-                        }))
-                      }
-                    />
-                  ) : null}
+                  <AdvancedToggleInputField
+                    id="node-month-rotate"
+                    label={t("admin.nodeTable.monthRotate", "Month reset for network statistics")}
+                    enabled={enableMonthRotate}
+                    placeholder="1"
+                    value={installOptions.monthRotate}
+                    type="number"
+                    min="1"
+                    max="31"
+                    onEnabledChange={(enabled) => {
+                      setEnableMonthRotate(enabled);
+                      setInstallOptions((previous) => ({
+                        ...previous,
+                        monthRotate: enabled
+                          ? previous.monthRotate?.trim()
+                            ? previous.monthRotate
+                            : "1"
+                          : "",
+                      }));
+                    }}
+                    onValueChange={(value) =>
+                      setInstallOptions((previous) => ({
+                        ...previous,
+                        monthRotate: value,
+                      }))
+                    }
+                  />
                 </div>
               </div>
             </div>
@@ -1025,10 +1000,26 @@ export default function GenerateCommandDialog({
                     "Copy this command and run it directly on the target server.",
                   )}
                 </p>
-                <div className="relative mt-3">
+                <div className="relative mt-3 overflow-x-auto rounded-[20px] border border-slate-200 bg-slate-50/80 dark:border-slate-700 dark:bg-slate-950">
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="secondary"
+                    className="absolute right-2 top-2 z-10 h-8 rounded-md"
+                    disabled={copyDisabled}
+                    onClick={() => void copyToClipboard(command)}
+                    aria-label={t("admin.nodeTable.copyCommand", {
+                      defaultValue: "复制部署命令",
+                    })}
+                  >
+                    <Copy size={14} />
+                    {t("copy")}
+                  </Button>
                   <TextArea
                     disabled
-                    className="min-h-[220px] w-full rounded-[20px] border border-slate-200 bg-slate-50/80 font-mono text-[13px] leading-6 text-slate-700 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200"
+                    resize="none"
+                    wrap="off"
+                    className="min-h-[280px] w-full border-0 bg-transparent pr-24 font-mono text-[13px] leading-6 whitespace-pre text-slate-700 shadow-none dark:text-slate-200"
                     value={command}
                   />
                 </div>
@@ -1044,13 +1035,6 @@ export default function GenerateCommandDialog({
                     {t("close", "Close")}
                   </Button>
                 </Dialog.Close>
-                <Button
-                  className="w-full sm:w-auto"
-                  disabled={copyDisabled}
-                  onClick={() => void copyToClipboard(command)}
-                >
-                  {t("copy")}
-                </Button>
               </div>
             </div>
           </div>
