@@ -1766,7 +1766,7 @@ function getDefaultServiceDNSPayload(provider: string) {
         zone_name: "",
         record_name: "",
         record_type: "A",
-        sync_ipv6: false,
+        sync_ipv6: true,
         ttl: 120,
         proxied: false,
       }, null, 2);
@@ -1775,7 +1775,7 @@ function getDefaultServiceDNSPayload(provider: string) {
         domain_name: "",
         rr: "@",
         record_type: "A",
-        sync_ipv6: false,
+        sync_ipv6: true,
         ttl: 600,
       }, null, 2);
   }
@@ -2033,14 +2033,95 @@ function inferAddressFamily(address: string): "ipv4" | "ipv6" | "unknown" {
   return "unknown";
 }
 
+function extractAddressFromUnknown(value: unknown, family: "ipv4" | "ipv6"): string {
+  const queue: unknown[] = [value];
+  const prioritizedKeys = ["ip_address", "address", "value", "public_ip", "ipv4", "ipv6"];
+
+  while (queue.length > 0) {
+    const current = queue.shift();
+    if (typeof current === "string") {
+      const normalized = current.trim();
+      if (normalized && inferAddressFamily(normalized) === family) {
+        return normalized;
+      }
+      continue;
+    }
+    if (Array.isArray(current)) {
+      queue.push(...current);
+      continue;
+    }
+    if (current && typeof current === "object") {
+      const record = current as Record<string, unknown>;
+      for (const key of prioritizedKeys) {
+        if (record[key] !== undefined) {
+          queue.unshift(record[key]);
+        }
+      }
+      for (const nested of Object.values(record)) {
+        queue.push(nested);
+      }
+    }
+  }
+
+  return "";
+}
+
+function resolveExecutionAddressByFamily(
+  execution: FailoverV2ExecutionSummary | null,
+  family: "ipv4" | "ipv6",
+) {
+  if (!execution) {
+    return "";
+  }
+
+  const newAddresses = asJsonObject(execution.new_addresses);
+  if (newAddresses) {
+    const directAddress = family === "ipv4"
+      ? firstNonEmptyValue([
+        newAddresses.public_ip,
+        newAddresses.ipv4,
+      ])
+      : firstNonEmptyValue([
+        newAddresses.ipv6,
+        Array.isArray(newAddresses.ipv6_addresses) ? newAddresses.ipv6_addresses[0] : undefined,
+      ]);
+
+    if (directAddress && inferAddressFamily(directAddress) === family) {
+      return directAddress;
+    }
+
+    const nestedAddress = extractAddressFromUnknown(newAddresses, family);
+    if (nestedAddress) {
+      return nestedAddress;
+    }
+  }
+
+  const attachResult = asJsonObject(execution.attach_dns_result);
+  const applyResult = asJsonObject(attachResult?.apply);
+  if (applyResult) {
+    return extractAddressFromUnknown(applyResult, family);
+  }
+
+  return "";
+}
+
 function resolveMemberAddressByFamily(
   member: FailoverV2Member,
+  execution: FailoverV2ExecutionSummary | null,
   node: FailoverNodeOption | null,
   family: "ipv4" | "ipv6",
 ) {
+  const memberAddress = String((family === "ipv4" ? member.current_ipv4 : member.current_ipv6) || "").trim();
+  if (memberAddress) {
+    return memberAddress;
+  }
   const nodeAddress = String((family === "ipv4" ? node?.ipv4 : node?.ipv6) || "").trim();
   if (nodeAddress) {
     return nodeAddress;
+  }
+  const executionAddress = resolveExecutionAddressByFamily(execution, family);
+  if (executionAddress) {
+    return executionAddress;
   }
   const currentAddress = String(member.current_address || "").trim();
   if (!currentAddress) {
@@ -4126,8 +4207,8 @@ export default function FailoverV2Page() {
                     const memberTaskStatus = formatMemberTaskStatusSummary(t, latestMemberExecution);
                     const memberHealthMessage = getMemberHealthMessage(member);
                     const watchedNode = findNodeByWatchClientUUID(nodes, member.watch_client_uuid);
-                    const memberIPv4Address = resolveMemberAddressByFamily(member, watchedNode, "ipv4");
-                    const memberIPv6Address = resolveMemberAddressByFamily(member, watchedNode, "ipv6");
+                    const memberIPv4Address = resolveMemberAddressByFamily(member, latestMemberExecution, watchedNode, "ipv4");
+                    const memberIPv6Address = resolveMemberAddressByFamily(member, latestMemberExecution, watchedNode, "ipv6");
                     const memberResolveStatus = formatMemberResolveStatus(t, member);
                     const memberBusyTitle = memberActionsDisabled
                       ? t("failover_v2.active_member_execution_action_disabled", {
