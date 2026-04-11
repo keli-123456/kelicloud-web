@@ -96,6 +96,8 @@ export type FailoverV2Member = {
   dns_line: string;
   dns_record_refs: unknown;
   current_address: string;
+  current_ipv4: string;
+  current_ipv6: string;
   current_instance_ref: unknown;
   provider: string;
   provider_entry_id: string;
@@ -364,6 +366,8 @@ function normalizeMember(member: unknown): FailoverV2Member {
     dns_line: dnsLine,
     dns_record_refs: normalizeUnknown(raw.dns_record_refs),
     current_address: normalizeString(raw.current_address),
+    current_ipv4: normalizeString(raw.current_ipv4),
+    current_ipv6: normalizeString(raw.current_ipv6),
     current_instance_ref: normalizeUnknown(raw.current_instance_ref),
     provider: normalizeString(raw.provider),
     provider_entry_id: normalizeString(raw.provider_entry_id),
