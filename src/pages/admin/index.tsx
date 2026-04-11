@@ -16,7 +16,6 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import {
-  ArrowDownUp,
   Copy,
   Download,
   Globe,
@@ -346,9 +345,6 @@ const getActionErrorMessage = (
 const isNodeConnectivityBlocked = (live?: NodeLiveSnapshot) =>
   live?.record.cn_connectivity?.status === "blocked_suspected";
 
-type NodeSortField = "none" | "cpu" | "ram" | "traffic" | "uptime";
-type NodeSortDirection = "asc" | "desc";
-
 const RISK_WARNING_THRESHOLD = 75;
 const RISK_DANGER_THRESHOLD = 90;
 
@@ -373,9 +369,6 @@ const getNodeDiskUsagePercent = (node: NodeDetail, live?: NodeLiveSnapshot) => {
   return ((live?.record.disk.used ?? 0) / node.disk_total) * 100;
 };
 
-const getNodeTrafficTotal = (live?: NodeLiveSnapshot) =>
-  (live?.record.network.totalUp ?? 0) + (live?.record.network.totalDown ?? 0);
-
 const isNodeAbnormal = (
   node: NodeDetail,
   live: NodeLiveSnapshot | undefined,
@@ -390,26 +383,6 @@ const isNodeAbnormal = (
     || clampPercent(getNodeRamUsagePercent(node, live)) >= RISK_DANGER_THRESHOLD
     || clampPercent(getNodeDiskUsagePercent(node, live)) >= RISK_DANGER_THRESHOLD;
   return offline || connectivityAbnormal || highUsage;
-};
-
-const getNodeSortMetric = (
-  node: NodeDetail,
-  live: NodeLiveSnapshot | undefined,
-  sortField: NodeSortField,
-) => {
-  if (sortField === "cpu") {
-    return clampPercent(live?.record.cpu.usage ?? 0);
-  }
-  if (sortField === "ram") {
-    return clampPercent(getNodeRamUsagePercent(node, live));
-  }
-  if (sortField === "traffic") {
-    return getNodeTrafficTotal(live);
-  }
-  if (sortField === "uptime") {
-    return live?.record.uptime ?? 0;
-  }
-  return 0;
 };
 
 const Layout = ({
@@ -471,9 +444,6 @@ const Layout = ({
     [allNodes],
   );
   const installActionsEnabled = true;
-  const [sortField, setSortField] = React.useState<NodeSortField>("none");
-  const [sortDirection, setSortDirection] =
-    React.useState<NodeSortDirection>("desc");
   const normalizedToolbarSearchKeyword = toolbarSearchKeyword.trim().toLowerCase();
   const visibleNodes = React.useMemo(() => {
     if (!normalizedToolbarSearchKeyword) {
@@ -587,10 +557,6 @@ const Layout = ({
         liveByNode={liveByNode}
         settings={settings}
         installActionsEnabled={installActionsEnabled}
-        sortField={sortField}
-        onSortFieldChange={setSortField}
-        sortDirection={sortDirection}
-        onSortDirectionChange={setSortDirection}
       />
     </div>
   );
@@ -1009,6 +975,39 @@ const clampPercent = (value: number) =>
 
 const formatPercent = (value: number) => `${Math.round(clampPercent(value))}%`;
 
+const BYTE_LABEL_PATTERN = /^([0-9]+(?:\.[0-9]+)?)\s*([A-Za-z]+)$/;
+
+const splitFormattedBytes = (value: string) => {
+  const match = String(value || "").trim().match(BYTE_LABEL_PATTERN);
+  if (!match) {
+    return null;
+  }
+  return {
+    magnitude: match[1],
+    unit: match[2].toUpperCase(),
+  };
+};
+
+const formatCompactByteUsage = (usedBytes: number, totalBytes: number) => {
+  const usedLabel = formatBytes(usedBytes);
+  const totalLabel = formatBytes(totalBytes);
+  const usedParts = splitFormattedBytes(usedLabel);
+  const totalParts = splitFormattedBytes(totalLabel);
+
+  if (usedParts && totalParts && usedParts.unit === totalParts.unit) {
+    return `${usedParts.magnitude} / ${totalParts.magnitude} ${usedParts.unit}`;
+  }
+
+  return `${usedLabel} / ${totalLabel}`;
+};
+
+const formatCoreCount = (value: number) => {
+  if (!Number.isFinite(value)) {
+    return "0";
+  }
+  return value.toFixed(1).replace(/\.0$/, "");
+};
+
 const StatusSummary = ({
   live,
 }: {
@@ -1023,17 +1022,17 @@ const StatusSummary = ({
       : null;
 
   return (
-    <div className="min-w-[120px] space-y-1">
+    <div className="min-w-[102px] space-y-1">
       <Badge
         variant={online ? "success" : "destructive"}
-        className="rounded-md"
+        className="rounded-md px-1.5"
       >
         {online ? t("nodeCard.online", "Online") : t("nodeCard.offline", "Offline")}
       </Badge>
       {cnBadge ? (
         <Badge
           variant={cnBadge.variant}
-          className="rounded-md"
+          className="max-w-[128px] overflow-hidden text-ellipsis rounded-md px-1.5"
           title={cnBadge.title}
         >
           {cnBadge.label}
@@ -1062,25 +1061,25 @@ const buildCNConnectivityBadge = (
   switch (connectivity.status) {
     case "ok":
       return {
-        label: `${t("admin.nodeTable.cnConnectivityOk", "CN reachable")}${latencyLabel}`,
+        label: `${t("admin.nodeTable.cnConnectivityOk", "CN OK")}${latencyLabel}`,
         variant: "success" as const,
         title,
       };
     case "blocked_suspected":
       return {
-        label: t("admin.nodeTable.cnConnectivityBlocked", "Suspected blocked"),
+        label: t("admin.nodeTable.cnConnectivityBlocked", "CN blocked"),
         variant: "destructive" as const,
         title,
       };
     case "degraded":
       return {
-        label: t("admin.nodeTable.cnConnectivityDegraded", "CN abnormal"),
+        label: t("admin.nodeTable.cnConnectivityDegraded", "CN degraded"),
         variant: "warning" as const,
         title,
       };
     default:
       return {
-        label: t("admin.nodeTable.cnConnectivityUnknown", "Pending probe"),
+        label: t("admin.nodeTable.cnConnectivityUnknown", "CN pending"),
         variant: "secondary" as const,
         title,
       };
@@ -1088,8 +1087,8 @@ const buildCNConnectivityBadge = (
 };
 
 const VersionSummary = ({ node }: { node: NodeDetail }) => (
-  <div className="min-w-[112px]">
-    <Badge variant="outline" className="rounded-md font-mono text-[12px]">
+  <div className="min-w-[92px]">
+    <Badge variant="outline" className="rounded-md px-1.5 font-mono text-[12px]">
       {String(node.version || "").trim() || "-"}
     </Badge>
   </div>
@@ -1189,7 +1188,7 @@ const NodeEndpointSummary = ({ node }: { node: NodeDetail }) => {
         />
       }
     >
-      <div className="flex min-w-[220px] items-start gap-2 text-[13px] text-slate-700 dark:text-slate-200">
+      <div className="flex min-w-[196px] items-start gap-2 text-[13px] text-slate-700 dark:text-slate-200">
         <div className="pt-0.5">
           <Flag flag={node.region} size="4" />
         </div>
@@ -1293,7 +1292,7 @@ const RateSummary = ({ live }: { live?: NodeLiveSnapshot }) => {
   const snapshot = live?.record || createEmptyLiveRecord();
 
   return (
-    <div className="min-w-[120px] space-y-0.5">
+    <div className="min-w-[98px] space-y-0.5 tabular-nums">
       <div className="block text-[13px] font-medium text-slate-900 dark:text-slate-100">
         ↑ {formatBytes(snapshot.network.up)}/s
       </div>
@@ -1308,7 +1307,7 @@ const TrafficSummary = ({ live }: { live?: NodeLiveSnapshot }) => {
   const snapshot = live?.record || createEmptyLiveRecord();
 
   return (
-    <div className="min-w-[132px] space-y-0.5">
+    <div className="min-w-[106px] space-y-0.5 tabular-nums">
       <div className="block text-[13px] font-medium text-slate-900 dark:text-slate-100">
         ↑ {formatBytes(snapshot.network.totalUp)}
       </div>
@@ -1321,13 +1320,13 @@ const TrafficSummary = ({ live }: { live?: NodeLiveSnapshot }) => {
 
 const UptimeSummary = ({ live }: { live?: NodeLiveSnapshot }) => {
   return (
-    <div className="block min-w-[72px] text-[13px] text-slate-700 dark:text-slate-300">
+    <div className="block min-w-[74px] tabular-nums text-[13px] text-slate-700 dark:text-slate-300">
       {formatUptimeLabel(live?.record.uptime)}
     </div>
   );
 };
 
-const UsageBar = ({
+const CompactMetricCell = ({
   percent,
   valueLabel,
   tooltipContent,
@@ -1358,16 +1357,16 @@ const UsageBar = ({
 
   return (
     <NodeInfoTooltip content={tooltipContent}>
-      <div className="w-[188px] cursor-help">
-        <div className="mb-1 flex items-center justify-between gap-2">
-          <span className="truncate font-mono text-[11px] text-slate-600 dark:text-slate-300">
+      <div className="w-full min-w-[148px] max-w-[162px] cursor-help">
+        <div className="mb-1 flex items-center justify-between gap-2 whitespace-nowrap leading-none">
+          <span className="min-w-0 flex-1 overflow-hidden text-ellipsis font-mono tabular-nums text-[11px] text-slate-600 dark:text-slate-300">
             {valueLabel}
           </span>
-          <span className={`shrink-0 text-[11px] font-semibold ${percentTextClass}`}>
+          <span className={`shrink-0 tabular-nums text-[11px] font-semibold ${percentTextClass}`}>
             {formatPercent(safePercent)}
           </span>
         </div>
-        <div className="relative h-2.5 overflow-hidden rounded-full border border-slate-200/80 bg-slate-100/90 dark:border-slate-800/80 dark:bg-slate-900/60">
+        <div className="relative h-2 overflow-hidden rounded-full border border-slate-200/80 bg-slate-100/90 dark:border-slate-800/80 dark:bg-slate-900/60">
           <div
             className={`h-full rounded-full transition-all duration-300 ${barClass}`}
             style={{ width: `${safePercent}%` }}
@@ -1395,7 +1394,7 @@ const SortableRow = ({
   const cpuPercent = clampPercent(live?.record.cpu.usage ?? 0);
   const cpuCoreCount = Number(node.cpu_cores || 0);
   const usedCpuCores = cpuCoreCount
-    ? `${(cpuCoreCount * cpuPercent / 100).toFixed(1)} / ${cpuCoreCount} ${t(
+    ? `${formatCoreCount(cpuCoreCount * cpuPercent / 100)} / ${formatCoreCount(cpuCoreCount)} ${t(
       "admin.nodeTable.cpuCoresShort",
       {
         defaultValue: "cores",
@@ -1404,11 +1403,11 @@ const SortableRow = ({
     : formatPercent(cpuPercent);
   const ramPercent = clampPercent(getNodeRamUsagePercent(node, live));
   const ramLabel = node.mem_total
-    ? `${formatBytes(live?.record.ram.used ?? 0)} / ${formatBytes(node.mem_total)}`
+    ? formatCompactByteUsage(live?.record.ram.used ?? 0, node.mem_total)
     : formatPercent(ramPercent);
   const diskPercent = clampPercent(getNodeDiskUsagePercent(node, live));
   const diskLabel = node.disk_total
-    ? `${formatBytes(live?.record.disk.used ?? 0)} / ${formatBytes(node.disk_total)}`
+    ? formatCompactByteUsage(live?.record.disk.used ?? 0, node.disk_total)
     : formatPercent(diskPercent);
 
   return (
@@ -1434,8 +1433,8 @@ const SortableRow = ({
             <TableCell>
               <UptimeSummary live={live} />
             </TableCell>
-            <TableCell>
-              <UsageBar
+            <TableCell className="py-1.5 pr-2 pl-1.5">
+              <CompactMetricCell
                 percent={cpuPercent}
                 valueLabel={usedCpuCores}
                 tooltipContent={
@@ -1446,8 +1445,8 @@ const SortableRow = ({
                 }
               />
             </TableCell>
-            <TableCell>
-              <UsageBar
+            <TableCell className="py-1.5 pr-2 pl-1.5">
+              <CompactMetricCell
                 percent={ramPercent}
                 valueLabel={ramLabel}
                 tooltipContent={
@@ -1458,8 +1457,8 @@ const SortableRow = ({
                 }
               />
             </TableCell>
-            <TableCell>
-              <UsageBar
+            <TableCell className="py-1.5 pr-2 pl-1.5">
+              <CompactMetricCell
                 percent={diskPercent}
                 valueLabel={diskLabel}
                 tooltipContent={
@@ -1512,31 +1511,31 @@ const NodeTableColumns = () => {
   return (
     <TableHeader className="bg-muted/40">
       <TableRow>
-        <TableHead className={`${stickyHeadClass} w-[260px]`}>
+        <TableHead className={`${stickyHeadClass} w-[204px]`}>
           {t("admin.nodeTable.columns.endpoint", { defaultValue: "Public IP" })}
         </TableHead>
-        <TableHead className={stickyHeadClass}>
+        <TableHead className={`${stickyHeadClass} w-[110px]`}>
           {t("admin.nodeTable.columns.status", { defaultValue: "Status" })}
         </TableHead>
-        <TableHead className={`${stickyHeadClass} w-[132px]`}>
+        <TableHead className={`${stickyHeadClass} w-[96px]`}>
           {t("admin.nodeTable.columns.version", { defaultValue: "Version" })}
         </TableHead>
-        <TableHead className={stickyHeadClass}>
+        <TableHead className={`${stickyHeadClass} w-[100px]`}>
           {t("admin.nodeTable.columns.rate", { defaultValue: "Rate" })}
         </TableHead>
-        <TableHead className={stickyHeadClass}>
+        <TableHead className={`${stickyHeadClass} w-[108px]`}>
           {t("admin.nodeTable.columns.traffic", { defaultValue: "Traffic" })}
         </TableHead>
-        <TableHead className={stickyHeadClass}>
+        <TableHead className={`${stickyHeadClass} w-[78px]`}>
           {t("admin.nodeTable.columns.uptime", { defaultValue: "Uptime" })}
         </TableHead>
-        <TableHead className={`${stickyHeadClass} w-[220px]`}>
+        <TableHead className={`${stickyHeadClass} w-[156px]`}>
           {t("admin.nodeTable.columns.cpu", { defaultValue: "CPU" })}
         </TableHead>
-        <TableHead className={`${stickyHeadClass} w-[220px]`}>
+        <TableHead className={`${stickyHeadClass} w-[156px]`}>
           {t("admin.nodeTable.columns.ram", { defaultValue: "RAM" })}
         </TableHead>
-        <TableHead className={`${stickyHeadClass} w-[220px]`}>
+        <TableHead className={`${stickyHeadClass} w-[156px]`}>
           {t("admin.nodeTable.columns.storage", { defaultValue: "Storage" })}
         </TableHead>
       </TableRow>
@@ -1727,7 +1726,7 @@ const NodeGroupSection = ({
           />
         </div>
       </div>
-      <Table className="min-w-[1480px]">
+      <Table className="min-w-[1160px]">
         <NodeTableColumns />
         <TableBody>
           {nodes.map((node) => (
@@ -1749,20 +1748,12 @@ const NodeTable = ({
   liveByNode,
   settings,
   installActionsEnabled,
-  sortField,
-  onSortFieldChange,
-  sortDirection,
-  onSortDirectionChange,
 }: {
   nodes: NodeDetail[];
   totalNodesCount: number;
   liveByNode: Record<string, NodeLiveSnapshot>;
   settings: SettingsResponse;
   installActionsEnabled: boolean;
-  sortField: NodeSortField;
-  onSortFieldChange: (value: NodeSortField) => void;
-  sortDirection: NodeSortDirection;
-  onSortDirectionChange: (value: NodeSortDirection) => void;
 }) => {
   const { t } = useTranslation();
   const hasActiveFilters = nodes.length !== totalNodesCount;
@@ -1780,91 +1771,12 @@ const NodeTable = ({
 
     return Array.from(groups.entries()).map(([groupName, groupNodes]) => ({
       groupName,
-      nodes:
-        sortField === "none"
-          ? groupNodes
-          : [...groupNodes].sort((left, right) => {
-            const leftMetric = getNodeSortMetric(
-              left,
-              liveByNode[left.uuid],
-              sortField,
-            );
-            const rightMetric = getNodeSortMetric(
-              right,
-              liveByNode[right.uuid],
-              sortField,
-            );
-            if (leftMetric !== rightMetric) {
-              return sortDirection === "asc"
-                ? leftMetric - rightMetric
-                : rightMetric - leftMetric;
-            }
-            return String(left.name || "").localeCompare(
-              String(right.name || ""),
-              "zh-CN",
-            );
-          }),
+      nodes: groupNodes,
     }));
-  }, [liveByNode, nodes, sortDirection, sortField]);
+  }, [nodes]);
 
   return (
     <div className="flex min-w-0 flex-col gap-4">
-      <div className="flex flex-wrap items-center justify-end gap-2">
-        <span className="text-xs text-muted-foreground">
-          {t("admin.nodeTable.sortBy", { defaultValue: "排序方式" })}
-        </span>
-        <select
-          className="h-8 min-w-[150px] rounded-md border border-input bg-background px-2.5 text-sm text-foreground outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring/50"
-          value={sortField}
-          onChange={(event) => onSortFieldChange(event.target.value as NodeSortField)}
-          aria-label={t("admin.nodeTable.sortBy", {
-            defaultValue: "排序方式",
-          })}
-        >
-          <option value="none">
-            {t("admin.nodeTable.sortNone", {
-              defaultValue: "排序：默认",
-            })}
-          </option>
-          <option value="cpu">
-            {t("admin.nodeTable.sortCpu", {
-              defaultValue: "按 CPU",
-            })}
-          </option>
-          <option value="ram">
-            {t("admin.nodeTable.sortRam", {
-              defaultValue: "按 RAM",
-            })}
-          </option>
-          <option value="traffic">
-            {t("admin.nodeTable.sortTraffic", {
-              defaultValue: "按流量",
-            })}
-          </option>
-          <option value="uptime">
-            {t("admin.nodeTable.sortUptime", {
-              defaultValue: "按开机时长",
-            })}
-          </option>
-        </select>
-        <Button
-          variant="outline"
-          size="sm"
-          className="h-8 rounded-md px-2"
-          disabled={sortField === "none"}
-          onClick={() =>
-            onSortDirectionChange(sortDirection === "desc" ? "asc" : "desc")
-          }
-          aria-label={t("admin.nodeTable.sortDirection", {
-            defaultValue: "切换排序方向",
-          })}
-        >
-          <ArrowDownUp size={14} />
-          {sortDirection === "desc"
-            ? t("admin.nodeTable.sortDesc", { defaultValue: "降序" })
-            : t("admin.nodeTable.sortAsc", { defaultValue: "升序" })}
-        </Button>
-      </div>
       {nodes.length === 0 ? (
         <Card className="rounded-xl border-dashed border-border/70 py-10 text-center text-sm text-muted-foreground shadow-none">
           {hasActiveFilters
