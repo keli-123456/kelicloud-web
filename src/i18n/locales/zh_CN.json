@@ -2245,6 +2245,7 @@
     "advanced_state_fields_hint": "DNS 记录引用和当前实例引用是 V2 的恢复锚点。除非正在导入或修复状态，否则保持不变。",
     "allow_all_traffic": "放行所有流量",
     "api_errors": {
+      "detach_member_dns_failed": "成员 DNS 摘除失败：{{reason}}",
       "start_detach_failed": "启动 DNS 摘除失败：{{reason}}",
       "start_execution_failed": "启动故障切换 V2 执行失败：{{reason}}"
     },
@@ -2367,6 +2368,7 @@
     "empty_title": "暂无 V2 服务",
     "enabled_hint": "禁用的服务会跳过自动调度，服务卡片上的手动操作仍可使用。",
     "error_reasons": {
+      "aliyun_dns_record_ref_missing": "Aliyun 的 {{recordType}} DNS 记录引用 {{ref}} 不存在。通常表示成员运行态里的 dns_record_refs 已过期，请在成员编辑中展开“高级状态字段”修复后再重试。",
       "provider_credential_busy": "同一云凭证正在创建实例，请稍后重试。",
       "service_has_active_execution": "服务 #{{id}} 当前已有活动执行，请稍后重试。",
       "service_running": "服务 #{{id}} 当前已有执行在进行，请稍后重试。"

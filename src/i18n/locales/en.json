@@ -2363,6 +2363,7 @@
     "advanced_state_fields_hint": "DNS record refs and current instance refs are V2 recovery anchors. Leave them unchanged unless you are importing or repairing state.",
     "allow_all_traffic": "Allow all traffic",
     "api_errors": {
+      "detach_member_dns_failed": "Failed to detach member DNS: {{reason}}",
       "start_detach_failed": "Failed to start DNS detach: {{reason}}",
       "start_execution_failed": "Failed to start failover v2 execution: {{reason}}"
     },
@@ -2477,6 +2478,7 @@
     "execution_key_info_hint": "Structured summaries stay visible by default. Expand raw JSON only when needed.",
     "execution_key_info_empty": "No structured details were recorded for this execution.",
     "error_reasons": {
+      "aliyun_dns_record_ref_missing": "Aliyun {{recordType}} DNS record ref {{ref}} was not found. This usually means the member runtime dns_record_refs are stale. Open Advanced state fields in the member editor, repair them, then retry.",
       "provider_credential_busy": "The same cloud credential is provisioning another instance. Please try again later.",
       "service_has_active_execution": "Service #{{id}} already has an active execution. Please try again later.",
       "service_running": "Service #{{id}} already has a running execution. Please try again later."
