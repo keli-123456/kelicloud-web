@@ -135,8 +135,6 @@ type ServiceFormState = {
   script_timeout_sec: string;
   wait_agent_timeout_sec: string;
   check_interval_seconds: string;
-  delete_strategy: string;
-  delete_delay_seconds: string;
 };
 
 type MemberFormState = {
@@ -200,6 +198,8 @@ type ProviderEntriesMap = Record<string, ProviderEntry[]>;
 
 const FAILOVER_V2_DNS_PROVIDER = "aliyun";
 const FAILOVER_V2_MEMBER_PROVIDER = "digitalocean";
+const FAILOVER_V2_DEFAULT_DELETE_STRATEGY = "keep";
+const FAILOVER_V2_DEFAULT_DELETE_DELAY_SECONDS = 0;
 const FAILOVER_V2_DNS_PROVIDERS = [
   { value: "aliyun", label: "Aliyun" },
   { value: "cloudflare", label: "Cloudflare" },
@@ -1545,6 +1545,17 @@ function formatMemberScriptStatusSummary(t: TFunction, execution: FailoverV2Exec
   return localizeFailoverV2Status(t, inferMemberScriptStatus(execution));
 }
 
+function formatMemberTaskStatusSummary(t: TFunction, execution: FailoverV2ExecutionSummary | null) {
+  if (!execution) {
+    return t("failover_v2.execution_empty", { defaultValue: "No executions recorded yet." });
+  }
+  const statusLabel = localizeFailoverV2Status(t, execution.status || "unknown");
+  if (execution.id > 0) {
+    return `#${execution.id} · ${statusLabel}`;
+  }
+  return statusLabel;
+}
+
 function getReadonlyJsonText(value: string, fallback: string) {
   const trimmed = String(value || "").trim();
   return trimmed || fallback;
@@ -1830,8 +1841,6 @@ function createEmptyServiceForm(): ServiceFormState {
     script_timeout_sec: "600",
     wait_agent_timeout_sec: "600",
     check_interval_seconds: "60",
-    delete_strategy: "keep",
-    delete_delay_seconds: "0",
   };
 }
 
@@ -1853,8 +1862,6 @@ function createServiceForm(service?: FailoverV2Service | null): ServiceFormState
     script_timeout_sec: String(service.script_timeout_sec || 600),
     wait_agent_timeout_sec: String(service.wait_agent_timeout_sec || 600),
     check_interval_seconds: String(service.check_interval_seconds || 60),
-    delete_strategy: service.delete_strategy || "keep",
-    delete_delay_seconds: String(service.delete_delay_seconds || 0),
   };
 }
 
@@ -1970,8 +1977,8 @@ function buildServiceInput(t: TFunction, formState: ServiceFormState): FailoverV
     script_timeout_sec: parseNumberField(t, formState.script_timeout_sec, t("failover_v2.script_timeout", { defaultValue: "Script timeout" }), 600, { min: 1 }),
     wait_agent_timeout_sec: parseNumberField(t, formState.wait_agent_timeout_sec, t("failover_v2.wait_agent_timeout", { defaultValue: "Wait agent timeout" }), 600, { min: 1 }),
     check_interval_seconds: parseNumberField(t, formState.check_interval_seconds, t("failover_v2.check_interval", { defaultValue: "Check interval" }), 60, { min: 60 }),
-    delete_strategy: String(formState.delete_strategy || "keep").trim() || "keep",
-    delete_delay_seconds: parseNumberField(t, formState.delete_delay_seconds, t("failover_v2.delete_delay", { defaultValue: "Delete delay" }), 0, { min: 0 }),
+    delete_strategy: FAILOVER_V2_DEFAULT_DELETE_STRATEGY,
+    delete_delay_seconds: FAILOVER_V2_DEFAULT_DELETE_DELAY_SECONDS,
   };
 }
 
@@ -1999,16 +2006,61 @@ function buildMemberInput(t: TFunction, formState: MemberFormState): FailoverV2M
   };
 }
 
-function findNodeAddress(nodes: FailoverNodeOption[], watchClientUUID: string) {
+function findNodeByWatchClientUUID(nodes: FailoverNodeOption[], watchClientUUID: string) {
   const target = String(watchClientUUID || "").trim();
   if (!target) {
+    return null;
+  }
+  return nodes.find((item) => item.uuid === target) || null;
+}
+
+function findNodeAddress(nodes: FailoverNodeOption[], watchClientUUID: string) {
+  const node = findNodeByWatchClientUUID(nodes, watchClientUUID);
+  return String(node?.ipv4 || node?.ipv6 || "").trim();
+}
+
+function inferAddressFamily(address: string): "ipv4" | "ipv6" | "unknown" {
+  const normalizedAddress = String(address || "").trim();
+  if (!normalizedAddress) {
+    return "unknown";
+  }
+  if (normalizedAddress.includes(":")) {
+    return "ipv6";
+  }
+  if (normalizedAddress.includes(".")) {
+    return "ipv4";
+  }
+  return "unknown";
+}
+
+function resolveMemberAddressByFamily(
+  member: FailoverV2Member,
+  node: FailoverNodeOption | null,
+  family: "ipv4" | "ipv6",
+) {
+  const nodeAddress = String((family === "ipv4" ? node?.ipv4 : node?.ipv6) || "").trim();
+  if (nodeAddress) {
+    return nodeAddress;
+  }
+  const currentAddress = String(member.current_address || "").trim();
+  if (!currentAddress) {
     return "";
   }
-  const node = nodes.find((item) => item.uuid === target);
-  if (!node) {
-    return "";
+  return inferAddressFamily(currentAddress) === family ? currentAddress : "";
+}
+
+function formatMemberResolveStatus(t: TFunction, member: FailoverV2Member) {
+  const staleWithRetryText = member.probe?.stale && member.failure_threshold > 0
+    ? t("failover_v2.probe.stale_with_retry", {
+      defaultValue: "Stale ({{current}}/{{total}})",
+      current: Math.min(Math.max(0, member.probe?.consecutive_failures || 0), member.failure_threshold),
+      total: member.failure_threshold,
+    })
+    : null;
+  if (member.probe?.stale) {
+    return staleWithRetryText || t("failover_v2.probe.stale", { defaultValue: "Stale" });
   }
-  return String(node.ipv4 || node.ipv6 || "").trim();
+  return localizeFailoverV2Status(t, member.probe?.status || "unknown");
 }
 
 function mergeCurrentEntry<T extends CloudProviderCredentialEntry>(
@@ -3975,7 +4027,6 @@ export default function FailoverV2Page() {
                         <span>{service.dns_provider ? formatProviderLabel(service.dns_provider) : "-"} / {service.dns_entry_id || "-"}</span>
                         <span>{t("failover_v2.summary.check_interval", { defaultValue: "Check interval" })}: {service.check_interval_seconds || 60}s</span>
                         <span>{t("failover_v2.summary.next_check", { defaultValue: "Next check" })}: {formatServiceNextCheckCountdown(service)}</span>
-                        <span>{t("failover_v2.summary.delete_strategy", { defaultValue: "Delete strategy" })}: {service.delete_strategy || "-"}</span>
                       </div>
                       {service.last_message ? (
                         <p className="text-xs text-slate-500 dark:text-slate-400">
@@ -4072,7 +4123,12 @@ export default function FailoverV2Page() {
                     const memberActionsDisabled = memberBusy;
                     const memberLineCodes = getMemberLineCodes(member);
                     const latestMemberExecution = findLatestMemberExecutionSummary(service, member.id);
+                    const memberTaskStatus = formatMemberTaskStatusSummary(t, latestMemberExecution);
                     const memberHealthMessage = getMemberHealthMessage(member);
+                    const watchedNode = findNodeByWatchClientUUID(nodes, member.watch_client_uuid);
+                    const memberIPv4Address = resolveMemberAddressByFamily(member, watchedNode, "ipv4");
+                    const memberIPv6Address = resolveMemberAddressByFamily(member, watchedNode, "ipv6");
+                    const memberResolveStatus = formatMemberResolveStatus(t, member);
                     const memberBusyTitle = memberActionsDisabled
                       ? t("failover_v2.active_member_execution_action_disabled", {
                         defaultValue: "Actions are disabled while this member has an active execution.",
@@ -4115,9 +4171,12 @@ export default function FailoverV2Page() {
 
                         <div className="min-w-0 space-y-1 text-xs text-slate-500 dark:text-slate-400">
                           <div>{formatMemberSubtitle(member) || "-"}</div>
+                          <div>{t("failover_v2.member_task_status", { defaultValue: "Task status" })}: {memberTaskStatus}</div>
                           <div>{t("failover_v2.member_dns_status", { defaultValue: "DNS status" })}: {formatMemberDnsStatusSummary(t, latestMemberExecution)}</div>
                           <div>{t("failover_v2.member_script_status", { defaultValue: "Script status" })}: {formatMemberScriptStatusSummary(t, latestMemberExecution)}</div>
-                          <div>{member.current_address || t("failover_v2.no_current_ip", { defaultValue: "No current IP" })}</div>
+                          <div>{t("failover_v2.member_resolve_status", { defaultValue: "Resolve status" })}: {memberResolveStatus}</div>
+                          <div>{t("failover_v2.detail_fields.ipv4", { defaultValue: "IPv4" })}: {memberIPv4Address || t("failover_v2.no_current_ip", { defaultValue: "No current IP" })}</div>
+                          <div>{t("failover_v2.detail_fields.ipv6", { defaultValue: "IPv6" })}: {memberIPv6Address || t("failover_v2.no_current_ip", { defaultValue: "No current IP" })}</div>
                           {memberHealthMessage ? <div className="truncate">{localizeFailoverV2RuntimeMessage(t, memberHealthMessage)}</div> : null}
                         </div>
 
@@ -4761,7 +4820,7 @@ export default function FailoverV2Page() {
                 </h3>
                 <p className="text-xs text-slate-500 dark:text-slate-400">
                   {t("failover_v2.service_section_policy_hint", {
-                    defaultValue: "Tune failover waiting time and old-instance cleanup behavior for every member in this service.",
+                    defaultValue: "Tune health-check and execution timeout settings for this service.",
                   })}
                 </p>
               </div>
@@ -4801,43 +4860,6 @@ export default function FailoverV2Page() {
                   <p className="text-xs text-slate-500 dark:text-slate-400">
                     {t("failover_v2.check_interval_hint", {
                       defaultValue: "Controls how often this service runs automatic health checks. Unit: seconds.",
-                    })}
-                  </p>
-                </div>
-                <div className={FORM_FIELD_CLASS}>
-                  <Label>{t("failover_v2.delete_strategy", { defaultValue: "Delete strategy" })}</Label>
-                  <Select
-                    value={serviceForm.delete_strategy}
-                    onValueChange={(value) => setServiceForm((current) => ({ ...current, delete_strategy: value }))}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="keep">
-                        {t("failover_v2.delete_strategy_keep", { defaultValue: "Keep old instance" })}
-                      </SelectItem>
-                      <SelectItem value="delete_after_success">
-                        {t("failover_v2.delete_strategy_delete_after_success", { defaultValue: "Delete after success" })}
-                      </SelectItem>
-                      <SelectItem value="delete_after_success_delay">
-                        {t("failover_v2.delete_strategy_delete_after_success_delay", { defaultValue: "Delete after delay" })}
-                      </SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className={FORM_FIELD_CLASS}>
-                  <Label>{t("failover_v2.delete_delay", { defaultValue: "Delete delay" })}</Label>
-                  <Input
-                    type="number"
-                    min={0}
-                    value={serviceForm.delete_delay_seconds}
-                    onChange={(event) => setServiceForm((current) => ({ ...current, delete_delay_seconds: event.target.value }))}
-                    disabled={serviceForm.delete_strategy !== "delete_after_success_delay"}
-                  />
-                  <p className="text-xs text-slate-500 dark:text-slate-400">
-                    {t("failover_v2.delete_delay_hint", {
-                      defaultValue: "Only used by the delayed delete strategy. Unit: seconds.",
                     })}
                   </p>
                 </div>
