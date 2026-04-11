@@ -1,7 +1,7 @@
 import React from "react";
 import type { TFunction } from "i18next";
 import { Navigate, useNavigate } from "react-router-dom";
-import { ArrowDown, ArrowUp, Check, ChevronDown, LoaderCircle, PencilLine, Play, Plus, RefreshCw, Trash2, X } from "lucide-react";
+import { ArrowDown, ArrowUp, Check, ChevronDown, ChevronUp, LoaderCircle, PencilLine, Play, Plus, RefreshCw, Trash2, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
@@ -968,6 +968,14 @@ function localizeFailoverV2BackendReason(t: TFunction, reason: string | null | u
       defaultValue: "同一云凭证正在创建实例，请稍后重试。",
     });
   }
+  const aliyunDNSRecordRefMissingMatch = normalizedReason.match(/^aliyun dns record ref for (A|AAAA) not found: (.+)$/i);
+  if (aliyunDNSRecordRefMissingMatch) {
+    return t("failover_v2.error_reasons.aliyun_dns_record_ref_missing", {
+      recordType: String(aliyunDNSRecordRefMissingMatch[1] || "").toUpperCase(),
+      ref: String(aliyunDNSRecordRefMissingMatch[2] || "").trim(),
+      defaultValue: "Aliyun 的 {{recordType}} DNS 记录引用 {{ref}} 不存在。通常表示成员运行态里的 dns_record_refs 已过期，请在成员编辑中展开“高级状态字段”修复后再重试。",
+    });
+  }
 
   return localizeFailoverV2ActionReason(t, normalizedReason);
 }
@@ -993,6 +1001,12 @@ function localizeFailoverV2ApiMessage(t: TFunction, message: string | null | und
       return t("failover_v2.api_errors.start_detach_failed", {
         reason: localizedReason,
         defaultValue: `启动 DNS 摘除失败：${localizedReason}`,
+      });
+    }
+    if (prefix === "failed to detach member dns") {
+      return t("failover_v2.api_errors.detach_member_dns_failed", {
+        reason: localizedReason,
+        defaultValue: `成员 DNS 摘除失败：${localizedReason}`,
       });
     }
   }
@@ -2000,6 +2014,19 @@ function buildMemberInput(t: TFunction, formState: MemberFormState): FailoverV2M
     plan_payload: mode === "provider_template"
       ? parseJsonField(t, formState.plan_payload, {}, t("failover_v2.plan_payload", { defaultValue: "Plan payload" }))
       : {},
+    dns_record_refs: parseJsonField(
+      t,
+      formState.dns_record_refs,
+      {},
+      t("failover_v2.dns_record_refs", { defaultValue: "DNS record refs" }),
+    ),
+    current_address: String(formState.current_address || "").trim(),
+    current_instance_ref: parseJsonField(
+      t,
+      formState.current_instance_ref,
+      null,
+      t("failover_v2.current_instance_ref", { defaultValue: "Current instance ref" }),
+    ),
     failure_threshold: parseNumberField(t, formState.failure_threshold, t("failover_v2.failure_threshold", { defaultValue: "Failure threshold" }), 2, { min: 1 }),
     stale_after_seconds: parseNumberField(t, formState.stale_after_seconds, t("failover_v2.stale_after", { defaultValue: "Stale after" }), 300, { min: 1 }),
     cooldown_seconds: parseNumberField(t, formState.cooldown_seconds, t("failover_v2.cooldown", { defaultValue: "Cooldown" }), 1800, { min: 0 }),
@@ -2653,6 +2680,7 @@ export default function FailoverV2Page() {
   const [validatingMember, setValidatingMember] = React.useState(false);
   const [togglingMemberKey, setTogglingMemberKey] = React.useState("");
   const [memberPlanAdvancedOpen, setMemberPlanAdvancedOpen] = React.useState(false);
+  const [memberStateAdvancedOpen, setMemberStateAdvancedOpen] = React.useState(false);
   const [memberDNSCatalog, setMemberDNSCatalog] = React.useState<FailoverDnsCatalog | null>(null);
   const [memberDNSCatalogLoading, setMemberDNSCatalogLoading] = React.useState(false);
   const [memberDNSCatalogError, setMemberDNSCatalogError] = React.useState("");
@@ -3299,6 +3327,7 @@ export default function FailoverV2Page() {
     setEditingMember(null);
     setMemberForm(createEmptyMemberForm());
     setMemberPlanAdvancedOpen(false);
+    setMemberStateAdvancedOpen(false);
     setMemberDNSCatalog(null);
     setMemberDNSCatalogError("");
     setMemberDialogOpen(true);
@@ -3309,6 +3338,7 @@ export default function FailoverV2Page() {
     setEditingMember(member);
     setMemberForm(createMemberForm(member));
     setMemberPlanAdvancedOpen(false);
+    setMemberStateAdvancedOpen(false);
     setMemberDNSCatalog(null);
     setMemberDNSCatalogError("");
     setMemberDialogOpen(true);
@@ -3354,6 +3384,7 @@ export default function FailoverV2Page() {
     setMemberDNSCatalog(null);
     setMemberDNSCatalogError("");
     setMemberPlanAdvancedOpen(false);
+    setMemberStateAdvancedOpen(false);
   }, []);
 
   const handleSaveService = React.useCallback(async () => {
@@ -3813,6 +3844,14 @@ export default function FailoverV2Page() {
         t("common.error", { defaultValue: "Error" }),
       );
       toast.error(message);
+      void loadServices({ silent: true });
+      if (executionDialogTarget?.service.id === executionActionTarget.serviceID) {
+        void loadExecutionHistory(
+          executionDialogTarget.service,
+          executionActionTarget.executionID,
+          { silent: true },
+        );
+      }
     } finally {
       setStoppingExecution(false);
       setRetryingAttachDNS(false);
@@ -5828,7 +5867,20 @@ export default function FailoverV2Page() {
                   <FlowSection
                     title={t("failover_v2.runtime_state", { defaultValue: "Runtime state" })}
                     description={formatRuntimeFieldHint(t)}
-                    action={<InlineBadge variant="outline">{formatMemberModeLabel(t, memberFormMode)}</InlineBadge>}
+                    action={(
+                      <div className="flex flex-wrap items-center gap-2">
+                        <InlineBadge variant="outline">{formatMemberModeLabel(t, memberFormMode)}</InlineBadge>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setMemberStateAdvancedOpen((open) => !open)}
+                        >
+                          {memberStateAdvancedOpen ? <ChevronUp className="mr-2 size-4" /> : <ChevronDown className="mr-2 size-4" />}
+                          {t("failover_v2.advanced_state_fields", { defaultValue: "Advanced state fields" })}
+                        </Button>
+                      </div>
+                    )}
                   >
                     <div className="grid gap-4">
                     <ReadonlyValueField
@@ -5870,6 +5922,43 @@ export default function FailoverV2Page() {
                       multiline
                     />
                     </div>
+                    {memberStateAdvancedOpen ? (
+                      <div className="grid gap-4 rounded-lg border bg-muted/20 p-4">
+                        <p className="text-xs text-muted-foreground">
+                          {t("failover_v2.advanced_state_fields_hint", {
+                            defaultValue: "DNS record refs and current instance refs are V2 recovery anchors. Leave them unchanged unless you are importing or repairing state.",
+                          })}
+                        </p>
+                        <div className={FORM_FIELD_CLASS}>
+                          <Label>{t("failover_v2.dns_record_refs", { defaultValue: "DNS record refs" })}</Label>
+                          <Textarea
+                            className="min-h-32 font-mono text-xs"
+                            value={memberForm.dns_record_refs}
+                            onChange={(event) => setMemberForm((current) => ({ ...current, dns_record_refs: event.target.value }))}
+                          />
+                          <p className="text-xs text-muted-foreground">{formatRuntimeDNSRefsHint(t)}</p>
+                        </div>
+                        <div className={FORM_FIELD_CLASS}>
+                          <Label>{t("failover_v2.current_address", { defaultValue: "Current address" })}</Label>
+                          <Input
+                            value={memberForm.current_address}
+                            onChange={(event) => setMemberForm((current) => ({ ...current, current_address: event.target.value }))}
+                            placeholder={t("failover_v2.runtime_not_initialized", { defaultValue: "Not initialized yet" })}
+                          />
+                          <p className="text-xs text-muted-foreground">{formatRuntimeAddressHint(t)}</p>
+                        </div>
+                        <div className={FORM_FIELD_CLASS}>
+                          <Label>{t("failover_v2.current_instance_ref", { defaultValue: "Current instance ref" })}</Label>
+                          <Textarea
+                            className="min-h-32 font-mono text-xs"
+                            value={memberForm.current_instance_ref}
+                            onChange={(event) => setMemberForm((current) => ({ ...current, current_instance_ref: event.target.value }))}
+                            placeholder="null"
+                          />
+                          <p className="text-xs text-muted-foreground">{formatRuntimeInstanceHint(t)}</p>
+                        </div>
+                      </div>
+                    ) : null}
                   </FlowSection>
                 </>
               ) : null}

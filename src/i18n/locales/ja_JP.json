@@ -2245,6 +2245,7 @@
     "advanced_state_fields_hint": "DNS レコード参照と現在のインスタンス参照は V2 の復旧アンカーです。インポートまたは状態修復時以外は変更しないでください。",
     "allow_all_traffic": "すべてのトラフィックを許可",
     "api_errors": {
+      "detach_member_dns_failed": "メンバー DNS の切り離しに失敗しました: {{reason}}",
       "start_detach_failed": "DNS 切り離しの開始に失敗しました: {{reason}}",
       "start_execution_failed": "フェイルオーバー V2 実行の開始に失敗しました: {{reason}}"
     },
@@ -2365,6 +2366,7 @@
     "empty_title": "V2 サービスはまだありません",
     "enabled_hint": "無効なサービスは自動スケジュールから除外されます。サービスカードからの手動操作は引き続き使用できます。",
     "error_reasons": {
+      "aliyun_dns_record_ref_missing": "Aliyun の {{recordType}} DNS レコード参照 {{ref}} が見つかりません。通常はメンバーのランタイム dns_record_refs が古くなっています。メンバー編集で「高度な状態フィールド」を開いて修復してから再試行してください。",
       "provider_credential_busy": "同じクラウド認証情報で別のインスタンス作成中です。しばらくしてから再試行してください。",
       "service_has_active_execution": "サービス #{{id}} にはすでに実行中の処理があります。しばらくしてから再試行してください。",
       "service_running": "サービス #{{id}} はすでに実行中です。しばらくしてから再試行してください。"

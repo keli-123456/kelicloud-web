@@ -2245,6 +2245,7 @@
     "advanced_state_fields_hint": "DNS record refs dan current instance refs adalah anchor pemulihan V2. Biarkan tetap sama kecuali saat impor atau perbaikan status.",
     "allow_all_traffic": "Izinkan semua traffic",
     "api_errors": {
+      "detach_member_dns_failed": "Gagal melepas DNS member: {{reason}}",
       "start_detach_failed": "Gagal memulai pelepasan DNS: {{reason}}",
       "start_execution_failed": "Gagal memulai eksekusi failover v2: {{reason}}"
     },
@@ -2365,6 +2366,7 @@
     "empty_title": "Belum ada layanan V2",
     "enabled_hint": "Layanan nonaktif dilewati oleh penjadwalan otomatis. Aksi manual tetap tersedia dari kartu layanan.",
     "error_reasons": {
+      "aliyun_dns_record_ref_missing": "Ref record DNS {{recordType}} Aliyun {{ref}} tidak ditemukan. Biasanya ini berarti dns_record_refs runtime member sudah usang. Buka Advanced state fields pada editor member, perbaiki nilainya, lalu coba lagi.",
       "provider_credential_busy": "Kredensial cloud yang sama sedang memprovisikan instance lain. Coba lagi nanti.",
       "service_has_active_execution": "Layanan #{{id}} sudah memiliki eksekusi aktif. Coba lagi nanti.",
       "service_running": "Layanan #{{id}} sudah memiliki eksekusi yang sedang berjalan. Coba lagi nanti."
