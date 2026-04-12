@@ -90,6 +90,14 @@
     "upload_success": "Unggah berhasil"
   },
   "admin": {
+    "nav": {
+      "main": "Navigasi utama"
+    },
+    "navGroups": {
+      "infrastructure": "Infrastruktur",
+      "management": "Manajemen",
+      "operations": "Operasi"
+    },
     "httpsNotice": {
       "description": "Unencrypted traffic can expose login credentials and admin operations. Switch to HTTPS now.",
       "enableNow": "Enable HTTPS now",
@@ -985,7 +993,7 @@
         "subnet_manual_placeholder": "Optional subnet ID, for example subnet-abc123",
         "subnet_optional": "Opsional",
         "sync_tags": "Sinkronkan tag",
-        "title": "aws",
+        "title": "AWS",
         "total_instances": "Tracked instances",
         "view_credential": "Lihat kredensial",
         "view_instances": "Lihat instance",

@@ -90,6 +90,14 @@
     "upload_success": "上传成功"
   },
   "admin": {
+    "nav": {
+      "main": "主导航"
+    },
+    "navGroups": {
+      "infrastructure": "基础设施",
+      "management": "管理",
+      "operations": "运维"
+    },
     "httpsNotice": {
       "description": "未加密连接可能暴露登录凭据和管理指令，建议立即切换到 HTTPS。",
       "enableNow": "立即启用 HTTPS",
@@ -985,7 +993,7 @@
         "subnet_manual_placeholder": "可选，手动输入子网 ID，例如 subnet-abc123",
         "subnet_optional": "可选",
         "sync_tags": "同步标签",
-        "title": "aws",
+        "title": "AWS",
         "total_instances": "实例总数",
         "view_credential": "查看凭证",
         "view_instances": "查看实例",

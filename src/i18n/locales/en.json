@@ -90,6 +90,14 @@
     "upload_success": "Upload success"
   },
   "admin": {
+    "nav": {
+      "main": "Main navigation"
+    },
+    "navGroups": {
+      "infrastructure": "Infrastructure",
+      "management": "Management",
+      "operations": "Operations"
+    },
     "nodeDetail": {
       "arch": "Architecture",
       "clientVersion": "Client version",
@@ -981,7 +989,7 @@
         "subnet_manual_placeholder": "Optional subnet ID, for example subnet-abc123",
         "subnet_optional": "Optional",
         "sync_tags": "Sync Tags",
-        "title": "aws",
+        "title": "AWS",
         "total_instances": "Tracked instances",
         "view_credential": "View Credential",
         "view_instances": "View Instances",

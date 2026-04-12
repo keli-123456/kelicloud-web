@@ -13,22 +13,22 @@
         {
           "labelKey": "cloud.providers.digitalocean.title",
           "path": "/admin/cloud?provider=digitalocean",
-          "icon": "Cloud"
+          "icon": "Building2"
         },
         {
           "labelKey": "cloud.providers.linode.title",
           "path": "/admin/cloud?provider=linode",
-          "icon": "Server"
+          "icon": "Building2"
         },
         {
           "labelKey": "cloud.providers.azure.title",
           "path": "/admin/cloud?provider=azure",
-          "icon": "Cloud"
+          "icon": "Building2"
         },
         {
           "labelKey": "cloud.providers.aws.title",
           "path": "/admin/cloud?provider=aws",
-          "icon": "ShipWheel"
+          "icon": "Building2"
         },
         {
           "labelKey": "cloud.failover.title",

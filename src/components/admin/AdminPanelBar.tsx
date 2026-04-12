@@ -74,6 +74,54 @@ interface MenuEntry {
   activeChild: MenuItem | null;
 }
 
+type MenuGroupKey = "infrastructure" | "operations" | "management";
+
+interface MenuGroupSection {
+  key: MenuGroupKey;
+  labelKey: string;
+  fallbackLabel: string;
+  entries: MenuEntry[];
+}
+
+const MENU_GROUP_META: Array<Omit<MenuGroupSection, "entries">> = [
+  {
+    key: "infrastructure",
+    labelKey: "admin.navGroups.infrastructure",
+    fallbackLabel: "基础设施",
+  },
+  {
+    key: "operations",
+    labelKey: "admin.navGroups.operations",
+    fallbackLabel: "运维",
+  },
+  {
+    key: "management",
+    labelKey: "admin.navGroups.management",
+    fallbackLabel: "管理",
+  },
+];
+
+const INFRASTRUCTURE_MENU_KEYS = new Set([
+  "common.server",
+  "cloud.title",
+  "cloud.dns.title",
+]);
+const MANAGEMENT_MENU_KEYS = new Set([
+  "settings.title",
+  "admin.users.title",
+  "account.title",
+]);
+
+const getMenuGroupKey = (item: ExtendedMenuItem): MenuGroupKey => {
+  if (INFRASTRUCTURE_MENU_KEYS.has(item.labelKey)) {
+    return "infrastructure";
+  }
+  if (MANAGEMENT_MENU_KEYS.has(item.labelKey)) {
+    return "management";
+  }
+  return "operations";
+};
+
 const isExternalPath = (target: string) =>
   target.startsWith("http://") || target.startsWith("https://");
 
@@ -426,6 +474,26 @@ export default function AdminPanelBar({ content }: AdminPanelBarProps) {
       : activeTopItem
         ? getMenuLabel(activeTopItem)
         : "Komari";
+
+  const groupedMenuEntries = useMemo<MenuGroupSection[]>(() => {
+    const grouped: Record<MenuGroupKey, MenuEntry[]> = {
+      infrastructure: [],
+      operations: [],
+      management: [],
+    };
+
+    primaryMenuEntries.forEach((entry) => {
+      grouped[getMenuGroupKey(entry.item)].push(entry);
+    });
+
+    return MENU_GROUP_META
+      .map((meta) => ({
+        ...meta,
+        entries: grouped[meta.key],
+      }))
+      .filter((section) => section.entries.length > 0);
+  }, [primaryMenuEntries]);
+
   useEffect(() => {
     setOpenMenus((prev) => {
       let changed = false;
@@ -505,24 +573,33 @@ export default function AdminPanelBar({ content }: AdminPanelBarProps) {
     icon: string,
     label: string,
     active = false,
-    sizeClass = "size-5",
+    sizeClass = "h-4 w-4",
   ) => (
     <span className="flex h-5 w-5 shrink-0 items-center justify-center">
       {renderMenuIcon(icon, label, active, sizeClass)}
     </span>
   );
 
-  const navItemClass = (active = false, collapsed = false) =>
+  const navItemClass = ({
+    active = false,
+    collapsed = false,
+    activeByChild = false,
+  }: {
+    active?: boolean;
+    collapsed?: boolean;
+      activeByChild?: boolean;
+  } = {}) =>
     cn(
-      "flex min-h-9 items-center gap-2.5 rounded-md px-2.5 text-[14px] font-medium leading-5 text-foreground/80 transition-colors hover:bg-muted/60 hover:text-foreground",
+      "relative flex h-8 min-w-0 items-center gap-2.5 rounded-md px-2.5 text-[15px] font-medium leading-5 text-foreground/80 transition-colors outline-none before:pointer-events-none before:absolute before:left-1 before:top-1/2 before:h-4 before:w-[3px] before:-translate-y-1/2 before:rounded-r-sm before:bg-primary before:opacity-0 hover:bg-muted/60 hover:text-foreground focus-visible:ring-2 focus-visible:ring-primary/30 focus-visible:ring-offset-1 focus-visible:ring-offset-background",
       collapsed && "md:justify-center md:px-2",
-      active && "bg-primary/10 font-semibold text-primary",
+      activeByChild && !active && "bg-muted/45 text-foreground before:opacity-60",
+      active && "bg-primary/12 font-semibold text-primary before:opacity-100 shadow-[inset_0_0_0_1px_hsl(var(--primary)/0.24)]",
     );
 
   const subNavItemClass = (active = false) =>
     cn(
-      "flex min-h-8 items-center gap-2 rounded-md px-2.5 py-1 text-[14px] leading-5 text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground",
-      active && "bg-primary/10 font-medium text-primary",
+      "relative flex h-7 min-w-0 items-center gap-2 rounded-md px-2.5 text-[15px] leading-5 text-muted-foreground transition-colors outline-none before:pointer-events-none before:absolute before:left-1 before:top-1/2 before:h-3.5 before:w-[2px] before:-translate-y-1/2 before:rounded-full before:bg-primary before:opacity-0 hover:bg-muted/55 hover:text-foreground focus-visible:ring-2 focus-visible:ring-primary/30 focus-visible:ring-offset-1 focus-visible:ring-offset-background",
+      active && "bg-primary/10 font-semibold text-primary before:opacity-100",
     );
 
   const renderUpdateTrigger =
@@ -619,176 +696,237 @@ export default function AdminPanelBar({ content }: AdminPanelBarProps) {
       >
         <div
           className={cn(
-            "grid h-16 shrink-0 grid-cols-[1fr_auto_1fr] items-center border-b border-border/70 px-5",
-            sidebarCollapsed && "md:px-2",
+            "flex h-14 shrink-0 items-center border-b border-border/70 px-3",
+            sidebarCollapsed && "md:justify-center md:px-2",
           )}
         >
-          <div />
           <Link
             to="/admin"
-            className="justify-self-center text-lg font-semibold text-foreground"
+            className={cn(
+              "group flex min-w-0 flex-1 items-center gap-2 rounded-md px-1.5 py-1 text-foreground outline-none transition-colors hover:bg-muted/55 focus-visible:ring-2 focus-visible:ring-primary/30 focus-visible:ring-offset-1 focus-visible:ring-offset-card",
+              sidebarCollapsed && "md:flex-none md:px-0.5",
+            )}
+            aria-label={t("common.server", "Server")}
           >
-            <span className={cn(sidebarCollapsed && "md:hidden")}>{appName}</span>
-            {sidebarCollapsed ? (
-              <span className="hidden md:inline">
-                {(appName || "K").trim().slice(0, 1).toUpperCase()}
-              </span>
-            ) : null}
-          </Link>
-          <div className="justify-self-end">
-            <Button
-              variant="ghost"
-              size="icon"
-              className="md:hidden"
-              onClick={() => setMobileMenuOpen(false)}
-              aria-label={t("common.close_menu", "Close menu")}
+            <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-primary/12 text-sm font-semibold text-primary">
+              {(appName || "K").trim().slice(0, 1).toUpperCase()}
+            </span>
+            <span
+              className={cn(
+                "truncate text-[15px] font-semibold tracking-tight",
+                sidebarCollapsed && "md:hidden",
+              )}
             >
-              <X className="h-5 w-5" />
-            </Button>
-          </div>
+              {appName}
+            </span>
+          </Link>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="md:hidden"
+            onClick={() => setMobileMenuOpen(false)}
+            aria-label={t("common.close_menu", "Close menu")}
+          >
+            <X className="h-5 w-5" />
+          </Button>
         </div>
 
         <nav
           className={cn(
-            "flex-1 overflow-y-auto px-2.5 py-2.5",
+            "flex-1 overflow-y-auto px-2 py-2",
             sidebarCollapsed && "md:px-2",
           )}
+          aria-label={t("admin.nav.main", "Main navigation")}
         >
-          <div className="flex flex-col gap-0.5">
-            {primaryMenuEntries.map((entry) => {
-              const { item, active } = entry;
-              const label = getMenuLabel(item);
-              const menuKey = item.path;
+          <div className="flex flex-col gap-2">
+            {groupedMenuEntries.map((section, sectionIndex) => (
+              <section key={section.key} className="space-y-1">
+                <div className={cn("px-1", sidebarCollapsed && "md:hidden")}>
+                  {sectionIndex > 0 ? (
+                    <Separator className="mb-1.5 bg-border/70" />
+                  ) : null}
+                  <p className="truncate px-2 text-xs font-semibold uppercase tracking-[0.06em] text-muted-foreground/90">
+                    {t(section.labelKey, section.fallbackLabel)}
+                  </p>
+                </div>
+                {sectionIndex > 0 ? (
+                  <Separator
+                    className={cn(
+                      "my-1.5 bg-border/70",
+                      sidebarCollapsed ? "hidden md:block md:mx-1" : "hidden",
+                    )}
+                  />
+                ) : null}
 
-              if (item.children?.length) {
-                const isOpen = Boolean(openMenus[menuKey]);
+                <div className="flex flex-col gap-0.5">
+                  {section.entries.map((entry) => {
+                    const { item } = entry;
+                    const label = getMenuLabel(item);
+                    const menuKey = item.path;
+                    const parentCurrent = isPathActive(
+                      item.path,
+                      location.pathname,
+                      location.search,
+                    );
+                    const activeByChild = Boolean(entry.activeChild);
 
-                return (
-                  <div key={item.path} className="space-y-0.5">
-                    {sidebarCollapsed ? (
-                      <div className="hidden md:block">
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className={cn(navItemClass(active, true), "!flex !h-9 !w-full !rounded-md !p-0")}
-                              title={label}
-                              aria-label={label}
-                            >
-                              {renderMenuLeadingIcon(item.icon, label, active)}
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent
-                            side="right"
-                            align="start"
-                            className="min-w-[240px]"
-                          >
-                            <DropdownMenuLabel>{label}</DropdownMenuLabel>
-                            <DropdownMenuSeparator />
-                            {item.children.map((child) => {
-                              const childLabel = getMenuLabel(child);
-                              const childActive = isPathActive(
-                                child.path,
-                                location.pathname,
-                                location.search,
-                              );
+                    if (item.children?.length) {
+                      const isOpen = Boolean(openMenus[menuKey]);
 
-                              return (
-                                <DropdownMenuItem
-                                  key={child.path}
-                                  className={cn(
-                                    "cursor-pointer",
-                                    childActive && "bg-accent text-accent-foreground",
-                                  )}
-                                  onSelect={() => navigate(child.path)}
+                      return (
+                        <div key={item.path} className="space-y-0.5">
+                          {sidebarCollapsed ? (
+                            <div className="hidden md:block">
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className={cn(
+                                      navItemClass({
+                                        active: parentCurrent,
+                                        activeByChild,
+                                        collapsed: true,
+                                      }),
+                                      "!flex !h-8 !w-full !rounded-md !p-0",
+                                    )}
+                                    title={label}
+                                    aria-label={label}
+                                  >
+                                    {renderMenuLeadingIcon(
+                                      item.icon,
+                                      label,
+                                      parentCurrent || activeByChild,
+                                    )}
+                                  </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent
+                                  side="right"
+                                  align="start"
+                                  className="min-w-[240px]"
                                 >
-                                  {renderMenuIcon(
-                                    child.icon,
-                                    childLabel,
-                                    childActive,
-                                    "h-4 w-4",
+                                  <DropdownMenuLabel>{label}</DropdownMenuLabel>
+                                  <DropdownMenuSeparator />
+                                  {item.children.map((child) => {
+                                    const childLabel = getMenuLabel(child);
+                                    const childActive = isPathActive(
+                                      child.path,
+                                      location.pathname,
+                                      location.search,
+                                    );
+
+                                    return (
+                                      <DropdownMenuItem
+                                        key={child.path}
+                                        className={cn(
+                                          "cursor-pointer",
+                                          childActive && "bg-accent text-accent-foreground",
+                                        )}
+                                        onSelect={() => navigate(child.path)}
+                                        aria-current={childActive ? "page" : undefined}
+                                      >
+                                        {renderMenuIcon(
+                                          child.icon,
+                                          childLabel,
+                                          childActive,
+                                          "h-4 w-4",
+                                        )}
+                                        <span className="truncate">{childLabel}</span>
+                                      </DropdownMenuItem>
+                                    );
+                                  })}
+                                </DropdownMenuContent>
+                              </DropdownMenu>
+                            </div>
+                          ) : null}
+
+                          <Collapsible
+                            open={isOpen}
+                            onOpenChange={(open) => setMenuOpen(menuKey, open)}
+                            className={cn(sidebarCollapsed && "md:hidden")}
+                          >
+                            <CollapsibleTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                aria-expanded={isOpen}
+                                className={cn(
+                                  navItemClass({
+                                    active: parentCurrent,
+                                    activeByChild,
+                                  }),
+                                  "h-8 w-full justify-between px-2.5",
+                                )}
+                              >
+                                <span className="flex min-w-0 items-center gap-2.5">
+                                  {renderMenuLeadingIcon(
+                                    item.icon,
+                                    label,
+                                    parentCurrent || activeByChild,
                                   )}
-                                  <span className="truncate">{childLabel}</span>
-                                </DropdownMenuItem>
-                              );
-                            })}
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </div>
-                    ) : null}
+                                  <span className="truncate">{label}</span>
+                                </span>
+                                <span className="flex h-4 w-4 shrink-0 items-center justify-center text-muted-foreground">
+                                  {isOpen ? (
+                                    <ChevronDown className="h-4 w-4" />
+                                  ) : (
+                                    <ChevronRight className="h-4 w-4" />
+                                  )}
+                                </span>
+                              </Button>
+                            </CollapsibleTrigger>
+                            <CollapsibleContent className="ml-3 space-y-0.5 border-l border-border/70 pl-3 pt-0.5">
+                              {item.children.map((child) => {
+                                const childLabel = getMenuLabel(child);
+                                const childActive = isPathActive(
+                                  child.path,
+                                  location.pathname,
+                                  location.search,
+                                );
 
-                    <Collapsible
-                      open={isOpen}
-                      onOpenChange={(open) => setMenuOpen(menuKey, open)}
-                      className={cn(sidebarCollapsed && "md:hidden")}
-                    >
-                      <CollapsibleTrigger asChild>
-                        <Button
-                          variant="ghost"
-                          className={cn(
-                            navItemClass(active),
-                            "h-9 w-full justify-between px-2.5",
-                          )}
-                        >
-                          <span className="flex min-w-0 items-center gap-3">
-                            {renderMenuLeadingIcon(item.icon, label, active)}
-                            <span className="truncate">{label}</span>
-                          </span>
-                          <span className="flex h-4 w-4 shrink-0 items-center justify-center text-slate-400 dark:text-slate-500">
-                            {isOpen ? (
-                              <ChevronDown className="h-4 w-4" />
-                            ) : (
-                              <ChevronRight className="h-4 w-4" />
-                            )}
-                          </span>
-                        </Button>
-                      </CollapsibleTrigger>
-                      <CollapsibleContent className="space-y-0.5 pl-4 pt-0.5">
-                        {item.children.map((child) => {
-                          const childLabel = getMenuLabel(child);
-                          const childActive = isPathActive(
-                            child.path,
-                            location.pathname,
-                            location.search,
-                          );
+                                return (
+                                  <Link
+                                    key={child.path}
+                                    to={child.path}
+                                    onClick={() => setMobileMenuOpen(false)}
+                                    className={subNavItemClass(childActive)}
+                                    aria-current={childActive ? "page" : undefined}
+                                  >
+                                    {renderMenuIcon(
+                                      child.icon,
+                                      childLabel,
+                                      childActive,
+                                      "h-3.5 w-3.5",
+                                    )}
+                                    <span className="truncate">{childLabel}</span>
+                                  </Link>
+                                );
+                              })}
+                            </CollapsibleContent>
+                          </Collapsible>
+                        </div>
+                      );
+                    }
 
-                          return (
-                            <Link
-                              key={child.path}
-                              to={child.path}
-                              onClick={() => setMobileMenuOpen(false)}
-                              className={subNavItemClass(childActive)}
-                            >
-                              {renderMenuIcon(
-                                child.icon,
-                                childLabel,
-                                childActive,
-                                "h-4 w-4",
-                              )}
-                              <span className="truncate">{childLabel}</span>
-                            </Link>
-                          );
+                    return (
+                      <Link
+                        key={item.path}
+                        to={item.path}
+                        onClick={() => setMobileMenuOpen(false)}
+                        title={label}
+                        className={navItemClass({
+                          active: entry.active,
+                          collapsed: sidebarCollapsed,
                         })}
-                      </CollapsibleContent>
-                    </Collapsible>
-                  </div>
-                );
-              }
-
-              return (
-                <Link
-                  key={item.path}
-                  to={item.path}
-                  onClick={() => setMobileMenuOpen(false)}
-                  title={label}
-                  className={navItemClass(active, sidebarCollapsed)}
-                >
-                  {renderMenuLeadingIcon(item.icon, label, active)}
-                  <span className={cn(sidebarCollapsed && "md:hidden")}>{label}</span>
-                </Link>
-              );
-            })}
+                        aria-current={entry.active ? "page" : undefined}
+                      >
+                        {renderMenuLeadingIcon(item.icon, label, entry.active)}
+                        <span className={cn("truncate", sidebarCollapsed && "md:hidden")}>{label}</span>
+                      </Link>
+                    );
+                  })}
+                </div>
+              </section>
+            ))}
           </div>
         </nav>
 
@@ -797,7 +935,7 @@ export default function AdminPanelBar({ content }: AdminPanelBarProps) {
             type="button"
             variant="ghost"
             size="icon"
-            className="w-full"
+            className="h-8 w-full"
             onClick={toggleSidebarCollapsed}
             title={t(
               sidebarCollapsed ? "common.expand_sidebar" : "common.collapse_sidebar",
