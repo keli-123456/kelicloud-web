@@ -7,7 +7,6 @@ import { toast } from "sonner";
 
 import Loading from "@/components/loading";
 import { AdminPageShell, AdminSurface } from "@/components/admin/AdminPageShell";
-import { Badge } from "@/components/admin/admin-ui";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -28,7 +27,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Badge as InlineBadge } from "@/components/ui/badge";
+import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -123,6 +122,7 @@ import {
   STATIC_LIGHTSAIL_BUNDLE_PRESETS,
   type BuiltinPlanOption,
 } from "@/lib/failoverV2Presets";
+import { resolveStatusBadgeVariant } from "@/lib/status-semantic";
 import { cn } from "@/lib/utils";
 
 type ServiceFormState = {
@@ -423,7 +423,7 @@ function MemberDNSLinesEditor({
           {lines.length > 0 ? (
             <div className="flex flex-wrap gap-2">
               {lines.map((line) => (
-                <InlineBadge key={line} variant="secondary" className="gap-1.5 pr-1">
+                <Badge key={line} variant="secondary" className="gap-1.5 pr-1">
                   <span>{line}</span>
                   <button
                     type="button"
@@ -433,7 +433,7 @@ function MemberDNSLinesEditor({
                   >
                     <X className="size-3" />
                   </button>
-                </InlineBadge>
+                </Badge>
               ))}
             </div>
           ) : (
@@ -823,25 +823,8 @@ function dnsRecordSummary(t: TFunction, record: FailoverDnsRecordOption) {
   return parts.join(" / ");
 }
 
-function getStatusBadgeColor(status: string): "gray" | "green" | "amber" | "red" | "blue" {
-  switch ((status || "").trim().toLowerCase()) {
-    case "healthy":
-    case "success":
-    case "succeeded":
-      return "green";
-    case "running":
-      return "blue";
-    case "triggered":
-    case "cooldown":
-    case "pending":
-    case "warning":
-    case "manual_review":
-      return "amber";
-    case "failed":
-      return "red";
-    default:
-      return "gray";
-  }
+function getStatusBadgeColor(status: string): "secondary" | "success" | "warning" | "destructive" | "info" {
+  return resolveStatusBadgeVariant(status);
 }
 
 function normalizeTranslationToken(value: string) {
@@ -1274,17 +1257,8 @@ function findActiveFailoverV2ExecutionID(executions: FailoverV2ExecutionSummary[
   return activeExecution?.id ?? null;
 }
 
-function getValidationBadgeColor(status: string): "gray" | "green" | "amber" | "red" | "blue" {
-  switch (String(status || "").trim().toLowerCase()) {
-    case "pass":
-      return "green";
-    case "warn":
-      return "amber";
-    case "fail":
-      return "red";
-    default:
-      return "gray";
-  }
+function getValidationBadgeColor(status: string): "secondary" | "success" | "warning" | "destructive" | "info" {
+  return resolveStatusBadgeVariant(status);
 }
 
 function validationResultHasWarnings(result: FailoverV2ValidationResult | null | undefined) {
@@ -4035,7 +4009,7 @@ export default function FailoverV2Page() {
         <AdminSurface>
           <div className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white/80 px-3 py-2 shadow-sm dark:border-slate-800 dark:bg-slate-950/60 xl:flex-row xl:items-center xl:justify-between">
             <div className="flex min-w-0 flex-wrap items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
-              <Badge color="blue">
+              <Badge variant="info">
                 {t("failover_v2.phase.title", { defaultValue: "Phase 2" })}
               </Badge>
               <span className="hidden font-medium text-slate-700 dark:text-slate-300 md:inline">
@@ -4058,7 +4032,7 @@ export default function FailoverV2Page() {
                 <div className="flex shrink-0 items-center justify-between gap-3 rounded-full border border-slate-200 bg-slate-50/80 px-3 py-2 dark:border-slate-700 dark:bg-slate-900/60">
                   <div className="flex items-center gap-2 text-sm font-semibold text-slate-900 dark:text-slate-50">
                     <span>{t("failover_v2.scheduler.title", { defaultValue: "Automatic Scheduler" })}</span>
-                    <Badge color={schedulerEnabled ? "green" : "amber"}>
+                    <Badge variant={schedulerEnabled ? "success" : "warning"}>
                       {schedulerEnabled
                         ? t("failover_v2.scheduler.enabled", { defaultValue: "Enabled" })
                         : t("failover_v2.scheduler.disabled", { defaultValue: "Disabled" })}
@@ -4134,12 +4108,12 @@ export default function FailoverV2Page() {
                     <div className="min-w-0 space-y-2">
                       <div className="flex flex-wrap items-center gap-2 text-base font-semibold text-slate-900 dark:text-slate-50">
                         <span>{service.name}</span>
-                        <Badge color={service.enabled ? "green" : "gray"}>
+                        <Badge variant={service.enabled ? "success" : "secondary"}>
                           {service.enabled
                             ? t("common.enabled", { defaultValue: "Enabled" })
                             : t("common.disabled", { defaultValue: "Disabled" })}
                         </Badge>
-                        <Badge color={getStatusBadgeColor(service.last_status || "unknown")}>
+                        <Badge variant={getStatusBadgeColor(service.last_status || "unknown")}>
                           {localizeFailoverV2Status(t, service.last_status || "unknown")}
                         </Badge>
                       </div>
@@ -4265,18 +4239,18 @@ export default function FailoverV2Page() {
                             <span className="truncate text-sm font-semibold text-slate-900 dark:text-slate-50">
                               {getMemberDisplayTitle(member)}
                             </span>
-                            <Badge color={member.enabled ? "green" : "gray"}>
+                            <Badge variant={member.enabled ? "success" : "secondary"}>
                               {member.enabled
                                 ? t("common.enabled", { defaultValue: "Enabled" })
                                 : t("common.disabled", { defaultValue: "Disabled" })}
                             </Badge>
-                            <Badge color={normalizeMemberModeValue(member.mode) === "existing_client" ? "amber" : "blue"}>
+                            <Badge variant={normalizeMemberModeValue(member.mode) === "existing_client" ? "warning" : "info"}>
                               {formatMemberModeLabel(t, member.mode)}
                             </Badge>
                             {member.probe ? (() => {
                               const probeBadge = getMemberProbeBadgeLabel(t, member, memberBusy);
                               return (
-                                <Badge color={getStatusBadgeColor(probeBadge.status)}>
+                                <Badge variant={getStatusBadgeColor(probeBadge.status)}>
                                   {probeBadge.label}
                                 </Badge>
                               );
@@ -4435,7 +4409,7 @@ export default function FailoverV2Page() {
                       </div>
                     ) : null}
                   </div>
-                  <Badge color={getValidationBadgeColor(check.status)}>
+                  <Badge variant={getValidationBadgeColor(check.status)}>
                     {check.status || "unknown"}
                   </Badge>
                 </div>
@@ -5035,7 +5009,7 @@ export default function FailoverV2Page() {
                             key={id}
                             className="flex items-start gap-3 border-b px-3 py-3 text-sm last:border-b-0"
                           >
-                            <Badge color="gray" className="mt-0.5 min-w-8 justify-center">
+                            <Badge variant="secondary" className="mt-0.5 min-w-8 justify-center">
                               {index + 1}
                             </Badge>
                             <div className="min-w-0 flex-1">
@@ -5060,6 +5034,7 @@ export default function FailoverV2Page() {
                                 type="button"
                                 variant="outline"
                                 size="icon"
+                                aria-label={t("failover.editor.move_script_up", { defaultValue: "Move script up" })}
                                 onClick={() => moveServiceScriptToIndex(id, index - 1)}
                                 disabled={!canMoveUp}
                                 title={t("failover.editor.move_script_up", { defaultValue: "Move script up" })}
@@ -5070,6 +5045,7 @@ export default function FailoverV2Page() {
                                 type="button"
                                 variant="outline"
                                 size="icon"
+                                aria-label={t("failover.editor.move_script_down", { defaultValue: "Move script down" })}
                                 onClick={() => moveServiceScriptToIndex(id, index + 1)}
                                 disabled={!canMoveDown}
                                 title={t("failover.editor.move_script_down", { defaultValue: "Move script down" })}
@@ -5080,6 +5056,7 @@ export default function FailoverV2Page() {
                                 type="button"
                                 variant="outline"
                                 size="icon"
+                                aria-label={t("failover.editor.remove_script", { defaultValue: "Remove script" })}
                                 onClick={() => handleServiceScriptToggle(id, false)}
                                 title={t("failover.editor.remove_script", { defaultValue: "Remove script" })}
                               >
@@ -5205,7 +5182,7 @@ export default function FailoverV2Page() {
                   })}
                 </DialogDescription>
               </div>
-              {memberDialogService ? <Badge color="blue">{memberDialogService.name}</Badge> : null}
+              {memberDialogService ? <Badge variant="info">{memberDialogService.name}</Badge> : null}
             </div>
           </DialogHeader>
 
@@ -5869,7 +5846,7 @@ export default function FailoverV2Page() {
                     description={formatRuntimeFieldHint(t)}
                     action={(
                       <div className="flex flex-wrap items-center gap-2">
-                        <InlineBadge variant="outline">{formatMemberModeLabel(t, memberFormMode)}</InlineBadge>
+                        <Badge variant="outline">{formatMemberModeLabel(t, memberFormMode)}</Badge>
                         <Button
                           type="button"
                           variant="outline"
@@ -5901,7 +5878,7 @@ export default function FailoverV2Page() {
                         {memberRuntimeLines.length > 0 ? (
                           <div className="flex flex-wrap gap-2">
                             {memberRuntimeLines.map((line) => (
-                              <InlineBadge key={line} variant="secondary">{line}</InlineBadge>
+                              <Badge key={line} variant="secondary">{line}</Badge>
                             ))}
                           </div>
                         ) : (
@@ -6172,10 +6149,10 @@ export default function FailoverV2Page() {
                         </div>
                       </div>
                       <div className="flex flex-wrap gap-2">
-                        <Badge color={getStatusBadgeColor(cleanup.status || "unknown")}>
+                        <Badge variant={getStatusBadgeColor(cleanup.status || "unknown")}>
                           {cleanup.status || t("common.unknown", { defaultValue: "Unknown" })}
                         </Badge>
-                        <Badge color="gray">
+                        <Badge variant="secondary">
                           {cleanup.provider || "-"} / {cleanup.resource_type || "-"} / {cleanup.resource_id || "-"}
                         </Badge>
                       </div>
@@ -6227,7 +6204,7 @@ export default function FailoverV2Page() {
                         <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
                           {t("failover_v2.pending_cleanup_instance_ref", { defaultValue: "Saved instance ref" })}
                         </div>
-                        <pre className="overflow-x-auto whitespace-pre-wrap break-all text-xs text-slate-700 dark:text-slate-200">
+                        <pre className="overflow-x-auto whitespace-pre-wrap break-keep text-xs text-slate-700 [overflow-wrap:anywhere] dark:text-slate-200">
                           {instanceRefBlock}
                         </pre>
                       </div>
@@ -6397,7 +6374,7 @@ export default function FailoverV2Page() {
                             #{execution.id} · {localizeFailoverV2TriggerReason(t, execution.trigger_reason)}
                           </div>
                         </div>
-                        <Badge color={getStatusBadgeColor(execution.status || "unknown")}>
+                        <Badge variant={getStatusBadgeColor(execution.status || "unknown")}>
                           {localizeFailoverV2Status(t, execution.status)}
                         </Badge>
                       </div>
@@ -6447,7 +6424,7 @@ export default function FailoverV2Page() {
                           <div className="min-w-0 text-lg font-semibold text-slate-950 dark:text-slate-50">
                             {findMemberLabel(executionDialogTarget.service, selectedExecution.member_id)}
                           </div>
-                          <Badge color={getStatusBadgeColor(selectedExecution.status || "unknown")}>
+                          <Badge variant={getStatusBadgeColor(selectedExecution.status || "unknown")}>
                             {localizeFailoverV2Status(t, selectedExecution.status)}
                           </Badge>
                           <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-600 dark:bg-slate-900 dark:text-slate-300">
@@ -6512,7 +6489,7 @@ export default function FailoverV2Page() {
                                 <span className="text-sm font-medium text-slate-700 dark:text-slate-200">
                                   {localizeFailoverV2Stage(t, stage)}
                                 </span>
-                                <Badge color={getStatusBadgeColor(status || "pending")}>
+                                <Badge variant={getStatusBadgeColor(status || "pending")}>
                                   {localizeFailoverV2Status(t, status || "pending")}
                                 </Badge>
                               </div>
@@ -6564,7 +6541,7 @@ export default function FailoverV2Page() {
                                   </div>
                                 </div>
                                 <div className="flex flex-col gap-2 lg:items-end">
-                                  <Badge color={getStatusBadgeColor(step.status || "pending")}>
+                                  <Badge variant={getStatusBadgeColor(step.status || "pending")}>
                                     {localizeFailoverV2Status(t, step.status || "pending")}
                                   </Badge>
                                   <dl className="grid gap-2 text-xs text-slate-500 dark:text-slate-400 sm:grid-cols-2">

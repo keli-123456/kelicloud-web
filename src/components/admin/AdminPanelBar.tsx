@@ -641,6 +641,7 @@ export default function AdminPanelBar({ content }: AdminPanelBarProps) {
               size="icon"
               className="md:hidden"
               onClick={() => setMobileMenuOpen(false)}
+              aria-label={t("common.close_menu", "Close menu")}
             >
               <X className="h-5 w-5" />
             </Button>
@@ -824,6 +825,7 @@ export default function AdminPanelBar({ content }: AdminPanelBarProps) {
               size="icon"
               className="md:hidden"
               onClick={() => setMobileMenuOpen(true)}
+              aria-label={t("common.open_menu", "Open menu")}
             >
               <Menu className="h-5 w-5" />
             </Button>
@@ -854,6 +856,7 @@ export default function AdminPanelBar({ content }: AdminPanelBarProps) {
               size="icon"
               className="h-9 w-9"
               onClick={logout}
+              aria-label={t("common.logout", "Logout")}
             >
               <LogOut className="h-4 w-4" />
             </Button>

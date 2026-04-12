@@ -38,7 +38,7 @@ import {
   Select,
   TextArea,
   TextField,
-} from "@/components/admin/cloud/cloud-ui";
+} from "@/components/admin/cloud/cloud-shared";
 import Loading from "@/components/loading";
 import {
   Table,
@@ -78,6 +78,10 @@ import {
   type CreateAzureInstanceInput,
 } from "@/lib/cloudAzure";
 import { getCloudStatusLabel } from "@/lib/cloudStatus";
+import {
+  resolveStatusSemantic,
+  type StatusSemantic,
+} from "@/lib/status-semantic";
 
 type CredentialSecretState = {
   secret: AzureCredentialSecret;
@@ -221,24 +225,14 @@ function parseCredentialImports(text: string): AzureCredentialInput[] {
   return credentials;
 }
 
-function getCredentialStatusColor(status: string) {
-  switch (status) {
-    case "healthy":
-      return "green";
-    case "error":
-      return "red";
-    default:
-      return "gray";
-  }
+function getCredentialStatusSemantic(status: string): StatusSemantic {
+  return resolveStatusSemantic(status);
 }
 
-function getInstanceStateColor(instance: AzureInstance) {
+function getInstanceStateSemantic(instance: AzureInstance): StatusSemantic {
   const value = (instance.power_state || instance.provisioning_state).trim().toLowerCase();
-  if (value === "running") return "green";
-  if (value === "deallocated" || value === "stopped") return "amber";
-  if (value === "succeeded") return "blue";
-  if (value.includes("fail")) return "red";
-  return "gray";
+  if (value === "deallocated" || value === "stopped") return "warning";
+  return resolveStatusSemantic(value);
 }
 
 function formatDateTime(value: string) {
@@ -776,12 +770,12 @@ export default function AzurePanel() {
                           </TableCell>
                           <TableCell className="align-top">
                             <div className="space-y-2">
-                              <Badge color={getCredentialStatusColor(credential.last_status)}>
+                              <Badge semantic={getCredentialStatusSemantic(credential.last_status)}>
                                 {getCloudStatusLabel(credential.last_status, t)}
                               </Badge>
                               {credential.is_active ? (
                                 <div>
-                                  <Badge color="blue">{t("cloud.active", "Active")}</Badge>
+                                  <Badge semantic="success">{t("cloud.active", "Active")}</Badge>
                                 </div>
                               ) : null}
                             </div>
@@ -855,7 +849,7 @@ export default function AzurePanel() {
                     </Select.Root>
                   </div>
                 ) : null}
-                <Badge color="blue">{instances.length}</Badge>
+                <Badge semantic="default">{instances.length}</Badge>
               </Flex>
             </Flex>
           </div>
@@ -897,7 +891,7 @@ export default function AzurePanel() {
                         <TableCell className="align-top">{instance.resource_group || "-"}</TableCell>
                         <TableCell className="align-top">{getLocationLabel(catalog, instance.location)}</TableCell>
                         <TableCell className="align-top">
-                          <Badge color={getInstanceStateColor(instance)}>
+                          <Badge semantic={getInstanceStateSemantic(instance)}>
                             {getCloudStatusLabel(instance.power_state || instance.provisioning_state, t)}
                           </Badge>
                         </TableCell>

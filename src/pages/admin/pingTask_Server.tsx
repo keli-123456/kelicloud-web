@@ -9,11 +9,13 @@ import {
 import { useNodeDetails } from "@/contexts/NodeDetailsContext";
 import { usePingTask, type PingTask } from "@/contexts/PingTaskContext";
 import {
-  Button,
   Dialog,
-  Flex,
-  IconButton,
-} from "@/components/admin/admin-ui";
+  DialogClose,
+  DialogContent,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
 import { MoreHorizontal } from "lucide-react";
 import React from "react";
 import { useTranslation } from "react-i18next";
@@ -140,18 +142,24 @@ const ServerRow: React.FC<{
     <TableRow>
       <TableCell>{nodeName}</TableCell>
       <TableCell>
-        <Flex align="center" gap="2">
+        <div className="flex items-center gap-2">
           {ownedTasks.length > 0 ? display : t("common.none")}
-          <Dialog.Root open={open} onOpenChange={setOpen}>
-            <Dialog.Trigger>
-              <IconButton variant="ghost">
+          <Dialog open={open} onOpenChange={setOpen}>
+            <DialogTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                aria-label={t("ping.manage_server_tasks", {
+                  defaultValue: "Manage tasks for this server",
+                })}
+              >
                 <MoreHorizontal size={16} />
-              </IconButton>
-            </Dialog.Trigger>
-            <Dialog.Content className="sm:max-w-[450px]">
-              <Dialog.Title>
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-[450px]">
+              <DialogTitle>
                 {t("common.server")} - {nodeName}
-              </Dialog.Title>
+              </DialogTitle>
               <div className="mt-2">
                 <Selector
                   value={selectedIds}
@@ -161,7 +169,7 @@ const ServerRow: React.FC<{
                   getLabel={(task) => (
                     <span className="text-sm">
                       {task.name}
-                      <span className="ml-2 text-[13px] text-gray-500">
+                      <span className="ml-2 text-[13px] text-muted-foreground">
                         {task.type}/{task.interval}s
                       </span>
                     </span>
@@ -173,24 +181,23 @@ const ServerRow: React.FC<{
                   }
                 />
               </div>
-              <Flex gap="2" justify="end" className="mt-4">
-                <Dialog.Close>
+              <div className="mt-4 flex justify-end gap-2">
+                <DialogClose asChild>
                   <Button
-                    variant="soft"
-                    color="gray"
+                    variant="outline"
                     type="button"
                     onClick={() => setOpen(false)}
                   >
                     {t("common.cancel")}
                   </Button>
-                </Dialog.Close>
+                </DialogClose>
                 <Button onClick={handleSave} disabled={saving}>
                   {t("common.save")}
                 </Button>
-              </Flex>
-            </Dialog.Content>
-          </Dialog.Root>
-        </Flex>
+              </div>
+            </DialogContent>
+          </Dialog>
+        </div>
       </TableCell>
     </TableRow>
   );

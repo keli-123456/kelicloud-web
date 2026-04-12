@@ -1,4 +1,16 @@
 import { Checkbox } from "@/components/ui/checkbox";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { FormActions, FormField, FormShell } from "@/components/ui/form-shell";
+import { Input } from "@/components/ui/input";
+import { Switch } from "@/components/ui/switch";
 import {
   Table,
   TableBody,
@@ -16,18 +28,10 @@ import {
   useOfflineNotification,
   type OfflineNotification,
 } from "@/contexts/NotificationContext";
+import { DataTableShell } from "@/components/admin/DataTableShell";
 import React from "react";
 import { Pencil, Search } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import {
-  Badge,
-  Button,
-  Dialog,
-  Flex,
-  IconButton,
-  Switch,
-  TextField,
-} from "@/components/admin/admin-ui";
 import { toast } from "sonner";
 import Loading from "@/components/loading";
 import Tips from "@/components/ui/tips";
@@ -66,52 +70,52 @@ const NotificationEditForm = ({
         e.preventDefault();
         onSubmit({ enable: enabled, cooldown: 3000, grace_period: grace });
       }}
-      className="flex flex-col gap-2"
+      className="space-y-4"
     >
-      <label htmlFor="status">{t("common.status")}</label>
-      <Switch
-        id="status"
-        name="status"
-        checked={enabled}
-        onCheckedChange={setEnabled}
-      />
-      {/* <label htmlFor="cooldown">{t("notification.offline.cooldown")}</label>
-      <TextField.Root
-        type="number"
-        min={0}
-        value={cooldown}
-        onChange={e => setCooldown(Number(e.target.value))}
-        id="cooldown"
-        name="cooldown"
-      /> */}
-      <label htmlFor="grace_period" className="flex items-center gap-2">
-        {t("notification.offline.grace_period")}<Tips>{t("notification.offline.grace_period_tip")}</Tips>
-      </label>
-      <TextField.Root
-        type="number"
-        min={0}
-        value={grace}
-        onChange={(e) => setGrace(Number(e.target.value))}
-        id="grace_period"
-        name="grace_period"
-      />
-      <Flex gap="2" justify="end" className="mt-4">
+      <FormShell>
+        <FormField label={t("common.status")} htmlFor="status">
+          <Switch
+            id="status"
+            name="status"
+            checked={enabled}
+            onCheckedChange={setEnabled}
+          />
+        </FormField>
+        <FormField
+          label={
+            <span className="flex items-center gap-2">
+              {t("notification.offline.grace_period")}
+              <Tips>{t("notification.offline.grace_period_tip")}</Tips>
+            </span>
+          }
+          htmlFor="grace_period"
+        >
+          <Input
+            type="number"
+            min={0}
+            value={grace}
+            onChange={(e) => setGrace(Number(e.target.value))}
+            id="grace_period"
+            name="grace_period"
+          />
+        </FormField>
+      </FormShell>
+      <FormActions className="mt-4">
         {onCancel && (
-          <Dialog.Close>
+          <DialogClose asChild>
             <Button
-              variant="soft"
-              color="gray"
+              variant="outline"
               type="button"
               onClick={onCancel}
             >
               {t("common.cancel")}
             </Button>
-          </Dialog.Close>
+          </DialogClose>
         )}
-        <Button variant="solid" type="submit" disabled={loading}>
+        <Button type="submit" disabled={loading}>
           {t("common.save")}
         </Button>
-      </Flex>
+      </FormActions>
     </form>
   );
 };
@@ -203,66 +207,71 @@ const InnerLayout = () => {
   }
   return (
     <div className="flex flex-col gap-4 p-1 text-slate-900 dark:text-slate-100 md:p-4">
-      <Flex justify="between" align="center" wrap="wrap">
-        <label className="text-2xl font-semibold text-slate-900 dark:text-slate-100">
-          {t("notification.offline.full_title", "Offline Alerts Configuration")}
-        </label>
-        <TextField.Root
-          type="text"
-          className="max-w-64"
-          placeholder={t("common.search")}
-          value={search}
-          onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-            setSearch(e.target.value)
-          }
-        >
-          <TextField.Slot>
-            <Search size={16} />
-          </TextField.Slot>
-        </TextField.Root>
-      </Flex>
-      <OfflineNotificationTable
-        search={search}
-        selected={selected}
-        onSelectionChange={setSelected}
-      />
+      <label className="text-2xl font-semibold text-slate-900 dark:text-slate-100">
+        {t("notification.offline.full_title", "Offline Alerts Configuration")}
+      </label>
+      <DataTableShell
+        search={
+          <div className="relative max-w-64">
+            <Search
+              size={16}
+              className="pointer-events-none absolute top-1/2 left-2.5 -translate-y-1/2 text-muted-foreground"
+            />
+            <Input
+              type="text"
+              placeholder={t("common.search")}
+              value={search}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                setSearch(e.target.value)
+              }
+              className="pl-8"
+            />
+          </div>
+        }
+        batchActions={
+          <Dialog open={batchDialogOpen} onOpenChange={setBatchDialogOpen}>
+            <DialogTrigger asChild>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  // Seed the form from the first selected item.
+                  const first = offlineNotification.find(
+                    (n) => n.client === selected[0]
+                  );
+                  setBatchForm({
+                    enable: first?.enable ?? true,
+                    cooldown: first?.cooldown ?? 1800,
+                    grace_period: first?.grace_period ?? 300,
+                  });
+                }}
+                disabled={batchLoading || selected.length === 0}
+              >
+                {t("notification.offline.batch_edit")}
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogTitle>{t("notification.offline.batch_edit")}</DialogTitle>
+              <NotificationEditForm
+                initialValues={batchForm}
+                loading={batchLoading}
+                onSubmit={handleBatchEdit}
+                onCancel={() => setBatchDialogOpen(false)}
+              />
+            </DialogContent>
+          </Dialog>
+        }
+      >
+        <OfflineNotificationTable
+          search={search}
+          selected={selected}
+          onSelectionChange={setSelected}
+        />
+      </DataTableShell>
       <label className="text-sm text-muted-foreground">
         {t("common.selected", {
           count: selected.length,
         })}
       </label>
-      <Flex gap="2" align="center">
-        <Dialog.Root open={batchDialogOpen} onOpenChange={setBatchDialogOpen}>
-          <Dialog.Trigger>
-            <Button
-              variant="soft"
-              onClick={() => {
-                // Seed the form from the first selected item.
-                const first = offlineNotification.find(
-                  (n) => n.client === selected[0]
-                );
-                setBatchForm({
-                  enable: first?.enable ?? true,
-                  cooldown: first?.cooldown ?? 1800,
-                  grace_period: first?.grace_period ?? 300,
-                });
-              }}
-              disabled={batchLoading || selected.length === 0}
-            >
-              {t("notification.offline.batch_edit")}
-            </Button>
-          </Dialog.Trigger>
-          <Dialog.Content>
-            <Dialog.Title>{t("notification.offline.batch_edit")}</Dialog.Title>
-            <NotificationEditForm
-              initialValues={batchForm}
-              loading={batchLoading}
-              onSubmit={handleBatchEdit}
-              onCancel={() => setBatchDialogOpen(false)}
-            />
-          </Dialog.Content>
-        </Dialog.Root>
-      </Flex>
       <label className="text-sm text-muted-foreground">
         <span
           dangerouslySetInnerHTML={{ __html: t("notification.offline.tips") }}
@@ -334,11 +343,11 @@ const OfflineNotificationTable = ({
               <TableCell>{node.name}</TableCell>
               <TableCell>
                 <Badge
-                  color={
+                  variant={
                     offlineNotification.find((n) => n.client === node.uuid)
                       ?.enable
-                      ? "green"
-                      : "red"
+                      ? "success"
+                      : "destructive"
                   }
                 >
                   {offlineNotification.find((n) => n.client === node.uuid)
@@ -405,15 +414,19 @@ const ActionButtons = ({
         });
 
   return (
-    <Flex gap="2" align="center">
-      <Dialog.Root open={editOpen} onOpenChange={setEditOpen}>
-        <Dialog.Trigger>
-          <IconButton variant="ghost">
+    <div className="flex items-center gap-2">
+      <Dialog open={editOpen} onOpenChange={setEditOpen}>
+        <DialogTrigger asChild>
+          <Button
+            variant="ghost"
+            size="icon"
+            aria-label={t("common.edit", { defaultValue: "Edit" })}
+          >
             <Pencil size={16} />
-          </IconButton>
-        </Dialog.Trigger>
-        <Dialog.Content>
-          <Dialog.Title>{t("common.edit")}</Dialog.Title>
+          </Button>
+        </DialogTrigger>
+        <DialogContent>
+          <DialogTitle>{t("common.edit")}</DialogTitle>
           <NotificationEditForm
             initialValues={{
               enable: offlineNotifications?.enable ?? false,
@@ -462,9 +475,9 @@ const ActionButtons = ({
             }}
             onCancel={() => setEditOpen(false)}
           />
-        </Dialog.Content>
-      </Dialog.Root>
-    </Flex>
+        </DialogContent>
+      </Dialog>
+    </div>
   );
 };
 

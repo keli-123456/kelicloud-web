@@ -13,7 +13,7 @@ import {
   Badge,
 } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
+import { AsyncState } from "@/components/ui/async-state";
 import { Input } from "@/components/ui/input";
 import {
   Copy,
@@ -77,6 +77,8 @@ import {
   formatCNConnectivityTargetsSummary,
   parseCNConnectivityTargets,
 } from "@/lib/cnConnectivityTargets";
+import { resolveStatusBadgeVariant } from "@/lib/status-semantic";
+import { DataTableShell } from "@/components/admin/DataTableShell";
 import { Navigate } from "react-router-dom";
 const LazyNodeAccessSettingsDialog = React.lazy(
   () => import("@/components/admin/node-details/NodeAccessSettingsDialog"),
@@ -521,44 +523,48 @@ const Layout = ({
     };
   }, [call, liveScopeUUIDs]);
 
-  if (isLoading) return <Loading text="" />;
-  if (error) return <div>{error}</div>;
-
   return (
-    <div
-      className="flex min-w-0 flex-col gap-4 p-4 md:gap-6 md:p-6"
-      style={{
-        fontFamily:
-          '"Manrope","Noto Sans SC","PingFang SC","Microsoft YaHei",sans-serif',
-      }}
+    <AsyncState
+      loading={isLoading}
+      error={error}
+      onRetry={() => void refresh()}
+      retryLabel={translate("common.retry", { defaultValue: "Retry" })}
     >
-      <Header
-        nodes={allNodes}
-        visibleNodes={visibleNodes}
-        liveByNode={liveByNode}
-        liveLoaded={liveLoaded}
-        liveError={liveError}
-        settings={settings}
-        settingsLoading={settingsLoading}
-        settingsError={settingsError}
-        platformAdmin={platformAdmin}
-        toolbarSearchDraft={toolbarSearchDraft}
-        toolbarSearchKeyword={normalizedToolbarSearchKeyword}
-        onToolbarSearchDraftChange={onToolbarSearchDraftChange}
-        onToolbarSearch={onToolbarSearch}
-        installActionsEnabled={installActionsEnabled}
-        canManageCNConnectivity={canManageCNConnectivity}
-        onRefreshSettings={refetchSettings}
-      />
+      <div
+        className="flex min-w-0 flex-col gap-4 p-4 md:gap-6 md:p-6"
+        style={{
+          fontFamily:
+            '"Manrope","Noto Sans SC","PingFang SC","Microsoft YaHei",sans-serif',
+        }}
+      >
+        <Header
+          nodes={allNodes}
+          visibleNodes={visibleNodes}
+          liveByNode={liveByNode}
+          liveLoaded={liveLoaded}
+          liveError={liveError}
+          settings={settings}
+          settingsLoading={settingsLoading}
+          settingsError={settingsError}
+          platformAdmin={platformAdmin}
+          toolbarSearchDraft={toolbarSearchDraft}
+          toolbarSearchKeyword={normalizedToolbarSearchKeyword}
+          onToolbarSearchDraftChange={onToolbarSearchDraftChange}
+          onToolbarSearch={onToolbarSearch}
+          installActionsEnabled={installActionsEnabled}
+          canManageCNConnectivity={canManageCNConnectivity}
+          onRefreshSettings={refetchSettings}
+        />
 
-      <NodeTable
-        nodes={visibleNodes}
-        totalNodesCount={allNodes.length}
-        liveByNode={liveByNode}
-        settings={settings}
-        installActionsEnabled={installActionsEnabled}
-      />
-    </div>
+        <NodeTable
+          nodes={visibleNodes}
+          totalNodesCount={allNodes.length}
+          liveByNode={liveByNode}
+          settings={settings}
+          installActionsEnabled={installActionsEnabled}
+        />
+      </div>
+    </AsyncState>
   );
 };
 
@@ -806,32 +812,33 @@ const Header = ({
         </Alert>
       ) : null}
 
-      <div className="border-b border-border/50 pb-2">
-        <div className="flex flex-wrap items-center gap-2 xl:flex-nowrap xl:gap-3">
-          <div className="min-w-[260px] flex-1 xl:max-w-[360px]">
-            <form
-              className="relative"
-              onSubmit={(event) => {
-                event.preventDefault();
-                onToolbarSearch();
-              }}
-            >
-              <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                className="h-9 rounded-md border-border/60 pl-9"
-                placeholder={t("admin.nodeTable.toolbarSearchPlaceholder", {
-                  defaultValue: "搜索节点名称 / IP",
-                })}
-                value={toolbarSearchDraft}
-                onChange={(event) => onToolbarSearchDraftChange(event.target.value)}
-                aria-label={t("admin.nodeTable.toolbarSearchPlaceholder", {
-                  defaultValue: "搜索节点名称 / IP",
-                })}
-              />
-            </form>
-          </div>
-
-          <div className="min-w-0 flex-1 text-xs text-muted-foreground">
+      <DataTableShell
+        className="gap-0"
+        toolbarClassName="border-b border-border/50 rounded-none border-x-0 border-t-0 bg-transparent p-0 pb-2"
+        search={(
+          <form
+            className="relative"
+            onSubmit={(event) => {
+              event.preventDefault();
+              onToolbarSearch();
+            }}
+          >
+            <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              className="h-9 rounded-md border-border/60 pl-9"
+              placeholder={t("admin.nodeTable.toolbarSearchPlaceholder", {
+                defaultValue: "搜索节点名称 / IP",
+              })}
+              value={toolbarSearchDraft}
+              onChange={(event) => onToolbarSearchDraftChange(event.target.value)}
+              aria-label={t("admin.nodeTable.toolbarSearchPlaceholder", {
+                defaultValue: "搜索节点名称 / IP",
+              })}
+            />
+          </form>
+        )}
+        filters={(
+          <div className="min-w-0 text-xs text-muted-foreground">
             {hasEffectiveFilters ? (
               <div className="truncate">
                 <span className="font-medium text-foreground">
@@ -874,8 +881,9 @@ const Header = ({
               </div>
             )}
           </div>
-
-          <div className="ml-auto flex shrink-0 items-center gap-2">
+        )}
+        actions={(
+          <>
             <Badge
               variant="secondary"
               className={`h-9 shrink-0 rounded-md border border-border/60 bg-transparent px-2.5 text-xs font-medium shadow-none ${
@@ -950,9 +958,9 @@ const Header = ({
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
-          </div>
-        </div>
-      </div>
+          </>
+        )}
+      />
       {groupCommandDialogOpen ? (
         <React.Suspense fallback={null}>
           <LazyGenerateCommandDialog
@@ -960,7 +968,6 @@ const Header = ({
             onOpenChange={setGroupCommandDialogOpen}
             nodes={nodes}
             settings={settings}
-            toolbar
             groupMode
           />
         </React.Suspense>
@@ -1046,6 +1053,7 @@ const buildCNConnectivityBadge = (
   connectivity: NonNullable<LiveRecord["cn_connectivity"]>,
   t: any
 ) => {
+  const normalizedStatus = String(connectivity.status || "").trim().toLowerCase() || "unknown";
   const latencyLabel =
     typeof connectivity.latency === "number" && connectivity.latency > 0
       ? ` ${connectivity.latency}ms`
@@ -1058,29 +1066,29 @@ const buildCNConnectivityBadge = (
   ].filter(Boolean);
   const title = titleParts.join("\n");
 
-  switch (connectivity.status) {
+  switch (normalizedStatus) {
     case "ok":
       return {
         label: `${t("admin.nodeTable.cnConnectivityOk", "CN OK")}${latencyLabel}`,
-        variant: "success" as const,
+        variant: resolveStatusBadgeVariant(normalizedStatus),
         title,
       };
     case "blocked_suspected":
       return {
         label: t("admin.nodeTable.cnConnectivityBlocked", "CN blocked"),
-        variant: "destructive" as const,
+        variant: resolveStatusBadgeVariant(normalizedStatus),
         title,
       };
     case "degraded":
       return {
         label: t("admin.nodeTable.cnConnectivityDegraded", "CN degraded"),
-        variant: "warning" as const,
+        variant: resolveStatusBadgeVariant(normalizedStatus),
         title,
       };
     default:
       return {
         label: t("admin.nodeTable.cnConnectivityUnknown", "CN pending"),
-        variant: "secondary" as const,
+        variant: resolveStatusBadgeVariant(normalizedStatus),
         title,
       };
   }
@@ -1554,14 +1562,12 @@ const GroupSummaryPill = ({
   tone?: "slate" | "green" | "red" | "blue";
   title?: string;
 }) => {
-  const variant: "success" | "destructive" | "outline" | "secondary" =
+  const variant: "success" | "destructive" | "secondary" =
     tone === "green"
       ? "success"
       : tone === "red"
         ? "destructive"
-        : tone === "blue"
-          ? "outline"
-          : "secondary";
+        : "secondary";
 
   return (
     <Badge
@@ -1698,7 +1704,6 @@ const NodeGroupSection = ({
               value={`↑ ${formatBytes(totalUploadSpeed)}/s · ↓ ${formatBytes(
                 totalDownloadSpeed
               )}/s`}
-              tone="blue"
             />
             <GroupSummaryPill
               label={t("admin.nodeTable.totalTraffic", "Total traffic")}
@@ -1726,18 +1731,20 @@ const NodeGroupSection = ({
           />
         </div>
       </div>
-      <Table className="min-w-[1160px]">
-        <NodeTableColumns />
-        <TableBody>
-          {nodes.map((node) => (
-            <SortableRow
-              key={node.uuid}
-              node={node}
-              live={liveByNode[node.uuid]}
-            />
-          ))}
-        </TableBody>
-      </Table>
+      <div className="w-full overflow-x-auto">
+        <Table className="min-w-[1160px]">
+          <NodeTableColumns />
+          <TableBody>
+            {nodes.map((node) => (
+              <SortableRow
+                key={node.uuid}
+                node={node}
+                live={liveByNode[node.uuid]}
+              />
+            ))}
+          </TableBody>
+        </Table>
+      </div>
     </div>
   );
 };
@@ -1776,17 +1783,24 @@ const NodeTable = ({
   }, [nodes]);
 
   return (
-    <div className="flex min-w-0 flex-col gap-4">
-      {nodes.length === 0 ? (
-        <Card className="rounded-xl border-dashed border-border/70 py-10 text-center text-sm text-muted-foreground shadow-none">
-          {hasActiveFilters
-            ? t("admin.nodeTable.noFilteredNodes", {
-              defaultValue: "没有匹配当前筛选条件的节点",
-            })
-            : t("admin.nodeTable.noNodes", "No nodes")}
-        </Card>
-      ) : (
-        groupedNodes.map((group) => (
+    <DataTableShell
+      className="min-w-0"
+      empty={nodes.length === 0}
+      emptyTitle={hasActiveFilters
+        ? t("admin.nodeTable.noFilteredNodes", {
+          defaultValue: "没有匹配当前筛选条件的节点",
+        })
+        : t("admin.nodeTable.noNodes", "No nodes")}
+      emptyDescription={hasActiveFilters
+        ? t("admin.nodeTable.noFilteredNodesHint", {
+          defaultValue: "Try adjusting search keywords or filter conditions.",
+        })
+        : t("admin.nodeTable.noNodesHint", {
+          defaultValue: "Add nodes to start monitoring status and metrics.",
+        })}
+    >
+      <div className="flex min-w-0 flex-col gap-4">
+        {groupedNodes.map((group) => (
           <NodeGroupSection
             key={group.groupName}
             groupName={group.groupName}
@@ -1795,9 +1809,9 @@ const NodeTable = ({
             settings={settings}
             installActionsEnabled={installActionsEnabled}
           />
-        ))
-      )}
-    </div>
+        ))}
+      </div>
+    </DataTableShell>
   );
 };
 
@@ -1848,6 +1862,7 @@ function GenerateCommandButton({
           variant="ghost"
           size="icon"
           title={t("admin.nodeTable.installCommand")}
+          aria-label={t("admin.nodeTable.installCommand")}
           className="h-8 w-8 rounded-md"
           disabled={disabled}
           onClick={() => setDialogOpen(true)}
@@ -1864,7 +1879,6 @@ function GenerateCommandButton({
             node={node}
             nodes={nodes}
             settings={settings}
-            toolbar={toolbar}
             groupMode={groupMode}
             presetGroupName={presetGroupName}
           />

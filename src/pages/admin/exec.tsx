@@ -21,6 +21,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { resolveStatusBadgeVariant } from "@/lib/status-semantic";
 
 interface TaskResult {
     task_id: string;
@@ -298,31 +299,26 @@ const ExecContent = () => {
         .join(", ");
 
     const getTaskStatus = (result: TaskResult) => {
+        let statusKey = "failed";
         if (result.finished_at === null) {
-            return {
-                status: "running",
-                variant: "info" as const,
-                text: t("exec.status.running"),
-            };
+            statusKey = "running";
+        } else if (result.result === EXEC_TIMEOUT_SENTINEL) {
+            statusKey = "timeout";
+        } else if (result.exit_code === 0) {
+            statusKey = "success";
         }
-        if (result.result === EXEC_TIMEOUT_SENTINEL) {
-            return {
-                status: "timeout",
-                variant: "warning" as const,
-                text: t("exec.status.timeout", "Timeout"),
-            };
-        }
-        if (result.exit_code === 0) {
-            return {
-                status: "success",
-                variant: "success" as const,
-                text: t("common.success"),
-            };
-        }
+
         return {
-            status: "failed",
-            variant: "destructive" as const,
-            text: t("common.error"),
+            status: statusKey,
+            variant: resolveStatusBadgeVariant(statusKey),
+            text:
+                statusKey === "running"
+                    ? t("exec.status.running")
+                    : statusKey === "timeout"
+                        ? t("exec.status.timeout", "Timeout")
+                        : statusKey === "success"
+                            ? t("common.success")
+                            : t("common.error"),
         };
     };
 
@@ -600,6 +596,7 @@ const ExecContent = () => {
                                                         size="icon"
                                                         onClick={() => copyOutput(getDisplayOutput(result.result))}
                                                         className="h-8 w-8 rounded-md"
+                                                        aria-label={t("common.copy", { defaultValue: "Copy" })}
                                                     >
                                                         <Copy size={14} />
                                                     </Button>

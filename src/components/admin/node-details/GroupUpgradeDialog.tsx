@@ -4,21 +4,61 @@ import { LoaderCircle } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import {
-  Button,
-  Dialog,
-  TextArea,
-} from "@/components/admin/admin-ui";
+  Button as ShadButton,
+} from "@/components/ui/button";
+import {
+  Dialog as ShadDialog,
+  DialogClose as ShadDialogClose,
+  DialogContent as ShadDialogContent,
+  DialogDescription as ShadDialogDescription,
+  DialogTitle as ShadDialogTitle,
+} from "@/components/ui/dialog";
+import { Badge } from "@/components/ui/badge";
+import { Textarea } from "@/components/ui/textarea";
 import {
   useNodeDetails,
   type NodeDetail,
 } from "@/contexts/NodeDetailsContext";
 import type { SettingsResponse } from "@/lib/api";
 import { buildAgentInstallScriptURL } from "@/lib/installScriptSource";
+import { resolveStatusBadgeVariant } from "@/lib/status-semantic";
 import type { Record as LiveRecord } from "@/types/LiveData";
 import { formatBytes } from "@/utils/unitHelper";
 
+const Button = ShadButton;
+const TextArea = Textarea;
+
+const Dialog = {
+  Root: ShadDialog,
+  Content: ({
+    maxWidth,
+    ...props
+  }: React.ComponentProps<typeof ShadDialogContent> & { maxWidth?: number }) => {
+    void maxWidth;
+    return <ShadDialogContent {...props} />;
+  },
+  Title: ShadDialogTitle,
+  Description: ShadDialogDescription,
+  Close: ({
+    children,
+    ...props
+  }: React.ComponentProps<typeof ShadDialogClose>) => {
+    if (
+      React.isValidElement(children) &&
+      typeof children.type !== "string"
+    ) {
+      return (
+        <ShadDialogClose asChild {...props}>
+          {children}
+        </ShadDialogClose>
+      );
+    }
+    return <ShadDialogClose {...props}>{children}</ShadDialogClose>;
+  },
+};
+
 const NODE_DIALOG_CONTENT_CLASS =
-  "max-h-[90vh] w-[min(96vw,760px)] overflow-y-auto overscroll-contain rounded-[28px] border border-slate-200/80 bg-white/95 p-6 shadow-2xl [scrollbar-gutter:stable] backdrop-blur dark:border-slate-800/80 dark:bg-slate-950/95";
+  "max-h-[100dvh] w-[calc(100vw-1rem)] max-w-[calc(100vw-1rem)] overflow-y-auto overscroll-contain rounded-none border-0 bg-background p-4 [scrollbar-gutter:stable] sm:max-h-[90vh] sm:max-w-[760px] sm:rounded-2xl sm:border sm:border-border/70 sm:bg-background sm:p-5";
 const NODE_DIALOG_FOOTER_CLASS =
   "mt-6 flex flex-col-reverse gap-2.5 sm:flex-row sm:justify-end";
 
@@ -963,25 +1003,19 @@ export default function GroupUpgradeDialog({
             ) : (
               onlineNodes.map((node) => {
                 const result = resultState[node.uuid];
+                const statusKey = result?.status || "idle";
                 const statusLabel =
-                  result?.status === "success"
+                  statusKey === "success"
                     ? t("admin.nodeTable.upgradeSuccessShort", "Succeeded")
-                    : result?.status === "failed"
+                    : statusKey === "failed"
                       ? t("admin.nodeTable.upgradeFailedShort", "Failed")
-                      : result?.status === "timeout"
+                      : statusKey === "timeout"
                         ? t("exec.status.timeout", "Timeout")
-                        : result?.status === "running"
+                        : statusKey === "running"
                           ? t("admin.nodeTable.upgradeRunning", "Running")
-                          : result?.status === "pending"
+                          : statusKey === "pending"
                             ? t("admin.nodeTable.upgradePending", "Queued")
                             : t("admin.nodeTable.upgradeNotStarted", "Not started");
-                const statusClass =
-                  result?.status === "success"
-                    ? "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/30 dark:text-emerald-300"
-                    : result?.status === "failed" ||
-                        result?.status === "timeout"
-                      ? "border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-900/60 dark:bg-rose-950/30 dark:text-rose-300"
-                      : "border-slate-200 bg-slate-50 text-slate-600 dark:border-slate-800 dark:bg-slate-900/50 dark:text-slate-300";
 
                 return (
                   <div
@@ -1002,14 +1036,15 @@ export default function GroupUpgradeDialog({
                           : ""}
                       </div>
                     </div>
-                    <div
-                      className={`inline-flex w-fit items-center gap-2 rounded-full border px-3 py-1 text-xs ${statusClass}`}
+                    <Badge
+                      variant={resolveStatusBadgeVariant(statusKey)}
+                      className="w-fit gap-2 rounded-full px-3 py-1 text-xs"
                     >
-                      {result?.status === "running" ? (
+                      {statusKey === "running" ? (
                         <LoaderCircle className="h-3.5 w-3.5 animate-spin" />
                       ) : null}
                       {statusLabel}
-                    </div>
+                    </Badge>
                   </div>
                 );
               })

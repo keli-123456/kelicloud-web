@@ -18,14 +18,29 @@ import {
   useNodeDetails,
 } from "@/contexts/NodeDetailsContext";
 
+import { Button } from "@/components/ui/button";
 import {
-  Button,
   Dialog,
-  Flex,
-  IconButton,
+  DialogClose,
+  DialogContent,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import {
+  FormActions,
+  FormErrorText,
+  FormField,
+  FormHelpText,
+  FormSection,
+  FormShell,
+} from "@/components/ui/form-shell";
+import {
   Select,
-  TextField,
-} from "@/components/admin/admin-ui";
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+} from "@/components/ui/select";
 import { MoreHorizontal, Pencil, Trash } from "lucide-react";
 import React from "react";
 import { useTranslation } from "react-i18next";
@@ -57,15 +72,15 @@ const InnerLayout = () => {
     );
   }
   return (
-    <Flex direction="column" gap="4" className="p-4 text-slate-900 dark:text-slate-100">
-      <div className="flex justify-between items-center">
-        <label className="text-2xl font-bold text-slate-900 dark:text-slate-100">
+    <div className="flex flex-col gap-4 p-4 text-foreground">
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-semibold tracking-tight text-foreground">
           {t("notification.load.title")}
-        </label>
+        </h1>
         <AddButton />
       </div>
 
-      <div className="overflow-hidden rounded-xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-950/40">
+      <div className="overflow-hidden rounded-xl border border-border/60 bg-card">
         <Table>
           <TableHeader>
             <TableHead>{t("common.name")}</TableHead>
@@ -86,7 +101,7 @@ const InnerLayout = () => {
           </TableBody>
         </Table>
       </div>
-    </Flex>
+    </div>
   );
 };
 
@@ -96,6 +111,7 @@ const Row = ({ alert }: { alert: LoadAlert }) => {
   const { nodeDetail } = useNodeDetails();
   const [editOpen, setEditOpen] = React.useState(false);
   const [editSaving, setEditSaving] = React.useState(false);
+  const [editError, setEditError] = React.useState("");
   const [deleteOpen, setDeleteOpen] = React.useState(false);
   const [deleteLoading, setDeleteLoading] = React.useState(false);
   const [form, setForm] = React.useState({
@@ -153,10 +169,14 @@ const Row = ({ alert }: { alert: LoadAlert }) => {
       })
       .then(() => {
         setEditOpen(false);
+        setEditError("");
         toast.success(t("common.updated_successfully"));
         refresh();
       })
       .catch((error) => {
+        setEditError(
+          error instanceof Error ? error.message : getUpdateFailedMessage(),
+        );
         toast.error(
           error instanceof Error ? error.message : getUpdateFailedMessage(),
         );
@@ -167,6 +187,47 @@ const Row = ({ alert }: { alert: LoadAlert }) => {
   // Submit the edit form.
   const handleEdit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    setEditError("");
+    if (!form.name.trim()) {
+      setEditError(
+        t("loadAlert.validation.name_required", {
+          defaultValue: "Alert name is required.",
+        }),
+      );
+      return;
+    }
+    if ((form.clients || []).length === 0) {
+      setEditError(
+        t("loadAlert.validation.server_required", {
+          defaultValue: "Select at least one server.",
+        }),
+      );
+      return;
+    }
+    if (!Number.isFinite(form.threshold) || form.threshold <= 0) {
+      setEditError(
+        t("loadAlert.validation.threshold_required", {
+          defaultValue: "Threshold must be greater than 0.",
+        }),
+      );
+      return;
+    }
+    if (!Number.isFinite(form.ratio) || form.ratio < 0 || form.ratio > 1) {
+      setEditError(
+        t("loadAlert.validation.ratio_invalid", {
+          defaultValue: "Ratio must be between 0 and 1.",
+        }),
+      );
+      return;
+    }
+    if (!Number.isFinite(form.interval) || form.interval <= 0) {
+      setEditError(
+        t("loadAlert.validation.interval_required", {
+          defaultValue: "Interval must be greater than 0.",
+        }),
+      );
+      return;
+    }
     submitEdit(form);
   };
 
@@ -202,7 +263,7 @@ const Row = ({ alert }: { alert: LoadAlert }) => {
     <TableRow key={alert.id}>
       <TableCell>{alert.name}</TableCell>
       <TableCell>
-        <Flex gap="2" align="center">
+        <div className="flex items-center gap-2">
           {alert.clients && alert.clients.length > 0
             ? (() => {
                 const names = alert.clients.map((uuid) => {
@@ -224,11 +285,17 @@ const Row = ({ alert }: { alert: LoadAlert }) => {
               submitEdit({ ...form, clients: uuids });
             }}
           >
-            <IconButton variant="ghost">
+            <Button
+              variant="ghost"
+              size="icon"
+              aria-label={t("loadAlert.manage_servers", {
+                defaultValue: "Manage alert servers",
+              })}
+            >
               <MoreHorizontal size="16" />
-            </IconButton>
+            </Button>
           </NodeSelectorDialog>
-        </Flex>
+        </div>
       </TableCell>
       <TableCell>{alert.metric?.toUpperCase()}</TableCell>
       <TableCell>{alert.threshold}%</TableCell>
@@ -238,128 +305,168 @@ const Row = ({ alert }: { alert: LoadAlert }) => {
       </TableCell>
       <TableCell className="flex items-center gap-2">
         {/* Edit action. */}
-        <Dialog.Root open={editOpen} onOpenChange={setEditOpen}>
-          <Dialog.Trigger>
-            <IconButton variant="soft">
+        <Dialog
+          open={editOpen}
+          onOpenChange={(open) => {
+            setEditOpen(open);
+            if (!open) {
+              setEditError("");
+            }
+          }}
+        >
+          <DialogTrigger asChild>
+            <Button
+              variant="outline"
+              size="icon"
+              aria-label={t("common.edit", { defaultValue: "Edit" })}
+            >
               <Pencil size="16" />
-            </IconButton>
-          </Dialog.Trigger>
-          <Dialog.Content>
-            <Dialog.Title>{t("common.edit")}</Dialog.Title>
-            <form onSubmit={handleEdit} className="flex flex-col gap-2">
-              <label>{t("common.name")}</label>
-              <TextField.Root
-                value={form.name}
-                onChange={(e) =>
-                  setForm((f) => ({ ...f, name: e.target.value }))
-                }
-                required
-              />
-              <label>{t("loadAlert.metric")}</label>
-              <Select.Root
-                value={form.metric}
-                onValueChange={(v) =>
-                  setForm((f) => ({ ...f, metric: v as any }))
-                }
-              >
-                <Select.Trigger />
-                <Select.Content>
-                  <Select.Item value="cpu">CPU</Select.Item>
-                  <Select.Item value="ram">RAM</Select.Item>
-                  <Select.Item value="disk">Disk</Select.Item>
-                  <Select.Item value="net_in">Net In</Select.Item>
-                  <Select.Item value="net_out">Net Out</Select.Item>
-                </Select.Content>
-              </Select.Root>
-              <label>{t("common.threshold")} (%)</label>
-              <TextField.Root
-                type="number"
-                value={form.threshold}
-                onChange={(e) =>
-                  setForm((f) => ({ ...f, threshold: Number(e.target.value) }))
-                }
-                required
-              />
-              <label>{t("loadAlert.ratio")}</label>
-              <TextField.Root
-                type="number"
-                step="0.1"
-                min="0"
-                max="1"
-                value={form.ratio}
-                onChange={(e) =>
-                  setForm((f) => ({ ...f, ratio: Number(e.target.value) }))
-                }
-                required
-              />
-              <label>{t("common.server")}</label>
-              <Flex>
-                <NodeSelectorDialog
-                  value={form.clients}
-                  hiddenUuidOnlyClient
-                  onChange={(v) => setForm((f) => ({ ...f, clients: v }))}
-                />
-              </Flex>
-              <label>
-                {t("ping.interval")} ({t("time.minute")})
-              </label>
-              <TextField.Root
-                type="number"
-                value={form.interval}
-                onChange={(e) =>
-                  setForm((f) => ({ ...f, interval: Number(e.target.value) }))
-                }
-                required
-              />
-              <Flex gap="2" justify="end" className="mt-4">
-                <Dialog.Close>
+            </Button>
+          </DialogTrigger>
+          <DialogContent>
+            <DialogTitle>{t("common.edit")}</DialogTitle>
+            <form onSubmit={handleEdit} className="space-y-4">
+              <FormShell>
+                <FormSection
+                  title={t("loadAlert.form.basic", { defaultValue: "Basic settings" })}
+                >
+                  <FormField label={t("common.name")} required>
+                    <Input
+                      value={form.name}
+                      onChange={(e) =>
+                        setForm((f) => ({ ...f, name: e.target.value }))
+                      }
+                    />
+                  </FormField>
+                  <FormField label={t("loadAlert.metric")} required>
+                    <Select
+                      value={form.metric}
+                      onValueChange={(v) =>
+                        setForm((f) => ({ ...f, metric: v as any }))
+                      }
+                    >
+                      <SelectTrigger />
+                      <SelectContent>
+                        <SelectItem value="cpu">CPU</SelectItem>
+                        <SelectItem value="ram">RAM</SelectItem>
+                        <SelectItem value="disk">Disk</SelectItem>
+                        <SelectItem value="net_in">Net In</SelectItem>
+                        <SelectItem value="net_out">Net Out</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </FormField>
+                  <FormField label={`${t("common.threshold")} (%)`} required>
+                    <Input
+                      type="number"
+                      min={0}
+                      value={form.threshold}
+                      onChange={(e) =>
+                        setForm((f) => ({ ...f, threshold: Number(e.target.value) }))
+                      }
+                    />
+                  </FormField>
+                </FormSection>
+
+                <FormSection
+                  advanced
+                  title={t("loadAlert.form.advanced", { defaultValue: "Advanced settings" })}
+                  toggleLabel={t("common.advanced", { defaultValue: "Advanced options" })}
+                >
+                  <FormField label={t("loadAlert.ratio")} required>
+                    <Input
+                      type="number"
+                      step="0.1"
+                      min="0"
+                      max="1"
+                      value={form.ratio}
+                      onChange={(e) =>
+                        setForm((f) => ({ ...f, ratio: Number(e.target.value) }))
+                      }
+                    />
+                    <FormHelpText>
+                      {t("loadAlert.ratio_help", {
+                        defaultValue: "Recommended range: 0 ~ 1.",
+                      })}
+                    </FormHelpText>
+                  </FormField>
+                  <FormField label={t("common.server")} required>
+                    <NodeSelectorDialog
+                      value={form.clients}
+                      hiddenUuidOnlyClient
+                      onChange={(v) => setForm((f) => ({ ...f, clients: v }))}
+                    />
+                    <FormHelpText>
+                      {t("common.selected", { count: form.clients.length })}
+                    </FormHelpText>
+                  </FormField>
+                  <FormField
+                    label={`${t("ping.interval")} (${t("time.minute")})`}
+                    required
+                  >
+                    <Input
+                      type="number"
+                      min={1}
+                      value={form.interval}
+                      onChange={(e) =>
+                        setForm((f) => ({ ...f, interval: Number(e.target.value) }))
+                      }
+                    />
+                  </FormField>
+                </FormSection>
+              </FormShell>
+
+              {editError ? <FormErrorText>{editError}</FormErrorText> : null}
+
+              <FormActions>
+                <DialogClose asChild>
                   <Button
-                    variant="soft"
-                    color="gray"
+                    variant="outline"
                     type="button"
                     onClick={() => setEditOpen(false)}
                   >
                     {t("common.cancel")}
                   </Button>
-                </Dialog.Close>
-                <Button variant="solid" type="submit" disabled={editSaving}>
+                </DialogClose>
+                <Button type="submit" disabled={editSaving}>
                   {t("common.save")}
                 </Button>
-              </Flex>
+              </FormActions>
             </form>
-          </Dialog.Content>
-        </Dialog.Root>
+          </DialogContent>
+        </Dialog>
         {/* Delete action. */}
-        <Dialog.Root open={deleteOpen} onOpenChange={setDeleteOpen}>
-          <Dialog.Trigger>
-            <IconButton variant="soft" color="red">
+        <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+          <DialogTrigger asChild>
+            <Button
+              variant="destructive"
+              size="icon"
+              aria-label={t("common.delete", { defaultValue: "Delete" })}
+            >
               <Trash size="16" />
-            </IconButton>
-          </Dialog.Trigger>
-          <Dialog.Content>
-            <Dialog.Title>{t("common.delete")}</Dialog.Title>
-            <Flex gap="2" justify="end" className="mt-4">
-              <Dialog.Close>
+            </Button>
+          </DialogTrigger>
+          <DialogContent>
+            <DialogTitle>{t("common.delete")}</DialogTitle>
+            <div className="mt-4 flex justify-end gap-2">
+              <DialogClose asChild>
                 <Button
-                  variant="soft"
-                  color="gray"
+                  variant="outline"
                   type="button"
                   onClick={() => setDeleteOpen(false)}
                 >
                   {t("common.cancel")}
                 </Button>
-              </Dialog.Close>
+              </DialogClose>
               <Button
-                variant="solid"
-                color="red"
+                variant="destructive"
                 onClick={handleDelete}
                 disabled={deleteLoading}
               >
                 {t("common.delete")}
               </Button>
-            </Flex>
-          </Dialog.Content>
-        </Dialog.Root>
+            </div>
+          </DialogContent>
+        </Dialog>
       </TableCell>
     </TableRow>
   );
@@ -369,6 +476,7 @@ const AddButton: React.FC = () => {
   const { t } = useTranslation();
   const [isOpen, setIsOpen] = React.useState(false);
   const [selected, setSelected] = React.useState<string[]>([]);
+  const [submitError, setSubmitError] = React.useState("");
   const { refresh } = useLoadAlert();
   const [selectedType, setSelectedType] = React.useState<
     "cpu" | "ram" | "disk" | "net_in" | "net_out"
@@ -385,13 +493,59 @@ const AddButton: React.FC = () => {
         });
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    setSubmitError("");
+    const name = e.currentTarget.load_name.value.trim();
+    const threshold = parseFloat(e.currentTarget.threshold.value);
+    const ratio = parseFloat(e.currentTarget.ratio.value);
+    const interval = parseInt(e.currentTarget.interval.value, 10);
+    if (!name) {
+      setSubmitError(
+        t("loadAlert.validation.name_required", {
+          defaultValue: "Alert name is required.",
+        }),
+      );
+      return;
+    }
+    if (selected.length === 0) {
+      setSubmitError(
+        t("loadAlert.validation.server_required", {
+          defaultValue: "Select at least one server.",
+        }),
+      );
+      return;
+    }
+    if (!Number.isFinite(threshold) || threshold <= 0) {
+      setSubmitError(
+        t("loadAlert.validation.threshold_required", {
+          defaultValue: "Threshold must be greater than 0.",
+        }),
+      );
+      return;
+    }
+    if (!Number.isFinite(ratio) || ratio < 0 || ratio > 1) {
+      setSubmitError(
+        t("loadAlert.validation.ratio_invalid", {
+          defaultValue: "Ratio must be between 0 and 1.",
+        }),
+      );
+      return;
+    }
+    if (!Number.isFinite(interval) || interval <= 0) {
+      setSubmitError(
+        t("loadAlert.validation.interval_required", {
+          defaultValue: "Interval must be greater than 0.",
+        }),
+      );
+      return;
+    }
+
     const payload = {
-      name: e.currentTarget.load_name.value,
+      name,
       metric: selectedType,
-      threshold: parseFloat(e.currentTarget.threshold.value),
-      ratio: parseFloat(e.currentTarget.ratio.value),
+      threshold,
+      ratio,
       clients: selected,
-      interval: parseInt(e.currentTarget.interval.value, 10),
+      interval,
     };
     setSaving(true);
     fetch("/api/admin/notification/load/add", {
@@ -407,12 +561,16 @@ const AddButton: React.FC = () => {
           throw new Error(data?.message || getAddFailedMessage(response.statusText));
         }
         setIsOpen(false);
+        setSubmitError("");
         setSelected([]);
         setSelectedType("cpu");
         toast.success(t("common.added_successfully"));
       })
       .catch((error) => {
         console.error("Error adding load alert:", error);
+        setSubmitError(
+          error instanceof Error ? error.message : getAddFailedMessage(),
+        );
         toast.error(
           error instanceof Error ? error.message : getAddFailedMessage(),
         );
@@ -423,81 +581,116 @@ const AddButton: React.FC = () => {
       });
   };
   return (
-    <Dialog.Root open={isOpen} onOpenChange={setIsOpen}>
-      <Dialog.Trigger>
+    <Dialog open={isOpen} onOpenChange={setIsOpen}>
+      <DialogTrigger asChild>
         <Button>{t("common.add")}</Button>
-      </Dialog.Trigger>
-      <Dialog.Content>
-        <Dialog.Title>{t("common.add")}</Dialog.Title>
-        <form onSubmit={handleSubmit}>
-          <Flex direction="column" justify="end" gap="2" className="font-bold">
-            <label htmlFor="load_name">{t("common.name")}</label>
-            <TextField.Root id="load_name" name="load_name" />
-            <label htmlFor="type">{t("loadAlert.metric")}</label>
-            <Select.Root
-              value={selectedType}
-              onValueChange={(value) =>
-                setSelectedType(
-                  value as "cpu" | "ram" | "disk" | "net_in" | "net_out",
-                )
-              }
+      </DialogTrigger>
+      <DialogContent>
+        <DialogTitle>{t("common.add")}</DialogTitle>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <FormShell>
+            <FormSection
+              title={t("loadAlert.form.basic", { defaultValue: "Basic settings" })}
             >
-              <Select.Trigger id="type" name="type" />
-              <Select.Content>
-                <Select.Item value="cpu">CPU</Select.Item>
-                <Select.Item value="ram">RAM</Select.Item>
-                <Select.Item value="disk">Disk</Select.Item>
-                <Select.Item value="net_in">Net In(Mbps)</Select.Item>
-                <Select.Item value="net_out">Net Out(Mbps)</Select.Item>
-              </Select.Content>
-            </Select.Root>
-            <label htmlFor="threshold">{t("common.threshold")} (%/Mbps)</label>
-            <TextField.Root
-              id="threshold"
-              name="threshold"
-              type="number"
-              defaultValue={80}
-              step="0.1"
-            />
-            <label htmlFor="ratio">{t("loadAlert.ratio")}</label>
-            <TextField.Root
-              id="ratio"
-              name="ratio"
-              type="number"
-              step="0.1"
-              min="0"
-              max="1"
-              defaultValue={0.8}
-            />
-            <label htmlFor="select">{t("common.server")}</label>
-            <div className="flex items-center justify-start gap-2">
-              <NodeSelectorDialog value={selected} onChange={setSelected} />
-              <label className="text-md font-normal">
-                {t("common.selected", { count: selected.length })}
-              </label>
-            </div>
-            <label htmlFor="interval">
-              {t("ping.interval")} ({t("time.minute")})
-            </label>
-            <TextField.Root
-              id="interval"
-              name="interval"
-              defaultValue={15}
-              type="number"
-              placeholder="15"
-            />
-            <div className="flex justify-end gap-2">
-              <Dialog.Close>
-                <Button variant="soft">{t("common.close")}</Button>
-              </Dialog.Close>
-              <Button disabled={saving} type="submit">
-                {t("common.add")}
+              <FormField label={t("common.name")} htmlFor="load_name" required>
+                <Input id="load_name" name="load_name" />
+              </FormField>
+              <FormField label={t("loadAlert.metric")} htmlFor="type" required>
+                <Select
+                  value={selectedType}
+                  onValueChange={(value) =>
+                    setSelectedType(
+                      value as "cpu" | "ram" | "disk" | "net_in" | "net_out",
+                    )
+                  }
+                >
+                  <SelectTrigger id="type" name="type" />
+                  <SelectContent>
+                    <SelectItem value="cpu">CPU</SelectItem>
+                    <SelectItem value="ram">RAM</SelectItem>
+                    <SelectItem value="disk">Disk</SelectItem>
+                    <SelectItem value="net_in">Net In(Mbps)</SelectItem>
+                    <SelectItem value="net_out">Net Out(Mbps)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </FormField>
+              <FormField
+                label={`${t("common.threshold")} (%/Mbps)`}
+                htmlFor="threshold"
+                required
+              >
+                <Input
+                  id="threshold"
+                  name="threshold"
+                  type="number"
+                  min={0}
+                  defaultValue={80}
+                  step="0.1"
+                />
+              </FormField>
+            </FormSection>
+
+            <FormSection
+              advanced
+              title={t("loadAlert.form.advanced", { defaultValue: "Advanced settings" })}
+              toggleLabel={t("common.advanced", { defaultValue: "Advanced options" })}
+            >
+              <FormField label={t("loadAlert.ratio")} htmlFor="ratio" required>
+                <Input
+                  id="ratio"
+                  name="ratio"
+                  type="number"
+                  step="0.1"
+                  min="0"
+                  max="1"
+                  defaultValue={0.8}
+                />
+                <FormHelpText>
+                  {t("loadAlert.ratio_help", {
+                    defaultValue: "Recommended range: 0 ~ 1.",
+                  })}
+                </FormHelpText>
+              </FormField>
+              <FormField label={t("common.server")} htmlFor="select" required>
+                <div className="flex items-center justify-start gap-2">
+                  <NodeSelectorDialog value={selected} onChange={setSelected} />
+                  <span className="text-sm text-muted-foreground">
+                    {t("common.selected", { count: selected.length })}
+                  </span>
+                </div>
+              </FormField>
+              <FormField
+                label={`${t("ping.interval")} (${t("time.minute")})`}
+                htmlFor="interval"
+                required
+              >
+                <Input
+                  id="interval"
+                  name="interval"
+                  defaultValue={15}
+                  type="number"
+                  min={1}
+                  placeholder="15"
+                />
+              </FormField>
+            </FormSection>
+          </FormShell>
+
+          {submitError ? <FormErrorText>{submitError}</FormErrorText> : null}
+
+          <FormActions>
+            <DialogClose asChild>
+              <Button variant="outline" type="button">
+                {t("common.close")}
               </Button>
-            </div>
-          </Flex>
+            </DialogClose>
+            <Button disabled={saving} type="submit">
+              {t("common.add")}
+            </Button>
+          </FormActions>
         </form>
-      </Dialog.Content>
-    </Dialog.Root>
+      </DialogContent>
+    </Dialog>
   );
 };
 

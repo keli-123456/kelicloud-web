@@ -11,13 +11,34 @@ import {
 } from "@/contexts/PingTaskContext";
 import { useSettings } from "@/lib/api";
 import {
-  Button,
   Dialog,
-  Flex,
+  DialogClose,
+  DialogContent,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import {
+  FormActions,
+  FormErrorText,
+  FormField,
+  FormHelpText,
+  FormSection,
+  FormShell,
+} from "@/components/ui/form-shell";
+import {
   Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+} from "@/components/ui/select";
+import {
   Tabs,
-  TextField,
-} from "@/components/admin/admin-ui";
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "@/components/ui/tabs";
 import React from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
@@ -44,30 +65,34 @@ const InnerLayout = () => {
     return <Loading />;
   }
   if (error || nodeDetailError) {
-    return <div>{error || nodeDetailError}</div>;
+    return (
+      <div className="rounded-2xl border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive">
+        {error || nodeDetailError}
+      </div>
+    );
   }
   return (
-    <Flex direction="column" gap="4" className="p-4">
-      <div className="flex justify-between items-center">
-        <label className="text-2xl font-bold">{t("ping.title")}</label>
+    <div className="flex flex-col gap-4 p-4 text-foreground">
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-semibold tracking-tight">{t("ping.title")}</h1>
         <AddButton />
       </div>
-      <Tabs.Root defaultValue="task">
-        <Tabs.List>
-          <Tabs.Trigger value="task">{t("ping.task_view")}</Tabs.Trigger>
-          <Tabs.Trigger value="server">{t("ping.server_view")}</Tabs.Trigger>
-        </Tabs.List>
+      <Tabs defaultValue="task">
+        <TabsList>
+          <TabsTrigger value="task">{t("ping.task_view")}</TabsTrigger>
+          <TabsTrigger value="server">{t("ping.server_view")}</TabsTrigger>
+        </TabsList>
         <div className="pt-3">
-          <Tabs.Content value="task">
+          <TabsContent value="task">
             <TaskView pingTasks={pingTasks ?? []} />
-          </Tabs.Content>
-          <Tabs.Content value="server">
+          </TabsContent>
+          <TabsContent value="server">
             <ServerView pingTasks={pingTasks ?? []} />
-          </Tabs.Content>
+          </TabsContent>
         </div>
-      </Tabs.Root>
+      </Tabs>
       <DiskUsageEstimate />
-    </Flex>
+    </div>
   );
 };
 
@@ -115,7 +140,7 @@ const DiskUsageEstimate = () => {
 
   return (
     <div className="text-sm text-muted-foreground">
-      <label>
+      <p>
         {t("ping.disk_usage_estimate")}: {formatBytes(dailyUsage)}/
         {t("common.day")},{" "}
         {t("ping.disk_usage_with_settings", {
@@ -124,7 +149,7 @@ const DiskUsageEstimate = () => {
             (dailyUsage * settings.ping_record_preserve_time) / 24
           ),
         })}
-      </label>
+      </p>
     </div>
   );
 };
@@ -133,6 +158,7 @@ const AddButton: React.FC = () => {
   const { t } = useTranslation();
   const [isOpen, setIsOpen] = React.useState(false);
   const [selected, setSelected] = React.useState<string[]>([]);
+  const [submitError, setSubmitError] = React.useState("");
   const { refresh } = usePingTask();
   const [selectedType, setSelectedType] = React.useState<
     "icmp" | "tcp" | "http"
@@ -140,12 +166,50 @@ const AddButton: React.FC = () => {
   const [saving, setSaving] = React.useState(false);
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    setSubmitError("");
+    const name = e.currentTarget.ping_name.value.trim();
+    const target = e.currentTarget.ping_target.value.trim();
+    const interval = parseInt(e.currentTarget.interval.value, 10);
+
+    if (!name) {
+      setSubmitError(
+        t("ping.validation.name_required", {
+          defaultValue: "Task name is required.",
+        }),
+      );
+      return;
+    }
+    if (!target) {
+      setSubmitError(
+        t("ping.validation.target_required", {
+          defaultValue: "Target is required.",
+        }),
+      );
+      return;
+    }
+    if (selected.length === 0) {
+      setSubmitError(
+        t("ping.validation.server_required", {
+          defaultValue: "Select at least one server.",
+        }),
+      );
+      return;
+    }
+    if (!Number.isFinite(interval) || interval <= 0) {
+      setSubmitError(
+        t("ping.validation.interval_required", {
+          defaultValue: "Interval must be greater than 0.",
+        }),
+      );
+      return;
+    }
+
     const payload = {
-      name: e.currentTarget.ping_name.value,
+      name,
       type: selectedType,
-      target: e.currentTarget.ping_target.value,
+      target,
       clients: selected,
-      interval: parseInt(e.currentTarget.interval.value, 10),
+      interval,
     };
     setSaving(true);
     fetch("/api/admin/ping/add", {
@@ -165,15 +229,19 @@ const AddButton: React.FC = () => {
           response
             .json()
             .then((data) => {
-              toast.error(data?.message || t("common.error"));
+              const message = data?.message || t("common.error");
+              setSubmitError(message);
+              toast.error(message);
             })
             .catch((error) => {
+              setSubmitError(error.message);
               toast.error(error.message);
             });
         }
       })
       .catch((error) => {
         console.error("Error adding ping task:", error);
+        setSubmitError(error.message);
         toast.error(error.message);
       })
       .finally(() => {
@@ -182,65 +250,104 @@ const AddButton: React.FC = () => {
       });
   };
   return (
-    <Dialog.Root open={isOpen} onOpenChange={setIsOpen}>
-      <Dialog.Trigger>
+    <Dialog open={isOpen} onOpenChange={setIsOpen}>
+      <DialogTrigger asChild>
         <Button>{t("common.add")}</Button>
-      </Dialog.Trigger>
-      <Dialog.Content>
-        <Dialog.Title>{t("common.add")}</Dialog.Title>
-        <form onSubmit={handleSubmit}>
-          <Flex direction="column" justify="end" gap="2" className="font-bold">
-            <label htmlFor="ping_name">{t("common.name")}</label>
-            <TextField.Root id="ping_name" name="ping_name" />
-            <label htmlFor="type">{t("ping.type")}</label>
-            <Select.Root
-              value={selectedType}
-              onValueChange={(value) =>
-                setSelectedType(value as "icmp" | "tcp" | "http")
-              }
+      </DialogTrigger>
+      <DialogContent>
+        <DialogTitle>{t("common.add")}</DialogTitle>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <FormShell>
+            <FormSection
+              title={t("ping.form.basic", { defaultValue: "Basic settings" })}
+              description={t("ping.form.basic_description", {
+                defaultValue: "Configure task name, probe type and target.",
+              })}
             >
-              <Select.Trigger id="type" name="type" />
-              <Select.Content>
-                <Select.Item value="icmp">ICMP</Select.Item>
-                <Select.Item value="tcp">TCP</Select.Item>
-                <Select.Item value="http">HTTP</Select.Item>
-              </Select.Content>
-            </Select.Root>
-            <label htmlFor="ping_target">{t("ping.target")}</label>
-            <TextField.Root
-              id="ping_target"
-              name="ping_target"
-              placeholder="1.1.1.1 | 1.1.1.1:80 | https://1.1.1.1"
-            />
-            <label htmlFor="ping_server">{t("common.server")}</label>
-            <div className="flex items-center justify-start gap-2">
-              <NodeSelectorDialog value={selected} onChange={setSelected} />
-              <label className="text-md font-normal">
-                {t("common.selected", { count: selected.length })}
-              </label>
-            </div>
-            <label htmlFor="interval">
-              {t("ping.interval")} ({t("time.second")})
-            </label>
-            <TextField.Root
-              id="interval"
-              name="interval"
-              defaultValue={60}
-              type="number"
-              placeholder="60"
-            />
-            <div className="flex justify-end gap-2">
-              <Dialog.Close>
-                <Button variant="soft">{t("common.close")}</Button>
-              </Dialog.Close>
-              <Button disabled={saving} type="submit">
-                {t("common.add")}
+              <FormField label={t("common.name")} htmlFor="ping_name" required>
+                <Input id="ping_name" name="ping_name" />
+              </FormField>
+
+              <FormField label={t("ping.type")} htmlFor="type" required>
+                <Select
+                  value={selectedType}
+                  onValueChange={(value) =>
+                    setSelectedType(value as "icmp" | "tcp" | "http")
+                  }
+                >
+                  <SelectTrigger id="type" name="type" />
+                  <SelectContent>
+                    <SelectItem value="icmp">ICMP</SelectItem>
+                    <SelectItem value="tcp">TCP</SelectItem>
+                    <SelectItem value="http">HTTP</SelectItem>
+                  </SelectContent>
+                </Select>
+              </FormField>
+
+              <FormField
+                label={t("ping.target")}
+                htmlFor="ping_target"
+                required
+              >
+                <Input
+                  id="ping_target"
+                  name="ping_target"
+                  placeholder="1.1.1.1 | 1.1.1.1:80 | https://1.1.1.1"
+                />
+                <FormHelpText>
+                  {t("ping.form.target_help", {
+                    defaultValue: "Supports IP, host:port, or URL.",
+                  })}
+                </FormHelpText>
+              </FormField>
+
+              <FormField label={t("common.server")} htmlFor="ping_server" required>
+                <div className="flex items-center justify-start gap-2">
+                  <NodeSelectorDialog value={selected} onChange={setSelected} />
+                  <span className="text-sm text-muted-foreground">
+                    {t("common.selected", { count: selected.length })}
+                  </span>
+                </div>
+              </FormField>
+            </FormSection>
+
+            <FormSection
+              advanced
+              title={t("ping.form.advanced", { defaultValue: "Advanced settings" })}
+              toggleLabel={t("common.advanced", { defaultValue: "Advanced options" })}
+            >
+              <FormField
+                label={`${t("ping.interval")} (${t("time.second")})`}
+                htmlFor="interval"
+                required
+              >
+                <Input
+                  id="interval"
+                  name="interval"
+                  defaultValue={60}
+                  type="number"
+                  min={1}
+                  placeholder="60"
+                />
+              </FormField>
+            </FormSection>
+          </FormShell>
+
+          {submitError ? <FormErrorText>{submitError}</FormErrorText> : null}
+
+          <FormActions>
+            <DialogClose asChild>
+              <Button variant="outline" type="button">
+                {t("common.close")}
               </Button>
-            </div>
-          </Flex>
+            </DialogClose>
+            <Button disabled={saving} type="submit">
+              {t("common.add")}
+            </Button>
+          </FormActions>
         </form>
-      </Dialog.Content>
-    </Dialog.Root>
+      </DialogContent>
+    </Dialog>
   );
 };
 

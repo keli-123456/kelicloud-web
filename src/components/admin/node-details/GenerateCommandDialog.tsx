@@ -4,31 +4,45 @@ import { Copy, RotateCcw } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import {
-  Button,
-  Checkbox,
   Dialog,
-  Flex,
-  SegmentedControl,
-  Switch,
-  Text,
-  TextArea,
-  TextField,
-} from "@/components/admin/admin-ui";
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Input } from "@/components/ui/input";
+import { SegmentedControl } from "@/components/ui/segmented-control";
+import { Switch } from "@/components/ui/switch";
 import Tips from "@/components/ui/tips";
 import type { NodeDetail } from "@/contexts/NodeDetailsContext";
 import type { SettingsResponse } from "@/lib/api";
 import { buildAgentInstallScriptURL } from "@/lib/installScriptSource";
 
 const NODE_DIALOG_CONTENT_CLASS =
-  "max-h-[90vh] w-[min(96vw,1040px)] overflow-y-auto overscroll-contain rounded-[28px] border border-slate-200/80 bg-white/95 p-6 shadow-2xl [scrollbar-gutter:stable] backdrop-blur dark:border-slate-800/80 dark:bg-slate-950/95";
-const NODE_DIALOG_SECTION_CLASS =
-  "rounded-[24px] border border-slate-200/80 bg-white/72 p-4 shadow-sm backdrop-blur dark:border-slate-800/80 dark:bg-slate-900/40";
+  "left-0 top-0 h-[100dvh] max-h-[100dvh] w-screen max-w-none translate-x-0 translate-y-0 overflow-y-auto overscroll-contain rounded-none border-0 bg-background p-4 shadow-none [scrollbar-gutter:stable] sm:left-1/2 sm:top-1/2 sm:h-auto sm:max-h-[90vh] sm:w-[min(96vw,1040px)] sm:max-w-[min(96vw,1040px)] sm:translate-x-[-50%] sm:translate-y-[-50%] sm:rounded-[24px] sm:border sm:border-border/70 sm:bg-background sm:p-5 sm:shadow-2xl lg:p-6";
 const NODE_DIALOG_HINT_CLASS =
-  "text-[13px] leading-6 text-slate-500 dark:text-slate-400";
-const NODE_DIALOG_FOOTER_CLASS =
-  "mt-6 flex flex-col-reverse gap-2.5 sm:flex-row sm:justify-end";
+  "text-[13px] leading-6 text-muted-foreground";
 const NODE_INPUT_CLASS =
-  "h-11 rounded-xl border border-slate-200 bg-white px-3 text-[14px] shadow-none dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100";
+  "h-11 rounded-xl border border-border/70 bg-background px-3 text-[14px] shadow-none";
+const NODE_DIALOG_SECTION_DIVIDER =
+  "border-b border-border/70";
+const COMMAND_TOOLBAR_CLASS =
+  "flex flex-wrap items-center justify-between gap-2 border-b border-border/70 px-3 py-2";
+const COMMAND_PREVIEW_CLASS =
+  "min-h-[180px] max-h-[44vh] w-full overflow-x-auto overflow-y-auto whitespace-pre rounded-b-[12px] px-3 py-3 pr-4 font-mono text-[12px] leading-6 text-foreground";
+const COMMAND_PREVIEW_WRAPPER_CLASS =
+  "overflow-hidden rounded-[12px] border border-border/70 bg-muted/40";
+const NODE_SECTION_TITLE_CLASS =
+  "text-[14px] font-semibold leading-6 text-foreground break-keep";
+const NODE_OPTION_LABEL_CLASS =
+  "min-w-0 text-sm leading-6 text-foreground break-keep";
+
+const TextField = { Root: Input };
 
 type Platform = "linux" | "windows" | "macos";
 
@@ -98,6 +112,20 @@ const encodeBase64Url = (value: string) => {
     String.fromCharCode(byte),
   ).join("");
   return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
+};
+
+const getShellLabel = (
+  platform: Platform,
+  t: (key: string, options?: Record<string, string>) => string,
+) => {
+  switch (platform) {
+    case "windows":
+      return t("admin.nodeTable.shell.powershell", { defaultValue: "PowerShell" });
+    case "macos":
+      return t("admin.nodeTable.shell.zsh", { defaultValue: "zsh" });
+    default:
+      return t("admin.nodeTable.shell.bash", { defaultValue: "bash" });
+  }
 };
 
 const encodeScopedAutoDiscoveryKey = (key: string, group: string) =>
@@ -171,21 +199,7 @@ const saveGenerateCommandPreferences = (
   );
 };
 
-type AdvancedToggleInputFieldProps = {
-  id: string;
-  label: string;
-  enabled: boolean;
-  placeholder: string;
-  value: string;
-  onEnabledChange: (enabled: boolean) => void;
-  onValueChange: (value: string) => void;
-  type?: "text" | "number";
-  min?: string;
-  max?: string;
-  hint?: string;
-};
-
-const AdvancedToggleInputField = ({
+const AdvancedRow = ({
   id,
   label,
   enabled,
@@ -196,11 +210,24 @@ const AdvancedToggleInputField = ({
   type = "text",
   min,
   max,
-  hint,
-}: AdvancedToggleInputFieldProps) => (
-  <div className="rounded-xl border border-slate-200/80 bg-white/60 px-3 py-2.5 dark:border-slate-700/70 dark:bg-slate-950/30">
+}: {
+  id: string;
+  label: string;
+  enabled: boolean;
+  placeholder: string;
+  value: string;
+  onEnabledChange: (enabled: boolean) => void;
+  onValueChange: (value: string) => void;
+  type?: "text" | "number";
+  min?: string;
+  max?: string;
+}) => (
+  <div className="border-b border-border/70 py-2 last:border-b-0">
     <div className="flex items-center justify-between gap-3">
-      <label htmlFor={id} className="text-sm font-semibold text-slate-900 dark:text-slate-100">
+      <label
+        htmlFor={id}
+        className="min-w-0 flex-1 text-sm font-medium leading-6 text-foreground break-keep"
+      >
         {label}
       </label>
       <Switch
@@ -210,21 +237,18 @@ const AdvancedToggleInputField = ({
         aria-label={label}
       />
     </div>
-    {hint ? (
-      <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-        {hint}
-      </p>
-    ) : null}
     {enabled ? (
-      <TextField.Root
-        className={`${NODE_INPUT_CLASS} mt-2`}
-        placeholder={placeholder}
-        value={value}
-        type={type}
-        min={min}
-        max={max}
-        onChange={(event) => onValueChange(event.target.value)}
-      />
+      <div className="mt-2">
+        <TextField.Root
+          className={NODE_INPUT_CLASS}
+          placeholder={placeholder}
+          value={value}
+          type={type}
+          min={min}
+          max={max}
+          onChange={(event) => onValueChange(event.target.value)}
+        />
+      </div>
     ) : null}
   </div>
 );
@@ -235,7 +259,6 @@ export default function GenerateCommandDialog({
   node,
   nodes,
   settings,
-  toolbar = false,
   groupMode = false,
   presetGroupName,
 }: {
@@ -244,7 +267,6 @@ export default function GenerateCommandDialog({
   node?: NodeDetail;
   nodes?: NodeDetail[];
   settings: SettingsResponse;
-  toolbar?: boolean;
   groupMode?: boolean;
   presetGroupName?: string;
 }) {
@@ -284,6 +306,7 @@ export default function GenerateCommandDialog({
   const [enableMonthRotate, setEnableMonthRotate] = React.useState(
     initialPreferences.enableMonthRotate,
   );
+  const [showAdvanced, setShowAdvanced] = React.useState(false);
   const scopedGroupName =
     groupMode && presetGroupName && presetGroupName !== getDefaultGroupLabel()
       ? presetGroupName.trim()
@@ -525,6 +548,28 @@ export default function GenerateCommandDialog({
   };
 
   const command = generateCommand();
+  const shellLabel = getShellLabel(selectedPlatform, (key, options) =>
+    t(key, options),
+  );
+  const commandHint = groupMode
+    ? useAutoDiscovery
+      ? t(
+          "admin.nodeTable.autoDiscoveryGroupHint",
+          "输入分组名称后，复制这条命令到任意服务器执行，节点会自动注册并归入该分组。已绑定过的机器再次执行时，会自动清理旧绑定后重新接入。",
+        )
+      : t(
+          "admin.nodeTable.autoDiscoveryDisabledGroup",
+          "先到“设置 > 通用”里设置自动发现密钥，创建分组命令才会生效。",
+        )
+    : useAutoDiscovery
+      ? t(
+          "admin.nodeTable.autoDiscoveryGeneralHint",
+          "当前使用通用自动接入命令。任意服务器执行后会自动注册到你的面板。",
+        )
+      : t(
+          "admin.nodeTable.autoDiscoveryDisabledSingle",
+          "当前还没启用自动发现密钥，所以这里仍是旧的单节点模式。到“设置 > 通用”里设置自动发现密钥后，这里会变成通用接入命令。",
+        );
   const copyDisabled = groupMode
     ? !useAutoDiscovery || !normalizedGroupName
     : !useAutoDiscovery && !activeNode;
@@ -538,126 +583,156 @@ export default function GenerateCommandDialog({
     }
   };
 
+  const showNodeSelect =
+    !groupMode && !useAutoDiscovery && !node && availableNodes.length > 0;
   return (
-    <Dialog.Root open={open} onOpenChange={onOpenChange}>
-      <Dialog.Content className={NODE_DIALOG_CONTENT_CLASS} maxWidth={1040}>
-        <Dialog.Title>
-          {groupMode
-            ? scopedGroupName
-              ? `${t("admin.nodeTable.installCommand", "Install command")} · ${scopedGroupName}`
-              : t("admin.nodeTable.groupInstallCommand", "Create group install command")
-            : useAutoDiscovery
-              ? `${t("admin.nodeTable.installCommand", "Install command")} · ${t("admin.nodeTable.autoEnroll", "Auto-enroll")}`
-              : node
-                ? `${t("admin.nodeTable.installCommand", "Install command")} · ${activeNode?.name || "-"}`
-                : t("admin.nodeTable.installCommand", "Install command")}
-        </Dialog.Title>
-        <Dialog.Description className="mt-2">
-          {t(
-            "admin.nodeTable.installDialogDescription",
-            "Platform selection and install parameters are remembered and reused next time.",
-          )}
-        </Dialog.Description>
-        <div className="mt-4 flex flex-col gap-4">
-          {useAutoDiscovery && !groupMode ? (
-            <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/30 dark:text-emerald-300">
-              {t(
-                "admin.nodeTable.autoDiscoveryGeneralHint",
-                "This currently uses the general auto-enroll command. Run it on any server and the node will register to your panel automatically.",
-              )}
-            </div>
-          ) : null}
-          {groupMode && useAutoDiscovery ? (
-            <div className="rounded-xl border border-sky-200 bg-sky-50 px-3 py-2 text-sm text-sky-700 dark:border-sky-900/60 dark:bg-sky-950/30 dark:text-sky-300">
-              {t(
-                "admin.nodeTable.autoDiscoveryGroupHint",
-                "After you enter a group name, run this command on any server. The node will register automatically into that group. If the machine was previously bound, the command will clear the old binding automatically before re-enrolling.",
-              )}
-            </div>
-          ) : null}
-          {groupMode ? (
-            <div className={`${NODE_DIALOG_SECTION_CLASS} flex flex-col gap-3`}>
-              <div className="flex flex-col gap-2">
-                <label className="text-[14px] font-semibold text-slate-900 dark:text-slate-100">
-                  {t("admin.nodeTable.groupName", "Group name")}
-                </label>
-                <TextField.Root
-                  className={NODE_INPUT_CLASS}
-                  placeholder={t(
-                    "admin.nodeTable.groupNamePlaceholder",
-                    "For example: Hong Kong / Japan / Production",
-                  )}
-                  value={groupName}
-                  onChange={(event) => setGroupName(event.target.value)}
-                />
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className={NODE_DIALOG_CONTENT_CLASS}>
+        <DialogHeader className="space-y-2">
+          <DialogTitle className="text-lg font-semibold leading-7 text-foreground break-keep">
+            {groupMode
+              ? scopedGroupName
+                ? `${t("admin.nodeTable.installCommand", "Install command")} · ${scopedGroupName}`
+                : t("admin.nodeTable.groupInstallCommand", "Create group install command")
+              : useAutoDiscovery
+                ? `${t("admin.nodeTable.installCommand", "Install command")} · ${t("admin.nodeTable.autoEnroll", "Auto-enroll")}`
+                : node
+                  ? `${t("admin.nodeTable.installCommand", "Install command")} · ${activeNode?.name || "-"}`
+                  : t("admin.nodeTable.installCommand", "Install command")}
+          </DialogTitle>
+          <DialogDescription className={NODE_DIALOG_HINT_CLASS}>
+            {t(
+              "admin.nodeTable.installDialogDescription",
+              "Platform selection and install parameters are remembered and reused next time.",
+            )}
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="mt-4 flex flex-col gap-4 text-sm">
+          <div className="rounded-xl border border-border/70 bg-muted/40 px-3 py-2">
+            <p className="text-sm font-medium leading-6 text-foreground break-keep">
+              {t("admin.nodeTable.currentCommandHint", {
+                defaultValue: "当前命令提示",
+              })}
+            </p>
+            <p className={`mt-1 ${NODE_DIALOG_HINT_CLASS}`}>
+              {commandHint}
+            </p>
+          </div>
+
+          <div className="grid gap-4 xl:grid-cols-[minmax(0,0.92fr)_minmax(0,1.08fr)]">
+            <section className="order-1 min-w-0 xl:order-2">
+              <div className={NODE_SECTION_TITLE_CLASS}>
+                {t("admin.nodeTable.generatedCommand", "Command")}
               </div>
-              {availableGroups.length > 0 ? (
-                <div className="flex flex-wrap gap-2">
-                  {availableGroups.map((group) => (
-                    <button
-                      key={group}
-                      type="button"
-                      className={`rounded-full border px-3 py-1 text-[13px] font-medium transition-colors ${
-                        normalizedGroupName === group
-                          ? "border-sky-300 bg-sky-100 text-sky-700 dark:border-sky-800 dark:bg-sky-950/50 dark:text-sky-300"
-                          : "border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:text-slate-900 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-300 dark:hover:border-slate-600 dark:hover:text-slate-100"
-                      }`}
-                      onClick={() => setGroupName(group)}
-                    >
-                      {group}
-                    </button>
-                  ))}
-                </div>
-              ) : null}
-              <Text size="1" className="text-slate-500 dark:text-slate-400">
+              <p className={`mt-1 ${NODE_DIALOG_HINT_CLASS}`}>
                 {t(
-                  "admin.nodeTable.groupNameHelp",
-                  "The group will be created automatically after the first server runs this command. You do not need to create an empty group first.",
+                  "admin.nodeTable.generatedCommandHelp",
+                  "Copy this command and run it directly on the target server.",
                 )}
-              </Text>
-            </div>
-          ) : null}
-          {!groupMode && !useAutoDiscovery && !node && availableNodes.length > 0 ? (
-            <div className={NODE_DIALOG_SECTION_CLASS}>
-              <label className="text-[14px] font-semibold text-slate-900 dark:text-slate-100">
-                {t("admin.nodeTable.selectNode", "Select node")}
-              </label>
-              <select
-                className="mt-3 h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-900 outline-none dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
-                value={selectedNodeId}
-                onChange={(event) => setSelectedNodeId(event.target.value)}
-              >
-                {availableNodes.map((item) => (
-                  <option key={item.uuid} value={item.uuid}>
-                    {item.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-          ) : null}
-          {!useAutoDiscovery && toolbar && !groupMode ? (
-            <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-700 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-300">
-              {t(
-                "admin.nodeTable.autoDiscoveryDisabledSingle",
-                "Auto Discovery Key is not enabled yet, so this still uses the legacy single-node mode. Set it in Settings > General to switch to the general onboarding command.",
-              )}
-            </div>
-          ) : null}
-          {!useAutoDiscovery && groupMode ? (
-            <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-700 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-300">
-              {t(
-                "admin.nodeTable.autoDiscoveryDisabledGroup",
-                "Set the Auto Discovery Key in Settings > General first, then group install commands can be used.",
-              )}
-            </div>
-          ) : null}
-          <div className="grid gap-4 xl:grid-cols-[minmax(0,0.9fr)_minmax(420px,1.1fr)]">
-            <div className="flex flex-col gap-4">
-              <div className={NODE_DIALOG_SECTION_CLASS}>
-                <label className="text-[14px] font-semibold text-slate-900 dark:text-slate-100">
-                  {t("admin.nodeTable.platform", "Platform")}
+              </p>
+              <div className="mt-3 min-w-0">
+                <div className={COMMAND_PREVIEW_WRAPPER_CLASS}>
+                  <div className={COMMAND_TOOLBAR_CLASS}>
+                    <Badge variant="secondary">{shellLabel}</Badge>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="secondary"
+                      className="h-8 shrink-0"
+                      disabled={copyDisabled}
+                      onClick={() => void copyToClipboard(command)}
+                      aria-label={t("admin.nodeTable.copyCommand", {
+                        defaultValue: "复制部署命令",
+                      })}
+                    >
+                      <Copy size={14} />
+                      {t("copy")}
+                    </Button>
+                  </div>
+                  <pre className={COMMAND_PREVIEW_CLASS}>
+                    <code className="block min-w-max">{command || ""}</code>
+                  </pre>
+                </div>
+              </div>
+            </section>
+
+            <div className="order-2 min-w-0 space-y-5 xl:order-1">
+              {groupMode ? (
+                <>
+                  <section className="space-y-2">
+                    <div className={NODE_SECTION_TITLE_CLASS}>
+                      {t("admin.nodeTable.groupName", "分组名称")}
+                    </div>
+                    <div className="rounded-lg border border-border/70 bg-muted/40 px-3 py-2">
+                      <div className="text-xs leading-5 text-muted-foreground break-keep">
+                        {t("admin.nodeTable.groupLabel", {
+                          defaultValue: "分组",
+                        })}
+                      </div>
+                      <div className="mt-1 text-sm font-medium leading-6 text-foreground break-keep">
+                        {normalizedGroupName || t("admin.nodeTable.defaultGroup", "默认分组")}
+                      </div>
+                    </div>
+                    <TextField.Root
+                      className={NODE_INPUT_CLASS}
+                      placeholder={t(
+                        "admin.nodeTable.groupNamePlaceholder",
+                        "For example: Hong Kong / Japan / Production",
+                      )}
+                      value={groupName}
+                      onChange={(event) => setGroupName(event.target.value)}
+                    />
+                    {availableGroups.length > 0 ? (
+                      <div className="flex flex-wrap gap-2">
+                        {availableGroups.map((group) => (
+                          <button
+                            key={group}
+                            type="button"
+                            className={`rounded-full border px-3 py-1 text-[13px] font-medium leading-5 transition-colors break-keep ${
+                              normalizedGroupName === group
+                                ? "border-primary/40 bg-primary/10 text-primary"
+                                : "border-border bg-background text-muted-foreground hover:text-foreground"
+                            }`}
+                            onClick={() => setGroupName(group)}
+                          >
+                            {group}
+                          </button>
+                        ))}
+                      </div>
+                    ) : null}
+                  </section>
+                  <div className={NODE_DIALOG_SECTION_DIVIDER} />
+                </>
+              ) : null}
+
+              {showNodeSelect ? (
+                <>
+                  <section>
+                    <label className={NODE_SECTION_TITLE_CLASS}>
+                      {t("admin.nodeTable.selectNode", "Select node")}
+                    </label>
+                    <select
+                      className="mt-2 h-10 w-full rounded-xl border border-border/70 bg-background px-3 text-sm text-foreground outline-none"
+                      value={selectedNodeId}
+                      onChange={(event) => setSelectedNodeId(event.target.value)}
+                    >
+                      {availableNodes.map((item) => (
+                        <option key={item.uuid} value={item.uuid}>
+                          {item.name}
+                        </option>
+                      ))}
+                    </select>
+                  </section>
+                  <div className={NODE_DIALOG_SECTION_DIVIDER} />
+                </>
+              ) : null}
+
+              <section>
+                <label className={NODE_SECTION_TITLE_CLASS}>
+                  {t("admin.nodeTable.platform", "安装平台")}
                 </label>
-                <div className="mt-3">
+                <div className="mt-2">
                   <SegmentedControl.Root
                     value={selectedPlatform}
                     onValueChange={(value) => setSelectedPlatform(value as Platform)}
@@ -667,15 +742,19 @@ export default function GenerateCommandDialog({
                     <SegmentedControl.Item value="macos">macOS</SegmentedControl.Item>
                   </SegmentedControl.Root>
                 </div>
-              </div>
+              </section>
 
-              <div className={NODE_DIALOG_SECTION_CLASS}>
-                <label className="text-[14px] font-semibold text-slate-900 dark:text-slate-100">
-                  {t("admin.nodeTable.installOptions", "Install options")}
+              <div className={NODE_DIALOG_SECTION_DIVIDER} />
+
+              <section>
+                <label className={NODE_SECTION_TITLE_CLASS}>
+                  {t("admin.nodeTable.installOptions", "安装选项")}
                 </label>
-                <div className="mt-3 grid gap-3 text-slate-900 dark:text-slate-100 md:grid-cols-2">
-                  <Flex gap="2" align="center">
+                <div className="mt-3 space-y-2">
+                  <div className="flex items-start gap-3 rounded-xl border border-border/70 bg-muted/30 px-3 py-2">
                     <Checkbox
+                      id="install-disable-web-ssh"
+                      className="mt-1 shrink-0"
                       checked={installOptions.disableWebSsh}
                       onCheckedChange={(checked) => {
                         setInstallOptions((previous) => ({
@@ -684,20 +763,14 @@ export default function GenerateCommandDialog({
                         }));
                       }}
                     />
-                    <label
-                      className="text-sm font-normal"
-                      onClick={() => {
-                        setInstallOptions((previous) => ({
-                          ...previous,
-                          disableWebSsh: !previous.disableWebSsh,
-                        }));
-                      }}
-                    >
+                    <label htmlFor="install-disable-web-ssh" className={NODE_OPTION_LABEL_CLASS}>
                       {t("admin.nodeTable.disableWebSsh")}
                     </label>
-                  </Flex>
-                  <Flex gap="2" align="center">
+                  </div>
+                  <div className="flex items-start gap-3 rounded-xl border border-border/70 bg-muted/30 px-3 py-2">
                     <Checkbox
+                      id="install-disable-auto-update"
+                      className="mt-1 shrink-0"
                       checked={installOptions.disableAutoUpdate}
                       onCheckedChange={(checked) => {
                         setInstallOptions((previous) => ({
@@ -706,20 +779,14 @@ export default function GenerateCommandDialog({
                         }));
                       }}
                     />
-                    <label
-                      className="text-sm font-normal"
-                      onClick={() => {
-                        setInstallOptions((previous) => ({
-                          ...previous,
-                          disableAutoUpdate: !previous.disableAutoUpdate,
-                        }));
-                      }}
-                    >
+                    <label htmlFor="install-disable-auto-update" className={NODE_OPTION_LABEL_CLASS}>
                       {t("admin.nodeTable.disableAutoUpdate", "Disable auto update")}
                     </label>
-                  </Flex>
-                  <Flex gap="2" align="center">
+                  </div>
+                  <div className="flex items-start gap-3 rounded-xl border border-border/70 bg-muted/30 px-3 py-2">
                     <Checkbox
+                      id="install-ignore-unsafe-cert"
+                      className="mt-1 shrink-0"
                       checked={installOptions.ignoreUnsafeCert}
                       onCheckedChange={(checked) => {
                         setInstallOptions((previous) => ({
@@ -728,20 +795,14 @@ export default function GenerateCommandDialog({
                         }));
                       }}
                     />
-                    <label
-                      className="text-sm font-normal"
-                      onClick={() => {
-                        setInstallOptions((previous) => ({
-                          ...previous,
-                          ignoreUnsafeCert: !previous.ignoreUnsafeCert,
-                        }));
-                      }}
-                    >
+                    <label htmlFor="install-ignore-unsafe-cert" className={NODE_OPTION_LABEL_CLASS}>
                       {t("admin.nodeTable.ignoreUnsafeCert", "Ignore unsafe cert")}
                     </label>
-                  </Flex>
-                  <Flex gap="2" align="center">
+                  </div>
+                  <div className="flex items-start gap-3 rounded-xl border border-border/70 bg-muted/30 px-3 py-2">
                     <Checkbox
+                      id="install-memory-include-cache"
+                      className="mt-1 shrink-0"
                       checked={installOptions.memoryIncludeCache}
                       onCheckedChange={(checked) => {
                         setInstallOptions((previous) => ({
@@ -751,55 +812,70 @@ export default function GenerateCommandDialog({
                       }}
                     />
                     <label
-                      className="text-sm font-normal"
-                      onClick={() => {
-                        setInstallOptions((previous) => ({
-                          ...previous,
-                          memoryIncludeCache: !previous.memoryIncludeCache,
-                        }));
-                      }}
+                      htmlFor="install-memory-include-cache"
+                      className={`${NODE_OPTION_LABEL_CLASS} flex items-center gap-2`}
                     >
-                      {t("admin.nodeTable.memoryModeAvailable", "Include cache memory")}
+                      <span>{t("admin.nodeTable.memoryModeAvailable", "Include cache memory")}</span>
+                      <Tips size="14">
+                        {t("admin.nodeTable.memoryModeAvailable_tip")}
+                      </Tips>
                     </label>
-                    <Tips size="14">
-                      {t("admin.nodeTable.memoryModeAvailable_tip")}
-                    </Tips>
-                  </Flex>
+                  </div>
                 </div>
                 {installOptions.ignoreUnsafeCert ? (
-                  <div className="mt-3 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs leading-5 text-red-700 dark:border-red-900/60 dark:bg-red-950/30 dark:text-red-300">
+                  <p className="mt-2 text-xs text-amber-700 dark:text-amber-300">
                     {t("admin.nodeTable.ignoreUnsafeCertWarning", {
                       defaultValue:
                         "已开启“忽略不安全证书”。仅在你确认网络可信且证书链无法暂时修复时使用。",
                     })}
-                  </div>
+                  </p>
                 ) : null}
-              </div>
+              </section>
 
-              <div className={NODE_DIALOG_SECTION_CLASS}>
-                <div className="flex items-center justify-between gap-2">
-                  <label className="text-[14px] font-semibold text-slate-900 dark:text-slate-100">
-                    {t("admin.nodeTable.advancedParameters", "Advanced parameters")}
+              <div className={NODE_DIALOG_SECTION_DIVIDER} />
+
+              <section>
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <label className={NODE_SECTION_TITLE_CLASS}>
+                    {t("admin.nodeTable.advancedParameters", "高级参数")}
                   </label>
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="outline"
-                    onClick={restoreDefaults}
-                    className="h-8 rounded-md"
-                  >
-                    <RotateCcw size={14} />
-                    {t("admin.nodeTable.restoreDefaults", {
-                      defaultValue: "恢复默认",
-                    })}
-                  </Button>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      onClick={() => setShowAdvanced((previous) => !previous)}
+                      className="h-8"
+                    >
+                      {showAdvanced
+                        ? t("admin.nodeTable.hideAdvanced", { defaultValue: "收起高级参数" })
+                        : t("admin.nodeTable.showAdvanced", { defaultValue: "展开高级参数" })}
+                    </Button>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      onClick={restoreDefaults}
+                      className="h-8"
+                    >
+                      <RotateCcw size={14} />
+                      {t("admin.nodeTable.restoreDefaults", {
+                        defaultValue: "恢复默认",
+                      })}
+                    </Button>
+                  </div>
                 </div>
-                <div className="mt-3 flex flex-col gap-3 text-slate-900 dark:text-slate-100">
-                  <Flex gap="2" align="center">
-                    <Checkbox
-                      checked={enableGhproxy}
-                      onCheckedChange={(checked) => {
-                        setEnableGhproxy(Boolean(checked));
+
+                {showAdvanced ? (
+                  <div className="mt-2">
+                    <AdvancedRow
+                      id="node-ghproxy"
+                      label={t("admin.nodeTable.ghproxy", "GitHub 代理")}
+                      enabled={enableGhproxy}
+                      placeholder="https://ghfast.top/"
+                      value={installOptions.ghproxy}
+                      onEnabledChange={(checked) => {
+                        setEnableGhproxy(checked);
                         if (!checked) {
                           setInstallOptions((previous) => ({
                             ...previous,
@@ -807,239 +883,171 @@ export default function GenerateCommandDialog({
                           }));
                         }
                       }}
-                    />
-                    <label
-                      className="cursor-pointer text-sm font-bold"
-                      onClick={() => {
-                        setEnableGhproxy(!enableGhproxy);
-                        if (enableGhproxy) {
-                          setInstallOptions((previous) => ({
-                            ...previous,
-                            ghproxy: "",
-                          }));
-                        }
-                      }}
-                    >
-                      {t("admin.nodeTable.ghproxy", "GitHub proxy")}
-                    </label>
-                  </Flex>
-                  {enableGhproxy ? (
-                    <TextField.Root
-                      placeholder="https://ghfast.top/"
-                      className={NODE_INPUT_CLASS}
-                      value={installOptions.ghproxy}
-                      onChange={(event) =>
+                      onValueChange={(value) =>
                         setInstallOptions((previous) => ({
                           ...previous,
-                          ghproxy: event.target.value,
+                          ghproxy: value,
                         }))
                       }
                     />
-                  ) : null}
-
-                  <AdvancedToggleInputField
-                    id="node-install-dir"
-                    label={t("admin.nodeTable.install_dir", "Installation directory")}
-                    enabled={enableCustomDir}
-                    placeholder={t(
-                      "admin.nodeTable.install_dir_placeholder",
-                      "Installation directory, leave empty to use the default directory (/opt/komari-agent)",
-                    )}
-                    value={installOptions.dir}
-                    onEnabledChange={(enabled) => {
-                      setEnableCustomDir(enabled);
-                      if (!enabled) {
+                    <AdvancedRow
+                      id="node-install-dir"
+                      label={t("admin.nodeTable.install_dir", "安装目录")}
+                      enabled={enableCustomDir}
+                      placeholder={t(
+                        "admin.nodeTable.install_dir_placeholder",
+                        "Installation directory, leave empty to use the default directory (/opt/komari-agent)",
+                      )}
+                      value={installOptions.dir}
+                      onEnabledChange={(checked) => {
+                        setEnableCustomDir(checked);
+                        if (!checked) {
+                          setInstallOptions((previous) => ({
+                            ...previous,
+                            dir: "",
+                          }));
+                        }
+                      }}
+                      onValueChange={(value) =>
                         setInstallOptions((previous) => ({
                           ...previous,
-                          dir: "",
-                        }));
+                          dir: value,
+                        }))
                       }
-                    }}
-                    onValueChange={(value) =>
-                      setInstallOptions((previous) => ({
-                        ...previous,
-                        dir: value,
-                      }))
-                    }
-                  />
-
-                  <AdvancedToggleInputField
-                    id="node-service-name"
-                    label={t("admin.nodeTable.serviceName", "Service name")}
-                    enabled={enableCustomServiceName}
-                    placeholder={t(
-                      "admin.nodeTable.serviceName_placeholder",
-                      "Service name, leave empty to use the default name (komari-agent)",
-                    )}
-                    value={installOptions.serviceName}
-                    onEnabledChange={(enabled) => {
-                      setEnableCustomServiceName(enabled);
-                      if (!enabled) {
+                    />
+                    <AdvancedRow
+                      id="node-service-name"
+                      label={t("admin.nodeTable.serviceName", "服务名称")}
+                      enabled={enableCustomServiceName}
+                      placeholder={t(
+                        "admin.nodeTable.serviceName_placeholder",
+                        "Service name, leave empty to use the default name (komari-agent)",
+                      )}
+                      value={installOptions.serviceName}
+                      onEnabledChange={(checked) => {
+                        setEnableCustomServiceName(checked);
+                        if (!checked) {
+                          setInstallOptions((previous) => ({
+                            ...previous,
+                            serviceName: "",
+                          }));
+                        }
+                      }}
+                      onValueChange={(value) =>
                         setInstallOptions((previous) => ({
                           ...previous,
-                          serviceName: "",
-                        }));
+                          serviceName: value,
+                        }))
                       }
-                    }}
-                    onValueChange={(value) =>
-                      setInstallOptions((previous) => ({
-                        ...previous,
-                        serviceName: value,
-                      }))
-                    }
-                  />
-
-                  <AdvancedToggleInputField
-                    id="node-include-nics"
-                    label={t("admin.nodeTable.includeNics", "Specific network interfaces only.")}
-                    enabled={enableIncludeNics}
-                    placeholder="eth0,eth1"
-                    value={installOptions.includeNics}
-                    onEnabledChange={(enabled) => {
-                      setEnableIncludeNics(enabled);
-                      if (!enabled) {
+                    />
+                    <AdvancedRow
+                      id="node-include-nics"
+                      label={t("admin.nodeTable.includeNics", "只监测特定网卡")}
+                      enabled={enableIncludeNics}
+                      placeholder="eth0,eth1"
+                      value={installOptions.includeNics}
+                      onEnabledChange={(checked) => {
+                        setEnableIncludeNics(checked);
+                        if (!checked) {
+                          setInstallOptions((previous) => ({
+                            ...previous,
+                            includeNics: "",
+                          }));
+                        }
+                      }}
+                      onValueChange={(value) =>
                         setInstallOptions((previous) => ({
                           ...previous,
-                          includeNics: "",
-                        }));
+                          includeNics: value,
+                        }))
                       }
-                    }}
-                    onValueChange={(value) =>
-                      setInstallOptions((previous) => ({
-                        ...previous,
-                        includeNics: value,
-                      }))
-                    }
-                  />
-
-                  <AdvancedToggleInputField
-                    id="node-exclude-nics"
-                    label={t("admin.nodeTable.excludeNics", "Exclude specific network interfaces.")}
-                    enabled={enableExcludeNics}
-                    placeholder="lo"
-                    value={installOptions.excludeNics}
-                    onEnabledChange={(enabled) => {
-                      setEnableExcludeNics(enabled);
-                      if (!enabled) {
+                    />
+                    <AdvancedRow
+                      id="node-exclude-nics"
+                      label={t("admin.nodeTable.excludeNics", "排除特定网卡")}
+                      enabled={enableExcludeNics}
+                      placeholder="lo"
+                      value={installOptions.excludeNics}
+                      onEnabledChange={(checked) => {
+                        setEnableExcludeNics(checked);
+                        if (!checked) {
+                          setInstallOptions((previous) => ({
+                            ...previous,
+                            excludeNics: "",
+                          }));
+                        }
+                      }}
+                      onValueChange={(value) =>
                         setInstallOptions((previous) => ({
                           ...previous,
-                          excludeNics: "",
-                        }));
+                          excludeNics: value,
+                        }))
                       }
-                    }}
-                    onValueChange={(value) =>
-                      setInstallOptions((previous) => ({
-                        ...previous,
-                        excludeNics: value,
-                      }))
-                    }
-                  />
-
-                  <AdvancedToggleInputField
-                    id="node-include-mountpoints"
-                    label={t("admin.nodeTable.includeMountpoints", "Specific mountpoints only.")}
-                    enabled={enableIncludeMountpoints}
-                    placeholder="/;/home;/var"
-                    value={installOptions.includeMountpoints}
-                    onEnabledChange={(enabled) => {
-                      setEnableIncludeMountpoints(enabled);
-                      if (!enabled) {
+                    />
+                    <AdvancedRow
+                      id="node-include-mountpoints"
+                      label={t("admin.nodeTable.includeMountpoints", "只监测特定挂载点")}
+                      enabled={enableIncludeMountpoints}
+                      placeholder="/;/home;/var"
+                      value={installOptions.includeMountpoints}
+                      onEnabledChange={(checked) => {
+                        setEnableIncludeMountpoints(checked);
+                        if (!checked) {
+                          setInstallOptions((previous) => ({
+                            ...previous,
+                            includeMountpoints: "",
+                          }));
+                        }
+                      }}
+                      onValueChange={(value) =>
                         setInstallOptions((previous) => ({
                           ...previous,
-                          includeMountpoints: "",
-                        }));
+                          includeMountpoints: value,
+                        }))
                       }
-                    }}
-                    onValueChange={(value) =>
-                      setInstallOptions((previous) => ({
-                        ...previous,
-                        includeMountpoints: value,
-                      }))
-                    }
-                  />
-
-                  <AdvancedToggleInputField
-                    id="node-month-rotate"
-                    label={t("admin.nodeTable.monthRotate", "Month reset for network statistics")}
-                    enabled={enableMonthRotate}
-                    placeholder="1"
-                    value={installOptions.monthRotate}
-                    type="number"
-                    min="1"
-                    max="31"
-                    onEnabledChange={(enabled) => {
-                      setEnableMonthRotate(enabled);
-                      setInstallOptions((previous) => ({
-                        ...previous,
-                        monthRotate: enabled
-                          ? previous.monthRotate?.trim()
-                            ? previous.monthRotate
-                            : "1"
-                          : "",
-                      }));
-                    }}
-                    onValueChange={(value) =>
-                      setInstallOptions((previous) => ({
-                        ...previous,
-                        monthRotate: value,
-                      }))
-                    }
-                  />
-                </div>
-              </div>
-            </div>
-
-            <div className="flex flex-col gap-4">
-              <div className={NODE_DIALOG_SECTION_CLASS}>
-                <label className="text-[14px] font-semibold text-slate-900 dark:text-slate-100">
-                  {t("admin.nodeTable.generatedCommand", "Command")}
-                </label>
-                <p className={`mt-1 ${NODE_DIALOG_HINT_CLASS}`}>
-                  {t(
-                    "admin.nodeTable.generatedCommandHelp",
-                    "Copy this command and run it directly on the target server.",
-                  )}
-                </p>
-                <div className="relative mt-3 overflow-x-auto rounded-[20px] border border-slate-200 bg-slate-50/80 dark:border-slate-700 dark:bg-slate-950">
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="secondary"
-                    className="absolute right-2 top-2 z-10 h-8 rounded-md"
-                    disabled={copyDisabled}
-                    onClick={() => void copyToClipboard(command)}
-                    aria-label={t("admin.nodeTable.copyCommand", {
-                      defaultValue: "复制部署命令",
-                    })}
-                  >
-                    <Copy size={14} />
-                    {t("copy")}
-                  </Button>
-                  <TextArea
-                    disabled
-                    resize="none"
-                    wrap="off"
-                    className="min-h-[280px] w-full border-0 bg-transparent pr-24 font-mono text-[13px] leading-6 whitespace-pre text-slate-700 shadow-none dark:text-slate-200"
-                    value={command}
-                  />
-                </div>
-              </div>
-
-              <div className={NODE_DIALOG_FOOTER_CLASS}>
-                <Dialog.Close>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="w-full sm:w-auto"
-                  >
-                    {t("close", "Close")}
-                  </Button>
-                </Dialog.Close>
-              </div>
+                    />
+                    <AdvancedRow
+                      id="node-month-rotate"
+                      label={t("admin.nodeTable.monthRotate", "网络统计月重置日")}
+                      enabled={enableMonthRotate}
+                      placeholder="1"
+                      value={installOptions.monthRotate}
+                      type="number"
+                      min="1"
+                      max="31"
+                      onEnabledChange={(checked) => {
+                        setEnableMonthRotate(checked);
+                        setInstallOptions((previous) => ({
+                          ...previous,
+                          monthRotate: checked
+                            ? previous.monthRotate?.trim()
+                              ? previous.monthRotate
+                              : "1"
+                            : "",
+                        }));
+                      }}
+                      onValueChange={(value) =>
+                        setInstallOptions((previous) => ({
+                          ...previous,
+                          monthRotate: value,
+                        }))
+                      }
+                    />
+                  </div>
+                ) : null}
+              </section>
             </div>
           </div>
         </div>
-      </Dialog.Content>
-    </Dialog.Root>
+
+        <DialogFooter className="mt-4 border-t border-border/70 pt-3 sm:justify-end">
+          <DialogClose asChild>
+            <Button type="button" variant="outline">
+              {t("close", "Close")}
+            </Button>
+          </DialogClose>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }

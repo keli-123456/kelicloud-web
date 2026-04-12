@@ -10,13 +10,28 @@ import {
 import { useNodeDetails } from "@/contexts/NodeDetailsContext";
 import { usePingTask, type PingTask } from "@/contexts/PingTaskContext";
 import {
-  Button,
   Dialog,
-  Flex,
-  IconButton,
+  DialogClose,
+  DialogContent,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import {
+  FormActions,
+  FormErrorText,
+  FormField,
+  FormHelpText,
+  FormSection,
+  FormShell,
+} from "@/components/ui/form-shell";
+import {
   Select,
-  TextField,
-} from "@/components/admin/admin-ui";
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+} from "@/components/ui/select";
 import { MoreHorizontal, Pencil, Trash } from "lucide-react";
 import React from "react";
 import { useTranslation } from "react-i18next";
@@ -84,6 +99,7 @@ const Row = ({
   const { nodeDetail } = useNodeDetails();
   const [editOpen, setEditOpen] = React.useState(false);
   const [editSaving, setEditSaving] = React.useState(false);
+  const [editError, setEditError] = React.useState("");
   const [deleteOpen, setDeleteOpen] = React.useState(false);
   const [deleteLoading, setDeleteLoading] = React.useState(false);
   const [form, setForm] = React.useState({
@@ -126,6 +142,7 @@ const Row = ({
         refresh();
       })
       .catch((error) => {
+        setEditError(error.message);
         toast.error(error.message);
       })
       .finally(() => setEditSaving(false));
@@ -134,6 +151,39 @@ const Row = ({
   // 编辑提交
   const handleEdit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    setEditError("");
+    if (!form.name.trim()) {
+      setEditError(
+        t("ping.validation.name_required", {
+          defaultValue: "Task name is required.",
+        }),
+      );
+      return;
+    }
+    if (!form.target.trim()) {
+      setEditError(
+        t("ping.validation.target_required", {
+          defaultValue: "Target is required.",
+        }),
+      );
+      return;
+    }
+    if ((form.clients || []).length === 0) {
+      setEditError(
+        t("ping.validation.server_required", {
+          defaultValue: "Select at least one server.",
+        }),
+      );
+      return;
+    }
+    if (!Number.isFinite(form.interval) || form.interval <= 0) {
+      setEditError(
+        t("ping.validation.interval_required", {
+          defaultValue: "Interval must be greater than 0.",
+        }),
+      );
+      return;
+    }
     submitEdit(form);
   };
 
@@ -168,7 +218,7 @@ const Row = ({
     <TableRow key={task.id}>
       <TableCell>{task.name}</TableCell>
       <TableCell>
-        <Flex gap="2" align="center">
+        <div className="flex items-center gap-2">
           {task.clients && task.clients.length > 0
             ? (() => {
                 const names = task.clients.map((uuid) => {
@@ -189,123 +239,168 @@ const Row = ({
               submitEdit({ ...form, clients: uuids });
             }}
           >
-            <IconButton variant="ghost">
+            <Button
+              variant="ghost"
+              size="icon"
+              aria-label={t("ping.manage_task_servers", {
+                defaultValue: "Manage servers for this task",
+              })}
+            >
               <MoreHorizontal size="16" />
-            </IconButton>
+            </Button>
           </NodeSelectorDialog>
-        </Flex>
+        </div>
       </TableCell>
       <TableCell>{task.target}</TableCell>
       <TableCell>{task.type}</TableCell>
       <TableCell>{task.interval}</TableCell>
       <TableCell className="flex items-center gap-2">
         {/* 编辑按钮 */}
-        <Dialog.Root open={editOpen} onOpenChange={setEditOpen}>
-          <Dialog.Trigger>
-            <IconButton variant="soft">
+        <Dialog
+          open={editOpen}
+          onOpenChange={(open) => {
+            setEditOpen(open);
+            if (!open) {
+              setEditError("");
+            }
+          }}
+        >
+          <DialogTrigger asChild>
+            <Button
+              variant="outline"
+              size="icon"
+              aria-label={t("common.edit", { defaultValue: "Edit" })}
+            >
               <Pencil size="16" />
-            </IconButton>
-          </Dialog.Trigger>
-          <Dialog.Content>
-            <Dialog.Title>{t("common.edit")}</Dialog.Title>
-            <form onSubmit={handleEdit} className="flex flex-col gap-2">
-              <label>{t("common.name")}</label>
-              <TextField.Root
-                value={form.name}
-                onChange={(e) =>
-                  setForm((f) => ({ ...f, name: e.target.value }))
-                }
-                required
-              />
-              <label>{t("ping.type")}</label>
-              <Select.Root
-                value={form.type}
-                onValueChange={(v) =>
-                  setForm((f) => ({ ...f, type: v as any }))
-                }
-              >
-                <Select.Trigger />
-                <Select.Content>
-                  <Select.Item value="icmp">ICMP</Select.Item>
-                  <Select.Item value="tcp">TCP</Select.Item>
-                  <Select.Item value="http">HTTP</Select.Item>
-                </Select.Content>
-              </Select.Root>
-              <label>{t("ping.target")}</label>
-              <TextField.Root
-                value={form.target}
-                onChange={(e) =>
-                  setForm((f) => ({ ...f, target: e.target.value }))
-                }
-                required
-              />
-              <label>{t("common.server")}</label>
-              <Flex>
-                <NodeSelectorDialog
-                  value={form.clients}
-                  onChange={(v) => setForm((f) => ({ ...f, clients: v }))}
-                />
-              </Flex>
-              <label>
-                {t("ping.interval")} ({t("time.second")})
-              </label>
-              <TextField.Root
-                type="number"
-                value={form.interval}
-                onChange={(e) =>
-                  setForm((f) => ({ ...f, interval: Number(e.target.value) }))
-                }
-                required
-              />
-              <Flex gap="2" justify="end" className="mt-4">
-                <Dialog.Close>
+            </Button>
+          </DialogTrigger>
+          <DialogContent>
+            <DialogTitle>{t("common.edit")}</DialogTitle>
+            <form onSubmit={handleEdit} className="space-y-4">
+              <FormShell>
+                <FormSection
+                  title={t("ping.form.basic", { defaultValue: "Basic settings" })}
+                >
+                  <FormField label={t("common.name")} required>
+                    <Input
+                      value={form.name}
+                      onChange={(e) =>
+                        setForm((f) => ({ ...f, name: e.target.value }))
+                      }
+                    />
+                  </FormField>
+                  <FormField label={t("ping.type")} required>
+                    <Select
+                      value={form.type}
+                      onValueChange={(v) =>
+                        setForm((f) => ({ ...f, type: v as any }))
+                      }
+                    >
+                      <SelectTrigger />
+                      <SelectContent>
+                        <SelectItem value="icmp">ICMP</SelectItem>
+                        <SelectItem value="tcp">TCP</SelectItem>
+                        <SelectItem value="http">HTTP</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </FormField>
+                  <FormField label={t("ping.target")} required>
+                    <Input
+                      value={form.target}
+                      onChange={(e) =>
+                        setForm((f) => ({ ...f, target: e.target.value }))
+                      }
+                    />
+                    <FormHelpText>
+                      {t("ping.form.target_help", {
+                        defaultValue: "Supports IP, host:port, or URL.",
+                      })}
+                    </FormHelpText>
+                  </FormField>
+                </FormSection>
+
+                <FormSection
+                  advanced
+                  title={t("ping.form.advanced", { defaultValue: "Advanced settings" })}
+                  toggleLabel={t("common.advanced", { defaultValue: "Advanced options" })}
+                >
+                  <FormField label={t("common.server")} required>
+                    <NodeSelectorDialog
+                      value={form.clients}
+                      onChange={(v) => setForm((f) => ({ ...f, clients: v }))}
+                    />
+                    <FormHelpText>
+                      {t("common.selected", { count: form.clients.length })}
+                    </FormHelpText>
+                  </FormField>
+                  <FormField
+                    label={`${t("ping.interval")} (${t("time.second")})`}
+                    required
+                  >
+                    <Input
+                      type="number"
+                      min={1}
+                      value={form.interval}
+                      onChange={(e) =>
+                        setForm((f) => ({ ...f, interval: Number(e.target.value) }))
+                      }
+                    />
+                  </FormField>
+                </FormSection>
+              </FormShell>
+
+              {editError ? <FormErrorText>{editError}</FormErrorText> : null}
+
+              <FormActions>
+                <DialogClose asChild>
                   <Button
-                    variant="soft"
-                    color="gray"
+                    variant="outline"
                     type="button"
                     onClick={() => setEditOpen(false)}
                   >
                     {t("common.cancel")}
                   </Button>
-                </Dialog.Close>
-                <Button variant="solid" type="submit" disabled={editSaving}>
+                </DialogClose>
+                <Button type="submit" disabled={editSaving}>
                   {t("common.save")}
                 </Button>
-              </Flex>
+              </FormActions>
             </form>
-          </Dialog.Content>
-        </Dialog.Root>
+          </DialogContent>
+        </Dialog>
         {/* 删除按钮 */}
-        <Dialog.Root open={deleteOpen} onOpenChange={setDeleteOpen}>
-          <Dialog.Trigger>
-            <IconButton variant="soft" color="red">
+        <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+          <DialogTrigger asChild>
+            <Button
+              variant="destructive"
+              size="icon"
+              aria-label={t("common.delete", { defaultValue: "Delete" })}
+            >
               <Trash size="16" />
-            </IconButton>
-          </Dialog.Trigger>
-          <Dialog.Content>
-            <Dialog.Title>{t("common.delete")}</Dialog.Title>
-            <Flex gap="2" justify="end" className="mt-4">
-              <Dialog.Close>
+            </Button>
+          </DialogTrigger>
+          <DialogContent>
+            <DialogTitle>{t("common.delete")}</DialogTitle>
+            <div className="mt-4 flex justify-end gap-2">
+              <DialogClose asChild>
                 <Button
-                  variant="soft"
-                  color="gray"
+                  variant="outline"
                   type="button"
                   onClick={() => setDeleteOpen(false)}
                 >
                   {t("common.cancel")}
                 </Button>
-              </Dialog.Close>
+              </DialogClose>
               <Button
-                variant="solid"
-                color="red"
+                variant="destructive"
                 onClick={handleDelete}
                 disabled={deleteLoading}
               >
                 {t("common.delete")}
               </Button>
-            </Flex>
-          </Dialog.Content>
-        </Dialog.Root>
+            </div>
+          </DialogContent>
+        </Dialog>
       </TableCell>
     </TableRow>
   );

@@ -27,6 +27,7 @@ import {
   type CloudProviderCredentialEntry,
   type CloudProviderField,
 } from "@/lib/cloud";
+import { resolveStatusBadgeVariant } from "@/lib/status-semantic";
 import { cn } from "@/lib/utils";
 import { renderProviderInputs } from "@/utils/renderProviders";
 
@@ -286,31 +287,33 @@ function getStatusMeta(
   status: ProviderStatus | EntryStatus,
   t: ReturnType<typeof useTranslation>["t"],
 ) {
+  const variant = resolveStatusBadgeVariant(status);
+
   switch (status) {
     case "configured":
       return {
         label: t("cloud.dns.status.configured", "Configured"),
-        variant: "success" as const,
+        variant,
       };
     case "incomplete":
       return {
         label: t("cloud.dns.status.incomplete", "Incomplete"),
-        variant: "warning" as const,
+        variant,
       };
     case "loading":
       return {
         label: t("cloud.dns.status.loading", "Loading"),
-        variant: "info" as const,
+        variant,
       };
     case "error":
       return {
         label: t("cloud.dns.status.error", "Error"),
-        variant: "destructive" as const,
+        variant,
       };
     default:
       return {
         label: t("cloud.dns.status.unconfigured", "Unconfigured"),
-        variant: "outline" as const,
+        variant,
       };
   }
 }

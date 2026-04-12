@@ -1,6 +1,5 @@
 import * as React from "react";
 import { useTranslation } from "react-i18next";
-import { AlertCircle } from "lucide-react";
 
 import {
   Alert,
@@ -23,6 +22,13 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import {
+  FormActions,
+  FormErrorText,
+  FormField,
+  FormSection,
+  FormShell,
+} from "@/components/ui/form-shell";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import {
@@ -77,7 +83,8 @@ const LoginDialog = ({
     const isFormValid =
       passwordLoginEnabled &&
       username.trim() !== "" &&
-      password.trim() !== "";
+      password.trim() !== "" &&
+      (!require2FA || twoFac.trim() !== "");
 
     React.useEffect(() => {
       if (autoOpen) {
@@ -87,6 +94,15 @@ const LoginDialog = ({
 
     const handleLogin = async () => {
       if (!isFormValid) {
+        if (require2FA && !twoFac.trim()) {
+          setErrorMsg(
+            t(
+              "login.two_factor_required",
+              "Two-factor verification code is required",
+            ),
+          );
+          return;
+        }
         setErrorMsg(
           t(
             "login.required_credentials",
@@ -211,62 +227,56 @@ const LoginDialog = ({
       >
         {passwordLoginEnabled && (
           <>
-            <div className="grid gap-4">
-              <label className="grid gap-2">
-                <div className="text-sm font-medium text-foreground">
-                  {t("login.username")}
-                </div>
-                <Input
-                  value={username}
-                  onChange={(e) => setUsername(e.target.value)}
-                  onKeyDown={handleKeyDown}
-                  placeholder="admin"
-                  disabled={isLoading}
-                  autoFocus
-                  className="h-11"
-                />
-              </label>
-              <label className="grid gap-2">
-                <div className="text-sm font-medium text-foreground">
-                  {t("login.password")}
-                </div>
-                <Input
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  onKeyDown={handleKeyDown}
-                  type="password"
-                  placeholder={t("login.password_placeholder")}
-                  disabled={isLoading}
-                  className="h-11"
-                />
-              </label>
-              <label hidden={!require2FA} className="grid gap-2">
-                <div className="text-sm font-medium text-foreground">
-                  {t("login.two_factor")}
-                </div>
-                <Input
-                  value={twoFac}
-                  onChange={(e) => setTwoFac(e.target.value)}
-                  onKeyDown={handleKeyDown}
-                  type="text"
-                  placeholder="000000"
-                  disabled={isLoading}
-                  className="h-11"
-                />
-              </label>
-            </div>
-            {errorMsg ? (
-              <Alert variant="destructive">
-                <AlertCircle />
-                <AlertTitle>{t("common.error", "Error")}</AlertTitle>
-                <AlertDescription>{errorMsg}</AlertDescription>
-              </Alert>
-            ) : null}
-            <Button type="submit" disabled={isLoading || !isFormValid} className="h-11 w-full">
-              {isLoading
-                ? t("login.logging_in", "Logging in...")
-                : t("login.title")}
-            </Button>
+            <FormShell>
+              <FormSection>
+                <FormField label={t("login.username")} htmlFor="login-username" required>
+                  <Input
+                    id="login-username"
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value)}
+                    onKeyDown={handleKeyDown}
+                    placeholder="admin"
+                    disabled={isLoading}
+                    autoFocus
+                    className="h-11"
+                  />
+                </FormField>
+                <FormField label={t("login.password")} htmlFor="login-password" required>
+                  <Input
+                    id="login-password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    onKeyDown={handleKeyDown}
+                    type="password"
+                    placeholder={t("login.password_placeholder")}
+                    disabled={isLoading}
+                    className="h-11"
+                  />
+                </FormField>
+                {require2FA ? (
+                  <FormField label={t("login.two_factor")} htmlFor="login-two-factor" required>
+                    <Input
+                      id="login-two-factor"
+                      value={twoFac}
+                      onChange={(e) => setTwoFac(e.target.value)}
+                      onKeyDown={handleKeyDown}
+                      type="text"
+                      placeholder="000000"
+                      disabled={isLoading}
+                      className="h-11"
+                    />
+                  </FormField>
+                ) : null}
+              </FormSection>
+            </FormShell>
+            {errorMsg ? <FormErrorText>{errorMsg}</FormErrorText> : null}
+            <FormActions>
+              <Button type="submit" disabled={isLoading || !isFormValid} className="h-11 w-full">
+                {isLoading
+                  ? t("login.logging_in", "Logging in...")
+                  : t("login.title")}
+              </Button>
+            </FormActions>
           </>
         )}
         {publicInfo?.oauth_enable && passwordLoginEnabled ? (

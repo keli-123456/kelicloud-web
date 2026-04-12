@@ -21,11 +21,12 @@ import {
 import { useTranslation } from "react-i18next";
 
 import NumberPicker from "@/components/ui/number-picker";
-import Loading from "@/components/loading";
 import {
   AdminPageShell,
   AdminSurface,
 } from "@/components/admin/AdminPageShell";
+import { DataTableShell } from "@/components/admin/DataTableShell";
+import { Input } from "@/components/ui/input";
 
 interface Log {
   id: number;
@@ -62,6 +63,8 @@ const LogPage = () => {
   const [loading, setLoading] = React.useState<boolean>(true);
   const [logs, setLogs] = React.useState<Log[]>([]);
   const [error, setError] = React.useState<string | null>(null);
+  const [searchDraft, setSearchDraft] = React.useState("");
+  const [searchKeyword, setSearchKeyword] = React.useState("");
   const [page, setPage] = React.useState<number>(1);
   const [total, setTotal] = React.useState<number>(1);
   const [limit, setLimit] = React.useState<number>(10);
@@ -71,50 +74,49 @@ const LogPage = () => {
   const fetchLogsErrorText = t("logs.fetch_error", "Failed to fetch logs");
   const unknownErrorText = t("common.unknown_error", "Unknown error");
 
-  React.useEffect(() => {
-    const fetchLogs = async () => {
-      const requestID = requestSequenceRef.current + 1;
-      requestSequenceRef.current = requestID;
-      requestControllerRef.current?.abort();
-      const controller = new AbortController();
-      requestControllerRef.current = controller;
+  const loadLogs = React.useCallback(async () => {
+    const requestID = requestSequenceRef.current + 1;
+    requestSequenceRef.current = requestID;
+    requestControllerRef.current?.abort();
+    const controller = new AbortController();
+    requestControllerRef.current = controller;
 
-      setLoading(true);
-      setError(null);
-      try {
-        const data = await fetchLogPage(limit, page, controller.signal);
-        if (requestSequenceRef.current !== requestID) {
-          return;
-        }
-        setLogs(data.data.logs);
-        setTotal(data.data.total);
-      } catch (err) {
-        if (controller.signal.aborted) {
-          return;
-        }
-        setError(
-          err instanceof Error
-            ? (err.message.startsWith("HTTP ")
-              ? fetchLogsErrorText
-              : err.message)
-            : unknownErrorText,
-        );
-      } finally {
-        if (requestControllerRef.current === controller) {
-          requestControllerRef.current = null;
-        }
-        if (requestSequenceRef.current === requestID) {
-          setLoading(false);
-        }
+    setLoading(true);
+    setError(null);
+    try {
+      const data = await fetchLogPage(limit, page, controller.signal);
+      if (requestSequenceRef.current !== requestID) {
+        return;
       }
-    };
+      setLogs(data.data.logs);
+      setTotal(data.data.total);
+    } catch (err) {
+      if (controller.signal.aborted) {
+        return;
+      }
+      setError(
+        err instanceof Error
+          ? (err.message.startsWith("HTTP ")
+            ? fetchLogsErrorText
+            : err.message)
+          : unknownErrorText,
+      );
+    } finally {
+      if (requestControllerRef.current === controller) {
+        requestControllerRef.current = null;
+      }
+      if (requestSequenceRef.current === requestID) {
+        setLoading(false);
+      }
+    }
+  }, [fetchLogsErrorText, limit, page, unknownErrorText]);
 
-    void fetchLogs();
-
+  React.useEffect(() => {
+    void loadLogs();
     return () => {
       requestControllerRef.current?.abort();
     };
-  }, [fetchLogsErrorText, limit, page, unknownErrorText]);
+  }, [loadLogs]);
 
   const totalPages = Math.max(1, Math.ceil(total / limit));
   const siblingsCount = 1;
@@ -140,16 +142,23 @@ const LogPage = () => {
   }
   if (totalPages > 1) pageNumbers.push(totalPages);
 
-  if (loading) {
-    return <Loading />;
-  }
-  if (error) {
-    return (
-      <div className="rounded-2xl border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive">
-        {t("common.error")}: {error}
-      </div>
-    );
-  }
+  const normalizedKeyword = searchKeyword.trim().toLowerCase();
+  const filteredLogs = React.useMemo(
+    () =>
+      normalizedKeyword
+        ? logs.filter((log) =>
+          [
+            String(log.id),
+            log.ip,
+            log.uuid,
+            log.msg_type,
+            log.message,
+            log.time,
+          ].some((value) => String(value || "").toLowerCase().includes(normalizedKeyword))
+        )
+        : logs,
+    [logs, normalizedKeyword],
+  );
 
   return (
     <AdminPageShell
@@ -188,44 +197,129 @@ const LogPage = () => {
         },
       ]}
       actions={
-        <div className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300">
-          <span className="text-slate-500 dark:text-slate-400">
-            {t("logs.limit", { defaultValue: "Rows per page" })}
-          </span>
-          <NumberPicker
-            defaultValue={limit}
-            onChange={(value) => {
-              setPage(1);
-              setLimit(value);
-            }}
-            min={1}
-            max={100}
-          />
-        </div>
+        <Button type="button" variant="outline" onClick={() => void loadLogs()}>
+          {t("common.refresh", { defaultValue: "Refresh" })}
+        </Button>
       }
     >
-      <AdminSurface className="overflow-hidden p-0">
-        <div className="border-b border-slate-200/70 px-1 py-3 dark:border-slate-800/70">
-          <div className="flex flex-col gap-1">
-            <label className="text-lg font-semibold tracking-tight text-slate-900 dark:text-slate-50">
-              {t("logs.details_title", { defaultValue: "Log details" })}
-            </label>
-            <p className="text-sm text-slate-500 dark:text-slate-400">
-              {t("logs.details_description", {
-                defaultValue:
-                  "Click a log ID to inspect the full message, UUID, and timestamp.",
+      <DataTableShell
+        search={(
+          <form
+            className="min-w-0"
+            onSubmit={(event) => {
+              event.preventDefault();
+              setSearchKeyword(searchDraft.trim());
+            }}
+          >
+            <Input
+              value={searchDraft}
+              onChange={(event) => {
+                const next = event.target.value;
+                setSearchDraft(next);
+                if (!next.trim()) {
+                  setSearchKeyword("");
+                }
+              }}
+              placeholder={t("common.search", { defaultValue: "Search" })}
+              aria-label={t("common.search", { defaultValue: "Search" })}
+            />
+          </form>
+        )}
+        filters={(
+          <div className="text-xs text-muted-foreground">
+            {searchKeyword
+              ? t("logs.search_summary", {
+                keyword: searchKeyword,
+                count: filteredLogs.length,
+                defaultValue: `Search "${searchKeyword}" · ${filteredLogs.length} records`,
+              })
+              : t("logs.filters_hint", {
+                defaultValue: "Filter by ID, IP, type, UUID, message, or time.",
               })}
-            </p>
           </div>
-        </div>
-
-        {logs.length === 0 ? (
-          <div className="px-6 py-14 text-center text-sm text-slate-500 dark:text-slate-400">
-            {t("logs.empty", { defaultValue: "No log records found." })}
+        )}
+        advancedFilters={(
+          <div className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300">
+            <span className="text-slate-500 dark:text-slate-400">
+              {t("logs.limit", { defaultValue: "Rows per page" })}
+            </span>
+            <NumberPicker
+              defaultValue={limit}
+              onChange={(value) => {
+                setPage(1);
+                setLimit(value);
+              }}
+              min={1}
+              max={100}
+            />
           </div>
-        ) : (
+        )}
+        advancedFiltersLabel={t("common.more_filters", { defaultValue: "More filters" })}
+        loading={loading}
+        error={error}
+        onRetry={() => void loadLogs()}
+        retryLabel={t("common.retry", { defaultValue: "Retry" })}
+        empty={filteredLogs.length === 0}
+        emptyTitle={t("logs.empty", { defaultValue: "No log records found." })}
+        emptyDescription={t("logs.empty_description", {
+          defaultValue: "Try adjusting search keywords or pagination settings.",
+        })}
+        pagination={(
+          <>
+            <Button
+              type="button"
+              disabled={page === 1}
+              onClick={() => setPage((value) => Math.max(1, value - 1))}
+              variant="outline"
+              className="rounded-xl"
+            >
+              {"<"}
+            </Button>
+            {pageNumbers.map((value, index) =>
+              typeof value === "number" ? (
+                <Button
+                  key={index}
+                  type="button"
+                  variant={value === page ? "default" : "outline"}
+                  onClick={() => setPage(value)}
+                  className="rounded-xl"
+                >
+                  {value}
+                </Button>
+              ) : (
+                <span key={index} className="px-2 text-sm text-slate-500">
+                  ...
+                </span>
+              ),
+            )}
+            <Button
+              type="button"
+              disabled={page === totalPages}
+              onClick={() => setPage((value) => Math.min(totalPages, value + 1))}
+              variant="outline"
+              className="rounded-xl"
+            >
+              {">"}
+            </Button>
+          </>
+        )}
+      >
+        <AdminSurface className="overflow-hidden rounded-2xl border border-border/60 bg-card p-0 shadow-none">
+          <div className="border-b border-border/60 px-3 py-3">
+            <div className="flex flex-col gap-1">
+              <label className="text-base font-semibold tracking-tight text-foreground">
+                {t("logs.details_title", { defaultValue: "Log details" })}
+              </label>
+              <p className="text-sm text-muted-foreground">
+                {t("logs.details_description", {
+                  defaultValue:
+                    "Click a log ID to inspect the full message, UUID, and timestamp.",
+                })}
+              </p>
+            </div>
+          </div>
           <Table>
-            <TableHeader className="bg-[linear-gradient(135deg,rgba(19,70,134,0.10),rgba(255,255,255,0.92),rgba(89,172,119,0.10))] dark:bg-[linear-gradient(135deg,rgba(14,165,233,0.16),rgba(2,6,23,0.92),rgba(16,185,129,0.12))]">
+            <TableHeader className="bg-muted/40">
               <TableRow>
                 <TableHead>{t("logs.fields.id", { defaultValue: "ID" })}</TableHead>
                 <TableHead>{t("logs.fields.ip", { defaultValue: "IP" })}</TableHead>
@@ -235,17 +329,17 @@ const LogPage = () => {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {logs.map((log) => (
+              {filteredLogs.map((log) => (
                 <TableRow
                   key={log.id}
-                  className="transition-colors hover:bg-slate-50/60 dark:hover:bg-slate-900/60"
+                  className="transition-colors hover:bg-muted/30"
                 >
                   <TableCell>
                     <Dialog>
                       <DialogTrigger asChild>
                         <button
                           type="button"
-                          className="font-semibold text-slate-900 hover:underline dark:text-slate-100"
+                          className="font-semibold text-foreground hover:underline"
                         >
                           {log.id}
                         </button>
@@ -260,42 +354,44 @@ const LogPage = () => {
                         </DialogHeader>
                         <div className="grid gap-4 sm:grid-cols-2">
                           <div className="space-y-1">
-                            <div className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">
+                            <div className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
                               {t("logs.fields.id", { defaultValue: "ID" })}
                             </div>
-                            <div className="text-sm text-slate-900 dark:text-slate-100">{log.id}</div>
+                            <div className="text-sm text-foreground">{log.id}</div>
                           </div>
                           <div className="space-y-1">
-                            <div className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">
+                            <div className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
                               {t("logs.fields.ip", { defaultValue: "IP" })}
                             </div>
-                            <div className="text-sm text-slate-900 dark:text-slate-100">{log.ip}</div>
+                            <div className="text-sm text-foreground">{log.ip}</div>
                           </div>
                           <div className="space-y-1 sm:col-span-2">
-                            <div className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">
+                            <div className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
                               {t("logs.fields.uuid", { defaultValue: "UUID" })}
                             </div>
-                            <div className="break-all text-sm text-slate-900 dark:text-slate-100">{log.uuid}</div>
+                            <div className="rounded-lg border border-border/60 bg-muted/40 px-3 py-2 font-mono text-xs text-foreground [overflow-wrap:anywhere]">
+                              {log.uuid}
+                            </div>
                           </div>
                           <div className="space-y-1">
-                            <div className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">
+                            <div className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
                               {t("logs.fields.type", { defaultValue: "Type" })}
                             </div>
-                            <div className="text-sm text-slate-900 dark:text-slate-100">{log.msg_type}</div>
+                            <div className="text-sm text-foreground">{log.msg_type}</div>
                           </div>
                           <div className="space-y-1">
-                            <div className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">
+                            <div className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
                               {t("logs.fields.time", { defaultValue: "Time" })}
                             </div>
-                            <div className="text-sm text-slate-900 dark:text-slate-100">
+                            <div className="text-sm text-foreground">
                               {new Date(log.time).toLocaleString()}
                             </div>
                           </div>
                           <div className="space-y-1 sm:col-span-2">
-                            <div className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">
+                            <div className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
                               {t("logs.fields.message", { defaultValue: "Message" })}
                             </div>
-                            <div className="whitespace-pre-wrap break-all rounded-xl border bg-slate-50 px-4 py-3 text-sm text-slate-900 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-100">
+                            <div className="whitespace-pre-wrap rounded-xl border border-border/60 bg-muted/40 px-4 py-3 font-mono text-xs text-foreground [overflow-wrap:anywhere]">
                               {log.message}
                             </div>
                           </div>
@@ -320,46 +416,8 @@ const LogPage = () => {
               ))}
             </TableBody>
           </Table>
-        )}
-      </AdminSurface>
-
-      <div className="flex justify-center items-center gap-2">
-        <Button
-          type="button"
-          disabled={page === 1}
-          onClick={() => setPage((value) => Math.max(1, value - 1))}
-          variant="outline"
-          className="rounded-xl"
-        >
-          {"<"}
-        </Button>
-        {pageNumbers.map((value, index) =>
-          typeof value === "number" ? (
-            <Button
-              key={index}
-              type="button"
-              variant={value === page ? "default" : "outline"}
-              onClick={() => setPage(value)}
-              className="rounded-xl"
-            >
-              {value}
-            </Button>
-          ) : (
-            <span key={index} className="px-2 text-sm text-slate-500">
-              ...
-            </span>
-          ),
-        )}
-        <Button
-          type="button"
-          disabled={page === totalPages}
-          onClick={() => setPage((value) => Math.min(totalPages, value + 1))}
-          variant="outline"
-          className="rounded-xl"
-        >
-          {">"}
-        </Button>
-      </div>
+        </AdminSurface>
+      </DataTableShell>
     </AdminPageShell>
   );
 };

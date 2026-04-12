@@ -44,7 +44,7 @@ import {
   Select,
   TextArea,
   TextField,
-} from "@/components/admin/cloud/cloud-ui";
+} from "@/components/admin/cloud/cloud-shared";
 import Loading from "@/components/loading";
 import {
   Table,
@@ -94,6 +94,10 @@ import {
   type CloudShareAccessPolicy,
   type CloudInstanceShareRecord,
 } from "@/lib/cloudShare";
+import {
+  resolveStatusSemantic,
+  type StatusSemantic,
+} from "@/lib/status-semantic";
 
 type CreateDropletFormState = Omit<CreateDigitalOceanDropletInput, "tags" | "root_password_mode"> & {
   tagsText: string;
@@ -207,28 +211,14 @@ function getDropletMatchAddresses(droplet: DigitalOceanDroplet) {
   ].filter(Boolean);
 }
 
-function getDropletStatusColor(status: string) {
-  switch (status) {
-    case "active":
-      return "green";
-    case "off":
-      return "amber";
-    case "new":
-      return "blue";
-    default:
-      return "gray";
-  }
+function getDropletStatusSemantic(status: string): StatusSemantic {
+  const normalized = String(status || "").trim().toLowerCase();
+  if (normalized === "off") return "warning";
+  return resolveStatusSemantic(normalized);
 }
 
-function getTokenStatusColor(status: string) {
-  switch (status) {
-    case "healthy":
-      return "green";
-    case "error":
-      return "red";
-    default:
-      return "gray";
-  }
+function getTokenStatusSemantic(status: string): StatusSemantic {
+  return resolveStatusSemantic(status);
 }
 
 function isDigitalOceanLockedMessage(message: string) {
@@ -1192,7 +1182,7 @@ export default function DigitalOceanPanel() {
                         </button>
                       </TableCell>
                       <TableCell>
-                        <Badge color={getDropletStatusColor(droplet.status)}>
+                        <Badge semantic={getDropletStatusSemantic(droplet.status)}>
                           {getCloudStatusLabel(droplet.status, t)}
                         </Badge>
                       </TableCell>
@@ -1204,7 +1194,7 @@ export default function DigitalOceanPanel() {
                       <TableCell>
                         {droplet.saved_root_password ? (
                           <div className="space-y-1">
-                            <Badge color={passwordStorageEnabled ? "green" : "amber"}>
+                            <Badge semantic={passwordStorageEnabled ? "success" : "warning"}>
                               {passwordStorageEnabled
                                 ? t("cloud.password.saved", "Saved")
                                 : t("cloud.password.locked", "Locked")}
@@ -1433,7 +1423,7 @@ export default function DigitalOceanPanel() {
                           <div className="flex items-center gap-2">
                             <span className="max-w-44 truncate">{token.name}</span>
                             {token.is_active ? (
-                              <Badge color="blue">
+                              <Badge semantic="success">
                                 {t("cloud.tokens.active", "Active")}
                               </Badge>
                             ) : null}
@@ -1465,7 +1455,7 @@ export default function DigitalOceanPanel() {
                           ) : null}
                         </TableCell>
                         <TableCell>
-                          <Badge color={getTokenStatusColor(token.last_status)}>
+                          <Badge semantic={getTokenStatusSemantic(token.last_status)}>
                             {t(`cloud.tokens.status.${token.last_status}`, token.last_status || "unknown")}
                           </Badge>
                           {token.last_error ? (

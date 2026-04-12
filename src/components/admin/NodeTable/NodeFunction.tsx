@@ -1,26 +1,39 @@
 import * as React from "react";
 import { z } from "zod";
+import type { Row } from "@tanstack/react-table";
+import { t } from "i18next";
+import { toast } from "sonner";
+import {
+  Copy,
+  DollarSign,
+  Download,
+  Terminal,
+  Trash2,
+} from "lucide-react";
+
 import { schema } from "@/components/admin/NodeTable/schema/node";
 import { DataTableRefreshContext } from "@/components/admin/NodeTable/schema/DataTableRefreshContext";
-import { Terminal, Trash2, Copy, Download, DollarSign } from "lucide-react";
-import { t } from "i18next";
-import type { Row } from "@tanstack/react-table";
 import { EditDialog } from "./NodeEditDialog";
 import { NodeDDNSDialog } from "./NodeDDNSDialog";
-import {
-  Button,
-  Checkbox,
-  Dialog,
-  Flex,
-  IconButton,
-  SegmentedControl,
-  TextArea,
-  TextField,
-} from "@/components/admin/admin-ui";
-import { toast } from "sonner";
 import { useSettings } from "@/lib/api";
 import { buildAgentInstallScriptURL } from "@/lib/installScriptSource";
 import { useAccount } from "@/contexts/AccountContext";
+import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Input } from "@/components/ui/input";
+import { SegmentedControl } from "@/components/ui/segmented-control";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  DangerConfirmDialog,
+  EditDialogShell,
+} from "@/components/ui/modal-shell";
+import {
+  FormActions,
+  FormField,
+  FormHelpText,
+  FormSection,
+  FormShell,
+} from "@/components/ui/form-shell";
 
 type ActionResponsePayload = {
   status?: string;
@@ -48,7 +61,7 @@ const getActionErrorMessage = (
   response: Response,
   payload: ActionResponsePayload | null,
   raw: string,
-  fallback: string
+  fallback: string,
 ) => {
   const detail =
     (typeof payload?.message === "string" ? payload.message : "") ||
@@ -86,13 +99,6 @@ type InstallOptions = {
 
 type Platform = "linux" | "windows" | "macos";
 
-const NODE_DIALOG_CONTENT_CLASS =
-  "max-h-[90vh] w-[min(96vw,840px)] overflow-y-auto overscroll-contain rounded-[28px] border border-slate-200/80 bg-white/95 p-6 shadow-2xl [scrollbar-gutter:stable] backdrop-blur dark:border-slate-800/80 dark:bg-slate-950/95";
-const NODE_DIALOG_COMPACT_CONTENT_CLASS =
-  "max-h-[90vh] w-[min(96vw,560px)] overflow-y-auto overscroll-contain rounded-[28px] border border-slate-200/80 bg-white/95 p-6 shadow-2xl [scrollbar-gutter:stable] backdrop-blur dark:border-slate-800/80 dark:bg-slate-950/95";
-const NODE_DIALOG_SECTION_CLASS = "dialog-section space-y-4";
-const NODE_DIALOG_FOOTER_CLASS =
-  "mt-6 flex flex-col-reverse gap-2.5 sm:flex-row sm:justify-end";
 const NODE_INPUT_CLASS =
   "h-11 rounded-xl border border-slate-200 bg-white px-3 text-[14px] shadow-none dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100";
 const NODE_TEXTAREA_CLASS =
@@ -102,9 +108,12 @@ export function ActionsCell({ row }: { row: Row<z.infer<typeof schema>> }) {
   const refreshTable = React.useContext(DataTableRefreshContext);
   const { settings } = useSettings();
   const { hasFeature } = useAccount();
+
+  const [installDialogOpen, setInstallDialogOpen] = React.useState(false);
+  const [priceDialogOpen, setPriceDialogOpen] = React.useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = React.useState(false);
   const [removing, setRemoving] = React.useState(false);
-  const [selectedPlatform, setSelectedPlatform] =
-    React.useState<Platform>("linux");
+  const [selectedPlatform, setSelectedPlatform] = React.useState<Platform>("linux");
   const [installOptions, setInstallOptions] = React.useState<InstallOptions>({
     disableWebSsh: false,
     disableAutoUpdate: false,
@@ -117,65 +126,40 @@ export function ActionsCell({ row }: { row: Row<z.infer<typeof schema>> }) {
   const generateCommand = () => {
     const host = window.location.origin;
     const token = row.original.token;
-    let args = ["-e", host, "-t", token];
-    // 根据安装选项生成参数
-    if (installOptions.disableWebSsh) {
-      args.push("--disable-web-ssh");
-    }
-    if (installOptions.disableAutoUpdate) {
-      args.push("--disable-auto-update");
-    }
-    if (installOptions.ignoreUnsafeCert) {
-      args.push("--ignore-unsafe-cert");
-    }
+    const args = ["-e", host, "-t", token];
+
+    if (installOptions.disableWebSsh) args.push("--disable-web-ssh");
+    if (installOptions.disableAutoUpdate) args.push("--disable-auto-update");
+    if (installOptions.ignoreUnsafeCert) args.push("--ignore-unsafe-cert");
+
     if (installOptions.ghproxy) {
-      if (!installOptions.ghproxy.startsWith("http")) {
-        installOptions.ghproxy = `http://${installOptions.ghproxy}`;
-      }
-      args.push(`--install-ghproxy`);
-      args.push(installOptions.ghproxy);
+      const ghproxy = installOptions.ghproxy.startsWith("http")
+        ? installOptions.ghproxy
+        : `http://${installOptions.ghproxy}`;
+      args.push("--install-ghproxy", ghproxy);
     }
-    if (installOptions.dir) {
-      args.push(`--install-dir`);
-      args.push(installOptions.dir);
-    }
+    if (installOptions.dir) args.push("--install-dir", installOptions.dir);
     if (installOptions.serviceName) {
-      args.push(`--install-service-name`);
-      args.push(installOptions.serviceName);
+      args.push("--install-service-name", installOptions.serviceName);
     }
 
-    let finalCommand = "";
-    const installShUrl = buildAgentInstallScriptURL(
-      settings.base_scripts_url,
-      "install.sh"
-    );
-    const installPsUrl = buildAgentInstallScriptURL(
-      settings.base_scripts_url,
-      "install.ps1"
-    );
-    switch (selectedPlatform) {
-      case "linux":
-        finalCommand =
-          `wget -qO- ${installShUrl} | sudo bash -s -- ` +
-          args.join(" ");
-        break;
-      case "windows":
-        finalCommand =
-          `powershell.exe -NoProfile -ExecutionPolicy Bypass -Command ` +
-          `"iwr '${installPsUrl}'` +
-          ` -UseBasicParsing -OutFile 'install.ps1'; &` +
-          ` '.\\install.ps1'`;
-        args.forEach((arg) => {
-          finalCommand += ` '${arg}'`;
-        });
-        finalCommand += `"`;
-        break;
-      case "macos":
-        finalCommand =
-            `zsh <(curl -sL ${installShUrl}) ` +
-            args.join(" ");
-        break;
+    const installShUrl = buildAgentInstallScriptURL(settings.base_scripts_url, "install.sh");
+    const installPsUrl = buildAgentInstallScriptURL(settings.base_scripts_url, "install.ps1");
+
+    if (selectedPlatform === "linux") {
+      return `wget -qO- ${installShUrl} | sudo bash -s -- ${args.join(" ")}`;
     }
+    if (selectedPlatform === "macos") {
+      return `zsh <(curl -sL ${installShUrl}) ${args.join(" ")}`;
+    }
+
+    let finalCommand =
+      "powershell.exe -NoProfile -ExecutionPolicy Bypass -Command " +
+      `"iwr '${installPsUrl}' -UseBasicParsing -OutFile 'install.ps1'; & '.\\install.ps1'`;
+    args.forEach((arg) => {
+      finalCommand += ` '${arg}'`;
+    });
+    finalCommand += '"';
     return finalCommand;
   };
 
@@ -183,281 +167,252 @@ export function ActionsCell({ row }: { row: Row<z.infer<typeof schema>> }) {
     try {
       await navigator.clipboard.writeText(text);
       toast.success(t("copy_success", "Copied!"));
-    } catch (err) {
-      console.error("Failed to copy text: ", err);
+    } catch (error) {
+      console.error("Failed to copy text:", error);
+    }
+  };
+
+  const handleDelete = async () => {
+    setRemoving(true);
+    try {
+      await removeClient(row.original.uuid);
+      toast.success(t("admin.nodeTable.deleteSuccess", "Node deleted"));
+      if (refreshTable) refreshTable();
+      setDeleteDialogOpen(false);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : String(error));
+    } finally {
+      setRemoving(false);
     }
   };
 
   return (
-    <div className="flex gap-3 justify-center">
-      <Dialog.Root>
-        <Dialog.Trigger>
-          <IconButton variant="ghost">
-            <Download className="p-1" />
-          </IconButton>
-        </Dialog.Trigger>
-        <Dialog.Content className={NODE_DIALOG_CONTENT_CLASS}>
-          <Dialog.Title>
-            {t("admin.nodeTable.installCommand", "Install command")}
-          </Dialog.Title>
-          <Dialog.Description className="mt-2">
-            Generate a ready-to-run agent install command without leaving the node
-            table workflow.
-          </Dialog.Description>
-          <div className="mt-4 flex flex-col gap-4">
-            <div className={NODE_DIALOG_SECTION_CLASS}>
-              <div>
-                <div className="section-kicker">
-                  {t("admin.nodeTable.platform", "Platform")}
-                </div>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  Switch the target environment first, then refine the command for
-                  that runtime.
-                </p>
-              </div>
-              <div className="panel-muted p-1">
-                <SegmentedControl.Root
-                  value={selectedPlatform}
-                  onValueChange={(value) => setSelectedPlatform(value as Platform)}
-                >
-                  <SegmentedControl.Item value="linux">Linux</SegmentedControl.Item>
-                  <SegmentedControl.Item value="windows">
-                    Windows
-                  </SegmentedControl.Item>
-                  <SegmentedControl.Item value="macos">macOS</SegmentedControl.Item>
-                </SegmentedControl.Root>
-              </div>
-            </div>
+    <div className="flex justify-center gap-3">
+      <Button
+        variant="ghost"
+        size="icon"
+        aria-label={t("admin.nodeTable.installCommand", "Install command")}
+        onClick={() => setInstallDialogOpen(true)}
+      >
+        <Download className="size-4" />
+      </Button>
 
-            <div className={NODE_DIALOG_SECTION_CLASS}>
-              <div>
-                <div className="section-kicker">
-                  {t("admin.nodeTable.installOptions", "Install options")}
-                </div>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  Optional flags stay grouped here so the generated command and its
-                  intent remain easy to scan.
-                </p>
-              </div>
-              <div className="grid gap-3 md:grid-cols-2">
-                <label className="flex items-center gap-2 rounded-2xl border border-slate-200/80 bg-white/70 px-3 py-3 text-sm dark:border-slate-800/80 dark:bg-slate-900/40">
-                  <Checkbox
-                    checked={installOptions.disableWebSsh}
-                    onCheckedChange={(checked) => {
-                      setInstallOptions((prev) => ({
-                        ...prev,
-                        disableWebSsh: Boolean(checked),
-                      }));
-                    }}
-                  />
-                  <span>
-                    {t("admin.nodeTable.disableWebSsh", "Disable remote control")}
-                  </span>
-                </label>
-                <label className="flex items-center gap-2 rounded-2xl border border-slate-200/80 bg-white/70 px-3 py-3 text-sm dark:border-slate-800/80 dark:bg-slate-900/40">
-                  <Checkbox
-                    checked={installOptions.disableAutoUpdate}
-                    onCheckedChange={(checked) => {
-                      setInstallOptions((prev) => ({
-                        ...prev,
-                        disableAutoUpdate: Boolean(checked),
-                      }));
-                    }}
-                  />
-                  <span>
-                    {t("admin.nodeTable.disableAutoUpdate", "Disable auto update")}
-                  </span>
-                </label>
-                <label className="flex items-center gap-2 rounded-2xl border border-slate-200/80 bg-white/70 px-3 py-3 text-sm dark:border-slate-800/80 dark:bg-slate-900/40">
-                  <Checkbox
-                    checked={installOptions.ignoreUnsafeCert}
-                    onCheckedChange={(checked) => {
-                      setInstallOptions((prev) => ({
-                        ...prev,
-                        ignoreUnsafeCert: Boolean(checked),
-                      }));
-                    }}
-                  />
-                  <span>
-                    {t("admin.nodeTable.ignoreUnsafeCert", "Ignore unsafe cert")}
-                  </span>
-                </label>
-              </div>
-              <Flex direction="column" gap="3">
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-muted-foreground">
-                    {t("admin.nodeTable.ghproxy", "GitHub proxy")}
-                  </label>
-                  <TextField.Root
-                    className={NODE_INPUT_CLASS}
-                    placeholder={t(
-                      "admin.nodeTable.ghproxy_placeholder",
-                      "GitHub 代理，为空则不使用代理"
-                    )}
-                    onChange={(e) =>
-                      setInstallOptions((prev) => ({
-                        ...prev,
-                        ghproxy: e.target.value,
-                      }))
-                    }
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-muted-foreground">
-                    {t("admin.nodeTable.install_dir", "Installation directory")}
-                  </label>
-                  <TextField.Root
-                    className={NODE_INPUT_CLASS}
-                    placeholder={t(
-                      "admin.nodeTable.install_dir_placeholder",
-                      "安装目录，为空则使用默认目录(/opt/komari-agent)"
-                    )}
-                    onChange={(e) =>
-                      setInstallOptions((prev) => ({
-                        ...prev,
-                        dir: e.target.value,
-                      }))
-                    }
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-muted-foreground">
-                    {t("admin.nodeTable.serviceName", "Service name")}
-                  </label>
-                  <TextField.Root
-                    className={NODE_INPUT_CLASS}
-                    placeholder={t(
-                      "admin.nodeTable.serviceName_placeholder",
-                      "服务名称，为空则使用默认名称(komari-agent)"
-                    )}
-                    onChange={(e) =>
-                      setInstallOptions((prev) => ({
-                        ...prev,
-                        serviceName: e.target.value,
-                      }))
-                    }
-                  />
-                </div>
-              </Flex>
-            </div>
-
-            <div className={NODE_DIALOG_SECTION_CLASS}>
-              <div>
-                <div className="section-kicker">
-                  {t("admin.nodeTable.generatedCommand", "Command")}
-                </div>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  Copy the final command directly into the target host shell.
-                </p>
-              </div>
-              <TextArea
-                disabled
-                className={`w-full ${NODE_TEXTAREA_CLASS}`}
-                value={generateCommand()}
-              />
-            </div>
-
-            <Flex justify="center" className={NODE_DIALOG_FOOTER_CLASS}>
-              <Button
-                className="w-full sm:w-auto"
-                onClick={() => copyToClipboard(generateCommand())}
-              >
-                <Copy size={16} />
-                {t("copy")}
-              </Button>
-            </Flex>
-          </div>
-        </Dialog.Content>
-      </Dialog.Root>
-      <a href={`/terminal?uuid=${row.original.uuid}`} target="_blank">
-        <IconButton variant="ghost">
-          <Terminal className="p-1" />
-        </IconButton>
+      <a href={`/terminal?uuid=${row.original.uuid}`} target="_blank" rel="noreferrer">
+        <Button
+          variant="ghost"
+          size="icon"
+          aria-label={t("terminal.title", { defaultValue: "Terminal" })}
+        >
+          <Terminal className="size-4" />
+        </Button>
       </a>
+
       {hasFeature("cloud_dns") ? <NodeDDNSDialog item={row.original} /> : null}
-      {/** Edit Button */}
       <EditDialog item={row.original} />
-      {/** Edit Money */}
-      <Dialog.Root> 
-        <Dialog.Trigger>
-          <IconButton variant="ghost">
-           <DollarSign className="p-1" />
-          </IconButton>
-        </Dialog.Trigger>
-        <Dialog.Content className={NODE_DIALOG_COMPACT_CONTENT_CLASS}>
-          <Dialog.Title>{t("admin.nodeTable.editNodePrice")}</Dialog.Title>
-          <Dialog.Description className="mt-2">
-            This entry is still pending a proper pricing form and currently remains
-            a placeholder surface.
-          </Dialog.Description>
-          <div className="dialog-section mt-4">
-            <label className="block text-sm font-medium text-muted-foreground">
-              Placeholder
-            </label>
-            <TextField.Root
-              className={`${NODE_INPUT_CLASS} mt-2`}
-              value="123"
-              readOnly
-            />
-          </div>
-        </Dialog.Content>
-      </Dialog.Root>
-      {/** Delete Button */}
-      <Dialog.Root>
-        <Dialog.Trigger>
-          <IconButton variant="ghost" color="red" className="text-destructive">
-            <Trash2 className="p-1" />
-          </IconButton>
-        </Dialog.Trigger>
-        <Dialog.Content className={NODE_DIALOG_COMPACT_CONTENT_CLASS}>
-          <Dialog.Title>{t("admin.nodeTable.confirmDelete")}</Dialog.Title>
-          <Dialog.Description className="mt-2">
-            {t("admin.nodeTable.cannotUndo")}
-          </Dialog.Description>
-          <div className="dialog-danger mt-4">
-            <p className="text-sm leading-6 text-red-700 dark:text-red-200">
-              Deleting a node removes it from the management console immediately.
-              This action cannot be undone.
-            </p>
-          </div>
-          <Flex gap="2" justify={"end"} className={NODE_DIALOG_FOOTER_CLASS}>
-            <Dialog.Close>
-              <Button
-                type="button"
-                variant="outline"
-                className="w-full sm:w-auto"
+
+      <Button
+        variant="ghost"
+        size="icon"
+        aria-label={t("admin.nodeTable.editNodePrice", "Edit node price")}
+        onClick={() => setPriceDialogOpen(true)}
+      >
+        <DollarSign className="size-4" />
+      </Button>
+
+      <Button
+        variant="ghost"
+        size="icon"
+        aria-label={t("admin.nodeTable.confirmDelete", "Delete node")}
+        className="text-destructive hover:text-destructive"
+        onClick={() => setDeleteDialogOpen(true)}
+      >
+        <Trash2 className="size-4" />
+      </Button>
+
+      <EditDialogShell
+        open={installDialogOpen}
+        onOpenChange={setInstallDialogOpen}
+        size="xl"
+        title={t("admin.nodeTable.installCommand", "Install command")}
+        description={t(
+          "admin.nodeTable.installDialogDescription",
+          "Generate a ready-to-run install command and copy it to the target host.",
+        )}
+        footer={(
+          <FormActions className="sm:justify-center">
+            <Button
+              className="w-full sm:w-auto"
+              onClick={() => void copyToClipboard(generateCommand())}
+            >
+              <Copy size={16} />
+              {t("copy", "Copy")}
+            </Button>
+          </FormActions>
+        )}
+      >
+        <FormShell>
+          <FormSection
+            title={t("admin.nodeTable.platform", "Platform")}
+            description={t(
+              "admin.nodeTable.platform_hint",
+              "Choose the runtime platform before generating the command.",
+            )}
+          >
+            <div className="panel-muted p-1">
+              <SegmentedControl.Root
+                value={selectedPlatform}
+                onValueChange={(value) => setSelectedPlatform(value as Platform)}
               >
-                {t("admin.nodeTable.cancel")}
-              </Button>
-            </Dialog.Close>
-            <Dialog.Trigger>
-              <Button
-                disabled={removing}
-                color="red"
-                className="w-full sm:w-auto"
-                onClick={async () => {
-                  setRemoving(true);
-                  try {
-                    await removeClient(row.original.uuid);
-                    toast.success(t("admin.nodeTable.deleteSuccess", "Node deleted"));
-                    if (refreshTable) refreshTable();
-                  } catch (error) {
-                    toast.error(
-                      error instanceof Error ? error.message : String(error)
-                    );
-                  } finally {
-                    setRemoving(false);
+                <SegmentedControl.Item value="linux">Linux</SegmentedControl.Item>
+                <SegmentedControl.Item value="windows">Windows</SegmentedControl.Item>
+                <SegmentedControl.Item value="macos">macOS</SegmentedControl.Item>
+              </SegmentedControl.Root>
+            </div>
+          </FormSection>
+
+          <FormSection
+            title={t("admin.nodeTable.installOptions", "Install options")}
+            description={t(
+              "admin.nodeTable.installOptions_hint",
+              "Optional flags remain grouped here for easier review.",
+            )}
+          >
+            <div className="grid gap-3 md:grid-cols-2">
+              <label className="flex items-center gap-2 rounded-2xl border border-slate-200/80 bg-white/70 px-3 py-3 text-sm dark:border-slate-800/80 dark:bg-slate-900/40">
+                <Checkbox
+                  checked={installOptions.disableWebSsh}
+                  onCheckedChange={(checked) =>
+                    setInstallOptions((prev) => ({
+                      ...prev,
+                      disableWebSsh: Boolean(checked),
+                    }))
                   }
-                }}
-              >
-                {removing
-                  ? t("admin.nodeTable.deleting")
-                  : t("admin.nodeTable.confirm")}
-              </Button>
-            </Dialog.Trigger>
-          </Flex>
-        </Dialog.Content>
-      </Dialog.Root>
+                />
+                <span>{t("admin.nodeTable.disableWebSsh", "Disable remote control")}</span>
+              </label>
+              <label className="flex items-center gap-2 rounded-2xl border border-slate-200/80 bg-white/70 px-3 py-3 text-sm dark:border-slate-800/80 dark:bg-slate-900/40">
+                <Checkbox
+                  checked={installOptions.disableAutoUpdate}
+                  onCheckedChange={(checked) =>
+                    setInstallOptions((prev) => ({
+                      ...prev,
+                      disableAutoUpdate: Boolean(checked),
+                    }))
+                  }
+                />
+                <span>{t("admin.nodeTable.disableAutoUpdate", "Disable auto update")}</span>
+              </label>
+              <label className="flex items-center gap-2 rounded-2xl border border-slate-200/80 bg-white/70 px-3 py-3 text-sm dark:border-slate-800/80 dark:bg-slate-900/40">
+                <Checkbox
+                  checked={installOptions.ignoreUnsafeCert}
+                  onCheckedChange={(checked) =>
+                    setInstallOptions((prev) => ({
+                      ...prev,
+                      ignoreUnsafeCert: Boolean(checked),
+                    }))
+                  }
+                />
+                <span>{t("admin.nodeTable.ignoreUnsafeCert", "Ignore unsafe cert")}</span>
+              </label>
+            </div>
+
+            <FormSection advanced toggleLabel={t("admin.nodeTable.advanced", "Advanced options")}>
+              <FormField label={t("admin.nodeTable.ghproxy", "GitHub proxy")}>
+                <Input
+                  className={NODE_INPUT_CLASS}
+                  placeholder={t(
+                    "admin.nodeTable.ghproxy_placeholder",
+                    "GitHub proxy, leave blank to disable proxy",
+                  )}
+                  value={installOptions.ghproxy}
+                  onChange={(event) =>
+                    setInstallOptions((prev) => ({
+                      ...prev,
+                      ghproxy: event.target.value,
+                    }))
+                  }
+                />
+              </FormField>
+
+              <FormField label={t("admin.nodeTable.install_dir", "Installation directory")}>
+                <Input
+                  className={NODE_INPUT_CLASS}
+                  placeholder={t(
+                    "admin.nodeTable.install_dir_placeholder",
+                    "Leave blank to use default (/opt/komari-agent)",
+                  )}
+                  value={installOptions.dir}
+                  onChange={(event) =>
+                    setInstallOptions((prev) => ({
+                      ...prev,
+                      dir: event.target.value,
+                    }))
+                  }
+                />
+              </FormField>
+
+              <FormField label={t("admin.nodeTable.serviceName", "Service name")}>
+                <Input
+                  className={NODE_INPUT_CLASS}
+                  placeholder={t(
+                    "admin.nodeTable.serviceName_placeholder",
+                    "Leave blank to use default (komari-agent)",
+                  )}
+                  value={installOptions.serviceName}
+                  onChange={(event) =>
+                    setInstallOptions((prev) => ({
+                      ...prev,
+                      serviceName: event.target.value,
+                    }))
+                  }
+                />
+              </FormField>
+            </FormSection>
+          </FormSection>
+
+          <FormSection title={t("admin.nodeTable.generatedCommand", "Command")}>
+            <Textarea disabled className={NODE_TEXTAREA_CLASS} value={generateCommand()} />
+            <FormHelpText>
+              {t(
+                "admin.nodeTable.generatedCommandHint",
+                "Run this command on the target node shell.",
+              )}
+            </FormHelpText>
+          </FormSection>
+        </FormShell>
+      </EditDialogShell>
+
+      <EditDialogShell
+        open={priceDialogOpen}
+        onOpenChange={setPriceDialogOpen}
+        size="sm"
+        title={t("admin.nodeTable.editNodePrice")}
+        description={t(
+          "admin.nodeTable.editNodePriceDescription",
+          "This pricing form is still a placeholder and will be migrated in a later iteration.",
+        )}
+      >
+        <FormShell>
+          <FormField label="Placeholder">
+            <Input className={NODE_INPUT_CLASS} value="123" readOnly />
+          </FormField>
+        </FormShell>
+      </EditDialogShell>
+
+      <DangerConfirmDialog
+        open={deleteDialogOpen}
+        onOpenChange={setDeleteDialogOpen}
+        title={t("admin.nodeTable.confirmDelete")}
+        description={t("admin.nodeTable.cannotUndo")}
+        confirmLabel={
+          removing
+            ? t("admin.nodeTable.deleting", "Deleting...")
+            : t("admin.nodeTable.confirm", "Confirm")
+        }
+        cancelLabel={t("admin.nodeTable.cancel", "Cancel")}
+        confirmDisabled={removing}
+        onConfirm={() => void handleDelete()}
+      />
     </div>
   );
 }

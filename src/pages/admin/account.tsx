@@ -4,12 +4,30 @@ import { toast } from "sonner";
 import { useTranslation } from "react-i18next";
 import { AccountProvider, useAccount } from "@/contexts/AccountContext";
 import {
+  Alert,
+  AlertDescription,
+} from "@/components/ui/alert";
+import {
   Badge,
-  Button,
+} from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
   Dialog,
-  Flex,
-  TextField,
-} from "@/components/admin/admin-ui";
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import {
+  FormActions,
+  FormErrorText,
+  FormField,
+  FormHelpText,
+  FormSection,
+  FormShell,
+} from "@/components/ui/form-shell";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Github, Globe, User } from "lucide-react";
 import Loading from "@/components/loading";
@@ -31,6 +49,8 @@ const InnerLayout = () => {
   const { account, loading, error, refresh } = useAccount();
   const [usernameSaving, setUsernameSaving] = React.useState(false);
   const [passwordSaving, setPasswordSaving] = React.useState(false);
+  const [usernameFormError, setUsernameFormError] = React.useState("");
+  const [passwordFormError, setPasswordFormError] = React.useState("");
   if (loading) {
     return <Loading />;
   }
@@ -44,6 +64,25 @@ const InnerLayout = () => {
 
   function handleSubmitUsernameChange(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    setUsernameFormError("");
+    const nextUsername = (event.currentTarget as HTMLFormElement).username.value.trim();
+    if (!nextUsername) {
+      setUsernameFormError(
+        t("account.username_required_error", {
+          defaultValue: "Username is required.",
+        }),
+      );
+      return;
+    }
+    if (nextUsername.length < 3) {
+      setUsernameFormError(
+        t("account.username_too_short_error", {
+          defaultValue: "Username must be at least 3 characters.",
+        }),
+      );
+      return;
+    }
+
     setUsernameSaving(true);
     fetch("/api/admin/update/user", {
       method: "POST",
@@ -52,7 +91,7 @@ const InnerLayout = () => {
       },
       body: JSON.stringify({
         uuid: account?.uuid,
-        username: (event.currentTarget as HTMLFormElement).username.value,
+        username: nextUsername,
       }),
     })
       .then((response) => {
@@ -65,6 +104,7 @@ const InnerLayout = () => {
         toast.success(t("common.updated_successfully"));
       })
       .catch((error) => {
+        setUsernameFormError(error.message);
         toast.error(error.message);
       })
       .finally(() => {
@@ -73,23 +113,24 @@ const InnerLayout = () => {
   }
   function changePassword(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    setPasswordFormError("");
     const form = event.currentTarget as HTMLFormElement;
-    const password = form.password.value;
-    const password_repeat = form.password_repeat.value;
+    const password = form.password.value.trim();
+    const password_repeat = form.password_repeat.value.trim();
     if (!password || !password_repeat) {
-      toast.error(t("account.password_empty_error"));
+      setPasswordFormError(t("account.password_empty_error"));
       return;
     }
     if (password !== password_repeat) {
-      toast.error(t("account.password_mismatch_error"));
+      setPasswordFormError(t("account.password_mismatch_error"));
       return;
     }
     if (password.length < 8) {
-      toast.error(t("account.password_too_short_error"));
+      setPasswordFormError(t("account.password_too_short_error"));
       return;
     }
     if (!/(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/.test(password)) {
-      toast.error(t("account.password_strength_error"));
+      setPasswordFormError(t("account.password_strength_error"));
       return;
     }
     setPasswordSaving(true);
@@ -117,6 +158,7 @@ const InnerLayout = () => {
         }, 2000);
       })
       .catch((error) => {
+        setPasswordFormError(error.message);
         toast.error(error.message);
       })
       .finally(() => {
@@ -255,55 +297,73 @@ const InnerLayout = () => {
             </p>
           </div>
           <form
-            className="flex gap-3 flex-col"
+            className="space-y-4"
             onSubmit={handleSubmitUsernameChange}
           >
-            <label className="text-sm font-medium text-slate-700 dark:text-slate-300" htmlFor="username">
-              {t("account.change_username_title")}
-            </label>
+            <FormShell className="max-w-xl">
+              <FormSection title={t("account.change_username_title")}>
+                <FormField
+                  label={t("login.username")}
+                  htmlFor="username"
+                  required
+                >
+                  <Input
+                    className="rounded-xl border border-slate-200/80 bg-white shadow-sm dark:border-slate-700/80 dark:bg-slate-950"
+                    id="username"
+                    name="username"
+                    defaultValue={account?.username}
+                  />
+                </FormField>
+              </FormSection>
+            </FormShell>
 
-            <TextField.Root
-              className="max-w-xl rounded-xl border border-slate-200/80 bg-white shadow-sm dark:border-slate-700/80 dark:bg-slate-950"
-              id="username"
-              name="username"
-              defaultValue={account?.username}
-            />
-            <div>
+            {usernameFormError ? <FormErrorText>{usernameFormError}</FormErrorText> : null}
+
+            <FormActions className="max-w-xl">
               <Button disabled={usernameSaving} type="submit" className="rounded-xl">
                 {t("account.change_username_button")}
               </Button>
-            </div>
+            </FormActions>
           </form>
 
           <div className="h-px bg-[linear-gradient(90deg,rgba(148,163,184,0.10),rgba(148,163,184,0.65),rgba(148,163,184,0.10))]" />
 
-          <form onSubmit={changePassword} className="flex flex-col gap-3">
-            <label className="text-sm font-medium text-slate-700 dark:text-slate-300" htmlFor="old_password">
-              {t("account.change_password_title")}
-            </label>
-            <label className="text-sm text-slate-600 dark:text-slate-400" htmlFor="password">
-              {t("account.new_password")}
-            </label>
-            <TextField.Root
-              className="max-w-xl rounded-xl border border-slate-200/80 bg-white shadow-sm dark:border-slate-700/80 dark:bg-slate-950"
-              id="password"
-              name="password"
-              type="password"
-            />
-            <label className="text-sm text-slate-600 dark:text-slate-400" htmlFor="password_repeat">
-              {t("account.new_password_repeat")}
-            </label>
-            <TextField.Root
-              className="max-w-xl rounded-xl border border-slate-200/80 bg-white shadow-sm dark:border-slate-700/80 dark:bg-slate-950"
-              id="password_repeat"
-              name="password_repeat"
-              type="password"
-            />
-            <div>
+          <form onSubmit={changePassword} className="space-y-4">
+            <FormShell className="max-w-xl">
+              <FormSection title={t("account.change_password_title")}>
+                <FormField label={t("account.new_password")} htmlFor="password" required>
+                  <Input
+                    className="rounded-xl border border-slate-200/80 bg-white shadow-sm dark:border-slate-700/80 dark:bg-slate-950"
+                    id="password"
+                    name="password"
+                    type="password"
+                  />
+                </FormField>
+                <FormField
+                  label={t("account.new_password_repeat")}
+                  htmlFor="password_repeat"
+                  required
+                >
+                  <Input
+                    className="rounded-xl border border-slate-200/80 bg-white shadow-sm dark:border-slate-700/80 dark:bg-slate-950"
+                    id="password_repeat"
+                    name="password_repeat"
+                    type="password"
+                  />
+                  <FormHelpText>
+                    {t("account.password_strength_error")}
+                  </FormHelpText>
+                </FormField>
+              </FormSection>
+            </FormShell>
+
+            {passwordFormError ? <FormErrorText>{passwordFormError}</FormErrorText> : null}
+
+            <FormActions className="max-w-xl">
               <Button disabled={passwordSaving} type="submit" className="rounded-xl">
                 {t("account.change_password_button")}
               </Button>
-            </div>
+            </FormActions>
           </form>
         </AdminSurface>
 
@@ -321,7 +381,7 @@ const InnerLayout = () => {
               </p>
             </div>
             <Badge
-              color={account?.["2fa_enabled"] ? "green" : "amber"}
+              variant={account?.["2fa_enabled"] ? "success" : "warning"}
               className="rounded-full px-3 py-1"
             >
               {account?.["2fa_enabled"] ? "Protected" : "Pending"}
@@ -361,7 +421,7 @@ const InnerLayout = () => {
                   </label>
                   <div className="flex flex-wrap items-center gap-2">
                     <Badge
-                      color={ssoInfo?.isBound ? "green" : "gray"}
+                      variant={ssoInfo?.isBound ? "success" : "secondary"}
                       className="rounded-full px-3 py-1"
                     >
                       {ssoInfo?.isBound
@@ -380,33 +440,33 @@ const InnerLayout = () => {
 
             <div>
               {ssoInfo?.isBound ? (
-                <Dialog.Root>
-                  <Dialog.Trigger>
+                <Dialog>
+                  <DialogTrigger asChild>
                     <Button className="rounded-xl">
                       {t("account_settings.unbind_sso", { provider: boundProvider })}
                     </Button>
-                  </Dialog.Trigger>
-                  <Dialog.Content>
-                    <Dialog.Title>
+                  </DialogTrigger>
+                  <DialogContent>
+                    <DialogTitle>
                       {t("account_settings.confirm_unbind")}
-                    </Dialog.Title>
-                    <Dialog.Description>
+                    </DialogTitle>
+                    <DialogDescription>
                       {t("account_settings.unbind_sso_warning", {
                         provider: boundProvider,
                       })}
-                    </Dialog.Description>
-                    <Flex gap="2" justify="end" className="mt-4">
-                      <Dialog.Close>
-                        <Button variant="soft" className="rounded-xl">
+                    </DialogDescription>
+                    <div className="mt-4 flex justify-end gap-2">
+                      <DialogClose asChild>
+                        <Button variant="outline" className="rounded-xl">
                           {t("account_settings.cancel")}
                         </Button>
-                      </Dialog.Close>
-                      <Button color="red" onClick={handleSSOAuth} className="rounded-xl">
+                      </DialogClose>
+                      <Button variant="destructive" onClick={handleSSOAuth} className="rounded-xl">
                         {t("account_settings.confirm_unbind")}
                       </Button>
-                    </Flex>
-                  </Dialog.Content>
-                </Dialog.Root>
+                    </div>
+                  </DialogContent>
+                </Dialog>
               ) : (
                 <Button onClick={handleSSOAuth} className="rounded-xl">
                   <User className="size-4" />
@@ -416,9 +476,9 @@ const InnerLayout = () => {
             </div>
           </div>
 
-          <div className="border-l-2 border-sky-300 pl-4 text-sm text-sky-800 dark:border-sky-700 dark:text-sky-300">
-            {t("account_settings.looking_for_backup")}
-          </div>
+          <Alert className="border-border/70 bg-card">
+            <AlertDescription>{t("account_settings.looking_for_backup")}</AlertDescription>
+          </Alert>
         </AdminSurface>
       </div>
     </AdminPageShell>
@@ -432,6 +492,7 @@ const TwoFactorDisabled = () => {
   const [isLoading, setIsLoading] = React.useState(true);
   const [qrcode, setQRCode] = React.useState<string | null>(null);
   const [code, setCode] = React.useState<string>("");
+  const [formError, setFormError] = React.useState("");
 
   React.useEffect(() => {
     if (isOpen) {
@@ -454,12 +515,15 @@ const TwoFactorDisabled = () => {
 
   const handleEnable2fa = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (!code) {
-      toast.error(t("account.otp_empty_error"));
+    if (!code.trim()) {
+      const message = t("account.otp_empty_error");
+      setFormError(message);
+      toast.error(message);
       return;
     }
+    setFormError("");
     setSaving(true);
-    fetch(`/api/admin/2fa/enable?code=${encodeURIComponent(code)}`, {
+    fetch(`/api/admin/2fa/enable?code=${encodeURIComponent(code.trim())}`, {
       method: "POST",
     })
       .then(async (res) => {
@@ -473,50 +537,82 @@ const TwoFactorDisabled = () => {
       })
       .then(() => {
         toast.success(t("common.updated_successfully"));
+        setCode("");
         setIsOpen(false);
         refresh();
       })
-      .catch((err) => toast.error(err.message))
+      .catch((err) => {
+        setFormError(err.message);
+        toast.error(err.message);
+      })
       .finally(() => setSaving(false));
   };
 
   return (
-    <Flex direction="column" gap="2">
+    <div className="flex flex-col gap-2">
       <label className="text-lg font-bold">{t("account.2fa_disabled")}</label>
-      <Dialog.Root open={isOpen} onOpenChange={setIsOpen}>
-        <Dialog.Trigger>
-          <div>
-            <Button className="w-full rounded-xl">{t("account.enable_2fa")}</Button>
-          </div>
-        </Dialog.Trigger>
-        <Dialog.Content>
-          <Dialog.Title>{t("account.enable_2fa")}</Dialog.Title>
-          <Flex direction="column" gap="2">
-            <label>{t("account.2fa_qr_code_hint")}</label>
-            <div className="flex justify-center">
-              {isLoading ? (
-                <Skeleton className="h-[200px] w-[200px]" />
-              ) : (
-                <img src={qrcode!} alt="2FA QR Code" width={200} height={200} />
-              )}
-            </div>
-            <label>{t("account.2fa_otp_input_prompt")}</label>
-            <form className="flex flex-col gap-2" onSubmit={handleEnable2fa}>
-              <TextField.Root
-                type="number"
-                name="code"
-                placeholder="000000"
-                value={code}
-                onChange={(e) => setCode((e.target as HTMLInputElement).value)}
-              />
-              <Button disabled={saving} type="submit" className="rounded-xl">
-                {t("account.enable_2fa")}
+      <Dialog
+        open={isOpen}
+        onOpenChange={(open) => {
+          setIsOpen(open);
+          if (!open) {
+            setCode("");
+            setFormError("");
+          }
+        }}
+      >
+        <DialogTrigger asChild>
+          <Button className="w-full rounded-xl">{t("account.enable_2fa")}</Button>
+        </DialogTrigger>
+        <DialogContent>
+          <DialogTitle>{t("account.enable_2fa")}</DialogTitle>
+          <form className="mt-4 space-y-4" onSubmit={handleEnable2fa}>
+            <FormShell>
+              <FormSection title={t("account.2fa_qr_code_hint")}>
+                <div className="flex justify-center">
+                  {isLoading ? (
+                    <Skeleton className="h-[200px] w-[200px]" />
+                  ) : (
+                    <img src={qrcode!} alt="2FA QR Code" width={200} height={200} />
+                  )}
+                </div>
+              </FormSection>
+              <FormSection>
+                <FormField
+                  label={t("account.2fa_otp_input_prompt")}
+                  htmlFor="two-factor-code"
+                  required
+                >
+                  <Input
+                    id="two-factor-code"
+                    type="text"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
+                    name="code"
+                    placeholder="000000"
+                    value={code}
+                    onChange={(e) => setCode((e.target as HTMLInputElement).value)}
+                  />
+                </FormField>
+              </FormSection>
+            </FormShell>
+
+            {formError ? <FormErrorText>{formError}</FormErrorText> : null}
+
+            <FormActions>
+              <DialogClose asChild>
+                <Button type="button" variant="outline">
+                  {t("common.cancel")}
+                </Button>
+              </DialogClose>
+              <Button disabled={saving || isLoading} type="submit" className="rounded-xl">
+                {saving ? t("loading") : t("account.enable_2fa")}
               </Button>
-            </form>
-          </Flex>
-        </Dialog.Content>
-      </Dialog.Root>
-    </Flex>
+            </FormActions>
+          </form>
+        </DialogContent>
+      </Dialog>
+    </div>
   );
 };
 
@@ -550,37 +646,37 @@ const TwoFactorEnabled = () => {
       });
   };
   return (
-    <Flex direction="column" gap="2">
+    <div className="flex flex-col gap-2">
       <label>{t("account.2fa_enabled")}</label>
       <div>
-        <Dialog.Root open={isOpen} onOpenChange={setIsOpen}>
-          <Dialog.Trigger>
-            <Button className="ml-2 rounded-xl" color="red">
+        <Dialog open={isOpen} onOpenChange={setIsOpen}>
+          <DialogTrigger asChild>
+            <Button className="ml-2 rounded-xl" variant="destructive">
               {t("account.disable_2fa")}
             </Button>
-          </Dialog.Trigger>
-          <Dialog.Content>
-            <Dialog.Title>{t("account.disable_2fa")}</Dialog.Title>
-            <Dialog.Description>
+          </DialogTrigger>
+          <DialogContent>
+            <DialogTitle>{t("account.disable_2fa")}</DialogTitle>
+            <DialogDescription>
               {t("account.disable_2fa_confirmation")}
-            </Dialog.Description>
-            <Flex gap="2" justify="end" className="mt-4">
-              <Button variant="soft" onClick={() => setIsOpen(false)} className="rounded-xl">
+            </DialogDescription>
+            <div className="mt-4 flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setIsOpen(false)} className="rounded-xl">
                 {t("common.cancel")}
               </Button>
               <Button
                 disabled={saving}
-                color="red"
+                variant="destructive"
                 onClick={disable2fa}
                 className="rounded-xl"
               >
                 {t("common.confirm")}
               </Button>
-            </Flex>
-          </Dialog.Content>
-        </Dialog.Root>
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
-    </Flex>
+    </div>
   );
 };
 

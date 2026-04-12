@@ -1,6 +1,7 @@
 import React from "react";
 import { useNodeDetails } from "@/contexts/NodeDetailsContext";
 import { useTranslation } from "react-i18next";
+import { AsyncState } from "@/components/ui/async-state";
 import Selector from "./Selector";
 
 interface NodeSelectorProps {
@@ -28,8 +29,6 @@ const NodeSelector: React.FC<NodeSelectorProps> = ({
       nodeDetail.find((n) => n.uuid === node && !n.is_only_client)
     );
   }
-  if (isLoading) return <div>Loading...</div>;
-  if (error) return <div>{error}</div>;
 
   const getNodeAddress = (node: (typeof nodeDetail)[number]) =>
     node.ipv4 || node.ipv6 || node.name || node.uuid;
@@ -38,27 +37,37 @@ const NodeSelector: React.FC<NodeSelectorProps> = ({
     displayMode === "ip" ? getNodeAddress(node) : node.name;
 
   return (
-    <Selector
-      className={className}
-      hiddenDescription={hiddenDescription}
-      value={nodesFiltered}
-      onChange={onChange}
-      items={[...nodeDetail]}
-      sortItems={(a, b) => (a.weight ?? 0) - (b.weight ?? 0)}
-      getId={(n) => n.uuid}
-      getLabel={getNodeLabel}
-      filterItem={(node, keyword) => {
-        const normalizedKeyword = keyword.toLowerCase();
-        return [
-          node.ipv4,
-          node.ipv6,
-          node.name,
-          node.uuid,
-        ].some((value) => String(value || "").toLowerCase().includes(normalizedKeyword));
-      }}
-      searchPlaceholder={t("common.search")}
-      headerLabel={t("common.server")}
-    />
+    <AsyncState
+      loading={isLoading}
+      error={error}
+      empty={nodeDetail.length === 0}
+      emptyTitle={t("admin.nodeTable.noNodes", { defaultValue: "No nodes" })}
+      emptyDescription={t("admin.nodeTable.noNodesDescription", {
+        defaultValue: "No server nodes are available right now.",
+      })}
+    >
+      <Selector
+        className={className}
+        hiddenDescription={hiddenDescription}
+        value={nodesFiltered}
+        onChange={onChange}
+        items={[...nodeDetail]}
+        sortItems={(a, b) => (a.weight ?? 0) - (b.weight ?? 0)}
+        getId={(n) => n.uuid}
+        getLabel={getNodeLabel}
+        filterItem={(node, keyword) => {
+          const normalizedKeyword = keyword.toLowerCase();
+          return [
+            node.ipv4,
+            node.ipv6,
+            node.name,
+            node.uuid,
+          ].some((value) => String(value || "").toLowerCase().includes(normalizedKeyword));
+        }}
+        searchPlaceholder={t("common.search")}
+        headerLabel={t("common.server")}
+      />
+    </AsyncState>
   );
 };
 

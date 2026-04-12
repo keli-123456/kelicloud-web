@@ -46,7 +46,7 @@ import {
   Tabs,
   TextArea,
   TextField,
-} from "@/components/admin/cloud/cloud-ui";
+} from "@/components/admin/cloud/cloud-shared";
 import Loading from "@/components/loading";
 import {
   Table,
@@ -130,6 +130,10 @@ import {
   type CloudShareAccessPolicy,
   type CloudInstanceShareRecord,
 } from "@/lib/cloudShare";
+import {
+  resolveStatusSemantic,
+  type StatusSemantic,
+} from "@/lib/status-semantic";
 
 type CreateFormState = Omit<CreateAWSInstanceInput, "tags"> & {
   tagsText: string;
@@ -625,45 +629,18 @@ function formatDateTime(value: string) {
   return date.toLocaleString();
 }
 
-function getCredentialStatusColor(status: string) {
-  switch (status) {
-    case "healthy":
-      return "green";
-    case "error":
-      return "red";
-    default:
-      return "gray";
-  }
+function getCredentialStatusSemantic(status: string): StatusSemantic {
+  return resolveStatusSemantic(status);
 }
 
-function getInstanceStateColor(state: string) {
-  switch (state) {
-    case "running":
-      return "green";
-    case "stopped":
-      return "amber";
-    case "pending":
-      return "blue";
-    case "terminated":
-      return "red";
-    default:
-      return "gray";
-  }
+function getInstanceStateSemantic(state: string): StatusSemantic {
+  const normalized = String(state || "").trim().toLowerCase();
+  if (normalized === "stopped") return "warning";
+  return resolveStatusSemantic(normalized);
 }
 
-function getFollowUpStatusColor(status: string) {
-  switch (status) {
-    case "pending":
-      return "blue";
-    case "failed":
-      return "red";
-    case "success":
-      return "green";
-    case "cancelled":
-    case "skipped":
-    default:
-      return "gray";
-  }
+function getFollowUpStatusSemantic(status: string): StatusSemantic {
+  return resolveStatusSemantic(status);
 }
 
 function getFollowUpTaskLabel(taskType: string, t: ReturnType<typeof useTranslation>["t"]) {
@@ -2897,7 +2874,7 @@ export default function AWSPanel() {
                           <div className="flex items-center gap-2">
                             <span className="max-w-40 truncate">{credential.name}</span>
                             {credential.is_active ? (
-                              <Badge color="blue">{t("cloud.tokens.active", "Active")}</Badge>
+                              <Badge semantic="success">{t("cloud.tokens.active", "Active")}</Badge>
                             ) : null}
                           </div>
                         </TableCell>
@@ -2912,7 +2889,7 @@ export default function AWSPanel() {
                           {getCompactQuotaSummary(credential.ec2_quota, t)}
                         </TableCell>
                         <TableCell>
-                          <Badge color={getCredentialStatusColor(credential.last_status)}>
+                          <Badge semantic={getCredentialStatusSemantic(credential.last_status)}>
                             {t(`cloud.tokens.status.${credential.last_status}`, credential.last_status || "unknown")}
                           </Badge>
                           {credential.last_error ? (
@@ -3108,7 +3085,7 @@ export default function AWSPanel() {
                             </button>
                           </TableCell>
                           <TableCell>
-                            <Badge color={getInstanceStateColor(instance.state)}>
+                            <Badge semantic={getInstanceStateSemantic(instance.state)}>
                               {getCloudStatusLabel(instance.state, t)}
                             </Badge>
                           </TableCell>
@@ -3120,7 +3097,7 @@ export default function AWSPanel() {
                           <TableCell>
                             {instance.saved_root_password ? (
                               <div className="space-y-1">
-                                <Badge color={passwordStorageEnabled ? "green" : "amber"}>
+                                <Badge semantic={passwordStorageEnabled ? "success" : "warning"}>
                                   {passwordStorageEnabled
                                     ? t("cloud.password.saved", "Saved")
                                     : t("cloud.password.locked", "Locked")}
@@ -3315,7 +3292,7 @@ export default function AWSPanel() {
                             </button>
                           </TableCell>
                           <TableCell>
-                            <Badge color={getInstanceStateColor(instance.state)}>
+                            <Badge semantic={getInstanceStateSemantic(instance.state)}>
                               {getCloudStatusLabel(instance.state, t)}
                             </Badge>
                           </TableCell>
@@ -3327,7 +3304,7 @@ export default function AWSPanel() {
                           <TableCell>
                             {instance.saved_root_password ? (
                               <div className="space-y-1">
-                                <Badge color={passwordStorageEnabled ? "green" : "amber"}>
+                                <Badge semantic={passwordStorageEnabled ? "success" : "warning"}>
                                   {passwordStorageEnabled
                                     ? t("cloud.password.saved", "Saved")
                                     : t("cloud.password.locked", "Locked")}
@@ -4426,7 +4403,7 @@ export default function AWSPanel() {
                     <CompactSummaryMetric
                       label={t("cloud.table.status", "Status")}
                       value={
-                        <Badge color={getInstanceStateColor(detailData.instance.state)}>
+                        <Badge semantic={getInstanceStateSemantic(detailData.instance.state)}>
                           {getCloudStatusLabel(detailData.instance.state, t)}
                         </Badge>
                       }
@@ -4944,7 +4921,7 @@ export default function AWSPanel() {
                     <CompactSummaryMetric
                       label={t("cloud.table.status", "Status")}
                       value={
-                        <Badge color={getInstanceStateColor(lightsailDetailData.instance.state)}>
+                        <Badge semantic={getInstanceStateSemantic(lightsailDetailData.instance.state)}>
                           {getCloudStatusLabel(lightsailDetailData.instance.state, t)}
                         </Badge>
                       }
@@ -5498,7 +5475,7 @@ export default function AWSPanel() {
                           </div>
                         </div>
                         <div className="flex items-center gap-2">
-                          <Badge color={getFollowUpStatusColor(task.status)}>
+                          <Badge semantic={getFollowUpStatusSemantic(task.status)}>
                             {t(`cloud.providers.aws.follow_up_status.${task.status}`, task.status || "unknown")}
                           </Badge>
                           <span className="text-xs text-slate-500">

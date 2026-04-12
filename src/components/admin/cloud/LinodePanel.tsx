@@ -44,7 +44,7 @@ import {
   Select,
   TextArea,
   TextField,
-} from "@/components/admin/cloud/cloud-ui";
+} from "@/components/admin/cloud/cloud-shared";
 import Loading from "@/components/loading";
 import {
   Table,
@@ -98,6 +98,10 @@ import {
   type CloudShareAccessPolicy,
   type CloudInstanceShareRecord,
 } from "@/lib/cloudShare";
+import {
+  resolveStatusSemantic,
+  type StatusSemantic,
+} from "@/lib/status-semantic";
 
 type CreateFormState = Omit<CreateLinodeInstanceInput, "tags" | "root_password_mode"> & {
   tagsText: string;
@@ -299,29 +303,14 @@ function getLinodeTypeOptionLabel(type: LinodeCatalog["types"][number] | null | 
   return details.join(" / ");
 }
 
-function getStatusColor(status: string) {
-  switch (status) {
-    case "running":
-      return "green";
-    case "offline":
-      return "amber";
-    case "provisioning":
-    case "booting":
-      return "blue";
-    default:
-      return "gray";
-  }
+function getInstanceStatusSemantic(status: string): StatusSemantic {
+  const normalized = String(status || "").trim().toLowerCase();
+  if (normalized === "offline") return "danger";
+  return resolveStatusSemantic(normalized);
 }
 
-function getTokenStatusColor(status: string) {
-  switch (status) {
-    case "healthy":
-      return "green";
-    case "error":
-      return "red";
-    default:
-      return "gray";
-  }
+function getTokenStatusSemantic(status: string): StatusSemantic {
+  return resolveStatusSemantic(status);
 }
 
 function isLinodeRestrictedMessage(message: string) {
@@ -1223,7 +1212,7 @@ export default function LinodePanel() {
                           </button>
                         </TableCell>
                         <TableCell>
-                          <Badge color={getStatusColor(instance.status)}>
+                          <Badge semantic={getInstanceStatusSemantic(instance.status)}>
                             {getCloudStatusLabel(instance.status, t)}
                           </Badge>
                         </TableCell>
@@ -1237,7 +1226,7 @@ export default function LinodePanel() {
                         <TableCell>
                           {instance.saved_root_password ? (
                             <div className="space-y-1">
-                              <Badge color={passwordStorageEnabled ? "green" : "amber"}>
+                              <Badge semantic={passwordStorageEnabled ? "success" : "warning"}>
                                 {passwordStorageEnabled
                                   ? t("cloud.password.saved", "Saved")
                                   : t("cloud.password.locked", "Locked")}
@@ -1472,7 +1461,7 @@ export default function LinodePanel() {
                           <div className="flex items-center gap-2">
                             <span className="max-w-44 truncate">{token.name}</span>
                             {token.is_active ? (
-                              <Badge color="blue">{t("cloud.tokens.active", "Active")}</Badge>
+                              <Badge semantic="success">{t("cloud.tokens.active", "Active")}</Badge>
                             ) : null}
                           </div>
                         </TableCell>
@@ -1493,12 +1482,12 @@ export default function LinodePanel() {
                           ) : null}
                           {isRestrictedLinodeToken(token) ? (
                             <div className="mt-1">
-                              <Badge color="red">{t("cloud.providers.linode.restricted", "Restricted")}</Badge>
+                              <Badge semantic="danger">{t("cloud.providers.linode.restricted", "Restricted")}</Badge>
                             </div>
                           ) : null}
                         </TableCell>
                         <TableCell>
-                          <Badge color={getTokenStatusColor(token.last_status)}>
+                          <Badge semantic={getTokenStatusSemantic(token.last_status)}>
                             {t(`cloud.tokens.status.${token.last_status}`, token.last_status || "unknown")}
                           </Badge>
                           {token.last_error ? (

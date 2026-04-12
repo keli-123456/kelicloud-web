@@ -15,6 +15,13 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import {
+  FormActions,
+  FormErrorText,
+  FormField,
+  FormSection,
+  FormShell,
+} from "@/components/ui/form-shell";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -65,27 +72,57 @@ const CommandClipboardPanel = ({ ...props }: { [key: string]: any }) => {
   );
 };
 
+type CommandFormErrors = Partial<{
+  name: string;
+  text: string;
+  weight: string;
+  form: string;
+}>;
+
 const AddButton = () => {
   const { t } = useTranslation();
   const [isOpen, setOpen] = React.useState(false);
   const [adding, setAdding] = React.useState(false);
+  const [errors, setErrors] = React.useState<CommandFormErrors>({});
   const { addCommand } = useCommandClipboard();
 
   const handleAddCommand = async (event: React.FormEvent) => {
     event.preventDefault();
     const form = event.currentTarget as HTMLFormElement;
     const formData = new FormData(form);
-    const name = formData.get("name") as string;
-    const text = formData.get("text") as string;
+    const name = String(formData.get("name") || "");
+    const text = String(formData.get("text") || "");
     const remark = formData.get("remark") as string;
-    const weight = formData.get("weight") as string;
+    const weight = String(formData.get("weight") || "");
+    const nextErrors: CommandFormErrors = {};
+    if (!name.trim()) {
+      nextErrors.name = t("common.name_required", { defaultValue: "Name is required." });
+    }
+    if (!text.trim()) {
+      nextErrors.text = t("common.content_required", { defaultValue: "Content is required." });
+    }
+    const parsedWeight = Number.parseInt(weight, 10);
+    if (weight.trim() && !Number.isFinite(parsedWeight)) {
+      nextErrors.weight = t("common.weight_invalid", {
+        defaultValue: "Weight must be an integer.",
+      });
+    }
+    setErrors(nextErrors);
+    if (Object.keys(nextErrors).length > 0) {
+      return;
+    }
 
     try {
       setAdding(true);
-      await addCommand(name, text, remark, weight ? parseInt(weight) : 0);
+      await addCommand(name, text, remark, weight ? parsedWeight : 0);
       setOpen(false);
+      setErrors({});
       toast.success(t("common.added_successfully"));
     } catch (error) {
+      setErrors((current) => ({
+        ...current,
+        form: error instanceof Error ? error.message : t("common.operation_failed", "Operation failed"),
+      }));
       toast.error(error instanceof Error ? error.message : "An error occurred");
     } finally {
       setAdding(false);
@@ -93,7 +130,15 @@ const AddButton = () => {
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={setOpen}>
+    <Dialog
+      open={isOpen}
+      onOpenChange={(open) => {
+        setOpen(open);
+        if (!open) {
+          setErrors({});
+        }
+      }}
+    >
       <DialogTrigger asChild>
         <Button type="button" size="icon" aria-label="Add Command">
           <PlusIcon size={16} />
@@ -101,24 +146,66 @@ const AddButton = () => {
       </DialogTrigger>
       <DialogContent>
         <DialogTitle>{t("common.add")}</DialogTitle>
-        <form onSubmit={handleAddCommand}>
-          <div className="flex flex-col gap-2">
-            <label htmlFor="name">{t("common.name")}</label>
-            <Input
-              id="name"
-              name="name"
-              defaultValue={Math.random().toString(36).substring(7)}
-            />
-            <label htmlFor="text">{t("common.content")}</label>
-            <Textarea id="text" name="text" />
-            <label htmlFor="remark">{t("common.remark")}</label>
-            <Input id="remark" name="remark" />
-            <label htmlFor="weight">{t("common.weight")}</label>
-            <Input defaultValue={0} type="number" id="weight" name="weight" />
+        <form onSubmit={handleAddCommand} className="space-y-4">
+          <FormShell>
+            <FormSection>
+              <FormField
+                label={t("common.name")}
+                htmlFor="command-add-name"
+                required
+                error={errors.name}
+              >
+                <Input
+                  id="command-add-name"
+                  name="name"
+                  defaultValue={Math.random().toString(36).substring(7)}
+                />
+              </FormField>
+              <FormField
+                label={t("common.content")}
+                htmlFor="command-add-text"
+                required
+                error={errors.text}
+              >
+                <Textarea id="command-add-text" name="text" className="min-h-28" />
+              </FormField>
+            </FormSection>
+
+            <FormSection
+              advanced
+              title={t("common.advanced", { defaultValue: "Advanced" })}
+              toggleLabel={t("common.advanced", { defaultValue: "Advanced" })}
+            >
+              <div className="grid gap-4 sm:grid-cols-2">
+                <FormField label={t("common.remark")} htmlFor="command-add-remark">
+                  <Input id="command-add-remark" name="remark" />
+                </FormField>
+                <FormField
+                  label={t("common.weight")}
+                  htmlFor="command-add-weight"
+                  error={errors.weight}
+                  description={t("command_clipboard.weight_hint", {
+                    defaultValue: "Larger numbers appear first in the list.",
+                  })}
+                >
+                  <Input defaultValue={0} type="number" id="command-add-weight" name="weight" />
+                </FormField>
+              </div>
+            </FormSection>
+          </FormShell>
+
+          {errors.form ? <FormErrorText>{errors.form}</FormErrorText> : null}
+
+          <FormActions>
+            <DialogClose asChild>
+              <Button variant="outline" type="button">
+                {t("common.cancel")}
+              </Button>
+            </DialogClose>
             <Button type="submit" disabled={adding}>
-              {t("common.add")}
+              {adding ? t("loading") : t("common.add")}
             </Button>
-          </div>
+          </FormActions>
         </form>
       </DialogContent>
     </Dialog>
@@ -177,15 +264,33 @@ const EditButton = ({ id, name, text, remark, weight }: CommandClipboard) => {
   const { updateCommand } = useCommandClipboard();
   const [isOpen, setOpen] = React.useState(false);
   const [updating, setUpdating] = React.useState(false);
+  const [errors, setErrors] = React.useState<CommandFormErrors>({});
 
   const handleUpdate = async (event: React.FormEvent) => {
     event.preventDefault();
     const form = event.currentTarget as HTMLFormElement;
     const formData = new FormData(form);
-    const newName = formData.get("name") as string;
-    const newText = formData.get("text") as string;
+    const newName = String(formData.get("name") || "");
+    const newText = String(formData.get("text") || "");
     const newRemark = formData.get("remark") as string;
-    const nextWeight = formData.get("weight") as string;
+    const nextWeight = String(formData.get("weight") || "");
+    const nextErrors: CommandFormErrors = {};
+    if (!newName.trim()) {
+      nextErrors.name = t("common.name_required", { defaultValue: "Name is required." });
+    }
+    if (!newText.trim()) {
+      nextErrors.text = t("common.content_required", { defaultValue: "Content is required." });
+    }
+    const parsedWeight = Number.parseInt(nextWeight, 10);
+    if (nextWeight.trim() && !Number.isFinite(parsedWeight)) {
+      nextErrors.weight = t("common.weight_invalid", {
+        defaultValue: "Weight must be an integer.",
+      });
+    }
+    setErrors(nextErrors);
+    if (Object.keys(nextErrors).length > 0) {
+      return;
+    }
     try {
       setUpdating(true);
       await updateCommand(
@@ -193,11 +298,16 @@ const EditButton = ({ id, name, text, remark, weight }: CommandClipboard) => {
         newName,
         newText,
         newRemark,
-        nextWeight ? parseInt(nextWeight) : 0,
+        nextWeight ? parsedWeight : 0,
       );
       setOpen(false);
+      setErrors({});
       toast.success(t("common.updated_successfully"));
     } catch (error) {
+      setErrors((current) => ({
+        ...current,
+        form: error instanceof Error ? error.message : t("common.operation_failed", "Operation failed"),
+      }));
       toast.error(error instanceof Error ? error.message : "An error occurred");
     } finally {
       setUpdating(false);
@@ -205,7 +315,15 @@ const EditButton = ({ id, name, text, remark, weight }: CommandClipboard) => {
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={setOpen}>
+    <Dialog
+      open={isOpen}
+      onOpenChange={(open) => {
+        setOpen(open);
+        if (!open) {
+          setErrors({});
+        }
+      }}
+    >
       <DialogTrigger asChild>
         <Button type="button" size="icon" aria-label="Edit Command">
           <Edit2Icon size={16} />
@@ -213,25 +331,72 @@ const EditButton = ({ id, name, text, remark, weight }: CommandClipboard) => {
       </DialogTrigger>
       <DialogContent>
         <DialogTitle>{t("common.edit")}</DialogTitle>
-        <form onSubmit={handleUpdate}>
-          <div className="flex flex-col gap-2">
-            <label htmlFor="name">{t("common.name")}</label>
-            <Input id="name" name="name" defaultValue={name} />
-            <label htmlFor="text">{t("common.content")}</label>
-            <Textarea id="text" name="text" defaultValue={text} />
-            <label htmlFor="remark">{t("common.remark")}</label>
-            <Input id="remark" name="remark" defaultValue={remark} />
-            <label htmlFor="weight">{t("common.weight")}</label>
-            <Input type="number" id="weight" name="weight" defaultValue={weight} />
-            <div className="mt-4 flex justify-end gap-2">
-              <DialogClose asChild>
-                <Button variant="outline">{t("common.cancel")}</Button>
-              </DialogClose>
-              <Button type="submit" disabled={updating}>
-                {t("common.update")}
+        <form onSubmit={handleUpdate} className="space-y-4">
+          <FormShell>
+            <FormSection>
+              <FormField
+                label={t("common.name")}
+                htmlFor={`command-edit-name-${id}`}
+                required
+                error={errors.name}
+              >
+                <Input id={`command-edit-name-${id}`} name="name" defaultValue={name} />
+              </FormField>
+              <FormField
+                label={t("common.content")}
+                htmlFor={`command-edit-text-${id}`}
+                required
+                error={errors.text}
+              >
+                <Textarea
+                  id={`command-edit-text-${id}`}
+                  name="text"
+                  defaultValue={text}
+                  className="min-h-28"
+                />
+              </FormField>
+            </FormSection>
+
+            <FormSection
+              advanced
+              title={t("common.advanced", { defaultValue: "Advanced" })}
+              toggleLabel={t("common.advanced", { defaultValue: "Advanced" })}
+            >
+              <div className="grid gap-4 sm:grid-cols-2">
+                <FormField label={t("common.remark")} htmlFor={`command-edit-remark-${id}`}>
+                  <Input id={`command-edit-remark-${id}`} name="remark" defaultValue={remark} />
+                </FormField>
+                <FormField
+                  label={t("common.weight")}
+                  htmlFor={`command-edit-weight-${id}`}
+                  error={errors.weight}
+                  description={t("command_clipboard.weight_hint", {
+                    defaultValue: "Larger numbers appear first in the list.",
+                  })}
+                >
+                  <Input
+                    type="number"
+                    id={`command-edit-weight-${id}`}
+                    name="weight"
+                    defaultValue={weight}
+                  />
+                </FormField>
+              </div>
+            </FormSection>
+          </FormShell>
+
+          {errors.form ? <FormErrorText>{errors.form}</FormErrorText> : null}
+
+          <FormActions>
+            <DialogClose asChild>
+              <Button variant="outline" type="button">
+                {t("common.cancel")}
               </Button>
-            </div>
-          </div>
+            </DialogClose>
+            <Button type="submit" disabled={updating}>
+              {updating ? t("loading") : t("common.update")}
+            </Button>
+          </FormActions>
         </form>
       </DialogContent>
     </Dialog>

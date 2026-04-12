@@ -40,6 +40,7 @@ import {
   DropdownMenuContent,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Input } from "@/components/ui/input";
 import {
   Table,
   TableBody,
@@ -57,14 +58,14 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { ActionsCell } from "./NodeTable/NodeFunction";
 import { toast } from "sonner";
 import { LoadingIcon } from "../Icones/icon";
+import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import { EditDialogShell } from "@/components/ui/modal-shell";
 import {
-  Button,
-  Checkbox,
-  Dialog,
-  Flex,
-  IconButton,
-  TextField,
-} from "@/components/admin/admin-ui";
+  FormActions,
+  FormField,
+  FormShell,
+} from "@/components/ui/form-shell";
 import Loading from "../loading";
 import { useNodeDetails } from "@/contexts/NodeDetailsContext";
 
@@ -79,21 +80,25 @@ const columns: ColumnDef<z.infer<typeof schema>>[] = [
     header: ({ table }) => (
       <div className="flex items-center justify-center">
         <Checkbox
-          size={"1"}
           checked={
             table.getIsAllRowsSelected() ||
             (table.getIsSomeRowsSelected() && "indeterminate")
           }
           onCheckedChange={(value) => table.toggleAllRowsSelected(!!value)}
+          aria-label={t("admin.nodeTable.selectAll", {
+            defaultValue: "Select all rows",
+          })}
         />
       </div>
     ),
     cell: ({ row }) => (
       <div className="flex items-center justify-center">
         <Checkbox
-          size={"1"}
           checked={row.getIsSelected()}
           onCheckedChange={(value) => row.toggleSelected(!!value)}
+          aria-label={t("admin.nodeTable.selectOne", {
+            defaultValue: "Select this row",
+          })}
         />
       </div>
     ),
@@ -119,30 +124,39 @@ const columns: ColumnDef<z.infer<typeof schema>>[] = [
           {ipv4 && (
             <div className="flex items-center gap-1">
               <span>{ipv4}</span>
-              <IconButton
+              <Button
                 variant="ghost"
+                size="icon"
+                className="size-7"
+                aria-label={t("admin.nodeTable.copyIpv4", {
+                  defaultValue: "Copy IPv4 address",
+                })}
                 onClick={() => {
-                  navigator.clipboard.writeText(ipv4);
+                  void navigator.clipboard.writeText(ipv4);
                   toast.success(t("copy_success"));
                 }}
               >
                 <Copy size={16} />
-              </IconButton>
+              </Button>
             </div>
           )}
           {ipv6 && (
             <div className="flex items-center gap-1">
               <span>{ipv6}</span>
-              <IconButton
+              <Button
                 variant="ghost"
-                className="size-5"
+                size="icon"
+                className="size-7"
+                aria-label={t("admin.nodeTable.copyIpv6", {
+                  defaultValue: "Copy IPv6 address",
+                })}
                 onClick={() => {
-                  navigator.clipboard.writeText(ipv6);
+                  void navigator.clipboard.writeText(ipv6);
                   toast.success(t("copy_success"));
                 }}
               >
                 <Copy size={16} />
-              </IconButton>
+              </Button>
             </div>
           )}
         </div>
@@ -189,6 +203,7 @@ export function DataTable() {
   );
   const [newNodeName, setNewNodeName] = React.useState("");
   const [isAddingNode, setIsAddingNode] = React.useState(false);
+  const [addNodeDialogOpen, setAddNodeDialogOpen] = React.useState(false);
 
   React.useEffect(() => {
     setData([...nodeDetail].sort((a, b) => (a.weight ?? 0) - (b.weight ?? 0)));
@@ -207,6 +222,7 @@ export function DataTable() {
       }
       setNewNodeName("");
       await refresh({ silent: true });
+      setAddNodeDialogOpen(false);
     } catch (error) {
       console.error("Failed to add node:", error);
       toast.error(t("admin.nodeTable.errorRefreshNodeList"));
@@ -302,7 +318,7 @@ export function DataTable() {
         {t("admin.nodeTable.nodeList")}
       </h2>
       <div className="flex items-center justify-between mb-4">
-        <TextField.Root
+        <Input
           placeholder={t("admin.nodeTable.searchByName")}
           value={(table.getColumn("name")?.getFilterValue() as string) ?? ""}
           onChange={(event) =>
@@ -310,42 +326,58 @@ export function DataTable() {
           }
           className="max-w-2xs"
         />
-        <Dialog.Root>
-          <Dialog.Trigger>
-            <Button>
-              <PlusIcon className="lg:mr-1" />
-              <span className="hidden lg:inline">
-                {t("admin.nodeTable.addNode")}
-              </span>
-            </Button>
-          </Dialog.Trigger>
-          <Dialog.Content>
-            <Dialog.Title>{t("admin.nodeTable.addNode")}</Dialog.Title>
-            <div className="">
-              <label className="block mb-1 text-sm font-medium text-muted-foreground">
-                {t("admin.nodeTable.nameOptional")}
-              </label>
-              <TextField.Root
-                placeholder={t("admin.nodeTable.namePlaceholder")}
-                value={newNodeName}
-                onChange={(e) => setNewNodeName(e.target.value)}
-              />
-            </div>
-            <Flex justify="end" gap="2" className="mt-4">
-              <Button onClick={handleAddNode} disabled={isAddingNode}>
-                {isAddingNode ? (
-                  <span className="flex items-center gap-1">
-                    <LoadingIcon className="animate-spin size-4" />
-                    {t("admin.nodeTable.submitting")}
-                  </span>
-                ) : (
-                  t("admin.nodeTable.submit")
-                )}
-              </Button>
-            </Flex>
-          </Dialog.Content>
-        </Dialog.Root>
+        <Button onClick={() => setAddNodeDialogOpen(true)}>
+          <PlusIcon className="lg:mr-1" />
+          <span className="hidden lg:inline">
+            {t("admin.nodeTable.addNode")}
+          </span>
+        </Button>
       </div>
+      <EditDialogShell
+        open={addNodeDialogOpen}
+        onOpenChange={setAddNodeDialogOpen}
+        size="sm"
+        title={t("admin.nodeTable.addNode")}
+        description={t(
+          "admin.nodeTable.addNodeDescription",
+          "Create an empty node entry and complete details later.",
+        )}
+        footer={(
+          <FormActions>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setAddNodeDialogOpen(false)}
+            >
+              {t("common.cancel", { defaultValue: "Cancel" })}
+            </Button>
+            <Button onClick={() => void handleAddNode()} disabled={isAddingNode}>
+              {isAddingNode ? (
+                <span className="flex items-center gap-1">
+                  <LoadingIcon className="animate-spin size-4" />
+                  {t("admin.nodeTable.submitting")}
+                </span>
+              ) : (
+                t("admin.nodeTable.submit")
+              )}
+            </Button>
+          </FormActions>
+        )}
+      >
+        <FormShell>
+          <FormField
+            label={t("admin.nodeTable.nameOptional")}
+            htmlFor="admin-node-add-name"
+          >
+            <Input
+              id="admin-node-add-name"
+              placeholder={t("admin.nodeTable.namePlaceholder")}
+              value={newNodeName}
+              onChange={(event) => setNewNodeName(event.target.value)}
+            />
+          </FormField>
+        </FormShell>
+      </EditDialogShell>
       <DataTableRefreshContext.Provider value={refreshTable}>
         <div className="flex min-w-0 w-full flex-col justify-start gap-6">
           <div className="flex items-center justify-between">
@@ -359,49 +391,51 @@ export function DataTable() {
               sensors={sensors}
               id={sortableId}
             >
-              <Table className="min-w-[960px]">
-                <TableHeader className="bg-muted">
-                  {table.getHeaderGroups().map((headerGroup) => (
-                    <TableRow key={headerGroup.id}>
-                      {headerGroup.headers.map((header) => {
-                        return (
-                          <TableHead key={header.id} colSpan={header.colSpan}>
-                            {header.isPlaceholder
-                              ? null
-                              : flexRender(
-                                  header.column.columnDef.header,
-                                  header.getContext()
-                                )}
-                          </TableHead>
-                        );
-                      })}
-                    </TableRow>
-                  ))}
-                </TableHeader>
-                <TableBody className="**:data-[slot=table-cell]:first:w-8">
-                  {table.getRowModel().rows?.length ? (
-                    <SortableContext
-                      items={dataIds}
-                      strategy={verticalListSortingStrategy}
-                    >
-                      {table.getRowModel().rows.map((row) => (
-                        <DraggableRow key={row.id} row={row} />
-                      ))}
-                    </SortableContext>
-                  ) : (
-                    <TableRow>
-                      <TableCell
-                        colSpan={columns.length}
-                        className="h-24 text-center"
+              <div className="w-full overflow-x-auto">
+                <Table className="min-w-[960px]">
+                  <TableHeader className="bg-muted">
+                    {table.getHeaderGroups().map((headerGroup) => (
+                      <TableRow key={headerGroup.id}>
+                        {headerGroup.headers.map((header) => {
+                          return (
+                            <TableHead key={header.id} colSpan={header.colSpan}>
+                              {header.isPlaceholder
+                                ? null
+                                : flexRender(
+                                    header.column.columnDef.header,
+                                    header.getContext()
+                                  )}
+                            </TableHead>
+                          );
+                        })}
+                      </TableRow>
+                    ))}
+                  </TableHeader>
+                  <TableBody className="**:data-[slot=table-cell]:first:w-8">
+                    {table.getRowModel().rows?.length ? (
+                      <SortableContext
+                        items={dataIds}
+                        strategy={verticalListSortingStrategy}
                       >
-                        {data.length === 0 && !isLoading
-                          ? t("admin.nodeTable.noData")
-                          : t("admin.nodeTable.noResults")}
-                      </TableCell>
-                    </TableRow>
-                  )}
-                </TableBody>
-              </Table>
+                        {table.getRowModel().rows.map((row) => (
+                          <DraggableRow key={row.id} row={row} />
+                        ))}
+                      </SortableContext>
+                    ) : (
+                      <TableRow>
+                        <TableCell
+                          colSpan={columns.length}
+                          className="h-24 text-center"
+                        >
+                          {data.length === 0 && !isLoading
+                            ? t("admin.nodeTable.noData")
+                            : t("admin.nodeTable.noResults")}
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
             </DndContext>
             <div className="flex items-center justify-between">
               <div className="text-muted-foreground flex-1 text-sm">
@@ -410,7 +444,7 @@ export function DataTable() {
               </div>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="soft">
+                  <Button variant="secondary">
                     <Columns2 />
                     <span className="hidden lg:inline">
                       {t("admin.nodeTable.customColumns")}

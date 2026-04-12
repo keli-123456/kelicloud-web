@@ -1,7 +1,7 @@
 import * as React from "react";
 import Loading from "@/components/loading";
 import { useTranslation } from "react-i18next";
-import { SegmentedControl } from "@/components/admin/admin-ui";
+import { SegmentedControl } from "@/components/ui/segmented-control";
 import {
   AdminPageShell,
   AdminSurface,

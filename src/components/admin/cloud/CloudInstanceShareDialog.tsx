@@ -3,14 +3,13 @@ import { Share2, Trash2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
+import { EditDialogShell } from "@/components/ui/modal-shell";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+  FormActions,
+  FormField,
+  FormHelpText,
+  FormShell,
+} from "@/components/ui/form-shell";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -19,7 +18,7 @@ import {
   cloudDialogContentClassName,
   cloudLongTextClassName,
   cloudSecretTextareaClassName,
-} from "@/components/admin/cloud/cloud-ui";
+} from "@/components/admin/cloud/cloud-shared";
 import {
   type CloudInstanceShareRecord,
   type CloudShareAccessPolicy,
@@ -111,204 +110,188 @@ export default function CloudInstanceShareDialog({
     : "mt-3 border-amber-200 bg-white/80";
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent
-        className={`${cloudDialogContentClassName} max-h-[85vh] overflow-y-auto`}
-      >
-        <DialogHeader>
-          <DialogTitle>{t("cloud.share.dialog_title", "Share Instance")}</DialogTitle>
-          <DialogDescription>
-            {t(
-              "cloud.share.dialog_description",
-              "Generate a read-only public link for one instance. You can choose whether to include the saved root password or managed SSH key.",
-            )}
-          </DialogDescription>
-        </DialogHeader>
-
-        {loading ? (
-          <div className="text-sm text-slate-500">
-            {t("cloud.loading", "Loading cloud resources...")}
+    <EditDialogShell
+      open={open}
+      onOpenChange={onOpenChange}
+      title={t("cloud.share.dialog_title", "Share Instance")}
+      description={t(
+        "cloud.share.dialog_description",
+        "Generate a read-only public link for one instance. You can choose whether to include the saved root password or managed SSH key.",
+      )}
+      size="lg"
+      contentClassName={`${cloudDialogContentClassName} max-h-[85vh] overflow-y-auto`}
+    >
+      {loading ? (
+        <div className="text-sm text-slate-500">
+          {t("cloud.loading", "Loading cloud resources...")}
+        </div>
+      ) : target ? (
+        <FormShell>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <CloudDetailItem label={t("cloud.share.instance", "Instance")} value={target.resourceName} />
+            <CloudDetailItem label={t("cloud.share.provider", "Provider")} value={target.providerLabel} />
+            <CloudDetailItem label={t("cloud.tokens.table.account", "Account")} value={target.credentialName || "-"} />
+            <CloudDetailItem label={t("cloud.table.region", "Region")} value={target.region || "-"} />
+            <CloudDetailItem label={t("cloud.table.ip", "Public IP")} value={target.primaryAddress || "-"} />
+            <CloudDetailItem
+              label={t("cloud.share.status", "Share Status")}
+              value={share?.status
+                ? t(`cloud.share.status_${share.status}`, share.status)
+                : share?.token
+                  ? t("cloud.share.enabled", "Enabled")
+                  : t("cloud.share.status_not_shared", "Not Shared")}
+            />
+            <CloudDetailItem
+              label={t("cloud.share.access_policy", "Access Policy")}
+              value={accessPolicy === "single_use"
+                ? t("cloud.share.policy_single_use", "Single Use")
+                : t("cloud.share.policy_public", "Public")}
+            />
+            <CloudDetailItem
+              label={t("cloud.share.expires_at", "Expires At")}
+              value={share?.expires_at
+                ? new Date(share.expires_at).toLocaleString()
+                : t("cloud.share.never_expires", "Never")}
+            />
           </div>
-        ) : target ? (
-          <div className="flex flex-col gap-4">
-            <div className="grid gap-3 sm:grid-cols-2">
-              <CloudDetailItem label={t("cloud.share.instance", "Instance")} value={target.resourceName} />
-              <CloudDetailItem label={t("cloud.share.provider", "Provider")} value={target.providerLabel} />
-              <CloudDetailItem label={t("cloud.tokens.table.account", "Account")} value={target.credentialName || "-"} />
-              <CloudDetailItem label={t("cloud.table.region", "Region")} value={target.region || "-"} />
-              <CloudDetailItem label={t("cloud.table.ip", "Public IP")} value={target.primaryAddress || "-"} />
-              <CloudDetailItem
-                label={t("cloud.share.status", "Share Status")}
-                value={share?.status
-                  ? t(`cloud.share.status_${share.status}`, share.status)
-                  : share?.token
-                    ? t("cloud.share.enabled", "Enabled")
-                    : t("cloud.share.status_not_shared", "Not Shared")}
-              />
-              <CloudDetailItem
-                label={t("cloud.share.access_policy", "Access Policy")}
-                value={accessPolicy === "single_use"
-                  ? t("cloud.share.policy_single_use", "Single Use")
-                  : t("cloud.share.policy_public", "Public")}
-              />
-              <CloudDetailItem
-                label={t("cloud.share.expires_at", "Expires At")}
-                value={share?.expires_at
-                  ? new Date(share.expires_at).toLocaleString()
-                  : t("cloud.share.never_expires", "Never")}
-              />
-            </div>
 
+          {share?.token ? (
+            <div className={shareBannerClassName}>
+              <div className={shareBannerTitleClassName}>
+                {shareStatus === "active"
+                  ? t("cloud.share.link_ready", "Share link is ready")
+                  : t(`cloud.share.status_${shareStatus}`, shareStatus)}
+              </div>
+              <CloudCopyBlock
+                className={shareBannerCopyClassName}
+                title={t("cloud.share.public_link", "Public Link")}
+                copyLabel={t("common.copy", "Copy")}
+                onCopy={onCopyLink}
+              >
+                <Textarea
+                  className={cloudSecretTextareaClassName}
+                  readOnly
+                  rows={3}
+                  value={shareUrl}
+                />
+              </CloudCopyBlock>
+              <div className="mt-3 grid gap-3 sm:grid-cols-3">
+                <CloudDetailItem
+                  label={t("cloud.share.access_count", "Access Count")}
+                  value={String(share.access_count || 0)}
+                  className="border-emerald-200 bg-white/80"
+                />
+                <CloudDetailItem
+                  label={t("cloud.share.last_accessed_at", "Last Accessed")}
+                  value={share.last_accessed_at ? new Date(share.last_accessed_at).toLocaleString() : "-"}
+                  className="border-emerald-200 bg-white/80"
+                />
+                <CloudDetailItem
+                  label={t("cloud.share.consumed_at", "Consumed At")}
+                  value={share.consumed_at ? new Date(share.consumed_at).toLocaleString() : "-"}
+                  className="border-emerald-200 bg-white/80"
+                />
+              </div>
+            </div>
+          ) : null}
+
+          <FormField label={t("cloud.share.custom_title", "Custom Title")}>
+            <Input
+              value={title}
+              placeholder={target.resourceName}
+              onChange={(event) => onTitleChange(event.target.value)}
+            />
+          </FormField>
+
+          <FormField label={t("cloud.share.access_policy", "Access Policy")}>
+            <Select value={accessPolicy} onValueChange={(value) => onAccessPolicyChange(value as CloudShareAccessPolicy)}>
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder={t("cloud.share.access_policy", "Access Policy")} />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="public">{t("cloud.share.policy_public", "Public")}</SelectItem>
+                <SelectItem value="single_use">{t("cloud.share.policy_single_use", "Single Use")}</SelectItem>
+              </SelectContent>
+            </Select>
+            <FormHelpText className={cloudLongTextClassName}>
+              {accessPolicy === "single_use"
+                ? t("cloud.share.policy_single_use_description", "The first successful visit can open the share. Later visits will be rejected.")
+                : t("cloud.share.policy_public_description", "Anyone with the link can open it until you revoke it or it expires.")}
+            </FormHelpText>
+          </FormField>
+
+          <FormField label={t("cloud.share.expires_at", "Expires At")}>
+            <Input
+              type="datetime-local"
+              value={expiresAt}
+              onChange={(event) => onExpiresAtChange(event.target.value)}
+            />
+            <FormHelpText className={cloudLongTextClassName}>
+              {t("cloud.share.expires_at_description", "Leave empty to keep the link valid until you revoke it manually.")}
+            </FormHelpText>
+          </FormField>
+
+          <FormField label={t("cloud.share.note", "Share Note")}>
+            <Textarea
+              className="min-h-28"
+              value={note}
+              placeholder={t("cloud.share.note_placeholder", "Optional note shown on the public share page")}
+              onChange={(event) => onNoteChange(event.target.value)}
+            />
+          </FormField>
+
+          {target.canSharePassword ? (
+            <label className="flex items-center gap-3 rounded-xl border border-slate-200 px-4 py-3 dark:border-slate-800">
+              <Checkbox checked={sharePassword} onCheckedChange={(checked) => onSharePasswordChange(Boolean(checked))} />
+              <div className="min-w-0">
+                <div className="text-sm font-medium text-slate-900 dark:text-slate-100">
+                  {t("cloud.share.include_password", "Include saved root password")}
+                </div>
+                <div className={`text-xs text-slate-500 dark:text-slate-400 ${cloudLongTextClassName}`}>
+                  {t("cloud.share.include_password_description", "Anyone with the link will be able to view the stored root password.")}
+                </div>
+              </div>
+            </label>
+          ) : null}
+
+          {target.canShareManagedSSHKey ? (
+            <label className="flex items-center gap-3 rounded-xl border border-slate-200 px-4 py-3 dark:border-slate-800">
+              <Checkbox checked={shareManagedSSHKey} onCheckedChange={(checked) => onShareManagedSSHKeyChange(Boolean(checked))} />
+              <div className="min-w-0">
+                <div className="text-sm font-medium text-slate-900 dark:text-slate-100">
+                  {t("cloud.share.include_managed_key", "Include managed SSH key")}
+                </div>
+                <div className={`text-xs text-slate-500 dark:text-slate-400 ${cloudLongTextClassName}`}>
+                  {t("cloud.share.include_managed_key_description", "Expose the managed SSH private key so the recipient can log in with the shared key pair.")}
+                </div>
+              </div>
+            </label>
+          ) : null}
+
+          <FormActions>
             {share?.token ? (
-              <div className={shareBannerClassName}>
-                <div className={shareBannerTitleClassName}>
-                  {shareStatus === "active"
-                    ? t("cloud.share.link_ready", "Share link is ready")
-                    : t(`cloud.share.status_${shareStatus}`, shareStatus)}
-                </div>
-                <CloudCopyBlock
-                  className={shareBannerCopyClassName}
-                  title={t("cloud.share.public_link", "Public Link")}
-                  copyLabel={t("common.copy", "Copy")}
-                  onCopy={onCopyLink}
-                >
-                  <Textarea
-                    className={cloudSecretTextareaClassName}
-                    readOnly
-                    rows={3}
-                    value={shareUrl}
-                  />
-                </CloudCopyBlock>
-                <div className="mt-3 grid gap-3 sm:grid-cols-3">
-                  <CloudDetailItem
-                    label={t("cloud.share.access_count", "Access Count")}
-                    value={String(share.access_count || 0)}
-                    className="border-emerald-200 bg-white/80"
-                  />
-                  <CloudDetailItem
-                    label={t("cloud.share.last_accessed_at", "Last Accessed")}
-                    value={share.last_accessed_at ? new Date(share.last_accessed_at).toLocaleString() : "-"}
-                    className="border-emerald-200 bg-white/80"
-                  />
-                  <CloudDetailItem
-                    label={t("cloud.share.consumed_at", "Consumed At")}
-                    value={share.consumed_at ? new Date(share.consumed_at).toLocaleString() : "-"}
-                    className="border-emerald-200 bg-white/80"
-                  />
-                </div>
-              </div>
-            ) : null}
-
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-slate-800 dark:text-slate-100">
-                {t("cloud.share.custom_title", "Custom Title")}
-              </label>
-              <Input
-                value={title}
-                placeholder={target.resourceName}
-                onChange={(event) => onTitleChange(event.target.value)}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-slate-800 dark:text-slate-100">
-                {t("cloud.share.access_policy", "Access Policy")}
-              </label>
-              <Select value={accessPolicy} onValueChange={(value) => onAccessPolicyChange(value as CloudShareAccessPolicy)}>
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder={t("cloud.share.access_policy", "Access Policy")} />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="public">{t("cloud.share.policy_public", "Public")}</SelectItem>
-                  <SelectItem value="single_use">{t("cloud.share.policy_single_use", "Single Use")}</SelectItem>
-                </SelectContent>
-              </Select>
-              <div className={`text-xs text-slate-500 dark:text-slate-400 ${cloudLongTextClassName}`}>
-                {accessPolicy === "single_use"
-                  ? t("cloud.share.policy_single_use_description", "The first successful visit can open the share. Later visits will be rejected.")
-                  : t("cloud.share.policy_public_description", "Anyone with the link can open it until you revoke it or it expires.")}
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-slate-800 dark:text-slate-100">
-                {t("cloud.share.expires_at", "Expires At")}
-              </label>
-              <Input
-                type="datetime-local"
-                value={expiresAt}
-                onChange={(event) => onExpiresAtChange(event.target.value)}
-              />
-              <div className={`text-xs text-slate-500 dark:text-slate-400 ${cloudLongTextClassName}`}>
-                {t("cloud.share.expires_at_description", "Leave empty to keep the link valid until you revoke it manually.")}
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-slate-800 dark:text-slate-100">
-                {t("cloud.share.note", "Share Note")}
-              </label>
-              <Textarea
-                className="min-h-28"
-                value={note}
-                placeholder={t("cloud.share.note_placeholder", "Optional note shown on the public share page")}
-                onChange={(event) => onNoteChange(event.target.value)}
-              />
-            </div>
-
-            {target.canSharePassword ? (
-              <label className="flex items-center gap-3 rounded-xl border border-slate-200 px-4 py-3 dark:border-slate-800">
-                <Checkbox checked={sharePassword} onCheckedChange={(checked) => onSharePasswordChange(Boolean(checked))} />
-                <div className="min-w-0">
-                  <div className="text-sm font-medium text-slate-900 dark:text-slate-100">
-                    {t("cloud.share.include_password", "Include saved root password")}
-                  </div>
-                  <div className={`text-xs text-slate-500 dark:text-slate-400 ${cloudLongTextClassName}`}>
-                    {t("cloud.share.include_password_description", "Anyone with the link will be able to view the stored root password.")}
-                  </div>
-                </div>
-              </label>
-            ) : null}
-
-            {target.canShareManagedSSHKey ? (
-              <label className="flex items-center gap-3 rounded-xl border border-slate-200 px-4 py-3 dark:border-slate-800">
-                <Checkbox checked={shareManagedSSHKey} onCheckedChange={(checked) => onShareManagedSSHKeyChange(Boolean(checked))} />
-                <div className="min-w-0">
-                  <div className="text-sm font-medium text-slate-900 dark:text-slate-100">
-                    {t("cloud.share.include_managed_key", "Include managed SSH key")}
-                  </div>
-                  <div className={`text-xs text-slate-500 dark:text-slate-400 ${cloudLongTextClassName}`}>
-                    {t("cloud.share.include_managed_key_description", "Expose the managed SSH private key so the recipient can log in with the shared key pair.")}
-                  </div>
-                </div>
-              </label>
-            ) : null}
-
-            <DialogFooter>
-              {share?.token ? (
-                <Button
-                  variant="destructive"
-                  onClick={onDelete}
-                  disabled={deleting || saving}
-                >
-                  <Trash2 className="mr-2 h-4 w-4" />
-                  {deleting
-                    ? t("cloud.share.revoking", "Revoking...")
-                    : t("cloud.share.revoke", "Revoke Link")}
-                </Button>
-              ) : null}
-              <Button onClick={onSave} disabled={saving || deleting}>
-                <Share2 className="mr-2 h-4 w-4" />
-                {saving
-                  ? t("cloud.share.saving", "Saving...")
-                  : share?.token
-                    ? t("cloud.share.update", "Update Share")
-                    : t("cloud.share.create", "Create Share")}
+              <Button
+                variant="destructive"
+                onClick={onDelete}
+                disabled={deleting || saving}
+              >
+                <Trash2 className="mr-2 h-4 w-4" />
+                {deleting
+                  ? t("cloud.share.revoking", "Revoking...")
+                  : t("cloud.share.revoke", "Revoke Link")}
               </Button>
-            </DialogFooter>
-          </div>
-        ) : null}
-      </DialogContent>
-    </Dialog>
+            ) : null}
+            <Button onClick={onSave} disabled={saving || deleting}>
+              <Share2 className="mr-2 h-4 w-4" />
+              {saving
+                ? t("cloud.share.saving", "Saving...")
+                : share?.token
+                  ? t("cloud.share.update", "Update Share")
+                  : t("cloud.share.create", "Create Share")}
+            </Button>
+          </FormActions>
+        </FormShell>
+      ) : null}
+    </EditDialogShell>
   );
 }

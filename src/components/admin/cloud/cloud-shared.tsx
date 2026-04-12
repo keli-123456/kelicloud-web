@@ -1,9 +1,9 @@
 import * as React from "react";
+import { Copy } from "lucide-react";
 
 import { Badge as ShadBadge } from "@/components/ui/badge";
 import { Button as ShadButton } from "@/components/ui/button";
 import { Checkbox as ShadCheckbox } from "@/components/ui/checkbox";
-import { Card as ShadCard } from "@/components/ui/card";
 import {
   Dialog as ShadDialog,
   DialogClose as ShadDialogClose,
@@ -26,9 +26,11 @@ import {
   TabsList as ShadTabsList,
   TabsTrigger as ShadTabsTrigger,
 } from "@/components/ui/tabs";
-import { SegmentedControl } from "@/components/ui/segmented-control";
-import { Switch as ShadSwitch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
+import {
+  semanticToBadgeVariant,
+  type StatusSemantic,
+} from "@/lib/status-semantic";
 import { cn } from "@/lib/utils";
 
 type Tone = "gray" | "red" | "amber" | "green" | "blue";
@@ -171,28 +173,21 @@ function Button({
   );
 }
 
-function IconButton({
-  className,
-  size,
-  ...props
-}: Omit<ButtonProps, "size"> & { size?: LegacyButtonSize | "icon" }) {
-  return (
-    <Button
-      size={size === "1" ? "icon" : size || "icon"}
-      className={cn("h-8 w-8 p-0", className)}
-      {...props}
-    />
-  );
-}
-
 type BadgeProps = Omit<React.ComponentProps<typeof ShadBadge>, "variant"> & {
   color?: Tone;
   variant?: "soft" | "solid";
+  semantic?: StatusSemantic;
 };
 
-function Badge({ color = "gray", variant, ...props }: BadgeProps) {
-  const resolvedVariant =
-    color === "green"
+function Badge({
+  color = "gray",
+  variant,
+  semantic,
+  ...props
+}: BadgeProps) {
+  const resolvedVariant = semantic
+    ? semanticToBadgeVariant(semantic)
+    : color === "green"
       ? "success"
       : color === "amber"
         ? "warning"
@@ -294,37 +289,7 @@ const TextArea = React.forwardRef<
     />
   );
 });
-TextArea.displayName = "AdminTextArea";
-
-function Text({
-  size,
-  className,
-  ...props
-}: React.ComponentProps<"span"> & {
-  size?: "1" | "2" | "3" | "4" | "5" | "6";
-}) {
-  return (
-    <span
-      className={cn(
-        size === "1"
-          ? "text-sm"
-          : size === "2"
-            ? "text-base"
-            : size === "3"
-              ? "text-lg"
-              : size === "4"
-                ? "text-xl"
-                : size === "5"
-                  ? "text-2xl"
-                  : size === "6"
-                    ? "text-3xl"
-                    : "",
-        className,
-      )}
-      {...props}
-    />
-  );
-}
+TextArea.displayName = "CloudTextArea";
 
 type TextFieldSlotProps = React.ComponentProps<"div"> & {
   side?: "left" | "right";
@@ -377,21 +342,21 @@ const TextFieldRoot = React.forwardRef<
 
   return (
     <div className="relative w-full">
-      {leftSlot && (
+      {leftSlot ? (
         <div className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-muted-foreground [&>*]:pointer-events-auto">
           {leftSlot.props.children}
         </div>
-      )}
+      ) : null}
       {input}
-      {rightSlot && (
+      {rightSlot ? (
         <div className="absolute inset-y-0 right-2 flex items-center text-muted-foreground">
           {rightSlot.props.children}
         </div>
-      )}
+      ) : null}
     </div>
   );
 });
-TextFieldRoot.displayName = "AdminTextFieldRoot";
+TextFieldRoot.displayName = "CloudTextFieldRoot";
 
 const TextField = {
   Root: TextFieldRoot,
@@ -471,7 +436,7 @@ const SelectTrigger = React.forwardRef<HTMLButtonElement, SelectTriggerProps>(
     );
   },
 );
-SelectTrigger.displayName = "AdminSelectTrigger";
+SelectTrigger.displayName = "CloudSelectTrigger";
 
 const Select = {
   Root: ShadSelect,
@@ -487,28 +452,171 @@ const Tabs = {
   Content: ShadTabsContent,
 };
 
-function Card({
+const cloudDialogContentClassName =
+  "w-[calc(100vw-1rem)] max-w-[calc(100vw-1rem)] min-w-0 overflow-x-hidden overscroll-contain [scrollbar-gutter:stable] sm:max-w-3xl";
+
+const cloudDialogWideContentClassName =
+  "w-[calc(100vw-1rem)] max-w-[calc(100vw-1rem)] min-w-0 overflow-x-hidden overscroll-contain [scrollbar-gutter:stable] sm:max-w-5xl";
+
+const cloudLongTextClassName =
+  "min-w-0 whitespace-pre-wrap break-words [overflow-wrap:anywhere]";
+
+const cloudSecretTextareaClassName =
+  "mt-3 min-h-24 max-w-full resize-y font-mono text-xs [overflow-wrap:anywhere]";
+
+const cloudTallSecretTextareaClassName =
+  "mt-3 min-h-40 max-w-full resize-y font-mono text-xs [overflow-wrap:anywhere]";
+
+const cloudPanelCardClassName =
+  "overflow-hidden rounded-2xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-950/40";
+
+const cloudPanelHeaderClassName =
+  "border-b border-slate-200 px-5 py-4 dark:border-slate-800";
+
+const cloudPanelTitleClassName =
+  "text-sm font-medium text-slate-900 dark:text-slate-100";
+
+const cloudPanelDescriptionClassName =
+  "mt-1 text-sm text-slate-500 dark:text-slate-400";
+
+const cloudPanelSectionClassName =
+  "rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 dark:border-slate-800 dark:bg-slate-900/50";
+
+const cloudPanelSubcardClassName =
+  "rounded-xl border border-slate-200 bg-white px-4 py-3 dark:border-slate-800 dark:bg-slate-950/50";
+
+const cloudPanelFieldLabelClassName =
+  "text-sm font-medium text-slate-800 dark:text-slate-100";
+
+const cloudPanelBodyTextClassName =
+  "text-sm text-slate-700 dark:text-slate-300";
+
+const cloudDetailSectionClassName =
+  "border-t border-slate-200 pt-4 dark:border-slate-800";
+
+const cloudDetailListClassName =
+  "overflow-hidden rounded-lg border border-slate-200/80 dark:border-slate-800";
+
+const cloudDetailListItemClassName =
+  "border-t border-slate-200 px-4 py-3 first:border-t-0 dark:border-slate-800";
+
+type CloudDetailItemProps = {
+  label: React.ReactNode;
+  value: React.ReactNode;
+  className?: string;
+  valueClassName?: string;
+  variant?: "card" | "plain";
+};
+
+function CloudDetailItem({
+  label,
+  value,
   className,
-  ...props
-}: React.ComponentProps<typeof ShadCard>) {
-  return <ShadCard className={cn("py-0", className)} {...props} />;
+  valueClassName,
+  variant = "card",
+}: CloudDetailItemProps) {
+  return (
+    <div
+      className={cn(
+        variant === "plain"
+          ? "min-w-0 border-b border-slate-200 py-3 last:border-b-0 dark:border-slate-800"
+          : "min-w-0 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 dark:border-slate-800 dark:bg-slate-900/60",
+        className,
+      )}
+    >
+      <div className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">
+        {label}
+      </div>
+      <div
+        className={cn(
+          "mt-1 min-w-0 text-sm text-slate-900 dark:text-slate-100",
+          cloudLongTextClassName,
+          valueClassName,
+        )}
+      >
+        {value === undefined || value === null || value === "" ? "-" : value}
+      </div>
+    </div>
+  );
 }
 
-const Switch = ShadSwitch;
+type CloudCopyBlockProps = {
+  title: React.ReactNode;
+  onCopy: () => void;
+  copyLabel?: React.ReactNode;
+  className?: string;
+  titleClassName?: string;
+  contentClassName?: string;
+  children: React.ReactNode;
+};
+
+function CloudCopyBlock({
+  title,
+  onCopy,
+  copyLabel = "Copy",
+  className,
+  titleClassName,
+  contentClassName,
+  children,
+}: CloudCopyBlockProps) {
+  return (
+    <div
+      className={cn(
+        "min-w-0 rounded-xl border border-slate-200 bg-white px-4 py-3 dark:border-slate-800 dark:bg-slate-950/40",
+        className,
+      )}
+    >
+      <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div
+          className={cn(
+            "min-w-0 text-sm font-medium text-slate-800 dark:text-slate-100",
+            cloudLongTextClassName,
+            titleClassName,
+          )}
+        >
+          {title}
+        </div>
+        <Button
+          variant="outline"
+          size="1"
+          className="shrink-0 self-start sm:self-auto"
+          onClick={onCopy}
+        >
+          <Copy className="mr-1 h-3.5 w-3.5" />
+          {copyLabel}
+        </Button>
+      </div>
+      <div className={cn("mt-3 min-w-0", contentClassName)}>{children}</div>
+    </div>
+  );
+}
 
 export {
   Badge,
   Button,
-  Card,
   Checkbox,
+  CloudCopyBlock,
+  CloudDetailItem,
   Dialog,
   Flex,
-  IconButton,
-  SegmentedControl,
   Select,
-  Switch,
   Tabs,
-  Text,
   TextArea,
   TextField,
+  cloudPanelBodyTextClassName,
+  cloudDialogContentClassName,
+  cloudPanelCardClassName,
+  cloudPanelDescriptionClassName,
+  cloudPanelFieldLabelClassName,
+  cloudPanelHeaderClassName,
+  cloudPanelSectionClassName,
+  cloudPanelSubcardClassName,
+  cloudPanelTitleClassName,
+  cloudDetailSectionClassName,
+  cloudDetailListClassName,
+  cloudDetailListItemClassName,
+  cloudDialogWideContentClassName,
+  cloudLongTextClassName,
+  cloudSecretTextareaClassName,
+  cloudTallSecretTextareaClassName,
 };

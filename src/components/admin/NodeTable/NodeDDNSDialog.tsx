@@ -8,13 +8,19 @@ import {
   Button,
   Dialog,
   Flex,
-  IconButton,
-  SegmentedControl,
   Select,
-  Switch,
   TextArea,
   TextField,
-} from "@/components/admin/admin-ui";
+  cloudDialogContentClassName,
+} from "@/components/admin/cloud/cloud-shared";
+import { SegmentedControl } from "@/components/ui/segmented-control";
+import { Switch } from "@/components/ui/switch";
+import { WarningAlert } from "@/components/ui/warning-alert";
+import {
+  resolveStatusSemantic,
+  type StatusSemantic,
+} from "@/lib/status-semantic";
+import { cn } from "@/lib/utils";
 import { getCloudProviderEntries, type CloudProviderCredentialEntry } from "@/lib/cloud";
 import {
   deleteClientDDNSBinding,
@@ -25,6 +31,14 @@ import {
   type ClientDDNSBinding,
 } from "@/lib/clientDDNS";
 import type { FailoverDnsCatalog } from "@/lib/failover";
+
+type IconButtonProps = Omit<React.ComponentProps<typeof Button>, "size"> & {
+  "aria-label": string;
+};
+
+const IconButton = ({ className, ...props }: IconButtonProps) => (
+  <Button size="icon" className={cn("h-8 w-8 p-0", className)} {...props} />
+);
 
 type NodeDDNSTarget = {
   uuid: string;
@@ -63,13 +77,10 @@ const DEFAULT_ALIYUN_FORM: AliyunFormState = {
 };
 
 const NODE_DIALOG_CONTENT_CLASS =
-  "max-h-[90vh] w-[min(96vw,760px)] overflow-y-auto overscroll-contain rounded-[28px] border border-slate-200/80 bg-white/95 p-6 shadow-2xl [scrollbar-gutter:stable] backdrop-blur dark:border-slate-800/80 dark:bg-slate-950/95";
-const NODE_DIALOG_SECTION_CLASS =
-  "dialog-section px-4 py-4";
+  `${cloudDialogContentClassName} max-h-[100dvh] rounded-none border-0 p-4 sm:max-h-[90vh] sm:rounded-2xl sm:border sm:p-5`;
+const NODE_DIALOG_SECTION_CLASS = "space-y-3 border-b border-border/60 pb-4 last:border-b-0";
 const NODE_DIALOG_INFO_CLASS =
-  "rounded-[20px] border border-border/60 bg-background/76 p-4 shadow-sm backdrop-blur-sm";
-const NODE_DIALOG_DANGER_CLASS =
-  "dialog-danger px-3 py-2";
+  "flex items-center justify-between gap-3 rounded-lg border border-border/60 bg-muted/30 p-3";
 
 function normalizeProvider(value: string): DDNSProvider {
   return value === "aliyun" ? "aliyun" : "cloudflare";
@@ -144,17 +155,21 @@ function buildAliyunForm(binding: ClientDDNSBinding | null): AliyunFormState {
   };
 }
 
-function getStatusColor(status: string) {
-  switch (status) {
-    case "synced":
-      return "green" as const;
-    case "pending":
-      return "amber" as const;
-    case "error":
-      return "red" as const;
-    default:
-      return "gray" as const;
+function getSyncStatusSemantic(
+  status: string,
+  enabled: boolean,
+): StatusSemantic {
+  if (!enabled && (!status || status === "pending" || status === "unknown")) {
+    return "disabled";
   }
+  if (status === "disabled") {
+    return "disabled";
+  }
+  const semantic = resolveStatusSemantic(status);
+  if (semantic === "default") {
+    return enabled ? "info" : "disabled";
+  }
+  return semantic;
 }
 
 function getStatusLabel(status: string) {
@@ -380,6 +395,8 @@ export function NodeDDNSDialog({
   const currentIPv4 = item.ipv4 || "-";
   const currentIPv6 = item.ipv6 || "-";
   const selectedEntryMissing = open && !loadingEntries && entries.length === 0;
+  const syncStatus = binding?.sync_status || (enabled ? "pending" : "disabled");
+  const syncStatusSemantic = getSyncStatusSemantic(syncStatus, enabled);
 
   const handleSave = async () => {
     if (!entryID) {
@@ -483,7 +500,11 @@ export function NodeDDNSDialog({
         <Dialog.Trigger asChild>{trigger}</Dialog.Trigger>
       ) : (
         <Dialog.Trigger>
-          <IconButton variant="ghost" title={t("admin.nodeTable.ddns.title", "DDNS")}>
+          <IconButton
+            variant="ghost"
+            title={t("admin.nodeTable.ddns.title", "DDNS")}
+            aria-label={t("admin.nodeTable.ddns.title", "DDNS")}
+          >
             <Globe className="p-1" />
           </IconButton>
         </Dialog.Trigger>
@@ -502,7 +523,7 @@ export function NodeDDNSDialog({
 
         <div className="mt-4 flex flex-col gap-4">
           <div className={NODE_DIALOG_SECTION_CLASS}>
-            <div className="text-sm font-semibold">
+            <div className="text-sm font-semibold break-keep">
               {t("admin.nodeTable.ddns.currentIPs", "Current node IPs")}
             </div>
             <div className="mt-2 grid gap-2 text-sm sm:grid-cols-2">
@@ -518,7 +539,7 @@ export function NodeDDNSDialog({
           </div>
 
           <Flex direction="column" gap="2">
-            <label className="text-sm font-semibold">
+            <label className="text-sm font-semibold break-keep">
               {t("admin.nodeTable.ddns.enabled", "Enable DDNS")}
             </label>
             <div className={NODE_DIALOG_INFO_CLASS}>
@@ -534,7 +555,7 @@ export function NodeDDNSDialog({
 
           <div className="grid gap-4 sm:grid-cols-2">
             <Flex direction="column" gap="2">
-              <label className="text-sm font-semibold">
+              <label className="text-sm font-semibold break-keep">
                 {t("admin.nodeTable.ddns.provider", "DNS provider")}
               </label>
               <Select.Root value={provider} onValueChange={(value) => setProvider(normalizeProvider(value))}>
@@ -551,7 +572,7 @@ export function NodeDDNSDialog({
             </Flex>
 
             <Flex direction="column" gap="2">
-              <label className="text-sm font-semibold">
+              <label className="text-sm font-semibold break-keep">
                 {t("admin.nodeTable.ddns.entry", "Credential entry")}
               </label>
               <Select.Root value={entryID} onValueChange={setEntryID}>
@@ -567,18 +588,20 @@ export function NodeDDNSDialog({
                 </Select.Content>
               </Select.Root>
               {selectedEntryMissing ? (
-                <div className="text-xs text-amber-600">
-                  {t(
+                <WarningAlert
+                  tone="warning"
+                  className="mt-2"
+                  description={t(
                     "admin.nodeTable.ddns.entryMissing",
                     "No credential entries are available for this provider yet.",
                   )}
-                </div>
+                />
               ) : null}
             </Flex>
           </div>
 
           <Flex direction="column" gap="2">
-            <label className="text-sm font-semibold">
+            <label className="text-sm font-semibold break-keep">
               {t("admin.nodeTable.ddns.addressMode", "Address mode")}
             </label>
             <SegmentedControl.Root
@@ -594,14 +617,14 @@ export function NodeDDNSDialog({
           </Flex>
 
           <div className={NODE_DIALOG_SECTION_CLASS}>
-            <div className="mb-3 text-sm font-semibold">
+            <div className="mb-3 text-sm font-semibold break-keep">
               {providerLabel}
             </div>
 
             {provider === "cloudflare" ? (
               <div className="grid gap-4 sm:grid-cols-2">
                 <Flex direction="column" gap="2">
-                  <label className="text-sm font-semibold">
+                  <label className="text-sm font-semibold break-keep">
                     {t("admin.nodeTable.ddns.zoneName", "Zone / domain")}
                   </label>
                   {catalog?.zones.length ? (
@@ -637,7 +660,7 @@ export function NodeDDNSDialog({
                 </Flex>
 
                 <Flex direction="column" gap="2">
-                  <label className="text-sm font-semibold">
+                  <label className="text-sm font-semibold break-keep">
                     {t("admin.nodeTable.ddns.recordName", "Record name")}
                   </label>
                   <TextField.Root
@@ -653,7 +676,7 @@ export function NodeDDNSDialog({
                 </Flex>
 
                 <Flex direction="column" gap="2">
-                  <label className="text-sm font-semibold">
+                  <label className="text-sm font-semibold break-keep">
                     {t("admin.nodeTable.ddns.ttl", "TTL")}
                   </label>
                   {catalog?.ttls.length ? (
@@ -686,7 +709,7 @@ export function NodeDDNSDialog({
                 </Flex>
 
                 <Flex direction="column" gap="2">
-                  <label className="text-sm font-semibold">
+                  <label className="text-sm font-semibold break-keep">
                     {t("admin.nodeTable.ddns.proxied", "Cloudflare proxy")}
                   </label>
                   <div className={NODE_DIALOG_INFO_CLASS}>
@@ -711,7 +734,7 @@ export function NodeDDNSDialog({
             ) : (
               <div className="grid gap-4 sm:grid-cols-2">
                 <Flex direction="column" gap="2">
-                  <label className="text-sm font-semibold">
+                  <label className="text-sm font-semibold break-keep">
                     {t("admin.nodeTable.ddns.domainName", "Domain")}
                   </label>
                   {catalog?.domains.length ? (
@@ -747,7 +770,7 @@ export function NodeDDNSDialog({
                 </Flex>
 
                 <Flex direction="column" gap="2">
-                  <label className="text-sm font-semibold">
+                  <label className="text-sm font-semibold break-keep">
                     {t("admin.nodeTable.ddns.rr", "Host / RR")}
                   </label>
                   <TextField.Root
@@ -763,7 +786,7 @@ export function NodeDDNSDialog({
                 </Flex>
 
                 <Flex direction="column" gap="2">
-                  <label className="text-sm font-semibold">
+                  <label className="text-sm font-semibold break-keep">
                     {t("admin.nodeTable.ddns.line", "Line")}
                   </label>
                   {catalog?.lines.length ? (
@@ -796,7 +819,7 @@ export function NodeDDNSDialog({
                 </Flex>
 
                 <Flex direction="column" gap="2">
-                  <label className="text-sm font-semibold">
+                  <label className="text-sm font-semibold break-keep">
                     {t("admin.nodeTable.ddns.ttl", "TTL")}
                   </label>
                   {catalog?.ttls.length ? (
@@ -832,18 +855,16 @@ export function NodeDDNSDialog({
           </div>
 
           {catalogError ? (
-            <div className="rounded-[20px] border border-amber-200/80 bg-amber-50/92 px-3 py-2 text-sm text-amber-700 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-300">
-              {catalogError}
-            </div>
+            <WarningAlert tone="warning" description={catalogError} />
           ) : null}
 
           <div className={NODE_DIALOG_SECTION_CLASS}>
             <div className="mb-3 flex items-center justify-between">
-              <div className="text-sm font-semibold">
+              <div className="text-sm font-semibold break-keep">
                 {t("admin.nodeTable.ddns.syncState", "Sync status")}
               </div>
-              <Badge color={getStatusColor(binding?.sync_status || (enabled ? "pending" : "disabled"))}>
-                {getStatusLabel(binding?.sync_status || (enabled ? "pending" : "disabled"))}
+              <Badge semantic={syncStatusSemantic} variant="soft">
+                {getStatusLabel(syncStatus)}
               </Badge>
             </div>
 
@@ -875,9 +896,11 @@ export function NodeDDNSDialog({
             </div>
 
             {binding?.last_error ? (
-              <div className={`mt-3 ${NODE_DIALOG_DANGER_CLASS}`}>
-                {binding.last_error}
-              </div>
+              <WarningAlert
+                tone="destructive"
+                description={binding.last_error}
+                className="mt-3"
+              />
             ) : null}
 
             {binding?.last_result ? (

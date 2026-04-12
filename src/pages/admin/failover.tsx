@@ -77,6 +77,7 @@ import {
 import { getAWSCredentials } from "@/lib/cloudAws";
 import { getLinodeTokens } from "@/lib/cloudLinode";
 import { useSettings } from "@/lib/api";
+import { resolveStatusBadgeVariant } from "@/lib/status-semantic";
 import {
   createFailoverTask,
   deleteFailoverTask,
@@ -346,7 +347,7 @@ function SearchableCatalogSelect({
                   <div className="min-w-0 flex-1">
                     <div className="break-words text-sm font-medium leading-5">{optionLabel}</div>
                     {option.value && option.value !== option.label ? (
-                      <div className="break-all text-xs text-muted-foreground">{option.value}</div>
+                      <div className="break-keep text-xs text-muted-foreground [overflow-wrap:anywhere]">{option.value}</div>
                     ) : null}
                   </div>
                   <Check className={cn("mt-0.5 size-4 shrink-0", isSelected ? "opacity-100" : "opacity-0")} />
@@ -3101,47 +3102,33 @@ function getStatusVariant(
 ): React.ComponentProps<typeof Badge>["variant"] {
   const normalized = String(status || "").trim().toLowerCase();
 
-  if (kind === "probe") {
-    if (["ok", "healthy"].includes(normalized)) return "success";
-    if (["blocked_suspected", "failed"].includes(normalized)) return "destructive";
-    if (["degraded", "warning", "error"].includes(normalized)) return "warning";
-    return "secondary";
-  }
-
-  if (kind === "execution") {
-    if (normalized === "success") return "success";
-    if (normalized === "failed") return "destructive";
-    if (normalized === "retry") return "info";
-    if (isFailoverExecutionActive(normalized)) return "info";
-    return "secondary";
-  }
-
   if (kind === "script") {
-    if (normalized === "success") return "success";
-    if (["failed", "timeout"].includes(normalized)) return "destructive";
-    if (normalized === "running") return "info";
     if (normalized === "skipped") return "outline";
-    return "secondary";
   }
 
   if (kind === "dns" || kind === "cleanup") {
-    if (normalized === "success") return "success";
-    if (normalized === "failed") return "destructive";
-    if (normalized === "warning") return "warning";
     if (normalized === "skipped") return "outline";
-    return "secondary";
   }
 
-  return "secondary";
+  if (kind === "probe" && normalized === "blocked_suspected") {
+    return "destructive";
+  }
+
+  if (kind === "execution" && normalized === "retry") {
+    return "info";
+  }
+
+  if (kind === "execution" && isFailoverExecutionActive(normalized)) {
+    return "info";
+  }
+
+  return resolveStatusBadgeVariant(normalized);
 }
 
 function getPreviewStatusVariant(status: string): React.ComponentProps<typeof Badge>["variant"] {
   const normalized = String(status || "").trim().toLowerCase();
-  if (normalized === "success") return "success";
   if (normalized === "error") return "destructive";
-  if (normalized === "warning") return "warning";
-  if (normalized === "info") return "info";
-  return "secondary";
+  return resolveStatusBadgeVariant(normalized);
 }
 
 function getPreviewStatusLabel(t: TFunction, status: string) {
@@ -4495,7 +4482,7 @@ function ExecutionSummaryCard({
           </div>
           <div className="space-y-1.5 text-xs text-muted-foreground">
             {detailLines.map((line) => (
-              <div key={line} className="break-all rounded-md border border-dashed border-slate-200/80 px-3 py-2 dark:border-slate-800/80">
+              <div key={line} className="break-keep rounded-md border border-dashed border-slate-200/80 px-3 py-2 [overflow-wrap:anywhere] dark:border-slate-800/80">
                 {line}
               </div>
             ))}
@@ -6015,20 +6002,11 @@ function TaskEditorDialog({
   );
   const taskCoreSummary = React.useMemo(
     () => describeTaskMonitoringCoreSettings(t, formState),
-    [
-      formState.cooldown_seconds,
-      formState.failure_threshold,
-      formState.stale_after_seconds,
-      t,
-    ],
+    [formState, t],
   );
   const taskRetrySummary = React.useMemo(
     () => describeTaskRetrySettings(t, formState),
-    [
-      formState.provision_failure_fallback_limit,
-      formState.provision_retry_limit,
-      t,
-    ],
+    [formState, t],
   );
   const selectedDnsEntryLabel = React.useMemo(
     () => {
@@ -9195,6 +9173,7 @@ function TaskEditorDialog({
                                           type="button"
                                           variant="outline"
                                           size="icon"
+                                          aria-label={t("failover.editor.move_script_up", { defaultValue: "Move script up" })}
                                           onClick={() => movePlanScriptToIndex(selectedPlan.local_id, id, index - 1)}
                                           disabled={!canMoveUp}
                                           title={t("failover.editor.move_script_up", { defaultValue: "Move script up" })}
@@ -9205,6 +9184,7 @@ function TaskEditorDialog({
                                           type="button"
                                           variant="outline"
                                           size="icon"
+                                          aria-label={t("failover.editor.move_script_down", { defaultValue: "Move script down" })}
                                           onClick={() => movePlanScriptToIndex(selectedPlan.local_id, id, index + 1)}
                                           disabled={!canMoveDown}
                                           title={t("failover.editor.move_script_down", { defaultValue: "Move script down" })}
@@ -9215,6 +9195,7 @@ function TaskEditorDialog({
                                           type="button"
                                           variant="outline"
                                           size="icon"
+                                          aria-label={t("failover.editor.remove_script", { defaultValue: "Remove script" })}
                                           onClick={() => removePlanScript(selectedPlan.local_id, id)}
                                           title={t("failover.editor.remove_script", { defaultValue: "Remove script" })}
                                         >

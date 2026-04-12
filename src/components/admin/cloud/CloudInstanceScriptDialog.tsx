@@ -22,12 +22,15 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import {
-  cloudDialogWideContentClassName,
-  cloudLongTextClassName,
-} from "@/components/admin/cloud/cloud-ui";
+import { resolveStatusBadgeVariant } from "@/lib/status-semantic";
+
+const cloudDialogWideContentClassName =
+  "w-[calc(100vw-1rem)] max-w-[calc(100vw-1rem)] min-w-0 overflow-x-hidden overscroll-contain [scrollbar-gutter:stable] sm:max-w-5xl";
+const cloudLongTextClassName =
+  "min-w-0 whitespace-pre-wrap break-words [overflow-wrap:anywhere]";
 
 type ExecResponse = {
   success?: boolean;
@@ -392,36 +395,27 @@ export default function CloudInstanceScriptDialog({
   const executionBadge = React.useMemo(() => {
     if (!executionState) return null;
 
-    switch (executionState.status) {
-      case "success":
-        return {
-          icon: <CheckCircle2 className="h-4 w-4" />,
-          className:
-            "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/30 dark:text-emerald-300",
-          label: t("cloud.script.status_success", "Success"),
-        };
-      case "failed":
-        return {
-          icon: <XCircle className="h-4 w-4" />,
-          className:
-            "border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-900/60 dark:bg-rose-950/30 dark:text-rose-300",
-          label: t("cloud.script.status_failed", "Failed"),
-        };
-      case "timeout":
-        return {
-          icon: <AlertCircle className="h-4 w-4" />,
-          className:
-            "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-300",
-          label: t("cloud.script.status_timeout", "Timed out"),
-        };
-      default:
-        return {
-          icon: <Clock3 className="h-4 w-4" />,
-          className:
-            "border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-900/60 dark:bg-blue-950/30 dark:text-blue-300",
-          label: t("cloud.script.status_running", "Running"),
-        };
-    }
+    const statusKey = executionState.status;
+
+    return {
+      icon:
+        statusKey === "success"
+          ? <CheckCircle2 className="h-4 w-4" />
+          : statusKey === "failed"
+            ? <XCircle className="h-4 w-4" />
+            : statusKey === "timeout"
+              ? <AlertCircle className="h-4 w-4" />
+              : <Clock3 className="h-4 w-4" />,
+      variant: resolveStatusBadgeVariant(statusKey),
+      label:
+        statusKey === "success"
+          ? t("cloud.script.status_success", "Success")
+          : statusKey === "failed"
+            ? t("cloud.script.status_failed", "Failed")
+            : statusKey === "timeout"
+              ? t("cloud.script.status_timeout", "Timed out")
+              : t("cloud.script.status_running", "Running"),
+    };
   }, [executionState, t]);
 
   const outputText = executionState?.result?.result || "";
@@ -522,12 +516,13 @@ export default function CloudInstanceScriptDialog({
                   </div>
                 </div>
                 {executionBadge ? (
-                  <div
-                    className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-medium ${executionBadge.className}`}
+                  <Badge
+                    variant={executionBadge.variant}
+                    className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium"
                   >
                     {executionBadge.icon}
                     {executionBadge.label}
-                  </div>
+                  </Badge>
                 ) : null}
               </div>
 

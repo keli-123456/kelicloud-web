@@ -2,16 +2,18 @@ import * as React from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import {
+  Checkbox,
+} from "@/components/ui/checkbox";
+import { SettingCard } from "@/components/admin/SettingCard";
+import {
   Badge,
   Button,
-  Checkbox,
   Dialog,
   Flex,
-  Text,
   TextArea,
   TextField,
-} from "@/components/admin/admin-ui";
-import { SettingCard } from "@/components/admin/SettingCard";
+  cloudDialogContentClassName,
+} from "@/components/admin/cloud/cloud-shared";
 import {
   type SettingsResponse,
   updateSettingsWithToast,
@@ -19,14 +21,19 @@ import {
 import { normalizeCNConnectivityTargets } from "@/lib/cnConnectivityTargets";
 
 const NODE_DIALOG_CONTENT_CLASS =
-  "max-h-[90vh] w-[min(96vw,860px)] overflow-y-auto overscroll-contain rounded-[28px] border border-slate-200/80 bg-white/95 p-6 shadow-2xl [scrollbar-gutter:stable] backdrop-blur dark:border-slate-800/80 dark:bg-slate-950/95";
-const NODE_DIALOG_SECTION_CLASS = "dialog-section space-y-4";
+  `${cloudDialogContentClassName} max-h-[100dvh] rounded-none border-0 p-4 sm:max-h-[90vh] sm:rounded-2xl sm:border sm:p-5`;
+const NODE_DIALOG_SECTION_CLASS = "space-y-4 border-b border-border/60 pb-4 last:border-b-0";
 const NODE_DIALOG_FOOTER_CLASS =
   "mt-6 flex flex-col-reverse gap-2.5 sm:flex-row sm:justify-end";
 const NODE_INPUT_CLASS =
-  "h-11 rounded-xl border border-slate-200 bg-white px-3 text-sm shadow-none dark:border-slate-700 dark:bg-slate-950";
+  "h-11";
 const NODE_TEXTAREA_CLASS =
-  "min-h-32 rounded-[20px] border border-slate-200 bg-slate-50/80 px-4 py-3 text-[13px] leading-6 shadow-none dark:border-slate-800 dark:bg-slate-900/50";
+  "min-h-32 text-sm leading-6";
+
+const Text = ({
+  className,
+  ...props
+}: React.ComponentProps<"span">) => <span className={className} {...props} />;
 
 const normalizeDailyCleanupTime = (value: string) => {
   const trimmed = String(value || "").trim();
@@ -232,7 +239,7 @@ export default function NodeAccessSettingsDialog({
               <div className="section-kicker">
                 {t("settings.general.auto_discovery")}
               </div>
-              <Text className="text-sm text-slate-500 dark:text-slate-400">
+              <Text className="text-sm text-muted-foreground">
                 {t("settings.general.auto_discovery_key_description")}
               </Text>
             </div>
@@ -278,15 +285,14 @@ export default function NodeAccessSettingsDialog({
                     {t("settings.general.cn_connectivity")}
                   </div>
                   <Badge
-                    color={cnConnectivityEnabled ? "green" : "gray"}
-                    variant="soft"
+                    semantic={cnConnectivityEnabled ? "success" : "disabled"}
                   >
                     {cnConnectivityEnabled
                       ? t("common.enabled")
                       : t("common.disabled")}
                   </Badge>
                 </Flex>
-                <Text className="text-sm text-slate-500 dark:text-slate-400">
+                <Text className="text-sm text-muted-foreground">
                   {t("admin.nodeTable.cnConnectivityManageHint")}
                 </Text>
               </div>
@@ -308,7 +314,7 @@ export default function NodeAccessSettingsDialog({
                   </SettingCard.Action>
                 </SettingCard>
                 <div className="space-y-2">
-                  <label className="text-[14px] font-semibold text-slate-900 dark:text-slate-100">
+                  <label className="text-sm font-semibold break-keep text-foreground">
                     {t("settings.general.cn_connectivity_target")}
                   </label>
                   <TextArea
@@ -319,12 +325,12 @@ export default function NodeAccessSettingsDialog({
                       setCnConnectivityTarget(event.target.value)
                     }
                   />
-                  <Text className="text-xs text-slate-500 dark:text-slate-400">
+                  <Text className="text-xs text-muted-foreground">
                     {t("settings.general.cn_connectivity_target_help")}
                   </Text>
                 </div>
                 <div className="space-y-2">
-                  <label className="text-[14px] font-semibold text-slate-900 dark:text-slate-100">
+                  <label className="text-sm font-semibold break-keep text-foreground">
                     {t("settings.general.cn_connectivity_interval")}
                   </label>
                   <TextField.Root
@@ -338,7 +344,7 @@ export default function NodeAccessSettingsDialog({
                   />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-[14px] font-semibold text-slate-900 dark:text-slate-100">
+                  <label className="text-sm font-semibold break-keep text-foreground">
                     {t("settings.general.cn_connectivity_retry_attempts")}
                   </label>
                   <TextField.Root
@@ -351,12 +357,12 @@ export default function NodeAccessSettingsDialog({
                       setCnConnectivityRetryAttempts(event.target.value)
                     }
                   />
-                  <Text className="text-xs text-slate-500 dark:text-slate-400">
+                  <Text className="text-xs text-muted-foreground">
                     {t("settings.general.cn_connectivity_retry_attempts_description")}
                   </Text>
                 </div>
                 <div className="space-y-2">
-                  <label className="text-[14px] font-semibold text-slate-900 dark:text-slate-100">
+                  <label className="text-sm font-semibold break-keep text-foreground">
                     {t("settings.general.cn_connectivity_timeout_seconds")}
                   </label>
                   <TextField.Root
@@ -369,12 +375,12 @@ export default function NodeAccessSettingsDialog({
                       setCnConnectivityTimeoutSeconds(event.target.value)
                     }
                   />
-                  <Text className="text-xs text-slate-500 dark:text-slate-400">
+                  <Text className="text-xs text-muted-foreground">
                     {t("settings.general.cn_connectivity_timeout_seconds_description")}
                   </Text>
                 </div>
                 <div className="space-y-2">
-                  <label className="text-[14px] font-semibold text-slate-900 dark:text-slate-100">
+                  <label className="text-sm font-semibold break-keep text-foreground">
                     {t("settings.general.cn_connectivity_retry_delay_seconds")}
                   </label>
                   <TextField.Root
@@ -387,7 +393,7 @@ export default function NodeAccessSettingsDialog({
                       setCnConnectivityRetryDelaySeconds(event.target.value)
                     }
                   />
-                  <Text className="text-xs text-slate-500 dark:text-slate-400">
+                  <Text className="text-xs text-muted-foreground">
                     {t("settings.general.cn_connectivity_retry_delay_seconds_description")}
                   </Text>
                 </div>
@@ -403,15 +409,14 @@ export default function NodeAccessSettingsDialog({
                     {t("settings.general.offline_cleanup")}
                   </div>
                   <Badge
-                    color={offlineCleanupEnabled ? "green" : "gray"}
-                    variant="soft"
+                    semantic={offlineCleanupEnabled ? "success" : "disabled"}
                   >
                     {offlineCleanupEnabled
                       ? t("common.enabled")
                       : t("common.disabled")}
                   </Badge>
                 </Flex>
-                <Text className="text-sm text-slate-500 dark:text-slate-400">
+                <Text className="text-sm text-muted-foreground">
                   {t("admin.nodeTable.offlineCleanupManageHint")}
                 </Text>
               </div>
@@ -433,7 +438,7 @@ export default function NodeAccessSettingsDialog({
                   </SettingCard.Action>
                 </SettingCard>
                 <div className="space-y-2">
-                  <label className="text-[14px] font-semibold text-slate-900 dark:text-slate-100">
+                  <label className="text-sm font-semibold break-keep text-foreground">
                     {t("settings.general.offline_cleanup_time")}
                   </label>
                   <TextField.Root
@@ -445,12 +450,12 @@ export default function NodeAccessSettingsDialog({
                       setOfflineCleanupTime(event.target.value)
                     }
                   />
-                  <Text className="text-xs text-slate-500 dark:text-slate-400">
+                  <Text className="text-xs text-muted-foreground">
                     {t("settings.general.offline_cleanup_time_description")}
                   </Text>
                 </div>
                 <div className="space-y-2">
-                  <label className="text-[14px] font-semibold text-slate-900 dark:text-slate-100">
+                  <label className="text-sm font-semibold break-keep text-foreground">
                     {t("settings.general.offline_cleanup_grace_hours")}
                   </label>
                   <TextField.Root
@@ -463,7 +468,7 @@ export default function NodeAccessSettingsDialog({
                       setOfflineCleanupGraceHours(event.target.value)
                     }
                   />
-                  <Text className="text-xs text-slate-500 dark:text-slate-400">
+                  <Text className="text-xs text-muted-foreground">
                     {t("settings.general.offline_cleanup_grace_hours_description")}
                   </Text>
                 </div>

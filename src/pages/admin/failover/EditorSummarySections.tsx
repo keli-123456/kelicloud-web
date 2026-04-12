@@ -24,7 +24,7 @@ export function DetailItemsList({
       {items.map((item) => (
         <div key={`${item.label}:${item.value}`} className="min-w-0">
           <span className="font-medium text-slate-600 dark:text-slate-300">{item.label}:</span>{" "}
-          <span className="break-all">{item.value}</span>
+          <span className="break-words [overflow-wrap:anywhere]">{item.value}</span>
         </div>
       ))}
     </div>

@@ -228,6 +228,7 @@ export function SettingCardButton({
 
 export function SettingCardIconButton({
   label = "",
+  ariaLabel,
   variant = "solid",
   children,
   onClick,
@@ -235,6 +236,7 @@ export function SettingCardIconButton({
   ...props
 }: SettingCardProps & {
   label?: string;
+  ariaLabel?: string;
   variant?: LegacyButtonVariant;
   children?: React.ReactNode;
   onClick?: (buttonElement: HTMLButtonElement) => void;
@@ -265,6 +267,7 @@ export function SettingCardIconButton({
             disabled={disabled}
             size="icon"
             className="size-8 rounded-md"
+            aria-label={ariaLabel || label || "Action"}
           >
             {children}
           </Button>
@@ -611,6 +614,11 @@ export function SettingCardCollapse({
               size="icon"
               aria-expanded={open}
               aria-controls="collapsible-content"
+              aria-label={
+                open
+                  ? "Collapse section"
+                  : "Expand section"
+              }
               className="size-8 rounded-lg"
             >
               <motion.div

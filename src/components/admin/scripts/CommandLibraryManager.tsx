@@ -35,10 +35,17 @@ import {
   DialogClose,
   DialogContent,
   DialogDescription,
-  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  FormActions,
+  FormErrorText,
+  FormField,
+  FormHelpText,
+  FormSection,
+  FormShell,
+} from "@/components/ui/form-shell";
 import { Input } from "@/components/ui/input";
 import NumberPicker from "@/components/ui/number-picker";
 import {
@@ -52,6 +59,11 @@ type CommandFormValues = {
   remark: string;
   weight: string;
 };
+
+type CommandEditorErrors = Partial<{
+  text: string;
+  form: string;
+}>;
 
 type ScriptsPageLocationState = {
   draftCommand?: Partial<Pick<CommandClipboard, "name" | "text" | "remark" | "weight">>;
@@ -226,6 +238,7 @@ export default function CommandLibraryManager() {
   const [editorOpen, setEditorOpen] = useState(false);
   const [editingCommand, setEditingCommand] = useState<CommandClipboard | null>(null);
   const [formValues, setFormValues] = useState<CommandFormValues>(EMPTY_FORM_VALUES);
+  const [editorErrors, setEditorErrors] = useState<CommandEditorErrors>({});
   const [submitting, setSubmitting] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<CommandClipboard | null>(null);
   const [removingId, setRemovingId] = useState<number | null>(null);
@@ -318,12 +331,14 @@ export default function CommandLibraryManager() {
   const openCreateDialog = () => {
     setEditingCommand(null);
     setFormValues(EMPTY_FORM_VALUES);
+    setEditorErrors({});
     setEditorOpen(true);
   };
 
   const openEditDialog = (command: CommandClipboard) => {
     setEditingCommand(command);
     setFormValues(toFormValues(command));
+    setEditorErrors({});
     setEditorOpen(true);
   };
 
@@ -331,6 +346,11 @@ export default function CommandLibraryManager() {
     field: keyof CommandFormValues,
     value: string,
   ) => {
+    setEditorErrors((current) => ({
+      ...current,
+      text: field === "text" ? undefined : current.text,
+      form: undefined,
+    }));
     setFormValues((current) => ({
       ...current,
       [field]: value,
@@ -339,9 +359,12 @@ export default function CommandLibraryManager() {
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    setEditorErrors({});
 
     if (!formValues.text.trim()) {
-      toast.error(t("exec.errors.emptyCommand"));
+      setEditorErrors({
+        text: t("exec.errors.emptyCommand"),
+      });
       return;
     }
 
@@ -392,14 +415,15 @@ export default function CommandLibraryManager() {
       setEditorOpen(false);
       setEditingCommand(null);
       setFormValues(EMPTY_FORM_VALUES);
+      setEditorErrors({});
     } catch (nextError) {
-      toast.error(
-        nextError instanceof Error
-          ? nextError.message
-          : t("exec.saveCommandFailed", {
-              defaultValue: "Failed to save command",
-            }),
-      );
+      const message = nextError instanceof Error
+        ? nextError.message
+        : t("exec.saveCommandFailed", {
+            defaultValue: "Failed to save command",
+          });
+      setEditorErrors({ form: message });
+      toast.error(message);
     } finally {
       setSubmitting(false);
     }
@@ -478,7 +502,7 @@ export default function CommandLibraryManager() {
               defaultValue:
                 "Saved commands are stored in the database and can be inserted back or executed directly.",
             }),
-            tone: "blue",
+            tone: "slate",
           },
           {
             label: t("command_clipboard.pagination.current_page", {
@@ -488,7 +512,7 @@ export default function CommandLibraryManager() {
             hint: t("command_clipboard.pagination.current_page_hint", {
               defaultValue: "Switch pages to browse older scripts.",
             }),
-            tone: "emerald",
+            tone: "slate",
           },
           {
             label: t("command_clipboard.pagination.page_size", {
@@ -498,7 +522,7 @@ export default function CommandLibraryManager() {
             hint: t("command_clipboard.pagination.page_size_hint", {
               defaultValue: "Changing page size reloads the script list immediately.",
             }),
-            tone: "amber",
+            tone: "slate",
           },
         ]}
         actions={(
@@ -516,6 +540,9 @@ export default function CommandLibraryManager() {
                 }}
                 placeholder={t("command_clipboard.search_placeholder", {
                   defaultValue: "Search by script name, remark, or content",
+                })}
+                aria-label={t("command_clipboard.search_aria_label", {
+                  defaultValue: "Search saved scripts",
                 })}
                 className="pl-9"
               />
@@ -689,10 +716,9 @@ export default function CommandLibraryManager() {
                             {t("common.edit")}
                           </Button>
                           <Button
-                            variant="outline"
+                            variant="destructive"
                             size="sm"
                             onClick={() => setDeleteTarget(command)}
-                            className="border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700 dark:border-red-900/50 dark:text-red-300 dark:hover:bg-red-950/30 dark:hover:text-red-200"
                           >
                             <Trash2 size={14} />
                             {t("common.delete")}
@@ -762,6 +788,7 @@ export default function CommandLibraryManager() {
           if (!open) {
             setEditingCommand(null);
             setFormValues(EMPTY_FORM_VALUES);
+            setEditorErrors({});
           }
         }}
       >
@@ -785,86 +812,104 @@ export default function CommandLibraryManager() {
           </DialogHeader>
 
           <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col overflow-hidden">
-            <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto overscroll-contain pr-1 [scrollbar-gutter:stable]">
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-slate-900 dark:text-slate-100">
-                  {t("common.name")}
-                </label>
-                <Input
-                  value={formValues.name}
-                  onChange={(event) => handleEditorChange("name", event.target.value)}
-                  placeholder={t("command_clipboard.editor.name_placeholder", {
-                    defaultValue: "Deploy agent bootstrap",
+            <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain pr-1 [scrollbar-gutter:stable]">
+              <FormShell>
+                <FormSection
+                  title={t("command_clipboard.editor.basic", {
+                    defaultValue: "Basic script info",
                   })}
-                />
-              </div>
-
-              <div className="min-h-0 space-y-2">
-                <label className="text-sm font-medium text-slate-900 dark:text-slate-100">
-                  {t("common.content")}
-                </label>
-                <Suspense
-                  fallback={
-                    <div className="flex min-h-[320px] items-center justify-center rounded-md border border-dashed border-border/60 bg-muted/20 text-sm text-muted-foreground">
-                      {t("common.loading", { defaultValue: "Loading..." })}
-                    </div>
-                  }
                 >
-                  <CodeEditor
-                    value={formValues.text}
-                    onChange={(value) => handleEditorChange("text", value)}
-                    placeholder={t("command_clipboard.editor.content_placeholder", {
-                      defaultValue: "#!/usr/bin/env bash",
+                  <FormField label={t("common.name")} htmlFor="script-name">
+                    <Input
+                      id="script-name"
+                      value={formValues.name}
+                      onChange={(event) => handleEditorChange("name", event.target.value)}
+                      placeholder={t("command_clipboard.editor.name_placeholder", {
+                        defaultValue: "Deploy agent bootstrap",
+                      })}
+                    />
+                  </FormField>
+
+                  <FormField
+                    label={t("common.content")}
+                    htmlFor="script-content"
+                    required
+                    error={editorErrors.text}
+                  >
+                    <Suspense
+                      fallback={
+                        <div className="flex min-h-[320px] items-center justify-center rounded-md border border-dashed border-border/60 bg-muted/20 text-sm text-muted-foreground">
+                          {t("common.loading", { defaultValue: "Loading..." })}
+                        </div>
+                      }
+                    >
+                      <CodeEditor
+                        value={formValues.text}
+                        onChange={(value) => handleEditorChange("text", value)}
+                        placeholder={t("command_clipboard.editor.content_placeholder", {
+                          defaultValue: "#!/usr/bin/env bash",
+                        })}
+                        className="min-h-0"
+                        minHeight="320px"
+                        maxHeight="min(50vh, calc(100vh - 20rem))"
+                        ariaLabel={t("common.content")}
+                      />
+                    </Suspense>
+                  </FormField>
+                </FormSection>
+
+                <FormSection
+                  advanced
+                  title={t("command_clipboard.editor.advanced", {
+                    defaultValue: "Advanced options",
+                  })}
+                  toggleLabel={t("common.advanced", {
+                    defaultValue: "Advanced options",
+                  })}
+                >
+                  <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_160px]">
+                    <FormField label={t("common.remark")} htmlFor="script-remark">
+                      <Input
+                        id="script-remark"
+                        value={formValues.remark}
+                        onChange={(event) => handleEditorChange("remark", event.target.value)}
+                        placeholder={t("command_clipboard.editor.remark_placeholder", {
+                          defaultValue: "Optional notes for this script",
+                        })}
+                      />
+                    </FormField>
+
+                    <FormField label={t("common.weight")} htmlFor="script-weight">
+                      <Input
+                        id="script-weight"
+                        type="number"
+                        value={formValues.weight}
+                        onChange={(event) => handleEditorChange("weight", event.target.value)}
+                      />
+                    </FormField>
+                  </div>
+
+                  <FormHelpText>
+                    {t("command_clipboard.editor.weight_hint", {
+                      defaultValue: "Higher weights appear first.",
                     })}
-                    className="min-h-0"
-                    minHeight="320px"
-                    maxHeight="min(50vh, calc(100vh - 20rem))"
-                    ariaLabel={t("common.content")}
-                  />
-                </Suspense>
-              </div>
-
-              <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_160px]">
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-slate-900 dark:text-slate-100">
-                    {t("common.remark")}
-                  </label>
-                  <Input
-                    value={formValues.remark}
-                    onChange={(event) => handleEditorChange("remark", event.target.value)}
-                    placeholder={t("command_clipboard.editor.remark_placeholder", {
-                      defaultValue: "Optional notes for this script",
-                    })}
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-slate-900 dark:text-slate-100">
-                    {t("common.weight")}
-                  </label>
-                  <Input
-                    type="number"
-                    value={formValues.weight}
-                    onChange={(event) => handleEditorChange("weight", event.target.value)}
-                  />
-                </div>
-              </div>
-
-              <p className="text-xs leading-5 text-slate-500 dark:text-slate-400">
-                {t("command_clipboard.editor.weight_hint", {
-                  defaultValue: "Higher weights appear first.",
-                })}
-              </p>
+                  </FormHelpText>
+                </FormSection>
+              </FormShell>
             </div>
 
-            <DialogFooter className="mt-4 shrink-0">
+            {editorErrors.form ? (
+              <FormErrorText className="mt-3">{editorErrors.form}</FormErrorText>
+            ) : null}
+
+            <FormActions className="mt-4 shrink-0">
               <DialogClose asChild>
                 <Button variant="outline">{t("common.cancel")}</Button>
               </DialogClose>
               <Button type="submit" disabled={submitting}>
                 {editingCommand ? t("common.update") : t("common.add")}
               </Button>
-            </DialogFooter>
+            </FormActions>
           </form>
         </DialogContent>
       </Dialog>
@@ -901,7 +946,7 @@ export default function CommandLibraryManager() {
                 void handleDelete();
               }}
               disabled={removingId !== null}
-              className="bg-red-600 hover:bg-red-700 focus-visible:ring-red-500"
+              className="bg-destructive text-white hover:bg-destructive/90 focus-visible:ring-destructive/30"
             >
               {t("common.delete")}
             </AlertDialogAction>
