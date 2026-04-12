@@ -112,7 +112,7 @@ import {
   type FailoverTaskInput,
 } from "@/lib/failover";
 import { cn } from "@/lib/utils";
-import { getDefaultAdminPath, useAccount } from "@/contexts/AccountContext";
+import { getDefaultAdminPath, type AccountFeature, useAccount } from "@/contexts/AccountContext";
 import {
   ActionSummaryCard,
   DetailItemsList,
@@ -377,6 +377,11 @@ const DELETE_STRATEGY_VALUES = [
 const DNS_PROVIDER_VALUES = ["cloudflare", "aliyun"] as const;
 
 const PLAN_PROVIDER_VALUES = ["aws", "digitalocean", "linode"] as const;
+const PLAN_PROVIDER_REQUIRED_FEATURES: Record<(typeof PLAN_PROVIDER_VALUES)[number], AccountFeature> = {
+  aws: "cloud_aws",
+  digitalocean: "cloud_digitalocean",
+  linode: "cloud_linode",
+};
 
 const ACTION_TYPE_VALUES: Record<string, string[]> = {
   aws: ["rebind_public_ip"],
@@ -2161,11 +2166,15 @@ function getPlanProviderLabel(t: TFunction, value: string) {
   });
 }
 
-function getPlanProviderOptions(t: TFunction, providerEntries: ProviderEntriesMap) {
+function getPlanProviderOptions(
+  t: TFunction,
+  providerEntries: ProviderEntriesMap,
+  allowedProviders: readonly string[],
+) {
   return PLAN_PROVIDER_VALUES.map((value) => ({
     value,
     label: getPlanProviderLabel(t, value),
-    disabled: (providerEntries[value] || []).length === 0,
+    disabled: !allowedProviders.includes(value) || (providerEntries[value] || []).length === 0,
   }));
 }
 
@@ -5400,6 +5409,7 @@ function TaskEditorDialog({
   nodes,
   scripts,
   providerEntries,
+  allowedPlanProviders,
   onOpenChange,
   onSaved,
 }: {
@@ -5410,6 +5420,7 @@ function TaskEditorDialog({
   nodes: FailoverNodeOption[];
   scripts: FailoverScriptOption[];
   providerEntries: ProviderEntriesMap;
+  allowedPlanProviders: readonly string[];
   onOpenChange: (open: boolean) => void;
   onSaved: () => Promise<void>;
 }) {
@@ -7853,11 +7864,11 @@ function TaskEditorDialog({
 	                              <SelectValue placeholder={t("failover.editor.plan_provider_placeholder", { defaultValue: "Choose a cloud provider" })} />
 	                            </SelectTrigger>
 	                            <SelectContent>
-	                              {getPlanProviderOptions(t, providerEntries).map((option) => (
-	                                <SelectItem key={option.value} value={option.value} disabled={option.disabled}>
-	                                  {option.label}
-	                                </SelectItem>
-	                              ))}
+	                              {getPlanProviderOptions(t, providerEntries, allowedPlanProviders).map((option) => (
+		                                <SelectItem key={option.value} value={option.value} disabled={option.disabled}>
+		                                  {option.label}
+		                                </SelectItem>
+		                              ))}
                             </SelectContent>
                           </Select>
                         </div>
@@ -9487,6 +9498,10 @@ function FailoverPageContent() {
   const [busyTaskID, setBusyTaskID] = React.useState<number | null>(null);
   const [stoppingExecutionID, setStoppingExecutionID] = React.useState<number | null>(null);
   const [clockNow, setClockNow] = React.useState(() => Date.now());
+  const allowedPlanProviders = React.useMemo(
+    () => PLAN_PROVIDER_VALUES.filter((provider) => hasFeature(PLAN_PROVIDER_REQUIRED_FEATURES[provider])),
+    [hasFeature],
+  );
 
   const refreshTasks = React.useCallback(async (options?: { silent?: boolean }) => {
     const silent = options?.silent ?? false;
@@ -9517,11 +9532,17 @@ function FailoverPageContent() {
   }, [t]);
 
   const refreshResources = React.useCallback(async () => {
+    const providerKeys = FAILOVER_PROVIDER_KEYS.filter((provider) => {
+      if (provider === "aws" || provider === "digitalocean" || provider === "linode") {
+        return allowedPlanProviders.includes(provider);
+      }
+      return true;
+    });
     const [nodesResult, scriptsResult, providerResults] = await Promise.all([
       getFailoverNodes(),
       getFailoverScripts().catch(() => []),
       Promise.allSettled(
-        FAILOVER_PROVIDER_KEYS.map(async (provider) => ({
+        providerKeys.map(async (provider) => ({
           provider,
           entries: await getFailoverProviderEntries(provider),
         })),
@@ -9538,7 +9559,7 @@ function FailoverPageContent() {
       }
     }
     setProviderEntries(nextEntries);
-  }, []);
+  }, [allowedPlanProviders]);
 
   React.useEffect(() => {
     if (accountLoading || !hasFeature("cloud_failover") || !hasFeature("cn_connectivity")) {
@@ -10033,6 +10054,7 @@ function FailoverPageContent() {
         nodes={nodes}
         scripts={scripts}
         providerEntries={providerEntries}
+        allowedPlanProviders={allowedPlanProviders}
         onOpenChange={(nextOpen) => {
           setEditorOpen(nextOpen);
           if (!nextOpen) {

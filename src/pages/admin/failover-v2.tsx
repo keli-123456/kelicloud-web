@@ -43,7 +43,7 @@ import {
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
-import { getDefaultAdminPath, useAccount } from "@/contexts/AccountContext";
+import { getDefaultAdminPath, type AccountFeature, useAccount } from "@/contexts/AccountContext";
 import { updateSettingsWithToast, useSettings } from "@/lib/api";
 import {
   getCloudProviderEntries,
@@ -209,6 +209,14 @@ const FAILOVER_V2_MEMBER_PROVIDERS = [
   { value: "linode", label: "Linode" },
   { value: "aws", label: "AWS" },
 ] as const;
+const FAILOVER_V2_MEMBER_PROVIDER_FEATURES: Record<
+  (typeof FAILOVER_V2_MEMBER_PROVIDERS)[number]["value"],
+  AccountFeature
+> = {
+  digitalocean: "cloud_digitalocean",
+  linode: "cloud_linode",
+  aws: "cloud_aws",
+};
 const FAILOVER_V2_SELECT_NONE = "__none__";
 const FAILOVER_V2_PROVIDER_ENTRY_GROUP_ALL = "__all__";
 const FAILOVER_V2_AUTOMATIC_PROVIDER_ENTRY_ID = "active";
@@ -1844,6 +1852,13 @@ function getMemberPlanPayloadHint(provider: string) {
   }
 }
 
+function isFailoverV2MemberProviderAllowed(
+  provider: (typeof FAILOVER_V2_MEMBER_PROVIDERS)[number]["value"],
+  hasFeature: (feature: AccountFeature) => boolean,
+) {
+  return hasFeature(FAILOVER_V2_MEMBER_PROVIDER_FEATURES[provider]);
+}
+
 function createEmptyServiceForm(): ServiceFormState {
   return {
     name: "",
@@ -1879,7 +1894,8 @@ function createServiceForm(service?: FailoverV2Service | null): ServiceFormState
   };
 }
 
-function createEmptyMemberForm(): MemberFormState {
+function createEmptyMemberForm(provider = FAILOVER_V2_MEMBER_PROVIDER): MemberFormState {
+  const normalizedProvider = normalizeProviderKey(provider, FAILOVER_V2_MEMBER_PROVIDER);
   return {
     name: "",
     enabled: true,
@@ -1890,10 +1906,10 @@ function createEmptyMemberForm(): MemberFormState {
     dns_record_refs: "{}",
     current_address: "",
     current_instance_ref: "null",
-    provider: FAILOVER_V2_MEMBER_PROVIDER,
+    provider: normalizedProvider,
     provider_entry_id: FAILOVER_V2_AUTOMATIC_PROVIDER_ENTRY_ID,
     provider_entry_group: "",
-    plan_payload: getDefaultMemberPlanPayload(FAILOVER_V2_MEMBER_PROVIDER),
+    plan_payload: getDefaultMemberPlanPayload(normalizedProvider),
     failure_threshold: "2",
     stale_after_seconds: "300",
     cooldown_seconds: "1800",
@@ -2711,6 +2727,29 @@ export default function FailoverV2Page() {
   const [resolvingPendingCleanup, setResolvingPendingCleanup] = React.useState(false);
   const [markingPendingCleanupReview, setMarkingPendingCleanupReview] = React.useState(false);
   const [validationDialogTarget, setValidationDialogTarget] = React.useState<ValidationDialogTarget>(null);
+  const memberProviderOptions = React.useMemo(
+    () => FAILOVER_V2_MEMBER_PROVIDERS.filter((provider) =>
+      isFailoverV2MemberProviderAllowed(provider.value, hasFeature),
+    ),
+    [hasFeature],
+  );
+  const defaultMemberProvider = memberProviderOptions[0]?.value || FAILOVER_V2_MEMBER_PROVIDER;
+  const memberProviderSelectOptions = React.useMemo(() => {
+    const options: Array<{ value: string; label: string; disabled: boolean }> = memberProviderOptions.map((provider) => ({
+      value: provider.value,
+      label: provider.label,
+      disabled: false,
+    }));
+    const currentProvider = normalizeProviderKey(memberForm.provider, FAILOVER_V2_MEMBER_PROVIDER);
+    if (currentProvider && !options.some((option) => option.value === currentProvider)) {
+      options.push({
+        value: currentProvider,
+        label: formatProviderLabel(currentProvider),
+        disabled: true,
+      });
+    }
+    return options;
+  }, [memberForm.provider, memberProviderOptions]);
 
   const loadServices = React.useCallback(async (options?: { silent?: boolean }) => {
     const silent = Boolean(options?.silent);
@@ -2749,7 +2788,7 @@ export default function FailoverV2Page() {
       getFailoverScripts(),
       getFailoverNodes(),
       ...FAILOVER_V2_DNS_PROVIDERS.map((provider) => getCloudProviderEntries(provider.value)),
-      ...FAILOVER_V2_MEMBER_PROVIDERS.map((provider) => getFailoverV2ProviderEntries(provider.value)),
+      ...memberProviderOptions.map((provider) => getFailoverV2ProviderEntries(provider.value)),
     ]);
 
     if (results[0].status === "fulfilled") {
@@ -2772,7 +2811,7 @@ export default function FailoverV2Page() {
 
     const nextProviderEntriesByProvider: ProviderEntriesMap = {};
     const memberOffset = dnsOffset + FAILOVER_V2_DNS_PROVIDERS.length;
-    FAILOVER_V2_MEMBER_PROVIDERS.forEach((provider, index) => {
+    memberProviderOptions.forEach((provider, index) => {
       const result = results[memberOffset + index];
       nextProviderEntriesByProvider[provider.value] =
         result && result.status === "fulfilled"
@@ -2780,7 +2819,7 @@ export default function FailoverV2Page() {
           : [];
     });
     setProviderEntriesByProvider(nextProviderEntriesByProvider);
-  }, []);
+  }, [memberProviderOptions]);
 
   React.useEffect(() => {
     if (loading) {
@@ -3266,7 +3305,10 @@ export default function FailoverV2Page() {
   }, [loadMemberDNSCatalog, memberDialogOpen, memberDialogService]);
 
   const handleMemberProviderChange = React.useCallback((provider: string) => {
-    const nextProvider = normalizeProviderKey(provider, FAILOVER_V2_MEMBER_PROVIDER);
+    const normalizedProvider = normalizeProviderKey(provider, FAILOVER_V2_MEMBER_PROVIDER);
+    const nextProvider = memberProviderOptions.some((option) => option.value === normalizedProvider)
+      ? normalizedProvider
+      : defaultMemberProvider;
     setMemberPlanAdvancedOpen(false);
     setMemberForm((current) => applySuggestedMemberAutoConnectGroup(
       current,
@@ -3278,7 +3320,7 @@ export default function FailoverV2Page() {
         plan_payload: getDefaultMemberPlanPayload(nextProvider),
       },
     ));
-  }, [providerEntriesByProvider]);
+  }, [defaultMemberProvider, memberProviderOptions, providerEntriesByProvider]);
 
   const handleMemberModeChange = React.useCallback((mode: string) => {
     const nextMode = normalizeMemberModeValue(mode);
@@ -3325,13 +3367,13 @@ export default function FailoverV2Page() {
   const openCreateMemberDialog = React.useCallback((service: FailoverV2Service) => {
     setMemberDialogService(service);
     setEditingMember(null);
-    setMemberForm(createEmptyMemberForm());
+    setMemberForm(createEmptyMemberForm(defaultMemberProvider));
     setMemberPlanAdvancedOpen(false);
     setMemberStateAdvancedOpen(false);
     setMemberDNSCatalog(null);
     setMemberDNSCatalogError("");
     setMemberDialogOpen(true);
-  }, []);
+  }, [defaultMemberProvider]);
 
   const openEditMemberDialog = React.useCallback((service: FailoverV2Service, member: FailoverV2Member) => {
     setMemberDialogService(service);
@@ -5345,18 +5387,29 @@ export default function FailoverV2Page() {
                               {t("failover_v2.provider", { defaultValue: "Provider" })}
                               <RequiredMark />
                             </Label>
-                            <Select value={memberForm.provider} onValueChange={handleMemberProviderChange}>
+                            <Select
+                              value={memberForm.provider}
+                              onValueChange={handleMemberProviderChange}
+                              disabled={memberProviderSelectOptions.length === 0}
+                            >
                               <SelectTrigger>
                                 <SelectValue />
                               </SelectTrigger>
                               <SelectContent>
-                                {FAILOVER_V2_MEMBER_PROVIDERS.map((provider) => (
-                                  <SelectItem key={provider.value} value={provider.value}>
+                                {memberProviderSelectOptions.map((provider) => (
+                                  <SelectItem key={provider.value} value={provider.value} disabled={provider.disabled}>
                                     {provider.label}
                                   </SelectItem>
                                 ))}
                               </SelectContent>
                             </Select>
+                            {memberProviderOptions.length === 0 ? (
+                              <p className="text-xs text-muted-foreground">
+                                {t("failover_v2.provider_feature_required_hint", {
+                                  defaultValue: "No cloud provider feature is enabled for this user. Enable AWS, DigitalOcean, or Linode first.",
+                                })}
+                              </p>
+                            ) : null}
                           </div>
                           <div className={FORM_FIELD_CLASS}>
                             <Label>{t("failover_v2.provider_entry_group", { defaultValue: "Credential group" })}</Label>
