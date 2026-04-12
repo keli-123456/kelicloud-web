@@ -90,6 +90,13 @@
     "upload_success": "上传成功"
   },
   "admin": {
+    "httpsNotice": {
+      "description": "未加密连接可能暴露登录凭据和管理指令，建议立即切换到 HTTPS。",
+      "enableNow": "立即启用 HTTPS",
+      "later": "稍后处理",
+      "learnMore": "了解更多",
+      "title": "当前正在使用 HTTP，建议尽快启用 HTTPS"
+    },
     "nav": {
       "main": "主导航"
     },
@@ -97,13 +104,6 @@
       "infrastructure": "基础设施",
       "management": "管理",
       "operations": "运维"
-    },
-    "httpsNotice": {
-      "description": "未加密连接可能暴露登录凭据和管理指令，建议立即切换到 HTTPS。",
-      "enableNow": "立即启用 HTTPS",
-      "later": "稍后处理",
-      "learnMore": "了解更多",
-      "title": "当前正在使用 HTTP，建议尽快启用 HTTPS"
     },
     "nodeDetail": {
       "arch": "架构",
