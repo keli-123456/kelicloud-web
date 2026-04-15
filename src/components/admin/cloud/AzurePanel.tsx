@@ -4,6 +4,7 @@ import { toast } from "sonner";
 import {
   CheckCircle2,
   Eye,
+  KeyRound,
   Plus,
   Power,
   PowerOff,
@@ -60,6 +61,7 @@ import {
   getAzureCredentialSecret,
   getAzureCredentials,
   getAzureInstanceDetail,
+  getAzureInstancePassword,
   listAzureInstances,
   postAzureInstanceAction,
   saveAzureCredentials,
@@ -74,6 +76,7 @@ import {
   type AzureImageReference,
   type AzureInstance,
   type AzureInstanceDetail,
+  type AzureInstancePassword,
   type AzureVMSku,
   type CreateAzureInstanceInput,
 } from "@/lib/cloudAzure";
@@ -81,6 +84,11 @@ import { getCloudStatusLabel } from "@/lib/cloudStatus";
 
 type CredentialSecretState = {
   secret: AzureCredentialSecret;
+};
+
+type SavedPasswordState = {
+  instance: AzureInstance;
+  credential: AzureInstancePassword;
 };
 
 type AzureImagePreset = AzureImageReference & {
@@ -179,6 +187,21 @@ function normalizeLocation(location: string) {
   return location.trim().toLowerCase();
 }
 
+function toOptionalString(value: unknown): string {
+  if (value === undefined || value === null) return "";
+  return String(value).trim();
+}
+
+function looksLikeGuid(value: string) {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value.trim());
+}
+
+function buildDefaultAzureCredentialName(clientId: string) {
+  const normalized = clientId.trim();
+  const suffix = normalized.slice(-6).toLowerCase() || "default";
+  return `azure-${suffix}`;
+}
+
 function findImportSeparator(line: string) {
   for (const separator of ["|", ",", "\t"]) {
     if (line.includes(separator)) {
@@ -188,28 +211,110 @@ function findImportSeparator(line: string) {
   return "";
 }
 
+function normalizeImportCredentialRecord(
+  record: Record<string, unknown>,
+): AzureCredentialInput | null {
+  const tenantId = toOptionalString(record.tenant_id || record.tenantId || record.tenant);
+  const clientId = toOptionalString(record.client_id || record.clientId || record.appId || record.app_id);
+  const clientSecret = toOptionalString(record.client_secret || record.clientSecret || record.password);
+  const subscriptionId = toOptionalString(record.subscription_id || record.subscriptionId);
+  if (!tenantId || !clientId || !clientSecret || !subscriptionId) return null;
+
+  const name = toOptionalString(record.name || record.login_user || record.loginUser)
+    || buildDefaultAzureCredentialName(clientId);
+  const defaultLocation = normalizeLocation(
+    toOptionalString(record.default_location || record.defaultLocation || record.location),
+  );
+
+  return {
+    name,
+    tenant_id: tenantId,
+    client_id: clientId,
+    client_secret: clientSecret,
+    subscription_id: subscriptionId,
+    default_location: defaultLocation,
+  };
+}
+
 function parseCredentialImports(text: string): AzureCredentialInput[] {
-  const lines = text.split(/\r?\n/);
   const credentials: AzureCredentialInput[] = [];
   const seen = new Set<string>();
 
+  const pushCredential = (credential: AzureCredentialInput | null) => {
+    if (!credential) return;
+    const key = `${credential.tenant_id}|${credential.client_id}|${credential.subscription_id}`;
+    if (seen.has(key)) return;
+    seen.add(key);
+    credentials.push(credential);
+  };
+
+  const trimmedText = text.trim();
+  if (trimmedText) {
+    const startsWithJSON = trimmedText.startsWith("{") || trimmedText.startsWith("[");
+    if (startsWithJSON) {
+      try {
+        const parsed = JSON.parse(trimmedText);
+        if (Array.isArray(parsed)) {
+          for (const item of parsed) {
+            if (item && typeof item === "object") {
+              pushCredential(normalizeImportCredentialRecord(item as Record<string, unknown>));
+            }
+          }
+          if (credentials.length > 0) return credentials;
+        } else if (parsed && typeof parsed === "object") {
+          pushCredential(normalizeImportCredentialRecord(parsed as Record<string, unknown>));
+          if (credentials.length > 0) return credentials;
+        }
+      } catch {
+        // fallback to line-based parser
+      }
+    }
+  }
+
+  const lines = text.split(/\r?\n/);
   for (const rawLine of lines) {
     const line = rawLine.trim();
     if (!line || line.startsWith("#")) continue;
+
+    if (line.startsWith("{") && line.endsWith("}")) {
+      try {
+        const parsedLine = JSON.parse(line);
+        if (parsedLine && typeof parsedLine === "object") {
+          pushCredential(normalizeImportCredentialRecord(parsedLine as Record<string, unknown>));
+          continue;
+        }
+      } catch {
+        // continue with delimited parser
+      }
+    }
 
     const separator = findImportSeparator(line);
     if (!separator) continue;
 
     const parts = line.split(separator).map((part) => part.trim());
-    if (parts.length < 5) continue;
+    if (parts.length < 4) continue;
 
-    const [name, tenantId, clientId, clientSecret, subscriptionId, defaultLocation] = parts;
-    const key = `${tenantId}|${clientId}|${subscriptionId}`;
-    if (!tenantId || !clientId || !clientSecret || !subscriptionId || seen.has(key)) continue;
-    seen.add(key);
+    let name = "";
+    let tenantId = "";
+    let clientId = "";
+    let clientSecret = "";
+    let subscriptionId = "";
+    let defaultLocation = "";
 
-    credentials.push({
-      name,
+    if (parts.length >= 6) {
+      [name, tenantId, clientId, clientSecret, subscriptionId, defaultLocation] = parts;
+    } else if (parts.length === 5) {
+      if (looksLikeGuid(parts[0]) && looksLikeGuid(parts[1])) {
+        [tenantId, clientId, clientSecret, subscriptionId, defaultLocation] = parts;
+      } else {
+        [name, tenantId, clientId, clientSecret, subscriptionId] = parts;
+      }
+    } else {
+      [tenantId, clientId, clientSecret, subscriptionId] = parts;
+    }
+
+    pushCredential({
+      name: name || buildDefaultAzureCredentialName(clientId),
       tenant_id: tenantId,
       client_id: clientId,
       client_secret: clientSecret,
@@ -331,10 +436,13 @@ export default function AzurePanel() {
   const [createForm, setCreateForm] = React.useState<AzureCreateFormState>(() => ({ ...initialCreateForm }));
   const [workingInstanceId, setWorkingInstanceId] = React.useState<string | null>(null);
   const [credentialSecret, setCredentialSecret] = React.useState<CredentialSecretState | null>(null);
+  const [savedPassword, setSavedPassword] = React.useState<SavedPasswordState | null>(null);
+  const [passwordLoading, setPasswordLoading] = React.useState(false);
   const [detailInstance, setDetailInstance] = React.useState<AzureInstance | null>(null);
   const [detailData, setDetailData] = React.useState<AzureInstanceDetail | null>(null);
   const [detailLoading, setDetailLoading] = React.useState(false);
   const [scriptTarget, setScriptTarget] = React.useState<CloudInstanceScriptTarget | null>(null);
+  const passwordStorageEnabled = Boolean(credentialPool?.password_storage_enabled);
 
   const activeCredential = React.useMemo(
     () => getActiveCredential(credentialPool),
@@ -531,7 +639,7 @@ export default function AzurePanel() {
   const handleCreateInstance = async () => {
     setCreateSubmitting(true);
     try {
-      const detail = await createAzureInstance({
+      const result = await createAzureInstance({
         name: createForm.name || "",
         resource_group: createForm.resource_group || "",
         size: createForm.size,
@@ -550,13 +658,16 @@ export default function AzurePanel() {
         },
       });
       toast.success(t("cloud.providers.azure.create_success", "Azure VM created"));
+      if (result.password_save_error) {
+        toast.error(result.password_save_error);
+      }
       setCreateOpen(false);
       setCreateForm({
         ...buildCreateFormFromPreset(initialAzureImagePreset.id),
         size: getDefaultAzureSize(catalog),
       });
-      setDetailInstance(detail.instance);
-      setDetailData(detail);
+      setDetailInstance(result.detail.instance);
+      setDetailData(result.detail);
       await loadResources();
     } catch (error) {
       toast.error(toErrorMessage(error));
@@ -602,6 +713,18 @@ export default function AzurePanel() {
     }
   };
 
+  const handleViewPassword = async (instance: AzureInstance) => {
+    setPasswordLoading(true);
+    try {
+      const credential = await getAzureInstancePassword(instance.instance_id);
+      setSavedPassword({ instance, credential });
+    } catch (error) {
+      toast.error(toErrorMessage(error));
+    } finally {
+      setPasswordLoading(false);
+    }
+  };
+
   const handleOpenDetail = async (instance: AzureInstance) => {
     setDetailInstance(instance);
     setDetailLoading(true);
@@ -618,7 +741,7 @@ export default function AzurePanel() {
 
   const handleInstanceAction = async (
     instance: AzureInstance,
-    type: "start" | "deallocate" | "restart",
+    type: "start" | "deallocate" | "restart" | "replace_public_ip",
   ) => {
     setWorkingInstanceId(instance.instance_id);
     try {
@@ -637,6 +760,22 @@ export default function AzurePanel() {
     } finally {
       setWorkingInstanceId(null);
     }
+  };
+
+  const handleReplaceInstanceIP = async (instance: AzureInstance) => {
+    const current = instance.public_ips[0] || "-";
+    const confirmed = await confirm({
+      title: t("cloud.providers.azure.replace_ip", "Replace IP"),
+      description: t("cloud.providers.azure.replace_ip_confirm", {
+        name: instance.name || instance.instance_id,
+        current,
+        defaultValue: `Allocate a new public IP for "${instance.name || instance.instance_id}" and release the old IP ${current}?`,
+      }),
+      confirmLabel: t("cloud.providers.azure.replace_ip", "Replace IP"),
+      tone: "warning",
+    });
+    if (!confirmed) return;
+    await handleInstanceAction(instance, "replace_public_ip");
   };
 
   const handleDeleteInstance = async (instance: AzureInstance) => {
@@ -880,6 +1019,7 @@ export default function AzurePanel() {
                       <TableHead>{t("cloud.table.size", "Size")}</TableHead>
                       <TableHead>{t("cloud.table.ip", "Public IP")}</TableHead>
                       <TableHead>{t("cloud.providers.azure.private_ip", "Private IP")}</TableHead>
+                      <TableHead>{t("cloud.table.password", "Root Password")}</TableHead>
                       <TableHead>{t("common.actions", "Actions")}</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -905,6 +1045,28 @@ export default function AzurePanel() {
                         <TableCell className="align-top">{formatList(instance.public_ips)}</TableCell>
                         <TableCell className="align-top">{formatList(instance.private_ips)}</TableCell>
                         <TableCell className="align-top">
+                          {instance.saved_root_password ? (
+                            <div className="space-y-1">
+                              <Badge color={passwordStorageEnabled ? "green" : "amber"}>
+                                {passwordStorageEnabled
+                                  ? t("cloud.password.saved", "Saved")
+                                  : t("cloud.password.locked", "Locked")}
+                              </Badge>
+                              {instance.saved_root_password_updated_at ? (
+                                <div className="text-xs text-slate-500 dark:text-slate-400">
+                                  {formatDateTime(instance.saved_root_password_updated_at)}
+                                </div>
+                              ) : null}
+                            </div>
+                          ) : (
+                            <span className="text-sm text-slate-400">
+                              {passwordStorageEnabled
+                                ? t("cloud.password.not_saved", "Not saved")
+                                : t("cloud.password.disabled_short", "Vault off")}
+                            </span>
+                          )}
+                        </TableCell>
+                        <TableCell className="align-top">
                           <Flex wrap="wrap" gap="2">
                             <Button variant="outline" size="sm" onClick={() => void handleOpenDetail(instance)}>
                               <Eye className="mr-1 h-3.5 w-3.5" />
@@ -917,6 +1079,15 @@ export default function AzurePanel() {
                             >
                               <Terminal className="mr-1 h-3.5 w-3.5" />
                               {t("cloud.script.action", "Run Script")}
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              disabled={!instance.saved_root_password || !passwordStorageEnabled || passwordLoading}
+                              onClick={() => void handleViewPassword(instance)}
+                            >
+                              <KeyRound className="mr-1 h-3.5 w-3.5" />
+                              {t("cloud.password.view", "View Password")}
                             </Button>
                             <Button
                               variant="outline"
@@ -944,6 +1115,15 @@ export default function AzurePanel() {
                             >
                               <RotateCcw className="mr-1 h-3.5 w-3.5" />
                               {t("cloud.reboot", "Reboot")}
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              disabled={workingInstanceId === instance.instance_id}
+                              onClick={() => void handleReplaceInstanceIP(instance)}
+                            >
+                              <RefreshCw className="mr-1 h-3.5 w-3.5" />
+                              {t("cloud.providers.azure.replace_ip", "Replace IP")}
                             </Button>
                             <Button
                               variant="outline"
@@ -1190,14 +1370,14 @@ export default function AzurePanel() {
           <Dialog.Description className="text-sm text-slate-500 dark:text-slate-400">
             {t(
               "cloud.providers.azure.import_dialog_description",
-              "One credential per line. Format: name,tenantId,clientId,clientSecret,subscriptionId[,defaultLocation].",
+              "One credential per line (CSV/pipe/tab) or paste JSON object/array. Common JSON keys: login_user, subscription_id, appId, password, tenant.",
             )}
           </Dialog.Description>
           <TextArea
             className="mt-4 min-h-48 font-mono text-xs"
             value={credentialImportText}
             onChange={(event) => setCredentialImportText(event.target.value)}
-            placeholder="team-a,tenant-id,client-id,client-secret,subscription-id,eastus"
+            placeholder='{"login_user":"team-a","subscription_id":"...","appId":"...","password":"...","tenant":"..."}'
           />
           <Flex justify="end" gap="2" className="mt-4">
             <Dialog.Close>
@@ -1247,6 +1427,37 @@ export default function AzurePanel() {
               >
                 <div className={`rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 font-mono text-xs dark:border-slate-800 dark:bg-slate-900/50 ${cloudLongTextClassName}`}>
                   {credentialSecret.secret.client_secret || "-"}
+                </div>
+              </CloudCopyBlock>
+            </div>
+          ) : null}
+        </Dialog.Content>
+      </Dialog.Root>
+
+      <Dialog.Root open={Boolean(savedPassword)} onOpenChange={(open) => !open && setSavedPassword(null)}>
+        <Dialog.Content className={`${cloudDialogContentClassName} max-h-[80vh] overflow-y-auto`}>
+          <Dialog.Title>{t("cloud.password.view", "View Password")}</Dialog.Title>
+          <Dialog.Description className="text-sm text-slate-500 dark:text-slate-400">
+            {t(
+              "cloud.providers.azure.password_dialog_description",
+              "View the saved root password for this Azure VM from the current active credential.",
+            )}
+          </Dialog.Description>
+          {savedPassword ? (
+            <div className="mt-4 space-y-4">
+              <div className="grid gap-3 sm:grid-cols-2">
+                <CloudDetailItem label={t("cloud.table.name", "Name")} value={savedPassword.instance.name || "-"} />
+                <CloudDetailItem label={t("cloud.providers.azure.resource_group", "Resource Group")} value={savedPassword.instance.resource_group || "-"} />
+                <CloudDetailItem label={t("cloud.providers.azure.admin_username", "Admin Username")} value={savedPassword.credential.username || "-"} />
+                <CloudDetailItem label={t("cloud.providers.azure.checked_at", "Last Checked")} value={formatDateTime(savedPassword.credential.updated_at)} />
+              </div>
+              <CloudCopyBlock
+                title={t("cloud.password.root_password", "Root Password")}
+                copyLabel={t("common.copy", "Copy")}
+                onCopy={() => void handleCopy(savedPassword.credential.root_password, t("cloud.password.copy_success", "Root password copied"))}
+              >
+                <div className={`rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 font-mono text-xs dark:border-slate-800 dark:bg-slate-900/50 ${cloudLongTextClassName}`}>
+                  {savedPassword.credential.root_password || "-"}
                 </div>
               </CloudCopyBlock>
             </div>
@@ -1309,6 +1520,15 @@ export default function AzurePanel() {
                   <Button
                     variant="outline"
                     size="sm"
+                    disabled={!detailData.instance.saved_root_password || !passwordStorageEnabled || passwordLoading}
+                    onClick={() => void handleViewPassword(detailData.instance)}
+                  >
+                    <KeyRound className="mr-1 h-3.5 w-3.5" />
+                    {t("cloud.password.view", "View Password")}
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
                     disabled={workingInstanceId === detailData.instance.instance_id}
                     onClick={() => void handleInstanceAction(detailData.instance, "start")}
                   >
@@ -1332,6 +1552,15 @@ export default function AzurePanel() {
                   >
                     <RotateCcw className="mr-1 h-3.5 w-3.5" />
                     {t("cloud.reboot", "Reboot")}
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={workingInstanceId === detailData.instance.instance_id}
+                    onClick={() => void handleReplaceInstanceIP(detailData.instance)}
+                  >
+                    <RefreshCw className="mr-1 h-3.5 w-3.5" />
+                    {t("cloud.providers.azure.replace_ip", "Replace IP")}
                   </Button>
                   <Button
                     variant="outline"

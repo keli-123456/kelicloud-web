@@ -42,6 +42,7 @@ export type AzureCredentialRecord = {
 export type AzureCredentialPool = {
   active_credential_id: string;
   active_location: string;
+  password_storage_enabled: boolean;
   credentials: AzureCredentialRecord[];
 };
 
@@ -104,6 +105,8 @@ export type AzureInstance = {
   private_ips: string[];
   public_ips: string[];
   tags: Record<string, string>;
+  saved_root_password: boolean;
+  saved_root_password_updated_at: string;
 };
 
 export type AzureNetworkInterface = {
@@ -135,6 +138,15 @@ export type AzureInstanceDetail = {
   data_disks: AzureDisk[];
 };
 
+export type AzureInstancePassword = {
+  instance_id: string;
+  instance_name: string;
+  username: string;
+  password_mode: string;
+  root_password: string;
+  updated_at: string;
+};
+
 export type AzureImageReference = {
   publisher: string;
   offer: string;
@@ -155,6 +167,13 @@ export type CreateAzureInstanceInput = {
   image: AzureImageReference;
   auto_connect?: boolean;
   auto_connect_group?: string;
+};
+
+export type CreateAzureInstanceResult = {
+  instance: AzureInstance;
+  detail: AzureInstanceDetail;
+  password_saved: boolean;
+  password_save_error: string;
 };
 
 function normalizeStringArray(value: unknown): string[] {
@@ -256,6 +275,13 @@ function normalizeInstance(instance: Partial<AzureInstance> | null | undefined):
               .map(([key, value]) => [String(key), String(value || "")]),
           )
         : {},
+    saved_root_password: Boolean(
+      (instance as { saved_root_password?: unknown } | null | undefined)?.saved_root_password,
+    ),
+    saved_root_password_updated_at: String(
+      (instance as { saved_root_password_updated_at?: unknown } | null | undefined)
+        ?.saved_root_password_updated_at || "",
+    ),
   };
 }
 
@@ -299,6 +325,30 @@ function normalizeInstanceDetail(
     data_disks: Array.isArray(detail?.data_disks)
       ? detail.data_disks.map(normalizeDisk)
       : [],
+  };
+}
+
+function normalizeInstancePassword(
+  value: Partial<AzureInstancePassword> | null | undefined,
+): AzureInstancePassword {
+  return {
+    instance_id: String(value?.instance_id || ""),
+    instance_name: String(value?.instance_name || ""),
+    username: String(value?.username || ""),
+    password_mode: String(value?.password_mode || ""),
+    root_password: String(value?.root_password || ""),
+    updated_at: String(value?.updated_at || ""),
+  };
+}
+
+function normalizeCredentialPool(
+  data: Partial<AzureCredentialPool> | null | undefined,
+): AzureCredentialPool {
+  return {
+    active_credential_id: String(data?.active_credential_id || ""),
+    active_location: normalizeLocation(data?.active_location),
+    password_storage_enabled: Boolean(data?.password_storage_enabled),
+    credentials: Array.isArray(data?.credentials) ? data.credentials.map(normalizeCredentialRecord) : [],
   };
 }
 
@@ -355,11 +405,7 @@ async function requestCloud<T>(path: string, init?: RequestInit): Promise<T> {
 
 export async function getAzureCredentials(): Promise<AzureCredentialPool> {
   const data = await requestCloud<Partial<AzureCredentialPool>>("/api/admin/cloud/azure/credentials");
-  return {
-    active_credential_id: String(data?.active_credential_id || ""),
-    active_location: normalizeLocation(data?.active_location),
-    credentials: Array.isArray(data?.credentials) ? data.credentials.map(normalizeCredentialRecord) : [],
-  };
+  return normalizeCredentialPool(data);
 }
 
 export async function saveAzureCredentials(input: {
@@ -374,11 +420,7 @@ export async function saveAzureCredentials(input: {
     },
     body: JSON.stringify(input),
   });
-  return {
-    active_credential_id: String(data?.active_credential_id || ""),
-    active_location: normalizeLocation(data?.active_location),
-    credentials: Array.isArray(data?.credentials) ? data.credentials.map(normalizeCredentialRecord) : [],
-  };
+  return normalizeCredentialPool(data);
 }
 
 export async function setAzureActiveCredential(credentialId: string): Promise<AzureCredentialPool> {
@@ -389,11 +431,7 @@ export async function setAzureActiveCredential(credentialId: string): Promise<Az
     },
     body: JSON.stringify({ credential_id: credentialId }),
   });
-  return {
-    active_credential_id: String(data?.active_credential_id || ""),
-    active_location: normalizeLocation(data?.active_location),
-    credentials: Array.isArray(data?.credentials) ? data.credentials.map(normalizeCredentialRecord) : [],
-  };
+  return normalizeCredentialPool(data);
 }
 
 export async function setAzureActiveLocation(location: string): Promise<AzureCredentialPool> {
@@ -404,11 +442,7 @@ export async function setAzureActiveLocation(location: string): Promise<AzureCre
     },
     body: JSON.stringify({ location }),
   });
-  return {
-    active_credential_id: String(data?.active_credential_id || ""),
-    active_location: normalizeLocation(data?.active_location),
-    credentials: Array.isArray(data?.credentials) ? data.credentials.map(normalizeCredentialRecord) : [],
-  };
+  return normalizeCredentialPool(data);
 }
 
 export async function checkAzureCredentials(credentialIds?: string[]): Promise<AzureCredentialPool> {
@@ -419,11 +453,7 @@ export async function checkAzureCredentials(credentialIds?: string[]): Promise<A
     },
     body: JSON.stringify({ credential_ids: credentialIds || [] }),
   });
-  return {
-    active_credential_id: String(data?.active_credential_id || ""),
-    active_location: normalizeLocation(data?.active_location),
-    credentials: Array.isArray(data?.credentials) ? data.credentials.map(normalizeCredentialRecord) : [],
-  };
+  return normalizeCredentialPool(data);
 }
 
 export async function getAzureCredentialSecret(credentialId: string): Promise<AzureCredentialSecret> {
@@ -435,11 +465,7 @@ export async function deleteAzureCredential(credentialId: string): Promise<Azure
   const data = await requestCloud<Partial<AzureCredentialPool>>(`/api/admin/cloud/azure/credentials/${encodeURIComponent(credentialId)}`, {
     method: "DELETE",
   });
-  return {
-    active_credential_id: String(data?.active_credential_id || ""),
-    active_location: normalizeLocation(data?.active_location),
-    credentials: Array.isArray(data?.credentials) ? data.credentials.map(normalizeCredentialRecord) : [],
-  };
+  return normalizeCredentialPool(data);
 }
 
 export async function getAzureAccount(): Promise<AzureAccount> {
@@ -466,15 +492,30 @@ export async function getAzureInstanceDetail(instanceId: string): Promise<AzureI
   return normalizeInstanceDetail(data);
 }
 
-export async function createAzureInstance(input: CreateAzureInstanceInput): Promise<AzureInstanceDetail> {
-  const data = await requestCloud<{ detail?: Partial<AzureInstanceDetail> }>("/api/admin/cloud/azure/instances", {
+export async function getAzureInstancePassword(instanceId: string): Promise<AzureInstancePassword> {
+  const data = await requestCloud<Partial<AzureInstancePassword>>(`/api/admin/cloud/azure/instances/${encodeURIComponent(instanceId)}/password`);
+  return normalizeInstancePassword(data);
+}
+
+export async function createAzureInstance(input: CreateAzureInstanceInput): Promise<CreateAzureInstanceResult> {
+  const data = await requestCloud<{
+    instance?: Partial<AzureInstance>;
+    detail?: Partial<AzureInstanceDetail>;
+    password_saved?: boolean;
+    password_save_error?: string;
+  }>("/api/admin/cloud/azure/instances", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
     },
     body: JSON.stringify(input),
   });
-  return normalizeInstanceDetail(data?.detail);
+  return {
+    instance: normalizeInstance(data?.instance),
+    detail: normalizeInstanceDetail(data?.detail),
+    password_saved: Boolean(data?.password_saved),
+    password_save_error: String(data?.password_save_error || ""),
+  };
 }
 
 export async function postAzureInstanceAction(instanceId: string, type: string): Promise<void> {
