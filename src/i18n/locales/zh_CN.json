@@ -731,6 +731,7 @@
     "panel_description": "把 Droplet 操作和令牌管理拆开显示，保存很多凭证时页面会更紧凑。",
     "panel_title": "面板视图",
     "password": {
+      "copy_success": "已复制 Root 密码",
       "create_saved": "这次创建使用的 root 密码已经加密保存，后续可以在实例列表里重新查看。",
       "create_unsaved": "这次创建使用的 root 密码没有保存到服务器，请现在自行保管。",
       "create_unsaved_reason": "密码保存失败：{{reason}}",
@@ -740,6 +741,7 @@
       "locked": "已锁定",
       "mode": "密码模式",
       "not_saved": "未保存",
+      "root_password": "Root 密码",
       "saved": "已保存",
       "saved_at": "保存时间",
       "storage_disabled_help": "Komari 当前无法准备密码保险库。请确认服务端可写入 ./data/cloud_secret.key，或手动设置 KOMARI_CLOUD_SECRET_KEY。",
@@ -2527,6 +2529,7 @@
     "provider_entry_placeholder": "选择 {{provider}} 凭证",
     "provider_template_action_hint": "摘除当前线路，创建替换实例，然后重新挂载 DNS。",
     "provider_template_hint": "使用 provider 凭据和模板来创建替换出口。",
+    "provider_feature_required_hint": "当前用户未启用任何云服务商功能。请先启用 AWS、DigitalOcean 或 Linode。",
     "quick_member_toggle": "自动检查",
     "quick_member_toggle_hint": "暂停该成员由健康状态触发的故障转移。手动操作仍可使用。",
     "quick_service_toggle": "自动调度",

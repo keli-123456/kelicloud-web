@@ -6027,17 +6027,14 @@ function TaskEditorDialog({
   const taskCoreSummary = React.useMemo(
     () => describeTaskMonitoringCoreSettings(t, formState),
     [
-      formState.cooldown_seconds,
-      formState.failure_threshold,
-      formState.stale_after_seconds,
+      formState,
       t,
     ],
   );
   const taskRetrySummary = React.useMemo(
     () => describeTaskRetrySettings(t, formState),
     [
-      formState.provision_failure_fallback_limit,
-      formState.provision_retry_limit,
+      formState,
       t,
     ],
   );

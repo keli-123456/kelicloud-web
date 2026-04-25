@@ -729,6 +729,7 @@
     "panel_description": "Separate Droplet operations from token management so the page stays compact even when you store many credentials.",
     "panel_title": "Panel View",
     "password": {
+      "copy_success": "Root password copied",
       "create_saved": "This root password has been encrypted and saved. You can reopen it later from the instance list.",
       "create_unsaved": "This root password was not saved on the server. Save it now if you still need it later.",
       "create_unsaved_reason": "Password save failed: {{reason}}",
@@ -738,6 +739,7 @@
       "locked": "Locked",
       "mode": "Password Mode",
       "not_saved": "Not Saved",
+      "root_password": "Root Password",
       "saved": "Saved",
       "saved_at": "Saved At",
       "storage_disabled_help": "Komari could not prepare the password vault. Ensure the server can write ./data/cloud_secret.key or set KOMARI_CLOUD_SECRET_KEY manually.",
@@ -2520,6 +2522,7 @@
     "existing_client_watch_hint": "Use an existing client. When triggered, V2 only detaches the selected DNS lines.",
     "provider_template_action_hint": "Detach current lines, provision a replacement instance, then re-attach DNS.",
     "provider_template_hint": "Use provider credentials and a provisioning template to build the replacement outlet.",
+    "provider_feature_required_hint": "No cloud provider feature is enabled for this user. Enable AWS, DigitalOcean, or Linode first.",
     "member_dns_lines_hint": "Add the DNS routing lines that belong to this member. Use default if you do not need ISP-specific routing. Domain: {{domain}}",
     "member_dns_lines_add": "Add line",
     "member_dns_lines_input_placeholder": "Add a line, or separate multiple lines with commas",
