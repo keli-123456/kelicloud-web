@@ -30,7 +30,7 @@ const UsageBar = React.memo(
               }}
             />
           </div>
-          <span className="text-[13px] text-muted-foreground">
+        <span className="text-sm text-muted-foreground">
             {clampedValue.toFixed(1)}%
           </span>
         </div>

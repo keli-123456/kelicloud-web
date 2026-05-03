@@ -1,0 +1,103 @@
+import React from "react";
+import type { TFunction } from "i18next";
+import { toast } from "sonner";
+
+import {
+  createAzureInstance,
+  type AzureCatalog,
+  type AzureInstance,
+  type AzureInstanceDetail,
+} from "@/lib/cloudAzure";
+import {
+  buildCreateFormFromPreset,
+  getDefaultAzureSize,
+  initialAzureImagePreset,
+  initialCreateForm,
+  toErrorMessage,
+  type AzureCreateFormState,
+} from "./azurePanelUtils";
+
+type UseAzureCreateInstanceOptions = {
+  t: TFunction;
+  catalog: AzureCatalog | null;
+  setDetailInstance: React.Dispatch<React.SetStateAction<AzureInstance | null>>;
+  setDetailData: React.Dispatch<React.SetStateAction<AzureInstanceDetail | null>>;
+  loadResources: () => Promise<void>;
+};
+
+export function useAzureCreateInstance({
+  t,
+  catalog,
+  setDetailInstance,
+  setDetailData,
+  loadResources,
+}: UseAzureCreateInstanceOptions) {
+  const [createOpen, setCreateOpen] = React.useState(false);
+  const [createSubmitting, setCreateSubmitting] = React.useState(false);
+  const [createForm, setCreateForm] = React.useState<AzureCreateFormState>(() => ({ ...initialCreateForm }));
+
+  React.useEffect(() => {
+    if (!catalog?.sizes.length) return;
+    setCreateForm((previous) => {
+      if (previous.size && catalog.sizes.some((item) => item.name === previous.size)) {
+        return previous;
+      }
+      return {
+        ...previous,
+        size: getDefaultAzureSize(catalog),
+      };
+    });
+  }, [catalog]);
+
+  const handleCreateInstance = async () => {
+    setCreateSubmitting(true);
+    try {
+      const result = await createAzureInstance({
+        name: createForm.name || "",
+        resource_group: createForm.resource_group || "",
+        size: createForm.size,
+        admin_username: createForm.admin_username || "azureuser",
+        admin_password: createForm.auth_mode === "password" ? createForm.admin_password || "" : "",
+        ssh_public_key: createForm.auth_mode === "ssh" ? createForm.ssh_public_key || "" : "",
+        user_data: createForm.user_data || "",
+        public_ip: createForm.public_ip,
+        assign_ipv6: createForm.assign_ipv6,
+        auto_connect: createForm.auto_connect,
+        auto_connect_group: createForm.auto_connect_group || "",
+        image: {
+          publisher: createForm.image_publisher,
+          offer: createForm.image_offer,
+          sku: createForm.image_sku,
+          version: createForm.image_version || "latest",
+        },
+      });
+      toast.success(t("cloud.providers.azure.create_success", "Azure VM created"));
+      if (result.password_save_error) {
+        toast.error(result.password_save_error);
+      }
+      setCreateOpen(false);
+      setCreateForm({
+        ...buildCreateFormFromPreset(initialAzureImagePreset.id),
+        size: getDefaultAzureSize(catalog),
+      });
+      if (result.detail?.instance?.instance_id) {
+        setDetailInstance(result.detail.instance);
+        setDetailData(result.detail);
+      }
+      await loadResources();
+    } catch (error) {
+      toast.error(toErrorMessage(error));
+    } finally {
+      setCreateSubmitting(false);
+    }
+  };
+
+  return {
+    createOpen,
+    setCreateOpen,
+    createSubmitting,
+    createForm,
+    setCreateForm,
+    handleCreateInstance,
+  };
+}

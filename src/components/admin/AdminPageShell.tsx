@@ -1,5 +1,7 @@
 import type { ReactNode } from "react";
 
+import { Skeleton } from "@/components/ui/skeleton";
+import { useAdminPageTitle } from "@/contexts/AdminPageTitleContext";
 import { cn } from "@/lib/utils";
 
 type AdminStatTone = "blue" | "emerald" | "amber" | "rose" | "slate";
@@ -12,9 +14,7 @@ export type AdminPageStat = {
 };
 
 export function AdminPageShell({
-  eyebrow,
   title,
-  description,
   actions,
   stats = [],
   statsVariant = "inline",
@@ -34,16 +34,8 @@ export function AdminPageShell({
   className?: string;
   contentClassName?: string;
 }) {
-  const hasHeaderCopy = Boolean(eyebrow || title || description);
-  const statToneClasses: Record<AdminStatTone, string> = {
-    blue: "border-border/70 bg-card",
-    emerald:
-      "border-emerald-200/70 bg-emerald-50/70 dark:border-emerald-900/60 dark:bg-emerald-950/20",
-    amber:
-      "border-amber-200/70 bg-amber-50/70 dark:border-amber-900/60 dark:bg-amber-950/20",
-    rose: "border-rose-200/70 bg-rose-50/70 dark:border-rose-900/60 dark:bg-rose-950/20",
-    slate: "border-border/70 bg-card",
-  };
+  useAdminPageTitle(title);
+  const visibleStats = statsVariant === "cards" ? [] : stats;
 
   return (
     <section
@@ -52,78 +44,27 @@ export function AdminPageShell({
         className,
       )}
     >
-      {hasHeaderCopy || actions ? (
-        <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-          {hasHeaderCopy ? (
-            <div className="min-w-0 space-y-1">
-              {eyebrow && (
-                <div className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
-                  {eyebrow}
-                </div>
-              )}
-              <div className="space-y-1">
-                {title ? (
-                  <h1 className="text-xl font-semibold tracking-tight text-foreground md:text-2xl">
-                    {title}
-                  </h1>
-                ) : null}
-                {description && (
-                  <p className="max-w-3xl text-sm leading-6 text-muted-foreground">
-                    {description}
-                  </p>
-                )}
-              </div>
-            </div>
-          ) : null}
-          {actions ? (
-            <div className="flex w-full flex-wrap items-center gap-2 md:w-auto md:justify-end">
-              {actions}
-            </div>
-          ) : null}
+      {actions ? (
+        <div className="flex w-full flex-wrap items-center justify-end gap-2">
+          {actions}
         </div>
       ) : null}
 
-      {stats.length > 0
-        ? statsVariant === "cards"
-          ? (
-            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-              {stats.map((stat, index) => (
-                <div
-                  key={`${index}-${String(stat.label)}`}
-                  className={cn(
-                    "rounded-lg border px-4 py-4 shadow-none",
-                    statToneClasses[stat.tone || "slate"],
-                  )}
-                >
-                  <div className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
-                    {stat.label}
-                  </div>
-                  <div className="mt-2 text-2xl font-semibold tracking-tight text-foreground">
-                    {stat.value}
-                  </div>
-                  {stat.hint ? (
-                    <div className="mt-1 text-xs leading-5 text-muted-foreground">
-                      {stat.hint}
-                    </div>
-                  ) : null}
-                </div>
-              ))}
-            </div>
-          )
-          : (
-            <div className="flex flex-wrap gap-x-5 gap-y-2 rounded-lg border border-border/70 bg-card px-4 py-3 text-sm text-muted-foreground shadow-none">
-              {stats.map((stat, index) => (
-                <div key={`${index}-${String(stat.label)}`} className="flex items-center gap-2">
-                  <span className="font-medium text-foreground">{stat.label}:</span>
-                  <span className="text-foreground">{stat.value}</span>
-                </div>
-              ))}
-            </div>
-          )
+      {visibleStats.length > 0
+        ? (
+          <div className="flex flex-wrap gap-x-5 gap-y-2 border-y border-slate-200/80 py-3 text-sm text-muted-foreground dark:border-slate-800/90">
+            {visibleStats.map((stat, index) => (
+              <div key={`${index}-${String(stat.label)}`} className="flex items-center gap-2">
+                <span className="font-medium text-foreground">{stat.label}:</span>
+                <span className="text-foreground tabular-nums">{stat.value}</span>
+              </div>
+            ))}
+          </div>
+        )
         : null}
 
       {subnav ? (
-        <div className="min-w-0 overflow-x-auto rounded-lg border border-border/70 bg-card p-3 shadow-none">
+        <div className="min-w-0 overflow-x-auto">
           <div className="min-w-max">{subnav}</div>
         </div>
       ) : null}
@@ -143,6 +84,48 @@ export function AdminSurface({
   return <div className={cn("min-h-0 min-w-0", className)}>{children}</div>;
 }
 
+export function AdminEmptyState({
+  icon,
+  title,
+  description,
+  actions,
+  className,
+}: {
+  icon?: ReactNode;
+  title: ReactNode;
+  description?: ReactNode;
+  actions?: ReactNode;
+  className?: string;
+}) {
+  return (
+    <div
+      className={cn(
+        "flex min-h-36 min-w-0 flex-col items-center justify-center rounded-lg border border-slate-200/80 bg-white px-5 py-6 text-center shadow-none dark:border-slate-800 dark:bg-slate-950",
+        className,
+      )}
+    >
+      {icon ? (
+        <div className="mb-3 flex h-9 w-9 items-center justify-center rounded-md border border-slate-200 bg-slate-50 text-slate-500 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-400">
+          {icon}
+        </div>
+      ) : null}
+      <div className="text-[15px] font-semibold leading-5 text-slate-950 dark:text-slate-50">
+        {title}
+      </div>
+      {description ? (
+        <div className="mt-1 max-w-xl text-sm leading-6 text-slate-500 dark:text-slate-400">
+          {description}
+        </div>
+      ) : null}
+      {actions ? (
+        <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
+          {actions}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 export function AdminSubnav({
   children,
   className,
@@ -153,11 +136,102 @@ export function AdminSubnav({
   return (
     <div
       className={cn(
-        "flex flex-wrap gap-2 border-b border-border/70 pb-3",
+        "flex flex-wrap gap-2 border-b border-slate-200/80 pb-2 dark:border-slate-800/90",
         className,
       )}
     >
       {children}
+    </div>
+  );
+}
+
+export function AdminCardGridSkeleton({
+  className,
+}: {
+  cards?: number;
+  className?: string;
+}) {
+  return (
+    <div
+      role="status"
+      aria-label="Loading content"
+      className={cn("h-px bg-slate-200/80 dark:bg-slate-800/90", className)}
+    />
+  );
+}
+
+export function AdminTableSkeleton({
+  columns = 5,
+  rows = 6,
+  className,
+}: {
+  columns?: number;
+  rows?: number;
+  className?: string;
+}) {
+  return (
+    <div
+      role="status"
+      aria-label="Loading table"
+      className={cn(
+        "overflow-hidden rounded-lg border border-slate-200/80 bg-white shadow-none dark:border-slate-800/90 dark:bg-slate-950",
+        className,
+      )}
+    >
+      <div
+        className="grid gap-3 border-b border-slate-200/70 bg-slate-50/80 px-4 py-3 dark:border-slate-800 dark:bg-slate-900/30"
+        style={{ gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` }}
+      >
+        {Array.from({ length: columns }).map((_, index) => (
+          <Skeleton key={index} className="h-3.5 w-20 max-w-full" />
+        ))}
+      </div>
+      <div className="divide-y divide-slate-200/70 dark:divide-slate-800">
+        {Array.from({ length: rows }).map((_, rowIndex) => (
+          <div
+            key={rowIndex}
+            className="grid gap-3 px-4 py-3.5"
+            style={{ gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` }}
+          >
+            {Array.from({ length: columns }).map((_, columnIndex) => (
+              <Skeleton
+                key={columnIndex}
+                className={cn(
+                  "h-3.5 max-w-full",
+                  columnIndex === 0 ? "w-28" : columnIndex % 2 === 0 ? "w-20" : "w-32",
+                )}
+              />
+            ))}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+export function AdminSettingsSkeleton({
+  sections = 4,
+  className,
+}: {
+  sections?: number;
+  className?: string;
+}) {
+  return (
+    <div role="status" aria-label="Loading settings" className={cn("space-y-4", className)}>
+      {Array.from({ length: sections }).map((_, index) => (
+        <div
+          key={index}
+          className="border-t border-slate-200/80 px-4 py-4 first:border-t-0 dark:border-slate-800/90"
+        >
+          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+            <div className="min-w-0 flex-1 space-y-2">
+              <Skeleton className="h-4 w-40 max-w-full" />
+              <Skeleton className="h-4 w-full max-w-xl" />
+            </div>
+            <Skeleton className={cn("h-9 w-full md:w-40", index % 2 === 0 && "md:w-24")} />
+          </div>
+        </div>
+      ))}
     </div>
   );
 }

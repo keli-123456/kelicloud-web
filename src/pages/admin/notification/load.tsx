@@ -1,4 +1,8 @@
-import Loading from "@/components/loading";
+import { AdminTableSkeleton } from "@/components/admin/AdminPageShell";
+import {
+  ADMIN_FORM_DIALOG_CLASS,
+  ADMIN_FORM_SCROLL_CLASS,
+} from "@/components/admin/AdminFormStyles";
 import NodeSelectorDialog from "@/components/NodeSelectorDialog";
 import {
   Table,
@@ -47,11 +51,21 @@ const InnerLayout = () => {
     useNodeDetails();
   const { t } = useTranslation();
   if (isLoading || nodeDetailLoading) {
-    return <Loading text={t("loading", "Loading...")} />;
+    return (
+      <Flex direction="column" gap="4" className="p-4 text-slate-900 dark:text-slate-100">
+        <div className="flex items-center justify-between">
+          <label className="text-2xl font-bold text-slate-900 dark:text-slate-100">
+            {t("notification.load.title")}
+          </label>
+          <AddButton />
+        </div>
+        <AdminTableSkeleton columns={7} rows={5} />
+      </Flex>
+    );
   }
   if (error || nodeDetailError) {
     return (
-      <div className="rounded-2xl border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive">
+      <div className="rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive">
         {error || nodeDetailError || t("loadAlert.load_failed", "Failed to load load alerts")}
       </div>
     );
@@ -65,7 +79,7 @@ const InnerLayout = () => {
         <AddButton />
       </div>
 
-      <div className="overflow-hidden rounded-xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-950/40">
+      <div className="overflow-hidden rounded-lg border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-950/40">
         <Table>
           <TableHeader>
             <TableHead>{t("common.name")}</TableHead>
@@ -244,9 +258,12 @@ const Row = ({ alert }: { alert: LoadAlert }) => {
               <Pencil size="16" />
             </IconButton>
           </Dialog.Trigger>
-          <Dialog.Content>
+          <Dialog.Content className={ADMIN_FORM_DIALOG_CLASS} maxWidth={640}>
             <Dialog.Title>{t("common.edit")}</Dialog.Title>
-            <form onSubmit={handleEdit} className="flex flex-col gap-2">
+            <form
+              onSubmit={handleEdit}
+              className={`${ADMIN_FORM_SCROLL_CLASS} mt-4 grid gap-2 [&>label]:text-sm [&>label]:font-medium [&>label]:text-slate-900 dark:[&>label]:text-slate-100`}
+            >
               <label>{t("common.name")}</label>
               <TextField.Root
                 value={form.name}
@@ -311,7 +328,7 @@ const Row = ({ alert }: { alert: LoadAlert }) => {
                 }
                 required
               />
-              <Flex gap="2" justify="end" className="mt-4">
+              <Flex gap="2" justify="end" className="mt-2 border-t border-slate-200/70 pt-4 dark:border-slate-800/70">
                 <Dialog.Close>
                   <Button
                     variant="soft"
@@ -336,9 +353,9 @@ const Row = ({ alert }: { alert: LoadAlert }) => {
               <Trash size="16" />
             </IconButton>
           </Dialog.Trigger>
-          <Dialog.Content>
+          <Dialog.Content className={ADMIN_FORM_DIALOG_CLASS} maxWidth={480}>
             <Dialog.Title>{t("common.delete")}</Dialog.Title>
-            <Flex gap="2" justify="end" className="mt-4">
+            <Flex gap="2" justify="end" className="border-t border-slate-200/70 pt-4 dark:border-slate-800/70">
               <Dialog.Close>
                 <Button
                   variant="soft"
@@ -427,10 +444,12 @@ const AddButton: React.FC = () => {
       <Dialog.Trigger>
         <Button>{t("common.add")}</Button>
       </Dialog.Trigger>
-      <Dialog.Content>
+      <Dialog.Content className={ADMIN_FORM_DIALOG_CLASS} maxWidth={640}>
         <Dialog.Title>{t("common.add")}</Dialog.Title>
-        <form onSubmit={handleSubmit}>
-          <Flex direction="column" justify="end" gap="2" className="font-bold">
+        <form
+          onSubmit={handleSubmit}
+          className={`${ADMIN_FORM_SCROLL_CLASS} mt-4 grid gap-2 [&>label]:text-sm [&>label]:font-medium [&>label]:text-slate-900 dark:[&>label]:text-slate-100`}
+        >
             <label htmlFor="load_name">{t("common.name")}</label>
             <TextField.Root id="load_name" name="load_name" />
             <label htmlFor="type">{t("loadAlert.metric")}</label>
@@ -486,7 +505,7 @@ const AddButton: React.FC = () => {
               type="number"
               placeholder="15"
             />
-            <div className="flex justify-end gap-2">
+            <div className="mt-2 flex justify-end gap-2 border-t border-slate-200/70 pt-4 dark:border-slate-800/70">
               <Dialog.Close>
                 <Button variant="soft">{t("common.close")}</Button>
               </Dialog.Close>
@@ -494,7 +513,6 @@ const AddButton: React.FC = () => {
                 {t("common.add")}
               </Button>
             </div>
-          </Flex>
         </form>
       </Dialog.Content>
     </Dialog.Root>

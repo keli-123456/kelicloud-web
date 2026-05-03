@@ -485,8 +485,20 @@ const ExpandedNodeDetails: React.FC<ExpandedNodeDetailsProps> = ({ node }) => {
       <div>
         <React.Suspense
           fallback={
-            <div className="panel-muted border-dashed px-4 py-8 text-center text-sm text-muted-foreground">
-              Loading...
+            <div className="panel-muted border-dashed px-4 py-4">
+              <div className="flex h-44 items-end gap-1">
+                {Array.from({ length: 24 }).map((_, index) => (
+                  <div
+                    key={index}
+                    className="flex-1 animate-pulse rounded-sm bg-slate-200 dark:bg-slate-800"
+                    style={{ height: `${20 + ((index * 11) % 60)}%` }}
+                  />
+                ))}
+              </div>
+              <div className="mt-3 flex items-center justify-between">
+                <div className="h-2 w-32 animate-pulse rounded bg-slate-200 dark:bg-slate-800" />
+                <div className="h-2 w-20 animate-pulse rounded bg-slate-200 dark:bg-slate-800" />
+              </div>
             </div>
           }
         >

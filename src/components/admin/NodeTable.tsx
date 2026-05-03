@@ -57,15 +57,19 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { ActionsCell } from "./NodeTable/NodeFunction";
 import { toast } from "sonner";
 import { LoadingIcon } from "../Icones/icon";
+import { AdminTableSkeleton } from "@/components/admin/AdminPageShell";
+import {
+  ADMIN_FORM_DIALOG_CLASS,
+  ADMIN_FORM_FIELD_CLASS,
+  ADMIN_FORM_SCROLL_CLASS,
+} from "@/components/admin/AdminFormStyles";
 import {
   Button,
   Checkbox,
   Dialog,
-  Flex,
   IconButton,
   TextField,
 } from "@/components/admin/admin-ui";
-import Loading from "../loading";
 import { useNodeDetails } from "@/contexts/NodeDetailsContext";
 
 const columns: ColumnDef<z.infer<typeof schema>>[] = [
@@ -283,7 +287,30 @@ export function DataTable() {
 
   if (isLoading) {
     return (
-      <Loading />
+      <div
+        className={`
+          mb-6 min-w-0
+          ${!isMobile ? "p-4" : ""}
+        `}
+      >
+        <h2 className="mb-4 text-2xl font-bold">
+          {t("admin.nodeTable.nodeList")}
+        </h2>
+        <div className="mb-4 flex items-center justify-between">
+          <TextField.Root
+            placeholder={t("admin.nodeTable.searchByName")}
+            disabled
+            className="max-w-2xs"
+          />
+          <Button disabled>
+            <PlusIcon className="lg:mr-1" />
+            <span className="hidden lg:inline">
+              {t("admin.nodeTable.addNode")}
+            </span>
+          </Button>
+        </div>
+        <AdminTableSkeleton columns={columns.length} rows={6} />
+      </div>
     );
   }
 
@@ -319,19 +346,25 @@ export function DataTable() {
               </span>
             </Button>
           </Dialog.Trigger>
-          <Dialog.Content>
+          <Dialog.Content className={ADMIN_FORM_DIALOG_CLASS} maxWidth={520}>
             <Dialog.Title>{t("admin.nodeTable.addNode")}</Dialog.Title>
-            <div className="">
-              <label className="block mb-1 text-sm font-medium text-muted-foreground">
-                {t("admin.nodeTable.nameOptional")}
-              </label>
-              <TextField.Root
-                placeholder={t("admin.nodeTable.namePlaceholder")}
-                value={newNodeName}
-                onChange={(e) => setNewNodeName(e.target.value)}
-              />
+            <div className={`${ADMIN_FORM_SCROLL_CLASS} mt-1 space-y-4`}>
+              <div className={ADMIN_FORM_FIELD_CLASS}>
+                <label
+                  data-slot="label"
+                  className="text-sm font-medium text-slate-700 dark:text-slate-300"
+                >
+                  {t("admin.nodeTable.nameOptional")}
+                </label>
+                <TextField.Root
+                  className="w-full"
+                  placeholder={t("admin.nodeTable.namePlaceholder")}
+                  value={newNodeName}
+                  onChange={(e) => setNewNodeName(e.target.value)}
+                />
+              </div>
             </div>
-            <Flex justify="end" gap="2" className="mt-4">
+            <div className="flex justify-end border-t border-slate-200/70 pt-4 dark:border-slate-800/70">
               <Button onClick={handleAddNode} disabled={isAddingNode}>
                 {isAddingNode ? (
                   <span className="flex items-center gap-1">
@@ -342,7 +375,7 @@ export function DataTable() {
                   t("admin.nodeTable.submit")
                 )}
               </Button>
-            </Flex>
+            </div>
           </Dialog.Content>
         </Dialog.Root>
       </div>

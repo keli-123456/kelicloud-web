@@ -7,16 +7,20 @@ import {
   Badge,
   Button,
   Dialog,
-  Flex,
   TextField,
 } from "@/components/admin/admin-ui";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Github, Globe, User } from "lucide-react";
-import Loading from "@/components/loading";
 import {
+  AdminCardGridSkeleton,
   AdminPageShell,
   AdminSurface,
 } from "@/components/admin/AdminPageShell";
+import {
+  ADMIN_FORM_DIALOG_CLASS,
+  ADMIN_FORM_FIELD_CLASS,
+  ADMIN_FORM_SCROLL_CLASS,
+} from "@/components/admin/AdminFormStyles";
 
 const Account = () => {
   return (
@@ -32,11 +36,42 @@ const InnerLayout = () => {
   const [usernameSaving, setUsernameSaving] = React.useState(false);
   const [passwordSaving, setPasswordSaving] = React.useState(false);
   if (loading) {
-    return <Loading />;
+    return (
+      <AdminPageShell
+        eyebrow={t("account.title")}
+        title={t("account.title")}
+        description={t(
+          "account.page_description",
+          "Manage your admin identity, password, two-factor authentication, and external sign-in bindings in one place.",
+        )}
+        statsVariant="cards"
+        stats={[
+          {
+            label: t("account.stats.current_user_label", "Current user"),
+            value: <Skeleton className="h-6 w-24" />,
+            tone: "blue",
+          },
+          {
+            label: "2FA",
+            value: <Skeleton className="h-6 w-20" />,
+            tone: "amber",
+          },
+          {
+            label: "SSO",
+            value: <Skeleton className="h-6 w-24" />,
+            tone: "slate",
+          },
+        ]}
+      >
+        <div className="grid gap-4 xl:grid-cols-[minmax(0,1.25fr)_minmax(320px,0.95fr)]">
+          <AdminCardGridSkeleton cards={2} className="xl:col-span-2" />
+        </div>
+      </AdminPageShell>
+    );
   }
   if (error) {
     return (
-      <div className="rounded-2xl border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive">
+      <div className="rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive">
         {error.message}
       </div>
     );
@@ -123,11 +158,11 @@ const InnerLayout = () => {
         setPasswordSaving(false);
       });
   }
-  
+
   // SSO 辅助函数
   function getSSOInfo() {
     if (!account?.sso_id) return null;
-    
+
     const [platform, uniqueId] = account.sso_id.split('_', 2);
     return {
       platform: platform || '',
@@ -135,7 +170,7 @@ const InnerLayout = () => {
       isBound: !!account.sso_id
     };
   }
-  
+
   function getSSOIcon(platform: string) {
     switch (platform.toLowerCase()) {
       case 'github':
@@ -146,7 +181,7 @@ const InnerLayout = () => {
         return <User className="size-5" />;
     }
   }
-  
+
   function getSSODisplayName(platform: string) {
     switch (platform.toLowerCase()) {
       case 'github':
@@ -161,7 +196,7 @@ const InnerLayout = () => {
         return platform.charAt(0).toUpperCase() + platform.slice(1);
     }
   }
-  
+
   const handleSSOAuth = async () => {
     try {
       const ssoInfo = getSSOInfo();
@@ -176,7 +211,7 @@ const InnerLayout = () => {
           refresh(); // 刷新用户信息
         } else {
           const error = await response.json();
-          toast.error(t("account_settings.unbind_sso_failed", { 
+          toast.error(t("account_settings.unbind_sso_failed", {
             provider: getSSODisplayName(ssoInfo.platform),
             error: error.message || t("account_settings.unknown_error")
           }));
@@ -244,7 +279,7 @@ const InnerLayout = () => {
       <div className="grid gap-4 xl:grid-cols-[minmax(0,1.25fr)_minmax(320px,0.95fr)]">
         <AdminSurface className="flex flex-col gap-6">
           <div className="space-y-2">
-            <label className="text-xl font-semibold tracking-tight text-slate-900 dark:text-slate-50">
+          <label className="text-xl font-semibold tracking-normal text-slate-900 dark:text-slate-50">
               {t("account.profile_title", "Profile")}
             </label>
             <p className="text-sm leading-6 text-slate-500 dark:text-slate-400">
@@ -254,22 +289,24 @@ const InnerLayout = () => {
               )}
             </p>
           </div>
-          <form
-            className="flex gap-3 flex-col"
-            onSubmit={handleSubmitUsernameChange}
-          >
-            <label className="text-sm font-medium text-slate-700 dark:text-slate-300" htmlFor="username">
-              {t("account.change_username_title")}
-            </label>
-
-            <TextField.Root
-              className="max-w-xl rounded-xl border border-slate-200/80 bg-white shadow-sm dark:border-slate-700/80 dark:bg-slate-950"
-              id="username"
-              name="username"
-              defaultValue={account?.username}
-            />
+          <form className="max-w-xl space-y-4" onSubmit={handleSubmitUsernameChange}>
+            <div className={ADMIN_FORM_FIELD_CLASS}>
+              <label
+                data-slot="label"
+                className="text-sm font-medium text-slate-700 dark:text-slate-300"
+                htmlFor="username"
+              >
+                {t("account.change_username_title")}
+              </label>
+              <TextField.Root
+                className="w-full"
+                id="username"
+                name="username"
+                defaultValue={account?.username}
+              />
+            </div>
             <div>
-              <Button disabled={usernameSaving} type="submit" className="rounded-xl">
+              <Button disabled={usernameSaving} type="submit">
                 {t("account.change_username_button")}
               </Button>
             </div>
@@ -277,30 +314,42 @@ const InnerLayout = () => {
 
           <div className="h-px bg-[linear-gradient(90deg,rgba(148,163,184,0.10),rgba(148,163,184,0.65),rgba(148,163,184,0.10))]" />
 
-          <form onSubmit={changePassword} className="flex flex-col gap-3">
-            <label className="text-sm font-medium text-slate-700 dark:text-slate-300" htmlFor="old_password">
+          <form onSubmit={changePassword} className="max-w-xl space-y-4">
+            <label className="text-sm font-medium text-slate-700 dark:text-slate-300">
               {t("account.change_password_title")}
             </label>
-            <label className="text-sm text-slate-600 dark:text-slate-400" htmlFor="password">
-              {t("account.new_password")}
-            </label>
-            <TextField.Root
-              className="max-w-xl rounded-xl border border-slate-200/80 bg-white shadow-sm dark:border-slate-700/80 dark:bg-slate-950"
-              id="password"
-              name="password"
-              type="password"
-            />
-            <label className="text-sm text-slate-600 dark:text-slate-400" htmlFor="password_repeat">
-              {t("account.new_password_repeat")}
-            </label>
-            <TextField.Root
-              className="max-w-xl rounded-xl border border-slate-200/80 bg-white shadow-sm dark:border-slate-700/80 dark:bg-slate-950"
-              id="password_repeat"
-              name="password_repeat"
-              type="password"
-            />
+            <div className={ADMIN_FORM_FIELD_CLASS}>
+              <label
+                data-slot="label"
+                className="text-sm text-slate-600 dark:text-slate-400"
+                htmlFor="password"
+              >
+                {t("account.new_password")}
+              </label>
+              <TextField.Root
+                className="w-full"
+                id="password"
+                name="password"
+                type="password"
+              />
+            </div>
+            <div className={ADMIN_FORM_FIELD_CLASS}>
+              <label
+                data-slot="label"
+                className="text-sm text-slate-600 dark:text-slate-400"
+                htmlFor="password_repeat"
+              >
+                {t("account.new_password_repeat")}
+              </label>
+              <TextField.Root
+                className="w-full"
+                id="password_repeat"
+                name="password_repeat"
+                type="password"
+              />
+            </div>
             <div>
-              <Button disabled={passwordSaving} type="submit" className="rounded-xl">
+              <Button disabled={passwordSaving} type="submit">
                 {t("account.change_password_button")}
               </Button>
             </div>
@@ -310,7 +359,7 @@ const InnerLayout = () => {
         <AdminSurface className="flex flex-col gap-6">
           <div className="flex items-start justify-between gap-3">
             <div className="space-y-2">
-              <label className="text-xl font-semibold tracking-tight text-slate-900 dark:text-slate-50">
+          <label className="text-xl font-semibold tracking-normal text-slate-900 dark:text-slate-50">
                 {t("account.security_title", "Security & Sign-in")}
               </label>
               <p className="text-sm leading-6 text-slate-500 dark:text-slate-400">
@@ -329,7 +378,7 @@ const InnerLayout = () => {
           </div>
 
           <div className="space-y-3">
-            <label className="text-sm font-medium uppercase tracking-[0.18em] text-slate-500">
+              <label className="text-sm font-medium uppercase tracking-normal text-slate-500">
               2FA
             </label>
             {account?.["2fa_enabled"] ? (
@@ -342,7 +391,7 @@ const InnerLayout = () => {
           <div className="h-px bg-[linear-gradient(90deg,rgba(148,163,184,0.10),rgba(148,163,184,0.65),rgba(148,163,184,0.10))]" />
 
           <div className="space-y-4">
-            <label className="text-sm font-medium uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">
+              <label className="text-sm font-medium uppercase tracking-normal text-slate-500 dark:text-slate-400">
               {t("settings.sso.title")}
             </label>
             <div className="border-l-2 border-slate-200 pl-4 dark:border-slate-800">
@@ -382,33 +431,33 @@ const InnerLayout = () => {
               {ssoInfo?.isBound ? (
                 <Dialog.Root>
                   <Dialog.Trigger>
-                    <Button className="rounded-xl">
+                    <Button>
                       {t("account_settings.unbind_sso", { provider: boundProvider })}
                     </Button>
                   </Dialog.Trigger>
-                  <Dialog.Content>
+                  <Dialog.Content className={ADMIN_FORM_DIALOG_CLASS} maxWidth={520}>
                     <Dialog.Title>
                       {t("account_settings.confirm_unbind")}
                     </Dialog.Title>
-                    <Dialog.Description>
+                    <Dialog.Description className={`${ADMIN_FORM_SCROLL_CLASS} mt-1 text-sm leading-6 text-slate-600 dark:text-slate-400`}>
                       {t("account_settings.unbind_sso_warning", {
                         provider: boundProvider,
                       })}
                     </Dialog.Description>
-                    <Flex gap="2" justify="end" className="mt-4">
+                    <div className="flex justify-end gap-2 border-t border-slate-200/70 pt-4 dark:border-slate-800/70">
                       <Dialog.Close>
-                        <Button variant="soft" className="rounded-xl">
+                        <Button variant="soft">
                           {t("account_settings.cancel")}
                         </Button>
                       </Dialog.Close>
-                      <Button color="red" onClick={handleSSOAuth} className="rounded-xl">
+                      <Button color="red" onClick={handleSSOAuth}>
                         {t("account_settings.confirm_unbind")}
                       </Button>
-                    </Flex>
+                    </div>
                   </Dialog.Content>
                 </Dialog.Root>
               ) : (
-                <Button onClick={handleSSOAuth} className="rounded-xl">
+                <Button onClick={handleSSOAuth}>
                   <User className="size-4" />
                   {t("account_settings.bind_sso")}
                 </Button>
@@ -481,42 +530,56 @@ const TwoFactorDisabled = () => {
   };
 
   return (
-    <Flex direction="column" gap="2">
-      <label className="text-lg font-bold">{t("account.2fa_disabled")}</label>
+    <div className="space-y-3">
+      <label className="text-base font-semibold text-slate-900 dark:text-slate-100">
+        {t("account.2fa_disabled")}
+      </label>
       <Dialog.Root open={isOpen} onOpenChange={setIsOpen}>
         <Dialog.Trigger>
           <div>
-            <Button className="w-full rounded-xl">{t("account.enable_2fa")}</Button>
+            <Button className="w-full">{t("account.enable_2fa")}</Button>
           </div>
         </Dialog.Trigger>
-        <Dialog.Content>
+        <Dialog.Content className={ADMIN_FORM_DIALOG_CLASS} maxWidth={560}>
           <Dialog.Title>{t("account.enable_2fa")}</Dialog.Title>
-          <Flex direction="column" gap="2">
-            <label>{t("account.2fa_qr_code_hint")}</label>
-            <div className="flex justify-center">
+          <div className={`${ADMIN_FORM_SCROLL_CLASS} mt-1 space-y-4`}>
+            <p className="text-sm leading-6 text-slate-600 dark:text-slate-400">
+              {t("account.2fa_qr_code_hint")}
+            </p>
+            <div className="flex justify-center rounded-lg border border-dashed border-slate-300 bg-slate-50/70 p-4 dark:border-slate-700 dark:bg-slate-900/40">
               {isLoading ? (
                 <Skeleton className="h-[200px] w-[200px]" />
               ) : (
                 <img src={qrcode!} alt="2FA QR Code" width={200} height={200} />
               )}
             </div>
-            <label>{t("account.2fa_otp_input_prompt")}</label>
-            <form className="flex flex-col gap-2" onSubmit={handleEnable2fa}>
-              <TextField.Root
-                type="number"
-                name="code"
-                placeholder="000000"
-                value={code}
-                onChange={(e) => setCode((e.target as HTMLInputElement).value)}
-              />
-              <Button disabled={saving} type="submit" className="rounded-xl">
-                {t("account.enable_2fa")}
-              </Button>
+            <form className="space-y-4" onSubmit={handleEnable2fa}>
+              <div className={ADMIN_FORM_FIELD_CLASS}>
+                <label
+                  data-slot="label"
+                  className="text-sm font-medium text-slate-700 dark:text-slate-300"
+                >
+                  {t("account.2fa_otp_input_prompt")}
+                </label>
+                <TextField.Root
+                  className="w-full"
+                  type="number"
+                  name="code"
+                  placeholder="000000"
+                  value={code}
+                  onChange={(e) => setCode((e.target as HTMLInputElement).value)}
+                />
+              </div>
+              <div className="flex justify-end border-t border-slate-200/70 pt-4 dark:border-slate-800/70">
+                <Button disabled={saving} type="submit">
+                  {t("account.enable_2fa")}
+                </Button>
+              </div>
             </form>
-          </Flex>
+          </div>
         </Dialog.Content>
       </Dialog.Root>
-    </Flex>
+    </div>
   );
 };
 
@@ -550,37 +613,38 @@ const TwoFactorEnabled = () => {
       });
   };
   return (
-    <Flex direction="column" gap="2">
-      <label>{t("account.2fa_enabled")}</label>
+    <div className="space-y-3">
+      <label className="text-base font-semibold text-slate-900 dark:text-slate-100">
+        {t("account.2fa_enabled")}
+      </label>
       <div>
         <Dialog.Root open={isOpen} onOpenChange={setIsOpen}>
           <Dialog.Trigger>
-            <Button className="ml-2 rounded-xl" color="red">
+            <Button color="red">
               {t("account.disable_2fa")}
             </Button>
           </Dialog.Trigger>
-          <Dialog.Content>
+          <Dialog.Content className={ADMIN_FORM_DIALOG_CLASS} maxWidth={520}>
             <Dialog.Title>{t("account.disable_2fa")}</Dialog.Title>
-            <Dialog.Description>
+            <Dialog.Description className={`${ADMIN_FORM_SCROLL_CLASS} mt-1 text-sm leading-6 text-slate-600 dark:text-slate-400`}>
               {t("account.disable_2fa_confirmation")}
             </Dialog.Description>
-            <Flex gap="2" justify="end" className="mt-4">
-              <Button variant="soft" onClick={() => setIsOpen(false)} className="rounded-xl">
+            <div className="flex justify-end gap-2 border-t border-slate-200/70 pt-4 dark:border-slate-800/70">
+              <Button variant="soft" onClick={() => setIsOpen(false)}>
                 {t("common.cancel")}
               </Button>
               <Button
                 disabled={saving}
                 color="red"
                 onClick={disable2fa}
-                className="rounded-xl"
               >
                 {t("common.confirm")}
               </Button>
-            </Flex>
+            </div>
           </Dialog.Content>
         </Dialog.Root>
       </div>
-    </Flex>
+    </div>
   );
 };
 

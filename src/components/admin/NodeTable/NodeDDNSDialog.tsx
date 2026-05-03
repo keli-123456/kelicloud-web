@@ -63,11 +63,11 @@ const DEFAULT_ALIYUN_FORM: AliyunFormState = {
 };
 
 const NODE_DIALOG_CONTENT_CLASS =
-  "max-h-[90vh] w-[min(96vw,760px)] overflow-y-auto overscroll-contain rounded-[28px] border border-slate-200/80 bg-white/95 p-6 shadow-2xl [scrollbar-gutter:stable] backdrop-blur dark:border-slate-800/80 dark:bg-slate-950/95";
+  "max-h-[90vh] w-[min(96vw,760px)] overflow-y-auto overscroll-contain rounded-lg border border-slate-200/80 bg-card p-6 [scrollbar-gutter:stable] dark:border-slate-800 dark:bg-slate-950";
 const NODE_DIALOG_SECTION_CLASS =
   "dialog-section px-4 py-4";
 const NODE_DIALOG_INFO_CLASS =
-  "rounded-[20px] border border-border/60 bg-background/76 p-4 shadow-sm backdrop-blur-sm";
+  "rounded-lg border border-border/60 bg-background p-4 shadow-none";
 const NODE_DIALOG_DANGER_CLASS =
   "dialog-danger px-3 py-2";
 
@@ -832,7 +832,7 @@ export function NodeDDNSDialog({
           </div>
 
           {catalogError ? (
-            <div className="rounded-[20px] border border-amber-200/80 bg-amber-50/92 px-3 py-2 text-sm text-amber-700 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-300">
+            <div className="rounded-lg border border-amber-200/80 bg-amber-50/92 px-3 py-2 text-sm text-amber-700 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-300">
               {catalogError}
             </div>
           ) : null}
@@ -887,7 +887,7 @@ export function NodeDDNSDialog({
                 </div>
                 <TextArea
                   disabled
-                  className="min-h-[100px] rounded-[20px] border-border/70 bg-slate-50/90 font-mono text-xs dark:bg-slate-950"
+                  className="min-h-[100px] rounded-lg border-border/70 bg-slate-50/90 font-mono text-xs dark:bg-slate-950"
                   value={JSON.stringify(binding.last_result, null, 2)}
                 />
               </div>

@@ -5,7 +5,8 @@ type ApiEnvelope<T> = {
 };
 
 const AWS_CLOUD_REQUEST_TIMEOUT_MS = 60000;
-const AWS_CLOUD_CREATE_REQUEST_TIMEOUT_MS = 90000;
+const AWS_CLOUD_LONG_REQUEST_TIMEOUT_MS = 240000;
+const AWS_CLOUD_CREATE_REQUEST_TIMEOUT_MS = AWS_CLOUD_LONG_REQUEST_TIMEOUT_MS;
 
 class CloudApiError extends Error {
   status: number;
@@ -1197,7 +1198,7 @@ export async function createAWSInstance(
 export async function deleteAWSInstance(instanceId: string): Promise<void> {
   await requestCloud(`/api/admin/cloud/aws/instances/${instanceId}`, {
     method: "DELETE",
-  });
+  }, AWS_CLOUD_LONG_REQUEST_TIMEOUT_MS);
 }
 
 export async function postAWSInstanceAction(
@@ -1210,7 +1211,7 @@ export async function postAWSInstanceAction(
       "Content-Type": "application/json",
     },
     body: JSON.stringify(typeof input === "string" ? { type: input } : input),
-  });
+  }, AWS_CLOUD_LONG_REQUEST_TIMEOUT_MS);
 }
 
 export async function getAWSLightsailCatalog(region?: string): Promise<AWSLightsailCatalog> {
@@ -1273,7 +1274,7 @@ export async function createAWSLightsailInstance(
       "Content-Type": "application/json",
     },
     body: JSON.stringify(input),
-  });
+  }, AWS_CLOUD_CREATE_REQUEST_TIMEOUT_MS);
   return {
     name: String(data?.name || ""),
     status: String(data?.status || ""),
@@ -1287,7 +1288,7 @@ export async function createAWSLightsailInstance(
 export async function deleteAWSLightsailInstance(instanceName: string): Promise<void> {
   await requestCloud(`/api/admin/cloud/aws/lightsail/instances/${encodeURIComponent(instanceName)}`, {
     method: "DELETE",
-  });
+  }, AWS_CLOUD_LONG_REQUEST_TIMEOUT_MS);
 }
 
 export async function postAWSLightsailInstanceAction(
@@ -1300,5 +1301,5 @@ export async function postAWSLightsailInstanceAction(
       "Content-Type": "application/json",
     },
     body: JSON.stringify(typeof input === "string" ? { type: input } : input),
-  });
+  }, AWS_CLOUD_LONG_REQUEST_TIMEOUT_MS);
 }

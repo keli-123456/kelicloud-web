@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState, useCallback } from "react";
 import { Card } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
-import Loading from "@/components/loading";
 import {
   ChartContainer,
   ChartTooltip,
@@ -185,16 +184,21 @@ const MiniPingChart = ({
     <Card style={{ width, height }} className="flex flex-col px-4 py-4 sm:px-6">
       {loading && (
         <div
-          style={{
-            textAlign: "center",
-            width: "100%",
-            flexGrow: 1,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-          }}
+          className="flex w-full flex-1 flex-col justify-end gap-3"
         >
-          <Loading />
+          <div className="flex h-full min-h-32 items-end gap-1">
+            {Array.from({ length: 20 }).map((_, index) => (
+              <div
+                key={index}
+                className="flex-1 animate-pulse rounded-sm bg-slate-200 dark:bg-slate-800"
+                style={{ height: `${18 + ((index * 13) % 64)}%` }}
+              />
+            ))}
+          </div>
+          <div className="flex items-center justify-between">
+            <div className="h-2 w-24 animate-pulse rounded bg-slate-200 dark:bg-slate-800" />
+            <div className="h-2 w-16 animate-pulse rounded bg-slate-200 dark:bg-slate-800" />
+          </div>
         </div>
       )}
       {error && (

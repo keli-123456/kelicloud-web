@@ -1,0 +1,203 @@
+import React from "react";
+import type { TFunction } from "i18next";
+import { toast } from "sonner";
+
+import type { CloudInstanceShareTarget } from "@/components/admin/cloud/CloudInstanceShareDialog";
+import type { ConfirmDialogOptions } from "@/components/ui/warning-dialog";
+import {
+  buildCloudInstanceShareUrl,
+  deleteCloudInstanceShare,
+  fromCloudShareDateTimeLocalValue,
+  getCloudInstanceShare,
+  saveCloudInstanceShare,
+  toCloudShareDateTimeLocalValue,
+  type CloudInstanceShareRecord,
+  type CloudShareAccessPolicy,
+} from "@/lib/cloudShare";
+import type {
+  LinodeInstance,
+  LinodeTokenRecord,
+} from "@/lib/cloudLinode";
+import { toErrorMessage } from "./linodePanelUtils";
+
+type ConfirmDialog = (options: ConfirmDialogOptions) => Promise<boolean>;
+
+type UseLinodeInstanceShareOptions = {
+  t: TFunction;
+  confirm: ConfirmDialog;
+  activeToken: LinodeTokenRecord | null;
+  copyText: (text: string) => void | Promise<void>;
+};
+
+export function useLinodeInstanceShare({
+  t,
+  confirm,
+  activeToken,
+  copyText,
+}: UseLinodeInstanceShareOptions) {
+  const [shareOpen, setShareOpen] = React.useState(false);
+  const [shareTarget, setShareTarget] = React.useState<CloudInstanceShareTarget | null>(null);
+  const [shareRecord, setShareRecord] = React.useState<CloudInstanceShareRecord | null>(null);
+  const [shareLoading, setShareLoading] = React.useState(false);
+  const [shareSaving, setShareSaving] = React.useState(false);
+  const [shareDeleting, setShareDeleting] = React.useState(false);
+  const [shareTitle, setShareTitle] = React.useState("");
+  const [shareNote, setShareNote] = React.useState("");
+  const [shareAccessPolicy, setShareAccessPolicy] = React.useState<CloudShareAccessPolicy>("public");
+  const [shareExpiresAt, setShareExpiresAt] = React.useState("");
+  const [sharePassword, setSharePassword] = React.useState(false);
+
+  const shareUrl = React.useMemo(
+    () => (shareRecord?.token ? buildCloudInstanceShareUrl(shareRecord.token) : ""),
+    [shareRecord?.token],
+  );
+
+  const handleShareOpenChange = React.useCallback((open: boolean) => {
+    setShareOpen(open);
+    if (!open) {
+      setShareTarget(null);
+      setShareRecord(null);
+      setShareLoading(false);
+      setShareSaving(false);
+      setShareDeleting(false);
+      setShareAccessPolicy("public");
+      setShareExpiresAt("");
+      setSharePassword(false);
+    }
+  }, []);
+
+  const handleOpenShareDialog = async (instance: LinodeInstance) => {
+    const nextTarget: CloudInstanceShareTarget = {
+      provider: "linode",
+      resourceType: "instance",
+      resourceId: String(instance.id),
+      resourceName: instance.label || String(instance.id),
+      providerLabel: t("cloud.providers.linode.title", "Linode"),
+      credentialName: activeToken?.name || activeToken?.profile_email || "",
+      region: instance.region || "",
+      primaryAddress: instance.ipv4[0] || instance.ipv6 || "",
+      canSharePassword: Boolean(instance.saved_root_password),
+      canShareManagedSSHKey: false,
+    };
+
+    setShareTarget(nextTarget);
+    setShareRecord(null);
+    setShareTitle(instance.label || "");
+    setShareNote("");
+    setShareAccessPolicy("public");
+    setShareExpiresAt("");
+    setSharePassword(false);
+    setShareOpen(true);
+    setShareLoading(true);
+
+    try {
+      const nextShare = await getCloudInstanceShare("linode", "instance", String(instance.id));
+      setShareRecord(nextShare.token ? nextShare : null);
+      setShareTitle(nextShare.title || instance.label || "");
+      setShareNote(nextShare.note || "");
+      setShareAccessPolicy(nextShare.access_policy || "public");
+      setShareExpiresAt(toCloudShareDateTimeLocalValue(nextShare.expires_at));
+      setSharePassword(Boolean(nextShare.share_password && nextTarget.canSharePassword));
+    } catch (shareError) {
+      toast.error(toErrorMessage(shareError));
+    } finally {
+      setShareLoading(false);
+    }
+  };
+
+  const handleSaveShare = async () => {
+    if (!shareTarget) return;
+
+    setShareSaving(true);
+    try {
+      const nextShare = await saveCloudInstanceShare(
+        shareTarget.provider,
+        shareTarget.resourceType,
+        shareTarget.resourceId,
+        {
+          title: shareTitle,
+          note: shareNote,
+          access_policy: shareAccessPolicy,
+          expires_at: fromCloudShareDateTimeLocalValue(shareExpiresAt),
+          share_password: sharePassword,
+          share_managed_ssh_key: false,
+        },
+      );
+      setShareRecord(nextShare);
+      setShareTitle(nextShare.title || shareTarget.resourceName);
+      setShareNote(nextShare.note || "");
+      setShareAccessPolicy(nextShare.access_policy || "public");
+      setShareExpiresAt(toCloudShareDateTimeLocalValue(nextShare.expires_at));
+      setSharePassword(Boolean(nextShare.share_password));
+      toast.success(t("cloud.share.save_success", "Share link saved"));
+    } catch (shareError) {
+      toast.error(toErrorMessage(shareError));
+    } finally {
+      setShareSaving(false);
+    }
+  };
+
+  const handleDeleteShare = async () => {
+    if (!shareTarget) return;
+
+    const confirmed = await confirm({
+      title: t("cloud.share.delete", "Revoke share link"),
+      description: t("cloud.share.delete_confirm", {
+        name: shareTarget.resourceName,
+        defaultValue: `Revoke the share link for "${shareTarget.resourceName}"?`,
+      }),
+      confirmLabel: t("cloud.share.delete", "Revoke link"),
+      tone: "warning",
+    });
+    if (!confirmed) return;
+
+    setShareDeleting(true);
+    try {
+      await deleteCloudInstanceShare(
+        shareTarget.provider,
+        shareTarget.resourceType,
+        shareTarget.resourceId,
+      );
+      setShareRecord(null);
+      setShareNote("");
+      setShareAccessPolicy("public");
+      setShareExpiresAt("");
+      setSharePassword(false);
+      toast.success(t("cloud.share.delete_success", "Share link revoked"));
+    } catch (shareError) {
+      toast.error(toErrorMessage(shareError));
+    } finally {
+      setShareDeleting(false);
+    }
+  };
+
+  const handleCopyShareLink = React.useCallback(() => {
+    if (!shareUrl) return;
+    void copyText(shareUrl);
+  }, [copyText, shareUrl]);
+
+  return {
+    shareOpen,
+    shareTarget,
+    shareRecord,
+    shareLoading,
+    shareSaving,
+    shareDeleting,
+    shareTitle,
+    setShareTitle,
+    shareNote,
+    setShareNote,
+    shareAccessPolicy,
+    setShareAccessPolicy,
+    shareExpiresAt,
+    setShareExpiresAt,
+    sharePassword,
+    setSharePassword,
+    shareUrl,
+    handleShareOpenChange,
+    handleOpenShareDialog,
+    handleSaveShare,
+    handleDeleteShare,
+    handleCopyShareLink,
+  };
+}

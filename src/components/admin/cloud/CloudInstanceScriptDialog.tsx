@@ -15,6 +15,7 @@ import { useTranslation } from "react-i18next";
 import { useCommandClipboard } from "@/contexts/CommandClipboardContext";
 import { type NodeDetail, useNodeDetails } from "@/contexts/NodeDetailsContext";
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   Dialog,
   DialogContent,
@@ -23,8 +24,8 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import {
+  CloudReadonlyCodeBlock,
   cloudDialogWideContentClassName,
   cloudLongTextClassName,
 } from "@/components/admin/cloud/cloud-ui";
@@ -429,7 +430,7 @@ export default function CloudInstanceScriptDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
-        className={`${cloudDialogWideContentClassName} max-h-[80vh] overflow-y-auto border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-950`}
+        className={cloudDialogWideContentClassName}
       >
         <DialogHeader>
           <DialogTitle>
@@ -443,7 +444,7 @@ export default function CloudInstanceScriptDialog({
         </DialogHeader>
 
         <div className="space-y-4">
-          <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700 dark:border-slate-800 dark:bg-slate-900/50 dark:text-slate-300">
+          <div className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700 dark:border-slate-800 dark:bg-slate-900/50 dark:text-slate-300">
             <div className={`font-medium text-slate-900 dark:text-slate-100 ${cloudLongTextClassName}`}>
               {target?.providerLabel || "-"} / {target?.instanceName || target?.instanceIdentifier || "-"}
             </div>
@@ -454,7 +455,7 @@ export default function CloudInstanceScriptDialog({
             ) : null}
           </div>
 
-          <div className="rounded-xl border border-slate-200 bg-white px-4 py-3 dark:border-slate-800 dark:bg-slate-950/60">
+          <div className="rounded-lg border border-slate-200 bg-white px-4 py-3 dark:border-slate-800 dark:bg-slate-950/60">
             <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div className="min-w-0">
                 <div className="text-sm font-medium text-slate-900 dark:text-slate-100">
@@ -508,7 +509,7 @@ export default function CloudInstanceScriptDialog({
           </div>
 
           {executionState ? (
-            <div className="rounded-xl border border-slate-200 bg-white px-4 py-3 dark:border-slate-800 dark:bg-slate-950/60">
+            <div className="rounded-lg border border-slate-200 bg-white px-4 py-3 dark:border-slate-800 dark:bg-slate-950/60">
               <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                 <div>
                   <div className="text-sm font-medium text-slate-900 dark:text-slate-100">
@@ -556,11 +557,9 @@ export default function CloudInstanceScriptDialog({
                 <div className="mb-2 text-xs text-slate-500 dark:text-slate-400">
                   {t("cloud.script.output", "Output")}
                 </div>
-                <Textarea
-                  readOnly
+                <CloudReadonlyCodeBlock
                   value={outputText}
                   placeholder={t("cloud.script.output_placeholder", "Task output will appear here.")}
-                  className="min-h-32 border-slate-200 bg-slate-50 font-mono text-xs text-slate-700 [overflow-wrap:anywhere] dark:border-slate-800 dark:bg-slate-950 dark:text-slate-200"
                 />
               </div>
 
@@ -588,7 +587,7 @@ export default function CloudInstanceScriptDialog({
             </div>
           ) : null}
 
-          <div className="rounded-xl border border-slate-200 bg-white px-4 py-3 dark:border-slate-800 dark:bg-slate-950/60">
+          <div className="rounded-lg border border-slate-200 bg-white px-4 py-3 dark:border-slate-800 dark:bg-slate-950/60">
             <div className="mb-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div className="flex items-center gap-2 text-sm font-medium text-slate-900 dark:text-slate-100">
                 <Terminal className="h-4 w-4 text-slate-500 dark:text-slate-400" />
@@ -614,8 +613,13 @@ export default function CloudInstanceScriptDialog({
                 {error.message}
               </div>
             ) : loading ? (
-              <div className="rounded-lg border border-dashed border-slate-200 px-3 py-3 text-sm text-slate-500 dark:border-slate-800 dark:text-slate-400">
-                {t("loading", "Loading...")}
+              <div className="space-y-3 rounded-lg border border-dashed border-slate-200 px-3 py-3 dark:border-slate-800">
+                {Array.from({ length: 3 }).map((_, index) => (
+                  <div key={index} className="space-y-2">
+                    <Skeleton className="h-4 w-1/2" />
+                    <Skeleton className="h-3 w-full" />
+                  </div>
+                ))}
               </div>
             ) : orderedCommands.length === 0 ? (
               <div className="rounded-lg border border-dashed border-slate-200 px-3 py-3 text-sm text-slate-500 dark:border-slate-800 dark:text-slate-400">

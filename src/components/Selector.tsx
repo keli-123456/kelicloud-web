@@ -124,16 +124,18 @@ function SelectorInner<T>(props: SelectorProps<T>) {
       <div className="selector rounded-md overflow-hidden">
         <Table>
           <TableHeader>
-            <TableHead>
-              <Checkbox
-                checked={isIndeterminate ? "indeterminate" : allChecked}
-                onCheckedChange={(checked) => handleCheckAll(!!checked)}
-                aria-label={t("selector.select_all", {
-                  defaultValue: "Select all",
-                })}
-              />
-            </TableHead>
-            <TableHead>{resolvedHeaderLabel}</TableHead>
+            <TableRow>
+              <TableHead>
+                <Checkbox
+                  checked={isIndeterminate ? "indeterminate" : allChecked}
+                  onCheckedChange={(checked) => handleCheckAll(!!checked)}
+                  aria-label={t("selector.select_all", {
+                    defaultValue: "Select all",
+                  })}
+                />
+              </TableHead>
+              <TableHead>{resolvedHeaderLabel}</TableHead>
+            </TableRow>
           </TableHeader>
           <TableBody>
             {processed.map((it) => {

@@ -91,12 +91,12 @@ export function SettingCardMultiInputCollapse({
       <div className="flex w-full flex-col gap-2">
         {items.map((item) => (
           <React.Fragment key={item.tag}>
-            <label className="text-[13px] font-medium text-foreground">
+        <label className="text-sm font-medium text-foreground">
               {item.label}
             </label>
             {item.type === "long" ? (
               <Textarea
-                className="w-full text-[13px] leading-6"
+                    className="w-full text-sm leading-6"
                 value={values[item.tag]}
                 placeholder={item.placeholder}
                 disabled={item.disabled}
@@ -104,7 +104,7 @@ export function SettingCardMultiInputCollapse({
               />
             ) : (
               <Input
-                className="h-8 w-full text-[13px]"
+                    className="h-8 w-full text-sm"
                 value={values[item.tag]}
                 placeholder={item.placeholder}
                 disabled={item.disabled}
@@ -128,7 +128,7 @@ export function SettingCardMultiInputCollapse({
         <div>
           <Button
             size="sm"
-            className="mt-1 rounded-md text-[13px]"
+              className="mt-1 rounded-md text-sm"
             onClick={handleSave}
             disabled={savingState}
           >

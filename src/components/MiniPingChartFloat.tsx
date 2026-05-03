@@ -94,10 +94,23 @@ const MiniPingChartFloat: React.FC<FloatMiniPingChartProps> = ({
           <Suspense
             fallback={
               <div
-                className="flex items-center justify-center text-sm text-muted-foreground"
+                className="flex flex-col justify-end gap-3 rounded-lg border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-950"
                 style={{ width: chartWidth, height: chartHeight }}
               >
-                Loading...
+                <div className="grid flex-1 grid-cols-12 items-end gap-1">
+                  {Array.from({ length: 12 }).map((_, index) => (
+                    <div
+                      key={index}
+                      className="animate-pulse rounded-sm bg-slate-200 dark:bg-slate-800"
+                      style={{ height: `${28 + ((index * 17) % 54)}%` }}
+                    />
+                  ))}
+                </div>
+                <div className="h-px bg-slate-200 dark:bg-slate-800" />
+                <div className="flex items-center justify-between">
+                  <div className="h-2 w-24 animate-pulse rounded bg-slate-200 dark:bg-slate-800" />
+                  <div className="h-2 w-14 animate-pulse rounded bg-slate-200 dark:bg-slate-800" />
+                </div>
               </div>
             }
           >

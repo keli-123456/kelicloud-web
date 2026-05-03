@@ -3,7 +3,7 @@ import {
   SettingCardShortTextInput,
   SettingCardSwitch,
 } from "@/components/admin/SettingCard";
-import Loading from "@/components/loading";
+import { AdminSettingsSkeleton } from "@/components/admin/AdminPageShell";
 import { updateSettingsWithToast, useSettings } from "@/lib/api";
 import { useTranslation } from "react-i18next";
 import { useAccount } from "@/contexts/AccountContext";
@@ -17,7 +17,7 @@ export default function SsoSettings() {
   });
 
   if (accountLoading || loading) {
-    return <Loading />;
+    return <AdminSettingsSkeleton sections={4} />;
   }
 
   if (!platformAdmin) {

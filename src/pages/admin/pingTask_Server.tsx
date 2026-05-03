@@ -6,6 +6,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { AdminEmptyState } from "@/components/admin/AdminPageShell";
 import { useNodeDetails } from "@/contexts/NodeDetailsContext";
 import { usePingTask, type PingTask } from "@/contexts/PingTaskContext";
 import {
@@ -14,7 +15,7 @@ import {
   Flex,
   IconButton,
 } from "@/components/admin/admin-ui";
-import { MoreHorizontal } from "lucide-react";
+import { MoreHorizontal, Server } from "lucide-react";
 import React from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
@@ -36,12 +37,29 @@ export const ServerView = ({ pingTasks }: { pingTasks: PingTask[] }) => {
     [nodeDetail]
   );
 
+  if (sortedNodes.length === 0) {
+    return (
+      <AdminEmptyState
+        icon={<Server size={18} />}
+        title={t("ping.empty_servers_title", {
+          defaultValue: "暂无服务器",
+        })}
+        description={t("ping.empty_servers_description", {
+          defaultValue: "接入服务器后，可以在这里按服务器维度维护延迟监测任务绑定。",
+        })}
+        className="m-4"
+      />
+    );
+  }
+
   return (
-    <div className="rounded-xl overflow-hidden">
+    <div className="overflow-hidden">
       <Table>
         <TableHeader>
-          <TableHead className="w-48">{t("common.server")}</TableHead>
-          <TableHead>{t("ping.task")}</TableHead>
+          <TableRow>
+            <TableHead className="w-48">{t("common.server")}</TableHead>
+            <TableHead>{t("ping.task")}</TableHead>
+          </TableRow>
         </TableHeader>
         <TableBody>
           {sortedNodes.map((n) => (
@@ -161,7 +179,7 @@ const ServerRow: React.FC<{
                   getLabel={(task) => (
                     <span className="text-sm">
                       {task.name}
-                      <span className="ml-2 text-[13px] text-gray-500">
+          <span className="ml-2 text-sm text-gray-500">
                         {task.type}/{task.interval}s
                       </span>
                     </span>

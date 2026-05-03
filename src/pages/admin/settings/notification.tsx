@@ -1,6 +1,9 @@
 import { useTranslation } from "react-i18next";
 import { updateSettingsWithToast, useSettings } from "@/lib/api";
 import {
+  AdminSettingsSkeleton,
+} from "@/components/admin/AdminPageShell";
+import {
   SettingCardButton,
   SettingCardLabel,
   SettingCardLongTextInput,
@@ -9,7 +12,6 @@ import {
   SettingCardSwitch,
 } from "@/components/admin/SettingCard";
 import { toast } from "sonner";
-import Loading from "@/components/loading";
 import React from "react";
 import { renderProviderInputs } from "@/utils/renderProviders";
 import { SquareArrowOutUpRight } from "lucide-react";
@@ -132,10 +134,10 @@ const NotificationSettings = () => {
     setMessageLoading(false);
   };
   if (accountLoading) {
-    return <Loading />;
+    return <AdminSettingsSkeleton sections={4} />;
   }
   if (loading || (platformAdmin && !messageLoading && messageList.length === 0 && !messageError)) {
-    return <Loading />;
+    return <AdminSettingsSkeleton sections={5} />;
   }
   if (error) {
     return <p className="text-sm text-destructive">{error}</p>;
@@ -278,9 +280,9 @@ const NotificationSettings = () => {
               await Promise.all([systemState.refetch(), userState.refetch()]);
             }}
           />
-          {messageLoading ? <Loading /> : renderProviderInputs({
-            currentProvider: currentMessageSender,
-            providerDefs: messageDefs,
+      {messageLoading ? <AdminSettingsSkeleton sections={2} /> : renderProviderInputs({
+        currentProvider: currentMessageSender,
+        providerDefs: messageDefs,
             providerValues: messageValues,
             translationPrefix: `settings.notification.${currentMessageSender}`,
             title: t("settings.notification.provider_fields"),

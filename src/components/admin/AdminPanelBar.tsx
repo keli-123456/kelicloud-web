@@ -20,13 +20,12 @@ import {
   isAnyAccountFeatureAllowed,
   useAccount,
 } from "@/contexts/AccountContext";
+import {
+  AdminPageTitleProvider,
+  useCurrentAdminPageTitle,
+} from "@/contexts/AdminPageTitleContext";
 import { usePublicInfo } from "@/contexts/PublicInfoContext";
 import { useRPC2Call } from "@/contexts/RPC2Context";
-import {
-  Alert,
-  AlertDescription,
-  AlertTitle,
-} from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {
   Collapsible,
@@ -49,6 +48,7 @@ import menuConfig from "@/config/menuConfig.json";
 
 const baseMenuItems = (menuConfig as { menu: MenuItem[] }).menu;
 const SIDEBAR_COLLAPSED_STORAGE_KEY = "komari_admin_sidebar_collapsed";
+const HTTPS_NOTICE_DISMISSED_STORAGE_KEY = "komari_admin_https_notice_dismissed";
 
 interface ExtendedMenuItem extends MenuItem {
   rawLabel?: string;
@@ -73,6 +73,42 @@ interface MenuEntry {
   active: boolean;
   activeChild: MenuItem | null;
 }
+
+interface MenuGroup {
+  key: "overview" | "infrastructure" | "operations" | "governance";
+  labelKey: string;
+  defaultLabel: string;
+  entries: MenuEntry[];
+}
+
+const NAV_GROUP_ORDER: MenuGroup["key"][] = [
+  "overview",
+  "infrastructure",
+  "operations",
+  "governance",
+];
+
+const NAV_GROUP_META: Record<
+  MenuGroup["key"],
+  { labelKey: string; defaultLabel: string }
+> = {
+  overview: {
+    labelKey: "admin.nav.groups.overview",
+    defaultLabel: "Overview",
+  },
+  infrastructure: {
+    labelKey: "admin.nav.groups.infrastructure",
+    defaultLabel: "Infrastructure",
+  },
+  operations: {
+    labelKey: "admin.nav.groups.operations",
+    defaultLabel: "Operations",
+  },
+  governance: {
+    labelKey: "admin.nav.groups.governance",
+    defaultLabel: "Governance",
+  },
+};
 
 const isExternalPath = (target: string) =>
   target.startsWith("http://") || target.startsWith("https://");
@@ -203,7 +239,56 @@ const getRequiredFeatureForPath = (target: string) => {
   return null;
 };
 
-export default function AdminPanelBar({ content }: AdminPanelBarProps) {
+const getMenuGroupKey = (target: string): MenuGroup["key"] => {
+  if (!target || isExternalPath(target)) {
+    return "governance";
+  }
+
+  const targetUrl = new URL(target, "https://komari.local");
+  const normalizedPath = normalizePath(targetUrl.pathname);
+
+  if (normalizedPath === "/admin") {
+    return "overview";
+  }
+
+  if (
+    normalizedPath === "/admin/cloud" ||
+    normalizedPath.startsWith("/admin/failover") ||
+    normalizedPath === "/admin/dns"
+  ) {
+    return "infrastructure";
+  }
+
+  if (
+    normalizedPath.startsWith("/admin/exec") ||
+    normalizedPath.startsWith("/admin/scripts") ||
+    normalizedPath.startsWith("/admin/ping") ||
+    normalizedPath.startsWith("/admin/sessions")
+  ) {
+    return "operations";
+  }
+
+  return "governance";
+};
+
+const isCloudMenuParent = (item: MenuItem) => {
+  if (!item.path || isExternalPath(item.path)) {
+    return false;
+  }
+
+  const targetUrl = new URL(item.path, "https://komari.local");
+  return normalizePath(targetUrl.pathname) === "/admin/cloud" && !targetUrl.search;
+};
+
+export default function AdminPanelBar(props: AdminPanelBarProps) {
+  return (
+    <AdminPageTitleProvider>
+      <AdminPanelBarContent {...props} />
+    </AdminPageTitleProvider>
+  );
+}
+
+function AdminPanelBarContent({ content }: AdminPanelBarProps) {
   const { call } = useRPC2Call();
   const { account, hasFeature, platformAdmin } = useAccount();
   const { publicInfo } = usePublicInfo();
@@ -211,11 +296,19 @@ export default function AdminPanelBar({ content }: AdminPanelBarProps) {
   const navigate = useNavigate();
   const ishttps = window.location.protocol === "https:";
   const [t] = useTranslation();
+  const registeredPageTitle = useCurrentAdminPageTitle();
 
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
     try {
       return localStorage.getItem(SIDEBAR_COLLAPSED_STORAGE_KEY) === "1";
+    } catch {
+      return false;
+    }
+  });
+  const [httpsNoticeDismissed, setHttpsNoticeDismissed] = useState(() => {
+    try {
+      return localStorage.getItem(HTTPS_NOTICE_DISMISSED_STORAGE_KEY) === "1";
     } catch {
       return false;
     }
@@ -309,8 +402,51 @@ export default function AdminPanelBar({ content }: AdminPanelBarProps) {
     });
   }, []);
 
-  const getMenuLabel = (item: ExtendedMenuItem | MenuItem) =>
-    (item as ExtendedMenuItem).rawLabel || t(item.labelKey);
+  const getMenuLabel = (item: ExtendedMenuItem | MenuItem) => {
+    const label = (item as ExtendedMenuItem).rawLabel || t(item.labelKey);
+    return label.trim().toLowerCase() === "aws" ? "AWS" : label;
+  };
+
+  const getSidebarMenuLabel = (item: ExtendedMenuItem | MenuItem) => {
+    const targetUrl = new URL(item.path, "https://komari.local");
+    const normalizedPath = normalizePath(targetUrl.pathname);
+    const provider = targetUrl.searchParams.get("provider");
+
+    if (normalizedPath === "/admin/cloud") {
+      if (provider === "digitalocean") return "DO";
+      if (provider === "aws") return "AWS";
+      if (provider === "linode") return "Linode";
+      if (provider === "azure") return "Azure";
+      return t("admin.nav.short.cloud", { defaultValue: "Cloud" });
+    }
+
+    if (normalizedPath === "/admin/failover") {
+      return t("admin.nav.short.failover", { defaultValue: "Failover" });
+    }
+    if (normalizedPath === "/admin/failover-v2") {
+      return t("admin.nav.short.failover_v2", { defaultValue: "Failover V2" });
+    }
+    if (normalizedPath === "/admin/dns") {
+      return "DNS";
+    }
+    if (normalizedPath === "/admin/exec") {
+      return t("admin.nav.short.exec", { defaultValue: "Exec" });
+    }
+    if (normalizedPath === "/admin/scripts") {
+      return t("admin.nav.short.scripts", { defaultValue: "Scripts" });
+    }
+    if (normalizedPath === "/admin/ping") {
+      return t("admin.nav.short.ping", { defaultValue: "Ping" });
+    }
+    if (normalizedPath === "/admin/sessions") {
+      return t("admin.nav.short.sessions", { defaultValue: "Sessions" });
+    }
+    if (normalizedPath === "/admin/users") {
+      return t("admin.nav.short.users", { defaultValue: "Users" });
+    }
+
+    return getMenuLabel(item);
+  };
 
   const isPlatformOnlyPath = useCallback((target: string) => {
     if (!target || isExternalPath(target)) {
@@ -383,13 +519,21 @@ export default function AdminPanelBar({ content }: AdminPanelBarProps) {
     [isFeatureAllowedPath, isPlatformOnlyPath, platformAdmin],
   );
 
-  const primaryMenuItems = useMemo(
+  const primaryMenuItems = useMemo<ExtendedMenuItem[]>(
     () =>
-      combinedMenuItems.filter(
-        (item) =>
-          !item.newTab &&
-          !isExternalPath(String(item.path || "")),
-      ),
+      combinedMenuItems
+        .flatMap((item) => {
+          if (isCloudMenuParent(item) && item.children?.length) {
+            return item.children.map((child) => ({ ...child }));
+          }
+
+          return [item];
+        })
+        .filter(
+          (item) =>
+            !item.newTab &&
+            !isExternalPath(String(item.path || "")),
+        ),
     [combinedMenuItems],
   );
 
@@ -413,19 +557,51 @@ export default function AdminPanelBar({ content }: AdminPanelBarProps) {
       }),
     [location.pathname, location.search, primaryMenuItems],
   );
+  const groupedMenuEntries = useMemo<MenuGroup[]>(() => {
+    const groups = new Map<MenuGroup["key"], MenuEntry[]>();
+
+    primaryMenuEntries.forEach((entry) => {
+      const key = getMenuGroupKey(entry.item.path);
+      groups.set(key, [...(groups.get(key) || []), entry]);
+    });
+
+    return NAV_GROUP_ORDER
+      .map((key) => {
+        const meta = NAV_GROUP_META[key];
+        return {
+          key,
+          labelKey: meta.labelKey,
+          defaultLabel: meta.defaultLabel,
+          entries: groups.get(key) || [],
+        };
+      })
+      .filter((group) => group.entries.length > 0);
+  }, [primaryMenuEntries]);
 
   const activeTopEntry = useMemo(
-    () => primaryMenuEntries.find((entry) => entry.active) || primaryMenuEntries[0] || null,
+    () => primaryMenuEntries.find((entry) => entry.active) || null,
     [primaryMenuEntries],
   );
   const activeTopItem = activeTopEntry?.item || null;
   const activeChildItem = activeTopEntry?.activeChild || null;
-  const currentPageTitle =
+  const fallbackPageTitle = useMemo(() => {
+    const normalizedPath = normalizePath(location.pathname);
+    if (normalizedPath === "/admin/about") {
+      return t("about.title", { defaultValue: "关于" });
+    }
+    return appName;
+  }, [appName, location.pathname, t]);
+  const menuPageTitle =
     activeChildItem
       ? getMenuLabel(activeChildItem)
       : activeTopItem
         ? getMenuLabel(activeTopItem)
-        : "Komari";
+        : fallbackPageTitle;
+  const currentPageTitle = registeredPageTitle ?? menuPageTitle;
+  const currentSectionTitle =
+    activeChildItem && activeTopItem
+      ? getMenuLabel(activeTopItem)
+      : null;
   useEffect(() => {
     setOpenMenus((prev) => {
       let changed = false;
@@ -455,15 +631,20 @@ export default function AdminPanelBar({ content }: AdminPanelBarProps) {
   };
 
   const handleEnableHttps = useCallback(() => {
-    console.info("[TODO] HTTPS setup entry is not wired yet.");
-  }, []);
+    navigate("/admin/settings/site");
+  }, [navigate]);
 
   const handleHttpsLearnMore = useCallback(() => {
-    console.info("[TODO] HTTPS documentation link is not wired yet.");
+    window.open("https://komari-document.pages.dev/", "_blank", "noopener,noreferrer");
   }, []);
 
   const handleHttpsLater = useCallback(() => {
-    console.info("[TODO] HTTPS reminder postpone action is not wired yet.");
+    setHttpsNoticeDismissed(true);
+    try {
+      localStorage.setItem(HTTPS_NOTICE_DISMISSED_STORAGE_KEY, "1");
+    } catch {
+      // ignore persistence failures
+    }
   }, []);
 
   const renderMenuIcon = (
@@ -505,7 +686,7 @@ export default function AdminPanelBar({ content }: AdminPanelBarProps) {
     icon: string,
     label: string,
     active = false,
-    sizeClass = "size-5",
+    sizeClass = "size-[18px]",
   ) => (
     <span className="flex h-5 w-5 shrink-0 items-center justify-center">
       {renderMenuIcon(icon, label, active, sizeClass)}
@@ -514,15 +695,15 @@ export default function AdminPanelBar({ content }: AdminPanelBarProps) {
 
   const navItemClass = (active = false, collapsed = false) =>
     cn(
-      "flex min-h-9 items-center gap-2.5 rounded-md px-2.5 text-[14px] font-medium leading-5 text-foreground/80 transition-colors hover:bg-muted/60 hover:text-foreground",
+      "group relative flex min-h-9 items-center gap-2 rounded-lg px-2 text-sm font-medium leading-5 tracking-normal text-slate-600 transition-colors before:absolute before:left-0 before:top-1/2 before:h-5 before:w-0.5 before:-translate-y-1/2 before:rounded-full before:bg-blue-500 before:opacity-0 before:transition-opacity hover:bg-slate-100 hover:text-slate-950 dark:text-slate-300 dark:before:bg-blue-400 dark:hover:bg-slate-800/70 dark:hover:text-white",
       collapsed && "md:justify-center md:px-2",
-      active && "bg-primary/10 font-semibold text-primary",
+      active && "bg-slate-100 font-semibold text-slate-950 shadow-none before:opacity-100 hover:bg-slate-100 hover:text-slate-950 dark:bg-slate-800/80 dark:text-white dark:hover:bg-slate-800/80 dark:hover:text-white",
     );
 
   const subNavItemClass = (active = false) =>
     cn(
-      "flex min-h-8 items-center gap-2 rounded-md px-2.5 py-1 text-[14px] leading-5 text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground",
-      active && "bg-primary/10 font-medium text-primary",
+      "group relative flex min-h-8 items-center gap-2 rounded-lg px-2 py-1 text-sm leading-5 tracking-normal text-slate-500 transition-colors before:absolute before:left-0 before:top-1/2 before:h-4 before:w-0.5 before:-translate-y-1/2 before:rounded-full before:bg-blue-500 before:opacity-0 before:transition-opacity hover:bg-slate-100 hover:text-slate-950 dark:text-slate-400 dark:before:bg-blue-400 dark:hover:bg-slate-800/70 dark:hover:text-white",
+      active && "bg-slate-100 font-medium text-slate-950 before:opacity-100 hover:bg-slate-100 hover:text-slate-950 dark:bg-slate-800/70 dark:text-white dark:hover:bg-slate-800/70 dark:hover:text-white",
     );
 
   const renderUpdateTrigger =
@@ -537,10 +718,10 @@ export default function AdminPanelBar({ content }: AdminPanelBarProps) {
         }
       >
         <div className="flex max-w-[80vw] flex-col gap-2 md:max-w-[720px]">
-          <div className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
+          <div className="text-xs font-medium uppercase tracking-normal text-muted-foreground">
             Release
           </div>
-          <label className="text-lg font-semibold tracking-tight">
+          <label className="text-lg font-semibold tracking-normal">
             {t("common.update_available")}
           </label>
           <div className="text-sm text-muted-foreground">
@@ -560,7 +741,7 @@ export default function AdminPanelBar({ content }: AdminPanelBarProps) {
                       {release.name || release.tag_name}
                     </div>
                     {release.published_at && (
-                      <div className="text-[13px] text-muted-foreground">
+                      <div className="text-sm text-muted-foreground">
                         {new Date(release.published_at).toLocaleString()}
                       </div>
                     )}
@@ -600,7 +781,7 @@ export default function AdminPanelBar({ content }: AdminPanelBarProps) {
     ) : null;
 
   return (
-    <div className="relative flex h-[100dvh] min-h-[100dvh] overflow-hidden bg-background">
+    <div className="relative flex h-[100dvh] min-h-[100dvh] overflow-hidden bg-slate-50 dark:bg-slate-950">
       {mobileMenuOpen ? (
         <button
           type="button"
@@ -612,30 +793,44 @@ export default function AdminPanelBar({ content }: AdminPanelBarProps) {
 
       <aside
         className={cn(
-          "fixed inset-y-0 left-0 z-50 flex w-60 flex-col border-r border-border/80 bg-card shadow-sm transition-transform duration-200 ease-out motion-reduce:transition-none md:static md:inset-0 md:translate-x-0 md:transition-[width]",
+          "fixed inset-y-0 left-0 z-50 flex w-[200px] flex-col border-r border-slate-200/80 bg-white shadow-sm transition-transform duration-200 ease-out motion-reduce:transition-none dark:border-slate-800 dark:bg-slate-950 md:static md:inset-0 md:translate-x-0 md:transition-[width]",
           mobileMenuOpen ? "translate-x-0" : "-translate-x-full",
-          sidebarCollapsed && "md:w-[72px]",
+          sidebarCollapsed && "md:w-16",
         )}
       >
         <div
           className={cn(
-            "grid h-16 shrink-0 grid-cols-[1fr_auto_1fr] items-center border-b border-border/70 px-5",
+            "flex h-16 shrink-0 items-center justify-between gap-3 border-b border-slate-200/70 px-4 dark:border-slate-800",
             sidebarCollapsed && "md:px-2",
           )}
         >
-          <div />
           <Link
             to="/admin"
-            className="justify-self-center text-lg font-semibold text-foreground"
+            className={cn(
+              "flex min-w-0 items-center gap-3 rounded-md px-1 py-1 text-slate-950 transition-colors hover:bg-slate-50 dark:text-slate-50 dark:hover:bg-slate-900/70",
+              sidebarCollapsed && "md:w-full md:justify-center md:px-0",
+            )}
           >
-            <span className={cn(sidebarCollapsed && "md:hidden")}>{appName}</span>
-            {sidebarCollapsed ? (
-              <span className="hidden md:inline">
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-slate-950 text-sm font-semibold text-white shadow-sm dark:bg-white dark:text-slate-950">
+              {sidebarCollapsed ? (
+                <span className="hidden md:inline">
+                  {(appName || "K").trim().slice(0, 1).toUpperCase()}
+                </span>
+              ) : null}
+              <span className={cn(sidebarCollapsed && "md:hidden")}>
                 {(appName || "K").trim().slice(0, 1).toUpperCase()}
               </span>
-            ) : null}
+            </span>
+            <span className={cn("min-w-0", sidebarCollapsed && "md:hidden")}>
+              <span className="block truncate text-[15px] font-semibold leading-5 tracking-normal">
+                {appName}
+              </span>
+              <span className="block truncate text-[12px] font-medium uppercase tracking-normal text-slate-400 dark:text-slate-500">
+                {t("admin.nav.console", { defaultValue: "Console" })}
+              </span>
+            </span>
           </Link>
-          <div className="justify-self-end">
+          <div>
             <Button
               variant="ghost"
               size="icon"
@@ -649,14 +844,29 @@ export default function AdminPanelBar({ content }: AdminPanelBarProps) {
 
         <nav
           className={cn(
-            "flex-1 overflow-y-auto px-2.5 py-2.5",
+            "flex-1 overflow-y-auto px-2 py-2.5",
             sidebarCollapsed && "md:px-2",
           )}
         >
-          <div className="flex flex-col gap-0.5">
-            {primaryMenuEntries.map((entry) => {
+          <div className="flex flex-col gap-3">
+            {groupedMenuEntries.map((group) => (
+              <section key={group.key} className="min-w-0 space-y-1">
+                <div
+                  className={cn(
+                    "px-2 text-xs font-semibold leading-4 tracking-normal text-slate-400 dark:text-slate-500",
+                    sidebarCollapsed && "md:hidden",
+                  )}
+                >
+                  {t(group.labelKey, { defaultValue: group.defaultLabel })}
+                </div>
+                {sidebarCollapsed ? (
+                  <div className="mx-auto hidden h-px w-8 bg-slate-200 dark:bg-slate-800 md:block" />
+                ) : null}
+                <div className="space-y-0.5">
+            {group.entries.map((entry) => {
               const { item, active } = entry;
               const label = getMenuLabel(item);
+              const sidebarLabel = getSidebarMenuLabel(item);
               const menuKey = item.path;
 
               if (item.children?.length) {
@@ -730,9 +940,9 @@ export default function AdminPanelBar({ content }: AdminPanelBarProps) {
                             "h-9 w-full justify-between px-2.5",
                           )}
                         >
-                          <span className="flex min-w-0 items-center gap-3">
+                          <span className="flex min-w-0 flex-1 items-center gap-2.5">
                             {renderMenuLeadingIcon(item.icon, label, active)}
-                            <span className="truncate">{label}</span>
+                            <span className="min-w-0 flex-1 truncate text-left">{sidebarLabel}</span>
                           </span>
                           <span className="flex h-4 w-4 shrink-0 items-center justify-center text-slate-400 dark:text-slate-500">
                             {isOpen ? (
@@ -743,9 +953,10 @@ export default function AdminPanelBar({ content }: AdminPanelBarProps) {
                           </span>
                         </Button>
                       </CollapsibleTrigger>
-                      <CollapsibleContent className="space-y-0.5 pl-4 pt-0.5">
+                      <CollapsibleContent className="ml-4 space-y-0.5 border-l border-slate-200/70 pl-3 pt-1 dark:border-slate-800">
                         {item.children.map((child) => {
                           const childLabel = getMenuLabel(child);
+                          const childSidebarLabel = getSidebarMenuLabel(child);
                           const childActive = isPathActive(
                             child.path,
                             location.pathname,
@@ -757,6 +968,8 @@ export default function AdminPanelBar({ content }: AdminPanelBarProps) {
                               key={child.path}
                               to={child.path}
                               onClick={() => setMobileMenuOpen(false)}
+                              title={childLabel}
+                              aria-label={childLabel}
                               className={subNavItemClass(childActive)}
                             >
                               {renderMenuIcon(
@@ -765,7 +978,7 @@ export default function AdminPanelBar({ content }: AdminPanelBarProps) {
                                 childActive,
                                 "h-4 w-4",
                               )}
-                              <span className="truncate">{childLabel}</span>
+                              <span className="min-w-0 flex-1 truncate text-left">{childSidebarLabel}</span>
                             </Link>
                           );
                         })}
@@ -781,22 +994,43 @@ export default function AdminPanelBar({ content }: AdminPanelBarProps) {
                   to={item.path}
                   onClick={() => setMobileMenuOpen(false)}
                   title={label}
+                  aria-label={label}
                   className={navItemClass(active, sidebarCollapsed)}
                 >
                   {renderMenuLeadingIcon(item.icon, label, active)}
-                  <span className={cn(sidebarCollapsed && "md:hidden")}>{label}</span>
+                  <span className={cn("min-w-0 flex-1 truncate text-left", sidebarCollapsed && "md:hidden")}>
+                    {sidebarLabel}
+                  </span>
                 </Link>
               );
             })}
+                </div>
+              </section>
+            ))}
           </div>
         </nav>
 
-        <div className="hidden border-t border-border/70 p-2 md:block">
+        <div
+          className={cn(
+            "hidden border-t border-slate-200/70 p-2 dark:border-slate-800 md:flex md:items-center md:gap-2",
+            sidebarCollapsed && "md:justify-center",
+          )}
+        >
+          <div className={cn("min-w-0 flex-1 px-2", sidebarCollapsed && "md:hidden")}>
+            <div className="truncate text-xs font-medium text-slate-500 dark:text-slate-400">
+              {versionInfo?.version ? `v${versionInfo.version}` : appName}
+            </div>
+            {versionInfo?.hash ? (
+              <div className="truncate text-xs text-slate-400 dark:text-slate-500">
+                {versionInfo.hash}
+              </div>
+            ) : null}
+          </div>
           <Button
             type="button"
             variant="ghost"
             size="icon"
-            className="w-full"
+            className="h-9 w-9 rounded-md"
             onClick={toggleSidebarCollapsed}
             title={t(
               sidebarCollapsed ? "common.expand_sidebar" : "common.collapse_sidebar",
@@ -817,7 +1051,7 @@ export default function AdminPanelBar({ content }: AdminPanelBarProps) {
       </aside>
 
       <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
-        <header className="flex h-16 shrink-0 items-center justify-between gap-4 border-b border-border/70 bg-background px-4 md:px-6">
+        <header className="flex h-16 shrink-0 items-center justify-between gap-4 border-b border-slate-200/80 bg-white/90 px-4 backdrop-blur dark:border-slate-800 dark:bg-slate-950/90 md:px-6">
           <div className="flex min-w-0 items-center gap-3">
             <Button
               variant="ghost"
@@ -830,15 +1064,26 @@ export default function AdminPanelBar({ content }: AdminPanelBarProps) {
 
             <div className="min-w-0">
               <div className="flex min-w-0 items-center gap-2">
-                <div className="truncate text-base font-semibold text-foreground md:text-lg">
+                {currentSectionTitle ? (
+                  <span className="hidden min-w-0 items-center gap-2 text-sm text-muted-foreground sm:flex">
+                    <span className="truncate">{currentSectionTitle}</span>
+                    <ChevronRight className="h-3.5 w-3.5 shrink-0" />
+                  </span>
+                ) : null}
+                <div className="truncate text-lg font-semibold leading-6 tracking-normal text-foreground md:text-[19px]">
                   {currentPageTitle}
                 </div>
                 {renderUpdateTrigger}
               </div>
+              {currentSectionTitle ? (
+                <div className="mt-0.5 truncate text-xs text-muted-foreground sm:hidden">
+                  {currentSectionTitle}
+                </div>
+              ) : null}
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex shrink-0 items-center gap-1.5 rounded-lg border border-slate-200/70 bg-white px-1.5 py-1 shadow-sm dark:border-slate-800 dark:bg-slate-950">
             {account && !account.logged_in && (
               <LoginDialog
                 autoOpen
@@ -860,60 +1105,71 @@ export default function AdminPanelBar({ content }: AdminPanelBarProps) {
           </div>
         </header>
 
-        <main className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-contain bg-background">
+        <main className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-contain bg-slate-50/70 dark:bg-slate-950">
           <div className="mx-auto flex min-h-full w-full max-w-[1680px] min-w-0 flex-col">
-            {!ishttps && (
-              <div className="px-4 pt-4 md:px-6 md:pt-6">
-                <Alert className="border-amber-200/80 bg-amber-50/70 dark:border-amber-900/50 dark:bg-amber-950/30">
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    width="18"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      fill="currentColor"
-                      d="M10.03 3.659c.856-1.548 3.081-1.548 3.937 0l7.746 14.001c.83 1.5-.255 3.34-1.969 3.34H4.254c-1.715 0-2.8-1.84-1.97-3.34zM12.997 17A.999.999 0 1 0 11 17a.999.999 0 0 0 1.997 0m-.259-7.853a.75.75 0 0 0-1.493.103l.004 4.501l.007.102a.75.75 0 0 0 1.493-.103l-.004-4.502z"
-                    />
-                  </svg>
-                  <AlertTitle>
-                    {t("admin.httpsNotice.title", {
-                      defaultValue: "当前正在使用 HTTP，建议尽快启用 HTTPS",
-                    })}
-                  </AlertTitle>
-                  <AlertDescription>
-                    <p>
-                      {t("admin.httpsNotice.description", {
-                        defaultValue:
-                          "未加密连接可能暴露登录凭据和管理指令，建议立即切换到 HTTPS。",
-                      })}
-                    </p>
-                    <div className="mt-2 flex flex-wrap items-center gap-2">
-                      <Button size="sm" onClick={handleEnableHttps}>
-                        {t("admin.httpsNotice.enableNow", {
-                          defaultValue: "立即启用 HTTPS",
-                        })}
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={handleHttpsLater}
+            {!ishttps && !httpsNoticeDismissed && (
+              <div className="px-4 pt-3 md:px-6 md:pt-4">
+                <div className="flex flex-col gap-3 rounded-lg border border-amber-200/70 bg-amber-50/45 px-3 py-2.5 text-amber-950 shadow-none dark:border-amber-900/50 dark:bg-amber-950/20 dark:text-amber-100 md:flex-row md:items-center md:justify-between">
+                  <div className="flex min-w-0 items-start gap-2.5">
+                    <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-md bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-200">
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        width="14"
+                        viewBox="0 0 24 24"
+                        aria-hidden="true"
                       >
-                        {t("admin.httpsNotice.later", {
-                          defaultValue: "稍后处理",
+                        <path
+                          fill="currentColor"
+                          d="M10.03 3.659c.856-1.548 3.081-1.548 3.937 0l7.746 14.001c.83 1.5-.255 3.34-1.969 3.34H4.254c-1.715 0-2.8-1.84-1.97-3.34zM12.997 17A.999.999 0 1 0 11 17a.999.999 0 0 0 1.997 0m-.259-7.853a.75.75 0 0 0-1.493.103l.004 4.501l.007.102a.75.75 0 0 0 1.493-.103l-.004-4.502z"
+                        />
+                      </svg>
+                    </span>
+                    <div className="min-w-0">
+                      <div className="text-sm font-medium leading-5">
+                        {t("admin.httpsNotice.title", {
+                          defaultValue: "当前正在使用 HTTP，建议尽快启用 HTTPS",
                         })}
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        onClick={handleHttpsLearnMore}
-                      >
-                        {t("admin.httpsNotice.learnMore", {
-                          defaultValue: "了解更多",
+                      </div>
+                      <p className="max-w-4xl text-sm leading-5 text-amber-900/75 dark:text-amber-100/70">
+                        {t("admin.httpsNotice.description", {
+                          defaultValue:
+                            "未加密连接可能暴露登录凭据和管理指令，生产环境建议切换到 HTTPS。",
                         })}
-                      </Button>
+                      </p>
                     </div>
-                  </AlertDescription>
-                </Alert>
+                  </div>
+                  <div className="flex shrink-0 flex-wrap items-center gap-1.5">
+                    <Button size="sm" className="h-7 px-2.5 text-xs" onClick={handleEnableHttps}>
+                      {t("admin.httpsNotice.configure", {
+                        defaultValue: "去配置",
+                      })}
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="h-7 px-2.5 text-xs text-amber-900 hover:bg-amber-100/70 dark:text-amber-100 dark:hover:bg-amber-900/40"
+                      onClick={handleHttpsLearnMore}
+                    >
+                      {t("admin.httpsNotice.learnMore", {
+                        defaultValue: "了解更多",
+                      })}
+                    </Button>
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className="h-7 w-7 text-amber-900 hover:bg-amber-100/70 dark:text-amber-100 dark:hover:bg-amber-900/40"
+                      onClick={handleHttpsLater}
+                      title={t("admin.httpsNotice.later", {
+                        defaultValue: "稍后处理",
+                      })}
+                      aria-label={t("admin.httpsNotice.later", {
+                        defaultValue: "稍后处理",
+                      })}
+                    >
+                      <X className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
+                </div>
               </div>
             )}
 

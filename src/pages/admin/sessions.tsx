@@ -14,15 +14,20 @@ import {
   Badge,
   Button,
   Dialog,
-  Flex,
 } from "@/components/admin/admin-ui";
 
 import { UserAgentHelper } from "@/utils/UserAgentHelper";
-import Loading from "@/components/loading";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   AdminPageShell,
   AdminSurface,
+  AdminTableSkeleton,
 } from "@/components/admin/AdminPageShell";
+import {
+  ADMIN_FORM_DIALOG_CLASS,
+  ADMIN_FORM_GRID_2_CLASS,
+  ADMIN_FORM_SCROLL_CLASS,
+} from "@/components/admin/AdminFormStyles";
 
 type Resp = {
   current: string;
@@ -117,7 +122,55 @@ export default function Sessions() {
   }
 
   if (!sessions) {
-    return <Loading />;
+    return (
+      <AdminPageShell
+        eyebrow={t("sessions.title")}
+        title={t("sessions.active_sessions")}
+        description={t(
+          "sessions.description",
+          "Review current admin devices, source IPs, recent activity, and session expiration from one page.",
+        )}
+        actions={
+          <Button color="red" disabled>
+            {t("sessions.delete_all")}
+          </Button>
+        }
+        stats={[
+          {
+            label: t("sessions.stats.active_sessions_label", "Active sessions"),
+            value: <Skeleton className="h-5 w-12" />,
+            tone: "blue",
+          },
+          {
+            label: t("sessions.stats.current_device_label", "Current device"),
+            value: <Skeleton className="h-5 w-24" />,
+            tone: "emerald",
+          },
+          {
+            label: t("sessions.stats.last_active_label", "Last active"),
+            value: <Skeleton className="h-5 w-20" />,
+            tone: "amber",
+          },
+        ]}
+      >
+        <AdminSurface className="overflow-hidden p-0">
+          <div className="border-b border-slate-200/70 px-1 py-3 dark:border-slate-800/70">
+            <div className="flex flex-col gap-1">
+              <label className="text-lg font-semibold tracking-normal text-slate-900 dark:text-slate-50">
+                {t("sessions.details_title", "Session details")}
+              </label>
+              <p className="text-sm text-slate-500 dark:text-slate-400">
+                {t(
+                  "sessions.details_description",
+                  "Review suspicious devices and expired sessions regularly.",
+                )}
+              </p>
+            </div>
+          </div>
+          <AdminTableSkeleton columns={7} rows={5} className="rounded-none border-0 shadow-none" />
+        </AdminSurface>
+      </AdminPageShell>
+    );
   }
 
   const latestActive = sessions.data.reduce<number>((latest, item) => {
@@ -136,25 +189,25 @@ export default function Sessions() {
       actions={
         <Dialog.Root>
           <Dialog.Trigger>
-            <Button color="red" className="rounded-xl">
+            <Button color="red">
               {t("sessions.delete_all")}
             </Button>
           </Dialog.Trigger>
-          <Dialog.Content>
+          <Dialog.Content className={ADMIN_FORM_DIALOG_CLASS} maxWidth={520}>
             <Dialog.Title>{t("sessions.delete_all")}</Dialog.Title>
-            <Dialog.Description>
+            <Dialog.Description className={`${ADMIN_FORM_SCROLL_CLASS} mt-1 text-sm leading-6 text-slate-600 dark:text-slate-400`}>
               {t("sessions.delete_all_desc")}
             </Dialog.Description>
-            <Flex gap="2" justify="end" className="mt-4">
+            <div className="flex justify-end gap-2 border-t border-slate-200/70 pt-4 dark:border-slate-800/70">
               <Dialog.Close>
-                <Button variant="soft" className="rounded-xl">
+                <Button variant="soft">
                   {t("sessions.cancel")}
                 </Button>
               </Dialog.Close>
-              <Button color="red" onClick={deleteAllSessions} className="rounded-xl">
+              <Button color="red" onClick={deleteAllSessions}>
                 {t("delete")}
               </Button>
-            </Flex>
+            </div>
           </Dialog.Content>
         </Dialog.Root>
       }
@@ -197,7 +250,7 @@ export default function Sessions() {
       <AdminSurface className="overflow-hidden p-0">
         <div className="border-b border-slate-200/70 px-1 py-3 dark:border-slate-800/70">
           <div className="flex flex-col gap-1">
-            <label className="text-lg font-semibold tracking-tight text-slate-900 dark:text-slate-50">
+            <label className="text-lg font-semibold tracking-normal text-slate-900 dark:text-slate-50">
               {t("sessions.details_title", "Session details")}
             </label>
             <p className="text-sm text-slate-500 dark:text-slate-400">
@@ -250,73 +303,63 @@ export default function Sessions() {
                             )}
                           </button>
                         </Dialog.Trigger>
-                        <Dialog.Content>
+                        <Dialog.Content className={ADMIN_FORM_DIALOG_CLASS} maxWidth={760}>
                           <Dialog.Title>
                             {t("sessions.detail_dialog_title", "Session details")}
                           </Dialog.Title>
-                          <Flex direction="column" gap="2">
-                            <label className="text-base font-bold">
-                              {t("sessions.session_id")}
-                            </label>
-                            <label className="text-sm break-all">{session.session}</label>
-                            <label className="text-base font-bold">
-                              IP / {t("sessions.latest_ip", "Latest IP")}
-                            </label>
-                            <label className="text-sm">
-                              {session.ip} / {session.latest_ip}
-                            </label>
-                            <label className="text-base font-bold">
-                              {t("sessions.user_agent", "User Agent")}
-                            </label>
-                            <label className="text-sm">{session.user_agent}</label>
-                            <label className="text-sm text-muted-foreground font-bold">
-                              {UserAgentHelper.format(session.user_agent)}
-                            </label>
-                            <label className="text-base font-bold">
-                              {t("sessions.last_user_agent")}
-                            </label>
-                            <label className="text-sm">
-                              {session.latest_user_agent}
-                            </label>
-                            <label className="text-sm text-muted-foreground font-bold">
-                              {UserAgentHelper.format(session.latest_user_agent)}
-                            </label>
-                            <label className="text-base font-bold">
-                              {t("sessions.login_method")}
-                            </label>
-                            <label className="text-sm">{session.login_method}</label>
-                            <label className="text-base font-bold">
-                              {t("sessions.latest_online", "Latest Online")}
-                            </label>
-                            <label className="text-sm">
-                              {new Date(session.latest_online).toLocaleString()} (
-                              {formatDuration(
-                                Date.now() -
-                                  new Date(session.latest_online).getTime(),
-                                t,
-                              )}
-                              )
-                            </label>
-                            <label className="text-base font-bold">
-                              {t("sessions.created_at")}
-                            </label>
-                            <label className="text-sm">
-                              {new Date(session.created_at).toLocaleString()}
-                            </label>
-                            <label className="text-base font-bold">
-                              {t("sessions.expires_at", "Expires At")}
-                            </label>
-                            <label className="text-sm">
-                              {new Date(session.expires).toLocaleString()}
-                            </label>
-                            <Flex justify="end">
-                              <Dialog.Close>
-                              <Button variant="soft" className="rounded-xl">
-                                  {t("close", "Close")}
+                          <div className={`${ADMIN_FORM_SCROLL_CLASS} mt-1 space-y-4`}>
+                            <div className={ADMIN_FORM_GRID_2_CLASS}>
+                              <SessionDetailItem
+                                label={t("sessions.session_id")}
+                                value={session.session}
+                                mono
+                                wide
+                              />
+                              <SessionDetailItem label="IP" value={session.ip} />
+                              <SessionDetailItem
+                                label={t("sessions.latest_ip", "Latest IP")}
+                                value={session.latest_ip}
+                              />
+                              <SessionDetailItem
+                                label={t("sessions.login_method")}
+                                value={session.login_method}
+                              />
+                              <SessionDetailItem
+                                label={t("sessions.latest_online", "Latest Online")}
+                                value={`${new Date(session.latest_online).toLocaleString()} (${formatDuration(
+                                  Date.now() - new Date(session.latest_online).getTime(),
+                                  t,
+                                )})`}
+                              />
+                              <SessionDetailItem
+                                label={t("sessions.created_at")}
+                                value={new Date(session.created_at).toLocaleString()}
+                              />
+                              <SessionDetailItem
+                                label={t("sessions.expires_at", "Expires At")}
+                                value={new Date(session.expires).toLocaleString()}
+                              />
+                            </div>
+                            <SessionDetailItem
+                              label={t("sessions.user_agent", "User Agent")}
+                              value={session.user_agent}
+                              hint={UserAgentHelper.format(session.user_agent)}
+                              mono
+                            />
+                            <SessionDetailItem
+                              label={t("sessions.last_user_agent")}
+                              value={session.latest_user_agent}
+                              hint={UserAgentHelper.format(session.latest_user_agent)}
+                              mono
+                            />
+                          </div>
+                          <div className="flex justify-end border-t border-slate-200/70 pt-4 dark:border-slate-800/70">
+                            <Dialog.Close>
+                              <Button variant="soft">
+                                {t("close", "Close")}
                               </Button>
                             </Dialog.Close>
-                          </Flex>
-                          </Flex>
+                          </div>
                         </Dialog.Content>
                       </Dialog.Root>
                     </TableCell>
@@ -338,31 +381,30 @@ export default function Sessions() {
                       {!isCurrent && (
                         <Dialog.Root>
                           <Dialog.Trigger>
-                              <Button color="red" variant="ghost" className="rounded-xl">
+                              <Button color="red" variant="ghost">
                               {t("delete", "Delete")}
                             </Button>
                           </Dialog.Trigger>
-                          <Dialog.Content>
+                          <Dialog.Content className={ADMIN_FORM_DIALOG_CLASS} maxWidth={520}>
                             <Dialog.Title>
                               {t("sessions.confirm_delete")}
                             </Dialog.Title>
-                            <Dialog.Description>
+                            <Dialog.Description className={`${ADMIN_FORM_SCROLL_CLASS} mt-1 text-sm leading-6 text-slate-600 dark:text-slate-400`}>
                               {t("sessions.delete_one_desc")}
                             </Dialog.Description>
-                            <Flex gap="2" justify="end" className="mt-4">
+                            <div className="flex justify-end gap-2 border-t border-slate-200/70 pt-4 dark:border-slate-800/70">
                               <Dialog.Close>
-                                <Button variant="soft" className="rounded-xl">
+                                <Button variant="soft">
                                   {t("sessions.cancel")}
                                 </Button>
                               </Dialog.Close>
                               <Button
                                 color="red"
                                 onClick={() => deleteSession(session.session)}
-                                className="rounded-xl"
                               >
                                 {t("delete", "Delete")}
                               </Button>
-                            </Flex>
+                            </div>
                           </Dialog.Content>
                         </Dialog.Root>
                       )}
@@ -375,6 +417,42 @@ export default function Sessions() {
         )}
       </AdminSurface>
     </AdminPageShell>
+  );
+}
+
+function SessionDetailItem({
+  hint,
+  label,
+  mono,
+  value,
+  wide,
+}: {
+  hint?: React.ReactNode;
+  label: React.ReactNode;
+  mono?: boolean;
+  value: React.ReactNode;
+  wide?: boolean;
+}) {
+  return (
+    <div className={wide ? "min-w-0 space-y-1 md:col-span-2" : "min-w-0 space-y-1"}>
+      <div className="text-xs font-semibold uppercase tracking-normal text-slate-500 dark:text-slate-400">
+        {label}
+      </div>
+      <div
+        className={
+          mono
+            ? "break-all font-mono text-xs leading-5 text-slate-900 dark:text-slate-100"
+            : "break-all text-sm text-slate-900 dark:text-slate-100"
+        }
+      >
+        {value}
+      </div>
+      {hint ? (
+        <div className="break-all text-sm font-medium text-slate-500 dark:text-slate-400">
+          {hint}
+        </div>
+      ) : null}
+    </div>
   );
 }
 

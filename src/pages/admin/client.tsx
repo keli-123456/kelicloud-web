@@ -1,9 +1,3 @@
-const Client = () => {
-  return (
-    <div>
-      <h1 className="text-3xl font-bold underline">client world!</h1>
-    </div>
-  );
-};
+import NodeDetailsPage from "./index";
 
-export default Client;
+export default NodeDetailsPage;

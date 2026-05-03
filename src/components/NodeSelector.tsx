@@ -2,6 +2,7 @@ import React from "react";
 import { useNodeDetails } from "@/contexts/NodeDetailsContext";
 import { useTranslation } from "react-i18next";
 import Selector from "./Selector";
+import { Skeleton } from "@/components/ui/skeleton";
 
 interface NodeSelectorProps {
   className?: string;
@@ -28,8 +29,21 @@ const NodeSelector: React.FC<NodeSelectorProps> = ({
       nodeDetail.find((n) => n.uuid === node && !n.is_only_client)
     );
   }
-  if (isLoading) return <div>Loading...</div>;
-  if (error) return <div>{error}</div>;
+  if (isLoading) {
+    return (
+      <div className={`space-y-2 ${className}`}>
+        {!hiddenDescription ? <Skeleton className="h-4 w-28" /> : null}
+        <Skeleton className="h-10 w-full" />
+      </div>
+    );
+  }
+  if (error) {
+    return (
+      <div className={`rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive ${className}`}>
+        {error}
+      </div>
+    );
+  }
 
   const getNodeAddress = (node: (typeof nodeDetail)[number]) =>
     node.ipv4 || node.ipv6 || node.name || node.uuid;

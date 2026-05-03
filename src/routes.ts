@@ -4,8 +4,9 @@ import type { RouteObject } from "react-router-dom";
 import React from "react";
 import { Navigate } from "react-router-dom";
 
+import AdminLayout from "./pages/admin/_layout";
+
 const Index = lazy(() => import("./pages/Index"));
-const AdminLayout = lazy(() => import("./pages/admin/_layout"));
 const Admin = lazy(() => import("./pages/admin"));
 const NotFound = lazy(() => import("./pages/404"));
 
@@ -35,6 +36,13 @@ export const routes: RouteObject[] = [
         element: React.createElement(
           lazy(() => import("./pages/admin/sessions"))
         ),
+      },
+      {
+        path: "client",
+        element: React.createElement(Navigate, {
+          to: "/admin",
+          replace: true,
+        }),
       },
       {
         path: "account",
@@ -94,6 +102,13 @@ export const routes: RouteObject[] = [
             element: React.createElement(
               lazy(() => import("./pages/admin/settings/sign-on"))
             ),
+          },
+          {
+            path: "sso",
+            element: React.createElement(Navigate, {
+              to: "/admin/settings/sign-on",
+              replace: true,
+            }),
           },
           {
             path: "notification",

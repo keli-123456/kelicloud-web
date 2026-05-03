@@ -6,6 +6,9 @@ import {
   useSettings,
 } from "@/lib/api";
 import {
+  AdminSettingsSkeleton,
+} from "@/components/admin/AdminPageShell";
+import {
   SettingCardButton,
   SettingCardCollapse,
   SettingCardLabel,
@@ -15,7 +18,6 @@ import {
 } from "@/components/admin/SettingCard";
 import React from "react";
 import { toast } from "sonner";
-import Loading from "@/components/loading";
 import { SettingCardMultiInputCollapse } from "@/components/admin/SettingCardMultiInput";
 import { formatBytes } from "@/utils/unitHelper";
 import { useAccount } from "@/contexts/AccountContext";
@@ -56,7 +58,7 @@ export default function GeneralSettings() {
     }
   }, [systemSettings.ping_record_preserve_time, systemSettings.record_preserve_time]);
   if (accountLoading || loading) {
-    return <Loading text="creeper?" />;
+    return <AdminSettingsSkeleton sections={7} />;
   }
 
   if (error) {
@@ -100,7 +102,7 @@ export default function GeneralSettings() {
               await updateSettingsWithToast({ allow_cors: checked }, t, "system");
             }}
           />
-          <label className="pt-1 text-[12px] font-semibold uppercase tracking-[0.14em] text-slate-500">
+          <label className="pt-1 text-[12px] font-semibold uppercase tracking-normal text-slate-500">
             {t("settings.geoip.title")}
           </label>
           <SettingCardSwitch
@@ -156,7 +158,7 @@ export default function GeneralSettings() {
                 value={geoIpQuery}
                 onChange={(event) => setGeoIpQuery(event.target.value)}
                 placeholder={t("settings.geoip.test_placeholder")}
-                className="text-[13px]"
+              className="text-sm"
               />
               <div>
                 <Button
@@ -187,7 +189,7 @@ export default function GeneralSettings() {
               </div>
             </div>
           </SettingCardCollapse>
-          <label className="pt-1 text-[12px] font-semibold uppercase tracking-[0.14em] text-slate-500">
+          <label className="pt-1 text-[12px] font-semibold uppercase tracking-normal text-slate-500">
             {t("settings.record.title")}
           </label>
           <SettingCardSwitch

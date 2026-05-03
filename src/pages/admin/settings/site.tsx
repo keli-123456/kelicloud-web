@@ -13,6 +13,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { AdminSettingsSkeleton } from "@/components/admin/AdminPageShell";
 import {
   SettingCardButton,
   SettingCardCollapse,
@@ -20,11 +21,11 @@ import {
   SettingCardLabel,
   SettingCardShortTextInput,
 } from "@/components/admin/SettingCard";
-import Loading from "@/components/loading";
 import UploadDialog from "@/components/UploadDialog";
 import { useAccount } from "@/contexts/AccountContext";
 import { PlatformAdminNotice } from "@/components/admin/PlatformAdminNotice";
 import { updateSettingsWithToast, useSettings } from "@/lib/api";
+import { ADMIN_FORM_DIALOG_CLASS } from "@/components/admin/AdminFormStyles";
 
 export default function SiteSettings() {
   const { t } = useTranslation();
@@ -126,7 +127,7 @@ export default function SiteSettings() {
   };
 
   if (accountLoading || loading) {
-    return <Loading />;
+    return <AdminSettingsSkeleton sections={6} />;
   }
 
   if (!platformAdmin) {
@@ -210,7 +211,7 @@ export default function SiteSettings() {
                   {t("settings.custom.favicon_default", "Restore Default")}
                 </Button>
               </DialogTrigger>
-              <DialogContent>
+              <DialogContent className={`${ADMIN_FORM_DIALOG_CLASS} sm:max-w-md`}>
                 <DialogTitle>
                   {t("settings.custom.favicon_default", "Restore Default")}
                 </DialogTitle>
@@ -220,7 +221,7 @@ export default function SiteSettings() {
                     "This will restore the default favicon icon. Do you want to continue?",
                   )}
                 </DialogDescription>
-                <DialogFooter>
+                <DialogFooter className="border-t border-slate-200/70 pt-4 dark:border-slate-800/70">
                   <DialogClose asChild>
                     <Button variant="outline">{t("common.cancel", "Cancel")}</Button>
                   </DialogClose>

@@ -87,16 +87,16 @@ type InstallOptions = {
 type Platform = "linux" | "windows" | "macos";
 
 const NODE_DIALOG_CONTENT_CLASS =
-  "max-h-[90vh] w-[min(96vw,840px)] overflow-y-auto overscroll-contain rounded-[28px] border border-slate-200/80 bg-white/95 p-6 shadow-2xl [scrollbar-gutter:stable] backdrop-blur dark:border-slate-800/80 dark:bg-slate-950/95";
+  "max-h-[90vh] w-[min(96vw,840px)] overflow-y-auto overscroll-contain rounded-lg border border-slate-200/80 bg-card p-6 [scrollbar-gutter:stable] dark:border-slate-800 dark:bg-slate-950";
 const NODE_DIALOG_COMPACT_CONTENT_CLASS =
-  "max-h-[90vh] w-[min(96vw,560px)] overflow-y-auto overscroll-contain rounded-[28px] border border-slate-200/80 bg-white/95 p-6 shadow-2xl [scrollbar-gutter:stable] backdrop-blur dark:border-slate-800/80 dark:bg-slate-950/95";
+  "max-h-[90vh] w-[min(96vw,560px)] overflow-y-auto overscroll-contain rounded-lg border border-slate-200/80 bg-card p-6 [scrollbar-gutter:stable] dark:border-slate-800 dark:bg-slate-950";
 const NODE_DIALOG_SECTION_CLASS = "dialog-section space-y-4";
 const NODE_DIALOG_FOOTER_CLASS =
   "mt-6 flex flex-col-reverse gap-2.5 sm:flex-row sm:justify-end";
 const NODE_INPUT_CLASS =
-  "h-11 rounded-xl border border-slate-200 bg-white px-3 text-[14px] shadow-none dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100";
+  "h-11 rounded-lg border border-slate-200 bg-white px-3 text-[14px] shadow-none dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100";
 const NODE_TEXTAREA_CLASS =
-  "min-h-[120px] rounded-[20px] border border-slate-200 bg-slate-50/80 px-4 py-3 font-mono text-[13px] leading-6 shadow-none dark:border-slate-800 dark:bg-slate-900/50";
+  "min-h-[120px] max-h-[320px] overflow-y-auto rounded-lg border border-slate-200 bg-slate-50/80 px-4 py-3 font-mono text-[13px] leading-6 whitespace-pre-wrap break-words shadow-none dark:border-slate-800 dark:bg-slate-900/50 [overflow-wrap:anywhere]";
 
 export function ActionsCell({ row }: { row: Row<z.infer<typeof schema>> }) {
   const refreshTable = React.useContext(DataTableRefreshContext);
@@ -240,7 +240,7 @@ export function ActionsCell({ row }: { row: Row<z.infer<typeof schema>> }) {
                 </p>
               </div>
               <div className="grid gap-3 md:grid-cols-2">
-                <label className="flex items-center gap-2 rounded-2xl border border-slate-200/80 bg-white/70 px-3 py-3 text-sm dark:border-slate-800/80 dark:bg-slate-900/40">
+                <label className="flex items-center gap-2 rounded-lg border border-slate-200/80 bg-white/70 px-3 py-3 text-sm dark:border-slate-800/80 dark:bg-slate-900/40">
                   <Checkbox
                     checked={installOptions.disableWebSsh}
                     onCheckedChange={(checked) => {
@@ -254,7 +254,7 @@ export function ActionsCell({ row }: { row: Row<z.infer<typeof schema>> }) {
                     {t("admin.nodeTable.disableWebSsh", "Disable remote control")}
                   </span>
                 </label>
-                <label className="flex items-center gap-2 rounded-2xl border border-slate-200/80 bg-white/70 px-3 py-3 text-sm dark:border-slate-800/80 dark:bg-slate-900/40">
+                <label className="flex items-center gap-2 rounded-lg border border-slate-200/80 bg-white/70 px-3 py-3 text-sm dark:border-slate-800/80 dark:bg-slate-900/40">
                   <Checkbox
                     checked={installOptions.disableAutoUpdate}
                     onCheckedChange={(checked) => {
@@ -268,7 +268,7 @@ export function ActionsCell({ row }: { row: Row<z.infer<typeof schema>> }) {
                     {t("admin.nodeTable.disableAutoUpdate", "Disable auto update")}
                   </span>
                 </label>
-                <label className="flex items-center gap-2 rounded-2xl border border-slate-200/80 bg-white/70 px-3 py-3 text-sm dark:border-slate-800/80 dark:bg-slate-900/40">
+                <label className="flex items-center gap-2 rounded-lg border border-slate-200/80 bg-white/70 px-3 py-3 text-sm dark:border-slate-800/80 dark:bg-slate-900/40">
                   <Checkbox
                     checked={installOptions.ignoreUnsafeCert}
                     onCheckedChange={(checked) => {
@@ -352,7 +352,10 @@ export function ActionsCell({ row }: { row: Row<z.infer<typeof schema>> }) {
               </div>
               <TextArea
                 disabled
+                resize="none"
+                wrap="soft"
                 className={`w-full ${NODE_TEXTAREA_CLASS}`}
+                style={{ overflowWrap: "anywhere" }}
                 value={generateCommand()}
               />
             </div>

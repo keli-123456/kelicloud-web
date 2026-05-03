@@ -13,11 +13,17 @@ import { useTranslation } from "react-i18next";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 
-import Loading from "@/components/loading";
 import {
   AdminPageShell,
   AdminSurface,
+  AdminTableSkeleton,
 } from "@/components/admin/AdminPageShell";
+import {
+  ADMIN_FORM_DIALOG_CLASS,
+  ADMIN_FORM_FIELD_CLASS,
+  ADMIN_FORM_GRID_2_CLASS,
+  ADMIN_FORM_SCROLL_CLASS,
+} from "@/components/admin/AdminFormStyles";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -41,10 +47,12 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import NumberPicker from "@/components/ui/number-picker";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   type CommandClipboard,
   useCommandClipboard,
 } from "@/contexts/CommandClipboardContext";
+import { cn } from "@/lib/utils";
 
 type CommandFormValues = {
   name: string;
@@ -454,12 +462,106 @@ export default function CommandLibraryManager() {
   };
 
   if (loading && commands.length === 0) {
-    return <Loading />;
+    return (
+      <AdminPageShell
+        title={t("exec.savedCommands", {
+          defaultValue: "脚本库",
+        })}
+        description={t("command_clipboard.page_description", {
+          defaultValue:
+            "管理可复用的 Shell 脚本，并在远程执行或云实例工作流中快速调用。",
+        })}
+        stats={[
+          {
+            label: t("command_clipboard.stats.total", {
+              defaultValue: "Saved scripts",
+            }),
+            value: <Skeleton className="h-5 w-12" />,
+            tone: "blue",
+          },
+          {
+            label: t("command_clipboard.pagination.current_page", {
+              defaultValue: "Current page",
+            }),
+            value: <Skeleton className="h-5 w-16" />,
+            tone: "emerald",
+          },
+          {
+            label: t("command_clipboard.pagination.page_size", {
+              defaultValue: "Page size",
+            }),
+            value: `${limit}`,
+            tone: "amber",
+          },
+        ]}
+        actions={(
+          <div className="flex w-full flex-wrap items-center justify-end gap-3">
+            <div className="relative min-w-[240px] flex-1 sm:max-w-sm">
+              <Search
+                size={15}
+                className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+              />
+              <Input
+                value={searchTerm}
+                onChange={(event) => {
+                  setSearchTerm(event.target.value);
+                  setPage(1);
+                }}
+                placeholder={t("command_clipboard.search_placeholder", {
+                  defaultValue: "Search by script name, remark, or content",
+                })}
+                className="pl-9"
+              />
+            </div>
+            <Button variant="outline" asChild>
+              <Link to="/admin/exec">
+                <Play size={15} />
+                {t("command_clipboard.open_exec", {
+                  defaultValue: "Remote exec",
+                })}
+              </Link>
+            </Button>
+            <Button onClick={openCreateDialog}>
+              <Plus size={15} />
+              {t("command_clipboard.new_command", {
+                defaultValue: "New script",
+              })}
+            </Button>
+            <div className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300">
+              <span className="text-slate-500 dark:text-slate-400">
+                {t("command_clipboard.pagination.rows_per_page", {
+                  defaultValue: "Rows per page",
+                })}
+              </span>
+              <NumberPicker
+                defaultValue={limit}
+                onChange={(value) => {
+                  setPage(1);
+                  setLimit(value);
+                }}
+                min={5}
+                max={100}
+              />
+            </div>
+          </div>
+        )}
+      >
+        <AdminSurface className="py-2">
+          <div className="space-y-4">
+            <div className="flex items-center justify-between gap-3 px-1">
+              <Skeleton className="h-4 w-48" />
+              <Skeleton className="h-8 w-20" />
+            </div>
+            <AdminTableSkeleton columns={4} rows={6} />
+          </div>
+        </AdminSurface>
+      </AdminPageShell>
+    );
   }
 
   if (error) {
     return (
-      <div className="rounded-2xl border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive">
+      <div className="rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive">
         {error}
       </div>
     );
@@ -468,6 +570,13 @@ export default function CommandLibraryManager() {
   return (
     <>
       <AdminPageShell
+        title={t("exec.savedCommands", {
+          defaultValue: "脚本库",
+        })}
+        description={t("command_clipboard.page_description", {
+          defaultValue:
+            "管理可复用的 Shell 脚本，并在远程执行或云实例工作流中快速调用。",
+        })}
         stats={[
           {
             label: t("command_clipboard.stats.total", {
@@ -555,7 +664,7 @@ export default function CommandLibraryManager() {
       >
         <AdminSurface className="py-2">
           {showEmptyLibraryState ? (
-            <div className="rounded-2xl border border-dashed border-slate-200 bg-white px-5 py-8 text-center dark:border-slate-800 dark:bg-slate-950/40">
+            <div className="rounded-lg border border-dashed border-slate-200 bg-white px-5 py-8 text-center dark:border-slate-800 dark:bg-slate-950/40">
               <div className="space-y-2">
                 <p className="text-base font-medium text-slate-900 dark:text-slate-100">
                   {t("exec.savedCommandsEmpty", {
@@ -612,7 +721,7 @@ export default function CommandLibraryManager() {
 
               <div className="grid gap-2">
                 {commands.length === 0 ? (
-                  <div className="rounded-2xl border border-dashed border-slate-200 bg-white px-5 py-8 text-center dark:border-slate-800 dark:bg-slate-950/40">
+                  <div className="rounded-lg border border-dashed border-slate-200 bg-white px-5 py-8 text-center dark:border-slate-800 dark:bg-slate-950/40">
                     <p className="text-base font-medium text-slate-900 dark:text-slate-100">
                       {t("command_clipboard.search_empty", {
                         defaultValue: "No matching scripts",
@@ -639,7 +748,7 @@ export default function CommandLibraryManager() {
                   return (
                     <article
                       key={command.id}
-                      className="rounded-xl border border-slate-200 bg-white px-4 py-3 dark:border-slate-800 dark:bg-slate-950/40"
+                      className="rounded-lg border border-slate-200 bg-white px-4 py-3 dark:border-slate-800 dark:bg-slate-950/40"
                     >
                       <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
                         <div className="min-w-0 flex-1">
@@ -654,7 +763,7 @@ export default function CommandLibraryManager() {
                               })}
                             </Badge>
                           </div>
-                          <p className="truncate text-[13px] text-slate-500 dark:text-slate-400">
+                                        <p className="truncate text-sm text-slate-500 dark:text-slate-400">
                             {metaText}
                           </p>
                         </div>
@@ -765,7 +874,7 @@ export default function CommandLibraryManager() {
           }
         }}
       >
-      <DialogContent className="flex max-h-[calc(100vh-2rem)] flex-col overflow-hidden sm:max-w-4xl">
+      <DialogContent className={cn(ADMIN_FORM_DIALOG_CLASS, "max-w-4xl")}>
         <DialogHeader className="shrink-0">
           <DialogTitle>
               {editingCommand
@@ -785,8 +894,8 @@ export default function CommandLibraryManager() {
           </DialogHeader>
 
           <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col overflow-hidden">
-            <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto overscroll-contain pr-1 [scrollbar-gutter:stable]">
-              <div className="space-y-2">
+            <div className={cn(ADMIN_FORM_SCROLL_CLASS, "space-y-4")}>
+              <div className={ADMIN_FORM_FIELD_CLASS}>
                 <label className="text-sm font-medium text-slate-900 dark:text-slate-100">
                   {t("common.name")}
                 </label>
@@ -799,14 +908,23 @@ export default function CommandLibraryManager() {
                 />
               </div>
 
-              <div className="min-h-0 space-y-2">
+              <div className={cn(ADMIN_FORM_FIELD_CLASS, "min-h-0")}>
                 <label className="text-sm font-medium text-slate-900 dark:text-slate-100">
                   {t("common.content")}
                 </label>
                 <Suspense
                   fallback={
-                    <div className="flex min-h-[320px] items-center justify-center rounded-md border border-dashed border-border/60 bg-muted/20 text-sm text-muted-foreground">
-                      {t("common.loading", { defaultValue: "Loading..." })}
+                    <div className="min-h-[320px] rounded-md border border-dashed border-border/60 bg-muted/20 p-4">
+                      <div className="space-y-3">
+                        <div className="h-3 w-40 animate-pulse rounded bg-slate-200 dark:bg-slate-800" />
+                        {Array.from({ length: 8 }).map((_, index) => (
+                          <div
+                            key={index}
+                            className="h-3 animate-pulse rounded bg-slate-200 dark:bg-slate-800"
+                            style={{ width: `${92 - ((index * 9) % 34)}%` }}
+                          />
+                        ))}
+                      </div>
                     </div>
                   }
                 >
@@ -824,8 +942,8 @@ export default function CommandLibraryManager() {
                 </Suspense>
               </div>
 
-              <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_160px]">
-                <div className="space-y-2">
+              <div className={cn(ADMIN_FORM_GRID_2_CLASS, "md:grid-cols-[minmax(0,1fr)_160px]")}>
+                <div className={ADMIN_FORM_FIELD_CLASS}>
                   <label className="text-sm font-medium text-slate-900 dark:text-slate-100">
                     {t("common.remark")}
                   </label>
@@ -838,7 +956,7 @@ export default function CommandLibraryManager() {
                   />
                 </div>
 
-                <div className="space-y-2">
+                <div className={ADMIN_FORM_FIELD_CLASS}>
                   <label className="text-sm font-medium text-slate-900 dark:text-slate-100">
                     {t("common.weight")}
                   </label>

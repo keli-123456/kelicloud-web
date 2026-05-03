@@ -7,7 +7,7 @@ import {
 import { updateSettingsWithToast, useSettings } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { useTranslation } from "react-i18next";
-import Loading from "@/components/loading";
+import { AdminSettingsSkeleton } from "@/components/admin/AdminPageShell";
 import React from "react";
 import { renderProviderInputs } from "@/utils/renderProviders";
 import { toast } from "sonner";
@@ -133,7 +133,7 @@ export default function SignOnSettings() {
   // Provider field rendering is delegated to utils/renderProviders.tsx.
 
   if (accountLoading) {
-    return <Loading />;
+    return <AdminSettingsSkeleton sections={4} />;
   }
 
   if (!platformAdmin) {
@@ -141,7 +141,7 @@ export default function SignOnSettings() {
   }
 
   if (loading || (!providerLoading && providerList.length === 0 && !providerError)) {
-    return <Loading />;
+    return <AdminSettingsSkeleton sections={5} />;
   }
   if (error) {
     return <p className="text-sm text-destructive">{error}</p>;
@@ -183,7 +183,7 @@ export default function SignOnSettings() {
           setCurrentProvider(val);
         }}
       />
-      {providerLoading ? <Loading /> : renderProviderInputs({
+      {providerLoading ? <AdminSettingsSkeleton sections={2} /> : renderProviderInputs({
         currentProvider,
         providerDefs,
         providerValues,

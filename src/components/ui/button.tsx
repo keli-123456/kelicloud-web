@@ -5,21 +5,21 @@ import { cva, type VariantProps } from "class-variance-authority"
 import { cn } from "@/lib/utils"
 
 const buttonVariants = cva(
-  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-all disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 shrink-0 [&_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive",
+  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium leading-5 tracking-normal transition-[background-color,color,border-color,box-shadow,transform] disabled:pointer-events-none disabled:opacity-50 active:translate-y-px motion-reduce:transition-none motion-reduce:active:translate-y-0 [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 shrink-0 [&_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive",
   {
     variants: {
       variant: {
         default:
-          "bg-[var(--accent-6)] text-[var(--accent-12)] shadow-xs hover:bg-[var(--accent-8)]",
+          "bg-blue-600 text-white shadow-none hover:bg-blue-700 dark:bg-blue-500 dark:text-white dark:hover:bg-blue-400",
         destructive:
-          "bg-destructive text-white shadow-xs hover:bg-destructive/90 focus-visible:ring-destructive/20 dark:focus-visible:ring-destructive/40 dark:bg-destructive/60",
+          "bg-red-600 text-white shadow-none hover:bg-red-700 focus-visible:ring-destructive/20 dark:bg-red-600 dark:hover:bg-red-500 dark:focus-visible:ring-destructive/40",
         outline:
-          "bg-[var(--accent-3)] shadow-xs hover:bg-[var(--accent-4)] hover:text-[var(--accent-12)]", 
+          "border border-border/70 bg-card shadow-none hover:bg-muted hover:text-foreground",
         secondary:
-          "bg-[var(--accent-6)] text-[var(--accent-12)] shadow-xs hover:bg-[var(--accent-7)]",
+          "bg-slate-100 text-slate-900 shadow-none hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-50 dark:hover:bg-slate-700",
         ghost:
-          "hover:bg-[var(--accent-4)] hover:text-[var(--accent-12)]",
-        link: "text-[var(--accent-11)] underline-offset-4 hover:underline",
+          "hover:bg-muted hover:text-foreground",
+        link: "text-blue-700 underline-offset-4 hover:underline dark:text-blue-400",
       },
       size: {
         default: "h-9 px-4 py-2 has-[>svg]:px-3",

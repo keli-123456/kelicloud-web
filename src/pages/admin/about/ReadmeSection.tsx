@@ -3,7 +3,7 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { SquareArrowOutUpRight } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import Loading from "@/components/loading";
+import { AdminSettingsSkeleton } from "@/components/admin/AdminPageShell";
 import "github-markdown-css/github-markdown.css";
 
 const README_URL = "https://raw.githubusercontent.com/keli-123456/kelicloud/refs/heads/main/README.md";
@@ -48,7 +48,7 @@ export default function ReadmeSection() {
     <div className="flex flex-col gap-4">
       <div className="markdown-body border-t border-slate-200/80 pt-4 !bg-transparent dark:border-slate-800/80 dark:!bg-transparent dark:text-slate-200">
         {loading ? (
-          <Loading />
+          <AdminSettingsSkeleton sections={5} />
         ) : (
           <ReactMarkdown remarkPlugins={[remarkGfm]}>
             {markdown}

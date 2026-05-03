@@ -6,24 +6,58 @@ function Table({ className, ...props }: React.ComponentProps<"table">) {
   return (
     <div
       data-slot="table-container"
-      className="relative w-full min-w-0 overflow-x-auto [scrollbar-gutter:stable]"
+      className="relative w-full min-w-0 overflow-x-auto overscroll-x-contain [scrollbar-gutter:stable]"
     >
       <table
         data-slot="table"
-        className={cn("w-full caption-bottom text-sm", className)}
+        className={cn("w-full caption-bottom text-sm leading-5", className)}
         {...props}
       />
     </div>
   );
 }
 
-function TableHeader({ className, ...props }: React.ComponentProps<"thead">) {
+function isTableRowElement(child: React.ReactNode) {
+  return (
+    React.isValidElement(child)
+    && (child.type === "tr" || child.type === TableRow)
+  );
+}
+
+function TableHeader({
+  className,
+  children,
+  ...props
+}: React.ComponentProps<"thead">) {
+  const childList = React.Children.toArray(children);
+  const rows: React.ReactNode[] = [];
+  let pendingCells: React.ReactNode[] = [];
+
+  const flushPendingCells = () => {
+    if (pendingCells.length === 0) return;
+    rows.push(<tr key={`table-head-row-${rows.length}`}>{pendingCells}</tr>);
+    pendingCells = [];
+  };
+
+  childList.forEach((child) => {
+    if (isTableRowElement(child)) {
+      flushPendingCells();
+      rows.push(child);
+      return;
+    }
+
+    pendingCells.push(child);
+  });
+  flushPendingCells();
+
   return (
     <thead
       data-slot="table-header"
       className={cn("[&_tr]:border-b", className)}
       {...props}
-    />
+    >
+      {rows}
+    </thead>
   );
 }
 
@@ -52,7 +86,7 @@ function TableRow({ className, ...props }: React.ComponentProps<"tr">) {
     <tr
       data-slot="table-row"
       className={cn(
-        "border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted",
+        "border-b border-border/60 transition-[background-color,box-shadow] hover:bg-slate-50/80 data-[state=selected]:bg-muted dark:hover:bg-slate-900/50",
         className
       )}
       {...props}
@@ -65,7 +99,7 @@ function TableHead({ className, ...props }: React.ComponentProps<"th">) {
     <th
       data-slot="table-head"
       className={cn(
-        "h-10 px-2 text-left align-middle font-medium whitespace-nowrap text-foreground [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px]",
+        "h-10 px-3 text-left align-middle text-[13px] font-medium leading-4 whitespace-nowrap text-muted-foreground [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px]",
         className
       )}
       {...props}
@@ -78,7 +112,7 @@ function TableCell({ className, ...props }: React.ComponentProps<"td">) {
     <td
       data-slot="table-cell"
       className={cn(
-        "p-2 align-middle whitespace-nowrap [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px]",
+        "px-3 py-2.5 align-middle text-sm leading-5 whitespace-nowrap [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px]",
         className
       )}
       {...props}

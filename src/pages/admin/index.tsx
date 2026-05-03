@@ -13,14 +13,19 @@ import {
   Badge,
 } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import {
+  AdminEmptyState,
+  AdminPageShell,
+  AdminTableSkeleton,
+} from "@/components/admin/AdminPageShell";
 import {
   Copy,
   Download,
   Globe,
   MoreHorizontal,
   Search,
+  Server,
   Settings2,
   Terminal,
   Trash2Icon,
@@ -48,6 +53,13 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
+  Drawer,
+  DrawerContent,
+  DrawerDescription,
+  DrawerHeader,
+  DrawerTitle,
+} from "@/components/ui/drawer";
+import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
@@ -62,7 +74,6 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { formatBytes } from "@/utils/unitHelper";
-import Loading from "@/components/loading";
 import {
   type SettingsResponse,
   useSettings,
@@ -93,6 +104,35 @@ const LazyNodeDDNSDialog = React.lazy(() =>
   })),
 );
 
+const AdminDashboardLoadingState = () => {
+  const { t } = useTranslation();
+
+  return (
+    <AdminPageShell
+      title={t("admin.nodeTable.nodeList", { defaultValue: "服务器" })}
+      description={t("admin.dashboard.loading_description", {
+        defaultValue:
+          "服务器状态、资源占用和运维入口正在加载，页面结构会保持稳定。",
+      })}
+      actions={(
+        <div className="relative min-w-[260px] flex-1 sm:max-w-sm">
+          <Search
+            size={15}
+            className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+          />
+          <Input
+            disabled
+            className="pl-9"
+            placeholder={t("admin.nodeTable.searchByName")}
+          />
+        </div>
+      )}
+    >
+      <AdminTableSkeleton columns={6} rows={7} />
+    </AdminPageShell>
+  );
+};
+
 const NodeDetailsPage = () => {
   const { account, hasFeature, loading, platformAdmin } = useAccount();
   const canManageCNConnectivity = platformAdmin || hasFeature("cn_connectivity");
@@ -112,7 +152,7 @@ const NodeDetailsPage = () => {
   }, [toolbarSearchDraft]);
 
   if (loading) {
-    return <Loading />;
+    return <AdminDashboardLoadingState />;
   }
   if (!hasFeature("clients")) {
     return <Navigate to={getDefaultAdminPath(account)} replace />;
@@ -413,9 +453,13 @@ const Layout = ({
   );
   const [liveLoaded, setLiveLoaded] = useState(false);
   const [liveError, setLiveError] = useState<string | null>(null);
+  const realNodes = React.useMemo(
+    () => (Array.isArray(nodeDetail) ? nodeDetail : []),
+    [nodeDetail],
+  );
   const allNodes = React.useMemo(
-    () => (Array.isArray(nodeDetail)
-      ? [...nodeDetail].sort((a, b) => {
+    () => (
+      [...realNodes].sort((a, b) => {
           const leftGroup = getNodeGroupLabel(a);
           const rightGroup = getNodeGroupLabel(b);
           const defaultGroupLabel = getDefaultGroupLabel();
@@ -436,14 +480,13 @@ const Layout = ({
 
           return String(a.name || "").localeCompare(String(b.name || ""), "zh-CN");
         })
-      : []),
-    [nodeDetail],
+    ),
+    [realNodes],
   );
   const liveScopeUUIDs = React.useMemo(
     () => allNodes.map((node) => node.uuid),
     [allNodes],
   );
-  const installActionsEnabled = true;
   const normalizedToolbarSearchKeyword = toolbarSearchKeyword.trim().toLowerCase();
   const visibleNodes = React.useMemo(() => {
     if (!normalizedToolbarSearchKeyword) {
@@ -521,17 +564,11 @@ const Layout = ({
     };
   }, [call, liveScopeUUIDs]);
 
-  if (isLoading) return <Loading text="" />;
+  if (isLoading) return <AdminDashboardLoadingState />;
   if (error) return <div>{error}</div>;
 
   return (
-    <div
-      className="flex min-w-0 flex-col gap-4 p-4 md:gap-6 md:p-6"
-      style={{
-        fontFamily:
-          '"Manrope","Noto Sans SC","PingFang SC","Microsoft YaHei",sans-serif',
-      }}
-    >
+    <div className="flex min-w-0 flex-col gap-4 p-4 md:gap-6 md:p-6">
       <Header
         nodes={allNodes}
         visibleNodes={visibleNodes}
@@ -546,7 +583,7 @@ const Layout = ({
         toolbarSearchKeyword={normalizedToolbarSearchKeyword}
         onToolbarSearchDraftChange={onToolbarSearchDraftChange}
         onToolbarSearch={onToolbarSearch}
-        installActionsEnabled={installActionsEnabled}
+        installActionsEnabled
         canManageCNConnectivity={canManageCNConnectivity}
         onRefreshSettings={refetchSettings}
       />
@@ -556,7 +593,7 @@ const Layout = ({
         totalNodesCount={allNodes.length}
         liveByNode={liveByNode}
         settings={settings}
-        installActionsEnabled={installActionsEnabled}
+        installActionsEnabled
       />
     </div>
   );
@@ -806,7 +843,7 @@ const Header = ({
         </Alert>
       ) : null}
 
-      <div className="border-b border-border/50 pb-2">
+      <div className="border-b border-slate-200/70 pb-2 dark:border-slate-800">
         <div className="flex flex-wrap items-center gap-2 xl:flex-nowrap xl:gap-3">
           <div className="min-w-[260px] flex-1 xl:max-w-[360px]">
             <form
@@ -818,7 +855,7 @@ const Header = ({
             >
               <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
               <Input
-                className="h-9 rounded-md border-border/60 pl-9"
+                className="h-9 rounded-md border-slate-200 bg-white pl-9 shadow-none dark:border-slate-800 dark:bg-slate-950"
                 placeholder={t("admin.nodeTable.toolbarSearchPlaceholder", {
                   defaultValue: "搜索节点名称 / IP",
                 })}
@@ -831,7 +868,7 @@ const Header = ({
             </form>
           </div>
 
-          <div className="min-w-0 flex-1 text-xs text-muted-foreground">
+          <div className="min-w-0 flex-1 text-sm text-muted-foreground">
             {hasEffectiveFilters ? (
               <div className="truncate">
                 <span className="font-medium text-foreground">
@@ -878,7 +915,7 @@ const Header = ({
           <div className="ml-auto flex shrink-0 items-center gap-2">
             <Badge
               variant="secondary"
-              className={`h-9 shrink-0 rounded-md border border-border/60 bg-transparent px-2.5 text-xs font-medium shadow-none ${
+              className={`h-9 shrink-0 rounded-md border border-border/60 bg-transparent px-2.5 text-sm font-medium shadow-none ${
                 cnConnectivityTone === "green"
                   ? "text-emerald-600 dark:text-emerald-400"
                   : cnConnectivityTone === "red"
@@ -995,7 +1032,20 @@ const formatCompactByteUsage = (usedBytes: number, totalBytes: number) => {
   const totalParts = splitFormattedBytes(totalLabel);
 
   if (usedParts && totalParts && usedParts.unit === totalParts.unit) {
-    return `${usedParts.magnitude} / ${totalParts.magnitude} ${usedParts.unit}`;
+    const compactMagnitude = (value: string) => {
+      const numeric = Number(value);
+      if (!Number.isFinite(numeric)) {
+        return value;
+      }
+      if (numeric >= 10) {
+        return String(Math.round(numeric));
+      }
+      return numeric.toFixed(1).replace(/\.0$/, "");
+    };
+
+    return `${compactMagnitude(usedParts.magnitude)} / ${compactMagnitude(
+      totalParts.magnitude,
+    )} ${usedParts.unit}`;
   }
 
   return `${usedLabel} / ${totalLabel}`;
@@ -1022,7 +1072,7 @@ const StatusSummary = ({
       : null;
 
   return (
-    <div className="min-w-[102px] space-y-1">
+    <div className="min-w-0 space-y-1">
       <Badge
         variant={online ? "success" : "destructive"}
         className="rounded-md px-1.5"
@@ -1032,7 +1082,7 @@ const StatusSummary = ({
       {cnBadge ? (
         <Badge
           variant={cnBadge.variant}
-          className="max-w-[128px] overflow-hidden text-ellipsis rounded-md px-1.5"
+          className="max-w-full overflow-hidden text-ellipsis rounded-md px-1.5"
           title={cnBadge.title}
         >
           {cnBadge.label}
@@ -1087,7 +1137,7 @@ const buildCNConnectivityBadge = (
 };
 
 const VersionSummary = ({ node }: { node: NodeDetail }) => (
-  <div className="min-w-[92px]">
+  <div className="min-w-0">
     <Badge variant="outline" className="rounded-md px-1.5 font-mono text-[12px]">
       {String(node.version || "").trim() || "-"}
     </Badge>
@@ -1188,7 +1238,7 @@ const NodeEndpointSummary = ({ node }: { node: NodeDetail }) => {
         />
       }
     >
-      <div className="flex min-w-[196px] items-start gap-2 text-[13px] text-slate-700 dark:text-slate-200">
+                        <div className="flex w-[200px] max-w-[200px] min-w-0 items-start gap-2 text-sm text-slate-700 dark:text-slate-200">
         <div className="pt-0.5">
           <Flag flag={node.region} size="4" />
         </div>
@@ -1254,7 +1304,7 @@ const NodeTooltipBody = ({
   secondary?: string;
 }) => (
   <div className="grid min-w-[180px] gap-1.5">
-    <div className="text-[10px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
+    <div className="text-[11px] font-medium uppercase tracking-normal text-muted-foreground">
       {label}
     </div>
     <div className="text-sm font-semibold text-foreground">{primary}</div>
@@ -1281,7 +1331,7 @@ const NodeInfoTooltip = ({
     <TooltipTrigger asChild>{children}</TooltipTrigger>
     <TooltipContent
       sideOffset={8}
-      className="rounded-lg border border-border/70 bg-popover px-3 py-2 text-xs text-foreground shadow-none"
+      className="rounded-lg border border-border/70 bg-popover px-3 py-2 text-sm text-foreground shadow-lg shadow-slate-950/10 dark:shadow-black/30"
     >
       {content}
     </TooltipContent>
@@ -1292,11 +1342,11 @@ const RateSummary = ({ live }: { live?: NodeLiveSnapshot }) => {
   const snapshot = live?.record || createEmptyLiveRecord();
 
   return (
-    <div className="min-w-[98px] space-y-0.5 tabular-nums">
-      <div className="block text-[13px] font-medium text-slate-900 dark:text-slate-100">
+    <div className="min-w-[80px] space-y-0.5 tabular-nums">
+      <div className="block text-sm font-medium text-slate-900 dark:text-slate-100">
         ↑ {formatBytes(snapshot.network.up)}/s
       </div>
-      <div className="block text-[13px] text-slate-600 dark:text-slate-400">
+      <div className="block text-sm text-slate-600 dark:text-slate-400">
         ↓ {formatBytes(snapshot.network.down)}/s
       </div>
     </div>
@@ -1307,11 +1357,11 @@ const TrafficSummary = ({ live }: { live?: NodeLiveSnapshot }) => {
   const snapshot = live?.record || createEmptyLiveRecord();
 
   return (
-    <div className="min-w-[106px] space-y-0.5 tabular-nums">
-      <div className="block text-[13px] font-medium text-slate-900 dark:text-slate-100">
+    <div className="min-w-[84px] space-y-0.5 tabular-nums">
+      <div className="block text-sm font-medium text-slate-900 dark:text-slate-100">
         ↑ {formatBytes(snapshot.network.totalUp)}
       </div>
-      <div className="block text-[13px] text-slate-600 dark:text-slate-400">
+      <div className="block text-sm text-slate-600 dark:text-slate-400">
         ↓ {formatBytes(snapshot.network.totalDown)}
       </div>
     </div>
@@ -1320,7 +1370,7 @@ const TrafficSummary = ({ live }: { live?: NodeLiveSnapshot }) => {
 
 const UptimeSummary = ({ live }: { live?: NodeLiveSnapshot }) => {
   return (
-    <div className="block min-w-[74px] tabular-nums text-[13px] text-slate-700 dark:text-slate-300">
+  <div className="block min-w-[62px] tabular-nums text-sm text-slate-700 dark:text-slate-300">
       {formatUptimeLabel(live?.record.uptime)}
     </div>
   );
@@ -1357,7 +1407,7 @@ const CompactMetricCell = ({
 
   return (
     <NodeInfoTooltip content={tooltipContent}>
-      <div className="w-full min-w-[148px] max-w-[162px] cursor-help">
+      <div className="w-full min-w-[108px] max-w-[122px] cursor-help">
         <div className="mb-1 flex items-center justify-between gap-2 whitespace-nowrap leading-none">
           <span className="min-w-0 flex-1 overflow-hidden text-ellipsis font-mono tabular-nums text-[11px] text-slate-600 dark:text-slate-300">
             {valueLabel}
@@ -1381,6 +1431,201 @@ const openNodeTerminal = (uuid: string) => {
   window.open(`/terminal?uuid=${uuid}`, "_blank");
 };
 
+const NodeDrawerInfoItem = ({
+  label,
+  value,
+  mono = false,
+}: {
+  label: React.ReactNode;
+  value: React.ReactNode;
+  mono?: boolean;
+}) => (
+  <div className="min-w-0 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 dark:border-slate-800 dark:bg-slate-900/50">
+    <div className="text-[11px] font-medium uppercase tracking-normal text-slate-500 dark:text-slate-400">
+      {label}
+    </div>
+    <div
+      className={`mt-1 min-w-0 truncate text-sm text-slate-950 dark:text-slate-50 ${
+        mono ? "font-mono tabular-nums" : ""
+      }`}
+      title={typeof value === "string" ? value : undefined}
+    >
+      {value || "-"}
+    </div>
+  </div>
+);
+
+const NodeDrawerMetric = ({
+  label,
+  percent,
+  value,
+}: {
+  label: React.ReactNode;
+  percent: number;
+  value: React.ReactNode;
+}) => {
+  const safePercent = clampPercent(percent);
+  const toneClass =
+    safePercent >= RISK_DANGER_THRESHOLD
+      ? "bg-rose-500"
+      : safePercent >= RISK_WARNING_THRESHOLD
+        ? "bg-amber-500"
+        : "bg-blue-500";
+
+  return (
+    <div className="rounded-lg border border-slate-200 bg-white px-3 py-3 dark:border-slate-800 dark:bg-slate-950">
+      <div className="flex items-center justify-between gap-3 text-sm">
+        <span className="font-medium text-slate-700 dark:text-slate-200">{label}</span>
+        <span className="font-mono text-xs tabular-nums text-slate-500 dark:text-slate-400">
+          {value} · {formatPercent(safePercent)}
+        </span>
+      </div>
+      <div className="mt-2 h-2 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
+        <div
+          className={`h-full rounded-full transition-all duration-300 ${toneClass}`}
+          style={{ width: `${safePercent}%` }}
+        />
+      </div>
+    </div>
+  );
+};
+
+const NodeDetailDrawer = ({
+  open,
+  onOpenChange,
+  node,
+  live,
+  onOpenTerminal,
+  onOpenDDNS,
+  canManageDNS,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  node: NodeDetail;
+  live?: NodeLiveSnapshot;
+  onOpenTerminal: () => void;
+  onOpenDDNS: () => void;
+  canManageDNS: boolean;
+}) => {
+  const { t } = useTranslation();
+  const online = isNodeOnline(live);
+  const cpuPercent = clampPercent(live?.record.cpu.usage ?? 0);
+  const cpuCoreCount = Number(node.cpu_cores || 0);
+  const usedCpuCores = cpuCoreCount
+    ? `${formatCoreCount(cpuCoreCount * cpuPercent / 100)} / ${formatCoreCount(cpuCoreCount)} ${t(
+      "admin.nodeTable.cpuCoresShort",
+      {
+        defaultValue: "cores",
+      },
+    )}`
+    : formatPercent(cpuPercent);
+  const ramPercent = clampPercent(getNodeRamUsagePercent(node, live));
+  const ramLabel = node.mem_total
+    ? formatCompactByteUsage(live?.record.ram.used ?? 0, node.mem_total)
+    : formatPercent(ramPercent);
+  const diskPercent = clampPercent(getNodeDiskUsagePercent(node, live));
+  const diskLabel = node.disk_total
+    ? formatCompactByteUsage(live?.record.disk.used ?? 0, node.disk_total)
+    : formatPercent(diskPercent);
+
+  return (
+    <Drawer open={open} onOpenChange={onOpenChange} direction="right">
+      <DrawerContent className="w-[min(92vw,460px)] sm:max-w-[460px]">
+        <DrawerHeader className="border-b border-slate-200 dark:border-slate-800">
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <DrawerTitle className="truncate text-base">
+                {String(node.name || "").trim() || node.uuid}
+              </DrawerTitle>
+              <DrawerDescription className="mt-1 truncate">
+                {getNodeGroupLabel(node)} · {formatNodeIp(node.ipv4)}
+              </DrawerDescription>
+            </div>
+            <Badge
+              variant={online ? "success" : "destructive"}
+              className="shrink-0 rounded-md"
+            >
+              {online ? t("nodeCard.online", "Online") : t("nodeCard.offline", "Offline")}
+            </Badge>
+          </div>
+        </DrawerHeader>
+
+        <div className="flex flex-1 flex-col gap-4 p-4">
+          <div className="grid grid-cols-2 gap-3">
+            <NodeDrawerInfoItem
+              label={t("admin.nodeTable.columns.version", { defaultValue: "Version" })}
+              value={String(node.version || "").trim() || "-"}
+              mono
+            />
+            <NodeDrawerInfoItem
+              label={t("nodeCard.uptime", { defaultValue: "Uptime" })}
+              value={formatUptimeLabel(live?.record.uptime)}
+            />
+            <NodeDrawerInfoItem label="IPv4" value={formatNodeIp(node.ipv4)} mono />
+            <NodeDrawerInfoItem label="IPv6" value={formatNodeIp(node.ipv6)} mono />
+          </div>
+
+          <div className="rounded-lg border border-slate-200 bg-slate-50/80 p-3 dark:border-slate-800 dark:bg-slate-900/40">
+            <div className="mb-3 text-sm font-semibold text-slate-950 dark:text-slate-50">
+              {t("admin.nodeTable.drawerLiveMetrics", {
+                defaultValue: "实时指标",
+              })}
+            </div>
+            <div className="grid gap-3">
+              <NodeDrawerMetric label="CPU" percent={cpuPercent} value={usedCpuCores} />
+              <NodeDrawerMetric
+                label={t("nodeCard.ram", { defaultValue: "RAM" })}
+                percent={ramPercent}
+                value={ramLabel}
+              />
+              <NodeDrawerMetric
+                label={t("nodeCard.disk", { defaultValue: "Disk" })}
+                percent={diskPercent}
+                value={diskLabel}
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <NodeDrawerInfoItem
+              label={t("admin.nodeTable.columns.rate", { defaultValue: "Rate" })}
+              value={`↑ ${formatBytes(live?.record.network.up ?? 0)}/s · ↓ ${formatBytes(
+                live?.record.network.down ?? 0,
+              )}/s`}
+              mono
+            />
+            <NodeDrawerInfoItem
+              label={t("admin.nodeTable.columns.traffic", { defaultValue: "Traffic" })}
+              value={`↑ ${formatBytes(live?.record.network.totalUp ?? 0)} · ↓ ${formatBytes(
+                live?.record.network.totalDown ?? 0,
+              )}`}
+              mono
+            />
+          </div>
+
+          <div className="mt-auto flex flex-wrap items-center gap-2 border-t border-slate-200 pt-4 dark:border-slate-800">
+            <Button size="sm" className="rounded-md" onClick={onOpenTerminal}>
+              <Terminal className="h-4 w-4" />
+              {t("terminal.title", { defaultValue: "Terminal" })}
+            </Button>
+            {canManageDNS ? (
+              <Button
+                size="sm"
+                variant="outline"
+                className="rounded-md"
+                onClick={onOpenDDNS}
+              >
+                <Globe className="h-4 w-4" />
+                {t("admin.nodeTable.ddns.title", { defaultValue: "DDNS" })}
+              </Button>
+            ) : null}
+          </div>
+        </div>
+      </DrawerContent>
+    </Drawer>
+  );
+};
+
 const SortableRow = ({
   live,
   node,
@@ -1391,6 +1636,7 @@ const SortableRow = ({
   const { t } = useTranslation();
   const { hasFeature } = useAccount();
   const [ddnsOpen, setDdnsOpen] = React.useState(false);
+  const [detailOpen, setDetailOpen] = React.useState(false);
   const cpuPercent = clampPercent(live?.record.cpu.usage ?? 0);
   const cpuCoreCount = Number(node.cpu_cores || 0);
   const usedCpuCores = cpuCoreCount
@@ -1414,7 +1660,7 @@ const SortableRow = ({
     <>
       <ContextMenu>
         <ContextMenuTrigger asChild>
-          <TableRow className="cursor-context-menu text-[13px]">
+          <TableRow className="cursor-context-menu text-sm">
             <TableCell>
               <NodeEndpointSummary node={node} />
             </TableCell>
@@ -1469,6 +1715,16 @@ const SortableRow = ({
                 }
               />
             </TableCell>
+            <TableCell className="text-right">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-8 rounded-md px-2.5 text-sm"
+                onClick={() => setDetailOpen(true)}
+              >
+                {t("common.details", { defaultValue: "详情" })}
+              </Button>
+            </TableCell>
           </TableRow>
         </ContextMenuTrigger>
         <ContextMenuContent className="w-44">
@@ -1499,6 +1755,15 @@ const SortableRow = ({
           />
         </React.Suspense>
       ) : null}
+      <NodeDetailDrawer
+        open={detailOpen}
+        onOpenChange={setDetailOpen}
+        node={node}
+        live={live}
+        canManageDNS={hasFeature("cloud_dns")}
+        onOpenTerminal={() => openNodeTerminal(node.uuid)}
+        onOpenDDNS={() => setDdnsOpen(true)}
+      />
     </>
   );
 };
@@ -1506,37 +1771,40 @@ const SortableRow = ({
 const NodeTableColumns = () => {
   const { t } = useTranslation();
   const stickyHeadClass =
-    "sticky top-0 z-20 bg-muted/95 backdrop-blur supports-[backdrop-filter]:bg-muted/80";
+    "sticky top-0 z-20 bg-slate-100/95 text-slate-600 backdrop-blur supports-[backdrop-filter]:bg-slate-100/85 dark:bg-slate-900/95 dark:text-slate-300 dark:supports-[backdrop-filter]:bg-slate-900/85";
 
   return (
-    <TableHeader className="bg-muted/40">
+    <TableHeader className="bg-slate-100/60 dark:bg-slate-900/60">
       <TableRow>
-        <TableHead className={`${stickyHeadClass} w-[204px]`}>
+        <TableHead className={`${stickyHeadClass} w-[196px]`}>
           {t("admin.nodeTable.columns.endpoint", { defaultValue: "Public IP" })}
         </TableHead>
-        <TableHead className={`${stickyHeadClass} w-[110px]`}>
+        <TableHead className={`${stickyHeadClass} w-[140px]`}>
           {t("admin.nodeTable.columns.status", { defaultValue: "Status" })}
         </TableHead>
-        <TableHead className={`${stickyHeadClass} w-[96px]`}>
+        <TableHead className={`${stickyHeadClass} w-[60px]`}>
           {t("admin.nodeTable.columns.version", { defaultValue: "Version" })}
         </TableHead>
-        <TableHead className={`${stickyHeadClass} w-[100px]`}>
+        <TableHead className={`${stickyHeadClass} w-[82px]`}>
           {t("admin.nodeTable.columns.rate", { defaultValue: "Rate" })}
         </TableHead>
-        <TableHead className={`${stickyHeadClass} w-[108px]`}>
+        <TableHead className={`${stickyHeadClass} w-[86px]`}>
           {t("admin.nodeTable.columns.traffic", { defaultValue: "Traffic" })}
         </TableHead>
-        <TableHead className={`${stickyHeadClass} w-[78px]`}>
+        <TableHead className={`${stickyHeadClass} w-[64px]`}>
           {t("admin.nodeTable.columns.uptime", { defaultValue: "Uptime" })}
         </TableHead>
-        <TableHead className={`${stickyHeadClass} w-[156px]`}>
+        <TableHead className={`${stickyHeadClass} w-[118px]`}>
           {t("admin.nodeTable.columns.cpu", { defaultValue: "CPU" })}
         </TableHead>
-        <TableHead className={`${stickyHeadClass} w-[156px]`}>
+        <TableHead className={`${stickyHeadClass} w-[122px]`}>
           {t("admin.nodeTable.columns.ram", { defaultValue: "RAM" })}
         </TableHead>
-        <TableHead className={`${stickyHeadClass} w-[156px]`}>
+        <TableHead className={`${stickyHeadClass} w-[122px]`}>
           {t("admin.nodeTable.columns.storage", { defaultValue: "Storage" })}
+        </TableHead>
+        <TableHead className={`${stickyHeadClass} w-[72px] text-right`}>
+          {t("common.action", { defaultValue: "操作" })}
         </TableHead>
       </TableRow>
     </TableHeader>
@@ -1667,11 +1935,11 @@ const NodeGroupSection = ({
   ).length;
 
   return (
-    <div className="min-w-0 rounded-lg border border-border/60 bg-card shadow-none">
-      <div className="flex flex-col gap-4 border-b border-border/60 px-4 py-4 md:px-5 xl:flex-row xl:items-center xl:justify-between">
+    <section className="min-w-0 border-t border-slate-200/80 pt-4 dark:border-slate-800/90">
+      <div className="flex flex-col gap-4 pb-3 xl:flex-row xl:items-center xl:justify-between">
         <div className="min-w-0 flex-1 overflow-x-auto pb-1">
           <div className="flex min-w-max items-center gap-2 pr-2 whitespace-nowrap">
-            <div className="shrink-0 text-base font-semibold tracking-tight text-foreground">
+            <div className="shrink-0 text-base font-semibold tracking-normal text-foreground">
               {groupName}
             </div>
             <Badge
@@ -1708,37 +1976,41 @@ const NodeGroupSection = ({
             />
           </div>
         </div>
-        <div className="flex shrink-0 flex-wrap gap-2 xl:justify-end">
-          <GenerateCommandButton
-            nodes={nodes}
-            settings={settings}
-            toolbar
-            groupMode
-            presetGroupName={groupName}
-            toolbarLabel={t("admin.nodeTable.installCurrentGroupAgent", "为当前分组安装 Agent")}
-            disabled={!installActionsEnabled}
-          />
-          <GroupUpgradeButton
-            groupName={groupName}
-            nodes={nodes}
-            liveByNode={liveByNode}
-            settings={settings}
-          />
-        </div>
-      </div>
-      <Table className="min-w-[1160px]">
-        <NodeTableColumns />
-        <TableBody>
-          {nodes.map((node) => (
-            <SortableRow
-              key={node.uuid}
-              node={node}
-              live={liveByNode[node.uuid]}
+        {installActionsEnabled ? (
+          <div className="flex shrink-0 flex-wrap gap-2 xl:justify-end">
+            <GenerateCommandButton
+              nodes={nodes}
+              settings={settings}
+              toolbar
+              groupMode
+              presetGroupName={groupName}
+              toolbarLabel={t("admin.nodeTable.installCurrentGroupAgent", "为当前分组安装 Agent")}
+              disabled={false}
             />
-          ))}
-        </TableBody>
-      </Table>
-    </div>
+            <GroupUpgradeButton
+              groupName={groupName}
+              nodes={nodes}
+              liveByNode={liveByNode}
+              settings={settings}
+            />
+          </div>
+        ) : null}
+      </div>
+      <div className="min-w-0 overflow-x-auto overscroll-x-contain rounded-lg border border-slate-200/80 bg-white [scrollbar-gutter:stable] dark:border-slate-800/90 dark:bg-slate-950">
+        <Table className="min-w-[1020px] table-fixed">
+          <NodeTableColumns />
+          <TableBody>
+            {nodes.map((node) => (
+              <SortableRow
+                key={node.uuid}
+                node={node}
+                live={liveByNode[node.uuid]}
+              />
+            ))}
+          </TableBody>
+        </Table>
+      </div>
+    </section>
   );
 };
 
@@ -1778,13 +2050,25 @@ const NodeTable = ({
   return (
     <div className="flex min-w-0 flex-col gap-4">
       {nodes.length === 0 ? (
-        <Card className="rounded-xl border-dashed border-border/70 py-10 text-center text-sm text-muted-foreground shadow-none">
-          {hasActiveFilters
-            ? t("admin.nodeTable.noFilteredNodes", {
-              defaultValue: "没有匹配当前筛选条件的节点",
-            })
-            : t("admin.nodeTable.noNodes", "No nodes")}
-        </Card>
+        <AdminEmptyState
+          icon={<Server className="h-5 w-5" />}
+          title={
+            hasActiveFilters
+              ? t("admin.nodeTable.noFilteredNodes", {
+                defaultValue: "没有匹配当前筛选条件的节点",
+              })
+              : t("admin.nodeTable.noNodes", "No nodes")
+          }
+          description={
+            hasActiveFilters
+              ? t("admin.nodeTable.noFilteredNodesDescription", {
+                defaultValue: "调整搜索关键词后再试，或者清空筛选查看全部节点。",
+              })
+              : t("admin.nodeTable.noNodesDescription", {
+                defaultValue: "生成 Agent 接入命令并在服务器执行后，节点会自动出现在这里。",
+              })
+          }
+        />
       ) : (
         groupedNodes.map((group) => (
           <NodeGroupSection

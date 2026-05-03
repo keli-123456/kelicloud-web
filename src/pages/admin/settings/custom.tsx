@@ -3,8 +3,8 @@ import {
   updateSettingsWithToast,
   useSettings,
 } from "@/lib/api";
+import { AdminSettingsSkeleton } from "@/components/admin/AdminPageShell";
 import { SettingCardLongTextInput } from "@/components/admin/SettingCard";
-import Loading from "@/components/loading";
 import { useAccount } from "@/contexts/AccountContext";
 import { PlatformAdminNotice } from "@/components/admin/PlatformAdminNotice";
 
@@ -16,7 +16,7 @@ export default function CustomSettings() {
   });
 
   if (accountLoading || loading) {
-    return <Loading />;
+    return <AdminSettingsSkeleton sections={2} />;
   }
 
   if (!platformAdmin) {

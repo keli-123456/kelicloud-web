@@ -2,7 +2,7 @@ import React from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
-import Loading from "@/components/loading";
+import { AdminSettingsSkeleton } from "@/components/admin/AdminPageShell";
 import { PlatformAdminNotice } from "@/components/admin/PlatformAdminNotice";
 import {
   SettingCard,
@@ -132,7 +132,7 @@ export default function ProxySettings() {
   ]);
 
   if (accountLoading || loading) {
-    return <Loading />;
+    return <AdminSettingsSkeleton sections={3} />;
   }
 
   if (!platformAdmin) {
@@ -330,7 +330,7 @@ export default function ProxySettings() {
       />
 
       {probeResult ? (
-        <div className="rounded-xl border border-border/70 bg-muted/30 px-4 py-3 text-sm">
+        <div className="rounded-lg border border-border/70 bg-muted/30 px-4 py-3 text-sm">
           <div className="font-medium text-foreground">
             {t("settings.proxy.last_test_title")}
           </div>

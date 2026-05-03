@@ -29,7 +29,13 @@ import {
   TextField,
 } from "@/components/admin/admin-ui";
 import { toast } from "sonner";
-import Loading from "@/components/loading";
+import { AdminTableSkeleton } from "@/components/admin/AdminPageShell";
+import {
+  ADMIN_FORM_DIALOG_CLASS,
+  ADMIN_FORM_FIELD_CLASS,
+  ADMIN_FORM_SCROLL_CLASS,
+  ADMIN_FORM_TOGGLE_CLASS,
+} from "@/components/admin/AdminFormStyles";
 import Tips from "@/components/ui/tips";
 
 const OfflinePage = () => {
@@ -66,15 +72,19 @@ const NotificationEditForm = ({
         e.preventDefault();
         onSubmit({ enable: enabled, cooldown: 3000, grace_period: grace });
       }}
-      className="flex flex-col gap-2"
+      className={`${ADMIN_FORM_SCROLL_CLASS} mt-4 space-y-4`}
     >
-      <label htmlFor="status">{t("common.status")}</label>
-      <Switch
-        id="status"
-        name="status"
-        checked={enabled}
-        onCheckedChange={setEnabled}
-      />
+      <div className={ADMIN_FORM_TOGGLE_CLASS}>
+        <label htmlFor="status" className="text-sm font-medium text-slate-900 dark:text-slate-100">
+          {t("common.status")}
+        </label>
+        <Switch
+          id="status"
+          name="status"
+          checked={enabled}
+          onCheckedChange={setEnabled}
+        />
+      </div>
       {/* <label htmlFor="cooldown">{t("notification.offline.cooldown")}</label>
       <TextField.Root
         type="number"
@@ -84,18 +94,20 @@ const NotificationEditForm = ({
         id="cooldown"
         name="cooldown"
       /> */}
-      <label htmlFor="grace_period" className="flex items-center gap-2">
-        {t("notification.offline.grace_period")}<Tips>{t("notification.offline.grace_period_tip")}</Tips>
-      </label>
-      <TextField.Root
-        type="number"
-        min={0}
-        value={grace}
-        onChange={(e) => setGrace(Number(e.target.value))}
-        id="grace_period"
-        name="grace_period"
-      />
-      <Flex gap="2" justify="end" className="mt-4">
+      <div className={ADMIN_FORM_FIELD_CLASS}>
+        <label htmlFor="grace_period" className="flex items-center gap-2 text-sm font-medium text-slate-900 dark:text-slate-100">
+          {t("notification.offline.grace_period")}<Tips>{t("notification.offline.grace_period_tip")}</Tips>
+        </label>
+        <TextField.Root
+          type="number"
+          min={0}
+          value={grace}
+          onChange={(e) => setGrace(Number(e.target.value))}
+          id="grace_period"
+          name="grace_period"
+        />
+      </div>
+      <Flex gap="2" justify="end" className="border-t border-slate-200/70 pt-4 dark:border-slate-800/70">
         {onCancel && (
           <Dialog.Close>
             <Button
@@ -189,11 +201,38 @@ const InnerLayout = () => {
   };
 
   if (onLoading || onNodeLoading) {
-    return <Loading text={t("loading", "Loading...")} />;
+    return (
+      <div className="flex flex-col gap-4 p-1 text-slate-900 dark:text-slate-100 md:p-4">
+        <Flex justify="between" align="center" wrap="wrap">
+          <label className="text-2xl font-semibold text-slate-900 dark:text-slate-100">
+            {t("notification.offline.full_title", "Offline Alerts Configuration")}
+          </label>
+          <TextField.Root
+            type="text"
+            className="max-w-64"
+            placeholder={t("common.search")}
+            disabled
+          >
+            <TextField.Slot>
+              <Search size={16} />
+            </TextField.Slot>
+          </TextField.Root>
+        </Flex>
+        <AdminTableSkeleton columns={6} rows={6} />
+        <label className="text-sm text-muted-foreground">
+          {t("common.selected", { count: 0 })}
+        </label>
+        <Flex gap="2" align="center">
+          <Button variant="soft" disabled>
+            {t("notification.offline.batch_edit")}
+          </Button>
+        </Flex>
+      </div>
+    );
   }
   if (onError || onNodeError) {
     return (
-      <div className="rounded-2xl border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive">
+      <div className="rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive">
         {(onError?.message || onNodeError) ??
           t("notification.offline.load_failed", {
             defaultValue: "Failed to load offline notification settings",
@@ -252,7 +291,7 @@ const InnerLayout = () => {
               {t("notification.offline.batch_edit")}
             </Button>
           </Dialog.Trigger>
-          <Dialog.Content>
+          <Dialog.Content className={ADMIN_FORM_DIALOG_CLASS} maxWidth={560}>
             <Dialog.Title>{t("notification.offline.batch_edit")}</Dialog.Title>
             <NotificationEditForm
               initialValues={batchForm}
@@ -288,7 +327,7 @@ const OfflineNotificationTable = ({
     .sort((a, b) => a.weight - b.weight)
     .filter((node) => node.name.toLowerCase().includes(search.toLowerCase()));
   return (
-    <div className="overflow-hidden rounded-xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-950/40">
+    <div className="overflow-hidden rounded-lg border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-950/40">
       <Table>
         <TableHeader>
           <TableRow>
@@ -412,7 +451,7 @@ const ActionButtons = ({
             <Pencil size={16} />
           </IconButton>
         </Dialog.Trigger>
-        <Dialog.Content>
+        <Dialog.Content className={ADMIN_FORM_DIALOG_CLASS} maxWidth={560}>
           <Dialog.Title>{t("common.edit")}</Dialog.Title>
           <NotificationEditForm
             initialValues={{

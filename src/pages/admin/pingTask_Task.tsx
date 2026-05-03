@@ -1,4 +1,11 @@
 import NodeSelectorDialog from "@/components/NodeSelectorDialog";
+import { AdminEmptyState } from "@/components/admin/AdminPageShell";
+import {
+  ADMIN_FORM_DIALOG_CLASS,
+  ADMIN_FORM_FIELD_CLASS,
+  ADMIN_FORM_GRID_2_CLASS,
+  ADMIN_FORM_SCROLL_CLASS,
+} from "@/components/admin/AdminFormStyles";
 import {
   Table,
   TableBody,
@@ -17,7 +24,7 @@ import {
   Select,
   TextField,
 } from "@/components/admin/admin-ui";
-import { MoreHorizontal, Pencil, Trash } from "lucide-react";
+import { Activity, MoreHorizontal, Pencil, Trash } from "lucide-react";
 import React from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
@@ -50,19 +57,36 @@ export const TaskView = ({ pingTasks }: { pingTasks: PingTask[] }) => {
         const aKey = (a as any).name ?? String(a.id ?? 0);
         const bKey = (b as any).name ?? String(b.id ?? 0);
         return aKey.localeCompare(bKey, undefined, { sensitivity: "base", numeric: true });
-});
+      });
   }, [pingTasks, nodeDetail]);
 
+  if (processedTasks.length === 0) {
+    return (
+      <AdminEmptyState
+        icon={<Activity size={18} />}
+        title={t("ping.empty_tasks_title", {
+          defaultValue: "暂无监测任务",
+        })}
+        description={t("ping.empty_tasks_description", {
+          defaultValue: "添加 ICMP、TCP 或 HTTP 任务后，会在这里按任务维度展示目标和绑定服务器。",
+        })}
+        className="m-4"
+      />
+    );
+  }
+
   return (
-    <div className="rounded-xl overflow-hidden">
+    <div className="overflow-hidden">
       <Table>
         <TableHeader>
-          <TableHead>{t("common.name")}</TableHead>
-          <TableHead>{t("common.server")}</TableHead>
-          <TableHead>{t("ping.target")}</TableHead>
-          <TableHead>{t("ping.type")}</TableHead>
-          <TableHead>{t("ping.interval")}</TableHead>
-          <TableHead>{t("common.action")}</TableHead>
+          <TableRow>
+            <TableHead>{t("common.name")}</TableHead>
+            <TableHead>{t("common.server")}</TableHead>
+            <TableHead>{t("ping.target")}</TableHead>
+            <TableHead>{t("ping.type")}</TableHead>
+            <TableHead>{t("ping.interval")}</TableHead>
+            <TableHead>{t("common.action")}</TableHead>
+          </TableRow>
         </TableHeader>
         <TableBody>
           {processedTasks.map((task) => (
@@ -206,10 +230,12 @@ const Row = ({
               <Pencil size="16" />
             </IconButton>
           </Dialog.Trigger>
-          <Dialog.Content>
+          <Dialog.Content className={ADMIN_FORM_DIALOG_CLASS} maxWidth={640}>
             <Dialog.Title>{t("common.edit")}</Dialog.Title>
-            <form onSubmit={handleEdit} className="flex flex-col gap-2">
-              <label>{t("common.name")}</label>
+            <form onSubmit={handleEdit} className={`${ADMIN_FORM_SCROLL_CLASS} mt-4 space-y-4`}>
+              <div className={ADMIN_FORM_GRID_2_CLASS}>
+              <label className={ADMIN_FORM_FIELD_CLASS}>
+                <span className="text-sm font-medium text-slate-900 dark:text-slate-100">{t("common.name")}</span>
               <TextField.Root
                 value={form.name}
                 onChange={(e) =>
@@ -217,7 +243,9 @@ const Row = ({
                 }
                 required
               />
-              <label>{t("ping.type")}</label>
+              </label>
+              <label className={ADMIN_FORM_FIELD_CLASS}>
+                <span className="text-sm font-medium text-slate-900 dark:text-slate-100">{t("ping.type")}</span>
               <Select.Root
                 value={form.type}
                 onValueChange={(v) =>
@@ -231,7 +259,10 @@ const Row = ({
                   <Select.Item value="http">HTTP</Select.Item>
                 </Select.Content>
               </Select.Root>
-              <label>{t("ping.target")}</label>
+              </label>
+              </div>
+              <label className={ADMIN_FORM_FIELD_CLASS}>
+                <span className="text-sm font-medium text-slate-900 dark:text-slate-100">{t("ping.target")}</span>
               <TextField.Root
                 value={form.target}
                 onChange={(e) =>
@@ -239,16 +270,20 @@ const Row = ({
                 }
                 required
               />
-              <label>{t("common.server")}</label>
+              </label>
+              <div className={ADMIN_FORM_FIELD_CLASS}>
+              <label className="text-sm font-medium text-slate-900 dark:text-slate-100">{t("common.server")}</label>
               <Flex>
                 <NodeSelectorDialog
                   value={form.clients}
                   onChange={(v) => setForm((f) => ({ ...f, clients: v }))}
                 />
               </Flex>
-              <label>
+              </div>
+              <label className={ADMIN_FORM_FIELD_CLASS}>
+                <span className="text-sm font-medium text-slate-900 dark:text-slate-100">
                 {t("ping.interval")} ({t("time.second")})
-              </label>
+                </span>
               <TextField.Root
                 type="number"
                 value={form.interval}
@@ -257,7 +292,8 @@ const Row = ({
                 }
                 required
               />
-              <Flex gap="2" justify="end" className="mt-4">
+              </label>
+              <Flex gap="2" justify="end" className="border-t border-slate-200/70 pt-4 dark:border-slate-800/70">
                 <Dialog.Close>
                   <Button
                     variant="soft"
@@ -282,9 +318,9 @@ const Row = ({
               <Trash size="16" />
             </IconButton>
           </Dialog.Trigger>
-          <Dialog.Content>
+          <Dialog.Content className={ADMIN_FORM_DIALOG_CLASS} maxWidth={480}>
             <Dialog.Title>{t("common.delete")}</Dialog.Title>
-            <Flex gap="2" justify="end" className="mt-4">
+            <Flex gap="2" justify="end" className="border-t border-slate-200/70 pt-4 dark:border-slate-800/70">
               <Dialog.Close>
                 <Button
                   variant="soft"

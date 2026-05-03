@@ -1,6 +1,6 @@
 import { useTranslation } from "react-i18next";
 import { updateSettingsWithToast, useSettings } from "@/lib/api";
-import Loading from "@/components/loading";
+import { AdminSettingsSkeleton } from "@/components/admin/AdminPageShell";
 import {
   SettingCardLabel,
   SettingCardShortTextInput,
@@ -11,7 +11,7 @@ import { useAccount } from "@/contexts/AccountContext";
 import { PlatformAdminNotice } from "@/components/admin/PlatformAdminNotice";
 const GeneralNotification = () => {
   return (
-    <div className="flex flex-col gap-2 p-0 md:pt-1">
+    <div className="flex flex-col gap-4 p-0">
       <Inner />
     </div>
   );
@@ -25,7 +25,7 @@ const Inner = () => {
   });
 
   if (accountLoading || loading) {
-    return <Loading />;
+    return <AdminSettingsSkeleton sections={4} />;
   }
 
   if (!platformAdmin) {

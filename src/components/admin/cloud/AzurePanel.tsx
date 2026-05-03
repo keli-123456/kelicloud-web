@@ -2,452 +2,83 @@ import React from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import {
-  CheckCircle2,
-  Eye,
-  KeyRound,
   Plus,
-  Power,
-  PowerOff,
   RefreshCw,
-  RotateCcw,
-  Terminal,
-  Trash2,
 } from "lucide-react";
 
-import { AdminPageShell } from "@/components/admin/AdminPageShell";
+import {
+  AdminCardGridSkeleton,
+  AdminPageShell,
+  AdminTableSkeleton,
+} from "@/components/admin/AdminPageShell";
+import {
+  AzureCredentialImportDialog,
+  AzureCredentialGroupDialog,
+  AzureCredentialSecretDialog,
+  AzureSavedPasswordDialog,
+} from "@/components/admin/cloud/AzureCredentialDialogs";
+import { AzureCredentialsSection } from "@/components/admin/cloud/AzureCredentialsSection";
+import { AzureCreateDialog } from "@/components/admin/cloud/AzureCreateDialog";
+import { AzureInstanceDetailDialog } from "@/components/admin/cloud/AzureInstanceDetailDialog";
+import { AzureInstancesSection } from "@/components/admin/cloud/AzureInstancesSection";
+import { CloudOnboardingPanel } from "@/components/admin/cloud/CloudOnboardingPanel";
 import CloudInstanceScriptDialog, { type CloudInstanceScriptTarget } from "@/components/admin/cloud/CloudInstanceScriptDialog";
 import {
-  Badge,
   Button,
-  Checkbox,
-  CloudCopyBlock,
-  CloudDetailItem,
-  cloudDialogContentClassName,
-  cloudDialogWideContentClassName,
-  cloudDetailListClassName,
-  cloudDetailListItemClassName,
-  cloudDetailSectionClassName,
-  cloudLongTextClassName,
-  cloudPanelBodyTextClassName,
-  cloudPanelCardClassName,
-  cloudPanelDescriptionClassName,
-  cloudPanelFieldLabelClassName,
-  cloudPanelHeaderClassName,
-  cloudPanelTitleClassName,
-  Dialog,
-  Flex,
-  Select,
-  TextArea,
-  TextField,
 } from "@/components/admin/cloud/cloud-ui";
-import Loading from "@/components/loading";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { WarningAlert } from "@/components/ui/warning-alert";
 import { useWarningDialog } from "@/components/ui/warning-dialog";
 import {
-  checkAzureCredentials,
-  createAzureInstance,
-  deleteAzureCredential,
-  deleteAzureInstance,
-  getAzureAccount,
-  getAzureCatalog,
-  getAzureCredentialSecret,
-  getAzureCredentials,
-  getAzureInstanceDetail,
-  getAzureInstancePassword,
-  listAzureInstances,
-  postAzureInstanceAction,
+  buildScriptTarget,
+  getActiveCredential,
+  toErrorMessage,
+} from "./azurePanelUtils";
+import {
   saveAzureCredentials,
-  setAzureActiveCredential,
-  setAzureActiveLocation,
-  type AzureAccount,
-  type AzureCatalog,
-  type AzureCredentialInput,
-  type AzureCredentialPool,
   type AzureCredentialRecord,
-  type AzureCredentialSecret,
-  type AzureImageReference,
-  type AzureInstance,
-  type AzureInstanceDetail,
-  type AzureInstancePassword,
-  type AzureVMSku,
-  type CreateAzureInstanceInput,
 } from "@/lib/cloudAzure";
-import { getCloudStatusLabel } from "@/lib/cloudStatus";
-
-type CredentialSecretState = {
-  secret: AzureCredentialSecret;
-};
-
-type SavedPasswordState = {
-  instance: AzureInstance;
-  credential: AzureInstancePassword;
-};
-
-type AzureImagePreset = AzureImageReference & {
-  id: string;
-  label: string;
-};
-
-type AzureCreateFormState = Omit<CreateAzureInstanceInput, "image"> & {
-  image_preset: string;
-  image_publisher: string;
-  image_offer: string;
-  image_sku: string;
-  image_version: string;
-  auth_mode: "password" | "ssh";
-};
-
-const azureImagePresets: AzureImagePreset[] = [
-  {
-    id: "ubuntu-2404",
-    label: "Ubuntu Server 24.04 LTS",
-    publisher: "Canonical",
-    offer: "ubuntu-24_04-lts",
-    sku: "server",
-    version: "latest",
-  },
-  {
-    id: "ubuntu-2204",
-    label: "Ubuntu Server 22.04 LTS",
-    publisher: "Canonical",
-    offer: "0001-com-ubuntu-server-jammy",
-    sku: "22_04-lts-gen2",
-    version: "latest",
-  },
-  {
-    id: "debian-12",
-    label: "Debian 12",
-    publisher: "Debian",
-    offer: "debian-12",
-    sku: "12",
-    version: "latest",
-  },
-  {
-    id: "rocky-9",
-    label: "Rocky Linux 9",
-    publisher: "erockyenterprisesoftwarefoundationinc1653071250513",
-    offer: "rockylinux-9",
-    sku: "9-gen2",
-    version: "latest",
-  },
-  {
-    id: "almalinux-9",
-    label: "AlmaLinux 9",
-    publisher: "almalinux",
-    offer: "almalinux-x86_64",
-    sku: "9-gen2",
-    version: "latest",
-  },
-];
-
-const initialAzureImagePreset = azureImagePresets[0];
-
-const initialCreateForm: AzureCreateFormState = {
-  name: "",
-  resource_group: "",
-  size: "",
-  admin_username: "azureuser",
-  admin_password: "",
-  ssh_public_key: "",
-  user_data: "",
-  public_ip: true,
-  assign_ipv6: true,
-  auto_connect: true,
-  auto_connect_group: "",
-  image_preset: initialAzureImagePreset.id,
-  image_publisher: initialAzureImagePreset.publisher,
-  image_offer: initialAzureImagePreset.offer,
-  image_sku: initialAzureImagePreset.sku,
-  image_version: initialAzureImagePreset.version || "latest",
-  auth_mode: "password",
-};
-
-function toErrorMessage(error: unknown) {
-  if (error instanceof Error) return error.message;
-  return "Unknown error";
-}
-
-function hasActiveCredential(pool: AzureCredentialPool | null) {
-  return Boolean(pool?.active_credential_id);
-}
-
-function getActiveCredential(pool: AzureCredentialPool | null) {
-  return pool?.credentials.find((credential) => credential.id === pool.active_credential_id) || null;
-}
-
-function normalizeLocation(location: string) {
-  return location.trim().toLowerCase();
-}
-
-function toOptionalString(value: unknown): string {
-  if (value === undefined || value === null) return "";
-  return String(value).trim();
-}
-
-function looksLikeGuid(value: string) {
-  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value.trim());
-}
-
-function buildDefaultAzureCredentialName(clientId: string) {
-  const normalized = clientId.trim();
-  const suffix = normalized.slice(-6).toLowerCase() || "default";
-  return `azure-${suffix}`;
-}
-
-function findImportSeparator(line: string) {
-  for (const separator of ["|", ",", "\t"]) {
-    if (line.includes(separator)) {
-      return separator;
-    }
-  }
-  return "";
-}
-
-function normalizeImportCredentialRecord(
-  record: Record<string, unknown>,
-): AzureCredentialInput | null {
-  const tenantId = toOptionalString(record.tenant_id || record.tenantId || record.tenant);
-  const clientId = toOptionalString(record.client_id || record.clientId || record.appId || record.app_id);
-  const clientSecret = toOptionalString(record.client_secret || record.clientSecret || record.password);
-  const subscriptionId = toOptionalString(record.subscription_id || record.subscriptionId);
-  if (!tenantId || !clientId || !clientSecret || !subscriptionId) return null;
-
-  const name = toOptionalString(record.name || record.login_user || record.loginUser)
-    || buildDefaultAzureCredentialName(clientId);
-  const defaultLocation = normalizeLocation(
-    toOptionalString(record.default_location || record.defaultLocation || record.location),
-  );
-
-  return {
-    name,
-    tenant_id: tenantId,
-    client_id: clientId,
-    client_secret: clientSecret,
-    subscription_id: subscriptionId,
-    default_location: defaultLocation,
-  };
-}
-
-function parseCredentialImports(text: string): AzureCredentialInput[] {
-  const credentials: AzureCredentialInput[] = [];
-  const seen = new Set<string>();
-
-  const pushCredential = (credential: AzureCredentialInput | null) => {
-    if (!credential) return;
-    const key = `${credential.tenant_id}|${credential.client_id}|${credential.subscription_id}`;
-    if (seen.has(key)) return;
-    seen.add(key);
-    credentials.push(credential);
-  };
-
-  const trimmedText = text.trim();
-  if (trimmedText) {
-    const startsWithJSON = trimmedText.startsWith("{") || trimmedText.startsWith("[");
-    if (startsWithJSON) {
-      try {
-        const parsed = JSON.parse(trimmedText);
-        if (Array.isArray(parsed)) {
-          for (const item of parsed) {
-            if (item && typeof item === "object") {
-              pushCredential(normalizeImportCredentialRecord(item as Record<string, unknown>));
-            }
-          }
-          if (credentials.length > 0) return credentials;
-        } else if (parsed && typeof parsed === "object") {
-          pushCredential(normalizeImportCredentialRecord(parsed as Record<string, unknown>));
-          if (credentials.length > 0) return credentials;
-        }
-      } catch {
-        // fallback to line-based parser
-      }
-    }
-  }
-
-  const lines = text.split(/\r?\n/);
-  for (const rawLine of lines) {
-    const line = rawLine.trim();
-    if (!line || line.startsWith("#")) continue;
-
-    if (line.startsWith("{") && line.endsWith("}")) {
-      try {
-        const parsedLine = JSON.parse(line);
-        if (parsedLine && typeof parsedLine === "object") {
-          pushCredential(normalizeImportCredentialRecord(parsedLine as Record<string, unknown>));
-          continue;
-        }
-      } catch {
-        // continue with delimited parser
-      }
-    }
-
-    const separator = findImportSeparator(line);
-    if (!separator) continue;
-
-    const parts = line.split(separator).map((part) => part.trim());
-    if (parts.length < 4) continue;
-
-    let name = "";
-    let tenantId = "";
-    let clientId = "";
-    let clientSecret = "";
-    let subscriptionId = "";
-    let defaultLocation = "";
-
-    if (parts.length >= 6) {
-      [name, tenantId, clientId, clientSecret, subscriptionId, defaultLocation] = parts;
-    } else if (parts.length === 5) {
-      if (looksLikeGuid(parts[0]) && looksLikeGuid(parts[1])) {
-        [tenantId, clientId, clientSecret, subscriptionId, defaultLocation] = parts;
-      } else {
-        [name, tenantId, clientId, clientSecret, subscriptionId] = parts;
-      }
-    } else {
-      [tenantId, clientId, clientSecret, subscriptionId] = parts;
-    }
-
-    pushCredential({
-      name: name || buildDefaultAzureCredentialName(clientId),
-      tenant_id: tenantId,
-      client_id: clientId,
-      client_secret: clientSecret,
-      subscription_id: subscriptionId,
-      default_location: normalizeLocation(defaultLocation || ""),
-    });
-  }
-
-  return credentials;
-}
-
-function getCredentialStatusColor(status: string) {
-  switch (status) {
-    case "healthy":
-      return "green";
-    case "error":
-      return "red";
-    default:
-      return "gray";
-  }
-}
-
-function getInstanceStateColor(instance: AzureInstance) {
-  const value = (instance.power_state || instance.provisioning_state).trim().toLowerCase();
-  if (value === "running") return "green";
-  if (value === "deallocated" || value === "stopped") return "amber";
-  if (value === "succeeded") return "blue";
-  if (value.includes("fail")) return "red";
-  return "gray";
-}
-
-function formatDateTime(value: string) {
-  if (!value) return "-";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return value;
-  return date.toLocaleString();
-}
-
-function formatList(values: string[]) {
-  return values.length ? values.join(", ") : "-";
-}
-
-function getLocationLabel(catalog: AzureCatalog | null, location: string) {
-  const normalized = normalizeLocation(location);
-  const match = catalog?.locations.find((item) => normalizeLocation(item.name) === normalized) || null;
-  if (!match) return normalized || "-";
-  return match.regionalDisplayName || match.displayName || match.name;
-}
-
-function getInstanceAddresses(instance: AzureInstance) {
-  return Array.from(new Set([...instance.public_ips, ...instance.private_ips].filter(Boolean)));
-}
-
-function getDefaultGroupHint(credentialName: string) {
-  const normalized = credentialName.trim() || "default";
-  return `azure/${normalized}`;
-}
-
-function buildCreateFormFromPreset(presetId: string, previous?: AzureCreateFormState): AzureCreateFormState {
-  const preset = azureImagePresets.find((item) => item.id === presetId) || initialAzureImagePreset;
-  return {
-    ...(previous || initialCreateForm),
-    image_preset: preset.id,
-    image_publisher: preset.publisher,
-    image_offer: preset.offer,
-    image_sku: preset.sku,
-    image_version: preset.version || "latest",
-  };
-}
-
-function formatAzureSizeOption(size: AzureVMSku) {
-  const parts = [size.name];
-  if (size.vcpus > 0) parts.push(`${size.vcpus} vCPU`);
-  if (size.memory_gb > 0) parts.push(`${size.memory_gb.toFixed(1)} GB`);
-  return parts.join(" / ");
-}
-
-function getDefaultAzureSize(catalog: AzureCatalog | null) {
-  const preferred = ["Standard_B1s", "Standard_B2s", "Standard_D2s_v5"];
-  for (const name of preferred) {
-    const match = catalog?.sizes.find((item) => item.name === name);
-    if (match) return match.name;
-  }
-  return catalog?.sizes[0]?.name || "";
-}
-
-function buildScriptTarget(
-  t: ReturnType<typeof useTranslation>["t"],
-  instance: AzureInstance,
-  credentialName: string,
-): CloudInstanceScriptTarget {
-  return {
-    providerLabel: t("cloud.providers.azure.title", "Azure"),
-    instanceName: instance.name,
-    instanceIdentifier: instance.resource_id || instance.instance_id,
-    addresses: getInstanceAddresses(instance),
-    groupHint: getDefaultGroupHint(credentialName),
-  };
-}
+import { useAzureCreateInstance } from "./useAzureCreateInstance";
+import { useAzureCredentialActivation } from "./useAzureCredentialActivation";
+import { useAzureCredentialDeletion } from "./useAzureCredentialDeletion";
+import { useAzureCredentialHealth } from "./useAzureCredentialHealth";
+import { useAzureCredentialImport } from "./useAzureCredentialImport";
+import { useAzureCredentialSecret } from "./useAzureCredentialSecret";
+import { useAzureInstanceActions } from "./useAzureInstanceActions";
+import { useAzureInstancePasswords } from "./useAzureInstancePasswords";
+import { useAzureLocationSelection } from "./useAzureLocationSelection";
+import { useAzurePanelResources } from "./useAzurePanelResources";
 
 export default function AzurePanel() {
   const { t } = useTranslation();
   const { confirm, dialog: warningDialog } = useWarningDialog();
 
-  const [loading, setLoading] = React.useState(true);
-  const [resourceLoading, setResourceLoading] = React.useState(false);
-  const [loadError, setLoadError] = React.useState("");
-  const [credentialPool, setCredentialPool] = React.useState<AzureCredentialPool | null>(null);
-  const [account, setAccount] = React.useState<AzureAccount | null>(null);
-  const [catalog, setCatalog] = React.useState<AzureCatalog | null>(null);
-  const [instances, setInstances] = React.useState<AzureInstance[]>([]);
-  const [credentialImportOpen, setCredentialImportOpen] = React.useState(false);
-  const [credentialImportText, setCredentialImportText] = React.useState("");
-  const [savingCredentials, setSavingCredentials] = React.useState(false);
-  const [checkingCredentialsState, setCheckingCredentialsState] = React.useState(false);
-  const [locationUpdating, setLocationUpdating] = React.useState(false);
-  const [createOpen, setCreateOpen] = React.useState(false);
-  const [createSubmitting, setCreateSubmitting] = React.useState(false);
-  const [createForm, setCreateForm] = React.useState<AzureCreateFormState>(() => ({ ...initialCreateForm }));
-  const [workingInstanceId, setWorkingInstanceId] = React.useState<string | null>(null);
-  const [credentialSecret, setCredentialSecret] = React.useState<CredentialSecretState | null>(null);
-  const [savedPassword, setSavedPassword] = React.useState<SavedPasswordState | null>(null);
-  const [passwordLoading, setPasswordLoading] = React.useState(false);
-  const [detailInstance, setDetailInstance] = React.useState<AzureInstance | null>(null);
-  const [detailData, setDetailData] = React.useState<AzureInstanceDetail | null>(null);
-  const [detailLoading, setDetailLoading] = React.useState(false);
+  const {
+    loading,
+    resourceLoading,
+    loadError,
+    credentialPool,
+    setCredentialPool,
+    account,
+    setAccount,
+    catalog,
+    setCatalog,
+    instances,
+    loadResources,
+    loadAll,
+    clearResourceData,
+  } = useAzurePanelResources();
   const [scriptTarget, setScriptTarget] = React.useState<CloudInstanceScriptTarget | null>(null);
+  const [credentialGroupEditorCredential, setCredentialGroupEditorCredential] = React.useState<AzureCredentialRecord | null>(null);
+  const [credentialGroupEditorValue, setCredentialGroupEditorValue] = React.useState("");
+  const [credentialGroupSaving, setCredentialGroupSaving] = React.useState(false);
   const passwordStorageEnabled = Boolean(credentialPool?.password_storage_enabled);
 
   const activeCredential = React.useMemo(
     () => getActiveCredential(credentialPool),
     [credentialPool],
   );
+  const credentialCount = credentialPool?.credentials.length || 0;
+  const showOnboardingPanel = !activeCredential || instances.length === 0;
 
   const stats = React.useMemo(() => {
     const runningCount = instances.filter((instance) => instance.power_state.trim().toLowerCase() === "running").length;
@@ -476,338 +107,161 @@ export default function AzurePanel() {
     ];
   }, [credentialPool, instances, t]);
 
-  const loadResources = React.useCallback(async () => {
-    if (!hasActiveCredential(credentialPool)) {
-      setAccount(null);
-      setCatalog(null);
-      setInstances([]);
-      return;
-    }
-
-    setResourceLoading(true);
-    try {
-      const [nextAccount, nextCatalog, nextInstances] = await Promise.all([
-        getAzureAccount(),
-        getAzureCatalog(),
-        listAzureInstances(),
-      ]);
-      setAccount(nextAccount);
-      setCatalog(nextCatalog);
-      setInstances(nextInstances);
-      setLoadError("");
-    } catch (error) {
-      setLoadError(toErrorMessage(error));
-      setAccount(null);
-      setCatalog(null);
-      setInstances([]);
-    } finally {
-      setResourceLoading(false);
-    }
-  }, [credentialPool]);
-
-  const loadAll = React.useCallback(async () => {
-    setLoading(true);
-    try {
-      const nextPool = await getAzureCredentials();
-      setCredentialPool(nextPool);
-      setLoadError("");
-      if (!hasActiveCredential(nextPool)) {
-        setAccount(null);
-        setCatalog(null);
-        setInstances([]);
-        return;
-      }
-
-      const [nextAccount, nextCatalog, nextInstances] = await Promise.all([
-        getAzureAccount(),
-        getAzureCatalog(),
-        listAzureInstances(),
-      ]);
-      setAccount(nextAccount);
-      setCatalog(nextCatalog);
-      setInstances(nextInstances);
-    } catch (error) {
-      setLoadError(toErrorMessage(error));
-      setCredentialPool(null);
-      setAccount(null);
-      setCatalog(null);
-      setInstances([]);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
   React.useEffect(() => {
     void loadAll();
   }, [loadAll]);
-
-  React.useEffect(() => {
-    if (!catalog?.sizes.length) return;
-    setCreateForm((previous) => {
-      if (previous.size && catalog.sizes.some((item) => item.name === previous.size)) {
-        return previous;
-      }
-      return {
-        ...previous,
-        size: getDefaultAzureSize(catalog),
-      };
-    });
-  }, [catalog]);
 
   const handleCopy = React.useCallback(async (text: string, successMessage: string) => {
     await navigator.clipboard.writeText(text);
     toast.success(successMessage);
   }, []);
 
-  const handleImportCredentials = async () => {
-    const credentials = parseCredentialImports(credentialImportText);
-    if (!credentials.length) {
-      toast.error(t("cloud.providers.azure.import_empty", "No valid Azure credentials found"));
+  const {
+    credentialImportOpen,
+    setCredentialImportOpen,
+    credentialImportText,
+    setCredentialImportText,
+    credentialImportGroup,
+    setCredentialImportGroup,
+    savingCredentials,
+    handleImportCredentials,
+  } = useAzureCredentialImport({
+    t,
+    setCredentialPool,
+    loadAll,
+    clearResourceData,
+  });
+  const {
+    checkingCredentialsState,
+    handleCheckCredentials,
+  } = useAzureCredentialHealth({
+    t,
+    setCredentialPool,
+    loadResources,
+  });
+  const {
+    handleSelectCredential,
+  } = useAzureCredentialActivation({
+    setCredentialPool,
+    loadAll,
+  });
+  const {
+    handleDeleteCredential,
+  } = useAzureCredentialDeletion({
+    t,
+    confirm,
+    setCredentialPool,
+    loadAll,
+    clearResourceData,
+  });
+  const {
+    credentialSecret,
+    setCredentialSecret,
+    handleViewCredential,
+  } = useAzureCredentialSecret();
+  const {
+    locationUpdating,
+    handleSetLocation,
+  } = useAzureLocationSelection({
+    t,
+    setCredentialPool,
+    setCatalog,
+    setAccount,
+  });
+  const {
+    workingInstanceId,
+    detailInstance,
+    setDetailInstance,
+    detailData,
+    setDetailData,
+    detailLoading,
+    handleOpenDetail,
+    handleInstanceAction,
+    handleReplaceInstanceIP,
+    handleDeleteInstance,
+  } = useAzureInstanceActions({
+    t,
+    confirm,
+    loadResources,
+  });
+  const {
+    createOpen,
+    setCreateOpen,
+    createSubmitting,
+    createForm,
+    setCreateForm,
+    handleCreateInstance,
+  } = useAzureCreateInstance({
+    t,
+    catalog,
+    setDetailInstance,
+    setDetailData,
+    loadResources,
+  });
+  const {
+    savedPassword,
+    setSavedPassword,
+    passwordLoading,
+    handleViewPassword,
+  } = useAzureInstancePasswords();
+
+  const openCredentialGroupEditor = React.useCallback((credential: AzureCredentialRecord) => {
+    setCredentialGroupEditorCredential(credential);
+    setCredentialGroupEditorValue(credential.group || "");
+  }, []);
+
+  const handleSaveCredentialGroup = React.useCallback(async () => {
+    if (!credentialGroupEditorCredential || !credentialPool) {
       return;
     }
 
-    setSavingCredentials(true);
+    setCredentialGroupSaving(true);
     try {
-      const nextPool = await saveAzureCredentials({ credentials });
-      setCredentialPool(nextPool);
-      setCredentialImportText("");
-      setCredentialImportOpen(false);
-      toast.success(
-        t("cloud.providers.azure.import_success", {
-          count: credentials.length,
-          defaultValue: `Imported ${credentials.length} Azure credentials`,
-        }),
-      );
-      if (hasActiveCredential(nextPool)) {
-        await loadAll();
-      } else {
-        setAccount(null);
-        setCatalog(null);
-        setInstances([]);
-      }
-    } catch (error) {
-      toast.error(toErrorMessage(error));
-    } finally {
-      setSavingCredentials(false);
-    }
-  };
-
-  const handleCheckCredentials = async () => {
-    setCheckingCredentialsState(true);
-    try {
-      const nextPool = await checkAzureCredentials();
-      setCredentialPool(nextPool);
-      toast.success(t("cloud.providers.azure.check_success", "Azure credentials checked"));
-      if (hasActiveCredential(nextPool)) {
-        await loadResources();
-      }
-    } catch (error) {
-      toast.error(toErrorMessage(error));
-    } finally {
-      setCheckingCredentialsState(false);
-    }
-  };
-
-  const handleSelectCredential = async (credential: AzureCredentialRecord) => {
-    try {
-      const nextPool = await setAzureActiveCredential(credential.id);
-      setCredentialPool(nextPool);
-      await loadAll();
-    } catch (error) {
-      toast.error(toErrorMessage(error));
-    }
-  };
-
-  const handleSetLocation = async (location: string) => {
-    setLocationUpdating(true);
-    try {
-      const nextPool = await setAzureActiveLocation(location);
-      const nextCatalog = await getAzureCatalog();
-      setCredentialPool(nextPool);
-      setCatalog(nextCatalog);
-      setAccount((current) => current
-        ? { ...current, active_location: normalizeLocation(location) }
-        : current);
-      toast.success(t("cloud.providers.azure.location_updated", "Active Azure location updated"));
-    } catch (error) {
-      toast.error(toErrorMessage(error));
-    } finally {
-      setLocationUpdating(false);
-    }
-  };
-
-  const handleCreateInstance = async () => {
-    setCreateSubmitting(true);
-    try {
-      const result = await createAzureInstance({
-        name: createForm.name || "",
-        resource_group: createForm.resource_group || "",
-        size: createForm.size,
-        admin_username: createForm.admin_username || "azureuser",
-        admin_password: createForm.auth_mode === "password" ? createForm.admin_password || "" : "",
-        ssh_public_key: createForm.auth_mode === "ssh" ? createForm.ssh_public_key || "" : "",
-        user_data: createForm.user_data || "",
-        public_ip: createForm.public_ip,
-        assign_ipv6: createForm.assign_ipv6,
-        auto_connect: true,
-        image: {
-          publisher: createForm.image_publisher,
-          offer: createForm.image_offer,
-          sku: createForm.image_sku,
-          version: createForm.image_version || "latest",
-        },
+      const nextPool = await saveAzureCredentials({
+        credentials: [{
+          id: credentialGroupEditorCredential.id,
+          name: credentialGroupEditorCredential.name,
+          group: credentialGroupEditorValue.trim(),
+          tenant_id: "",
+          client_id: "",
+          client_secret: "",
+          subscription_id: "",
+          default_location: credentialGroupEditorCredential.default_location,
+        }],
+        active_credential_id: credentialPool.active_credential_id || undefined,
+        active_location: credentialPool.active_location || undefined,
       });
-      toast.success(t("cloud.providers.azure.create_success", "Azure VM created"));
-      if (result.password_save_error) {
-        toast.error(result.password_save_error);
-      }
-      setCreateOpen(false);
-      setCreateForm({
-        ...buildCreateFormFromPreset(initialAzureImagePreset.id),
-        size: getDefaultAzureSize(catalog),
-      });
-      setDetailInstance(result.detail.instance);
-      setDetailData(result.detail);
-      await loadResources();
-    } catch (error) {
-      toast.error(toErrorMessage(error));
-    } finally {
-      setCreateSubmitting(false);
-    }
-  };
-
-  const handleDeleteCredential = async (credential: AzureCredentialRecord) => {
-    const confirmed = await confirm({
-      title: t("cloud.providers.azure.delete_credential", "Delete Credential"),
-      description: t("cloud.providers.azure.delete_credential_confirm", {
-        name: credential.name,
-        defaultValue: `Delete Azure credential "${credential.name}"?`,
-      }),
-      confirmLabel: t("cloud.providers.azure.delete_credential", "Delete Credential"),
-      tone: "destructive",
-    });
-    if (!confirmed) return;
-
-    try {
-      const nextPool = await deleteAzureCredential(credential.id);
       setCredentialPool(nextPool);
-      toast.success(t("cloud.providers.azure.delete_credential_success", "Azure credential deleted"));
-      if (hasActiveCredential(nextPool)) {
-        await loadAll();
-      } else {
-        setAccount(null);
-        setCatalog(null);
-        setInstances([]);
-      }
-    } catch (error) {
-      toast.error(toErrorMessage(error));
-    }
-  };
-
-  const handleViewCredential = async (credential: AzureCredentialRecord) => {
-    try {
-      const secret = await getAzureCredentialSecret(credential.id);
-      setCredentialSecret({ secret });
-    } catch (error) {
-      toast.error(toErrorMessage(error));
-    }
-  };
-
-  const handleViewPassword = async (instance: AzureInstance) => {
-    setPasswordLoading(true);
-    try {
-      const credential = await getAzureInstancePassword(instance.instance_id);
-      setSavedPassword({ instance, credential });
+      setCredentialGroupEditorCredential(null);
+      setCredentialGroupEditorValue("");
+      toast.success(t("cloud.tokens.group_save_success", "Token group updated"));
     } catch (error) {
       toast.error(toErrorMessage(error));
     } finally {
-      setPasswordLoading(false);
+      setCredentialGroupSaving(false);
     }
-  };
-
-  const handleOpenDetail = async (instance: AzureInstance) => {
-    setDetailInstance(instance);
-    setDetailLoading(true);
-    try {
-      const detail = await getAzureInstanceDetail(instance.instance_id);
-      setDetailData(detail);
-    } catch (error) {
-      toast.error(toErrorMessage(error));
-      setDetailData(null);
-    } finally {
-      setDetailLoading(false);
-    }
-  };
-
-  const handleInstanceAction = async (
-    instance: AzureInstance,
-    type: "start" | "deallocate" | "restart" | "replace_public_ip",
-  ) => {
-    setWorkingInstanceId(instance.instance_id);
-    try {
-      await postAzureInstanceAction(instance.instance_id, type);
-      toast.success(
-        t(`cloud.providers.azure.action_${type}_success`, {
-          defaultValue: `Azure VM ${type} request submitted`,
-        }),
-      );
-      await loadResources();
-      if (detailInstance?.instance_id === instance.instance_id) {
-        await handleOpenDetail(instance);
-      }
-    } catch (error) {
-      toast.error(toErrorMessage(error));
-    } finally {
-      setWorkingInstanceId(null);
-    }
-  };
-
-  const handleReplaceInstanceIP = async (instance: AzureInstance) => {
-    const current = instance.public_ips[0] || "-";
-    const confirmed = await confirm({
-      title: t("cloud.providers.azure.replace_ip", "Replace IP"),
-      description: t("cloud.providers.azure.replace_ip_confirm", {
-        name: instance.name || instance.instance_id,
-        current,
-        defaultValue: `Allocate a new public IP for "${instance.name || instance.instance_id}" and release the old IP ${current}?`,
-      }),
-      confirmLabel: t("cloud.providers.azure.replace_ip", "Replace IP"),
-      tone: "warning",
-    });
-    if (!confirmed) return;
-    await handleInstanceAction(instance, "replace_public_ip");
-  };
-
-  const handleDeleteInstance = async (instance: AzureInstance) => {
-    const confirmed = await confirm({
-      title: t("cloud.providers.azure.delete_instance", "Delete VM"),
-      description: t("cloud.providers.azure.delete_instance_confirm", {
-        name: instance.name,
-        defaultValue: `Delete Azure VM "${instance.name}"? This action cannot be undone.`,
-      }),
-      confirmLabel: t("cloud.providers.azure.delete_instance", "Delete VM"),
-      tone: "destructive",
-    });
-    if (!confirmed) return;
-
-    setWorkingInstanceId(instance.instance_id);
-    try {
-      await deleteAzureInstance(instance.instance_id);
-      toast.success(t("cloud.providers.azure.delete_instance_success", "Azure VM delete request submitted"));
-      if (detailInstance?.instance_id === instance.instance_id) {
-        setDetailInstance(null);
-        setDetailData(null);
-      }
-      await loadResources();
-    } catch (error) {
-      toast.error(toErrorMessage(error));
-    } finally {
-      setWorkingInstanceId(null);
-    }
-  };
+  }, [
+    credentialGroupEditorCredential,
+    credentialGroupEditorValue,
+    credentialPool,
+    setCredentialPool,
+    t,
+  ]);
 
   if (loading) {
-    return <Loading />;
+    return (
+      <AdminPageShell
+        eyebrow={t("cloud.title", "Cloud")}
+        title={t("cloud.providers.azure.title", "Azure")}
+        description={t(
+          "cloud.providers.azure.description",
+          "Manage multiple Azure service principal credentials, inspect the active subscription, and operate virtual machines from one panel.",
+        )}
+      >
+        <AdminCardGridSkeleton cards={4} />
+        <AdminTableSkeleton columns={6} rows={5} />
+      </AdminPageShell>
+    );
   }
 
   return (
@@ -846,839 +300,150 @@ export default function AzurePanel() {
           />
         ) : null}
 
-        <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)]">
-          <section className={cloudPanelCardClassName}>
-            <div className={cloudPanelHeaderClassName}>
-              <Flex justify="between" align="center" wrap="wrap" gap="2">
-                <div>
-                  <div className={cloudPanelTitleClassName}>
-                    {t("cloud.providers.azure.credentials", "Credentials")}
-                  </div>
-                  <div className={cloudPanelDescriptionClassName}>
-                    {t(
-                      "cloud.providers.azure.credentials_description",
-                      "Save multiple Azure app credentials, choose the active subscription, and bulk-check whether they can still call the Azure Resource Manager API.",
-                    )}
-                  </div>
-                </div>
-                <Button
-                  variant="outline"
-                  onClick={() => void handleCheckCredentials()}
-                  disabled={!credentialPool?.credentials.length || checkingCredentialsState}
-                >
-                  <CheckCircle2 className={`mr-2 h-4 w-4${checkingCredentialsState ? " animate-spin" : ""}`} />
-                  {t("cloud.providers.azure.check", "Check")}
-                </Button>
-              </Flex>
-            </div>
-            <div className="p-5">
-              {!credentialPool?.credentials.length ? (
-                <div className={cloudPanelBodyTextClassName}>
-                  {t("cloud.providers.azure.credentials_empty", "No Azure credentials saved yet")}
-                </div>
-              ) : (
-                <div className="overflow-x-auto">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>{t("cloud.table.name", "Name")}</TableHead>
-                        <TableHead>{t("cloud.providers.azure.subscription", "Subscription")}</TableHead>
-                        <TableHead>{t("cloud.table.region", "Region")}</TableHead>
-                        <TableHead>{t("cloud.table.status", "Status")}</TableHead>
-                        <TableHead>{t("cloud.providers.azure.checked_at", "Last Checked")}</TableHead>
-                        <TableHead>{t("common.actions", "Actions")}</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {credentialPool.credentials.map((credential) => (
-                        <TableRow key={credential.id}>
-                          <TableCell className="align-top">
-                            <div className={`font-medium ${cloudLongTextClassName}`}>
-                              {credential.name}
-                            </div>
-                            <div className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-                              {credential.masked_client_id || "-"}
-                            </div>
-                          </TableCell>
-                          <TableCell className="align-top">
-                            <div className={cloudLongTextClassName}>
-                              {credential.subscription_display_name || credential.subscription_id || "-"}
-                            </div>
-                            {credential.subscription_display_name && credential.subscription_id ? (
-                              <div className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-                                {credential.subscription_id}
-                              </div>
-                            ) : null}
-                          </TableCell>
-                          <TableCell className="align-top">
-                            {getLocationLabel(catalog, credential.default_location)}
-                          </TableCell>
-                          <TableCell className="align-top">
-                            <div className="space-y-2">
-                              <Badge color={getCredentialStatusColor(credential.last_status)}>
-                                {getCloudStatusLabel(credential.last_status, t)}
-                              </Badge>
-                              {credential.is_active ? (
-                                <div>
-                                  <Badge color="blue">{t("cloud.active", "Active")}</Badge>
-                                </div>
-                              ) : null}
-                            </div>
-                          </TableCell>
-                          <TableCell className="align-top">
-                            {formatDateTime(credential.last_checked_at)}
-                            {credential.last_error ? (
-                              <div className={`mt-1 text-xs text-red-600 dark:text-red-400 ${cloudLongTextClassName}`}>
-                                {credential.last_error}
-                              </div>
-                            ) : null}
-                          </TableCell>
-                          <TableCell className="align-top">
-                            <Flex wrap="wrap" gap="2">
-                              {!credential.is_active ? (
-                                <Button variant="outline" size="sm" onClick={() => void handleSelectCredential(credential)}>
-                                  {t("cloud.select", "Select")}
-                                </Button>
-                              ) : null}
-                              <Button variant="outline" size="sm" onClick={() => void handleViewCredential(credential)}>
-                                <Eye className="mr-1 h-3.5 w-3.5" />
-                                {t("cloud.view", "View")}
-                              </Button>
-                              <Button variant="outline" size="sm" onClick={() => void handleDeleteCredential(credential)}>
-                                <Trash2 className="mr-1 h-3.5 w-3.5" />
-                                {t("cloud.delete", "Delete")}
-                              </Button>
-                            </Flex>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
-              )}
-            </div>
-          </section>
+        {showOnboardingPanel ? (
+          <CloudOnboardingPanel
+            t={t}
+            providerName={t("cloud.providers.azure.title", "Azure")}
+            credentialDone={credentialCount > 0}
+            contextReady={Boolean(activeCredential)}
+            resourcesLoaded={Boolean(activeCredential)}
+            canLoadResources={false}
+            canCreate={Boolean(activeCredential)}
+            credentialTitle={t("cloud.providers.azure.onboarding_credential_title", "导入服务主体凭据")}
+            credentialDescription={t(
+              "cloud.providers.azure.onboarding_credential_description",
+              "添加 Azure 应用凭据后，选择当前订阅并设置默认区域。",
+            )}
+            resourceTitle={t("cloud.providers.azure.onboarding_context_title", "确认订阅与区域")}
+            resourceDescription={t(
+              "cloud.providers.azure.onboarding_context_description",
+              "当前订阅和区域会决定虚拟机列表、规格目录以及创建默认值。",
+            )}
+            createTitle={t("cloud.providers.azure.onboarding_create_title", "创建或管理虚拟机")}
+            createDescription={t(
+              "cloud.providers.azure.onboarding_create_description",
+              "订阅就绪后，可以创建 VM，也可以在表格里查看网络、磁盘和运行状态。",
+            )}
+            importLabel={t("cloud.providers.azure.import", "Import Credentials")}
+            createLabel={t("cloud.providers.azure.create", "Create VM")}
+            onImportCredential={() => setCredentialImportOpen(true)}
+            onCreate={() => setCreateOpen(true)}
+          />
+        ) : null}
 
+        <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)]">
+          <AzureCredentialsSection
+            t={t}
+            credentialPool={credentialPool}
+            catalog={catalog}
+            checkingCredentialsState={checkingCredentialsState}
+            onImportCredentials={() => setCredentialImportOpen(true)}
+            onCheckCredentials={handleCheckCredentials}
+            onSelectCredential={handleSelectCredential}
+            onOpenGroupEditor={openCredentialGroupEditor}
+            onViewCredential={handleViewCredential}
+            onDeleteCredential={handleDeleteCredential}
+          />
         </div>
 
-        <section className={cloudPanelCardClassName}>
-          <div className={cloudPanelHeaderClassName}>
-            <Flex justify="between" align="center" wrap="wrap" gap="2">
-              <div>
-                <div className={cloudPanelTitleClassName}>
-                  {t("cloud.providers.azure.instance_list", "Virtual Machines")}
-                </div>
-                <div className={cloudPanelDescriptionClassName}>
-                  {t(
-                    "cloud.providers.azure.instance_list_description",
-                    "Lists all VMs under the current subscription. Open details to inspect network interfaces, disks, and runtime state.",
-                  )}
-                </div>
-              </div>
-              <Flex align="center" wrap="wrap" gap="2">
-                {catalog?.locations.length ? (
-                  <div className="w-full sm:w-72">
-                    <Select.Root
-                      value={catalog.active_location || account?.active_location || activeCredential?.default_location || ""}
-                      onValueChange={(value) => void handleSetLocation(value)}
-                      disabled={locationUpdating}
-                    >
-                      <Select.Trigger placeholder={t("cloud.providers.azure.active_location", "Active Location")} />
-                      <Select.Content>
-                        {catalog.locations.map((location) => (
-                          <Select.Item key={location.name} value={location.name}>
-                            {location.regionalDisplayName || location.displayName || location.name}
-                          </Select.Item>
-                        ))}
-                      </Select.Content>
-                    </Select.Root>
-                  </div>
-                ) : null}
-                <Badge color="blue">{instances.length}</Badge>
-              </Flex>
-            </Flex>
-          </div>
-          <div className="p-5">
-            {!activeCredential ? (
-              <div className={cloudPanelBodyTextClassName}>
-                {t("cloud.providers.azure.no_active_credential", "Select an active Azure credential first")}
-              </div>
-            ) : !instances.length ? (
-              <div className={cloudPanelBodyTextClassName}>
-                {t("cloud.providers.azure.instances_empty", "No Azure virtual machines found")}
-              </div>
-            ) : (
-              <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>{t("cloud.table.name", "Name")}</TableHead>
-                      <TableHead>{t("cloud.providers.azure.resource_group", "Resource Group")}</TableHead>
-                      <TableHead>{t("cloud.table.region", "Region")}</TableHead>
-                      <TableHead>{t("cloud.table.status", "Status")}</TableHead>
-                      <TableHead>{t("cloud.table.size", "Size")}</TableHead>
-                      <TableHead>{t("cloud.table.ip", "Public IP")}</TableHead>
-                      <TableHead>{t("cloud.providers.azure.private_ip", "Private IP")}</TableHead>
-                      <TableHead>{t("cloud.table.password", "Root Password")}</TableHead>
-                      <TableHead>{t("common.actions", "Actions")}</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {instances.map((instance) => (
-                      <TableRow key={instance.instance_id}>
-                        <TableCell className="align-top">
-                          <div className={`font-medium ${cloudLongTextClassName}`}>
-                            {instance.name || "-"}
-                          </div>
-                          <div className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-                            {instance.os_type || "-"}
-                          </div>
-                        </TableCell>
-                        <TableCell className="align-top">{instance.resource_group || "-"}</TableCell>
-                        <TableCell className="align-top">{getLocationLabel(catalog, instance.location)}</TableCell>
-                        <TableCell className="align-top">
-                          <Badge color={getInstanceStateColor(instance)}>
-                            {getCloudStatusLabel(instance.power_state || instance.provisioning_state, t)}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="align-top">{instance.size || "-"}</TableCell>
-                        <TableCell className="align-top">{formatList(instance.public_ips)}</TableCell>
-                        <TableCell className="align-top">{formatList(instance.private_ips)}</TableCell>
-                        <TableCell className="align-top">
-                          {instance.saved_root_password ? (
-                            <div className="space-y-1">
-                              <Badge color={passwordStorageEnabled ? "green" : "amber"}>
-                                {passwordStorageEnabled
-                                  ? t("cloud.password.saved", "Saved")
-                                  : t("cloud.password.locked", "Locked")}
-                              </Badge>
-                              {instance.saved_root_password_updated_at ? (
-                                <div className="text-xs text-slate-500 dark:text-slate-400">
-                                  {formatDateTime(instance.saved_root_password_updated_at)}
-                                </div>
-                              ) : null}
-                            </div>
-                          ) : (
-                            <span className="text-sm text-slate-400">
-                              {passwordStorageEnabled
-                                ? t("cloud.password.not_saved", "Not saved")
-                                : t("cloud.password.disabled_short", "Vault off")}
-                            </span>
-                          )}
-                        </TableCell>
-                        <TableCell className="align-top">
-                          <Flex wrap="wrap" gap="2">
-                            <Button variant="outline" size="sm" onClick={() => void handleOpenDetail(instance)}>
-                              <Eye className="mr-1 h-3.5 w-3.5" />
-                              {t("cloud.view", "View")}
-                            </Button>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => setScriptTarget(buildScriptTarget(t, instance, activeCredential.name))}
-                            >
-                              <Terminal className="mr-1 h-3.5 w-3.5" />
-                              {t("cloud.script.action", "Run Script")}
-                            </Button>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              disabled={!instance.saved_root_password || !passwordStorageEnabled || passwordLoading}
-                              onClick={() => void handleViewPassword(instance)}
-                            >
-                              <KeyRound className="mr-1 h-3.5 w-3.5" />
-                              {t("cloud.password.view", "View Password")}
-                            </Button>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              disabled={workingInstanceId === instance.instance_id}
-                              onClick={() => void handleInstanceAction(instance, "start")}
-                            >
-                              <Power className="mr-1 h-3.5 w-3.5" />
-                              {t("cloud.power_on", "Power On")}
-                            </Button>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              disabled={workingInstanceId === instance.instance_id}
-                              onClick={() => void handleInstanceAction(instance, "deallocate")}
-                            >
-                              <PowerOff className="mr-1 h-3.5 w-3.5" />
-                              {t("cloud.power_off", "Power Off")}
-                            </Button>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              disabled={workingInstanceId === instance.instance_id}
-                              onClick={() => void handleInstanceAction(instance, "restart")}
-                            >
-                              <RotateCcw className="mr-1 h-3.5 w-3.5" />
-                              {t("cloud.reboot", "Reboot")}
-                            </Button>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              disabled={workingInstanceId === instance.instance_id}
-                              onClick={() => void handleReplaceInstanceIP(instance)}
-                            >
-                              <RefreshCw className="mr-1 h-3.5 w-3.5" />
-                              {t("cloud.providers.azure.replace_ip", "Replace IP")}
-                            </Button>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              disabled={workingInstanceId === instance.instance_id}
-                              onClick={() => void handleDeleteInstance(instance)}
-                            >
-                              <Trash2 className="mr-1 h-3.5 w-3.5" />
-                              {t("cloud.delete", "Delete")}
-                            </Button>
-                          </Flex>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-            )}
-          </div>
-        </section>
+        <AzureInstancesSection
+          t={t}
+          catalog={catalog}
+          account={account}
+          activeCredential={activeCredential}
+          instances={instances}
+          locationUpdating={locationUpdating}
+          resourceLoading={resourceLoading}
+          passwordStorageEnabled={passwordStorageEnabled}
+          passwordLoading={passwordLoading}
+          workingInstanceId={workingInstanceId}
+          onSetLocation={handleSetLocation}
+          onOpenDetail={handleOpenDetail}
+          onOpenScript={(instance) => {
+            if (!activeCredential) return;
+            setScriptTarget(buildScriptTarget(t, instance, activeCredential.name));
+          }}
+          onViewPassword={handleViewPassword}
+          onInstanceAction={handleInstanceAction}
+          onReplaceInstanceIP={handleReplaceInstanceIP}
+          onDeleteInstance={handleDeleteInstance}
+        />
       </AdminPageShell>
 
-      <Dialog.Root open={createOpen} onOpenChange={setCreateOpen}>
-        <Dialog.Content className={`${cloudDialogContentClassName} max-h-[85vh] overflow-y-auto`}>
-          <Dialog.Title>{t("cloud.providers.azure.create", "Create VM")}</Dialog.Title>
-          <Dialog.Description className="text-sm text-slate-500 dark:text-slate-400">
-            {t(
-              "cloud.providers.azure.create_description",
-              "Create a Linux VM in the current active Azure location. Komari will automatically prepare the resource group network stack and bootstrap agent auto-connect.",
-            )}
-          </Dialog.Description>
+      <AzureCreateDialog
+        t={t}
+        open={createOpen}
+        onOpenChange={setCreateOpen}
+        catalog={catalog}
+        account={account}
+        activeCredential={activeCredential}
+        createForm={createForm}
+        setCreateForm={setCreateForm}
+        submitting={createSubmitting}
+        onCreate={handleCreateInstance}
+      />
 
-          <div className="mt-4 flex flex-col gap-4">
-            <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700 dark:border-slate-800 dark:bg-slate-900/50 dark:text-slate-300">
-              {t("cloud.providers.azure.create_location_hint", {
-                location: getLocationLabel(catalog, catalog?.active_location || account?.active_location || activeCredential?.default_location || ""),
-                defaultValue: `Active location: ${getLocationLabel(catalog, catalog?.active_location || account?.active_location || activeCredential?.default_location || "")}`,
-              })}
-            </div>
+      <AzureCredentialImportDialog
+        t={t}
+        open={credentialImportOpen}
+        onOpenChange={setCredentialImportOpen}
+        importText={credentialImportText}
+        setImportText={setCredentialImportText}
+        importGroup={credentialImportGroup}
+        setImportGroup={setCredentialImportGroup}
+        saving={savingCredentials}
+        onImport={handleImportCredentials}
+      />
 
-            <label className={cloudPanelFieldLabelClassName}>
-              {t("cloud.table.name", "Name")}
-            </label>
-            <TextField.Root
-              value={createForm.name}
-              placeholder={t("cloud.providers.azure.create_name_placeholder", "Leave empty to auto-generate a VM name")}
-              onChange={(event) => setCreateForm((previous) => ({ ...previous, name: event.target.value }))}
-            />
+      <AzureCredentialGroupDialog
+        t={t}
+        open={Boolean(credentialGroupEditorCredential)}
+        onOpenChange={(open) => {
+          if (!open) {
+            setCredentialGroupEditorCredential(null);
+            setCredentialGroupEditorValue("");
+          }
+        }}
+        value={credentialGroupEditorValue}
+        onValueChange={setCredentialGroupEditorValue}
+        saving={credentialGroupSaving}
+        onSave={handleSaveCredentialGroup}
+      />
 
-            <label className={cloudPanelFieldLabelClassName}>
-              {t("cloud.providers.azure.resource_group", "Resource Group")}
-            </label>
-            <TextField.Root
-              value={createForm.resource_group || ""}
-              placeholder={t("cloud.providers.azure.resource_group_placeholder", "Optional. Leave empty to auto-create a dedicated resource group")}
-              onChange={(event) => setCreateForm((previous) => ({ ...previous, resource_group: event.target.value }))}
-            />
+      <AzureCredentialSecretDialog
+        t={t}
+        credentialSecret={credentialSecret}
+        onClose={() => setCredentialSecret(null)}
+        onCopy={handleCopy}
+      />
 
-            <label className={cloudPanelFieldLabelClassName}>
-              {t("cloud.form.image", "Image")}
-            </label>
-            <Select.Root
-              value={createForm.image_preset}
-              onValueChange={(value) => setCreateForm((previous) => buildCreateFormFromPreset(value, previous))}
-            >
-              <Select.Trigger placeholder={t("cloud.form.image_placeholder", "Select an image")} />
-              <Select.Content>
-                {azureImagePresets.map((preset) => (
-                  <Select.Item key={preset.id} value={preset.id}>
-                    {preset.label}
-                  </Select.Item>
-                ))}
-              </Select.Content>
-            </Select.Root>
+      <AzureSavedPasswordDialog
+        t={t}
+        savedPassword={savedPassword}
+        onClose={() => setSavedPassword(null)}
+        onCopy={handleCopy}
+      />
 
-            <div className="grid gap-3 sm:grid-cols-2">
-              <div>
-                <label className={cloudPanelFieldLabelClassName}>
-                  {t("cloud.providers.azure.image_publisher", "Publisher")}
-                </label>
-                <TextField.Root
-                  value={createForm.image_publisher}
-                  onChange={(event) => setCreateForm((previous) => ({ ...previous, image_publisher: event.target.value }))}
-                />
-              </div>
-              <div>
-                <label className={cloudPanelFieldLabelClassName}>
-                  {t("cloud.providers.azure.image_offer", "Offer")}
-                </label>
-                <TextField.Root
-                  value={createForm.image_offer}
-                  onChange={(event) => setCreateForm((previous) => ({ ...previous, image_offer: event.target.value }))}
-                />
-              </div>
-              <div>
-                <label className={cloudPanelFieldLabelClassName}>
-                  {t("cloud.providers.azure.image_sku", "SKU")}
-                </label>
-                <TextField.Root
-                  value={createForm.image_sku}
-                  onChange={(event) => setCreateForm((previous) => ({ ...previous, image_sku: event.target.value }))}
-                />
-              </div>
-              <div>
-                <label className={cloudPanelFieldLabelClassName}>
-                  {t("cloud.providers.azure.image_version", "Version")}
-                </label>
-                <TextField.Root
-                  value={createForm.image_version || ""}
-                  placeholder="latest"
-                  onChange={(event) => setCreateForm((previous) => ({ ...previous, image_version: event.target.value }))}
-                />
-              </div>
-            </div>
-
-            <label className={cloudPanelFieldLabelClassName}>
-              {t("cloud.form.size", "Size")}
-            </label>
-            <Select.Root
-              value={createForm.size || getDefaultAzureSize(catalog)}
-              onValueChange={(value) => setCreateForm((previous) => ({ ...previous, size: value }))}
-            >
-              <Select.Trigger placeholder={t("cloud.form.size_placeholder", "Select a size")} />
-              <Select.Content>
-                {(catalog?.sizes || []).map((size) => (
-                  <Select.Item key={size.name} value={size.name}>
-                    {formatAzureSizeOption(size)}
-                  </Select.Item>
-                ))}
-              </Select.Content>
-            </Select.Root>
-            <TextField.Root
-              value={createForm.size}
-              placeholder={t("cloud.providers.azure.size_manual_placeholder", "Or enter an Azure VM size manually")}
-              onChange={(event) => setCreateForm((previous) => ({ ...previous, size: event.target.value }))}
-            />
-
-            <label className={cloudPanelFieldLabelClassName}>
-              {t("cloud.providers.azure.admin_username", "Admin Username")}
-            </label>
-            <TextField.Root
-              value={createForm.admin_username || ""}
-              placeholder="azureuser"
-              onChange={(event) => setCreateForm((previous) => ({ ...previous, admin_username: event.target.value }))}
-            />
-
-            <label className={cloudPanelFieldLabelClassName}>
-              {t("cloud.providers.azure.auth_mode", "Authentication")}
-            </label>
-            <Select.Root
-              value={createForm.auth_mode}
-              onValueChange={(value) =>
-                setCreateForm((previous) => ({
-                  ...previous,
-                  auth_mode: value === "ssh" ? "ssh" : "password",
-                }))
-              }
-            >
-              <Select.Trigger placeholder={t("cloud.providers.azure.auth_mode", "Authentication")} />
-              <Select.Content>
-                <Select.Item value="password">{t("cloud.providers.azure.auth_password", "Password")}</Select.Item>
-                <Select.Item value="ssh">{t("cloud.providers.azure.auth_ssh", "SSH Public Key")}</Select.Item>
-              </Select.Content>
-            </Select.Root>
-
-            {createForm.auth_mode === "password" ? (
-              <>
-                <label className={cloudPanelFieldLabelClassName}>
-                  {t("cloud.providers.azure.admin_password", "Admin Password")}
-                </label>
-                <TextField.Root
-                  type="password"
-                  value={createForm.admin_password || ""}
-                  placeholder={t("cloud.providers.azure.admin_password_placeholder", "Use a strong password that meets Azure complexity requirements")}
-                  onChange={(event) => setCreateForm((previous) => ({ ...previous, admin_password: event.target.value }))}
-                />
-              </>
-            ) : (
-              <>
-                <label className={cloudPanelFieldLabelClassName}>
-                  {t("cloud.providers.azure.ssh_public_key", "SSH Public Key")}
-                </label>
-                <TextArea
-                  className="min-h-28 font-mono text-xs"
-                  value={createForm.ssh_public_key || ""}
-                  placeholder="ssh-ed25519 AAAA..."
-                  onChange={(event) => setCreateForm((previous) => ({ ...previous, ssh_public_key: event.target.value }))}
-                />
-              </>
-            )}
-
-            <label className={`flex items-center gap-2 ${cloudPanelBodyTextClassName}`}>
-              <Checkbox
-                checked={createForm.public_ip}
-                onCheckedChange={(checked) =>
-                  setCreateForm((previous) => ({ ...previous, public_ip: Boolean(checked) }))
-                }
-              />
-              {t("cloud.providers.azure.public_ip_toggle", "Allocate a public IPv4 address and open inbound traffic by default")}
-            </label>
-
-            <label className={`flex items-center gap-2 ${cloudPanelBodyTextClassName}`}>
-              <Checkbox
-                checked={createForm.assign_ipv6}
-                onCheckedChange={(checked) =>
-                  setCreateForm((previous) => ({ ...previous, assign_ipv6: Boolean(checked) }))
-                }
-              />
-              {t(
-                "cloud.providers.azure.assign_ipv6_toggle",
-                "Enable IPv6. Komari will prepare a dual-stack VNet/NIC and attach a public IPv6 address when public IP is also enabled",
-              )}
-            </label>
-
-            <Flex justify="end" gap="2">
-              <Button variant="outline" onClick={() => setCreateOpen(false)} disabled={createSubmitting}>
-                {t("common.cancel", "Cancel")}
-              </Button>
-              <Button
-                onClick={() => {
-                  void handleCreateInstance();
-                }}
-                disabled={
-                  createSubmitting
-                  || !createForm.size
-                  || !createForm.image_publisher
-                  || !createForm.image_offer
-                  || !createForm.image_sku
-                  || (createForm.auth_mode === "password" ? !createForm.admin_password : !createForm.ssh_public_key)
-                }
-              >
-                {createSubmitting
-                  ? t("cloud.creating", "Creating...")
-                  : t("cloud.providers.azure.create", "Create VM")}
-              </Button>
-            </Flex>
-          </div>
-        </Dialog.Content>
-      </Dialog.Root>
-
-      <Dialog.Root open={credentialImportOpen} onOpenChange={setCredentialImportOpen}>
-        <Dialog.Content className={`${cloudDialogContentClassName} max-h-[80vh] overflow-y-auto`}>
-          <Dialog.Title>{t("cloud.providers.azure.import_dialog_title", "Batch Import Azure Credentials")}</Dialog.Title>
-          <Dialog.Description className="text-sm text-slate-500 dark:text-slate-400">
-            {t(
-              "cloud.providers.azure.import_dialog_description",
-              "One credential per line (CSV/pipe/tab) or paste JSON object/array. Common JSON keys: login_user, subscription_id, appId, password, tenant.",
-            )}
-          </Dialog.Description>
-          <TextArea
-            className="mt-4 min-h-48 font-mono text-xs"
-            value={credentialImportText}
-            onChange={(event) => setCredentialImportText(event.target.value)}
-            placeholder='{"login_user":"team-a","subscription_id":"...","appId":"...","password":"...","tenant":"..."}'
-          />
-          <Flex justify="end" gap="2" className="mt-4">
-            <Dialog.Close>
-              <Button variant="outline">{t("common.cancel", "Cancel")}</Button>
-            </Dialog.Close>
-            <Button onClick={() => void handleImportCredentials()} disabled={savingCredentials}>
-              {savingCredentials
-                ? t("cloud.providers.azure.importing", "Importing...")
-                : t("cloud.providers.azure.import", "Import Credentials")}
-            </Button>
-          </Flex>
-        </Dialog.Content>
-      </Dialog.Root>
-
-      <Dialog.Root open={Boolean(credentialSecret)} onOpenChange={(open) => !open && setCredentialSecret(null)}>
-        <Dialog.Content className={`${cloudDialogContentClassName} max-h-[80vh] overflow-y-auto`}>
-          <Dialog.Title>{t("cloud.providers.azure.credential_dialog_title", "Credential Details")}</Dialog.Title>
-          <Dialog.Description className="text-sm text-slate-500 dark:text-slate-400">
-            {t(
-              "cloud.providers.azure.credential_dialog_description",
-              "View the full Azure app credential only when you need to copy or verify it.",
-            )}
-          </Dialog.Description>
-          {credentialSecret ? (
-            <div className="mt-4 space-y-4">
-              <div className="grid gap-3 sm:grid-cols-2">
-                <CloudDetailItem label={t("cloud.table.name", "Name")} value={credentialSecret.secret.credential_name || "-"} />
-                <CloudDetailItem label={t("cloud.providers.azure.subscription", "Subscription")} value={credentialSecret.secret.subscription_display_name || credentialSecret.secret.subscription_id || "-"} />
-                <CloudDetailItem label={t("cloud.providers.azure.tenant_id", "Tenant ID")} value={credentialSecret.secret.tenant_id || "-"} />
-                <CloudDetailItem label={t("cloud.providers.azure.default_location", "Default Location")} value={credentialSecret.secret.default_location || "-"} />
-              </div>
-
-              <CloudCopyBlock
-                title={t("cloud.providers.azure.client_id", "Client ID")}
-                copyLabel={t("common.copy", "Copy")}
-                onCopy={() => void handleCopy(credentialSecret.secret.client_id, t("cloud.providers.azure.copy_client_id", "Client ID copied"))}
-              >
-                <div className={`rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 font-mono text-xs dark:border-slate-800 dark:bg-slate-900/50 ${cloudLongTextClassName}`}>
-                  {credentialSecret.secret.client_id || "-"}
-                </div>
-              </CloudCopyBlock>
-
-              <CloudCopyBlock
-                title={t("cloud.providers.azure.client_secret", "Client Secret")}
-                copyLabel={t("common.copy", "Copy")}
-                onCopy={() => void handleCopy(credentialSecret.secret.client_secret, t("cloud.providers.azure.copy_client_secret", "Client secret copied"))}
-              >
-                <div className={`rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 font-mono text-xs dark:border-slate-800 dark:bg-slate-900/50 ${cloudLongTextClassName}`}>
-                  {credentialSecret.secret.client_secret || "-"}
-                </div>
-              </CloudCopyBlock>
-            </div>
-          ) : null}
-        </Dialog.Content>
-      </Dialog.Root>
-
-      <Dialog.Root open={Boolean(savedPassword)} onOpenChange={(open) => !open && setSavedPassword(null)}>
-        <Dialog.Content className={`${cloudDialogContentClassName} max-h-[80vh] overflow-y-auto`}>
-          <Dialog.Title>{t("cloud.password.view", "View Password")}</Dialog.Title>
-          <Dialog.Description className="text-sm text-slate-500 dark:text-slate-400">
-            {t(
-              "cloud.providers.azure.password_dialog_description",
-              "View the saved root password for this Azure VM from the current active credential.",
-            )}
-          </Dialog.Description>
-          {savedPassword ? (
-            <div className="mt-4 space-y-4">
-              <div className="grid gap-3 sm:grid-cols-2">
-                <CloudDetailItem label={t("cloud.table.name", "Name")} value={savedPassword.instance.name || "-"} />
-                <CloudDetailItem label={t("cloud.providers.azure.resource_group", "Resource Group")} value={savedPassword.instance.resource_group || "-"} />
-                <CloudDetailItem label={t("cloud.providers.azure.admin_username", "Admin Username")} value={savedPassword.credential.username || "-"} />
-                <CloudDetailItem label={t("cloud.providers.azure.checked_at", "Last Checked")} value={formatDateTime(savedPassword.credential.updated_at)} />
-              </div>
-              <CloudCopyBlock
-                title={t("cloud.password.root_password", "Root Password")}
-                copyLabel={t("common.copy", "Copy")}
-                onCopy={() => void handleCopy(savedPassword.credential.root_password, t("cloud.password.copy_success", "Root password copied"))}
-              >
-                <div className={`rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 font-mono text-xs dark:border-slate-800 dark:bg-slate-900/50 ${cloudLongTextClassName}`}>
-                  {savedPassword.credential.root_password || "-"}
-                </div>
-              </CloudCopyBlock>
-            </div>
-          ) : null}
-        </Dialog.Content>
-      </Dialog.Root>
-
-      <Dialog.Root open={Boolean(detailInstance)} onOpenChange={(open) => !open && setDetailInstance(null)}>
-        <Dialog.Content className={`${cloudDialogWideContentClassName} max-h-[85vh] overflow-y-auto`}>
-          <Dialog.Title>{detailInstance?.name || t("cloud.providers.azure.title", "Azure")}</Dialog.Title>
-          <Dialog.Description className="text-sm text-slate-500 dark:text-slate-400">
-            {t(
-              "cloud.providers.azure.detail_description",
-              "View the selected Azure virtual machine details from the current active credential.",
-            )}
-          </Dialog.Description>
-          {detailLoading ? (
-            <div className="py-8">
-              <Loading />
-            </div>
-          ) : detailData ? (
-            <div className="mt-4 space-y-4">
-              <section className="pt-0">
-                <div className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">
-                  {t("cloud.detail.summary", "Summary")}
-                </div>
-                <div className="mt-2 grid gap-x-6 sm:grid-cols-2 xl:grid-cols-3">
-                  <CloudDetailItem variant="plain" label={t("cloud.table.name", "Name")} value={detailData.instance.name || "-"} />
-                  <CloudDetailItem variant="plain" label={t("cloud.providers.azure.resource_group", "Resource Group")} value={detailData.instance.resource_group || "-"} />
-                  <CloudDetailItem variant="plain" label={t("cloud.table.region", "Region")} value={getLocationLabel(catalog, detailData.instance.location)} />
-                  <CloudDetailItem variant="plain" label={t("cloud.table.status", "Status")} value={getCloudStatusLabel(detailData.instance.power_state || detailData.instance.provisioning_state, t)} />
-                  <CloudDetailItem variant="plain" label={t("cloud.table.size", "Size")} value={detailData.instance.size || "-"} />
-                  <CloudDetailItem variant="plain" label={t("cloud.providers.azure.os_type", "OS Type")} value={detailData.instance.os_type || "-"} />
-                  <CloudDetailItem variant="plain" label={t("cloud.providers.azure.computer_name", "Computer Name")} value={detailData.instance.computer_name || "-"} />
-                  <CloudDetailItem variant="plain" label={t("cloud.providers.azure.vm_id", "VM ID")} value={detailData.vm_id || "-"} />
-                  <CloudDetailItem variant="plain" label={t("cloud.providers.azure.image", "Image")} value={detailData.instance.image || "-"} />
-                  <CloudDetailItem variant="plain" label={t("cloud.table.ip", "Public IP")} value={formatList(detailData.instance.public_ips)} />
-                  <CloudDetailItem variant="plain" label={t("cloud.providers.azure.private_ip", "Private IP")} value={formatList(detailData.instance.private_ips)} />
-                  <CloudDetailItem variant="plain" label={t("cloud.providers.azure.zones", "Zones")} value={formatList(detailData.zones)} />
-                </div>
-              </section>
-
-              <section className={cloudDetailSectionClassName}>
-                <Flex justify="between" align="center" wrap="wrap" gap="2">
-                  <div className={cloudPanelTitleClassName}>
-                    {t("cloud.providers.azure.actions", "Actions")}
-                  </div>
-                  {activeCredential ? (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setScriptTarget(buildScriptTarget(t, detailData.instance, activeCredential.name))}
-                    >
-                      <Terminal className="mr-1 h-3.5 w-3.5" />
-                      {t("cloud.script.action", "Run Script")}
-                    </Button>
-                  ) : null}
-                </Flex>
-                <Flex wrap="wrap" gap="2" className="mt-3">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    disabled={!detailData.instance.saved_root_password || !passwordStorageEnabled || passwordLoading}
-                    onClick={() => void handleViewPassword(detailData.instance)}
-                  >
-                    <KeyRound className="mr-1 h-3.5 w-3.5" />
-                    {t("cloud.password.view", "View Password")}
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    disabled={workingInstanceId === detailData.instance.instance_id}
-                    onClick={() => void handleInstanceAction(detailData.instance, "start")}
-                  >
-                    <Power className="mr-1 h-3.5 w-3.5" />
-                    {t("cloud.power_on", "Power On")}
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    disabled={workingInstanceId === detailData.instance.instance_id}
-                    onClick={() => void handleInstanceAction(detailData.instance, "deallocate")}
-                  >
-                    <PowerOff className="mr-1 h-3.5 w-3.5" />
-                    {t("cloud.power_off", "Power Off")}
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    disabled={workingInstanceId === detailData.instance.instance_id}
-                    onClick={() => void handleInstanceAction(detailData.instance, "restart")}
-                  >
-                    <RotateCcw className="mr-1 h-3.5 w-3.5" />
-                    {t("cloud.reboot", "Reboot")}
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    disabled={workingInstanceId === detailData.instance.instance_id}
-                    onClick={() => void handleReplaceInstanceIP(detailData.instance)}
-                  >
-                    <RefreshCw className="mr-1 h-3.5 w-3.5" />
-                    {t("cloud.providers.azure.replace_ip", "Replace IP")}
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    disabled={workingInstanceId === detailData.instance.instance_id}
-                    onClick={() => void handleDeleteInstance(detailData.instance)}
-                  >
-                    <Trash2 className="mr-1 h-3.5 w-3.5" />
-                    {t("cloud.delete", "Delete")}
-                  </Button>
-                </Flex>
-              </section>
-
-              <section className={cloudDetailSectionClassName}>
-                <div className={cloudPanelTitleClassName}>
-                  {t("cloud.providers.azure.network_interfaces", "Network Interfaces")}
-                </div>
-                <div className={`mt-3 ${cloudDetailListClassName}`}>
-                  {detailData.network_interfaces.length ? detailData.network_interfaces.map((networkInterface) => (
-                    <div key={networkInterface.id || networkInterface.name} className={cloudDetailListItemClassName}>
-                      <div className={`font-medium ${cloudLongTextClassName}`}>
-                        {networkInterface.name || networkInterface.id || "-"}
-                      </div>
-                      <div className="mt-2 grid gap-x-6 sm:grid-cols-2 xl:grid-cols-4">
-                        <CloudDetailItem variant="plain" label={t("cloud.providers.azure.primary", "Primary")} value={networkInterface.primary ? t("common.yes", "Yes") : t("common.no", "No")} />
-                        <CloudDetailItem variant="plain" label={t("cloud.providers.azure.private_ip", "Private IP")} value={formatList(networkInterface.private_ips)} />
-                        <CloudDetailItem variant="plain" label={t("cloud.table.ip", "Public IP")} value={formatList(networkInterface.public_ips)} />
-                        <CloudDetailItem variant="plain" label={t("cloud.providers.azure.nsg", "NSG")} value={networkInterface.network_security_group_id || "-"} />
-                      </div>
-                    </div>
-                  )) : (
-                    <div className={cloudPanelBodyTextClassName}>
-                      {t("cloud.providers.azure.network_interfaces_empty", "No network interfaces found")}
-                    </div>
-                  )}
-                </div>
-              </section>
-
-              <div className="grid gap-4 xl:grid-cols-2">
-                <section className={cloudDetailSectionClassName}>
-                  <div className={cloudPanelTitleClassName}>
-                    {t("cloud.providers.azure.os_disk", "OS Disk")}
-                  </div>
-                  <div className="mt-3">
-                    {detailData.os_disk ? (
-                      <div className="grid gap-x-6 sm:grid-cols-2">
-                        <CloudDetailItem variant="plain" label={t("cloud.table.name", "Name")} value={detailData.os_disk.name || "-"} />
-                        <CloudDetailItem variant="plain" label={t("cloud.providers.azure.disk_size", "Disk Size")} value={detailData.os_disk.size_gb ? `${detailData.os_disk.size_gb} GiB` : "-"} />
-                        <CloudDetailItem variant="plain" label={t("cloud.providers.azure.disk_type", "Disk Type")} value={detailData.os_disk.storage_account_type || "-"} />
-                        <CloudDetailItem variant="plain" label={t("cloud.providers.azure.create_option", "Create Option")} value={detailData.os_disk.create_option || "-"} />
-                      </div>
-                    ) : (
-                      <div className={cloudPanelBodyTextClassName}>
-                        {t("cloud.providers.azure.os_disk_empty", "OS disk details unavailable")}
-                      </div>
-                    )}
-                  </div>
-                </section>
-
-                <section className={cloudDetailSectionClassName}>
-                  <div className={cloudPanelTitleClassName}>
-                    {t("cloud.providers.azure.data_disks", "Data Disks")}
-                  </div>
-                  <div className={`mt-3 ${cloudDetailListClassName}`}>
-                    {detailData.data_disks.length ? detailData.data_disks.map((disk) => (
-                      <div key={`${disk.id}-${disk.lun}`} className={cloudDetailListItemClassName}>
-                        <div className={`font-medium ${cloudLongTextClassName}`}>
-                          {disk.name || disk.id || "-"}
-                        </div>
-                        <div className="mt-2 grid gap-x-6 sm:grid-cols-2">
-                          <CloudDetailItem variant="plain" label={t("cloud.providers.azure.lun", "LUN")} value={disk.lun} />
-                          <CloudDetailItem variant="plain" label={t("cloud.providers.azure.disk_size", "Disk Size")} value={disk.size_gb ? `${disk.size_gb} GiB` : "-"} />
-                          <CloudDetailItem variant="plain" label={t("cloud.providers.azure.disk_type", "Disk Type")} value={disk.storage_account_type || "-"} />
-                          <CloudDetailItem variant="plain" label={t("cloud.providers.azure.create_option", "Create Option")} value={disk.create_option || "-"} />
-                        </div>
-                      </div>
-                    )) : (
-                      <div className={cloudPanelBodyTextClassName}>
-                        {t("cloud.providers.azure.data_disks_empty", "No data disks attached")}
-                      </div>
-                    )}
-                  </div>
-                </section>
-              </div>
-
-              <section className={cloudDetailSectionClassName}>
-                <div className={cloudPanelTitleClassName}>
-                  {t("cloud.providers.azure.tags", "Tags")}
-                </div>
-                <div className="mt-3">
-                  {Object.keys(detailData.instance.tags || {}).length ? (
-                    <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
-                      {Object.entries(detailData.instance.tags).map(([key, value]) => (
-                        <div key={key} className="border-b border-slate-200 py-3 last:border-b-0 dark:border-slate-800">
-                          <div className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">
-                            {key}
-                          </div>
-                          <div className={`mt-1 text-sm text-slate-900 dark:text-slate-100 ${cloudLongTextClassName}`}>
-                            {value || "-"}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className={cloudPanelBodyTextClassName}>
-                      {t("cloud.providers.azure.tags_empty", "No tags configured")}
-                    </div>
-                  )}
-                </div>
-              </section>
-            </div>
-          ) : (
-            <div className={cloudPanelBodyTextClassName}>
-              {t("cloud.providers.azure.detail_empty", "Unable to load Azure VM details")}
-            </div>
-          )}
-        </Dialog.Content>
-      </Dialog.Root>
+      <AzureInstanceDetailDialog
+        t={t}
+        catalog={catalog}
+        activeCredential={activeCredential}
+        detailInstance={detailInstance}
+        detailData={detailData}
+        detailLoading={detailLoading}
+        passwordStorageEnabled={passwordStorageEnabled}
+        passwordLoading={passwordLoading}
+        workingInstanceId={workingInstanceId}
+        onClose={() => setDetailInstance(null)}
+        onViewPassword={handleViewPassword}
+        onInstanceAction={handleInstanceAction}
+        onReplaceInstanceIP={handleReplaceInstanceIP}
+        onDeleteInstance={handleDeleteInstance}
+        onOpenScript={(instance) => {
+          if (!activeCredential) return;
+          setScriptTarget(buildScriptTarget(t, instance, activeCredential.name));
+        }}
+      />
 
       <CloudInstanceScriptDialog
         open={Boolean(scriptTarget)}

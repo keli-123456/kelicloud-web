@@ -17,6 +17,7 @@ class CloudApiError extends Error {
 export type AzureCredentialInput = {
   id?: string;
   name: string;
+  group?: string;
   tenant_id: string;
   client_id: string;
   client_secret: string;
@@ -27,6 +28,7 @@ export type AzureCredentialInput = {
 export type AzureCredentialRecord = {
   id: string;
   name: string;
+  group: string;
   tenant_id: string;
   masked_client_id: string;
   subscription_id: string;
@@ -49,6 +51,7 @@ export type AzureCredentialPool = {
 export type AzureCredentialSecret = {
   credential_id: string;
   credential_name: string;
+  group: string;
   tenant_id: string;
   client_id: string;
   client_secret: string;
@@ -176,6 +179,11 @@ export type CreateAzureInstanceResult = {
   password_save_error: string;
 };
 
+export type DeleteAzureInstanceResult = {
+  deleted_resource_ids: string[];
+  cleanup_errors: string[];
+};
+
 function normalizeStringArray(value: unknown): string[] {
   if (!Array.isArray(value)) return [];
   return value.filter((item): item is string => typeof item === "string");
@@ -191,6 +199,7 @@ function normalizeCredentialRecord(
   return {
     id: String(credential?.id || ""),
     name: String(credential?.name || ""),
+    group: String(credential?.group || ""),
     tenant_id: String(credential?.tenant_id || ""),
     masked_client_id: String(credential?.masked_client_id || ""),
     subscription_id: String(credential?.subscription_id || ""),
@@ -210,6 +219,7 @@ function normalizeCredentialSecret(
   return {
     credential_id: String(credential?.credential_id || ""),
     credential_name: String(credential?.credential_name || ""),
+    group: String(credential?.group || ""),
     tenant_id: String(credential?.tenant_id || ""),
     client_id: String(credential?.client_id || ""),
     client_secret: String(credential?.client_secret || ""),
@@ -338,6 +348,15 @@ function normalizeInstancePassword(
     password_mode: String(value?.password_mode || ""),
     root_password: String(value?.root_password || ""),
     updated_at: String(value?.updated_at || ""),
+  };
+}
+
+function normalizeDeleteInstanceResult(
+  value: Partial<DeleteAzureInstanceResult> | null | undefined,
+): DeleteAzureInstanceResult {
+  return {
+    deleted_resource_ids: normalizeStringArray(value?.deleted_resource_ids),
+    cleanup_errors: normalizeStringArray(value?.cleanup_errors),
   };
 }
 
@@ -528,8 +547,9 @@ export async function postAzureInstanceAction(instanceId: string, type: string):
   });
 }
 
-export async function deleteAzureInstance(instanceId: string): Promise<void> {
-  await requestCloud(`/api/admin/cloud/azure/instances/${encodeURIComponent(instanceId)}`, {
+export async function deleteAzureInstance(instanceId: string): Promise<DeleteAzureInstanceResult> {
+  const data = await requestCloud<Partial<DeleteAzureInstanceResult>>(`/api/admin/cloud/azure/instances/${encodeURIComponent(instanceId)}`, {
     method: "DELETE",
   });
+  return normalizeDeleteInstanceResult(data);
 }

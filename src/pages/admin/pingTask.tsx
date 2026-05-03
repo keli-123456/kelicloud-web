@@ -1,5 +1,15 @@
-import Loading from "@/components/loading";
 import NodeSelectorDialog from "@/components/NodeSelectorDialog";
+import {
+  AdminPageShell,
+  AdminSurface,
+  AdminTableSkeleton,
+} from "@/components/admin/AdminPageShell";
+import {
+  ADMIN_FORM_DIALOG_CLASS,
+  ADMIN_FORM_FIELD_CLASS,
+  ADMIN_FORM_GRID_2_CLASS,
+  ADMIN_FORM_SCROLL_CLASS,
+} from "@/components/admin/AdminFormStyles";
 import {
   NodeDetailsProvider,
   useNodeDetails,
@@ -7,13 +17,11 @@ import {
 import {
   PingTaskProvider,
   usePingTask,
-  type PingTask,
 } from "@/contexts/PingTaskContext";
 import { useSettings } from "@/lib/api";
 import {
   Button,
   Dialog,
-  Flex,
   Select,
   Tabs,
   TextField,
@@ -23,6 +31,7 @@ import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { TaskView } from "./pingTask_Task";
 import { ServerView } from "./pingTask_Server";
+import { Plus } from "lucide-react";
 
 const PingTask = () => {
   return (
@@ -36,38 +45,72 @@ const PingTask = () => {
 
 const InnerLayout = () => {
   const { pingTasks, isLoading, error } = usePingTask();
-  const { isLoading: nodeDetailLoading, error: nodeDetailError } =
+  const {
+    isLoading: nodeDetailLoading,
+    error: nodeDetailError,
+  } =
     useNodeDetails();
   const { t } = useTranslation();
+  const tasks = pingTasks ?? [];
 
   if (isLoading || nodeDetailLoading) {
-    return <Loading />;
+    return (
+      <AdminPageShell
+        title={t("ping.title")}
+        description={t("ping.page_description", {
+          defaultValue:
+            "管理 ICMP、TCP 和 HTTP 延迟监测任务，并按任务或服务器维度检查绑定关系。",
+        })}
+        actions={<AddButton />}
+      >
+        <Tabs.Root defaultValue="task">
+          <AdminSurface className="overflow-hidden border-y border-slate-200/80 dark:border-slate-800/90">
+            <div className="border-b border-slate-200/70 px-4 py-3 dark:border-slate-800/70">
+              <Tabs.List>
+                <Tabs.Trigger value="task">{t("ping.task_view")}</Tabs.Trigger>
+                <Tabs.Trigger value="server">{t("ping.server_view")}</Tabs.Trigger>
+              </Tabs.List>
+            </div>
+            <div className="min-h-[360px] p-4">
+              <AdminTableSkeleton columns={6} rows={5} />
+            </div>
+          </AdminSurface>
+        </Tabs.Root>
+      </AdminPageShell>
+    );
   }
   if (error || nodeDetailError) {
     return <div>{error || nodeDetailError}</div>;
   }
   return (
-    <Flex direction="column" gap="4" className="p-4">
-      <div className="flex justify-between items-center">
-        <label className="text-2xl font-bold">{t("ping.title")}</label>
-        <AddButton />
-      </div>
+    <AdminPageShell
+      title={t("ping.title")}
+      description={t("ping.page_description", {
+        defaultValue:
+          "管理 ICMP、TCP 和 HTTP 延迟监测任务，并按任务或服务器维度检查绑定关系。",
+      })}
+      actions={<AddButton />}
+    >
       <Tabs.Root defaultValue="task">
-        <Tabs.List>
-          <Tabs.Trigger value="task">{t("ping.task_view")}</Tabs.Trigger>
-          <Tabs.Trigger value="server">{t("ping.server_view")}</Tabs.Trigger>
-        </Tabs.List>
-        <div className="pt-3">
-          <Tabs.Content value="task">
-            <TaskView pingTasks={pingTasks ?? []} />
-          </Tabs.Content>
-          <Tabs.Content value="server">
-            <ServerView pingTasks={pingTasks ?? []} />
-          </Tabs.Content>
-        </div>
+        <AdminSurface className="overflow-hidden border-y border-slate-200/80 dark:border-slate-800/90">
+          <div className="border-b border-slate-200/70 px-4 py-3 dark:border-slate-800/70">
+            <Tabs.List>
+              <Tabs.Trigger value="task">{t("ping.task_view")}</Tabs.Trigger>
+              <Tabs.Trigger value="server">{t("ping.server_view")}</Tabs.Trigger>
+            </Tabs.List>
+          </div>
+          <div className="min-h-[360px]">
+            <Tabs.Content value="task">
+              <TaskView pingTasks={tasks} />
+            </Tabs.Content>
+            <Tabs.Content value="server">
+              <ServerView pingTasks={tasks} />
+            </Tabs.Content>
+          </div>
+        </AdminSurface>
       </Tabs.Root>
       <DiskUsageEstimate />
-    </Flex>
+    </AdminPageShell>
   );
 };
 
@@ -114,7 +157,7 @@ const DiskUsageEstimate = () => {
   //const yearlyUsage = dailyUsage * 365;
 
   return (
-    <div className="text-sm text-muted-foreground">
+    <AdminSurface className="border-y border-slate-200/80 py-3 text-sm text-slate-600 dark:border-slate-800/90 dark:text-slate-300">
       <label>
         {t("ping.disk_usage_estimate")}: {formatBytes(dailyUsage)}/
         {t("common.day")},{" "}
@@ -125,7 +168,7 @@ const DiskUsageEstimate = () => {
           ),
         })}
       </label>
-    </div>
+    </AdminSurface>
   );
 };
 
@@ -184,15 +227,21 @@ const AddButton: React.FC = () => {
   return (
     <Dialog.Root open={isOpen} onOpenChange={setIsOpen}>
       <Dialog.Trigger>
-        <Button>{t("common.add")}</Button>
+        <Button>
+          <Plus size={15} />
+          {t("common.add")}
+        </Button>
       </Dialog.Trigger>
-      <Dialog.Content>
+      <Dialog.Content className={ADMIN_FORM_DIALOG_CLASS} maxWidth={640}>
         <Dialog.Title>{t("common.add")}</Dialog.Title>
-        <form onSubmit={handleSubmit}>
-          <Flex direction="column" justify="end" gap="2" className="font-bold">
-            <label htmlFor="ping_name">{t("common.name")}</label>
+        <form onSubmit={handleSubmit} className={`${ADMIN_FORM_SCROLL_CLASS} mt-4 space-y-4`}>
+          <div className={ADMIN_FORM_GRID_2_CLASS}>
+            <label className={ADMIN_FORM_FIELD_CLASS} htmlFor="ping_name">
+              <span className="text-sm font-medium text-slate-900 dark:text-slate-100">{t("common.name")}</span>
             <TextField.Root id="ping_name" name="ping_name" />
-            <label htmlFor="type">{t("ping.type")}</label>
+            </label>
+            <label className={ADMIN_FORM_FIELD_CLASS} htmlFor="type">
+              <span className="text-sm font-medium text-slate-900 dark:text-slate-100">{t("ping.type")}</span>
             <Select.Root
               value={selectedType}
               onValueChange={(value) =>
@@ -206,22 +255,29 @@ const AddButton: React.FC = () => {
                 <Select.Item value="http">HTTP</Select.Item>
               </Select.Content>
             </Select.Root>
-            <label htmlFor="ping_target">{t("ping.target")}</label>
+            </label>
+          </div>
+          <label className={ADMIN_FORM_FIELD_CLASS} htmlFor="ping_target">
+            <span className="text-sm font-medium text-slate-900 dark:text-slate-100">{t("ping.target")}</span>
             <TextField.Root
               id="ping_target"
               name="ping_target"
               placeholder="1.1.1.1 | 1.1.1.1:80 | https://1.1.1.1"
             />
-            <label htmlFor="ping_server">{t("common.server")}</label>
+          </label>
+          <div className={ADMIN_FORM_FIELD_CLASS}>
+            <label htmlFor="ping_server" className="text-sm font-medium text-slate-900 dark:text-slate-100">{t("common.server")}</label>
             <div className="flex items-center justify-start gap-2">
               <NodeSelectorDialog value={selected} onChange={setSelected} />
               <label className="text-md font-normal">
                 {t("common.selected", { count: selected.length })}
               </label>
             </div>
-            <label htmlFor="interval">
+          </div>
+          <label className={ADMIN_FORM_FIELD_CLASS} htmlFor="interval">
+            <span className="text-sm font-medium text-slate-900 dark:text-slate-100">
               {t("ping.interval")} ({t("time.second")})
-            </label>
+            </span>
             <TextField.Root
               id="interval"
               name="interval"
@@ -229,7 +285,8 @@ const AddButton: React.FC = () => {
               type="number"
               placeholder="60"
             />
-            <div className="flex justify-end gap-2">
+          </label>
+            <div className="flex justify-end gap-2 border-t border-slate-200/70 pt-4 dark:border-slate-800/70">
               <Dialog.Close>
                 <Button variant="soft">{t("common.close")}</Button>
               </Dialog.Close>
@@ -237,7 +294,6 @@ const AddButton: React.FC = () => {
                 {t("common.add")}
               </Button>
             </div>
-          </Flex>
         </form>
       </Dialog.Content>
     </Dialog.Root>

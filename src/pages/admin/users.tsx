@@ -3,11 +3,30 @@ import type { TFunction } from "i18next";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
-import { AdminPageShell, AdminSurface } from "@/components/admin/AdminPageShell";
+import {
+  AdminPageShell,
+  AdminSurface,
+  AdminTableSkeleton,
+} from "@/components/admin/AdminPageShell";
+import {
+  ADMIN_FORM_DIALOG_CLASS,
+  ADMIN_FORM_FIELD_CLASS,
+  ADMIN_FORM_GRID_2_CLASS,
+  ADMIN_FORM_SCROLL_CLASS,
+  ADMIN_FORM_TOGGLE_CLASS,
+} from "@/components/admin/AdminFormStyles";
 import { PlatformAdminNotice } from "@/components/admin/PlatformAdminNotice";
-import { Badge, Button, Checkbox, Dialog, Select } from "@/components/admin/admin-ui";
-import Loading from "@/components/loading";
+import {
+  Badge,
+  Button,
+  Checkbox,
+  Dialog,
+  Select,
+  Switch,
+} from "@/components/admin/admin-ui";
 import { Input } from "@/components/ui/input";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Table,
   TableBody,
@@ -36,6 +55,11 @@ type ManagedUser = {
   server_quota?: number;
   allowed_features?: AccountFeature[];
   client_count?: number;
+  plan_name?: string;
+  plan_expires_at?: string;
+  plan_note?: string;
+  account_disabled?: boolean;
+  access_status?: "active" | "disabled" | "expired" | string;
 };
 
 type UsersResponse = {
@@ -55,11 +79,19 @@ type CreateUserForm = {
   role: UserRole;
   serverQuota: string;
   allowedFeatures: AccountFeature[];
+  planName: string;
+  planExpiresAt: string;
+  planNote: string;
+  accountDisabled: boolean;
 };
 
 type PolicyForm = {
   serverQuota: string;
   allowedFeatures: AccountFeature[];
+  planName: string;
+  planExpiresAt: string;
+  planNote: string;
+  accountDisabled: boolean;
 };
 
 type FeatureGroup = {
@@ -71,6 +103,29 @@ type FeatureGroup = {
 };
 
 type FeatureDependencyMap = Partial<Record<AccountFeature, AccountFeature[]>>;
+
+type PlanPreset = {
+  id: "starter" | "ops" | "business";
+  titleKey: string;
+  defaultTitle: string;
+  descriptionKey: string;
+  defaultDescription: string;
+  planName: string;
+  serverQuota: string;
+  features: AccountFeature[];
+};
+
+type QuotaUsageTone = "green" | "amber" | "red" | "blue";
+
+type QuotaUsageState = {
+  percent: number;
+  tone: QuotaUsageTone;
+  barClassName: string;
+  labelKey: string;
+  defaultLabel: string;
+};
+
+const EXPIRING_SOON_DAYS = 14;
 
 const FEATURE_ORDER: AccountFeature[] = [
   "clients",
@@ -141,6 +196,47 @@ const FEATURE_DEPENDENCIES: FeatureDependencyMap = {
   cloud_failover: ["cn_connectivity"],
 };
 
+const PLAN_PRESETS: PlanPreset[] = [
+  {
+    id: "starter",
+    titleKey: "admin.users.plan_starter",
+    defaultTitle: "Starter",
+    descriptionKey: "admin.users.plan_starter_desc",
+    defaultDescription: "Monitoring, records, and audit visibility for a small private fleet.",
+    planName: "Starter",
+    serverQuota: "3",
+    features: ["clients", "records", "logs"],
+  },
+  {
+    id: "ops",
+    titleKey: "admin.users.plan_ops",
+    defaultTitle: "Ops",
+    descriptionKey: "admin.users.plan_ops_desc",
+    defaultDescription: "Daily operations with scripts, tasks, notifications, and ping checks.",
+    planName: "Ops",
+    serverQuota: "10",
+    features: [
+      "clients",
+      "records",
+      "tasks",
+      "ping",
+      "notifications",
+      "clipboard",
+      "logs",
+    ],
+  },
+  {
+    id: "business",
+    titleKey: "admin.users.plan_business",
+    defaultTitle: "Business",
+    descriptionKey: "admin.users.plan_business_desc",
+    defaultDescription: "Unlimited quota with cloud providers, DNS, and failover enabled.",
+    planName: "Business",
+    serverQuota: "0",
+    features: FEATURE_ORDER,
+  },
+];
+
 const normalizeRole = (role?: string): UserRole =>
   String(role || "").toLowerCase() === "user" ? "user" : "admin";
 
@@ -178,6 +274,92 @@ const parseServerQuota = (value?: string) => {
     return 0;
   }
   return parsed;
+};
+
+const normalizeTextInput = (value?: string) => String(value || "").trim();
+
+const formatDateInput = (value?: string) => {
+  const normalized = normalizeTextInput(value);
+  if (!normalized) return "";
+  if (/^\d{4}-\d{2}-\d{2}$/.test(normalized)) return normalized;
+  const date = new Date(normalized);
+  if (Number.isNaN(date.getTime())) return "";
+  return date.toISOString().slice(0, 10);
+};
+
+const getExpirationDaysRemaining = (value?: string) => {
+  const normalized = formatDateInput(value);
+  if (!normalized) return null;
+  const expiresAt = new Date(`${normalized}T00:00:00`);
+  if (Number.isNaN(expiresAt.getTime())) return null;
+  expiresAt.setDate(expiresAt.getDate() + 1);
+  const now = new Date();
+  return Math.ceil((expiresAt.getTime() - now.getTime()) / 86400000);
+};
+
+const getQuotaUsageState = (
+  clientCount: number,
+  quota: number,
+): QuotaUsageState => {
+  if (quota <= 0) {
+    return {
+      percent: 100,
+      tone: "blue",
+      barClassName: "bg-blue-500 dark:bg-blue-400",
+      labelKey: "admin.users.quota_unlimited",
+      defaultLabel: "Unlimited",
+    };
+  }
+
+  const ratio = clientCount / quota;
+  const percent = Math.min(100, Math.max(0, Math.round(ratio * 100)));
+  if (clientCount >= quota) {
+    return {
+      percent,
+      tone: "red",
+      barClassName: "bg-red-500 dark:bg-red-400",
+      labelKey: "admin.users.quota_at_limit",
+      defaultLabel: "At limit",
+    };
+  }
+  if (ratio >= 0.8) {
+    return {
+      percent,
+      tone: "amber",
+      barClassName: "bg-amber-500 dark:bg-amber-400",
+      labelKey: "admin.users.quota_near_limit",
+      defaultLabel: "Near limit",
+    };
+  }
+  return {
+    percent,
+    tone: "green",
+    barClassName: "bg-emerald-500 dark:bg-emerald-400",
+    labelKey: "admin.users.quota_available",
+    defaultLabel: "Available",
+  };
+};
+
+const getAccessStatusTone = (status?: string): "red" | "amber" | "green" => {
+  switch (status) {
+    case "disabled":
+      return "red";
+    case "expired":
+      return "amber";
+    default:
+      return "green";
+  }
+};
+
+const getAccessStatusLabel = (status: string | undefined, t: TFunction) => {
+  switch (status) {
+    case "disabled":
+      return t("admin.users.access_disabled", "Disabled");
+    case "expired":
+      return t("admin.users.access_expired", "Expired");
+    default:
+      return t("admin.users.access_active", "Active");
+  }
 };
 
 const formatDateTime = (value?: string) => {
@@ -329,7 +511,7 @@ function FeatureAccessEditor({
           return (
             <div
               key={group.titleKey}
-              className="rounded-xl border border-slate-200 p-3 dark:border-slate-800"
+              className="rounded-lg border border-slate-200 p-3 dark:border-slate-800"
             >
               <div className="mb-3">
                 <div className="text-sm font-medium text-slate-900 dark:text-slate-100">
@@ -406,12 +588,69 @@ function FeatureAccessEditor({
   );
 }
 
+function PlanPresetSelector({
+  availableFeatures,
+  onApply,
+  t,
+}: {
+  availableFeatures: AccountFeature[];
+  onApply: (
+    planName: string,
+    serverQuota: string,
+    allowedFeatures: AccountFeature[],
+  ) => void;
+  t: TFunction;
+}) {
+  return (
+    <div className={ADMIN_FORM_FIELD_CLASS}>
+      <div>
+        <div className="text-sm font-medium text-slate-900 dark:text-slate-100">
+          {t("admin.users.plan_presets", "Plan presets")}
+        </div>
+        <div className="text-xs text-slate-500 dark:text-slate-400">
+          {t(
+            "admin.users.plan_presets_hint",
+            "Apply a commercial tier template, then fine tune quota and feature access if needed.",
+          )}
+        </div>
+      </div>
+      <div className="grid gap-2 md:grid-cols-3">
+        {PLAN_PRESETS.map((preset) => (
+          <button
+            key={preset.id}
+            type="button"
+            className="rounded-lg border border-slate-200 px-3 py-2 text-left transition hover:border-blue-300 hover:bg-blue-50/60 dark:border-slate-800 dark:hover:border-blue-800 dark:hover:bg-blue-950/30"
+            onClick={() =>
+              onApply(
+                preset.planName,
+                preset.serverQuota,
+                normalizeFeatures(preset.features, availableFeatures),
+              )
+            }
+          >
+            <div className="text-sm font-semibold text-slate-900 dark:text-slate-100">
+              {t(preset.titleKey, preset.defaultTitle)}
+            </div>
+            <div className="mt-1 text-xs leading-5 text-slate-500 dark:text-slate-400">
+              {t(preset.descriptionKey, preset.defaultDescription)}
+            </div>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 const createDefaultForm = (availableFeatures: AccountFeature[]): CreateUserForm => ({
   username: "",
   password: "",
   role: "user",
   serverQuota: "0",
   allowedFeatures: getDefaultSelectedFeatures(availableFeatures),
+  planName: "",
+  planExpiresAt: "",
+  planNote: "",
+  accountDisabled: false,
 });
 
 export default function AdminUsersPage() {
@@ -430,6 +669,10 @@ export default function AdminUsersPage() {
   const [policyForm, setPolicyForm] = React.useState<PolicyForm>({
     serverQuota: "0",
     allowedFeatures: [],
+    planName: "",
+    planExpiresAt: "",
+    planNote: "",
+    accountDisabled: false,
   });
   const [policySubmitting, setPolicySubmitting] = React.useState(false);
   const [updatingRoleUUID, setUpdatingRoleUUID] = React.useState<string | null>(null);
@@ -470,6 +713,11 @@ export default function AdminUsersPage() {
             nextAvailableFeatures.length > 0 ? nextAvailableFeatures : FEATURE_ORDER,
           ),
           client_count: Number(item.client_count || 0),
+          plan_name: normalizeTextInput(item.plan_name),
+          plan_expires_at: normalizeTextInput(item.plan_expires_at),
+          plan_note: normalizeTextInput(item.plan_note),
+          account_disabled: Boolean(item.account_disabled),
+          access_status: normalizeTextInput(item.access_status) || "active",
         })),
       );
     } catch (loadError) {
@@ -490,6 +738,18 @@ export default function AdminUsersPage() {
   const totalUsers = users.length;
   const totalAdmins = users.filter((user) => normalizeRole(user.role) === "admin").length;
   const totalRegularUsers = totalUsers - totalAdmins;
+  const activeUsers = users.filter(
+    (user) => normalizeTextInput(user.access_status) === "active",
+  ).length;
+  const blockedUsers = users.filter((user) => {
+    const status = normalizeTextInput(user.access_status);
+    return status === "disabled" || status === "expired";
+  }).length;
+  const expiringSoonUsers = users.filter((user) => {
+    if (normalizeTextInput(user.access_status) !== "active") return false;
+    const daysRemaining = getExpirationDaysRemaining(user.plan_expires_at);
+    return daysRemaining !== null && daysRemaining >= 0 && daysRemaining <= EXPIRING_SOON_DAYS;
+  }).length;
 
   const openPolicyEditor = (user: ManagedUser) => {
     const normalizedAllowedFeatures = normalizeFeatures(
@@ -503,6 +763,10 @@ export default function AdminUsersPage() {
         normalizedAllowedFeatures.length > 0
           ? normalizedAllowedFeatures
           : getDefaultSelectedFeatures(availableFeatures),
+      planName: normalizeTextInput(user.plan_name),
+      planExpiresAt: formatDateInput(user.plan_expires_at),
+      planNote: normalizeTextInput(user.plan_note),
+      accountDisabled: Boolean(user.account_disabled),
     });
   };
 
@@ -511,6 +775,10 @@ export default function AdminUsersPage() {
     setPolicyForm({
       serverQuota: "0",
       allowedFeatures: [],
+      planName: "",
+      planExpiresAt: "",
+      planNote: "",
+      accountDisabled: false,
     });
   };
 
@@ -532,6 +800,10 @@ export default function AdminUsersPage() {
             createForm.allowedFeatures,
             availableFeatures,
           ),
+          plan_name: normalizeTextInput(createForm.planName),
+          plan_expires_at: formatDateInput(createForm.planExpiresAt),
+          plan_note: normalizeTextInput(createForm.planNote),
+          account_disabled: createForm.accountDisabled,
         }),
       });
       const payload = (await response.json().catch(() => ({}))) as ApiEnvelope<ManagedUser>;
@@ -606,6 +878,10 @@ export default function AdminUsersPage() {
             policyForm.allowedFeatures,
             availableFeatures,
           ),
+          plan_name: normalizeTextInput(policyForm.planName),
+          plan_expires_at: formatDateInput(policyForm.planExpiresAt),
+          plan_note: normalizeTextInput(policyForm.planNote),
+          account_disabled: policyForm.accountDisabled,
         }),
       });
       const payload = (await response.json().catch(() => ({}))) as ApiEnvelope<{
@@ -624,6 +900,17 @@ export default function AdminUsersPage() {
                   policyForm.allowedFeatures,
                   availableFeatures,
                 ),
+                plan_name: normalizeTextInput(policyForm.planName),
+                plan_expires_at: formatDateInput(policyForm.planExpiresAt),
+                plan_note: normalizeTextInput(policyForm.planNote),
+                account_disabled: policyForm.accountDisabled,
+                access_status: policyForm.accountDisabled
+                  ? "disabled"
+                  : formatDateInput(policyForm.planExpiresAt) &&
+                      new Date(formatDateInput(policyForm.planExpiresAt)).getTime() + 86400000 <=
+                        Date.now()
+                    ? "expired"
+                    : "active",
               }
             : user,
         ),
@@ -673,7 +960,48 @@ export default function AdminUsersPage() {
   };
 
   if (accountLoading || loading) {
-    return <Loading />;
+    return (
+      <AdminPageShell
+        eyebrow={t("common.admin_console")}
+        title={t("admin.users.title")}
+        description={t("admin.users.description")}
+        actions={
+          <>
+            <Button variant="outline" disabled>
+              {t("common.refresh")}
+            </Button>
+            <Button disabled>{t("common.add")}</Button>
+          </>
+        }
+        statsVariant="cards"
+        stats={[
+          {
+            label: t("admin.users.stats_total", "Total users"),
+            value: <Skeleton className="h-7 w-12" />,
+            tone: "blue",
+          },
+          {
+            label: t("admin.users.stats_active", "Active"),
+            value: <Skeleton className="h-7 w-12" />,
+            tone: "emerald",
+          },
+          {
+            label: t("admin.users.stats_expiring", "Expiring soon"),
+            value: <Skeleton className="h-7 w-12" />,
+            tone: "amber",
+          },
+          {
+            label: t("admin.users.stats_blocked", "Blocked"),
+            value: <Skeleton className="h-7 w-12" />,
+            tone: "rose",
+          },
+        ]}
+      >
+        <AdminSurface className="overflow-hidden p-0">
+          <AdminTableSkeleton columns={8} rows={6} className="rounded-none border-0 shadow-none" />
+        </AdminSurface>
+      </AdminPageShell>
+    );
   }
 
   if (!platformAdmin) {
@@ -706,10 +1034,10 @@ export default function AdminUsersPage() {
             <Dialog.Trigger asChild>
               <Button>{t("common.add")}</Button>
             </Dialog.Trigger>
-            <Dialog.Content maxWidth={640}>
+            <Dialog.Content className={ADMIN_FORM_DIALOG_CLASS} maxWidth={720}>
               <Dialog.Title>{t("admin.users.create_title")}</Dialog.Title>
-              <form className="mt-4 flex flex-col gap-4" onSubmit={handleCreateUser}>
-                <label className="space-y-2">
+              <form className={`${ADMIN_FORM_SCROLL_CLASS} mt-4 space-y-4`} onSubmit={handleCreateUser}>
+                <label className={ADMIN_FORM_FIELD_CLASS}>
                   <div className="text-sm font-medium text-slate-900 dark:text-slate-100">
                     {t("login.username")}
                   </div>
@@ -726,7 +1054,7 @@ export default function AdminUsersPage() {
                     required
                   />
                 </label>
-                <label className="space-y-2">
+                <label className={ADMIN_FORM_FIELD_CLASS}>
                   <div className="text-sm font-medium text-slate-900 dark:text-slate-100">
                     {t("login.password")}
                   </div>
@@ -743,8 +1071,89 @@ export default function AdminUsersPage() {
                     required
                   />
                 </label>
-                <div className="grid gap-4 md:grid-cols-2">
-                  <label className="space-y-2">
+                <PlanPresetSelector
+                  availableFeatures={availableFeatures}
+                  onApply={(planName, serverQuota, allowedFeatures) =>
+                    setCreateForm((current) => ({
+                      ...current,
+                      role: "user",
+                      planName,
+                      serverQuota,
+                      allowedFeatures,
+                    }))
+                  }
+                  t={t}
+                />
+                <div className={ADMIN_FORM_GRID_2_CLASS}>
+                  <label className={ADMIN_FORM_FIELD_CLASS}>
+                    <div className="text-sm font-medium text-slate-900 dark:text-slate-100">
+                      {t("admin.users.plan_name", "Plan")}
+                    </div>
+                    <Input
+                      value={createForm.planName}
+                      onChange={(event) =>
+                        setCreateForm((current) => ({
+                          ...current,
+                          planName: event.target.value,
+                        }))
+                      }
+                      placeholder={t("admin.users.plan_name_placeholder", "Business")}
+                      maxLength={64}
+                    />
+                  </label>
+                  <label className={ADMIN_FORM_FIELD_CLASS}>
+                    <div className="text-sm font-medium text-slate-900 dark:text-slate-100">
+                      {t("admin.users.plan_expires_at", "Expires")}
+                    </div>
+                    <Input
+                      type="date"
+                      value={createForm.planExpiresAt}
+                      onChange={(event) =>
+                        setCreateForm((current) => ({
+                          ...current,
+                          planExpiresAt: event.target.value,
+                        }))
+                      }
+                    />
+                  </label>
+                </div>
+                <label className={ADMIN_FORM_FIELD_CLASS}>
+                  <div className="text-sm font-medium text-slate-900 dark:text-slate-100">
+                    {t("admin.users.plan_note", "Internal note")}
+                  </div>
+                  <Textarea
+                    value={createForm.planNote}
+                    onChange={(event) =>
+                      setCreateForm((current) => ({
+                        ...current,
+                        planNote: event.target.value,
+                      }))
+                    }
+                    placeholder={t("admin.users.plan_note_placeholder", "Renewal note, source, or billing remark")}
+                    maxLength={512}
+                  />
+                </label>
+                <label className={ADMIN_FORM_TOGGLE_CLASS}>
+                  <div>
+                    <div className="text-sm font-medium text-slate-900 dark:text-slate-100">
+                      {t("admin.users.account_disabled", "Disable account")}
+                    </div>
+                    <div className="text-xs text-slate-500 dark:text-slate-400">
+                      {t("admin.users.account_disabled_hint", "Disabled or expired users cannot log in or use admin APIs.")}
+                    </div>
+                  </div>
+                  <Switch
+                    checked={createForm.accountDisabled}
+                    onCheckedChange={(checked) =>
+                      setCreateForm((current) => ({
+                        ...current,
+                        accountDisabled: checked,
+                      }))
+                    }
+                  />
+                </label>
+                <div className={ADMIN_FORM_GRID_2_CLASS}>
+                  <label className={ADMIN_FORM_FIELD_CLASS}>
                     <div className="text-sm font-medium text-slate-900 dark:text-slate-100">
                       {t("admin.users.role")}
                     </div>
@@ -764,7 +1173,7 @@ export default function AdminUsersPage() {
                       </Select.Content>
                     </Select.Root>
                   </label>
-                  <label className="space-y-2">
+                  <label className={ADMIN_FORM_FIELD_CLASS}>
                     <div className="text-sm font-medium text-slate-900 dark:text-slate-100">
                       {t("admin.users.server_quota", "Server quota")}
                     </div>
@@ -792,7 +1201,7 @@ export default function AdminUsersPage() {
                   }
                   t={t}
                 />
-                <div className="flex justify-end gap-2">
+                <div className="flex justify-end gap-2 border-t border-slate-200/70 pt-4 dark:border-slate-800/70">
                   <Dialog.Close asChild>
                     <Button variant="outline" type="button">
                       {t("common.cancel")}
@@ -812,28 +1221,43 @@ export default function AdminUsersPage() {
           label: t("admin.users.total"),
           value: totalUsers,
           tone: "blue",
+          hint: t("admin.users.stats_role_mix", {
+            admins: totalAdmins,
+            users: totalRegularUsers,
+            defaultValue: "{{admins}} admins / {{users}} users",
+          }),
         },
         {
-          label: t("admin.users.admins"),
-          value: totalAdmins,
+          label: t("admin.users.stats_active", "Active"),
+          value: activeUsers,
           tone: "emerald",
         },
         {
-          label: t("admin.users.standard"),
-          value: totalRegularUsers,
-          tone: "slate",
+          label: t("admin.users.stats_expiring", "Expiring soon"),
+          value: expiringSoonUsers,
+          hint: t("admin.users.stats_expiring_hint", {
+            days: EXPIRING_SOON_DAYS,
+            defaultValue: "Within {{days}} days",
+          }),
+          tone: "amber",
+        },
+        {
+          label: t("admin.users.stats_blocked", "Blocked"),
+          value: blockedUsers,
+          tone: "rose",
         },
       ]}
       statsVariant="cards"
     >
       <AdminSurface>
         <Dialog.Root open={Boolean(policyUser)} onOpenChange={(open) => !open && closePolicyEditor()}>
-          <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-950/40">
+          <div className="overflow-hidden rounded-lg border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-950/40">
             <Table>
               <TableHeader>
                 <TableRow>
                   <TableHead>{t("login.username")}</TableHead>
                   <TableHead>{t("admin.users.role")}</TableHead>
+                  <TableHead>{t("admin.users.plan_name", "Plan")}</TableHead>
                   <TableHead>{t("admin.users.server_quota", "Server quota")}</TableHead>
                   <TableHead>{t("admin.users.allowed_features", "Allowed features")}</TableHead>
                   <TableHead>{t("admin.users.auth")}</TableHead>
@@ -849,6 +1273,8 @@ export default function AdminUsersPage() {
                   const has2FA = Boolean(String(user.two_factor || "").trim());
                   const quota = Number(user.server_quota || 0);
                   const clientCount = Number(user.client_count || 0);
+                  const quotaUsage = getQuotaUsageState(clientCount, quota);
+                  const accessStatus = normalizeTextInput(user.access_status) || "active";
                   const allowedFeatures = normalizeFeatures(
                     user.allowed_features,
                     availableFeatures,
@@ -882,10 +1308,52 @@ export default function AdminUsersPage() {
                         </Select.Root>
                       </TableCell>
                       <TableCell>
-                        <div className="flex flex-col gap-1">
-                          <span className="font-medium text-slate-900 dark:text-slate-100">
-                            {clientCount} / {quota > 0 ? quota : t("admin.users.quota_unlimited", "Unlimited")}
-                          </span>
+                        <div className="min-w-[150px] space-y-1.5">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className="font-medium text-slate-900 dark:text-slate-100">
+                              {normalizeTextInput(user.plan_name) ||
+                                t("admin.users.plan_none", "No plan")}
+                            </span>
+                            <Badge
+                              color={getAccessStatusTone(accessStatus)}
+                              variant="soft"
+                            >
+                              {getAccessStatusLabel(accessStatus, t)}
+                            </Badge>
+                          </div>
+                          <div className="text-xs text-slate-500 dark:text-slate-400">
+                            {formatDateInput(user.plan_expires_at)
+                              ? t("admin.users.expires_on", {
+                                  date: formatDateInput(user.plan_expires_at),
+                                  defaultValue: "Expires {{date}}",
+                                })
+                              : t("admin.users.no_expiration", "No expiration")}
+                          </div>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="min-w-[180px] space-y-2">
+                          <div className="flex items-center justify-between gap-3">
+                            <span className="font-medium text-slate-900 dark:text-slate-100">
+                              {clientCount} /{" "}
+                              {quota > 0
+                                ? quota
+                                : t("admin.users.quota_unlimited", "Unlimited")}
+                            </span>
+                            <Badge
+                              color={quotaUsage.tone}
+                              variant="soft"
+                              className="shrink-0"
+                            >
+                              {t(quotaUsage.labelKey, quotaUsage.defaultLabel)}
+                            </Badge>
+                          </div>
+                          <div className="h-1.5 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
+                            <div
+                              className={`h-full rounded-full transition-[width] ${quotaUsage.barClassName}`}
+                              style={{ width: `${quotaUsage.percent}%` }}
+                            />
+                          </div>
                           <span className="text-xs text-slate-500 dark:text-slate-400">
                             {t("admin.users.server_usage", "Servers in use")}
                           </span>
@@ -927,7 +1395,7 @@ export default function AdminUsersPage() {
                       </TableCell>
                       <TableCell>{formatDateTime(user.created_at)}</TableCell>
                       <TableCell className="text-right">
-                        <div className="flex justify-end gap-2">
+                        <div className="flex justify-end gap-2 border-t border-slate-200/70 pt-4 dark:border-slate-800/70">
                           <Button
                             variant="outline"
                             onClick={() => openPolicyEditor(user)}
@@ -950,11 +1418,11 @@ export default function AdminUsersPage() {
               </TableBody>
             </Table>
           </div>
-          <Dialog.Content maxWidth={640}>
+          <Dialog.Content className={ADMIN_FORM_DIALOG_CLASS} maxWidth={720}>
             <Dialog.Title>{t("admin.users.access_title", "Edit user access")}</Dialog.Title>
             {policyUser ? (
-              <div className="mt-4 flex flex-col gap-4">
-                <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm dark:border-slate-800 dark:bg-slate-900/60">
+              <div className={`${ADMIN_FORM_SCROLL_CLASS} mt-4 space-y-4`}>
+                <div className="rounded-lg border border-dashed border-slate-300 bg-muted/20 px-4 py-3 text-sm dark:border-slate-700">
                   <div className="font-medium text-slate-900 dark:text-slate-100">
                     {policyUser.username}
                   </div>
@@ -962,7 +1430,87 @@ export default function AdminUsersPage() {
                     {policyUser.uuid}
                   </div>
                 </div>
-                <label className="space-y-2">
+                <PlanPresetSelector
+                  availableFeatures={availableFeatures}
+                  onApply={(planName, serverQuota, allowedFeatures) =>
+                    setPolicyForm((current) => ({
+                      ...current,
+                      planName,
+                      serverQuota,
+                      allowedFeatures,
+                    }))
+                  }
+                  t={t}
+                />
+                <div className={ADMIN_FORM_GRID_2_CLASS}>
+                  <label className={ADMIN_FORM_FIELD_CLASS}>
+                    <div className="text-sm font-medium text-slate-900 dark:text-slate-100">
+                      {t("admin.users.plan_name", "Plan")}
+                    </div>
+                    <Input
+                      value={policyForm.planName}
+                      onChange={(event) =>
+                        setPolicyForm((current) => ({
+                          ...current,
+                          planName: event.target.value,
+                        }))
+                      }
+                      placeholder={t("admin.users.plan_name_placeholder", "Business")}
+                      maxLength={64}
+                    />
+                  </label>
+                  <label className={ADMIN_FORM_FIELD_CLASS}>
+                    <div className="text-sm font-medium text-slate-900 dark:text-slate-100">
+                      {t("admin.users.plan_expires_at", "Expires")}
+                    </div>
+                    <Input
+                      type="date"
+                      value={policyForm.planExpiresAt}
+                      onChange={(event) =>
+                        setPolicyForm((current) => ({
+                          ...current,
+                          planExpiresAt: event.target.value,
+                        }))
+                      }
+                    />
+                  </label>
+                </div>
+                <label className={ADMIN_FORM_FIELD_CLASS}>
+                  <div className="text-sm font-medium text-slate-900 dark:text-slate-100">
+                    {t("admin.users.plan_note", "Internal note")}
+                  </div>
+                  <Textarea
+                    value={policyForm.planNote}
+                    onChange={(event) =>
+                      setPolicyForm((current) => ({
+                        ...current,
+                        planNote: event.target.value,
+                      }))
+                    }
+                    placeholder={t("admin.users.plan_note_placeholder", "Renewal note, source, or billing remark")}
+                    maxLength={512}
+                  />
+                </label>
+                <label className={ADMIN_FORM_TOGGLE_CLASS}>
+                  <div>
+                    <div className="text-sm font-medium text-slate-900 dark:text-slate-100">
+                      {t("admin.users.account_disabled", "Disable account")}
+                    </div>
+                    <div className="text-xs text-slate-500 dark:text-slate-400">
+                      {t("admin.users.account_disabled_hint", "Disabled or expired users cannot log in or use admin APIs.")}
+                    </div>
+                  </div>
+                  <Switch
+                    checked={policyForm.accountDisabled}
+                    onCheckedChange={(checked) =>
+                      setPolicyForm((current) => ({
+                        ...current,
+                        accountDisabled: checked,
+                      }))
+                    }
+                  />
+                </label>
+                <label className={ADMIN_FORM_FIELD_CLASS}>
                   <div className="text-sm font-medium text-slate-900 dark:text-slate-100">
                     {t("admin.users.server_quota", "Server quota")}
                   </div>
@@ -989,7 +1537,7 @@ export default function AdminUsersPage() {
                   }
                   t={t}
                 />
-                <div className="flex justify-end gap-2">
+                <div className="flex justify-end gap-2 border-t border-slate-200/70 pt-4 dark:border-slate-800/70">
                   <Dialog.Close asChild>
                     <Button variant="outline" type="button" onClick={closePolicyEditor}>
                       {t("common.cancel")}

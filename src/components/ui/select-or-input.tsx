@@ -248,7 +248,7 @@ export function SelectOrInput<T extends Primitive = string>(
       {open && (
         <div
           className={cn(
-            "absolute left-0 right-0 z-50 mt-1 rounded-md border bg-accent-1 text-popover-foreground shadow-md",
+            "absolute left-0 right-0 z-50 mt-1 rounded-lg border border-border/70 bg-popover text-popover-foreground shadow-lg shadow-slate-950/10 dark:shadow-black/30",
             "h-[min(15rem,calc(100vh-6rem))] overflow-y-auto overscroll-contain [scrollbar-gutter:stable]",
             listClassName
           )}
@@ -259,7 +259,7 @@ export function SelectOrInput<T extends Primitive = string>(
               allowCustom ? null : (
                 <li
                   className={cn(
-                    "text-muted-foreground select-none rounded-sm px-2 py-1.5 text-sm"
+                    "text-muted-foreground select-none rounded-md px-2.5 py-2 text-sm"
                   )}
                 >
                   {emptyText}
@@ -276,11 +276,11 @@ export function SelectOrInput<T extends Primitive = string>(
                     aria-selected={isActive}
                     data-disabled={isDisabled || undefined}
                     className={cn(
-                      "flex cursor-default select-none items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-hidden font-semibold",
+                      "flex cursor-default select-none items-center gap-2 rounded-md px-2.5 py-2 text-sm font-medium outline-hidden",
                       "data-[disabled]:pointer-events-none data-[disabled]:opacity-50",
                       isActive
-                        ? "bg-accent-10 text-accent-foreground"
-                        : "hover:bg-accent hover:text-accent-foreground",
+                        ? "bg-muted text-foreground"
+                        : "hover:bg-muted hover:text-foreground",
                       optionClassName
                     )}
                     onMouseEnter={() => setHighlightIndex(idx)}

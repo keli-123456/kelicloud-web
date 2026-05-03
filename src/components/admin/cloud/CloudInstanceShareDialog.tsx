@@ -15,10 +15,11 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import {
   CloudCopyBlock,
+  CloudDetailDialogSkeleton,
   CloudDetailItem,
+  CloudReadonlyCodeBlock,
   cloudDialogContentClassName,
   cloudLongTextClassName,
-  cloudSecretTextareaClassName,
 } from "@/components/admin/cloud/cloud-ui";
 import {
   type CloudInstanceShareRecord,
@@ -101,8 +102,8 @@ export default function CloudInstanceShareDialog({
   const { t } = useTranslation();
   const shareStatus = share?.status || (share?.token ? "active" : "not_shared");
   const shareBannerClassName = shareStatus === "active"
-    ? "rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-4 dark:border-emerald-900/40 dark:bg-emerald-950/30"
-    : "rounded-2xl border border-amber-200 bg-amber-50 px-4 py-4 dark:border-amber-900/40 dark:bg-amber-950/30";
+    ? "rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-4 dark:border-emerald-900/40 dark:bg-emerald-950/30"
+    : "rounded-lg border border-amber-200 bg-amber-50 px-4 py-4 dark:border-amber-900/40 dark:bg-amber-950/30";
   const shareBannerTitleClassName = shareStatus === "active"
     ? "text-sm font-medium text-emerald-900 dark:text-emerald-100"
     : "text-sm font-medium text-amber-900 dark:text-amber-100";
@@ -113,7 +114,7 @@ export default function CloudInstanceShareDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
-        className={`${cloudDialogContentClassName} max-h-[85vh] overflow-y-auto`}
+        className={cloudDialogContentClassName}
       >
         <DialogHeader>
           <DialogTitle>{t("cloud.share.dialog_title", "Share Instance")}</DialogTitle>
@@ -126,9 +127,7 @@ export default function CloudInstanceShareDialog({
         </DialogHeader>
 
         {loading ? (
-          <div className="text-sm text-slate-500">
-            {t("cloud.loading", "Loading cloud resources...")}
-          </div>
+          <CloudDetailDialogSkeleton rows={8} />
         ) : target ? (
           <div className="flex flex-col gap-4">
             <div className="grid gap-3 sm:grid-cols-2">
@@ -172,12 +171,7 @@ export default function CloudInstanceShareDialog({
                   copyLabel={t("common.copy", "Copy")}
                   onCopy={onCopyLink}
                 >
-                  <Textarea
-                    className={cloudSecretTextareaClassName}
-                    readOnly
-                    rows={3}
-                    value={shareUrl}
-                  />
+                  <CloudReadonlyCodeBlock value={shareUrl} />
                 </CloudCopyBlock>
                 <div className="mt-3 grid gap-3 sm:grid-cols-3">
                   <CloudDetailItem
@@ -257,7 +251,7 @@ export default function CloudInstanceShareDialog({
             </div>
 
             {target.canSharePassword ? (
-              <label className="flex items-center gap-3 rounded-xl border border-slate-200 px-4 py-3 dark:border-slate-800">
+              <label className="flex items-center gap-3 rounded-lg border border-slate-200 px-4 py-3 dark:border-slate-800">
                 <Checkbox checked={sharePassword} onCheckedChange={(checked) => onSharePasswordChange(Boolean(checked))} />
                 <div className="min-w-0">
                   <div className="text-sm font-medium text-slate-900 dark:text-slate-100">
@@ -271,7 +265,7 @@ export default function CloudInstanceShareDialog({
             ) : null}
 
             {target.canShareManagedSSHKey ? (
-              <label className="flex items-center gap-3 rounded-xl border border-slate-200 px-4 py-3 dark:border-slate-800">
+              <label className="flex items-center gap-3 rounded-lg border border-slate-200 px-4 py-3 dark:border-slate-800">
                 <Checkbox checked={shareManagedSSHKey} onCheckedChange={(checked) => onShareManagedSSHKeyChange(Boolean(checked))} />
                 <div className="min-w-0">
                   <div className="text-sm font-medium text-slate-900 dark:text-slate-100">

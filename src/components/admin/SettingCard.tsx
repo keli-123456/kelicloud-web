@@ -79,11 +79,11 @@ export function SettingCard({
   return (
     <div
       className={cn(
-        "flex gap-2",
+        "flex gap-3",
         getDirectionClass(direction),
         bordless
           ? "border-0 bg-transparent p-0 shadow-none"
-          : "min-h-0 border-b border-border/70 px-0 py-2.5",
+          : "min-h-0 border-t border-slate-200/80 py-4 first:border-t-0 dark:border-slate-800/90",
         className,
       )}
     >
@@ -100,11 +100,11 @@ export function SettingCard({
         }}
       >
         <div className="min-h-0 flex-1 space-y-1">
-          <div className="text-[14px] font-medium tracking-tight text-foreground">
+          <div className="text-[14px] font-semibold leading-5 tracking-normal text-slate-950 dark:text-slate-50">
             {title}
           </div>
           {description ? (
-            <div className="text-[13px] leading-5 text-muted-foreground">
+      <div className="max-w-3xl text-sm leading-5 text-slate-500 dark:text-slate-400">
               {description}
             </div>
           ) : null}
@@ -165,7 +165,7 @@ export function SettingCardSwitch({
     <SettingCard {...props} direction="column">
       <SettingCard.Action>
         <div className="flex items-center gap-2">
-          <label className="text-[13px] text-muted-foreground">{label}</label>
+            <label className="text-sm text-muted-foreground">{label}</label>
           <Switch
             ref={switchRef}
             checked={checked}
@@ -210,13 +210,13 @@ export function SettingCardButton({
     <SettingCard {...props} direction="column">
       <SettingCard.Action>
         <div className="flex items-center gap-2">
-          <label className="text-[13px] text-muted-foreground">{label}</label>
+            <label className="text-sm text-muted-foreground">{label}</label>
           <Button
             onClick={handleClick}
             variant={mapButtonVariant(variant)}
             disabled={disabled}
             size="sm"
-            className="rounded-md text-[13px]"
+            className="rounded-md text-sm"
           >
             {children}
           </Button>
@@ -258,7 +258,7 @@ export function SettingCardIconButton({
     <SettingCard {...props} direction="column">
       <SettingCard.Action>
         <div className="flex items-center gap-2">
-          <label className="text-[13px] text-muted-foreground">{label}</label>
+            <label className="text-sm text-muted-foreground">{label}</label>
           <Button
             onClick={handleClick}
             variant={mapButtonVariant(variant)}
@@ -363,28 +363,32 @@ export function SettingCardShortTextInput({
 
   return (
     <SettingCard title={title} description={description} bordless={bordless}>
-      <div className="mt-0.5 flex w-full flex-col items-start gap-2">
-        <Input
-          {...restProps}
-          className={cn("h-8 w-full text-[13px]", className)}
-          value={value !== undefined ? value : internalValue}
-          defaultValue={value === undefined ? defaultValue : undefined}
-          disabled={restProps.disabled || savingState}
-          onChange={handleInputChange}
-          onKeyDown={handleKeyDown}
-          ref={inputRef}
-        />
-        {children}
-        <Button
-          ref={buttonRef}
-          onClick={handleSave}
-          hidden={!showSaveButton}
-          disabled={savingState}
-          size="sm"
-          className="rounded-md text-[13px]"
-        >
-          {resolvedLabel}
-        </Button>
+      <div className="mt-1 flex w-full flex-col items-start gap-2">
+        <div className="flex w-full max-w-3xl flex-col gap-2 sm:flex-row sm:items-center">
+          <Input
+            {...restProps}
+            className={cn(
+                  "h-9 min-w-0 flex-1 rounded-md border-slate-200 bg-white text-sm shadow-xs dark:border-slate-800 dark:bg-slate-950",
+              className,
+            )}
+            value={value !== undefined ? value : internalValue}
+            disabled={restProps.disabled || savingState}
+            onChange={handleInputChange}
+            onKeyDown={handleKeyDown}
+            ref={inputRef}
+          />
+          <Button
+            ref={buttonRef}
+            onClick={handleSave}
+            hidden={!showSaveButton}
+            disabled={savingState}
+            size="sm"
+                className="h-9 shrink-0 rounded-md px-3 text-sm"
+          >
+            {resolvedLabel}
+          </Button>
+        </div>
+        {children ? <div className="flex flex-wrap items-center gap-2">{children}</div> : null}
       </div>
     </SettingCard>
   );
@@ -453,24 +457,23 @@ export function SettingCardLongTextInput({
 
   return (
     <SettingCard title={title} description={description} bordless={bordless}>
-      <div className="mt-0.5 flex w-full flex-col items-start gap-2">
+      <div className="mt-1 flex w-full max-w-3xl flex-col items-start gap-2">
         <Textarea
-          className="w-full text-[13px] leading-6"
+                className="min-h-28 w-full rounded-md border-slate-200 bg-white text-sm leading-6 shadow-xs dark:border-slate-800 dark:bg-slate-950"
           value={value}
           onChange={handleTextAreaChange}
           ref={textAreaRef}
         />
-        {showSaveButton ? (
-          <Button
-            ref={buttonRef}
-            onClick={handleSave}
-            disabled={savingState}
-            size="sm"
-            className="rounded-md text-[13px]"
-          >
-            {resolvedLabel}
-          </Button>
-        ) : null}
+        <Button
+          ref={buttonRef}
+          onClick={handleSave}
+          hidden={!showSaveButton}
+          disabled={savingState}
+          size="sm"
+                className="h-9 rounded-md px-3 text-sm"
+        >
+          {resolvedLabel}
+        </Button>
       </div>
     </SettingCard>
   );
@@ -548,7 +551,7 @@ export function SettingCardSelect({
           <SelectTrigger
             ref={triggerRef}
             size="sm"
-            className="min-w-48 rounded-md text-[13px]"
+          className="min-w-48 rounded-md border-slate-200 bg-white text-sm shadow-xs dark:border-slate-800 dark:bg-slate-950"
           >
             <SelectValue placeholder={resolvedLabel} />
           </SelectTrigger>
@@ -575,7 +578,7 @@ export function SettingCardLabel({
   children: React.ReactNode | null;
 }) {
   return (
-    <label className="pt-1 text-[12px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+    <label className="mt-2 pt-1 text-[12px] font-semibold uppercase tracking-normal text-slate-500 first:mt-0 dark:text-slate-400">
       {children}
     </label>
   );

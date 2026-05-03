@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { ChevronDown } from "lucide-react";
 
-import Loading from "@/components/loading";
+import { AdminSettingsSkeleton } from "@/components/admin/AdminPageShell";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -20,6 +20,7 @@ import {
 } from "@/components/ui/dialog";
 import { WarningAlert } from "@/components/ui/warning-alert";
 import { useWarningDialog } from "@/components/ui/warning-dialog";
+import { cloudDialogContentClassName } from "@/components/admin/cloud/cloud-ui";
 import {
   getCloudProviders,
   getCloudProviderEntries,
@@ -595,7 +596,7 @@ export default function CloudDnsProviderSection({
     <>
       <div
         className={cn(
-          "overflow-hidden rounded-2xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-950/40",
+          "overflow-hidden rounded-lg border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-950/40",
           className,
         )}
       >
@@ -613,7 +614,7 @@ export default function CloudDnsProviderSection({
           ) : null}
 
           {definitionLoading ? (
-            <Loading text="" />
+            <AdminSettingsSkeleton sections={3} />
           ) : providerList.length === 0 ? (
             <WarningAlert
               tone="info"
@@ -642,7 +643,7 @@ export default function CloudDnsProviderSection({
                 )}
               />
 
-              <div className="flex flex-wrap gap-x-5 gap-y-2 border-b border-slate-200 pb-1 text-[13px] text-slate-500 dark:border-slate-800 dark:text-slate-400">
+              <div className="flex flex-wrap gap-x-5 gap-y-2 border-b border-slate-200 pb-1 text-sm text-slate-500 dark:border-slate-800 dark:text-slate-400">
                 <div className="flex items-center gap-2">
                   <span className="font-medium text-slate-700 dark:text-slate-300">
                     {t("cloud.dns.overview.providers", "Providers")}:
@@ -703,7 +704,7 @@ export default function CloudDnsProviderSection({
                       }}
                     >
                       <div
-                        className={cn("rounded-xl border px-4 py-4", accent.cardClassName)}
+                        className={cn("rounded-lg border px-4 py-4", accent.cardClassName)}
                       >
                         <CollapsibleTrigger asChild>
                           <button
@@ -715,7 +716,7 @@ export default function CloudDnsProviderSection({
                                 <div className="flex items-start gap-3">
                                   <div
                                     className={cn(
-                                      "flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border text-sm font-semibold tracking-[0.18em]",
+                                      "flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border text-sm font-semibold tracking-normal",
                                       accent.iconClassName,
                                     )}
                                   >
@@ -780,12 +781,12 @@ export default function CloudDnsProviderSection({
                           ) : null}
 
                           {!providerReady ? (
-                            <Loading text="" />
+                            <AdminSettingsSkeleton sections={2} />
                           ) : (
                             <>
                               <div className="space-y-3">
                             {providerEntries.length === 0 ? (
-                              <div className="rounded-xl border border-dashed border-slate-300 bg-white/70 px-4 py-5 text-sm text-slate-500 dark:border-slate-700 dark:bg-slate-950/60 dark:text-slate-400">
+                              <div className="rounded-lg border border-dashed border-slate-300 bg-white/70 px-4 py-5 text-sm text-slate-500 dark:border-slate-700 dark:bg-slate-950/60 dark:text-slate-400">
                                 {t(
                                   "cloud.dns.empty_entries",
                                   "No credential profiles saved for this provider yet.",
@@ -806,7 +807,7 @@ export default function CloudDnsProviderSection({
                                 return (
                                   <div
                                     key={entry.id}
-                                    className="rounded-xl border border-slate-200 bg-white px-4 py-3 dark:border-slate-800 dark:bg-slate-950/60"
+                                    className="rounded-lg border border-slate-200 bg-white px-4 py-3 dark:border-slate-800 dark:bg-slate-950/60"
                                   >
                                     <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                                       <div className="min-w-0 space-y-1">
@@ -882,7 +883,7 @@ export default function CloudDnsProviderSection({
       </div>
 
       <Dialog open={Boolean(dialogState)} onOpenChange={(open) => !open && closeDialog()}>
-        <DialogContent className="max-h-[85vh] overflow-y-auto overscroll-contain border-slate-200 bg-white [scrollbar-gutter:stable] sm:max-w-2xl dark:border-slate-800 dark:bg-slate-950">
+        <DialogContent className={cloudDialogContentClassName}>
           <DialogHeader>
             <DialogTitle>
               {dialogState?.entryId

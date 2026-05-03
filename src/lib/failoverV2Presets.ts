@@ -244,6 +244,48 @@ export const COMMON_LINODE_IMAGES: BuiltinPlanOption[] = [
   { value: "linode/fedora43", label: "Fedora 43" },
 ];
 
+export const COMMON_AZURE_LOCATIONS: BuiltinPlanOption[] = [
+  { value: "eastus", label: "East US", zh: "\u7f8e\u56fd\u4e1c\u90e8" },
+  { value: "eastus2", label: "East US 2", zh: "\u7f8e\u56fd\u4e1c\u90e8 2" },
+  { value: "westus2", label: "West US 2", zh: "\u7f8e\u56fd\u897f\u90e8 2" },
+  { value: "westus3", label: "West US 3", zh: "\u7f8e\u56fd\u897f\u90e8 3" },
+  { value: "centralus", label: "Central US", zh: "\u7f8e\u56fd\u4e2d\u90e8" },
+  { value: "canadacentral", label: "Canada Central", zh: "\u52a0\u62ff\u5927\u4e2d\u90e8" },
+  { value: "uksouth", label: "UK South", zh: "\u82f1\u56fd\u5357\u90e8" },
+  { value: "westeurope", label: "West Europe", zh: "\u897f\u6b27" },
+  { value: "northeurope", label: "North Europe", zh: "\u5317\u6b27" },
+  { value: "germanywestcentral", label: "Germany West Central", zh: "\u5fb7\u56fd\u4e2d\u897f\u90e8" },
+  { value: "swedencentral", label: "Sweden Central", zh: "\u745e\u5178\u4e2d\u90e8" },
+  { value: "francecentral", label: "France Central", zh: "\u6cd5\u56fd\u4e2d\u90e8" },
+  { value: "switzerlandnorth", label: "Switzerland North", zh: "\u745e\u58eb\u5317\u90e8" },
+  { value: "japaneast", label: "Japan East", zh: "\u65e5\u672c\u4e1c\u90e8" },
+  { value: "japanwest", label: "Japan West", zh: "\u65e5\u672c\u897f\u90e8" },
+  { value: "koreacentral", label: "Korea Central", zh: "\u97e9\u56fd\u4e2d\u90e8" },
+  { value: "southeastasia", label: "Southeast Asia", zh: "\u4e1c\u5357\u4e9a" },
+  { value: "eastasia", label: "East Asia", zh: "\u4e1c\u4e9a" },
+  { value: "australiaeast", label: "Australia East", zh: "\u6fb3\u5927\u5229\u4e9a\u4e1c\u90e8" },
+  { value: "brazilsouth", label: "Brazil South", zh: "\u5df4\u897f\u5357\u90e8" },
+  { value: "centralindia", label: "Central India", zh: "\u5370\u5ea6\u4e2d\u90e8" },
+];
+
+export const COMMON_AZURE_SIZES: BuiltinPlanOption[] = [
+  { value: "Standard_B1s", label: "B1s", hint: "1 vCPU / 1 GB" },
+  { value: "Standard_B1ms", label: "B1ms", hint: "1 vCPU / 2 GB" },
+  { value: "Standard_B2s", label: "B2s", hint: "2 vCPU / 4 GB" },
+  { value: "Standard_B2ms", label: "B2ms", hint: "2 vCPU / 8 GB" },
+  { value: "Standard_D2s_v5", label: "D2s v5", hint: "2 vCPU / 8 GB" },
+  { value: "Standard_D4s_v5", label: "D4s v5", hint: "4 vCPU / 16 GB" },
+  { value: "Standard_D2as_v5", label: "D2as v5", hint: "2 vCPU / 8 GB AMD" },
+  { value: "Standard_D4as_v5", label: "D4as v5", hint: "4 vCPU / 16 GB AMD" },
+];
+
+export const DEFAULT_AZURE_IMAGE = {
+  publisher: "Canonical",
+  offer: "ubuntu-24_04-lts",
+  sku: "server",
+  version: "latest",
+};
+
 export const DEFAULT_AWS_REGION = "us-east-1";
 export const DEFAULT_STATIC_EC2_INSTANCE_TYPE = STATIC_EC2_INSTANCE_TYPE_PRESETS[0]?.value || "t3.micro";
 export const DEFAULT_STATIC_EC2_IMAGE_ID =
@@ -257,3 +299,5 @@ export const DEFAULT_DIGITALOCEAN_IMAGE = COMMON_DIGITALOCEAN_IMAGES[0]?.value |
 export const DEFAULT_LINODE_REGION = COMMON_LINODE_REGIONS.find((region) => region.value === "sg-sin-2")?.value || "sg-sin-2";
 export const DEFAULT_LINODE_TYPE = COMMON_LINODE_TYPES[0]?.value || "g6-nanode-1";
 export const DEFAULT_LINODE_IMAGE = COMMON_LINODE_IMAGES[0]?.value || "linode/ubuntu24.04";
+export const DEFAULT_AZURE_LOCATION = COMMON_AZURE_LOCATIONS.find((location) => location.value === "eastus")?.value || "eastus";
+export const DEFAULT_AZURE_SIZE = COMMON_AZURE_SIZES[0]?.value || "Standard_B1s";

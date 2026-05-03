@@ -43,6 +43,7 @@ export function ActionSummaryCard({
   showEmptyState = false,
   statusMessage = "",
   statusTone = "neutral",
+  variant = "card",
   className,
 }: {
   title: string;
@@ -56,12 +57,20 @@ export function ActionSummaryCard({
   showEmptyState?: boolean;
   statusMessage?: string;
   statusTone?: SummaryStatusTone;
+  variant?: "card" | "inline";
   className?: string;
 }) {
   const ActionIcon = actionIcon === "view" ? Eye : PencilLine;
 
   return (
-    <div className={cn("space-y-4 rounded-xl border px-4 py-4", className)}>
+    <div
+      className={cn(
+        variant === "inline"
+          ? "space-y-3 border-t border-slate-200/70 pt-4 first:border-t-0 first:pt-0 dark:border-slate-800/70"
+          : "space-y-4 rounded-lg border px-4 py-4",
+        className,
+      )}
+    >
       <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
         <div className="min-w-0 flex-1 space-y-1">
           <div className="break-words text-sm font-medium text-slate-900 dark:text-slate-50">
@@ -71,7 +80,7 @@ export function ActionSummaryCard({
             {hint}
           </div>
         </div>
-        <Button type="button" variant="outline" onClick={onAction} disabled={actionDisabled}>
+        <Button type="button" variant="outline" size={variant === "inline" ? "sm" : "default"} onClick={onAction} disabled={actionDisabled}>
           <ActionIcon className="size-4" />
           {actionLabel}
         </Button>
@@ -80,7 +89,7 @@ export function ActionSummaryCard({
       <DetailItemsList items={items} />
 
       {showEmptyState ? (
-        <div className="break-words rounded-xl border border-dashed px-4 py-3 text-sm text-muted-foreground">
+        <div className="break-words rounded-lg border border-dashed px-4 py-3 text-sm text-muted-foreground">
           {emptyLabel}
         </div>
       ) : null}
@@ -88,7 +97,7 @@ export function ActionSummaryCard({
       {statusMessage ? (
         <div
           className={cn(
-            "break-words rounded-xl px-4 py-3 text-sm",
+            "break-words rounded-lg px-4 py-3 text-sm",
             statusTone === "danger"
               ? "border border-red-200 bg-red-50 text-red-700 dark:border-red-900/40 dark:bg-red-950/30 dark:text-red-200"
               : statusTone === "warning"

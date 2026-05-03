@@ -20,15 +20,15 @@ import type { SettingsResponse } from "@/lib/api";
 import { buildAgentInstallScriptURL } from "@/lib/installScriptSource";
 
 const NODE_DIALOG_CONTENT_CLASS =
-  "max-h-[90vh] w-[min(96vw,1040px)] overflow-y-auto overscroll-contain rounded-[28px] border border-slate-200/80 bg-white/95 p-6 shadow-2xl [scrollbar-gutter:stable] backdrop-blur dark:border-slate-800/80 dark:bg-slate-950/95";
+  "max-h-[90vh] w-[min(96vw,1040px)] overflow-y-auto overscroll-contain rounded-lg border border-slate-200/80 bg-card p-6 [scrollbar-gutter:stable] dark:border-slate-800 dark:bg-slate-950";
 const NODE_DIALOG_SECTION_CLASS =
-  "rounded-[24px] border border-slate-200/80 bg-white/72 p-4 shadow-sm backdrop-blur dark:border-slate-800/80 dark:bg-slate-900/40";
+  "rounded-lg border border-slate-200/80 bg-white p-4 shadow-none dark:border-slate-800 dark:bg-slate-950/40";
 const NODE_DIALOG_HINT_CLASS =
-  "text-[13px] leading-6 text-slate-500 dark:text-slate-400";
+  "text-sm leading-6 text-slate-500 dark:text-slate-400";
 const NODE_DIALOG_FOOTER_CLASS =
   "mt-6 flex flex-col-reverse gap-2.5 sm:flex-row sm:justify-end";
 const NODE_INPUT_CLASS =
-  "h-11 rounded-xl border border-slate-200 bg-white px-3 text-[14px] shadow-none dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100";
+  "h-11 rounded-lg border border-slate-200 bg-white px-3 text-[14px] shadow-none dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100";
 
 type Platform = "linux" | "windows" | "macos";
 
@@ -198,7 +198,7 @@ const AdvancedToggleInputField = ({
   max,
   hint,
 }: AdvancedToggleInputFieldProps) => (
-  <div className="rounded-xl border border-slate-200/80 bg-white/60 px-3 py-2.5 dark:border-slate-700/70 dark:bg-slate-950/30">
+  <div className="rounded-lg border border-slate-200/80 bg-white/60 px-3 py-2.5 dark:border-slate-700/70 dark:bg-slate-950/30">
     <div className="flex items-center justify-between gap-3">
       <label htmlFor={id} className="text-sm font-semibold text-slate-900 dark:text-slate-100">
         {label}
@@ -560,7 +560,7 @@ export default function GenerateCommandDialog({
         </Dialog.Description>
         <div className="mt-4 flex flex-col gap-4">
           {useAutoDiscovery && !groupMode ? (
-            <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/30 dark:text-emerald-300">
+            <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/30 dark:text-emerald-300">
               {t(
                 "admin.nodeTable.autoDiscoveryGeneralHint",
                 "This currently uses the general auto-enroll command. Run it on any server and the node will register to your panel automatically.",
@@ -568,7 +568,7 @@ export default function GenerateCommandDialog({
             </div>
           ) : null}
           {groupMode && useAutoDiscovery ? (
-            <div className="rounded-xl border border-sky-200 bg-sky-50 px-3 py-2 text-sm text-sky-700 dark:border-sky-900/60 dark:bg-sky-950/30 dark:text-sky-300">
+            <div className="rounded-lg border border-sky-200 bg-sky-50 px-3 py-2 text-sm text-sky-700 dark:border-sky-900/60 dark:bg-sky-950/30 dark:text-sky-300">
               {t(
                 "admin.nodeTable.autoDiscoveryGroupHint",
                 "After you enter a group name, run this command on any server. The node will register automatically into that group. If the machine was previously bound, the command will clear the old binding automatically before re-enrolling.",
@@ -597,7 +597,7 @@ export default function GenerateCommandDialog({
                     <button
                       key={group}
                       type="button"
-                      className={`rounded-full border px-3 py-1 text-[13px] font-medium transition-colors ${
+                                  className={`rounded-full border px-3 py-1 text-sm font-medium transition-colors ${
                         normalizedGroupName === group
                           ? "border-sky-300 bg-sky-100 text-sky-700 dark:border-sky-800 dark:bg-sky-950/50 dark:text-sky-300"
                           : "border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:text-slate-900 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-300 dark:hover:border-slate-600 dark:hover:text-slate-100"
@@ -623,7 +623,7 @@ export default function GenerateCommandDialog({
                 {t("admin.nodeTable.selectNode", "Select node")}
               </label>
               <select
-                className="mt-3 h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-900 outline-none dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
+                className="mt-3 h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-900 outline-none dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
                 value={selectedNodeId}
                 onChange={(event) => setSelectedNodeId(event.target.value)}
               >
@@ -636,7 +636,7 @@ export default function GenerateCommandDialog({
             </div>
           ) : null}
           {!useAutoDiscovery && toolbar && !groupMode ? (
-            <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-700 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-300">
+            <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-700 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-300">
               {t(
                 "admin.nodeTable.autoDiscoveryDisabledSingle",
                 "Auto Discovery Key is not enabled yet, so this still uses the legacy single-node mode. Set it in Settings > General to switch to the general onboarding command.",
@@ -644,7 +644,7 @@ export default function GenerateCommandDialog({
             </div>
           ) : null}
           {!useAutoDiscovery && groupMode ? (
-            <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-700 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-300">
+            <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-700 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-300">
               {t(
                 "admin.nodeTable.autoDiscoveryDisabledGroup",
                 "Set the Auto Discovery Key in Settings > General first, then group install commands can be used.",
@@ -767,7 +767,7 @@ export default function GenerateCommandDialog({
                   </Flex>
                 </div>
                 {installOptions.ignoreUnsafeCert ? (
-                  <div className="mt-3 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs leading-5 text-red-700 dark:border-red-900/60 dark:bg-red-950/30 dark:text-red-300">
+                  <div className="mt-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs leading-5 text-red-700 dark:border-red-900/60 dark:bg-red-950/30 dark:text-red-300">
                     {t("admin.nodeTable.ignoreUnsafeCertWarning", {
                       defaultValue:
                         "已开启“忽略不安全证书”。仅在你确认网络可信且证书链无法暂时修复时使用。",
@@ -1000,7 +1000,7 @@ export default function GenerateCommandDialog({
                     "Copy this command and run it directly on the target server.",
                   )}
                 </p>
-                <div className="relative mt-3 overflow-x-auto rounded-[20px] border border-slate-200 bg-slate-50/80 dark:border-slate-700 dark:bg-slate-950">
+                <div className="relative mt-3 overflow-hidden rounded-lg border border-slate-200 bg-slate-50/80 dark:border-slate-700 dark:bg-slate-950">
                   <Button
                     type="button"
                     size="sm"
@@ -1018,8 +1018,9 @@ export default function GenerateCommandDialog({
                   <TextArea
                     disabled
                     resize="none"
-                    wrap="off"
-                    className="min-h-[280px] w-full border-0 bg-transparent pr-24 font-mono text-[13px] leading-6 whitespace-pre text-slate-700 shadow-none dark:text-slate-200"
+                    wrap="soft"
+                    className="min-h-[280px] max-h-[420px] w-full overflow-y-auto border-0 bg-transparent pr-24 font-mono text-[13px] leading-6 whitespace-pre-wrap break-words text-slate-700 shadow-none dark:text-slate-200 [overflow-wrap:anywhere]"
+                    style={{ overflowWrap: "anywhere" }}
                     value={command}
                   />
                 </div>

@@ -1,4 +1,5 @@
 import "./Loading.css"
+import { useTranslation } from "react-i18next";
 
 type LoadingProps = {
   text?: string;
@@ -7,8 +8,11 @@ type LoadingProps = {
 };
 
 const Loading = ({ text, children, size }: LoadingProps) => {
+  const { t } = useTranslation();
+  const loadingLabel = t("common.loading", { defaultValue: "正在加载" });
+
   return (
-    <div className="flex items-center justify-center flex-col">
+    <div className="flex min-h-36 flex-col items-center justify-center px-4 py-8 text-center">
       <div
         className="showbox"
         style={{
@@ -30,10 +34,14 @@ const Loading = ({ text, children, size }: LoadingProps) => {
           </svg>
         </div>
       </div>
-      <p className="text-lg font-bold">Loading...</p>
-      <p className="text-sm text-muted-foreground mb-4">
-        {text}
+      <p className="mt-1 text-sm font-semibold text-slate-900 dark:text-slate-100">
+        {loadingLabel}
       </p>
+      {text ? (
+        <p className="mb-4 mt-1 max-w-sm text-sm leading-6 text-muted-foreground">
+          {text}
+        </p>
+      ) : null}
       <div>
         {children}
       </div>

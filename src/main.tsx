@@ -27,7 +27,8 @@ import { RPC2Provider } from "./contexts/RPC2Context";
 import { ThemeShell } from "./components/ui/theme-shell";
 import { initI18n } from "./i18n/config";
 
-const SW_RECOVERY_VERSION = "2026-03-30-pagination-recovery-1";
+const SW_RECOVERY_VERSION = "2026-05-commercial-user-policy-1";
+const THEME_DEFAULT_MIGRATION_VERSION = "2026-05-blue-accent-1";
 
 const App = () => {
   React.useEffect(() => {
@@ -57,6 +58,24 @@ const App = () => {
     "color",
     THEME_DEFAULTS.color,
   );
+
+  React.useEffect(() => {
+    try {
+      if (window.localStorage.getItem("komari-theme-default-migration") === THEME_DEFAULT_MIGRATION_VERSION) {
+        return;
+      }
+
+      const rawColor = window.localStorage.getItem("color");
+      const storedColor = rawColor ? JSON.parse(rawColor) : null;
+      if (!storedColor || storedColor === "iris") {
+        setColor(THEME_DEFAULTS.color);
+      }
+
+      window.localStorage.setItem("komari-theme-default-migration", THEME_DEFAULT_MIGRATION_VERSION);
+    } catch (error) {
+      console.warn("Failed to migrate theme default color:", error);
+    }
+  }, [setColor]);
 
   // Use the system theme hook to resolve "system" to actual theme
   const resolvedAppearance = useSystemTheme(appearance);

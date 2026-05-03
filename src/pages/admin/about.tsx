@@ -1,9 +1,9 @@
 import * as React from "react";
-import Loading from "@/components/loading";
 import { useTranslation } from "react-i18next";
 import { SegmentedControl } from "@/components/admin/admin-ui";
 import {
   AdminPageShell,
+  AdminSettingsSkeleton,
   AdminSurface,
 } from "@/components/admin/AdminPageShell";
 
@@ -70,7 +70,7 @@ export default function AboutPage() {
           </SegmentedControl.Item>
         </SegmentedControl.Root>
 
-        <React.Suspense fallback={<Loading />}>
+        <React.Suspense fallback={<AdminSettingsSkeleton sections={3} />}>
           {currentSection}
         </React.Suspense>
       </AdminSurface>
