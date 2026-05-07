@@ -22,7 +22,7 @@ import {
 } from "@/contexts/AccountContext";
 import {
   AdminPageTitleProvider,
-  useCurrentAdminPageTitle,
+  useCurrentAdminPageHeader,
 } from "@/contexts/AdminPageTitleContext";
 import { usePublicInfo } from "@/contexts/PublicInfoContext";
 import { useRPC2Call } from "@/contexts/RPC2Context";
@@ -94,7 +94,7 @@ const NAV_GROUP_META: Record<
 > = {
   overview: {
     labelKey: "admin.nav.groups.overview",
-    defaultLabel: "Overview",
+    defaultLabel: "Home",
   },
   infrastructure: {
     labelKey: "admin.nav.groups.infrastructure",
@@ -209,6 +209,9 @@ const getRequiredFeatureForPath = (target: string) => {
     if (provider === "linode") {
       return "cloud_linode";
     }
+    if (provider === "vultr") {
+      return "cloud_vultr";
+    }
     if (provider === "azure") {
       return "cloud_azure";
     }
@@ -232,7 +235,7 @@ const getRequiredFeatureForPath = (target: string) => {
   if (normalizedPath.startsWith("/admin/logs")) {
     return "logs";
   }
-  if (normalizedPath === "/admin") {
+  if (normalizedPath === "/admin" || normalizedPath === "/admin/client") {
     return "clients";
   }
 
@@ -247,7 +250,7 @@ const getMenuGroupKey = (target: string): MenuGroup["key"] => {
   const targetUrl = new URL(target, "https://komari.local");
   const normalizedPath = normalizePath(targetUrl.pathname);
 
-  if (normalizedPath === "/admin") {
+  if (normalizedPath === "/admin" || normalizedPath === "/admin/client") {
     return "overview";
   }
 
@@ -296,7 +299,7 @@ function AdminPanelBarContent({ content }: AdminPanelBarProps) {
   const navigate = useNavigate();
   const ishttps = window.location.protocol === "https:";
   const [t] = useTranslation();
-  const registeredPageTitle = useCurrentAdminPageTitle();
+  const registeredPageHeader = useCurrentAdminPageHeader();
 
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
@@ -416,6 +419,7 @@ function AdminPanelBarContent({ content }: AdminPanelBarProps) {
       if (provider === "digitalocean") return "DO";
       if (provider === "aws") return "AWS";
       if (provider === "linode") return "Linode";
+      if (provider === "vultr") return "Vultr";
       if (provider === "azure") return "Azure";
       return t("admin.nav.short.cloud", { defaultValue: "Cloud" });
     }
@@ -443,6 +447,9 @@ function AdminPanelBarContent({ content }: AdminPanelBarProps) {
     }
     if (normalizedPath === "/admin/users") {
       return t("admin.nav.short.users", { defaultValue: "Users" });
+    }
+    if (normalizedPath === "/admin/billing") {
+      return t("admin.nav.short.billing", { defaultValue: "Billing" });
     }
 
     return getMenuLabel(item);
@@ -477,6 +484,7 @@ function AdminPanelBarContent({ content }: AdminPanelBarProps) {
           return isAnyAccountFeatureAllowed(account, [
             "cloud_digitalocean",
             "cloud_linode",
+            "cloud_vultr",
             "cloud_azure",
             "cloud_aws",
           ]);
@@ -597,7 +605,8 @@ function AdminPanelBarContent({ content }: AdminPanelBarProps) {
       : activeTopItem
         ? getMenuLabel(activeTopItem)
         : fallbackPageTitle;
-  const currentPageTitle = registeredPageTitle ?? menuPageTitle;
+  const currentPageTitle = registeredPageHeader.title ?? menuPageTitle;
+  const currentPageDescription = registeredPageHeader.description;
   const currentSectionTitle =
     activeChildItem && activeTopItem
       ? getMenuLabel(activeTopItem)
@@ -688,22 +697,29 @@ function AdminPanelBarContent({ content }: AdminPanelBarProps) {
     active = false,
     sizeClass = "size-[18px]",
   ) => (
-    <span className="flex h-5 w-5 shrink-0 items-center justify-center">
+    <span
+      className={cn(
+        "flex h-6 w-6 shrink-0 items-center justify-center rounded-md border transition-colors",
+        active
+          ? "border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-900/60 dark:bg-blue-950/40 dark:text-blue-200"
+          : "border-transparent bg-transparent text-slate-500 dark:text-slate-400",
+      )}
+    >
       {renderMenuIcon(icon, label, active, sizeClass)}
     </span>
   );
 
   const navItemClass = (active = false, collapsed = false) =>
     cn(
-      "group relative flex min-h-9 items-center gap-2 rounded-lg px-2 text-sm font-medium leading-5 tracking-normal text-slate-600 transition-colors before:absolute before:left-0 before:top-1/2 before:h-5 before:w-0.5 before:-translate-y-1/2 before:rounded-full before:bg-blue-500 before:opacity-0 before:transition-opacity hover:bg-slate-100 hover:text-slate-950 dark:text-slate-300 dark:before:bg-blue-400 dark:hover:bg-slate-800/70 dark:hover:text-white",
+      "group relative flex min-h-9 items-center gap-2 rounded-lg border border-transparent px-2 text-sm font-medium leading-5 tracking-normal text-slate-600 transition-colors before:absolute before:left-0 before:top-1/2 before:h-5 before:w-0.5 before:-translate-y-1/2 before:rounded-full before:bg-blue-500 before:opacity-0 before:transition-opacity hover:bg-slate-100 hover:text-slate-950 dark:text-slate-300 dark:before:bg-blue-400 dark:hover:bg-slate-800/70 dark:hover:text-white",
       collapsed && "md:justify-center md:px-2",
-      active && "bg-slate-100 font-semibold text-slate-950 shadow-none before:opacity-100 hover:bg-slate-100 hover:text-slate-950 dark:bg-slate-800/80 dark:text-white dark:hover:bg-slate-800/80 dark:hover:text-white",
+      active && "border border-blue-200/70 bg-blue-50 font-semibold text-slate-950 shadow-sm shadow-blue-950/5 before:opacity-100 hover:bg-blue-50 hover:text-slate-950 dark:border-blue-900/50 dark:bg-blue-950/35 dark:text-white dark:hover:bg-blue-950/35 dark:hover:text-white",
     );
 
   const subNavItemClass = (active = false) =>
     cn(
       "group relative flex min-h-8 items-center gap-2 rounded-lg px-2 py-1 text-sm leading-5 tracking-normal text-slate-500 transition-colors before:absolute before:left-0 before:top-1/2 before:h-4 before:w-0.5 before:-translate-y-1/2 before:rounded-full before:bg-blue-500 before:opacity-0 before:transition-opacity hover:bg-slate-100 hover:text-slate-950 dark:text-slate-400 dark:before:bg-blue-400 dark:hover:bg-slate-800/70 dark:hover:text-white",
-      active && "bg-slate-100 font-medium text-slate-950 before:opacity-100 hover:bg-slate-100 hover:text-slate-950 dark:bg-slate-800/70 dark:text-white dark:hover:bg-slate-800/70 dark:hover:text-white",
+      active && "bg-blue-50 font-medium text-slate-950 before:opacity-100 hover:bg-blue-50 hover:text-slate-950 dark:bg-blue-950/30 dark:text-white dark:hover:bg-blue-950/30 dark:hover:text-white",
     );
 
   const renderUpdateTrigger =
@@ -781,7 +797,7 @@ function AdminPanelBarContent({ content }: AdminPanelBarProps) {
     ) : null;
 
   return (
-    <div className="relative flex h-[100dvh] min-h-[100dvh] overflow-hidden bg-slate-50 dark:bg-slate-950">
+    <div className="relative flex h-[100dvh] min-h-[100dvh] overflow-hidden bg-background dark:bg-slate-950">
       {mobileMenuOpen ? (
         <button
           type="button"
@@ -793,25 +809,25 @@ function AdminPanelBarContent({ content }: AdminPanelBarProps) {
 
       <aside
         className={cn(
-          "fixed inset-y-0 left-0 z-50 flex w-[200px] flex-col border-r border-slate-200/80 bg-white shadow-sm transition-transform duration-200 ease-out motion-reduce:transition-none dark:border-slate-800 dark:bg-slate-950 md:static md:inset-0 md:translate-x-0 md:transition-[width]",
+          "fixed inset-y-0 left-0 z-50 flex w-[200px] flex-col border-r border-border bg-card shadow-sm shadow-slate-900/5 transition-transform duration-200 ease-out motion-reduce:transition-none dark:border-slate-800 dark:bg-slate-950 md:static md:inset-0 md:translate-x-0 md:transition-[width]",
           mobileMenuOpen ? "translate-x-0" : "-translate-x-full",
           sidebarCollapsed && "md:w-16",
         )}
       >
         <div
           className={cn(
-            "flex h-16 shrink-0 items-center justify-between gap-3 border-b border-slate-200/70 px-4 dark:border-slate-800",
+            "flex h-16 shrink-0 items-center justify-between gap-3 border-b border-border px-4 dark:border-slate-800",
             sidebarCollapsed && "md:px-2",
           )}
         >
           <Link
             to="/admin"
             className={cn(
-              "flex min-w-0 items-center gap-3 rounded-md px-1 py-1 text-slate-950 transition-colors hover:bg-slate-50 dark:text-slate-50 dark:hover:bg-slate-900/70",
+              "flex min-w-0 items-center gap-3 rounded-md px-1 py-1 text-slate-950 transition-colors hover:bg-muted dark:text-slate-50 dark:hover:bg-slate-900/70",
               sidebarCollapsed && "md:w-full md:justify-center md:px-0",
             )}
           >
-            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-slate-950 text-sm font-semibold text-white shadow-sm dark:bg-white dark:text-slate-950">
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-blue-600 to-teal-500 text-sm font-semibold text-white shadow-sm shadow-blue-950/15">
               {sidebarCollapsed ? (
                 <span className="hidden md:inline">
                   {(appName || "K").trim().slice(0, 1).toUpperCase()}
@@ -1051,7 +1067,7 @@ function AdminPanelBarContent({ content }: AdminPanelBarProps) {
       </aside>
 
       <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
-        <header className="flex h-16 shrink-0 items-center justify-between gap-4 border-b border-slate-200/80 bg-white/90 px-4 backdrop-blur dark:border-slate-800 dark:bg-slate-950/90 md:px-6">
+        <header className="flex h-16 shrink-0 items-center justify-between gap-4 border-b border-border bg-card/90 px-3 shadow-sm shadow-slate-900/5 backdrop-blur dark:border-slate-800 dark:bg-slate-950/90 sm:px-4">
           <div className="flex min-w-0 items-center gap-3">
             <Button
               variant="ghost"
@@ -1075,7 +1091,11 @@ function AdminPanelBarContent({ content }: AdminPanelBarProps) {
                 </div>
                 {renderUpdateTrigger}
               </div>
-              {currentSectionTitle ? (
+              {currentPageDescription ? (
+                <div className="mt-0.5 hidden max-w-[min(64vw,760px)] truncate text-xs leading-4 text-muted-foreground lg:block">
+                  {currentPageDescription}
+                </div>
+              ) : currentSectionTitle ? (
                 <div className="mt-0.5 truncate text-xs text-muted-foreground sm:hidden">
                   {currentSectionTitle}
                 </div>
@@ -1083,7 +1103,7 @@ function AdminPanelBarContent({ content }: AdminPanelBarProps) {
             </div>
           </div>
 
-          <div className="flex shrink-0 items-center gap-1.5 rounded-lg border border-slate-200/70 bg-white px-1.5 py-1 shadow-sm dark:border-slate-800 dark:bg-slate-950">
+          <div className="flex shrink-0 items-center gap-1.5 rounded-lg border border-border bg-card px-1.5 py-1 shadow-sm shadow-slate-900/5 dark:border-slate-800 dark:bg-slate-950">
             {account && !account.logged_in && (
               <LoginDialog
                 autoOpen
@@ -1105,10 +1125,10 @@ function AdminPanelBarContent({ content }: AdminPanelBarProps) {
           </div>
         </header>
 
-        <main className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-contain bg-slate-50/70 dark:bg-slate-950">
-          <div className="mx-auto flex min-h-full w-full max-w-[1680px] min-w-0 flex-col">
+        <main className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-contain bg-background dark:bg-slate-950">
+          <div className="flex min-h-full w-full min-w-0 flex-col">
             {!ishttps && !httpsNoticeDismissed && (
-              <div className="px-4 pt-3 md:px-6 md:pt-4">
+              <div className="px-3 pt-3 sm:px-4">
                 <div className="flex flex-col gap-3 rounded-lg border border-amber-200/70 bg-amber-50/45 px-3 py-2.5 text-amber-950 shadow-none dark:border-amber-900/50 dark:bg-amber-950/20 dark:text-amber-100 md:flex-row md:items-center md:justify-between">
                   <div className="flex min-w-0 items-start gap-2.5">
                     <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-md bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-200">

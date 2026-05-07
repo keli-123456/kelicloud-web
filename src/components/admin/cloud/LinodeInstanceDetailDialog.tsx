@@ -1,6 +1,6 @@
 import type { Dispatch, SetStateAction } from "react";
 import type { TFunction } from "i18next";
-import { KeyRound } from "lucide-react";
+import { KeyRound, Server } from "lucide-react";
 
 import {
   type LinodeCatalog,
@@ -10,15 +10,19 @@ import {
 } from "@/lib/cloudLinode";
 import { getCloudStatusLabel } from "@/lib/cloudStatus";
 import {
+  Badge,
   Button,
   Checkbox,
   CloudCodeTextarea,
   CloudDetailDialogSkeleton,
   CloudDetailItem,
+  CloudSensitiveDialogContent,
   cloudDetailListClassName,
   cloudDetailListItemClassName,
+  cloudDetailLabelClassName,
+  cloudDetailMutedTextClassName,
   cloudDetailSectionClassName,
-  cloudDialogContentClassName,
+  cloudDetailValueClassName,
   Dialog,
   Flex,
   Select,
@@ -91,23 +95,30 @@ export function LinodeInstanceDetailDialog({
         onClose();
       }}
     >
-      <Dialog.Content className={cloudDialogContentClassName}>
-        <Dialog.Title>
-          {instance?.label || t("cloud.providers.linode.detail_title", "Linode Details")}
-        </Dialog.Title>
-        <Dialog.Description>
-          {t(
+      {instance ? (
+        <CloudSensitiveDialogContent
+          title={instance.label || t("cloud.providers.linode.detail_title", "Linode Details")}
+          description={t(
             "cloud.providers.linode.detail_description",
             "View the selected Linode instance details from the current active token.",
           )}
-        </Dialog.Description>
-
+          icon={<Server className="size-4" />}
+          badge={(
+            <>
+              <Badge color="blue">{t("cloud.providers.linode.name", "Linode")}</Badge>
+              <Badge color={instance.status === "running" ? "green" : "amber"}>
+                {getCloudStatusLabel(instance.status, t)}
+              </Badge>
+            </>
+          )}
+          className="sm:max-w-5xl"
+        >
         {loading ? (
           <CloudDetailDialogSkeleton rows={12} />
         ) : detailData ? (
-          <div className="mt-4 flex flex-col gap-4">
+          <div className="flex flex-col gap-4">
             <section className="pt-0">
-              <div className="text-xs font-semibold uppercase tracking-normal text-slate-500 dark:text-slate-400">
+              <div className={cloudDetailLabelClassName}>
                 {t("cloud.detail.summary", "Summary")}
               </div>
               <div className="mt-2 grid gap-x-6 sm:grid-cols-2 xl:grid-cols-3">
@@ -155,48 +166,48 @@ export function LinodeInstanceDetailDialog({
             </section>
 
             <section className={cloudDetailSectionClassName}>
-              <div className="text-xs font-semibold uppercase tracking-normal text-slate-500 dark:text-slate-400">
+              <div className={cloudDetailLabelClassName}>
                 {t("cloud.providers.linode.disks", "Disks")}
               </div>
               {detailData.disks.length ? (
                 <div className={`mt-2 ${cloudDetailListClassName}`}>
                   {detailData.disks.map((disk) => (
                     <div key={disk.id} className={cloudDetailListItemClassName}>
-                      <div className="font-medium text-slate-900 dark:text-slate-100">{disk.label || `Disk ${disk.id}`}</div>
-                      <div className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+                      <div className={cloudDetailValueClassName}>{disk.label || `Disk ${disk.id}`}</div>
+                      <div className={`mt-1 ${cloudDetailMutedTextClassName}`}>
                         {disk.size} MB / {disk.filesystem || "-"} / {disk.status || "-"}
                       </div>
                     </div>
                   ))}
                 </div>
               ) : (
-                <div className="mt-2 text-sm text-slate-500 dark:text-slate-400">-</div>
+                <div className={`mt-2 ${cloudDetailMutedTextClassName}`}>-</div>
               )}
             </section>
 
             <section className={cloudDetailSectionClassName}>
-              <div className="text-xs font-semibold uppercase tracking-normal text-slate-500 dark:text-slate-400">
+              <div className={cloudDetailLabelClassName}>
                 {t("cloud.providers.linode.configs", "Configs")}
               </div>
               {detailData.configs.length ? (
                 <div className={`mt-2 ${cloudDetailListClassName}`}>
                   {detailData.configs.map((config) => (
                     <div key={config.id} className={cloudDetailListItemClassName}>
-                      <div className="font-medium text-slate-900 dark:text-slate-100">{config.label || `Config ${config.id}`}</div>
-                      <div className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+                      <div className={cloudDetailValueClassName}>{config.label || `Config ${config.id}`}</div>
+                      <div className={`mt-1 ${cloudDetailMutedTextClassName}`}>
                         {config.kernel || "-"} / {config.root_device || "-"} / {config.run_level || "-"}
                       </div>
                     </div>
                   ))}
                 </div>
               ) : (
-                <div className="mt-2 text-sm text-slate-500 dark:text-slate-400">-</div>
+                <div className={`mt-2 ${cloudDetailMutedTextClassName}`}>-</div>
               )}
             </section>
 
             <section className={cloudDetailSectionClassName}>
               <Flex justify="between" align="center" wrap="wrap" gap="2">
-                <div className="text-xs font-semibold uppercase tracking-normal text-slate-500 dark:text-slate-400">
+                <div className={cloudDetailLabelClassName}>
                   {t("cloud.providers.linode.backups", "Backups")}
                 </div>
                 <Button
@@ -233,14 +244,14 @@ export function LinodeInstanceDetailDialog({
                   />
                 </div>
               ) : (
-                <div className="mt-2 text-sm text-slate-500 dark:text-slate-400">-</div>
+                <div className={`mt-2 ${cloudDetailMutedTextClassName}`}>-</div>
               )}
             </section>
 
             <section className={cloudDetailSectionClassName}>
               <div className="grid gap-6 lg:grid-cols-2">
                 <div>
-                  <div className="text-xs font-semibold uppercase tracking-normal text-slate-500 dark:text-slate-400">
+                  <div className={cloudDetailLabelClassName}>
                     {t("cloud.providers.linode.resize", "Resize")}
                   </div>
                   <Select.Root value={resizeTargetType || SELECT_NONE} onValueChange={(value) => setResizeTargetType(value === SELECT_NONE ? "" : value)}>
@@ -271,7 +282,7 @@ export function LinodeInstanceDetailDialog({
                 </div>
 
                 <div>
-                  <div className="text-xs font-semibold uppercase tracking-normal text-slate-500 dark:text-slate-400">
+                  <div className={cloudDetailLabelClassName}>
                     {t("cloud.providers.linode.reset_password", "Reset Root Password")}
                   </div>
                   <Select.Root
@@ -328,7 +339,7 @@ export function LinodeInstanceDetailDialog({
             </section>
 
             <section className={cloudDetailSectionClassName}>
-              <div className="text-xs font-semibold uppercase tracking-normal text-slate-500 dark:text-slate-400">
+              <div className={cloudDetailLabelClassName}>
                 {t("cloud.providers.linode.rebuild", "Rebuild")}
               </div>
               <div className="mt-3 grid gap-3 sm:grid-cols-2">
@@ -385,7 +396,7 @@ export function LinodeInstanceDetailDialog({
                 placeholder="#!/bin/bash"
                 onChange={(event) => setRebuildUserData(event.target.value)}
               />
-              <label className="mt-3 flex items-center gap-2 text-sm text-slate-700">
+              <label className={`mt-3 flex items-center gap-2 ${cloudDetailMutedTextClassName}`}>
                 <Checkbox checked={rebuildBooted} onCheckedChange={(checked) => setRebuildBooted(Boolean(checked))} />
                 {t("cloud.providers.linode.booted", "Boot after creation")}
               </label>
@@ -410,7 +421,8 @@ export function LinodeInstanceDetailDialog({
             </section>
           </div>
         ) : null}
-      </Dialog.Content>
+        </CloudSensitiveDialogContent>
+      ) : null}
     </Dialog.Root>
   );
 }

@@ -7,6 +7,10 @@ import {
   Trash2,
 } from "lucide-react";
 
+import {
+  AdminPagination,
+  useClientPagination,
+} from "@/components/admin/AdminPagination";
 import { AdminEmptyState } from "@/components/admin/AdminPageShell";
 import { AWSQuotaSummary } from "@/components/admin/cloud/AWSQuotaSummary";
 import {
@@ -14,6 +18,10 @@ import {
   Button,
   Checkbox,
   cloudLongTextClassName,
+  cloudTableCodeTextClassName,
+  cloudTableEmptyStateClassName,
+  cloudTablePrimaryTextClassName,
+  cloudTableScrollClassName,
   Flex,
 } from "@/components/admin/cloud/cloud-ui";
 import {
@@ -72,11 +80,17 @@ export function AWSCredentialTable({
   onViewCredentialSecret,
   onDeleteCredential,
 }: AWSCredentialTableProps) {
+  const credentialPagination = useClientPagination(credentials, {
+    initialPageSize: 10,
+  });
+  const visibleCredentials = credentialPagination.pageItems;
+
   return (
-    <div className="max-h-[560px] overflow-auto overscroll-contain [scrollbar-gutter:stable]">
-      <Table className="min-w-[1040px]">
-        <TableHeader>
-          <TableRow>
+    <>
+      <div className={`${cloudTableScrollClassName} max-h-[560px]`}>
+        <Table className="min-w-[1040px]">
+          <TableHeader>
+            <TableRow>
             <TableHead className="w-10">
               <div className="flex items-center justify-center">
                 <Checkbox
@@ -113,12 +127,12 @@ export function AWSCredentialTable({
                       {t("cloud.providers.aws.import", "导入凭证")}
                     </Button>
                   )}
-                  className="min-h-36 border-0 bg-slate-50/70 shadow-none dark:bg-slate-900/30"
+                  className={cloudTableEmptyStateClassName}
                 />
               </TableCell>
             </TableRow>
           ) : (
-            credentials.map((credential) => (
+            visibleCredentials.map((credential) => (
               <TableRow key={credential.id}>
                 <TableCell className="w-10">
                   <div className="flex items-center justify-center">
@@ -132,7 +146,7 @@ export function AWSCredentialTable({
                     />
                   </div>
                 </TableCell>
-                <TableCell className="font-medium text-slate-900 dark:text-slate-100">
+                <TableCell className={cloudTablePrimaryTextClassName}>
                   <div className="flex items-center gap-2">
                     <span className="max-w-40 truncate">{credential.name}</span>
                     {credential.is_active ? (
@@ -141,7 +155,7 @@ export function AWSCredentialTable({
                   </div>
                 </TableCell>
                 <TableCell>{credential.group || "-"}</TableCell>
-                <TableCell className="font-mono text-xs text-slate-600">
+                <TableCell className={cloudTableCodeTextClassName}>
                   {credential.masked_access_key_id || "-"}
                 </TableCell>
                 <TableCell>
@@ -222,7 +236,21 @@ export function AWSCredentialTable({
             ))
           )}
         </TableBody>
-      </Table>
-    </div>
+        </Table>
+      </div>
+      <AdminPagination
+        page={credentialPagination.page}
+        totalPages={credentialPagination.totalPages}
+        total={credentialPagination.total}
+        pageSize={credentialPagination.pageSize}
+        visibleStart={credentialPagination.visibleStart}
+        visibleEnd={credentialPagination.visibleEnd}
+        onPageChange={credentialPagination.setPage}
+        onPageSizeChange={credentialPagination.setPageSize}
+        pageSizeOptions={[10, 20, 50]}
+        itemLabel={t("admin.pagination.credentials", { defaultValue: "credentials" })}
+        compact
+      />
+    </>
   );
 }

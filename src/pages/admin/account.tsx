@@ -40,28 +40,10 @@ const InnerLayout = () => {
       <AdminPageShell
         eyebrow={t("account.title")}
         title={t("account.title")}
-        description={t(
-          "account.page_description",
-          "Manage your admin identity, password, two-factor authentication, and external sign-in bindings in one place.",
-        )}
-        statsVariant="cards"
-        stats={[
-          {
-            label: t("account.stats.current_user_label", "Current user"),
-            value: <Skeleton className="h-6 w-24" />,
-            tone: "blue",
-          },
-          {
-            label: "2FA",
-            value: <Skeleton className="h-6 w-20" />,
-            tone: "amber",
-          },
-          {
-            label: "SSO",
-            value: <Skeleton className="h-6 w-24" />,
-            tone: "slate",
-          },
-        ]}
+      description={t(
+        "account.page_description",
+        "Manage your admin identity, password, two-factor authentication, and external sign-in bindings in one place.",
+      )}
       >
         <div className="grid gap-4 xl:grid-cols-[minmax(0,1.25fr)_minmax(320px,0.95fr)]">
           <AdminCardGridSkeleton cards={2} className="xl:col-span-2" />
@@ -243,38 +225,6 @@ const InnerLayout = () => {
         "account.page_description",
         "Manage your admin identity, password, two-factor authentication, and external sign-in bindings in one place.",
       )}
-      stats={[
-        {
-          label: t("account.stats.current_user_label", "Current user"),
-          value: account?.username || "-",
-          hint: `UUID: ${account?.uuid || "-"}`,
-          tone: "blue",
-        },
-        {
-          label: "2FA",
-          value: account?.["2fa_enabled"]
-            ? t("account.2fa_enabled")
-            : t("account.2fa_disabled"),
-          hint: account?.["2fa_enabled"]
-            ? t("account.stats.two_factor_enabled_hint", "Two-factor authentication is enabled.")
-            : t("account.stats.two_factor_disabled_hint", "Enable two-factor authentication to improve admin security."),
-          tone: account?.["2fa_enabled"] ? "emerald" : "amber",
-        },
-        {
-          label: "SSO",
-          value: boundProvider,
-          hint: ssoInfo?.isBound
-            ? t("account.stats.sso_bound_hint", {
-                provider: boundProvider,
-                defaultValue: "Bound to {{provider}}.",
-              })
-            : t(
-                "account.stats.sso_unbound_hint",
-                "No external sign-in account is bound yet.",
-              ),
-          tone: ssoInfo?.isBound ? "blue" : "slate",
-        },
-      ]}
     >
       <div className="grid gap-4 xl:grid-cols-[minmax(0,1.25fr)_minmax(320px,0.95fr)]">
         <AdminSurface className="flex flex-col gap-6">

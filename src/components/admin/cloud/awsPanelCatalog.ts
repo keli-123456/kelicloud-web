@@ -157,36 +157,6 @@ export const STATIC_EC2_INSTANCE_TYPE_PRESETS: StaticEC2InstanceTypePreset[] = [
 
 export const STATIC_EC2_IMAGE_PRESETS: StaticEC2ImagePreset[] = [
   {
-    value: "resolve:ssm:/aws/service/ami-amazon-linux-latest/al2023-ami-kernel-default-x86_64",
-    label: "Amazon Linux 2023",
-    summary: "AWS public parameter, x86_64, default kernel",
-    architecture: "x86_64",
-  },
-  {
-    value: "resolve:ssm:/aws/service/ami-amazon-linux-latest/al2023-ami-minimal-kernel-default-x86_64",
-    label: "Amazon Linux 2023 Minimal",
-    summary: "AWS public parameter, x86_64, minimal image",
-    architecture: "x86_64",
-  },
-  {
-    value: "resolve:ssm:/aws/service/ami-amazon-linux-latest/al2023-ami-kernel-default-arm64",
-    label: "Amazon Linux 2023 ARM64",
-    summary: "AWS public parameter, arm64, Graviton-ready",
-    architecture: "arm64",
-  },
-  {
-    value: "resolve:ssm:/aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-x86_64-gp2",
-    label: "Amazon Linux 2",
-    summary: "AWS public parameter, x86_64, legacy-compatible",
-    architecture: "x86_64",
-  },
-  {
-    value: "resolve:ssm:/aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-arm64-gp2",
-    label: "Amazon Linux 2 ARM64",
-    summary: "AWS public parameter, arm64, legacy-compatible",
-    architecture: "arm64",
-  },
-  {
     value: "resolve:ssm:/aws/service/canonical/ubuntu/server/24.04/stable/current/amd64/hvm/ebs-gp3/ami-id",
     label: "Ubuntu Server 24.04 LTS",
     summary: "Canonical public parameter, amd64, gp3",
@@ -246,15 +216,9 @@ export const DEFAULT_STATIC_EC2_INSTANCE_TYPE =
   STATIC_EC2_INSTANCE_TYPE_PRESETS[0]?.value || "t3.micro";
 export const DEFAULT_STATIC_EC2_IMAGE_ID =
   STATIC_EC2_IMAGE_PRESETS[0]?.value ||
-  "resolve:ssm:/aws/service/ami-amazon-linux-latest/al2023-ami-kernel-default-x86_64";
+  "resolve:ssm:/aws/service/canonical/ubuntu/server/24.04/stable/current/amd64/hvm/ebs-gp3/ami-id";
 
 export const STATIC_LIGHTSAIL_BLUEPRINT_PRESETS: StaticLightsailBlueprintPreset[] = [
-  {
-    value: "amazon_linux_2023",
-    label: "Amazon Linux 2023",
-    summary: "OS only, Linux",
-    platform: "linux",
-  },
   {
     value: "ubuntu_24_04",
     label: "Ubuntu 24.04 LTS",
@@ -283,12 +247,6 @@ export const STATIC_LIGHTSAIL_BLUEPRINT_PRESETS: StaticLightsailBlueprintPreset[
     value: "debian_11",
     label: "Debian 11",
     summary: "OS only, Linux",
-    platform: "linux",
-  },
-  {
-    value: "wordpress",
-    label: "WordPress",
-    summary: "Bitnami app image, Linux",
     platform: "linux",
   },
   {
@@ -339,7 +297,7 @@ export const STATIC_LIGHTSAIL_BUNDLE_PRESETS: StaticLightsailBundlePreset[] = [
 ];
 
 export const DEFAULT_STATIC_LIGHTSAIL_BLUEPRINT_ID =
-  STATIC_LIGHTSAIL_BLUEPRINT_PRESETS[0]?.value || "amazon_linux_2023";
+  STATIC_LIGHTSAIL_BLUEPRINT_PRESETS[0]?.value || "ubuntu_24_04";
 export const DEFAULT_STATIC_LIGHTSAIL_BUNDLE_ID =
   STATIC_LIGHTSAIL_BUNDLE_PRESETS.find((preset) => preset.platform === "linux")
     ?.value || "nano_3_0";

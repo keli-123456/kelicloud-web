@@ -4,7 +4,6 @@ import { toast } from "sonner";
 
 import {
   createDigitalOceanDroplet,
-  getDigitalOceanCatalog,
   type CreateDigitalOceanDropletInput,
   type DigitalOceanCatalog,
   type DigitalOceanTokenRecord,
@@ -22,8 +21,6 @@ import {
 type UseDigitalOceanCreateDropletOptions = {
   t: TFunction;
   catalog: DigitalOceanCatalog | null;
-  setCatalog: React.Dispatch<React.SetStateAction<DigitalOceanCatalog | null>>;
-  setError: React.Dispatch<React.SetStateAction<string>>;
   activeToken: DigitalOceanTokenRecord | null;
   defaultCreateGroup: string;
   setAccessSecrets: React.Dispatch<React.SetStateAction<DropletAccessSecrets | null>>;
@@ -33,8 +30,6 @@ type UseDigitalOceanCreateDropletOptions = {
 export function useDigitalOceanCreateDroplet({
   t,
   catalog,
-  setCatalog,
-  setError,
   activeToken,
   defaultCreateGroup,
   setAccessSecrets,
@@ -42,7 +37,7 @@ export function useDigitalOceanCreateDroplet({
 }: UseDigitalOceanCreateDropletOptions) {
   const [createOpen, setCreateOpen] = React.useState(false);
   const [createSubmitting, setCreateSubmitting] = React.useState(false);
-  const [createCatalogLoading, setCreateCatalogLoading] = React.useState(false);
+  const createCatalogLoading = false;
   const [createForm, setCreateForm] =
     React.useState<CreateDropletFormState>(initialCreateForm);
 
@@ -67,25 +62,6 @@ export function useDigitalOceanCreateDroplet({
         "",
     }));
   }, [catalog]);
-
-  const ensureCreateCatalogLoaded = React.useCallback(async () => {
-    if (catalog) {
-      return catalog;
-    }
-
-    setCreateCatalogLoading(true);
-    try {
-      const nextCatalog = await getDigitalOceanCatalog();
-      setCatalog(nextCatalog);
-      setError("");
-      return nextCatalog;
-    } catch (catalogError) {
-      toast.error(toErrorMessage(catalogError));
-      return null;
-    } finally {
-      setCreateCatalogLoading(false);
-    }
-  }, [catalog, setCatalog, setError]);
 
   const handleCreateDroplet = async () => {
     setCreateSubmitting(true);
@@ -140,19 +116,21 @@ export function useDigitalOceanCreateDroplet({
     }
   };
 
-  const handleOpenCreateDialog = async () => {
+  const prepareCreateForm = React.useCallback(async () => {
     if (!activeToken) {
-      return;
+      return null;
     }
     setCreateForm((previous) => ({
       ...previous,
       auto_connect: true,
       auto_connect_group: defaultCreateGroup,
     }));
-    const nextCatalog = await ensureCreateCatalogLoaded();
-    if (!nextCatalog) {
-      return;
-    }
+    return catalog;
+  }, [activeToken, catalog, defaultCreateGroup]);
+
+  const handleOpenCreateDialog = async () => {
+    const nextCatalog = await prepareCreateForm();
+    if (!nextCatalog) return;
     setCreateOpen(true);
   };
 
@@ -163,6 +141,7 @@ export function useDigitalOceanCreateDroplet({
     createCatalogLoading,
     createForm,
     setCreateForm,
+    prepareCreateForm,
     handleCreateDroplet,
     handleOpenCreateDialog,
   };

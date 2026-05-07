@@ -1,3 +1,4 @@
+import { useMemo, useState } from "react";
 import type { TFunction } from "i18next";
 import {
   Eye,
@@ -7,11 +8,16 @@ import {
   PowerOff,
   RefreshCw,
   RotateCcw,
+  Search,
   Server,
   Terminal,
   Trash2,
 } from "lucide-react";
 
+import {
+  AdminPagination,
+  useClientPagination,
+} from "@/components/admin/AdminPagination";
 import { AdminEmptyState } from "@/components/admin/AdminPageShell";
 import type {
   AzureAccount,
@@ -29,8 +35,14 @@ import {
   cloudPanelDescriptionClassName,
   cloudPanelHeaderClassName,
   cloudPanelTitleClassName,
+  cloudTableEmptyStateClassName,
+  cloudTableMutedTextClassName,
+  cloudTableNameButtonClassName,
+  cloudTableScrollClassName,
+  cloudTableSecondaryTextClassName,
   Flex,
   Select,
+  TextField,
 } from "@/components/admin/cloud/cloud-ui";
 import {
   DropdownMenu,
@@ -97,6 +109,38 @@ export function AzureInstancesSection({
   onReplaceInstanceIP,
   onDeleteInstance,
 }: AzureInstancesSectionProps) {
+  const [searchQuery, setSearchQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState("__all__");
+  const statusOptions = useMemo(
+    () => Array.from(new Set(instances.map((instance) => instance.power_state || instance.provisioning_state).filter(Boolean))),
+    [instances],
+  );
+  const visibleInstances = useMemo(() => {
+    const query = searchQuery.trim().toLowerCase();
+    return instances.filter((instance) => {
+      const state = instance.power_state || instance.provisioning_state;
+      const statusMatched = statusFilter === "__all__" || state === statusFilter;
+      if (!statusMatched) return false;
+      if (!query) return true;
+      return [
+        instance.name,
+        instance.instance_id,
+        instance.resource_group,
+        instance.location,
+        state,
+        instance.size,
+        instance.image,
+        ...instance.public_ips,
+        ...instance.private_ips,
+      ].some((value) => (value || "").toLowerCase().includes(query));
+    });
+  }, [instances, searchQuery, statusFilter]);
+  const instancePagination = useClientPagination(visibleInstances, {
+    initialPageSize: 10,
+    resetKey: `${searchQuery.trim().toLowerCase()}:${statusFilter}`,
+  });
+  const paginatedInstances = instancePagination.pageItems;
+
   return (
     <section className={cloudPanelCardClassName}>
       <div className={cloudPanelHeaderClassName}>
@@ -108,7 +152,7 @@ export function AzureInstancesSection({
             <div className={cloudPanelDescriptionClassName}>
               {t(
                 "cloud.providers.azure.instance_list_description",
-                "Lists all VMs under the current subscription. Open details to inspect network interfaces, disks, and runtime state.",
+                "Click a VM name to inspect details, while power and script actions stay in the row.",
               )}
             </div>
           </div>
@@ -144,10 +188,10 @@ export function AzureInstancesSection({
               "cloud.providers.azure.no_active_credential_description",
               "Import credentials or select an existing subscription before loading virtual machines.",
             )}
-            className="min-h-36 border-0 bg-slate-50/70 shadow-none dark:bg-slate-900/30"
+            className={cloudTableEmptyStateClassName}
           />
         ) : resourceLoading ? (
-          <div className="overflow-x-auto">
+          <div className={cloudTableScrollClassName}>
             <Table className="min-w-[1180px]">
               <TableHeader>
                 <TableRow>
@@ -175,10 +219,50 @@ export function AzureInstancesSection({
               "cloud.providers.azure.instances_empty_description",
               "Create a VM in the active subscription or switch to another credential/location with existing machines.",
             )}
-            className="min-h-36 border-0 bg-slate-50/70 shadow-none dark:bg-slate-900/30"
+            className={cloudTableEmptyStateClassName}
           />
         ) : (
-          <div className="overflow-x-auto">
+          <>
+          <div className="-mx-5 -mt-5 mb-4 flex min-w-0 flex-col gap-3 border-b border-border bg-muted/20 px-4 py-3 md:flex-row md:items-center md:justify-between">
+            <div className="min-w-0 flex-1 md:max-w-sm">
+              <TextField.Root
+                size="1"
+                value={searchQuery}
+                onChange={(event) => setSearchQuery(event.target.value)}
+                placeholder={t("cloud.search_resources", "Search name / IP / region...")}
+              >
+                <TextField.Slot>
+                  <Search className="h-4 w-4" />
+                </TextField.Slot>
+              </TextField.Root>
+            </div>
+            <div className="flex shrink-0 items-center gap-2">
+              <div className="w-44">
+                <Select.Root value={statusFilter} onValueChange={setStatusFilter}>
+                  <Select.Trigger placeholder={t("cloud.table.status", "Status")} />
+                  <Select.Content>
+                    <Select.Item value="__all__">{t("cloud.all_statuses", "All statuses")}</Select.Item>
+                    {statusOptions.map((status) => (
+                      <Select.Item key={status} value={status}>
+                        {getCloudStatusLabel(status, t)}
+                      </Select.Item>
+                    ))}
+                  </Select.Content>
+                </Select.Root>
+              </div>
+              <Badge color="blue">{visibleInstances.length}</Badge>
+            </div>
+          </div>
+          {visibleInstances.length === 0 ? (
+            <AdminEmptyState
+              icon={<Search className="h-5 w-5" />}
+              title={t("cloud.no_matching_resources", "没有匹配的资源")}
+              description={t("cloud.no_matching_resources_description", "调整搜索关键词或状态筛选后再看。")}
+              className={cloudTableEmptyStateClassName}
+            />
+          ) : (
+          <>
+          <div className={cloudTableScrollClassName}>
             <Table className="min-w-[1180px]">
               <TableHeader>
                 <TableRow>
@@ -194,13 +278,19 @@ export function AzureInstancesSection({
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {instances.map((instance) => (
+                {paginatedInstances.map((instance) => (
                   <TableRow key={instance.instance_id}>
                     <TableCell className="align-top">
-                      <div className={`font-medium ${cloudLongTextClassName}`}>
+                      <button
+                        type="button"
+                        className={`${cloudTableNameButtonClassName} ${cloudLongTextClassName}`}
+                        onClick={() => {
+                          void onOpenDetail(instance);
+                        }}
+                      >
                         {instance.name || "-"}
-                      </div>
-                      <div className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                      </button>
+                      <div className={`mt-1 ${cloudTableSecondaryTextClassName}`}>
                         {instance.os_type || "-"}
                       </div>
                     </TableCell>
@@ -223,13 +313,13 @@ export function AzureInstancesSection({
                               : t("cloud.password.locked", "Locked")}
                           </Badge>
                           {instance.saved_root_password_updated_at ? (
-                            <div className="text-xs text-slate-500 dark:text-slate-400">
+                            <div className={cloudTableSecondaryTextClassName}>
                               {formatDateTime(instance.saved_root_password_updated_at)}
                             </div>
                           ) : null}
                         </div>
                       ) : (
-                        <span className="text-sm text-slate-400">
+                        <span className={cloudTableMutedTextClassName}>
                           {passwordStorageEnabled
                             ? t("cloud.password.not_saved", "Not saved")
                             : t("cloud.password.disabled_short", "Vault off")}
@@ -310,6 +400,22 @@ export function AzureInstancesSection({
               </TableBody>
             </Table>
           </div>
+          <AdminPagination
+            page={instancePagination.page}
+            totalPages={instancePagination.totalPages}
+            total={instancePagination.total}
+            pageSize={instancePagination.pageSize}
+            visibleStart={instancePagination.visibleStart}
+            visibleEnd={instancePagination.visibleEnd}
+            onPageChange={instancePagination.setPage}
+            onPageSizeChange={instancePagination.setPageSize}
+            pageSizeOptions={[10, 20, 50]}
+            itemLabel={t("admin.pagination.instances", { defaultValue: "instances" })}
+            compact
+          />
+          </>
+          )}
+          </>
         )}
       </div>
     </section>

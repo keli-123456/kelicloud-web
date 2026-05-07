@@ -1,12 +1,13 @@
 import * as React from "react";
 import { useTranslation } from "react-i18next";
-import { AlertCircle } from "lucide-react";
+import { AlertCircle, KeyRound, ShieldCheck } from "lucide-react";
 
 import {
   Alert,
   AlertDescription,
   AlertTitle,
 } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -90,7 +91,7 @@ const LoginDialog = ({
         setErrorMsg(
           t(
             "login.required_credentials",
-            "Username and password are required",
+            "请输入用户名和密码",
           ),
         );
         return;
@@ -127,11 +128,11 @@ const LoginDialog = ({
           }
           setErrorMsg(
             data.message ||
-              t("login.failed", "Login failed"),
+              t("login.failed", "登录失败"),
           );
         }
       } catch (err) {
-        setErrorMsg(t("login.network_error", "Network error"));
+        setErrorMsg(t("login.network_error", "网络错误"));
         console.error(err);
       } finally {
         setIsLoading(false);
@@ -146,12 +147,71 @@ const LoginDialog = ({
     };
 
     if (loading) {
+      if (inline) {
+        return (
+          <Card className={cn("overflow-hidden", className)}>
+            <CardHeader className="gap-3 border-b border-border px-5 py-5">
+              <div className="flex items-center gap-3">
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-blue-600 to-teal-500 text-white shadow-sm shadow-blue-950/15">
+                  <ShieldCheck className="h-5 w-5" />
+                </span>
+                <div>
+                  <CardTitle className="text-xl font-semibold tracking-normal">
+                    {t("login.title")}
+                  </CardTitle>
+                  <CardDescription className="mt-1">
+                    {t("common.loading", { defaultValue: "加载中" })}
+                  </CardDescription>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent className="p-5">
+              <div className="h-10 rounded-md bg-muted" />
+              <div className="mt-4 h-10 rounded-md bg-muted" />
+            </CardContent>
+          </Card>
+        );
+      }
       return <Button disabled>{t("loading")}</Button>;
     }
     if (error || !account) {
+      if (inline) {
+        return (
+          <Card className={cn("overflow-hidden", className)}>
+            <CardHeader className="gap-3 border-b border-border px-5 py-5">
+              <div className="flex items-center gap-3">
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-red-50 text-red-700 dark:bg-red-950/30 dark:text-red-200">
+                  <AlertCircle className="h-5 w-5" />
+                </span>
+                <div>
+                  <CardTitle className="text-xl font-semibold tracking-normal">
+                    {t("login.title")}
+                  </CardTitle>
+                  <CardDescription className="mt-1">
+                    {t("login.unavailable", {
+                      defaultValue: "登录服务暂时不可用",
+                    })}
+                  </CardDescription>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent className="p-5">
+              <Alert variant="destructive">
+                <AlertCircle />
+                <AlertTitle>{t("common.error", "错误")}</AlertTitle>
+                <AlertDescription>
+                  {error
+                    ? t("login.account_fetch_failed", { defaultValue: "无法获取账户状态" })
+                    : t("login.network_error", { defaultValue: "网络错误" })}
+                </AlertDescription>
+              </Alert>
+            </CardContent>
+          </Card>
+        );
+      }
       return (
         <Button disabled variant="destructive">
-          {t("common.error", "Error")}
+          {t("common.error", "错误")}
         </Button>
       );
     }
@@ -213,7 +273,7 @@ const LoginDialog = ({
           <>
             <div className="grid gap-4">
               <label className="grid gap-2">
-                <div className="text-sm font-medium text-foreground">
+                <div className="text-[12px] font-semibold leading-4 text-muted-foreground">
                   {t("login.username")}
                 </div>
                 <Input
@@ -223,11 +283,11 @@ const LoginDialog = ({
                   placeholder="admin"
                   disabled={isLoading}
                   autoFocus
-                  className="h-11"
+                  className="h-10 rounded-md bg-muted/45"
                 />
               </label>
               <label className="grid gap-2">
-                <div className="text-sm font-medium text-foreground">
+                <div className="text-[12px] font-semibold leading-4 text-muted-foreground">
                   {t("login.password")}
                 </div>
                 <Input
@@ -237,11 +297,11 @@ const LoginDialog = ({
                   type="password"
                   placeholder={t("login.password_placeholder")}
                   disabled={isLoading}
-                  className="h-11"
+                  className="h-10 rounded-md bg-muted/45"
                 />
               </label>
               <label hidden={!require2FA} className="grid gap-2">
-                <div className="text-sm font-medium text-foreground">
+                <div className="text-[12px] font-semibold leading-4 text-muted-foreground">
                   {t("login.two_factor")}
                 </div>
                 <Input
@@ -251,20 +311,21 @@ const LoginDialog = ({
                   type="text"
                   placeholder="000000"
                   disabled={isLoading}
-                  className="h-11"
+                  className="h-10 rounded-md bg-muted/45"
                 />
               </label>
             </div>
             {errorMsg ? (
               <Alert variant="destructive">
                 <AlertCircle />
-                <AlertTitle>{t("common.error", "Error")}</AlertTitle>
+                <AlertTitle>{t("common.error", "错误")}</AlertTitle>
                 <AlertDescription>{errorMsg}</AlertDescription>
               </Alert>
             ) : null}
-            <Button type="submit" disabled={isLoading || !isFormValid} className="h-11 w-full">
+            <Button type="submit" disabled={isLoading || !isFormValid} className="h-10 w-full">
+              <KeyRound className="h-4 w-4" />
               {isLoading
-                ? t("login.logging_in", "Logging in...")
+                ? t("login.logging_in", "登录中...")
                 : t("login.title")}
             </Button>
           </>
@@ -284,7 +345,7 @@ const LoginDialog = ({
             variant={passwordLoginEnabled ? "outline" : "default"}
             disabled={isLoading}
             type="button"
-            className="h-11 w-full"
+            className="h-10 w-full"
           >
             {t("login.login_with", {
               provider:
@@ -302,21 +363,31 @@ const LoginDialog = ({
 
     if (inline) {
       return (
-        <Card className={cn("rounded-xl border-border/70 shadow-none", className)}>
-          <CardHeader className="gap-3">
-            <div className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
-              {t("common.admin_console", { defaultValue: "Admin Console" })}
-              {onlyOAuthLogin ? " / OAuth" : ""}
+        <Card className={cn("overflow-hidden", className)}>
+          <CardHeader className="gap-4 border-b border-border px-5 py-5">
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex min-w-0 items-center gap-3">
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-blue-600 to-teal-500 text-white shadow-sm shadow-blue-950/15">
+                  <ShieldCheck className="h-5 w-5" />
+                </span>
+                <div className="min-w-0">
+                  <CardTitle className="text-xl font-semibold tracking-normal">
+                    {t("login.title")}
+                  </CardTitle>
+                  <CardDescription className="mt-1 text-sm leading-6">
+                    {t("login.desc", { siteName })}
+                  </CardDescription>
+                </div>
+              </div>
+              <Badge variant={onlyOAuthLogin ? "info" : "secondary"}>
+                {onlyOAuthLogin ? "OAuth" : t("login.secure", { defaultValue: "安全登录" })}
+              </Badge>
             </div>
-            <CardTitle className="text-xl tracking-tight">{t("login.title")}</CardTitle>
-            <CardDescription className="text-sm leading-6">
-              {t("login.desc", { siteName })}
-            </CardDescription>
           </CardHeader>
-          <CardContent className="flex flex-col gap-4">
+          <CardContent className="flex flex-col gap-4 p-5">
             {info ? (
-              <Alert>
-                <AlertTitle>Notice</AlertTitle>
+              <Alert className="bg-blue-50/60 text-blue-950 dark:bg-blue-950/25 dark:text-blue-100">
+                <AlertTitle>{t("common.notice", { defaultValue: "提示" })}</AlertTitle>
                 <AlertDescription>{info}</AlertDescription>
               </Alert>
             ) : null}
@@ -333,17 +404,17 @@ const LoginDialog = ({
         </DialogTrigger>
         <DialogContent className="sm:max-w-[440px]">
           <DialogHeader className="gap-3">
-            <div className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
-              {t("common.admin_console", { defaultValue: "Admin Console" })}
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gradient-to-br from-blue-600 to-teal-500 text-white shadow-sm shadow-blue-950/15">
+              <ShieldCheck className="h-5 w-5" />
             </div>
-            <DialogTitle className="text-xl tracking-tight">{t("login.title")}</DialogTitle>
+            <DialogTitle className="text-xl tracking-normal">{t("login.title")}</DialogTitle>
             <DialogDescription className="leading-6">
               {t("login.desc", { siteName })}
             </DialogDescription>
           </DialogHeader>
           {info ? (
-            <Alert>
-              <AlertTitle>Notice</AlertTitle>
+            <Alert className="bg-blue-50/60 text-blue-950 dark:bg-blue-950/25 dark:text-blue-100">
+              <AlertTitle>{t("common.notice", { defaultValue: "提示" })}</AlertTitle>
               <AlertDescription>{info}</AlertDescription>
             </Alert>
           ) : null}

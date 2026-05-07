@@ -22,7 +22,6 @@ import {
 import { useTranslation } from "react-i18next";
 
 import NumberPicker from "@/components/ui/number-picker";
-import { Skeleton } from "@/components/ui/skeleton";
 import {
   AdminPageShell,
   AdminSurface,
@@ -221,25 +220,6 @@ const LogPage = () => {
           defaultValue:
             "Browse backend operation logs by page to quickly inspect source IPs, event types, and message details.",
         })}
-        stats={[
-          {
-            label: t("logs.stats.total_records", {
-              defaultValue: "Total records",
-            }),
-            value: <Skeleton className="h-5 w-12" />,
-            tone: "blue",
-          },
-          {
-            label: t("logs.stats.current_page", { defaultValue: "Current page" }),
-            value: <Skeleton className="h-5 w-16" />,
-            tone: "emerald",
-          },
-          {
-            label: t("logs.stats.page_size", { defaultValue: "Page size" }),
-            value: `${limit}`,
-            tone: "amber",
-          },
-        ]}
         actions={pageActions}
       >
         <AdminSurface className="overflow-hidden p-0">
@@ -277,34 +257,6 @@ const LogPage = () => {
         defaultValue:
           "Browse backend operation logs by page to quickly inspect source IPs, event types, and message details.",
       })}
-      stats={[
-        {
-          label: t("logs.stats.total_records", {
-            defaultValue: "Total records",
-          }),
-          value: `${total}`,
-          hint: t("logs.stats.total_records_hint", {
-            defaultValue: "Total number of log records returned by the API.",
-          }),
-          tone: "blue",
-        },
-        {
-          label: t("logs.stats.current_page", { defaultValue: "Current page" }),
-          value: `${page} / ${totalPages}`,
-          hint: t("logs.stats.current_page_hint", {
-            defaultValue: "Switch pages to review historical records.",
-          }),
-          tone: "emerald",
-        },
-        {
-          label: t("logs.stats.page_size", { defaultValue: "Page size" }),
-          value: `${limit}`,
-          hint: t("logs.stats.page_size_hint", {
-            defaultValue: "Changing the page size reloads the log list immediately.",
-          }),
-          tone: "amber",
-        },
-      ]}
       actions={pageActions}
     >
       <AdminSurface className="overflow-hidden p-0">

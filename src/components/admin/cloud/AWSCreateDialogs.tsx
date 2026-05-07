@@ -1,5 +1,6 @@
 import type { Dispatch, SetStateAction } from "react";
 import type { TFunction } from "i18next";
+import { Server } from "lucide-react";
 
 import {
   EC2CreateBootstrapSection,
@@ -13,8 +14,9 @@ import {
 } from "@/components/admin/cloud/AWSLightsailCreateSections";
 import { CompactSummaryMetric } from "@/components/admin/cloud/AWSPanelDetailComponents";
 import {
+  Badge,
   Button,
-  cloudDialogContentClassName,
+  CloudSensitiveDialogContent,
   Dialog,
   Flex,
 } from "@/components/admin/cloud/cloud-ui";
@@ -81,16 +83,18 @@ export function AWSEC2CreateDialog({
 }: AWSEC2CreateDialogProps) {
   return (
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
-      <Dialog.Content className={cloudDialogContentClassName}>
-        <Dialog.Title>{t("cloud.providers.aws.create", "Launch EC2")}</Dialog.Title>
-        <Dialog.Description>
-          {t(
+      <CloudSensitiveDialogContent
+        title={t("cloud.providers.aws.create", "Launch EC2")}
+        description={t(
             "cloud.providers.aws.create_description",
             "Launch a single EC2 instance in the region selected for this dialog. Leave subnet empty to let Komari use the default VPC and default subnet automatically. If the account is missing them, Komari will try to create or repair the default network during launch.",
           )}
-        </Dialog.Description>
+        icon={<Server className="size-4" />}
+        badge={<Badge color="blue">{t("cloud.providers.aws.ec2_label", "AWS EC2")}</Badge>}
+        className="sm:max-w-5xl"
+      >
 
-        <div className="mt-4 flex flex-col gap-4">
+        <div className="flex flex-col gap-4">
           <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-600 dark:border-slate-800 dark:bg-slate-900/40 dark:text-slate-300">
             {t(
               "cloud.providers.aws.create_static_presets_help",
@@ -186,7 +190,7 @@ export function AWSEC2CreateDialog({
             </Button>
           </Flex>
         </div>
-      </Dialog.Content>
+      </CloudSensitiveDialogContent>
     </Dialog.Root>
   );
 }
@@ -236,16 +240,18 @@ export function AWSLightsailCreateDialog({
 }: AWSLightsailCreateDialogProps) {
   return (
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
-      <Dialog.Content className={cloudDialogContentClassName}>
-        <Dialog.Title>{t("cloud.providers.aws.lightsail_create", "Create Lightsail")}</Dialog.Title>
-        <Dialog.Description>
-          {t(
+      <CloudSensitiveDialogContent
+        title={t("cloud.providers.aws.lightsail_create", "Create Lightsail")}
+        description={t(
             "cloud.providers.aws.lightsail_create_description",
             "Create a Lightsail instance with built-in blueprint and bundle presets, or enter IDs manually without loading the AWS catalog.",
           )}
-        </Dialog.Description>
+        icon={<Server className="size-4" />}
+        badge={<Badge color="blue">{t("cloud.providers.aws.lightsail_label", "AWS Lightsail")}</Badge>}
+        className="sm:max-w-5xl"
+      >
 
-        <div className="mt-4 flex flex-col gap-4">
+        <div className="flex flex-col gap-4">
           <WarningAlert
             tone="info"
             description={t(
@@ -326,7 +332,7 @@ export function AWSLightsailCreateDialog({
             </Button>
           </Flex>
         </div>
-      </Dialog.Content>
+      </CloudSensitiveDialogContent>
     </Dialog.Root>
   );
 }

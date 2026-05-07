@@ -22,6 +22,7 @@ import {
 } from "./awsPanelCatalog";
 import type { CreateFormState } from "./awsPanelState";
 import { parseResourceIds } from "./awsPanelUtils";
+import { cn } from "@/lib/utils";
 
 type EC2CreateSectionProps = {
   t: TFunction;
@@ -36,6 +37,7 @@ type EC2CreateCoreSectionProps = EC2CreateSectionProps & {
   regionSearchPlaceholder: string;
   regionSearchEmpty: string;
   onRegionChange: (region: string) => void;
+  singleColumn?: boolean;
 };
 
 export function EC2CreateCoreSection({
@@ -48,6 +50,7 @@ export function EC2CreateCoreSection({
   regionSearchPlaceholder,
   regionSearchEmpty,
   onRegionChange,
+  singleColumn = false,
 }: EC2CreateCoreSectionProps) {
   return (
     <CompactDetailSection
@@ -55,7 +58,7 @@ export function EC2CreateCoreSection({
       summary={summary || "-"}
       defaultOpen
     >
-      <div className="grid gap-4 sm:grid-cols-2">
+      <div className={cn("grid gap-4", !singleColumn && "sm:grid-cols-2")}>
         <div>
           <label className={cloudPanelFieldLabelClassName}>
             {t("cloud.providers.aws.region", "Region")}

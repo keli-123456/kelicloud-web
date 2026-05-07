@@ -17,10 +17,11 @@ import {
   TableCell,
   TableRow,
 } from "@/components/ui/table";
+import { useAdminPageTitle } from "@/contexts/AdminPageTitleContext";
 import { cn } from "@/lib/utils";
 
 const cloudDialogBaseClassName =
-  "flex max-h-[90vh] w-[calc(100vw-1.5rem)] flex-col overflow-y-auto overflow-x-hidden overscroll-contain !shadow-none [scrollbar-gutter:stable]";
+  "flex max-h-[90vh] w-[calc(100vw-1.5rem)] flex-col overflow-y-auto overflow-x-hidden overscroll-contain [scrollbar-gutter:stable]";
 
 const cloudDialogContentClassName =
   cn(
@@ -30,7 +31,7 @@ const cloudDialogContentClassName =
 
 const cloudDialogWideContentClassName =
   cn(
-    "flex max-h-[92vh] w-[calc(100vw-1.5rem)] flex-col overflow-y-auto overflow-x-hidden overscroll-contain !shadow-none [scrollbar-gutter:stable]",
+    "flex max-h-[92vh] w-[calc(100vw-1.5rem)] flex-col overflow-y-auto overflow-x-hidden overscroll-contain [scrollbar-gutter:stable]",
     "max-w-[96rem] sm:max-w-5xl",
   );
 
@@ -38,37 +39,89 @@ const cloudLongTextClassName =
   "min-w-0 whitespace-pre-wrap break-words [overflow-wrap:anywhere]";
 
 const cloudPanelCardClassName =
-  "overflow-hidden border-y border-slate-200/80 bg-transparent dark:border-slate-800/90";
+  "overflow-hidden rounded-lg border border-border bg-card shadow-sm shadow-slate-900/5";
 
 const cloudPanelHeaderClassName =
-  "border-b border-slate-200 px-5 py-4 dark:border-slate-800";
+  "border-b border-border px-5 py-4";
 
 const cloudPanelTitleClassName =
-  "text-sm font-medium text-slate-900 dark:text-slate-100";
+  "text-sm font-semibold text-foreground";
 
 const cloudPanelDescriptionClassName =
-  "mt-1 text-sm text-slate-500 dark:text-slate-400";
+  "mt-1 text-sm leading-6 text-muted-foreground";
 
 const cloudPanelSectionClassName =
-  "rounded-lg border border-dashed border-slate-300 bg-muted/20 px-4 py-3 dark:border-slate-700";
+  "rounded-lg border border-dashed border-border bg-muted/35 px-4 py-3";
 
 const cloudPanelSubcardClassName =
-  "rounded-lg border border-slate-200/80 bg-white px-4 py-3 dark:border-slate-800 dark:bg-slate-950/40";
+  "rounded-lg border border-border bg-card px-4 py-3 shadow-sm shadow-slate-900/5";
 
 const cloudPanelFieldLabelClassName =
-  "text-sm font-medium text-slate-800 dark:text-slate-100";
+  "text-sm font-semibold text-foreground";
 
 const cloudPanelBodyTextClassName =
-  "text-sm text-slate-700 dark:text-slate-300";
+  "text-sm leading-6 text-muted-foreground";
 
 const cloudDetailSectionClassName =
-  "border-t border-slate-200 pt-4 dark:border-slate-800";
+  "border-t border-border pt-4";
 
 const cloudDetailListClassName =
-  "overflow-hidden rounded-lg border border-slate-200/80 dark:border-slate-800";
+  "overflow-hidden rounded-lg border border-border bg-card shadow-sm shadow-slate-900/5";
 
 const cloudDetailListItemClassName =
-  "border-t border-slate-200 px-4 py-3 first:border-t-0 dark:border-slate-800";
+  "border-t border-border px-4 py-3 first:border-t-0";
+
+const cloudDetailLabelClassName =
+  "text-xs font-semibold uppercase tracking-normal text-muted-foreground";
+
+const cloudDetailValueClassName =
+  "text-sm font-medium text-foreground";
+
+const cloudDetailMutedTextClassName =
+  "text-sm text-muted-foreground";
+
+const cloudTableScrollClassName =
+  "min-w-0 overflow-auto overscroll-contain [scrollbar-gutter:stable]";
+
+const cloudTableNameButtonClassName =
+  "min-w-0 text-left font-semibold text-blue-700 transition-colors hover:text-blue-800 hover:underline dark:text-blue-400 dark:hover:text-blue-300";
+
+const cloudTablePrimaryTextClassName =
+  "font-semibold text-foreground";
+
+const cloudTableSecondaryTextClassName =
+  "text-xs leading-5 text-muted-foreground";
+
+const cloudTableMutedTextClassName =
+  "text-sm text-muted-foreground";
+
+const cloudTableCodeTextClassName =
+  "font-mono text-xs text-muted-foreground";
+
+const cloudTableEmptyStateClassName =
+  "min-h-36 border-border/70 bg-muted/35 shadow-none";
+
+function CloudProviderHeader({
+  title,
+  description,
+  actions,
+}: {
+  title: React.ReactNode;
+  description?: React.ReactNode;
+  actions?: React.ReactNode;
+}) {
+  useAdminPageTitle(title, description);
+
+  if (!actions) {
+    return null;
+  }
+
+  return (
+    <div className="flex min-w-0 flex-wrap items-center justify-end gap-2">
+      {actions}
+    </div>
+  );
+}
 
 type CloudDetailItemProps = {
   label: React.ReactNode;
@@ -89,17 +142,18 @@ function CloudDetailItem({
     <div
       className={cn(
         variant === "plain"
-          ? "min-w-0 border-b border-slate-200 py-3 last:border-b-0 dark:border-slate-800"
-          : "min-w-0 rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 dark:border-slate-800 dark:bg-slate-900/60",
+          ? "min-w-0 border-b border-border py-3 last:border-b-0"
+          : "min-w-0 rounded-lg border border-border bg-muted/35 px-4 py-3",
         className,
       )}
     >
-      <div className="text-xs font-semibold uppercase tracking-normal text-slate-500 dark:text-slate-400">
+      <div className={cloudDetailLabelClassName}>
         {label}
       </div>
       <div
         className={cn(
-          "mt-1 min-w-0 text-sm text-slate-900 dark:text-slate-100",
+          "mt-1 min-w-0",
+          cloudDetailValueClassName,
           cloudLongTextClassName,
           valueClassName,
         )}
@@ -132,14 +186,14 @@ function CloudCopyBlock({
   return (
     <div
       className={cn(
-        "min-w-0 rounded-lg border border-slate-200 bg-white px-4 py-3 dark:border-slate-800 dark:bg-slate-950/40",
+        "min-w-0 rounded-lg border border-border bg-card px-4 py-3 shadow-sm shadow-slate-900/5",
         className,
       )}
     >
       <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div
           className={cn(
-            "min-w-0 text-sm font-medium text-slate-800 dark:text-slate-100",
+            "min-w-0 text-sm font-semibold text-foreground",
             cloudLongTextClassName,
             titleClassName,
           )}
@@ -164,7 +218,7 @@ function CloudCopyBlock({
 function CloudDetailDialogSkeleton({ rows = 9 }: { rows?: number }) {
   return (
     <div className="mt-4 space-y-4" aria-hidden="true">
-      <div className="border-b border-slate-200 pb-4 dark:border-slate-800">
+      <div className="border-b border-border pb-4">
         <div className="grid gap-x-6 gap-y-3 sm:grid-cols-2">
           {Array.from({ length: 4 }).map((_, index) => (
             <div key={index} className="space-y-2">
@@ -176,13 +230,13 @@ function CloudDetailDialogSkeleton({ rows = 9 }: { rows?: number }) {
       </div>
       <div className="grid gap-x-6 gap-y-3 sm:grid-cols-2 xl:grid-cols-3">
         {Array.from({ length: rows }).map((_, index) => (
-          <div key={index} className="space-y-2 border-b border-slate-200 py-3 dark:border-slate-800">
+          <div key={index} className="space-y-2 border-b border-border py-3">
             <Skeleton className="h-3 w-20" />
             <Skeleton className="h-4 w-full" />
           </div>
         ))}
       </div>
-      <div className="space-y-4 border-t border-slate-200 pt-4 dark:border-slate-800">
+      <div className="space-y-4 border-t border-border pt-4">
         {Array.from({ length: 2 }).map((_, index) => (
           <div key={index} className="space-y-3">
             <Skeleton className="h-4 w-36" />
@@ -248,13 +302,13 @@ function CloudReadonlyCodeBlock({
   return (
     <div
       className={cn(
-        "min-w-0 overflow-auto rounded-lg border border-slate-200 bg-white text-xs dark:border-slate-800 dark:bg-slate-50 [scrollbar-gutter:stable]",
+        "min-w-0 overflow-auto rounded-lg border border-border bg-card text-xs [scrollbar-gutter:stable]",
         minHeightClassName,
         maxHeightClassName,
       )}
     >
       <div className="flex min-w-max">
-        <div className="sticky left-0 shrink-0 border-r border-slate-200 bg-slate-50 px-2 py-3 text-right font-mono text-[12px] leading-5 text-slate-400 select-none dark:border-slate-200 dark:bg-slate-100">
+        <div className="sticky left-0 shrink-0 border-r border-border bg-muted px-2 py-3 text-right font-mono text-[12px] leading-5 text-muted-foreground select-none">
           {codeLines.map((_, index) => (
             <div key={index} className="h-5 min-w-6">
               {index + 1}
@@ -263,8 +317,8 @@ function CloudReadonlyCodeBlock({
         </div>
         <pre
           className={cn(
-            "px-4 py-3 font-mono text-[12px] leading-5 text-slate-800",
-            hasValue ? "" : "text-slate-400",
+            "px-4 py-3 font-mono text-[12px] leading-5 text-foreground",
+            hasValue ? "" : "text-muted-foreground",
           )}
         >
           {displayValue || "\u00a0"}
@@ -291,14 +345,14 @@ function CloudCodeTextarea({
   return (
     <div
       className={cn(
-        "flex min-w-0 overflow-hidden rounded-lg border border-slate-200 bg-white text-xs focus-within:border-blue-400 focus-within:ring-2 focus-within:ring-blue-100 dark:border-slate-800 dark:bg-slate-50",
+        "flex min-w-0 overflow-hidden rounded-lg border border-border bg-card text-xs focus-within:border-ring focus-within:ring-2 focus-within:ring-ring/30",
         minHeightClassName,
         className,
       )}
     >
       <div
         ref={lineNumberRef}
-        className="w-12 shrink-0 overflow-hidden border-r border-slate-200 bg-slate-50 px-2 py-3 text-right font-mono text-[12px] leading-5 text-slate-400 select-none dark:border-slate-200 dark:bg-slate-100"
+        className="w-12 shrink-0 overflow-hidden border-r border-border bg-muted px-2 py-3 text-right font-mono text-[12px] leading-5 text-muted-foreground select-none"
       >
         {Array.from({ length: lineCount }).map((_, index) => (
           <div key={index} className="h-5">
@@ -317,8 +371,139 @@ function CloudCodeTextarea({
           }
           props.onScroll?.(event);
         }}
-        className="min-h-full flex-1 resize-y border-0 bg-transparent px-4 py-3 font-mono text-[12px] leading-5 text-slate-800 outline-none placeholder:text-slate-400 focus-visible:ring-0 [overflow-wrap:anywhere] [scrollbar-gutter:stable]"
+        className="min-h-full flex-1 resize-y border-0 bg-transparent px-4 py-3 font-mono text-[12px] leading-5 text-foreground outline-none placeholder:text-muted-foreground focus-visible:ring-0 [overflow-wrap:anywhere] [scrollbar-gutter:stable]"
       />
+    </div>
+  );
+}
+
+type CloudSensitiveDialogContentProps = {
+  title: React.ReactNode;
+  description?: React.ReactNode;
+  badge?: React.ReactNode;
+  icon?: React.ReactNode;
+  children: React.ReactNode;
+  side?: React.ReactNode;
+  className?: string;
+  bodyClassName?: string;
+};
+
+function CloudSensitiveDialogContent({
+  title,
+  description,
+  badge,
+  icon,
+  children,
+  side,
+  className,
+  bodyClassName,
+}: CloudSensitiveDialogContentProps) {
+  return (
+    <Dialog.Content
+      className={cn(
+        cloudDialogWideContentClassName,
+        "gap-0 overflow-hidden p-0 sm:max-w-4xl md:p-0",
+        className,
+      )}
+    >
+      <div className="border-b border-border bg-card px-5 py-4">
+        <div className="flex min-w-0 flex-col gap-3 pr-8 sm:flex-row sm:items-start sm:justify-between">
+          <div className="flex min-w-0 items-start gap-3">
+            {icon ? (
+              <span className="inline-flex size-10 shrink-0 items-center justify-center rounded-lg bg-blue-600 text-white shadow-sm shadow-blue-950/15">
+                {icon}
+              </span>
+            ) : null}
+            <div className="min-w-0">
+              <Dialog.Title>{title}</Dialog.Title>
+              {description ? (
+                <Dialog.Description className={cn("mt-1", cloudLongTextClassName)}>
+                  {description}
+                </Dialog.Description>
+              ) : null}
+            </div>
+          </div>
+          {badge ? <div className="flex shrink-0 flex-wrap gap-2">{badge}</div> : null}
+        </div>
+      </div>
+      <div
+        className={cn(
+          "grid min-h-0 flex-1 gap-0 overflow-hidden",
+          side ? "lg:grid-cols-[minmax(0,1fr)_320px]" : "",
+        )}
+      >
+        <div
+          className={cn(
+            "min-w-0 space-y-4 overflow-y-auto px-5 py-5 [scrollbar-gutter:stable]",
+            bodyClassName,
+          )}
+        >
+          {children}
+        </div>
+        {side ? (
+          <aside className="min-w-0 border-t border-border bg-muted/25 px-5 py-5 lg:border-l lg:border-t-0">
+            {side}
+          </aside>
+        ) : null}
+      </div>
+    </Dialog.Content>
+  );
+}
+
+function CloudSecretValueBlock({
+  title,
+  value,
+  copyLabel = "Copy",
+  onCopy,
+  minHeightClassName = "min-h-24",
+  maxHeightClassName = "max-h-52",
+}: {
+  title: React.ReactNode;
+  value: string;
+  copyLabel?: React.ReactNode;
+  onCopy: () => void;
+  minHeightClassName?: string;
+  maxHeightClassName?: string;
+}) {
+  return (
+    <CloudCopyBlock
+      title={title}
+      copyLabel={copyLabel}
+      onCopy={onCopy}
+      className="border-border bg-card px-4 py-3"
+      titleClassName="text-sm font-semibold text-foreground"
+      contentClassName="mt-3"
+    >
+      <CloudReadonlyCodeBlock
+        value={value}
+        minHeightClassName={minHeightClassName}
+        maxHeightClassName={maxHeightClassName}
+      />
+    </CloudCopyBlock>
+  );
+}
+
+function CloudStatusNotice({
+  tone = "gray",
+  children,
+}: {
+  tone?: "green" | "amber" | "blue" | "red" | "gray";
+  children: React.ReactNode;
+}) {
+  const toneClassName =
+    tone === "green"
+      ? "border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-900/60 dark:bg-emerald-950/35 dark:text-emerald-300"
+      : tone === "amber"
+        ? "border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-300"
+        : tone === "blue"
+          ? "border-blue-200 bg-blue-50 text-blue-800 dark:border-blue-900/60 dark:bg-blue-950/30 dark:text-blue-300"
+          : tone === "red"
+            ? "border-red-200 bg-red-50 text-red-800 dark:border-red-900/60 dark:bg-red-950/30 dark:text-red-300"
+            : "border-border bg-muted/35 text-muted-foreground";
+
+  return (
+    <div className={cn("rounded-lg border px-4 py-3 text-sm leading-6", toneClassName, cloudLongTextClassName)}>
+      {children}
     </div>
   );
 }
@@ -332,7 +517,11 @@ export {
   CloudDetailDialogSkeleton,
   CloudDetailItem,
   CloudReadonlyCodeBlock,
+  CloudSecretValueBlock,
+  CloudSensitiveDialogContent,
+  CloudStatusNotice,
   CloudTableSkeletonRows,
+  CloudProviderHeader,
   Dialog,
   Flex,
   Select,
@@ -351,6 +540,16 @@ export {
   cloudDetailSectionClassName,
   cloudDetailListClassName,
   cloudDetailListItemClassName,
+  cloudDetailLabelClassName,
+  cloudDetailMutedTextClassName,
   cloudDialogWideContentClassName,
+  cloudDetailValueClassName,
   cloudLongTextClassName,
+  cloudTableCodeTextClassName,
+  cloudTableEmptyStateClassName,
+  cloudTableMutedTextClassName,
+  cloudTableNameButtonClassName,
+  cloudTablePrimaryTextClassName,
+  cloudTableScrollClassName,
+  cloudTableSecondaryTextClassName,
 };

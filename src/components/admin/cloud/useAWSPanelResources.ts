@@ -2,7 +2,6 @@ import React from "react";
 
 import {
   getAWSAccount,
-  getAWSCatalog,
   listAWSInstances,
   listAWSLightsailInstances,
   type AWSAccount,
@@ -36,9 +35,8 @@ export function useAWSPanelResources() {
   const loadPanelData = React.useCallback(async () => {
     setPanelLoading(true);
     try {
-      const [accountResult, catalogResult, instancesResult, lightsailResult] = await Promise.allSettled([
+      const [accountResult, instancesResult, lightsailResult] = await Promise.allSettled([
         getAWSAccount(false),
-        getAWSCatalog(),
         listAWSInstances(),
         listAWSLightsailInstances(),
       ]);
@@ -48,12 +46,6 @@ export function useAWSPanelResources() {
         setAccount(accountResult.value);
       } else {
         errors.push(toErrorMessage(accountResult.reason));
-      }
-
-      if (catalogResult.status === "fulfilled") {
-        setCatalog(catalogResult.value);
-      } else {
-        errors.push(toErrorMessage(catalogResult.reason));
       }
 
       if (instancesResult.status === "fulfilled") {
@@ -72,7 +64,6 @@ export function useAWSPanelResources() {
       setError(errors.join("; "));
       setResourcesLoaded(
         accountResult.status === "fulfilled"
-        || catalogResult.status === "fulfilled"
         || instancesResult.status === "fulfilled",
       );
     } finally {

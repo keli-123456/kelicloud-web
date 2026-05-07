@@ -12,6 +12,10 @@ import {
   AdminTableSkeleton,
 } from "@/components/admin/AdminPageShell";
 import {
+  AdminPagination,
+  useClientPagination,
+} from "@/components/admin/AdminPagination";
+import {
   AdminFormRequiredMark as RequiredMark,
   AdminFormSection as FlowSection,
   AdminFormToggle as ToggleCard,
@@ -74,6 +78,7 @@ import {
 import { getAWSCredentials } from "@/lib/cloudAws";
 import { getAzureCredentials } from "@/lib/cloudAzure";
 import { getLinodeTokens } from "@/lib/cloudLinode";
+import { getVultrTokens } from "@/lib/cloudVultr";
 import {
   type FailoverDnsCatalog,
   type FailoverDnsOption,
@@ -130,6 +135,9 @@ import {
   COMMON_LINODE_IMAGES,
   COMMON_LINODE_REGIONS,
   COMMON_LINODE_TYPES,
+  COMMON_VULTR_IMAGES,
+  COMMON_VULTR_PLANS,
+  COMMON_VULTR_REGIONS,
   DEFAULT_AWS_REGION,
   DEFAULT_AZURE_IMAGE,
   DEFAULT_AZURE_LOCATION,
@@ -140,6 +148,9 @@ import {
   DEFAULT_LINODE_IMAGE,
   DEFAULT_LINODE_REGION,
   DEFAULT_LINODE_TYPE,
+  DEFAULT_VULTR_IMAGE,
+  DEFAULT_VULTR_PLAN,
+  DEFAULT_VULTR_REGION,
   DEFAULT_STATIC_EC2_IMAGE_ID,
   DEFAULT_STATIC_EC2_INSTANCE_TYPE,
   DEFAULT_STATIC_LIGHTSAIL_BLUEPRINT_ID,
@@ -234,6 +245,7 @@ const FAILOVER_V2_DNS_PROVIDERS = [
 const FAILOVER_V2_MEMBER_PROVIDERS = [
   { value: "digitalocean", label: "DigitalOcean" },
   { value: "linode", label: "Linode" },
+  { value: "vultr", label: "Vultr" },
   { value: "aws", label: "AWS" },
   { value: "azure", label: "Azure" },
 ] as const;
@@ -243,6 +255,7 @@ const FAILOVER_V2_MEMBER_PROVIDER_FEATURES: Record<
 > = {
   digitalocean: "cloud_digitalocean",
   linode: "cloud_linode",
+  vultr: "cloud_vultr",
   aws: "cloud_aws",
   azure: "cloud_azure",
 };
@@ -1746,6 +1759,8 @@ function formatProviderLabel(provider: string) {
       return "DigitalOcean";
     case "linode":
       return "Linode";
+    case "vultr":
+      return "Vultr";
     case "aws":
       return "AWS";
     case "azure":
@@ -1794,6 +1809,16 @@ function getDefaultMemberPlanPayload(provider: string) {
         type: DEFAULT_LINODE_TYPE,
         image: DEFAULT_LINODE_IMAGE,
       }, null, 2);
+    case "vultr":
+      return JSON.stringify({
+        region: DEFAULT_VULTR_REGION,
+        plan: DEFAULT_VULTR_PLAN,
+        os_id: Number(DEFAULT_VULTR_IMAGE),
+        enable_ipv6: true,
+        backups_enabled: false,
+        ddos_protection: false,
+        root_password_mode: "provider_default",
+      }, null, 2);
     case "aws":
       return JSON.stringify({
         service: "ec2",
@@ -1827,6 +1852,8 @@ function getMemberPlanPayloadHint(provider: string) {
   switch (normalizeProviderKey(provider, FAILOVER_V2_MEMBER_PROVIDER)) {
     case "linode":
       return "Linode payload must include region, type, and image. V2 auto-connect is injected automatically and root password is generated automatically.";
+    case "vultr":
+      return "Vultr payload must include region, plan, and os_id. V2 auto-connect is injected automatically; the provider default root password is saved when Vultr returns one.";
     case "aws":
       return "AWS payload must include region. EC2 requires image_id and instance_type. Lightsail requires service: lightsail plus availability_zone, blueprint_id, and bundle_id. V2 auto-connect is injected automatically and all inbound traffic is opened by default.";
     case "azure":
@@ -2300,6 +2327,17 @@ async function getFailoverV2ProviderEntries(provider: string): Promise<ProviderE
     })));
   }
 
+  if (provider === "vultr") {
+    const pool = await getVultrTokens();
+    return normalizeProviderEntries(pool.tokens.map((token) => ({
+      id: token.id,
+      name: token.name,
+      group: token.group,
+      active: token.is_active,
+      values: {},
+    })));
+  }
+
   return normalizeProviderEntries(await getCloudProviderEntries(provider));
 }
 
@@ -2658,6 +2696,8 @@ export default function FailoverV2Page() {
   const serviceDNSPayloadRef = React.useRef<Record<string, unknown>>({});
 
   const [services, setServices] = React.useState<FailoverV2Service[]>([]);
+  const [expandedServiceID, setExpandedServiceID] = React.useState<number | null>(null);
+  const [expandedMemberKey, setExpandedMemberKey] = React.useState<string | null>(null);
   const [nowTickMs, setNowTickMs] = React.useState(() => Date.now());
   const [loadingServices, setLoadingServices] = React.useState(true);
   const [error, setError] = React.useState("");
@@ -2844,14 +2884,49 @@ export default function FailoverV2Page() {
   const schedulerEnabled = Boolean(systemState.settings.failover_v2_scheduler_enabled);
   const schedulerPreflightHasWarnings = bulkValidationHasWarnings(schedulerPreflightResult);
   const schedulerEnableBusy = savingSchedulerSetting || validatingSchedulerPreflight;
-  const totalMemberCount = React.useMemo(
-    () => services.reduce((sum, service) => sum + service.member_count, 0),
-    [services],
-  );
   const hasBusyService = React.useMemo(
     () => services.some((service) => isFailoverV2ServiceBusy(service)),
     [services],
   );
+  React.useEffect(() => {
+    if (expandedServiceID !== null && !services.some((service) => service.id === expandedServiceID)) {
+      setExpandedServiceID(null);
+    }
+  }, [expandedServiceID, services]);
+  React.useEffect(() => {
+    setExpandedMemberKey(null);
+  }, [expandedServiceID]);
+  const selectedMemberDetail = React.useMemo(() => {
+    for (const service of services) {
+      const member = service.members.find((candidate) => `${service.id}:${candidate.id}` === expandedMemberKey);
+      if (member) {
+        return { service, member };
+      }
+    }
+
+    const expandedService = services.find((service) => service.id === expandedServiceID);
+    if (expandedService?.members.length) {
+      return { service: expandedService, member: expandedService.members[0] };
+    }
+
+    return null;
+  }, [expandedMemberKey, expandedServiceID, services]);
+  const selectedMemberDetailKey = selectedMemberDetail
+    ? `${selectedMemberDetail.service.id}:${selectedMemberDetail.member.id}`
+    : null;
+  const servicePagination = useClientPagination(services, {
+    initialPageSize: 8,
+  });
+  const handleServicePageChange = React.useCallback((nextPage: number) => {
+    servicePagination.setPage(nextPage);
+    setExpandedServiceID(null);
+    setExpandedMemberKey(null);
+  }, [servicePagination.setPage]);
+  const handleServicePageSizeChange = React.useCallback((nextPageSize: number) => {
+    servicePagination.setPageSize(nextPageSize);
+    setExpandedServiceID(null);
+    setExpandedMemberKey(null);
+  }, [servicePagination.setPageSize]);
   const formatServiceNextCheckCountdown = React.useCallback((service: FailoverV2Service) => {
     const intervalSeconds = Math.max(60, Number(service.check_interval_seconds) || 60);
     const lastCheckedRaw = String(service.last_checked_at || "").trim();
@@ -3056,6 +3131,18 @@ export default function FailoverV2Page() {
   );
   const linodeImageOptions = React.useMemo(
     () => buildPlanSelectOptions(COMMON_LINODE_IMAGES, getJsonStringValue(memberPlanPayload, "image") || DEFAULT_LINODE_IMAGE),
+    [memberPlanPayload],
+  );
+  const vultrRegionOptions = React.useMemo(
+    () => buildPlanSelectOptions(COMMON_VULTR_REGIONS, getJsonStringValue(memberPlanPayload, "region") || DEFAULT_VULTR_REGION),
+    [memberPlanPayload],
+  );
+  const vultrPlanOptions = React.useMemo(
+    () => buildPlanSelectOptions(COMMON_VULTR_PLANS, getJsonStringValue(memberPlanPayload, "plan") || DEFAULT_VULTR_PLAN),
+    [memberPlanPayload],
+  );
+  const vultrImageOptions = React.useMemo(
+    () => buildPlanSelectOptions(COMMON_VULTR_IMAGES, getJsonNumberInputValue(memberPlanPayload, "os_id", Number(DEFAULT_VULTR_IMAGE))),
     [memberPlanPayload],
   );
   const azurePlanLocation = getJsonStringValue(memberPlanPayload, "location") || getJsonStringValue(memberPlanPayload, "region");
@@ -4108,27 +4195,7 @@ export default function FailoverV2Page() {
         contentClassName="gap-3"
       >
         <AdminSurface>
-          <div className="flex flex-col gap-3 rounded-lg border border-slate-200 bg-white/80 px-3 py-2 shadow-sm dark:border-slate-800 dark:bg-slate-950/60 xl:flex-row xl:items-center xl:justify-between">
-            <div className="flex min-w-0 flex-wrap items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
-              <Badge color="blue">
-                {t("failover_v2.phase.title", { defaultValue: "Phase 2" })}
-              </Badge>
-              <span className="hidden font-medium text-slate-700 dark:text-slate-300 md:inline">
-                {t("failover_v2.phase.badge", { defaultValue: "Expanded provider support" })}
-              </span>
-              <span className="hidden h-1 w-1 rounded-full bg-slate-300 dark:bg-slate-700 sm:inline-block" />
-              <span className="font-medium text-slate-700 dark:text-slate-300">
-                {t("failover_v2.stats.services", { defaultValue: "Services" })}: {services.length}
-              </span>
-              <span>
-                {t("failover_v2.stats.enabled_services", { defaultValue: "Enabled" })}: {enabledServiceCount}
-              </span>
-              <span>
-                {t("failover_v2.stats.members", { defaultValue: "Members" })}: {totalMemberCount}
-              </span>
-            </div>
-
-            <div className="flex flex-wrap items-center gap-2 xl:justify-end">
+          <div className="flex flex-wrap items-center justify-end gap-2">
               {platformAdmin ? (
                 <div className="flex shrink-0 items-center justify-between gap-3 rounded-full border border-slate-200 bg-slate-50/80 px-3 py-2 dark:border-slate-700 dark:bg-slate-900/60">
                   <div className="flex items-center gap-2 text-sm font-semibold text-slate-900 dark:text-slate-50">
@@ -4159,7 +4226,6 @@ export default function FailoverV2Page() {
               <Button size="sm" variant="outline" onClick={() => navigate("/admin/failover")}>
                 {t("failover_v2.open_v1", { defaultValue: "Open V1" })}
               </Button>
-            </div>
           </div>
         </AdminSurface>
 
@@ -4193,242 +4259,566 @@ export default function FailoverV2Page() {
           </AdminSurface>
         ) : null}
 
-        {services.map((service) => {
-          const serviceBusy = isFailoverV2ServiceBusy(service);
-          const busyTitle = serviceBusy
-            ? t("failover_v2.active_execution_action_disabled", {
-              defaultValue: "Actions are disabled while this service has an active execution.",
-            })
-            : undefined;
-
-          return (
-            <AdminSurface key={service.id}>
+        {!loadingServices && services.length > 0 ? (
+          <div className="grid min-w-0 gap-3 xl:grid-cols-[minmax(0,1fr)_380px]">
+            <AdminSurface>
               <div className="overflow-hidden rounded-lg border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-950/70">
-                <div className="border-b border-slate-200/80 bg-slate-50/70 px-5 py-4 dark:border-slate-800/80 dark:bg-slate-900/35">
-                  <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
-                    <div className="min-w-0 space-y-2">
-                      <div className="flex flex-wrap items-center gap-2 text-base font-semibold text-slate-900 dark:text-slate-50">
-                        <span>{service.name}</span>
-                        <Badge color={service.enabled ? "green" : "gray"}>
-                          {service.enabled
-                            ? t("common.enabled", { defaultValue: "Enabled" })
-                            : t("common.disabled", { defaultValue: "Disabled" })}
-                        </Badge>
-                        <Badge color={getStatusBadgeColor(service.last_status || "unknown")}>
-                          {localizeFailoverV2Status(t, service.last_status || "unknown")}
-                        </Badge>
-                      </div>
-                      <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-slate-500 dark:text-slate-400">
-                        <span>{service.dns_provider ? formatProviderLabel(service.dns_provider) : "-"} / {service.dns_entry_id || "-"}</span>
-                        <span>{t("failover_v2.summary.check_interval", { defaultValue: "Check interval" })}: {service.check_interval_seconds || 60}s</span>
-                        <span>{t("failover_v2.summary.next_check", { defaultValue: "Next check" })}: {formatServiceNextCheckCountdown(service)}</span>
-                      </div>
-                      {service.last_message ? (
-                        <p className="text-xs text-slate-500 dark:text-slate-400">
-                          {localizeFailoverV2RuntimeMessage(t, service.last_message)}
-                        </p>
-                      ) : null}
-                      {serviceBusy ? (
-                        <p className="text-xs font-medium text-sky-700 dark:text-sky-300">
-                          {t("failover_v2.active_execution_notice", {
-                            defaultValue: "An execution is active. Configuration and destructive actions are temporarily locked.",
-                          })}
-                        </p>
-                      ) : null}
-                    </div>
-
-                    <div className="flex flex-wrap items-center gap-2 xl:justify-end">
-                      <div className="flex items-center gap-3 rounded-full border border-slate-200 bg-white px-3 py-2 dark:border-slate-700 dark:bg-slate-950/70">
-                        <div className="text-right">
-                          <div className="text-[11px] font-medium uppercase tracking-wide text-slate-500 dark:text-slate-400">
-                            {t("failover_v2.quick_service_toggle", { defaultValue: "Automatic scheduling" })}
-                          </div>
-                          <div className="text-xs text-slate-500 dark:text-slate-400">
-                            {service.enabled
-                              ? t("failover_v2.quick_toggle_active", { defaultValue: "Active" })
-                              : t("failover_v2.quick_toggle_paused", { defaultValue: "Paused" })}
-                          </div>
-                        </div>
-                        {togglingServiceID === service.id ? <LoaderCircle className="size-4 animate-spin text-slate-400" /> : null}
-                        <Switch
-                          checked={service.enabled}
-                          disabled={serviceBusy || togglingServiceID === service.id}
-                          onCheckedChange={(checked) => {
-                            void handleToggleServiceEnabled(service, checked);
-                          }}
-                        />
-                      </div>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => openExecutionDialog(service, service.last_execution_id ?? null)}
-                      >
-                        {t("failover_v2.execution_history", { defaultValue: "Executions" })}
-                      </Button>
-                      <Button size="sm" variant="outline" onClick={() => openPendingCleanupDialog(service)}>
-                        {t("failover_v2.pending_cleanup_history", { defaultValue: "Pending cleanup" })}
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => void handleValidateExistingService(service)}
-                        disabled={validatingServiceID === service.id}
-                      >
-                        {validatingServiceID === service.id ? <LoaderCircle className="mr-2 size-4 animate-spin" /> : null}
-                        {t("failover_v2.validate", { defaultValue: "Validate" })}
-                      </Button>
-                      <Button size="sm" variant="outline" onClick={() => openCreateMemberDialog(service)} disabled={serviceBusy} title={busyTitle}>
-                        <Plus className="mr-2 size-4" />
-                        {t("failover_v2.add_member", { defaultValue: "Add member" })}
-                      </Button>
-                      <Button size="sm" variant="outline" onClick={() => openEditServiceDialog(service)} disabled={serviceBusy} title={busyTitle}>
-                        <PencilLine className="mr-2 size-4" />
-                        {t("common.edit", { defaultValue: "Edit" })}
-                      </Button>
-                      <Button size="sm" variant="outline" onClick={() => setDeleteTarget({ kind: "service", service })} disabled={serviceBusy} title={busyTitle}>
-                        <Trash2 className="mr-2 size-4" />
-                        {t("common.delete", { defaultValue: "Delete" })}
-                      </Button>
-                    </div>
-                  </div>
-                  <div className="mt-3 flex flex-wrap gap-2 text-xs text-slate-500 dark:text-slate-400">
-                    <span className="rounded-full bg-white px-3 py-1 font-medium text-slate-700 ring-1 ring-slate-200 dark:bg-slate-950/70 dark:text-slate-300 dark:ring-slate-800">
-                      {t("failover_v2.summary.members", { defaultValue: "Members" })}: {service.member_count}
-                    </span>
-                    <span className="rounded-full bg-white px-3 py-1 font-medium text-slate-700 ring-1 ring-slate-200 dark:bg-slate-950/70 dark:text-slate-300 dark:ring-slate-800">
-                      {t("failover_v2.summary.enabled_members", { defaultValue: "Enabled members" })}: {service.enabled_member_count}
-                    </span>
-                    <span className="rounded-full bg-white px-3 py-1 font-medium text-slate-700 ring-1 ring-slate-200 dark:bg-slate-950/70 dark:text-slate-300 dark:ring-slate-800">
-                      {t("failover_v2.summary.scripts", { defaultValue: "Scripts" })}: {service.script_clipboard_ids.length}
-                    </span>
-                  </div>
+              <div className="flex min-h-[54px] flex-col gap-2 border-b border-slate-200 px-4 py-3 sm:flex-row sm:items-center sm:justify-between dark:border-slate-800">
+                <div className="min-w-0">
+                  <h2 className="text-sm font-semibold text-slate-900 dark:text-slate-50">
+                    {t("failover_v2.workbench.task_queue", { defaultValue: "任务列表" })}
+                  </h2>
+                  <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                    {t("failover_v2.workbench.task_queue_hint", { defaultValue: "先看任务健康和最近执行，点击任务展开子成员。" })}
+                  </p>
                 </div>
+                <span className="shrink-0 rounded-md bg-slate-50 px-2.5 py-1.5 text-xs text-slate-500 ring-1 ring-slate-200 dark:bg-slate-900/50 dark:text-slate-400 dark:ring-slate-800">
+                  {services.length} {t("failover_v2.workbench.task_count_suffix", { defaultValue: "个任务" })}
+                </span>
+              </div>
 
-                <div className="divide-y divide-slate-200/80 dark:divide-slate-800/80">
-                  {service.members.length === 0 ? (
-                    <div className="px-5 py-5 text-sm text-slate-500 dark:text-slate-400">
-                      {t("failover_v2.no_members", {
-                        defaultValue: "This service has no members yet.",
-                      })}
-                    </div>
-                  ) : null}
+              <div className="divide-y divide-slate-200/80 dark:divide-slate-800/80">
+                {servicePagination.pageItems.map((service) => {
+                  const expanded = expandedServiceID === service.id;
+                  const serviceBusy = isFailoverV2ServiceBusy(service);
+                  const busyTitle = serviceBusy
+                    ? t("failover_v2.active_execution_action_disabled", {
+                      defaultValue: "Actions are disabled while this service has an active execution.",
+                    })
+                    : undefined;
+                  const activeExecutionID = findActiveFailoverV2ExecutionID(service.recent_executions);
+                  const latestExecution = service.recent_executions.find((execution) => execution.id === activeExecutionID)
+                    || service.recent_executions[0]
+                    || null;
+                  const serviceStatus = String(service.last_status || "").trim().toLowerCase();
+                  const serviceMemberWarning = service.members.some((member) => (
+                    member.probe?.stale
+                    || ["failed", "warning", "error"].includes(String(member.last_status || "").trim().toLowerCase())
+                  ));
+                  const serviceExecutionWarning = service.recent_executions.some((execution) => (
+                    Boolean(execution.error_message)
+                    || ["failed", "warning"].includes(String(execution.detach_dns_status || "").trim().toLowerCase())
+                    || ["failed", "warning"].includes(String(execution.attach_dns_status || "").trim().toLowerCase())
+                    || ["failed", "warning", "manual_review"].includes(String(execution.cleanup_status || "").trim().toLowerCase())
+                  ));
+                  const serviceNeedsAttention = !serviceBusy && (
+                    Boolean(service.last_message)
+                    || ["failed", "warning", "error"].includes(serviceStatus)
+                    || serviceMemberWarning
+                    || serviceExecutionWarning
+                  );
+                  const serviceHealthColor = serviceBusy
+                    ? "blue"
+                    : serviceNeedsAttention
+                      ? "red"
+                      : service.enabled
+                        ? "green"
+                        : "gray";
+                  const serviceHealthLabel = serviceBusy
+                    ? t("failover_v2.status.running", { defaultValue: "运行中" })
+                    : serviceNeedsAttention
+                      ? t("failover_v2.stats.attention", { defaultValue: "需关注" })
+                      : service.enabled
+                        ? t("failover_v2.status.healthy", { defaultValue: "健康" })
+                        : t("common.disabled", { defaultValue: "Disabled" });
+                  const toggleServiceExpanded = () => {
+                    setExpandedServiceID(expanded ? null : service.id);
+                  };
 
-                  {service.members.map((member) => {
-                    const memberBusy = isFailoverV2MemberBusy(service, member);
-                    const memberActionsDisabled = memberBusy;
-                    const memberLineCodes = getMemberLineCodes(member);
-                    const latestMemberExecution = findLatestMemberExecutionSummary(service, member.id);
-                    const memberTaskStatus = formatMemberTaskStatusSummary(t, latestMemberExecution);
-                    const memberHealthMessage = getMemberHealthMessage(member);
-                    const watchedNode = findNodeByWatchClientUUID(nodes, member.watch_client_uuid);
-                    const memberIPv4Address = resolveMemberAddressByFamily(member, latestMemberExecution, watchedNode, "ipv4");
-                    const memberIPv6Address = resolveMemberAddressByFamily(member, latestMemberExecution, watchedNode, "ipv6");
-                    const memberResolveStatus = formatMemberResolveStatus(t, member);
-                    const memberBusyTitle = memberActionsDisabled
-                      ? t("failover_v2.active_member_execution_action_disabled", {
-                        defaultValue: "Actions are disabled while this member has an active execution.",
-                      })
-                      : undefined;
-
-                    return (
+                  return (
+                    <div
+                      key={service.id}
+                      className={cn(
+                        "transition-colors",
+                        expanded && "bg-sky-50/60 dark:bg-sky-950/20",
+                        serviceBusy && "bg-amber-50/50 dark:bg-amber-950/15",
+                      )}
+                    >
                       <div
-                        key={member.id}
-                        className="grid gap-4 px-5 py-4 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)_minmax(220px,0.8fr)_auto] lg:items-center"
+                        role="button"
+                        tabIndex={0}
+                        onClick={toggleServiceExpanded}
+                        onKeyDown={(event) => {
+                          if (event.key === "Enter" || event.key === " ") {
+                            event.preventDefault();
+                            toggleServiceExpanded();
+                          }
+                        }}
+                        className="grid cursor-pointer gap-3 px-4 py-3 transition-colors hover:bg-slate-50/80 dark:hover:bg-slate-900/40 lg:grid-cols-[minmax(220px,1.1fr)_minmax(170px,0.7fr)_minmax(190px,0.8fr)_auto] lg:items-center"
                       >
-                        <div className="min-w-0 space-y-1">
-                          <div className="flex flex-wrap items-center gap-2">
-                            <span className="truncate text-sm font-semibold text-slate-900 dark:text-slate-50">
-                              {getMemberDisplayTitle(member)}
+                        <div className="min-w-0">
+                          <div className="flex min-w-0 flex-wrap items-center gap-2">
+                            <span className="truncate text-sm font-semibold text-slate-900 dark:text-slate-50" title={service.name}>
+                              {service.name}
                             </span>
-                            <Badge color={member.enabled ? "green" : "gray"}>
-                              {member.enabled
+                            {serviceBusy ? <LoaderCircle className="size-3.5 shrink-0 animate-spin text-sky-500" /> : null}
+                          </div>
+                          <div className="mt-1 flex flex-wrap gap-1.5">
+                            <Badge color={serviceHealthColor}>{serviceHealthLabel}</Badge>
+                            <Badge color={getStatusBadgeColor(service.last_status || "unknown")}>
+                              {localizeFailoverV2Status(t, service.last_status || "unknown")}
+                            </Badge>
+                            <Badge color={service.enabled ? "green" : "gray"}>
+                              {service.enabled
                                 ? t("common.enabled", { defaultValue: "Enabled" })
                                 : t("common.disabled", { defaultValue: "Disabled" })}
                             </Badge>
-                            <Badge color={normalizeMemberModeValue(member.mode) === "existing_client" ? "amber" : "blue"}>
-                              {formatMemberModeLabel(t, member.mode)}
+                          </div>
+                        </div>
+
+                        <div className="min-w-0 text-xs text-slate-500 dark:text-slate-400">
+                          <div className="truncate text-sm font-medium text-slate-800 dark:text-slate-100">
+                            {service.enabled_member_count} / {service.member_count}
+                          </div>
+                          <div className="mt-1 truncate">
+                            {service.dns_provider ? formatProviderLabel(service.dns_provider) : "-"} / {service.dns_entry_id || "-"}
+                          </div>
+                        </div>
+
+                        <div className="min-w-0">
+                          {latestExecution ? (
+                            <div className="flex flex-wrap items-center gap-1.5">
+                              <Badge color={getStatusBadgeColor(latestExecution.status || "unknown")}>
+                                #{latestExecution.id} {localizeFailoverV2Status(t, latestExecution.status || "unknown")}
+                              </Badge>
+                            </div>
+                          ) : (
+                            <Badge color="gray">
+                              {t("failover_v2.execution_empty_short", { defaultValue: "暂无执行" })}
                             </Badge>
-                            {member.probe ? (() => {
-                              const probeBadge = getMemberProbeBadgeLabel(t, member, memberBusy);
-                              return (
-                                <Badge color={getStatusBadgeColor(probeBadge.status)}>
-                                  {probeBadge.label}
-                                </Badge>
-                              );
-                            })() : null}
-                          </div>
-                          <div className="text-xs text-slate-500 dark:text-slate-400">
-                            {memberLineCodes.length > 0
-                              ? formatMemberLinesSummary(t, memberLineCodes)
-                              : "-"}
+                          )}
+                          <div className="mt-1 truncate text-xs text-slate-500 dark:text-slate-400">
+                            {t("failover_v2.summary.next_check", { defaultValue: "Next check" })}: {formatServiceNextCheckCountdown(service)}
                           </div>
                         </div>
 
-                        <div className="min-w-0 space-y-1 text-xs text-slate-500 dark:text-slate-400">
-                          <div>{formatMemberSubtitle(member) || "-"}</div>
-                          <div>{t("failover_v2.member_task_status", { defaultValue: "Task status" })}: {memberTaskStatus}</div>
-                          <div>{t("failover_v2.member_dns_status", { defaultValue: "DNS status" })}: {formatMemberDnsStatusSummary(t, latestMemberExecution)}</div>
-                          <div>{t("failover_v2.member_script_status", { defaultValue: "Script status" })}: {formatMemberScriptStatusSummary(t, latestMemberExecution)}</div>
-                          <div>{t("failover_v2.member_resolve_status", { defaultValue: "Resolve status" })}: {memberResolveStatus}</div>
-                          <div>{t("failover_v2.detail_fields.ipv4", { defaultValue: "IPv4" })}: {memberIPv4Address || t("failover_v2.no_current_ip", { defaultValue: "No current IP" })}</div>
-                          <div>{t("failover_v2.detail_fields.ipv6", { defaultValue: "IPv6" })}: {memberIPv6Address || t("failover_v2.no_current_ip", { defaultValue: "No current IP" })}</div>
-                          {memberHealthMessage ? <div className="truncate">{localizeFailoverV2RuntimeMessage(t, memberHealthMessage)}</div> : null}
-                        </div>
-
-                        <div className="flex items-center justify-between gap-3 rounded-lg bg-slate-50/80 px-3 py-2 ring-1 ring-slate-200 dark:bg-slate-900/50 dark:ring-slate-800">
-                          <div className="space-y-1">
-                            <div className="text-xs font-medium uppercase tracking-wide text-slate-500 dark:text-slate-400">
-                              {t("failover_v2.quick_member_toggle", { defaultValue: "Automatic checks" })}
-                            </div>
-                            <div className="text-[11px] text-slate-500 dark:text-slate-400">
-                              {member.enabled
-                                ? t("failover_v2.quick_toggle_active", { defaultValue: "Active" })
-                                : t("failover_v2.quick_toggle_paused", { defaultValue: "Paused" })}
-                            </div>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            {togglingMemberKey === `${service.id}:${member.id}` ? <LoaderCircle className="size-4 animate-spin text-slate-400" /> : null}
+                        <div className="flex flex-wrap items-center justify-start gap-1.5 lg:justify-end">
+                          <div
+                            className="flex items-center gap-2 rounded-md border border-slate-200 bg-white px-2.5 py-1.5 dark:border-slate-800 dark:bg-slate-950/60"
+                            onClick={(event) => event.stopPropagation()}
+                          >
+                            <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400">
+                              {t("failover_v2.quick_member_toggle_short", { defaultValue: "自动" })}
+                            </span>
+                            {togglingServiceID === service.id ? <LoaderCircle className="size-3.5 animate-spin text-slate-400" /> : null}
                             <Switch
-                              checked={member.enabled}
-                              disabled={memberActionsDisabled || togglingMemberKey === `${service.id}:${member.id}`}
+                              checked={service.enabled}
+                              disabled={serviceBusy || togglingServiceID === service.id}
                               onCheckedChange={(checked) => {
-                                void handleToggleMemberEnabled(service, member, checked);
+                                void handleToggleServiceEnabled(service, checked);
                               }}
                             />
                           </div>
+                          <Button
+                            size="sm"
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              openCreateMemberDialog(service);
+                            }}
+                            disabled={serviceBusy}
+                            title={busyTitle}
+                          >
+                            <Plus className="size-4" />
+                            {t("failover_v2.add_member_short", { defaultValue: "成员" })}
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              void handleValidateExistingService(service);
+                            }}
+                            disabled={validatingServiceID === service.id}
+                          >
+                            {validatingServiceID === service.id ? <LoaderCircle className="size-4 animate-spin" /> : <Check className="size-4" />}
+                            {t("failover_v2.validate_short", { defaultValue: "校验" })}
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              openExecutionDialog(service, service.last_execution_id ?? null);
+                            }}
+                          >
+                            <RefreshCw className="size-4" />
+                            {t("failover_v2.execution_history_short", { defaultValue: "记录" })}
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              openPendingCleanupDialog(service);
+                            }}
+                          >
+                            <RefreshCw className="size-4" />
+                            {t("failover_v2.pending_cleanup_short", { defaultValue: "清理" })}
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              openEditServiceDialog(service);
+                            }}
+                            disabled={serviceBusy}
+                            title={busyTitle}
+                          >
+                            <PencilLine className="size-4" />
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            aria-expanded={expanded}
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              toggleServiceExpanded();
+                            }}
+                          >
+                            {expanded ? <ChevronUp className="mr-2 size-4" /> : <ChevronDown className="mr-2 size-4" />}
+                            {expanded
+                              ? t("failover_v2.workbench.collapse_task", { defaultValue: "收起" })
+                              : t("failover_v2.workbench.expand_task", { defaultValue: "展开" })}
+                          </Button>
+                        </div>
+                      </div>
+
+                      {expanded ? (
+                        <div className="space-y-4 border-t border-slate-200 bg-slate-50/55 px-4 py-4 dark:border-slate-800 dark:bg-slate-900/25">
+                          <div className="rounded-lg border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-950/65">
+                              <div className="border-b border-slate-200 px-3 py-2 dark:border-slate-800">
+                                <div className="text-sm font-semibold text-slate-900 dark:text-slate-50">
+                                  {t("failover_v2.workbench.member_list", { defaultValue: "子成员" })}
+                                </div>
+                                <div className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                                  {t("failover_v2.workbench.member_list_hint", { defaultValue: "左侧看主要状态，右侧看详情。" })}
+                                </div>
+                              </div>
+
+                              {service.members.length === 0 ? (
+                                <div className="px-3 py-5 text-sm text-slate-500 dark:text-slate-400">
+                                  {t("failover_v2.no_members", {
+                                    defaultValue: "This service has no members yet.",
+                                  })}
+                                </div>
+                              ) : (
+                                <div className="divide-y divide-slate-200/80 dark:divide-slate-800/80">
+                                  {service.members.map((member) => {
+                                    const memberBusy = isFailoverV2MemberBusy(service, member);
+                                    const memberActionsDisabled = memberBusy;
+                                    const memberLineCodes = getMemberLineCodes(member);
+                                    const latestMemberExecution = findLatestMemberExecutionSummary(service, member.id);
+                                    const memberTaskStatus = formatMemberTaskStatusSummary(t, latestMemberExecution);
+                                    const memberHealthMessage = getMemberHealthMessage(member);
+                                    const watchedNode = findNodeByWatchClientUUID(nodes, member.watch_client_uuid);
+                                    const memberIPv4Address = resolveMemberAddressByFamily(member, latestMemberExecution, watchedNode, "ipv4");
+                                    const memberIPv6Address = resolveMemberAddressByFamily(member, latestMemberExecution, watchedNode, "ipv6");
+                                    const probeBadge = member.probe ? getMemberProbeBadgeLabel(t, member, memberBusy) : null;
+                                    const memberRowKey = `${service.id}:${member.id}`;
+                                    const memberSelected = selectedMemberDetailKey === memberRowKey;
+                                    const memberPrimaryAddress = memberIPv4Address
+                                      || memberIPv6Address
+                                      || t("failover_v2.no_current_ip", { defaultValue: "No current IP" });
+
+                                    return (
+                                      <div
+                                        key={member.id}
+                                        role="button"
+                                        tabIndex={0}
+                                        onClick={() => setExpandedMemberKey(memberRowKey)}
+                                        onKeyDown={(event) => {
+                                          if (event.key === "Enter" || event.key === " ") {
+                                            event.preventDefault();
+                                            setExpandedMemberKey(memberRowKey);
+                                          }
+                                        }}
+                                        className={cn(
+                                          "grid cursor-pointer gap-3 px-3 py-3 transition-colors hover:bg-slate-50/80 dark:hover:bg-slate-900/45 lg:grid-cols-[minmax(180px,1fr)_minmax(140px,0.65fr)_minmax(150px,0.7fr)_auto] lg:items-center",
+                                          memberSelected && "bg-sky-50/80 dark:bg-sky-950/25",
+                                          memberBusy && "bg-sky-50/60 dark:bg-sky-950/15",
+                                        )}
+                                      >
+                                        <div className="min-w-0">
+                                          <div className="flex flex-wrap items-center gap-2">
+                                            <span className="min-w-0 truncate text-sm font-semibold text-slate-900 dark:text-slate-50">
+                                              {getMemberDisplayTitle(member)}
+                                            </span>
+                                            <Badge color={member.enabled ? "green" : "gray"}>
+                                              {member.enabled
+                                                ? t("common.enabled", { defaultValue: "Enabled" })
+                                                : t("common.disabled", { defaultValue: "Disabled" })}
+                                            </Badge>
+                                            <Badge color={normalizeMemberModeValue(member.mode) === "existing_client" ? "amber" : "blue"}>
+                                              {formatMemberModeLabel(t, member.mode)}
+                                            </Badge>
+                                            {probeBadge ? (
+                                              <Badge color={getStatusBadgeColor(probeBadge.status)}>
+                                                {probeBadge.label}
+                                              </Badge>
+                                            ) : null}
+                                            {memberBusy ? <LoaderCircle className="size-3.5 animate-spin text-sky-500" /> : null}
+                                          </div>
+                                          <div className="mt-1 line-clamp-1 break-words text-xs text-slate-500 dark:text-slate-400">
+                                            {memberLineCodes.length > 0
+                                              ? formatMemberLinesSummary(t, memberLineCodes)
+                                              : formatMemberSubtitle(member) || "-"}
+                                          </div>
+                                        </div>
+
+                                        <div className="min-w-0 text-xs text-slate-500 dark:text-slate-400">
+                                          <div className="text-[11px] font-medium uppercase">
+                                            {t("failover_v2.workbench.current_outlet", { defaultValue: "当前出口" })}
+                                          </div>
+                                          <div className="mt-1 truncate text-sm font-medium text-slate-800 dark:text-slate-100">
+                                            {memberPrimaryAddress}
+                                          </div>
+                                        </div>
+
+                                        <div className="min-w-0 text-xs text-slate-500 dark:text-slate-400">
+                                          <div className="text-[11px] font-medium uppercase">
+                                            {t("failover_v2.workbench.execution_state", { defaultValue: "执行状态" })}
+                                          </div>
+                                          <div className="mt-1 truncate text-sm font-medium text-slate-800 dark:text-slate-100">
+                                            {memberTaskStatus}
+                                          </div>
+                                        </div>
+
+                                        <div className="flex flex-wrap items-center gap-2 lg:justify-end">
+                                          <div className="flex items-center gap-2 rounded-md border border-slate-200 bg-white px-2.5 py-1.5 dark:border-slate-800 dark:bg-slate-950/60">
+                                            <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400">
+                                              {t("failover_v2.quick_member_toggle_short", { defaultValue: "自动" })}
+                                            </span>
+                                            {togglingMemberKey === memberRowKey ? <LoaderCircle className="size-3.5 animate-spin text-slate-400" /> : null}
+                                            <Switch
+                                              checked={member.enabled}
+                                              disabled={memberActionsDisabled || togglingMemberKey === memberRowKey}
+                                              onClick={(event) => event.stopPropagation()}
+                                              onCheckedChange={(checked) => {
+                                                void handleToggleMemberEnabled(service, member, checked);
+                                              }}
+                                            />
+                                          </div>
+                                          <Button
+                                            size="sm"
+                                            variant={memberSelected ? "default" : "outline"}
+                                            onClick={(event) => {
+                                              event.stopPropagation();
+                                              setExpandedMemberKey(memberRowKey);
+                                            }}
+                                          >
+                                            <ChevronDown className="size-4 -rotate-90" />
+                                            {t("common.details", { defaultValue: "详情" })}
+                                          </Button>
+                                        </div>
+
+                                        {memberHealthMessage ? (
+                                          <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:border-amber-900/70 dark:bg-amber-950/20 dark:text-amber-200 lg:col-span-4">
+                                            {localizeFailoverV2RuntimeMessage(t, memberHealthMessage)}
+                                          </div>
+                                        ) : null}
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              )}
+                            </div>
+
+                        </div>
+                      ) : null}
+                    </div>
+                  );
+                })}
+              </div>
+              <AdminPagination
+                page={servicePagination.page}
+                totalPages={servicePagination.totalPages}
+                total={servicePagination.total}
+                pageSize={servicePagination.pageSize}
+                visibleStart={servicePagination.visibleStart}
+                visibleEnd={servicePagination.visibleEnd}
+                onPageChange={handleServicePageChange}
+                onPageSizeChange={handleServicePageSizeChange}
+                pageSizeOptions={[8, 20, 50]}
+                itemLabel={t("admin.pagination.tasks", { defaultValue: "tasks" })}
+                compact
+              />
+            </div>
+            </AdminSurface>
+
+            <AdminSurface>
+              <div className="overflow-hidden rounded-lg border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-950/70 xl:sticky xl:top-4">
+                {selectedMemberDetail ? (() => {
+                  const { service, member } = selectedMemberDetail;
+                  const memberBusy = isFailoverV2MemberBusy(service, member);
+                  const memberActionsDisabled = memberBusy;
+                  const latestMemberExecution = findLatestMemberExecutionSummary(service, member.id);
+                  const watchedNode = findNodeByWatchClientUUID(nodes, member.watch_client_uuid);
+                  const memberIPv4Address = resolveMemberAddressByFamily(member, latestMemberExecution, watchedNode, "ipv4");
+                  const memberIPv6Address = resolveMemberAddressByFamily(member, latestMemberExecution, watchedNode, "ipv6");
+                  const memberResolveStatus = formatMemberResolveStatus(t, member);
+                  const memberDnsStatus = formatMemberDnsStatusSummary(t, latestMemberExecution);
+                  const memberScriptStatus = formatMemberScriptStatusSummary(t, latestMemberExecution);
+                  const memberBusyTitle = memberActionsDisabled
+                    ? t("failover_v2.active_member_execution_action_disabled", {
+                      defaultValue: "Actions are disabled while this member has an active execution.",
+                    })
+                    : undefined;
+                  const serviceActiveExecutionID = findActiveFailoverV2ExecutionID(service.recent_executions);
+                  const serviceLatestExecution = service.recent_executions.find((execution) => execution.id === serviceActiveExecutionID)
+                    || service.recent_executions[0]
+                    || null;
+                  const serviceExecutionStageItems = serviceLatestExecution
+                    ? [
+                      { key: "detach_dns", status: serviceLatestExecution.detach_dns_status || "pending" },
+                      { key: "attach_dns", status: serviceLatestExecution.attach_dns_status || "pending" },
+                      { key: "cleanup", status: serviceLatestExecution.cleanup_status || "pending" },
+                    ]
+                    : [];
+
+                  return (
+                    <div>
+                      <div className="border-b border-slate-200 bg-slate-50/80 px-4 py-3 dark:border-slate-800 dark:bg-slate-900/35">
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0">
+                            <div className="text-xs font-medium uppercase text-slate-500 dark:text-slate-400">
+                              {t("failover_v2.workbench.member_detail", { defaultValue: "子成员详情" })}
+                            </div>
+                            <div className="mt-1 truncate text-sm font-semibold text-slate-900 dark:text-slate-50">
+                              {getMemberDisplayTitle(member)}
+                            </div>
+                          </div>
+                          {memberBusy ? <LoaderCircle className="mt-0.5 size-4 shrink-0 animate-spin text-sky-500" /> : null}
+                        </div>
+                        <div className="mt-2 truncate text-xs text-slate-500 dark:text-slate-400">
+                          {service.name}
+                        </div>
+                      </div>
+
+                      <div className="space-y-3 p-4">
+                        <div className="rounded-lg border border-slate-200 bg-slate-50/70 p-3 dark:border-slate-800 dark:bg-slate-900/35">
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="min-w-0">
+                              <div className="text-[11px] font-medium uppercase text-slate-500 dark:text-slate-400">
+                                {t("failover_v2.workbench.task_detail", { defaultValue: "主任务" })}
+                              </div>
+                              <div className="mt-1 truncate text-sm font-semibold text-slate-900 dark:text-slate-50">
+                                {service.name}
+                              </div>
+                            </div>
+                            <Badge color={getStatusBadgeColor(service.last_status || "unknown")}>
+                              {localizeFailoverV2Status(t, service.last_status || "unknown")}
+                            </Badge>
+                          </div>
+                          <div className="mt-2 space-y-1 text-xs text-slate-500 dark:text-slate-400">
+                            <div>{service.dns_provider ? formatProviderLabel(service.dns_provider) : "-"} / {service.dns_entry_id || "-"}</div>
+                            <div>{t("failover_v2.summary.next_check", { defaultValue: "Next check" })}: {formatServiceNextCheckCountdown(service)}</div>
+                            <div>{t("failover_v2.summary.members", { defaultValue: "Members" })}: {service.enabled_member_count} / {service.member_count}</div>
+                          </div>
+                          {serviceLatestExecution ? (
+                            <div className="mt-3 rounded-md border border-slate-200 bg-white px-3 py-2 dark:border-slate-800 dark:bg-slate-950/60">
+                              <div className="flex flex-wrap items-center gap-2">
+                                <span className="text-sm font-semibold text-slate-900 dark:text-slate-50">
+                                  #{serviceLatestExecution.id}
+                                </span>
+                                <Badge color={getStatusBadgeColor(serviceLatestExecution.status || "unknown")}>
+                                  {localizeFailoverV2Status(t, serviceLatestExecution.status || "unknown")}
+                                </Badge>
+                                {serviceActiveExecutionID === serviceLatestExecution.id ? <LoaderCircle className="size-3.5 animate-spin text-sky-500" /> : null}
+                              </div>
+                              <div className="mt-1 truncate text-xs text-slate-500 dark:text-slate-400">
+                                {findMemberLabel(service, serviceLatestExecution.member_id)} / {localizeFailoverV2TriggerReason(t, serviceLatestExecution.trigger_reason)}
+                              </div>
+                              <div className="mt-2 flex flex-wrap gap-1.5">
+                                {serviceExecutionStageItems.map((stage) => (
+                                  <Badge key={stage.key} color={getStatusBadgeColor(stage.status)}>
+                                    {localizeFailoverV2Stage(t, stage.key)}: {localizeFailoverV2Status(t, stage.status)}
+                                  </Badge>
+                                ))}
+                              </div>
+                              {serviceLatestExecution.error_message ? (
+                                <div className="mt-2 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700 dark:border-red-900/70 dark:bg-red-950/20 dark:text-red-300">
+                                  {localizeFailoverV2RuntimeMessage(t, serviceLatestExecution.error_message)}
+                                </div>
+                              ) : null}
+                            </div>
+                          ) : null}
+                          {service.last_message ? (
+                            <div className="mt-3 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:border-amber-900/70 dark:bg-amber-950/20 dark:text-amber-200">
+                              {localizeFailoverV2RuntimeMessage(t, service.last_message)}
+                            </div>
+                          ) : null}
                         </div>
 
-                        <div className="flex flex-wrap gap-2 lg:justify-end">
+                        <div className="flex flex-wrap gap-1.5">
+                          <Badge color={member.enabled ? "green" : "gray"}>
+                            {member.enabled
+                              ? t("common.enabled", { defaultValue: "Enabled" })
+                              : t("common.disabled", { defaultValue: "Disabled" })}
+                          </Badge>
+                          <Badge color={normalizeMemberModeValue(member.mode) === "existing_client" ? "amber" : "blue"}>
+                            {formatMemberModeLabel(t, member.mode)}
+                          </Badge>
+                          {member.probe ? (() => {
+                            const probeBadge = getMemberProbeBadgeLabel(t, member, memberBusy);
+                            return (
+                              <Badge color={getStatusBadgeColor(probeBadge.status)}>
+                                {probeBadge.label}
+                              </Badge>
+                            );
+                          })() : null}
+                        </div>
+
+                        <div className="rounded-lg border border-slate-200 bg-slate-50/70 p-3 dark:border-slate-800 dark:bg-slate-900/35">
+                          <div className="space-y-2 break-words text-xs text-slate-600 dark:text-slate-300">
+                            <div>{formatMemberSubtitle(member) || "-"}</div>
+                            <div>{t("failover_v2.detail_fields.ipv4", { defaultValue: "IPv4" })}: {memberIPv4Address || t("failover_v2.no_current_ip", { defaultValue: "No current IP" })}</div>
+                            <div>{t("failover_v2.detail_fields.ipv6", { defaultValue: "IPv6" })}: {memberIPv6Address || t("failover_v2.no_current_ip", { defaultValue: "No current IP" })}</div>
+                            <div>{t("failover_v2.member_resolve_status", { defaultValue: "Resolve status" })}: {memberResolveStatus}</div>
+                            <div>{t("failover_v2.member_dns_status", { defaultValue: "DNS status" })}: {memberDnsStatus}</div>
+                            <div>{t("failover_v2.member_script_status", { defaultValue: "Script status" })}: {memberScriptStatus}</div>
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-2">
                           <Button
                             size="sm"
                             onClick={() => setFailoverTarget({ service, member })}
                             disabled={memberActionsDisabled}
                             title={memberBusyTitle || getModeActionDescription(t, member)}
                           >
-                            <Play className="mr-2 size-4" />
+                            <Play className="size-4" />
                             {getModeActionLabel(t, member)}
                           </Button>
                           <Button size="sm" variant="outline" onClick={() => setDetachTarget({ service, member })} disabled={memberActionsDisabled} title={memberBusyTitle}>
-                            <LoaderCircle className="mr-2 size-4" />
                             {t("failover_v2.detach_dns", { defaultValue: "Detach DNS" })}
                           </Button>
                           <Button size="sm" variant="outline" onClick={() => openEditMemberDialog(service, member)} disabled={memberActionsDisabled} title={memberBusyTitle}>
-                            <PencilLine className="mr-2 size-4" />
+                            <PencilLine className="size-4" />
                             {t("common.edit", { defaultValue: "Edit" })}
                           </Button>
                           <Button size="sm" variant="outline" onClick={() => setDeleteTarget({ kind: "member", service, member })} disabled={memberActionsDisabled} title={memberBusyTitle}>
-                            <Trash2 className="mr-2 size-4" />
+                            <Trash2 className="size-4" />
                             {t("common.delete", { defaultValue: "Delete" })}
                           </Button>
                         </div>
                       </div>
-                    );
-                  })}
-                </div>
+                    </div>
+                  );
+                })() : (
+                  <div className="px-4 py-6">
+                    <div className="text-sm font-semibold text-slate-900 dark:text-slate-50">
+                      {t("failover_v2.workbench.member_detail", { defaultValue: "子成员详情" })}
+                    </div>
+                    <div className="mt-2 text-sm leading-6 text-slate-500 dark:text-slate-400">
+                      {t("failover_v2.workbench.member_detail_empty", { defaultValue: "展开一个任务，然后选择子成员查看详情。" })}
+                    </div>
+                  </div>
+                )}
               </div>
             </AdminSurface>
-          );
-        })}
+          </div>
+        ) : null}
       </AdminPageShell>
 
       <AlertDialog
@@ -5436,7 +5826,7 @@ export default function FailoverV2Page() {
                             {memberProviderOptions.length === 0 ? (
                               <p className="text-xs text-muted-foreground">
                                 {t("failover_v2.provider_feature_required_hint", {
-                                  defaultValue: "No cloud provider feature is enabled for this user. Enable AWS, Azure, DigitalOcean, or Linode first.",
+                                  defaultValue: "No cloud provider feature is enabled for this user. Enable AWS, Azure, DigitalOcean, Linode, or Vultr first.",
                                 })}
                               </p>
                             ) : null}
@@ -5587,9 +5977,13 @@ export default function FailoverV2Page() {
                           })
                           : memberProvider === "azure"
                             ? getMemberPlanPayloadHint(memberForm.provider)
-                          : t("failover_v2.plan_payload_hint_digitalocean", {
-                            defaultValue: getMemberPlanPayloadHint(memberForm.provider),
-                          })}
+                            : memberProvider === "vultr"
+                              ? t("failover_v2.plan_payload_hint_vultr", {
+                                defaultValue: getMemberPlanPayloadHint(memberForm.provider),
+                              })
+                              : t("failover_v2.plan_payload_hint_digitalocean", {
+                                defaultValue: getMemberPlanPayloadHint(memberForm.provider),
+                              })}
                       action={(
                         <Button
                           type="button"
@@ -5954,20 +6348,35 @@ export default function FailoverV2Page() {
                       <PlanPresetSelect
                         value={getJsonStringValue(memberPlanPayload, "region") || undefined}
                         onValueChange={(value) => updateMemberPlanPayload({ region: value })}
-                        options={memberProvider === "linode" ? linodeRegionOptions : digitalOceanRegionOptions}
+                        options={memberProvider === "linode"
+                          ? linodeRegionOptions
+                          : memberProvider === "vultr"
+                            ? vultrRegionOptions
+                            : digitalOceanRegionOptions}
                       />
                     </div>
                     <div className={FORM_FIELD_CLASS}>
                       <Label className="flex items-center gap-1">
                         {memberProvider === "linode"
                           ? t("failover_v2.linode_type", { defaultValue: "Type" })
+                          : memberProvider === "vultr"
+                            ? t("failover_v2.vultr_plan", { defaultValue: "Plan" })
                           : t("failover_v2.digitalocean_size", { defaultValue: "Size" })}
                         <RequiredMark />
                       </Label>
                       <PlanPresetSelect
-                        value={getJsonStringValue(memberPlanPayload, memberProvider === "linode" ? "type" : "size") || undefined}
-                        onValueChange={(value) => updateMemberPlanPayload({ [memberProvider === "linode" ? "type" : "size"]: value })}
-                        options={memberProvider === "linode" ? linodeTypeOptions : digitalOceanSizeOptions}
+                        value={getJsonStringValue(
+                          memberPlanPayload,
+                          memberProvider === "linode" ? "type" : memberProvider === "vultr" ? "plan" : "size",
+                        ) || undefined}
+                        onValueChange={(value) => updateMemberPlanPayload({
+                          [memberProvider === "linode" ? "type" : memberProvider === "vultr" ? "plan" : "size"]: value,
+                        })}
+                        options={memberProvider === "linode"
+                          ? linodeTypeOptions
+                          : memberProvider === "vultr"
+                            ? vultrPlanOptions
+                            : digitalOceanSizeOptions}
                       />
                     </div>
                     <div className={FORM_FIELD_CLASS}>
@@ -5976,9 +6385,17 @@ export default function FailoverV2Page() {
                         <RequiredMark />
                       </Label>
                       <PlanPresetSelect
-                        value={getJsonStringValue(memberPlanPayload, "image") || undefined}
-                        onValueChange={(value) => updateMemberPlanPayload({ image: value })}
-                        options={memberProvider === "linode" ? linodeImageOptions : digitalOceanImageOptions}
+                        value={memberProvider === "vultr"
+                          ? getJsonNumberInputValue(memberPlanPayload, "os_id", Number(DEFAULT_VULTR_IMAGE))
+                          : getJsonStringValue(memberPlanPayload, "image") || undefined}
+                        onValueChange={(value) => updateMemberPlanPayload(memberProvider === "vultr"
+                          ? { os_id: Number(value) }
+                          : { image: value })}
+                        options={memberProvider === "linode"
+                          ? linodeImageOptions
+                          : memberProvider === "vultr"
+                            ? vultrImageOptions
+                            : digitalOceanImageOptions}
                       />
                     </div>
                   </div>
@@ -6004,6 +6421,29 @@ export default function FailoverV2Page() {
                       />
                     </ToggleCard>
                   </div>
+                  ) : null}
+
+                  {memberProvider === "vultr" ? (
+                    <div className="grid gap-3 md:grid-cols-3">
+                      <ToggleCard title={t("failover_v2.assign_ipv6", { defaultValue: "Assign IPv6" })}>
+                        <Switch
+                          checked={getJsonBooleanValue(memberPlanPayload, "enable_ipv6", true)}
+                          onCheckedChange={(checked) => updateMemberPlanPayload({ enable_ipv6: checked })}
+                        />
+                      </ToggleCard>
+                      <ToggleCard title={t("failover_v2.backups", { defaultValue: "Backups" })}>
+                        <Switch
+                          checked={getJsonBooleanValue(memberPlanPayload, "backups_enabled")}
+                          onCheckedChange={(checked) => updateMemberPlanPayload({ backups_enabled: checked })}
+                        />
+                      </ToggleCard>
+                      <ToggleCard title={t("failover_v2.vultr_ddos_protection", { defaultValue: "DDoS protection" })}>
+                        <Switch
+                          checked={getJsonBooleanValue(memberPlanPayload, "ddos_protection")}
+                          onCheckedChange={(checked) => updateMemberPlanPayload({ ddos_protection: checked })}
+                        />
+                      </ToggleCard>
+                    </div>
                   ) : null}
                 </div>
               )}

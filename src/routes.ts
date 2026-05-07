@@ -7,7 +7,7 @@ import { Navigate } from "react-router-dom";
 import AdminLayout from "./pages/admin/_layout";
 
 const Index = lazy(() => import("./pages/Index"));
-const Admin = lazy(() => import("./pages/admin"));
+const AdminDashboard = lazy(() => import("./pages/admin/dashboard"));
 const NotFound = lazy(() => import("./pages/404"));
 
 export const routes: RouteObject[] = [
@@ -30,7 +30,7 @@ export const routes: RouteObject[] = [
     path: "/admin",
     element: React.createElement(AdminLayout),
     children: [
-      { index: true, element: React.createElement(Admin) },
+      { index: true, element: React.createElement(AdminDashboard) },
       {
         path: "sessions",
         element: React.createElement(
@@ -39,10 +39,9 @@ export const routes: RouteObject[] = [
       },
       {
         path: "client",
-        element: React.createElement(Navigate, {
-          to: "/admin",
-          replace: true,
-        }),
+        element: React.createElement(
+          lazy(() => import("./pages/admin/client"))
+        ),
       },
       {
         path: "account",
@@ -54,6 +53,12 @@ export const routes: RouteObject[] = [
         path: "users",
         element: React.createElement(
           lazy(() => import("./pages/admin/users"))
+        ),
+      },
+      {
+        path: "billing",
+        element: React.createElement(
+          lazy(() => import("./pages/admin/billing"))
         ),
       },
       {

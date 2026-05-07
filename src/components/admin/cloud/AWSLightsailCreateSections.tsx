@@ -13,6 +13,7 @@ import {
   TextField,
 } from "@/components/admin/cloud/cloud-ui";
 import { WarningAlert } from "@/components/ui/warning-alert";
+import { cn } from "@/lib/utils";
 import {
   SELECT_NONE,
   STATIC_LIGHTSAIL_BLUEPRINT_PRESETS,
@@ -43,6 +44,7 @@ type LightsailCreateCoreSectionProps = LightsailCreateSectionProps & {
   selectedBlueprintPreset: StaticLightsailBlueprintPreset | null;
   selectedBundlePreset: StaticLightsailBundlePreset | null;
   platformMismatch: boolean;
+  singleColumn?: boolean;
 };
 
 export function LightsailCreateCoreSection({
@@ -58,6 +60,7 @@ export function LightsailCreateCoreSection({
   selectedBlueprintPreset,
   selectedBundlePreset,
   platformMismatch,
+  singleColumn = false,
 }: LightsailCreateCoreSectionProps) {
   return (
     <CompactDetailSection
@@ -65,7 +68,7 @@ export function LightsailCreateCoreSection({
       summary={summary || "-"}
       defaultOpen
     >
-      <div className="grid gap-4 sm:grid-cols-2">
+      <div className={cn("grid gap-4", !singleColumn && "sm:grid-cols-2")}>
         <div>
           <label className={cloudPanelFieldLabelClassName}>
             {t("cloud.providers.aws.region", "Region")}
@@ -107,7 +110,7 @@ export function LightsailCreateCoreSection({
         </div>
       </div>
 
-      <div className="mt-4 grid gap-4 sm:grid-cols-2">
+      <div className={cn("mt-4 grid gap-4", !singleColumn && "sm:grid-cols-2")}>
         <div>
           <label className={cloudPanelFieldLabelClassName}>
             {t("cloud.form.image", "Image")}

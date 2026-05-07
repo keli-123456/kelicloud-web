@@ -4,24 +4,33 @@ import {
   useCallback,
   useDeferredValue,
   useEffect,
-  useMemo,
   useRef,
   useState,
+  type ReactNode,
 } from "react";
-import { Copy, PencilLine, Play, Plus, Search, Trash2 } from "lucide-react";
+import {
+  Copy,
+  FileCode2,
+  PencilLine,
+  Play,
+  Plus,
+  RefreshCw,
+  Search,
+  Trash2,
+} from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 
 import {
-  AdminPageShell,
-  AdminSurface,
+  AdminEmptyState,
+  AdminSettingsSkeleton,
   AdminTableSkeleton,
 } from "@/components/admin/AdminPageShell";
+import { AdminPagination } from "@/components/admin/AdminPagination";
 import {
-  ADMIN_FORM_DIALOG_CLASS,
+  ADMIN_FORM_DIALOG_WIDE_CLASS,
   ADMIN_FORM_FIELD_CLASS,
-  ADMIN_FORM_GRID_2_CLASS,
   ADMIN_FORM_SCROLL_CLASS,
 } from "@/components/admin/AdminFormStyles";
 import {
@@ -47,11 +56,11 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import NumberPicker from "@/components/ui/number-picker";
-import { Skeleton } from "@/components/ui/skeleton";
 import {
   type CommandClipboard,
   useCommandClipboard,
 } from "@/contexts/CommandClipboardContext";
+import { useAdminPageTitle } from "@/contexts/AdminPageTitleContext";
 import { cn } from "@/lib/utils";
 
 type CommandFormValues = {
@@ -80,6 +89,9 @@ const EMPTY_FORM_VALUES: CommandFormValues = {
 };
 
 const DEFAULT_PAGE_SIZE = 20;
+
+const scriptsPanelClass =
+  "overflow-hidden rounded-lg border border-border bg-card shadow-sm shadow-slate-900/5";
 
 const CodeEditor = lazy(async () => {
   const module = await import("@/components/ui/code-editor");
@@ -116,9 +128,25 @@ const resolveCommandName = (
   return firstLine.length > 48 ? `${firstLine.slice(0, 48)}...` : firstLine;
 };
 
+const getCommandTitle = (command: CommandClipboard) => {
+  const name = command.name.trim();
+  if (name) return name;
+  const firstLine = command.text
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .find(Boolean);
+  return firstLine || `Clipboard #${command.id}`;
+};
+
+const getCommandPreview = (command: CommandClipboard) =>
+  command.text
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .find(Boolean) || "-";
+
 const formatTimestamp = (value?: string) => {
   if (!value) {
-    return null;
+    return "-";
   }
 
   const date = new Date(value);
@@ -178,44 +206,6 @@ async function fetchCommandPage(
   };
 }
 
-function buildPageNumbers(page: number, totalPages: number) {
-  const siblingsCount = 1;
-  const values: (number | string)[] = [];
-  const leftSibling = Math.max(page - siblingsCount, 1);
-  const rightSibling = Math.min(page + siblingsCount, totalPages);
-  const showLeftDots = leftSibling > 2;
-  const showRightDots = rightSibling < totalPages - 1;
-
-  values.push(1);
-  if (showLeftDots) {
-    values.push("...");
-  } else {
-    for (let index = 2; index < leftSibling; index += 1) {
-      values.push(index);
-    }
-  }
-
-  for (let index = leftSibling; index <= rightSibling; index += 1) {
-    if (index > 1 && index < totalPages) {
-      values.push(index);
-    }
-  }
-
-  if (showRightDots) {
-    values.push("...");
-  } else {
-    for (let index = rightSibling + 1; index < totalPages; index += 1) {
-      values.push(index);
-    }
-  }
-
-  if (totalPages > 1) {
-    values.push(totalPages);
-  }
-
-  return values;
-}
-
 export default function CommandLibraryManager() {
   const { t } = useTranslation();
   const navigate = useNavigate();
@@ -237,10 +227,21 @@ export default function CommandLibraryManager() {
   const [submitting, setSubmitting] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<CommandClipboard | null>(null);
   const [removingId, setRemovingId] = useState<number | null>(null);
+  const [selectedCommandId, setSelectedCommandId] = useState<number | null>(null);
   const requestSequenceRef = useRef(0);
   const requestControllerRef = useRef<AbortController | null>(null);
   const unknownErrorText = t("common.unknown_error", "Unknown error");
   const deferredSearchTerm = useDeferredValue(searchTerm.trim());
+  const pageTitle = t("exec.savedCommands", {
+    defaultValue: "脚本库",
+  });
+
+  useAdminPageTitle(
+    pageTitle,
+    t("command_clipboard.page_description", {
+      defaultValue: "集中管理远程执行和云实例场景复用的脚本命令。",
+    }),
+  );
 
   useEffect(() => {
     if (!routeState?.draftCommand?.text) {
@@ -263,11 +264,11 @@ export default function CommandLibraryManager() {
   }, [location.pathname, location.search, navigate, routeState, t]);
 
   const totalPages = Math.max(1, Math.ceil(total / Math.max(limit, 1)));
-  const pageNumbers = useMemo(() => buildPageNumbers(page, totalPages), [page, totalPages]);
   const visibleStart = total === 0 ? 0 : (page - 1) * limit + 1;
   const visibleEnd = total === 0 ? 0 : Math.min(page * limit, total);
   const hasActiveSearch = deferredSearchTerm.length > 0;
   const showEmptyLibraryState = !hasActiveSearch && total === 0;
+  const selectedCommand = commands.find((command) => command.id === selectedCommandId) ?? commands[0] ?? null;
 
   const loadCommands = useCallback(async (targetPage: number, targetLimit: number, targetSearch: string) => {
     const requestID = requestSequenceRef.current + 1;
@@ -322,6 +323,15 @@ export default function CommandLibraryManager() {
   useEffect(() => () => {
     requestControllerRef.current?.abort();
   }, []);
+
+  useEffect(() => {
+    setSelectedCommandId((current) => {
+      if (commands.some((command) => command.id === current)) {
+        return current;
+      }
+      return commands[0]?.id ?? null;
+    });
+  }, [commands]);
 
   const openCreateDialog = () => {
     setEditingCommand(null);
@@ -463,105 +473,38 @@ export default function CommandLibraryManager() {
 
   if (loading && commands.length === 0) {
     return (
-      <AdminPageShell
-        title={t("exec.savedCommands", {
-          defaultValue: "脚本库",
-        })}
-        description={t("command_clipboard.page_description", {
-          defaultValue:
-            "管理可复用的 Shell 脚本，并在远程执行或云实例工作流中快速调用。",
-        })}
-        stats={[
-          {
-            label: t("command_clipboard.stats.total", {
-              defaultValue: "Saved scripts",
-            }),
-            value: <Skeleton className="h-5 w-12" />,
-            tone: "blue",
-          },
-          {
-            label: t("command_clipboard.pagination.current_page", {
-              defaultValue: "Current page",
-            }),
-            value: <Skeleton className="h-5 w-16" />,
-            tone: "emerald",
-          },
-          {
-            label: t("command_clipboard.pagination.page_size", {
-              defaultValue: "Page size",
-            }),
-            value: `${limit}`,
-            tone: "amber",
-          },
-        ]}
-        actions={(
-          <div className="flex w-full flex-wrap items-center justify-end gap-3">
-            <div className="relative min-w-[240px] flex-1 sm:max-w-sm">
-              <Search
-                size={15}
-                className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
-              />
-              <Input
-                value={searchTerm}
-                onChange={(event) => {
-                  setSearchTerm(event.target.value);
-                  setPage(1);
-                }}
-                placeholder={t("command_clipboard.search_placeholder", {
-                  defaultValue: "Search by script name, remark, or content",
-                })}
-                className="pl-9"
-              />
-            </div>
-            <Button variant="outline" asChild>
-              <Link to="/admin/exec">
-                <Play size={15} />
-                {t("command_clipboard.open_exec", {
-                  defaultValue: "Remote exec",
-                })}
-              </Link>
-            </Button>
-            <Button onClick={openCreateDialog}>
-              <Plus size={15} />
-              {t("command_clipboard.new_command", {
-                defaultValue: "New script",
-              })}
-            </Button>
-            <div className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300">
-              <span className="text-slate-500 dark:text-slate-400">
-                {t("command_clipboard.pagination.rows_per_page", {
-                  defaultValue: "Rows per page",
-                })}
-              </span>
-              <NumberPicker
-                defaultValue={limit}
-                onChange={(value) => {
-                  setPage(1);
-                  setLimit(value);
-                }}
-                min={5}
-                max={100}
-              />
-            </div>
+      <div className="flex min-w-0 flex-col gap-[14px] p-3 sm:p-4 md:p-6">
+        <div className="flex items-start justify-between gap-5">
+          <div className="min-w-0">
+            <div className="h-7 w-28 rounded-md bg-muted" />
+            <div className="mt-2 h-4 w-[min(560px,70vw)] rounded-md bg-muted" />
           </div>
-        )}
-      >
-        <AdminSurface className="py-2">
-          <div className="space-y-4">
-            <div className="flex items-center justify-between gap-3 px-1">
-              <Skeleton className="h-4 w-48" />
-              <Skeleton className="h-8 w-20" />
+          <div className="hidden h-9 w-28 rounded-md bg-muted sm:block" />
+        </div>
+        <div className="grid gap-[14px] md:grid-cols-3">
+          {Array.from({ length: 3 }).map((_, index) => (
+            <div key={index} className="min-h-[92px] rounded-lg border border-border bg-card p-[14px] shadow-sm shadow-slate-900/5">
+              <div className="h-3 w-20 rounded bg-muted" />
+              <div className="mt-3 h-7 w-14 rounded bg-muted" />
+              <div className="mt-3 h-3 w-32 rounded bg-muted" />
             </div>
-            <AdminTableSkeleton columns={4} rows={6} />
-          </div>
-        </AdminSurface>
-      </AdminPageShell>
+          ))}
+        </div>
+        <div className="grid gap-[14px] xl:grid-cols-[minmax(0,1fr)_360px]">
+          <section className={scriptsPanelClass}>
+            <AdminTableSkeleton columns={5} rows={6} className="p-4" />
+          </section>
+          <section className={scriptsPanelClass}>
+            <AdminSettingsSkeleton sections={4} className="p-4" />
+          </section>
+        </div>
+      </div>
     );
   }
 
   if (error) {
     return (
-      <div className="rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive">
+      <div className="m-3 rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive sm:m-4 md:m-6">
         {error}
       </div>
     );
@@ -569,300 +512,278 @@ export default function CommandLibraryManager() {
 
   return (
     <>
-      <AdminPageShell
-        title={t("exec.savedCommands", {
-          defaultValue: "脚本库",
-        })}
-        description={t("command_clipboard.page_description", {
-          defaultValue:
-            "管理可复用的 Shell 脚本，并在远程执行或云实例工作流中快速调用。",
-        })}
-        stats={[
-          {
-            label: t("command_clipboard.stats.total", {
-              defaultValue: "Saved scripts",
-            }),
-            value: `${total}`,
-            hint: t("exec.savedCommandsHint", {
-              defaultValue:
-                "Saved commands are stored in the database and can be inserted back or executed directly.",
-            }),
-            tone: "blue",
-          },
-          {
-            label: t("command_clipboard.pagination.current_page", {
-              defaultValue: "Current page",
-            }),
-            value: `${page} / ${totalPages}`,
-            hint: t("command_clipboard.pagination.current_page_hint", {
-              defaultValue: "Switch pages to browse older scripts.",
-            }),
-            tone: "emerald",
-          },
-          {
-            label: t("command_clipboard.pagination.page_size", {
-              defaultValue: "Page size",
-            }),
-            value: `${limit}`,
-            hint: t("command_clipboard.pagination.page_size_hint", {
-              defaultValue: "Changing page size reloads the script list immediately.",
-            }),
-            tone: "amber",
-          },
-        ]}
-        actions={(
-          <div className="flex w-full flex-wrap items-center justify-end gap-3">
-            <div className="relative min-w-[240px] flex-1 sm:max-w-sm">
-              <Search
-                size={15}
-                className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
-              />
-              <Input
-                value={searchTerm}
-                onChange={(event) => {
-                  setSearchTerm(event.target.value);
-                  setPage(1);
-                }}
-                placeholder={t("command_clipboard.search_placeholder", {
-                  defaultValue: "Search by script name, remark, or content",
-                })}
-                className="pl-9"
-              />
-            </div>
-            <Button variant="outline" asChild>
+      <div className="flex min-w-0 flex-col gap-[14px] p-3 sm:p-4 md:p-6">
+        <div className="flex min-w-0 flex-wrap items-center justify-end gap-2">
+          <div className="flex shrink-0 flex-wrap items-center gap-2">
+            <Button variant="outline" asChild className="h-9 rounded-md px-4 text-sm">
               <Link to="/admin/exec">
                 <Play size={15} />
-                {t("command_clipboard.open_exec", {
-                  defaultValue: "Remote exec",
-                })}
+                {t("command_clipboard.open_exec", { defaultValue: "远程执行" })}
               </Link>
             </Button>
-            <Button onClick={openCreateDialog}>
+            <Button onClick={openCreateDialog} className="h-9 rounded-md px-4 text-sm">
               <Plus size={15} />
-              {t("command_clipboard.new_command", {
-                defaultValue: "New script",
-              })}
+              {t("command_clipboard.new_command", { defaultValue: "新建脚本" })}
             </Button>
-            <div className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300">
-              <span className="text-slate-500 dark:text-slate-400">
-                {t("command_clipboard.pagination.rows_per_page", {
-                  defaultValue: "Rows per page",
-                })}
-              </span>
-              <NumberPicker
-                defaultValue={limit}
-                onChange={(value) => {
-                  setPage(1);
-                  setLimit(value);
-                }}
-                min={5}
-                max={100}
-              />
-            </div>
           </div>
-        )}
-      >
-        <AdminSurface className="py-2">
-          {showEmptyLibraryState ? (
-            <div className="rounded-lg border border-dashed border-slate-200 bg-white px-5 py-8 text-center dark:border-slate-800 dark:bg-slate-950/40">
-              <div className="space-y-2">
-                <p className="text-base font-medium text-slate-900 dark:text-slate-100">
-                  {t("exec.savedCommandsEmpty", {
-                    defaultValue: "No saved commands yet.",
-                  })}
-                </p>
-                <p className="mx-auto max-w-2xl text-sm leading-6 text-slate-500 dark:text-slate-400">
-                  {t("command_clipboard.empty_description", {
-                    defaultValue:
-                      "Store reusable shell scripts here. Cloud and remote execution dialogs can reuse them.",
-                  })}
-                </p>
-              </div>
-              <div className="mt-5 flex flex-wrap items-center justify-center gap-2">
-                <Button onClick={openCreateDialog}>
-                  <Plus size={15} />
-                  {t("command_clipboard.new_command", {
-                    defaultValue: "New script",
-                  })}
-                </Button>
-                <Button variant="outline" asChild>
-                  <Link to="/admin/exec">
-                    <Play size={15} />
-                    {t("command_clipboard.open_exec", {
-                      defaultValue: "Remote exec",
-                    })}
-                  </Link>
-                </Button>
-              </div>
-            </div>
-          ) : (
-            <div className="space-y-4">
-              <div className="flex items-center justify-between gap-3 px-1 text-sm text-slate-500 dark:text-slate-400">
-                <span>
-                  {t("command_clipboard.pagination.summary", {
-                    defaultValue: "Showing {{start}}-{{end}} of {{total}} scripts",
-                    start: visibleStart,
-                    end: visibleEnd,
-                    total,
-                  })}
-                </span>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    void loadCommands(page, limit, deferredSearchTerm);
-                  }}
-                  disabled={loading}
-                >
-                  {t("common.refresh")}
-                </Button>
+        </div>
+
+        <div className="grid gap-[14px] xl:grid-cols-[minmax(0,1fr)_360px]">
+          <section className={scriptsPanelClass}>
+            <div className="flex min-h-[54px] flex-col gap-3 border-b border-border px-[14px] py-3 lg:flex-row lg:items-center lg:justify-between">
+              <div className="flex w-full rounded-md border border-border bg-muted/30 p-1 sm:w-auto">
+                <ScriptToolbarTab active>{t("command_clipboard.open_library", { defaultValue: "脚本库" })}</ScriptToolbarTab>
+                <ScriptToolbarLink to="/admin/exec">{t("exec.history", { defaultValue: "执行记录" })}</ScriptToolbarLink>
+                <ScriptToolbarLink to="/admin/exec">{t("exec.result", { defaultValue: "结果" })}</ScriptToolbarLink>
               </div>
 
-              <div className="grid gap-2">
-                {commands.length === 0 ? (
-                  <div className="rounded-lg border border-dashed border-slate-200 bg-white px-5 py-8 text-center dark:border-slate-800 dark:bg-slate-950/40">
-                    <p className="text-base font-medium text-slate-900 dark:text-slate-100">
-                      {t("command_clipboard.search_empty", {
-                        defaultValue: "No matching scripts",
-                      })}
-                    </p>
-                    <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
-                      {t("command_clipboard.search_placeholder", {
-                        defaultValue: "Search by script name, remark, or content",
-                      })}
-                    </p>
-                  </div>
-                ) : commands.map((command) => {
-                  const updatedAt = formatTimestamp(command.updated_at);
-                  const metaText = command.remark?.trim()
-                    || t("command_clipboard.updated_at", {
-                      defaultValue: "Updated {{date}}",
-                      date:
-                        updatedAt ??
-                        t("command_clipboard.stats.updated_empty", {
-                          defaultValue: "No scripts yet.",
-                        }),
-                    });
-
-                  return (
-                    <article
-                      key={command.id}
-                      className="rounded-lg border border-slate-200 bg-white px-4 py-3 dark:border-slate-800 dark:bg-slate-950/40"
-                    >
-                      <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
-                        <div className="min-w-0 flex-1">
-                          <div className="flex min-w-0 items-center gap-2">
-                            <h2 className="truncate text-sm font-medium text-slate-900 dark:text-slate-100">
-                              {command.name}
-                            </h2>
-                            <Badge variant="secondary" className="shrink-0">
-                              {t("command_clipboard.weight_label", {
-                                defaultValue: "Weight {{weight}}",
-                                weight: command.weight,
-                              })}
-                            </Badge>
-                          </div>
-                                        <p className="truncate text-sm text-slate-500 dark:text-slate-400">
-                            {metaText}
-                          </p>
-                        </div>
-
-                        <div className="flex shrink-0 flex-wrap gap-2">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleUseInExec(command)}
-                          >
-                            <Play size={14} />
-                            {t("command_clipboard.use_in_exec", {
-                              defaultValue: "Use in exec",
-                            })}
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => {
-                              void handleCopy(command);
-                            }}
-                          >
-                            <Copy size={14} />
-                            {t("copy", { defaultValue: "Copy" })}
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => openEditDialog(command)}
-                          >
-                            <PencilLine size={14} />
-                            {t("common.edit")}
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => setDeleteTarget(command)}
-                            className="border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700 dark:border-red-900/50 dark:text-red-300 dark:hover:bg-red-950/30 dark:hover:text-red-200"
-                          >
-                            <Trash2 size={14} />
-                            {t("common.delete")}
-                          </Button>
-                        </div>
-                      </div>
-                    </article>
-                  );
-                })}
-              </div>
-
-              {total > 0 ? (
-                <div className="flex flex-wrap items-center justify-end gap-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setPage((current) => Math.max(1, current - 1))}
-                  disabled={page === 1}
-                >
-                  {t("command_clipboard.pagination.previous", {
-                    defaultValue: "Previous",
-                  })}
-                </Button>
-                {pageNumbers.map((value, index) => (
-                  typeof value === "number" ? (
-                    <Button
-                      key={`${value}-${index}`}
-                      type="button"
-                      variant={value === page ? "default" : "outline"}
-                      size="sm"
-                      onClick={() => setPage(value)}
-                    >
-                      {value}
-                    </Button>
-                  ) : (
-                    <span
-                      key={`${value}-${index}`}
-                      className="px-2 text-sm text-slate-400"
-                    >
-                      {value}
-                    </span>
-                  )
-                ))}
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setPage((current) => Math.min(totalPages, current + 1))}
-                  disabled={page === totalPages}
-                >
-                  {t("command_clipboard.pagination.next", {
-                    defaultValue: "Next",
-                  })}
-                </Button>
+              <div className="flex w-full flex-col gap-2 sm:flex-row lg:w-auto">
+                <div className="relative min-w-0 flex-1 sm:min-w-[260px]">
+                  <Search
+                    size={14}
+                    className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+                  />
+                  <Input
+                    value={searchTerm}
+                    onChange={(event) => {
+                      setSearchTerm(event.target.value);
+                      setPage(1);
+                    }}
+                    placeholder={t("command_clipboard.search_placeholder", { defaultValue: "按脚本名、备注或内容搜索" })}
+                    className="h-9 rounded-md pl-9 text-[12px]"
+                  />
                 </div>
-              ) : null}
+                <div className="flex items-center gap-2">
+                  <NumberPicker
+                    defaultValue={limit}
+                    onChange={(value) => {
+                      setPage(1);
+                      setLimit(value);
+                    }}
+                    min={5}
+                    max={100}
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    onClick={() => {
+                      void loadCommands(page, limit, deferredSearchTerm);
+                    }}
+                    disabled={loading}
+                    className="h-9 w-9 rounded-md"
+                  >
+                    <RefreshCw size={14} className={loading ? "animate-spin" : undefined} />
+                  </Button>
+                </div>
+              </div>
             </div>
-          )}
-        </AdminSurface>
-      </AdminPageShell>
+
+            {showEmptyLibraryState ? (
+              <div className="p-[14px]">
+                <AdminEmptyState
+                  icon={<FileCode2 size={18} />}
+                  title={t("command_clipboard.empty_title", { defaultValue: "暂无脚本" })}
+                  description={t("command_clipboard.empty_description", { defaultValue: "把可复用的 Shell 脚本收在这里，云实例和远程执行弹窗都可以继续复用。" })}
+                  actions={
+                    <Button onClick={openCreateDialog} size="sm">
+                      <Plus size={14} />
+                      {t("command_clipboard.new_command", { defaultValue: "新建脚本" })}
+                    </Button>
+                  }
+                  className="min-h-[320px] border-0 bg-muted/25 shadow-none"
+                />
+              </div>
+            ) : (
+              <>
+                <div className="overflow-x-auto">
+                  <table className="w-full min-w-[760px] text-left text-sm">
+                    <thead>
+                      <tr className="border-b border-border bg-muted/30 text-[12px] font-semibold text-muted-foreground">
+                        <th className="px-[14px] py-3">{t("command_clipboard.table.script", { defaultValue: "脚本" })}</th>
+                        <th className="px-[14px] py-3">{t("command_clipboard.table.remark", { defaultValue: "备注" })}</th>
+                        <th className="px-[14px] py-3">{t("command_clipboard.table.weight", { defaultValue: "权重" })}</th>
+                        <th className="px-[14px] py-3">{t("command_clipboard.table.updated_at_short", { defaultValue: "更新" })}</th>
+                        <th className="px-[14px] py-3 text-right">{t("common.action", { defaultValue: "操作" })}</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {commands.length === 0 ? (
+                        <tr>
+                          <td colSpan={5} className="px-[14px] py-8">
+                            <AdminEmptyState
+                              icon={<Search size={18} />}
+                              title={t("command_clipboard.search_empty", { defaultValue: "没有匹配的脚本" })}
+                              description={t("command_clipboard.search_empty_description", { defaultValue: "可以按名称、备注或脚本内容搜索。" })}
+                              className="min-h-28 border-0 bg-muted/25 shadow-none"
+                            />
+                          </td>
+                        </tr>
+                      ) : commands.map((command) => {
+                        const selected = selectedCommand?.id === command.id;
+                        return (
+                          <tr
+                            key={command.id}
+                            onClick={() => setSelectedCommandId(command.id)}
+                            className={cn(
+                              "cursor-pointer border-b border-border transition-colors last:border-b-0 hover:bg-muted/25",
+                              selected && "bg-blue-50/70 dark:bg-blue-950/20",
+                            )}
+                          >
+                            <td className="px-[14px] py-3 align-top">
+                              <strong className="block max-w-[280px] truncate text-[13px] font-semibold leading-5 text-foreground">
+                                {getCommandTitle(command)}
+                              </strong>
+                              <span className="block max-w-[360px] truncate font-mono text-[11px] leading-4 text-muted-foreground">
+                                {getCommandPreview(command)}
+                              </span>
+                            </td>
+                            <td className="max-w-[220px] px-[14px] py-3 align-middle text-[12px] text-foreground">
+                              <span className="block truncate">{command.remark || "-"}</span>
+                            </td>
+                            <td className="px-[14px] py-3 align-middle">
+                              <Badge variant="secondary" className="h-6 rounded-full px-2 text-[11px]">
+                                {command.weight}
+                              </Badge>
+                            </td>
+                            <td className="px-[14px] py-3 align-middle text-[12px] text-foreground">
+                              {formatTimestamp(command.updated_at)}
+                            </td>
+                            <td className="px-[14px] py-3 align-middle">
+                              <div className="flex justify-end gap-1">
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={(event) => {
+                                    event.stopPropagation();
+                                    handleUseInExec(command);
+                                  }}
+                                  className="h-8 rounded-md px-2 text-[12px]"
+                                >
+                                  {t("common.execute", { defaultValue: "执行" })}
+                                </Button>
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={(event) => {
+                                    event.stopPropagation();
+                                    openEditDialog(command);
+                                  }}
+                                  className="h-8 rounded-md px-2 text-[12px]"
+                                >
+                                  {t("common.edit", { defaultValue: "编辑" })}
+                                </Button>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+
+                <AdminPagination
+                  page={page}
+                  totalPages={totalPages}
+                  total={total}
+                  pageSize={limit}
+                  visibleStart={visibleStart}
+                  visibleEnd={visibleEnd}
+                  onPageChange={setPage}
+                  itemLabel={t("command_clipboard.pagination.items", { defaultValue: "scripts" })}
+                />
+              </>
+            )}
+          </section>
+
+          <section className={scriptsPanelClass}>
+            <ScriptPanelHead
+              title={t("command_clipboard.detail_title", { defaultValue: "脚本详情" })}
+              meta={selectedCommand ? `Clipboard #${selectedCommand.id}` : "Clipboard"}
+            />
+            {selectedCommand ? (
+              <div className="flex flex-col gap-4 p-[14px]">
+                <div className="space-y-1">
+                  <h2 className="truncate text-[15px] font-semibold leading-6 text-foreground">
+                    {getCommandTitle(selectedCommand)}
+                  </h2>
+                  <p className="text-[12px] leading-5 text-muted-foreground">
+                    {selectedCommand.remark || t("command_clipboard.remark_empty", { defaultValue: "暂无备注" })}
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2">
+                  <ScriptInfo label={t("command_clipboard.table.weight", { defaultValue: "权重" })} value={selectedCommand.weight} />
+                  <ScriptInfo label={t("common.create", { defaultValue: "创建" })} value={formatTimestamp(selectedCommand.created_at)} />
+                  <ScriptInfo label={t("command_clipboard.table.updated_at_short", { defaultValue: "更新" })} value={formatTimestamp(selectedCommand.updated_at)} className="col-span-2" />
+                </div>
+
+                <div className="overflow-hidden rounded-lg border border-slate-900 bg-slate-950 shadow-sm">
+                  <div className="flex h-9 items-center justify-between border-b border-white/10 px-3">
+                    <div className="flex items-center gap-2 text-[12px] font-semibold text-slate-300">
+                      <FileCode2 size={13} />
+                      Clipboard.text
+                    </div>
+                    <span className="font-mono text-[11px] text-slate-500">shell</span>
+                  </div>
+                  <pre className="max-h-[320px] overflow-auto whitespace-pre-wrap px-4 py-3 font-mono text-[12px] leading-6 text-slate-200">
+                    {selectedCommand.text}
+                  </pre>
+                </div>
+
+                <div className="grid gap-2">
+                  <Button onClick={() => handleUseInExec(selectedCommand)} className="h-9 rounded-md text-sm">
+                    <Play size={15} />
+                    {t("command_clipboard.use_in_exec", { defaultValue: "带入执行" })}
+                  </Button>
+                  <div className="grid grid-cols-3 gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        void handleCopy(selectedCommand);
+                      }}
+                      className="h-9 rounded-md text-[12px]"
+                    >
+                      <Copy size={14} />
+                      {t("common.copy", { defaultValue: "复制" })}
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => openEditDialog(selectedCommand)}
+                      className="h-9 rounded-md text-[12px]"
+                    >
+                      <PencilLine size={14} />
+                      {t("common.edit", { defaultValue: "编辑" })}
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setDeleteTarget(selectedCommand)}
+                      className="h-9 rounded-md border-red-200 text-[12px] text-red-600 hover:bg-red-50 hover:text-red-700 dark:border-red-900/50 dark:text-red-300 dark:hover:bg-red-950/30"
+                    >
+                      <Trash2 size={14} />
+                      {t("common.delete", { defaultValue: "删除" })}
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="p-[14px]">
+                <AdminEmptyState
+                  icon={<FileCode2 size={18} />}
+                  title={t("command_clipboard.select_title", { defaultValue: "选择脚本" })}
+                  description={t("command_clipboard.select_description", { defaultValue: "从左侧选择一条 Clipboard 记录查看内容和操作。" })}
+                  className="min-h-[320px] border-0 bg-muted/25 shadow-none"
+                />
+              </div>
+            )}
+          </section>
+        </div>
+      </div>
 
       <Dialog
         open={editorOpen}
@@ -874,9 +795,14 @@ export default function CommandLibraryManager() {
           }
         }}
       >
-      <DialogContent className={cn(ADMIN_FORM_DIALOG_CLASS, "max-w-4xl")}>
-        <DialogHeader className="shrink-0">
-          <DialogTitle>
+        <DialogContent
+          className={cn(
+            ADMIN_FORM_DIALOG_WIDE_CLASS,
+            "h-[min(92vh,920px)] sm:max-w-[calc(100vw-2rem)] lg:max-w-6xl xl:max-w-7xl",
+          )}
+        >
+          <DialogHeader className="shrink-0">
+            <DialogTitle>
               {editingCommand
                 ? t("command_clipboard.editor.edit_title", {
                     defaultValue: "Edit script",
@@ -894,19 +820,51 @@ export default function CommandLibraryManager() {
           </DialogHeader>
 
           <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col overflow-hidden">
-            <div className={cn(ADMIN_FORM_SCROLL_CLASS, "space-y-4")}>
+            <div className={cn(ADMIN_FORM_SCROLL_CLASS, "flex flex-col gap-4")}>
+              <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_10rem]">
+                <div className={ADMIN_FORM_FIELD_CLASS}>
+                  <label className="text-sm font-medium text-slate-900 dark:text-slate-100">
+                    {t("common.name")}
+                  </label>
+                  <Input
+                    value={formValues.name}
+                    onChange={(event) => handleEditorChange("name", event.target.value)}
+                    placeholder={t("command_clipboard.editor.name_placeholder", {
+                      defaultValue: "Deploy agent bootstrap",
+                    })}
+                  />
+                </div>
+
+                <div className={ADMIN_FORM_FIELD_CLASS}>
+                  <label className="text-sm font-medium text-slate-900 dark:text-slate-100">
+                    {t("common.weight")}
+                  </label>
+                  <Input
+                    type="number"
+                    value={formValues.weight}
+                    onChange={(event) => handleEditorChange("weight", event.target.value)}
+                  />
+                </div>
+              </div>
+
               <div className={ADMIN_FORM_FIELD_CLASS}>
                 <label className="text-sm font-medium text-slate-900 dark:text-slate-100">
-                  {t("common.name")}
+                  {t("common.remark")}
                 </label>
                 <Input
-                  value={formValues.name}
-                  onChange={(event) => handleEditorChange("name", event.target.value)}
-                  placeholder={t("command_clipboard.editor.name_placeholder", {
-                    defaultValue: "Deploy agent bootstrap",
+                  value={formValues.remark}
+                  onChange={(event) => handleEditorChange("remark", event.target.value)}
+                  placeholder={t("command_clipboard.editor.remark_placeholder", {
+                    defaultValue: "Optional notes for this script",
                   })}
                 />
               </div>
+
+              <p className="text-xs leading-5 text-slate-500 dark:text-slate-400">
+                {t("command_clipboard.editor.weight_hint", {
+                  defaultValue: "Higher weights appear first.",
+                })}
+              </p>
 
               <div className={cn(ADMIN_FORM_FIELD_CLASS, "min-h-0")}>
                 <label className="text-sm font-medium text-slate-900 dark:text-slate-100">
@@ -935,44 +893,13 @@ export default function CommandLibraryManager() {
                       defaultValue: "#!/usr/bin/env bash",
                     })}
                     className="min-h-0"
-                    minHeight="320px"
-                    maxHeight="min(50vh, calc(100vh - 20rem))"
+                    height="clamp(460px, 64vh, 720px)"
+                    minHeight="clamp(420px, 58vh, 640px)"
+                    maxHeight="min(76vh, 760px)"
                     ariaLabel={t("common.content")}
                   />
                 </Suspense>
               </div>
-
-              <div className={cn(ADMIN_FORM_GRID_2_CLASS, "md:grid-cols-[minmax(0,1fr)_160px]")}>
-                <div className={ADMIN_FORM_FIELD_CLASS}>
-                  <label className="text-sm font-medium text-slate-900 dark:text-slate-100">
-                    {t("common.remark")}
-                  </label>
-                  <Input
-                    value={formValues.remark}
-                    onChange={(event) => handleEditorChange("remark", event.target.value)}
-                    placeholder={t("command_clipboard.editor.remark_placeholder", {
-                      defaultValue: "Optional notes for this script",
-                    })}
-                  />
-                </div>
-
-                <div className={ADMIN_FORM_FIELD_CLASS}>
-                  <label className="text-sm font-medium text-slate-900 dark:text-slate-100">
-                    {t("common.weight")}
-                  </label>
-                  <Input
-                    type="number"
-                    value={formValues.weight}
-                    onChange={(event) => handleEditorChange("weight", event.target.value)}
-                  />
-                </div>
-              </div>
-
-              <p className="text-xs leading-5 text-slate-500 dark:text-slate-400">
-                {t("command_clipboard.editor.weight_hint", {
-                  defaultValue: "Higher weights appear first.",
-                })}
-              </p>
             </div>
 
             <DialogFooter className="mt-4 shrink-0">
@@ -1027,5 +954,84 @@ export default function CommandLibraryManager() {
         </AlertDialogContent>
       </AlertDialog>
     </>
+  );
+}
+
+function ScriptPanelHead({
+  title,
+  meta,
+}: {
+  title: ReactNode;
+  meta: ReactNode;
+}) {
+  return (
+    <div className="flex min-h-[52px] items-center justify-between gap-3 border-b border-border px-4">
+      <strong className="text-sm font-semibold leading-5 text-foreground">
+        {title}
+      </strong>
+      <span className="truncate text-[12px] leading-4 text-muted-foreground">
+        {meta}
+      </span>
+    </div>
+  );
+}
+
+function ScriptToolbarTab({
+  active = false,
+  children,
+}: {
+  active?: boolean;
+  children: ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      className={cn(
+        "h-7 flex-1 rounded px-3 text-[12px] font-semibold leading-none text-muted-foreground transition-colors sm:flex-none",
+        active
+          ? "bg-background text-foreground shadow-sm"
+          : "hover:bg-background/70 hover:text-foreground",
+      )}
+    >
+      {children}
+    </button>
+  );
+}
+
+function ScriptToolbarLink({
+  to,
+  children,
+}: {
+  to: string;
+  children: ReactNode;
+}) {
+  return (
+    <Link
+      to={to}
+      className="flex h-7 flex-1 items-center justify-center rounded px-3 text-[12px] font-semibold leading-none text-muted-foreground transition-colors hover:bg-background/70 hover:text-foreground sm:flex-none"
+    >
+      {children}
+    </Link>
+  );
+}
+
+function ScriptInfo({
+  label,
+  value,
+  className,
+}: {
+  label: ReactNode;
+  value: ReactNode;
+  className?: string;
+}) {
+  return (
+    <div className={cn("rounded-md border border-border bg-muted/25 px-3 py-2", className)}>
+      <div className="text-[11px] font-semibold leading-4 text-muted-foreground">
+        {label}
+      </div>
+      <div className="mt-1 truncate text-[12px] leading-5 text-foreground">
+        {value}
+      </div>
+    </div>
   );
 }

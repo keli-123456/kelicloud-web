@@ -1,6 +1,10 @@
 import type { TFunction } from "i18next";
 import { CheckCircle2, Eye, KeyRound, MoreHorizontal, PencilLine, Trash2 } from "lucide-react";
 
+import {
+  AdminPagination,
+  useClientPagination,
+} from "@/components/admin/AdminPagination";
 import { AdminEmptyState } from "@/components/admin/AdminPageShell";
 import type {
   AzureCatalog,
@@ -16,6 +20,10 @@ import {
   cloudPanelDescriptionClassName,
   cloudPanelHeaderClassName,
   cloudPanelTitleClassName,
+  cloudTableEmptyStateClassName,
+  cloudTablePrimaryTextClassName,
+  cloudTableScrollClassName,
+  cloudTableSecondaryTextClassName,
   Flex,
 } from "@/components/admin/cloud/cloud-ui";
 import {
@@ -65,6 +73,12 @@ export function AzureCredentialsSection({
   onViewCredential,
   onDeleteCredential,
 }: AzureCredentialsSectionProps) {
+  const credentialRows = credentialPool?.credentials ?? [];
+  const credentialPagination = useClientPagination(credentialRows, {
+    initialPageSize: 10,
+  });
+  const visibleCredentialRows = credentialPagination.pageItems;
+
   return (
     <section className={cloudPanelCardClassName}>
       <div className={cloudPanelHeaderClassName}>
@@ -91,7 +105,7 @@ export function AzureCredentialsSection({
         </Flex>
       </div>
       <div className="p-5">
-        {!credentialPool?.credentials.length ? (
+        {!credentialRows.length ? (
           <AdminEmptyState
             icon={<KeyRound className="h-5 w-5" />}
             title={t("cloud.providers.azure.credentials_empty", "No Azure credentials saved yet")}
@@ -105,10 +119,10 @@ export function AzureCredentialsSection({
                 {t("cloud.providers.azure.import", "Import Credentials")}
               </Button>
             )}
-            className="min-h-36 border-0 bg-slate-50/70 shadow-none dark:bg-slate-900/30"
+            className={cloudTableEmptyStateClassName}
           />
         ) : (
-          <div className="overflow-x-auto">
+          <div className={cloudTableScrollClassName}>
             <Table className="min-w-[980px]">
               <TableHeader>
                 <TableRow>
@@ -122,13 +136,13 @@ export function AzureCredentialsSection({
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {credentialPool.credentials.map((credential) => (
+                {visibleCredentialRows.map((credential) => (
                   <TableRow key={credential.id}>
                     <TableCell className="align-top">
-                      <div className={`font-medium ${cloudLongTextClassName}`}>
+                      <div className={`${cloudTablePrimaryTextClassName} ${cloudLongTextClassName}`}>
                         {credential.name}
                       </div>
-                      <div className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                      <div className={`mt-1 ${cloudTableSecondaryTextClassName}`}>
                         {credential.masked_client_id || "-"}
                       </div>
                     </TableCell>
@@ -140,7 +154,7 @@ export function AzureCredentialsSection({
                         {credential.subscription_display_name || credential.subscription_id || "-"}
                       </div>
                       {credential.subscription_display_name && credential.subscription_id ? (
-                        <div className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                        <div className={`mt-1 ${cloudTableSecondaryTextClassName}`}>
                           {credential.subscription_id}
                         </div>
                       ) : null}
@@ -213,6 +227,19 @@ export function AzureCredentialsSection({
           </div>
         )}
       </div>
+      <AdminPagination
+        page={credentialPagination.page}
+        totalPages={credentialPagination.totalPages}
+        total={credentialPagination.total}
+        pageSize={credentialPagination.pageSize}
+        visibleStart={credentialPagination.visibleStart}
+        visibleEnd={credentialPagination.visibleEnd}
+        onPageChange={credentialPagination.setPage}
+        onPageSizeChange={credentialPagination.setPageSize}
+        pageSizeOptions={[10, 20, 50]}
+        itemLabel={t("admin.pagination.credentials", { defaultValue: "credentials" })}
+        compact
+      />
     </section>
   );
 }

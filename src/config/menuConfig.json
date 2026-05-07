@@ -1,8 +1,13 @@
 {
   "menu": [
     {
-      "labelKey": "common.server",
+      "labelKey": "admin.dashboard.menu",
       "path": "/admin",
+      "icon": "Home"
+    },
+    {
+      "labelKey": "common.server",
+      "path": "/admin/client",
       "icon": "Server"
     },
     {
@@ -19,6 +24,11 @@
           "labelKey": "cloud.providers.linode.title",
           "path": "/admin/cloud?provider=linode",
           "icon": "Server"
+        },
+        {
+          "labelKey": "cloud.providers.vultr.title",
+          "path": "/admin/cloud?provider=vultr",
+          "icon": "Cloud"
         },
         {
           "labelKey": "cloud.providers.azure.title",
@@ -81,6 +91,11 @@
       "labelKey": "admin.users.title",
       "path": "/admin/users",
       "icon": "ShieldCheck"
+    },
+    {
+      "labelKey": "billing.title",
+      "path": "/admin/billing",
+      "icon": "CreditCard"
     },
     {
       "labelKey": "account.title",

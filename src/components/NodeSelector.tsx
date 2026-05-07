@@ -6,6 +6,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 
 interface NodeSelectorProps {
   className?: string;
+  scrollAreaClassName?: string;
   hiddenDescription?: boolean;
   value: string[]; // uuid 列表
   onChange: (uuids: string[]) => void;
@@ -15,6 +16,7 @@ interface NodeSelectorProps {
 
 const NodeSelector: React.FC<NodeSelectorProps> = ({
   className = "",
+  scrollAreaClassName = "",
   hiddenDescription = false,
   value,
   onChange,
@@ -54,6 +56,7 @@ const NodeSelector: React.FC<NodeSelectorProps> = ({
   return (
     <Selector
       className={className}
+      scrollAreaClassName={scrollAreaClassName}
       hiddenDescription={hiddenDescription}
       value={nodesFiltered}
       onChange={onChange}

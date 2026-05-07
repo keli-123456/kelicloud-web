@@ -1,9 +1,11 @@
+import React from "react";
 import type { TFunction } from "i18next";
 import {
   CheckCircle2,
   Eye,
   MoreHorizontal,
   Plus,
+  Search,
   ShieldCheck,
   Trash2,
 } from "lucide-react";
@@ -15,6 +17,7 @@ import {
 } from "@/components/admin/cloud/AWSInstancesTables";
 import { AWSRegionSelect } from "@/components/admin/cloud/AWSRegionSelect";
 import {
+  Badge,
   Button,
   cloudPanelCardClassName,
   cloudPanelDescriptionClassName,
@@ -22,6 +25,7 @@ import {
   cloudPanelTitleClassName,
   Flex,
   Tabs,
+  TextField,
 } from "@/components/admin/cloud/cloud-ui";
 import {
   DropdownMenu,
@@ -282,6 +286,35 @@ export function AWSComputeSection({
   onShareLightsail,
   onDeleteLightsail,
 }: AWSComputeSectionProps) {
+  const [searchQuery, setSearchQuery] = React.useState("");
+  const visibleEC2Instances = React.useMemo(() => {
+    const query = searchQuery.trim().toLowerCase();
+    if (!query) return instances;
+    return instances.filter((instance) => [
+      instance.name,
+      instance.instance_id,
+      instance.state,
+      instance.availability_zone,
+      instance.public_ip || "",
+      instance.private_ip || "",
+      instance.instance_type,
+      instance.image_id,
+    ].some((value) => (value || "").toLowerCase().includes(query)));
+  }, [instances, searchQuery]);
+  const visibleLightsailInstances = React.useMemo(() => {
+    const query = searchQuery.trim().toLowerCase();
+    if (!query) return lightsailInstances;
+    return lightsailInstances.filter((instance) => [
+      instance.name,
+      instance.state,
+      instance.availability_zone,
+      instance.public_ip || "",
+      instance.private_ip || "",
+      instance.bundle_id,
+      instance.blueprint_name || instance.blueprint_id || "",
+    ].some((value) => (value || "").toLowerCase().includes(query)));
+  }, [lightsailInstances, searchQuery]);
+
   return (
     <div className="order-2">
       <Tabs.Root value={instanceView} onValueChange={(value) => onInstanceViewChange(value as "ec2" | "lightsail")}>
@@ -353,10 +386,28 @@ export function AWSComputeSection({
             </div>
           </div>
 
+          <div className="flex min-w-0 flex-col gap-3 border-b border-border bg-muted/20 px-4 py-3 md:flex-row md:items-center md:justify-between">
+            <div className="min-w-0 flex-1 md:max-w-sm">
+              <TextField.Root
+                size="1"
+                value={searchQuery}
+                onChange={(event) => setSearchQuery(event.target.value)}
+                placeholder={t("cloud.search_resources", "Search name / IP / region...")}
+              >
+                <TextField.Slot>
+                  <Search className="h-4 w-4" />
+                </TextField.Slot>
+              </TextField.Root>
+            </div>
+            <Badge color="blue">
+              {instanceView === "ec2" ? visibleEC2Instances.length : visibleLightsailInstances.length}
+            </Badge>
+          </div>
+
           <Tabs.Content value="ec2">
             <AWSEC2InstancesTable
               t={t}
-              instances={instances}
+              instances={visibleEC2Instances}
               panelLoading={panelLoading}
               error={error}
               hasCredential={hasCredential}
@@ -386,7 +437,7 @@ export function AWSComputeSection({
             ) : null}
             <AWSLightsailInstancesTable
               t={t}
-              instances={lightsailInstances}
+              instances={visibleLightsailInstances}
               panelLoading={panelLoading}
               error={error}
               lightsailError={lightsailError}

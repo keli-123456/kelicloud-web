@@ -2,7 +2,6 @@ import React from "react";
 
 import {
   getAzureAccount,
-  getAzureCatalog,
   getAzureCredentials,
   listAzureInstances,
   type AzureAccount,
@@ -10,6 +9,7 @@ import {
   type AzureCredentialPool,
   type AzureInstance,
 } from "@/lib/cloudAzure";
+import { buildStaticAzureCatalog } from "./cloudStaticCatalogs";
 
 function toErrorMessage(error: unknown) {
   if (error instanceof Error) return error.message;
@@ -21,9 +21,8 @@ function hasActiveCredential(pool: AzureCredentialPool | null) {
 }
 
 async function loadAzureResourceSnapshot() {
-  const [accountResult, catalogResult, instancesResult] = await Promise.allSettled([
+  const [accountResult, instancesResult] = await Promise.allSettled([
     getAzureAccount(),
-    getAzureCatalog(),
     listAzureInstances(),
   ]);
 
@@ -31,16 +30,12 @@ async function loadAzureResourceSnapshot() {
   if (accountResult.status === "rejected") {
     errors.push(toErrorMessage(accountResult.reason));
   }
-  if (catalogResult.status === "rejected") {
-    errors.push(toErrorMessage(catalogResult.reason));
-  }
   if (instancesResult.status === "rejected") {
     errors.push(toErrorMessage(instancesResult.reason));
   }
 
   return {
     account: accountResult.status === "fulfilled" ? accountResult.value : null,
-    catalog: catalogResult.status === "fulfilled" ? catalogResult.value : null,
     instances: instancesResult.status === "fulfilled" ? instancesResult.value : [],
     error: errors.filter(Boolean).join("; "),
   };
@@ -52,12 +47,11 @@ export function useAzurePanelResources() {
   const [loadError, setLoadError] = React.useState("");
   const [credentialPool, setCredentialPool] = React.useState<AzureCredentialPool | null>(null);
   const [account, setAccount] = React.useState<AzureAccount | null>(null);
-  const [catalog, setCatalog] = React.useState<AzureCatalog | null>(null);
+  const [catalog, setCatalog] = React.useState<AzureCatalog | null>(() => buildStaticAzureCatalog());
   const [instances, setInstances] = React.useState<AzureInstance[]>([]);
 
   const clearResourceData = React.useCallback(() => {
     setAccount(null);
-    setCatalog(null);
     setInstances([]);
   }, []);
 
@@ -72,7 +66,6 @@ export function useAzurePanelResources() {
     try {
       const snapshot = await loadAzureResourceSnapshot();
       setAccount(snapshot.account);
-      setCatalog(snapshot.catalog);
       setInstances(snapshot.instances);
       setLoadError(snapshot.error);
     } catch (error) {
@@ -89,16 +82,7 @@ export function useAzurePanelResources() {
       const nextPool = await getAzureCredentials();
       setCredentialPool(nextPool);
       setLoadError("");
-      if (!hasActiveCredential(nextPool)) {
-        clearResourceData();
-        return;
-      }
-
-      const snapshot = await loadAzureResourceSnapshot();
-      setAccount(snapshot.account);
-      setCatalog(snapshot.catalog);
-      setInstances(snapshot.instances);
-      setLoadError(snapshot.error);
+      clearResourceData();
     } catch (error) {
       setLoadError(toErrorMessage(error));
       setCredentialPool(null);

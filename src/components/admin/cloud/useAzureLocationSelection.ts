@@ -3,12 +3,12 @@ import type { TFunction } from "i18next";
 import { toast } from "sonner";
 
 import {
-  getAzureCatalog,
   setAzureActiveLocation,
   type AzureAccount,
   type AzureCatalog,
   type AzureCredentialPool,
 } from "@/lib/cloudAzure";
+import { buildStaticAzureCatalog } from "./cloudStaticCatalogs";
 import {
   normalizeLocation,
   toErrorMessage,
@@ -32,12 +32,12 @@ export function useAzureLocationSelection({
   const handleSetLocation = async (location: string) => {
     setLocationUpdating(true);
     try {
+      const normalizedLocation = normalizeLocation(location);
       const nextPool = await setAzureActiveLocation(location);
-      const nextCatalog = await getAzureCatalog();
       setCredentialPool(nextPool);
-      setCatalog(nextCatalog);
+      setCatalog(buildStaticAzureCatalog(normalizedLocation));
       setAccount((current) => current
-        ? { ...current, active_location: normalizeLocation(location) }
+        ? { ...current, active_location: normalizedLocation }
         : current);
       toast.success(t("cloud.providers.azure.location_updated", "Active Azure location updated"));
     } catch (error) {

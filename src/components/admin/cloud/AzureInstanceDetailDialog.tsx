@@ -6,6 +6,7 @@ import {
   PowerOff,
   RefreshCw,
   RotateCcw,
+  Server,
   Terminal,
   Trash2,
 } from "lucide-react";
@@ -19,12 +20,15 @@ import type {
 } from "@/lib/cloudAzure";
 import { getCloudStatusLabel } from "@/lib/cloudStatus";
 import {
+  Badge,
   Button,
   CloudDetailItem,
-  cloudDialogWideContentClassName,
+  CloudSensitiveDialogContent,
   cloudDetailListClassName,
   cloudDetailListItemClassName,
+  cloudDetailLabelClassName,
   cloudDetailSectionClassName,
+  cloudDetailValueClassName,
   cloudLongTextClassName,
   cloudPanelBodyTextClassName,
   cloudPanelTitleClassName,
@@ -84,20 +88,30 @@ export function AzureInstanceDetailDialog({
 }: AzureInstanceDetailDialogProps) {
   return (
     <Dialog.Root open={Boolean(detailInstance)} onOpenChange={(open) => !open && onClose()}>
-      <Dialog.Content className={cloudDialogWideContentClassName}>
-        <Dialog.Title>{detailInstance?.name || t("cloud.providers.azure.title", "Azure")}</Dialog.Title>
-        <Dialog.Description className="text-sm text-slate-500 dark:text-slate-400">
-          {t(
+      {detailInstance ? (
+        <CloudSensitiveDialogContent
+          title={detailInstance.name || t("cloud.providers.azure.title", "Azure")}
+          description={t(
             "cloud.providers.azure.detail_description",
             "View the selected Azure virtual machine details from the current active credential.",
           )}
-        </Dialog.Description>
+          icon={<Server className="size-4" />}
+          badge={(
+            <>
+              <Badge color="blue">{t("cloud.providers.azure.name", "Azure")}</Badge>
+              <Badge color={(detailInstance.power_state || "").includes("running") ? "green" : "amber"}>
+                {getCloudStatusLabel(detailInstance.power_state || detailInstance.provisioning_state, t)}
+              </Badge>
+            </>
+          )}
+          className="sm:max-w-6xl"
+        >
         {detailLoading ? (
           <AzureInstanceDetailSkeleton />
         ) : detailData ? (
-          <div className="mt-4 space-y-4">
+          <div className="space-y-4">
             <section className="pt-0">
-              <div className="text-xs font-semibold uppercase tracking-normal text-slate-500 dark:text-slate-400">
+              <div className={cloudDetailLabelClassName}>
                 {t("cloud.detail.summary", "Summary")}
               </div>
               <div className="mt-2 grid gap-x-6 sm:grid-cols-2 xl:grid-cols-3">
@@ -202,7 +216,7 @@ export function AzureInstanceDetailDialog({
               <div className={`mt-3 ${cloudDetailListClassName}`}>
                 {detailData.network_interfaces.length ? detailData.network_interfaces.map((networkInterface) => (
                   <div key={networkInterface.id || networkInterface.name} className={cloudDetailListItemClassName}>
-                    <div className={`font-medium ${cloudLongTextClassName}`}>
+                    <div className={`${cloudDetailValueClassName} ${cloudLongTextClassName}`}>
                       {networkInterface.name || networkInterface.id || "-"}
                     </div>
                     <div className="mt-2 grid gap-x-6 sm:grid-cols-2 xl:grid-cols-4">
@@ -248,7 +262,7 @@ export function AzureInstanceDetailDialog({
                 <div className={`mt-3 ${cloudDetailListClassName}`}>
                   {detailData.data_disks.length ? detailData.data_disks.map((disk) => (
                     <div key={`${disk.id}-${disk.lun}`} className={cloudDetailListItemClassName}>
-                      <div className={`font-medium ${cloudLongTextClassName}`}>
+                      <div className={`${cloudDetailValueClassName} ${cloudLongTextClassName}`}>
                         {disk.name || disk.id || "-"}
                       </div>
                       <div className="mt-2 grid gap-x-6 sm:grid-cols-2">
@@ -275,11 +289,11 @@ export function AzureInstanceDetailDialog({
                 {Object.keys(detailData.instance.tags || {}).length ? (
                   <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
                     {Object.entries(detailData.instance.tags).map(([key, value]) => (
-                      <div key={key} className="border-b border-slate-200 py-3 last:border-b-0 dark:border-slate-800">
-                        <div className="text-xs font-semibold uppercase tracking-normal text-slate-500 dark:text-slate-400">
+                      <div key={key} className="border-b border-border py-3 last:border-b-0">
+                        <div className={cloudDetailLabelClassName}>
                           {key}
                         </div>
-                        <div className={`mt-1 text-sm text-slate-900 dark:text-slate-100 ${cloudLongTextClassName}`}>
+                        <div className={`mt-1 ${cloudDetailValueClassName} ${cloudLongTextClassName}`}>
                           {value || "-"}
                         </div>
                       </div>
@@ -298,7 +312,8 @@ export function AzureInstanceDetailDialog({
             {t("cloud.providers.azure.detail_empty", "Unable to load Azure VM details")}
           </div>
         )}
-      </Dialog.Content>
+        </CloudSensitiveDialogContent>
+      ) : null}
     </Dialog.Root>
   );
 }
@@ -312,7 +327,7 @@ function AzureInstanceDetailSkeleton() {
           {Array.from({ length: 9 }).map((_, index) => (
             <div
               key={index}
-              className="border-b border-slate-200 py-3 dark:border-slate-800"
+              className="border-b border-border py-3"
             >
               <Skeleton className="h-3 w-20" />
               <Skeleton className="mt-2 h-4 w-4/5" />

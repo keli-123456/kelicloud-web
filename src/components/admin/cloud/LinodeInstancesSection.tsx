@@ -1,3 +1,4 @@
+import { useMemo, useState } from "react";
 import type { TFunction } from "i18next";
 import {
   KeyRound,
@@ -5,6 +6,7 @@ import {
   Power,
   PowerOff,
   RotateCcw,
+  Search,
   Server,
   Share2,
   Terminal,
@@ -12,16 +14,28 @@ import {
 } from "lucide-react";
 
 import { AdminEmptyState } from "@/components/admin/AdminPageShell";
+import {
+  AdminPagination,
+  useClientPagination,
+} from "@/components/admin/AdminPagination";
 import type { LinodeInstance, LinodeTokenPool } from "@/lib/cloudLinode";
 import { getCloudStatusLabel } from "@/lib/cloudStatus";
 import {
   Badge,
   Button,
   CloudTableSkeletonRows,
+  Select,
+  TextField,
   cloudPanelCardClassName,
   cloudPanelDescriptionClassName,
   cloudPanelHeaderClassName,
   cloudPanelTitleClassName,
+  cloudTableEmptyStateClassName,
+  cloudTableMutedTextClassName,
+  cloudTableNameButtonClassName,
+  cloudTablePrimaryTextClassName,
+  cloudTableScrollClassName,
+  cloudTableSecondaryTextClassName,
 } from "@/components/admin/cloud/cloud-ui";
 import {
   DropdownMenu,
@@ -86,6 +100,35 @@ export function LinodeInstancesSection({
   onOpenShareDialog,
   onDeleteInstance,
 }: LinodeInstancesSectionProps) {
+  const [searchQuery, setSearchQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState("__all__");
+  const statusOptions = useMemo(
+    () => Array.from(new Set(instances.map((instance) => instance.status).filter(Boolean))),
+    [instances],
+  );
+  const visibleInstances = useMemo(() => {
+    const query = searchQuery.trim().toLowerCase();
+    return instances.filter((instance) => {
+      const statusMatched = statusFilter === "__all__" || instance.status === statusFilter;
+      if (!statusMatched) return false;
+      if (!query) return true;
+      return [
+        instance.label,
+        String(instance.id),
+        instance.status,
+        instance.region,
+        instance.type,
+        instance.image,
+        instance.ipv4[0] || "",
+        instance.ipv6 || "",
+      ].some((value) => value.toLowerCase().includes(query));
+    });
+  }, [instances, searchQuery, statusFilter]);
+  const instancePagination = useClientPagination(visibleInstances, {
+    initialPageSize: 10,
+    resetKey: `${searchQuery.trim().toLowerCase()}:${statusFilter}`,
+  });
+  const paginatedInstances = instancePagination.pageItems;
   const emptyTitle = panelLoading
     ? t("cloud.loading", "Loading cloud resources...")
     : error
@@ -121,7 +164,38 @@ export function LinodeInstancesSection({
         </div>
       </div>
 
-      <div className="overflow-x-auto">
+      <div className="flex min-w-0 flex-col gap-3 border-b border-border bg-muted/20 px-4 py-3 md:flex-row md:items-center md:justify-between">
+        <div className="min-w-0 flex-1 md:max-w-sm">
+          <TextField.Root
+            size="1"
+            value={searchQuery}
+            onChange={(event) => setSearchQuery(event.target.value)}
+            placeholder={t("cloud.search_resources", "Search name / IP / region...")}
+          >
+            <TextField.Slot>
+              <Search className="h-4 w-4" />
+            </TextField.Slot>
+          </TextField.Root>
+        </div>
+        <div className="flex shrink-0 items-center gap-2">
+          <div className="w-40">
+            <Select.Root value={statusFilter} onValueChange={setStatusFilter}>
+              <Select.Trigger placeholder={t("cloud.table.status", "Status")} />
+              <Select.Content>
+                <Select.Item value="__all__">{t("cloud.all_statuses", "All statuses")}</Select.Item>
+                {statusOptions.map((status) => (
+                  <Select.Item key={status} value={status}>
+                    {getCloudStatusLabel(status, t)}
+                  </Select.Item>
+                ))}
+              </Select.Content>
+            </Select.Root>
+          </div>
+          <Badge color="blue">{visibleInstances.length}</Badge>
+        </div>
+      </div>
+
+      <div className={cloudTableScrollClassName}>
       <Table className="min-w-[1120px]">
         <TableHeader>
           <TableRow>
@@ -142,24 +216,35 @@ export function LinodeInstancesSection({
             <CloudTableSkeletonRows columns={10} />
           ) : instances.length === 0 ? (
             <TableRow>
-              <TableCell colSpan={10} className="p-5">
+              <TableCell colSpan={10} className="p-4">
                 <AdminEmptyState
                   icon={<Server className="h-5 w-5" />}
                   title={emptyTitle}
                   description={emptyDescription}
-                  className="min-h-36 border-0 bg-slate-50/70 shadow-none dark:bg-slate-900/30"
+                  className={cloudTableEmptyStateClassName}
+                />
+              </TableCell>
+            </TableRow>
+          ) : visibleInstances.length === 0 ? (
+            <TableRow>
+              <TableCell colSpan={10} className="p-4">
+                <AdminEmptyState
+                  icon={<Search className="h-5 w-5" />}
+                  title={t("cloud.no_matching_resources", "没有匹配的资源")}
+                  description={t("cloud.no_matching_resources_description", "调整搜索关键词或状态筛选后再看。")}
+                  className={cloudTableEmptyStateClassName}
                 />
               </TableCell>
             </TableRow>
           ) : (
-            instances.map((instance) => {
+            paginatedInstances.map((instance) => {
               const typeInfo = typePriceMap.get(instance.type);
               return (
                 <TableRow key={instance.id}>
-                  <TableCell className="font-medium text-slate-900 dark:text-slate-100">
+                  <TableCell className={cloudTablePrimaryTextClassName}>
                     <button
                       type="button"
-                      className="text-left text-blue-700 hover:text-blue-800 hover:underline dark:text-blue-400 dark:hover:text-blue-300"
+                      className={cloudTableNameButtonClassName}
                       onClick={() => {
                         void onLoadInstanceDetail(instance);
                       }}
@@ -188,13 +273,13 @@ export function LinodeInstancesSection({
                             : t("cloud.password.locked", "Locked")}
                         </Badge>
                         {instance.saved_root_password_updated_at ? (
-                          <div className="text-xs text-slate-500">
+                          <div className={cloudTableSecondaryTextClassName}>
                             {formatDateTime(instance.saved_root_password_updated_at)}
                           </div>
                         ) : null}
                       </div>
                     ) : (
-                      <span className="text-sm text-slate-400">
+                      <span className={cloudTableMutedTextClassName}>
                         {passwordStorageEnabled
                           ? t("cloud.password.not_saved", "Not saved")
                           : t("cloud.password.disabled_short", "Vault off")}
@@ -292,6 +377,19 @@ export function LinodeInstancesSection({
         </TableBody>
       </Table>
       </div>
+      <AdminPagination
+        page={instancePagination.page}
+        totalPages={instancePagination.totalPages}
+        total={instancePagination.total}
+        pageSize={instancePagination.pageSize}
+        visibleStart={instancePagination.visibleStart}
+        visibleEnd={instancePagination.visibleEnd}
+        onPageChange={instancePagination.setPage}
+        onPageSizeChange={instancePagination.setPageSize}
+        pageSizeOptions={[10, 20, 50]}
+        itemLabel={t("admin.pagination.instances", { defaultValue: "instances" })}
+        compact
+      />
     </div>
   );
 }

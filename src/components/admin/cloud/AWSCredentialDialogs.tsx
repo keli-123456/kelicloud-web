@@ -1,19 +1,14 @@
 import type { TFunction } from "i18next";
+import type { ReactNode } from "react";
+import { KeyRound, LockKeyhole, ShieldCheck } from "lucide-react";
 
-import {
-  CompactCredentialCopyBlock,
-  CompactCredentialRow,
-  PlainDetailItem,
-} from "@/components/admin/cloud/AWSPanelDetailComponents";
 import { AWSQuotaSummary } from "@/components/admin/cloud/AWSQuotaSummary";
 import {
-  CloudCopyBlock,
-  CloudReadonlyCodeBlock,
-  cloudDetailListClassName,
-  cloudDetailListItemClassName,
-  cloudDialogContentClassName,
-  cloudLongTextClassName,
-  cloudPanelSectionClassName,
+  Badge,
+  CloudDetailItem,
+  CloudSecretValueBlock,
+  CloudSensitiveDialogContent,
+  CloudStatusNotice,
   Dialog,
 } from "@/components/admin/cloud/cloud-ui";
 import { getRootPasswordModeLabel } from "./awsPanelSummaries";
@@ -33,6 +28,59 @@ type CredentialSecretDialogProps = {
   onCopyText: CopyTextHandler;
 };
 
+type SavedPasswordDialogProps = {
+  savedPassword: SavedPasswordState | null;
+  t: TFunction;
+  onClose: () => void;
+  onCopyText: CopyTextHandler;
+};
+
+type CreatedPasswordDialogProps = {
+  createdPassword: CreatedPasswordState | null;
+  t: TFunction;
+  onClose: () => void;
+  onCopyText: CopyTextHandler;
+};
+
+function SecretSidePanel({
+  t,
+  title,
+  description,
+  children,
+}: {
+  t: TFunction;
+  title: string;
+  description: string;
+  children?: ReactNode;
+}) {
+  return (
+    <div className="space-y-4">
+      <div className="rounded-lg border border-border bg-card px-4 py-3">
+        <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
+          <ShieldCheck className="size-4 text-blue-600" />
+          {title}
+        </div>
+        <div className="mt-2 text-xs leading-5 text-muted-foreground">
+          {description}
+        </div>
+      </div>
+      {children}
+      <CloudStatusNotice tone="blue">
+        {t(
+          "cloud.secret.copy_hint",
+          "Copy sensitive values only when needed, then close this dialog when you are done.",
+        )}
+      </CloudStatusNotice>
+    </div>
+  );
+}
+
+function getAWSResourceLabel(resourceKind: "ec2" | "lightsail", t: TFunction) {
+  return resourceKind === "lightsail"
+    ? t("cloud.providers.aws.lightsail_label", "AWS Lightsail")
+    : t("cloud.providers.aws.ec2_label", "AWS EC2");
+}
+
 export function AWSCredentialSecretDialog({
   credentialSecret,
   t,
@@ -41,77 +89,83 @@ export function AWSCredentialSecretDialog({
 }: CredentialSecretDialogProps) {
   return (
     <Dialog.Root open={Boolean(credentialSecret)} onOpenChange={(open) => !open && onClose()}>
-      <Dialog.Content className={cloudDialogContentClassName}>
-        <Dialog.Title>{t("cloud.providers.aws.credential_dialog_title", "Credential Details")}</Dialog.Title>
-        <Dialog.Description>
-          {t(
+      {credentialSecret ? (
+        <CloudSensitiveDialogContent
+          title={t("cloud.providers.aws.credential_dialog_title", "Credential Details")}
+          description={t(
             "cloud.providers.aws.credential_dialog_description",
             "View the full AWS credentials only when you need to copy or verify them.",
           )}
-        </Dialog.Description>
-
-        {credentialSecret ? (
-          <div className="mt-4 flex flex-col gap-3">
-            <div className={cloudPanelSectionClassName}>
-              <div className="text-xs font-semibold uppercase tracking-normal text-slate-500 dark:text-slate-400">
-                {t("cloud.providers.aws.credentials", "Credentials")}
-              </div>
-              <div className="mt-2">
-                <CompactCredentialRow
-                  label={t("cloud.tokens.table.name", "Name")}
-                  value={credentialSecret.secret.credential_name}
-                />
-                <CompactCredentialRow
-                  label={t("cloud.providers.aws.access_key", "Access Key")}
-                  value={credentialSecret.secret.access_key_id || "-"}
-                />
-              </div>
-            </div>
-            {(credentialSecret.secret.ec2_quota || credentialSecret.secret.ec2_quota_error) ? (
-              <div className={cloudPanelSectionClassName}>
-                <div className="text-xs font-semibold uppercase tracking-normal text-slate-500 dark:text-slate-400">
-                  {t("cloud.providers.aws.ec2_quota", "EC2 Quota")}
+          icon={<KeyRound className="size-4" />}
+          badge={(
+            <>
+              <Badge color="blue">{t("cloud.providers.aws.name", "AWS")}</Badge>
+              <Badge color="amber">{t("cloud.providers.aws.credentials", "Credentials")}</Badge>
+            </>
+          )}
+          side={(
+            <SecretSidePanel
+              t={t}
+              title={t("cloud.secret.scope", "Access Scope")}
+              description={t(
+                "cloud.secret.token_scope_hint",
+                "This credential can manage cloud resources through the provider API.",
+              )}
+            >
+              {(credentialSecret.secret.ec2_quota || credentialSecret.secret.ec2_quota_error) ? (
+                <div className="rounded-lg border border-border bg-card px-4 py-3">
+                  <div className="text-xs font-semibold uppercase tracking-normal text-muted-foreground">
+                    {t("cloud.providers.aws.ec2_quota", "EC2 Quota")}
+                  </div>
+                  <div className="mt-3">
+                    <AWSQuotaSummary
+                      quota={credentialSecret.secret.ec2_quota}
+                      error={credentialSecret.secret.ec2_quota_error}
+                      t={t}
+                    />
+                  </div>
                 </div>
-                <div className="mt-2">
-                  <AWSQuotaSummary
-                    quota={credentialSecret.secret.ec2_quota}
-                    error={credentialSecret.secret.ec2_quota_error}
-                    t={t}
-                  />
-                </div>
-              </div>
-            ) : null}
-            <CompactCredentialCopyBlock
-              title={t("cloud.providers.aws.secret_access_key", "Secret Access Key")}
+              ) : null}
+            </SecretSidePanel>
+          )}
+        >
+          <div className="grid gap-3 sm:grid-cols-2">
+            <CloudDetailItem
+              label={t("cloud.tokens.table.name", "Name")}
+              value={credentialSecret.secret.credential_name}
+              className="bg-card"
+            />
+            <CloudDetailItem
+              label={t("cloud.providers.aws.access_key", "Access Key")}
+              value={credentialSecret.secret.access_key_id || "-"}
+              className="bg-card"
+            />
+          </div>
+          <CloudSecretValueBlock
+            title={t("cloud.providers.aws.secret_access_key", "Secret Access Key")}
+            copyLabel={t("copy", "Copy")}
+            onCopy={() => {
+              void onCopyText(credentialSecret.secret.secret_access_key);
+            }}
+            value={credentialSecret.secret.secret_access_key}
+          />
+          {credentialSecret.secret.session_token ? (
+            <CloudSecretValueBlock
+              title={t("cloud.providers.aws.session_token", "Session Token")}
               copyLabel={t("copy", "Copy")}
               onCopy={() => {
-                void onCopyText(credentialSecret.secret.secret_access_key);
+                void onCopyText(credentialSecret.secret.session_token);
               }}
-              value={credentialSecret.secret.secret_access_key}
+              value={credentialSecret.secret.session_token}
+              minHeightClassName="min-h-32"
+              maxHeightClassName="max-h-64"
             />
-            {credentialSecret.secret.session_token ? (
-              <CompactCredentialCopyBlock
-                title={t("cloud.providers.aws.session_token", "Session Token")}
-                copyLabel={t("copy", "Copy")}
-                onCopy={() => {
-                  void onCopyText(credentialSecret.secret.session_token);
-                }}
-                value={credentialSecret.secret.session_token}
-              />
-            ) : null}
-          </div>
-        ) : null}
-      </Dialog.Content>
+          ) : null}
+        </CloudSensitiveDialogContent>
+      ) : null}
     </Dialog.Root>
   );
 }
-
-type SavedPasswordDialogProps = {
-  savedPassword: SavedPasswordState | null;
-  t: TFunction;
-  onClose: () => void;
-  onCopyText: CopyTextHandler;
-};
 
 export function AWSSavedPasswordDialog({
   savedPassword,
@@ -121,60 +175,64 @@ export function AWSSavedPasswordDialog({
 }: SavedPasswordDialogProps) {
   return (
     <Dialog.Root open={Boolean(savedPassword)} onOpenChange={(open) => !open && onClose()}>
-      <Dialog.Content className={cloudDialogContentClassName}>
-        <Dialog.Title>{t("cloud.password.dialog_title", "Saved Root Password")}</Dialog.Title>
-        <Dialog.Description>
-          {t(
+      {savedPassword ? (
+        <CloudSensitiveDialogContent
+          title={t("cloud.password.dialog_title", "Saved Root Password")}
+          description={t(
             "cloud.providers.aws.password_dialog_description",
             "View the saved root password for this AWS instance from the current active credential and region.",
           )}
-        </Dialog.Description>
-
-        {savedPassword ? (
-          <div className="mt-4 flex flex-col gap-4">
-            <PlainDetailItem label={t("cloud.table.name", "Name")} value={savedPassword.resourceName} />
-            <PlainDetailItem
-              label={t("common.type", "Type")}
-              value={
-                savedPassword.resourceKind === "lightsail"
-                  ? t("cloud.providers.aws.lightsail_label", "AWS Lightsail")
-                  : t("cloud.providers.aws.ec2_label", "AWS EC2")
-              }
-            />
-            <PlainDetailItem
+          icon={<LockKeyhole className="size-4" />}
+          badge={(
+            <>
+              <Badge color="blue">{getAWSResourceLabel(savedPassword.resourceKind, t)}</Badge>
+              <Badge color="green">{t("cloud.password.saved", "Saved")}</Badge>
+            </>
+          )}
+          side={(
+            <SecretSidePanel
+              t={t}
+              title={t("cloud.password.login_context", "Login Context")}
+              description={t(
+                "cloud.password.login_context_description",
+                "Use the username and password together when connecting to this instance.",
+              )}
+            >
+              <CloudDetailItem
+                label={t("cloud.password.saved_at", "Saved At")}
+                value={formatDateTime(savedPassword.credential.updated_at)}
+                className="bg-card"
+              />
+            </SecretSidePanel>
+          )}
+        >
+          <div className="grid gap-3 sm:grid-cols-2">
+            <CloudDetailItem label={t("cloud.table.name", "Name")} value={savedPassword.resourceName} className="bg-card" />
+            <CloudDetailItem label={t("common.type", "Type")} value={getAWSResourceLabel(savedPassword.resourceKind, t)} className="bg-card" />
+            <CloudDetailItem
               label={t("cloud.password.username", "Username")}
               value={savedPassword.credential.username || "root"}
+              className="bg-card"
             />
-            <PlainDetailItem
+            <CloudDetailItem
               label={t("cloud.password.mode", "Password Mode")}
               value={savedPassword.credential.password_mode || "-"}
+              className="bg-card"
             />
-            <PlainDetailItem
-              label={t("cloud.password.saved_at", "Saved At")}
-              value={formatDateTime(savedPassword.credential.updated_at)}
-            />
-            <CloudCopyBlock
-              title={t("cloud.form.root_password", "Root Password")}
-              copyLabel={t("copy", "Copy")}
-              onCopy={() => {
-                void onCopyText(savedPassword.credential.root_password);
-              }}
-            >
-              <CloudReadonlyCodeBlock value={savedPassword.credential.root_password} />
-            </CloudCopyBlock>
           </div>
-        ) : null}
-      </Dialog.Content>
+          <CloudSecretValueBlock
+            title={t("cloud.form.root_password", "Root Password")}
+            copyLabel={t("copy", "Copy")}
+            onCopy={() => {
+              void onCopyText(savedPassword.credential.root_password);
+            }}
+            value={savedPassword.credential.root_password}
+          />
+        </CloudSensitiveDialogContent>
+      ) : null}
     </Dialog.Root>
   );
 }
-
-type CreatedPasswordDialogProps = {
-  createdPassword: CreatedPasswordState | null;
-  t: TFunction;
-  onClose: () => void;
-  onCopyText: CopyTextHandler;
-};
 
 export function AWSCreatedPasswordDialog({
   createdPassword,
@@ -184,37 +242,34 @@ export function AWSCreatedPasswordDialog({
 }: CreatedPasswordDialogProps) {
   return (
     <Dialog.Root open={Boolean(createdPassword)} onOpenChange={(open) => !open && onClose()}>
-      <Dialog.Content className={cloudDialogContentClassName}>
-        <Dialog.Title>{t("cloud.access.dialog_title", "Connection Details")}</Dialog.Title>
-        <Dialog.Description>
-          {t(
+      {createdPassword ? (
+        <CloudSensitiveDialogContent
+          title={t("cloud.access.dialog_title", "Connection Details")}
+          description={t(
             "cloud.providers.aws.create_credentials_description",
             "Store this root password now. You can reopen it later only if vault storage is enabled and the save succeeded.",
           )}
-        </Dialog.Description>
-
-        {createdPassword ? (
-          <div className="mt-4 flex flex-col gap-4">
-            <div className={cloudDetailListClassName}>
-              <div className={cloudDetailListItemClassName}>
-                <PlainDetailItem label={t("cloud.table.name", "Name")} value={createdPassword.resourceName} />
-                <PlainDetailItem
-                  label={t("cloud.password.mode", "Password Mode")}
-                  value={getRootPasswordModeLabel(createdPassword.passwordMode, t)}
-                />
-                <PlainDetailItem
-                  label={t("common.type", "Type")}
-                  value={
-                    createdPassword.resourceKind === "lightsail"
-                      ? t("cloud.providers.aws.lightsail_label", "AWS Lightsail")
-                      : t("cloud.providers.aws.ec2_label", "AWS EC2")
-                  }
-                />
-              </div>
-            </div>
-
-            <div className={`rounded-lg px-4 py-3 text-sm ${createdPassword.passwordSaved ? "border border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-300" : "border border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-300"}`}>
-              <div className={cloudLongTextClassName}>
+          icon={<LockKeyhole className="size-4" />}
+          badge={(
+            <>
+              <Badge color="blue">{getAWSResourceLabel(createdPassword.resourceKind, t)}</Badge>
+              <Badge color={createdPassword.passwordSaved ? "green" : "amber"}>
+                {createdPassword.passwordSaved
+                  ? t("cloud.password.saved", "Saved")
+                  : t("cloud.password.not_saved", "Not Saved")}
+              </Badge>
+            </>
+          )}
+          side={(
+            <SecretSidePanel
+              t={t}
+              title={t("cloud.password.storage_status", "Storage Status")}
+              description={t(
+                "cloud.password.storage_status_description",
+                "The generated password is shown here so you can copy it immediately.",
+              )}
+            >
+              <CloudStatusNotice tone={createdPassword.passwordSaved ? "green" : "amber"}>
                 {createdPassword.passwordSaved
                   ? t("cloud.password.create_saved", "This root password has been encrypted and saved. You can reopen it later from the instance list.")
                   : createdPassword.passwordSaveError
@@ -223,21 +278,29 @@ export function AWSCreatedPasswordDialog({
                         defaultValue: `Password save failed: ${createdPassword.passwordSaveError}`,
                       })
                     : t("cloud.password.create_unsaved", "This root password was not saved on the server. Save it now if you still need it later.")}
-              </div>
-            </div>
-
-            <CloudCopyBlock
-              title={t("cloud.access.root_password", "Root Password")}
-              copyLabel={t("copy", "Copy")}
-              onCopy={() => {
-                void onCopyText(createdPassword.rootPassword);
-              }}
-            >
-              <CloudReadonlyCodeBlock value={createdPassword.rootPassword} />
-            </CloudCopyBlock>
+              </CloudStatusNotice>
+            </SecretSidePanel>
+          )}
+        >
+          <div className="grid gap-3 sm:grid-cols-2">
+            <CloudDetailItem label={t("cloud.table.name", "Name")} value={createdPassword.resourceName} className="bg-card" />
+            <CloudDetailItem label={t("common.type", "Type")} value={getAWSResourceLabel(createdPassword.resourceKind, t)} className="bg-card" />
+            <CloudDetailItem
+              label={t("cloud.password.mode", "Password Mode")}
+              value={getRootPasswordModeLabel(createdPassword.passwordMode, t)}
+              className="bg-card"
+            />
           </div>
-        ) : null}
-      </Dialog.Content>
+          <CloudSecretValueBlock
+            title={t("cloud.access.root_password", "Root Password")}
+            copyLabel={t("copy", "Copy")}
+            onCopy={() => {
+              void onCopyText(createdPassword.rootPassword);
+            }}
+            value={createdPassword.rootPassword}
+          />
+        </CloudSensitiveDialogContent>
+      ) : null}
     </Dialog.Root>
   );
 }

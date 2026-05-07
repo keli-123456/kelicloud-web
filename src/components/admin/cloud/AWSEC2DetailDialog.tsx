@@ -6,6 +6,7 @@ import {
   Power,
   PowerOff,
   RotateCcw,
+  Server,
   Share2,
   ShieldCheck,
   Trash2,
@@ -23,9 +24,11 @@ import {
   CloudCodeTextarea,
   CloudDetailDialogSkeleton,
   CloudReadonlyCodeBlock,
+  CloudSensitiveDialogContent,
   cloudDetailListClassName,
   cloudDetailListItemClassName,
-  cloudDialogContentClassName,
+  cloudDetailMutedTextClassName,
+  cloudDetailValueClassName,
   cloudPanelBodyTextClassName,
   cloudPanelTitleClassName,
   Dialog,
@@ -110,21 +113,31 @@ export function AWSEC2DetailDialog({
 }: AWSEC2DetailDialogProps) {
   return (
     <Dialog.Root open={Boolean(detailInstance)} onOpenChange={onOpenChange}>
-      <Dialog.Content className={cloudDialogContentClassName}>
-        <Dialog.Title>{detailInstance?.name || detailInstance?.instance_id || t("cloud.providers.aws.ec2_label", "AWS EC2")}</Dialog.Title>
-        <Dialog.Description>
-          {t(
+      {detailInstance ? (
+        <CloudSensitiveDialogContent
+          title={detailInstance.name || detailInstance.instance_id || t("cloud.providers.aws.ec2_label", "AWS EC2")}
+          description={t(
             "cloud.providers.aws.detail_description",
-            "Current EC2 overview and actions.",
+            "Current EC2 details and actions.",
           )}
-        </Dialog.Description>
+          icon={<Server className="size-4" />}
+          badge={(
+            <>
+              <Badge color="blue">{t("cloud.providers.aws.ec2_label", "AWS EC2")}</Badge>
+              <Badge color={getInstanceStateColor(detailInstance.state)}>
+                {getCloudStatusLabel(detailInstance.state, t)}
+              </Badge>
+            </>
+          )}
+          className="sm:max-w-5xl"
+        >
 
         {detailLoading ? (
           <CloudDetailDialogSkeleton rows={12} />
         ) : detailData ? (
-          <div className="mt-4 flex flex-col gap-4">
+          <div className="flex flex-col gap-4">
             <section className="pt-0">
-              <div className="flex flex-col gap-4 border-b border-slate-200 pb-4 dark:border-slate-800 lg:flex-row lg:items-start lg:justify-between">
+              <div className="flex flex-col gap-4 border-b border-border pb-4 lg:flex-row lg:items-start lg:justify-between">
                 <div className="grid gap-x-6 gap-y-2 sm:grid-cols-2">
                   <CompactSummaryMetric
                     label={t("cloud.table.status", "Status")}
@@ -296,13 +309,13 @@ export function AWSEC2DetailDialog({
               <div className={cloudDetailListClassName}>
                 {detailData.volumes.length ? detailData.volumes.map((volume) => (
                   <div key={volume.volume_id} className={cloudDetailListItemClassName}>
-                    <div className="font-medium text-slate-900 dark:text-slate-100">{volume.device_name || volume.volume_id}</div>
-                    <div className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+                    <div className={cloudDetailValueClassName}>{volume.device_name || volume.volume_id}</div>
+                    <div className={`mt-1 ${cloudDetailMutedTextClassName}`}>
                       {volume.size_gib} GiB / {volume.volume_type} / {volume.state}
                     </div>
                   </div>
                 )) : (
-                  <div className="text-sm text-slate-500 dark:text-slate-400">-</div>
+                  <div className={cloudDetailMutedTextClassName}>-</div>
                 )}
               </div>
               <Flex justify="end" gap="2" className="mt-3">
@@ -373,7 +386,7 @@ export function AWSEC2DetailDialog({
                   <div className={cloudPanelTitleClassName}>
                     {t("cloud.providers.aws.monitoring", "Monitoring")}
                   </div>
-                  <div className="mt-2 text-sm text-slate-500 dark:text-slate-400">
+                  <div className={`mt-2 ${cloudDetailMutedTextClassName}`}>
                     {getCloudStatusLabel(detailData.monitoring_state, t)}
                   </div>
                   <Flex justify="end" gap="2" className="mt-3">
@@ -448,7 +461,7 @@ export function AWSEC2DetailDialog({
               <div className={cloudDetailListClassName}>
                 {detailData.addresses.length ? detailData.addresses.map((address) => (
                   <div key={address.allocation_id || address.public_ip} className={cloudDetailListItemClassName}>
-                    <div className="font-medium text-slate-900 dark:text-slate-100">{formatElasticAddress(address)}</div>
+                    <div className={cloudDetailValueClassName}>{formatElasticAddress(address)}</div>
                     <div className="mt-2 flex flex-wrap gap-2">
                       {address.association_id ? (
                         <Button
@@ -484,7 +497,7 @@ export function AWSEC2DetailDialog({
                     </div>
                   </div>
                 )) : (
-                  <div className="text-sm text-slate-500 dark:text-slate-400">-</div>
+                  <div className={cloudDetailMutedTextClassName}>-</div>
                 )}
               </div>
               <div className="mt-3 grid gap-3 sm:grid-cols-2">
@@ -565,8 +578,8 @@ export function AWSEC2DetailDialog({
                 <div className={cloudDetailListClassName}>
                   {detailData.security_groups.map((group) => (
                     <div key={group.group_id} className={cloudDetailListItemClassName}>
-                      <div className="font-medium text-slate-900 dark:text-slate-100">{group.group_name || group.group_id}</div>
-                      <div className="mt-1 text-sm text-slate-500 dark:text-slate-400">{group.group_id}</div>
+                      <div className={cloudDetailValueClassName}>{group.group_name || group.group_id}</div>
+                      <div className={`mt-1 ${cloudDetailMutedTextClassName}`}>{group.group_id}</div>
                     </div>
                   ))}
                 </div>
@@ -596,7 +609,8 @@ export function AWSEC2DetailDialog({
             ) : null}
           </div>
         ) : null}
-      </Dialog.Content>
+        </CloudSensitiveDialogContent>
+      ) : null}
     </Dialog.Root>
   );
 }

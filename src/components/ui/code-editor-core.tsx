@@ -14,6 +14,7 @@ type CodeEditorProps = {
   onChange: (value: string) => void
   placeholder?: string
   className?: string
+  height?: string
   minHeight?: string
   maxHeight?: string
   ariaLabel?: string
@@ -33,13 +34,16 @@ const lightEditorTheme = EditorView.theme(
       backgroundColor: "transparent",
       color: "var(--foreground)",
       fontSize: codeFontSize,
+      height: "var(--code-editor-height)",
+      maxHeight: "var(--code-editor-max-height)",
+      minHeight: "var(--code-editor-min-height)",
     },
     ".cm-content, .cm-gutters": {
       fontFamily: codeFontFamily,
       lineHeight: codeLineHeight,
     },
     ".cm-content": {
-      minHeight: "280px",
+      minHeight: "var(--code-editor-min-height)",
       padding: "0",
       whiteSpace: "pre",
     },
@@ -59,6 +63,8 @@ const lightEditorTheme = EditorView.theme(
     ".cm-scroller": {
       overflow: "auto",
       lineHeight: codeLineHeight,
+      maxHeight: "var(--code-editor-max-height)",
+      minHeight: "var(--code-editor-min-height)",
       paddingBlock: codeVerticalPadding,
     },
     ".cm-line": {
@@ -93,13 +99,16 @@ const darkEditorTheme = [
       "&": {
         backgroundColor: "transparent",
         fontSize: codeFontSize,
+        height: "var(--code-editor-height)",
+        maxHeight: "var(--code-editor-max-height)",
+        minHeight: "var(--code-editor-min-height)",
       },
       ".cm-content, .cm-gutters": {
         fontFamily: codeFontFamily,
         lineHeight: codeLineHeight,
       },
       ".cm-content": {
-        minHeight: "280px",
+        minHeight: "var(--code-editor-min-height)",
         padding: "0",
         whiteSpace: "pre",
       },
@@ -119,6 +128,8 @@ const darkEditorTheme = [
       ".cm-scroller": {
         overflow: "auto",
         lineHeight: codeLineHeight,
+        maxHeight: "var(--code-editor-max-height)",
+        minHeight: "var(--code-editor-min-height)",
         paddingBlock: codeVerticalPadding,
       },
       ".cm-line": {
@@ -146,6 +157,7 @@ function CodeEditor({
   onChange,
   placeholder,
   className,
+  height = "auto",
   minHeight = "280px",
   maxHeight = "50vh",
   ariaLabel,
@@ -160,12 +172,19 @@ function CodeEditor({
         "border-input bg-background focus-within:border-ring focus-within:ring-ring/50 overflow-hidden rounded-md border shadow-xs transition-[color,box-shadow] focus-within:ring-[3px]",
         className
       )}
+      style={
+        {
+          "--code-editor-height": height,
+          "--code-editor-max-height": maxHeight,
+          "--code-editor-min-height": minHeight,
+        } as React.CSSProperties
+      }
     >
       <CodeMirror
         value={value}
         onChange={onChange}
         placeholder={placeholder}
-        height="auto"
+        height={height}
         minHeight={minHeight}
         maxHeight={maxHeight}
         theme={

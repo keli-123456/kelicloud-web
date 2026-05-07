@@ -1,11 +1,13 @@
 import type { Dispatch, SetStateAction } from "react";
 import type { TFunction } from "i18next";
+import { Server } from "lucide-react";
 
 import type { DigitalOceanCatalog, DigitalOceanImage } from "@/lib/cloud";
 import {
+  Badge,
   Button,
   Checkbox,
-  cloudDialogContentClassName,
+  CloudSensitiveDialogContent,
   cloudPanelBodyTextClassName,
   cloudPanelFieldLabelClassName,
   cloudPanelSectionClassName,
@@ -67,16 +69,17 @@ export function DigitalOceanCreateDialog({
 }: DigitalOceanCreateDialogProps) {
   return (
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
-      <Dialog.Content className={cloudDialogContentClassName}>
-        <Dialog.Title>{t("cloud.create", "Create Droplet")}</Dialog.Title>
-        <Dialog.Description>
-          {t(
+      <CloudSensitiveDialogContent
+        title={t("cloud.create", "Create Droplet")}
+        description={t(
             "cloud.create_description",
             "Select a region, size, and image to provision a new Droplet.",
           )}
-        </Dialog.Description>
+        icon={<Server className="size-4" />}
+        badge={<Badge color="blue">{t("cloud.providers.digitalocean.name", "DigitalOcean")}</Badge>}
+      >
 
-        <div className="mt-4 flex flex-col gap-4">
+        <div className="flex flex-col gap-4">
           <label className={cloudPanelFieldLabelClassName}>
             {t("cloud.form.region", "Region")}
           </label>
@@ -238,7 +241,7 @@ export function DigitalOceanCreateDialog({
             </Button>
           </Flex>
         </div>
-      </Dialog.Content>
+      </CloudSensitiveDialogContent>
     </Dialog.Root>
   );
 }

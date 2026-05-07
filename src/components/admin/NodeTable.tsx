@@ -293,9 +293,6 @@ export function DataTable() {
           ${!isMobile ? "p-4" : ""}
         `}
       >
-        <h2 className="mb-4 text-2xl font-bold">
-          {t("admin.nodeTable.nodeList")}
-        </h2>
         <div className="mb-4 flex items-center justify-between">
           <TextField.Root
             placeholder={t("admin.nodeTable.searchByName")}
@@ -325,9 +322,6 @@ export function DataTable() {
         ${!isMobile ? "p-4" : ""}
       `}
     >
-      <h2 className="text-2xl font-bold mb-4">
-        {t("admin.nodeTable.nodeList")}
-      </h2>
       <div className="flex items-center justify-between mb-4">
         <TextField.Root
           placeholder={t("admin.nodeTable.searchByName")}

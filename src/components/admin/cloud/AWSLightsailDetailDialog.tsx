@@ -6,6 +6,7 @@ import {
   Power,
   PowerOff,
   RotateCcw,
+  Server,
   Share2,
   ShieldCheck,
   Trash2,
@@ -20,9 +21,11 @@ import {
   Badge,
   Button,
   CloudDetailDialogSkeleton,
+  CloudSensitiveDialogContent,
   cloudDetailListClassName,
   cloudDetailListItemClassName,
-  cloudDialogContentClassName,
+  cloudDetailMutedTextClassName,
+  cloudDetailValueClassName,
   Dialog,
   Flex,
   TextField,
@@ -95,21 +98,31 @@ export function AWSLightsailDetailDialog({
 }: AWSLightsailDetailDialogProps) {
   return (
     <Dialog.Root open={Boolean(detailInstance)} onOpenChange={onOpenChange}>
-      <Dialog.Content className={cloudDialogContentClassName}>
-        <Dialog.Title>{detailInstance?.name || t("cloud.providers.aws.lightsail_label", "AWS Lightsail")}</Dialog.Title>
-        <Dialog.Description>
-          {t(
+      {detailInstance ? (
+        <CloudSensitiveDialogContent
+          title={detailInstance.name || t("cloud.providers.aws.lightsail_label", "AWS Lightsail")}
+          description={t(
             "cloud.providers.aws.lightsail_detail_description",
-            "Current Lightsail overview and actions.",
+            "Current Lightsail details and actions.",
           )}
-        </Dialog.Description>
+          icon={<Server className="size-4" />}
+          badge={(
+            <>
+              <Badge color="blue">{t("cloud.providers.aws.lightsail_label", "AWS Lightsail")}</Badge>
+              <Badge color={getInstanceStateColor(detailInstance.state)}>
+                {getCloudStatusLabel(detailInstance.state, t)}
+              </Badge>
+            </>
+          )}
+          className="sm:max-w-5xl"
+        >
 
         {detailLoading ? (
           <CloudDetailDialogSkeleton rows={5} />
         ) : detailData ? (
-          <div className="mt-4 flex flex-col gap-4">
+          <div className="flex flex-col gap-4">
             <section className="pt-0">
-              <div className="flex flex-col gap-4 border-b border-slate-200 pb-4 dark:border-slate-800 lg:flex-row lg:items-start lg:justify-between">
+              <div className="flex flex-col gap-4 border-b border-border pb-4 lg:flex-row lg:items-start lg:justify-between">
                 <div className="grid gap-x-6 gap-y-2 sm:grid-cols-2">
                   <CompactSummaryMetric
                     label={t("cloud.table.status", "Status")}
@@ -247,15 +260,15 @@ export function AWSLightsailDetailDialog({
               <div className={cloudDetailListClassName}>
                 {detailData.ports.length ? detailData.ports.map((port) => (
                   <div key={`${port.protocol}-${port.from_port}-${port.to_port}`} className={cloudDetailListItemClassName}>
-                    <div className="font-medium text-slate-900 dark:text-slate-100">
+                    <div className={cloudDetailValueClassName}>
                       {port.common_name || `${port.protocol}:${port.from_port}-${port.to_port}`}
                     </div>
-                    <div className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+                    <div className={`mt-1 ${cloudDetailMutedTextClassName}`}>
                       {port.access_type || "-"} / {port.access_from || "-"} / {(port.cidrs || []).join(", ") || "-"}
                     </div>
                   </div>
                 )) : (
-                  <div className="text-sm text-slate-500 dark:text-slate-400">-</div>
+                  <div className={cloudDetailMutedTextClassName}>-</div>
                 )}
               </div>
               <Flex justify="end" gap="2" className="mt-3">
@@ -280,8 +293,8 @@ export function AWSLightsailDetailDialog({
               <div className={cloudDetailListClassName}>
                 {detailData.static_ips.length ? detailData.static_ips.map((staticIP) => (
                   <div key={staticIP.name} className={cloudDetailListItemClassName}>
-                    <div className="font-medium text-slate-900 dark:text-slate-100">{staticIP.name}</div>
-                    <div className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+                    <div className={cloudDetailValueClassName}>{staticIP.name}</div>
+                    <div className={`mt-1 ${cloudDetailMutedTextClassName}`}>
                       {staticIP.ip_address || "-"} / {staticIP.attached_to || "-"}
                     </div>
                     <div className="mt-2 flex flex-wrap gap-2">
@@ -333,7 +346,7 @@ export function AWSLightsailDetailDialog({
                     </div>
                   </div>
                 )) : (
-                  <div className="text-sm text-slate-500 dark:text-slate-400">-</div>
+                  <div className={cloudDetailMutedTextClassName}>-</div>
                 )}
               </div>
               <TextField.Root
@@ -385,13 +398,13 @@ export function AWSLightsailDetailDialog({
               <div className={cloudDetailListClassName}>
                 {detailData.snapshots.length ? detailData.snapshots.map((snapshot) => (
                   <div key={snapshot.name} className={cloudDetailListItemClassName}>
-                    <div className="font-medium text-slate-900 dark:text-slate-100">{snapshot.name}</div>
-                    <div className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+                    <div className={cloudDetailValueClassName}>{snapshot.name}</div>
+                    <div className={`mt-1 ${cloudDetailMutedTextClassName}`}>
                       {snapshot.state || "-"} / {snapshot.size_in_gb} GB / {formatDateTime(snapshot.created_at)}
                     </div>
                   </div>
                 )) : (
-                  <div className="text-sm text-slate-500 dark:text-slate-400">-</div>
+                  <div className={cloudDetailMutedTextClassName}>-</div>
                 )}
               </div>
               <TextField.Root
@@ -422,7 +435,8 @@ export function AWSLightsailDetailDialog({
             </CompactDetailSection>
           </div>
         ) : null}
-      </Dialog.Content>
+        </CloudSensitiveDialogContent>
+      ) : null}
     </Dialog.Root>
   );
 }

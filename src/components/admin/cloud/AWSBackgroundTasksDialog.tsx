@@ -6,7 +6,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import {
   Badge,
   Button,
-  cloudDialogContentClassName,
+  CloudSensitiveDialogContent,
   cloudLongTextClassName,
   cloudPanelFieldLabelClassName,
   Dialog,
@@ -78,16 +78,18 @@ export function AWSBackgroundTasksDialog({
 }: AWSBackgroundTasksDialogProps) {
   return (
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
-      <Dialog.Content className={cloudDialogContentClassName}>
-        <Dialog.Title>{t("cloud.providers.aws.background_tasks", "Background Tasks")}</Dialog.Title>
-        <Dialog.Description>
-          {t(
+      <CloudSensitiveDialogContent
+        title={t("cloud.providers.aws.background_tasks", "Background Tasks")}
+        description={t(
             "cloud.providers.aws.background_tasks_description",
             "Pending, failed, cancelled, and skipped AWS post-create tasks.",
           )}
-        </Dialog.Description>
+        icon={<RefreshCw className="size-4" />}
+        badge={<Badge color="blue">{t("cloud.providers.aws.name", "AWS")}</Badge>}
+        className="sm:max-w-5xl"
+      >
 
-        <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
+        <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex flex-wrap gap-4">
             <CompactSummaryMetric
               label={t("cloud.providers.aws.background_pending", "Pending")}
@@ -300,7 +302,7 @@ export function AWSBackgroundTasksDialog({
             </div>
           )}
         </div>
-      </Dialog.Content>
+      </CloudSensitiveDialogContent>
     </Dialog.Root>
   );
 }

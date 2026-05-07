@@ -16,6 +16,7 @@ function CodeEditor(props: CodeEditorProps) {
         <Skeleton
           className="w-full rounded-md"
           style={{
+            height: props.height || undefined,
             minHeight: props.minHeight || "280px",
             maxHeight: props.maxHeight || "50vh",
           }}

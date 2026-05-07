@@ -8,6 +8,7 @@ import {
   getDefaultAdminPath,
   useAccount,
 } from "@/contexts/AccountContext";
+import { useAdminPageTitle } from "@/contexts/AdminPageTitleContext";
 import { t as translate } from "i18next";
 import {
   Badge,
@@ -19,6 +20,10 @@ import {
   AdminPageShell,
   AdminTableSkeleton,
 } from "@/components/admin/AdminPageShell";
+import {
+  AdminPagination,
+  useClientPagination,
+} from "@/components/admin/AdminPagination";
 import {
   Copy,
   Download,
@@ -134,7 +139,14 @@ const AdminDashboardLoadingState = () => {
 };
 
 const NodeDetailsPage = () => {
+  const { t } = useTranslation();
   const { account, hasFeature, loading, platformAdmin } = useAccount();
+  useAdminPageTitle(
+    t("admin.nodeTable.nodeList", { defaultValue: "服务器" }),
+    t("admin.nodeTable.pageDescription", {
+      defaultValue: "查看服务器实时状态、分组、连通性和常用运维入口。",
+    }),
+  );
   const canManageCNConnectivity = platformAdmin || hasFeature("cn_connectivity");
   const [toolbarSearchDraft, setToolbarSearchDraft] = useState("");
   const [toolbarSearchKeyword, setToolbarSearchKeyword] = useState("");
@@ -568,7 +580,7 @@ const Layout = ({
   if (error) return <div>{error}</div>;
 
   return (
-    <div className="flex min-w-0 flex-col gap-4 p-4 md:gap-6 md:p-6">
+    <div className="flex min-w-0 flex-col gap-4 p-3 sm:p-4 md:gap-5">
       <Header
         nodes={allNodes}
         visibleNodes={visibleNodes}
@@ -594,6 +606,7 @@ const Layout = ({
         liveByNode={liveByNode}
         settings={settings}
         installActionsEnabled
+        paginationKey={normalizedToolbarSearchKeyword}
       />
     </div>
   );
@@ -843,7 +856,7 @@ const Header = ({
         </Alert>
       ) : null}
 
-      <div className="border-b border-slate-200/70 pb-2 dark:border-slate-800">
+      <div className="rounded-lg border border-border bg-card p-3 shadow-sm shadow-slate-900/5">
         <div className="flex flex-wrap items-center gap-2 xl:flex-nowrap xl:gap-3">
           <div className="min-w-[260px] flex-1 xl:max-w-[360px]">
             <form
@@ -1238,18 +1251,23 @@ const NodeEndpointSummary = ({ node }: { node: NodeDetail }) => {
         />
       }
     >
-                        <div className="flex w-[200px] max-w-[200px] min-w-0 items-start gap-2 text-sm text-slate-700 dark:text-slate-200">
+      <div className="flex w-full min-w-[220px] max-w-[360px] items-start gap-2 text-sm text-slate-700 dark:text-slate-200">
         <div className="pt-0.5">
           <Flag flag={node.region} size="4" />
         </div>
-        <div className="min-w-0 space-y-1">
+        <div className="min-w-0 flex-1 space-y-1">
           <div className="flex items-center gap-1">
-            <span className="text-slate-400 dark:text-slate-500">IPv4</span>
-            <span className="min-w-0 truncate font-mono text-[12px]">{ipv4Value}</span>
+            <span className="w-8 shrink-0 text-slate-400 dark:text-slate-500">IPv4</span>
+            <span
+              className="min-w-0 flex-1 truncate font-mono text-[12px]"
+              title={ipv4Value}
+            >
+              {ipv4Value}
+            </span>
             <Button
               variant="ghost"
               size="icon"
-              className="h-6 w-6 rounded-md"
+              className="h-6 w-6 shrink-0 rounded-md"
               aria-label={t("admin.nodeTable.copyIpv4", {
                 defaultValue: "复制 IPv4 地址",
               })}
@@ -1264,9 +1282,9 @@ const NodeEndpointSummary = ({ node }: { node: NodeDetail }) => {
             </Button>
           </div>
           <div className="flex items-center gap-1">
-            <span className="text-slate-400 dark:text-slate-500">IPv6</span>
+            <span className="w-8 shrink-0 text-slate-400 dark:text-slate-500">IPv6</span>
             <span
-              className="min-w-0 truncate font-mono text-[12px]"
+              className="min-w-0 flex-1 truncate font-mono text-[12px]"
               title={ipv6Value}
             >
               {ipv6Short}
@@ -1274,7 +1292,7 @@ const NodeEndpointSummary = ({ node }: { node: NodeDetail }) => {
             <Button
               variant="ghost"
               size="icon"
-              className="h-6 w-6 rounded-md"
+              className="h-6 w-6 shrink-0 rounded-md"
               aria-label={t("admin.nodeTable.copyIpv6", {
                 defaultValue: "复制 IPv6 地址",
               })}
@@ -1340,14 +1358,22 @@ const NodeInfoTooltip = ({
 
 const RateSummary = ({ live }: { live?: NodeLiveSnapshot }) => {
   const snapshot = live?.record || createEmptyLiveRecord();
+  const uploadLabel = `↑ ${formatBytes(snapshot.network.up)}/s`;
+  const downloadLabel = `↓ ${formatBytes(snapshot.network.down)}/s`;
 
   return (
-    <div className="min-w-[80px] space-y-0.5 tabular-nums">
-      <div className="block text-sm font-medium text-slate-900 dark:text-slate-100">
-        ↑ {formatBytes(snapshot.network.up)}/s
+    <div className="w-full min-w-[88px] max-w-[150px] space-y-0.5 tabular-nums">
+      <div
+        className="block truncate text-sm font-medium text-slate-900 dark:text-slate-100"
+        title={uploadLabel}
+      >
+        {uploadLabel}
       </div>
-      <div className="block text-sm text-slate-600 dark:text-slate-400">
-        ↓ {formatBytes(snapshot.network.down)}/s
+      <div
+        className="block truncate text-sm text-slate-600 dark:text-slate-400"
+        title={downloadLabel}
+      >
+        {downloadLabel}
       </div>
     </div>
   );
@@ -1355,14 +1381,22 @@ const RateSummary = ({ live }: { live?: NodeLiveSnapshot }) => {
 
 const TrafficSummary = ({ live }: { live?: NodeLiveSnapshot }) => {
   const snapshot = live?.record || createEmptyLiveRecord();
+  const uploadLabel = `↑ ${formatBytes(snapshot.network.totalUp)}`;
+  const downloadLabel = `↓ ${formatBytes(snapshot.network.totalDown)}`;
 
   return (
-    <div className="min-w-[84px] space-y-0.5 tabular-nums">
-      <div className="block text-sm font-medium text-slate-900 dark:text-slate-100">
-        ↑ {formatBytes(snapshot.network.totalUp)}
+    <div className="w-full min-w-[96px] max-w-[160px] space-y-0.5 tabular-nums">
+      <div
+        className="block truncate text-sm font-medium text-slate-900 dark:text-slate-100"
+        title={uploadLabel}
+      >
+        {uploadLabel}
       </div>
-      <div className="block text-sm text-slate-600 dark:text-slate-400">
-        ↓ {formatBytes(snapshot.network.totalDown)}
+      <div
+        className="block truncate text-sm text-slate-600 dark:text-slate-400"
+        title={downloadLabel}
+      >
+        {downloadLabel}
       </div>
     </div>
   );
@@ -1370,7 +1404,7 @@ const TrafficSummary = ({ live }: { live?: NodeLiveSnapshot }) => {
 
 const UptimeSummary = ({ live }: { live?: NodeLiveSnapshot }) => {
   return (
-  <div className="block min-w-[62px] tabular-nums text-sm text-slate-700 dark:text-slate-300">
+    <div className="block w-full min-w-[68px] max-w-[96px] truncate tabular-nums text-sm text-slate-700 dark:text-slate-300">
       {formatUptimeLabel(live?.record.uptime)}
     </div>
   );
@@ -1407,7 +1441,7 @@ const CompactMetricCell = ({
 
   return (
     <NodeInfoTooltip content={tooltipContent}>
-      <div className="w-full min-w-[108px] max-w-[122px] cursor-help">
+      <div className="w-full min-w-[108px] max-w-[180px] cursor-help">
         <div className="mb-1 flex items-center justify-between gap-2 whitespace-nowrap leading-none">
           <span className="min-w-0 flex-1 overflow-hidden text-ellipsis font-mono tabular-nums text-[11px] text-slate-600 dark:text-slate-300">
             {valueLabel}
@@ -1661,25 +1695,25 @@ const SortableRow = ({
       <ContextMenu>
         <ContextMenuTrigger asChild>
           <TableRow className="cursor-context-menu text-sm">
-            <TableCell>
+            <TableCell className="min-w-[240px] max-w-[380px] whitespace-normal">
               <NodeEndpointSummary node={node} />
             </TableCell>
-            <TableCell>
+            <TableCell className="min-w-[112px] max-w-[164px]">
               <StatusSummary live={live} />
             </TableCell>
-            <TableCell>
+            <TableCell className="w-[76px]">
               <VersionSummary node={node} />
             </TableCell>
-            <TableCell>
+            <TableCell className="min-w-[96px] max-w-[150px]">
               <RateSummary live={live} />
             </TableCell>
-            <TableCell>
+            <TableCell className="min-w-[104px] max-w-[160px]">
               <TrafficSummary live={live} />
             </TableCell>
-            <TableCell>
+            <TableCell className="w-[80px]">
               <UptimeSummary live={live} />
             </TableCell>
-            <TableCell className="py-1.5 pr-2 pl-1.5">
+            <TableCell className="min-w-[112px] max-w-[180px] py-1.5 pr-2 pl-1.5">
               <CompactMetricCell
                 percent={cpuPercent}
                 valueLabel={usedCpuCores}
@@ -1691,7 +1725,7 @@ const SortableRow = ({
                 }
               />
             </TableCell>
-            <TableCell className="py-1.5 pr-2 pl-1.5">
+            <TableCell className="min-w-[112px] max-w-[180px] py-1.5 pr-2 pl-1.5">
               <CompactMetricCell
                 percent={ramPercent}
                 valueLabel={ramLabel}
@@ -1703,7 +1737,7 @@ const SortableRow = ({
                 }
               />
             </TableCell>
-            <TableCell className="py-1.5 pr-2 pl-1.5">
+            <TableCell className="min-w-[112px] max-w-[180px] py-1.5 pr-2 pl-1.5">
               <CompactMetricCell
                 percent={diskPercent}
                 valueLabel={diskLabel}
@@ -1715,7 +1749,7 @@ const SortableRow = ({
                 }
               />
             </TableCell>
-            <TableCell className="text-right">
+            <TableCell className="w-[76px] text-right">
               <Button
                 variant="ghost"
                 size="sm"
@@ -1739,8 +1773,8 @@ const SortableRow = ({
                 setDdnsOpen(true);
               }}
             >
-                <Globe className="h-4 w-4" />
-                {t("admin.nodeTable.ddns.title", { defaultValue: "DDNS" })}
+              <Globe className="h-4 w-4" />
+              {t("admin.nodeTable.ddns.title", { defaultValue: "DDNS" })}
             </ContextMenuItem>
           ) : null}
         </ContextMenuContent>
@@ -1768,6 +1802,27 @@ const SortableRow = ({
   );
 };
 
+const NODE_TABLE_COLUMN_WIDTHS: React.CSSProperties[] = [
+  { width: "clamp(240px, 24%, 380px)" },
+  { width: "clamp(112px, 9%, 164px)" },
+  { width: "76px" },
+  { width: "clamp(96px, 9%, 150px)" },
+  { width: "clamp(104px, 10%, 160px)" },
+  { width: "80px" },
+  { width: "clamp(112px, 10%, 180px)" },
+  { width: "clamp(112px, 10%, 180px)" },
+  { width: "clamp(112px, 10%, 180px)" },
+  { width: "76px" },
+];
+
+const NodeTableColumnProfile = () => (
+  <colgroup>
+    {NODE_TABLE_COLUMN_WIDTHS.map((style, index) => (
+      <col key={index} style={style} />
+    ))}
+  </colgroup>
+);
+
 const NodeTableColumns = () => {
   const { t } = useTranslation();
   const stickyHeadClass =
@@ -1776,34 +1831,34 @@ const NodeTableColumns = () => {
   return (
     <TableHeader className="bg-slate-100/60 dark:bg-slate-900/60">
       <TableRow>
-        <TableHead className={`${stickyHeadClass} w-[196px]`}>
+        <TableHead className={`${stickyHeadClass} min-w-[240px] max-w-[380px]`}>
           {t("admin.nodeTable.columns.endpoint", { defaultValue: "Public IP" })}
         </TableHead>
-        <TableHead className={`${stickyHeadClass} w-[140px]`}>
+        <TableHead className={`${stickyHeadClass} min-w-[112px] max-w-[164px]`}>
           {t("admin.nodeTable.columns.status", { defaultValue: "Status" })}
         </TableHead>
-        <TableHead className={`${stickyHeadClass} w-[60px]`}>
+        <TableHead className={`${stickyHeadClass} w-[76px]`}>
           {t("admin.nodeTable.columns.version", { defaultValue: "Version" })}
         </TableHead>
-        <TableHead className={`${stickyHeadClass} w-[82px]`}>
+        <TableHead className={`${stickyHeadClass} min-w-[96px] max-w-[150px]`}>
           {t("admin.nodeTable.columns.rate", { defaultValue: "Rate" })}
         </TableHead>
-        <TableHead className={`${stickyHeadClass} w-[86px]`}>
+        <TableHead className={`${stickyHeadClass} min-w-[104px] max-w-[160px]`}>
           {t("admin.nodeTable.columns.traffic", { defaultValue: "Traffic" })}
         </TableHead>
-        <TableHead className={`${stickyHeadClass} w-[64px]`}>
+        <TableHead className={`${stickyHeadClass} w-[80px]`}>
           {t("admin.nodeTable.columns.uptime", { defaultValue: "Uptime" })}
         </TableHead>
-        <TableHead className={`${stickyHeadClass} w-[118px]`}>
+        <TableHead className={`${stickyHeadClass} min-w-[112px] max-w-[180px]`}>
           {t("admin.nodeTable.columns.cpu", { defaultValue: "CPU" })}
         </TableHead>
-        <TableHead className={`${stickyHeadClass} w-[122px]`}>
+        <TableHead className={`${stickyHeadClass} min-w-[112px] max-w-[180px]`}>
           {t("admin.nodeTable.columns.ram", { defaultValue: "RAM" })}
         </TableHead>
-        <TableHead className={`${stickyHeadClass} w-[122px]`}>
+        <TableHead className={`${stickyHeadClass} min-w-[112px] max-w-[180px]`}>
           {t("admin.nodeTable.columns.storage", { defaultValue: "Storage" })}
         </TableHead>
-        <TableHead className={`${stickyHeadClass} w-[72px] text-right`}>
+        <TableHead className={`${stickyHeadClass} w-[76px] text-right`}>
           {t("common.action", { defaultValue: "操作" })}
         </TableHead>
       </TableRow>
@@ -1997,7 +2052,8 @@ const NodeGroupSection = ({
         ) : null}
       </div>
       <div className="min-w-0 overflow-x-auto overscroll-x-contain rounded-lg border border-slate-200/80 bg-white [scrollbar-gutter:stable] dark:border-slate-800/90 dark:bg-slate-950">
-        <Table className="min-w-[1020px] table-fixed">
+        <Table className="min-w-[1120px] table-auto">
+          <NodeTableColumnProfile />
           <NodeTableColumns />
           <TableBody>
             {nodes.map((node) => (
@@ -2020,18 +2076,24 @@ const NodeTable = ({
   liveByNode,
   settings,
   installActionsEnabled,
+  paginationKey,
 }: {
   nodes: NodeDetail[];
   totalNodesCount: number;
   liveByNode: Record<string, NodeLiveSnapshot>;
   settings: SettingsResponse;
   installActionsEnabled: boolean;
+  paginationKey?: string;
 }) => {
   const { t } = useTranslation();
   const hasActiveFilters = nodes.length !== totalNodesCount;
+  const nodePagination = useClientPagination(nodes, {
+    initialPageSize: 20,
+    resetKey: paginationKey ?? "",
+  });
   const groupedNodes = React.useMemo(() => {
     const groups = new Map<string, NodeDetail[]>();
-    nodes.forEach((node) => {
+    nodePagination.pageItems.forEach((node) => {
       const label = getNodeGroupLabel(node);
       const existing = groups.get(label);
       if (existing) {
@@ -2045,7 +2107,7 @@ const NodeTable = ({
       groupName,
       nodes: groupNodes,
     }));
-  }, [nodes]);
+  }, [nodePagination.pageItems]);
 
   return (
     <div className="flex min-w-0 flex-col gap-4">
@@ -2070,16 +2132,31 @@ const NodeTable = ({
           }
         />
       ) : (
-        groupedNodes.map((group) => (
-          <NodeGroupSection
-            key={group.groupName}
-            groupName={group.groupName}
-            nodes={group.nodes}
-            liveByNode={liveByNode}
-            settings={settings}
-            installActionsEnabled={installActionsEnabled}
+        <>
+          {groupedNodes.map((group) => (
+            <NodeGroupSection
+              key={group.groupName}
+              groupName={group.groupName}
+              nodes={group.nodes}
+              liveByNode={liveByNode}
+              settings={settings}
+              installActionsEnabled={installActionsEnabled}
+            />
+          ))}
+          <AdminPagination
+            page={nodePagination.page}
+            totalPages={nodePagination.totalPages}
+            total={nodePagination.total}
+            pageSize={nodePagination.pageSize}
+            visibleStart={nodePagination.visibleStart}
+            visibleEnd={nodePagination.visibleEnd}
+            onPageChange={nodePagination.setPage}
+            onPageSizeChange={nodePagination.setPageSize}
+            pageSizeOptions={[20, 50, 100]}
+            itemLabel={t("admin.pagination.nodes", { defaultValue: "nodes" })}
+            className="rounded-lg border border-border bg-card shadow-sm shadow-slate-900/5"
           />
-        ))
+        </>
       )}
     </div>
   );

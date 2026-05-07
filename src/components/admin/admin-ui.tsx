@@ -36,7 +36,7 @@ type LegacyButtonVariant = "solid" | "soft" | "outline";
 type LegacyButtonSize = "1" | "2" | "3";
 
 const softToneClasses: Record<Tone, string> = {
-  gray: "border-slate-200 bg-slate-100 text-slate-700 hover:bg-slate-200 dark:border-slate-800 dark:bg-slate-900/70 dark:text-slate-200 dark:hover:bg-slate-800",
+  gray: "border-border bg-muted/55 text-foreground hover:bg-accent",
   red: "border-red-200 bg-red-50 text-red-700 hover:bg-red-100 dark:border-red-900/50 dark:bg-red-950/40 dark:text-red-200 dark:hover:bg-red-950/60",
   amber:
     "border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100 dark:border-amber-900/50 dark:bg-amber-950/40 dark:text-amber-200 dark:hover:bg-amber-950/60",
@@ -50,7 +50,7 @@ const solidToneClasses: Partial<Record<Tone, string>> = {
     "border-amber-500 bg-amber-500 text-white hover:bg-amber-600 dark:border-amber-500 dark:bg-amber-600 dark:hover:bg-amber-500",
   green:
     "border-emerald-600 bg-emerald-600 text-white hover:bg-emerald-700 dark:border-emerald-600 dark:bg-emerald-600 dark:hover:bg-emerald-500",
-  blue: "border-blue-600 bg-blue-600 text-white hover:bg-blue-700 dark:border-blue-600 dark:bg-blue-600 dark:hover:bg-blue-500",
+  blue: "border-primary bg-primary text-primary-foreground hover:bg-primary/90",
 };
 
 const flexDirectionClasses = {

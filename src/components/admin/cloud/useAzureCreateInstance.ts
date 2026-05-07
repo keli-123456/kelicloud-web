@@ -5,8 +5,6 @@ import { toast } from "sonner";
 import {
   createAzureInstance,
   type AzureCatalog,
-  type AzureInstance,
-  type AzureInstanceDetail,
 } from "@/lib/cloudAzure";
 import {
   buildCreateFormFromPreset,
@@ -20,16 +18,12 @@ import {
 type UseAzureCreateInstanceOptions = {
   t: TFunction;
   catalog: AzureCatalog | null;
-  setDetailInstance: React.Dispatch<React.SetStateAction<AzureInstance | null>>;
-  setDetailData: React.Dispatch<React.SetStateAction<AzureInstanceDetail | null>>;
   loadResources: () => Promise<void>;
 };
 
 export function useAzureCreateInstance({
   t,
   catalog,
-  setDetailInstance,
-  setDetailData,
   loadResources,
 }: UseAzureCreateInstanceOptions) {
   const [createOpen, setCreateOpen] = React.useState(false);
@@ -80,10 +74,6 @@ export function useAzureCreateInstance({
         ...buildCreateFormFromPreset(initialAzureImagePreset.id),
         size: getDefaultAzureSize(catalog),
       });
-      if (result.detail?.instance?.instance_id) {
-        setDetailInstance(result.detail.instance);
-        setDetailData(result.detail);
-      }
       await loadResources();
     } catch (error) {
       toast.error(toErrorMessage(error));

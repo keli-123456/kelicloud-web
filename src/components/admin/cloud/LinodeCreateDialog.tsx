@@ -1,11 +1,13 @@
 import type { Dispatch, SetStateAction } from "react";
 import type { TFunction } from "i18next";
+import { Server } from "lucide-react";
 
 import type { LinodeCatalog } from "@/lib/cloudLinode";
 import {
+  Badge,
   Button,
   Checkbox,
-  cloudDialogContentClassName,
+  CloudSensitiveDialogContent,
   cloudPanelBodyTextClassName,
   cloudPanelFieldLabelClassName,
   cloudPanelSectionClassName,
@@ -47,16 +49,17 @@ export function LinodeCreateDialog({
 }: LinodeCreateDialogProps) {
   return (
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
-      <Dialog.Content className={cloudDialogContentClassName}>
-        <Dialog.Title>{t("cloud.providers.linode.create", "Create Instance")}</Dialog.Title>
-        <Dialog.Description>
-          {t(
+      <CloudSensitiveDialogContent
+        title={t("cloud.providers.linode.create", "Create Instance")}
+        description={t(
             "cloud.providers.linode.create_description",
             "Choose the region, plan, image, and root password mode for the new Linode instance.",
           )}
-        </Dialog.Description>
+        icon={<Server className="size-4" />}
+        badge={<Badge color="blue">{t("cloud.providers.linode.name", "Linode")}</Badge>}
+      >
 
-        <div className="mt-4 flex flex-col gap-4">
+        <div className="flex flex-col gap-4">
           <label className={cloudPanelFieldLabelClassName}>
             {t("cloud.form.region", "Region")}
           </label>
@@ -219,7 +222,7 @@ export function LinodeCreateDialog({
             </Button>
           </Flex>
         </div>
-      </Dialog.Content>
+      </CloudSensitiveDialogContent>
     </Dialog.Root>
   );
 }

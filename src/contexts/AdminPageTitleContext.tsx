@@ -9,7 +9,13 @@ import {
 
 type AdminPageTitleContextValue = {
   title: ReactNode | null;
-  setTitle: (title: ReactNode | null) => void;
+  description: ReactNode | null;
+  setHeader: (header: AdminPageHeaderState) => void;
+};
+
+type AdminPageHeaderState = {
+  title: ReactNode | null;
+  description: ReactNode | null;
 };
 
 const AdminPageTitleContext = createContext<AdminPageTitleContextValue | null>(
@@ -17,8 +23,18 @@ const AdminPageTitleContext = createContext<AdminPageTitleContextValue | null>(
 );
 
 export function AdminPageTitleProvider({ children }: { children: ReactNode }) {
-  const [title, setTitle] = useState<ReactNode | null>(null);
-  const value = useMemo(() => ({ title, setTitle }), [title]);
+  const [header, setHeader] = useState<AdminPageHeaderState>({
+    title: null,
+    description: null,
+  });
+  const value = useMemo(
+    () => ({
+      title: header.title,
+      description: header.description,
+      setHeader,
+    }),
+    [header.description, header.title],
+  );
 
   return (
     <AdminPageTitleContext.Provider value={value}>
@@ -27,19 +43,36 @@ export function AdminPageTitleProvider({ children }: { children: ReactNode }) {
   );
 }
 
-export function useAdminPageTitle(title: ReactNode | null | undefined) {
-  const setTitle = useContext(AdminPageTitleContext)?.setTitle;
+export function useAdminPageTitle(
+  title: ReactNode | null | undefined,
+  description?: ReactNode | null,
+) {
+  const setHeader = useContext(AdminPageTitleContext)?.setHeader;
 
   useEffect(() => {
-    if (!setTitle) return;
+    if (!setHeader) return;
 
-    setTitle(title ?? null);
+    setHeader({
+      title: title ?? null,
+      description: description ?? null,
+    });
     return () => {
-      setTitle(null);
+      setHeader({
+        title: null,
+        description: null,
+      });
     };
-  }, [setTitle, title]);
+  }, [description, setHeader, title]);
 }
 
 export function useCurrentAdminPageTitle() {
   return useContext(AdminPageTitleContext)?.title ?? null;
+}
+
+export function useCurrentAdminPageHeader() {
+  const context = useContext(AdminPageTitleContext);
+  return {
+    title: context?.title ?? null,
+    description: context?.description ?? null,
+  };
 }

@@ -25,6 +25,10 @@ import {
   AdminTableSkeleton,
 } from "@/components/admin/AdminPageShell";
 import {
+  AdminPagination,
+  useClientPagination,
+} from "@/components/admin/AdminPagination";
+import {
   ADMIN_FORM_DIALOG_CLASS,
   ADMIN_FORM_DIALOG_WIDE_CLASS,
   ADMIN_FORM_FIELD_CLASS as FORM_FIELD_CLASS,
@@ -89,6 +93,7 @@ import {
 import { getAWSCredentials } from "@/lib/cloudAws";
 import { getAzureCredentials, type AzureImageReference } from "@/lib/cloudAzure";
 import { getLinodeTokens } from "@/lib/cloudLinode";
+import { getVultrTokens } from "@/lib/cloudVultr";
 import {
   azureImagePresets,
   initialAzureImagePreset,
@@ -404,6 +409,7 @@ const FAILOVER_PROVIDER_KEYS = [
   "azure",
   "digitalocean",
   "linode",
+  "vultr",
 ] as const;
 
 const DELETE_STRATEGY_VALUES = [
@@ -414,12 +420,13 @@ const DELETE_STRATEGY_VALUES = [
 
 const DNS_PROVIDER_VALUES = ["cloudflare", "aliyun"] as const;
 
-const PLAN_PROVIDER_VALUES = ["aws", "azure", "digitalocean", "linode"] as const;
+const PLAN_PROVIDER_VALUES = ["aws", "azure", "digitalocean", "linode", "vultr"] as const;
 const PLAN_PROVIDER_REQUIRED_FEATURES: Record<(typeof PLAN_PROVIDER_VALUES)[number], AccountFeature> = {
   aws: "cloud_aws",
   azure: "cloud_azure",
   digitalocean: "cloud_digitalocean",
   linode: "cloud_linode",
+  vultr: "cloud_vultr",
 };
 
 const ACTION_TYPE_VALUES: Record<string, string[]> = {
@@ -427,6 +434,7 @@ const ACTION_TYPE_VALUES: Record<string, string[]> = {
   azure: ["provision_instance"],
   digitalocean: ["provision_instance"],
   linode: ["provision_instance"],
+  vultr: ["provision_instance"],
 };
 
 const DNS_RECORD_TYPE_VALUES = ["A", "AAAA"] as const;
@@ -488,31 +496,6 @@ const STATIC_EC2_INSTANCE_TYPE_PRESETS: StaticEC2InstanceTypePreset[] = [
 ];
 const STATIC_EC2_IMAGE_PRESETS: StaticEC2ImagePreset[] = [
   {
-    value: "resolve:ssm:/aws/service/ami-amazon-linux-latest/al2023-ami-kernel-default-x86_64",
-    label: "Amazon Linux 2023",
-    summary: "AWS public parameter, x86_64, default kernel",
-  },
-  {
-    value: "resolve:ssm:/aws/service/ami-amazon-linux-latest/al2023-ami-minimal-kernel-default-x86_64",
-    label: "Amazon Linux 2023 Minimal",
-    summary: "AWS public parameter, x86_64, minimal image",
-  },
-  {
-    value: "resolve:ssm:/aws/service/ami-amazon-linux-latest/al2023-ami-kernel-default-arm64",
-    label: "Amazon Linux 2023 ARM64",
-    summary: "AWS public parameter, arm64, Graviton-ready",
-  },
-  {
-    value: "resolve:ssm:/aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-x86_64-gp2",
-    label: "Amazon Linux 2",
-    summary: "AWS public parameter, x86_64, legacy-compatible",
-  },
-  {
-    value: "resolve:ssm:/aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-arm64-gp2",
-    label: "Amazon Linux 2 ARM64",
-    summary: "AWS public parameter, arm64, legacy-compatible",
-  },
-  {
     value: "resolve:ssm:/aws/service/canonical/ubuntu/server/24.04/stable/current/amd64/hvm/ebs-gp3/ami-id",
     label: "Ubuntu Server 24.04 LTS",
     summary: "Canonical public parameter, amd64, gp3",
@@ -559,13 +542,11 @@ const STATIC_EC2_IMAGE_PRESETS: StaticEC2ImagePreset[] = [
   },
 ];
 const STATIC_LIGHTSAIL_BLUEPRINT_PRESETS: StaticLightsailBlueprintPreset[] = [
-  { value: "amazon_linux_2023", label: "Amazon Linux 2023", summary: "OS only, Linux", platform: "linux" },
   { value: "ubuntu_24_04", label: "Ubuntu 24.04 LTS", summary: "OS only, Linux", platform: "linux" },
   { value: "ubuntu_22_04", label: "Ubuntu 22.04 LTS", summary: "OS only, Linux", platform: "linux" },
   { value: "ubuntu_20_04", label: "Ubuntu 20.04 LTS", summary: "OS only, Linux", platform: "linux" },
   { value: "debian_12", label: "Debian 12", summary: "OS only, Linux", platform: "linux" },
   { value: "debian_11", label: "Debian 11", summary: "OS only, Linux", platform: "linux" },
-  { value: "wordpress", label: "WordPress", summary: "Bitnami app image, Linux", platform: "linux" },
   { value: "windows_server_2022", label: "Windows Server 2022", summary: "OS only, Windows", platform: "windows" },
 ];
 const STATIC_LIGHTSAIL_BUNDLE_PRESETS: StaticLightsailBundlePreset[] = [
@@ -577,11 +558,12 @@ const STATIC_LIGHTSAIL_BUNDLE_PRESETS: StaticLightsailBundlePreset[] = [
   { value: "large_win_3_0", label: "Large Windows", summary: "Windows plan example from AWS docs", platform: "windows" },
 ];
 const DEFAULT_AWS_FAILOVER_EC2_INSTANCE_TYPE = STATIC_EC2_INSTANCE_TYPE_PRESETS[0]?.value || "t3.micro";
-const DEFAULT_AWS_FAILOVER_EC2_IMAGE_ID = STATIC_EC2_IMAGE_PRESETS[0]?.value || "resolve:ssm:/aws/service/ami-amazon-linux-latest/al2023-ami-kernel-default-x86_64";
-const DEFAULT_AWS_FAILOVER_LIGHTSAIL_BLUEPRINT_ID = STATIC_LIGHTSAIL_BLUEPRINT_PRESETS[0]?.value || "amazon_linux_2023";
+const DEFAULT_AWS_FAILOVER_EC2_IMAGE_ID = STATIC_EC2_IMAGE_PRESETS[0]?.value || "resolve:ssm:/aws/service/canonical/ubuntu/server/24.04/stable/current/amd64/hvm/ebs-gp3/ami-id";
+const DEFAULT_AWS_FAILOVER_LIGHTSAIL_BLUEPRINT_ID = STATIC_LIGHTSAIL_BLUEPRINT_PRESETS[0]?.value || "ubuntu_24_04";
 const DEFAULT_AWS_FAILOVER_LIGHTSAIL_BUNDLE_ID = STATIC_LIGHTSAIL_BUNDLE_PRESETS.find((preset) => preset.platform === "linux")?.value || "nano_3_0";
 const DEFAULT_DIGITALOCEAN_IMAGE = "ubuntu-24-04-x64";
 const DEFAULT_LINODE_IMAGE = "linode/ubuntu24.04";
+const DEFAULT_VULTR_IMAGE = "2284";
 const DEFAULT_AZURE_REGION = "eastus";
 const DEFAULT_AZURE_SIZE = "Standard_B1s";
 const DEFAULT_AZURE_ADMIN_USERNAME = "azureuser";
@@ -607,6 +589,7 @@ const COMMON_DIGITALOCEAN_IMAGES: FailoverCatalogOption[] = [
   { value: "ubuntu-24-04-x64", label: "Ubuntu 24.04 LTS", hint: "" },
   { value: "ubuntu-22-04-x64", label: "Ubuntu 22.04 LTS", hint: "" },
   { value: "debian-12-x64", label: "Debian 12", hint: "" },
+  { value: "centos-stream-9-x64", label: "CentOS Stream 9", hint: "" },
 ];
 const COMMON_LINODE_REGIONS: FailoverCatalogOption[] = [
   { value: "us-east", label: "Newark", hint: "us" },
@@ -628,6 +611,31 @@ const COMMON_LINODE_IMAGES: FailoverCatalogOption[] = [
   { value: "linode/ubuntu24.04", label: "Ubuntu 24.04 LTS", hint: "" },
   { value: "linode/ubuntu22.04", label: "Ubuntu 22.04 LTS", hint: "" },
   { value: "linode/debian12", label: "Debian 12", hint: "" },
+  { value: "linode/centos-stream9", label: "CentOS Stream 9", hint: "" },
+];
+const COMMON_VULTR_REGIONS: FailoverCatalogOption[] = [
+  { value: "sgp", label: "Singapore", hint: "sg" },
+  { value: "nrt", label: "Tokyo", hint: "jp" },
+  { value: "icn", label: "Seoul", hint: "kr" },
+  { value: "syd", label: "Sydney", hint: "au" },
+  { value: "lax", label: "Los Angeles", hint: "us" },
+  { value: "sea", label: "Seattle", hint: "us" },
+  { value: "ewr", label: "New Jersey", hint: "us" },
+  { value: "ord", label: "Chicago", hint: "us" },
+  { value: "ams", label: "Amsterdam", hint: "nl" },
+  { value: "fra", label: "Frankfurt", hint: "de" },
+  { value: "lhr", label: "London", hint: "gb" },
+];
+const COMMON_VULTR_PLANS: FailoverCatalogOption[] = [
+  { value: "vc2-1c-1gb", label: "Cloud Compute 1 GB", hint: "1 vCPU / 1 GB" },
+  { value: "vc2-1c-2gb", label: "Cloud Compute 2 GB", hint: "1 vCPU / 2 GB" },
+  { value: "vc2-2c-4gb", label: "Cloud Compute 4 GB", hint: "2 vCPU / 4 GB" },
+  { value: "vc2-4c-8gb", label: "Cloud Compute 8 GB", hint: "4 vCPU / 8 GB" },
+];
+const COMMON_VULTR_IMAGES: FailoverCatalogOption[] = [
+  { value: "2284", label: "Ubuntu 24.04 LTS x64", hint: "" },
+  { value: "1743", label: "Ubuntu 22.04 LTS x64", hint: "" },
+  { value: "2136", label: "Debian 12 x64", hint: "" },
 ];
 const DIGITALOCEAN_REGION_COUNTRIES: Record<string, string> = {
   ams: "nl",
@@ -2203,11 +2211,13 @@ function getPlanProviderLabel(t: TFunction, value: string) {
         ? "DigitalOcean"
         : value === "linode"
           ? "Linode"
-          : value === "azure"
-            ? "Azure"
-            : value === "aws"
-              ? "AWS"
-              : humanizeStatus(value),
+          : value === "vultr"
+            ? "Vultr"
+            : value === "azure"
+              ? "Azure"
+              : value === "aws"
+                ? "AWS"
+                : humanizeStatus(value),
   });
 }
 
@@ -2585,7 +2595,7 @@ function formatPlanRegionOptionLabel(
     }
   }
 
-  if (provider === "linode") {
+  if (provider === "linode" || provider === "vultr") {
     const country = localizeCountryLabel(t, option.hint || "");
     if (country) {
       return `${option.value} (${country}) / ${option.label}`;
@@ -2876,6 +2886,19 @@ function defaultPlanPayload(provider: string, actionType: string) {
     };
   }
 
+  if (provider === "vultr") {
+    return {
+      region: "",
+      plan: "",
+      os_id: Number(DEFAULT_VULTR_IMAGE),
+      enable_ipv6: true,
+      backups_enabled: false,
+      ddos_protection: false,
+      root_password_mode: "provider_default",
+      root_password: "",
+    };
+  }
+
   return {};
 }
 
@@ -3011,6 +3034,32 @@ function mergeLinodePlanCatalogWithCommon(
   } satisfies FailoverPlanCatalog;
 }
 
+function buildCommonVultrPlanCatalog(region = "") {
+  return {
+    ...createEmptyPlanCatalog("vultr", "provision_instance", "", region, COMMON_VULTR_REGIONS),
+    sizes: COMMON_VULTR_PLANS,
+    images: COMMON_VULTR_IMAGES,
+  } satisfies FailoverPlanCatalog;
+}
+
+function mergeVultrPlanCatalogWithCommon(
+  catalog: FailoverPlanCatalog | null,
+  region = "",
+) {
+  const commonCatalog = buildCommonVultrPlanCatalog(region);
+  if (!catalog || catalog.provider !== "vultr") {
+    return commonCatalog;
+  }
+
+  return {
+    ...catalog,
+    region: catalog.region || region,
+    regions: mergeCatalogOptions(commonCatalog.regions, catalog.regions),
+    sizes: mergeCatalogOptions(commonCatalog.sizes, catalog.sizes),
+    images: mergeCatalogOptions(commonCatalog.images, catalog.images),
+  } satisfies FailoverPlanCatalog;
+}
+
 function buildCommonAzurePlanCatalog(region = "") {
   return {
     ...createEmptyPlanCatalog("azure", "provision_instance", "", region || DEFAULT_AZURE_REGION, [
@@ -3117,6 +3166,20 @@ function validatePlanPayload(
     requirePlanField(t, index, t("failover.editor.region", { defaultValue: "Region" }), payload.region);
     requirePlanField(t, index, t("failover.editor.type", { defaultValue: "Plan type" }), payload.type);
     requirePlanField(t, index, t("failover.editor.image", { defaultValue: "Image" }), payload.image);
+  }
+
+  if (provider === "vultr" && actionType === "provision_instance") {
+    requirePlanField(t, index, t("failover.editor.region", { defaultValue: "Region" }), payload.region);
+    requirePlanField(t, index, t("failover.editor.plan", { defaultValue: "Plan" }), payload.plan);
+    if (!Number.isFinite(Number(payload.os_id)) || Number(payload.os_id) <= 0) {
+      throw new Error(
+        t("failover.validation.plan_field_required", {
+          defaultValue: "Plan {{index}} requires {{field}}",
+          index: index + 1,
+          field: t("failover.editor.image", { defaultValue: "Image" }),
+        }),
+      );
+    }
   }
 }
 
@@ -3231,6 +3294,19 @@ function normalizePlanPayloadForSubmit(
     nextPayload.image = getStringValue(nextPayload.image) || DEFAULT_LINODE_IMAGE;
     nextPayload.root_password = rootPassword;
     nextPayload.root_password_mode = rootPassword ? "custom" : "random";
+    return nextPayload;
+  }
+
+  if (provider === "vultr" && actionType === "provision_instance") {
+    const rootPassword = getStringValue(nextPayload.root_password);
+    const osID = Number(nextPayload.os_id || DEFAULT_VULTR_IMAGE);
+    nextPayload.plan = getStringValue(nextPayload.plan);
+    nextPayload.os_id = Number.isFinite(osID) ? Math.trunc(osID) : Number(DEFAULT_VULTR_IMAGE);
+    nextPayload.root_password = rootPassword;
+    nextPayload.root_password_mode = rootPassword ? "custom" : "provider_default";
+    nextPayload.enable_ipv6 = getBooleanValue(nextPayload.enable_ipv6, true);
+    nextPayload.backups_enabled = getBooleanValue(nextPayload.backups_enabled, false);
+    nextPayload.ddos_protection = getBooleanValue(nextPayload.ddos_protection, false);
     return nextPayload;
   }
 
@@ -3656,6 +3732,17 @@ async function getFailoverProviderEntries(provider: string): Promise<ProviderEnt
 
   if (provider === "linode") {
     const pool = await getLinodeTokens();
+    return normalizeEntries(pool.tokens.map((token) => ({
+      id: token.id,
+      name: token.name,
+      group: token.group,
+      active: token.is_active,
+      values: {},
+    })));
+  }
+
+  if (provider === "vultr") {
+    const pool = await getVultrTokens();
     return normalizeEntries(pool.tokens.map((token) => ({
       id: token.id,
       name: token.name,
@@ -4495,6 +4582,24 @@ function summarizePlanPayload(t: TFunction, plan: PlanFormState) {
     return parts.filter(Boolean).join(" · ");
   }
 
+  if (plan.provider === "vultr") {
+    if (region) {
+      parts.push(region);
+    }
+    const planSlug = getStringValue(payload.plan);
+    const osID = getNumberValue(payload.os_id, 0);
+    if (planSlug) {
+      parts.push(planSlug);
+    }
+    if (osID > 0) {
+      parts.push(String(osID));
+    }
+    if (getBooleanValue(payload.enable_ipv6, true)) {
+      parts.push(t("cloud.form.ipv6", { defaultValue: "Enable IPv6" }));
+    }
+    return parts.filter(Boolean).join(" · ");
+  }
+
   return region;
 }
 
@@ -4953,7 +5058,7 @@ function ExecutionAttemptSection({
     <div className="space-y-2 rounded-lg border border-slate-200/80 px-4 py-4 dark:border-slate-800/80">
       <div className="space-y-1">
         <div className="text-sm font-medium text-slate-900 dark:text-slate-50">
-          {t("failover.execution.attempt_overview", { defaultValue: "Attempt overview" })}
+          {t("failover.execution.attempt_overview", { defaultValue: "Attempt details" })}
         </div>
         <div className="text-xs text-muted-foreground">
           {t("failover.execution.attempt_overview_hint", {
@@ -5893,6 +5998,10 @@ function TaskEditorDialog({
     () => getStringValue(selectedPlanPayload.type),
     [selectedPlanPayload],
   );
+  const selectedVultrOSID = React.useMemo(
+    () => String(getNumberValue(selectedPlanPayload.os_id, Number(DEFAULT_VULTR_IMAGE))),
+    [selectedPlanPayload],
+  );
   const selectedAWSEC2ImageID = React.useMemo(
     () => getStringValue(selectedPlanPayload.image_id),
     [selectedPlanPayload],
@@ -6018,6 +6127,15 @@ function TaskEditorDialog({
     ),
     [isLinodeProvisionPlan, planCatalog, selectedPlanRegion],
   );
+  const isVultrProvisionPlan = selectedPlan?.provider === "vultr" && selectedPlan.action_type === "provision_instance";
+  const vultrPlanCatalog = React.useMemo(
+    () => (
+      isVultrProvisionPlan
+        ? mergeVultrPlanCatalogWithCommon(planCatalog, selectedPlanRegion)
+        : null
+    ),
+    [isVultrProvisionPlan, planCatalog, selectedPlanRegion],
+  );
   const digitalOceanRegionOptions = React.useMemo(
     () => appendCatalogOptionIfMissing(digitalOceanPlanCatalog?.regions || [], selectedPlanRegion),
     [digitalOceanPlanCatalog, selectedPlanRegion],
@@ -6061,11 +6179,23 @@ function TaskEditorDialog({
     () => appendCatalogOptionIfMissing(linodePlanCatalog?.images || [], selectedPlanImage),
     [linodePlanCatalog, selectedPlanImage],
   );
+  const vultrRegionOptions = React.useMemo(
+    () => appendCatalogOptionIfMissing(vultrPlanCatalog?.regions || [], selectedPlanRegion),
+    [vultrPlanCatalog, selectedPlanRegion],
+  );
+  const vultrPlanOptions = React.useMemo(
+    () => appendCatalogOptionIfMissing(vultrPlanCatalog?.sizes || [], getStringValue(selectedPlanPayload.plan)),
+    [selectedPlanPayload.plan, vultrPlanCatalog],
+  );
+  const vultrImageOptions = React.useMemo(
+    () => appendCatalogOptionIfMissing(vultrPlanCatalog?.images || [], selectedVultrOSID),
+    [selectedVultrOSID, vultrPlanCatalog],
+  );
   const canLoadPlanCatalog = Boolean(
     selectedPlan?.provider.trim()
     && (selectedPlan.provider_entry_id.trim() || selectedPlan.provider_entry_group.trim()),
   );
-  const usesCommonPlanCatalogDefaults = isAzureProvisionPlan || isDigitalOceanProvisionPlan || isLinodeProvisionPlan;
+  const usesCommonPlanCatalogDefaults = isAzureProvisionPlan || isDigitalOceanProvisionPlan || isLinodeProvisionPlan || isVultrProvisionPlan;
   const showPlanCatalogLoadActions = !isAWSPlan;
   const canLoadPlanDetails = canLoadPlanCatalog && (usesCommonPlanCatalogDefaults || Boolean(selectedPlanRegion.trim()));
   const suggestedAutoConnectGroup = React.useMemo(
@@ -9536,6 +9666,177 @@ function TaskEditorDialog({
                           </div>
                         </div>
                       ) : null}
+
+                      {selectedPlan.provider === "vultr" && selectedPlan.action_type === "provision_instance" ? (
+                        <div className="grid gap-4 lg:grid-cols-2">
+                          <div className="space-y-2">
+                            <Label>{t("failover.editor.region", { defaultValue: "Region" })}</Label>
+                            {vultrRegionOptions.length > 0 ? (
+                              <Select
+                                value={getStringValue(selectedPlanPayload.region) || undefined}
+                                onValueChange={(value) => {
+                                  updateSelectedPlanPayload((current) => ({
+                                    ...current,
+                                    region: value,
+                                  }));
+                                  resetPlanCatalogState(keepPlanCatalogRegions(
+                                    planCatalog,
+                                    selectedPlan.provider,
+                                    selectedPlan.action_type,
+                                    selectedPlanService,
+                                    value,
+                                  ));
+                                }}
+                              >
+                                <SelectTrigger>
+                                  <SelectValue placeholder={t("failover.editor.region_placeholder", { defaultValue: "Choose a region" })} />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {vultrRegionOptions.map((option) => (
+                                    <SelectItem key={option.value} value={option.value}>
+                                      {formatPlanRegionOptionLabel(t, selectedPlan.provider, option)}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            ) : (
+                              <div className="rounded-lg border border-dashed px-4 py-3 text-sm text-muted-foreground">
+                                {t("failover.editor.load_plan_regions_first", {
+                                  defaultValue: "Load regions first, then choose a region.",
+                                })}
+                              </div>
+                            )}
+                          </div>
+                          <div className="space-y-2">
+                            <Label>{t("failover.editor.plan", { defaultValue: "Plan" })}</Label>
+                            {vultrPlanOptions.length > 0 ? (
+                              <SearchableCatalogSelect
+                                value={getStringValue(selectedPlanPayload.plan) || undefined}
+                                options={vultrPlanOptions}
+                                onValueChange={(value) => updateSelectedPlanPayload((current) => ({
+                                  ...current,
+                                  plan: value,
+                                }))}
+                                placeholder={t("failover.editor.plan_placeholder", { defaultValue: "Choose a plan" })}
+                                searchPlaceholder={t("failover.editor.plan_search_placeholder", { defaultValue: "Search plans..." })}
+                                emptyLabel={t("failover.editor.plan_search_empty", { defaultValue: "No matching plan" })}
+                              />
+                            ) : (
+                              <div className="rounded-lg border border-dashed px-4 py-3 text-sm text-muted-foreground">
+                                {t("failover.editor.load_plan_options_first", {
+                                  defaultValue: "Choose a region first, then load provider options.",
+                                })}
+                              </div>
+                            )}
+                          </div>
+                          <div className="space-y-2">
+                            <Label>{t("failover.editor.image", { defaultValue: "Image" })}</Label>
+                            {vultrImageOptions.length > 0 ? (
+                              <SearchableCatalogSelect
+                                value={selectedVultrOSID || undefined}
+                                options={vultrImageOptions}
+                                onValueChange={(value) => updateSelectedPlanPayload((current) => ({
+                                  ...current,
+                                  os_id: Number(value),
+                                }))}
+                                placeholder={t("failover.editor.image_placeholder", { defaultValue: "Choose an image" })}
+                                searchPlaceholder={t("failover.editor.image_search_placeholder", { defaultValue: "Search images..." })}
+                                emptyLabel={t("failover.editor.image_search_empty", { defaultValue: "No matching image" })}
+                              />
+                            ) : (
+                              <div className="rounded-lg border border-dashed px-4 py-3 text-sm text-muted-foreground">
+                                {t("failover.editor.load_plan_options_first", {
+                                  defaultValue: "Choose a region first, then load provider options.",
+                                })}
+                              </div>
+                            )}
+                          </div>
+                          <div className="space-y-2">
+                            <Label>{t("cloud.form.root_password", { defaultValue: "Root password" })}</Label>
+                            <Input
+                              type="password"
+                              value={getStringValue(selectedPlanPayload.root_password)}
+                              onChange={(event) => updateSelectedPlanPayload((current) => ({
+                                ...current,
+                                root_password: event.target.value,
+                              }))}
+                              placeholder={t("cloud.form.root_password_placeholder", {
+                                defaultValue: "Enter a root password",
+                              })}
+                            />
+                            <div className="text-xs text-muted-foreground">
+                              {t("cloud.form.root_password_provider_default_help", {
+                                defaultValue: "Leave it empty to save the provider default password returned by Vultr.",
+                              })}
+                            </div>
+                          </div>
+                          <div className="grid gap-3 lg:col-span-2 lg:grid-cols-3">
+                            <div className="rounded-lg bg-muted/20 px-4 py-3">
+                              <div className="flex items-center justify-between gap-4">
+                                <div className="space-y-1">
+                                  <div className="text-sm font-medium text-slate-900 dark:text-slate-50">
+                                    {t("cloud.form.ipv6", { defaultValue: "Enable IPv6" })}
+                                  </div>
+                                  <div className="text-xs text-muted-foreground">
+                                    {t("failover.editor.vultr_ipv6_hint", {
+                                      defaultValue: "Provision a dual-stack Vultr instance when the selected region supports IPv6.",
+                                    })}
+                                  </div>
+                                </div>
+                                <Switch
+                                  checked={getBooleanValue(selectedPlanPayload.enable_ipv6, true)}
+                                  onCheckedChange={(checked) => updateSelectedPlanPayload((current) => ({
+                                    ...current,
+                                    enable_ipv6: Boolean(checked),
+                                  }))}
+                                />
+                              </div>
+                            </div>
+                            <div className="rounded-lg bg-muted/20 px-4 py-3">
+                              <div className="flex items-center justify-between gap-4">
+                                <div className="space-y-1">
+                                  <div className="text-sm font-medium text-slate-900 dark:text-slate-50">
+                                    {t("failover.editor.backups", { defaultValue: "Backups" })}
+                                  </div>
+                                  <div className="text-xs text-muted-foreground">
+                                    {t("failover.editor.vultr_backups_hint", {
+                                      defaultValue: "Enable Vultr backups for the replacement instance.",
+                                    })}
+                                  </div>
+                                </div>
+                                <Switch
+                                  checked={getBooleanValue(selectedPlanPayload.backups_enabled, false)}
+                                  onCheckedChange={(checked) => updateSelectedPlanPayload((current) => ({
+                                    ...current,
+                                    backups_enabled: Boolean(checked),
+                                  }))}
+                                />
+                              </div>
+                            </div>
+                            <div className="rounded-lg bg-muted/20 px-4 py-3">
+                              <div className="flex items-center justify-between gap-4">
+                                <div className="space-y-1">
+                                  <div className="text-sm font-medium text-slate-900 dark:text-slate-50">
+                                    {t("failover.editor.ddos_protection", { defaultValue: "DDoS protection" })}
+                                  </div>
+                                  <div className="text-xs text-muted-foreground">
+                                    {t("failover.editor.vultr_ddos_hint", {
+                                      defaultValue: "Request Vultr DDoS protection when it is available for the plan and region.",
+                                    })}
+                                  </div>
+                                </div>
+                                <Switch
+                                  checked={getBooleanValue(selectedPlanPayload.ddos_protection, false)}
+                                  onCheckedChange={(checked) => updateSelectedPlanPayload((current) => ({
+                                    ...current,
+                                    ddos_protection: Boolean(checked),
+                                  }))}
+                                />
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      ) : null}
                         </>
                       ) : null}
                           </div>
@@ -9977,6 +10278,7 @@ function FailoverPageContent() {
   const [editingTask, setEditingTask] = React.useState<FailoverTask | null>(null);
   const [templateTask, setTemplateTask] = React.useState<FailoverTask | null>(null);
   const [deleteTarget, setDeleteTarget] = React.useState<FailoverTask | null>(null);
+  const [selectedTaskID, setSelectedTaskID] = React.useState<number | null>(null);
   const [selectedExecutionID, setSelectedExecutionID] = React.useState<number | null>(null);
   const [selectedExecutionTaskName, setSelectedExecutionTaskName] = React.useState("");
   const [runningTaskID, setRunningTaskID] = React.useState<number | null>(null);
@@ -10018,7 +10320,7 @@ function FailoverPageContent() {
 
   const refreshResources = React.useCallback(async () => {
     const providerKeys = FAILOVER_PROVIDER_KEYS.filter((provider) => {
-      if (provider === "aws" || provider === "azure" || provider === "digitalocean" || provider === "linode") {
+      if (provider === "aws" || provider === "azure" || provider === "digitalocean" || provider === "linode" || provider === "vultr") {
         return allowedPlanProviders.includes(provider);
       }
       return true;
@@ -10077,6 +10379,113 @@ function FailoverPageContent() {
       window.clearInterval(timer);
     };
   }, []);
+
+  React.useEffect(() => {
+    if (tasks.length === 0) {
+      if (selectedTaskID !== null) {
+        setSelectedTaskID(null);
+      }
+      return;
+    }
+
+    if (selectedTaskID === null || !tasks.some((task) => task.id === selectedTaskID)) {
+      setSelectedTaskID(tasks[0].id);
+    }
+  }, [selectedTaskID, tasks]);
+
+  const selectedTask = React.useMemo(
+    () => tasks.find((task) => task.id === selectedTaskID) || tasks[0] || null,
+    [selectedTaskID, tasks],
+  );
+  const taskPagination = useClientPagination(tasks, {
+    initialPageSize: 12,
+  });
+
+  const getTaskView = React.useCallback((task: FailoverTask) => {
+    const currentClientUUID = task.current_client_uuid || task.watch_client_uuid;
+    const latestExecution = task.latest_execution;
+    const requiresInitialization = !currentClientUUID;
+    const currentOutletIP = task.current_address || "";
+    const currentOutletLabel = currentOutletIP || t("failover.task.uninitialized", { defaultValue: "Not initialized" });
+    const dnsTargetLabel = getTaskDnsTargetLabel(task);
+    const dnsStatus = latestExecution?.dns_status || "";
+    const dnsIPv6Badge = getTaskDnsIPv6Badge(t, task, latestExecution);
+    const hasConfiguredScript = task.plans.some((plan) => plan.script_clipboard_ids.length > 0 || plan.script_clipboard_id !== null);
+    const scriptStatus = latestExecution?.script_status || "";
+    const scriptName = latestExecution?.script_name_snapshot || "";
+    const scriptNames = splitScriptSnapshotNames(scriptName);
+    const scriptPreviewNames = scriptNames.slice(0, 2);
+    const hiddenScriptCount = Math.max(0, scriptNames.length - scriptPreviewNames.length);
+    const latestCleanupInfo = latestExecution
+      ? getCleanupResultInfo(t, latestExecution.cleanup_status, latestExecution.cleanup_result)
+      : null;
+    const selectedExecutionPlan = latestExecution
+      ? getSelectedTaskPlan(task.plans, latestExecution.selected_plan_id)
+      : null;
+    const latestPlanAttempt = latestExecution
+      ? getLastExecutionPlanAttempt(latestExecution.attempted_plans)
+      : null;
+    const latestEntryAttempt = getLastExecutionEntryAttempt(latestPlanAttempt);
+    const latestPlanSummary = getExecutionPlanSummaryText(t, selectedExecutionPlan, latestPlanAttempt);
+    const latestEntrySummary = getExecutionEntrySummaryText(t, latestPlanAttempt, latestEntryAttempt);
+    const latestStep = latestExecution?.last_step || null;
+    const latestStepLabel = latestStep ? getFailoverExecutionStepLabel(t, latestStep) : "";
+    const latestStepMessage = latestStep ? getFailoverExecutionStepMessage(t, latestStep) : "";
+    const taskRiskBadges = getFailoverTaskRiskBadges(t, latestExecution, latestCleanupInfo);
+    const latestExecutionSummary = latestExecution
+      ? latestExecution.error_message
+        || (
+          latestCleanupInfo
+          && ["warning", "failed"].includes(String(latestExecution.cleanup_status || "").trim().toLowerCase())
+            ? latestCleanupInfo.title
+            : formatDateTime(latestExecution.started_at)
+        )
+      : t("failover.task.no_execution", { defaultValue: "No execution recorded yet." });
+    const cooldownSummary = task.cooldown_remaining_seconds > 0
+      ? formatDurationSeconds(task.cooldown_remaining_seconds, t)
+      : t("failover.cooldown.ready", { defaultValue: "Ready" });
+    const nextCycleAt = task.next_scheduled_check_at ? new Date(task.next_scheduled_check_at).getTime() : Number.NaN;
+    const nextCycleRemainingSeconds = Number.isFinite(nextCycleAt)
+      ? Math.max(0, Math.ceil((nextCycleAt - clockNow) / 1000))
+      : Math.max(0, task.next_scheduled_check_remaining_seconds);
+    const nextCycleSummary = task.enabled && !task.has_active_execution && (task.next_scheduled_check_at || task.next_scheduled_check_remaining_seconds > 0)
+      ? nextCycleRemainingSeconds > 0
+        ? formatDurationSeconds(nextCycleRemainingSeconds, t)
+        : t("failover.table.next_cycle_now", { defaultValue: "Now" })
+      : null;
+    const staleRetrySummary = task.probe.stale && task.failure_threshold > 0
+      ? t("failover.probe.stale_with_retry", {
+        defaultValue: "Stale ({{current}}/{{total}})",
+        current: Math.min(Math.max(0, task.trigger_failure_count), task.failure_threshold),
+        total: task.failure_threshold,
+      })
+      : null;
+
+    return {
+      currentClientUUID,
+      currentOutletLabel,
+      dnsIPv6Badge,
+      dnsStatus,
+      dnsTargetLabel,
+      hasConfiguredScript,
+      hiddenScriptCount,
+      latestEntrySummary,
+      latestExecution,
+      latestExecutionSummary,
+      latestPlanSummary,
+      latestStepLabel,
+      latestStepMessage,
+      nextCycleSummary,
+      requiresInitialization,
+      scriptName,
+      scriptNames,
+      scriptPreviewNames,
+      scriptStatus,
+      staleRetrySummary,
+      taskRiskBadges,
+      cooldownSummary,
+    };
+  }, [clockNow, t]);
 
   const openCreateDialog = () => {
     setEditorMode("create");
@@ -10259,172 +10668,324 @@ function FailoverPageContent() {
         ) : null}
 
         {!loading && !error && tasks.length > 0 ? (
-          <div className="space-y-3">
-            {tasks.map((task) => {
-              const currentClientUUID = task.current_client_uuid || task.watch_client_uuid;
-              const latestExecution = task.latest_execution;
-              const taskBusy = busyTaskID === task.id;
-              const taskRunning = runningTaskID === task.id;
-              const executionStopping = latestExecution ? stoppingExecutionID === latestExecution.id : false;
-              const requiresInitialization = !currentClientUUID;
-              const currentOutletIP = task.current_address || "";
-              const currentOutletLabel = currentOutletIP || t("failover.task.uninitialized", { defaultValue: "Not initialized" });
-              const dnsTargetLabel = getTaskDnsTargetLabel(task);
-              const dnsStatus = latestExecution?.dns_status || "";
-              const dnsIPv6Badge = getTaskDnsIPv6Badge(t, task, latestExecution);
-              const hasConfiguredScript = task.plans.some((plan) => plan.script_clipboard_ids.length > 0 || plan.script_clipboard_id !== null);
-              const scriptStatus = latestExecution?.script_status || "";
-              const scriptName = latestExecution?.script_name_snapshot || "";
-              const scriptNames = splitScriptSnapshotNames(scriptName);
-              const scriptPreviewNames = scriptNames.slice(0, 2);
-              const hiddenScriptCount = Math.max(0, scriptNames.length - scriptPreviewNames.length);
-              const latestCleanupInfo = latestExecution
-                ? getCleanupResultInfo(t, latestExecution.cleanup_status, latestExecution.cleanup_result)
-                : null;
-              const selectedExecutionPlan = latestExecution
-                ? getSelectedTaskPlan(task.plans, latestExecution.selected_plan_id)
-                : null;
-              const latestPlanAttempt = latestExecution
-                ? getLastExecutionPlanAttempt(latestExecution.attempted_plans)
-                : null;
-              const latestEntryAttempt = getLastExecutionEntryAttempt(latestPlanAttempt);
-              const latestPlanSummary = getExecutionPlanSummaryText(t, selectedExecutionPlan, latestPlanAttempt);
-              const latestEntrySummary = getExecutionEntrySummaryText(t, latestPlanAttempt, latestEntryAttempt);
-              const latestStep = latestExecution?.last_step || null;
-              const latestStepLabel = latestStep ? getFailoverExecutionStepLabel(t, latestStep) : "";
-              const latestStepMessage = latestStep ? getFailoverExecutionStepMessage(t, latestStep) : "";
-              const taskRiskBadges = getFailoverTaskRiskBadges(t, latestExecution, latestCleanupInfo);
-              const latestExecutionSummary = latestExecution
-                ? latestExecution.error_message
-                  || (
-                    latestCleanupInfo
-                    && ["warning", "failed"].includes(String(latestExecution.cleanup_status || "").trim().toLowerCase())
-                      ? latestCleanupInfo.title
-                      : formatDateTime(latestExecution.started_at)
-                  )
-                : t("failover.task.no_execution", { defaultValue: "No execution recorded yet." });
-              const cooldownSummary = task.cooldown_remaining_seconds > 0
-                ? formatDurationSeconds(task.cooldown_remaining_seconds, t)
-                : t("failover.cooldown.ready", { defaultValue: "Ready" });
-              const nextCycleAt = task.next_scheduled_check_at ? new Date(task.next_scheduled_check_at).getTime() : Number.NaN;
-              const nextCycleRemainingSeconds = Number.isFinite(nextCycleAt)
-                ? Math.max(0, Math.ceil((nextCycleAt - clockNow) / 1000))
-                : Math.max(0, task.next_scheduled_check_remaining_seconds);
-              const nextCycleSummary = task.enabled && !task.has_active_execution && (task.next_scheduled_check_at || task.next_scheduled_check_remaining_seconds > 0)
-                ? nextCycleRemainingSeconds > 0
-                  ? formatDurationSeconds(nextCycleRemainingSeconds, t)
-                  : t("failover.table.next_cycle_now", { defaultValue: "Now" })
-                : null;
-              const staleRetrySummary = task.probe.stale && task.failure_threshold > 0
-                ? t("failover.probe.stale_with_retry", {
-                  defaultValue: "Stale ({{current}}/{{total}})",
-                  current: Math.min(Math.max(0, task.trigger_failure_count), task.failure_threshold),
-                  total: task.failure_threshold,
-                })
-                : null;
+          <div className="grid min-w-0 gap-3 xl:grid-cols-[minmax(0,1fr)_390px]">
+            <Card className="min-w-0 overflow-hidden border-slate-200/80 bg-card py-0 shadow-sm shadow-slate-900/5 dark:border-slate-800/80">
+              <div className="flex min-h-[54px] flex-col gap-2 border-b border-border px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+                <div className="min-w-0">
+                  <h2 className="text-sm font-semibold leading-5 text-foreground">
+                    {t("failover.workspace.tasks", { defaultValue: "任务列表" })}
+                  </h2>
+                  <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                    {t("failover.workspace.tasks_hint", { defaultValue: "按任务、出口、DNS 与最近执行状态快速扫描。" })}
+                  </p>
+                </div>
+                <span className="shrink-0 font-mono text-[11px] text-muted-foreground">/api/admin/failover/tasks</span>
+              </div>
 
-              return (
-                <Card
-                  key={task.id}
-                  className={cn(
-                    "overflow-hidden border-slate-200/80 bg-card py-0 dark:border-slate-800/80",
-                    task.has_active_execution && "border-amber-300/80 dark:border-amber-700/60",
-                  )}
-                >
-                  <div className="grid gap-3 px-4 py-3 lg:grid-cols-[minmax(0,2.3fr)_minmax(0,1.35fr)_auto] lg:items-center">
-                    <div className="min-w-0 space-y-1">
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[980px] text-left text-sm">
+                  <thead>
+                    <tr className="border-b border-border bg-muted/30 text-[12px] font-semibold text-muted-foreground">
+                      <th className="px-4 py-3">{t("failover.workspace.col_task", { defaultValue: "任务" })}</th>
+                      <th className="px-4 py-3">{t("failover.workspace.col_outlet", { defaultValue: "当前出口" })}</th>
+                      <th className="px-4 py-3">{t("failover.workspace.col_dns", { defaultValue: "DNS" })}</th>
+                      <th className="px-4 py-3">{t("failover.workspace.col_execution", { defaultValue: "最近执行" })}</th>
+                      <th className="px-4 py-3">{t("failover.workspace.col_schedule", { defaultValue: "调度" })}</th>
+                      <th className="px-4 py-3 text-right">{t("common.actions", { defaultValue: "Actions" })}</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {taskPagination.pageItems.map((task) => {
+                      const view = getTaskView(task);
+                      const latestExecution = view.latestExecution;
+                      const taskBusy = busyTaskID === task.id;
+                      const taskRunning = runningTaskID === task.id;
+                      const selected = selectedTask?.id === task.id;
+
+                      return (
+                        <tr
+                          key={task.id}
+                          role="button"
+                          tabIndex={0}
+                          onClick={() => setSelectedTaskID(task.id)}
+                          onKeyDown={(event) => {
+                            if (event.key === "Enter" || event.key === " ") {
+                              event.preventDefault();
+                              setSelectedTaskID(task.id);
+                            }
+                          }}
+                          className={cn(
+                            "cursor-pointer border-b border-border transition-colors last:border-b-0 hover:bg-muted/25",
+                            selected && "bg-blue-50/70 dark:bg-blue-950/20",
+                            task.has_active_execution && "bg-amber-50/60 dark:bg-amber-950/15",
+                          )}
+                        >
+                          <td className="max-w-[260px] px-4 py-3 align-top">
+                            <div className="min-w-0">
+                              <div className="truncate text-[13px] font-semibold leading-5 text-foreground" title={task.name}>
+                                {task.name}
+                              </div>
+                              <div className="mt-1 flex flex-wrap gap-1.5">
+                                <Badge variant={task.enabled ? "success" : "outline"}>
+                                  {task.enabled
+                                    ? t("common.enabled", { defaultValue: "Enabled" })
+                                    : t("common.disabled", { defaultValue: "Disabled" })}
+                                </Badge>
+                                <Badge variant={getStatusVariant(task.last_status, "execution")}>
+                                  {getStatusLabel(t, task.last_status)}
+                                </Badge>
+                                {task.probe.stale ? (
+                                  <Badge variant="warning" title={task.last_message || undefined}>
+                                    {view.staleRetrySummary || t("failover.probe.stale", { defaultValue: "Stale" })}
+                                  </Badge>
+                                ) : (
+                                  <Badge variant={getStatusVariant(task.probe.status, "probe")}>
+                                    {getStatusLabel(t, task.probe.status)}
+                                  </Badge>
+                                )}
+                              </div>
+                            </div>
+                          </td>
+                          <td className="max-w-[210px] px-4 py-3 align-top">
+                            <div className="truncate text-[13px] leading-5 text-foreground" title={view.currentOutletLabel}>
+                              {view.currentOutletLabel}
+                            </div>
+                            <div className="mt-1 truncate text-[11px] leading-4 text-muted-foreground" title={view.currentClientUUID || undefined}>
+                              {view.currentClientUUID || t("failover.task.uninitialized_hint", { defaultValue: "等待初始化" })}
+                            </div>
+                          </td>
+                          <td className="max-w-[220px] px-4 py-3 align-top">
+                            {view.dnsTargetLabel ? (
+                              <div className="truncate text-[13px] leading-5 text-foreground" title={view.dnsTargetLabel}>
+                                {view.dnsTargetLabel}
+                              </div>
+                            ) : (
+                              <div className="text-[13px] leading-5 text-muted-foreground">
+                                {t("failover.task.no_dns", { defaultValue: "No DNS" })}
+                              </div>
+                            )}
+                            <div className="mt-1 flex flex-wrap gap-1.5">
+                              {task.dns_provider ? (
+                                <Badge variant={getStatusVariant(view.dnsStatus || "pending", "dns")}>
+                                  {getDnsTaskStatusLabel(t, view.dnsStatus)}
+                                </Badge>
+                              ) : null}
+                              {view.dnsIPv6Badge ? (
+                                <Badge
+                                  variant={view.dnsIPv6Badge.variant}
+                                  className="px-1.5 py-0 text-[10px] font-semibold lowercase tracking-normal"
+                                  title={view.dnsIPv6Badge.title}
+                                  aria-label={view.dnsIPv6Badge.title}
+                                >
+                                  v6
+                                </Badge>
+                              ) : null}
+                            </div>
+                          </td>
+                          <td className="max-w-[280px] px-4 py-3 align-top">
+                            <div className="flex flex-wrap items-center gap-1.5">
+                              {latestExecution ? (
+                                <Badge variant={getStatusVariant(latestExecution.status, "execution")}>
+                                  {getStatusLabel(t, latestExecution.status)}
+                                </Badge>
+                              ) : (
+                                <Badge variant="outline">
+                                  {t("failover.task.no_execution_short", { defaultValue: "No execution" })}
+                                </Badge>
+                              )}
+                              {view.taskRiskBadges.slice(0, 2).map((badge) => (
+                                <Badge key={badge.key} variant={badge.variant} title={badge.title || undefined}>
+                                  {badge.label}
+                                </Badge>
+                              ))}
+                              <Badge variant={getStatusVariant(
+                                view.scriptStatus || (view.hasConfiguredScript ? "pending" : "skipped"),
+                                "script",
+                              )}>
+                                {getTaskScriptStatusLabel(t, view.scriptStatus, view.hasConfiguredScript, Boolean(latestExecution))}
+                              </Badge>
+                            </div>
+                            <div
+                              className={cn(
+                                "mt-1 line-clamp-2 text-[12px] leading-5",
+                                latestExecution?.error_message ? "text-red-600 dark:text-red-300" : "text-muted-foreground",
+                              )}
+                              title={latestExecution?.error_message || view.latestExecutionSummary}
+                            >
+                              {view.latestExecutionSummary}
+                            </div>
+                          </td>
+                          <td className="max-w-[180px] px-4 py-3 align-top">
+                            <div className="text-[12px] leading-5 text-foreground">
+                              {t("failover.table.cooldown", { defaultValue: "Cooldown" })}: {view.cooldownSummary}
+                            </div>
+                            {view.nextCycleSummary ? (
+                              <div className="mt-1 text-[11px] leading-4 text-muted-foreground">
+                                {t("failover.table.next_cycle", { defaultValue: "Next cycle" })}: {view.nextCycleSummary}
+                              </div>
+                            ) : null}
+                          </td>
+                          <td className="px-4 py-3 align-top">
+                            <div className="flex justify-end gap-1.5">
+                              <Button
+                                type="button"
+                                size="sm"
+                                variant="ghost"
+                                className="h-8 rounded-md px-2 text-[12px]"
+                                onClick={(event) => {
+                                  event.stopPropagation();
+                                  void openEditDialog(task);
+                                }}
+                                disabled={taskBusy || taskRunning}
+                              >
+                                {taskBusy ? <LoaderCircle className="size-3.5 animate-spin" /> : <PencilLine className="size-3.5" />}
+                                {t("common.edit", { defaultValue: "Edit" })}
+                              </Button>
+                              <Button
+                                type="button"
+                                size="sm"
+                                variant="ghost"
+                                className="h-8 rounded-md px-2 text-[12px]"
+                                onClick={(event) => {
+                                  event.stopPropagation();
+                                  void handleRunTask(task);
+                                }}
+                                disabled={taskRunning || task.has_active_execution || !task.enabled}
+                              >
+                                {taskRunning ? <LoaderCircle className="size-3.5 animate-spin" /> : <Play className="size-3.5" />}
+                                {view.requiresInitialization
+                                  ? t("failover.actions.initialize", { defaultValue: "Initialize" })
+                                  : t("failover.actions.run", { defaultValue: "Run" })}
+                              </Button>
+                              {latestExecution ? (
+                                <Button
+                                  type="button"
+                                  size="sm"
+                                  variant="ghost"
+                                  className="h-8 rounded-md px-2 text-[12px]"
+                                  onClick={(event) => {
+                                    event.stopPropagation();
+                                    openExecutionDialog(latestExecution.id, task.name);
+                                  }}
+                                >
+                                  <Eye className="size-3.5" />
+                                  {t("failover.table.view_latest", { defaultValue: "View details" })}
+                                </Button>
+                              ) : null}
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+              <AdminPagination
+                page={taskPagination.page}
+                totalPages={taskPagination.totalPages}
+                total={taskPagination.total}
+                pageSize={taskPagination.pageSize}
+                visibleStart={taskPagination.visibleStart}
+                visibleEnd={taskPagination.visibleEnd}
+                onPageChange={taskPagination.setPage}
+                onPageSizeChange={taskPagination.setPageSize}
+                pageSizeOptions={[12, 20, 50]}
+                itemLabel={t("admin.pagination.tasks", { defaultValue: "tasks" })}
+                compact
+              />
+            </Card>
+
+            <Card className="min-w-0 overflow-hidden border-slate-200/80 bg-card py-0 shadow-sm shadow-slate-900/5 dark:border-slate-800/80 xl:sticky xl:top-4 xl:self-start">
+              <div className="flex min-h-[54px] items-center justify-between gap-3 border-b border-border px-4 py-3">
+                <div className="min-w-0">
+                  <h2 className="text-sm font-semibold leading-5 text-foreground">
+                    {t("failover.workspace.inspector", { defaultValue: "任务观察台" })}
+                  </h2>
+                  <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                    {t("failover.workspace.inspector_hint", { defaultValue: "选中任务后查看最近步骤、风险和操作。" })}
+                  </p>
+                </div>
+              </div>
+
+              {selectedTask ? (() => {
+                const view = getTaskView(selectedTask);
+                const latestExecution = view.latestExecution;
+                const taskBusy = busyTaskID === selectedTask.id;
+                const taskRunning = runningTaskID === selectedTask.id;
+                const executionStopping = latestExecution ? stoppingExecutionID === latestExecution.id : false;
+
+                return (
+                  <div className="space-y-4 p-4">
+                    <div className="min-w-0 rounded-lg border border-border bg-muted/20 px-3 py-3">
                       <div className="flex flex-wrap items-center gap-2">
-                        <div className="truncate text-sm font-medium text-slate-900 dark:text-slate-50" title={task.name}>
-                          {task.name}
+                        <div className="min-w-0 flex-1 truncate text-[15px] font-semibold leading-6 text-foreground" title={selectedTask.name}>
+                          {selectedTask.name}
                         </div>
-                        <Badge variant={task.enabled ? "success" : "outline"}>
-                          {task.enabled
+                        <Badge variant={selectedTask.enabled ? "success" : "outline"}>
+                          {selectedTask.enabled
                             ? t("common.enabled", { defaultValue: "Enabled" })
                             : t("common.disabled", { defaultValue: "Disabled" })}
                         </Badge>
-                        <Badge variant={getStatusVariant(task.last_status, "execution")}>
-                          {getStatusLabel(t, task.last_status)}
+                      </div>
+                      <div className="mt-2 flex flex-wrap gap-1.5">
+                        <Badge variant={getStatusVariant(selectedTask.last_status, "execution")}>
+                          {getStatusLabel(t, selectedTask.last_status)}
                         </Badge>
-                        {task.has_active_execution ? (
+                        {selectedTask.has_active_execution ? (
                           <Badge variant="warning">
                             {t("failover.task.active_execution", { defaultValue: "Active execution" })}
                           </Badge>
                         ) : null}
-                        {task.probe.stale ? (
-                          <Badge variant="warning" title={task.last_message || undefined}>
-                            {staleRetrySummary || t("failover.probe.stale", { defaultValue: "Stale" })}
+                        {selectedTask.probe.stale ? (
+                          <Badge variant="warning" title={selectedTask.last_message || undefined}>
+                            {view.staleRetrySummary || t("failover.probe.stale", { defaultValue: "Stale" })}
                           </Badge>
                         ) : (
-                          <Badge variant={getStatusVariant(task.probe.status, "probe")}>
-                            {t("failover.table.probe", { defaultValue: "Probe" })}: {getStatusLabel(t, task.probe.status)}
+                          <Badge variant={getStatusVariant(selectedTask.probe.status, "probe")}>
+                            {t("failover.table.probe", { defaultValue: "Probe" })}: {getStatusLabel(t, selectedTask.probe.status)}
                           </Badge>
                         )}
                       </div>
-                      <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                        <span className="font-medium text-slate-600 dark:text-slate-300">
-                          {t("failover.task.script_status_label", { defaultValue: "Script status" })}:
-                        </span>
-                        <Badge variant={getStatusVariant(
-                          scriptStatus || (hasConfiguredScript ? "pending" : "skipped"),
-                          "script",
-                        )}>
-                          {getTaskScriptStatusLabel(t, scriptStatus, hasConfiguredScript, Boolean(latestExecution))}
-                        </Badge>
-                        {scriptNames.length > 0 ? (
-                          <Badge variant="outline">
-                            {t("failover.task.script_count", {
-                              count: scriptNames.length,
-                              defaultValue: "{{count}} script(s)",
-                            })}
-                          </Badge>
-                        ) : null}
-                        {scriptName ? (
-                          <div className="min-w-0 flex-1 line-clamp-2 leading-5" title={scriptName}>
-                            {scriptPreviewNames.join(" · ")}
-                            {hiddenScriptCount > 0 ? ` +${hiddenScriptCount}` : ""}
-                          </div>
-                        ) : null}
-                      </div>
-                      <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
-                        <span className="font-medium text-slate-600 dark:text-slate-300">
-                          {t("failover.task.outlet_ip_label", { defaultValue: "Outlet IP" })}:
-                        </span>
-                        <div className="min-w-0 truncate" title={currentOutletLabel}>
-                          {currentOutletLabel}
+                    </div>
+
+                    <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-1 2xl:grid-cols-2">
+                      <div className="min-w-0 rounded-md border border-border px-3 py-2">
+                        <div className="text-[11px] font-semibold leading-4 text-muted-foreground">
+                          {t("failover.task.outlet_ip_label", { defaultValue: "Outlet IP" })}
                         </div>
-                        {dnsTargetLabel ? (
-                          <>
-                            <span className="font-medium text-slate-600 dark:text-slate-300">
-                              {t("failover.task.dns_target_label", { defaultValue: "DNS target" })}:
-                            </span>
-                            <div className="min-w-0 truncate" title={dnsTargetLabel}>
-                              {dnsTargetLabel}
-                            </div>
-                          </>
-                        ) : null}
-                        {task.dns_provider ? (
-                          <>
-                            <Badge variant={getStatusVariant(dnsStatus || "pending", "dns")}>
-                              {getDnsTaskStatusLabel(t, dnsStatus)}
-                            </Badge>
-                            {dnsIPv6Badge ? (
-                              <Badge
-                                variant={dnsIPv6Badge.variant}
-                                className="px-1.5 py-0 text-[10px] font-semibold lowercase tracking-normal"
-                                title={dnsIPv6Badge.title}
-                                aria-label={dnsIPv6Badge.title}
-                              >
-                                v6
-                              </Badge>
-                            ) : null}
-                          </>
-                        ) : null}
+                        <div className="mt-1 truncate text-[13px] leading-5 text-foreground" title={view.currentOutletLabel}>
+                          {view.currentOutletLabel}
+                        </div>
+                      </div>
+                      <div className="min-w-0 rounded-md border border-border px-3 py-2">
+                        <div className="text-[11px] font-semibold leading-4 text-muted-foreground">
+                          {t("failover.task.dns_target_label", { defaultValue: "DNS target" })}
+                        </div>
+                        <div className="mt-1 truncate text-[13px] leading-5 text-foreground" title={view.dnsTargetLabel || undefined}>
+                          {view.dnsTargetLabel || t("failover.task.no_dns", { defaultValue: "No DNS" })}
+                        </div>
+                      </div>
+                      <div className="min-w-0 rounded-md border border-border px-3 py-2">
+                        <div className="text-[11px] font-semibold leading-4 text-muted-foreground">
+                          {t("failover.table.cooldown", { defaultValue: "Cooldown" })}
+                        </div>
+                        <div className="mt-1 truncate text-[13px] leading-5 text-foreground">
+                          {view.cooldownSummary}
+                        </div>
+                      </div>
+                      <div className="min-w-0 rounded-md border border-border px-3 py-2">
+                        <div className="text-[11px] font-semibold leading-4 text-muted-foreground">
+                          {t("failover.editor.section_plans", { defaultValue: "Failover plans" })}
+                        </div>
+                        <div className="mt-1 truncate text-[13px] leading-5 text-foreground">
+                          {selectedTask.plans.length}
+                        </div>
                       </div>
                     </div>
 
-                    <div className="min-w-0 space-y-1">
-                      <div className="flex items-center gap-2">
-                        <div className="text-[11px] font-semibold uppercase tracking-normal text-muted-foreground">
+                    <div className="rounded-lg border border-border">
+                      <div className="flex items-center justify-between gap-2 border-b border-border px-3 py-2">
+                        <div className="text-[12px] font-semibold leading-5 text-foreground">
                           {t("failover.table.latest", { defaultValue: "Latest execution" })}
                         </div>
                         {latestExecution ? (
@@ -10433,77 +10994,109 @@ function FailoverPageContent() {
                           </Badge>
                         ) : null}
                       </div>
-                      {taskRiskBadges.length > 0 ? (
-                        <div className="flex flex-wrap gap-2">
-                          {taskRiskBadges.map((badge) => (
-                            <Badge key={badge.key} variant={badge.variant} title={badge.title || undefined}>
-                              {badge.label}
-                            </Badge>
-                          ))}
-                        </div>
-                      ) : null}
+                      <div className="space-y-3 px-3 py-3">
                         <div
                           className={cn(
-                          "break-words text-sm leading-5",
-                          latestExecution?.error_message ? "text-red-600 dark:text-red-300" : "text-slate-900 dark:text-slate-50",
-                        )}
-                        title={latestExecution?.error_message || latestExecutionSummary}
-                      >
-                        {latestExecutionSummary}
-                      </div>
-                      <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                        <span>{t("failover.table.cooldown", { defaultValue: "Cooldown" })}: {cooldownSummary}</span>
-                        {nextCycleSummary ? (
-                          <span>{t("failover.table.next_cycle", { defaultValue: "Next cycle" })}: {nextCycleSummary}</span>
+                            "text-sm leading-5",
+                            latestExecution?.error_message ? "text-red-600 dark:text-red-300" : "text-foreground",
+                          )}
+                          title={latestExecution?.error_message || view.latestExecutionSummary}
+                        >
+                          {view.latestExecutionSummary}
+                        </div>
+                        {view.latestStepLabel ? (
+                          <div className="rounded-md border border-dashed px-3 py-2">
+                            <div className="text-[11px] font-semibold leading-4 text-muted-foreground">
+                              {t("failover.execution.summary.last_step", { defaultValue: "Last step" })}
+                            </div>
+                            <div className="mt-1 text-[13px] leading-5 text-foreground">
+                              {view.latestStepLabel}
+                            </div>
+                            {view.latestStepMessage ? (
+                              <div className="mt-1 text-[12px] leading-5 text-muted-foreground">
+                                {view.latestStepMessage}
+                              </div>
+                            ) : null}
+                          </div>
                         ) : null}
+                        <div className="flex flex-wrap items-center gap-2 text-[12px] leading-5 text-muted-foreground">
+                          <span className="font-medium text-foreground">
+                            {t("failover.task.script_status_label", { defaultValue: "Script status" })}:
+                          </span>
+                          <Badge variant={getStatusVariant(
+                            view.scriptStatus || (view.hasConfiguredScript ? "pending" : "skipped"),
+                            "script",
+                          )}>
+                            {getTaskScriptStatusLabel(t, view.scriptStatus, view.hasConfiguredScript, Boolean(latestExecution))}
+                          </Badge>
+                          {view.scriptName ? (
+                            <span className="min-w-0 truncate" title={view.scriptName}>
+                              {view.scriptPreviewNames.join(" · ")}
+                              {view.hiddenScriptCount > 0 ? ` +${view.hiddenScriptCount}` : ""}
+                            </span>
+                          ) : null}
+                        </div>
                         {latestExecution ? (
                           <Button
                             type="button"
+                            variant="outline"
                             size="sm"
-                            variant="ghost"
-                            className="h-auto px-0 text-xs"
-                            onClick={() => openExecutionDialog(latestExecution.id, task.name)}
+                            className="h-8 rounded-md text-[12px]"
+                            onClick={() => openExecutionDialog(latestExecution.id, selectedTask.name)}
                           >
                             <Eye className="size-3.5" />
                             {t("failover.table.view_latest", { defaultValue: "View details" })}
                           </Button>
                         ) : null}
                       </div>
-                      {latestPlanSummary ? (
-                        <div className="min-w-0 text-xs text-muted-foreground">
-                          <span className="font-medium text-slate-600 dark:text-slate-300">
-                            {t("failover.execution.summary.plan", { defaultValue: "Plan" })}:
-                          </span>{" "}
-                          <span className="break-words" title={latestPlanSummary}>{latestPlanSummary}</span>
-                        </div>
-                      ) : null}
-                      {latestEntrySummary ? (
-                        <div className="min-w-0 text-xs text-muted-foreground">
-                          <span className="font-medium text-slate-600 dark:text-slate-300">
-                            {t("failover.execution.summary.entry", { defaultValue: "Entry" })}:
-                          </span>{" "}
-                          <span className="break-words" title={latestEntrySummary}>{latestEntrySummary}</span>
-                        </div>
-                      ) : null}
-                      {latestStepLabel ? (
-                        <div className="min-w-0 text-xs text-muted-foreground">
-                          <span className="font-medium text-slate-600 dark:text-slate-300">
-                            {t("failover.execution.summary.last_step", { defaultValue: "Last step" })}:
-                          </span>{" "}
-                          <span className="break-words" title={[latestStepLabel, latestStepMessage].filter(Boolean).join(" · ")}>
-                            {latestStepLabel}
-                            {latestStepMessage ? ` · ${latestStepMessage}` : ""}
-                          </span>
-                        </div>
-                      ) : null}
                     </div>
 
-                    <div className="flex flex-wrap gap-2 lg:justify-end">
-                      <Button type="button" size="sm" variant="outline" onClick={() => void openEditDialog(task)} disabled={taskBusy || taskRunning}>
+                    {view.taskRiskBadges.length > 0 ? (
+                      <div className="flex flex-wrap gap-2">
+                        {view.taskRiskBadges.map((badge) => (
+                          <Badge key={badge.key} variant={badge.variant} title={badge.title || undefined}>
+                            {badge.label}
+                          </Badge>
+                        ))}
+                      </div>
+                    ) : null}
+
+                    <div className="space-y-2">
+                      <div className="text-[12px] font-semibold leading-5 text-foreground">
+                        {t("failover.editor.section_plans", { defaultValue: "Failover plans" })}
+                      </div>
+                      <div className="space-y-2">
+                        {selectedTask.plans.slice(0, 3).map((plan) => (
+                          <div key={plan.id} className="rounded-md border border-border px-3 py-2">
+                            <div className="flex items-center justify-between gap-2">
+                              <div className="min-w-0 truncate text-[13px] font-medium leading-5 text-foreground" title={plan.name}>
+                                {plan.name}
+                              </div>
+                              <Badge variant={plan.enabled ? "success" : "outline"}>
+                                #{plan.priority}
+                              </Badge>
+                            </div>
+                            <div className="mt-1 truncate text-[11px] leading-4 text-muted-foreground">
+                              {[getPlanProviderLabel(t, plan.provider), plan.action_type, plan.provider_entry_group || plan.provider_entry_id]
+                                .filter(Boolean)
+                                .join(" · ")}
+                            </div>
+                          </div>
+                        ))}
+                        {selectedTask.plans.length > 3 ? (
+                          <div className="text-[12px] leading-5 text-muted-foreground">
+                            +{selectedTask.plans.length - 3} {t("failover.workspace.more_plans", { defaultValue: "more plans" })}
+                          </div>
+                        ) : null}
+                      </div>
+                    </div>
+
+                    <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-1 2xl:grid-cols-2">
+                      <Button type="button" size="sm" variant="outline" onClick={() => void openEditDialog(selectedTask)} disabled={taskBusy || taskRunning}>
                         {taskBusy ? <LoaderCircle className="size-4 animate-spin" /> : <PencilLine className="size-4" />}
                         {t("common.edit", { defaultValue: "Edit" })}
                       </Button>
-                      <Button type="button" size="sm" variant="outline" onClick={() => void openDuplicateDialog(task)} disabled={taskBusy || taskRunning}>
+                      <Button type="button" size="sm" variant="outline" onClick={() => void openDuplicateDialog(selectedTask)} disabled={taskBusy || taskRunning}>
                         {taskBusy ? <LoaderCircle className="size-4 animate-spin" /> : <Copy className="size-4" />}
                         {t("copy", { defaultValue: "Copy" })}
                       </Button>
@@ -10511,40 +11104,40 @@ function FailoverPageContent() {
                         type="button"
                         size="sm"
                         variant="outline"
-                        onClick={() => void handleRunTask(task)}
-                        disabled={taskRunning || task.has_active_execution || !task.enabled}
+                        onClick={() => void handleRunTask(selectedTask)}
+                        disabled={taskRunning || selectedTask.has_active_execution || !selectedTask.enabled}
                       >
                         {taskRunning ? <LoaderCircle className="size-4 animate-spin" /> : <Play className="size-4" />}
-                        {requiresInitialization
+                        {view.requiresInitialization
                           ? t("failover.actions.initialize", { defaultValue: "Initialize" })
                           : t("failover.actions.run", { defaultValue: "Run" })}
                       </Button>
-                      {latestExecution && task.has_active_execution ? (
+                      {latestExecution && selectedTask.has_active_execution ? (
                         <Button
                           type="button"
                           size="sm"
                           variant="outline"
-                          onClick={() => void handleStopExecution(latestExecution.id, task.name)}
+                          onClick={() => void handleStopExecution(latestExecution.id, selectedTask.name)}
                           disabled={executionStopping || taskBusy || taskRunning}
                         >
                           {executionStopping ? <LoaderCircle className="size-4 animate-spin" /> : <Square className="size-4" />}
                           {t("failover.actions.stop", { defaultValue: "Stop" })}
                         </Button>
                       ) : null}
-                      <Button type="button" size="sm" variant="outline" onClick={() => void handleToggleTask(task)} disabled={taskBusy || taskRunning}>
-                        {task.enabled
+                      <Button type="button" size="sm" variant="outline" onClick={() => void handleToggleTask(selectedTask)} disabled={taskBusy || taskRunning}>
+                        {selectedTask.enabled
                           ? t("failover.actions.disable", { defaultValue: "Disable" })
                           : t("failover.actions.enable", { defaultValue: "Enable" })}
                       </Button>
-                      <Button type="button" size="sm" variant="outline" onClick={() => setDeleteTarget(task)} disabled={taskBusy || taskRunning}>
+                      <Button type="button" size="sm" variant="outline" onClick={() => setDeleteTarget(selectedTask)} disabled={taskBusy || taskRunning}>
                         <Trash2 className="size-4" />
                         {t("common.delete", { defaultValue: "Delete" })}
                       </Button>
                     </div>
                   </div>
-                </Card>
-              );
-            })}
+                );
+              })() : null}
+            </Card>
           </div>
         ) : null}
       </AdminPageShell>

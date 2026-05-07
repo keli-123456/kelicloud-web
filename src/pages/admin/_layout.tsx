@@ -14,7 +14,7 @@ import { Eula } from "@/utils/field";
 import { useTranslation } from "react-i18next";
 
 const AdminRouteFallback = () => (
-  <div className="flex min-w-0 flex-col gap-4 p-4 md:gap-6 md:p-6">
+  <div className="flex min-w-0 flex-col gap-4 p-3 sm:p-4 md:gap-5">
     <AdminTableSkeleton columns={6} rows={6} />
   </div>
 );

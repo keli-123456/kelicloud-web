@@ -558,10 +558,6 @@ export default function CloudDnsProviderSection({
   };
 
   const hasPreferredProvider = providerList.some(isPreferredDnsProvider);
-  const totalCredentialCount = providerList.reduce(
-    (count, provider) => count + (providerEntriesMap[provider]?.length || 0),
-    0,
-  );
   const providerStatusMap = Object.fromEntries(
     providerList.map((provider) => {
       const fields = getEditableProviderFields(provider, providerDefs[provider] || []);
@@ -577,12 +573,6 @@ export default function CloudDnsProviderSection({
       ];
     }),
   ) as Record<string, ProviderStatus>;
-  const configuredProviderCount = providerList.filter(
-    (provider) => providerStatusMap[provider] === "configured",
-  ).length;
-  const incompleteProviderCount = providerList.filter(
-    (provider) => providerStatusMap[provider] === "incomplete",
-  ).length;
 
   const activeProvider = dialogState?.provider || "";
   const activeProviderLabel = activeProvider ? formatProviderLabel(activeProvider) : "";
@@ -642,34 +632,6 @@ export default function CloudDnsProviderSection({
                   "You can save multiple named credential profiles for each DNS provider here.",
                 )}
               />
-
-              <div className="flex flex-wrap gap-x-5 gap-y-2 border-b border-slate-200 pb-1 text-sm text-slate-500 dark:border-slate-800 dark:text-slate-400">
-                <div className="flex items-center gap-2">
-                  <span className="font-medium text-slate-700 dark:text-slate-300">
-                    {t("cloud.dns.overview.providers", "Providers")}:
-                  </span>
-                  <span className="text-slate-900 dark:text-slate-100">{providerList.length}</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="font-medium text-slate-700 dark:text-slate-300">
-                    {t("cloud.dns.overview.credentials", "Credentials")}:
-                  </span>
-                  <span className="text-slate-900 dark:text-slate-100">{totalCredentialCount}</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="font-medium text-slate-700 dark:text-slate-300">
-                    {t("cloud.dns.overview.configured", "Configured")}:
-                  </span>
-                  <span className="text-slate-900 dark:text-slate-100">
-                    {configuredProviderCount}
-                    {incompleteProviderCount > 0
-                      ? t("cloud.dns.overview.incomplete_suffix", " ({{count}} incomplete)", {
-                        count: incompleteProviderCount,
-                      })
-                      : null}
-                  </span>
-                </div>
-              </div>
 
               <div className="grid gap-4">
                 {providerList.map((provider) => {

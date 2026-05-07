@@ -1,12 +1,21 @@
 import type { TFunction } from "i18next";
 import { Eye, Plus, Server } from "lucide-react";
 
+import {
+  AdminPagination,
+  useClientPagination,
+} from "@/components/admin/AdminPagination";
 import { AdminEmptyState } from "@/components/admin/AdminPageShell";
 import { AWSInstanceRowActions } from "@/components/admin/cloud/AWSInstanceRowActions";
 import {
   Badge,
   Button,
   CloudTableSkeletonRows,
+  cloudTableEmptyStateClassName,
+  cloudTableMutedTextClassName,
+  cloudTableNameButtonClassName,
+  cloudTablePrimaryTextClassName,
+  cloudTableSecondaryTextClassName,
 } from "@/components/admin/cloud/cloud-ui";
 import {
   Table,
@@ -77,6 +86,10 @@ export function AWSEC2InstancesTable({
   onShare,
   onDelete,
 }: AWSEC2InstancesTableProps) {
+  const instancePagination = useClientPagination(instances, {
+    initialPageSize: 10,
+  });
+  const visibleInstances = instancePagination.pageItems;
   const emptyTitle = panelLoading
     ? t("cloud.loading", "正在加载云资源...")
     : error
@@ -125,6 +138,7 @@ export function AWSEC2InstancesTable({
     ) : null;
 
   return (
+    <>
     <Table className="min-w-[1180px]">
       <TableHeader>
         <TableRow>
@@ -151,17 +165,17 @@ export function AWSEC2InstancesTable({
                 title={emptyTitle}
                 description={emptyDescription}
                 actions={emptyActions}
-                className="min-h-36 border-0 bg-slate-50/70 shadow-none dark:bg-slate-900/30"
+                className={cloudTableEmptyStateClassName}
               />
             </TableCell>
           </TableRow>
         ) : (
-          instances.map((instance) => (
+          visibleInstances.map((instance) => (
             <TableRow key={instance.instance_id}>
-              <TableCell className="font-medium text-slate-900 dark:text-slate-100">
+              <TableCell className={cloudTablePrimaryTextClassName}>
                 <button
                   type="button"
-                  className="text-left text-blue-700 hover:text-blue-800 hover:underline dark:text-blue-400 dark:hover:text-blue-300"
+                  className={cloudTableNameButtonClassName}
                   onClick={() => {
                     void onLoadDetail(instance);
                   }}
@@ -213,6 +227,20 @@ export function AWSEC2InstancesTable({
         )}
       </TableBody>
     </Table>
+    <AdminPagination
+      page={instancePagination.page}
+      totalPages={instancePagination.totalPages}
+      total={instancePagination.total}
+      pageSize={instancePagination.pageSize}
+      visibleStart={instancePagination.visibleStart}
+      visibleEnd={instancePagination.visibleEnd}
+      onPageChange={instancePagination.setPage}
+      onPageSizeChange={instancePagination.setPageSize}
+      pageSizeOptions={[10, 20, 50]}
+      itemLabel={t("admin.pagination.instances", { defaultValue: "instances" })}
+      compact
+    />
+    </>
   );
 }
 
@@ -253,6 +281,10 @@ export function AWSLightsailInstancesTable({
   onShare,
   onDelete,
 }: AWSLightsailInstancesTableProps) {
+  const instancePagination = useClientPagination(instances, {
+    initialPageSize: 10,
+  });
+  const visibleInstances = instancePagination.pageItems;
   const emptyTitle = panelLoading
     ? t("cloud.loading", "正在加载云资源...")
     : lightsailError || error
@@ -301,6 +333,7 @@ export function AWSLightsailInstancesTable({
     ) : null;
 
   return (
+    <>
     <Table className="min-w-[1120px]">
       <TableHeader>
         <TableRow>
@@ -327,17 +360,17 @@ export function AWSLightsailInstancesTable({
                 title={emptyTitle}
                 description={emptyDescription}
                 actions={emptyActions}
-                className="min-h-36 border-0 bg-slate-50/70 shadow-none dark:bg-slate-900/30"
+                className={cloudTableEmptyStateClassName}
               />
             </TableCell>
           </TableRow>
         ) : (
-          instances.map((instance) => (
+          visibleInstances.map((instance) => (
             <TableRow key={instance.name}>
-              <TableCell className="font-medium text-slate-900 dark:text-slate-100">
+              <TableCell className={cloudTablePrimaryTextClassName}>
                 <button
                   type="button"
-                  className="text-left text-blue-700 hover:text-blue-800 hover:underline dark:text-blue-400 dark:hover:text-blue-300"
+                  className={cloudTableNameButtonClassName}
                   onClick={() => {
                     void onLoadDetail(instance);
                   }}
@@ -385,6 +418,20 @@ export function AWSLightsailInstancesTable({
         )}
       </TableBody>
     </Table>
+    <AdminPagination
+      page={instancePagination.page}
+      totalPages={instancePagination.totalPages}
+      total={instancePagination.total}
+      pageSize={instancePagination.pageSize}
+      visibleStart={instancePagination.visibleStart}
+      visibleEnd={instancePagination.visibleEnd}
+      onPageChange={instancePagination.setPage}
+      onPageSizeChange={instancePagination.setPageSize}
+      pageSizeOptions={[10, 20, 50]}
+      itemLabel={t("admin.pagination.instances", { defaultValue: "instances" })}
+      compact
+    />
+    </>
   );
 }
 
@@ -403,7 +450,7 @@ function AWSInstancePasswordState({
 }: AWSInstancePasswordStateProps) {
   if (!saved) {
     return (
-      <span className="text-sm text-slate-400">
+      <span className={cloudTableMutedTextClassName}>
         {passwordStorageEnabled
           ? t("cloud.password.not_saved", "Not saved")
           : t("cloud.password.disabled_short", "Vault off")}
@@ -419,7 +466,7 @@ function AWSInstancePasswordState({
           : t("cloud.password.locked", "Locked")}
       </Badge>
       {updatedAt ? (
-        <div className="text-xs text-slate-500">
+        <div className={cloudTableSecondaryTextClassName}>
           {formatDateTime(updatedAt)}
         </div>
       ) : null}

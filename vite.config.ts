@@ -151,7 +151,7 @@ export default defineConfig(({ mode }) => {
       }
     }
     if (!process.env.VITE_API_TARGET) {
-      process.env.VITE_API_TARGET = "http://127.0.0.1:25774";
+      process.env.VITE_API_TARGET = "http://152.53.37.160:25774";
     }
     baseConfig.server = {
       proxy: {

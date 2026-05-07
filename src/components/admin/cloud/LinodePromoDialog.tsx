@@ -1,8 +1,11 @@
 import type { TFunction } from "i18next";
+import { Tags } from "lucide-react";
 
 import {
+  Badge,
   Button,
-  cloudDialogContentClassName,
+  CloudSensitiveDialogContent,
+  CloudStatusNotice,
   cloudPanelFieldLabelClassName,
   Dialog,
   Flex,
@@ -32,16 +35,25 @@ export function LinodePromoDialog({
 }: LinodePromoDialogProps) {
   return (
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
-      <Dialog.Content className={cloudDialogContentClassName}>
-        <Dialog.Title>{t("cloud.providers.linode.redeem_promo", "Redeem Promo")}</Dialog.Title>
-        <Dialog.Description>
-          {t(
+      <CloudSensitiveDialogContent
+        title={t("cloud.providers.linode.redeem_promo", "Redeem Promo")}
+        description={t(
             "cloud.providers.linode.promo_dialog_description",
             "Submit a Linode promo code for the current active account. Linode may reject codes when the account does not meet their eligibility rules.",
           )}
-        </Dialog.Description>
+        icon={<Tags className="size-4" />}
+        badge={<Badge color="blue">{t("cloud.providers.linode.name", "Linode")}</Badge>}
+        side={(
+          <CloudStatusNotice tone="gray">
+            {t(
+              "cloud.providers.linode.promo_eligibility_hint",
+              "Promo eligibility is decided by Linode after submission.",
+            )}
+          </CloudStatusNotice>
+        )}
+      >
 
-        <div className="mt-4 flex flex-col gap-4">
+        <div className="flex flex-col gap-4">
           <label className={cloudPanelFieldLabelClassName}>
             {t("cloud.providers.linode.promo_code", "Promo Code")}
           </label>
@@ -67,7 +79,7 @@ export function LinodePromoDialog({
             </Button>
           </Flex>
         </div>
-      </Dialog.Content>
+      </CloudSensitiveDialogContent>
     </Dialog.Root>
   );
 }

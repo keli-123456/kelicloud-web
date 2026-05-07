@@ -4,7 +4,6 @@ import { toast } from "sonner";
 
 import {
   createLinodeInstance,
-  getLinodeCatalog,
   type CreateLinodeInstanceInput,
   type LinodeCatalog,
   type LinodeTokenRecord,
@@ -21,8 +20,6 @@ import {
 type UseLinodeCreateInstanceOptions = {
   t: TFunction;
   catalog: LinodeCatalog | null;
-  setCatalog: React.Dispatch<React.SetStateAction<LinodeCatalog | null>>;
-  setError: React.Dispatch<React.SetStateAction<string>>;
   activeToken: LinodeTokenRecord | null;
   defaultCreateGroup: string;
   setCreatedPassword: React.Dispatch<React.SetStateAction<CreatedPasswordState | null>>;
@@ -32,8 +29,6 @@ type UseLinodeCreateInstanceOptions = {
 export function useLinodeCreateInstance({
   t,
   catalog,
-  setCatalog,
-  setError,
   activeToken,
   defaultCreateGroup,
   setCreatedPassword,
@@ -41,7 +36,7 @@ export function useLinodeCreateInstance({
 }: UseLinodeCreateInstanceOptions) {
   const [createOpen, setCreateOpen] = React.useState(false);
   const [createSubmitting, setCreateSubmitting] = React.useState(false);
-  const [createCatalogLoading, setCreateCatalogLoading] = React.useState(false);
+  const createCatalogLoading = false;
   const [createForm, setCreateForm] = React.useState<CreateFormState>(initialCreateForm);
 
   React.useEffect(() => {
@@ -53,25 +48,6 @@ export function useLinodeCreateInstance({
       image: previous.image || catalog.images[0]?.id || "",
     }));
   }, [catalog]);
-
-  const ensureCreateCatalogLoaded = React.useCallback(async () => {
-    if (catalog) {
-      return catalog;
-    }
-
-    setCreateCatalogLoading(true);
-    try {
-      const nextCatalog = await getLinodeCatalog();
-      setCatalog(nextCatalog);
-      setError("");
-      return nextCatalog;
-    } catch (catalogError) {
-      toast.error(toErrorMessage(catalogError));
-      return null;
-    } finally {
-      setCreateCatalogLoading(false);
-    }
-  }, [catalog, setCatalog, setError]);
 
   const handleCreateInstance = async () => {
     setCreateSubmitting(true);
@@ -124,19 +100,21 @@ export function useLinodeCreateInstance({
     }
   };
 
-  const handleOpenCreateDialog = async () => {
+  const prepareCreateForm = React.useCallback(async () => {
     if (!activeToken) {
-      return;
+      return null;
     }
     setCreateForm((previous) => ({
       ...previous,
       auto_connect: true,
       auto_connect_group: defaultCreateGroup,
     }));
-    const nextCatalog = await ensureCreateCatalogLoaded();
-    if (!nextCatalog) {
-      return;
-    }
+    return catalog;
+  }, [activeToken, catalog, defaultCreateGroup]);
+
+  const handleOpenCreateDialog = async () => {
+    const nextCatalog = await prepareCreateForm();
+    if (!nextCatalog) return;
     setCreateOpen(true);
   };
 
@@ -147,6 +125,7 @@ export function useLinodeCreateInstance({
     createCatalogLoading,
     createForm,
     setCreateForm,
+    prepareCreateForm,
     handleCreateInstance,
     handleOpenCreateDialog,
   };

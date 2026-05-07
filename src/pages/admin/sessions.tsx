@@ -17,7 +17,6 @@ import {
 } from "@/components/admin/admin-ui";
 
 import { UserAgentHelper } from "@/utils/UserAgentHelper";
-import { Skeleton } from "@/components/ui/skeleton";
 import {
   AdminPageShell,
   AdminSurface,
@@ -135,23 +134,6 @@ export default function Sessions() {
             {t("sessions.delete_all")}
           </Button>
         }
-        stats={[
-          {
-            label: t("sessions.stats.active_sessions_label", "Active sessions"),
-            value: <Skeleton className="h-5 w-12" />,
-            tone: "blue",
-          },
-          {
-            label: t("sessions.stats.current_device_label", "Current device"),
-            value: <Skeleton className="h-5 w-24" />,
-            tone: "emerald",
-          },
-          {
-            label: t("sessions.stats.last_active_label", "Last active"),
-            value: <Skeleton className="h-5 w-20" />,
-            tone: "amber",
-          },
-        ]}
       >
         <AdminSurface className="overflow-hidden p-0">
           <div className="border-b border-slate-200/70 px-1 py-3 dark:border-slate-800/70">
@@ -172,11 +154,6 @@ export default function Sessions() {
       </AdminPageShell>
     );
   }
-
-  const latestActive = sessions.data.reduce<number>((latest, item) => {
-    const current = new Date(item.latest_online).getTime();
-    return current > latest ? current : latest;
-  }, 0);
 
   return (
     <AdminPageShell
@@ -211,41 +188,6 @@ export default function Sessions() {
           </Dialog.Content>
         </Dialog.Root>
       }
-      stats={[
-        {
-          label: t("sessions.stats.active_sessions_label", "Active sessions"),
-          value: `${sessions.data.length}`,
-          hint: t(
-            "sessions.stats.active_sessions_hint",
-            "Includes the admin session currently in use.",
-          ),
-          tone: "blue",
-        },
-        {
-          label: t("sessions.stats.current_device_label", "Current device"),
-          value: sessions.current
-            ? t("sessions.stats.current_device_known", "Recognized")
-            : t("sessions.stats.current_device_unknown", "Unknown"),
-          hint: sessions.current
-            ? `${sessions.current.slice(0, 8)}...`
-            : t(
-                "sessions.stats.current_device_hint",
-                "No current session identifier was detected.",
-              ),
-          tone: "emerald",
-        },
-        {
-          label: t("sessions.stats.last_active_label", "Last active"),
-          value: latestActive
-            ? formatDuration(Date.now() - latestActive, t)
-            : t("just_now"),
-          hint: t(
-            "sessions.stats.last_active_hint",
-            "Calculated dynamically from the most recent online timestamp.",
-          ),
-          tone: "amber",
-        },
-      ]}
     >
       <AdminSurface className="overflow-hidden p-0">
         <div className="border-b border-slate-200/70 px-1 py-3 dark:border-slate-800/70">

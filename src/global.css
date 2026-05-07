@@ -70,38 +70,38 @@
 :root {
   --font-ui: "Inter Variable", "Inter", "SF Pro Text", "Segoe UI Variable", "Segoe UI", "Noto Sans SC", "Noto Sans CJK SC", "Microsoft YaHei UI", "Microsoft YaHei", "PingFang SC", "Hiragino Sans GB", system-ui, sans-serif;
   --font-code: "Cascadia Mono", "Cascadia Code", "JetBrains Mono", "SFMono-Regular", Consolas, "Liberation Mono", ui-monospace, monospace;
-  --radius: 0.625rem;
-  --background: oklch(0.976 0.003 264);
-  --foreground: oklch(0.205 0.01 264);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.205 0.01 264);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.205 0.01 264);
-  --primary: oklch(0.407 0.031 257);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.958 0.004 264);
-  --secondary-foreground: oklch(0.255 0.012 264);
-  --muted: oklch(0.958 0.004 264);
-  --muted-foreground: oklch(0.505 0.013 264);
-  --accent: oklch(0.95 0.007 255);
-  --accent-foreground: oklch(0.255 0.012 264);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.901 0.006 264);
-  --input: oklch(0.901 0.006 264);
-  --ring: oklch(0.73 0.014 257);
-  --chart-1: oklch(0.571 0.07 252);
-  --chart-2: oklch(0.623 0.054 205);
-  --chart-3: oklch(0.485 0.026 260);
-  --chart-4: oklch(0.699 0.096 84);
-  --chart-5: oklch(0.639 0.104 24);
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.205 0.01 264);
-  --sidebar-primary: oklch(0.407 0.031 257);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.958 0.004 264);
-  --sidebar-accent-foreground: oklch(0.255 0.012 264);
-  --sidebar-border: oklch(0.901 0.006 264);
-  --sidebar-ring: oklch(0.73 0.014 257);
+  --radius: 0.5rem;
+  --background: #f5f7fb;
+  --foreground: #182032;
+  --card: #ffffff;
+  --card-foreground: #182032;
+  --popover: #ffffff;
+  --popover-foreground: #182032;
+  --primary: #2f6fe4;
+  --primary-foreground: #ffffff;
+  --secondary: #f3f6fb;
+  --secondary-foreground: #243044;
+  --muted: #f3f6fb;
+  --muted-foreground: #667188;
+  --accent: #eaf1ff;
+  --accent-foreground: #182032;
+  --destructive: #d84a4a;
+  --border: #dbe3ef;
+  --input: #dbe3ef;
+  --ring: #8fb2ff;
+  --chart-1: #2f6fe4;
+  --chart-2: #159f95;
+  --chart-3: #7657d5;
+  --chart-4: #c98012;
+  --chart-5: #d84a4a;
+  --sidebar: #ffffff;
+  --sidebar-foreground: #182032;
+  --sidebar-primary: #2f6fe4;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #f3f6fb;
+  --sidebar-accent-foreground: #182032;
+  --sidebar-border: #dbe3ef;
+  --sidebar-ring: #8fb2ff;
 }
 
 .dark {
@@ -192,19 +192,19 @@
   }
 
   .page-section {
-    @apply rounded-xl border border-border/70 bg-card shadow-none;
+    @apply rounded-lg border border-border bg-card shadow-sm shadow-slate-900/5;
   }
 
   .page-hero {
-    @apply rounded-xl border border-border/70 bg-card shadow-none;
+    @apply rounded-lg border border-border bg-card shadow-sm shadow-slate-900/5;
   }
 
   .panel-muted {
-    @apply rounded-lg border border-border/70 bg-card shadow-none;
+    @apply rounded-lg border border-border bg-muted/45 shadow-none;
   }
 
   .metric-panel {
-    @apply rounded-lg border border-border/70 bg-card px-4 py-4 shadow-none;
+    @apply rounded-lg border border-border bg-card px-4 py-4 shadow-sm shadow-slate-900/5;
   }
 
   .section-kicker {
@@ -220,15 +220,15 @@
   }
 
   .chrome-shell {
-    @apply rounded-xl border border-border/70 bg-card shadow-none;
+    @apply rounded-lg border border-border bg-card shadow-sm shadow-slate-900/5;
   }
 
   .chrome-sidebar {
-    @apply rounded-xl border border-border/70 bg-card shadow-none;
+    @apply rounded-lg border border-border bg-card shadow-sm shadow-slate-900/5;
   }
 
   .chrome-header {
-    @apply rounded-xl border border-border/70 bg-card shadow-none;
+    @apply rounded-lg border border-border bg-card shadow-sm shadow-slate-900/5;
   }
 
   .chrome-nav-item {
@@ -240,19 +240,91 @@
   }
 
   .dialog-surface {
-    @apply rounded-xl border border-border/70 bg-card shadow-none;
+    @apply rounded-lg border border-border bg-card shadow-xl shadow-slate-900/10;
   }
 
   .dialog-section {
-    @apply rounded-lg border border-border/70 bg-muted/20 shadow-none;
+    @apply rounded-lg border border-border/70 bg-muted/25 p-4 shadow-none;
   }
 
   .dialog-danger {
     @apply rounded-lg border border-red-200/80 bg-red-50 text-red-800 shadow-none dark:border-red-900/60 dark:bg-red-950/30 dark:text-red-200;
   }
 
+  :is(
+      [data-slot="dialog-content"],
+      [data-slot="alert-dialog-content"],
+      [data-slot="drawer-content"],
+      [data-slot="popover-content"]
+    ) {
+    border-color: var(--border) !important;
+    background-color: var(--card) !important;
+    box-shadow: 0 24px 70px rgb(15 23 42 / 0.14) !important;
+  }
+
+  :is(
+      [data-slot="dialog-content"],
+      [data-slot="alert-dialog-content"],
+      [data-slot="drawer-content"],
+      [data-slot="popover-content"]
+    )
+    :is([class^="border-slate-"], [class*=" border-slate-"]) {
+    border-color: var(--border) !important;
+  }
+
+  :is(
+      [data-slot="dialog-content"],
+      [data-slot="alert-dialog-content"],
+      [data-slot="drawer-content"],
+      [data-slot="popover-content"]
+    )
+    :is(
+      [class^="bg-white"],
+      [class*=" bg-white"],
+      [class^="bg-slate-50"],
+      [class*=" bg-slate-50"],
+      [class^="bg-slate-100"],
+      [class*=" bg-slate-100"]
+    ) {
+    background-color: color-mix(in srgb, var(--muted) 46%, var(--card)) !important;
+  }
+
+  :is(
+      [data-slot="dialog-content"],
+      [data-slot="alert-dialog-content"],
+      [data-slot="drawer-content"],
+      [data-slot="popover-content"]
+    )
+    :is(
+      [class^="text-slate-900"],
+      [class*=" text-slate-900"],
+      [class^="text-slate-800"],
+      [class*=" text-slate-800"],
+      [class^="text-slate-700"],
+      [class*=" text-slate-700"]
+    ) {
+    color: var(--foreground) !important;
+  }
+
+  :is(
+      [data-slot="dialog-content"],
+      [data-slot="alert-dialog-content"],
+      [data-slot="drawer-content"],
+      [data-slot="popover-content"]
+    )
+    :is(
+      [class^="text-slate-600"],
+      [class*=" text-slate-600"],
+      [class^="text-slate-500"],
+      [class*=" text-slate-500"],
+      [class^="text-slate-400"],
+      [class*=" text-slate-400"]
+    ) {
+    color: var(--muted-foreground) !important;
+  }
+
   .menu-surface {
-    @apply rounded-lg border border-border/70 bg-popover p-2 shadow-none;
+    @apply rounded-lg border border-border bg-popover p-2 shadow-xl shadow-slate-900/10;
   }
 
   .menu-item {

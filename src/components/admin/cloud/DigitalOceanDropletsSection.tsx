@@ -1,4 +1,4 @@
-import type { ComponentProps } from "react";
+import { useMemo, useState, type ComponentProps } from "react";
 import type { TFunction } from "i18next";
 import {
   KeyRound,
@@ -6,6 +6,7 @@ import {
   Power,
   PowerOff,
   RotateCcw,
+  Search,
   Server,
   Share2,
   Terminal,
@@ -14,15 +15,27 @@ import {
 
 import type { DigitalOceanDroplet } from "@/lib/cloud";
 import { getCloudStatusLabel } from "@/lib/cloudStatus";
+import {
+  AdminPagination,
+  useClientPagination,
+} from "@/components/admin/AdminPagination";
 import { AdminEmptyState } from "@/components/admin/AdminPageShell";
 import {
   Badge,
   Button,
   CloudTableSkeletonRows,
+  Select,
+  TextField,
   cloudPanelCardClassName,
   cloudPanelDescriptionClassName,
   cloudPanelHeaderClassName,
   cloudPanelTitleClassName,
+  cloudTableEmptyStateClassName,
+  cloudTableMutedTextClassName,
+  cloudTableNameButtonClassName,
+  cloudTablePrimaryTextClassName,
+  cloudTableScrollClassName,
+  cloudTableSecondaryTextClassName,
 } from "@/components/admin/cloud/cloud-ui";
 import {
   DropdownMenu,
@@ -87,6 +100,43 @@ export function DigitalOceanDropletsSection({
   onOpenShareDialog,
   onDeleteDroplet,
 }: DigitalOceanDropletsSectionProps) {
+  const [searchQuery, setSearchQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState("__all__");
+  const statusOptions = useMemo(
+    () => Array.from(new Set(droplets.map((droplet) => droplet.status).filter(Boolean))),
+    [droplets],
+  );
+  const visibleDroplets = useMemo(() => {
+    const query = searchQuery.trim().toLowerCase();
+    return droplets.filter((droplet) => {
+      const statusMatched = statusFilter === "__all__" || droplet.status === statusFilter;
+      if (!statusMatched) return false;
+      if (!query) return true;
+      return [
+        droplet.name,
+        String(droplet.id),
+        droplet.status,
+        getDropletPrimaryIp(droplet),
+        droplet.size_slug || droplet.size?.slug || "",
+        getImageLabel(droplet.image),
+        getRegionOptionLabel(droplet.region, t),
+      ].some((value) => value.toLowerCase().includes(query));
+    });
+  }, [
+    droplets,
+    getDropletPrimaryIp,
+    getImageLabel,
+    getRegionOptionLabel,
+    searchQuery,
+    statusFilter,
+    t,
+  ]);
+  const dropletPagination = useClientPagination(visibleDroplets, {
+    initialPageSize: 10,
+    resetKey: `${searchQuery.trim().toLowerCase()}:${statusFilter}`,
+  });
+  const paginatedDroplets = dropletPagination.pageItems;
+
   return (
     <div className={`order-2 ${cloudPanelCardClassName}`}>
       <div className={cloudPanelHeaderClassName}>
@@ -103,7 +153,38 @@ export function DigitalOceanDropletsSection({
         </div>
       </div>
 
-      <div className="min-w-0 overflow-x-auto overscroll-x-contain [scrollbar-gutter:stable]">
+      <div className="flex min-w-0 flex-col gap-3 border-b border-border bg-muted/20 px-4 py-3 md:flex-row md:items-center md:justify-between">
+        <div className="min-w-0 flex-1 md:max-w-sm">
+          <TextField.Root
+            size="1"
+            value={searchQuery}
+            onChange={(event) => setSearchQuery(event.target.value)}
+            placeholder={t("cloud.search_resources", "Search name / IP / region...")}
+          >
+            <TextField.Slot>
+              <Search className="h-4 w-4" />
+            </TextField.Slot>
+          </TextField.Root>
+        </div>
+        <div className="flex shrink-0 items-center gap-2">
+          <div className="w-40">
+            <Select.Root value={statusFilter} onValueChange={setStatusFilter}>
+              <Select.Trigger placeholder={t("cloud.table.status", "Status")} />
+              <Select.Content>
+                <Select.Item value="__all__">{t("cloud.all_statuses", "All statuses")}</Select.Item>
+                {statusOptions.map((status) => (
+                  <Select.Item key={status} value={status}>
+                    {getCloudStatusLabel(status, t)}
+                  </Select.Item>
+                ))}
+              </Select.Content>
+            </Select.Root>
+          </div>
+          <Badge color="blue">{visibleDroplets.length}</Badge>
+        </div>
+      </div>
+
+      <div className={cloudTableScrollClassName}>
         <Table className="min-w-[1120px]">
           <TableHeader>
             <TableRow>
@@ -156,22 +237,33 @@ export function DigitalOceanDropletsSection({
                             "当前账户还没有 Droplet。需要开机器时，可以点击创建 Droplet。",
                           )
                     }
-                    className="min-h-40 border-slate-200/70 shadow-none"
+                    className={cloudTableEmptyStateClassName}
                   />
                 </TableCell>
               </TableRow>
             ) : (
-            droplets.map((droplet) => (
-              <TableRow key={droplet.id}>
-                <TableCell className="font-medium text-slate-900 dark:text-slate-100">
-                  <button
-                    type="button"
-                    className="text-left text-blue-700 hover:text-blue-800 hover:underline dark:text-blue-400 dark:hover:text-blue-300"
-                    onClick={() => onOpenDetail(droplet)}
-                  >
-                    {droplet.name}
-                  </button>
-                </TableCell>
+              visibleDroplets.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={10} className="p-4">
+                    <AdminEmptyState
+                      icon={<Search className="h-5 w-5" />}
+                      title={t("cloud.no_matching_resources", "没有匹配的资源")}
+                      description={t("cloud.no_matching_resources_description", "调整搜索关键词或状态筛选后再看。")}
+                      className={cloudTableEmptyStateClassName}
+                    />
+                  </TableCell>
+                </TableRow>
+              ) : paginatedDroplets.map((droplet) => (
+                <TableRow key={droplet.id}>
+                  <TableCell className={cloudTablePrimaryTextClassName}>
+                    <button
+                      type="button"
+                      className={cloudTableNameButtonClassName}
+                      onClick={() => onOpenDetail(droplet)}
+                    >
+                      {droplet.name}
+                    </button>
+                  </TableCell>
                 <TableCell>
                   <Badge color={getDropletStatusColor(droplet.status)}>
                     {getCloudStatusLabel(droplet.status, t)}
@@ -191,13 +283,13 @@ export function DigitalOceanDropletsSection({
                           : t("cloud.password.locked", "Locked")}
                       </Badge>
                       {droplet.saved_root_password_updated_at ? (
-                        <div className="text-xs text-slate-500">
+                        <div className={cloudTableSecondaryTextClassName}>
                           {formatDateTime(droplet.saved_root_password_updated_at)}
                         </div>
                       ) : null}
                     </div>
                   ) : (
-                    <span className="text-sm text-slate-400">
+                    <span className={cloudTableMutedTextClassName}>
                       {passwordStorageEnabled
                         ? t("cloud.password.not_saved", "Not saved")
                         : t("cloud.password.disabled_short", "Vault off")}
@@ -294,6 +386,19 @@ export function DigitalOceanDropletsSection({
           </TableBody>
         </Table>
       </div>
+      <AdminPagination
+        page={dropletPagination.page}
+        totalPages={dropletPagination.totalPages}
+        total={dropletPagination.total}
+        pageSize={dropletPagination.pageSize}
+        visibleStart={dropletPagination.visibleStart}
+        visibleEnd={dropletPagination.visibleEnd}
+        onPageChange={dropletPagination.setPage}
+        onPageSizeChange={dropletPagination.setPageSize}
+        pageSizeOptions={[10, 20, 50]}
+        itemLabel={t("admin.pagination.instances", { defaultValue: "instances" })}
+        compact
+      />
     </div>
   );
 }

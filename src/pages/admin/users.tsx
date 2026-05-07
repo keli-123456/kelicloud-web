@@ -25,7 +25,6 @@ import {
   Switch,
 } from "@/components/admin/admin-ui";
 import { Input } from "@/components/ui/input";
-import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import {
   Table,
@@ -125,8 +124,6 @@ type QuotaUsageState = {
   defaultLabel: string;
 };
 
-const EXPIRING_SOON_DAYS = 14;
-
 const FEATURE_ORDER: AccountFeature[] = [
   "clients",
   "records",
@@ -135,6 +132,7 @@ const FEATURE_ORDER: AccountFeature[] = [
   "notifications",
   "cloud_digitalocean",
   "cloud_linode",
+  "cloud_vultr",
   "cloud_azure",
   "cloud_aws",
   "cloud_dns",
@@ -147,6 +145,7 @@ const FEATURE_ORDER: AccountFeature[] = [
 const LEGACY_CLOUD_FEATURES: AccountFeature[] = [
   "cloud_digitalocean",
   "cloud_linode",
+  "cloud_vultr",
   "cloud_azure",
   "cloud_aws",
   "cloud_dns",
@@ -177,6 +176,7 @@ const FEATURE_GROUPS: FeatureGroup[] = [
     features: [
       "cloud_digitalocean",
       "cloud_linode",
+      "cloud_vultr",
       "cloud_azure",
       "cloud_aws",
       "cloud_dns",
@@ -287,16 +287,6 @@ const formatDateInput = (value?: string) => {
   return date.toISOString().slice(0, 10);
 };
 
-const getExpirationDaysRemaining = (value?: string) => {
-  const normalized = formatDateInput(value);
-  if (!normalized) return null;
-  const expiresAt = new Date(`${normalized}T00:00:00`);
-  if (Number.isNaN(expiresAt.getTime())) return null;
-  expiresAt.setDate(expiresAt.getDate() + 1);
-  const now = new Date();
-  return Math.ceil((expiresAt.getTime() - now.getTime()) / 86400000);
-};
-
 const getQuotaUsageState = (
   clientCount: number,
   quota: number,
@@ -389,6 +379,8 @@ const getFeatureLabel = (
       return t("admin.users.feature_cloud_digitalocean", "DigitalOcean");
     case "cloud_linode":
       return t("admin.users.feature_cloud_linode", "Linode");
+    case "cloud_vultr":
+      return t("admin.users.feature_cloud_vultr", "Vultr");
     case "cloud_azure":
       return t("admin.users.feature_cloud_azure", "Azure");
     case "cloud_aws":
@@ -735,22 +727,6 @@ export default function AdminUsersPage() {
     void loadUsers();
   }, [loadUsers]);
 
-  const totalUsers = users.length;
-  const totalAdmins = users.filter((user) => normalizeRole(user.role) === "admin").length;
-  const totalRegularUsers = totalUsers - totalAdmins;
-  const activeUsers = users.filter(
-    (user) => normalizeTextInput(user.access_status) === "active",
-  ).length;
-  const blockedUsers = users.filter((user) => {
-    const status = normalizeTextInput(user.access_status);
-    return status === "disabled" || status === "expired";
-  }).length;
-  const expiringSoonUsers = users.filter((user) => {
-    if (normalizeTextInput(user.access_status) !== "active") return false;
-    const daysRemaining = getExpirationDaysRemaining(user.plan_expires_at);
-    return daysRemaining !== null && daysRemaining >= 0 && daysRemaining <= EXPIRING_SOON_DAYS;
-  }).length;
-
   const openPolicyEditor = (user: ManagedUser) => {
     const normalizedAllowedFeatures = normalizeFeatures(
       user.allowed_features,
@@ -973,29 +949,6 @@ export default function AdminUsersPage() {
             <Button disabled>{t("common.add")}</Button>
           </>
         }
-        statsVariant="cards"
-        stats={[
-          {
-            label: t("admin.users.stats_total", "Total users"),
-            value: <Skeleton className="h-7 w-12" />,
-            tone: "blue",
-          },
-          {
-            label: t("admin.users.stats_active", "Active"),
-            value: <Skeleton className="h-7 w-12" />,
-            tone: "emerald",
-          },
-          {
-            label: t("admin.users.stats_expiring", "Expiring soon"),
-            value: <Skeleton className="h-7 w-12" />,
-            tone: "amber",
-          },
-          {
-            label: t("admin.users.stats_blocked", "Blocked"),
-            value: <Skeleton className="h-7 w-12" />,
-            tone: "rose",
-          },
-        ]}
       >
         <AdminSurface className="overflow-hidden p-0">
           <AdminTableSkeleton columns={8} rows={6} className="rounded-none border-0 shadow-none" />
@@ -1216,38 +1169,6 @@ export default function AdminUsersPage() {
           </Dialog.Root>
         </>
       }
-      stats={[
-        {
-          label: t("admin.users.total"),
-          value: totalUsers,
-          tone: "blue",
-          hint: t("admin.users.stats_role_mix", {
-            admins: totalAdmins,
-            users: totalRegularUsers,
-            defaultValue: "{{admins}} admins / {{users}} users",
-          }),
-        },
-        {
-          label: t("admin.users.stats_active", "Active"),
-          value: activeUsers,
-          tone: "emerald",
-        },
-        {
-          label: t("admin.users.stats_expiring", "Expiring soon"),
-          value: expiringSoonUsers,
-          hint: t("admin.users.stats_expiring_hint", {
-            days: EXPIRING_SOON_DAYS,
-            defaultValue: "Within {{days}} days",
-          }),
-          tone: "amber",
-        },
-        {
-          label: t("admin.users.stats_blocked", "Blocked"),
-          value: blockedUsers,
-          tone: "rose",
-        },
-      ]}
-      statsVariant="cards"
     >
       <AdminSurface>
         <Dialog.Root open={Boolean(policyUser)} onOpenChange={(open) => !open && closePolicyEditor()}>

@@ -18,6 +18,7 @@ import {
  */
 export interface SelectorProps<T> {
   className?: string;
+  scrollAreaClassName?: string;
   hiddenDescription?: boolean;
   /** 已选择的 id 列表 */
   value: string[];
@@ -42,6 +43,7 @@ export interface SelectorProps<T> {
 function SelectorInner<T>(props: SelectorProps<T>) {
   const {
     className = "",
+    scrollAreaClassName = "",
     hiddenDescription = false,
     value: externalValue,
     onChange,
@@ -107,8 +109,8 @@ function SelectorInner<T>(props: SelectorProps<T>) {
   };
 
   return (
-    <div className={`flex flex-col ${className}`}>
-      <div className="relative mb-2">
+    <div className={`flex min-h-0 flex-col ${className}`}>
+      <div className="relative mb-2 shrink-0">
         <Input
           className="pl-9"
           placeholder={resolvedSearchPlaceholder}
@@ -121,9 +123,11 @@ function SelectorInner<T>(props: SelectorProps<T>) {
           <Search size="16" />
         </div>
       </div>
-      <div className="selector rounded-md overflow-hidden">
+      <div
+        className={`selector min-h-0 rounded-md overflow-hidden ${scrollAreaClassName}`}
+      >
         <Table>
-          <TableHeader>
+          <TableHeader className="sticky top-0 z-10 bg-background">
             <TableRow>
               <TableHead>
                 <Checkbox

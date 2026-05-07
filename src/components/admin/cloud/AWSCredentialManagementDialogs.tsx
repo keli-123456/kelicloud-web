@@ -1,12 +1,13 @@
-import { CheckCircle2, ShieldCheck } from "lucide-react";
 import type { TFunction } from "i18next";
+import { CheckCircle2, ShieldCheck, Tags, Upload } from "lucide-react";
 
 import { AWSRegionSelect } from "@/components/admin/cloud/AWSRegionSelect";
 import {
+  Badge,
   Button,
   CloudCodeTextarea,
-  cloudDialogContentClassName,
-  cloudPanelBodyTextClassName,
+  CloudSensitiveDialogContent,
+  CloudStatusNotice,
   cloudPanelFieldLabelClassName,
   Dialog,
   Flex,
@@ -42,16 +43,32 @@ export function AWSCredentialImportDialog({
 }: AWSCredentialImportDialogProps) {
   return (
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
-      <Dialog.Content className={cloudDialogContentClassName}>
-        <Dialog.Title>{t("cloud.providers.aws.import_dialog_title", "Batch Import AWS Credentials")}</Dialog.Title>
-        <Dialog.Description>
-          {t(
-            "cloud.providers.aws.import_dialog_description",
-            "One line per credential. Supported formats: accessKeyId,secretAccessKey; accessKeyId,secretAccessKey,region; or name,accessKeyId,secretAccessKey[,region[,sessionToken]]. Region is optional and only used as an initial fallback.",
-          )}
-        </Dialog.Description>
-
-        <div className="mt-4 flex flex-col gap-4">
+      <CloudSensitiveDialogContent
+        title={t("cloud.providers.aws.import_dialog_title", "Batch Import AWS Credentials")}
+        description={t(
+          "cloud.providers.aws.import_dialog_description",
+          "One line per credential. Supported formats: accessKeyId,secretAccessKey; accessKeyId,secretAccessKey,region; or name,accessKeyId,secretAccessKey[,region[,sessionToken]]. Region is optional and only used as an initial fallback.",
+        )}
+        icon={<Upload className="size-4" />}
+        badge={<Badge color="blue">{t("cloud.providers.aws.name", "AWS")}</Badge>}
+        side={(
+          <div className="space-y-4">
+            <CloudStatusNotice tone="blue">
+              {t(
+                "cloud.providers.aws.import_dialog_hint",
+                `If name is omitted, Komari will generate one from the access key. If region is omitted, ${DEFAULT_AWS_REGION} is used as the initial fallback and you can switch region after selecting the credential.`,
+              )}
+            </CloudStatusNotice>
+            <CloudStatusNotice tone="gray">
+              {t(
+                "cloud.providers.aws.import_secret_hint",
+                "Review access keys and session tokens before submitting. The backend stores imported credentials for later cloud operations.",
+              )}
+            </CloudStatusNotice>
+          </div>
+        )}
+      >
+        <div className="space-y-2">
           <label className={cloudPanelFieldLabelClassName}>
             {t("cloud.tokens.group", "Group")}
           </label>
@@ -60,30 +77,25 @@ export function AWSCredentialImportDialog({
             placeholder={t("cloud.tokens.group_placeholder", "Optional token group")}
             onChange={(event) => onGroupChange(event.target.value)}
           />
-          <CloudCodeTextarea
-            value={text}
-            placeholder={"AKIA...,secret...\nAKIA... secret...\nprod,AKIA...,secret...,ap-southeast-1\nbackup|AKIA...|secret...|ap-southeast-1|session-token"}
-            onChange={(event) => onTextChange(event.target.value)}
-          />
-          <div className={cloudPanelBodyTextClassName}>
-            {t(
-              "cloud.providers.aws.import_dialog_hint",
-              `If name is omitted, Komari will generate one from the access key. If region is omitted, ${DEFAULT_AWS_REGION} is used as the initial fallback and you can switch region after selecting the credential.`,
-            )}
-          </div>
-          <Flex justify="end" gap="2">
-            <Button variant="outline" onClick={() => onOpenChange(false)} disabled={saving}>
-              {t("common.cancel", "Cancel")}
-            </Button>
-            <Button onClick={() => { void onImport(); }} disabled={saving}>
-              <CheckCircle2 className="mr-2 h-4 w-4" />
-              {saving
-                ? t("cloud.tokens.importing", "Importing...")
-                : t("cloud.providers.aws.import", "Import Credentials")}
-            </Button>
-          </Flex>
         </div>
-      </Dialog.Content>
+        <CloudCodeTextarea
+          value={text}
+          minHeightClassName="min-h-52"
+          placeholder={"AKIA...,secret...\nAKIA... secret...\nprod,AKIA...,secret...,ap-southeast-1\nbackup|AKIA...|secret...|ap-southeast-1|session-token"}
+          onChange={(event) => onTextChange(event.target.value)}
+        />
+        <Flex justify="end" gap="2">
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={saving}>
+            {t("common.cancel", "Cancel")}
+          </Button>
+          <Button onClick={() => { void onImport(); }} disabled={saving}>
+            <CheckCircle2 className="mr-2 h-4 w-4" />
+            {saving
+              ? t("cloud.tokens.importing", "Importing...")
+              : t("cloud.providers.aws.import", "Import Credentials")}
+          </Button>
+        </Flex>
+      </CloudSensitiveDialogContent>
     </Dialog.Root>
   );
 }
@@ -111,16 +123,24 @@ export function AWSCredentialGroupDialog({
 }: AWSCredentialGroupDialogProps) {
   return (
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
-      <Dialog.Content className={cloudDialogContentClassName}>
-        <Dialog.Title>{t("cloud.tokens.set_group", "Set Group")}</Dialog.Title>
-        <Dialog.Description>
-          {t("cloud.tokens.set_group_description", {
-            count: selectedCount,
-            defaultValue: `Update the group for ${selectedCount} selected credential(s). Leave empty to remove the group.`,
-          })}
-        </Dialog.Description>
-
-        <div className="mt-4 flex flex-col gap-4">
+      <CloudSensitiveDialogContent
+        title={t("cloud.tokens.set_group", "Set Group")}
+        description={t("cloud.tokens.set_group_description", {
+          count: selectedCount,
+          defaultValue: `Update the group for ${selectedCount} selected credential(s). Leave empty to remove the group.`,
+        })}
+        icon={<Tags className="size-4" />}
+        badge={<Badge color="blue">{t("cloud.providers.aws.name", "AWS")}</Badge>}
+        side={(
+          <CloudStatusNotice tone="gray">
+            {t(
+              "cloud.tokens.group_dialog_hint",
+              "Groups only affect organization and filtering. They do not change the credential itself.",
+            )}
+          </CloudStatusNotice>
+        )}
+      >
+        <div className="space-y-2">
           <label className={cloudPanelFieldLabelClassName}>
             {t("cloud.tokens.group", "Group")}
           </label>
@@ -129,20 +149,20 @@ export function AWSCredentialGroupDialog({
             placeholder={t("cloud.tokens.group_placeholder", "Optional token group")}
             onChange={(event) => onValueChange(event.target.value)}
           />
-          <Flex justify="end" gap="2">
-            <Button
-              variant="outline"
-              onClick={() => onOpenChange(false)}
-              disabled={saving}
-            >
-              {t("common.cancel", "Cancel")}
-            </Button>
-            <Button onClick={() => { void onSave(); }} disabled={saving}>
-              {saving ? t("common.saving", "Saving...") : t("common.save", "Save")}
-            </Button>
-          </Flex>
         </div>
-      </Dialog.Content>
+        <Flex justify="end" gap="2">
+          <Button
+            variant="outline"
+            onClick={() => onOpenChange(false)}
+            disabled={saving}
+          >
+            {t("common.cancel", "Cancel")}
+          </Button>
+          <Button onClick={() => { void onSave(); }} disabled={saving}>
+            {saving ? t("common.saving", "Saving...") : t("common.save", "Save")}
+          </Button>
+        </Flex>
+      </CloudSensitiveDialogContent>
     </Dialog.Root>
   );
 }
@@ -174,16 +194,24 @@ export function AWSCredentialCheckDialog({
 }: AWSCredentialCheckDialogProps) {
   return (
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
-      <Dialog.Content className={cloudDialogContentClassName}>
-        <Dialog.Title>{t("cloud.providers.aws.check_dialog_title", "Batch Check AWS Credentials")}</Dialog.Title>
-        <Dialog.Description>
-          {t(
-            "cloud.providers.aws.check_dialog_description",
-            "Choose the AWS region used for this batch health check before Komari validates the selected credentials.",
-          )}
-        </Dialog.Description>
-
-        <div className="mt-4 flex flex-col gap-4">
+      <CloudSensitiveDialogContent
+        title={t("cloud.providers.aws.check_dialog_title", "Batch Check AWS Credentials")}
+        description={t(
+          "cloud.providers.aws.check_dialog_description",
+          "Choose the AWS region used for this batch health check before Komari validates the selected credentials.",
+        )}
+        icon={<ShieldCheck className="size-4" />}
+        badge={<Badge color="blue">{t("cloud.providers.aws.name", "AWS")}</Badge>}
+        side={(
+          <CloudStatusNotice tone="blue">
+            {t(
+              "cloud.providers.aws.check_dialog_hint",
+              "The selected region is used for the validation request and quota-related checks.",
+            )}
+          </CloudStatusNotice>
+        )}
+      >
+        <div className="space-y-2">
           <label className={cloudPanelFieldLabelClassName}>
             {t("cloud.providers.aws.region", "Region")}
           </label>
@@ -195,26 +223,26 @@ export function AWSCredentialCheckDialog({
             emptyLabel={emptyLabel}
             onValueChange={onRegionChange}
           />
-          <Flex justify="end" gap="2">
-            <Button
-              variant="outline"
-              onClick={() => onOpenChange(false)}
-              disabled={checking}
-            >
-              {t("common.cancel", "Cancel")}
-            </Button>
-            <Button
-              onClick={() => {
-                void onSubmit();
-              }}
-              disabled={checking || !region}
-            >
-              <ShieldCheck className="mr-2 h-4 w-4" />
-              {t("cloud.tokens.check_all", "Check All Tokens")}
-            </Button>
-          </Flex>
         </div>
-      </Dialog.Content>
+        <Flex justify="end" gap="2">
+          <Button
+            variant="outline"
+            onClick={() => onOpenChange(false)}
+            disabled={checking}
+          >
+            {t("common.cancel", "Cancel")}
+          </Button>
+          <Button
+            onClick={() => {
+              void onSubmit();
+            }}
+            disabled={checking || !region}
+          >
+            <ShieldCheck className="mr-2 h-4 w-4" />
+            {t("cloud.tokens.check_all", "Check All Tokens")}
+          </Button>
+        </Flex>
+      </CloudSensitiveDialogContent>
     </Dialog.Root>
   );
 }

@@ -20,15 +20,15 @@ import type { SettingsResponse } from "@/lib/api";
 import { buildAgentInstallScriptURL } from "@/lib/installScriptSource";
 
 const NODE_DIALOG_CONTENT_CLASS =
-  "max-h-[90vh] w-[min(96vw,1040px)] overflow-y-auto overscroll-contain rounded-lg border border-slate-200/80 bg-card p-6 [scrollbar-gutter:stable] dark:border-slate-800 dark:bg-slate-950";
+  "max-h-[90vh] w-[min(96vw,1040px)] overflow-y-auto overscroll-contain rounded-lg border border-border bg-card p-6 shadow-xl shadow-slate-900/10 [scrollbar-gutter:stable]";
 const NODE_DIALOG_SECTION_CLASS =
-  "rounded-lg border border-slate-200/80 bg-white p-4 shadow-none dark:border-slate-800 dark:bg-slate-950/40";
+  "rounded-lg border border-border bg-muted/25 p-4 shadow-none";
 const NODE_DIALOG_HINT_CLASS =
-  "text-sm leading-6 text-slate-500 dark:text-slate-400";
+  "text-sm leading-6 text-muted-foreground";
 const NODE_DIALOG_FOOTER_CLASS =
   "mt-6 flex flex-col-reverse gap-2.5 sm:flex-row sm:justify-end";
 const NODE_INPUT_CLASS =
-  "h-11 rounded-lg border border-slate-200 bg-white px-3 text-[14px] shadow-none dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100";
+  "h-11 rounded-md border border-border bg-muted/35 px-3 text-[14px] shadow-none hover:bg-card";
 
 type Platform = "linux" | "windows" | "macos";
 

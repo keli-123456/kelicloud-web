@@ -1,10 +1,12 @@
 import type { TFunction } from "i18next";
-import { CheckCircle2 } from "lucide-react";
+import { CheckCircle2, Tags, Upload } from "lucide-react";
 
 import {
+  Badge,
   Button,
   CloudCodeTextarea,
-  cloudDialogContentClassName,
+  CloudSensitiveDialogContent,
+  CloudStatusNotice,
   cloudPanelFieldLabelClassName,
   Dialog,
   Flex,
@@ -38,6 +40,34 @@ type DigitalOceanTokenGroupDialogProps = {
   onSave: () => MaybePromise<void>;
 };
 
+function GroupPresetButtons({
+  groups,
+  value,
+  onChange,
+}: {
+  groups: string[];
+  value: string;
+  onChange: (value: string) => void;
+}) {
+  if (!groups.length) return null;
+
+  return (
+    <div className="flex flex-wrap gap-2">
+      {groups.map((group) => (
+        <Button
+          key={group}
+          variant={value.trim() === group ? "solid" : "outline"}
+          size="1"
+          type="button"
+          onClick={() => onChange(group)}
+        >
+          {group}
+        </Button>
+      ))}
+    </div>
+  );
+}
+
 export function DigitalOceanTokenImportDialog({
   t,
   open,
@@ -52,16 +82,40 @@ export function DigitalOceanTokenImportDialog({
 }: DigitalOceanTokenImportDialogProps) {
   return (
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
-      <Dialog.Content className={cloudDialogContentClassName}>
-        <Dialog.Title>{t("cloud.tokens.import_dialog_title", "Batch Import Tokens")}</Dialog.Title>
-        <Dialog.Description>
-          {t(
-            "cloud.tokens.import_dialog_description",
-            "One line per token. Supported formats: name,token ; name|token ; or token only.",
-          )}
-        </Dialog.Description>
-
-        <div className="mt-4 flex flex-col gap-4">
+      <CloudSensitiveDialogContent
+        title={t("cloud.tokens.import_dialog_title", "Batch Import Tokens")}
+        description={t(
+          "cloud.tokens.import_dialog_description",
+          "One line per token. Supported formats: name,token ; name|token ; or token only.",
+        )}
+        icon={<Upload className="size-4" />}
+        badge={<Badge color="blue">{t("cloud.providers.digitalocean.name", "DigitalOcean")}</Badge>}
+        side={(
+          <div className="space-y-4">
+            <CloudStatusNotice tone="blue">
+              {t(
+                "cloud.tokens.import_hint",
+                "One line per token. Supported formats: name,token ; name|token ; or token only.",
+              )}
+            </CloudStatusNotice>
+            {existingTokenGroups.length ? (
+              <div className="rounded-lg border border-border bg-card px-4 py-3">
+                <div className="text-sm font-semibold text-foreground">
+                  {t("cloud.tokens.existing_groups", "Existing Groups")}
+                </div>
+                <div className="mt-3">
+                  <GroupPresetButtons
+                    groups={existingTokenGroups}
+                    value={tokenImportGroup}
+                    onChange={setTokenImportGroup}
+                  />
+                </div>
+              </div>
+            ) : null}
+          </div>
+        )}
+      >
+        <div className="space-y-2">
           <label className={cloudPanelFieldLabelClassName}>
             {t("cloud.tokens.group", "Group")}
           </label>
@@ -70,49 +124,31 @@ export function DigitalOceanTokenImportDialog({
             placeholder={t("cloud.tokens.group_placeholder", "Optional token group")}
             onChange={(event) => setTokenImportGroup(event.target.value)}
           />
-          {existingTokenGroups.length > 0 ? (
-            <div className="flex flex-wrap gap-2">
-              {existingTokenGroups.map((group) => (
-                <Button
-                  key={group}
-                  variant={tokenImportGroup.trim() === group ? "solid" : "outline"}
-                  size="1"
-                  type="button"
-                  onClick={() => setTokenImportGroup(group)}
-                >
-                  {group}
-                </Button>
-              ))}
-            </div>
-          ) : null}
+        </div>
+        <div className="space-y-2">
           <label className={cloudPanelFieldLabelClassName}>
             {t("cloud.tokens.import_label", "Batch Import")}
           </label>
           <CloudCodeTextarea
             value={tokenImportText}
+            minHeightClassName="min-h-52"
             placeholder={t(
               "cloud.tokens.import_placeholder",
               "prod-account,dop_v1_xxx\nbackup-account|dop_v1_yyy\ndop_v1_zzz",
             )}
             onChange={(event) => setTokenImportText(event.target.value)}
           />
-          <div className="text-sm text-slate-500 dark:text-slate-400">
-            {t(
-              "cloud.tokens.import_hint",
-              "One line per token. Supported formats: name,token ; name|token ; or token only.",
-            )}
-          </div>
-          <Flex justify="end" gap="2">
-            <Button variant="outline" onClick={() => onOpenChange(false)} disabled={saving}>
-              {t("common.cancel", "Cancel")}
-            </Button>
-            <Button onClick={() => { void onImport(); }} disabled={saving}>
-              <CheckCircle2 className="mr-2 h-4 w-4" />
-              {saving ? t("cloud.tokens.importing", "Importing...") : t("cloud.tokens.import", "Import Tokens")}
-            </Button>
-          </Flex>
         </div>
-      </Dialog.Content>
+        <Flex justify="end" gap="2">
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={saving}>
+            {t("common.cancel", "Cancel")}
+          </Button>
+          <Button onClick={() => { void onImport(); }} disabled={saving}>
+            <CheckCircle2 className="mr-2 h-4 w-4" />
+            {saving ? t("cloud.tokens.importing", "Importing...") : t("cloud.tokens.import", "Import Tokens")}
+          </Button>
+        </Flex>
+      </CloudSensitiveDialogContent>
     </Dialog.Root>
   );
 }
@@ -130,16 +166,40 @@ export function DigitalOceanTokenGroupDialog({
 }: DigitalOceanTokenGroupDialogProps) {
   return (
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
-      <Dialog.Content className={cloudDialogContentClassName}>
-        <Dialog.Title>{t("cloud.tokens.set_group", "Set Group")}</Dialog.Title>
-        <Dialog.Description>
-          {t("cloud.tokens.set_group_description", {
-            count: tokenGroupEditorIds.length,
-            defaultValue: `Update the group for ${tokenGroupEditorIds.length} selected token(s). Leave empty to remove the group.`,
-          })}
-        </Dialog.Description>
-
-        <div className="mt-4 flex flex-col gap-4">
+      <CloudSensitiveDialogContent
+        title={t("cloud.tokens.set_group", "Set Group")}
+        description={t("cloud.tokens.set_group_description", {
+          count: tokenGroupEditorIds.length,
+          defaultValue: `Update the group for ${tokenGroupEditorIds.length} selected token(s). Leave empty to remove the group.`,
+        })}
+        icon={<Tags className="size-4" />}
+        badge={<Badge color="blue">{t("cloud.providers.digitalocean.name", "DigitalOcean")}</Badge>}
+        side={(
+          <div className="space-y-4">
+            <CloudStatusNotice tone="gray">
+              {t(
+                "cloud.tokens.group_dialog_hint",
+                "Groups only affect organization and filtering. They do not change the credential itself.",
+              )}
+            </CloudStatusNotice>
+            {existingTokenGroups.length ? (
+              <div className="rounded-lg border border-border bg-card px-4 py-3">
+                <div className="text-sm font-semibold text-foreground">
+                  {t("cloud.tokens.existing_groups", "Existing Groups")}
+                </div>
+                <div className="mt-3">
+                  <GroupPresetButtons
+                    groups={existingTokenGroups}
+                    value={tokenGroupEditorValue}
+                    onChange={setTokenGroupEditorValue}
+                  />
+                </div>
+              </div>
+            ) : null}
+          </div>
+        )}
+      >
+        <div className="space-y-2">
           <label className={cloudPanelFieldLabelClassName}>
             {t("cloud.tokens.group", "Group")}
           </label>
@@ -148,35 +208,20 @@ export function DigitalOceanTokenGroupDialog({
             placeholder={t("cloud.tokens.group_placeholder", "Optional token group")}
             onChange={(event) => setTokenGroupEditorValue(event.target.value)}
           />
-          {existingTokenGroups.length > 0 ? (
-            <div className="flex flex-wrap gap-2">
-              {existingTokenGroups.map((group) => (
-                <Button
-                  key={group}
-                  variant={tokenGroupEditorValue.trim() === group ? "solid" : "outline"}
-                  size="1"
-                  type="button"
-                  onClick={() => setTokenGroupEditorValue(group)}
-                >
-                  {group}
-                </Button>
-              ))}
-            </div>
-          ) : null}
-          <Flex justify="end" gap="2">
-            <Button
-              variant="outline"
-              onClick={() => onOpenChange(false)}
-              disabled={saving}
-            >
-              {t("common.cancel", "Cancel")}
-            </Button>
-            <Button onClick={() => { void onSave(); }} disabled={saving}>
-              {saving ? t("common.saving", "Saving...") : t("common.save", "Save")}
-            </Button>
-          </Flex>
         </div>
-      </Dialog.Content>
+        <Flex justify="end" gap="2">
+          <Button
+            variant="outline"
+            onClick={() => onOpenChange(false)}
+            disabled={saving}
+          >
+            {t("common.cancel", "Cancel")}
+          </Button>
+          <Button onClick={() => { void onSave(); }} disabled={saving}>
+            {saving ? t("common.saving", "Saving...") : t("common.save", "Save")}
+          </Button>
+        </Flex>
+      </CloudSensitiveDialogContent>
     </Dialog.Root>
   );
 }

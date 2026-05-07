@@ -63,7 +63,7 @@ const DEFAULT_ALIYUN_FORM: AliyunFormState = {
 };
 
 const NODE_DIALOG_CONTENT_CLASS =
-  "max-h-[90vh] w-[min(96vw,760px)] overflow-y-auto overscroll-contain rounded-lg border border-slate-200/80 bg-card p-6 [scrollbar-gutter:stable] dark:border-slate-800 dark:bg-slate-950";
+  "max-h-[90vh] w-[min(96vw,760px)] overflow-y-auto overscroll-contain rounded-lg border border-border bg-card p-6 shadow-xl shadow-slate-900/10 [scrollbar-gutter:stable]";
 const NODE_DIALOG_SECTION_CLASS =
   "dialog-section px-4 py-4";
 const NODE_DIALOG_INFO_CLASS =

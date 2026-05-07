@@ -1,16 +1,19 @@
 import type { TFunction } from "i18next";
+import type { ReactNode } from "react";
+import { KeyRound, LockKeyhole, ShieldCheck, Tags, Upload } from "lucide-react";
 
 import {
+  Badge,
   Button,
   CloudCodeTextarea,
-  CloudCopyBlock,
   CloudDetailItem,
-  CloudReadonlyCodeBlock,
-  cloudDialogContentClassName,
-  cloudPanelFieldLabelClassName,
+  CloudSecretValueBlock,
+  CloudSensitiveDialogContent,
+  CloudStatusNotice,
   Dialog,
   Flex,
   TextField,
+  cloudPanelFieldLabelClassName,
 } from "@/components/admin/cloud/cloud-ui";
 import {
   formatDateTime,
@@ -56,6 +59,39 @@ type AzureSavedPasswordDialogProps = {
   onCopy: (text: string, successMessage: string) => MaybePromise<void>;
 };
 
+function SecretSidePanel({
+  t,
+  title,
+  description,
+  children,
+}: {
+  t: TFunction;
+  title: string;
+  description: string;
+  children?: ReactNode;
+}) {
+  return (
+    <div className="space-y-4">
+      <div className="rounded-lg border border-border bg-card px-4 py-3">
+        <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
+          <ShieldCheck className="size-4 text-blue-600" />
+          {title}
+        </div>
+        <div className="mt-2 text-xs leading-5 text-muted-foreground">
+          {description}
+        </div>
+      </div>
+      {children}
+      <CloudStatusNotice tone="blue">
+        {t(
+          "cloud.secret.copy_hint",
+          "Copy sensitive values only when needed, then close this dialog when you are done.",
+        )}
+      </CloudStatusNotice>
+    </div>
+  );
+}
+
 export function AzureCredentialImportDialog({
   t,
   open,
@@ -69,15 +105,33 @@ export function AzureCredentialImportDialog({
 }: AzureCredentialImportDialogProps) {
   return (
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
-      <Dialog.Content className={cloudDialogContentClassName}>
-        <Dialog.Title>{t("cloud.providers.azure.import_dialog_title", "Batch Import Azure Credentials")}</Dialog.Title>
-        <Dialog.Description className="text-sm text-slate-500 dark:text-slate-400">
-          {t(
-            "cloud.providers.azure.import_dialog_description",
-            "One credential per line (CSV/pipe/tab) or paste JSON object/array. Common JSON keys: login_user, subscription_id, appId, password, tenant.",
-          )}
-        </Dialog.Description>
-        <div className="mt-4 space-y-2">
+      <CloudSensitiveDialogContent
+        title={t("cloud.providers.azure.import_dialog_title", "Batch Import Azure Credentials")}
+        description={t(
+          "cloud.providers.azure.import_dialog_description",
+          "One credential per line (CSV/pipe/tab) or paste JSON object/array. Common JSON keys: login_user, subscription_id, appId, password, tenant.",
+        )}
+        icon={<Upload className="size-4" />}
+        badge={<Badge color="blue">{t("cloud.providers.azure.name", "Azure")}</Badge>}
+        side={(
+          <SecretSidePanel
+            t={t}
+            title={t("cloud.providers.azure.import_format", "Import Format")}
+            description={t(
+              "cloud.providers.azure.import_format_description",
+              "Use CSV, pipe, tab, JSON object, or JSON array. Group is optional and can be changed later.",
+            )}
+          >
+            <CloudStatusNotice tone="gray">
+              {t(
+                "cloud.providers.azure.import_secret_hint",
+                "Imported client secrets are stored by the backend; review the pasted text before submitting.",
+              )}
+            </CloudStatusNotice>
+          </SecretSidePanel>
+        )}
+      >
+        <div className="space-y-2">
           <label className={cloudPanelFieldLabelClassName}>
             {t("cloud.tokens.group", "Group")}
           </label>
@@ -88,13 +142,12 @@ export function AzureCredentialImportDialog({
           />
         </div>
         <CloudCodeTextarea
-          className="mt-4"
-          minHeightClassName="min-h-48"
+          minHeightClassName="min-h-56"
           value={importText}
           onChange={(event) => setImportText(event.target.value)}
           placeholder='{"login_user":"team-a","subscription_id":"...","appId":"...","password":"...","tenant":"..."}'
         />
-        <Flex justify="end" gap="2" className="mt-4">
+        <Flex justify="end" gap="2">
           <Dialog.Close>
             <Button variant="outline">{t("common.cancel", "Cancel")}</Button>
           </Dialog.Close>
@@ -104,7 +157,7 @@ export function AzureCredentialImportDialog({
               : t("cloud.providers.azure.import", "Import Credentials")}
           </Button>
         </Flex>
-      </Dialog.Content>
+      </CloudSensitiveDialogContent>
     </Dialog.Root>
   );
 }
@@ -120,16 +173,24 @@ export function AzureCredentialGroupDialog({
 }: AzureCredentialGroupDialogProps) {
   return (
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
-      <Dialog.Content className={cloudDialogContentClassName}>
-        <Dialog.Title>{t("cloud.tokens.set_group", "Set Group")}</Dialog.Title>
-        <Dialog.Description>
-          {t("cloud.tokens.set_group_description", {
-            count: 1,
-            defaultValue: "Update the group for 1 selected credential. Leave empty to remove the group.",
-          })}
-        </Dialog.Description>
-
-        <div className="mt-4 flex flex-col gap-4">
+      <CloudSensitiveDialogContent
+        title={t("cloud.tokens.set_group", "Set Group")}
+        description={t("cloud.tokens.set_group_description", {
+          count: 1,
+          defaultValue: "Update the group for 1 selected credential. Leave empty to remove the group.",
+        })}
+        icon={<Tags className="size-4" />}
+        badge={<Badge color="blue">{t("cloud.providers.azure.name", "Azure")}</Badge>}
+        side={(
+          <CloudStatusNotice tone="gray">
+            {t(
+              "cloud.tokens.group_dialog_hint",
+              "Groups only affect organization and filtering. They do not change the credential itself.",
+            )}
+          </CloudStatusNotice>
+        )}
+      >
+        <div className="space-y-2">
           <label className={cloudPanelFieldLabelClassName}>
             {t("cloud.tokens.group", "Group")}
           </label>
@@ -138,20 +199,20 @@ export function AzureCredentialGroupDialog({
             placeholder={t("cloud.tokens.group_placeholder", "Optional token group")}
             onChange={(event) => onValueChange(event.target.value)}
           />
-          <Flex justify="end" gap="2">
-            <Button
-              variant="outline"
-              onClick={() => onOpenChange(false)}
-              disabled={saving}
-            >
-              {t("common.cancel", "Cancel")}
-            </Button>
-            <Button onClick={() => { void onSave(); }} disabled={saving}>
-              {saving ? t("common.saving", "Saving...") : t("common.save", "Save")}
-            </Button>
-          </Flex>
         </div>
-      </Dialog.Content>
+        <Flex justify="end" gap="2">
+          <Button
+            variant="outline"
+            onClick={() => onOpenChange(false)}
+            disabled={saving}
+          >
+            {t("common.cancel", "Cancel")}
+          </Button>
+          <Button onClick={() => { void onSave(); }} disabled={saving}>
+            {saving ? t("common.saving", "Saving...") : t("common.save", "Save")}
+          </Button>
+        </Flex>
+      </CloudSensitiveDialogContent>
     </Dialog.Root>
   );
 }
@@ -164,41 +225,58 @@ export function AzureCredentialSecretDialog({
 }: AzureCredentialSecretDialogProps) {
   return (
     <Dialog.Root open={Boolean(credentialSecret)} onOpenChange={(open) => !open && onClose()}>
-      <Dialog.Content className={cloudDialogContentClassName}>
-        <Dialog.Title>{t("cloud.providers.azure.credential_dialog_title", "Credential Details")}</Dialog.Title>
-        <Dialog.Description className="text-sm text-slate-500 dark:text-slate-400">
-          {t(
+      {credentialSecret ? (
+        <CloudSensitiveDialogContent
+          title={t("cloud.providers.azure.credential_dialog_title", "Credential Details")}
+          description={t(
             "cloud.providers.azure.credential_dialog_description",
             "View the full Azure app credential only when you need to copy or verify it.",
           )}
-        </Dialog.Description>
-        {credentialSecret ? (
-          <div className="mt-4 space-y-4">
-            <div className="grid gap-3 sm:grid-cols-2">
-              <CloudDetailItem label={t("cloud.table.name", "Name")} value={credentialSecret.secret.credential_name || "-"} />
-              <CloudDetailItem label={t("cloud.providers.azure.subscription", "Subscription")} value={credentialSecret.secret.subscription_display_name || credentialSecret.secret.subscription_id || "-"} />
-              <CloudDetailItem label={t("cloud.providers.azure.tenant_id", "Tenant ID")} value={credentialSecret.secret.tenant_id || "-"} />
-              <CloudDetailItem label={t("cloud.providers.azure.default_location", "Default Location")} value={credentialSecret.secret.default_location || "-"} />
-            </div>
-
-            <CloudCopyBlock
-              title={t("cloud.providers.azure.client_id", "Client ID")}
-              copyLabel={t("common.copy", "Copy")}
-              onCopy={() => void onCopy(credentialSecret.secret.client_id, t("cloud.providers.azure.copy_client_id", "Client ID copied"))}
+          icon={<KeyRound className="size-4" />}
+          badge={(
+            <>
+              <Badge color="blue">{t("cloud.providers.azure.name", "Azure")}</Badge>
+              <Badge color="amber">{t("cloud.providers.azure.app_credential", "App Credential")}</Badge>
+            </>
+          )}
+          side={(
+            <SecretSidePanel
+              t={t}
+              title={t("cloud.secret.scope", "Access Scope")}
+              description={t(
+                "cloud.secret.token_scope_hint",
+                "This credential can manage cloud resources through the provider API.",
+              )}
             >
-              <CloudReadonlyCodeBlock value={credentialSecret.secret.client_id || "-"} />
-            </CloudCopyBlock>
-
-            <CloudCopyBlock
-              title={t("cloud.providers.azure.client_secret", "Client Secret")}
-              copyLabel={t("common.copy", "Copy")}
-              onCopy={() => void onCopy(credentialSecret.secret.client_secret, t("cloud.providers.azure.copy_client_secret", "Client secret copied"))}
-            >
-              <CloudReadonlyCodeBlock value={credentialSecret.secret.client_secret || "-"} />
-            </CloudCopyBlock>
+              <CloudDetailItem
+                label={t("cloud.providers.azure.default_location", "Default Location")}
+                value={credentialSecret.secret.default_location || "-"}
+                className="bg-card"
+              />
+            </SecretSidePanel>
+          )}
+        >
+          <div className="grid gap-3 sm:grid-cols-2">
+            <CloudDetailItem label={t("cloud.table.name", "Name")} value={credentialSecret.secret.credential_name || "-"} className="bg-card" />
+            <CloudDetailItem label={t("cloud.providers.azure.subscription", "Subscription")} value={credentialSecret.secret.subscription_display_name || credentialSecret.secret.subscription_id || "-"} className="bg-card" />
+            <CloudDetailItem label={t("cloud.providers.azure.tenant_id", "Tenant ID")} value={credentialSecret.secret.tenant_id || "-"} className="bg-card" />
           </div>
-        ) : null}
-      </Dialog.Content>
+
+          <CloudSecretValueBlock
+            title={t("cloud.providers.azure.client_id", "Client ID")}
+            copyLabel={t("common.copy", "Copy")}
+            onCopy={() => void onCopy(credentialSecret.secret.client_id, t("cloud.providers.azure.copy_client_id", "Client ID copied"))}
+            value={credentialSecret.secret.client_id || "-"}
+          />
+
+          <CloudSecretValueBlock
+            title={t("cloud.providers.azure.client_secret", "Client Secret")}
+            copyLabel={t("common.copy", "Copy")}
+            onCopy={() => void onCopy(credentialSecret.secret.client_secret, t("cloud.providers.azure.copy_client_secret", "Client secret copied"))}
+            value={credentialSecret.secret.client_secret || "-"}
+          />
+        </CloudSensitiveDialogContent>
+      ) : null}
     </Dialog.Root>
   );
 }
@@ -211,32 +289,50 @@ export function AzureSavedPasswordDialog({
 }: AzureSavedPasswordDialogProps) {
   return (
     <Dialog.Root open={Boolean(savedPassword)} onOpenChange={(open) => !open && onClose()}>
-      <Dialog.Content className={cloudDialogContentClassName}>
-        <Dialog.Title>{t("cloud.password.view", "View Password")}</Dialog.Title>
-        <Dialog.Description className="text-sm text-slate-500 dark:text-slate-400">
-          {t(
+      {savedPassword ? (
+        <CloudSensitiveDialogContent
+          title={t("cloud.password.view", "View Password")}
+          description={t(
             "cloud.providers.azure.password_dialog_description",
             "View the saved root password for this Azure VM from the current active credential.",
           )}
-        </Dialog.Description>
-        {savedPassword ? (
-          <div className="mt-4 space-y-4">
-            <div className="grid gap-3 sm:grid-cols-2">
-              <CloudDetailItem label={t("cloud.table.name", "Name")} value={savedPassword.instance.name || "-"} />
-              <CloudDetailItem label={t("cloud.providers.azure.resource_group", "Resource Group")} value={savedPassword.instance.resource_group || "-"} />
-              <CloudDetailItem label={t("cloud.providers.azure.admin_username", "Admin Username")} value={savedPassword.credential.username || "-"} />
-              <CloudDetailItem label={t("cloud.providers.azure.checked_at", "Last Checked")} value={formatDateTime(savedPassword.credential.updated_at)} />
-            </div>
-            <CloudCopyBlock
-              title={t("cloud.password.root_password", "Root Password")}
-              copyLabel={t("common.copy", "Copy")}
-              onCopy={() => void onCopy(savedPassword.credential.root_password, t("cloud.password.copy_success", "Root password copied"))}
+          icon={<LockKeyhole className="size-4" />}
+          badge={(
+            <>
+              <Badge color="blue">{t("cloud.providers.azure.name", "Azure")}</Badge>
+              <Badge color="green">{t("cloud.password.saved", "Saved")}</Badge>
+            </>
+          )}
+          side={(
+            <SecretSidePanel
+              t={t}
+              title={t("cloud.password.login_context", "Login Context")}
+              description={t(
+                "cloud.password.login_context_description",
+                "Use the username and password together when connecting to this instance.",
+              )}
             >
-              <CloudReadonlyCodeBlock value={savedPassword.credential.root_password || "-"} />
-            </CloudCopyBlock>
+              <CloudDetailItem
+                label={t("cloud.providers.azure.checked_at", "Last Checked")}
+                value={formatDateTime(savedPassword.credential.updated_at)}
+                className="bg-card"
+              />
+            </SecretSidePanel>
+          )}
+        >
+          <div className="grid gap-3 sm:grid-cols-2">
+            <CloudDetailItem label={t("cloud.table.name", "Name")} value={savedPassword.instance.name || "-"} className="bg-card" />
+            <CloudDetailItem label={t("cloud.providers.azure.resource_group", "Resource Group")} value={savedPassword.instance.resource_group || "-"} className="bg-card" />
+            <CloudDetailItem label={t("cloud.providers.azure.admin_username", "Admin Username")} value={savedPassword.credential.username || "-"} className="bg-card" />
           </div>
-        ) : null}
-      </Dialog.Content>
+          <CloudSecretValueBlock
+            title={t("cloud.password.root_password", "Root Password")}
+            copyLabel={t("common.copy", "Copy")}
+            onCopy={() => void onCopy(savedPassword.credential.root_password, t("cloud.password.copy_success", "Root password copied"))}
+            value={savedPassword.credential.root_password || "-"}
+          />
+        </CloudSensitiveDialogContent>
+      ) : null}
     </Dialog.Root>
   );
 }

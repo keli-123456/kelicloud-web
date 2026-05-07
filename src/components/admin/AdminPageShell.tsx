@@ -4,64 +4,41 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useAdminPageTitle } from "@/contexts/AdminPageTitleContext";
 import { cn } from "@/lib/utils";
 
-type AdminStatTone = "blue" | "emerald" | "amber" | "rose" | "slate";
-
-export type AdminPageStat = {
-  label: ReactNode;
-  value: ReactNode;
-  hint?: ReactNode;
-  tone?: AdminStatTone;
-};
-
 export function AdminPageShell({
   title,
+  description,
   actions,
-  stats = [],
-  statsVariant = "inline",
   subnav,
   children,
   className,
   contentClassName,
+  hideHeader = false,
 }: {
   eyebrow?: ReactNode;
   title?: ReactNode;
   description?: ReactNode;
   actions?: ReactNode;
-  stats?: AdminPageStat[];
-  statsVariant?: "inline" | "cards";
   subnav?: ReactNode;
   children: ReactNode;
   className?: string;
   contentClassName?: string;
+  hideHeader?: boolean;
 }) {
-  useAdminPageTitle(title);
-  const visibleStats = statsVariant === "cards" ? [] : stats;
+  useAdminPageTitle(title, description);
+  const hasActions = !hideHeader && Boolean(actions);
 
   return (
     <section
       className={cn(
-        "flex min-w-0 flex-col gap-4 p-4 md:gap-6 md:p-6",
+        "flex min-w-0 flex-col gap-4 p-3 sm:p-4",
         className,
       )}
     >
-      {actions ? (
-        <div className="flex w-full flex-wrap items-center justify-end gap-2">
+      {hasActions ? (
+        <div className="flex min-w-0 flex-wrap items-center justify-end gap-2">
           {actions}
         </div>
       ) : null}
-
-      {visibleStats.length > 0
-        ? (
-          <div className="flex flex-wrap gap-x-5 gap-y-2 border-y border-slate-200/80 py-3 text-sm text-muted-foreground dark:border-slate-800/90">
-            {visibleStats.map((stat, index) => (
-              <div key={`${index}-${String(stat.label)}`} className="flex items-center gap-2">
-                <span className="font-medium text-foreground">{stat.label}:</span>
-                <span className="text-foreground tabular-nums">{stat.value}</span>
-              </div>
-            ))}
-          </div>
-        )
-        : null}
 
       {subnav ? (
         <div className="min-w-0 overflow-x-auto">
@@ -100,7 +77,7 @@ export function AdminEmptyState({
   return (
     <div
       className={cn(
-        "flex min-h-36 min-w-0 flex-col items-center justify-center rounded-lg border border-slate-200/80 bg-white px-5 py-6 text-center shadow-none dark:border-slate-800 dark:bg-slate-950",
+        "flex min-h-36 min-w-0 flex-col items-center justify-center rounded-lg border border-border bg-card px-5 py-6 text-center shadow-sm shadow-slate-900/5 dark:border-slate-800 dark:bg-slate-950",
         className,
       )}
     >
@@ -136,7 +113,7 @@ export function AdminSubnav({
   return (
     <div
       className={cn(
-        "flex flex-wrap gap-2 border-b border-slate-200/80 pb-2 dark:border-slate-800/90",
+        "flex flex-wrap gap-2 rounded-lg border border-border bg-card p-2 shadow-sm shadow-slate-900/5",
         className,
       )}
     >
@@ -146,6 +123,7 @@ export function AdminSubnav({
 }
 
 export function AdminCardGridSkeleton({
+  cards = 4,
   className,
 }: {
   cards?: number;
@@ -155,8 +133,25 @@ export function AdminCardGridSkeleton({
     <div
       role="status"
       aria-label="Loading content"
-      className={cn("h-px bg-slate-200/80 dark:bg-slate-800/90", className)}
-    />
+      className={cn(
+        "overflow-hidden rounded-lg border border-border bg-card shadow-sm shadow-slate-900/5 dark:border-slate-800/90 dark:bg-slate-950",
+        className,
+      )}
+    >
+      {Array.from({ length: cards }).map((_, index) => (
+        <div
+          key={index}
+          className="flex min-h-14 items-center gap-3 border-t border-border px-4 py-3 first:border-t-0 dark:border-slate-800"
+        >
+          <Skeleton className="h-8 w-8 rounded-md" />
+          <div className="min-w-0 flex-1">
+            <Skeleton className="h-3.5 w-32" />
+            <Skeleton className="mt-2 h-3 w-48 max-w-[70%]" />
+          </div>
+          <Skeleton className="h-7 w-20 rounded-md" />
+        </div>
+      ))}
+    </div>
   );
 }
 
@@ -174,7 +169,7 @@ export function AdminTableSkeleton({
       role="status"
       aria-label="Loading table"
       className={cn(
-        "overflow-hidden rounded-lg border border-slate-200/80 bg-white shadow-none dark:border-slate-800/90 dark:bg-slate-950",
+        "overflow-hidden rounded-lg border border-border bg-card shadow-sm shadow-slate-900/5 dark:border-slate-800/90 dark:bg-slate-950",
         className,
       )}
     >

@@ -1,4 +1,5 @@
 import React from "react";
+import type { TFunction } from "i18next";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import {
@@ -29,20 +30,36 @@ import {
 } from "@/components/admin/cloud/LinodeTokenDialogs";
 import { LinodeInstancesSection } from "@/components/admin/cloud/LinodeInstancesSection";
 import { LinodeTokensSection } from "@/components/admin/cloud/LinodeTokensSection";
-import { Button } from "@/components/admin/cloud/cloud-ui";
+import {
+  Badge,
+  Button,
+  CloudProviderHeader,
+  Select,
+  TextField,
+  cloudPanelCardClassName,
+  cloudPanelDescriptionClassName,
+  cloudPanelFieldLabelClassName,
+  cloudPanelHeaderClassName,
+  cloudPanelTitleClassName,
+} from "@/components/admin/cloud/cloud-ui";
 import { WarningAlert } from "@/components/ui/warning-alert";
 import { useWarningDialog } from "@/components/ui/warning-dialog";
 import {
   getLinodeTokens,
+  type LinodeCatalog,
   type LinodeInstance,
   type LinodeTokenPool,
+  type LinodeTokenRecord,
 } from "@/lib/cloudLinode";
 import {
   getActiveToken,
   getDefaultAutoConnectGroup,
+  getLinodeRegionOptionLabel,
+  getLinodeTypeOptionLabel,
   hasActiveToken,
   toErrorMessage,
   type CreatedPasswordState,
+  type CreateFormState,
 } from "./linodePanelUtils";
 import { useLinodeCreateInstance } from "./useLinodeCreateInstance";
 import { useLinodeInstanceActions } from "./useLinodeInstanceActions";
@@ -70,7 +87,6 @@ export default function LinodePanel() {
     account,
     setAccount,
     catalog,
-    setCatalog,
     instances,
     error,
     setError,
@@ -177,13 +193,12 @@ export default function LinodePanel() {
     createCatalogLoading,
     createForm,
     setCreateForm,
+    prepareCreateForm,
     handleCreateInstance,
     handleOpenCreateDialog,
   } = useLinodeCreateInstance({
     t,
     catalog,
-    setCatalog,
-    setError,
     activeToken,
     defaultCreateGroup,
     setCreatedPassword,
@@ -342,8 +357,7 @@ export default function LinodePanel() {
       groupHint: getDefaultAutoConnectGroup("linode", activeToken?.name || ""),
     });
   }, [activeToken?.name, t]);
-  const showOnboardingPanel =
-    tokenRows.length === 0 || !activeToken || !resourcesLoaded;
+  const showOnboardingPanel = tokenRows.length === 0;
 
   const handleLoadResources = async () => {
     if (!activeToken) {
@@ -370,12 +384,11 @@ export default function LinodePanel() {
 
   return (
     <AdminPageShell
-        eyebrow={t("cloud.title", "Cloud")}
         title={t("cloud.providers.linode.title", "Linode")}
-        description={t(
-          "cloud.providers.linode.description",
-          "Manage Linode access tokens, inspect instance inventory, and operate compute resources from one panel.",
-        )}
+        hideHeader
+      >
+      <CloudProviderHeader
+        title={t("cloud.providers.linode.title", "Linode")}
         actions={
           <>
             <Button
@@ -417,7 +430,8 @@ export default function LinodePanel() {
             </Button>
           </>
         }
-      >
+      />
+
       {error ? (
         <WarningAlert tone="warning" description={error} />
       ) : null}
@@ -475,6 +489,45 @@ export default function LinodePanel() {
         />
       ) : null}
 
+      <div className="grid min-w-0 items-stretch gap-4 xl:grid-cols-[minmax(340px,0.9fr)_minmax(380px,1.1fr)]">
+        <LinodeInlineCreatePanel
+          t={t}
+          activeToken={activeToken}
+          catalog={catalog}
+          form={createForm}
+          setForm={setCreateForm}
+          submitting={createSubmitting}
+          catalogLoading={createCatalogLoading}
+          onPrepare={prepareCreateForm}
+          onOpenAdvanced={handleOpenCreateDialog}
+          onCreate={handleCreateInstance}
+        />
+
+        <LinodeTokensSection
+          t={t}
+          tokenPool={tokenPool}
+          tokenRows={tokenRows}
+          selectedTokenIds={selectedTokenIds}
+          setSelectedTokenIds={setSelectedTokenIds}
+          selectedTokens={selectedTokens}
+          allTokensSelected={allTokensSelected}
+          someTokensSelected={someTokensSelected}
+          tokenChecking={tokenChecking}
+          tokenSecretLoading={tokenSecretLoading}
+          promoSubmitting={promoSubmitting}
+          promoDisabled={!activeToken || panelLoading || promoSubmitting || Boolean(account?.restricted)}
+          onOpenPromo={() => setPromoOpen(true)}
+          onCheckTokens={handleCheckTokens}
+          onOpenTokenGroupEditor={openTokenGroupEditor}
+          onDeleteSelectedTokens={handleDeleteSelectedTokens}
+          onOpenTokenImport={() => setTokenImportOpen(true)}
+          onToggleTokenSelection={toggleTokenSelection}
+          onSelectToken={handleSelectToken}
+          onViewTokenSecret={handleViewTokenSecret}
+          onDeleteToken={handleDeleteToken}
+        />
+      </div>
+
       <LinodeInstancesSection
         t={t}
         instances={instances}
@@ -491,30 +544,6 @@ export default function LinodePanel() {
         onOpenScriptDialog={handleOpenScriptDialog}
         onOpenShareDialog={handleOpenShareDialog}
         onDeleteInstance={handleDeleteInstance}
-      />
-
-      <LinodeTokensSection
-        t={t}
-        tokenPool={tokenPool}
-        tokenRows={tokenRows}
-        selectedTokenIds={selectedTokenIds}
-        setSelectedTokenIds={setSelectedTokenIds}
-        selectedTokens={selectedTokens}
-        allTokensSelected={allTokensSelected}
-        someTokensSelected={someTokensSelected}
-        tokenChecking={tokenChecking}
-        tokenSecretLoading={tokenSecretLoading}
-        promoSubmitting={promoSubmitting}
-        promoDisabled={!activeToken || panelLoading || promoSubmitting || Boolean(account?.restricted)}
-        onOpenPromo={() => setPromoOpen(true)}
-        onCheckTokens={handleCheckTokens}
-        onOpenTokenGroupEditor={openTokenGroupEditor}
-        onDeleteSelectedTokens={handleDeleteSelectedTokens}
-        onOpenTokenImport={() => setTokenImportOpen(true)}
-        onToggleTokenSelection={toggleTokenSelection}
-        onSelectToken={handleSelectToken}
-        onViewTokenSecret={handleViewTokenSecret}
-        onDeleteToken={handleDeleteToken}
       />
 
       <LinodeTokenImportDialog
@@ -648,5 +677,134 @@ export default function LinodePanel() {
       />
       {dialog}
     </AdminPageShell>
+  );
+}
+
+type LinodeInlineCreatePanelProps = {
+  t: TFunction;
+  activeToken: LinodeTokenRecord | null;
+  catalog: LinodeCatalog | null;
+  form: CreateFormState;
+  setForm: React.Dispatch<React.SetStateAction<CreateFormState>>;
+  submitting: boolean;
+  catalogLoading: boolean;
+  onPrepare: () => Promise<LinodeCatalog | null>;
+  onOpenAdvanced: () => void | Promise<void>;
+  onCreate: () => void | Promise<void>;
+};
+
+function LinodeInlineCreatePanel({
+  t,
+  activeToken,
+  catalog,
+  form,
+  setForm,
+  submitting,
+  catalogLoading,
+  onPrepare,
+  onOpenAdvanced,
+  onCreate,
+}: LinodeInlineCreatePanelProps) {
+  React.useEffect(() => {
+    if (!activeToken) return;
+    void onPrepare();
+  }, [activeToken, onPrepare]);
+
+  const disabled = !activeToken || catalogLoading;
+
+  return (
+    <section className={`${cloudPanelCardClassName} flex h-full min-h-[520px] flex-col`}>
+      <div className={cloudPanelHeaderClassName}>
+        <div className="flex min-w-0 flex-wrap items-center justify-between gap-3">
+          <div className="min-w-0">
+            <div className="flex items-center gap-2">
+              <div className={cloudPanelTitleClassName}>
+                {t("cloud.providers.linode.create", "Create Instance")}
+              </div>
+              <Badge color={activeToken ? "green" : "amber"}>
+                {activeToken ? t("cloud.tokens.active", "Active") : t("cloud.no_active", "No active")}
+              </Badge>
+            </div>
+            <div className={cloudPanelDescriptionClassName}>
+              {t("cloud.create_inline_description", "Core creation fields stay open here. Use advanced options only when you need extra network or bootstrap details.")}
+            </div>
+          </div>
+          <Button variant="outline" size="1" onClick={() => { void onOpenAdvanced(); }} disabled={!activeToken}>
+            {t("cloud.advanced_options", "Advanced")}
+          </Button>
+        </div>
+      </div>
+      <div className="grid gap-3 p-4">
+        <div>
+          <label className={cloudPanelFieldLabelClassName}>{t("cloud.form.region", "Region")}</label>
+          <Select.Root
+            value={form.region}
+            disabled={disabled}
+            onValueChange={(value) => setForm((previous) => ({ ...previous, region: value }))}
+          >
+            <Select.Trigger placeholder={catalogLoading ? t("common.loading", "Loading") : t("cloud.form.region_placeholder", "Select a region")} />
+            <Select.Content>
+              {(catalog?.regions || []).map((region) => (
+                <Select.Item key={region.id} value={region.id}>
+                  {getLinodeRegionOptionLabel(region, t)}
+                </Select.Item>
+              ))}
+            </Select.Content>
+          </Select.Root>
+        </div>
+        <div>
+          <label className={cloudPanelFieldLabelClassName}>{t("cloud.form.size", "Size")}</label>
+          <Select.Root
+            value={form.type}
+            disabled={disabled}
+            onValueChange={(value) => setForm((previous) => ({ ...previous, type: value }))}
+          >
+            <Select.Trigger placeholder={catalogLoading ? t("common.loading", "Loading") : t("cloud.form.size_placeholder", "Select a size")} />
+            <Select.Content>
+              {(catalog?.types || []).map((type) => (
+                <Select.Item key={type.id} value={type.id}>
+                  {getLinodeTypeOptionLabel(type)}
+                </Select.Item>
+              ))}
+            </Select.Content>
+          </Select.Root>
+        </div>
+        <div>
+          <label className={cloudPanelFieldLabelClassName}>{t("cloud.form.image", "Image")}</label>
+          <Select.Root
+            value={form.image}
+            disabled={disabled}
+            onValueChange={(value) => setForm((previous) => ({ ...previous, image: value }))}
+          >
+            <Select.Trigger placeholder={catalogLoading ? t("common.loading", "Loading") : t("cloud.form.image_placeholder", "Select an image")} />
+            <Select.Content>
+              {(catalog?.images || []).map((image) => (
+                <Select.Item key={image.id} value={image.id}>
+                  {image.vendor ? `${image.vendor} / ` : ""}{image.label}
+                </Select.Item>
+              ))}
+            </Select.Content>
+          </Select.Root>
+        </div>
+        <div>
+          <label className={cloudPanelFieldLabelClassName}>{t("cloud.form.root_password", "Root Password")}</label>
+          <TextField.Root
+            type="password"
+            value={form.root_password}
+            disabled={disabled}
+            placeholder={t("cloud.form.root_password_random", "Random if empty")}
+            onChange={(event) => setForm((previous) => ({ ...previous, root_password: event.target.value }))}
+          />
+        </div>
+      </div>
+      <div className="mt-auto flex items-center justify-end gap-2 border-t border-border px-4 py-3">
+        <Button
+          onClick={() => { void onCreate(); }}
+          disabled={submitting || disabled || !form.region || !form.type || !form.image}
+        >
+          {submitting ? t("cloud.creating", "Creating...") : t("cloud.providers.linode.create", "Create Instance")}
+        </Button>
+      </div>
+    </section>
   );
 }

@@ -1,11 +1,13 @@
 import type { TFunction } from "i18next";
+import type { ReactNode } from "react";
+import { KeyRound, LockKeyhole, ShieldCheck } from "lucide-react";
 
 import {
-  CloudCopyBlock,
+  Badge,
   CloudDetailItem,
-  CloudReadonlyCodeBlock,
-  cloudDialogContentClassName,
-  cloudLongTextClassName,
+  CloudSecretValueBlock,
+  CloudSensitiveDialogContent,
+  CloudStatusNotice,
   Dialog,
 } from "@/components/admin/cloud/cloud-ui";
 import {
@@ -40,7 +42,38 @@ type LinodeCreatedPasswordDialogProps = {
   copyText: CopyText;
 };
 
-const DetailItem = CloudDetailItem;
+function SecretSidePanel({
+  t,
+  title,
+  description,
+  children,
+}: {
+  t: TFunction;
+  title: string;
+  description: string;
+  children?: ReactNode;
+}) {
+  return (
+    <div className="space-y-4">
+      <div className="rounded-lg border border-border bg-card px-4 py-3">
+        <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
+          <ShieldCheck className="size-4 text-blue-600" />
+          {title}
+        </div>
+        <div className="mt-2 text-xs leading-5 text-muted-foreground">
+          {description}
+        </div>
+      </div>
+      {children}
+      <CloudStatusNotice tone="blue">
+        {t(
+          "cloud.secret.copy_hint",
+          "Copy sensitive values only when needed, then close this dialog when you are done.",
+        )}
+      </CloudStatusNotice>
+    </div>
+  );
+}
 
 export function LinodeTokenSecretDialog({
   t,
@@ -50,30 +83,57 @@ export function LinodeTokenSecretDialog({
 }: LinodeTokenSecretDialogProps) {
   return (
     <Dialog.Root open={Boolean(tokenSecret)} onOpenChange={(open) => !open && onClose()}>
-      <Dialog.Content className={cloudDialogContentClassName}>
-        <Dialog.Title>{t("cloud.tokens.token_dialog_title", "Token Details")}</Dialog.Title>
-        <Dialog.Description>
-          {t(
+      {tokenSecret ? (
+        <CloudSensitiveDialogContent
+          title={t("cloud.tokens.token_dialog_title", "Token Details")}
+          description={t(
             "cloud.providers.linode.token_dialog_description",
             "View the full Linode token only when you need to copy or verify it.",
           )}
-        </Dialog.Description>
-
-        {tokenSecret ? (
-          <div className="mt-4 flex flex-col gap-4">
-            <DetailItem label={t("cloud.tokens.table.name", "Name")} value={tokenSecret.secret.token_name} />
-            <DetailItem label={t("cloud.tokens.table.account", "Account")} value={tokenSecret.secret.profile_email || tokenSecret.secret.profile_username || "-"} />
-            <DetailItem label={t("cloud.tokens.masked_token", "Masked Token")} value={tokenSecret.secret.masked_token || "-"} />
-            <CloudCopyBlock
-              title={t("cloud.tokens.full_token", "Full Token")}
-              copyLabel={t("copy", "Copy")}
-              onCopy={() => { void copyText(tokenSecret.secret.token); }}
+          icon={<KeyRound className="size-4" />}
+          badge={(
+            <>
+              <Badge color="blue">{t("cloud.providers.linode.name", "Linode")}</Badge>
+              <Badge color="amber">{t("cloud.tokens.token", "Token")}</Badge>
+            </>
+          )}
+          side={(
+            <SecretSidePanel
+              t={t}
+              title={t("cloud.secret.scope", "Access Scope")}
+              description={t(
+                "cloud.secret.token_scope_hint",
+                "This credential can manage cloud resources through the provider API.",
+              )}
             >
-              <CloudReadonlyCodeBlock value={tokenSecret.secret.token} />
-            </CloudCopyBlock>
+              <CloudDetailItem
+                label={t("cloud.tokens.masked_token", "Masked Token")}
+                value={tokenSecret.secret.masked_token || "-"}
+                className="bg-card"
+              />
+            </SecretSidePanel>
+          )}
+        >
+          <div className="grid gap-3 sm:grid-cols-2">
+            <CloudDetailItem
+              label={t("cloud.tokens.table.name", "Name")}
+              value={tokenSecret.secret.token_name}
+              className="bg-card"
+            />
+            <CloudDetailItem
+              label={t("cloud.tokens.table.account", "Account")}
+              value={tokenSecret.secret.profile_email || tokenSecret.secret.profile_username || "-"}
+              className="bg-card"
+            />
           </div>
-        ) : null}
-      </Dialog.Content>
+          <CloudSecretValueBlock
+            title={t("cloud.tokens.full_token", "Full Token")}
+            copyLabel={t("copy", "Copy")}
+            onCopy={() => { void copyText(tokenSecret.secret.token); }}
+            value={tokenSecret.secret.token}
+          />
+        </CloudSensitiveDialogContent>
+      ) : null}
     </Dialog.Root>
   );
 }
@@ -86,31 +146,50 @@ export function LinodeSavedPasswordDialog({
 }: LinodeSavedPasswordDialogProps) {
   return (
     <Dialog.Root open={Boolean(savedPassword)} onOpenChange={(open) => !open && onClose()}>
-      <Dialog.Content className={cloudDialogContentClassName}>
-        <Dialog.Title>{t("cloud.password.dialog_title", "Saved Root Password")}</Dialog.Title>
-        <Dialog.Description>
-          {t(
+      {savedPassword ? (
+        <CloudSensitiveDialogContent
+          title={t("cloud.password.dialog_title", "Saved Root Password")}
+          description={t(
             "cloud.providers.linode.password_dialog_description",
             "View the saved root password for this Linode instance from the current active token.",
           )}
-        </Dialog.Description>
-
-        {savedPassword ? (
-          <div className="mt-4 flex flex-col gap-4">
-            <DetailItem label={t("cloud.table.name", "Name")} value={savedPassword.instance.label} />
-            <DetailItem label={t("cloud.password.username", "Username")} value={savedPassword.credential.username} />
-            <DetailItem label={t("cloud.password.mode", "Password Mode")} value={savedPassword.credential.password_mode || "-"} />
-            <DetailItem label={t("cloud.password.saved_at", "Saved At")} value={formatDateTime(savedPassword.credential.updated_at)} />
-            <CloudCopyBlock
-              title={t("cloud.form.root_password", "Root Password")}
-              copyLabel={t("copy", "Copy")}
-              onCopy={() => { void copyText(savedPassword.credential.root_password); }}
+          icon={<LockKeyhole className="size-4" />}
+          badge={(
+            <>
+              <Badge color="blue">{t("cloud.providers.linode.name", "Linode")}</Badge>
+              <Badge color="green">{t("cloud.password.saved", "Saved")}</Badge>
+            </>
+          )}
+          side={(
+            <SecretSidePanel
+              t={t}
+              title={t("cloud.password.login_context", "Login Context")}
+              description={t(
+                "cloud.password.login_context_description",
+                "Use the username and password together when connecting to this instance.",
+              )}
             >
-              <CloudReadonlyCodeBlock value={savedPassword.credential.root_password} />
-            </CloudCopyBlock>
+              <CloudDetailItem
+                label={t("cloud.password.saved_at", "Saved At")}
+                value={formatDateTime(savedPassword.credential.updated_at)}
+                className="bg-card"
+              />
+            </SecretSidePanel>
+          )}
+        >
+          <div className="grid gap-3 sm:grid-cols-2">
+            <CloudDetailItem label={t("cloud.table.name", "Name")} value={savedPassword.instance.label} className="bg-card" />
+            <CloudDetailItem label={t("cloud.password.username", "Username")} value={savedPassword.credential.username} className="bg-card" />
+            <CloudDetailItem label={t("cloud.password.mode", "Password Mode")} value={savedPassword.credential.password_mode || "-"} className="bg-card" />
           </div>
-        ) : null}
-      </Dialog.Content>
+          <CloudSecretValueBlock
+            title={t("cloud.form.root_password", "Root Password")}
+            copyLabel={t("copy", "Copy")}
+            onCopy={() => { void copyText(savedPassword.credential.root_password); }}
+            value={savedPassword.credential.root_password}
+          />
+        </CloudSensitiveDialogContent>
+      ) : null}
     </Dialog.Root>
   );
 }
@@ -123,28 +202,34 @@ export function LinodeCreatedPasswordDialog({
 }: LinodeCreatedPasswordDialogProps) {
   return (
     <Dialog.Root open={Boolean(createdPassword)} onOpenChange={(open) => !open && onClose()}>
-      <Dialog.Content className={cloudDialogContentClassName}>
-        <Dialog.Title>{t("cloud.providers.linode.create_credentials_title", "Root Access Credentials")}</Dialog.Title>
-        <Dialog.Description>
-          {t(
+      {createdPassword ? (
+        <CloudSensitiveDialogContent
+          title={t("cloud.providers.linode.create_credentials_title", "Root Access Credentials")}
+          description={t(
             "cloud.providers.linode.create_credentials_description",
             "Store this root password now. You can reopen it later only if password vault storage is enabled and the save succeeded.",
           )}
-        </Dialog.Description>
-
-        {createdPassword ? (
-          <div className="mt-4 flex flex-col gap-4">
-            <DetailItem label={t("cloud.table.name", "Name")} value={createdPassword.instance.label} />
-            <DetailItem label={t("cloud.password.mode", "Password Mode")} value={createdPassword.passwordMode} />
-            <CloudCopyBlock
-              title={t("cloud.form.root_password", "Root Password")}
-              copyLabel={t("copy", "Copy")}
-              onCopy={() => { void copyText(createdPassword.rootPassword); }}
+          icon={<LockKeyhole className="size-4" />}
+          badge={(
+            <>
+              <Badge color="blue">{t("cloud.providers.linode.name", "Linode")}</Badge>
+              <Badge color={createdPassword.passwordSaved ? "green" : "amber"}>
+                {createdPassword.passwordSaved
+                  ? t("cloud.password.saved", "Saved")
+                  : t("cloud.password.not_saved", "Not Saved")}
+              </Badge>
+            </>
+          )}
+          side={(
+            <SecretSidePanel
+              t={t}
+              title={t("cloud.password.storage_status", "Storage Status")}
+              description={t(
+                "cloud.password.storage_status_description",
+                "The generated password is shown here so you can copy it immediately.",
+              )}
             >
-              <CloudReadonlyCodeBlock value={createdPassword.rootPassword} />
-            </CloudCopyBlock>
-            <div className={`rounded-lg px-4 py-3 text-sm ${createdPassword.passwordSaved ? "border border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-300" : "border border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-300"}`}>
-              <div className={cloudLongTextClassName}>
+              <CloudStatusNotice tone={createdPassword.passwordSaved ? "green" : "amber"}>
                 {createdPassword.passwordSaved
                   ? t("cloud.password.create_saved", "This root password has been encrypted and saved. You can reopen it later from the instance list.")
                   : createdPassword.passwordSaveError
@@ -153,11 +238,22 @@ export function LinodeCreatedPasswordDialog({
                         defaultValue: `Password save failed: ${createdPassword.passwordSaveError}`,
                       })
                     : t("cloud.password.create_unsaved", "This root password was not saved on the server. Save it now if you still need it later.")}
-              </div>
-            </div>
+              </CloudStatusNotice>
+            </SecretSidePanel>
+          )}
+        >
+          <div className="grid gap-3 sm:grid-cols-2">
+            <CloudDetailItem label={t("cloud.table.name", "Name")} value={createdPassword.instance.label} className="bg-card" />
+            <CloudDetailItem label={t("cloud.password.mode", "Password Mode")} value={createdPassword.passwordMode} className="bg-card" />
           </div>
-        ) : null}
-      </Dialog.Content>
+          <CloudSecretValueBlock
+            title={t("cloud.form.root_password", "Root Password")}
+            copyLabel={t("copy", "Copy")}
+            onCopy={() => { void copyText(createdPassword.rootPassword); }}
+            value={createdPassword.rootPassword}
+          />
+        </CloudSensitiveDialogContent>
+      ) : null}
     </Dialog.Root>
   );
 }

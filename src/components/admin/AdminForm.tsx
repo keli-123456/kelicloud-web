@@ -39,11 +39,11 @@ function AdminFormSection({
     >
       <div className={cn("mb-4 flex flex-wrap items-start justify-between gap-3", headerClassName)}>
         <div className="min-w-0 space-y-1">
-          <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-50">
+          <h3 className="text-sm font-semibold text-foreground">
             {title}
           </h3>
           {description ? (
-            <p className="text-xs leading-5 text-slate-500 dark:text-slate-400">
+            <p className="text-xs leading-5 text-muted-foreground">
               {description}
             </p>
           ) : null}
@@ -72,11 +72,11 @@ function AdminFormToggle({
   return (
     <div className={cn(ADMIN_FORM_TOGGLE_CLASS, className)} {...props}>
       <div className="min-w-0">
-        <div className="text-sm font-medium text-slate-900 dark:text-slate-50">
+        <div className="text-sm font-medium text-foreground">
           {title}
         </div>
         {description ? (
-          <div className="mt-0.5 text-xs leading-5 text-slate-500 dark:text-slate-400">
+          <div className="mt-0.5 text-xs leading-5 text-muted-foreground">
             {description}
           </div>
         ) : null}

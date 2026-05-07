@@ -11,7 +11,7 @@ import { CommandClipboardProvider } from "@/contexts/CommandClipboardContext";
 import { getDefaultAdminPath, useAccount } from "@/contexts/AccountContext";
 import { NodeDetailsProvider } from "@/contexts/NodeDetailsContext";
 
-type ProviderKey = "digitalocean" | "linode" | "azure" | "aws";
+type ProviderKey = "digitalocean" | "linode" | "vultr" | "azure" | "aws";
 
 const providerPanels: Record<
   ProviderKey,
@@ -21,6 +21,7 @@ const providerPanels: Record<
     () => import("@/components/admin/cloud/DigitalOceanPanel"),
   ),
   linode: React.lazy(() => import("@/components/admin/cloud/LinodePanel")),
+  vultr: React.lazy(() => import("@/components/admin/cloud/VultrPanel")),
   azure: React.lazy(() => import("@/components/admin/cloud/AzurePanel")),
   aws: React.lazy(() => import("@/components/admin/cloud/AWSPanel")),
 };
@@ -41,7 +42,6 @@ function CloudPageSkeleton({ provider }: { provider?: ProviderKey }) {
         defaultValue:
           "Cloud credentials and inventory are loading. Static controls stay available while data arrives.",
       })}
-      statsVariant="cards"
     >
       <AdminCardGridSkeleton cards={4} />
       <AdminTableSkeleton columns={6} rows={5} />
@@ -61,6 +61,9 @@ export default function CloudPage() {
     if (hasFeature("cloud_linode")) {
       providers.push("linode");
     }
+    if (hasFeature("cloud_vultr")) {
+      providers.push("vultr");
+    }
     if (hasFeature("cloud_azure")) {
       providers.push("azure");
     }
@@ -74,6 +77,7 @@ export default function CloudPage() {
     if (
       (providerParam === "digitalocean" ||
         providerParam === "linode" ||
+        providerParam === "vultr" ||
         providerParam === "azure" ||
         providerParam === "aws") &&
       allowedProviders.includes(providerParam)
@@ -83,7 +87,7 @@ export default function CloudPage() {
 
     const saved = window.localStorage.getItem("komari-cloud-provider");
     if (
-      (saved === "digitalocean" || saved === "linode" || saved === "azure" || saved === "aws") &&
+      (saved === "digitalocean" || saved === "linode" || saved === "vultr" || saved === "azure" || saved === "aws") &&
       allowedProviders.includes(saved)
     ) {
       return saved;

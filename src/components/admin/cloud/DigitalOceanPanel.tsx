@@ -1,4 +1,5 @@
 import React from "react";
+import type { TFunction } from "i18next";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import {
@@ -30,13 +31,24 @@ import {
 } from "@/components/admin/cloud/DigitalOceanTokenDialogs";
 import { DigitalOceanTokensSection } from "@/components/admin/cloud/DigitalOceanTokensSection";
 import {
+  Badge,
   Button,
+  CloudProviderHeader,
+  Select,
+  TextField,
+  cloudPanelCardClassName,
+  cloudPanelDescriptionClassName,
+  cloudPanelFieldLabelClassName,
+  cloudPanelHeaderClassName,
+  cloudPanelTitleClassName,
 } from "@/components/admin/cloud/cloud-ui";
 import { WarningAlert } from "@/components/ui/warning-alert";
 import { useWarningDialog } from "@/components/ui/warning-dialog";
 import {
   getDigitalOceanTokens,
+  type DigitalOceanCatalog,
   type DigitalOceanDroplet,
+  type DigitalOceanImage,
   type DigitalOceanTokenPool,
   type DigitalOceanTokenRecord,
 } from "@/lib/cloud";
@@ -69,6 +81,7 @@ import {
   getTokenStatusColor,
   hasActiveToken,
   toErrorMessage,
+  type CreateDropletFormState,
   type DropletAccessSecrets,
 } from "./digitalOceanPanelUtils";
 
@@ -101,7 +114,6 @@ export default function DigitalOceanPanel() {
     panelLoading,
     account,
     catalog,
-    setCatalog,
     droplets,
     error,
     setError,
@@ -305,13 +317,12 @@ export default function DigitalOceanPanel() {
     createCatalogLoading,
     createForm,
     setCreateForm,
+    prepareCreateForm,
     handleCreateDroplet,
     handleOpenCreateDialog,
   } = useDigitalOceanCreateDroplet({
     t,
     catalog,
-    setCatalog,
-    setError,
     activeToken,
     defaultCreateGroup,
     setAccessSecrets,
@@ -341,8 +352,7 @@ export default function DigitalOceanPanel() {
   const regions = catalog?.regions ?? [];
   const sizes = catalog?.sizes ?? [];
   const images = catalog?.images ?? [];
-  const showOnboardingPanel =
-    tokenRows.length === 0 || !activeToken || !resourcesLoaded;
+  const showOnboardingPanel = tokenRows.length === 0;
 
   const handleLoadResources = async () => {
     if (!activeToken) {
@@ -370,54 +380,53 @@ export default function DigitalOceanPanel() {
   return (
     <>
       <AdminPageShell
-        eyebrow={t("cloud.title", "Cloud")}
         title={t("cloud.providers.digitalocean.title", "DigitalOcean")}
-        description={t(
-          "cloud.providers.digitalocean.description",
-          "Manage API tokens, inspect Droplet inventory, and create or operate DigitalOcean instances from one panel.",
-        )}
+        hideHeader
+      >
+      <CloudProviderHeader
+        title={t("cloud.providers.digitalocean.title", "DigitalOcean")}
         actions={
           <>
-            <Button
-              variant="outline"
-              size="1"
-              onClick={() => {
-                window.location.reload();
-              }}
-              disabled={panelLoading || tokenChecking}
-            >
-              <RefreshCw className="mr-2 h-4 w-4" />
-              {t("cloud.refresh", "Refresh")}
-            </Button>
-            <Button
-              variant="outline"
-              size="1"
-              onClick={() => {
-                void handleLoadResources();
-              }}
-              disabled={!activeToken || panelLoading}
-            >
-              <Eye className="mr-2 h-4 w-4" />
-              {t("cloud.view", "View")}
-            </Button>
-            <Button
-              size="1"
-              onClick={() => {
-                void handleOpenCreateDialog();
-              }}
-              disabled={!activeToken}
-              aria-busy={createCatalogLoading}
-            >
-              {createCatalogLoading ? (
-                <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
-              ) : (
-                <Plus className="mr-2 h-4 w-4" />
-              )}
-              {t("cloud.create", "Create Droplet")}
-            </Button>
+          <Button
+            variant="outline"
+            size="1"
+            onClick={() => {
+              window.location.reload();
+            }}
+            disabled={panelLoading || tokenChecking}
+          >
+            <RefreshCw className="mr-2 h-4 w-4" />
+            {t("cloud.refresh", "Refresh")}
+          </Button>
+          <Button
+            variant="outline"
+            size="1"
+            onClick={() => {
+              void handleLoadResources();
+            }}
+            disabled={!activeToken || panelLoading}
+          >
+            <Eye className="mr-2 h-4 w-4" />
+            {t("cloud.view", "View")}
+          </Button>
+          <Button
+            size="1"
+            onClick={() => {
+              void handleOpenCreateDialog();
+            }}
+            disabled={!activeToken}
+            aria-busy={createCatalogLoading}
+          >
+            {createCatalogLoading ? (
+              <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+            ) : (
+              <Plus className="mr-2 h-4 w-4" />
+            )}
+            {t("cloud.create", "Create Droplet")}
+          </Button>
           </>
         }
-      >
+      />
       {error ? (
         <WarningAlert tone="warning" description={error} />
       ) : null}
@@ -479,6 +488,50 @@ export default function DigitalOceanPanel() {
         />
       ) : null}
 
+      <div className="grid min-w-0 items-stretch gap-4 xl:grid-cols-[minmax(340px,0.9fr)_minmax(380px,1.1fr)]">
+        <DigitalOceanInlineCreatePanel
+          t={t}
+          activeToken={activeToken}
+          regions={regions}
+          sizes={sizes}
+          images={images}
+          form={createForm}
+          setForm={setCreateForm}
+          submitting={createSubmitting}
+          catalogLoading={createCatalogLoading}
+          getRegionOptionLabel={getRegionOptionLabel}
+          getImageValue={getImageValue}
+          getImageLabel={getImageLabel}
+          onPrepare={prepareCreateForm}
+          onOpenAdvanced={handleOpenCreateDialog}
+          onCreate={handleCreateDroplet}
+        />
+
+        <DigitalOceanTokensSection
+          t={t}
+          tokenRows={tokenRows}
+          selectedTokenIds={selectedTokenIds}
+          setSelectedTokenIds={setSelectedTokenIds}
+          selectedTokens={selectedTokens}
+          allTokensSelected={allTokensSelected}
+          someTokensSelected={someTokensSelected}
+          tokenChecking={tokenChecking}
+          tokenSecretLoading={tokenSecretLoading}
+          managedKeyLoading={managedKeyLoading}
+          getTokenStatusColor={getTokenStatusColor}
+          onCheckTokens={handleCheckTokens}
+          onOpenTokenGroupEditor={openTokenGroupEditor}
+          onDeleteSelectedTokens={handleDeleteSelectedTokens}
+          onOpenTokenImport={() => setTokenImportOpen(true)}
+          onToggleTokenSelection={toggleTokenSelection}
+          onSelectToken={handleSelectToken}
+          onOpenDropletsForToken={handleOpenDropletsForToken}
+          onViewTokenSecret={handleViewTokenSecret}
+          onViewManagedKey={handleViewManagedKey}
+          onDeleteToken={handleDeleteToken}
+        />
+      </div>
+
       <DigitalOceanDropletsSection
         t={t}
         droplets={droplets}
@@ -500,32 +553,6 @@ export default function DigitalOceanPanel() {
         onOpenScriptDialog={handleOpenScriptDialog}
         onOpenShareDialog={handleOpenShareDialog}
         onDeleteDroplet={handleDeleteDroplet}
-      />
-
-      <DigitalOceanTokensSection
-        t={t}
-        tokenRows={tokenRows}
-        selectedTokenIds={selectedTokenIds}
-        setSelectedTokenIds={setSelectedTokenIds}
-        selectedTokens={selectedTokens}
-        allTokensSelected={allTokensSelected}
-        someTokensSelected={someTokensSelected}
-        tokenChecking={tokenChecking}
-        tokenSecretLoading={tokenSecretLoading}
-        managedKeyLoading={managedKeyLoading}
-        getTokenStatusColor={getTokenStatusColor}
-        getDigitalOceanStatusSummary={getDigitalOceanStatusSummary}
-        formatDateTime={formatDateTime}
-        onCheckTokens={handleCheckTokens}
-        onOpenTokenGroupEditor={openTokenGroupEditor}
-        onDeleteSelectedTokens={handleDeleteSelectedTokens}
-        onOpenTokenImport={() => setTokenImportOpen(true)}
-        onToggleTokenSelection={toggleTokenSelection}
-        onSelectToken={handleSelectToken}
-        onOpenDropletsForToken={handleOpenDropletsForToken}
-        onViewTokenSecret={handleViewTokenSecret}
-        onViewManagedKey={handleViewManagedKey}
-        onDeleteToken={handleDeleteToken}
       />
 
       <DigitalOceanTokenImportDialog
@@ -655,5 +682,144 @@ export default function DigitalOceanPanel() {
       </AdminPageShell>
       {dialog}
     </>
+  );
+}
+
+type DigitalOceanInlineCreatePanelProps = {
+  t: TFunction;
+  activeToken: DigitalOceanTokenRecord | null;
+  regions: DigitalOceanCatalog["regions"];
+  sizes: DigitalOceanCatalog["sizes"];
+  images: DigitalOceanCatalog["images"];
+  form: CreateDropletFormState;
+  setForm: React.Dispatch<React.SetStateAction<CreateDropletFormState>>;
+  submitting: boolean;
+  catalogLoading: boolean;
+  getRegionOptionLabel: (region: DigitalOceanCatalog["regions"][number], t: TFunction) => string;
+  getImageValue: (image: DigitalOceanImage) => string;
+  getImageLabel: (image: DigitalOceanImage) => string;
+  onPrepare: () => Promise<DigitalOceanCatalog | null>;
+  onOpenAdvanced: () => void | Promise<void>;
+  onCreate: () => void | Promise<void>;
+};
+
+function DigitalOceanInlineCreatePanel({
+  t,
+  activeToken,
+  regions,
+  sizes,
+  images,
+  form,
+  setForm,
+  submitting,
+  catalogLoading,
+  getRegionOptionLabel,
+  getImageValue,
+  getImageLabel,
+  onPrepare,
+  onOpenAdvanced,
+  onCreate,
+}: DigitalOceanInlineCreatePanelProps) {
+  React.useEffect(() => {
+    if (!activeToken) return;
+    void onPrepare();
+  }, [activeToken, onPrepare]);
+
+  const disabled = !activeToken || catalogLoading;
+
+  return (
+    <section className={`${cloudPanelCardClassName} flex h-full min-h-[520px] flex-col`}>
+      <div className={cloudPanelHeaderClassName}>
+        <div className="flex min-w-0 flex-wrap items-center justify-between gap-3">
+          <div className="min-w-0">
+            <div className="flex items-center gap-2">
+              <div className={cloudPanelTitleClassName}>
+                {t("cloud.create", "Create Droplet")}
+              </div>
+              <Badge color={activeToken ? "green" : "amber"}>
+                {activeToken ? t("cloud.tokens.active", "Active") : t("cloud.no_active", "No active")}
+              </Badge>
+            </div>
+            <div className={cloudPanelDescriptionClassName}>
+              {t("cloud.create_inline_description", "Core creation fields stay open here. Use advanced options only when you need extra network or bootstrap details.")}
+            </div>
+          </div>
+          <Button variant="outline" size="1" onClick={() => { void onOpenAdvanced(); }} disabled={!activeToken}>
+            {t("cloud.advanced_options", "Advanced")}
+          </Button>
+        </div>
+      </div>
+      <div className="grid gap-3 p-4">
+        <div>
+          <label className={cloudPanelFieldLabelClassName}>{t("cloud.form.region", "Region")}</label>
+          <Select.Root
+            value={form.region}
+            disabled={disabled}
+            onValueChange={(value) => setForm((previous) => ({ ...previous, region: value }))}
+          >
+            <Select.Trigger placeholder={catalogLoading ? t("common.loading", "Loading") : t("cloud.form.region_placeholder", "Select a region")} />
+            <Select.Content>
+              {regions.map((region) => (
+                <Select.Item key={region.slug} value={region.slug}>
+                  {getRegionOptionLabel(region, t)}
+                </Select.Item>
+              ))}
+            </Select.Content>
+          </Select.Root>
+        </div>
+        <div>
+          <label className={cloudPanelFieldLabelClassName}>{t("cloud.form.size", "Size")}</label>
+          <Select.Root
+            value={form.size}
+            disabled={disabled}
+            onValueChange={(value) => setForm((previous) => ({ ...previous, size: value }))}
+          >
+            <Select.Trigger placeholder={catalogLoading ? t("common.loading", "Loading") : t("cloud.form.size_placeholder", "Select a size")} />
+            <Select.Content>
+              {sizes.map((size) => (
+                <Select.Item key={size.slug} value={size.slug}>
+                  {size.slug} / {size.vcpus} vCPU / {(size.memory / 1024).toFixed(0)} GB / ${size.price_monthly.toFixed(2)}
+                </Select.Item>
+              ))}
+            </Select.Content>
+          </Select.Root>
+        </div>
+        <div>
+          <label className={cloudPanelFieldLabelClassName}>{t("cloud.form.image", "Image")}</label>
+          <Select.Root
+            value={form.image}
+            disabled={disabled}
+            onValueChange={(value) => setForm((previous) => ({ ...previous, image: value }))}
+          >
+            <Select.Trigger placeholder={catalogLoading ? t("common.loading", "Loading") : t("cloud.form.image_placeholder", "Select an image")} />
+            <Select.Content>
+              {images.map((image) => (
+                <Select.Item key={`${image.id}-${image.slug}`} value={getImageValue(image)}>
+                  {getImageLabel(image)}
+                </Select.Item>
+              ))}
+            </Select.Content>
+          </Select.Root>
+        </div>
+        <div>
+          <label className={cloudPanelFieldLabelClassName}>{t("cloud.form.root_password", "Root Password")}</label>
+          <TextField.Root
+            type="password"
+            value={form.root_password}
+            disabled={disabled}
+            placeholder={t("cloud.form.root_password_random", "Random if empty")}
+            onChange={(event) => setForm((previous) => ({ ...previous, root_password: event.target.value }))}
+          />
+        </div>
+      </div>
+      <div className="mt-auto flex items-center justify-end gap-2 border-t border-border px-4 py-3">
+        <Button
+          onClick={() => { void onCreate(); }}
+          disabled={submitting || disabled || !form.region || !form.size || !form.image}
+        >
+          {submitting ? t("cloud.creating", "Creating...") : t("cloud.create", "Create Droplet")}
+        </Button>
+      </div>
+    </section>
   );
 }

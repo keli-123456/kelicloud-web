@@ -5,7 +5,9 @@ import {
   Button,
   CloudCopyBlock,
   CloudDetailItem,
+  cloudDetailLabelClassName,
   cloudDetailSectionClassName,
+  cloudDetailValueClassName,
   cloudLongTextClassName,
   cloudPanelTitleClassName,
 } from "@/components/admin/cloud/cloud-ui";
@@ -27,11 +29,11 @@ export function CompactCredentialRow({
   value: React.ReactNode;
 }) {
   return (
-    <div className="flex items-start justify-between gap-4 border-t border-slate-200/80 py-2.5 first:border-t-0 first:pt-0 last:pb-0 dark:border-slate-800">
-      <div className="text-xs font-semibold uppercase tracking-normal text-slate-500 dark:text-slate-400">
+    <div className="flex items-start justify-between gap-4 border-t border-border py-2.5 first:border-t-0 first:pt-0 last:pb-0">
+      <div className={cloudDetailLabelClassName}>
         {label}
       </div>
-      <div className={`min-w-0 text-right text-sm text-slate-900 dark:text-slate-100 ${cloudLongTextClassName}`}>
+      <div className={`min-w-0 text-right ${cloudDetailValueClassName} ${cloudLongTextClassName}`}>
         {value === undefined || value === null || value === "" ? "-" : value}
       </div>
     </div>
@@ -55,10 +57,10 @@ export function CompactCredentialCopyBlock({
       copyLabel={copyLabel}
       onCopy={onCopy}
       className="px-3 py-2"
-      titleClassName="text-xs font-semibold uppercase tracking-normal text-slate-500 dark:text-slate-400"
+      titleClassName={cloudDetailLabelClassName}
       contentClassName="mt-2"
     >
-      <div className="max-h-28 overflow-auto overscroll-contain rounded-lg bg-slate-100/90 px-3 py-2 font-mono text-[11px] leading-5 text-slate-700 [scrollbar-gutter:stable] dark:bg-slate-900 dark:text-slate-200 [overflow-wrap:anywhere]">
+      <div className="max-h-28 overflow-auto overscroll-contain rounded-lg bg-muted px-3 py-2 font-mono text-[11px] leading-5 text-foreground [scrollbar-gutter:stable] [overflow-wrap:anywhere]">
         {value || "-"}
       </div>
     </CloudCopyBlock>
@@ -74,10 +76,10 @@ export function CompactSummaryMetric({
 }) {
   return (
     <div className="flex min-w-0 items-baseline gap-2">
-      <span className="text-[11px] font-semibold uppercase tracking-normal text-slate-500 dark:text-slate-400">
+      <span className="text-[11px] font-semibold uppercase tracking-normal text-muted-foreground">
         {label}
       </span>
-      <span className={`min-w-0 text-sm text-slate-800 dark:text-slate-100 ${cloudLongTextClassName}`}>
+      <span className={`min-w-0 ${cloudDetailValueClassName} ${cloudLongTextClassName}`}>
         {value === undefined || value === null || value === "" ? "-" : value}
       </span>
     </div>
@@ -108,14 +110,14 @@ export function CompactDetailSection({
           >
             <div className="min-w-0 space-y-1">
               <div className={cloudPanelTitleClassName}>{title}</div>
-              <div className="text-xs text-slate-500 dark:text-slate-400">
+              <div className="text-xs text-muted-foreground">
                 {summary === undefined || summary === null || summary === "" ? "-" : summary}
               </div>
             </div>
-            <ChevronDown className={`mt-0.5 h-4 w-4 shrink-0 text-slate-400 transition-transform ${open ? "rotate-180" : ""}`} />
+            <ChevronDown className={`mt-0.5 h-4 w-4 shrink-0 text-muted-foreground transition-transform ${open ? "rotate-180" : ""}`} />
           </Button>
         </CollapsibleTrigger>
-        <CollapsibleContent className="mt-4 border-t border-slate-200/80 pt-4 dark:border-slate-800/80">
+        <CollapsibleContent className="mt-4 border-t border-border pt-4">
           {children}
         </CollapsibleContent>
       </section>

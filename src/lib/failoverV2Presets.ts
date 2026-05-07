@@ -70,31 +70,6 @@ export const STATIC_EC2_INSTANCE_TYPE_PRESETS: BuiltinPlanOption[] = [
 
 export const STATIC_EC2_IMAGE_PRESETS: BuiltinPlanOption[] = [
   {
-    value: "resolve:ssm:/aws/service/ami-amazon-linux-latest/al2023-ami-kernel-default-x86_64",
-    label: "Amazon Linux 2023",
-    hint: "AWS public parameter, x86_64, default kernel",
-  },
-  {
-    value: "resolve:ssm:/aws/service/ami-amazon-linux-latest/al2023-ami-minimal-kernel-default-x86_64",
-    label: "Amazon Linux 2023 Minimal",
-    hint: "AWS public parameter, x86_64, minimal image",
-  },
-  {
-    value: "resolve:ssm:/aws/service/ami-amazon-linux-latest/al2023-ami-kernel-default-arm64",
-    label: "Amazon Linux 2023 ARM64",
-    hint: "AWS public parameter, arm64, Graviton-ready",
-  },
-  {
-    value: "resolve:ssm:/aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-x86_64-gp2",
-    label: "Amazon Linux 2",
-    hint: "AWS public parameter, x86_64, legacy-compatible",
-  },
-  {
-    value: "resolve:ssm:/aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-arm64-gp2",
-    label: "Amazon Linux 2 ARM64",
-    hint: "AWS public parameter, arm64, legacy-compatible",
-  },
-  {
     value: "resolve:ssm:/aws/service/canonical/ubuntu/server/24.04/stable/current/amd64/hvm/ebs-gp3/ami-id",
     label: "Ubuntu Server 24.04 LTS",
     hint: "Canonical public parameter, amd64, gp3",
@@ -126,13 +101,11 @@ export const STATIC_EC2_IMAGE_PRESETS: BuiltinPlanOption[] = [
 ];
 
 export const STATIC_LIGHTSAIL_BLUEPRINT_PRESETS: BuiltinPlanOption[] = [
-  { value: "amazon_linux_2023", label: "Amazon Linux 2023", hint: "OS only, Linux", platform: "linux" },
   { value: "ubuntu_24_04", label: "Ubuntu 24.04 LTS", hint: "OS only, Linux", platform: "linux" },
   { value: "ubuntu_22_04", label: "Ubuntu 22.04 LTS", hint: "OS only, Linux", platform: "linux" },
   { value: "ubuntu_20_04", label: "Ubuntu 20.04 LTS", hint: "OS only, Linux", platform: "linux" },
   { value: "debian_12", label: "Debian 12", hint: "OS only, Linux", platform: "linux" },
   { value: "debian_11", label: "Debian 11", hint: "OS only, Linux", platform: "linux" },
-  { value: "wordpress", label: "WordPress", hint: "Bitnami app image, Linux", platform: "linux" },
   { value: "windows_server_2022", label: "Windows Server 2022", hint: "OS only, Windows", platform: "windows" },
 ];
 
@@ -175,13 +148,10 @@ export const COMMON_DIGITALOCEAN_SIZES: BuiltinPlanOption[] = [
 export const COMMON_DIGITALOCEAN_IMAGES: BuiltinPlanOption[] = [
   { value: "ubuntu-24-04-x64", label: "Ubuntu 24.04 LTS" },
   { value: "ubuntu-22-04-x64", label: "Ubuntu 22.04 LTS" },
-  { value: "ubuntu-25-10-x64", label: "Ubuntu 25.10" },
   { value: "debian-13-x64", label: "Debian 13" },
   { value: "debian-12-x64", label: "Debian 12" },
-  { value: "rockylinux-10-x64", label: "Rocky Linux 10" },
-  { value: "rockylinux-9-x64", label: "Rocky Linux 9" },
-  { value: "almalinux-10-x64", label: "AlmaLinux 10" },
-  { value: "fedora-43-x64", label: "Fedora 43" },
+  { value: "centos-stream-10-x64", label: "CentOS Stream 10" },
+  { value: "centos-stream-9-x64", label: "CentOS Stream 9" },
 ];
 
 export const COMMON_LINODE_REGIONS: BuiltinPlanOption[] = [
@@ -235,13 +205,44 @@ export const COMMON_LINODE_TYPES: BuiltinPlanOption[] = [
 export const COMMON_LINODE_IMAGES: BuiltinPlanOption[] = [
   { value: "linode/ubuntu24.04", label: "Ubuntu 24.04 LTS" },
   { value: "linode/ubuntu22.04", label: "Ubuntu 22.04 LTS" },
-  { value: "linode/ubuntu25.10", label: "Ubuntu 25.10" },
   { value: "linode/debian13", label: "Debian 13" },
   { value: "linode/debian12", label: "Debian 12" },
-  { value: "linode/almalinux10", label: "AlmaLinux 10" },
-  { value: "linode/rocky10", label: "Rocky Linux 10" },
-  { value: "linode/rocky9", label: "Rocky Linux 9" },
-  { value: "linode/fedora43", label: "Fedora 43" },
+  { value: "linode/centos-stream9", label: "CentOS Stream 9" },
+];
+
+export const COMMON_VULTR_REGIONS: BuiltinPlanOption[] = [
+  { value: "ewr", label: "New Jersey", hint: "US" },
+  { value: "ord", label: "Chicago", hint: "US" },
+  { value: "atl", label: "Atlanta", hint: "US" },
+  { value: "dfw", label: "Dallas", hint: "US" },
+  { value: "lax", label: "Los Angeles", hint: "US" },
+  { value: "sea", label: "Seattle", hint: "US" },
+  { value: "mia", label: "Miami", hint: "US" },
+  { value: "yto", label: "Toronto", hint: "CA" },
+  { value: "mex", label: "Mexico City", hint: "MX" },
+  { value: "lhr", label: "London", hint: "GB" },
+  { value: "ams", label: "Amsterdam", hint: "NL" },
+  { value: "fra", label: "Frankfurt", hint: "DE" },
+  { value: "par", label: "Paris", hint: "FR" },
+  { value: "sto", label: "Stockholm", hint: "SE" },
+  { value: "sgp", label: "Singapore", hint: "SG" },
+  { value: "nrt", label: "Tokyo", hint: "JP" },
+  { value: "icn", label: "Seoul", hint: "KR" },
+  { value: "syd", label: "Sydney", hint: "AU" },
+];
+
+export const COMMON_VULTR_PLANS: BuiltinPlanOption[] = [
+  { value: "vc2-1c-1gb", label: "Cloud Compute 1 GB", hint: "1 vCPU / 1 GB" },
+  { value: "vc2-1c-2gb", label: "Cloud Compute 2 GB", hint: "1 vCPU / 2 GB" },
+  { value: "vc2-2c-4gb", label: "Cloud Compute 4 GB", hint: "2 vCPU / 4 GB" },
+  { value: "vc2-4c-8gb", label: "Cloud Compute 8 GB", hint: "4 vCPU / 8 GB" },
+  { value: "vc2-6c-16gb", label: "Cloud Compute 16 GB", hint: "6 vCPU / 16 GB" },
+];
+
+export const COMMON_VULTR_IMAGES: BuiltinPlanOption[] = [
+  { value: "2284", label: "Ubuntu 24.04 LTS x64" },
+  { value: "1743", label: "Ubuntu 22.04 LTS x64" },
+  { value: "2136", label: "Debian 12 x64" },
 ];
 
 export const COMMON_AZURE_LOCATIONS: BuiltinPlanOption[] = [
@@ -289,8 +290,8 @@ export const DEFAULT_AZURE_IMAGE = {
 export const DEFAULT_AWS_REGION = "us-east-1";
 export const DEFAULT_STATIC_EC2_INSTANCE_TYPE = STATIC_EC2_INSTANCE_TYPE_PRESETS[0]?.value || "t3.micro";
 export const DEFAULT_STATIC_EC2_IMAGE_ID =
-  STATIC_EC2_IMAGE_PRESETS[0]?.value || "resolve:ssm:/aws/service/ami-amazon-linux-latest/al2023-ami-kernel-default-x86_64";
-export const DEFAULT_STATIC_LIGHTSAIL_BLUEPRINT_ID = STATIC_LIGHTSAIL_BLUEPRINT_PRESETS[0]?.value || "amazon_linux_2023";
+  STATIC_EC2_IMAGE_PRESETS[0]?.value || "resolve:ssm:/aws/service/canonical/ubuntu/server/24.04/stable/current/amd64/hvm/ebs-gp3/ami-id";
+export const DEFAULT_STATIC_LIGHTSAIL_BLUEPRINT_ID = STATIC_LIGHTSAIL_BLUEPRINT_PRESETS[0]?.value || "ubuntu_24_04";
 export const DEFAULT_STATIC_LIGHTSAIL_BUNDLE_ID =
   STATIC_LIGHTSAIL_BUNDLE_PRESETS.find((preset) => preset.platform === "linux")?.value || "nano_3_0";
 export const DEFAULT_DIGITALOCEAN_REGION = COMMON_DIGITALOCEAN_REGIONS.find((region) => region.value === "sgp1")?.value || "sgp1";
@@ -299,5 +300,8 @@ export const DEFAULT_DIGITALOCEAN_IMAGE = COMMON_DIGITALOCEAN_IMAGES[0]?.value |
 export const DEFAULT_LINODE_REGION = COMMON_LINODE_REGIONS.find((region) => region.value === "sg-sin-2")?.value || "sg-sin-2";
 export const DEFAULT_LINODE_TYPE = COMMON_LINODE_TYPES[0]?.value || "g6-nanode-1";
 export const DEFAULT_LINODE_IMAGE = COMMON_LINODE_IMAGES[0]?.value || "linode/ubuntu24.04";
+export const DEFAULT_VULTR_REGION = COMMON_VULTR_REGIONS.find((region) => region.value === "sgp")?.value || "sgp";
+export const DEFAULT_VULTR_PLAN = COMMON_VULTR_PLANS[0]?.value || "vc2-1c-1gb";
+export const DEFAULT_VULTR_IMAGE = COMMON_VULTR_IMAGES[0]?.value || "2284";
 export const DEFAULT_AZURE_LOCATION = COMMON_AZURE_LOCATIONS.find((location) => location.value === "eastus")?.value || "eastus";
 export const DEFAULT_AZURE_SIZE = COMMON_AZURE_SIZES[0]?.value || "Standard_B1s";

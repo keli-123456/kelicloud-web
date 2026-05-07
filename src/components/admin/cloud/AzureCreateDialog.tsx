@@ -1,5 +1,6 @@
 import type { Dispatch, SetStateAction } from "react";
 import type { TFunction } from "i18next";
+import { Server } from "lucide-react";
 
 import {
   type AzureAccount,
@@ -7,10 +8,11 @@ import {
   type AzureCredentialRecord,
 } from "@/lib/cloudAzure";
 import {
+  Badge,
   Button,
   Checkbox,
   CloudCodeTextarea,
-  cloudDialogContentClassName,
+  CloudSensitiveDialogContent,
   cloudPanelBodyTextClassName,
   cloudPanelFieldLabelClassName,
   Dialog,
@@ -59,16 +61,18 @@ export function AzureCreateDialog({
 
   return (
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
-      <Dialog.Content className={cloudDialogContentClassName}>
-        <Dialog.Title>{t("cloud.providers.azure.create", "Create VM")}</Dialog.Title>
-        <Dialog.Description className="text-sm text-slate-500 dark:text-slate-400">
-          {t(
+      <CloudSensitiveDialogContent
+        title={t("cloud.providers.azure.create", "Create VM")}
+        description={t(
             "cloud.providers.azure.create_description",
             "Create a Linux VM in the current active Azure location. Komari will automatically prepare the resource group network stack and bootstrap agent auto-connect.",
           )}
-        </Dialog.Description>
+        icon={<Server className="size-4" />}
+        badge={<Badge color="blue">{t("cloud.providers.azure.name", "Azure")}</Badge>}
+        className="sm:max-w-5xl"
+      >
 
-        <div className="mt-4 flex flex-col gap-4">
+        <div className="flex flex-col gap-4">
           <div className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700 dark:border-slate-800 dark:bg-slate-900/50 dark:text-slate-300">
             {t("cloud.providers.azure.create_location_hint", {
               location: activeLocationLabel,
@@ -310,7 +314,7 @@ export function AzureCreateDialog({
             </Button>
           </Flex>
         </div>
-      </Dialog.Content>
+      </CloudSensitiveDialogContent>
     </Dialog.Root>
   );
 }

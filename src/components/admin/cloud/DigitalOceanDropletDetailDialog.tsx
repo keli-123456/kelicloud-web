@@ -1,15 +1,18 @@
 import type { TFunction } from "i18next";
-import { KeyRound } from "lucide-react";
+import { KeyRound, Server } from "lucide-react";
 
 import type { DigitalOceanDroplet } from "@/lib/cloud";
 import { getCloudStatusLabel } from "@/lib/cloudStatus";
 import {
+  Badge,
   Button,
   CloudDetailItem,
+  CloudSensitiveDialogContent,
   cloudDetailListClassName,
   cloudDetailListItemClassName,
+  cloudDetailLabelClassName,
   cloudDetailSectionClassName,
-  cloudDialogContentClassName,
+  cloudDetailValueClassName,
   cloudLongTextClassName,
   Dialog,
 } from "@/components/admin/cloud/cloud-ui";
@@ -53,19 +56,27 @@ export function DigitalOceanDropletDetailDialog({
         onClose();
       }}
     >
-      <Dialog.Content className={cloudDialogContentClassName}>
-        <Dialog.Title>{droplet?.name || t("cloud.detail.title", "Droplet Details")}</Dialog.Title>
-        <Dialog.Description>
-          {t(
+      {droplet ? (
+        <CloudSensitiveDialogContent
+          title={droplet.name || t("cloud.detail.title", "Droplet Details")}
+          description={t(
             "cloud.detail.description",
             "View the selected DigitalOcean Droplet details from the current active token.",
           )}
-        </Dialog.Description>
-
-        {droplet ? (
-          <div className="mt-4 flex flex-col gap-4">
+          icon={<Server className="size-4" />}
+          badge={(
+            <>
+              <Badge color="blue">{t("cloud.providers.digitalocean.name", "DigitalOcean")}</Badge>
+              <Badge color={droplet.status === "active" ? "green" : "amber"}>
+                {getCloudStatusLabel(droplet.status, t)}
+              </Badge>
+            </>
+          )}
+          className="sm:max-w-5xl"
+        >
+          <div className="flex flex-col gap-4">
             <section className="pt-0">
-              <div className="text-xs font-semibold uppercase tracking-normal text-slate-500 dark:text-slate-400">
+              <div className={cloudDetailLabelClassName}>
                 {t("cloud.detail.summary", "Summary")}
               </div>
               <div className="mt-2 grid gap-x-6 sm:grid-cols-2 xl:grid-cols-3">
@@ -97,7 +108,7 @@ export function DigitalOceanDropletDetailDialog({
             </section>
 
             <section className={cloudDetailSectionClassName}>
-              <div className="text-xs font-semibold uppercase tracking-normal text-slate-500 dark:text-slate-400">
+              <div className={cloudDetailLabelClassName}>
                 {t("cloud.detail.access", "Access")}
               </div>
               <div className="mt-2 grid gap-x-6 sm:grid-cols-2">
@@ -131,7 +142,7 @@ export function DigitalOceanDropletDetailDialog({
             </section>
 
             <section className={cloudDetailSectionClassName}>
-              <div className="text-xs font-semibold uppercase tracking-normal text-slate-500 dark:text-slate-400">
+              <div className={cloudDetailLabelClassName}>
                 {t("cloud.detail.resources", "Resources")}
               </div>
               <div className="mt-2 grid gap-x-6 sm:grid-cols-2 xl:grid-cols-3">
@@ -154,25 +165,25 @@ export function DigitalOceanDropletDetailDialog({
             </section>
 
             <section className={cloudDetailSectionClassName}>
-              <div className="text-xs font-semibold uppercase tracking-normal text-slate-500 dark:text-slate-400">
+              <div className={cloudDetailLabelClassName}>
                 {t("cloud.detail.network", "Network")}
               </div>
               <div className={`mt-2 ${cloudDetailListClassName}`}>
                 <div className={cloudDetailListItemClassName}>
-                  <div className="text-xs font-semibold uppercase tracking-normal text-slate-500 dark:text-slate-400">
+                  <div className={cloudDetailLabelClassName}>
                     {t("cloud.detail.ipv4", "IPv4 Networks")}
                   </div>
-                  <div className={`mt-1 text-sm text-slate-900 dark:text-slate-100 ${cloudLongTextClassName}`}>
+                  <div className={`mt-1 ${cloudDetailValueClassName} ${cloudLongTextClassName}`}>
                     {droplet.networks.v4.length
                       ? droplet.networks.v4.map((network) => `${network.type}: ${network.ip_address}`).join(" | ")
                       : "-"}
                   </div>
                 </div>
                 <div className={cloudDetailListItemClassName}>
-                  <div className="text-xs font-semibold uppercase tracking-normal text-slate-500 dark:text-slate-400">
+                  <div className={cloudDetailLabelClassName}>
                     {t("cloud.detail.ipv6", "IPv6 Networks")}
                   </div>
-                  <div className={`mt-1 text-sm text-slate-900 dark:text-slate-100 ${cloudLongTextClassName}`}>
+                  <div className={`mt-1 ${cloudDetailValueClassName} ${cloudLongTextClassName}`}>
                     {droplet.networks.v6.length
                       ? droplet.networks.v6.map((network) => `${network.type}: ${network.ip_address}`).join(" | ")
                       : "-"}
@@ -181,8 +192,8 @@ export function DigitalOceanDropletDetailDialog({
               </div>
             </section>
           </div>
-        ) : null}
-      </Dialog.Content>
+        </CloudSensitiveDialogContent>
+      ) : null}
     </Dialog.Root>
   );
 }
