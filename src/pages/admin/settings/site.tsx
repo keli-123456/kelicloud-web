@@ -25,6 +25,7 @@ import UploadDialog from "@/components/UploadDialog";
 import { useAccount } from "@/contexts/AccountContext";
 import { PlatformAdminNotice } from "@/components/admin/PlatformAdminNotice";
 import { updateSettingsWithToast, useSettings } from "@/lib/api";
+import { formatApiErrorMessage, getReadableErrorMessage } from "@/lib/apiErrorMessage";
 import { ADMIN_FORM_DIALOG_CLASS } from "@/components/admin/AdminFormStyles";
 
 export default function SiteSettings() {
@@ -71,9 +72,11 @@ export default function SiteSettings() {
           const ok = xhr.status >= 200 && xhr.status < 300;
           const data = xhr.responseText ? JSON.parse(xhr.responseText) : {};
           if (!ok || (data?.status && data.status !== "success")) {
-            const message =
+            const message = formatApiErrorMessage(
               data?.message ||
-              t("settings.site.backup_restore_error", "Restore backup failed");
+                t("settings.site.backup_restore_error", "Restore backup failed"),
+              { status: xhr.status },
+            );
             toast.error(message);
             reject(new Error(message));
             return;
@@ -101,7 +104,7 @@ export default function SiteSettings() {
         setRestoring(false);
         setRestoreProgress(0);
         setRestoreXhr(null);
-        reject(new Error("Network error"));
+        reject(new Error(formatApiErrorMessage("Network error")));
       });
 
       xhr.addEventListener("abort", () => {
@@ -114,7 +117,7 @@ export default function SiteSettings() {
         setRestoring(false);
         setRestoreProgress(0);
         setRestoreXhr(null);
-        reject(new Error("Upload cancelled"));
+        reject(new Error(formatApiErrorMessage("Upload cancelled")));
       });
 
       xhr.open("POST", "/api/admin/upload/backup");
@@ -244,14 +247,15 @@ export default function SiteSettings() {
                             return;
                           }
                           toast.error(
-                            data.message ||
-                              t(
+                            data.message
+                              ? formatApiErrorMessage(data.message)
+                              : t(
                                 "settings.custom.favicon_default_failed",
                                 "Failed to restore default favicon",
                               ),
                           );
                         } catch (error) {
-                          toast.error(String(error));
+                          toast.error(getReadableErrorMessage(error));
                         }
                       }}
                     >
@@ -289,14 +293,15 @@ export default function SiteSettings() {
                       return;
                     }
                     toast.error(
-                      data.message ||
-                        t(
+                      data.message
+                        ? formatApiErrorMessage(data.message)
+                        : t(
                           "settings.custom.favicon_update_failed",
                           "Failed to update favicon",
                         ),
                     );
                   } catch (error) {
-                    toast.error(String(error));
+                    toast.error(getReadableErrorMessage(error));
                   }
                 };
                 input.click();

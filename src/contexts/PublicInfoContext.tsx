@@ -1,4 +1,5 @@
 import React from "react";
+import { formatApiErrorMessage, getReadableErrorMessage } from "@/lib/apiErrorMessage";
 //import { useRPC2Call } from "./RPC2Context";
 
 export interface PublicInfo {
@@ -50,15 +51,13 @@ export const PublicInfoProvider: React.FC<{ children: React.ReactNode }> = ({
     try {
       const response = await fetch("/api/public");
       if (!response.ok) {
-        throw new Error("Failed to fetch public info");
+        throw new Error(formatApiErrorMessage("Failed to fetch public info", { status: response.status }));
       }
       const resp = (await response.json()) as Response;
       setPublicInfo(resp?.data ?? null);
     } catch (err) {
       setError(
-        err instanceof Error
-          ? err.message
-          : "An error occurred while fetching public info",
+        getReadableErrorMessage(err, "获取站点公开信息失败，请刷新后重试。"),
       );
     } finally {
       setIsLoading(false);

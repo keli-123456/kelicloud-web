@@ -1,5 +1,6 @@
 import type { TFunction } from "i18next";
 
+import { getReadableErrorMessage } from "@/lib/apiErrorMessage";
 import type {
   CreateDigitalOceanDropletInput,
   DigitalOceanDroplet,
@@ -65,8 +66,7 @@ const DIGITALOCEAN_REGION_COUNTRIES: Record<string, string> = {
 };
 
 export function toErrorMessage(error: unknown) {
-  if (error instanceof Error) return error.message;
-  return "Unknown error";
+  return getReadableErrorMessage(error);
 }
 
 export function getStoredTokenGroup() {

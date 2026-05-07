@@ -37,6 +37,7 @@ import {
   ADMIN_FORM_TOGGLE_CLASS,
 } from "@/components/admin/AdminFormStyles";
 import Tips from "@/components/ui/tips";
+import { formatApiErrorMessage, getReadableErrorMessage } from "@/lib/apiErrorMessage";
 
 const OfflinePage = () => {
   return (
@@ -178,7 +179,7 @@ const InnerLayout = () => {
       .then(async (res) => {
         const data = await res.json().catch(() => ({}));
         if (!res.ok || (data?.status && data.status !== "success")) {
-          throw new Error(data?.message || getBatchUpdateFailedMessage(res.statusText));
+          throw new Error(formatApiErrorMessage(data?.message || getBatchUpdateFailedMessage(res.statusText), { status: res.status }));
         }
         return data;
       })
@@ -190,9 +191,7 @@ const InnerLayout = () => {
       .catch((error) => {
         console.error("Error updating offline notifications:", error);
         toast.error(
-          error instanceof Error
-            ? error.message
-            : getBatchUpdateFailedMessage(),
+          getReadableErrorMessage(error, getBatchUpdateFailedMessage()),
         );
       })
       .finally(() => {
@@ -475,7 +474,7 @@ const ActionButtons = ({
                 .then(async (res) => {
                   const data = await res.json().catch(() => ({}));
                   if (!res.ok || (data?.status && data.status !== "success")) {
-                    throw new Error(data?.message || getSaveFailedMessage(res.statusText));
+                    throw new Error(formatApiErrorMessage(data?.message || getSaveFailedMessage(res.statusText), { status: res.status }));
                   }
                   return data;
                 })
@@ -490,9 +489,7 @@ const ActionButtons = ({
                     error
                   );
                   toast.error(
-                    error instanceof Error
-                      ? error.message
-                      : getSaveFailedMessage(),
+                    getReadableErrorMessage(error, getSaveFailedMessage()),
                   );
                 })
                 .finally(() => {

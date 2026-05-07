@@ -22,6 +22,7 @@ import { SettingCardMultiInputCollapse } from "@/components/admin/SettingCardMul
 import { formatBytes } from "@/utils/unitHelper";
 import { useAccount } from "@/contexts/AccountContext";
 import { PlatformAdminNotice } from "@/components/admin/PlatformAdminNotice";
+import { formatApiErrorMessage } from "@/lib/apiErrorMessage";
 
 export default function GeneralSettings() {
   const { t } = useTranslation();
@@ -141,7 +142,7 @@ export default function GeneralSettings() {
                 );
               } else {
                 toast.error(
-                  data.message ||
+                  data.message ? formatApiErrorMessage(data.message, { status: result.status }) :
                     t("settings.geoip.update_error", "更新 GeoIP 数据库失败")
                 );
               }

@@ -1,8 +1,10 @@
+import { formatApiErrorMessage } from "@/lib/apiErrorMessage";
+
 export class CloudApiError extends Error {
   status: number;
 
   constructor(message: string, status: number) {
-    super(message);
+    super(formatApiErrorMessage(message, { status }));
     this.name = "CloudApiError";
     this.status = status;
   }

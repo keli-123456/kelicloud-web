@@ -13,6 +13,7 @@ import {
   type NodeDetail,
 } from "@/contexts/NodeDetailsContext";
 import type { SettingsResponse } from "@/lib/api";
+import { formatApiErrorMessage, getReadableErrorMessage } from "@/lib/apiErrorMessage";
 import { buildAgentInstallScriptURL } from "@/lib/installScriptSource";
 import type { Record as LiveRecord } from "@/types/LiveData";
 import { formatBytes } from "@/utils/unitHelper";
@@ -228,14 +229,14 @@ const resolveLatestAgentUpgradeVersion = async (nodes: NodeDetail[]) => {
 
   if (!response.ok) {
     throw new Error(
-      `Failed to load latest agent release (GitHub HTTP ${response.status})`,
+      formatApiErrorMessage(`Failed to load latest agent release (GitHub HTTP ${response.status})`, { status: response.status }),
     );
   }
 
   const payload = (await response.json()) as GithubReleasePayload;
   const releaseTag = normalizeAgentReleaseTag(payload.tag_name || payload.name);
   if (!releaseTag) {
-    throw new Error("Latest agent release tag is unavailable");
+    throw new Error(formatApiErrorMessage("Latest agent release tag is unavailable"));
   }
 
   const requiredAssets = Array.from(
@@ -259,7 +260,7 @@ const resolveLatestAgentUpgradeVersion = async (nodes: NodeDetail[]) => {
   );
   if (missingAssets.length > 0) {
     throw new Error(
-      `Agent release ${releaseTag} is not fully published yet. Missing assets: ${missingAssets.join(", ")}`,
+      formatApiErrorMessage(`Agent release ${releaseTag} is not fully published yet. Missing assets: ${missingAssets.join(", ")}`),
     );
   }
 
@@ -629,7 +630,7 @@ export default function GroupUpgradeDialog({
       const response = await fetch(`/api/admin/task/${task.taskId}/result`);
       const payload = (await response.json().catch(() => ({}))) as TaskResultResponse;
       if (!response.ok || payload.status === "error") {
-        throw new Error(payload.message || `HTTP ${response.status}`);
+        throw new Error(formatApiErrorMessage(payload.message || `HTTP ${response.status}`, { status: response.status }));
       }
 
       const matchedResult = (payload.results || payload.data || []).find(
@@ -699,8 +700,7 @@ export default function GroupUpgradeDialog({
                   }),
                   status: "failed",
                   taskId: task.taskId,
-                  output:
-                    error instanceof Error ? error.message : String(error),
+                  output: getReadableErrorMessage(error),
                   exitCode: -1,
                   finishedAt: new Date().toISOString(),
                 },
@@ -794,7 +794,7 @@ export default function GroupUpgradeDialog({
 
           const payload = (await response.json().catch(() => ({}))) as ExecResponse;
           if (!response.ok || payload.status === "error") {
-            throw new Error(payload.message || `HTTP ${response.status}`);
+            throw new Error(formatApiErrorMessage(payload.message || `HTTP ${response.status}`, { status: response.status }));
           }
 
           const taskId = payload.data?.task_id || payload.task_id || "";
@@ -842,10 +842,7 @@ export default function GroupUpgradeDialog({
             ...previous,
             [failedNode.uuid]: {
               status: "failed",
-              output:
-                item.reason instanceof Error
-                  ? item.reason.message
-                  : String(item.reason),
+              output: getReadableErrorMessage(item.reason),
               exitCode: -1,
               finishedAt: new Date().toISOString(),
             },
@@ -867,6 +864,9 @@ export default function GroupUpgradeDialog({
         }),
       );
       startPolling(tasks);
+    } catch (error) {
+      setStatus("failed");
+      toast.error(getReadableErrorMessage(error));
     } finally {
       setSubmitting(false);
     }

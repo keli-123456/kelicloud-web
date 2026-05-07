@@ -1,4 +1,5 @@
 import React from "react";
+import { formatApiErrorMessage, getReadableErrorMessage } from "@/lib/apiErrorMessage";
 
 export interface LoadAlert {
   id?: number;
@@ -43,15 +44,13 @@ export const LoadAlertProvider: React.FC<{ children: React.ReactNode }> = ({
     try {
       const response = await fetch("/api/admin/notification/load");
       if (!response.ok) {
-        throw new Error("Failed to fetch notification tasks");
+        throw new Error(formatApiErrorMessage("Failed to fetch notification tasks", { status: response.status }));
       }
       const resp = (await response.json()) as Response;
       setLoadAlerts(Array.isArray(resp?.data) ? resp.data : []);
     } catch (err) {
       setError(
-        err instanceof Error
-          ? err.message
-          : "An error occurred while fetching load alerts",
+        getReadableErrorMessage(err, "加载负载告警失败，请刷新后重试。"),
       );
     } finally {
       setIsLoading(false);

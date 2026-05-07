@@ -83,6 +83,7 @@ import {
   type SettingsResponse,
   useSettings,
 } from "@/lib/api";
+import { formatApiErrorMessage, getReadableErrorMessage } from "@/lib/apiErrorMessage";
 import {
   getClientDDNSBinding,
   type ClientDDNSBinding,
@@ -391,7 +392,7 @@ const getActionErrorMessage = (
     (typeof payload?.error === "string" ? payload.error : "") ||
     raw;
 
-  return detail || `${fallback} (HTTP ${response.status})`;
+  return formatApiErrorMessage(detail || `${fallback} (HTTP ${response.status})`, { status: response.status });
 };
 
 const isNodeConnectivityBlocked = (live?: NodeLiveSnapshot) =>
@@ -557,7 +558,7 @@ const Layout = ({
         setLiveError(null);
       } catch (pollError) {
         console.error("Failed to fetch node live data:", pollError);
-        setLiveError("Failed to fetch node live data");
+        setLiveError(formatApiErrorMessage("Failed to fetch node live data"));
       } finally {
         running = false;
         if (!stopped) {
@@ -798,11 +799,7 @@ const Header = ({
       if (failed.length > 0) {
         const detail = failed
           .slice(0, 3)
-          .map((result) =>
-            result.reason instanceof Error
-              ? result.reason.message
-              : String(result.reason)
-          )
+          .map((result) => getReadableErrorMessage(result.reason))
           .join("；");
 
         if (deletedCount > 0) {
@@ -833,7 +830,7 @@ const Header = ({
       }
     } catch (cleanupError) {
       toast.error(
-        cleanupError instanceof Error ? cleanupError.message : String(cleanupError)
+        getReadableErrorMessage(cleanupError)
       );
     } finally {
       setCleanupLoading(false);
@@ -1190,11 +1187,9 @@ const NodeEndpointSummary = ({ node }: { node: NodeDetail }) => {
         }
         setDdnsBinding(null);
         setDdnsLoadError(
-          error instanceof Error
-            ? error.message
-            : t("admin.nodeTable.ddnsDomainLoadFailed", {
+          getReadableErrorMessage(error, t("admin.nodeTable.ddnsDomainLoadFailed", {
               defaultValue: "Failed to load DDNS domain",
-            }),
+            })),
         );
       })
       .finally(() => {

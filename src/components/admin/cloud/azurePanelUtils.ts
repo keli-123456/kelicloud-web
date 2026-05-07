@@ -1,6 +1,7 @@
 import type { TFunction } from "i18next";
 
 import type { CloudInstanceScriptTarget } from "@/components/admin/cloud/CloudInstanceScriptDialog";
+import { getReadableErrorMessage } from "@/lib/apiErrorMessage";
 import type {
   AzureCatalog,
   AzureCredentialInput,
@@ -94,8 +95,7 @@ export const initialCreateForm: AzureCreateFormState = {
 };
 
 export function toErrorMessage(error: unknown) {
-  if (error instanceof Error) return error.message;
-  return "Unknown error";
+  return getReadableErrorMessage(error);
 }
 
 export function hasActiveCredential(pool: AzureCredentialPool | null) {

@@ -1,5 +1,6 @@
 import React from 'react';
 import { useAccount } from "@/contexts/AccountContext";
+import { formatApiErrorMessage, getReadableErrorMessage } from "@/lib/apiErrorMessage";
 import type { AdminNodeDto } from "@/types/nodeDtos";
 
 export type NodeDetail = AdminNodeDto;
@@ -48,13 +49,13 @@ export const NodeDetailsProvider: React.FC<NodeDetailsProviderProps> = ({
     try {
       const response = await fetch(resolvedListEndpoint);
       if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+        throw new Error(formatApiErrorMessage(`HTTP error! status: ${response.status}`, { status: response.status }));
       }
 
       const data = (await response.json()) as NodeDetail[];
       setNodeDetail(data);
     } catch (error) {
-      setError(error instanceof Error ? error.message : String(error));
+      setError(getReadableErrorMessage(error));
     } finally {
       if (shouldShowLoading) {
         setIsLoading(false);

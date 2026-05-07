@@ -52,6 +52,7 @@ import {
 } from "@/components/ui/table";
 import type { AccountFeature } from "@/contexts/AccountContext";
 import { useAccount } from "@/contexts/AccountContext";
+import { formatApiErrorMessage, getReadableErrorMessage } from "@/lib/apiErrorMessage";
 import { cn } from "@/lib/utils";
 
 type ApiEnvelope<T> = {
@@ -240,7 +241,7 @@ const billingRequest = async <T,>(url: string, init?: RequestInit): Promise<T> =
   });
   const payload = (await response.json().catch(() => ({}))) as ApiEnvelope<T>;
   if (!response.ok) {
-    throw new Error(payload.message || `HTTP ${response.status}`);
+    throw new Error(formatApiErrorMessage(payload.message || `HTTP ${response.status}`, { status: response.status }));
   }
   return (payload.data ?? payload) as T;
 };
@@ -379,7 +380,7 @@ export default function BillingPage() {
         setSelectedPaymentID(String(catalogData.payment_methods[0].id));
       }
     } catch (error) {
-      toast.error(`${t("billing.load_failed")}: ${error}`);
+      toast.error(`${t("billing.load_failed")}: ${getReadableErrorMessage(error)}`);
     } finally {
       setLoadingCatalog(false);
     }
@@ -404,7 +405,7 @@ export default function BillingPage() {
         setAvailableFeatures(plansData.available_features);
       }
     } catch (error) {
-      toast.error(`${t("billing.load_failed")}: ${error}`);
+      toast.error(`${t("billing.load_failed")}: ${getReadableErrorMessage(error)}`);
     } finally {
       setLoadingAdmin(false);
     }
@@ -448,7 +449,7 @@ export default function BillingPage() {
       setPlanDialogOpen(false);
       await refreshAll();
     } catch (error) {
-      toast.error(`${t("billing.save_failed")}: ${error}`);
+      toast.error(`${t("billing.save_failed")}: ${getReadableErrorMessage(error)}`);
     } finally {
       setSubmitting(false);
     }
@@ -464,7 +465,7 @@ export default function BillingPage() {
       toast.success(t("billing.plan_archived"));
       await refreshAll();
     } catch (error) {
-      toast.error(`${t("billing.save_failed")}: ${error}`);
+      toast.error(`${t("billing.save_failed")}: ${getReadableErrorMessage(error)}`);
     } finally {
       setSubmitting(false);
     }
@@ -491,7 +492,7 @@ export default function BillingPage() {
       setPaymentDialogOpen(false);
       await refreshAll();
     } catch (error) {
-      toast.error(`${t("billing.save_failed")}: ${error}`);
+      toast.error(`${t("billing.save_failed")}: ${getReadableErrorMessage(error)}`);
     } finally {
       setSubmitting(false);
     }
@@ -507,7 +508,7 @@ export default function BillingPage() {
       toast.success(t("billing.payment_disabled"));
       await refreshAll();
     } catch (error) {
-      toast.error(`${t("billing.save_failed")}: ${error}`);
+      toast.error(`${t("billing.save_failed")}: ${getReadableErrorMessage(error)}`);
     } finally {
       setSubmitting(false);
     }
@@ -531,7 +532,7 @@ export default function BillingPage() {
       await refreshAll();
       setActiveTab("orders");
     } catch (error) {
-      toast.error(`${t("billing.order_failed")}: ${error}`);
+      toast.error(`${t("billing.order_failed")}: ${getReadableErrorMessage(error)}`);
     } finally {
       setSubmitting(false);
     }
@@ -554,7 +555,7 @@ export default function BillingPage() {
       setAdminNote("");
       await refreshAll();
     } catch (error) {
-      toast.error(`${t("billing.save_failed")}: ${error}`);
+      toast.error(`${t("billing.save_failed")}: ${getReadableErrorMessage(error)}`);
     } finally {
       setSubmitting(false);
     }
@@ -570,7 +571,7 @@ export default function BillingPage() {
       toast.success(t("billing.order_cancelled"));
       await refreshAll();
     } catch (error) {
-      toast.error(`${t("billing.save_failed")}: ${error}`);
+      toast.error(`${t("billing.save_failed")}: ${getReadableErrorMessage(error)}`);
     } finally {
       setSubmitting(false);
     }

@@ -13,6 +13,7 @@ import { renderProviderInputs } from "@/utils/renderProviders";
 import { toast } from "sonner";
 import { useAccount } from "@/contexts/AccountContext";
 import { PlatformAdminNotice } from "@/components/admin/PlatformAdminNotice";
+import { formatApiErrorMessage } from "@/lib/apiErrorMessage";
 
 export default function SignOnSettings() {
   const { t } = useTranslation();
@@ -46,7 +47,7 @@ export default function SignOnSettings() {
           setCurrentProvider(initialProvider);
         } else {
           setProviderError(
-            data.message ||
+            data.message ? formatApiErrorMessage(data.message) :
               t(
                 "settings.sso.fetch_providers_error",
                 "Failed to load sign-on provider definitions",
@@ -80,7 +81,7 @@ export default function SignOnSettings() {
           }
         } else {
           setProviderError(
-            data.message ||
+            data.message ? formatApiErrorMessage(data.message) :
               t(
                 "settings.sso.fetch_settings_error",
                 "Failed to load sign-on settings",
@@ -116,7 +117,7 @@ export default function SignOnSettings() {
       const data = await res.json();
       if (data.status !== "success") {
         setProviderError(
-          data.message ||
+          data.message ? formatApiErrorMessage(data.message, { status: res.status }) :
             t("settings.sso.save_error", "Failed to save sign-on settings"),
         );
       } else {

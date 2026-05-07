@@ -20,6 +20,7 @@ import React from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { Selector } from "@/components/Selector";
+import { formatApiErrorMessage, getReadableErrorMessage } from "@/lib/apiErrorMessage";
 
 // 服务器视图：按服务器聚合展示其绑定的任务，并可快速增删绑定
 export const ServerView = ({ pingTasks }: { pingTasks: PingTask[] }) => {
@@ -138,7 +139,7 @@ const ServerRow: React.FC<{
       .then((res) => {
         if (!res.ok)
           return res.json().then((d) => {
-            throw new Error(d?.message || t("common.error"));
+            throw new Error(formatApiErrorMessage(d?.message || t("common.error"), { status: res.status }));
           });
         return res.json();
       })
@@ -147,7 +148,7 @@ const ServerRow: React.FC<{
         setOpen(false);
         refresh();
       })
-      .catch((e) => toast.error(e.message))
+      .catch((e) => toast.error(getReadableErrorMessage(e)))
       .finally(() => setSaving(false));
   };
 

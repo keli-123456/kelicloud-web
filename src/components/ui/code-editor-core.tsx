@@ -26,7 +26,7 @@ const codeFontFamily =
 const codeLineHeight = "1.65"
 const codeFontSize = "0.875rem"
 const codeVerticalPadding = "0.75rem"
-const gutterHorizontalPadding = "0.5rem"
+const gutterHorizontalPadding = "0.375rem"
 
 const lightEditorTheme = EditorView.theme(
   {
@@ -48,7 +48,7 @@ const lightEditorTheme = EditorView.theme(
       whiteSpace: "pre",
     },
     ".cm-gutters": {
-      minWidth: "3.25rem",
+      minWidth: "2.35rem",
       border: "none",
       backgroundColor: "var(--muted)",
       color: "var(--muted-foreground)",
@@ -58,7 +58,9 @@ const lightEditorTheme = EditorView.theme(
       lineHeight: codeLineHeight,
     },
     ".cm-lineNumbers .cm-gutterElement": {
+      minWidth: "1.25rem",
       padding: `0 ${gutterHorizontalPadding} 0 0`,
+      textAlign: "right",
     },
     ".cm-scroller": {
       overflow: "auto",
@@ -113,7 +115,7 @@ const darkEditorTheme = [
         whiteSpace: "pre",
       },
       ".cm-gutters": {
-        minWidth: "3.25rem",
+        minWidth: "2.35rem",
         border: "none",
         backgroundColor: "color-mix(in srgb, var(--muted) 86%, transparent)",
         color: "var(--muted-foreground)",
@@ -123,7 +125,9 @@ const darkEditorTheme = [
         lineHeight: codeLineHeight,
       },
       ".cm-lineNumbers .cm-gutterElement": {
+        minWidth: "1.25rem",
         padding: `0 ${gutterHorizontalPadding} 0 0`,
+        textAlign: "right",
       },
       ".cm-scroller": {
         overflow: "auto",

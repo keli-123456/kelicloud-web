@@ -7,11 +7,11 @@ import {
   type DigitalOceanCatalog,
   type DigitalOceanDroplet,
 } from "@/lib/cloud";
+import { getReadableErrorMessage } from "@/lib/apiErrorMessage";
 import { buildStaticDigitalOceanCatalog } from "./cloudStaticCatalogs";
 
 function toErrorMessage(error: unknown) {
-  if (error instanceof Error) return error.message;
-  return "Unknown error";
+  return getReadableErrorMessage(error);
 }
 
 export function useDigitalOceanPanelResources() {

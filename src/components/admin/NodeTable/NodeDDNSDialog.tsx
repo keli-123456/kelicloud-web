@@ -16,6 +16,7 @@ import {
   TextField,
 } from "@/components/admin/admin-ui";
 import { getCloudProviderEntries, type CloudProviderCredentialEntry } from "@/lib/cloud";
+import { getReadableErrorMessage } from "@/lib/apiErrorMessage";
 import {
   deleteClientDDNSBinding,
   getClientDDNSBinding,
@@ -244,9 +245,7 @@ export function NodeDDNSDialog({
       } catch (error) {
         if (!cancelled) {
           toast.error(
-            error instanceof Error
-              ? error.message
-              : t("admin.nodeTable.ddns.loadFailed", "Failed to load DDNS settings"),
+            getReadableErrorMessage(error, t("admin.nodeTable.ddns.loadFailed", "Failed to load DDNS settings")),
           );
         }
       } finally {
@@ -283,9 +282,7 @@ export function NodeDDNSDialog({
         if (!cancelled) {
           setEntries([]);
           toast.error(
-            error instanceof Error
-              ? error.message
-              : t("admin.nodeTable.ddns.entryLoadFailed", "Failed to load credential entries"),
+            getReadableErrorMessage(error, t("admin.nodeTable.ddns.entryLoadFailed", "Failed to load credential entries")),
           );
         }
       } finally {
@@ -353,9 +350,7 @@ export function NodeDDNSDialog({
         if (!cancelled) {
           setCatalog(null);
           setCatalogError(
-            error instanceof Error
-              ? error.message
-              : t("admin.nodeTable.ddns.catalogLoadFailed", "Failed to load DNS catalog"),
+            getReadableErrorMessage(error, t("admin.nodeTable.ddns.catalogLoadFailed", "Failed to load DNS catalog")),
           );
         }
       } finally {
@@ -430,9 +425,7 @@ export function NodeDDNSDialog({
       toast.success(t("admin.nodeTable.ddns.saveSuccess", "DDNS settings saved"));
     } catch (error) {
       toast.error(
-        error instanceof Error
-          ? error.message
-          : t("admin.nodeTable.ddns.saveFailed", "Failed to save DDNS settings"),
+        getReadableErrorMessage(error, t("admin.nodeTable.ddns.saveFailed", "Failed to save DDNS settings")),
       );
     } finally {
       setSaving(false);
@@ -451,9 +444,7 @@ export function NodeDDNSDialog({
       toast.success(t("admin.nodeTable.ddns.syncSuccess", "DDNS synced"));
     } catch (error) {
       toast.error(
-        error instanceof Error
-          ? error.message
-          : t("admin.nodeTable.ddns.syncFailed", "Failed to sync DDNS"),
+        getReadableErrorMessage(error, t("admin.nodeTable.ddns.syncFailed", "Failed to sync DDNS")),
       );
     } finally {
       setSyncing(false);
@@ -468,9 +459,7 @@ export function NodeDDNSDialog({
       toast.success(t("admin.nodeTable.ddns.deleteSuccess", "DDNS binding removed"));
     } catch (error) {
       toast.error(
-        error instanceof Error
-          ? error.message
-          : t("admin.nodeTable.ddns.deleteFailed", "Failed to remove DDNS binding"),
+        getReadableErrorMessage(error, t("admin.nodeTable.ddns.deleteFailed", "Failed to remove DDNS binding")),
       );
     } finally {
       setRemoving(false);

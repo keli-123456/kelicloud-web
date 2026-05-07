@@ -28,6 +28,7 @@ import {
   AdminTableSkeleton,
 } from "@/components/admin/AdminPageShell";
 import { AdminPagination } from "@/components/admin/AdminPagination";
+import { formatApiErrorMessage, getReadableErrorMessage } from "@/lib/apiErrorMessage";
 import {
   ADMIN_FORM_DIALOG_WIDE_CLASS,
   ADMIN_FORM_FIELD_CLASS,
@@ -194,7 +195,7 @@ async function fetchCommandPage(
   };
 
   if (!response.ok) {
-    throw new Error(payload.message || "Failed to fetch commands");
+    throw new Error(formatApiErrorMessage(payload.message || "Failed to fetch commands", { status: response.status }));
   }
 
   const data = payload.data;
@@ -302,9 +303,7 @@ export default function CommandLibraryManager() {
         return;
       }
       setError(
-        nextError instanceof Error
-          ? nextError.message
-          : unknownErrorText,
+        getReadableErrorMessage(nextError, unknownErrorText),
       );
     } finally {
       if (requestControllerRef.current === controller) {
@@ -412,11 +411,9 @@ export default function CommandLibraryManager() {
       setFormValues(EMPTY_FORM_VALUES);
     } catch (nextError) {
       toast.error(
-        nextError instanceof Error
-          ? nextError.message
-          : t("exec.saveCommandFailed", {
+        getReadableErrorMessage(nextError, t("exec.saveCommandFailed", {
               defaultValue: "Failed to save command",
-            }),
+            })),
       );
     } finally {
       setSubmitting(false);
@@ -440,11 +437,9 @@ export default function CommandLibraryManager() {
       await loadCommands(page, limit, deferredSearchTerm);
     } catch (nextError) {
       toast.error(
-        nextError instanceof Error
-          ? nextError.message
-          : t("exec.deleteCommandFailed", {
+        getReadableErrorMessage(nextError, t("exec.deleteCommandFailed", {
               defaultValue: "Failed to delete command",
-            }),
+            })),
       );
     } finally {
       setRemovingId(null);
@@ -467,7 +462,7 @@ export default function CommandLibraryManager() {
       await navigator.clipboard.writeText(command.text);
       toast.success(t("copy_success", { defaultValue: "Copied!" }));
     } catch {
-      toast.error(t("common.unknown_error"));
+      toast.error(getReadableErrorMessage(null, t("common.unknown_error")));
     }
   };
 

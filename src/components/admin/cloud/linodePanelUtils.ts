@@ -1,5 +1,6 @@
 import type { TFunction } from "i18next";
 
+import { getReadableErrorMessage } from "@/lib/apiErrorMessage";
 import type {
   CreateLinodeInstanceInput,
   LinodeCatalog,
@@ -56,8 +57,7 @@ export const initialCreateForm: CreateFormState = {
 };
 
 export function toErrorMessage(error: unknown) {
-  if (error instanceof Error) return error.message;
-  return "Unknown error";
+  return getReadableErrorMessage(error);
 }
 
 export function getStoredTokenGroup() {

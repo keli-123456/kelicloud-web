@@ -17,6 +17,7 @@ import { renderProviderInputs } from "@/utils/renderProviders";
 import { SquareArrowOutUpRight } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useAccount } from "@/contexts/AccountContext";
+import { formatApiErrorMessage, getReadableErrorMessage } from "@/lib/apiErrorMessage";
 
 const NotificationSettings = () => {
   const { t } = useTranslation();
@@ -54,7 +55,7 @@ const NotificationSettings = () => {
           setCurrentMessageSender(initialSender);
         } else {
           setMessageError(
-            data.message ||
+            data.message ? formatApiErrorMessage(data.message) :
               t(
                 "settings.notification.fetch_channels_error",
                 "Failed to load message channels",
@@ -88,7 +89,7 @@ const NotificationSettings = () => {
           }
         } else {
           setMessageError(
-            data.message ||
+            data.message ? formatApiErrorMessage(data.message) :
               t(
                 "settings.notification.fetch_settings_error",
                 "Failed to load notification settings",
@@ -123,13 +124,13 @@ const NotificationSettings = () => {
       });
       const data = await res.json();
       if (data.status !== "success") {
-        throw new Error(data.message || t("common.error"));
+        throw new Error(formatApiErrorMessage(data.message || t("common.error"), { status: res.status }));
       } else {
         setMessageValues(values);
       }
       toast.success(t("common.success"));
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : String(error));
+      toast.error(getReadableErrorMessage(error, t("common.error")));
     }
     setMessageLoading(false);
   };
@@ -307,7 +308,7 @@ const NotificationSettings = () => {
                   return;
                 }
                 if (data && data.message && data.code !== 200) {
-                  toast.error(data.message);
+                  toast.error(formatApiErrorMessage(data.message));
                   return;
                 }
                 toast.success(t("common.success"));
@@ -315,7 +316,7 @@ const NotificationSettings = () => {
                 toast.error(
                   t("common.error") +
                   ": " +
-                  (error instanceof Error ? error.message : String(error))
+                  getReadableErrorMessage(error, t("common.error"))
                 );
               }
             }}

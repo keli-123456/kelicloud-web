@@ -1,5 +1,6 @@
 import React from "react";
 import { toast } from "sonner";
+import { formatApiErrorMessage, getReadableErrorMessage } from "@/lib/apiErrorMessage";
 
 /**
  * API utility functions for settings management
@@ -107,9 +108,13 @@ const getSettingsPath = (scope: SettingsScope) =>
 const getResponseMessage = async (response: Response) => {
   try {
     const data = await response.json();
-    return data?.message || `HTTP error! status: ${response.status}`;
+    return formatApiErrorMessage(data?.message || `HTTP error! status: ${response.status}`, {
+      status: response.status,
+    });
   } catch {
-    return `HTTP error! status: ${response.status}`;
+    return formatApiErrorMessage(`HTTP error! status: ${response.status}`, {
+      status: response.status,
+    });
   }
 };
 
@@ -164,7 +169,9 @@ export async function updateSettings(
 
     if (!response.ok) {
       console.log("Error response data:", payload.message);
-      throw new Error(`${payload.message || `HTTP error! status: ${response.status}`}`);
+      throw new Error(formatApiErrorMessage(payload.message || `HTTP error! status: ${response.status}`, {
+        status: response.status,
+      }));
     }
 
     const ignoredSystemKeys = Array.isArray(payload.data?.ignored_system_keys)
@@ -183,7 +190,7 @@ export async function updateSettings(
     );
 
     if (ignoredRequestedKeys.length > 0) {
-      throw new Error(`The server ignored these settings: ${ignoredRequestedKeys.join(", ")}`);
+      throw new Error(`服务器忽略了这些设置项：${ignoredRequestedKeys.join(", ")}`);
     }
   } catch (error) {
     console.error("Failed to update settings:", error);
@@ -199,7 +206,7 @@ export async function updateSettingsWithToast(
     await updateSettings(settings, scope);
     toast.success(t("settings.settings_saved"));
   } catch (error) {
-    toast.error(t("settings.settings_save_failed") + ": " + error);
+    toast.error(t("settings.settings_save_failed") + ": " + getReadableErrorMessage(error));
     throw error;
   }
 }

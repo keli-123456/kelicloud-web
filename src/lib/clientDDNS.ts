@@ -1,10 +1,11 @@
 import type { FailoverDnsCatalog } from "@/lib/failover";
+import { formatApiErrorMessage } from "@/lib/apiErrorMessage";
 
 export class ClientDDNSApiError extends Error {
   status: number;
 
   constructor(message: string, status: number) {
-    super(message);
+    super(formatApiErrorMessage(message, { status }));
     this.name = "ClientDDNSApiError";
     this.status = status;
   }

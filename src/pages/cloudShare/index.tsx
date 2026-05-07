@@ -7,6 +7,7 @@ import { Copy, KeyRound } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { getPublicCloudInstanceShare, type CloudPublicShareData } from "@/lib/cloudShare";
+import { getReadableErrorMessage } from "@/lib/apiErrorMessage";
 import type { DigitalOceanDroplet } from "@/lib/cloud";
 import type { AWSInstanceDetail, AWSLightsailInstanceDetail } from "@/lib/cloudAws";
 import type { LinodeInstanceDetail } from "@/lib/cloudLinode";
@@ -90,7 +91,7 @@ export default function CloudSharePage() {
         await navigator.clipboard.writeText(text);
         toast.success(t("copy_success", "Copied!"));
       } catch (copyError) {
-        toast.error(copyError instanceof Error ? copyError.message : "Copy failed");
+        toast.error(getReadableErrorMessage(copyError, "复制失败，请手动复制。"));
       }
     },
     [t],
@@ -114,7 +115,7 @@ export default function CloudSharePage() {
         setError("");
       } catch (shareError) {
         if (cancelled) return;
-        setError(shareError instanceof Error ? shareError.message : "Failed to load share");
+        setError(getReadableErrorMessage(shareError, "加载分享信息失败，请稍后重试。"));
         setShare(null);
       } finally {
         if (!cancelled) {

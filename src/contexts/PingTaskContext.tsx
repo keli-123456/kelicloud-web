@@ -1,4 +1,5 @@
 import React from "react";
+import { formatApiErrorMessage, getReadableErrorMessage } from "@/lib/apiErrorMessage";
 
 export interface PingTask {
   clients?: string[];
@@ -40,15 +41,13 @@ export const PingTaskProvider: React.FC<{ children: React.ReactNode }> = ({
     try {
       const response = await fetch("/api/admin/ping");
       if (!response.ok) {
-        throw new Error("Failed to fetch ping tasks");
+        throw new Error(formatApiErrorMessage("Failed to fetch ping tasks", { status: response.status }));
       }
       const resp = (await response.json()) as Response;
       setPingTasks(Array.isArray(resp?.data) ? resp.data : []);
     } catch (err) {
       setError(
-        err instanceof Error
-          ? err.message
-          : "An error occurred while fetching ping tasks",
+        getReadableErrorMessage(err, "获取 Ping 监测任务失败，请刷新后重试。"),
       );
     } finally {
       setIsLoading(false);

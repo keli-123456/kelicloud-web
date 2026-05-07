@@ -1,5 +1,6 @@
 import React from "react";
 import type { PublicNodeDto } from "@/types/nodeDtos";
+import { getReadableErrorMessage } from "@/lib/apiErrorMessage";
 import { useRPC2Call } from "./RPC2Context";
 
 export type NodeBasicInfo = PublicNodeDto;
@@ -67,7 +68,7 @@ export const NodeListProvider: React.FC<{ children: React.ReactNode }> = ({
         setNodeList(list);
       })
       .catch((err: any) => {
-        setError(err?.message || "An error occurred while fetching data");
+        setError(getReadableErrorMessage(err, "获取数据失败，请刷新后重试。"));
         setNodeList([]);
       })
       .finally(() => {

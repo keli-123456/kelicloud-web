@@ -100,6 +100,7 @@ import {
   type AzureImagePreset,
 } from "@/components/admin/cloud/azurePanelUtils";
 import { useSettings } from "@/lib/api";
+import { getReadableErrorMessage } from "@/lib/apiErrorMessage";
 import {
   createFailoverTask,
   deleteFailoverTask,
@@ -5277,11 +5278,9 @@ function ExecutionDetailDialog({
       setExecution(detail);
     } catch (nextError) {
       setError(
-        nextError instanceof Error
-          ? nextError.message
-          : t("failover.messages.load_execution_failed", {
+        getReadableErrorMessage(nextError, t("failover.messages.load_execution_failed", {
             defaultValue: "Failed to load execution details",
-          }),
+          })),
       );
     } finally {
       if (showLoading) {
@@ -5329,7 +5328,7 @@ function ExecutionDetailDialog({
       toast.success(t("failover.messages.stopped", { defaultValue: "Failover execution stopped" }));
       await onExecutionUpdated?.();
     } catch (nextError) {
-      toast.error(nextError instanceof Error ? nextError.message : t("common.unknown_error"));
+      toast.error(getReadableErrorMessage(nextError, t("common.unknown_error")));
     } finally {
       setStopping(false);
     }
@@ -5348,7 +5347,7 @@ function ExecutionDetailDialog({
       await onExecutionUpdated?.();
       return true;
     } catch (nextError) {
-      toast.error(nextError instanceof Error ? nextError.message : t("common.unknown_error"));
+      toast.error(getReadableErrorMessage(nextError, t("common.unknown_error")));
       await loadExecution(false);
       return false;
     } finally {
@@ -5369,7 +5368,7 @@ function ExecutionDetailDialog({
       await onExecutionUpdated?.();
       return true;
     } catch (nextError) {
-      toast.error(nextError instanceof Error ? nextError.message : t("common.unknown_error"));
+      toast.error(getReadableErrorMessage(nextError, t("common.unknown_error")));
       await loadExecution(false);
       return false;
     } finally {
@@ -6693,7 +6692,7 @@ function TaskEditorDialog({
         return;
       }
       setDnsCatalog(null);
-      setDnsCatalogError(error instanceof Error ? error.message : t("common.unknown_error"));
+      setDnsCatalogError(getReadableErrorMessage(error, t("common.unknown_error")));
     } finally {
       if (dnsCatalogRequestRef.current === requestID) {
         setDnsCatalogLoading(false);
@@ -6955,7 +6954,7 @@ function TaskEditorDialog({
         return;
       }
       resetPlanCatalogState();
-      setPlanCatalogError(error instanceof Error ? error.message : t("common.unknown_error"));
+      setPlanCatalogError(getReadableErrorMessage(error, t("common.unknown_error")));
     } finally {
       if (planCatalogRequestRef.current === requestID) {
         setPlanCatalogLoading(false);
@@ -7046,7 +7045,7 @@ function TaskEditorDialog({
       setPreviewResult(preview);
       setPreviewPayloadSignature(JSON.stringify(payload));
     } catch (error) {
-      const message = error instanceof Error ? error.message : t("common.unknown_error");
+      const message = getReadableErrorMessage(error, t("common.unknown_error"));
       setPreviewResult(null);
       setPreviewError(message);
       setPreviewPayloadSignature("");
@@ -7088,7 +7087,7 @@ function TaskEditorDialog({
       await onSaved();
       onOpenChange(false);
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : t("common.unknown_error"));
+      toast.error(getReadableErrorMessage(error, t("common.unknown_error")));
     } finally {
       setSubmitting(false);
     }
@@ -10304,11 +10303,9 @@ function FailoverPageContent() {
       setTasks(list);
     } catch (nextError) {
       setError(
-        nextError instanceof Error
-          ? nextError.message
-          : t("failover.messages.load_tasks_failed", {
+        getReadableErrorMessage(nextError, t("failover.messages.load_tasks_failed", {
             defaultValue: "Failed to load failover tasks",
-          }),
+          })),
       );
     } finally {
       if (!silent) {
@@ -10505,7 +10502,7 @@ function FailoverPageContent() {
       setEditorOpen(true);
       void refreshResources();
     } catch (nextError) {
-      toast.error(nextError instanceof Error ? nextError.message : t("common.unknown_error"));
+      toast.error(getReadableErrorMessage(nextError, t("common.unknown_error")));
     } finally {
       setBusyTaskID(null);
     }
@@ -10521,7 +10518,7 @@ function FailoverPageContent() {
       setEditorOpen(true);
       void refreshResources();
     } catch (nextError) {
-      toast.error(nextError instanceof Error ? nextError.message : t("common.unknown_error"));
+      toast.error(getReadableErrorMessage(nextError, t("common.unknown_error")));
     } finally {
       setBusyTaskID(null);
     }
@@ -10540,7 +10537,7 @@ function FailoverPageContent() {
       openExecutionDialog(execution.id, task.name);
       await refreshTasks({ silent: true });
     } catch (nextError) {
-      toast.error(nextError instanceof Error ? nextError.message : t("common.unknown_error"));
+      toast.error(getReadableErrorMessage(nextError, t("common.unknown_error")));
     } finally {
       setRunningTaskID(null);
     }
@@ -10554,7 +10551,7 @@ function FailoverPageContent() {
       await refreshTasks({ silent: true });
       openExecutionDialog(executionID, taskName);
     } catch (nextError) {
-      toast.error(nextError instanceof Error ? nextError.message : t("common.unknown_error"));
+      toast.error(getReadableErrorMessage(nextError, t("common.unknown_error")));
     } finally {
       setStoppingExecutionID(null);
     }
@@ -10571,7 +10568,7 @@ function FailoverPageContent() {
       );
       await refreshTasks({ silent: true });
     } catch (nextError) {
-      toast.error(nextError instanceof Error ? nextError.message : t("common.unknown_error"));
+      toast.error(getReadableErrorMessage(nextError, t("common.unknown_error")));
     } finally {
       setBusyTaskID(null);
     }
@@ -10589,7 +10586,7 @@ function FailoverPageContent() {
       setDeleteTarget(null);
       await refreshTasks({ silent: true });
     } catch (nextError) {
-      toast.error(nextError instanceof Error ? nextError.message : t("common.unknown_error"));
+      toast.error(getReadableErrorMessage(nextError, t("common.unknown_error")));
     } finally {
       setBusyTaskID(null);
     }

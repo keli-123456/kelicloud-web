@@ -1,4 +1,5 @@
 import React from "react";
+import { formatApiErrorMessage, getReadableErrorMessage } from "@/lib/apiErrorMessage";
 
 export type CommandClipboard = {
   id: number;
@@ -36,7 +37,7 @@ const CommandClipboardContext = React.createContext<
 >(undefined);
 
 const toError = (error: unknown, fallback: string) =>
-  error instanceof Error ? error : new Error(fallback);
+  new Error(getReadableErrorMessage(error, fallback));
 
 export const CommandClipboardProvider: React.FC<{
   children: React.ReactNode;
@@ -57,7 +58,7 @@ export const CommandClipboardProvider: React.FC<{
     try {
       const response = await fetch("/api/admin/clipboard");
       if (!response.ok) {
-        throw new Error("Failed to fetch commands");
+        throw new Error(formatApiErrorMessage("Failed to fetch commands", { status: response.status }));
       }
       const resp = await response.json();
       if (resp && Array.isArray(resp.data)) {
@@ -91,7 +92,7 @@ export const CommandClipboardProvider: React.FC<{
         body: JSON.stringify({ name, text, remark, weight }),
       });
       if (!response.ok) {
-        throw new Error("Failed to add command");
+        throw new Error(formatApiErrorMessage("Failed to add command", { status: response.status }));
       }
       if (refreshAfterMutations) {
         await refresh();
@@ -123,7 +124,7 @@ export const CommandClipboardProvider: React.FC<{
         body: JSON.stringify({ name, text, remark, weight }),
       });
       if (!response.ok) {
-        throw new Error("Failed to update command");
+        throw new Error(formatApiErrorMessage("Failed to update command", { status: response.status }));
       }
       if (refreshAfterMutations) {
         await refresh();
@@ -145,7 +146,7 @@ export const CommandClipboardProvider: React.FC<{
         method: "POST",
       });
       if (!response.ok) {
-        throw new Error("Failed to delete command");
+        throw new Error(formatApiErrorMessage("Failed to delete command", { status: response.status }));
       }
       if (refreshAfterMutations) {
         await refresh();

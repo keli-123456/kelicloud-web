@@ -28,6 +28,7 @@ import {
   type CloudProviderCredentialEntry,
   type CloudProviderField,
 } from "@/lib/cloud";
+import { getReadableErrorMessage } from "@/lib/apiErrorMessage";
 import { cn } from "@/lib/utils";
 import { renderProviderInputs } from "@/utils/renderProviders";
 
@@ -419,7 +420,7 @@ export default function CloudDnsProviderSection({
         setProviderList(sortedProviders);
       } catch (loadError) {
         if (!active) return;
-        setError(loadError instanceof Error ? loadError.message : String(loadError));
+        setError(getReadableErrorMessage(loadError));
       } finally {
         if (active) {
           setDefinitionLoading(false);
@@ -457,7 +458,7 @@ export default function CloudDnsProviderSection({
         setProviderEntriesMap((previous) => ({ ...previous, [provider]: [] }));
         setProviderErrorMap((previous) => ({
           ...previous,
-          [provider]: loadError instanceof Error ? loadError.message : String(loadError),
+          [provider]: getReadableErrorMessage(loadError),
         }));
       } finally {
         if (active) {
@@ -497,7 +498,7 @@ export default function CloudDnsProviderSection({
       toast.success(successMessage);
       return savedEntries;
     } catch (saveError) {
-      const message = saveError instanceof Error ? saveError.message : String(saveError);
+      const message = getReadableErrorMessage(saveError);
       setProviderErrorMap((previous) => ({ ...previous, [provider]: message }));
       toast.error(message);
       throw saveError;

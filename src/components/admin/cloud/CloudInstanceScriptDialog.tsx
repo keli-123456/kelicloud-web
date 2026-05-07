@@ -14,6 +14,7 @@ import { useTranslation } from "react-i18next";
 
 import { useCommandClipboard } from "@/contexts/CommandClipboardContext";
 import { type NodeDetail, useNodeDetails } from "@/contexts/NodeDetailsContext";
+import { formatApiErrorMessage, getReadableErrorMessage } from "@/lib/apiErrorMessage";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -228,7 +229,7 @@ export default function CloudInstanceScriptDialog({
       const response = await fetch(`/api/admin/task/${taskId}/result`);
       const payload = (await response.json().catch(() => ({}))) as TaskResultResponse;
       if (!response.ok || payload.status === "error") {
-        throw new Error(payload.message || `HTTP ${response.status}`);
+        throw new Error(formatApiErrorMessage(payload.message || `HTTP ${response.status}`, { status: response.status }));
       }
 
       const results = payload.results || payload.data || [];
@@ -290,7 +291,7 @@ export default function CloudInstanceScriptDialog({
       const run = () => {
         void pollTaskResult(taskId, clientId, scriptName).catch((error) => {
           clearPolling();
-          toast.error(error instanceof Error ? error.message : t("common.error", "Error"));
+          toast.error(getReadableErrorMessage(error, t("common.error", "Error")));
           setExecutionState((previous) =>
             previous && previous.taskId === taskId
               ? { ...previous, status: "failed" }
@@ -351,7 +352,7 @@ export default function CloudInstanceScriptDialog({
 
       const payload = (await response.json().catch(() => ({}))) as ExecResponse;
       if (!response.ok || payload.status === "error") {
-        throw new Error(payload.message || `HTTP ${response.status}`);
+        throw new Error(formatApiErrorMessage(payload.message || `HTTP ${response.status}`, { status: response.status }));
       }
 
       const taskId = payload.data?.task_id || payload.task_id || "";
@@ -384,7 +385,7 @@ export default function CloudInstanceScriptDialog({
           }
           : null,
       );
-      toast.error(error instanceof Error ? error.message : t("common.error", "Error"));
+      toast.error(getReadableErrorMessage(error, t("common.error", "Error")));
     } finally {
       setExecutingCommandId(null);
     }
@@ -575,7 +576,7 @@ export default function CloudInstanceScriptDialog({
                         matchedNode.uuid,
                         executionState.scriptName,
                       ).catch((error) => {
-                        toast.error(error instanceof Error ? error.message : t("common.error", "Error"));
+                        toast.error(getReadableErrorMessage(error, t("common.error", "Error")));
                       });
                     }}
                   >
@@ -610,7 +611,7 @@ export default function CloudInstanceScriptDialog({
 
             {error ? (
               <div className={`rounded-lg border border-red-200 bg-red-50 px-3 py-3 text-sm text-red-700 dark:border-red-900/60 dark:bg-red-950/30 dark:text-red-300 ${cloudLongTextClassName}`}>
-                {error.message}
+                {getReadableErrorMessage(error)}
               </div>
             ) : loading ? (
               <div className="space-y-3 rounded-lg border border-dashed border-slate-200 px-3 py-3 dark:border-slate-800">

@@ -32,6 +32,7 @@ import { toast } from "sonner";
 import { TaskView } from "./pingTask_Task";
 import { ServerView } from "./pingTask_Server";
 import { Plus } from "lucide-react";
+import { formatApiErrorMessage, getReadableErrorMessage } from "@/lib/apiErrorMessage";
 
 const PingTask = () => {
   return (
@@ -208,16 +209,16 @@ const AddButton: React.FC = () => {
           response
             .json()
             .then((data) => {
-              toast.error(data?.message || t("common.error"));
+              toast.error(formatApiErrorMessage(data?.message || t("common.error"), { status: response.status }));
             })
             .catch((error) => {
-              toast.error(error.message);
+              toast.error(getReadableErrorMessage(error));
             });
         }
       })
       .catch((error) => {
         console.error("Error adding ping task:", error);
-        toast.error(error.message);
+        toast.error(getReadableErrorMessage(error));
       })
       .finally(() => {
         setSaving(false);

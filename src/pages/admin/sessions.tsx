@@ -27,6 +27,7 @@ import {
   ADMIN_FORM_GRID_2_CLASS,
   ADMIN_FORM_SCROLL_CLASS,
 } from "@/components/admin/AdminFormStyles";
+import { formatApiErrorMessage, getReadableErrorMessage } from "@/lib/apiErrorMessage";
 
 type Resp = {
   current: string;
@@ -53,7 +54,7 @@ export default function Sessions() {
     fetch("/api/admin/session/get")
       .then((response) => {
         if (!response.ok) {
-          throw new Error(`Error: ${response.status} ${response.statusText}`);
+          throw new Error(formatApiErrorMessage(`HTTP ${response.status}: ${response.statusText}`, { status: response.status }));
         }
         return response.json();
       })
@@ -62,7 +63,7 @@ export default function Sessions() {
       })
       .catch((error) => {
         console.error("Error fetching sessions:", error);
-        toast.error(error.message);
+        toast.error(getReadableErrorMessage(error));
       });
   }, []);
 
@@ -87,12 +88,12 @@ export default function Sessions() {
           }));
         } else {
           console.error("Failed to delete session:", data);
-          toast.error(t("sessions.delete_failed", "Failed to delete session"));
+          toast.error(data?.message ? formatApiErrorMessage(data.message) : t("sessions.delete_failed", "Failed to delete session"));
         }
       })
       .catch((error) => {
         console.error("Error deleting session:", error);
-        toast.error(error.message);
+        toast.error(getReadableErrorMessage(error));
       });
   }
 
@@ -103,7 +104,7 @@ export default function Sessions() {
     })
       .then((response) => {
         if (!response.ok) {
-          toast.error(`Error: ${response.status}`);
+          toast.error(formatApiErrorMessage(`HTTP ${response.status}`, { status: response.status }));
           return;
         }
         response
@@ -112,11 +113,11 @@ export default function Sessions() {
             window.location.href = "/";
           })
           .catch((error) => {
-            toast.error(`Error parsing JSON: ${error}`);
+            toast.error(getReadableErrorMessage(error, "解析会话响应失败，请刷新后重试。"));
           });
       })
       .catch((error) => {
-        toast.error(error.message);
+        toast.error(getReadableErrorMessage(error));
       });
   }
 

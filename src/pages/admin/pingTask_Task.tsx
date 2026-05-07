@@ -28,6 +28,7 @@ import { Activity, MoreHorizontal, Pencil, Trash } from "lucide-react";
 import React from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
+import { formatApiErrorMessage, getReadableErrorMessage } from "@/lib/apiErrorMessage";
 
 export const TaskView = ({ pingTasks }: { pingTasks: PingTask[] }) => {
   const { t } = useTranslation();
@@ -139,7 +140,7 @@ const Row = ({
       .then((res) => {
         if (!res.ok) {
           return res.json().then((data) => {
-            throw new Error(data?.message || t("common.error"));
+            throw new Error(formatApiErrorMessage(data?.message || t("common.error"), { status: res.status }));
           });
         }
         return res.json();
@@ -150,7 +151,7 @@ const Row = ({
         refresh();
       })
       .catch((error) => {
-        toast.error(error.message);
+        toast.error(getReadableErrorMessage(error));
       })
       .finally(() => setEditSaving(false));
   };
@@ -172,7 +173,7 @@ const Row = ({
       .then((res) => {
         if (!res.ok) {
           return res.json().then((data) => {
-            throw new Error(data?.message || t("common.error"));
+            throw new Error(formatApiErrorMessage(data?.message || t("common.error"), { status: res.status }));
           });
         }
         return res.json();
@@ -183,7 +184,7 @@ const Row = ({
         refresh();
       })
       .catch((error) => {
-        toast.error(error.message);
+        toast.error(getReadableErrorMessage(error));
       })
       .finally(() => setDeleteLoading(false));
   };

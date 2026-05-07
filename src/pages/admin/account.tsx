@@ -21,6 +21,7 @@ import {
   ADMIN_FORM_FIELD_CLASS,
   ADMIN_FORM_SCROLL_CLASS,
 } from "@/components/admin/AdminFormStyles";
+import { formatApiErrorMessage, getReadableErrorMessage } from "@/lib/apiErrorMessage";
 
 const Account = () => {
   return (
@@ -74,7 +75,7 @@ const InnerLayout = () => {
     })
       .then((response) => {
         if (!response.ok) {
-          throw new Error("Failed to update username");
+          throw new Error(formatApiErrorMessage("Failed to update username", { status: response.status }));
         }
         return response.json();
       })
@@ -82,7 +83,7 @@ const InnerLayout = () => {
         toast.success(t("common.updated_successfully"));
       })
       .catch((error) => {
-        toast.error(error.message);
+        toast.error(getReadableErrorMessage(error));
       })
       .finally(() => {
         setUsernameSaving(false);
@@ -123,7 +124,7 @@ const InnerLayout = () => {
       .then(async (response) => {
         if (!response.ok) {
           const data = await response.json();
-          throw new Error(data.message || "Failed to update password");
+          throw new Error(formatApiErrorMessage(data.message || "Failed to update password", { status: response.status }));
         }
         return response.json();
       })
@@ -134,7 +135,7 @@ const InnerLayout = () => {
         }, 2000);
       })
       .catch((error) => {
-        toast.error(error.message);
+        toast.error(getReadableErrorMessage(error));
       })
       .finally(() => {
         setPasswordSaving(false);
@@ -195,7 +196,7 @@ const InnerLayout = () => {
           const error = await response.json();
           toast.error(t("account_settings.unbind_sso_failed", {
             provider: getSSODisplayName(ssoInfo.platform),
-            error: error.message || t("account_settings.unknown_error")
+            error: getReadableErrorMessage(error.message, t("account_settings.unknown_error"))
           }));
         }
       } else {
@@ -446,7 +447,7 @@ const TwoFactorDisabled = () => {
           const url = URL.createObjectURL(blob);
           setQRCode(url);
         })
-        .catch((err) => toast.error(err.message))
+        .catch((err) => toast.error(getReadableErrorMessage(err)))
         .finally(() => setIsLoading(false));
     }
   }, [isOpen, t]);
@@ -465,7 +466,7 @@ const TwoFactorDisabled = () => {
         if (!res.ok) {
           const data = await res.json();
           throw new Error(
-            data.message || `Failed to enable 2FA (${res.status})`
+            formatApiErrorMessage(data.message || `Failed to enable 2FA (${res.status})`, { status: res.status })
           );
         }
         return res.json();
@@ -475,7 +476,7 @@ const TwoFactorDisabled = () => {
         setIsOpen(false);
         refresh();
       })
-      .catch((err) => toast.error(err.message))
+      .catch((err) => toast.error(getReadableErrorMessage(err)))
       .finally(() => setSaving(false));
   };
 
@@ -546,7 +547,7 @@ const TwoFactorEnabled = () => {
       .then(async (response) => {
         if (!response.ok) {
           const data = await response.json();
-          throw new Error(data.message || t("account.disable_2fa_failed", "Failed to disable 2FA"));
+          throw new Error(formatApiErrorMessage(data.message || t("account.disable_2fa_failed", "Failed to disable 2FA"), { status: response.status }));
         }
         return response.json();
       })
@@ -556,7 +557,7 @@ const TwoFactorEnabled = () => {
         refresh();
       })
       .catch((error) => {
-        toast.error(error.message);
+        toast.error(getReadableErrorMessage(error));
       })
       .finally(() => {
         setSaving(false);

@@ -87,6 +87,7 @@ import {
   type VultrTokenRecord,
   type VultrTokenSecret,
 } from "@/lib/cloudVultr";
+import { getReadableErrorMessage } from "@/lib/apiErrorMessage";
 import {
   Table,
   TableBody,
@@ -140,8 +141,7 @@ const initialCreateForm: CreateFormState = {
 };
 
 function toErrorMessage(error: unknown) {
-  if (error instanceof Error) return error.message;
-  return "Unknown error";
+  return getReadableErrorMessage(error);
 }
 
 function getStoredTokenGroup() {

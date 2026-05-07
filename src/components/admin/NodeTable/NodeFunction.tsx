@@ -19,6 +19,7 @@ import {
 } from "@/components/admin/admin-ui";
 import { toast } from "sonner";
 import { useSettings } from "@/lib/api";
+import { formatApiErrorMessage, getReadableErrorMessage } from "@/lib/apiErrorMessage";
 import { buildAgentInstallScriptURL } from "@/lib/installScriptSource";
 import { useAccount } from "@/contexts/AccountContext";
 
@@ -55,7 +56,7 @@ const getActionErrorMessage = (
     (typeof payload?.error === "string" ? payload.error : "") ||
     raw;
 
-  return detail || `${fallback} (HTTP ${response.status})`;
+  return formatApiErrorMessage(detail || `${fallback} (HTTP ${response.status})`, { status: response.status });
 };
 
 async function removeClient(uuid: string) {
@@ -446,7 +447,7 @@ export function ActionsCell({ row }: { row: Row<z.infer<typeof schema>> }) {
                     if (refreshTable) refreshTable();
                   } catch (error) {
                     toast.error(
-                      error instanceof Error ? error.message : String(error)
+                      getReadableErrorMessage(error)
                     );
                   } finally {
                     setRemoving(false);

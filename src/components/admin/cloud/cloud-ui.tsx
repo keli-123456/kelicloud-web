@@ -101,6 +101,17 @@ const cloudTableCodeTextClassName =
 const cloudTableEmptyStateClassName =
   "min-h-36 border-border/70 bg-muted/35 shadow-none";
 
+const getCloudCodeLines = (value: string) => {
+  const lines = value.split(/\r?\n/);
+  return lines.length > 0 ? lines : [""];
+};
+
+const getCloudCodeLineNumberWidth = (lineCount: number) =>
+  `calc(${Math.max(2, String(Math.max(1, lineCount)).length)}ch + 12px)`;
+
+const cloudCodeLineNumberClassName =
+  "shrink-0 overflow-hidden border-r border-border bg-muted px-1.5 py-3 text-right font-mono text-[12px] leading-5 tabular-nums text-muted-foreground select-none";
+
 function CloudProviderHeader({
   title,
   description,
@@ -296,8 +307,8 @@ function CloudReadonlyCodeBlock({
 }) {
   const hasValue = value.length > 0;
   const displayValue = hasValue ? value : placeholder;
-  const lines = displayValue.split(/\r?\n/);
-  const codeLines = lines.length > 0 ? lines : [""];
+  const codeLines = getCloudCodeLines(displayValue);
+  const lineNumberWidth = getCloudCodeLineNumberWidth(codeLines.length);
 
   return (
     <div
@@ -308,9 +319,12 @@ function CloudReadonlyCodeBlock({
       )}
     >
       <div className="flex min-w-max">
-        <div className="sticky left-0 shrink-0 border-r border-border bg-muted px-2 py-3 text-right font-mono text-[12px] leading-5 text-muted-foreground select-none">
+        <div
+          className={cn("sticky left-0", cloudCodeLineNumberClassName)}
+          style={{ width: lineNumberWidth }}
+        >
           {codeLines.map((_, index) => (
-            <div key={index} className="h-5 min-w-6">
+            <div key={index} className="h-5">
               {index + 1}
             </div>
           ))}
@@ -340,7 +354,8 @@ function CloudCodeTextarea({
   minHeightClassName?: string;
 }) {
   const lineNumberRef = React.useRef<HTMLDivElement | null>(null);
-  const lineCount = Math.max(1, value.split(/\r?\n/).length);
+  const lineCount = Math.max(1, getCloudCodeLines(value).length);
+  const lineNumberWidth = getCloudCodeLineNumberWidth(lineCount);
 
   return (
     <div
@@ -352,7 +367,8 @@ function CloudCodeTextarea({
     >
       <div
         ref={lineNumberRef}
-        className="w-12 shrink-0 overflow-hidden border-r border-border bg-muted px-2 py-3 text-right font-mono text-[12px] leading-5 text-muted-foreground select-none"
+        className={cloudCodeLineNumberClassName}
+        style={{ width: lineNumberWidth }}
       >
         {Array.from({ length: lineCount }).map((_, index) => (
           <div key={index} className="h-5">

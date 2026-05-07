@@ -34,6 +34,7 @@ import { MoreHorizontal, Pencil, Trash } from "lucide-react";
 import React from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
+import { formatApiErrorMessage, getReadableErrorMessage } from "@/lib/apiErrorMessage";
 
 const LoadPage = () => {
   return (
@@ -161,7 +162,7 @@ const Row = ({ alert }: { alert: LoadAlert }) => {
       .then(async (res) => {
         const data = await res.json().catch(() => ({}));
         if (!res.ok || (data?.status && data.status !== "success")) {
-          throw new Error(data?.message || getUpdateFailedMessage(res.statusText));
+          throw new Error(formatApiErrorMessage(data?.message || getUpdateFailedMessage(res.statusText), { status: res.status }));
         }
         return data;
       })
@@ -172,7 +173,7 @@ const Row = ({ alert }: { alert: LoadAlert }) => {
       })
       .catch((error) => {
         toast.error(
-          error instanceof Error ? error.message : getUpdateFailedMessage(),
+          getReadableErrorMessage(error, getUpdateFailedMessage()),
         );
       })
       .finally(() => setEditSaving(false));
@@ -195,7 +196,7 @@ const Row = ({ alert }: { alert: LoadAlert }) => {
       .then(async (res) => {
         const data = await res.json().catch(() => ({}));
         if (!res.ok || (data?.status && data.status !== "success")) {
-          throw new Error(data?.message || getDeleteFailedMessage(res.statusText));
+          throw new Error(formatApiErrorMessage(data?.message || getDeleteFailedMessage(res.statusText), { status: res.status }));
         }
         return data;
       })
@@ -206,7 +207,7 @@ const Row = ({ alert }: { alert: LoadAlert }) => {
       })
       .catch((error) => {
         toast.error(
-          error instanceof Error ? error.message : getDeleteFailedMessage(),
+          getReadableErrorMessage(error, getDeleteFailedMessage()),
         );
       })
       .finally(() => setDeleteLoading(false));
@@ -421,7 +422,7 @@ const AddButton: React.FC = () => {
       .then(async (response) => {
         const data = await response.json().catch(() => ({}));
         if (!response.ok || (data?.status && data.status !== "success")) {
-          throw new Error(data?.message || getAddFailedMessage(response.statusText));
+          throw new Error(formatApiErrorMessage(data?.message || getAddFailedMessage(response.statusText), { status: response.status }));
         }
         setIsOpen(false);
         setSelected([]);
@@ -431,7 +432,7 @@ const AddButton: React.FC = () => {
       .catch((error) => {
         console.error("Error adding load alert:", error);
         toast.error(
-          error instanceof Error ? error.message : getAddFailedMessage(),
+          getReadableErrorMessage(error, getAddFailedMessage()),
         );
       })
       .finally(() => {

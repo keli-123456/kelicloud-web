@@ -26,6 +26,7 @@ bundle-analysis.html
 
 # Vite specific
 .vite/
+.vite-dev.err
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 

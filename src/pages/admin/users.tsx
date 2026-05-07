@@ -39,6 +39,7 @@ import {
   isDefaultGrantedAccountFeature,
   useAccount,
 } from "@/contexts/AccountContext";
+import { formatApiErrorMessage, getReadableErrorMessage } from "@/lib/apiErrorMessage";
 
 type UserRole = "admin" | "user";
 
@@ -685,7 +686,7 @@ export default function AdminUsersPage() {
       const response = await fetch("/api/admin/users");
       const payload = (await response.json().catch(() => ({}))) as ApiEnvelope<UsersResponse>;
       if (!response.ok || payload.status === "error") {
-        throw new Error(payload.message || t("admin.users.load_failed"));
+        throw new Error(formatApiErrorMessage(payload.message || t("admin.users.load_failed"), { status: response.status }));
       }
       const nextAvailableFeatures = normalizeFeatures(
         payload.data?.available_features,
@@ -714,9 +715,7 @@ export default function AdminUsersPage() {
       );
     } catch (loadError) {
       setError(
-        loadError instanceof Error
-          ? loadError.message
-          : t("admin.users.load_failed"),
+        getReadableErrorMessage(loadError, t("admin.users.load_failed")),
       );
     } finally {
       setLoading(false);
@@ -784,7 +783,7 @@ export default function AdminUsersPage() {
       });
       const payload = (await response.json().catch(() => ({}))) as ApiEnvelope<ManagedUser>;
       if (!response.ok || payload.status === "error") {
-        throw new Error(payload.message || t("admin.users.create_failed"));
+        throw new Error(formatApiErrorMessage(payload.message || t("admin.users.create_failed"), { status: response.status }));
       }
       toast.success(t("common.created_successfully"));
       setCreateForm(createDefaultForm(availableFeatures));
@@ -792,9 +791,7 @@ export default function AdminUsersPage() {
       await loadUsers();
     } catch (createError) {
       toast.error(
-        createError instanceof Error
-          ? createError.message
-          : t("admin.users.create_failed"),
+        getReadableErrorMessage(createError, t("admin.users.create_failed")),
       );
     } finally {
       setCreateSubmitting(false);
@@ -818,7 +815,7 @@ export default function AdminUsersPage() {
         uuid?: string;
       }>;
       if (!response.ok || payload.status === "error") {
-        throw new Error(payload.message || t("admin.users.update_failed"));
+        throw new Error(formatApiErrorMessage(payload.message || t("admin.users.update_failed"), { status: response.status }));
       }
       setUsers((current) =>
         current.map((user) =>
@@ -828,9 +825,7 @@ export default function AdminUsersPage() {
       toast.success(t("common.updated_successfully"));
     } catch (updateError) {
       toast.error(
-        updateError instanceof Error
-          ? updateError.message
-          : t("admin.users.update_failed"),
+        getReadableErrorMessage(updateError, t("admin.users.update_failed")),
       );
       await loadUsers();
     } finally {
@@ -864,7 +859,7 @@ export default function AdminUsersPage() {
         uuid?: string;
       }>;
       if (!response.ok || payload.status === "error") {
-        throw new Error(payload.message || t("admin.users.update_failed"));
+        throw new Error(formatApiErrorMessage(payload.message || t("admin.users.update_failed"), { status: response.status }));
       }
       setUsers((current) =>
         current.map((user) =>
@@ -895,9 +890,7 @@ export default function AdminUsersPage() {
       closePolicyEditor();
     } catch (updateError) {
       toast.error(
-        updateError instanceof Error
-          ? updateError.message
-          : t("admin.users.update_failed"),
+        getReadableErrorMessage(updateError, t("admin.users.update_failed")),
       );
       await loadUsers();
     } finally {
@@ -920,15 +913,13 @@ export default function AdminUsersPage() {
         uuid?: string;
       }>;
       if (!response.ok || payload.status === "error") {
-        throw new Error(payload.message || t("admin.users.delete_failed"));
+        throw new Error(formatApiErrorMessage(payload.message || t("admin.users.delete_failed"), { status: response.status }));
       }
       setUsers((current) => current.filter((item) => item.uuid !== user.uuid));
       toast.success(t("common.deleted_successfully"));
     } catch (deleteError) {
       toast.error(
-        deleteError instanceof Error
-          ? deleteError.message
-          : t("admin.users.delete_failed"),
+        getReadableErrorMessage(deleteError, t("admin.users.delete_failed")),
       );
     } finally {
       setDeletingUUID(null);

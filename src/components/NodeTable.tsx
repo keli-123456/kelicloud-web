@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import type { NodeBasicInfo } from "@/contexts/NodeListContext";
 import { getOSImage } from "@/utils";
+import { formatApiErrorMessage } from "@/lib/apiErrorMessage";
 import { formatBytes } from "@/utils/unitHelper";
 import type { LiveData, Record } from "../types/LiveData";
 
@@ -407,7 +408,7 @@ const NodeTable: React.FC<NodeTableProps> = ({ nodes, liveData }) => {
                         {isOnline ? t("nodeCard.online") : t("nodeCard.offline")}
                       </Badge>
                       {nodeData.message && (
-                        <Tips color="#CE282E">{nodeData.message}</Tips>
+                        <Tips color="#CE282E">{formatApiErrorMessage(nodeData.message)}</Tips>
                       )}
                     </div>
                   </TableCell>

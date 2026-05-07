@@ -1,4 +1,5 @@
 import React from "react";
+import { formatApiErrorMessage, getReadableErrorMessage } from "@/lib/apiErrorMessage";
 
 export type OfflineNotification = {
   client: string;
@@ -33,13 +34,13 @@ export const OfflineNotificationProvider: React.FC<{
     try {
       const response = await fetch("/api/admin/notification/offline");
       if (!response.ok) {
-        throw new Error("Failed to fetch offline notifications");
+        throw new Error(formatApiErrorMessage("Failed to fetch offline notifications", { status: response.status }));
       }
       const data = await response.json();
       setOfflineNotification(data.data || []);
     } catch (error) {
       console.error("Error fetching offline notifications:", error);
-      setError(error instanceof Error ? error : new Error(String(error)));
+      setError(new Error(getReadableErrorMessage(error)));
     } finally {
       if (firstLoad.current) {
         setLoading(false);

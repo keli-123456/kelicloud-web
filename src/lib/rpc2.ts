@@ -9,6 +9,7 @@ import type {
   RPC2EventListeners,
 } from "../types/rpc2";
 import { RPC2ConnectionState } from "../types/rpc2";
+import { formatApiErrorMessage } from "@/lib/apiErrorMessage";
 
 /**
  * RPC2 客户端类
@@ -223,7 +224,7 @@ export class RPC2Client {
       });
 
       if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        throw new Error(formatApiErrorMessage(`HTTP ${response.status}: ${response.statusText}`, { status: response.status }));
       }
 
       if (options.notification) {
@@ -233,7 +234,7 @@ export class RPC2Client {
       const jsonResponse: JSONRPC2Response<TResult> = await response.json();
       
       if ("error" in jsonResponse) {
-        throw new Error(`RPC Error ${jsonResponse.error.code}: ${jsonResponse.error.message}`);
+        throw new Error(formatApiErrorMessage(`RPC Error ${jsonResponse.error.code}: ${jsonResponse.error.message}`));
       }
 
       return jsonResponse.result;
@@ -268,14 +269,14 @@ export class RPC2Client {
       });
 
       if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        throw new Error(formatApiErrorMessage(`HTTP ${response.status}: ${response.statusText}`, { status: response.status }));
       }
 
       const jsonResponse: JSONRPC2BatchResponse = await response.json();
       
       return jsonResponse.map(res => {
         if ("error" in res) {
-          throw new Error(`RPC Error ${res.error.code}: ${res.error.message}`);
+          throw new Error(formatApiErrorMessage(`RPC Error ${res.error.code}: ${res.error.message}`));
         }
         return res.result;
       });
@@ -373,7 +374,7 @@ export class RPC2Client {
     }
 
     if ("error" in data) {
-      pending.reject(new Error(`RPC Error ${data.error.code}: ${data.error.message}`));
+      pending.reject(new Error(formatApiErrorMessage(`RPC Error ${data.error.code}: ${data.error.message}`)));
     } else {
       pending.resolve(data.result);
     }

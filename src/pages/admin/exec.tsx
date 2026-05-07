@@ -35,6 +35,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { formatApiErrorMessage, getReadableErrorMessage } from "@/lib/apiErrorMessage";
 import { cn } from "@/lib/utils";
 
 interface TaskResult {
@@ -103,10 +104,10 @@ const getLineNumbers = (value: string) =>
     Array.from({ length: Math.max(1, getCodeLines(value).length) }, (_, index) => index + 1);
 
 const getLineNumberColumnWidth = (lineCount: number) =>
-    `calc(${Math.max(2, String(Math.max(1, lineCount)).length)}ch + 14px)`;
+    `calc(${Math.max(2, String(Math.max(1, lineCount)).length)}ch + 12px)`;
 
 const getCommandEditorHeight = (lineCount: number) =>
-    Math.min(260, Math.max(116, lineCount * 20 + 32));
+    Math.min(260, Math.max(96, lineCount * 20 + 32));
 
 const execPanelClass =
     "overflow-hidden rounded-lg border border-border bg-card shadow-sm shadow-slate-900/5";
@@ -342,11 +343,11 @@ const ExecContent = () => {
             });
             const payload = await response.json().catch(() => ({})) as TaskListResponse | TaskSummary[];
             if (!response.ok) {
-                throw new Error(!Array.isArray(payload) && payload.message ? payload.message : "Failed to fetch tasks");
+                throw new Error(formatApiErrorMessage(!Array.isArray(payload) && payload.message ? payload.message : "Failed to fetch tasks", { status: response.status }));
             }
             setRecentTasks(extractTaskSummaries(payload));
         } catch (err) {
-            const message = err instanceof Error ? err.message : "Failed to fetch tasks";
+            const message = getReadableErrorMessage(err, "获取执行任务失败，请刷新后重试。");
             setTasksError(message);
             setRecentTasks([]);
         } finally {
@@ -442,7 +443,7 @@ const ExecContent = () => {
             setResultError(null);
             const response = await fetch(`/api/admin/task/${taskId}/result`);
             if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
+                throw new Error(formatApiErrorMessage(`HTTP error! status: ${response.status}`, { status: response.status }));
             }
 
             const data: TaskResultResponse = await response.json();
@@ -537,7 +538,7 @@ const ExecContent = () => {
 
             if (!response.ok) {
                 const errorData = await response.json().catch(() => ({}));
-                throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
+                throw new Error(formatApiErrorMessage(errorData.message || `HTTP error! status: ${response.status}`, { status: response.status }));
             }
 
             const data: ExecResponse = await response.json();
@@ -555,11 +556,10 @@ const ExecContent = () => {
                 startPolling(data.data.task_id);
                 void loadRecentTasks(true);
             } else {
-                throw new Error(data.message);
+                throw new Error(formatApiErrorMessage(data.message || "Failed to fetch tasks"));
             }
         } catch (err) {
-            const errorMessage =
-                err instanceof Error ? err.message : t("common.unknown_error");
+            const errorMessage = getReadableErrorMessage(err, t("common.unknown_error"));
             toast.error(errorMessage);
         } finally {
             setExecuting(false);
@@ -610,16 +610,16 @@ const ExecContent = () => {
                 const message = typeof payload?.message === "string"
                     ? payload.message
                     : "Failed to fetch task results";
-                throw new Error(message);
+                throw new Error(formatApiErrorMessage(message, { status: response.status }));
             }
 
             const taskResults = extractTaskResults(payload);
             if (!taskResults) {
-                throw new Error("Unexpected task result response");
+                throw new Error(formatApiErrorMessage("Unexpected task result response"));
             }
             setResults(taskResults);
         } catch (err) {
-            const message = err instanceof Error ? err.message : "Failed to fetch task results";
+            const message = getReadableErrorMessage(err, "获取任务结果失败，请稍后重试。");
             setResultError(message);
             setResults([]);
         } finally {
@@ -1234,7 +1234,7 @@ const ExecContent = () => {
                                     <div
                                         ref={commandLineNumberRef}
                                         aria-hidden="true"
-                                        className="h-full shrink-0 overflow-hidden border-r border-border bg-muted/30 px-2 py-2.5 text-right font-mono text-[12px] leading-5 text-muted-foreground select-none"
+                                        className="h-full shrink-0 overflow-hidden border-r border-border bg-muted/30 px-1.5 py-2.5 text-right font-mono text-[12px] leading-5 tabular-nums text-muted-foreground select-none"
                                         style={{ width: commandLineNumberColumnWidth }}
                                     >
                                         {commandLineNumbers.map((lineNumber) => (
@@ -1428,10 +1428,10 @@ const ExecContent = () => {
                                                     >
                                                         <div
                                                             aria-hidden="true"
-                                                            className="border-r border-white/10 bg-white/[0.03] py-2.5 text-right font-mono text-[12px] leading-5 text-slate-500 select-none"
+                                                            className="border-r border-white/10 bg-white/[0.03] py-2.5 text-right font-mono text-[12px] leading-5 tabular-nums text-slate-500 select-none"
                                                         >
                                                             {outputLines.map((_, index) => (
-                                                                <div key={`${result.client}-${index}`} className="h-5 px-2">
+                                                                <div key={`${result.client}-${index}`} className="h-5 px-1.5">
                                                                     {index + 1}
                                                                 </div>
                                                             ))}

@@ -5,14 +5,14 @@ import type {
   AWSCredentialRecord,
   AWSTag,
 } from "@/lib/cloudAws";
+import { getReadableErrorMessage } from "@/lib/apiErrorMessage";
 
 export const DEFAULT_AWS_REGION = "us-east-1";
 
 type StatusTone = "gray" | "red" | "amber" | "green" | "blue";
 
 export function toErrorMessage(error: unknown) {
-  if (error instanceof Error) return error.message;
-  return "Unknown error";
+  return getReadableErrorMessage(error);
 }
 
 export function hasActiveCredential(pool: AWSCredentialPool | null) {

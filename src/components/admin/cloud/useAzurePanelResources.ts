@@ -9,11 +9,11 @@ import {
   type AzureCredentialPool,
   type AzureInstance,
 } from "@/lib/cloudAzure";
+import { getReadableErrorMessage } from "@/lib/apiErrorMessage";
 import { buildStaticAzureCatalog } from "./cloudStaticCatalogs";
 
 function toErrorMessage(error: unknown) {
-  if (error instanceof Error) return error.message;
-  return "Unknown error";
+  return getReadableErrorMessage(error);
 }
 
 function hasActiveCredential(pool: AzureCredentialPool | null) {

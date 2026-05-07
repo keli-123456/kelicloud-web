@@ -23,6 +23,7 @@ import {
   type CommandClipboard,
 } from "@/contexts/CommandClipboardContext";
 import { useTerminal } from "@/contexts/TerminalContext";
+import { getReadableErrorMessage } from "@/lib/apiErrorMessage";
 
 const CommandClipboardPanel = ({ ...props }: { [key: string]: any }) => {
   const InnerLayout = () => {
@@ -32,7 +33,7 @@ const CommandClipboardPanel = ({ ...props }: { [key: string]: any }) => {
       return <Loading />;
     }
     if (error) {
-      return <div>Error loading commands: {error.message}</div>;
+      return <div>{getReadableErrorMessage(error, "加载脚本库失败，请刷新后重试。")}</div>;
     }
     return (
       <div
@@ -86,7 +87,7 @@ const AddButton = () => {
       setOpen(false);
       toast.success(t("common.added_successfully"));
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "An error occurred");
+      toast.error(getReadableErrorMessage(error, "操作失败，请稍后重试。"));
     } finally {
       setAdding(false);
     }
@@ -138,7 +139,7 @@ const DeleteButton = ({ id }: { id: number }) => {
       toast.success(t("common.deleted_successfully"));
       setOpen(false);
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "An error occurred");
+      toast.error(getReadableErrorMessage(error, "操作失败，请稍后重试。"));
     } finally {
       setDeleting(false);
     }
@@ -198,7 +199,7 @@ const EditButton = ({ id, name, text, remark, weight }: CommandClipboard) => {
       setOpen(false);
       toast.success(t("common.updated_successfully"));
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "An error occurred");
+      toast.error(getReadableErrorMessage(error, "操作失败，请稍后重试。"));
     } finally {
       setUpdating(false);
     }

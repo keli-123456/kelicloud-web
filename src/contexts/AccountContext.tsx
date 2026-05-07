@@ -1,4 +1,5 @@
 import React from "react";
+import { formatApiErrorMessage, getReadableErrorMessage } from "@/lib/apiErrorMessage";
 
 export type AccountFeature =
   | "clients"
@@ -180,7 +181,7 @@ export const AccountProvider: React.FC<{ children: React.ReactNode }> = ({
     try {
       const response = await fetch("/api/me");
       if (!response.ok) {
-        throw new Error("Failed to fetch account data");
+        throw new Error(formatApiErrorMessage("Failed to fetch account data", { status: response.status }));
       }
       const data: Account = await response.json();
       const nextAccount = {
@@ -195,7 +196,7 @@ export const AccountProvider: React.FC<{ children: React.ReactNode }> = ({
       setAccount(nextAccount);
       return nextAccount;
     } catch (err) {
-      setError(err as Error);
+      setError(new Error(getReadableErrorMessage(err)));
       return null;
     } finally {
       setLoading(false);

@@ -34,6 +34,7 @@ import {
 import { usePublicInfo } from "@/contexts/PublicInfoContext";
 import { Navigate } from "react-router-dom";
 import { getSiteName } from "@/constants/siteBrand";
+import { formatApiErrorMessage } from "@/lib/apiErrorMessage";
 import { cn } from "@/lib/utils";
 
 import { TablerSettings } from "./Icones/Tabler";
@@ -127,8 +128,9 @@ const LoginDialog = ({
             return;
           }
           setErrorMsg(
-            data.message ||
-              t("login.failed", "登录失败"),
+            data.message
+              ? formatApiErrorMessage(data.message, { status: res.status })
+              : t("login.failed", "登录失败"),
           );
         }
       } catch (err) {

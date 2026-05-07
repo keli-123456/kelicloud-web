@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { useAccount } from "@/contexts/AccountContext";
 import { updateSettingsWithToast, useSettings } from "@/lib/api";
+import { formatApiErrorMessage, getReadableErrorMessage } from "@/lib/apiErrorMessage";
 
 type ProxyFormState = {
   outbound_proxy_enabled: boolean;
@@ -203,12 +204,12 @@ export default function ProxySettings() {
       });
       const payload = await response.json().catch(() => ({}));
       if (!response.ok || payload?.status !== "success" || !payload?.data) {
-        throw new Error(payload?.message || t("settings.proxy.test_failed"));
+        throw new Error(formatApiErrorMessage(payload?.message || t("settings.proxy.test_failed"), { status: response.status }));
       }
       setProbeResult(payload.data as ProxyProbeResult);
       toast.success(t("settings.proxy.test_success"));
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : t("settings.proxy.test_failed"));
+      toast.error(getReadableErrorMessage(error, t("settings.proxy.test_failed")));
     } finally {
       setTesting(false);
     }
