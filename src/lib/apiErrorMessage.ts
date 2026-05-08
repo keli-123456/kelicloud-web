@@ -64,6 +64,8 @@ const exactMessages: Record<string, string> = {
   "linode token is not configured": "Linode 令牌未配置。",
   "aws credential is not configured": "AWS 凭证未配置。",
   "azure credential is not configured": "Azure 凭证未配置。",
+  "azure credential is incomplete": "Azure 凭证缺少租户 ID、应用 ID 或客户端密钥，请检查后重新导入。",
+  "azure service principal has no accessible subscriptions": "这个 Azure 服务主体没有可访问的订阅，请给应用分配订阅权限，或导入时填写 subscription_id。",
   "invalid token": "令牌无效，请检查令牌是否正确、是否启用，以及权限是否足够。",
   "invalid api key": "API Key 无效，请检查凭证是否正确。",
   "unauthorized": "未授权，请检查令牌权限或服务商访问控制。",

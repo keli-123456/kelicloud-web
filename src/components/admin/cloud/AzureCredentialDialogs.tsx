@@ -109,7 +109,7 @@ export function AzureCredentialImportDialog({
         title={t("cloud.providers.azure.import_dialog_title", "Batch Import Azure Credentials")}
         description={t(
           "cloud.providers.azure.import_dialog_description",
-          "One credential per line (CSV/pipe/tab) or paste JSON object/array. Common JSON keys: login_user, subscription_id, appId, password, tenant.",
+          "One credential per line (CSV/pipe/tab) or paste JSON object/array. Azure CLI service principal JSON is supported; subscription_id is optional.",
         )}
         icon={<Upload className="size-4" />}
         badge={<Badge color="blue">{t("cloud.providers.azure.name", "Azure")}</Badge>}
@@ -119,7 +119,7 @@ export function AzureCredentialImportDialog({
             title={t("cloud.providers.azure.import_format", "Import Format")}
             description={t(
               "cloud.providers.azure.import_format_description",
-              "Use CSV, pipe, tab, JSON object, or JSON array. Group is optional and can be changed later.",
+              "Use CSV, pipe, tab, JSON object, or JSON array. appId/password/tenant/displayName are recognized, and group is optional.",
             )}
           >
             <CloudStatusNotice tone="gray">
@@ -145,7 +145,7 @@ export function AzureCredentialImportDialog({
           minHeightClassName="min-h-56"
           value={importText}
           onChange={(event) => setImportText(event.target.value)}
-          placeholder='{"login_user":"team-a","subscription_id":"...","appId":"...","password":"...","tenant":"..."}'
+          placeholder='{"appId":"...","displayName":"azure-cli-...","password":"...","tenant":"..."}'
         />
         <Flex justify="end" gap="2">
           <Dialog.Close>

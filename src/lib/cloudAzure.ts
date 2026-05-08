@@ -23,7 +23,7 @@ export type AzureCredentialInput = {
   tenant_id: string;
   client_id: string;
   client_secret: string;
-  subscription_id: string;
+  subscription_id?: string;
   default_location?: string;
 };
 

@@ -140,10 +140,12 @@ function normalizeImportCredentialRecord(
   const tenantId = toOptionalString(record.tenant_id || record.tenantId || record.tenant);
   const clientId = toOptionalString(record.client_id || record.clientId || record.appId || record.app_id);
   const clientSecret = toOptionalString(record.client_secret || record.clientSecret || record.password);
-  const subscriptionId = toOptionalString(record.subscription_id || record.subscriptionId);
-  if (!tenantId || !clientId || !clientSecret || !subscriptionId) return null;
+  const subscriptionId = toOptionalString(record.subscription_id || record.subscriptionId || record.subscription);
+  if (!tenantId || !clientId || !clientSecret) return null;
 
-  const name = toOptionalString(record.name || record.login_user || record.loginUser)
+  const name = toOptionalString(
+    record.name || record.displayName || record.display_name || record.login_user || record.loginUser,
+  )
     || buildDefaultAzureCredentialName(clientId);
   const group = toOptionalString(record.group || record.credential_group || record.credentialGroup);
   const defaultLocation = normalizeLocation(
@@ -167,7 +169,8 @@ export function parseCredentialImports(text: string): AzureCredentialInput[] {
 
   const pushCredential = (credential: AzureCredentialInput | null) => {
     if (!credential) return;
-    const key = `${credential.tenant_id}|${credential.client_id}|${credential.subscription_id}`;
+    if (!credential.tenant_id || !credential.client_id || !credential.client_secret) return;
+    const key = `${credential.tenant_id}|${credential.client_id}|${credential.subscription_id || ""}`;
     if (seen.has(key)) return;
     seen.add(key);
     credentials.push(credential);
@@ -217,7 +220,7 @@ export function parseCredentialImports(text: string): AzureCredentialInput[] {
     if (!separator) continue;
 
     const parts = line.split(separator).map((part) => part.trim());
-    if (parts.length < 4) continue;
+    if (parts.length < 3) continue;
 
     let name = "";
     let tenantId = "";
@@ -237,8 +240,18 @@ export function parseCredentialImports(text: string): AzureCredentialInput[] {
       } else {
         [name, tenantId, clientId, clientSecret, subscriptionId] = parts;
       }
+    } else if (parts.length === 4) {
+      if (looksLikeGuid(parts[0]) && looksLikeGuid(parts[1])) {
+        [tenantId, clientId, clientSecret, subscriptionId] = parts;
+      } else {
+        [name, tenantId, clientId, clientSecret] = parts;
+      }
     } else {
-      [tenantId, clientId, clientSecret, subscriptionId] = parts;
+      [tenantId, clientId, clientSecret] = parts;
+    }
+
+    if (!tenantId || !clientId || !clientSecret) {
+      continue;
     }
 
     pushCredential({
