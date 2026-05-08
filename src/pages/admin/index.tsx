@@ -29,6 +29,7 @@ import {
   Download,
   Globe,
   MoreHorizontal,
+  Network,
   Search,
   Server,
   Settings2,
@@ -107,6 +108,11 @@ const LazyGroupUpgradeDialog = React.lazy(
 const LazyNodeDDNSDialog = React.lazy(() =>
   import("@/components/admin/NodeTable/NodeDDNSDialog").then((module) => ({
     default: module.NodeDDNSDialog,
+  })),
+);
+const LazyNodePortForwardDialog = React.lazy(() =>
+  import("@/components/admin/NodeTable/NodePortForwardDialog").then((module) => ({
+    default: module.NodePortForwardDialog,
   })),
 );
 
@@ -1526,6 +1532,7 @@ const NodeDetailDrawer = ({
   live,
   onOpenTerminal,
   onOpenDDNS,
+  onOpenPortForward,
   canManageDNS,
 }: {
   open: boolean;
@@ -1534,6 +1541,7 @@ const NodeDetailDrawer = ({
   live?: NodeLiveSnapshot;
   onOpenTerminal: () => void;
   onOpenDDNS: () => void;
+  onOpenPortForward: () => void;
   canManageDNS: boolean;
 }) => {
   const { t } = useTranslation();
@@ -1648,6 +1656,15 @@ const NodeDetailDrawer = ({
                 {t("admin.nodeTable.ddns.title", { defaultValue: "DDNS" })}
               </Button>
             ) : null}
+            <Button
+              size="sm"
+              variant="outline"
+              className="rounded-md"
+              onClick={onOpenPortForward}
+            >
+              <Network className="h-4 w-4" />
+              {t("admin.nodeTable.portForward.title", { defaultValue: "端口中转" })}
+            </Button>
           </div>
         </div>
       </DrawerContent>
@@ -1665,6 +1682,7 @@ const SortableRow = ({
   const { t } = useTranslation();
   const { hasFeature } = useAccount();
   const [ddnsOpen, setDdnsOpen] = React.useState(false);
+  const [portForwardOpen, setPortForwardOpen] = React.useState(false);
   const [detailOpen, setDetailOpen] = React.useState(false);
   const cpuPercent = clampPercent(live?.record.cpu.usage ?? 0);
   const cpuCoreCount = Number(node.cpu_cores || 0);
@@ -1772,6 +1790,15 @@ const SortableRow = ({
               {t("admin.nodeTable.ddns.title", { defaultValue: "DDNS" })}
             </ContextMenuItem>
           ) : null}
+          <ContextMenuItem
+            onSelect={(event) => {
+              event.preventDefault();
+              setPortForwardOpen(true);
+            }}
+          >
+            <Network className="h-4 w-4" />
+            {t("admin.nodeTable.portForward.title", { defaultValue: "端口中转" })}
+          </ContextMenuItem>
         </ContextMenuContent>
       </ContextMenu>
       {hasFeature("cloud_dns") && ddnsOpen ? (
@@ -1784,6 +1811,16 @@ const SortableRow = ({
           />
         </React.Suspense>
       ) : null}
+      {portForwardOpen ? (
+        <React.Suspense fallback={null}>
+          <LazyNodePortForwardDialog
+            item={node}
+            open={portForwardOpen}
+            onOpenChange={setPortForwardOpen}
+            trigger={null}
+          />
+        </React.Suspense>
+      ) : null}
       <NodeDetailDrawer
         open={detailOpen}
         onOpenChange={setDetailOpen}
@@ -1792,6 +1829,7 @@ const SortableRow = ({
         canManageDNS={hasFeature("cloud_dns")}
         onOpenTerminal={() => openNodeTerminal(node.uuid)}
         onOpenDDNS={() => setDdnsOpen(true)}
+        onOpenPortForward={() => setPortForwardOpen(true)}
       />
     </>
   );

@@ -2,11 +2,12 @@ import * as React from "react";
 import { z } from "zod";
 import { schema } from "@/components/admin/NodeTable/schema/node";
 import { DataTableRefreshContext } from "@/components/admin/NodeTable/schema/DataTableRefreshContext";
-import { Terminal, Trash2, Copy, Download, DollarSign } from "lucide-react";
+import { Terminal, Trash2, Copy, Download, DollarSign, Network } from "lucide-react";
 import { t } from "i18next";
 import type { Row } from "@tanstack/react-table";
 import { EditDialog } from "./NodeEditDialog";
 import { NodeDDNSDialog } from "./NodeDDNSDialog";
+import { NodePortForwardDialog } from "./NodePortForwardDialog";
 import {
   Button,
   Checkbox,
@@ -379,6 +380,14 @@ export function ActionsCell({ row }: { row: Row<z.infer<typeof schema>> }) {
         </IconButton>
       </a>
       {hasFeature("cloud_dns") ? <NodeDDNSDialog item={row.original} /> : null}
+      <NodePortForwardDialog
+        item={row.original}
+        trigger={(
+          <IconButton variant="ghost" title={t("admin.nodeTable.portForward.title", "端口中转")}>
+            <Network className="p-1" />
+          </IconButton>
+        )}
+      />
       {/** Edit Button */}
       <EditDialog item={row.original} />
       {/** Edit Money */}
