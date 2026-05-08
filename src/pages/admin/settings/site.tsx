@@ -1,6 +1,4 @@
-import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { DownloadIcon } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -15,17 +13,17 @@ import {
 } from "@/components/ui/dialog";
 import { AdminSettingsSkeleton } from "@/components/admin/AdminPageShell";
 import {
-  SettingCardButton,
   SettingCardCollapse,
-  SettingCardIconButton,
   SettingCardLabel,
   SettingCardShortTextInput,
 } from "@/components/admin/SettingCard";
-import UploadDialog from "@/components/UploadDialog";
 import { useAccount } from "@/contexts/AccountContext";
 import { PlatformAdminNotice } from "@/components/admin/PlatformAdminNotice";
 import { updateSettingsWithToast, useSettings } from "@/lib/api";
-import { formatApiErrorMessage, getReadableErrorMessage } from "@/lib/apiErrorMessage";
+import {
+  formatApiErrorMessage,
+  getReadableErrorMessage,
+} from "@/lib/apiErrorMessage";
 import { ADMIN_FORM_DIALOG_CLASS } from "@/components/admin/AdminFormStyles";
 
 export default function SiteSettings() {
@@ -35,102 +33,8 @@ export default function SiteSettings() {
     enabled: platformAdmin,
   });
 
-  const [restoreOpen, setRestoreOpen] = useState(false);
-  const [restoring, setRestoring] = useState(false);
-  const [restoreProgress, setRestoreProgress] = useState(0);
-  const [restoreXhr, setRestoreXhr] = useState<XMLHttpRequest | null>(null);
-
-  const uploadBackup = async (file: File) => {
-    if (!file.name.endsWith(".zip")) {
-      toast.error(
-        t(
-          "theme.invalid_file_type",
-          "Invalid file type, only .zip files are supported",
-        ),
-      );
-      return;
-    }
-
-    setRestoring(true);
-    setRestoreProgress(0);
-    const formData = new FormData();
-    formData.append("backup", file);
-
-    return new Promise<void>((resolve, reject) => {
-      const xhr = new XMLHttpRequest();
-      setRestoreXhr(xhr);
-
-      xhr.upload.addEventListener("progress", (event) => {
-        if (event.lengthComputable) {
-          const percent = (event.loaded / event.total) * 100;
-          setRestoreProgress(Math.round(percent));
-        }
-      });
-
-      xhr.addEventListener("load", () => {
-        try {
-          const ok = xhr.status >= 200 && xhr.status < 300;
-          const data = xhr.responseText ? JSON.parse(xhr.responseText) : {};
-          if (!ok || (data?.status && data.status !== "success")) {
-            const message = formatApiErrorMessage(
-              data?.message ||
-                t("settings.site.backup_restore_error", "Restore backup failed"),
-              { status: xhr.status },
-            );
-            toast.error(message);
-            reject(new Error(message));
-            return;
-          }
-
-          toast.success(t("account_settings.upload_success", "Upload success"));
-          setRestoreOpen(false);
-          setRestoreProgress(0);
-          resolve();
-        } catch (error) {
-          toast.error(
-            t("settings.site.backup_restore_error", "Restore backup failed"),
-          );
-          reject(error as Error);
-        } finally {
-          setRestoring(false);
-          setRestoreXhr(null);
-        }
-      });
-
-      xhr.addEventListener("error", () => {
-        toast.error(
-          t("settings.site.backup_restore_error", "Restore backup failed"),
-        );
-        setRestoring(false);
-        setRestoreProgress(0);
-        setRestoreXhr(null);
-        reject(new Error(formatApiErrorMessage("Network error")));
-      });
-
-      xhr.addEventListener("abort", () => {
-        toast.error(
-          t(
-            "settings.site.backup_restore_cancelled",
-            "Backup restore cancelled",
-          ),
-        );
-        setRestoring(false);
-        setRestoreProgress(0);
-        setRestoreXhr(null);
-        reject(new Error(formatApiErrorMessage("Upload cancelled")));
-      });
-
-      xhr.open("POST", "/api/admin/upload/backup");
-      xhr.send(formData);
-    });
-  };
-
-  const cancelRestore = () => {
-    restoreXhr?.abort();
-  };
-
   if (accountLoading || loading) {
-    return <AdminSettingsSkeleton sections={6} />;
+    return <AdminSettingsSkeleton sections={4} />;
   }
 
   if (!platformAdmin) {
@@ -168,15 +72,6 @@ export default function SiteSettings() {
           await updateSettingsWithToast({ site_subtitle: value }, t, "system");
         }}
       />
-      <SettingCardShortTextInput
-        title={t("settings.site.github_url")}
-        description={t("settings.site.github_url_description")}
-        defaultValue={settings.github_url || ""}
-        OnSave={async (value) => {
-          await updateSettingsWithToast({ github_url: value }, t, "system");
-        }}
-      />
-
       <SettingCardLabel>{t("settings.platform_tools_title")}</SettingCardLabel>
       <label className="-mt-4 text-sm text-muted-foreground">
         {t("settings.platform_tools_description")}
@@ -312,40 +207,6 @@ export default function SiteSettings() {
           </div>
         </div>
       </SettingCardCollapse>
-      <SettingCardLabel>{t("settings.site.backup")}</SettingCardLabel>
-      <SettingCardIconButton
-        title={t("settings.site.backup_download")}
-        description={t("settings.site.backup_download_description")}
-        onClick={() => {
-          window.open("/api/admin/download/backup", "_blank");
-        }}
-      >
-        <DownloadIcon size={16} />
-      </SettingCardIconButton>
-      <SettingCardButton
-        title={t("settings.site.backup_restore")}
-        description={t("settings.site.backup_restore_description")}
-        onClick={() => setRestoreOpen(true)}
-      >
-        {t("common.select")}
-      </SettingCardButton>
-
-      <UploadDialog
-        open={restoreOpen}
-        onOpenChange={setRestoreOpen}
-        title={t("settings.site.backup_restore")}
-        description={t("settings.site.backup_restore_description")}
-        accept=".zip"
-        dragDropText={t("theme.drag_drop")}
-        clickToBrowseText={t("theme.or_click_to_browse")}
-        hintText={t("theme.zip_files_only")}
-        uploading={restoring}
-        progress={restoreProgress}
-        cancelUploadLabel={t("common.cancel")}
-        onCancelUpload={cancelRestore}
-        onFileSelected={(file) => uploadBackup(file)}
-        closeLabel={t("common.cancel")}
-      />
     </>
   );
 }

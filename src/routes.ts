@@ -138,9 +138,10 @@ export const routes: RouteObject[] = [
           },
           {
             path: "notification",
-            element: React.createElement(
-              lazy(() => import("./pages/admin/settings/notification"))
-            ),
+            element: React.createElement(Navigate, {
+              to: "/admin/notification/general",
+              replace: true,
+            }),
           },
           {
             path: "general",

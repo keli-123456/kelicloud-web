@@ -1,12 +1,9 @@
 import { Navigate } from "react-router-dom";
 
-import {
-  getDefaultAdminPath,
-  useAccount,
-} from "@/contexts/AccountContext";
+import { getDefaultAdminPath, useAccount } from "@/contexts/AccountContext";
 
 export default function NotificationIndexPage() {
-  const { account, hasFeature, loading, platformAdmin } = useAccount();
+  const { account, hasFeature, loading } = useAccount();
 
   if (loading) {
     return null;
@@ -17,9 +14,6 @@ export default function NotificationIndexPage() {
   }
 
   return (
-    <Navigate
-      to={platformAdmin ? "/admin/notification/general" : "/admin/notification/offline"}
-      replace
-    />
+    <Navigate to="/admin/notification/general" replace />
   );
 }

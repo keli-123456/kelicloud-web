@@ -3689,8 +3689,8 @@
     "page_description": "サイト、ノードスクリプト、通知、システム設定を管理します。",
     "platform_admin_required_description": "ここではプラットフォーム全体で共有されるシステム設定を管理します。編集するにはプラットフォーム管理者アカウントに切り替えてください。",
     "platform_admin_required_title": "プラットフォーム管理者権限が必要です",
-    "platform_tools_description": "これらの操作は、すべてのワークスペースで共有されるサイト資産とバックアップに影響します。",
-    "platform_tools_restricted_description": "Favicon とバックアップ管理はプラットフォーム管理者のみ利用できます。",
+    "platform_tools_description": "これらの操作は、すべてのワークスペースで共有されるサイト資産に影響します。",
+    "platform_tools_restricted_description": "Favicon 管理はプラットフォーム管理者のみ利用できます。",
     "platform_tools_title": "プラットフォームツール",
     "proxy": {
       "description": "Manage the outbound proxy used by cloud provider credential requests. Requests that do not use cloud provider credentials keep using the server's local IP. Proxy requests use short-lived connections and reconnect on every request. A failed proxy attempt will automatically retry the current request once without the proxy.",

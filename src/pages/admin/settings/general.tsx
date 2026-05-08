@@ -18,8 +18,6 @@ import {
 } from "@/components/admin/SettingCard";
 import React from "react";
 import { toast } from "sonner";
-import { SettingCardMultiInputCollapse } from "@/components/admin/SettingCardMultiInput";
-import { formatBytes } from "@/utils/unitHelper";
 import { useAccount } from "@/contexts/AccountContext";
 import { PlatformAdminNotice } from "@/components/admin/PlatformAdminNotice";
 import { formatApiErrorMessage } from "@/lib/apiErrorMessage";
@@ -37,23 +35,8 @@ export default function GeneralSettings() {
   const [geoip_testResult, setGeoipTestResult] = React.useState<string | null>(
     null
   );
-  const [expected_usage, setExpectedUsage] = React.useState<string | null>(
-    null
-  );
-  React.useEffect(() => {
-    const recordPreserveTime = parseInt(
-      systemSettings.record_preserve_time || "30",
-      10
-    );
-    if (isNaN(recordPreserveTime)) {
-      setExpectedUsage("0");
-      return;
-    } else {
-      setExpectedUsage(calculateExpectedUsage(recordPreserveTime));
-    }
-  }, [systemSettings.record_preserve_time]);
   if (accountLoading || loading) {
-    return <AdminSettingsSkeleton sections={7} />;
+    return <AdminSettingsSkeleton sections={5} />;
   }
 
   if (error) {
@@ -153,7 +136,7 @@ export default function GeneralSettings() {
                 value={geoIpQuery}
                 onChange={(event) => setGeoIpQuery(event.target.value)}
                 placeholder={t("settings.geoip.test_placeholder")}
-              className="text-sm"
+                className="text-sm"
               />
               <div>
                 <Button
@@ -184,60 +167,6 @@ export default function GeneralSettings() {
               </div>
             </div>
           </SettingCardCollapse>
-          <label className="pt-1 text-[12px] font-semibold uppercase tracking-normal text-slate-500">
-            {t("settings.record.title")}
-          </label>
-          <SettingCardSwitch
-            title={t("settings.record.enabled")}
-            description={t("settings.record.enabled_description")}
-            defaultChecked={systemSettings.record_enabled}
-            onChange={async (checked) => {
-              await updateSettingsWithToast({ record_enabled: checked }, t, "system");
-            }}
-          />
-          <SettingCardMultiInputCollapse
-            defaultOpen
-            title={t("settings.record.record_preserve_time")}
-            description={t("settings.record.record_preserve_time_description")}
-            items={[
-              {
-                tag: "record_preserve_time",
-                label: t("settings.record.record_preserve_time_label"),
-                type: "short",
-                placeholder: "30",
-                defaultValue: systemSettings.record_preserve_time || "30",
-                number: true,
-              },
-            ]}
-            onSave={async (values) => {
-              const preserveTime = parseInt(values.record_preserve_time, 10);
-              if (isNaN(preserveTime)) {
-                toast.error(t("settings.record.invalid_preserve_time"));
-                return;
-              }
-              await updateSettingsWithToast(
-                {
-                  record_preserve_time: preserveTime,
-                },
-                t,
-                "system"
-              );
-            }}
-            onChange={(values) => {
-              const preserveTime = parseInt(values.record_preserve_time, 10);
-              if (isNaN(preserveTime)) {
-                setExpectedUsage("0");
-                return;
-              }
-              setExpectedUsage(calculateExpectedUsage(preserveTime));
-            }}
-          >
-            <label className="text-sm text-muted-foreground">
-              {t("settings.record.expected_usage", {
-                space: expected_usage,
-              })}
-            </label>
-          </SettingCardMultiInputCollapse>
         </>
       ) : (
         <PlatformAdminNotice
@@ -247,23 +176,4 @@ export default function GeneralSettings() {
       )}
     </>
   );
-}
-
-function calculateExpectedUsage(
-  recordPreserveTime: number
-): string {
-  let totalRecordBytes = 0;
-
-  if (recordPreserveTime <= 4) {
-    // First 4 hours: 1 record/minute * 1024 bytes/record * 60 minutes/hour
-    totalRecordBytes = recordPreserveTime * 1 * 1024 * 60;
-  } else {
-    // Bytes for the first 4 hours
-    totalRecordBytes = 4 * 1 * 1024 * 60;
-    // Bytes for the remaining time (recordPreserveTime - 4)
-    // 4 records/hour * 1024 bytes/record
-    totalRecordBytes += (recordPreserveTime - 4) * 4 * 1024;
-  }
-
-  return formatBytes(totalRecordBytes);
 }

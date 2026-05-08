@@ -20,11 +20,6 @@ const navItems = [
     labelKey: "settings.general.title",
     platformOnly: false,
   },
-  {
-    path: "/admin/settings/notification",
-    labelKey: "settings.notification.title",
-    platformOnly: true,
-  },
 ] as const;
 
 export default function SettingLayout() {
@@ -40,7 +35,7 @@ export default function SettingLayout() {
       className="mx-auto w-full max-w-5xl"
       title={t("settings.title", { defaultValue: "设置" })}
       description={t("settings.page_description", {
-        defaultValue: "集中管理站点、节点脚本、通知和系统配置。",
+        defaultValue: "集中管理站点、节点脚本和系统配置。",
       })}
       subnav={(
         <AdminSubnav>

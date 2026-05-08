@@ -480,20 +480,6 @@ function DashboardPageContent() {
                 </Link>
               </Button>
             ) : null}
-            {platformAdmin ? (
-              <>
-                <Button asChild variant="outline">
-                  <Link to="/admin/settings/site">
-                    {t("admin.dashboard.backup", { defaultValue: "下载备份" })}
-                  </Link>
-                </Button>
-                <Button asChild variant="outline" className="border-red-200 bg-red-50 text-red-700 hover:bg-red-100">
-                  <Link to="/admin/settings/site">
-                    {t("admin.dashboard.restoreBackup", { defaultValue: "上传恢复备份" })}
-                  </Link>
-                </Button>
-              </>
-            ) : null}
           </div>
         </section>
       </div>

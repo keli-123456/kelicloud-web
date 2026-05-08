@@ -463,7 +463,6 @@ function AdminPanelBarContent({ content }: AdminPanelBarProps) {
     const targetUrl = new URL(target, "https://komari.local");
     return [
       "/admin/settings/site",
-      "/admin/settings/notification",
       "/admin/notification/general",
       "/admin/users",
       "/admin/proxy",

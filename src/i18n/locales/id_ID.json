@@ -3689,8 +3689,8 @@
     "page_description": "Kelola situs, skrip node, notifikasi, dan konfigurasi sistem.",
     "platform_admin_required_description": "Bagian ini mengelola pengaturan sistem untuk seluruh platform. Gunakan akun admin platform untuk mengeditnya.",
     "platform_admin_required_title": "Memerlukan admin platform",
-    "platform_tools_description": "Tindakan ini memengaruhi aset situs dan cadangan yang dibagikan ke semua workspace.",
-    "platform_tools_restricted_description": "Manajemen favicon dan cadangan hanya tersedia untuk admin platform.",
+    "platform_tools_description": "Tindakan ini memengaruhi aset situs yang dibagikan ke semua workspace.",
+    "platform_tools_restricted_description": "Manajemen favicon hanya tersedia untuk admin platform.",
     "platform_tools_title": "Alat platform",
     "proxy": {
       "description": "Manage the outbound proxy used by cloud provider credential requests. Requests that do not use cloud provider credentials keep using the server's local IP. Proxy requests use short-lived connections and reconnect on every request. A failed proxy attempt will automatically retry the current request once without the proxy.",

@@ -3689,8 +3689,8 @@
     "page_description": "Manage site, node scripts, notifications, and system configuration.",
     "platform_admin_required_description": "This section manages platform-wide system settings. Switch to a platform admin account to edit it.",
     "platform_admin_required_title": "Platform admin required",
-    "platform_tools_description": "These controls affect global site assets, backups, and other shared platform resources.",
-    "platform_tools_restricted_description": "Favicon and backup management are only available to platform admins.",
+    "platform_tools_description": "These controls affect global site assets and other shared platform resources.",
+    "platform_tools_restricted_description": "Favicon management is only available to platform admins.",
     "platform_tools_title": "Platform tools",
     "proxy": {
       "description": "Manage the outbound proxy used by cloud provider credential requests. Requests that do not use cloud provider credentials keep using the server's local IP. Proxy requests use short-lived connections and reconnect on every request. A failed proxy attempt will automatically retry the current request once without the proxy.",
