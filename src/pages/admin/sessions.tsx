@@ -46,7 +46,7 @@ type Resp = {
   status: string;
 };
 
-export default function Sessions() {
+export default function Sessions({ embedded = false }: { embedded?: boolean } = {}) {
   const [t] = useTranslation();
   const [sessions, setSessions] = React.useState<Resp | null>(null);
 
@@ -130,6 +130,8 @@ export default function Sessions() {
           "sessions.description",
           "Review current admin devices, source IPs, recent activity, and session expiration from one page.",
         )}
+        className={embedded ? "p-0" : undefined}
+        registerHeader={!embedded}
         actions={
           <Button color="red" disabled>
             {t("sessions.delete_all")}
@@ -164,6 +166,8 @@ export default function Sessions() {
         "sessions.description",
         "Review current admin devices, source IPs, recent activity, and session expiration from one page.",
       )}
+      className={embedded ? "p-0" : undefined}
+      registerHeader={!embedded}
       actions={
         <Dialog.Root>
           <Dialog.Trigger>

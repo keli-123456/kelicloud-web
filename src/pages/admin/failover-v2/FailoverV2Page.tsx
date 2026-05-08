@@ -1,7 +1,7 @@
 import React from "react";
 import type { TFunction } from "i18next";
 import { Navigate, useNavigate } from "react-router-dom";
-import { ArrowDown, ArrowUp, Check, ChevronDown, ChevronUp, LoaderCircle, PencilLine, Play, Plus, RefreshCw, Trash2, X } from "lucide-react";
+import { ArrowDown, ArrowUp, Check, ChevronDown, ChevronUp, LoaderCircle, PencilLine, Play, Plus, RefreshCw, Share2, Trash2, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
@@ -20,6 +20,7 @@ import {
   AdminFormSection as FlowSection,
   AdminFormToggle as ToggleCard,
 } from "@/components/admin/AdminForm";
+import FailoverV2ShareDialog from "@/components/admin/failover-v2/FailoverV2ShareDialog";
 import {
   ADMIN_FORM_DIALOG_CLASS,
   ADMIN_FORM_DIALOG_WIDE_CLASS,
@@ -93,8 +94,11 @@ import {
   createFailoverV2Member,
   createFailoverV2Service,
   deleteFailoverV2Member,
+  deleteFailoverV2Share,
   deleteFailoverV2Service,
   detachFailoverV2MemberDNS,
+  buildFailoverV2ShareUrl,
+  fromFailoverV2ShareDateTimeLocalValue,
   type FailoverV2BulkValidationResult,
   type FailoverV2Execution,
   type FailoverV2ExecutionAvailableActions,
@@ -106,19 +110,24 @@ import {
   type FailoverV2PendingCleanup,
   type FailoverV2Service,
   type FailoverV2ServiceInput,
+  type FailoverV2ShareAccessPolicy,
+  type FailoverV2ShareRecord,
   type FailoverV2ValidationResult,
   getFailoverV2Execution,
   getFailoverV2Executions,
   getFailoverV2PendingCleanups,
+  getFailoverV2Share,
   getFailoverV2Services,
   resolveFailoverV2PendingCleanup,
   retryFailoverV2ExecutionAttachDNS,
   retryFailoverV2ExecutionCleanup,
   retryFailoverV2PendingCleanup,
   runFailoverV2MemberNow,
+  saveFailoverV2Share,
   setFailoverV2MemberEnabled,
   setFailoverV2ServiceEnabled,
   stopFailoverV2Execution,
+  toFailoverV2ShareDateTimeLocalValue,
   updateFailoverV2Member,
   updateFailoverV2Service,
   validateAllFailoverV2Services,
@@ -2724,6 +2733,16 @@ export default function FailoverV2Page() {
   const [validatingService, setValidatingService] = React.useState(false);
   const [validatingServiceID, setValidatingServiceID] = React.useState<number | null>(null);
   const [togglingServiceID, setTogglingServiceID] = React.useState<number | null>(null);
+  const [shareDialogOpen, setShareDialogOpen] = React.useState(false);
+  const [shareDialogService, setShareDialogService] = React.useState<FailoverV2Service | null>(null);
+  const [shareRecord, setShareRecord] = React.useState<FailoverV2ShareRecord | null>(null);
+  const [loadingShare, setLoadingShare] = React.useState(false);
+  const [savingShare, setSavingShare] = React.useState(false);
+  const [deletingShare, setDeletingShare] = React.useState(false);
+  const [shareTitle, setShareTitle] = React.useState("");
+  const [shareNote, setShareNote] = React.useState("");
+  const [shareAccessPolicy, setShareAccessPolicy] = React.useState<FailoverV2ShareAccessPolicy>("public");
+  const [shareExpiresAt, setShareExpiresAt] = React.useState("");
 
   const [memberDialogOpen, setMemberDialogOpen] = React.useState(false);
   const [memberDialogService, setMemberDialogService] = React.useState<FailoverV2Service | null>(null);
@@ -3465,6 +3484,37 @@ export default function FailoverV2Page() {
     setServiceDialogOpen(true);
   }, []);
 
+  const openShareDialog = React.useCallback((service: FailoverV2Service) => {
+    setShareDialogService(service);
+    setShareRecord(null);
+    setShareTitle(service.name);
+    setShareNote("");
+    setShareAccessPolicy("public");
+    setShareExpiresAt("");
+    setShareDialogOpen(true);
+    setLoadingShare(true);
+
+    void (async () => {
+      try {
+        const data = await getFailoverV2Share(service.id);
+        setShareRecord(data);
+        setShareTitle(data.title || service.name);
+        setShareNote(data.note || "");
+        setShareAccessPolicy(data.access_policy);
+        setShareExpiresAt(toFailoverV2ShareDateTimeLocalValue(data.expires_at));
+      } catch (shareError) {
+        const message = resolveFailoverV2ErrorMessage(
+          t,
+          shareError,
+          t("failover_v2.share.load_failed", { defaultValue: "加载分享信息失败" }),
+        );
+        toast.error(message);
+      } finally {
+        setLoadingShare(false);
+      }
+    })();
+  }, [t]);
+
   const openCreateMemberDialog = React.useCallback((service: FailoverV2Service) => {
     setMemberDialogService(service);
     setEditingMember(null);
@@ -3807,6 +3857,90 @@ export default function FailoverV2Page() {
       setRunningFailover(false);
     }
   }, [failoverTarget, loadServices, t]);
+
+  const shareUrl = React.useMemo(() => (
+    shareRecord?.token ? buildFailoverV2ShareUrl(shareRecord.token) : ""
+  ), [shareRecord?.token]);
+
+  const handleCopyShareLink = React.useCallback(async () => {
+    if (!shareUrl) {
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(shareUrl);
+      toast.success(t("copy_success", { defaultValue: "Copied!" }));
+    } catch (copyError) {
+      const message = resolveFailoverV2ErrorMessage(
+        t,
+        copyError,
+        t("failover_v2.share.copy_failed", { defaultValue: "复制失败，请手动复制。" }),
+      );
+      toast.error(message);
+    }
+  }, [shareUrl, t]);
+
+  const handleSaveShare = React.useCallback(async () => {
+    if (!shareDialogService) {
+      return;
+    }
+
+    const expiresAt = fromFailoverV2ShareDateTimeLocalValue(shareExpiresAt);
+    if (shareExpiresAt.trim() && !expiresAt) {
+      toast.error(t("failover_v2.share.invalid_expires_at", { defaultValue: "过期时间无效" }));
+      return;
+    }
+
+    try {
+      setSavingShare(true);
+      const data = await saveFailoverV2Share(shareDialogService.id, {
+        title: shareTitle,
+        note: shareNote,
+        access_policy: shareAccessPolicy,
+        expires_at: expiresAt,
+      });
+      setShareRecord(data);
+      setShareTitle(data.title || shareDialogService.name);
+      setShareNote(data.note || "");
+      setShareAccessPolicy(data.access_policy);
+      setShareExpiresAt(toFailoverV2ShareDateTimeLocalValue(data.expires_at));
+      toast.success(t("failover_v2.share.saved", { defaultValue: "分享链接已更新" }));
+    } catch (saveError) {
+      const message = resolveFailoverV2ErrorMessage(
+        t,
+        saveError,
+        t("failover_v2.share.save_failed", { defaultValue: "保存分享链接失败" }),
+      );
+      toast.error(message);
+    } finally {
+      setSavingShare(false);
+    }
+  }, [shareAccessPolicy, shareDialogService, shareExpiresAt, shareNote, shareTitle, t]);
+
+  const handleDeleteShare = React.useCallback(async () => {
+    if (!shareDialogService) {
+      return;
+    }
+
+    try {
+      setDeletingShare(true);
+      await deleteFailoverV2Share(shareDialogService.id);
+      setShareRecord(null);
+      setShareTitle(shareDialogService.name);
+      setShareNote("");
+      setShareAccessPolicy("public");
+      setShareExpiresAt("");
+      toast.success(t("failover_v2.share.revoked", { defaultValue: "分享链接已撤销" }));
+    } catch (deleteError) {
+      const message = resolveFailoverV2ErrorMessage(
+        t,
+        deleteError,
+        t("failover_v2.share.delete_failed", { defaultValue: "撤销分享链接失败" }),
+      );
+      toast.error(message);
+    } finally {
+      setDeletingShare(false);
+    }
+  }, [shareDialogService, t]);
 
   const loadExecutionDetail = React.useCallback(async (
     serviceID: number,
@@ -4454,6 +4588,17 @@ export default function FailoverV2Page() {
                           >
                             <RefreshCw className="size-4" />
                             {t("failover_v2.pending_cleanup_short", { defaultValue: "清理" })}
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              openShareDialog(service);
+                            }}
+                          >
+                            <Share2 className="size-4" />
+                            {t("failover_v2.share.short", { defaultValue: "分享" })}
                           </Button>
                           <Button
                             size="sm"
@@ -7494,6 +7639,28 @@ export default function FailoverV2Page() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <FailoverV2ShareDialog
+        open={shareDialogOpen}
+        onOpenChange={setShareDialogOpen}
+        service={shareDialogService}
+        share={shareRecord}
+        loading={loadingShare}
+        saving={savingShare}
+        deleting={deletingShare}
+        title={shareTitle}
+        note={shareNote}
+        accessPolicy={shareAccessPolicy}
+        expiresAt={shareExpiresAt}
+        shareUrl={shareUrl}
+        onTitleChange={setShareTitle}
+        onNoteChange={setShareNote}
+        onAccessPolicyChange={setShareAccessPolicy}
+        onExpiresAtChange={setShareExpiresAt}
+        onCopyLink={() => void handleCopyShareLink()}
+        onSave={() => void handleSaveShare()}
+        onDelete={() => void handleDeleteShare()}
+      />
 
       <AlertDialog
         open={Boolean(pendingCleanupActionTarget)}

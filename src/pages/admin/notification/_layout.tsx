@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 
 import { AdminPageShell, AdminSubnav } from "@/components/admin/AdminPageShell";
 import { Button } from "@/components/ui/button";
+import { useAccount } from "@/contexts/AccountContext";
 import { cn } from "@/lib/utils";
 
 const navItems = [
@@ -17,12 +18,17 @@ const navItems = [
   {
     path: "/admin/notification/general",
     labelKey: "settings.general.title",
+    platformOnly: true,
   },
 ] as const;
 
 export default function NotificationLayout() {
   const { t } = useTranslation();
   const location = useLocation();
+  const { platformAdmin } = useAccount();
+  const visibleItems = navItems.filter(
+    (item) => platformAdmin || !("platformOnly" in item && item.platformOnly),
+  );
 
   return (
     <AdminPageShell
@@ -35,7 +41,7 @@ export default function NotificationLayout() {
       })}
       subnav={(
         <AdminSubnav>
-          {navItems.map((item) => {
+          {visibleItems.map((item) => {
             const active = location.pathname === item.path;
             return (
               <Button

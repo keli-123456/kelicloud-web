@@ -63,6 +63,11 @@
       "icon": "Bolt"
     },
     {
+      "labelKey": "settings.proxy.title",
+      "path": "/admin/proxy",
+      "icon": "Unplug"
+    },
+    {
       "labelKey": "notification.title",
       "path": "/admin/notification",
       "icon": "Bell"
@@ -73,19 +78,9 @@
       "icon": "Code"
     },
     {
-      "labelKey": "exec.savedCommands",
-      "path": "/admin/scripts",
-      "icon": "Book"
-    },
-    {
-      "labelKey": "ping.title",
-      "path": "/admin/ping",
-      "icon": "Activity"
-    },
-    {
-      "labelKey": "sessions.title",
-      "path": "/admin/sessions",
-      "icon": "Users"
+      "labelKey": "admin.audit.title",
+      "path": "/admin/audit",
+      "icon": "FileText"
     },
     {
       "labelKey": "admin.users.title",
@@ -101,11 +96,6 @@
       "labelKey": "account.title",
       "path": "/admin/account",
       "icon": "UserCircle"
-    },
-    {
-      "labelKey": "logs.title",
-      "path": "/admin/logs",
-      "icon": "FileText"
     }
   ]
 }

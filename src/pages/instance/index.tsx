@@ -21,19 +21,12 @@ import {
 } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
-import {
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
-} from "@/components/ui/tabs";
 import { useNodeList } from "@/contexts/NodeListContext";
 import { DetailsGrid } from "@/components/DetailsGrid";
 import { liveDataToRecords } from "@/utils/RecordHelper";
 import { formatBytes } from "@/utils/unitHelper";
 
 const LoadChart = lazy(() => import("./LoadChart"));
-const PingChart = lazy(() => import("./PingChart"));
 
 export default function InstancePage() {
   const { t } = useTranslation();
@@ -42,7 +35,6 @@ export default function InstancePage() {
   const [recent, setRecent] = useState<Record[]>([]);
   const { nodeList } = useNodeList();
   const length = 30 * 5;
-  const [chartView, setChartView] = useState<"load" | "ping">("load");
   const node = nodeList?.find((n) => n.uuid === uuid);
   const liveRecord = live_data?.data?.data[uuid ?? ""];
   const isOnline = live_data?.data?.online.includes(uuid ?? "") ?? false;
@@ -157,51 +149,32 @@ export default function InstancePage() {
         </CardContent>
       </Card>
 
-      <Tabs
-        value={chartView}
-        onValueChange={(value) => setChartView(value as "load" | "ping")}
-        className="gap-4"
-      >
-        <Card className="rounded-xl border-border/70 shadow-none">
-          <CardHeader className="gap-4">
-            <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
-              <div className="space-y-2">
-                <div className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
-                  {t("nodeCard.status")}
-                </div>
-                <CardTitle className="text-base tracking-tight">
-                  Realtime history
-                </CardTitle>
-                <CardDescription className="text-sm leading-6">
-                  Load and latency share one consistent monitoring panel.
-                </CardDescription>
+      <Card className="rounded-xl border-border/70 shadow-none">
+        <CardHeader className="gap-4">
+          <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+            <div className="space-y-2">
+              <div className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
+                {t("nodeCard.status")}
               </div>
-              <div className="flex flex-wrap items-center gap-2">
-                <Badge variant="outline" className="font-normal">
-                  {liveRecord?.time ? new Date(liveRecord.time).toLocaleString() : "-"}
-                </Badge>
-                <TabsList className="h-9">
-                  <TabsTrigger value="load">{t("nodeCard.load")}</TabsTrigger>
-                  <TabsTrigger value="ping">{t("nodeCard.ping")}</TabsTrigger>
-                </TabsList>
-              </div>
+              <CardTitle className="text-base tracking-tight">
+                Realtime history
+              </CardTitle>
+              <CardDescription className="text-sm leading-6">
+                Recent load history remains available for quick health review.
+              </CardDescription>
             </div>
-          </CardHeader>
-          <Separator />
-          <CardContent className="pt-6">
-            <TabsContent value="load" className="mt-0">
-              <Suspense fallback={<ChartSkeleton />}>
-                <LoadChart data={liveDataToRecords(uuid ?? "", recent)} />
-              </Suspense>
-            </TabsContent>
-            <TabsContent value="ping" className="mt-0">
-              <Suspense fallback={<ChartSkeleton />}>
-                <PingChart uuid={uuid ?? ""} />
-              </Suspense>
-            </TabsContent>
-          </CardContent>
-        </Card>
-      </Tabs>
+            <Badge variant="outline" className="font-normal">
+              {liveRecord?.time ? new Date(liveRecord.time).toLocaleString() : "-"}
+            </Badge>
+          </div>
+        </CardHeader>
+        <Separator />
+        <CardContent className="pt-6">
+          <Suspense fallback={<ChartSkeleton />}>
+            <LoadChart data={liveDataToRecords(uuid ?? "", recent)} />
+          </Suspense>
+        </CardContent>
+      </Card>
     </div>
   );
 }

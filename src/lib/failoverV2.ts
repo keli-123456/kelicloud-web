@@ -267,6 +267,47 @@ export type FailoverV2Service = {
   updated_at: string;
 };
 
+export type FailoverV2ShareAccessPolicy = "public" | "single_use";
+
+export type FailoverV2ShareStatus = "not_shared" | "active" | "expired" | "consumed";
+
+export type FailoverV2ShareRecord = {
+  token: string;
+  service_id: number;
+  service_name: string;
+  title: string;
+  note: string;
+  access_policy: FailoverV2ShareAccessPolicy;
+  status: FailoverV2ShareStatus;
+  expires_at: string;
+  last_accessed_at: string;
+  consumed_at: string;
+  access_count: number;
+  is_expired: boolean;
+  is_consumed: boolean;
+  created_at: string;
+  updated_at: string;
+};
+
+export type SaveFailoverV2ShareInput = {
+  title: string;
+  note: string;
+  access_policy: FailoverV2ShareAccessPolicy;
+  expires_at: string | null;
+};
+
+export type FailoverV2PublicShareData = {
+  token: string;
+  title: string;
+  note: string;
+  access_policy: FailoverV2ShareAccessPolicy;
+  expires_at: string;
+  created_at: string;
+  updated_at: string;
+  generated_at: string;
+  service: FailoverV2Service;
+};
+
 function normalizeString(value: unknown) {
   return typeof value === "string" ? value : "";
 }
@@ -305,6 +346,18 @@ function normalizeMemberMode(value: unknown): FailoverV2MemberMode {
   return normalizeString(value).trim() === "existing_client"
     ? "existing_client"
     : "provider_template";
+}
+
+function normalizeShareAccessPolicy(value: unknown): FailoverV2ShareAccessPolicy {
+  return normalizeString(value).trim() === "single_use" ? "single_use" : "public";
+}
+
+function normalizeShareStatus(value: unknown): FailoverV2ShareStatus {
+  const status = normalizeString(value).trim();
+  if (status === "active" || status === "expired" || status === "consumed") {
+    return status;
+  }
+  return "not_shared";
 }
 
 interface FailoverV2ProbeRaw {
@@ -610,6 +663,67 @@ function normalizeService(service: unknown): FailoverV2Service {
   };
 }
 
+function normalizeShareRecord(share: unknown): FailoverV2ShareRecord {
+  const raw = share && typeof share === "object" ? share as Record<string, unknown> : {};
+  return {
+    token: normalizeString(raw.token),
+    service_id: normalizeNumber(raw.service_id),
+    service_name: normalizeString(raw.service_name),
+    title: normalizeString(raw.title),
+    note: normalizeString(raw.note),
+    access_policy: normalizeShareAccessPolicy(raw.access_policy),
+    status: normalizeShareStatus(raw.status),
+    expires_at: normalizeString(raw.expires_at),
+    last_accessed_at: normalizeString(raw.last_accessed_at),
+    consumed_at: normalizeString(raw.consumed_at),
+    access_count: normalizeNumber(raw.access_count),
+    is_expired: normalizeBoolean(raw.is_expired),
+    is_consumed: normalizeBoolean(raw.is_consumed),
+    created_at: normalizeString(raw.created_at),
+    updated_at: normalizeString(raw.updated_at),
+  };
+}
+
+function normalizePublicShareData(share: unknown): FailoverV2PublicShareData {
+  const raw = share && typeof share === "object" ? share as Record<string, unknown> : {};
+  return {
+    token: normalizeString(raw.token),
+    title: normalizeString(raw.title),
+    note: normalizeString(raw.note),
+    access_policy: normalizeShareAccessPolicy(raw.access_policy),
+    expires_at: normalizeString(raw.expires_at),
+    created_at: normalizeString(raw.created_at),
+    updated_at: normalizeString(raw.updated_at),
+    generated_at: normalizeString(raw.generated_at),
+    service: normalizeService(raw.service),
+  };
+}
+
+export function buildFailoverV2ShareUrl(token: string) {
+  return `${window.location.origin}/failover/share/${token}`;
+}
+
+export function toFailoverV2ShareDateTimeLocalValue(value: string) {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  const hours = String(date.getHours()).padStart(2, "0");
+  const minutes = String(date.getMinutes()).padStart(2, "0");
+  return `${year}-${month}-${day}T${hours}:${minutes}`;
+}
+
+export function fromFailoverV2ShareDateTimeLocalValue(value: string): string | null {
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  const date = new Date(trimmed);
+  if (Number.isNaN(date.getTime())) return null;
+  return date.toISOString();
+}
+
 const FAILOVER_V2_REQUEST_TIMEOUT_MS = 30_000;
 
 async function requestEnvelope<T>(path: string, init?: RequestInit): Promise<T> {
@@ -689,6 +803,31 @@ export async function getFailoverV2Services(): Promise<FailoverV2Service[]> {
 export async function getFailoverV2Service(serviceID: number): Promise<FailoverV2Service> {
   const data = await requestEnvelope<unknown>(`/api/admin/failover-v2/services/${serviceID}`);
   return normalizeService(data);
+}
+
+export async function getFailoverV2Share(serviceID: number): Promise<FailoverV2ShareRecord> {
+  const data = await requestEnvelope<unknown>(`/api/admin/failover-v2/services/${serviceID}/share`);
+  return normalizeShareRecord(data);
+}
+
+export async function saveFailoverV2Share(
+  serviceID: number,
+  input: SaveFailoverV2ShareInput,
+): Promise<FailoverV2ShareRecord> {
+  const data = await requestEnvelope<unknown>(`/api/admin/failover-v2/services/${serviceID}/share`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(input),
+  });
+  return normalizeShareRecord(data);
+}
+
+export async function deleteFailoverV2Share(serviceID: number): Promise<void> {
+  await requestEnvelope(`/api/admin/failover-v2/services/${serviceID}/share`, {
+    method: "DELETE",
+  });
 }
 
 export async function validateFailoverV2Service(
@@ -931,4 +1070,9 @@ export async function runFailoverV2MemberNow(
     method: "POST",
   });
   return normalizeExecutionSummary(data);
+}
+
+export async function getPublicFailoverV2Share(token: string): Promise<FailoverV2PublicShareData> {
+  const data = await requestEnvelope<unknown>(`/api/public/failover-v2/shares/${encodeURIComponent(token)}`);
+  return normalizePublicShareData(data);
 }

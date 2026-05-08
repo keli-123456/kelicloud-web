@@ -46,11 +46,12 @@ export function AdminPageTitleProvider({ children }: { children: ReactNode }) {
 export function useAdminPageTitle(
   title: ReactNode | null | undefined,
   description?: ReactNode | null,
+  enabled = true,
 ) {
   const setHeader = useContext(AdminPageTitleContext)?.setHeader;
 
   useEffect(() => {
-    if (!setHeader) return;
+    if (!setHeader || !enabled) return;
 
     setHeader({
       title: title ?? null,
@@ -62,7 +63,7 @@ export function useAdminPageTitle(
         description: null,
       });
     };
-  }, [description, setHeader, title]);
+  }, [description, enabled, setHeader, title]);
 }
 
 export function useCurrentAdminPageTitle() {

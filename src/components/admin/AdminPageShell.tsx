@@ -13,6 +13,7 @@ export function AdminPageShell({
   className,
   contentClassName,
   hideHeader = false,
+  registerHeader = true,
 }: {
   eyebrow?: ReactNode;
   title?: ReactNode;
@@ -23,8 +24,9 @@ export function AdminPageShell({
   className?: string;
   contentClassName?: string;
   hideHeader?: boolean;
+  registerHeader?: boolean;
 }) {
-  useAdminPageTitle(title, description);
+  useAdminPageTitle(title, description, registerHeader);
   const hasActions = !hideHeader && Boolean(actions);
 
   return (

@@ -229,9 +229,6 @@ const getRequiredFeatureForPath = (target: string) => {
   if (normalizedPath.startsWith("/admin/scripts")) {
     return "clipboard";
   }
-  if (normalizedPath.startsWith("/admin/ping")) {
-    return "ping";
-  }
   if (normalizedPath.startsWith("/admin/logs")) {
     return "logs";
   }
@@ -265,7 +262,7 @@ const getMenuGroupKey = (target: string): MenuGroup["key"] => {
   if (
     normalizedPath.startsWith("/admin/exec") ||
     normalizedPath.startsWith("/admin/scripts") ||
-    normalizedPath.startsWith("/admin/ping") ||
+    normalizedPath.startsWith("/admin/audit") ||
     normalizedPath.startsWith("/admin/sessions")
   ) {
     return "operations";
@@ -439,8 +436,8 @@ function AdminPanelBarContent({ content }: AdminPanelBarProps) {
     if (normalizedPath === "/admin/scripts") {
       return t("admin.nav.short.scripts", { defaultValue: "Scripts" });
     }
-    if (normalizedPath === "/admin/ping") {
-      return t("admin.nav.short.ping", { defaultValue: "Ping" });
+    if (normalizedPath === "/admin/audit") {
+      return t("admin.nav.short.audit", { defaultValue: "Audit" });
     }
     if (normalizedPath === "/admin/sessions") {
       return t("admin.nav.short.sessions", { defaultValue: "Sessions" });
@@ -450,6 +447,9 @@ function AdminPanelBarContent({ content }: AdminPanelBarProps) {
     }
     if (normalizedPath === "/admin/billing") {
       return t("admin.nav.short.billing", { defaultValue: "Billing" });
+    }
+    if (normalizedPath === "/admin/proxy") {
+      return t("admin.nav.short.proxy", { defaultValue: "Proxy" });
     }
 
     return getMenuLabel(item);
@@ -463,11 +463,10 @@ function AdminPanelBarContent({ content }: AdminPanelBarProps) {
     const targetUrl = new URL(target, "https://komari.local");
     return [
       "/admin/settings/site",
-      "/admin/settings/custom",
-      "/admin/settings/sign-on",
       "/admin/settings/notification",
       "/admin/notification/general",
       "/admin/users",
+      "/admin/proxy",
     ].includes(normalizePath(targetUrl.pathname));
   }, []);
 
@@ -497,6 +496,12 @@ function AdminPanelBarContent({ content }: AdminPanelBarProps) {
         || normalizedPath.startsWith("/admin/failover/")
       ) {
         return hasFeature("cloud_failover") && hasFeature("cn_connectivity");
+      }
+      if (normalizedPath === "/admin/exec") {
+        if (targetUrl.searchParams.get("view") === "scripts") {
+          return hasFeature("clipboard");
+        }
+        return hasFeature("tasks") || hasFeature("clipboard");
       }
       const feature = getRequiredFeatureForPath(target);
       if (!feature) {

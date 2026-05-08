@@ -129,7 +129,6 @@ const FEATURE_ORDER: AccountFeature[] = [
   "clients",
   "records",
   "tasks",
-  "ping",
   "notifications",
   "cloud_digitalocean",
   "cloud_linode",
@@ -163,7 +162,6 @@ const FEATURE_GROUPS: FeatureGroup[] = [
       "clients",
       "records",
       "tasks",
-      "ping",
       "notifications",
       "clipboard",
       "logs",
@@ -213,14 +211,13 @@ const PLAN_PRESETS: PlanPreset[] = [
     titleKey: "admin.users.plan_ops",
     defaultTitle: "Ops",
     descriptionKey: "admin.users.plan_ops_desc",
-    defaultDescription: "Daily operations with scripts, tasks, notifications, and ping checks.",
+    defaultDescription: "Daily operations with scripts, tasks, notifications, and audit logs.",
     planName: "Ops",
     serverQuota: "10",
     features: [
       "clients",
       "records",
       "tasks",
-      "ping",
       "notifications",
       "clipboard",
       "logs",
@@ -372,8 +369,6 @@ const getFeatureLabel = (
       return t("admin.users.feature_records", "Records");
     case "tasks":
       return t("admin.users.feature_tasks", "Tasks");
-    case "ping":
-      return t("admin.users.feature_ping", "Ping");
     case "notifications":
       return t("admin.users.feature_notifications", "Notifications");
     case "cloud_digitalocean":
@@ -1172,7 +1167,6 @@ export default function AdminUsersPage() {
                   <TableHead>{t("admin.users.plan_name", "Plan")}</TableHead>
                   <TableHead>{t("admin.users.server_quota", "Server quota")}</TableHead>
                   <TableHead>{t("admin.users.allowed_features", "Allowed features")}</TableHead>
-                  <TableHead>{t("admin.users.auth")}</TableHead>
                   <TableHead>{t("admin.users.created_at")}</TableHead>
                   <TableHead className="text-right">{t("common.action")}</TableHead>
                 </TableRow>
@@ -1181,8 +1175,6 @@ export default function AdminUsersPage() {
                 {users.map((user) => {
                   const isSelf = user.uuid === account?.uuid;
                   const role = normalizeRole(user.role);
-                  const hasSSO = Boolean(String(user.sso_id || "").trim());
-                  const has2FA = Boolean(String(user.two_factor || "").trim());
                   const quota = Number(user.server_quota || 0);
                   const clientCount = Number(user.client_count || 0);
                   const quotaUsage = getQuotaUsageState(clientCount, quota);
@@ -1284,25 +1276,6 @@ export default function AdminUsersPage() {
                               </Badge>
                             ))
                           )}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex flex-wrap gap-2">
-                          <Badge color={hasSSO ? "blue" : "gray"} variant="soft">
-                            {hasSSO
-                              ? t("admin.users.sso_bound")
-                              : t("admin.users.sso_none")}
-                          </Badge>
-                          <Badge color={has2FA ? "green" : "gray"} variant="soft">
-                            {has2FA
-                              ? t("admin.users.mfa_enabled")
-                              : t("admin.users.mfa_disabled")}
-                          </Badge>
-                          {isSelf ? (
-                            <Badge color="amber" variant="soft">
-                              {t("admin.users.current")}
-                            </Badge>
-                          ) : null}
                         </div>
                       </TableCell>
                       <TableCell>{formatDateTime(user.created_at)}</TableCell>

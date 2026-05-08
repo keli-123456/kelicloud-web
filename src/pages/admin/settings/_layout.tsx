@@ -16,24 +16,9 @@ const navItems = [
     platformOnly: true,
   },
   {
-    path: "/admin/settings/custom",
-    labelKey: "settings.custom.header",
-    platformOnly: true,
-  },
-  {
     path: "/admin/settings/general",
     labelKey: "settings.general.title",
     platformOnly: false,
-  },
-  {
-    path: "/admin/settings/proxy",
-    labelKey: "settings.proxy.title",
-    platformOnly: true,
-  },
-  {
-    path: "/admin/settings/sign-on",
-    labelKey: "settings.sign_on.title",
-    platformOnly: true,
   },
   {
     path: "/admin/settings/notification",
@@ -55,7 +40,7 @@ export default function SettingLayout() {
       className="mx-auto w-full max-w-5xl"
       title={t("settings.title", { defaultValue: "设置" })}
       description={t("settings.page_description", {
-        defaultValue: "集中管理站点、节点脚本、通知、代理和系统兼容性配置。",
+        defaultValue: "集中管理站点、节点脚本、通知和系统配置。",
       })}
       subnav={(
         <AdminSubnav>

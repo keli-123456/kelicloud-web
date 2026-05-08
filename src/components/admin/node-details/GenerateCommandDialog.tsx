@@ -256,9 +256,6 @@ export default function GenerateCommandDialog({
     () => loadGenerateCommandPreferences(),
     [],
   );
-  const [selectedNodeId, setSelectedNodeId] = React.useState(
-    node?.uuid ?? availableNodes[0]?.uuid ?? "",
-  );
   const [selectedPlatform, setSelectedPlatform] = React.useState<Platform>(
     initialPreferences.selectedPlatform,
   );
@@ -307,10 +304,6 @@ export default function GenerateCommandDialog({
       ).sort((left, right) => left.localeCompare(right)),
     [availableNodes],
   );
-  const activeNode =
-    node
-    ?? availableNodes.find((item) => item.uuid === selectedNodeId)
-    ?? availableNodes[0];
   const hasMountedPreferenceSync = React.useRef(false);
   const { t } = useTranslation();
 
@@ -348,23 +341,6 @@ export default function GenerateCommandDialog({
     selectedPlatform,
   ]);
 
-  React.useEffect(() => {
-    if (useAutoDiscovery || groupMode) {
-      return;
-    }
-    if (node?.uuid) {
-      setSelectedNodeId(node.uuid);
-      return;
-    }
-
-    if (
-      availableNodes.length > 0
-      && !availableNodes.some((item) => item.uuid === selectedNodeId)
-    ) {
-      setSelectedNodeId(availableNodes[0].uuid);
-    }
-  }, [availableNodes, groupMode, node?.uuid, selectedNodeId, useAutoDiscovery]);
-
   const restoreDefaults = React.useCallback(() => {
     setSelectedPlatform(DEFAULT_GENERATE_COMMAND_PREFERENCES.selectedPlatform);
     setInstallOptions(DEFAULT_GENERATE_COMMAND_PREFERENCES.installOptions);
@@ -388,7 +364,7 @@ export default function GenerateCommandDialog({
 
   const generateCommand = () => {
     if (groupMode && (!useAutoDiscovery || !normalizedGroupName)) return "";
-    if (!useAutoDiscovery && !activeNode) return "";
+    if (!useAutoDiscovery) return "";
 
     const host = (() => {
       if (!settings.script_domain) {
@@ -401,14 +377,10 @@ export default function GenerateCommandDialog({
     })();
 
     const args = ["-e", host];
-    if (useAutoDiscovery) {
-      args.push(
-        "--auto-discovery",
-        groupMode ? scopedAutoDiscoveryKey : autoDiscoveryKey,
-      );
-    } else {
-      args.push("-t", activeNode?.token || "");
-    }
+    args.push(
+      "--auto-discovery",
+      groupMode ? scopedAutoDiscoveryKey : autoDiscoveryKey,
+    );
 
     if (installOptions.disableWebSsh) {
       args.push("--disable-web-ssh");
@@ -527,7 +499,7 @@ export default function GenerateCommandDialog({
   const command = generateCommand();
   const copyDisabled = groupMode
     ? !useAutoDiscovery || !normalizedGroupName
-    : !useAutoDiscovery && !activeNode;
+    : !useAutoDiscovery;
 
   const copyToClipboard = async (text: string) => {
     try {
@@ -548,9 +520,7 @@ export default function GenerateCommandDialog({
               : t("admin.nodeTable.groupInstallCommand", "Create group install command")
             : useAutoDiscovery
               ? `${t("admin.nodeTable.installCommand", "Install command")} · ${t("admin.nodeTable.autoEnroll", "Auto-enroll")}`
-              : node
-                ? `${t("admin.nodeTable.installCommand", "Install command")} · ${activeNode?.name || "-"}`
-                : t("admin.nodeTable.installCommand", "Install command")}
+              : t("admin.nodeTable.installCommand", "Install command")}
         </Dialog.Title>
         <Dialog.Description className="mt-2">
           {t(
@@ -617,29 +587,11 @@ export default function GenerateCommandDialog({
               </Text>
             </div>
           ) : null}
-          {!groupMode && !useAutoDiscovery && !node && availableNodes.length > 0 ? (
-            <div className={NODE_DIALOG_SECTION_CLASS}>
-              <label className="text-[14px] font-semibold text-slate-900 dark:text-slate-100">
-                {t("admin.nodeTable.selectNode", "Select node")}
-              </label>
-              <select
-                className="mt-3 h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-900 outline-none dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
-                value={selectedNodeId}
-                onChange={(event) => setSelectedNodeId(event.target.value)}
-              >
-                {availableNodes.map((item) => (
-                  <option key={item.uuid} value={item.uuid}>
-                    {item.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-          ) : null}
           {!useAutoDiscovery && toolbar && !groupMode ? (
             <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-700 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-300">
               {t(
                 "admin.nodeTable.autoDiscoveryDisabledSingle",
-                "Auto Discovery Key is not enabled yet, so this still uses the legacy single-node mode. Set it in Settings > General to switch to the general onboarding command.",
+                "Auto Discovery Key is not enabled yet. Legacy single-node token onboarding has been removed; set the key in Settings > General before generating install commands.",
               )}
             </div>
           ) : null}

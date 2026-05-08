@@ -25,7 +25,6 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { Separator } from "@/components/ui/separator";
 import {
   AccountProvider,
   getDefaultAdminPath,
@@ -73,13 +72,7 @@ const LoginDialog = ({
     const { publicInfo } = usePublicInfo();
     const siteName = getSiteName(publicInfo?.sitename);
 
-    const passwordLoginEnabled = !publicInfo?.disable_password_login;
-    const oauthEnabled = !!publicInfo?.oauth_enable;
-    const onlyOAuthLogin = oauthEnabled && !passwordLoginEnabled;
-    const isFormValid =
-      passwordLoginEnabled &&
-      username.trim() !== "" &&
-      password.trim() !== "";
+    const isFormValid = username.trim() !== "" && password.trim() !== "";
 
     React.useEffect(() => {
       if (autoOpen) {
@@ -234,26 +227,6 @@ const LoginDialog = ({
       );
     }
 
-    if (onlyOAuthLogin && !autoOpen && !inline) {
-      const redirect = () => {
-        window.location.href = "/api/oauth";
-      };
-      if (trigger) {
-        if (typeof trigger === "string") {
-          return <Button onClick={redirect}>{trigger}</Button>;
-        }
-        return (
-          <span
-            onClick={redirect}
-            style={{ cursor: "pointer", display: "inline-flex" }}
-          >
-            {trigger}
-          </span>
-        );
-      }
-      return <Button onClick={redirect}>{t("login.title")}</Button>;
-    }
-
     const triggerNode =
       trigger && typeof trigger !== "string" ? (
         trigger
@@ -271,95 +244,61 @@ const LoginDialog = ({
         }}
         className="flex flex-col gap-4"
       >
-        {passwordLoginEnabled && (
-          <>
-            <div className="grid gap-4">
-              <label className="grid gap-2">
-                <div className="text-[12px] font-semibold leading-4 text-muted-foreground">
-                  {t("login.username")}
-                </div>
-                <Input
-                  value={username}
-                  onChange={(e) => setUsername(e.target.value)}
-                  onKeyDown={handleKeyDown}
-                  placeholder="admin"
-                  disabled={isLoading}
-                  autoFocus
-                  className="h-10 rounded-md bg-muted/45"
-                />
-              </label>
-              <label className="grid gap-2">
-                <div className="text-[12px] font-semibold leading-4 text-muted-foreground">
-                  {t("login.password")}
-                </div>
-                <Input
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  onKeyDown={handleKeyDown}
-                  type="password"
-                  placeholder={t("login.password_placeholder")}
-                  disabled={isLoading}
-                  className="h-10 rounded-md bg-muted/45"
-                />
-              </label>
-              <label hidden={!require2FA} className="grid gap-2">
-                <div className="text-[12px] font-semibold leading-4 text-muted-foreground">
-                  {t("login.two_factor")}
-                </div>
-                <Input
-                  value={twoFac}
-                  onChange={(e) => setTwoFac(e.target.value)}
-                  onKeyDown={handleKeyDown}
-                  type="text"
-                  placeholder="000000"
-                  disabled={isLoading}
-                  className="h-10 rounded-md bg-muted/45"
-                />
-              </label>
+        <div className="grid gap-4">
+          <label className="grid gap-2">
+            <div className="text-[12px] font-semibold leading-4 text-muted-foreground">
+              {t("login.username")}
             </div>
-            {errorMsg ? (
-              <Alert variant="destructive">
-                <AlertCircle />
-                <AlertTitle>{t("common.error", "错误")}</AlertTitle>
-                <AlertDescription>{errorMsg}</AlertDescription>
-              </Alert>
-            ) : null}
-            <Button type="submit" disabled={isLoading || !isFormValid} className="h-10 w-full">
-              <KeyRound className="h-4 w-4" />
-              {isLoading
-                ? t("login.logging_in", "登录中...")
-                : t("login.title")}
-            </Button>
-          </>
-        )}
-        {publicInfo?.oauth_enable && passwordLoginEnabled ? (
-          <div className="flex items-center gap-3 text-xs uppercase tracking-[0.2em] text-muted-foreground">
-            <Separator className="flex-1" />
-            <span>OAuth</span>
-            <Separator className="flex-1" />
-          </div>
+            <Input
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              onKeyDown={handleKeyDown}
+              placeholder="admin"
+              disabled={isLoading}
+              autoFocus
+              className="h-10 rounded-md bg-muted/45"
+            />
+          </label>
+          <label className="grid gap-2">
+            <div className="text-[12px] font-semibold leading-4 text-muted-foreground">
+              {t("login.password")}
+            </div>
+            <Input
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              onKeyDown={handleKeyDown}
+              type="password"
+              placeholder={t("login.password_placeholder")}
+              disabled={isLoading}
+              className="h-10 rounded-md bg-muted/45"
+            />
+          </label>
+          <label hidden={!require2FA} className="grid gap-2">
+            <div className="text-[12px] font-semibold leading-4 text-muted-foreground">
+              {t("login.two_factor")}
+            </div>
+            <Input
+              value={twoFac}
+              onChange={(e) => setTwoFac(e.target.value)}
+              onKeyDown={handleKeyDown}
+              type="text"
+              placeholder="000000"
+              disabled={isLoading}
+              className="h-10 rounded-md bg-muted/45"
+            />
+          </label>
+        </div>
+        {errorMsg ? (
+          <Alert variant="destructive">
+            <AlertCircle />
+            <AlertTitle>{t("common.error", "错误")}</AlertTitle>
+            <AlertDescription>{errorMsg}</AlertDescription>
+          </Alert>
         ) : null}
-        {publicInfo?.oauth_enable && (
-          <Button
-            onClick={() => {
-              window.location.href = "/api/oauth";
-            }}
-            variant={passwordLoginEnabled ? "outline" : "default"}
-            disabled={isLoading}
-            type="button"
-            className="h-10 w-full"
-          >
-            {t("login.login_with", {
-              provider:
-                publicInfo?.oauth_provider === "generic"
-                  ? "OAuth"
-                  : publicInfo?.oauth_provider
-                    ? publicInfo.oauth_provider.charAt(0).toUpperCase() +
-                      publicInfo.oauth_provider.slice(1)
-                    : "",
-            })}
-          </Button>
-        )}
+        <Button type="submit" disabled={isLoading || !isFormValid} className="h-10 w-full">
+          <KeyRound className="h-4 w-4" />
+          {isLoading ? t("login.logging_in", "登录中...") : t("login.title")}
+        </Button>
       </form>
     );
 
@@ -381,8 +320,8 @@ const LoginDialog = ({
                   </CardDescription>
                 </div>
               </div>
-              <Badge variant={onlyOAuthLogin ? "info" : "secondary"}>
-                {onlyOAuthLogin ? "OAuth" : t("login.secure", { defaultValue: "安全登录" })}
+              <Badge variant="secondary">
+                {t("login.secure", { defaultValue: "安全登录" })}
               </Badge>
             </div>
           </CardHeader>

@@ -24,6 +24,14 @@ export const routes: RouteObject[] = [
         path: "cloud/share/:token",
         element: React.createElement(lazy(() => import("./pages/cloudShare"))),
       },
+      {
+        path: "failover/share/:token",
+        element: React.createElement(lazy(() => import("./pages/failoverShare"))),
+      },
+      {
+        path: "failover-v1/share/:token",
+        element: React.createElement(lazy(() => import("./pages/failoverV1Share"))),
+      },
     ],
   },
   {
@@ -33,8 +41,15 @@ export const routes: RouteObject[] = [
       { index: true, element: React.createElement(AdminDashboard) },
       {
         path: "sessions",
+        element: React.createElement(Navigate, {
+          to: "/admin/audit?tab=sessions",
+          replace: true,
+        }),
+      },
+      {
+        path: "audit",
         element: React.createElement(
-          lazy(() => import("./pages/admin/sessions"))
+          lazy(() => import("./pages/admin/audit"))
         ),
       },
       {
@@ -70,6 +85,10 @@ export const routes: RouteObject[] = [
         element: React.createElement(lazy(() => import("./pages/admin/cloud-dns"))),
       },
       {
+        path: "proxy",
+        element: React.createElement(lazy(() => import("./pages/admin/proxy"))),
+      },
+      {
         path: "failover",
         element: React.createElement(lazy(() => import("./pages/admin/failover"))),
       },
@@ -98,20 +117,22 @@ export const routes: RouteObject[] = [
           },
           {
             path: "custom",
-            element: React.createElement(
-              lazy(() => import("./pages/admin/settings/custom"))
-            ),
+            element: React.createElement(Navigate, {
+              to: "/admin/settings/general",
+              replace: true,
+            }),
           },
           {
             path: "sign-on",
-            element: React.createElement(
-              lazy(() => import("./pages/admin/settings/sign-on"))
-            ),
+            element: React.createElement(Navigate, {
+              to: "/admin/settings/general",
+              replace: true,
+            }),
           },
           {
             path: "sso",
             element: React.createElement(Navigate, {
-              to: "/admin/settings/sign-on",
+              to: "/admin/settings/general",
               replace: true,
             }),
           },
@@ -129,9 +150,10 @@ export const routes: RouteObject[] = [
           },
           {
             path: "proxy",
-            element: React.createElement(
-              lazy(() => import("./pages/admin/settings/proxy"))
-            ),
+            element: React.createElement(Navigate, {
+              to: "/admin/proxy",
+              replace: true,
+            }),
           },
         ],
       },
@@ -143,10 +165,9 @@ export const routes: RouteObject[] = [
         children: [
           {
             index: true,
-            element: React.createElement(Navigate, {
-              to: "general",
-              replace: true,
-            }),
+            element: React.createElement(
+              lazy(() => import("./pages/admin/notification"))
+            ),
           },
           {
             path: "offline",
@@ -170,9 +191,10 @@ export const routes: RouteObject[] = [
       },
       {
         path: "ping",
-        element: React.createElement(
-          lazy(() => import("./pages/admin/pingTask"))
-        ),
+        element: React.createElement(Navigate, {
+          to: "/admin",
+          replace: true,
+        }),
       },
       {
         path: "about",
@@ -180,7 +202,10 @@ export const routes: RouteObject[] = [
       },
       {
         path: "logs",
-        element: React.createElement(lazy(() => import("./pages/admin/log"))),
+        element: React.createElement(Navigate, {
+          to: "/admin/audit?tab=logs",
+          replace: true,
+        }),
       },
       {
         path: "exec",
@@ -188,7 +213,10 @@ export const routes: RouteObject[] = [
       },
       {
         path: "scripts",
-        element: React.createElement(lazy(() => import("./pages/admin/scripts"))),
+        element: React.createElement(Navigate, {
+          to: "/admin/exec?view=scripts",
+          replace: true,
+        }),
       },
     ],
   },

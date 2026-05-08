@@ -346,6 +346,8 @@ function DashboardPageContent() {
         : t("common.disabled", { defaultValue: "Disabled" }),
     },
   ];
+  const canUseClients = hasFeature("clients");
+  const canUseScripts = hasFeature("clipboard");
 
   if (isLoading) {
     return <DashboardLoadingState />;
@@ -374,12 +376,14 @@ function DashboardPageContent() {
           <Button variant="outline" onClick={() => void refresh()}>
             {t("admin.dashboard.selfCheck", { defaultValue: "运行自检" })}
           </Button>
+          {canUseClients ? (
           <Button asChild>
             <Link to="/admin/client">
               <Server className="h-4 w-4" />
               {t("admin.dashboard.addNode", { defaultValue: "添加节点" })}
             </Link>
           </Button>
+          ) : null}
       </div>
 
       {liveError ? (
@@ -460,33 +464,36 @@ function DashboardPageContent() {
             meta={t("admin.dashboard.frequentActions", { defaultValue: "高频动作" })}
           />
           <div className="grid gap-2.5 p-[14px]">
-            <Button asChild>
-              <Link to="/admin/client">
-                {t("admin.dashboard.installCommand", {
-                  defaultValue: "生成 Agent 安装命令",
-                })}
-              </Link>
-            </Button>
-            <Button asChild variant="outline">
-              <Link to="/admin/ping">
-                {t("admin.dashboard.testPing", { defaultValue: "查看 Ping 任务" })}
-              </Link>
-            </Button>
-            <Button asChild variant="outline">
-              <Link to="/admin/scripts">
-                {t("admin.dashboard.commandLibrary", { defaultValue: "命令库" })}
-              </Link>
-            </Button>
-            <Button asChild variant="outline">
-              <Link to="/admin/settings/site">
-                {t("admin.dashboard.backup", { defaultValue: "下载备份" })}
-              </Link>
-            </Button>
-            <Button asChild variant="outline" className="border-red-200 bg-red-50 text-red-700 hover:bg-red-100">
-              <Link to="/admin/settings/site">
-                {t("admin.dashboard.restoreBackup", { defaultValue: "上传恢复备份" })}
-              </Link>
-            </Button>
+            {canUseClients ? (
+              <Button asChild>
+                <Link to="/admin/client">
+                  {t("admin.dashboard.installCommand", {
+                    defaultValue: "生成 Agent 安装命令",
+                  })}
+                </Link>
+              </Button>
+            ) : null}
+            {canUseScripts ? (
+              <Button asChild variant="outline">
+                <Link to="/admin/exec?view=scripts">
+                  {t("admin.dashboard.commandLibrary", { defaultValue: "命令库" })}
+                </Link>
+              </Button>
+            ) : null}
+            {platformAdmin ? (
+              <>
+                <Button asChild variant="outline">
+                  <Link to="/admin/settings/site">
+                    {t("admin.dashboard.backup", { defaultValue: "下载备份" })}
+                  </Link>
+                </Button>
+                <Button asChild variant="outline" className="border-red-200 bg-red-50 text-red-700 hover:bg-red-100">
+                  <Link to="/admin/settings/site">
+                    {t("admin.dashboard.restoreBackup", { defaultValue: "上传恢复备份" })}
+                  </Link>
+                </Button>
+              </>
+            ) : null}
           </div>
         </section>
       </div>

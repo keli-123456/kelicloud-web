@@ -82,7 +82,7 @@ async function fetchLogPage(
   return response.json();
 }
 
-const LogPage = () => {
+const LogPage = ({ embedded = false }: { embedded?: boolean } = {}) => {
   const [loading, setLoading] = React.useState<boolean>(true);
   const [logs, setLogs] = React.useState<Log[]>([]);
   const [error, setError] = React.useState<string | null>(null);
@@ -220,6 +220,8 @@ const LogPage = () => {
           defaultValue:
             "Browse backend operation logs by page to quickly inspect source IPs, event types, and message details.",
         })}
+        className={embedded ? "p-0" : undefined}
+        registerHeader={!embedded}
         actions={pageActions}
       >
         <AdminSurface className="overflow-hidden p-0">
@@ -257,6 +259,8 @@ const LogPage = () => {
         defaultValue:
           "Browse backend operation logs by page to quickly inspect source IPs, event types, and message details.",
       })}
+      className={embedded ? "p-0" : undefined}
+      registerHeader={!embedded}
       actions={pageActions}
     >
       <AdminSurface className="overflow-hidden p-0">

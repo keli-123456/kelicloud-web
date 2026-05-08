@@ -207,7 +207,13 @@ async function fetchCommandPage(
   };
 }
 
-export default function CommandLibraryManager() {
+type CommandLibraryManagerProps = {
+  setPageTitle?: boolean;
+};
+
+export default function CommandLibraryManager({
+  setPageTitle = true,
+}: CommandLibraryManagerProps) {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const location = useLocation();
@@ -242,6 +248,7 @@ export default function CommandLibraryManager() {
     t("command_clipboard.page_description", {
       defaultValue: "集中管理远程执行和云实例场景复用的脚本命令。",
     }),
+    setPageTitle,
   );
 
   useEffect(() => {

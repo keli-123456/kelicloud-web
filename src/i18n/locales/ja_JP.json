@@ -39,7 +39,7 @@
     "new_password": "新しいパスワード",
     "new_password_repeat": "新しいパスワードを再入力",
     "otp_empty_error": "空の確認コード",
-    "page_description": "Manage your admin identity, password, two-factor authentication, and external sign-in bindings in one place.",
+    "page_description": "ユーザー名とログインパスワードを管理します。",
     "password_empty_error": "空のパスワードは許可されていません",
     "password_mismatch_error": "2回入力したパスワードが一致しません",
     "password_strength_error": "パスワードには大文字、小文字、数字を含める必要があります",
@@ -130,6 +130,10 @@
       "testPing": "View ping tasks",
       "usageWarning": "High resource usage"
     },
+    "audit": {
+      "description": "Review active sessions and backend operation logs in one place.",
+      "title": "Audit"
+    },
     "httpsNotice": {
       "configure": "去配置",
       "description": "Unencrypted traffic can expose login credentials and admin operations. Switch to HTTPS now.",
@@ -152,7 +156,9 @@
         "exec": "実行",
         "failover": "フェイルオーバー",
         "failover_v2": "フェイルオーバー V2",
+        "audit": "Audit",
         "ping": "Ping",
+        "proxy": "プロキシ",
         "scripts": "スクリプト",
         "sessions": "セッション",
         "users": "ユーザー"
@@ -3306,8 +3312,8 @@
     "account_fetch_failed": "Unable to fetch account status",
     "desc": "{{siteName}} コントロールパネルにログインします。",
     "failed": "ログインに失敗しました",
-    "gateway_notice": "Continue with an existing admin account. Password and OAuth login share the same entry point.",
-    "inline_hint": "既存のアカウントで続行できます。パスワードログインと OAuth は同じ入口にまとまっています。",
+    "gateway_notice": "既存の管理者アカウントで続行します。",
+    "inline_hint": "既存のアカウントでパスワードログインを続行します。",
     "inline_summary": "アカウント導線、ノード運用、ブランド設定をひとつのログイン導線にまとめ、画面の分断を減らします。",
     "logging_in": "ログイン中...",
     "login_with": "{{provider}} でログイン",
@@ -3680,14 +3686,15 @@
       "test_title": "テストメッセージを送信",
       "title": "通知"
     },
-    "page_description": "集中管理站点、节点脚本、通知、代理和系统兼容性配置。",
-    "platform_admin_required_description": "ここではプラットフォーム全体で共有される統合設定とセキュリティ設定を管理します。編集するにはプラットフォーム管理者アカウントに切り替えてください。",
+    "page_description": "サイト、ノードスクリプト、通知、システム設定を管理します。",
+    "platform_admin_required_description": "ここではプラットフォーム全体で共有されるシステム設定を管理します。編集するにはプラットフォーム管理者アカウントに切り替えてください。",
     "platform_admin_required_title": "プラットフォーム管理者権限が必要です",
     "platform_tools_description": "これらの操作は、すべてのワークスペースで共有されるサイト資産とバックアップに影響します。",
     "platform_tools_restricted_description": "Favicon とバックアップ管理はプラットフォーム管理者のみ利用できます。",
     "platform_tools_title": "プラットフォームツール",
     "proxy": {
       "description": "Manage the outbound proxy used by cloud provider credential requests. Requests that do not use cloud provider credentials keep using the server's local IP. Proxy requests use short-lived connections and reconnect on every request. A failed proxy attempt will automatically retry the current request once without the proxy.",
+      "page_description": "クラウドプロバイダー API リクエストで使用するアウトバウンドプロキシを管理します。",
       "enable": "Enable global outbound proxy",
       "enable_description": "Applies to cloud provider APIs that use DigitalOcean, Linode, or AWS credentials.",
       "host": "Proxy host",
@@ -3806,7 +3813,7 @@
     "console_summary": "ログイン、インスタンス詳細、ノード管理をひとつの入口に集約し、コントロールの分散を減らします。",
     "description": "ノードの稼働状況、トラフィック、地域カバレッジを 1 つの画面で確認できます。",
     "gateway_cloud_hint": "Cloud providers, DNS, billing, and failover are behind admin permissions.",
-    "gateway_security_hint": "Password, OAuth, and two-factor authentication are handled in one login entry point.",
+    "gateway_security_hint": "パスワードログインは統一された入口で処理されます。",
     "gateway_status_hint": "Node health, load, traffic, and uptime are collected in one console.",
     "github": "GitHub",
     "powered_by": "{{siteName}} によって提供",

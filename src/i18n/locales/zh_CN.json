@@ -39,7 +39,7 @@
     "new_password": "新密码",
     "new_password_repeat": "重复新密码",
     "otp_empty_error": "空验证码",
-    "page_description": "集中管理管理员身份、密码、双重验证与第三方登录绑定。",
+    "page_description": "管理用户名和登录密码。",
     "password_empty_error": "不允许空密码",
     "password_mismatch_error": "两次输入的密码不一致",
     "password_strength_error": "密码必须包含大写，小写字母和数字",
@@ -130,6 +130,10 @@
       "testPing": "查看 Ping 任务",
       "usageWarning": "资源占用偏高"
     },
+    "audit": {
+      "description": "集中查看当前会话和后台操作日志。",
+      "title": "审计"
+    },
     "httpsNotice": {
       "configure": "去配置",
       "description": "未加密连接可能暴露登录凭据和管理指令，建议立即切换到 HTTPS。",
@@ -152,7 +156,9 @@
         "exec": "执行",
         "failover": "切换",
         "failover_v2": "切换 V2",
+        "audit": "审计",
         "ping": "延迟",
+        "proxy": "代理",
         "scripts": "脚本",
         "sessions": "会话",
         "users": "用户"
@@ -3306,8 +3312,8 @@
     "account_fetch_failed": "无法获取账户状态",
     "desc": "登录到 {{siteName}} 控制面板。",
     "failed": "登录失败",
-    "gateway_notice": "使用现有管理员账号继续。密码与 OAuth 登录保持在同一个入口。",
-    "inline_hint": "使用现有账号继续。密码登录和 OAuth 会保留在同一个入口里。",
+    "gateway_notice": "使用现有管理员账号继续。",
+    "inline_hint": "使用现有账号和密码继续。",
     "inline_summary": "把账号入口、节点运维和品牌设置收口到同一条登录路径，减少跳转和界面割裂感。",
     "logging_in": "登录中...",
     "login_with": "使用 {{provider}} 登录",
@@ -3680,14 +3686,15 @@
       "test_title": "发送测试消息",
       "title": "通知"
     },
-    "page_description": "集中管理站点、节点脚本、通知、代理和系统兼容性配置。",
-    "platform_admin_required_description": "这里管理的是整个平台共用的集成与安全设置，请切换到平台管理员账号后再编辑。",
+    "page_description": "集中管理站点、节点脚本、通知和系统配置。",
+    "platform_admin_required_description": "这里管理的是整个平台共用的系统设置，请切换到平台管理员账号后再编辑。",
     "platform_admin_required_title": "需要平台管理员权限",
     "platform_tools_description": "这些操作会影响全局站点资源、备份以及整个平台共用的能力。",
     "platform_tools_restricted_description": "Favicon 和备份管理仅对平台管理员开放。",
     "platform_tools_title": "平台工具",
     "proxy": {
       "description": "统一管理云服务商令牌请求使用的出站代理。不依赖云服务商令牌的请求会继续使用服务器本机出口 IP。保存后，新发起的云服务商请求会按这里的代理设置走；代理请求默认使用短连接，每次请求都会重新建连。如果代理连接失败，会自动回退为当前请求直连一次。",
+      "page_description": "单独管理云服务商 API 请求使用的出站代理。",
       "enable": "启用全局出站代理",
       "enable_description": "仅影响使用 DigitalOcean、Linode、AWS 凭据发出的云服务商 API 请求。",
       "host": "代理主机",
@@ -3806,7 +3813,7 @@
     "console_summary": "统一用一个入口承载登录、实例详情和节点管理，减少控件散落造成的理解成本。",
     "description": "在一个界面里查看节点健康、流量和地域覆盖。",
     "gateway_cloud_hint": "云厂商、DNS、账单与故障切换都放在后台权限之后。",
-    "gateway_security_hint": "密码、OAuth 与二次验证集中在同一个登录入口处理。",
+    "gateway_security_hint": "密码登录集中在统一入口处理。",
     "gateway_status_hint": "节点健康、负载、流量与在线时间统一收拢在一个控制台。",
     "github": "GitHub",
     "powered_by": "由 {{siteName}} 提供支持。",

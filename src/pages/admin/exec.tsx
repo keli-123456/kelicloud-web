@@ -1,7 +1,8 @@
-import { useState, useRef, useEffect, useMemo, useCallback, type ReactNode, type UIEvent } from "react";
+import { lazy, Suspense, useState, useRef, useEffect, useMemo, useCallback, type ReactNode, type UIEvent } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { NodeDetailsProvider, useNodeDetails } from "@/contexts/NodeDetailsContext";
 import { useAdminPageTitle } from "@/contexts/AdminPageTitleContext";
+import { useAccount } from "@/contexts/AccountContext";
 import {
     CommandClipboardProvider,
     useCommandClipboard,
@@ -116,6 +117,8 @@ type ExecStatusTone = "ok" | "warn" | "bad" | "info";
 
 type ExecLibraryTab = "library" | "history" | "result";
 
+type ExecWorkspaceView = "exec" | "scripts";
+
 type LoadTaskResultsOptions = {
     switchTab?: boolean;
     stopPolling?: boolean;
@@ -126,6 +129,24 @@ const formatTimestamp = (value?: string | null) => {
     const date = new Date(value);
     if (Number.isNaN(date.getTime())) return value;
     return date.toLocaleString();
+};
+
+const CommandLibraryManager = lazy(() => import("@/components/admin/scripts/CommandLibraryManager"));
+
+const getExecWorkspaceView = (search: string): ExecWorkspaceView => {
+    const params = new URLSearchParams(search);
+    return params.get("view") === "scripts" ? "scripts" : "exec";
+};
+
+const resolveExecWorkspaceView = (
+    requestedView: ExecWorkspaceView,
+    canUseExec: boolean,
+    canUseScripts: boolean,
+): ExecWorkspaceView => {
+    if ((requestedView === "scripts" && canUseScripts) || (!canUseExec && canUseScripts)) {
+        return "scripts";
+    }
+    return "exec";
 };
 
 const getCommandTitle = (command: CommandClipboard) => {
@@ -227,14 +248,68 @@ type ExecPageLocationState = {
 } | null;
 
 const ExecPage = () => {
+    const location = useLocation();
+    const { hasFeature } = useAccount();
+    const workspaceView = resolveExecWorkspaceView(
+        getExecWorkspaceView(location.search),
+        hasFeature("tasks"),
+        hasFeature("clipboard"),
+    );
+
     return (
-        <NodeDetailsProvider>
-            <CommandClipboardProvider>
-                <ExecContent />
-            </CommandClipboardProvider>
-        </NodeDetailsProvider>
+        <CommandClipboardProvider
+            autoLoad={workspaceView !== "scripts"}
+            refreshAfterMutations={workspaceView !== "scripts"}
+        >
+            <ExecWorkspace view={workspaceView} />
+        </CommandClipboardProvider>
     );
 };
+
+function ExecWorkspace({ view }: { view: ExecWorkspaceView }) {
+    const { t } = useTranslation();
+    const { hasFeature } = useAccount();
+    const resolvedView = resolveExecWorkspaceView(
+        view,
+        hasFeature("tasks"),
+        hasFeature("clipboard"),
+    );
+
+    useAdminPageTitle(
+        resolvedView === "scripts"
+            ? t("exec.savedCommands", { defaultValue: "脚本库" })
+            : t("exec.title", { defaultValue: "远程执行" }),
+        resolvedView === "scripts"
+            ? t("command_clipboard.page_description", {
+                defaultValue: "集中管理远程执行和云实例场景复用的脚本命令。",
+            })
+            : t("exec.page_description", {
+                defaultValue: "选择目标节点，编写一次性命令或复用脚本库，并在同一工作台追踪执行结果。",
+            }),
+    );
+
+    if (resolvedView === "scripts") {
+        return (
+            <Suspense
+                fallback={(
+                    <div className="flex min-w-0 flex-col gap-[14px] p-3 sm:p-4 md:p-6">
+                        <section className={execPanelClass}>
+                            <AdminTableSkeleton columns={5} rows={6} className="p-4" />
+                        </section>
+                    </div>
+                )}
+            >
+                <CommandLibraryManager setPageTitle={false} />
+            </Suspense>
+        );
+    }
+
+    return (
+        <NodeDetailsProvider>
+            <ExecContent />
+        </NodeDetailsProvider>
+    );
+}
 
 const ExecContent = () => {
     const { t } = useTranslation();
@@ -269,17 +344,6 @@ const ExecContent = () => {
     const commandLineNumbers = getLineNumbers(command);
     const commandLineNumberColumnWidth = getLineNumberColumnWidth(commandLineNumbers.length);
     const commandEditorHeight = getCommandEditorHeight(commandLineNumbers.length);
-    const pageTitle = t("exec.title", {
-        defaultValue: "远程执行",
-    });
-
-    useAdminPageTitle(
-        pageTitle,
-        t("exec.page_description", {
-            defaultValue: "选择目标节点，编写一次性命令或复用脚本库，并在同一工作台追踪执行结果。",
-        }),
-    );
-
     const syncCommandLineNumberScroll = (event: UIEvent<HTMLTextAreaElement>) => {
         if (commandLineNumberRef.current) {
             commandLineNumberRef.current.scrollTop = event.currentTarget.scrollTop;
@@ -749,7 +813,7 @@ const ExecContent = () => {
         <div className="flex min-w-0 flex-col gap-[14px] p-3 sm:p-4 md:p-6">
             <div className="flex min-w-0 flex-wrap items-center justify-end gap-2">
                 <Button asChild className="h-9 shrink-0 rounded-md px-4 text-sm">
-                    <Link to="/admin/scripts">
+                    <Link to="/admin/exec?view=scripts">
                         <Plus size={15} />
                         {t("command_clipboard.new_command", { defaultValue: "新建脚本" })}
                     </Link>
@@ -857,7 +921,7 @@ const ExecContent = () => {
                                                     description={t("exec.library_empty_description", { defaultValue: "Clipboard 为空。" })}
                                                     actions={
                                                         <Button asChild size="sm">
-                                                            <Link to="/admin/scripts">
+                                                            <Link to="/admin/exec?view=scripts">
                                                                 <Plus size={14} />
                                                                 {t("command_clipboard.new_command", { defaultValue: "新建脚本" })}
                                                             </Link>
@@ -1280,7 +1344,7 @@ const ExecContent = () => {
                                 variant="outline"
                                 size="sm"
                                 onClick={() => {
-                                    navigate("/admin/scripts", {
+                                    navigate("/admin/exec?view=scripts", {
                                         state: {
                                             draftCommand: {
                                                 text: command,
@@ -1295,7 +1359,7 @@ const ExecContent = () => {
                                 保存
                             </Button>
                             <Button variant="outline" size="sm" asChild className="h-9 rounded-md text-[12px]">
-                                <Link to="/admin/scripts">
+                                <Link to="/admin/exec?view=scripts">
                                     <Save size={14} />
                                     脚本库
                                 </Link>

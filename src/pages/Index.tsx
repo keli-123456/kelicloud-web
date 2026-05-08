@@ -41,12 +41,10 @@ const Index = () => {
     },
     {
       icon: LockKeyhole,
-      label: t("account.security", { defaultValue: "安全" }),
-      value: publicInfo?.oauth_enable
-        ? t("login.oauth_enabled", { defaultValue: "OAuth 已启用" })
-        : t("login.password_login", { defaultValue: "密码登录" }),
+      label: t("login.title", { defaultValue: "登录" }),
+      value: t("login.password_login", { defaultValue: "密码登录" }),
       hint: t("site.gateway_security_hint", {
-        defaultValue: "密码、OAuth 与二次验证集中在同一个登录入口处理。",
+        defaultValue: "使用管理员账号密码进入后台控制台。",
       }),
     },
   ];
@@ -111,7 +109,7 @@ const Index = () => {
           redirectAuthenticatedTo="/admin"
           info={t("login.gateway_notice", {
             defaultValue:
-              "使用现有管理员账号继续。密码与 OAuth 登录保持在同一个入口。",
+              "使用现有管理员账号继续。",
           })}
           className="w-full"
         />

@@ -2,11 +2,13 @@ import React from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
-import { AdminSettingsSkeleton } from "@/components/admin/AdminPageShell";
+import {
+  AdminPageShell,
+  AdminSettingsSkeleton,
+} from "@/components/admin/AdminPageShell";
 import { PlatformAdminNotice } from "@/components/admin/PlatformAdminNotice";
 import {
   SettingCard,
-  SettingCardLabel,
   SettingCardSelect,
   SettingCardShortTextInput,
 } from "@/components/admin/SettingCard";
@@ -96,6 +98,9 @@ type ProxyProbeResult = {
 
 export default function ProxySettings() {
   const { t } = useTranslation();
+  const pageDescription = t("settings.proxy.page_description", {
+    defaultValue: "单独管理云服务商 API 请求使用的出站代理。",
+  });
   const { platformAdmin, loading: accountLoading } = useAccount();
   const { settings, loading, error, refetch } = useSettings("system", {
     enabled: platformAdmin,
@@ -133,15 +138,39 @@ export default function ProxySettings() {
   ]);
 
   if (accountLoading || loading) {
-    return <AdminSettingsSkeleton sections={3} />;
+    return (
+      <AdminPageShell
+        className="mx-auto w-full max-w-5xl"
+        title={t("settings.proxy.title")}
+        description={pageDescription}
+      >
+        <AdminSettingsSkeleton sections={3} />
+      </AdminPageShell>
+    );
   }
 
   if (!platformAdmin) {
-    return <PlatformAdminNotice />;
+    return (
+      <AdminPageShell
+        className="mx-auto w-full max-w-5xl"
+        title={t("settings.proxy.title")}
+        description={pageDescription}
+      >
+        <PlatformAdminNotice />
+      </AdminPageShell>
+    );
   }
 
   if (error) {
-    return <p className="text-sm text-destructive">{error}</p>;
+    return (
+      <AdminPageShell
+        className="mx-auto w-full max-w-5xl"
+        title={t("settings.proxy.title")}
+        description={pageDescription}
+      >
+        <p className="text-sm text-destructive">{error}</p>
+      </AdminPageShell>
+    );
   }
 
   const handleSave = async () => {
@@ -223,28 +252,28 @@ export default function ProxySettings() {
         : t("settings.proxy.mode_direct");
 
   return (
-    <section className="space-y-3">
-      <SettingCardLabel>{t("settings.proxy.title")}</SettingCardLabel>
-      <p className="-mt-2 text-sm text-muted-foreground">
-        {t("settings.proxy.description")}
-      </p>
-
-      <SettingCard
-        title={t("settings.proxy.enable")}
-        description={t("settings.proxy.enable_description")}
-      >
-        <SettingCard.Action>
-          <Switch
-            checked={form.outbound_proxy_enabled}
-            onCheckedChange={(checked) =>
-              setForm((current) => ({
-                ...current,
-                outbound_proxy_enabled: checked,
-              }))
-            }
-          />
-        </SettingCard.Action>
-      </SettingCard>
+    <AdminPageShell
+      className="mx-auto w-full max-w-5xl"
+      title={t("settings.proxy.title")}
+      description={pageDescription}
+    >
+      <section className="space-y-3">
+        <SettingCard
+          title={t("settings.proxy.enable")}
+          description={t("settings.proxy.enable_description")}
+        >
+          <SettingCard.Action>
+            <Switch
+              checked={form.outbound_proxy_enabled}
+              onCheckedChange={(checked) =>
+                setForm((current) => ({
+                  ...current,
+                  outbound_proxy_enabled: checked,
+                }))
+              }
+            />
+          </SettingCard.Action>
+        </SettingCard>
 
       <SettingCardSelect
         title={t("settings.proxy.protocol")}
@@ -366,7 +395,7 @@ export default function ProxySettings() {
         </div>
       ) : null}
 
-      <div className="flex items-center justify-end pt-2">
+      <div className="flex items-center justify-end gap-2 pt-2">
         <Button variant="outline" onClick={handleTest} disabled={testing}>
           {testing ? t("settings.proxy.testing") : t("settings.proxy.test")}
         </Button>
@@ -374,6 +403,7 @@ export default function ProxySettings() {
           {saving ? t("common.saving", "Saving...") : t("save")}
         </Button>
       </div>
-    </section>
+      </section>
+    </AdminPageShell>
   );
 }

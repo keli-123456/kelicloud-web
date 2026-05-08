@@ -39,7 +39,7 @@
     "new_password": "Kata sandi baru",
     "new_password_repeat": "Ulangi kata sandi",
     "otp_empty_error": "Kode OTP tidak boleh kosong",
-    "page_description": "Manage your admin identity, password, two-factor authentication, and external sign-in bindings in one place.",
+    "page_description": "Kelola nama pengguna dan kata sandi login.",
     "password_empty_error": "Kata sandi tidak boleh kosong",
     "password_mismatch_error": "Kata sandi tidak cocok",
     "password_strength_error": "Kata sandi harus mengandung huruf besar, huruf kecil, dan angka",
@@ -130,6 +130,10 @@
       "testPing": "View ping tasks",
       "usageWarning": "High resource usage"
     },
+    "audit": {
+      "description": "Review active sessions and backend operation logs in one place.",
+      "title": "Audit"
+    },
     "httpsNotice": {
       "configure": "去配置",
       "description": "Unencrypted traffic can expose login credentials and admin operations. Switch to HTTPS now.",
@@ -152,7 +156,9 @@
         "exec": "Eksekusi",
         "failover": "Failover",
         "failover_v2": "Failover V2",
+        "audit": "Audit",
         "ping": "Ping",
+        "proxy": "Proxy",
         "scripts": "Skrip",
         "sessions": "Sesi",
         "users": "User"
@@ -3306,8 +3312,8 @@
     "account_fetch_failed": "Unable to fetch account status",
     "desc": "Masuk ke panel kontrol {{siteName}}.",
     "failed": "Gagal masuk",
-    "gateway_notice": "Continue with an existing admin account. Password and OAuth login share the same entry point.",
-    "inline_hint": "Gunakan akun yang ada untuk melanjutkan. Login kata sandi dan OAuth tetap berada pada satu pintu masuk.",
+    "gateway_notice": "Lanjutkan dengan akun admin yang ada.",
+    "inline_hint": "Gunakan akun yang ada untuk melanjutkan dengan login kata sandi.",
     "inline_summary": "Satukan akses akun, operasi node, dan kontrol brand dalam satu alur login yang konsisten.",
     "logging_in": "Sedang masuk...",
     "login_with": "Masuk dengan {{provider}}",
@@ -3680,14 +3686,15 @@
       "test_title": "Kirim pesan uji coba",
       "title": "Notifikasi"
     },
-    "page_description": "集中管理站点、节点脚本、通知、代理和系统兼容性配置。",
-    "platform_admin_required_description": "Bagian ini mengelola integrasi dan pengaturan keamanan yang berlaku untuk seluruh platform. Gunakan akun admin platform untuk mengeditnya.",
+    "page_description": "Kelola situs, skrip node, notifikasi, dan konfigurasi sistem.",
+    "platform_admin_required_description": "Bagian ini mengelola pengaturan sistem untuk seluruh platform. Gunakan akun admin platform untuk mengeditnya.",
     "platform_admin_required_title": "Memerlukan admin platform",
     "platform_tools_description": "Tindakan ini memengaruhi aset situs dan cadangan yang dibagikan ke semua workspace.",
     "platform_tools_restricted_description": "Manajemen favicon dan cadangan hanya tersedia untuk admin platform.",
     "platform_tools_title": "Alat platform",
     "proxy": {
       "description": "Manage the outbound proxy used by cloud provider credential requests. Requests that do not use cloud provider credentials keep using the server's local IP. Proxy requests use short-lived connections and reconnect on every request. A failed proxy attempt will automatically retry the current request once without the proxy.",
+      "page_description": "Kelola proxy keluar yang digunakan oleh permintaan API penyedia cloud.",
       "enable": "Enable global outbound proxy",
       "enable_description": "Applies to cloud provider APIs that use DigitalOcean, Linode, or AWS credentials.",
       "host": "Proxy host",
@@ -3806,7 +3813,7 @@
     "console_summary": "Gunakan satu pintu masuk untuk login, halaman detail instance, dan manajemen node agar kontrol tidak terasa tersebar.",
     "description": "Pantau kesehatan node, lalu lintas, dan cakupan wilayah dalam satu tampilan.",
     "gateway_cloud_hint": "Cloud providers, DNS, billing, and failover are behind admin permissions.",
-    "gateway_security_hint": "Password, OAuth, and two-factor authentication are handled in one login entry point.",
+    "gateway_security_hint": "Login kata sandi ditangani melalui gateway terpadu.",
     "gateway_status_hint": "Node health, load, traffic, and uptime are collected in one console.",
     "github": "GitHub",
     "powered_by": "Didukung oleh {{siteName}}.",

@@ -12,6 +12,7 @@ import {
   Play,
   Plus,
   RefreshCw,
+  Share2,
   Square,
   Trash2,
   X,
@@ -36,6 +37,7 @@ import {
   ADMIN_FORM_SECTION_CLASS as FORM_SECTION_CLASS,
   ADMIN_FORM_TOGGLE_CLASS as FORM_TOGGLE_CLASS,
 } from "@/components/admin/AdminFormStyles";
+import FailoverShareDialog from "@/components/admin/failover/FailoverShareDialog";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -102,8 +104,11 @@ import {
 import { useSettings } from "@/lib/api";
 import { getReadableErrorMessage } from "@/lib/apiErrorMessage";
 import {
+  buildFailoverShareUrl,
   createFailoverTask,
+  deleteFailoverShare,
   deleteFailoverTask,
+  fromFailoverShareDateTimeLocalValue,
   type FailoverPreviewCheck,
   type FailoverTaskPreview,
   type FailoverExecutionStep,
@@ -111,6 +116,7 @@ import {
   getFailoverPlanCatalog,
   getFailoverExecution,
   getFailoverNodes,
+  getFailoverShare,
   getFailoverScripts,
   getFailoverTask,
   getFailoverTasks,
@@ -120,8 +126,10 @@ import {
   retryFailoverExecutionCleanup,
   retryFailoverExecutionDNS,
   runFailoverTask,
+  saveFailoverShare,
   stopFailoverExecution,
   toggleFailoverTask,
+  toFailoverShareDateTimeLocalValue,
   updateFailoverTask,
   type FailoverCatalogOption,
   type FailoverExecution,
@@ -132,6 +140,8 @@ import {
   type FailoverNodeOption,
   type FailoverPlanInput,
   type FailoverScriptOption,
+  type FailoverShareAccessPolicy,
+  type FailoverShareRecord,
   type FailoverTask,
   type FailoverTaskInput,
 } from "@/lib/failover";
@@ -10276,6 +10286,16 @@ function FailoverPageContent() {
   const [editorMode, setEditorMode] = React.useState<"create" | "edit">("create");
   const [editingTask, setEditingTask] = React.useState<FailoverTask | null>(null);
   const [templateTask, setTemplateTask] = React.useState<FailoverTask | null>(null);
+  const [shareDialogOpen, setShareDialogOpen] = React.useState(false);
+  const [shareDialogTask, setShareDialogTask] = React.useState<FailoverTask | null>(null);
+  const [shareRecord, setShareRecord] = React.useState<FailoverShareRecord | null>(null);
+  const [loadingShare, setLoadingShare] = React.useState(false);
+  const [savingShare, setSavingShare] = React.useState(false);
+  const [deletingShare, setDeletingShare] = React.useState(false);
+  const [shareTitle, setShareTitle] = React.useState("");
+  const [shareNote, setShareNote] = React.useState("");
+  const [shareAccessPolicy, setShareAccessPolicy] = React.useState<FailoverShareAccessPolicy>("public");
+  const [shareExpiresAt, setShareExpiresAt] = React.useState("");
   const [deleteTarget, setDeleteTarget] = React.useState<FailoverTask | null>(null);
   const [selectedTaskID, setSelectedTaskID] = React.useState<number | null>(null);
   const [selectedExecutionID, setSelectedExecutionID] = React.useState<number | null>(null);
@@ -10523,6 +10543,99 @@ function FailoverPageContent() {
       setBusyTaskID(null);
     }
   };
+
+  const openShareDialog = React.useCallback((task: FailoverTask) => {
+    setShareDialogTask(task);
+    setShareRecord(null);
+    setShareTitle(task.name);
+    setShareNote("");
+    setShareAccessPolicy("public");
+    setShareExpiresAt("");
+    setShareDialogOpen(true);
+    setLoadingShare(true);
+
+    void (async () => {
+      try {
+        const data = await getFailoverShare(task.id);
+        setShareRecord(data);
+        setShareTitle(data.title || task.name);
+        setShareNote(data.note || "");
+        setShareAccessPolicy(data.access_policy);
+        setShareExpiresAt(toFailoverShareDateTimeLocalValue(data.expires_at));
+      } catch (shareError) {
+        toast.error(getReadableErrorMessage(shareError, t("failover.share.load_failed", { defaultValue: "加载分享信息失败" })));
+      } finally {
+        setLoadingShare(false);
+      }
+    })();
+  }, [t]);
+
+  const shareUrl = React.useMemo(() => (
+    shareRecord?.token ? buildFailoverShareUrl(shareRecord.token) : ""
+  ), [shareRecord?.token]);
+
+  const handleCopyShareLink = React.useCallback(async () => {
+    if (!shareUrl) return;
+    try {
+      await navigator.clipboard.writeText(shareUrl);
+      toast.success(t("copy_success", { defaultValue: "Copied!" }));
+    } catch (copyError) {
+      toast.error(getReadableErrorMessage(copyError, t("failover.share.copy_failed", { defaultValue: "复制失败，请手动复制。" })));
+    }
+  }, [shareUrl, t]);
+
+  const handleSaveShare = React.useCallback(async () => {
+    if (!shareDialogTask) {
+      return;
+    }
+
+    const expiresAt = fromFailoverShareDateTimeLocalValue(shareExpiresAt);
+    if (shareExpiresAt.trim() && !expiresAt) {
+      toast.error(t("failover.share.invalid_expires_at", { defaultValue: "过期时间无效" }));
+      return;
+    }
+
+    try {
+      setSavingShare(true);
+      const data = await saveFailoverShare(shareDialogTask.id, {
+        title: shareTitle,
+        note: shareNote,
+        access_policy: shareAccessPolicy,
+        expires_at: expiresAt,
+      });
+      setShareRecord(data);
+      setShareTitle(data.title || shareDialogTask.name);
+      setShareNote(data.note || "");
+      setShareAccessPolicy(data.access_policy);
+      setShareExpiresAt(toFailoverShareDateTimeLocalValue(data.expires_at));
+      toast.success(t("failover.share.saved", { defaultValue: "分享链接已更新" }));
+    } catch (saveError) {
+      toast.error(getReadableErrorMessage(saveError, t("failover.share.save_failed", { defaultValue: "保存分享链接失败" })));
+    } finally {
+      setSavingShare(false);
+    }
+  }, [shareAccessPolicy, shareDialogTask, shareExpiresAt, shareNote, shareTitle, t]);
+
+  const handleDeleteShare = React.useCallback(async () => {
+    if (!shareDialogTask) {
+      return;
+    }
+
+    try {
+      setDeletingShare(true);
+      await deleteFailoverShare(shareDialogTask.id);
+      setShareRecord(null);
+      setShareTitle(shareDialogTask.name);
+      setShareNote("");
+      setShareAccessPolicy("public");
+      setShareExpiresAt("");
+      toast.success(t("failover.share.revoked", { defaultValue: "分享链接已撤销" }));
+    } catch (deleteError) {
+      toast.error(getReadableErrorMessage(deleteError, t("failover.share.delete_failed", { defaultValue: "撤销分享链接失败" })));
+    } finally {
+      setDeletingShare(false);
+    }
+  }, [shareDialogTask, t]);
 
   const openExecutionDialog = (executionID: number, taskName: string) => {
     setSelectedExecutionID(executionID);
@@ -10869,6 +10982,19 @@ function FailoverPageContent() {
                                   {t("failover.table.view_latest", { defaultValue: "View details" })}
                                 </Button>
                               ) : null}
+                              <Button
+                                type="button"
+                                size="sm"
+                                variant="ghost"
+                                className="h-8 rounded-md px-2 text-[12px]"
+                                onClick={(event) => {
+                                  event.stopPropagation();
+                                  openShareDialog(task);
+                                }}
+                              >
+                                <Share2 className="size-3.5" />
+                                {t("failover.share.short", { defaultValue: "分享" })}
+                              </Button>
                             </div>
                           </td>
                         </tr>
@@ -11097,6 +11223,10 @@ function FailoverPageContent() {
                         {taskBusy ? <LoaderCircle className="size-4 animate-spin" /> : <Copy className="size-4" />}
                         {t("copy", { defaultValue: "Copy" })}
                       </Button>
+                      <Button type="button" size="sm" variant="outline" onClick={() => openShareDialog(selectedTask)}>
+                        <Share2 className="size-4" />
+                        {t("failover.share.short", { defaultValue: "分享" })}
+                      </Button>
                       <Button
                         type="button"
                         size="sm"
@@ -11159,6 +11289,28 @@ function FailoverPageContent() {
         onSaved={async () => {
           await Promise.all([refreshTasks({ silent: true }), refreshResources()]);
         }}
+      />
+
+      <FailoverShareDialog
+        open={shareDialogOpen}
+        onOpenChange={setShareDialogOpen}
+        task={shareDialogTask}
+        share={shareRecord}
+        loading={loadingShare}
+        saving={savingShare}
+        deleting={deletingShare}
+        title={shareTitle}
+        note={shareNote}
+        accessPolicy={shareAccessPolicy}
+        expiresAt={shareExpiresAt}
+        shareUrl={shareUrl}
+        onTitleChange={setShareTitle}
+        onNoteChange={setShareNote}
+        onAccessPolicyChange={setShareAccessPolicy}
+        onExpiresAtChange={setShareExpiresAt}
+        onCopyLink={() => void handleCopyShareLink()}
+        onSave={() => void handleSaveShare()}
+        onDelete={() => void handleDeleteShare()}
       />
 
       <ExecutionDetailDialog

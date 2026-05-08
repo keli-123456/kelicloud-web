@@ -39,7 +39,7 @@
     "new_password": "New password",
     "new_password_repeat": "Repeat Password",
     "otp_empty_error": "Empty otp code",
-    "page_description": "Manage your admin identity, password, two-factor authentication, and external sign-in bindings in one place.",
+    "page_description": "Manage your username and login password.",
     "password_empty_error": "Empty password is not allowed",
     "password_mismatch_error": "Passwords do not match",
     "password_strength_error": "Password must contain uppercase, lowercase letters, and numbers",
@@ -130,6 +130,10 @@
       "testPing": "View ping tasks",
       "usageWarning": "High resource usage"
     },
+    "audit": {
+      "description": "Review active sessions and backend operation logs in one place.",
+      "title": "Audit"
+    },
     "httpsNotice": {
       "configure": "去配置",
       "description": "Unencrypted traffic can expose login credentials and admin operations. Switch to HTTPS now.",
@@ -152,7 +156,9 @@
         "exec": "Exec",
         "failover": "Failover",
         "failover_v2": "Failover V2",
+        "audit": "Audit",
         "ping": "Ping",
+        "proxy": "Proxy",
         "scripts": "Scripts",
         "sessions": "Sessions",
         "users": "Users"
@@ -3306,8 +3312,8 @@
     "account_fetch_failed": "Unable to fetch account status",
     "desc": "Log in to the {{siteName}} control panel.",
     "failed": "Login failed",
-    "gateway_notice": "Continue with an existing admin account. Password and OAuth login share the same entry point.",
-    "inline_hint": "Use your existing account to continue. Password login and OAuth stay in the same entry point.",
+    "gateway_notice": "Continue with an existing admin account.",
+    "inline_hint": "Use your existing account to continue with password login.",
     "inline_summary": "Keep account access, node operations, and brand controls in one consistent login flow.",
     "logging_in": "Logging in...",
     "login_with": "Login with {{provider}}",
@@ -3680,14 +3686,15 @@
       "test_title": "Send test message",
       "title": "Notifications"
     },
-    "page_description": "集中管理站点、节点脚本、通知、代理和系统兼容性配置。",
-    "platform_admin_required_description": "This section manages platform-wide integrations and security settings. Switch to a platform admin account to edit it.",
+    "page_description": "Manage site, node scripts, notifications, and system configuration.",
+    "platform_admin_required_description": "This section manages platform-wide system settings. Switch to a platform admin account to edit it.",
     "platform_admin_required_title": "Platform admin required",
     "platform_tools_description": "These controls affect global site assets, backups, and other shared platform resources.",
     "platform_tools_restricted_description": "Favicon and backup management are only available to platform admins.",
     "platform_tools_title": "Platform tools",
     "proxy": {
       "description": "Manage the outbound proxy used by cloud provider credential requests. Requests that do not use cloud provider credentials keep using the server's local IP. Proxy requests use short-lived connections and reconnect on every request. A failed proxy attempt will automatically retry the current request once without the proxy.",
+      "page_description": "Manage the outbound proxy used by cloud provider API requests.",
       "enable": "Enable global outbound proxy",
       "enable_description": "Applies to cloud provider APIs that use DigitalOcean, Linode, or AWS credentials.",
       "host": "Proxy host",
@@ -3806,7 +3813,7 @@
     "console_summary": "Use one focused entry for sign-in, instance detail pages, and node management instead of scattering controls across separate modules.",
     "description": "Realtime node health, traffic, and region coverage in one surface.",
     "gateway_cloud_hint": "Cloud providers, DNS, billing, and failover are behind admin permissions.",
-    "gateway_security_hint": "Password, OAuth, and two-factor authentication are handled in one login entry point.",
+    "gateway_security_hint": "Password login is handled by the unified gateway.",
     "gateway_status_hint": "Node health, load, traffic, and uptime are collected in one console.",
     "github": "GitHub",
     "powered_by": "Powered by {{siteName}}.",

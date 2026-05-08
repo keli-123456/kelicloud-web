@@ -40,7 +40,6 @@ const defaultGrantedAccountFeatures = new Set<AccountFeature>([
   "clients",
   "records",
   "tasks",
-  "ping",
   "notifications",
   "cloud_digitalocean",
   "cloud_linode",
@@ -136,13 +135,10 @@ export function getDefaultAdminPath(account: Account | null) {
     return "/admin/exec";
   }
   if (isAccountFeatureAllowed(account, "clipboard")) {
-    return "/admin/scripts";
-  }
-  if (isAccountFeatureAllowed(account, "ping")) {
-    return "/admin/ping";
+    return "/admin/exec?view=scripts";
   }
   if (isAccountFeatureAllowed(account, "logs")) {
-    return "/admin/logs";
+    return "/admin/audit?tab=logs";
   }
   return "/admin/account";
 }

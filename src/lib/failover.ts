@@ -104,6 +104,51 @@ export type FailoverTask = {
   updated_at: string;
 };
 
+export type FailoverShareAccessPolicy = "public" | "single_use";
+
+export type FailoverShareStatus = "not_shared" | "active" | "expired" | "consumed";
+
+export type FailoverShareRecord = {
+  token: string;
+  task_id: number;
+  task_name: string;
+  title: string;
+  note: string;
+  access_policy: FailoverShareAccessPolicy;
+  status: FailoverShareStatus;
+  expires_at: string;
+  last_accessed_at: string;
+  consumed_at: string;
+  access_count: number;
+  is_expired: boolean;
+  is_consumed: boolean;
+  created_at: string;
+  updated_at: string;
+};
+
+export type SaveFailoverShareInput = {
+  title: string;
+  note: string;
+  access_policy: FailoverShareAccessPolicy;
+  expires_at: string | null;
+};
+
+export type FailoverPublicTask = FailoverTask & {
+  recent_executions: FailoverExecutionSummary[];
+};
+
+export type FailoverPublicShareData = {
+  token: string;
+  title: string;
+  note: string;
+  access_policy: FailoverShareAccessPolicy;
+  expires_at: string;
+  created_at: string;
+  updated_at: string;
+  generated_at: string;
+  task: FailoverPublicTask;
+};
+
 export type FailoverExecutionStep = {
   id: number;
   execution_id: number;
@@ -353,6 +398,18 @@ function normalizeNullableBoolean(value: unknown) {
   return typeof value === "boolean" ? value : null;
 }
 
+function normalizeShareAccessPolicy(value: unknown): FailoverShareAccessPolicy {
+  return normalizeString(value).trim() === "single_use" ? "single_use" : "public";
+}
+
+function normalizeShareStatus(value: unknown): FailoverShareStatus {
+  const status = normalizeString(value).trim();
+  if (status === "active" || status === "expired" || status === "consumed") {
+    return status;
+  }
+  return "not_shared";
+}
+
 function normalizeProbe(probe: unknown): FailoverProbe {
   const raw = probe && typeof probe === "object" ? probe as Record<string, unknown> : {};
   return {
@@ -534,6 +591,79 @@ function normalizeTask(task: unknown): FailoverTask {
     created_at: normalizeString(raw.created_at),
     updated_at: normalizeString(raw.updated_at),
   };
+}
+
+function normalizeShareRecord(share: unknown): FailoverShareRecord {
+  const raw = share && typeof share === "object" ? share as Record<string, unknown> : {};
+  return {
+    token: normalizeString(raw.token),
+    task_id: normalizeNumber(raw.task_id),
+    task_name: normalizeString(raw.task_name),
+    title: normalizeString(raw.title),
+    note: normalizeString(raw.note),
+    access_policy: normalizeShareAccessPolicy(raw.access_policy),
+    status: normalizeShareStatus(raw.status),
+    expires_at: normalizeString(raw.expires_at),
+    last_accessed_at: normalizeString(raw.last_accessed_at),
+    consumed_at: normalizeString(raw.consumed_at),
+    access_count: normalizeNumber(raw.access_count),
+    is_expired: normalizeBoolean(raw.is_expired),
+    is_consumed: normalizeBoolean(raw.is_consumed),
+    created_at: normalizeString(raw.created_at),
+    updated_at: normalizeString(raw.updated_at),
+  };
+}
+
+function normalizePublicTask(task: unknown): FailoverPublicTask {
+  const raw = task && typeof task === "object" ? task as Record<string, unknown> : {};
+  return {
+    ...normalizeTask(raw),
+    recent_executions: Array.isArray(raw.recent_executions)
+      ? raw.recent_executions
+        .map((item) => normalizeExecutionSummary(item))
+        .filter((item): item is FailoverExecutionSummary => Boolean(item))
+      : [],
+  };
+}
+
+function normalizePublicShareData(share: unknown): FailoverPublicShareData {
+  const raw = share && typeof share === "object" ? share as Record<string, unknown> : {};
+  return {
+    token: normalizeString(raw.token),
+    title: normalizeString(raw.title),
+    note: normalizeString(raw.note),
+    access_policy: normalizeShareAccessPolicy(raw.access_policy),
+    expires_at: normalizeString(raw.expires_at),
+    created_at: normalizeString(raw.created_at),
+    updated_at: normalizeString(raw.updated_at),
+    generated_at: normalizeString(raw.generated_at),
+    task: normalizePublicTask(raw.task),
+  };
+}
+
+export function buildFailoverShareUrl(token: string) {
+  return `${window.location.origin}/failover-v1/share/${token}`;
+}
+
+export function toFailoverShareDateTimeLocalValue(value: string) {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  const hours = String(date.getHours()).padStart(2, "0");
+  const minutes = String(date.getMinutes()).padStart(2, "0");
+  return `${year}-${month}-${day}T${hours}:${minutes}`;
+}
+
+export function fromFailoverShareDateTimeLocalValue(value: string): string | null {
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  const date = new Date(trimmed);
+  if (Number.isNaN(date.getTime())) return null;
+  return date.toISOString();
 }
 
 function normalizeDnsCatalogDefaults(value: unknown): FailoverDnsCatalogDefaults {
@@ -791,6 +921,28 @@ export async function getFailoverTask(taskID: number): Promise<FailoverTask> {
   return normalizeTask(data);
 }
 
+export async function getFailoverShare(taskID: number): Promise<FailoverShareRecord> {
+  const data = await requestEnvelope<unknown>(`/api/admin/failover/tasks/${taskID}/share`);
+  return normalizeShareRecord(data);
+}
+
+export async function saveFailoverShare(taskID: number, input: SaveFailoverShareInput): Promise<FailoverShareRecord> {
+  const data = await requestEnvelope<unknown>(`/api/admin/failover/tasks/${taskID}/share`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(input),
+  });
+  return normalizeShareRecord(data);
+}
+
+export async function deleteFailoverShare(taskID: number): Promise<void> {
+  await requestEnvelope(`/api/admin/failover/tasks/${taskID}/share`, {
+    method: "DELETE",
+  });
+}
+
 export async function createFailoverTask(input: FailoverTaskInput): Promise<FailoverTask> {
   const data = await requestEnvelope<unknown>("/api/admin/failover/tasks", {
     method: "POST",
@@ -883,6 +1035,11 @@ export async function getFailoverExecutions(taskID: number, limit = 20): Promise
 export async function getFailoverExecution(executionID: number): Promise<FailoverExecution> {
   const data = await requestEnvelope<unknown>(`/api/admin/failover/executions/${executionID}`);
   return normalizeExecution(data);
+}
+
+export async function getPublicFailoverShare(token: string): Promise<FailoverPublicShareData> {
+  const data = await requestEnvelope<unknown>(`/api/public/failover/shares/${encodeURIComponent(token)}`);
+  return normalizePublicShareData(data);
 }
 
 export async function getFailoverDnsCatalog(args: {
