@@ -91,6 +91,10 @@
     "upload_success": "上传成功"
   },
   "admin": {
+    "audit": {
+      "description": "集中查看当前会话和后台操作日志。",
+      "title": "审计"
+    },
     "dashboard": {
       "abnormal": "异常风险",
       "addNode": "添加节点",
@@ -130,10 +134,6 @@
       "testPing": "查看 Ping 任务",
       "usageWarning": "资源占用偏高"
     },
-    "audit": {
-      "description": "集中查看当前会话和后台操作日志。",
-      "title": "审计"
-    },
     "httpsNotice": {
       "configure": "去配置",
       "description": "未加密连接可能暴露登录凭据和管理指令，建议立即切换到 HTTPS。",
@@ -151,12 +151,12 @@
         "overview": "主页"
       },
       "short": {
+        "audit": "审计",
         "billing": "商业化",
         "cloud": "云资源",
         "exec": "执行",
         "failover": "切换",
         "failover_v2": "切换 V2",
-        "audit": "审计",
         "ping": "延迟",
         "proxy": "代理",
         "scripts": "脚本",
@@ -3694,7 +3694,6 @@
     "platform_tools_title": "平台工具",
     "proxy": {
       "description": "统一管理云服务商令牌请求使用的出站代理。不依赖云服务商令牌的请求会继续使用服务器本机出口 IP。保存后，新发起的云服务商请求会按这里的代理设置走；代理请求默认使用短连接，每次请求都会重新建连。如果代理连接失败，会自动回退为当前请求直连一次。",
-      "page_description": "单独管理云服务商 API 请求使用的出站代理。",
       "enable": "启用全局出站代理",
       "enable_description": "仅影响使用 DigitalOcean、Linode、AWS 凭据发出的云服务商 API 请求。",
       "host": "代理主机",
@@ -3709,6 +3708,7 @@
       "mode_direct": "直连",
       "mode_direct_fallback": "代理失败后直连回退",
       "mode_proxy": "代理",
+      "page_description": "单独管理云服务商 API 请求使用的出站代理。",
       "password": "代理密码",
       "password_description": "留空表示当前代理不需要密码。",
       "port": "代理端口",
