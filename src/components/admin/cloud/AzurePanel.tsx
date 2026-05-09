@@ -64,6 +64,7 @@ import {
   toErrorMessage,
   type AzureCreateFormState,
 } from "./azurePanelUtils";
+import { buildStaticAzureCatalog } from "./cloudStaticCatalogs";
 import {
   saveAzureCredentials,
   type AzureAccount,
@@ -113,6 +114,26 @@ export default function AzurePanel() {
   );
   const credentialCount = credentialPool?.credentials.length || 0;
   const showOnboardingPanel = credentialCount === 0;
+  const effectiveCatalog = React.useMemo(() => {
+    const activeLocation =
+      account?.active_location
+      || credentialPool?.active_location
+      || activeCredential?.default_location
+      || catalog?.active_location
+      || "";
+    if (catalog?.locations.length && catalog?.sizes.length) {
+      return {
+        ...catalog,
+        active_location: activeLocation || catalog.active_location,
+      };
+    }
+    return buildStaticAzureCatalog(activeLocation);
+  }, [
+    account?.active_location,
+    activeCredential?.default_location,
+    catalog,
+    credentialPool?.active_location,
+  ]);
 
   React.useEffect(() => {
     void loadAll();
@@ -200,7 +221,7 @@ export default function AzurePanel() {
     handleCreateInstance,
   } = useAzureCreateInstance({
     t,
-    catalog,
+    catalog: effectiveCatalog,
     loadResources,
   });
   const {
@@ -346,19 +367,21 @@ export default function AzurePanel() {
         <div className="grid min-w-0 items-stretch gap-4 xl:grid-cols-[minmax(340px,0.9fr)_minmax(380px,1.1fr)]">
           <AzureInlineCreatePanel
             t={t}
-            catalog={catalog}
+            catalog={effectiveCatalog}
             account={account}
             activeCredential={activeCredential}
             form={createForm}
             setForm={setCreateForm}
             submitting={createSubmitting}
+            locationUpdating={locationUpdating}
             onOpenAdvanced={() => setCreateOpen(true)}
+            onSetLocation={handleSetLocation}
             onCreate={handleCreateInstance}
           />
           <AzureCredentialContextStrip
             t={t}
             credentialPool={credentialPool}
-            catalog={catalog}
+            catalog={effectiveCatalog}
             activeCredential={activeCredential}
             checkingCredentialsState={checkingCredentialsState}
             onImportCredentials={() => setCredentialImportOpen(true)}
@@ -372,7 +395,7 @@ export default function AzurePanel() {
 
         <AzureInstancesSection
           t={t}
-          catalog={catalog}
+          catalog={effectiveCatalog}
           account={account}
           activeCredential={activeCredential}
           instances={instances}
@@ -398,12 +421,14 @@ export default function AzurePanel() {
         t={t}
         open={createOpen}
         onOpenChange={setCreateOpen}
-        catalog={catalog}
+        catalog={effectiveCatalog}
         account={account}
         activeCredential={activeCredential}
         createForm={createForm}
         setCreateForm={setCreateForm}
         submitting={createSubmitting}
+        locationUpdating={locationUpdating}
+        onSetLocation={handleSetLocation}
         onCreate={handleCreateInstance}
       />
 
@@ -450,7 +475,7 @@ export default function AzurePanel() {
 
       <AzureInstanceDetailDialog
         t={t}
-        catalog={catalog}
+        catalog={effectiveCatalog}
         activeCredential={activeCredential}
         detailInstance={detailInstance}
         detailData={detailData}
@@ -505,7 +530,9 @@ type AzureInlineCreatePanelProps = {
   form: AzureCreateFormState;
   setForm: React.Dispatch<React.SetStateAction<AzureCreateFormState>>;
   submitting: boolean;
+  locationUpdating: boolean;
   onOpenAdvanced: () => void;
+  onSetLocation: (location: string) => void | Promise<void>;
   onCreate: () => void | Promise<void>;
 };
 
@@ -517,11 +544,14 @@ function AzureInlineCreatePanel({
   form,
   setForm,
   submitting,
+  locationUpdating,
   onOpenAdvanced,
+  onSetLocation,
   onCreate,
 }: AzureInlineCreatePanelProps) {
   const activeLocation = catalog?.active_location || account?.active_location || activeCredential?.default_location || "";
   const activeLocationLabel = getLocationLabel(catalog, activeLocation);
+  const locationOptions = catalog?.locations ?? [];
 
   return (
     <section className={`${cloudPanelCardClassName} flex h-full min-h-[520px] flex-col`}>
@@ -557,6 +587,25 @@ function AzureInlineCreatePanel({
             placeholder={t("cloud.providers.azure.create_name_placeholder", "Leave empty to auto-generate a VM name")}
             onChange={(event) => setForm((previous) => ({ ...previous, name: event.target.value }))}
           />
+        </div>
+        <div>
+          <label className={cloudPanelFieldLabelClassName}>{t("cloud.form.region", "Region")}</label>
+          <Select.Root
+            value={activeLocation}
+            disabled={!activeCredential || locationUpdating || locationOptions.length === 0}
+            onValueChange={(value) => {
+              void onSetLocation(value);
+            }}
+          >
+            <Select.Trigger placeholder={t("cloud.form.region_placeholder", "Select a region")} />
+            <Select.Content>
+              {locationOptions.map((location) => (
+                <Select.Item key={location.name} value={location.name}>
+                  {location.regionalDisplayName || location.displayName || location.name}
+                </Select.Item>
+              ))}
+            </Select.Content>
+          </Select.Root>
         </div>
         <div>
           <label className={cloudPanelFieldLabelClassName}>{t("cloud.form.image", "Image")}</label>

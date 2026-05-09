@@ -41,6 +41,8 @@ type AzureCreateDialogProps = {
   createForm: AzureCreateFormState;
   setCreateForm: Dispatch<SetStateAction<AzureCreateFormState>>;
   submitting: boolean;
+  locationUpdating: boolean;
+  onSetLocation: (location: string) => MaybePromise<void>;
   onCreate: () => MaybePromise<void>;
 };
 
@@ -54,10 +56,13 @@ export function AzureCreateDialog({
   createForm,
   setCreateForm,
   submitting,
+  locationUpdating,
+  onSetLocation,
   onCreate,
 }: AzureCreateDialogProps) {
   const activeLocation = catalog?.active_location || account?.active_location || activeCredential?.default_location || "";
   const activeLocationLabel = getLocationLabel(catalog, activeLocation);
+  const locationOptions = catalog?.locations ?? [];
 
   return (
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
@@ -79,6 +84,26 @@ export function AzureCreateDialog({
               defaultValue: `Active location: ${activeLocationLabel}`,
             })}
           </div>
+
+          <label className={cloudPanelFieldLabelClassName}>
+            {t("cloud.form.region", "Region")}
+          </label>
+          <Select.Root
+            value={activeLocation}
+            disabled={!activeCredential || locationUpdating || locationOptions.length === 0}
+            onValueChange={(value) => {
+              void onSetLocation(value);
+            }}
+          >
+            <Select.Trigger placeholder={t("cloud.form.region_placeholder", "Select a region")} />
+            <Select.Content>
+              {locationOptions.map((location) => (
+                <Select.Item key={location.name} value={location.name}>
+                  {location.regionalDisplayName || location.displayName || location.name}
+                </Select.Item>
+              ))}
+            </Select.Content>
+          </Select.Root>
 
           <label className={cloudPanelFieldLabelClassName}>
             {t("cloud.table.name", "Name")}
