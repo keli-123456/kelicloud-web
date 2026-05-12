@@ -966,7 +966,7 @@
     "failover_v2": {
       "title": "故障切换 V2"
     },
-    "form": {
+      "form": {
       "activation_email": "激活邮箱",
       "admin_username": "??????",
       "auto_connect": "首启后自动接入 Komari",
@@ -1014,7 +1014,7 @@
       "ssh_public_key_optional": "?? SSH ??",
       "tags": "标签",
       "tags_placeholder": "用逗号分隔",
-      "user_data": "Cloud-Init / User Data",
+      "user_data": "云初始化 / 用户数据",
       "user_data_password_help": "启用 root 密码模式后，这里的内容会作为 shell 命令追加执行，不支持 #cloud-config。",
       "vpc_uuid": "VPC UUID",
       "vpc_uuid_placeholder": "可选"
@@ -1075,7 +1075,7 @@
     "provider_switcher_title": "云服务商",
     "providers": {
       "aws": {
-        "access_key": "Access Key",
+        "access_key": "访问密钥",
         "active_context": "当前 AWS 上下文",
         "active_context_description": "当前凭证、国家、区域和配额。",
         "active_credential_label": "当前凭证",
@@ -1094,7 +1094,7 @@
         "assign_public_ip": "在子网配置允许时分配公网 IPv4",
         "associated_elastic_ips": "已绑定 EIP",
         "attach_existing": "绑定已有 IP",
-        "auto_connect_toggle": "Bootstrap Komari agent auto-connect",
+        "auto_connect_toggle": "自动配置 Komari 接入",
         "auto_name": "自动命名",
         "az": "可用区",
         "background_auto_refresh": "只要还有待处理任务，这里就会每 15 秒自动刷新一次。",
@@ -1319,7 +1319,7 @@
         "root_access_none_help": "只使用你选择的密钥对或镜像默认登录方式，Komari 不会额外注入 root 密码。",
         "running_instances": "运行中 / 配额",
         "running_vcpu": "运行中 vCPU",
-        "secret_access_key": "Secret Access Key",
+        "secret_access_key": "秘钥访问码",
         "security_group_hint": "选择子网后建议手动勾选匹配的安全组；留空时将沿用 AWS 的默认行为。",
         "security_group_hint_vpc": "当前只显示 VPC {{vpc}} 下的安全组",
         "security_group_manual_hint": "手动输入一个或多个安全组 ID，支持逗号或换行分隔。留空时，Komari 会在自动选择的默认子网上继续使用默认安全组。",
@@ -1328,7 +1328,7 @@
         "select_region_first": "请先选择区域，再启用测活和创建操作。",
         "select_region_to_load": "请先选择区域，然后再加载这个 AWS 账号下的资源。",
         "select_region_to_load_description": "在凭证管理区选择区域；EC2 和 Lightsail 资源都会按区域筛选。",
-        "session_token": "Session Token",
+        "session_token": "会话令牌",
         "snapshot_name": "快照名称",
         "snapshots": "快照",
         "standard_vcpu_quota_reached": "当前区域标准按量 vCPU 使用已经达到配额上限（{{used}}/{{limit}}），继续创建新的 EC2 实例可能失败。",
@@ -1368,9 +1368,9 @@
         "auth_mode": "认证方式",
         "auth_password": "密码",
         "auth_ssh": "SSH 公钥",
-        "auto_connect_group": "Auto-connect Group",
-        "auto_connect_group_placeholder": "Optional. Leave empty to use the default group",
-        "auto_connect_toggle": "Bootstrap Komari agent auto-connect",
+        "auto_connect_group": "自动接入分组",
+        "auto_connect_group_placeholder": "可选，留空则使用当前默认分组",
+        "auto_connect_toggle": "启动后自动引导 Komari 接入",
         "auto_name": "????",
         "auto_resource_group": "?????",
         "check": "检查",
@@ -1470,7 +1470,7 @@
         "tags_empty": "未配置标签",
         "tenant_id": "租户 ID",
         "title": "Azure",
-        "user_data": "Cloud-init User Data",
+        "user_data": "Cloud-init / 用户数据",
         "vm_id": "虚拟机 ID",
         "vm_side_description": "把创建入口、订阅上下文和当前 VM 摘要放在一处。",
         "vm_side_empty": "暂无 VM",
@@ -3723,7 +3723,7 @@
       "last_active_label": "最近活跃"
     },
     "title": "会话管理",
-    "user_agent": "User Agent",
+    "user_agent": "用户代理",
     "user_agent_short": "UA"
   },
   "settings": {
