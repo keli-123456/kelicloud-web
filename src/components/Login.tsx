@@ -1,6 +1,6 @@
 import * as React from "react";
 import { useTranslation } from "react-i18next";
-import { AlertCircle, KeyRound, ShieldCheck } from "lucide-react";
+import { AlertCircle, KeyRound, LogIn, ShieldCheck, UserPlus } from "lucide-react";
 
 import {
   Alert,
@@ -45,6 +45,7 @@ type LoginDialogProps = {
   info?: string | React.ReactNode;
   onLoginSuccess?: () => void;
   inline?: boolean;
+  variant?: "default" | "simple";
   redirectAuthenticatedTo?: string;
   className?: string;
 };
@@ -56,6 +57,7 @@ const LoginDialog = ({
   info,
   onLoginSuccess,
   inline = false,
+  variant = "default",
   redirectAuthenticatedTo,
   className,
 }: LoginDialogProps) => {
@@ -69,10 +71,22 @@ const LoginDialog = ({
     const [isLoading, setIsLoading] = React.useState(false);
     const [require2FA, setRequire2FA] = React.useState(false);
     const [open, setOpen] = React.useState(autoOpen || false);
+    const [authMode, setAuthMode] = React.useState<"login" | "register">("login");
+    const [confirmPassword, setConfirmPassword] = React.useState("");
     const { publicInfo } = usePublicInfo();
     const siteName = getSiteName(publicInfo?.sitename);
+    const isSimpleInline = inline && variant === "simple";
+    const isRegisterMode = isSimpleInline && authMode === "register";
+    const simpleCardClassName =
+      "overflow-hidden rounded-2xl border border-slate-200/80 bg-white/95 shadow-[0_26px_80px_rgba(15,23,42,0.10)] backdrop-blur dark:border-slate-800 dark:bg-slate-950/95";
+    const simpleInputClassName =
+      "h-[60px] rounded-[14px] border-slate-200 bg-[#eaf2ff]/80 px-5 text-[17px] text-slate-950 shadow-inner shadow-white/40 placeholder:text-slate-400 focus-visible:ring-slate-300 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-50";
+    const defaultInputClassName = "h-10 rounded-md bg-muted/45";
 
-    const isFormValid = username.trim() !== "" && password.trim() !== "";
+    const hasBaseCredentials = username.trim() !== "" && password.trim() !== "";
+    const isFormValid = isRegisterMode
+      ? hasBaseCredentials && confirmPassword.trim() !== ""
+      : hasBaseCredentials;
 
     React.useEffect(() => {
       if (autoOpen) {
@@ -134,14 +148,86 @@ const LoginDialog = ({
       }
     };
 
-    const handleKeyDown = (e: React.KeyboardEvent) => {
-      if (e.key === "Enter" && !isLoading && isFormValid) {
-        e.preventDefault();
-        void handleLogin();
+    const handleRegister = async () => {
+      if (!isFormValid) {
+        setErrorMsg(
+          t(
+            "login.required_register_credentials",
+            "请输入邮箱/用户名、密码和确认密码",
+          ),
+        );
+        return;
+      }
+      if (password !== confirmPassword) {
+        setErrorMsg(t("login.password_mismatch", "两次输入的密码不一致"));
+        return;
+      }
+
+      setErrorMsg("");
+      setIsLoading(true);
+      try {
+        const res = await fetch("/api/register", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            username,
+            password,
+          }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (res.status === 200) {
+          const nextAccount = await refresh();
+          if (typeof onLoginSuccess === "function") {
+            onLoginSuccess();
+            return;
+          }
+          window.open(getDefaultAdminPath(nextAccount), "_self");
+        } else {
+          setErrorMsg(
+            data.message
+              ? formatApiErrorMessage(data.message, { status: res.status })
+              : t("login.register_failed", "注册失败"),
+          );
+        }
+      } catch (err) {
+        setErrorMsg(t("login.network_error", "网络错误"));
+        console.error(err);
+      } finally {
+        setIsLoading(false);
       }
     };
 
+    const handleKeyDown = (e: React.KeyboardEvent) => {
+      if (e.key === "Enter" && !isLoading && isFormValid) {
+        e.preventDefault();
+        void (isRegisterMode ? handleRegister() : handleLogin());
+      }
+    };
+
+    const switchAuthMode = (mode: "login" | "register") => {
+      setAuthMode(mode);
+      setErrorMsg("");
+      setRequire2FA(false);
+      setTwoFac("");
+      setConfirmPassword("");
+    };
+
     if (loading) {
+      if (isSimpleInline) {
+        return (
+          <Card className={cn(simpleCardClassName, className)}>
+            <CardContent className="px-8 py-9 sm:px-10 sm:py-10">
+              <div className="mx-auto h-16 w-16 rounded-2xl bg-slate-100 dark:bg-slate-900" />
+              <div className="mx-auto mt-5 h-5 w-40 rounded bg-slate-100 dark:bg-slate-900" />
+              <div className="mt-10 h-[60px] rounded-[14px] bg-slate-100 dark:bg-slate-900" />
+              <div className="mt-5 h-[60px] rounded-[14px] bg-slate-100 dark:bg-slate-900" />
+              <div className="mt-6 h-[60px] rounded-[14px] bg-slate-200 dark:bg-slate-800" />
+            </CardContent>
+          </Card>
+        );
+      }
       if (inline) {
         return (
           <Card className={cn("overflow-hidden", className)}>
@@ -170,6 +256,31 @@ const LoginDialog = ({
       return <Button disabled>{t("loading")}</Button>;
     }
     if (error || !account) {
+      if (isSimpleInline) {
+        return (
+          <Card className={cn(simpleCardClassName, className)}>
+            <CardContent className="px-8 py-9 sm:px-10 sm:py-10">
+              <div className="flex flex-col items-center text-center">
+                <span className="flex h-16 w-16 items-center justify-center rounded-2xl border border-red-100 bg-red-50 text-red-700 dark:border-red-900/60 dark:bg-red-950/30 dark:text-red-200">
+                  <AlertCircle className="h-7 w-7" />
+                </span>
+                <h1 className="mt-5 text-[21px] font-medium text-slate-700 dark:text-slate-200">
+                  {t("login.title")}
+                </h1>
+              </div>
+              <Alert variant="destructive" className="mt-8">
+                <AlertCircle />
+                <AlertTitle>{t("common.error", "错误")}</AlertTitle>
+                <AlertDescription>
+                  {error
+                    ? t("login.account_fetch_failed", { defaultValue: "无法获取账户状态" })
+                    : t("login.network_error", { defaultValue: "网络错误" })}
+                </AlertDescription>
+              </Alert>
+            </CardContent>
+          </Card>
+        );
+      }
       if (inline) {
         return (
           <Card className={cn("overflow-hidden", className)}>
@@ -239,28 +350,28 @@ const LoginDialog = ({
         onSubmit={(e) => {
           e.preventDefault();
           if (isFormValid && !isLoading) {
-            void handleLogin();
+            void (isRegisterMode ? handleRegister() : handleLogin());
           }
         }}
-        className="flex flex-col gap-4"
+        className={isSimpleInline ? "flex flex-col gap-5" : "flex flex-col gap-4"}
       >
-        <div className="grid gap-4">
+        <div className={isSimpleInline ? "grid gap-6" : "grid gap-4"}>
           <label className="grid gap-2">
-            <div className="text-[12px] font-semibold leading-4 text-muted-foreground">
-              {t("login.username")}
+            <div className={isSimpleInline ? "text-[17px] font-semibold leading-6 text-slate-950 dark:text-slate-50" : "text-[12px] font-semibold leading-4 text-muted-foreground"}>
+              {isSimpleInline ? t("login.email", { defaultValue: "邮箱" }) : t("login.username")}
             </div>
             <Input
               value={username}
               onChange={(e) => setUsername(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder="admin"
+              placeholder={isSimpleInline ? "name@example.com" : "admin"}
               disabled={isLoading}
               autoFocus
-              className="h-10 rounded-md bg-muted/45"
+              className={isSimpleInline ? simpleInputClassName : defaultInputClassName}
             />
           </label>
           <label className="grid gap-2">
-            <div className="text-[12px] font-semibold leading-4 text-muted-foreground">
+            <div className={isSimpleInline ? "text-[17px] font-semibold leading-6 text-slate-950 dark:text-slate-50" : "text-[12px] font-semibold leading-4 text-muted-foreground"}>
               {t("login.password")}
             </div>
             <Input
@@ -270,11 +381,25 @@ const LoginDialog = ({
               type="password"
               placeholder={t("login.password_placeholder")}
               disabled={isLoading}
-              className="h-10 rounded-md bg-muted/45"
+              className={isSimpleInline ? simpleInputClassName : defaultInputClassName}
             />
           </label>
-          <label hidden={!require2FA} className="grid gap-2">
-            <div className="text-[12px] font-semibold leading-4 text-muted-foreground">
+          <label hidden={!isRegisterMode} className="grid gap-2">
+            <div className={isSimpleInline ? "text-[17px] font-semibold leading-6 text-slate-950 dark:text-slate-50" : "text-[12px] font-semibold leading-4 text-muted-foreground"}>
+              {t("login.confirm_password", { defaultValue: "确认密码" })}
+            </div>
+            <Input
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              onKeyDown={handleKeyDown}
+              type="password"
+              placeholder={t("login.confirm_password_placeholder", { defaultValue: "请再次输入密码" })}
+              disabled={isLoading}
+              className={isSimpleInline ? simpleInputClassName : defaultInputClassName}
+            />
+          </label>
+          <label hidden={!require2FA || isRegisterMode} className="grid gap-2">
+            <div className={isSimpleInline ? "text-[17px] font-semibold leading-6 text-slate-950 dark:text-slate-50" : "text-[12px] font-semibold leading-4 text-muted-foreground"}>
               {t("login.two_factor")}
             </div>
             <Input
@@ -284,7 +409,7 @@ const LoginDialog = ({
               type="text"
               placeholder="000000"
               disabled={isLoading}
-              className="h-10 rounded-md bg-muted/45"
+              className={isSimpleInline ? simpleInputClassName : defaultInputClassName}
             />
           </label>
         </div>
@@ -295,12 +420,78 @@ const LoginDialog = ({
             <AlertDescription>{errorMsg}</AlertDescription>
           </Alert>
         ) : null}
-        <Button type="submit" disabled={isLoading || !isFormValid} className="h-10 w-full">
-          <KeyRound className="h-4 w-4" />
-          {isLoading ? t("login.logging_in", "登录中...") : t("login.title")}
+        <Button
+          type="submit"
+          disabled={isLoading || !isFormValid}
+          className={isSimpleInline
+            ? "h-[60px] w-full rounded-[14px] bg-slate-950 text-[18px] font-semibold text-white shadow-none hover:bg-slate-900 dark:bg-slate-100 dark:text-slate-950 dark:hover:bg-white"
+            : "h-10 w-full"}
+        >
+          {isSimpleInline
+            ? isRegisterMode
+              ? <UserPlus className="h-5 w-5" />
+              : <LogIn className="h-5 w-5" />
+            : <KeyRound className="h-4 w-4" />}
+          {isLoading
+            ? isRegisterMode
+              ? t("login.registering", "注册中...")
+              : t("login.logging_in", "登录中...")
+            : isRegisterMode
+              ? t("login.register", { defaultValue: "注册" })
+              : t("login.title")}
         </Button>
       </form>
     );
+
+    if (isSimpleInline) {
+      return (
+        <Card className={cn(simpleCardClassName, className)}>
+          <CardContent className="px-8 py-9 sm:px-10 sm:py-10">
+            <div className="flex flex-col items-center text-center">
+              <span className="flex h-16 w-16 items-center justify-center overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm shadow-slate-900/5 dark:border-slate-800 dark:bg-slate-900">
+                <img
+                  src="/favicon.ico"
+                  alt=""
+                  className="h-10 w-10 object-contain"
+                  aria-hidden="true"
+                />
+              </span>
+              <h1 className="mt-5 text-[21px] font-medium leading-8 text-slate-600 dark:text-slate-300">
+                {siteName}
+              </h1>
+            </div>
+
+            <div className="mt-9">
+              {loginFields}
+            </div>
+
+            <div className="mt-8 flex flex-wrap items-center justify-between gap-4 text-[16px] leading-6">
+              <div>
+                <span className="text-slate-500 dark:text-slate-400">
+                  {isRegisterMode
+                    ? t("login.has_account", { defaultValue: "已有账号？" })
+                    : t("login.no_account", { defaultValue: "还没有账号？" })}
+                </span>
+                <button
+                  type="button"
+                  className="ml-2 font-medium text-slate-900 underline-offset-4 hover:underline dark:text-slate-100"
+                  onClick={() => switchAuthMode(isRegisterMode ? "login" : "register")}
+                >
+                  {isRegisterMode
+                    ? t("login.title")
+                    : t("login.register", { defaultValue: "注册" })}
+                </button>
+              </div>
+              {!isRegisterMode ? (
+                <span className="font-medium text-slate-900 dark:text-slate-100">
+                  {t("login.forgot_password", { defaultValue: "忘记密码？" })}
+                </span>
+              ) : null}
+            </div>
+          </CardContent>
+        </Card>
+      );
+    }
 
     if (inline) {
       return (

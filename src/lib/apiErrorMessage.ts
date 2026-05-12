@@ -15,7 +15,13 @@ const exactMessages: Record<string, string> = {
   "upload cancelled": "上传已取消。",
   "copy failed": "复制失败，请手动复制。",
   "an error occurred": "操作失败，请稍后重试。",
+  "invalid credentials": "用户名或密码不正确。",
   "2fa code is required": "请输入两步验证验证码。",
+  "invalid 2fa code": "两步验证验证码不正确。",
+  "login request body is too large": "登录请求内容过大。",
+  "invalid request body: username and password are required": "用户名和密码不能为空。",
+  "username already exists": "这个账号已经存在，请换一个邮箱或用户名。",
+  "username cannot contain spaces": "用户名不能包含空格。",
   "latest agent release tag is unavailable": "无法获取最新 Agent 版本号，请稍后重试。",
   "failed to fetch account data": "获取账号信息失败，请刷新后重试。",
   "failed to fetch public info": "获取站点公开信息失败，请刷新后重试。",
@@ -86,6 +92,8 @@ const fieldLabels: Record<string, string> = {
   record_name: "记录名称",
   request: "请求内容",
   service: "服务",
+  username: "用户名",
+  password: "密码",
   watch_client_uuid: "当前客户端",
 };
 
@@ -238,6 +246,10 @@ const translationRules: TranslationRule[] = [
   {
     pattern: /^(.+?)\s+must be at least\s+(\d+)$/i,
     build: (match) => `${labelField(match[1] || "")}必须至少为 ${match[2]}。`,
+  },
+  {
+    pattern: /^(.+?)\s+must be at most\s+(\d+)\s+characters long$/i,
+    build: (match) => `${labelField(match[1] || "")}最多 ${match[2]} 个字符。`,
   },
   {
     pattern: /^(.+?)\s+must be greater than\s+0$/i,
