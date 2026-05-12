@@ -62,23 +62,27 @@ const ChartGridSkeleton = () => (
   </div>
 );
 
-const MetricCard = ({
-  title,
-  description,
-  latest,
-  children,
-}: {
+type MetricCardProps = {
+  metricLabel: string;
   title: string;
   description?: string;
   latest: ReactNode;
   children: ReactNode;
-}) => (
+};
+
+const MetricCard = ({
+  metricLabel,
+  title,
+  description,
+  latest,
+  children,
+}: MetricCardProps) => (
   <Card className="overflow-hidden rounded-lg border-border/70 shadow-none">
     <CardHeader className="pb-3">
       <div className="flex items-start justify-between gap-4">
         <div className="min-w-0 space-y-1">
           <div className="text-[10px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
-            Metric
+            {metricLabel}
           </div>
           <CardTitle className="truncate text-sm tracking-tight">{title}</CardTitle>
           {description ? (
@@ -251,7 +255,7 @@ const LoadChart = ({ data = [] }: LoadChartProps) => {
         setLoading(false);
       })
       .catch((err) => {
-        setError(err.message || "Error");
+        setError(err.message || t("chart.error", "加载失败"));
         setLoading(false);
       });
   }, [avaliableView, hoursView, uuid]);
@@ -345,14 +349,14 @@ const LoadChart = ({ data = [] }: LoadChartProps) => {
       <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
         <div className="min-w-0 space-y-2">
           <div className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
-            Performance
+            {t("chart.performance")}
           </div>
           <div className="space-y-1">
             <h3 className="text-sm font-semibold tracking-tight">
-              Resource history
+              {t("chart.resource_history")}
             </h3>
             <p className="max-w-2xl text-xs leading-5 text-muted-foreground">
-              CPU, memory, storage, network and process metrics share one panel.
+              {t("chart.resource_history_description")}
             </p>
           </div>
         </div>
@@ -394,14 +398,15 @@ const LoadChart = ({ data = [] }: LoadChartProps) => {
       >
         {/* CPU */}
         <MetricCard
-          title="CPU"
+          metricLabel={t("chart.metric")}
+          title={t("admin.nodeDetail.cpu")}
           latest={live_data?.cpu?.usage ? `${live_data.cpu.usage.toFixed(2)}%` : "-"}
         >
           <ChartContainer
             className="h-[220px] w-full"
             config={{
               cpu: {
-                label: "CPU",
+                label: t("admin.nodeDetail.cpu"),
                 color: primaryColor,
               },
             }}
@@ -449,7 +454,8 @@ const LoadChart = ({ data = [] }: LoadChartProps) => {
         </MetricCard>
         {/* Ram */}
         <MetricCard
-          title="RAM"
+          metricLabel={t("chart.metric")}
+          title={t("chart.ram")}
           latest={
             <div className="flex flex-col items-end gap-0 text-sm">
               <label>
@@ -473,11 +479,11 @@ const LoadChart = ({ data = [] }: LoadChartProps) => {
             className="h-[220px] w-full"
             config={{
               ram: {
-                label: "Ram",
+                label: t("chart.ram"),
                 color: primaryColor,
               },
               swap: {
-                label: "Swap",
+                label: t("chart.swap"),
                 color: secondaryColor,
               },
             }}
@@ -569,7 +575,8 @@ const LoadChart = ({ data = [] }: LoadChartProps) => {
         </MetricCard>
         {/* Disk */}
         <MetricCard
-          title="Disk"
+          metricLabel={t("chart.metric")}
+          title={t("admin.nodeDetail.diskTotal")}
           latest={
             live_data?.disk?.used
               ? `${formatBytes(live_data.disk.used)} / ${formatBytes(
@@ -582,7 +589,7 @@ const LoadChart = ({ data = [] }: LoadChartProps) => {
             className="h-[220px] w-full"
             config={{
               disk: {
-                label: "Disk",
+                label: t("admin.nodeDetail.diskTotal"),
                 color: primaryColor,
               },
             }}
@@ -630,6 +637,7 @@ const LoadChart = ({ data = [] }: LoadChartProps) => {
         </MetricCard>
         {/* Netwodk */}
         <MetricCard
+          metricLabel={t("chart.metric")}
           title={t("nodeCard.networkSpeed")}
           latest={
             <div className="flex flex-col items-end gap-0 text-sm">
@@ -707,11 +715,12 @@ const LoadChart = ({ data = [] }: LoadChartProps) => {
         </MetricCard>
         {/* Connections */}
         <MetricCard
+          metricLabel={t("chart.metric")}
           title={t("chart.connections")}
           latest={
             <div className="flex flex-col items-end gap-0 text-sm">
-              <span>TCP: {live_data?.connections.tcp}</span>
-              <span>UDP: {live_data?.connections.udp}</span>
+                <span>{`${t("chart.tcp_connections")}: ${live_data?.connections.tcp}`}</span>
+                <span>{`${t("chart.udp_connections")}: ${live_data?.connections.udp}`}</span>
             </div>
           }
         >
@@ -719,11 +728,11 @@ const LoadChart = ({ data = [] }: LoadChartProps) => {
             className="h-[220px] w-full"
             config={{
               connections: {
-                label: "TCP",
+                label: t("chart.tcp_connections"),
                 color: primaryColor,
               },
               connections_udp: {
-                label: "UDP",
+                label: t("chart.udp_connections"),
                 color: colors[3],
               },
             }}
@@ -777,6 +786,7 @@ const LoadChart = ({ data = [] }: LoadChartProps) => {
         </MetricCard>
         {/* Process */}
         <MetricCard
+          metricLabel={t("chart.metric")}
           title={t("chart.process")}
           latest={live_data?.process ?? "-"}
         >
@@ -834,8 +844,9 @@ const LoadChart = ({ data = [] }: LoadChartProps) => {
           live_data.gpu.count > 0 &&
           live_data.gpu.detailed_info?.map((gpu, index) => (
             <MetricCard
+              metricLabel={t("chart.metric")}
               key={`gpu-${index}`}
-              title={`GPU ${index + 1}: ${gpu.name}`}
+              title={`${t("chart.gpu")} ${index + 1}: ${gpu.name}`}
               description={t("chart.gpu_memory", { defaultValue: "GPU memory" })}
               latest={formatBytes(gpu.memory_total)}
             >
@@ -868,10 +879,10 @@ const LoadChart = ({ data = [] }: LoadChartProps) => {
               <ChartContainer
                 className="h-[220px] w-full"
                 config={{
-                  gpu_usage: {
-                    label: "GPU",
-                    color: primaryColor,
-                  },
+              gpu_usage: {
+                label: t("chart.gpu"),
+                color: primaryColor,
+              },
                   gpu_memory: {
                     label: t("chart.gpu_memory"),
                     color: secondaryColor,

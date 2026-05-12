@@ -237,7 +237,7 @@ export default function Sessions({ embedded = false }: { embedded?: boolean } = 
               <AdminDataTableHeadRow>
                 <AdminDataTableHead>{t("sessions.session_id")}</AdminDataTableHead>
                 <AdminDataTableHead>{t("sessions.user_agent_short", "UA")}</AdminDataTableHead>
-                <AdminDataTableHead>IP</AdminDataTableHead>
+                <AdminDataTableHead>{t("sessions.ip")}</AdminDataTableHead>
                 <AdminDataTableHead>{t("sessions.latest_ip", "Latest IP")}</AdminDataTableHead>
                 <AdminDataTableHead>{t("sessions.expires_at")}</AdminDataTableHead>
                 <AdminDataTableHead>{t("sessions.last_login", "Last Seen")}</AdminDataTableHead>
@@ -284,7 +284,7 @@ export default function Sessions({ embedded = false }: { embedded?: boolean } = 
                                 mono
                                 wide
                               />
-                              <SessionDetailItem label="IP" value={session.ip} />
+                              <SessionDetailItem label={t("sessions.ip")} value={session.ip} />
                               <SessionDetailItem
                                 label={t("sessions.latest_ip", "Latest IP")}
                                 value={session.latest_ip}

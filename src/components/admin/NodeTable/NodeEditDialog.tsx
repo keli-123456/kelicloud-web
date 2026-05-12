@@ -72,15 +72,16 @@ export function EditDialog({ item }: { item: z.infer<typeof schema> }) {
       <Dialog.Content className={NODE_DIALOG_CONTENT_CLASS}>
         <Dialog.Title>{t("admin.nodeEdit.editInfo", "Edit information")}</Dialog.Title>
         <Dialog.Description className="mt-2">
-          Adjust the node identity and remarks shown across the management console.
+          {t("admin.nodeEdit.editDescription", "调整节点身份和备注，在管理后台中的展示会同步更新。")}
         </Dialog.Description>
         <div className="mt-4 flex flex-col gap-4">
           <div className={NODE_DIALOG_SECTION_CLASS}>
             <div>
-              <div className="section-kicker">Identity</div>
+              <div className="section-kicker">
+                {t("admin.nodeEdit.identity")}
+              </div>
               <p className="mt-1 text-sm text-muted-foreground">
-                Keep naming and notes consistent so list view, details view, and public
-                labels all read as one system.
+                {t("admin.nodeEdit.identityHint")}
               </p>
             </div>
             <div>
@@ -113,10 +114,11 @@ export function EditDialog({ item }: { item: z.infer<typeof schema> }) {
           </div>
           <div className={NODE_DIALOG_SECTION_CLASS}>
             <div>
-              <div className="section-kicker">Notes</div>
+              <div className="section-kicker">
+                {t("admin.nodeEdit.notes")}
+              </div>
               <p className="mt-1 text-sm text-muted-foreground">
-                Private notes stay internal. Public notes travel with the node into
-                user-facing surfaces.
+                {t("admin.nodeEdit.notesHint")}
               </p>
             </div>
             <div>

@@ -234,7 +234,7 @@ const PingChart = ({ uuid }: { uuid: string }) => {
         setTasks(result?.tasks || []);
         setLoading(false);
       } catch (err: any) {
-        setError(err?.message || "Error");
+        setError(err?.message || t("common.error"));
         setLoading(false);
       }
     })();
@@ -417,14 +417,14 @@ const PingChart = ({ uuid }: { uuid: string }) => {
       <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
         <div className="min-w-0 space-y-2">
           <div className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
-            Latency
+            {t("chart.latency")}
           </div>
           <div className="space-y-1">
             <h3 className="text-sm font-semibold tracking-tight">
-              Ping history
+              {t("chart.ping_history")}
             </h3>
             <p className="max-w-2xl text-xs leading-5 text-muted-foreground">
-              Task summaries, curves and visibility controls share one shell.
+              {t("chart.ping_header_description")}
             </p>
           </div>
         </div>
@@ -466,11 +466,13 @@ const PingChart = ({ uuid }: { uuid: string }) => {
             <div className="flex items-start justify-between gap-4">
               <div className="min-w-0 space-y-1">
                 <div className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
-                  Overview
+                  {t("chart.overview")}
                 </div>
-                <CardTitle className="text-sm tracking-tight">Task summaries</CardTitle>
+                <CardTitle className="text-sm tracking-tight">
+                  {t("chart.task_summaries")}
+                </CardTitle>
                 <CardDescription className="text-xs leading-5">
-                  Latest latency, loss and stability use the same summary rhythm.
+                  {t("chart.task_summary_description")}
                 </CardDescription>
               </div>
               <Tooltip>
@@ -661,11 +663,13 @@ const PingChart = ({ uuid }: { uuid: string }) => {
             <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
               <div className="min-w-0 space-y-1">
                 <div className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
-                  Trend
+                  {t("chart.trend")}
                 </div>
-                <CardTitle className="text-sm tracking-tight">Latency history</CardTitle>
+                <CardTitle className="text-sm tracking-tight">
+                  {t("chart.ping_history")}
+                </CardTitle>
                 <CardDescription className="text-xs leading-5">
-                  Tooltip, legend and chart controls sit in one shared panel.
+                  {t("chart.ping_chart_description")}
                 </CardDescription>
               </div>
               <div className="flex flex-wrap items-center gap-2 lg:justify-end">
