@@ -1232,19 +1232,19 @@ const ExecContent = () => {
                             <div className="flex h-9 items-center justify-between border-b border-white/10 px-3">
                                 <div className="flex items-center gap-2 text-[12px] font-semibold text-slate-300">
                                     <Terminal size={13} />
-                                    task preview
+                                    {t("exec.task_preview", { defaultValue: "Task preview" })}
                                 </div>
                                 <span className="font-mono text-[11px] text-slate-500">
-                                    {currentTaskId ? `task ${currentTaskId.slice(0, 8)}...` : "/api/admin/task/exec"}
+                                    {currentTaskId ? `${t("exec.task_label", { defaultValue: "Task" })} ${currentTaskId.slice(0, 8)}...` : "/api/admin/task/exec"}
                                 </span>
                             </div>
                             <div className="min-h-[166px] overflow-auto px-4 py-3 font-mono text-[12px] leading-6 text-slate-300">
-                                <div><span className="text-emerald-300">$</span> task_id={currentTaskId ? `${currentTaskId.slice(0, 8)}...` : "pending"}</div>
-                                <div><span className="text-emerald-300">$</span> clients={JSON.stringify(previewClientNames)}</div>
-                                <div><span className="text-emerald-300">$</span> command="{terminalCommand}"</div>
+                                <div><span className="text-emerald-300">$</span> {t("exec.task_id_label", { defaultValue: "Task ID" })}={currentTaskId ? `${currentTaskId.slice(0, 8)}...` : t("exec.pending", { defaultValue: "pending" })}</div>
+                                <div><span className="text-emerald-300">$</span> {t("exec.clients_label", { defaultValue: "Clients" })}={JSON.stringify(previewClientNames)}</div>
+                                <div><span className="text-emerald-300">$</span> {t("exec.command", { defaultValue: "Command" })}="{terminalCommand}"</div>
                                 <div className="h-4" />
                                 {terminalResultLines.length === 0 ? (
-                                    <div className="text-slate-500">waiting for task result...</div>
+                                    <div className="text-slate-500">{t("exec.waiting_for_result", { defaultValue: "Waiting for task result..." })}</div>
                                 ) : terminalResultLines.map((line) => (
                                     <div key={`${line.node}-${line.text}`}>
                                         <span className={line.tone === "bad" ? "text-red-300" : "text-emerald-300"}>
@@ -1293,10 +1293,13 @@ const ExecContent = () => {
                                 <div className="flex h-8 items-center justify-between border-b border-border bg-muted/30 px-3">
                                     <div className="flex items-center gap-2 text-[12px] font-medium text-muted-foreground">
                                         <Terminal size={13} />
-                                        shell
+                                        {t("exec.editor_shell", { defaultValue: "shell" })}
                                     </div>
                                     <span className="text-[11px] text-muted-foreground">
-                                        {commandLineNumbers.length} lines
+                                        {t("exec.command_line_count", {
+                                            defaultValue: "{{count}} lines",
+                                            count: commandLineNumbers.length,
+                                        })}
                                     </span>
                                 </div>
                                 <div
@@ -1491,7 +1494,7 @@ const ExecContent = () => {
                                                             })}
                                                         </span>
                                                     </div>
-                                                    <span className="text-[11px] text-slate-500">stdout</span>
+                                                    <span className="text-[11px] text-slate-500">{t("exec.stdout_label", { defaultValue: "stdout" })}</span>
                                                 </div>
                                                 <div className="max-h-[360px] overflow-auto overscroll-contain [scrollbar-gutter:stable]">
                                                     <div
