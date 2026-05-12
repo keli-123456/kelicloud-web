@@ -9,7 +9,6 @@ import {
 } from "lucide-react";
 
 import {
-  AdminCardGridSkeleton,
   AdminPageShell,
   AdminTableSkeleton,
 } from "@/components/admin/AdminPageShell";
@@ -371,7 +370,6 @@ export default function DigitalOceanPanel() {
           "Manage API tokens, inspect Droplet inventory, and create or operate DigitalOcean instances from one panel.",
         )}
       >
-        <AdminCardGridSkeleton cards={4} />
         <AdminTableSkeleton columns={6} rows={5} />
       </AdminPageShell>
     );

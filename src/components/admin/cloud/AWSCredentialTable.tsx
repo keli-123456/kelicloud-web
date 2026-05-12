@@ -2,16 +2,25 @@ import type { TFunction } from "i18next";
 import {
   Eye,
   KeyRound,
-  MoreHorizontal,
   Server,
   Trash2,
 } from "lucide-react";
 
 import {
+  AdminDataTable,
+  AdminDataTableCell,
+  AdminDataTableEmptyRow,
+  AdminDataTableHead,
+  AdminDataTableHeadRow,
+  AdminDataTableRow,
+  AdminDataTableScroll,
+} from "@/components/admin/AdminDataTable";
+import {
   AdminPagination,
   useClientPagination,
 } from "@/components/admin/AdminPagination";
 import { AdminEmptyState } from "@/components/admin/AdminPageShell";
+import { AdminRowActions } from "@/components/admin/AdminRowActions";
 import { AWSQuotaSummary } from "@/components/admin/cloud/AWSQuotaSummary";
 import {
   Badge,
@@ -21,23 +30,7 @@ import {
   cloudTableCodeTextClassName,
   cloudTableEmptyStateClassName,
   cloudTablePrimaryTextClassName,
-  cloudTableScrollClassName,
-  Flex,
 } from "@/components/admin/cloud/cloud-ui";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import type { AWSCredentialRecord } from "@/lib/cloudAws";
 import {
   getAWSCountryLabel,
@@ -87,33 +80,34 @@ export function AWSCredentialTable({
 
   return (
     <>
-      <div className={`${cloudTableScrollClassName} max-h-[560px]`}>
-        <Table className="min-w-[1040px]">
-          <TableHeader>
-            <TableRow>
-            <TableHead className="w-10">
+      <AdminDataTableScroll className="max-h-[560px]">
+        <AdminDataTable minWidth={1040}>
+          <thead>
+            <AdminDataTableHeadRow>
+            <AdminDataTableHead className="w-10">
               <div className="flex items-center justify-center">
                 <Checkbox
                   checked={allCredentialsSelected || (someCredentialsSelected && "indeterminate")}
                   onCheckedChange={(checked) => onSelectAll(checked === true)}
-                  aria-label={t("cloud.tokens.select_all", "Select all tokens")}
+                  aria-label={t("cloud.tokens.select_all", "选择全部凭证")}
                 />
               </div>
-            </TableHead>
-            <TableHead>{t("cloud.tokens.table.name", "Name")}</TableHead>
-            <TableHead>{t("cloud.tokens.group", "Group")}</TableHead>
-            <TableHead>{t("cloud.providers.aws.access_key", "Access Key")}</TableHead>
-            <TableHead>{t("cloud.providers.aws.country", "Country")}</TableHead>
-            <TableHead>{t("cloud.providers.aws.ec2_quota", "EC2 Quota")}</TableHead>
-            <TableHead>{t("cloud.tokens.table.status", "Status")}</TableHead>
-            <TableHead>{t("cloud.tokens.table.checked_at", "Last Checked")}</TableHead>
-            <TableHead className="text-right">{t("common.action", "Action")}</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
+            </AdminDataTableHead>
+            <AdminDataTableHead>{t("cloud.tokens.table.name", "名称")}</AdminDataTableHead>
+            <AdminDataTableHead>{t("cloud.tokens.group", "分组")}</AdminDataTableHead>
+            <AdminDataTableHead>{t("cloud.providers.aws.access_key", "访问密钥")}</AdminDataTableHead>
+            <AdminDataTableHead>{t("cloud.providers.aws.country", "国家")}</AdminDataTableHead>
+            <AdminDataTableHead>{t("cloud.providers.aws.ec2_quota", "EC2 配额")}</AdminDataTableHead>
+            <AdminDataTableHead>{t("cloud.tokens.table.status", "状态")}</AdminDataTableHead>
+            <AdminDataTableHead>{t("cloud.tokens.table.checked_at", "最近检测")}</AdminDataTableHead>
+            <AdminDataTableHead align="right" sticky="right">
+              {t("common.action", "操作")}
+            </AdminDataTableHead>
+          </AdminDataTableHeadRow>
+        </thead>
+        <tbody>
           {!credentials.length ? (
-            <TableRow>
-              <TableCell colSpan={9} className="p-5">
+            <AdminDataTableEmptyRow colSpan={9} className="p-5">
                 <AdminEmptyState
                   icon={<KeyRound className="h-5 w-5" />}
                   title={t("cloud.providers.aws.credentials_empty", "还没有保存 AWS 凭证")}
@@ -129,42 +123,41 @@ export function AWSCredentialTable({
                   )}
                   className={cloudTableEmptyStateClassName}
                 />
-              </TableCell>
-            </TableRow>
+            </AdminDataTableEmptyRow>
           ) : (
             visibleCredentials.map((credential) => (
-              <TableRow key={credential.id}>
-                <TableCell className="w-10">
+              <AdminDataTableRow key={credential.id}>
+                <AdminDataTableCell className="w-10">
                   <div className="flex items-center justify-center">
                     <Checkbox
                       checked={selectedCredentialIds.includes(credential.id)}
                       onCheckedChange={(checked) => onToggleCredential(credential.id, checked === true)}
                       aria-label={t("cloud.tokens.select_one", {
                         name: credential.name,
-                        defaultValue: `Select token ${credential.name}`,
+                        defaultValue: `选择凭证 ${credential.name}`,
                       })}
                     />
                   </div>
-                </TableCell>
-                <TableCell className={cloudTablePrimaryTextClassName}>
+                </AdminDataTableCell>
+                <AdminDataTableCell className={cloudTablePrimaryTextClassName}>
                   <div className="flex items-center gap-2">
                     <span className="max-w-40 truncate">{credential.name}</span>
                     {credential.is_active ? (
-                      <Badge color="blue">{t("cloud.tokens.active", "Active")}</Badge>
+                      <Badge color="blue">{t("cloud.tokens.active", "启用")}</Badge>
                     ) : null}
                   </div>
-                </TableCell>
-                <TableCell>{credential.group || "-"}</TableCell>
-                <TableCell className={cloudTableCodeTextClassName}>
+                </AdminDataTableCell>
+                <AdminDataTableCell>{credential.group || "-"}</AdminDataTableCell>
+                <AdminDataTableCell className={cloudTableCodeTextClassName}>
                   {credential.masked_access_key_id || "-"}
-                </TableCell>
-                <TableCell>
+                </AdminDataTableCell>
+                <AdminDataTableCell>
                   {getAWSCountryLabel(credential.default_region, t)}
-                </TableCell>
-                <TableCell className="min-w-48 align-top">
+                </AdminDataTableCell>
+                <AdminDataTableCell className="min-w-48 align-top">
                   <AWSQuotaSummary quota={credential.ec2_quota} t={t} compact />
-                </TableCell>
-                <TableCell>
+                </AdminDataTableCell>
+                <AdminDataTableCell>
                   <Badge color={getCredentialStatusColor(credential.last_status)}>
                     {t(`cloud.tokens.status.${credential.last_status}`, credential.last_status || "unknown")}
                   </Badge>
@@ -173,71 +166,53 @@ export function AWSCredentialTable({
                       {credential.last_error}
                     </div>
                   ) : null}
-                </TableCell>
-                <TableCell>{formatDateTime(credential.last_checked_at)}</TableCell>
-                <TableCell className="text-right">
-                  <Flex justify="end" gap="2" wrap="nowrap">
-                    <Button
-                      variant="soft"
-                      size="1"
-                      color={credential.is_active ? "blue" : undefined}
-                      disabled={credential.is_active}
-                      onClick={() => {
-                        void onSelectCredential(credential);
-                      }}
-                    >
-                      <Server className="mr-1 h-3.5 w-3.5" />
-                      {credential.is_active
-                        ? t("cloud.tokens.current", "Current")
-                        : t("cloud.tokens.use", "Use")}
-                    </Button>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8"
-                          aria-label={t("common.action", "Action")}
-                        >
-                          <MoreHorizontal className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end" className="min-w-44">
-                        <DropdownMenuItem
-                          onSelect={() => {
-                            onOpenGroupEditor([credential]);
-                          }}
-                        >
-                          {t("cloud.tokens.set_group", "Set Group")}
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          disabled={credentialSecretLoading}
-                          onSelect={() => {
-                            void onViewCredentialSecret(credential);
-                          }}
-                        >
-                          <Eye className="h-4 w-4" />
-                          {t("cloud.providers.aws.view_credential", "View Credential")}
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          variant="destructive"
-                          onSelect={() => {
-                            void onDeleteCredential(credential);
-                          }}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                          {t("cloud.tokens.delete", "Delete")}
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </Flex>
-                </TableCell>
-              </TableRow>
+                </AdminDataTableCell>
+                <AdminDataTableCell>{formatDateTime(credential.last_checked_at)}</AdminDataTableCell>
+                <AdminDataTableCell align="right" sticky="right">
+                  <AdminRowActions
+                    contentClassName="min-w-44"
+                    actions={[
+                      {
+                        label: credential.is_active
+                          ? t("cloud.tokens.current", "当前")
+                          : t("cloud.tokens.use", "使用"),
+                        icon: <Server className="h-4 w-4" />,
+                        disabled: credential.is_active,
+                        onSelect: () => {
+                          void onSelectCredential(credential);
+                        },
+                      },
+                      {
+                        label: t("cloud.tokens.set_group", "设置分组"),
+                        onSelect: () => {
+                          onOpenGroupEditor([credential]);
+                        },
+                      },
+                      {
+                        label: t("cloud.providers.aws.view_credential", "查看凭证"),
+                        icon: <Eye className="h-4 w-4" />,
+                        disabled: credentialSecretLoading,
+                        onSelect: () => {
+                          void onViewCredentialSecret(credential);
+                        },
+                      },
+                      {
+                        label: t("cloud.tokens.delete", "删除"),
+                        icon: <Trash2 className="h-4 w-4" />,
+                        destructive: true,
+                        onSelect: () => {
+                          void onDeleteCredential(credential);
+                        },
+                      },
+                    ]}
+                  />
+                </AdminDataTableCell>
+              </AdminDataTableRow>
             ))
           )}
-        </TableBody>
-        </Table>
-      </div>
+        </tbody>
+        </AdminDataTable>
+      </AdminDataTableScroll>
       <AdminPagination
         page={credentialPagination.page}
         totalPages={credentialPagination.totalPages}
@@ -248,7 +223,7 @@ export function AWSCredentialTable({
         onPageChange={credentialPagination.setPage}
         onPageSizeChange={credentialPagination.setPageSize}
         pageSizeOptions={[10, 20, 50]}
-        itemLabel={t("admin.pagination.credentials", { defaultValue: "credentials" })}
+        itemLabel={t("admin.pagination.credentials", { defaultValue: "凭证" })}
         compact
       />
     </>

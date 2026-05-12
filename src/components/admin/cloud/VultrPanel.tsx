@@ -22,14 +22,22 @@ import {
 } from "lucide-react";
 
 import {
-  AdminCardGridSkeleton,
   AdminPageShell,
   AdminTableSkeleton,
 } from "@/components/admin/AdminPageShell";
 import {
+  AdminDataTable,
+  AdminDataTableCell,
+  AdminDataTableHead,
+  AdminDataTableHeadRow,
+  AdminDataTableRow,
+  AdminDataTableScroll,
+} from "@/components/admin/AdminDataTable";
+import {
   AdminPagination,
   useClientPagination,
 } from "@/components/admin/AdminPagination";
+import { AdminRowActions } from "@/components/admin/AdminRowActions";
 import { CloudOnboardingPanel } from "@/components/admin/cloud/CloudOnboardingPanel";
 import CloudInstanceScriptDialog, { type CloudInstanceScriptTarget } from "@/components/admin/cloud/CloudInstanceScriptDialog";
 import {
@@ -56,7 +64,6 @@ import {
   cloudTableEmptyStateClassName,
   cloudTableNameButtonClassName,
   cloudTablePrimaryTextClassName,
-  cloudTableScrollClassName,
   cloudTableSecondaryTextClassName,
 } from "@/components/admin/cloud/cloud-ui";
 import { WarningAlert } from "@/components/ui/warning-alert";
@@ -88,14 +95,6 @@ import {
   type VultrTokenSecret,
 } from "@/lib/cloudVultr";
 import { getReadableErrorMessage } from "@/lib/apiErrorMessage";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { cn } from "@/lib/utils";
 import { buildStaticVultrCatalog } from "./cloudStaticCatalogs";
 
@@ -376,7 +375,7 @@ export default function VultrPanel() {
     async (text: string) => {
       try {
         await navigator.clipboard.writeText(text);
-        toast.success(t("copy_success", "Copied!"));
+        toast.success(t("copy_success", "已复制！"));
       } catch (copyError) {
         toast.error(toErrorMessage(copyError));
       }
@@ -448,7 +447,7 @@ export default function VultrPanel() {
       group: tokenImportGroup.trim(),
     }));
     if (tokens.length === 0) {
-      toast.error(t("cloud.tokens.empty_import", "No valid tokens were found."));
+      toast.error(t("cloud.tokens.empty_import", "未找到有效令牌。"));
       return;
     }
 
@@ -462,7 +461,7 @@ export default function VultrPanel() {
       }
       setTokenImportOpen(false);
       setTokenImportText("");
-      toast.success(t("cloud.tokens.imported", "Tokens imported."));
+      toast.success(t("cloud.tokens.imported", "令牌导入成功。"));
     } catch (importError) {
       toast.error(toErrorMessage(importError));
     } finally {
@@ -478,7 +477,7 @@ export default function VultrPanel() {
       if (!shouldPreserveLoadedResources(nextPool)) {
         clearResourceData();
       }
-      toast.success(t("cloud.tokens.checked", "Token health updated."));
+      toast.success(t("cloud.tokens.checked", "令牌健康状态已更新。"));
     } catch (checkError) {
       toast.error(toErrorMessage(checkError));
     } finally {
@@ -491,7 +490,7 @@ export default function VultrPanel() {
       const nextPool = await setVultrActiveToken(token.id);
       setTokenPool(nextPool);
       clearResourceData();
-      toast.success(t("cloud.tokens.active_updated", "Active token updated."));
+      toast.success(t("cloud.tokens.active_updated", "当前令牌已更新。"));
       if (options?.loadResources) {
         await loadPanelData();
       }
@@ -502,12 +501,12 @@ export default function VultrPanel() {
 
   const handleDeleteToken = async (token: VultrTokenRecord) => {
     const confirmed = await confirm({
-      title: t("cloud.tokens.delete_title", "Delete token?"),
+      title: t("cloud.tokens.delete_title", "是否删除该令牌？"),
       description: t("cloud.tokens.delete_description", {
         name: token.name,
         defaultValue: "Delete {{name}}? Saved instance passwords for this token will also be removed.",
       }),
-      confirmLabel: t("common.delete", "Delete"),
+      confirmLabel: t("common.delete", "删除"),
       tone: "destructive",
     });
     if (!confirmed) return;
@@ -518,7 +517,7 @@ export default function VultrPanel() {
       if (!hasActiveToken(nextPool) || !shouldPreserveLoadedResources(nextPool)) {
         clearResourceData();
       }
-      toast.success(t("cloud.tokens.deleted", "Token deleted."));
+      toast.success(t("cloud.tokens.deleted", "令牌已删除。"));
     } catch (deleteError) {
       toast.error(toErrorMessage(deleteError));
     }
@@ -567,7 +566,7 @@ export default function VultrPanel() {
   const handleCreateInstance = async () => {
     const osID = Number.parseInt(createForm.os_id, 10);
     if (!createForm.region || !createForm.plan || !Number.isFinite(osID) || osID <= 0) {
-      toast.error(t("cloud.providers.vultr.create_required", "Region, plan, and OS are required."));
+      toast.error(t("cloud.providers.vultr.create_required", "请先选择地区、套餐和操作系统。"));
       return;
     }
 
@@ -591,7 +590,7 @@ export default function VultrPanel() {
         auto_connect_group: createForm.auto_connect_group.trim(),
       });
       setCreateOpen(false);
-      toast.success(t("cloud.providers.vultr.created", "Vultr instance created."));
+      toast.success(t("cloud.providers.vultr.created", "Vultr 实例创建成功。"));
       if (result.generated_password) {
         setCreatedPassword({
           instance: result.instance,
@@ -612,7 +611,7 @@ export default function VultrPanel() {
     setActionLoadingId(`${instance.id}:${type}`);
     try {
       await postVultrInstanceAction(instance.id, type);
-      toast.success(t("cloud.action_submitted", "Action submitted."));
+      toast.success(t("cloud.action_submitted", "操作提交成功。"));
       await loadPanelData();
     } catch (actionError) {
       toast.error(toErrorMessage(actionError));
@@ -623,12 +622,12 @@ export default function VultrPanel() {
 
   const handleDeleteInstance = async (instance: VultrInstance) => {
     const confirmed = await confirm({
-      title: t("cloud.delete_instance_title", "Delete instance?"),
+      title: t("cloud.delete_instance_title", "确认删除实例？"),
       description: t("cloud.providers.vultr.delete_instance_description", {
         name: instance.label || instance.id,
         defaultValue: "Permanently delete {{name}}? This cannot be undone.",
       }),
-      confirmLabel: t("common.delete", "Delete"),
+      confirmLabel: t("common.delete", "删除"),
       tone: "destructive",
     });
     if (!confirmed) return;
@@ -636,7 +635,7 @@ export default function VultrPanel() {
     setActionLoadingId(`${instance.id}:delete`);
     try {
       await deleteVultrInstance(instance.id);
-      toast.success(t("cloud.deleted", "Deleted."));
+      toast.success(t("cloud.deleted", "已删除。"));
       await loadPanelData();
     } catch (deleteError) {
       toast.error(toErrorMessage(deleteError));
@@ -685,14 +684,13 @@ export default function VultrPanel() {
   if (initializing) {
     return (
       <AdminPageShell
-        eyebrow={t("cloud.title", "Cloud")}
+        eyebrow={t("cloud.title", "云平台")}
         title={t("cloud.providers.vultr.title", "Vultr")}
         description={t(
           "cloud.providers.vultr.description",
           "Manage Vultr tokens, inspect instance inventory, and operate compute resources from one panel.",
         )}
       >
-        <AdminCardGridSkeleton cards={4} />
         <AdminTableSkeleton columns={6} rows={5} />
       </AdminPageShell>
     );
@@ -711,7 +709,7 @@ export default function VultrPanel() {
               disabled={panelLoading || tokenChecking}
             >
               <RefreshCw className="mr-2 h-4 w-4" />
-              {t("cloud.refresh", "Refresh")}
+              {t("cloud.refresh", "刷新")}
             </Button>
             <Button
               variant="outline"
@@ -720,7 +718,7 @@ export default function VultrPanel() {
               disabled={!activeToken || panelLoading}
             >
               <Eye className="mr-2 h-4 w-4" />
-              {t("cloud.view", "View")}
+              {t("cloud.view", "查看")}
             </Button>
             <Button
               size="1"
@@ -733,7 +731,7 @@ export default function VultrPanel() {
               ) : (
                 <Plus className="mr-2 h-4 w-4" />
               )}
-              {t("cloud.providers.vultr.create", "Create Instance")}
+              {t("cloud.providers.vultr.create", "创建实例")}
             </Button>
           </>
         )}
@@ -764,7 +762,7 @@ export default function VultrPanel() {
           createLoading={createCatalogLoading}
           canLoadResources={Boolean(activeToken)}
           canCreate={Boolean(activeToken)}
-          credentialTitle={t("cloud.onboarding.token_title", "Import API tokens")}
+          credentialTitle={t("cloud.onboarding.token_title", "导入 API 令牌")}
           credentialDescription={t(
             "cloud.providers.vultr.onboarding_token_description",
             "Import one or more Vultr API tokens, then select the current account for operations.",
@@ -773,9 +771,9 @@ export default function VultrPanel() {
             "cloud.providers.vultr.onboarding_resource_description",
             "Load Vultr instances and account data on demand so switching tokens stays fast.",
           )}
-          createTitle={t("cloud.providers.vultr.onboarding_create_title", "Create or manage Vultr instances")}
-          createLabel={t("cloud.providers.vultr.create", "Create Instance")}
-          importLabel={t("cloud.tokens.import", "Import Tokens")}
+          createTitle={t("cloud.providers.vultr.onboarding_create_title", "创建或管理 Vultr 实例")}
+          createLabel={t("cloud.providers.vultr.create", "创建实例")}
+          importLabel={t("cloud.tokens.import", "导入令牌")}
           onImportCredential={() => setTokenImportOpen(true)}
           onLoadResources={() => { void loadPanelData(); }}
           onCreate={() => { void handleOpenCreateDialog(); }}
@@ -965,30 +963,30 @@ function VultrInlineCreatePanel({
           <div className="min-w-0">
             <div className="flex items-center gap-2">
               <div className={cloudPanelTitleClassName}>
-                {t("cloud.providers.vultr.create", "Create Instance")}
+                {t("cloud.providers.vultr.create", "创建实例")}
               </div>
               <Badge color={activeToken ? "green" : "amber"}>
-                {activeToken ? t("cloud.tokens.active", "Active") : t("cloud.no_active", "No active")}
+                {activeToken ? t("cloud.tokens.active", "已激活") : t("cloud.no_active", "未激活")}
               </Badge>
             </div>
             <div className={cloudPanelDescriptionClassName}>
-              {t("cloud.create_inline_description", "Core creation fields stay open here. Use advanced options only when you need extra network or bootstrap details.")}
+              {t("cloud.create_inline_description", "核心字段保持展开；只有需要额外网络或启动配置时才使用高级选项。")}
             </div>
           </div>
           <Button variant="outline" size="1" onClick={() => { void onOpenAdvanced(); }} disabled={!activeToken}>
-            {t("cloud.advanced_options", "Advanced")}
+            {t("cloud.advanced_options", "高级")}
           </Button>
         </div>
       </div>
       <div className="grid gap-3 p-4">
         <div>
-          <label className={cloudPanelFieldLabelClassName}>{t("cloud.form.region", "Region")}</label>
+          <label className={cloudPanelFieldLabelClassName}>{t("cloud.form.region", "地区")}</label>
           <Select.Root
             value={form.region}
             disabled={disabled}
             onValueChange={(value) => setForm((previous) => ({ ...previous, region: value, plan: "" }))}
           >
-            <Select.Trigger placeholder={catalogLoading ? t("common.loading", "Loading") : t("cloud.form.region_placeholder", "Select a region")} />
+            <Select.Trigger placeholder={catalogLoading ? t("common.loading", "加载中") : t("cloud.form.region_placeholder", "选择地区")} />
             <Select.Content>
               {(catalog?.regions || []).map((region) => (
                 <Select.Item key={region.id} value={region.id}>
@@ -999,13 +997,13 @@ function VultrInlineCreatePanel({
           </Select.Root>
         </div>
         <div>
-          <label className={cloudPanelFieldLabelClassName}>{t("cloud.form.size", "Size")}</label>
+          <label className={cloudPanelFieldLabelClassName}>{t("cloud.form.size", "规格")}</label>
           <Select.Root
             value={form.plan}
             disabled={disabled}
             onValueChange={(value) => setForm((previous) => ({ ...previous, plan: value }))}
           >
-            <Select.Trigger placeholder={catalogLoading ? t("common.loading", "Loading") : t("cloud.form.size_placeholder", "Select a size")} />
+            <Select.Trigger placeholder={catalogLoading ? t("common.loading", "加载中") : t("cloud.form.size_placeholder", "选择规格")} />
             <Select.Content>
               {plans.map((plan) => (
                 <Select.Item key={plan.id} value={plan.id}>
@@ -1016,13 +1014,13 @@ function VultrInlineCreatePanel({
           </Select.Root>
         </div>
         <div>
-          <label className={cloudPanelFieldLabelClassName}>{t("cloud.form.image", "Image")}</label>
+          <label className={cloudPanelFieldLabelClassName}>{t("cloud.form.image", "镜像")}</label>
           <Select.Root
             value={form.os_id}
             disabled={disabled}
             onValueChange={(value) => setForm((previous) => ({ ...previous, os_id: value }))}
           >
-            <Select.Trigger placeholder={catalogLoading ? t("common.loading", "Loading") : t("cloud.form.image_placeholder", "Select an image")} />
+            <Select.Trigger placeholder={catalogLoading ? t("common.loading", "加载中") : t("cloud.form.image_placeholder", "选择镜像")} />
             <Select.Content>
               {(catalog?.os || []).map((os) => (
                 <Select.Item key={os.id} value={String(os.id)}>
@@ -1033,11 +1031,11 @@ function VultrInlineCreatePanel({
           </Select.Root>
         </div>
         <div>
-          <label className={cloudPanelFieldLabelClassName}>{t("cloud.table.name", "Name")}</label>
+          <label className={cloudPanelFieldLabelClassName}>{t("cloud.table.name", "名称")}</label>
           <TextField.Root
             value={form.label || ""}
             disabled={disabled}
-            placeholder={t("cloud.providers.vultr.label_placeholder", "Auto name")}
+            placeholder={t("cloud.providers.vultr.label_placeholder", "自动命名")}
             onChange={(event) => setForm((previous) => ({ ...previous, label: event.target.value }))}
           />
         </div>
@@ -1047,7 +1045,7 @@ function VultrInlineCreatePanel({
           onClick={() => { void onCreate(); }}
           disabled={submitting || disabled || !form.region || !form.plan || !form.os_id}
         >
-          {submitting ? t("cloud.creating", "Creating...") : t("cloud.providers.vultr.create", "Create Instance")}
+          {submitting ? t("cloud.creating", "正在创建...") : t("cloud.providers.vultr.create", "创建实例")}
         </Button>
       </div>
     </section>
@@ -1108,7 +1106,7 @@ function VultrInstancesSection({
         <div className="flex min-w-0 flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
           <div className="min-w-0">
             <div className={cloudPanelTitleClassName}>
-              {t("cloud.providers.vultr.instances_title", "Instances")}
+              {t("cloud.providers.vultr.instances_title", "实例")}
             </div>
             <div className={cloudPanelDescriptionClassName}>
               {t(
@@ -1121,7 +1119,7 @@ function VultrInstancesSection({
             <TextField.Root
               value={search}
               onChange={(event) => setSearch(event.target.value)}
-              placeholder={t("cloud.search_instances", "Search instances")}
+              placeholder={t("cloud.search_instances", "搜索实例")}
               className="h-9 sm:w-64"
             >
               <TextField.Slot>
@@ -1131,11 +1129,11 @@ function VultrInstancesSection({
             <Select.Root value={statusFilter} onValueChange={setStatusFilter}>
               <Select.Trigger className="h-9 sm:w-40" />
               <Select.Content>
-                <Select.Item value="all">{t("common.all", "All")}</Select.Item>
-                <Select.Item value="active">{t("cloud.status.active", "Active")}</Select.Item>
-                <Select.Item value="running">{t("cloud.status.running", "Running")}</Select.Item>
-                <Select.Item value="stopped">{t("cloud.status.stopped", "Stopped")}</Select.Item>
-                <Select.Item value="pending">{t("cloud.status.pending", "Pending")}</Select.Item>
+                <Select.Item value="all">{t("common.all", "全部")}</Select.Item>
+                <Select.Item value="active">{t("cloud.status.active", "已激活")}</Select.Item>
+                <Select.Item value="running">{t("cloud.status.running", "运行中")}</Select.Item>
+                <Select.Item value="stopped">{t("cloud.status.stopped", "已停止")}</Select.Item>
+                <Select.Item value="pending">{t("cloud.status.pending", "待处理")}</Select.Item>
               </Select.Content>
             </Select.Root>
           </div>
@@ -1143,20 +1141,22 @@ function VultrInstancesSection({
       </div>
 
       <div className="p-0">
-        <div className={cloudTableScrollClassName}>
-          <Table className="min-w-[1040px]">
-            <TableHeader>
-              <TableRow>
-                <TableHead>{t("cloud.table.instance", "Instance")}</TableHead>
-                <TableHead>{t("cloud.table.status", "Status")}</TableHead>
-                <TableHead>{t("cloud.table.region", "Region")}</TableHead>
-                <TableHead>{t("cloud.table.size", "Size")}</TableHead>
-                <TableHead>{t("cloud.table.ip", "IP")}</TableHead>
-                <TableHead>{t("cloud.table.created_at", "Created")}</TableHead>
-                <TableHead className="text-right">{t("common.actions", "Actions")}</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
+        <AdminDataTableScroll>
+          <AdminDataTable minWidth={1040}>
+            <thead>
+              <AdminDataTableHeadRow>
+                <AdminDataTableHead>{t("cloud.table.instance", "实例")}</AdminDataTableHead>
+                <AdminDataTableHead>{t("cloud.table.status", "状态")}</AdminDataTableHead>
+                <AdminDataTableHead>{t("cloud.table.region", "地区")}</AdminDataTableHead>
+                <AdminDataTableHead>{t("cloud.table.size", "规格")}</AdminDataTableHead>
+                <AdminDataTableHead>{t("cloud.table.ip", "IP")}</AdminDataTableHead>
+                <AdminDataTableHead>{t("cloud.table.created_at", "创建时间")}</AdminDataTableHead>
+                <AdminDataTableHead align="right" sticky="right">
+                  {t("common.actions", "操作")}
+                </AdminDataTableHead>
+              </AdminDataTableHeadRow>
+            </thead>
+            <tbody>
               {panelLoading ? (
                 <CloudTableSkeletonRows columns={7} rows={5} />
               ) : filteredInstances.length ? (
@@ -1170,8 +1170,8 @@ function VultrInstancesSection({
                   const loadingDelete = actionLoadingId === `${instance.id}:delete`;
 
                   return (
-                    <TableRow key={instance.id}>
-                      <TableCell className="min-w-56">
+                    <AdminDataTableRow key={instance.id}>
+                      <AdminDataTableCell className="min-w-56">
                         <button
                           type="button"
                           className={cloudTableNameButtonClassName}
@@ -1184,24 +1184,24 @@ function VultrInstancesSection({
                         <div className={cloudTableSecondaryTextClassName}>
                           {instance.hostname || instance.id}
                         </div>
-                      </TableCell>
-                      <TableCell>
+                      </AdminDataTableCell>
+                      <AdminDataTableCell>
                         <Badge color={getInstanceStatusColor(instance)}>
                           {getInstanceStatusLabel(instance)}
                         </Badge>
                         <div className={cloudTableSecondaryTextClassName}>
                           {instance.server_status || "-"}
                         </div>
-                      </TableCell>
-                      <TableCell>
+                      </AdminDataTableCell>
+                      <AdminDataTableCell>
                         <div className={cloudTablePrimaryTextClassName}>
                           {instance.region || "-"}
                         </div>
                         <div className={cloudTableSecondaryTextClassName}>
                           {region ? [region.city, region.country].filter(Boolean).join(", ") : "-"}
                         </div>
-                      </TableCell>
-                      <TableCell>
+                      </AdminDataTableCell>
+                      <AdminDataTableCell>
                         <div className={cloudTablePrimaryTextClassName}>
                           {instance.plan || "-"}
                         </div>
@@ -1210,104 +1210,92 @@ function VultrInstancesSection({
                             ? `${plan.vcpu_count} vCPU / ${formatMemory(plan.ram)} / ${formatUsdCurrency(plan.monthly_cost)}/mo`
                             : `${instance.vcpu_count} vCPU / ${formatMemory(instance.ram)}`}
                         </div>
-                      </TableCell>
-                      <TableCell>
+                      </AdminDataTableCell>
+                      <AdminDataTableCell>
                         <div className={cloudTableCodeTextClassName}>
                           {instance.main_ip || "-"}
                         </div>
                         <div className={cloudTableCodeTextClassName}>
                           {instance.v6_main_ip || "-"}
                         </div>
-                      </TableCell>
-                      <TableCell>{formatDateTime(instance.date_created)}</TableCell>
-                      <TableCell>
-                        <div className="flex justify-end gap-1.5">
-                          <Button
-                            variant="outline"
-                            size="1"
-                            disabled={loadingDetail}
-                            onClick={(event) => {
-                              event.stopPropagation();
-                              onLoadDetail(instance);
-                            }}
-                          >
-                            {loadingDetail ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : <Eye className="h-3.5 w-3.5" />}
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="1"
-                            disabled={!passwordStorageEnabled || !instance.saved_root_password || passwordLoading === instance.id}
-                            onClick={(event) => {
-                              event.stopPropagation();
-                              onViewPassword(instance);
-                            }}
-                          >
-                            <KeyRound className="h-3.5 w-3.5" />
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="1"
-                            disabled={loadingStart}
-                            onClick={(event) => {
-                              event.stopPropagation();
-                              onInstanceAction(instance, "start");
-                            }}
-                          >
-                            {loadingStart ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : <Play className="h-3.5 w-3.5" />}
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="1"
-                            disabled={loadingStop}
-                            onClick={(event) => {
-                              event.stopPropagation();
-                              onInstanceAction(instance, "halt");
-                            }}
-                          >
-                            {loadingStop ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : <Square className="h-3.5 w-3.5" />}
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="1"
-                            disabled={loadingReboot}
-                            onClick={(event) => {
-                              event.stopPropagation();
-                              onInstanceAction(instance, "reboot");
-                            }}
-                          >
-                            {loadingReboot ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : <RotateCcw className="h-3.5 w-3.5" />}
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="1"
-                            onClick={(event) => {
-                              event.stopPropagation();
-                              onOpenScriptDialog(instance);
-                            }}
-                          >
-                            <Terminal className="h-3.5 w-3.5" />
-                          </Button>
-                          <Button
-                            variant="outline"
-                            color="red"
-                            size="1"
-                            disabled={loadingDelete}
-                            onClick={(event) => {
-                              event.stopPropagation();
-                              onDeleteInstance(instance);
-                            }}
-                          >
-                            {loadingDelete ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
+                      </AdminDataTableCell>
+                      <AdminDataTableCell>{formatDateTime(instance.date_created)}</AdminDataTableCell>
+                      <AdminDataTableCell align="right" sticky="right">
+                        <AdminRowActions
+                          contentClassName="min-w-44"
+                          actions={[
+                            {
+                              label: t("cloud.view", "查看"),
+                              icon: loadingDetail ? (
+                                <RefreshCw className="h-4 w-4 animate-spin" />
+                              ) : (
+                                <Eye className="h-4 w-4" />
+                              ),
+                              disabled: loadingDetail,
+                              onSelect: () => onLoadDetail(instance),
+                            },
+                            {
+                              label: t("cloud.password.view", "查看密码"),
+                              icon: <KeyRound className="h-4 w-4" />,
+                              disabled: !passwordStorageEnabled || !instance.saved_root_password || passwordLoading === instance.id,
+                              onSelect: () => onViewPassword(instance),
+                            },
+                            {
+                              label: t("cloud.power_on", "开机"),
+                              icon: loadingStart ? (
+                                <RefreshCw className="h-4 w-4 animate-spin" />
+                              ) : (
+                                <Play className="h-4 w-4" />
+                              ),
+                              disabled: loadingStart,
+                              onSelect: () => onInstanceAction(instance, "start"),
+                            },
+                            {
+                              label: t("cloud.power_off", "关机"),
+                              icon: loadingStop ? (
+                                <RefreshCw className="h-4 w-4 animate-spin" />
+                              ) : (
+                                <Square className="h-4 w-4" />
+                              ),
+                              disabled: loadingStop,
+                              onSelect: () => onInstanceAction(instance, "halt"),
+                            },
+                            {
+                              label: t("cloud.reboot", "重启"),
+                              icon: loadingReboot ? (
+                                <RefreshCw className="h-4 w-4 animate-spin" />
+                              ) : (
+                                <RotateCcw className="h-4 w-4" />
+                              ),
+                              disabled: loadingReboot,
+                              onSelect: () => onInstanceAction(instance, "reboot"),
+                            },
+                            {
+                              label: t("cloud.script.action", "执行脚本"),
+                              icon: <Terminal className="h-4 w-4" />,
+                              onSelect: () => onOpenScriptDialog(instance),
+                            },
+                            {
+                              label: t("cloud.delete", "删除"),
+                              icon: loadingDelete ? (
+                                <RefreshCw className="h-4 w-4 animate-spin" />
+                              ) : (
+                                <Trash2 className="h-4 w-4" />
+                              ),
+                              destructive: true,
+                              disabled: loadingDelete,
+                              onSelect: () => onDeleteInstance(instance),
+                            },
+                          ]}
+                        />
+                      </AdminDataTableCell>
+                    </AdminDataTableRow>
                   );
                 })
               ) : null}
-            </TableBody>
-          </Table>
-        </div>
+            </tbody>
+          </AdminDataTable>
+        </AdminDataTableScroll>
         {filteredInstances.length > 0 ? (
           <AdminPagination
             page={instancePagination.page}
@@ -1329,10 +1317,10 @@ function VultrInstancesSection({
             <div className={cn(cloudTableEmptyStateClassName, "rounded-lg px-4 py-8 text-center")}>
               <div className="text-sm font-semibold text-foreground">
                 {resourcesLoaded
-                  ? t("cloud.providers.vultr.empty_instances", "No Vultr instances found")
+                  ? t("cloud.providers.vultr.empty_instances", "未找到 Vultr 实例")
                   : activeTokenConfigured
-                    ? t("cloud.providers.vultr.load_instances_prompt", "Load inventory to view instances")
-                    : t("cloud.tokens.no_active_token", "No active token configured")}
+                    ? t("cloud.providers.vultr.load_instances_prompt", "加载清单查看实例")
+                    : t("cloud.tokens.no_active_token", "未配置当前令牌")}
               </div>
               <p className="mt-2 text-sm leading-6 text-muted-foreground">
                 {error || t(
@@ -1395,16 +1383,16 @@ function VultrInstanceDetailDialog({
           <div className="flex flex-col gap-4">
             <section className="pt-0">
               <div className="text-xs font-semibold uppercase tracking-normal text-muted-foreground">
-                {t("cloud.detail.summary", "Summary")}
+                {t("cloud.detail.summary", "概览")}
               </div>
               <div className="mt-2 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-                <CloudDetailItem label={t("cloud.detail.id", "Instance ID")} value={instance.id} className="bg-card" />
-                <CloudDetailItem label={t("cloud.table.status", "Status")} value={getInstanceStatusLabel(instance)} className="bg-card" />
-                <CloudDetailItem label={t("cloud.table.region", "Region")} value={getRegionLabel(region) || instance.region} className="bg-card" />
-                <CloudDetailItem label={t("cloud.table.size", "Size")} value={plan ? getPlanLabel(plan) : instance.plan || "-"} className="bg-card" />
-                <CloudDetailItem label={t("cloud.table.image", "Image")} value={instance.os || String(instance.os_id || "-")} className="bg-card" />
-                <CloudDetailItem label={t("cloud.table.created_at", "Created")} value={formatDateTime(instance.date_created)} className="bg-card" />
-                <CloudDetailItem label={t("cloud.detail.memory", "Memory")} value={formatMemory(instance.ram)} className="bg-card" />
+                <CloudDetailItem label={t("cloud.detail.id", "实例 ID")} value={instance.id} className="bg-card" />
+                <CloudDetailItem label={t("cloud.table.status", "状态")} value={getInstanceStatusLabel(instance)} className="bg-card" />
+                <CloudDetailItem label={t("cloud.table.region", "地区")} value={getRegionLabel(region) || instance.region} className="bg-card" />
+                <CloudDetailItem label={t("cloud.table.size", "规格")} value={plan ? getPlanLabel(plan) : instance.plan || "-"} className="bg-card" />
+                <CloudDetailItem label={t("cloud.table.image", "镜像")} value={instance.os || String(instance.os_id || "-")} className="bg-card" />
+                <CloudDetailItem label={t("cloud.table.created_at", "创建时间")} value={formatDateTime(instance.date_created)} className="bg-card" />
+                <CloudDetailItem label={t("cloud.detail.memory", "内存")} value={formatMemory(instance.ram)} className="bg-card" />
                 <CloudDetailItem label={t("cloud.detail.vcpus", "vCPUs")} value={instance.vcpu_count} className="bg-card" />
                 <CloudDetailItem label={t("cloud.detail.disk", "Disk")} value={`${instance.disk} GB`} className="bg-card" />
               </div>
@@ -1412,22 +1400,22 @@ function VultrInstanceDetailDialog({
 
             <section>
               <div className="text-xs font-semibold uppercase tracking-normal text-muted-foreground">
-                {t("cloud.detail.network", "Network")}
+                {t("cloud.detail.network", "网络")}
               </div>
               <div className="mt-2 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
                 <CloudDetailItem label="IPv4" value={instance.main_ip || "-"} className="bg-card" />
                 <CloudDetailItem label="IPv6" value={instance.v6_main_ip || instance.v6_network || "-"} className="bg-card" />
-                <CloudDetailItem label={t("cloud.table.bandwidth", "Bandwidth")} value={formatBandwidth(instance.allowed_bandwidth)} className="bg-card" />
+                <CloudDetailItem label={t("cloud.table.bandwidth", "带宽")} value={formatBandwidth(instance.allowed_bandwidth)} className="bg-card" />
               </div>
             </section>
 
             <section>
               <div className="text-xs font-semibold uppercase tracking-normal text-muted-foreground">
-                {t("cloud.detail.access", "Access")}
+                {t("cloud.detail.access", "访问")}
               </div>
               <div className="mt-2 grid gap-3 sm:grid-cols-2">
                 <CloudDetailItem
-                  label={t("cloud.table.password", "Root Password")}
+                  label={t("cloud.table.password", "登录密码")}
                   value={instance.saved_root_password ? (
                     <Button
                       variant="soft"
@@ -1436,20 +1424,20 @@ function VultrInstanceDetailDialog({
                       onClick={() => onViewPassword(instance)}
                     >
                       <KeyRound className="mr-1 h-3.5 w-3.5" />
-                      {t("cloud.password.view", "View Password")}
+                      {t("cloud.password.view", "查看密码")}
                     </Button>
                   ) : (
-                    t("cloud.password.not_saved", "Not saved")
+                    t("cloud.password.not_saved", "未保存")
                   )}
                   className="bg-card"
                 />
                 <CloudDetailItem
-                  label={t("cloud.detail.features", "Features")}
+                  label={t("cloud.detail.features", "功能")}
                   value={instance.features.length ? instance.features.join(", ") : "-"}
                   className="bg-card"
                 />
                 <CloudDetailItem
-                  label={t("cloud.form.tags", "Tags")}
+                  label={t("cloud.form.tags", "标签")}
                   value={instance.tags.length ? instance.tags.join(", ") : "-"}
                   className="bg-card"
                 />
@@ -1500,10 +1488,10 @@ function VultrTokensSection({
           <div className="min-w-0">
             <div className="flex min-w-0 flex-wrap items-center gap-2">
               <div className={cloudPanelTitleClassName}>
-                {t("cloud.providers.vultr.tokens_title", "Vultr Tokens")}
+                {t("cloud.providers.vultr.tokens_title", "Vultr 令牌")}
               </div>
               <Badge color={activeToken ? "green" : "amber"}>
-                {activeToken ? t("cloud.tokens.active", "Active") : t("cloud.no_active", "No active")}
+                {activeToken ? t("cloud.tokens.active", "已激活") : t("cloud.no_active", "未激活")}
               </Badge>
               <Badge color="gray">
                 {t("cloud.tokens.count", {
@@ -1518,13 +1506,13 @@ function VultrTokensSection({
                   name: activeToken.name || activeToken.account_email || activeToken.id,
                   defaultValue: "Active: {{name}}",
                 })
-                : t("cloud.tokens.no_active_hint", "Import or select a token when you need to manage credentials.")}
+                : t("cloud.tokens.no_active_hint", "需要管理凭证时，请先导入或选择令牌。")}
             </div>
           </div>
           <div className="flex flex-wrap gap-2">
             <Button size="1" onClick={onOpenTokenImport}>
               <Upload className="mr-2 h-4 w-4" />
-              {t("cloud.tokens.import", "Import Tokens")}
+              {t("cloud.tokens.import", "导入令牌")}
             </Button>
             <Button
               variant="outline"
@@ -1536,7 +1524,7 @@ function VultrTokensSection({
               }}
             >
               <Server className="mr-2 h-4 w-4" />
-              {t("cloud.providers.vultr.view_instances", "View Instances")}
+              {t("cloud.providers.vultr.view_instances", "查看实例")}
             </Button>
             <Button
               variant="outline"
@@ -1544,7 +1532,7 @@ function VultrTokensSection({
               onClick={() => setPoolOpen((open) => !open)}
             >
               <ChevronDown className={cn("mr-2 h-4 w-4 transition-transform", poolOpen && "rotate-180")} />
-              {poolOpen ? t("common.collapse", "Collapse") : t("cloud.tokens.manage", "Manage")}
+              {poolOpen ? t("common.collapse", "收起") : t("cloud.tokens.manage", "管理")}
             </Button>
           </div>
         </div>
@@ -1557,7 +1545,7 @@ function VultrTokensSection({
               onClick={() => { void onCheckTokens(); }}
             >
               <RefreshCw className={cn("mr-2 h-4 w-4", tokenChecking && "animate-spin")} />
-              {t("cloud.tokens.check", "Check")}
+              {t("cloud.tokens.check", "检查")}
             </Button>
           </div>
         ) : null}
@@ -1567,90 +1555,95 @@ function VultrTokensSection({
         <>
       <div className="min-h-0 flex-1 overflow-y-auto p-3 [scrollbar-gutter:stable]">
         {tokenRows.length ? (
-          <div className="overflow-x-auto rounded-lg border border-border">
-            <Table className="min-w-[700px]">
-              <TableHeader>
-                <TableRow>
-                  <TableHead>{t("cloud.tokens.table.name", "Name")}</TableHead>
-                  <TableHead>{t("cloud.tokens.group", "Group")}</TableHead>
-                  <TableHead>{t("cloud.providers.vultr.balance", "Balance")}</TableHead>
-                  <TableHead>{t("cloud.tokens.table.status", "Status")}</TableHead>
-                  <TableHead className="text-right">{t("common.action", "Action")}</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
+          <AdminDataTableScroll className="rounded-lg border border-border">
+            <AdminDataTable minWidth={700}>
+              <thead>
+                <AdminDataTableHeadRow>
+                  <AdminDataTableHead>{t("cloud.tokens.table.name", "名称")}</AdminDataTableHead>
+                  <AdminDataTableHead>{t("cloud.tokens.group", "分组")}</AdminDataTableHead>
+                  <AdminDataTableHead>{t("cloud.providers.vultr.balance", "余额")}</AdminDataTableHead>
+                  <AdminDataTableHead>{t("cloud.tokens.table.status", "状态")}</AdminDataTableHead>
+                  <AdminDataTableHead align="right" sticky="right">
+                    {t("common.action", "操作")}
+                  </AdminDataTableHead>
+                </AdminDataTableHeadRow>
+              </thead>
+              <tbody>
                 {visibleTokenRows.map((token) => (
-                  <TableRow key={token.id}>
-                    <TableCell className={cloudTablePrimaryTextClassName}>
+                  <AdminDataTableRow key={token.id}>
+                    <AdminDataTableCell className={cloudTablePrimaryTextClassName}>
                       <span className="block max-w-44 truncate">
                         {token.name || token.account_email || token.id}
                       </span>
-                    </TableCell>
-                    <TableCell className={cloudTableSecondaryTextClassName}>
+                    </AdminDataTableCell>
+                    <AdminDataTableCell className={cloudTableSecondaryTextClassName}>
                       <span className="block max-w-36 truncate">
-                        {token.group || t("cloud.tokens.no_group", "No group")}
+                        {token.group || t("cloud.tokens.no_group", "未分组")}
                       </span>
-                    </TableCell>
-                    <TableCell className={cloudTableSecondaryTextClassName}>
+                    </AdminDataTableCell>
+                    <AdminDataTableCell className={cloudTableSecondaryTextClassName}>
                       {formatUsdCurrency(token.account_balance)}
-                    </TableCell>
-                    <TableCell>
+                    </AdminDataTableCell>
+                    <AdminDataTableCell>
                       <div className="flex flex-wrap gap-1.5">
                         {token.is_active ? (
-                          <Badge color="green">{t("cloud.tokens.active", "Active")}</Badge>
+                          <Badge color="green">{t("cloud.tokens.active", "已激活")}</Badge>
                         ) : null}
                         <Badge color={getTokenStatusColor(token.last_status)}>
                           {token.last_status || "unknown"}
                         </Badge>
                       </div>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex justify-end gap-1.5">
-                        <Button
-                          variant="soft"
-                          size="1"
-                          color={token.is_active ? "blue" : undefined}
-                          disabled={token.is_active}
-                          onClick={() => { void onSelectToken(token); }}
-                        >
-                          <Server className="mr-1.5 h-3.5 w-3.5" />
-                          {token.is_active ? t("cloud.tokens.current", "Current") : t("cloud.tokens.use", "Use")}
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="1"
-                          disabled={tokenChecking}
-                          onClick={() => { void onCheckTokens([token.id]); }}
-                        >
-                          <RefreshCw className={cn("h-3.5 w-3.5", tokenChecking && "animate-spin")} />
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="1"
-                          disabled={tokenSecretLoading === token.id}
-                          onClick={() => { void onViewTokenSecret(token); }}
-                        >
-                          <KeyRound className="h-3.5 w-3.5" />
-                        </Button>
-                        <Button
-                          variant="outline"
-                          color="red"
-                          size="1"
-                          onClick={() => { void onDeleteToken(token); }}
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
+                    </AdminDataTableCell>
+                    <AdminDataTableCell align="right" sticky="right">
+                      <AdminRowActions
+                        contentClassName="min-w-44"
+                        actions={[
+                          {
+                            label: token.is_active
+                              ? t("cloud.tokens.current", "当前")
+                              : t("cloud.tokens.use", "使用"),
+                            icon: <Server className="h-4 w-4" />,
+                            disabled: token.is_active,
+                            onSelect: () => {
+                              void onSelectToken(token);
+                            },
+                          },
+                          {
+                            label: t("cloud.tokens.check", "检查"),
+                            icon: <RefreshCw className={cn("h-4 w-4", tokenChecking && "animate-spin")} />,
+                            disabled: tokenChecking,
+                            onSelect: () => {
+                              void onCheckTokens([token.id]);
+                            },
+                          },
+                          {
+                            label: t("cloud.tokens.view_token", "查看令牌"),
+                            icon: <KeyRound className="h-4 w-4" />,
+                            disabled: tokenSecretLoading === token.id,
+                            onSelect: () => {
+                              void onViewTokenSecret(token);
+                            },
+                          },
+                          {
+                            label: t("cloud.tokens.delete", "删除"),
+                            icon: <Trash2 className="h-4 w-4" />,
+                            destructive: true,
+                            onSelect: () => {
+                              void onDeleteToken(token);
+                            },
+                          },
+                        ]}
+                      />
+                    </AdminDataTableCell>
+                  </AdminDataTableRow>
                 ))}
-              </TableBody>
-            </Table>
-          </div>
+              </tbody>
+            </AdminDataTable>
+          </AdminDataTableScroll>
         ) : (
           <div className={cn(cloudTableEmptyStateClassName, "rounded-lg px-4 py-8 text-center")}>
             <div className="text-sm font-semibold text-foreground">
-              {t("cloud.providers.vultr.no_tokens", "No Vultr tokens yet")}
+              {t("cloud.providers.vultr.no_tokens", "暂无 Vultr 令牌")}
             </div>
             <p className="mt-2 text-sm leading-6 text-muted-foreground">
               {t(
@@ -1708,7 +1701,7 @@ function VultrTokenImportDialog({
   return (
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
       <CloudSensitiveDialogContent
-        title={t("cloud.tokens.import_dialog_title", "Batch Import Tokens")}
+        title={t("cloud.tokens.import_dialog_title", "批量导入令牌")}
         description={t(
           "cloud.tokens.import_dialog_description",
           "One line per token. Supported formats: name,token ; name|token ; or token only.",
@@ -1726,7 +1719,7 @@ function VultrTokenImportDialog({
             {existingTokenGroups.length ? (
               <div className="rounded-lg border border-border bg-card px-4 py-3">
                 <div className="text-sm font-semibold text-foreground">
-                  {t("cloud.tokens.existing_groups", "Existing Groups")}
+                  {t("cloud.tokens.existing_groups", "现有分组")}
                 </div>
                 <div className="mt-3 flex flex-wrap gap-2">
                   {existingTokenGroups.map((group) => (
@@ -1748,11 +1741,11 @@ function VultrTokenImportDialog({
       >
         <div className="space-y-2">
           <label className={cloudPanelFieldLabelClassName}>
-            {t("cloud.tokens.group", "Group")}
+            {t("cloud.tokens.group", "分组")}
           </label>
           <TextField.Root
             value={tokenImportGroup}
-            placeholder={t("cloud.tokens.group_placeholder", "Optional token group")}
+            placeholder={t("cloud.tokens.group_placeholder", "可选令牌分组")}
             onChange={(event) => setTokenImportGroup(event.target.value)}
           />
         </div>
@@ -1767,11 +1760,11 @@ function VultrTokenImportDialog({
         />
         <Flex justify="end" gap="2">
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={saving}>
-            {t("common.cancel", "Cancel")}
+            {t("common.cancel", "取消")}
           </Button>
           <Button onClick={() => { void onImport(); }} disabled={saving}>
             <CheckCircle2 className="mr-2 h-4 w-4" />
-            {saving ? t("cloud.tokens.importing", "Importing...") : t("cloud.tokens.import", "Import Tokens")}
+            {saving ? t("cloud.tokens.importing", "导入中...") : t("cloud.tokens.import", "导入令牌")}
           </Button>
         </Flex>
       </CloudSensitiveDialogContent>
@@ -1827,7 +1820,7 @@ function VultrCreateDialog({
   return (
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
       <CloudSensitiveDialogContent
-        title={t("cloud.providers.vultr.create", "Create Instance")}
+        title={t("cloud.providers.vultr.create", "创建实例")}
         description={t(
           "cloud.providers.vultr.create_description",
           "Create a Vultr instance with optional IPv6, backups, SSH keys, tags, and Komari auto-connect userdata.",
@@ -1843,17 +1836,17 @@ function VultrCreateDialog({
               )}
             </CloudStatusNotice>
             <CloudDetailItem
-              label={t("cloud.table.region", "Region")}
+              label={t("cloud.table.region", "地区")}
               value={selectedRegion ? getRegionLabel(selectedRegion) : "-"}
               className="bg-card"
             />
             <CloudDetailItem
-              label={t("cloud.table.size", "Size")}
+              label={t("cloud.table.size", "规格")}
               value={selectedPlan ? getPlanLabel(selectedPlan) : "-"}
               className="bg-card"
             />
             <CloudDetailItem
-              label={t("cloud.table.image", "Image")}
+              label={t("cloud.table.image", "镜像")}
               value={selectedOS ? getOSLabel(selectedOS) : "-"}
               className="bg-card"
             />
@@ -1863,7 +1856,7 @@ function VultrCreateDialog({
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="space-y-2">
             <label className={cloudPanelFieldLabelClassName}>
-              {t("cloud.form.label", "Label")}
+              {t("cloud.form.label", "标签")}
             </label>
             <TextField.Root
               value={form.label}
@@ -1873,17 +1866,17 @@ function VultrCreateDialog({
           </div>
           <div className="space-y-2">
             <label className={cloudPanelFieldLabelClassName}>
-              {t("cloud.form.hostname", "Hostname")}
+              {t("cloud.form.hostname", "主机名")}
             </label>
             <TextField.Root
               value={form.hostname}
-              placeholder={t("cloud.form.hostname_placeholder", "Defaults to label")}
+              placeholder={t("cloud.form.hostname_placeholder", "默认为标签名")}
               onChange={(event) => setForm((current) => ({ ...current, hostname: event.target.value }))}
             />
           </div>
           <div className="space-y-2">
             <label className={cloudPanelFieldLabelClassName}>
-              {t("cloud.table.region", "Region")}
+              {t("cloud.table.region", "地区")}
             </label>
             <Select.Root
               value={form.region}
@@ -1901,7 +1894,7 @@ function VultrCreateDialog({
           </div>
           <div className="space-y-2">
             <label className={cloudPanelFieldLabelClassName}>
-              {t("cloud.table.size", "Size")}
+              {t("cloud.table.size", "规格")}
             </label>
             <Select.Root
               value={form.plan}
@@ -1919,7 +1912,7 @@ function VultrCreateDialog({
           </div>
           <div className="space-y-2 sm:col-span-2">
             <label className={cloudPanelFieldLabelClassName}>
-              {t("cloud.table.image", "Image")}
+              {t("cloud.table.image", "镜像")}
             </label>
             <Select.Root
               value={form.os_id}
@@ -1939,32 +1932,32 @@ function VultrCreateDialog({
 
         <div className="grid gap-3 sm:grid-cols-2">
           <ToggleRow
-            label={t("cloud.form.enable_ipv6", "Enable IPv6")}
+            label={t("cloud.form.enable_ipv6", "启用 IPv6")}
             checked={form.enable_ipv6}
             onCheckedChange={(checked) => setForm((current) => ({ ...current, enable_ipv6: checked }))}
           />
           <ToggleRow
-            label={t("cloud.form.disable_public_ipv4", "Disable public IPv4")}
+            label={t("cloud.form.disable_public_ipv4", "禁用公网 IPv4")}
             checked={form.disable_public_ipv4}
             onCheckedChange={(checked) => setForm((current) => ({ ...current, disable_public_ipv4: checked }))}
           />
           <ToggleRow
-            label={t("cloud.form.backups", "Backups")}
+            label={t("cloud.form.backups", "备份")}
             checked={form.backups_enabled}
             onCheckedChange={(checked) => setForm((current) => ({ ...current, backups_enabled: checked }))}
           />
           <ToggleRow
-            label={t("cloud.form.ddos_protection", "DDoS protection")}
+            label={t("cloud.form.ddos_protection", "DDoS 防护")}
             checked={form.ddos_protection}
             onCheckedChange={(checked) => setForm((current) => ({ ...current, ddos_protection: checked }))}
           />
           <ToggleRow
-            label={t("cloud.form.activation_email", "Activation email")}
+            label={t("cloud.form.activation_email", "激活邮箱")}
             checked={form.activation_email}
             onCheckedChange={(checked) => setForm((current) => ({ ...current, activation_email: checked }))}
           />
           <ToggleRow
-            label={t("cloud.form.auto_connect", "Komari auto-connect")}
+            label={t("cloud.form.auto_connect", "Komari 自动连接")}
             checked={form.auto_connect}
             onCheckedChange={(checked) => setForm((current) => ({ ...current, auto_connect: checked }))}
           />
@@ -1973,7 +1966,7 @@ function VultrCreateDialog({
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="space-y-2">
             <label className={cloudPanelFieldLabelClassName}>
-              {t("cloud.form.auto_connect_group", "Auto-connect group")}
+              {t("cloud.form.auto_connect_group", "自动连接分组")}
             </label>
             <TextField.Root
               value={form.auto_connect_group}
@@ -1983,11 +1976,11 @@ function VultrCreateDialog({
           </div>
           <div className="space-y-2">
             <label className={cloudPanelFieldLabelClassName}>
-              {t("cloud.form.tags", "Tags")}
+              {t("cloud.form.tags", "标签")}
             </label>
             <TextField.Root
               value={form.tagsText}
-              placeholder={t("cloud.form.tags_placeholder", "comma separated")}
+              placeholder={t("cloud.form.tags_placeholder", "英文逗号分隔")}
               onChange={(event) => setForm((current) => ({ ...current, tagsText: event.target.value }))}
             />
           </div>
@@ -1995,7 +1988,7 @@ function VultrCreateDialog({
 
         <div className="space-y-2">
           <label className={cloudPanelFieldLabelClassName}>
-            {t("cloud.form.ssh_keys", "SSH Keys")}
+            {t("cloud.form.ssh_keys", "SSH 密钥")}
           </label>
           {(catalog?.ssh_keys || []).length ? (
             <div className="grid max-h-52 gap-2 overflow-y-auto rounded-lg border border-border bg-card p-3 [scrollbar-gutter:stable] sm:grid-cols-2">
@@ -2031,14 +2024,14 @@ function VultrCreateDialog({
             </div>
           ) : (
             <CloudStatusNotice tone="gray">
-              {t("cloud.form.no_ssh_keys", "No SSH keys were returned for this account.")}
+              {t("cloud.form.no_ssh_keys", "当前账号未返回 SSH 密钥。")}
             </CloudStatusNotice>
           )}
         </div>
 
         <div className="space-y-2">
           <label className={cloudPanelFieldLabelClassName}>
-            {t("cloud.form.user_data", "User Data")}
+            {t("cloud.form.user_data", "用户数据")}
           </label>
           <CloudCodeTextarea
             value={form.user_data}
@@ -2050,7 +2043,7 @@ function VultrCreateDialog({
 
         <Flex justify="end" gap="2">
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={submitting}>
-            {t("common.cancel", "Cancel")}
+            {t("common.cancel", "取消")}
           </Button>
           <Button onClick={() => { void onCreate(); }} disabled={submitting}>
             {submitting ? (
@@ -2058,7 +2051,7 @@ function VultrCreateDialog({
             ) : (
               <Plus className="mr-2 h-4 w-4" />
             )}
-            {submitting ? t("cloud.creating", "Creating...") : t("cloud.providers.vultr.create", "Create Instance")}
+            {submitting ? t("cloud.creating", "正在创建...") : t("cloud.providers.vultr.create", "创建实例")}
           </Button>
         </Flex>
       </CloudSensitiveDialogContent>
@@ -2101,7 +2094,7 @@ function VultrTokenSecretDialog({
     <Dialog.Root open={Boolean(tokenSecret)} onOpenChange={(open) => !open && onClose()}>
       {tokenSecret ? (
         <CloudSensitiveDialogContent
-          title={t("cloud.tokens.token_dialog_title", "Token Details")}
+          title={t("cloud.tokens.token_dialog_title", "令牌详情")}
           description={t(
             "cloud.providers.vultr.token_dialog_description",
             "View the full Vultr token only when you need to copy or verify it.",
@@ -2110,20 +2103,20 @@ function VultrTokenSecretDialog({
           badge={(
             <>
               <Badge color="blue">{t("cloud.providers.vultr.title", "Vultr")}</Badge>
-              <Badge color="amber">{t("cloud.tokens.token", "Token")}</Badge>
+              <Badge color="amber">{t("cloud.tokens.token", "令牌")}</Badge>
             </>
           )}
           side={(
             <SecretSidePanel
               t={t}
-              title={t("cloud.secret.scope", "Access Scope")}
+              title={t("cloud.secret.scope", "访问范围")}
               description={t(
                 "cloud.secret.token_scope_hint",
                 "This credential can manage cloud resources through the provider API.",
               )}
             >
               <CloudDetailItem
-                label={t("cloud.tokens.masked_token", "Masked Token")}
+                label={t("cloud.tokens.masked_token", "脱敏令牌")}
                 value={tokenSecret.secret.masked_token || "-"}
                 className="bg-card"
               />
@@ -2132,19 +2125,19 @@ function VultrTokenSecretDialog({
         >
           <div className="grid gap-3 sm:grid-cols-2">
             <CloudDetailItem
-              label={t("cloud.tokens.table.name", "Name")}
+              label={t("cloud.tokens.table.name", "名称")}
               value={tokenSecret.secret.token_name}
               className="bg-card"
             />
             <CloudDetailItem
-              label={t("cloud.tokens.table.account", "Account")}
+              label={t("cloud.tokens.table.account", "账户")}
               value={tokenSecret.secret.account_email || tokenSecret.secret.account_name || "-"}
               className="bg-card"
             />
           </div>
           <CloudSecretValueBlock
-            title={t("cloud.tokens.full_token", "Full Token")}
-            copyLabel={t("copy", "Copy")}
+            title={t("cloud.tokens.full_token", "完整令牌")}
+            copyLabel={t("copy", "复制")}
             onCopy={() => { void copyText(tokenSecret.secret.token); }}
             value={tokenSecret.secret.token}
           />
@@ -2169,7 +2162,7 @@ function VultrSavedPasswordDialog({
     <Dialog.Root open={Boolean(savedPassword)} onOpenChange={(open) => !open && onClose()}>
       {savedPassword ? (
         <CloudSensitiveDialogContent
-          title={t("cloud.password.dialog_title", "Saved Root Password")}
+          title={t("cloud.password.dialog_title", "保存的 Root 密码")}
           description={t(
             "cloud.providers.vultr.password_dialog_description",
             "View the saved root password for this Vultr instance from the current active token.",
@@ -2178,20 +2171,20 @@ function VultrSavedPasswordDialog({
           badge={(
             <>
               <Badge color="blue">{t("cloud.providers.vultr.title", "Vultr")}</Badge>
-              <Badge color="green">{t("cloud.password.saved", "Saved")}</Badge>
+              <Badge color="green">{t("cloud.password.saved", "已保存")}</Badge>
             </>
           )}
           side={(
             <SecretSidePanel
               t={t}
-              title={t("cloud.password.login_context", "Login Context")}
+              title={t("cloud.password.login_context", "登录上下文")}
               description={t(
                 "cloud.password.login_context_description",
                 "Use the username and password together when connecting to this instance.",
               )}
             >
               <CloudDetailItem
-                label={t("cloud.password.saved_at", "Saved At")}
+                label={t("cloud.password.saved_at", "保存时间")}
                 value={formatDateTime(savedPassword.credential.updated_at)}
                 className="bg-card"
               />
@@ -2199,13 +2192,13 @@ function VultrSavedPasswordDialog({
           )}
         >
           <div className="grid gap-3 sm:grid-cols-2">
-            <CloudDetailItem label={t("cloud.table.name", "Name")} value={savedPassword.instance.label || savedPassword.instance.id} className="bg-card" />
-            <CloudDetailItem label={t("cloud.password.username", "Username")} value={savedPassword.credential.username} className="bg-card" />
-            <CloudDetailItem label={t("cloud.password.mode", "Password Mode")} value={savedPassword.credential.password_mode || "-"} className="bg-card" />
+            <CloudDetailItem label={t("cloud.table.name", "名称")} value={savedPassword.instance.label || savedPassword.instance.id} className="bg-card" />
+            <CloudDetailItem label={t("cloud.password.username", "用户名")} value={savedPassword.credential.username} className="bg-card" />
+            <CloudDetailItem label={t("cloud.password.mode", "密码模式")} value={savedPassword.credential.password_mode || "-"} className="bg-card" />
           </div>
           <CloudSecretValueBlock
-            title={t("cloud.form.root_password", "Root Password")}
-            copyLabel={t("copy", "Copy")}
+            title={t("cloud.form.root_password", "登录密码")}
+            copyLabel={t("copy", "复制")}
             onCopy={() => { void copyText(savedPassword.credential.root_password); }}
             value={savedPassword.credential.root_password}
           />
@@ -2230,7 +2223,7 @@ function VultrCreatedPasswordDialog({
     <Dialog.Root open={Boolean(createdPassword)} onOpenChange={(open) => !open && onClose()}>
       {createdPassword ? (
         <CloudSensitiveDialogContent
-          title={t("cloud.providers.vultr.create_credentials_title", "Root Access Credentials")}
+          title={t("cloud.providers.vultr.create_credentials_title", "Root 访问凭证")}
           description={t(
             "cloud.providers.vultr.create_credentials_description",
             "Store this password now. You can reopen it later only if password vault storage is enabled and the save succeeded.",
@@ -2241,15 +2234,15 @@ function VultrCreatedPasswordDialog({
               <Badge color="blue">{t("cloud.providers.vultr.title", "Vultr")}</Badge>
               <Badge color={createdPassword.passwordSaved ? "green" : "amber"}>
                 {createdPassword.passwordSaved
-                  ? t("cloud.password.saved", "Saved")
-                  : t("cloud.password.not_saved", "Not Saved")}
+                  ? t("cloud.password.saved", "已保存")
+                  : t("cloud.password.not_saved", "未保存")}
               </Badge>
             </>
           )}
           side={(
             <SecretSidePanel
               t={t}
-              title={t("cloud.password.storage_status", "Storage Status")}
+              title={t("cloud.password.storage_status", "保存状态")}
               description={t(
                 "cloud.password.storage_status_description",
                 "The generated password is shown here so you can copy it immediately.",
@@ -2257,24 +2250,24 @@ function VultrCreatedPasswordDialog({
             >
               <CloudStatusNotice tone={createdPassword.passwordSaved ? "green" : "amber"}>
                 {createdPassword.passwordSaved
-                  ? t("cloud.password.create_saved", "This root password has been encrypted and saved. You can reopen it later from the instance list.")
+                  ? t("cloud.password.create_saved", "该 Root 密码已加密保存，可在实例列表再次打开。")
                   : createdPassword.passwordSaveError
                     ? t("cloud.password.create_unsaved_reason", {
                         reason: createdPassword.passwordSaveError,
                         defaultValue: `Password save failed: ${createdPassword.passwordSaveError}`,
                       })
-                    : t("cloud.password.create_unsaved", "This root password was not saved on the server. Save it now if you still need it later.")}
+                    : t("cloud.password.create_unsaved", "该 Root 密码未保存在服务器上，如仍需后续使用请先保存。")}
               </CloudStatusNotice>
             </SecretSidePanel>
           )}
         >
           <div className="grid gap-3 sm:grid-cols-2">
-            <CloudDetailItem label={t("cloud.table.name", "Name")} value={createdPassword.instance.label || createdPassword.instance.id} className="bg-card" />
-            <CloudDetailItem label={t("cloud.password.mode", "Password Mode")} value="provider_default" className="bg-card" />
+            <CloudDetailItem label={t("cloud.table.name", "名称")} value={createdPassword.instance.label || createdPassword.instance.id} className="bg-card" />
+            <CloudDetailItem label={t("cloud.password.mode", "密码模式")} value="provider_default" className="bg-card" />
           </div>
           <CloudSecretValueBlock
-            title={t("cloud.form.root_password", "Root Password")}
-            copyLabel={t("copy", "Copy")}
+            title={t("cloud.form.root_password", "登录密码")}
+            copyLabel={t("copy", "复制")}
             onCopy={() => { void copyText(createdPassword.rootPassword); }}
             value={createdPassword.rootPassword}
           />

@@ -5,7 +5,6 @@ import {
   CheckCircle2,
   Eye,
   KeyRound,
-  MoreHorizontal,
   Server,
   ShieldCheck,
   Trash2,
@@ -16,6 +15,16 @@ import {
   AdminPagination,
   useClientPagination,
 } from "@/components/admin/AdminPagination";
+import {
+  AdminDataTable,
+  AdminDataTableCell,
+  AdminDataTableEmptyRow,
+  AdminDataTableHead,
+  AdminDataTableHeadRow,
+  AdminDataTableRow,
+  AdminDataTableScroll,
+} from "@/components/admin/AdminDataTable";
+import { AdminRowActions } from "@/components/admin/AdminRowActions";
 import type { LinodeTokenPool, LinodeTokenRecord } from "@/lib/cloudLinode";
 import {
   Badge,
@@ -29,20 +38,6 @@ import {
   cloudTableSecondaryTextClassName,
   Flex,
 } from "@/components/admin/cloud/cloud-ui";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import {
   formatUsdCurrency,
   getTokenStatusColor,
@@ -116,10 +111,10 @@ export function LinodeTokensSection({
           <div className="min-w-0">
             <div className="flex min-w-0 flex-wrap items-center gap-2">
               <div className={cloudPanelTitleClassName}>
-              {t("cloud.tokens.title", "Token Pool")}
+              {t("cloud.tokens.title", "令牌池")}
               </div>
               <Badge color={activeToken ? "green" : "amber"}>
-                {activeToken ? t("cloud.tokens.active", "Active") : t("cloud.no_active", "No active")}
+                {activeToken ? t("cloud.tokens.active", "已激活") : t("cloud.no_active", "未激活")}
               </Badge>
               <Badge color="gray">
                 {t("cloud.tokens.count", {
@@ -134,13 +129,13 @@ export function LinodeTokensSection({
                   name: activeToken.name || activeToken.profile_email || activeToken.id,
                   defaultValue: "Active: {{name}}",
                 })
-                : t("cloud.tokens.no_active_hint", "Import or select a token when you need to manage credentials.")}
+                : t("cloud.tokens.no_active_hint", "需要管理凭证时，请先导入或选择令牌。")}
             </div>
           </div>
           <Flex gap="2" wrap="wrap">
             <Button size="1" onClick={onOpenTokenImport}>
               <CheckCircle2 className="mr-2 h-4 w-4" />
-              {t("cloud.tokens.import", "Import Tokens")}
+              {t("cloud.tokens.import", "导入令牌")}
             </Button>
             <Button
               variant="outline"
@@ -152,7 +147,7 @@ export function LinodeTokensSection({
               }}
             >
               <Server className="mr-2 h-4 w-4" />
-              {t("cloud.providers.linode.view_instances", "View Instances")}
+              {t("cloud.providers.linode.view_instances", "查看实例")}
             </Button>
             <Button
               variant="outline"
@@ -160,7 +155,7 @@ export function LinodeTokensSection({
               onClick={() => setPoolOpen((open) => !open)}
             >
               <ChevronDown className={`mr-2 h-4 w-4 transition-transform ${poolOpen ? "rotate-180" : ""}`} />
-              {poolOpen ? t("common.collapse", "Collapse") : t("cloud.tokens.manage", "Manage")}
+              {poolOpen ? t("common.collapse", "收起") : t("cloud.tokens.manage", "管理")}
             </Button>
           </Flex>
         </div>
@@ -172,9 +167,9 @@ export function LinodeTokensSection({
                 onCheckedChange={(checked) => {
                   setSelectedTokenIds(checked === true ? tokenRows.map((token) => token.id) : []);
                 }}
-                aria-label={t("cloud.tokens.select_all", "Select all tokens")}
+                aria-label={t("cloud.tokens.select_all", "选择全部令牌")}
               />
-              {t("cloud.tokens.select_all", "Select all tokens")}
+              {t("cloud.tokens.select_all", "选择全部令牌")}
             </label>
             <Button
               variant="outline"
@@ -183,8 +178,8 @@ export function LinodeTokensSection({
               disabled={promoDisabled}
             >
               {promoSubmitting
-                ? t("cloud.providers.linode.promo_redeeming", "Redeeming...")
-                : t("cloud.providers.linode.redeem_promo", "Redeem Promo")}
+                ? t("cloud.providers.linode.promo_redeeming", "兑换中...")
+                : t("cloud.providers.linode.redeem_promo", "兑换优惠码")}
             </Button>
             <Button
               variant="outline"
@@ -195,7 +190,7 @@ export function LinodeTokensSection({
               disabled={tokenChecking || !tokenPool?.tokens.length}
             >
               <ShieldCheck className="mr-2 h-4 w-4" />
-              {t("cloud.tokens.check_all", "Check All Tokens")}
+              {t("cloud.tokens.check_all", "检查全部凭证")}
             </Button>
             <Button
               variant="outline"
@@ -203,7 +198,7 @@ export function LinodeTokensSection({
               onClick={() => onOpenTokenGroupEditor(selectedTokens)}
               disabled={selectedTokens.length === 0}
             >
-              {t("cloud.tokens.set_group", "Set Group")}
+              {t("cloud.tokens.set_group", "设置分组")}
             </Button>
             <Button
               variant="outline"
@@ -230,7 +225,7 @@ export function LinodeTokensSection({
         {!tokenRows.length ? (
           <AdminEmptyState
             icon={<KeyRound className="h-5 w-5" />}
-            title={t("cloud.providers.linode.tokens_empty", "No Linode tokens saved yet")}
+            title={t("cloud.providers.linode.tokens_empty", "尚未保存 Linode 令牌")}
             description={t(
               "cloud.providers.linode.tokens_empty_description",
               "Import a Linode personal access token to select an active account, check health, and load instances.",
@@ -238,117 +233,119 @@ export function LinodeTokensSection({
             actions={(
               <Button size="1" onClick={onOpenTokenImport}>
                 <KeyRound className="mr-2 h-4 w-4" />
-                {t("cloud.tokens.import", "Import Tokens")}
+                {t("cloud.tokens.import", "导入令牌")}
               </Button>
             )}
             className={cloudTableEmptyStateClassName}
           />
         ) : (
-          <div className="overflow-x-auto rounded-lg border border-border">
-            <Table className="min-w-[720px]">
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="w-10" />
-                  <TableHead>{t("cloud.tokens.table.name", "Name")}</TableHead>
-                  <TableHead>{t("cloud.tokens.group", "Group")}</TableHead>
-                  <TableHead>{t("cloud.providers.linode.balance", "Balance")}</TableHead>
-                  <TableHead>{t("cloud.tokens.table.status", "Status")}</TableHead>
-                  <TableHead className="text-right">{t("common.action", "Action")}</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {visibleTokenRows.map((token) => (
-                  <TableRow key={token.id}>
-                    <TableCell>
-                      <Checkbox
-                        checked={selectedTokenIds.includes(token.id)}
-                        onCheckedChange={(checked) => {
+          <div className="overflow-hidden rounded-lg border border-border bg-card">
+            <AdminDataTableScroll>
+              <AdminDataTable minWidth={720}>
+                <thead>
+                  <AdminDataTableHeadRow>
+                    <AdminDataTableHead className="w-10" />
+                    <AdminDataTableHead>{t("cloud.tokens.table.name", "名称")}</AdminDataTableHead>
+                    <AdminDataTableHead>{t("cloud.tokens.group", "分组")}</AdminDataTableHead>
+                    <AdminDataTableHead>{t("cloud.providers.linode.balance", "余额")}</AdminDataTableHead>
+                    <AdminDataTableHead>{t("cloud.tokens.table.status", "状态")}</AdminDataTableHead>
+                    <AdminDataTableHead align="right" sticky="right">
+                      {t("common.action", "操作")}
+                    </AdminDataTableHead>
+                  </AdminDataTableHeadRow>
+                </thead>
+                <tbody>
+                  {visibleTokenRows.length === 0 ? (
+                    <AdminDataTableEmptyRow colSpan={6}>
+                      <AdminEmptyState
+                        icon={<KeyRound className="h-5 w-5" />}
+                        title={t("cloud.providers.linode.tokens_empty_page", "本页暂无令牌")}
+                        description={t("cloud.providers.linode.tokens_empty_page_description", "可调整每页条数或返回上一页。")}
+                        className="min-h-28 border-0 bg-muted/25 shadow-none"
+                      />
+                    </AdminDataTableEmptyRow>
+                  ) : visibleTokenRows.map((token) => (
+                    <AdminDataTableRow key={token.id} selected={selectedTokenIds.includes(token.id)}>
+                      <AdminDataTableCell>
+                        <Checkbox
+                          checked={selectedTokenIds.includes(token.id)}
+                          onCheckedChange={(checked) => {
                           onToggleTokenSelection(token.id, Boolean(checked));
                         }}
                         aria-label={t("cloud.tokens.select_one", {
                           name: token.name,
                           defaultValue: `Select token ${token.name}`,
-                        })}
-                      />
-                    </TableCell>
-                    <TableCell className={cloudTablePrimaryTextClassName}>
-                      <span className="block max-w-44 truncate">
-                        {token.name || token.profile_email || token.id}
-                      </span>
-                    </TableCell>
-                    <TableCell className={cloudTableSecondaryTextClassName}>
-                      <span className="block max-w-36 truncate">
-                        {token.group || t("cloud.tokens.no_group", "No group")}
-                      </span>
-                    </TableCell>
-                    <TableCell className={cloudTableSecondaryTextClassName}>
-                      {formatUsdCurrency(token.account_balance)}
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex flex-wrap gap-1.5">
-                        {token.is_active ? (
-                          <Badge color="blue">{t("cloud.tokens.active", "Active")}</Badge>
-                        ) : null}
-                        <Badge color={getTokenStatusColor(token.last_status)}>
-                          {t(`cloud.tokens.status.${token.last_status}`, token.last_status || "unknown")}
-                        </Badge>
-                        {isRestrictedLinodeToken(token) ? (
-                          <Badge color="red">{t("cloud.providers.linode.restricted", "Restricted")}</Badge>
-                        ) : null}
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex justify-end gap-1.5">
-                        <Button
-                          variant="soft"
-                          size="1"
-                          color={token.is_active ? "blue" : undefined}
-                          disabled={token.is_active}
-                          onClick={() => {
-                            void onSelectToken(token);
-                          }}
-                        >
-                          <Server className="mr-1 h-3.5 w-3.5" />
-                          {token.is_active ? t("cloud.tokens.current", "Current") : t("cloud.tokens.use", "Use")}
-                        </Button>
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button
-                              variant="outline"
-                              size="icon"
-                              className="h-8 w-8"
-                              aria-label={t("common.action", "Action")}
-                            >
-                              <MoreHorizontal className="h-4 w-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end" className="min-w-44">
-                            <DropdownMenuItem
-                              disabled={tokenSecretLoading}
-                              onSelect={() => {
-                                void onViewTokenSecret(token);
-                              }}
-                            >
-                              <Eye className="h-4 w-4" />
-                              {t("cloud.tokens.view_token", "View Token")}
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                              variant="destructive"
-                              onSelect={() => {
-                                void onDeleteToken(token);
-                              }}
-                            >
-                              <Trash2 className="h-4 w-4" />
-                              {t("cloud.tokens.delete", "Delete")}
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                          })}
+                        />
+                      </AdminDataTableCell>
+                      <AdminDataTableCell className={cloudTablePrimaryTextClassName}>
+                        <span className="block max-w-44 truncate">
+                          {token.name || token.profile_email || token.id}
+                        </span>
+                      </AdminDataTableCell>
+                      <AdminDataTableCell className={cloudTableSecondaryTextClassName}>
+                        <span className="block max-w-36 truncate">
+                          {token.group || t("cloud.tokens.no_group", "未分组")}
+                        </span>
+                      </AdminDataTableCell>
+                      <AdminDataTableCell className={cloudTableSecondaryTextClassName}>
+                        {formatUsdCurrency(token.account_balance)}
+                      </AdminDataTableCell>
+                      <AdminDataTableCell>
+                        <div className="flex flex-wrap gap-1.5">
+                          {token.is_active ? (
+                            <Badge color="blue">{t("cloud.tokens.active", "已激活")}</Badge>
+                          ) : null}
+                          <Badge color={getTokenStatusColor(token.last_status)}>
+                            {t(`cloud.tokens.status.${token.last_status}`, token.last_status || "unknown")}
+                          </Badge>
+                          {isRestrictedLinodeToken(token) ? (
+                            <Badge color="red">{t("cloud.providers.linode.restricted", "受限")}</Badge>
+                          ) : null}
+                        </div>
+                      </AdminDataTableCell>
+                      <AdminDataTableCell align="right" sticky="right">
+                        <div className="flex justify-end gap-1.5">
+                          <Button
+                            variant="soft"
+                            size="1"
+                            color={token.is_active ? "blue" : undefined}
+                            disabled={token.is_active}
+                            onClick={() => {
+                              void onSelectToken(token);
+                            }}
+                          >
+                            <Server className="mr-1 h-3.5 w-3.5" />
+                            {token.is_active ? t("cloud.tokens.current", "当前") : t("cloud.tokens.use", "使用")}
+                          </Button>
+                          <AdminRowActions
+                            label={t("common.action", "操作")}
+                            actions={[
+                              {
+                                label: t("cloud.tokens.view_token", "查看令牌"),
+                                icon: <Eye className="h-4 w-4" />,
+                                disabled: tokenSecretLoading,
+                                onSelect: () => {
+                                  void onViewTokenSecret(token);
+                                },
+                              },
+                              {
+                                label: t("cloud.tokens.delete", "删除"),
+                                icon: <Trash2 className="h-4 w-4" />,
+                                destructive: true,
+                                onSelect: () => {
+                                  void onDeleteToken(token);
+                                },
+                              },
+                            ]}
+                          />
+                        </div>
+                      </AdminDataTableCell>
+                    </AdminDataTableRow>
+                  ))}
+                </tbody>
+              </AdminDataTable>
+            </AdminDataTableScroll>
           </div>
         )}
       </div>

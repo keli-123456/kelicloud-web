@@ -9,7 +9,6 @@ import {
 } from "lucide-react";
 
 import {
-  AdminCardGridSkeleton,
   AdminPageShell,
   AdminTableSkeleton,
 } from "@/components/admin/AdminPageShell";
@@ -376,7 +375,6 @@ export default function LinodePanel() {
           "Manage Linode access tokens, inspect instance inventory, and operate compute resources from one panel.",
         )}
       >
-        <AdminCardGridSkeleton cards={4} />
         <AdminTableSkeleton columns={6} rows={5} />
       </AdminPageShell>
     );

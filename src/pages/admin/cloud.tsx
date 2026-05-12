@@ -3,7 +3,6 @@ import { Navigate, useSearchParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 
 import {
-  AdminCardGridSkeleton,
   AdminPageShell,
   AdminTableSkeleton,
 } from "@/components/admin/AdminPageShell";
@@ -43,7 +42,6 @@ function CloudPageSkeleton({ provider }: { provider?: ProviderKey }) {
           "Cloud credentials and inventory are loading. Static controls stay available while data arrives.",
       })}
     >
-      <AdminCardGridSkeleton cards={4} />
       <AdminTableSkeleton columns={6} rows={5} />
     </AdminPageShell>
   );

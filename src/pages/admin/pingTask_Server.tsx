@@ -1,11 +1,12 @@
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+  AdminDataTable,
+  AdminDataTableCell,
+  AdminDataTableHead,
+  AdminDataTableHeadRow,
+  AdminDataTableRow,
+  AdminDataTableScroll,
+} from "@/components/admin/AdminDataTable";
+import { AdminPagination, useClientPagination } from "@/components/admin/AdminPagination";
 import { AdminEmptyState } from "@/components/admin/AdminPageShell";
 import { useNodeDetails } from "@/contexts/NodeDetailsContext";
 import { usePingTask, type PingTask } from "@/contexts/PingTaskContext";
@@ -37,6 +38,10 @@ export const ServerView = ({ pingTasks }: { pingTasks: PingTask[] }) => {
       }),
     [nodeDetail]
   );
+  const nodePagination = useClientPagination(sortedNodes, {
+    initialPageSize: 10,
+    resetKey: sortedNodes.length,
+  });
 
   if (sortedNodes.length === 0) {
     return (
@@ -55,19 +60,32 @@ export const ServerView = ({ pingTasks }: { pingTasks: PingTask[] }) => {
 
   return (
     <div className="overflow-hidden">
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead className="w-48">{t("common.server")}</TableHead>
-            <TableHead>{t("ping.task")}</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {sortedNodes.map((n) => (
+      <AdminDataTableScroll>
+        <AdminDataTable minWidth={760}>
+          <thead>
+          <AdminDataTableHeadRow>
+            <AdminDataTableHead className="w-48">{t("common.server")}</AdminDataTableHead>
+            <AdminDataTableHead>{t("ping.task")}</AdminDataTableHead>
+          </AdminDataTableHeadRow>
+          </thead>
+          <tbody>
+          {nodePagination.pageItems.map((n) => (
             <ServerRow key={n.uuid} nodeUuid={n.uuid} nodeName={n.name} pingTasks={pingTasks} />
           ))}
-        </TableBody>
-      </Table>
+          </tbody>
+        </AdminDataTable>
+      </AdminDataTableScroll>
+      <AdminPagination
+        page={nodePagination.page}
+        totalPages={nodePagination.totalPages}
+        total={nodePagination.total}
+        pageSize={nodePagination.pageSize}
+        visibleStart={nodePagination.visibleStart}
+        visibleEnd={nodePagination.visibleEnd}
+        onPageChange={nodePagination.setPage}
+        onPageSizeChange={nodePagination.setPageSize}
+        itemLabel={t("common.server")}
+      />
     </div>
   );
 };
@@ -156,9 +174,9 @@ const ServerRow: React.FC<{
   const display = joined.length > 40 ? joined.slice(0, 40) + "..." : joined;
 
   return (
-    <TableRow>
-      <TableCell>{nodeName}</TableCell>
-      <TableCell>
+    <AdminDataTableRow>
+      <AdminDataTableCell className="font-medium">{nodeName}</AdminDataTableCell>
+      <AdminDataTableCell>
         <Flex align="center" gap="2">
           {ownedTasks.length > 0 ? display : t("common.none")}
           <Dialog.Root open={open} onOpenChange={setOpen}>
@@ -210,7 +228,7 @@ const ServerRow: React.FC<{
             </Dialog.Content>
           </Dialog.Root>
         </Flex>
-      </TableCell>
-    </TableRow>
+      </AdminDataTableCell>
+    </AdminDataTableRow>
   );
 };

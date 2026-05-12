@@ -21,7 +21,6 @@ import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
 import {
-  AdminCardGridSkeleton,
   AdminPageShell,
   AdminTableSkeleton,
 } from "@/components/admin/AdminPageShell";
@@ -10716,7 +10715,6 @@ function FailoverPageContent() {
             "监控线路连通性，按计划创建或切换云实例，并在需要时执行脚本和更新 DNS。",
         })}
       >
-        <AdminCardGridSkeleton cards={3} />
         <AdminTableSkeleton columns={6} rows={5} />
       </AdminPageShell>
     );

@@ -1,17 +1,23 @@
 import { AdminTableSkeleton } from "@/components/admin/AdminPageShell";
 import {
+  AdminDataTable,
+  AdminDataTableCell,
+  AdminDataTableEmptyRow,
+  AdminDataTableHead,
+  AdminDataTableHeadRow,
+  AdminDataTableRow,
+  AdminDataTableScroll,
+} from "@/components/admin/AdminDataTable";
+import {
   ADMIN_FORM_DIALOG_CLASS,
   ADMIN_FORM_SCROLL_CLASS,
 } from "@/components/admin/AdminFormStyles";
-import NodeSelectorDialog from "@/components/NodeSelectorDialog";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+  AdminPagination,
+  useClientPagination,
+} from "@/components/admin/AdminPagination";
+import { AdminRowActions } from "@/components/admin/AdminRowActions";
+import NodeSelectorDialog from "@/components/NodeSelectorDialog";
 import {
   LoadAlertProvider,
   useLoadAlert,
@@ -51,6 +57,13 @@ const InnerLayout = () => {
   const { isLoading: nodeDetailLoading, error: nodeDetailError } =
     useNodeDetails();
   const { t } = useTranslation();
+  const sortedAlerts = React.useMemo(
+    () => [...(loadAlerts || [])].sort((a, b) => (b.id ?? 0) - (a.id ?? 0)),
+    [loadAlerts],
+  );
+  const alertPagination = useClientPagination(sortedAlerts, {
+    initialPageSize: 10,
+  });
   if (isLoading || nodeDetailLoading) {
     return (
       <Flex direction="column" gap="4" className="p-4 text-slate-900 dark:text-slate-100">
@@ -81,26 +94,50 @@ const InnerLayout = () => {
       </div>
 
       <div className="overflow-hidden rounded-lg border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-950/40">
-        <Table>
-          <TableHeader>
-            <TableHead>{t("common.name")}</TableHead>
-            <TableHead>{t("common.server")}</TableHead>
-            <TableHead>{t("loadAlert.metric")}</TableHead>
-            <TableHead>{t("common.threshold")}</TableHead>
-            <TableHead>{t("loadAlert.ratio")}</TableHead>
-            <TableHead>{t("ping.interval")}</TableHead>
-            <TableHead>{t("common.action")}</TableHead>
-          </TableHeader>
-          <TableBody>
-            {loadAlerts
-              ?.slice()
-              .sort((a, b) => (b.id ?? 0) - (a.id ?? 0))
-              .map((alert) => (
-                <Row key={alert.id} alert={alert} />
-              ))}
-          </TableBody>
-        </Table>
+        <AdminDataTableScroll>
+          <AdminDataTable minWidth={860}>
+            <thead>
+              <AdminDataTableHeadRow>
+                <AdminDataTableHead>{t("common.name")}</AdminDataTableHead>
+                <AdminDataTableHead>{t("common.server")}</AdminDataTableHead>
+                <AdminDataTableHead>{t("loadAlert.metric")}</AdminDataTableHead>
+                <AdminDataTableHead>{t("common.threshold")}</AdminDataTableHead>
+                <AdminDataTableHead>{t("loadAlert.ratio")}</AdminDataTableHead>
+                <AdminDataTableHead>{t("ping.interval")}</AdminDataTableHead>
+                <AdminDataTableHead align="right" sticky="right">
+                  {t("common.action")}
+                </AdminDataTableHead>
+              </AdminDataTableHeadRow>
+            </thead>
+            <tbody>
+              {alertPagination.pageItems.length === 0 ? (
+                <AdminDataTableEmptyRow colSpan={7}>
+                  <div className="text-center text-sm text-muted-foreground">
+                    {t("loadAlert.empty", "No load alerts configured")}
+                  </div>
+                </AdminDataTableEmptyRow>
+              ) : (
+                alertPagination.pageItems.map((alert) => (
+                  <Row key={alert.id} alert={alert} />
+                ))
+              )}
+            </tbody>
+          </AdminDataTable>
+        </AdminDataTableScroll>
       </div>
+      <AdminPagination
+        page={alertPagination.page}
+        totalPages={alertPagination.totalPages}
+        total={alertPagination.total}
+        pageSize={alertPagination.pageSize}
+        visibleStart={alertPagination.visibleStart}
+        visibleEnd={alertPagination.visibleEnd}
+        onPageChange={alertPagination.setPage}
+        onPageSizeChange={alertPagination.setPageSize}
+        pageSizeOptions={[10, 20, 50]}
+        itemLabel={t("admin.pagination.alerts", { defaultValue: "alerts" })}
+        compact
+      />
     </Flex>
   );
 };
@@ -214,9 +251,9 @@ const Row = ({ alert }: { alert: LoadAlert }) => {
   };
 
   return (
-    <TableRow key={alert.id}>
-      <TableCell>{alert.name}</TableCell>
-      <TableCell>
+    <AdminDataTableRow key={alert.id}>
+      <AdminDataTableCell>{alert.name}</AdminDataTableCell>
+      <AdminDataTableCell>
         <Flex gap="2" align="center">
           {alert.clients && alert.clients.length > 0
             ? (() => {
@@ -244,21 +281,31 @@ const Row = ({ alert }: { alert: LoadAlert }) => {
             </IconButton>
           </NodeSelectorDialog>
         </Flex>
-      </TableCell>
-      <TableCell>{alert.metric?.toUpperCase()}</TableCell>
-      <TableCell>{alert.threshold}%</TableCell>
-      <TableCell>{alert.ratio}</TableCell>
-      <TableCell>
+      </AdminDataTableCell>
+      <AdminDataTableCell>{alert.metric?.toUpperCase()}</AdminDataTableCell>
+      <AdminDataTableCell>{alert.threshold}%</AdminDataTableCell>
+      <AdminDataTableCell>{alert.ratio}</AdminDataTableCell>
+      <AdminDataTableCell>
         {alert.interval} {t("time.minute")}
-      </TableCell>
-      <TableCell className="flex items-center gap-2">
+      </AdminDataTableCell>
+      <AdminDataTableCell align="right" sticky="right">
+        <AdminRowActions
+          actions={[
+            {
+              label: t("common.edit"),
+              icon: <Pencil className="h-4 w-4" />,
+              onSelect: () => setEditOpen(true),
+            },
+            {
+              label: t("common.delete"),
+              icon: <Trash className="h-4 w-4" />,
+              destructive: true,
+              onSelect: () => setDeleteOpen(true),
+            },
+          ]}
+        />
         {/* Edit action. */}
         <Dialog.Root open={editOpen} onOpenChange={setEditOpen}>
-          <Dialog.Trigger>
-            <IconButton variant="soft">
-              <Pencil size="16" />
-            </IconButton>
-          </Dialog.Trigger>
           <Dialog.Content className={ADMIN_FORM_DIALOG_CLASS} maxWidth={640}>
             <Dialog.Title>{t("common.edit")}</Dialog.Title>
             <form
@@ -349,11 +396,6 @@ const Row = ({ alert }: { alert: LoadAlert }) => {
         </Dialog.Root>
         {/* Delete action. */}
         <Dialog.Root open={deleteOpen} onOpenChange={setDeleteOpen}>
-          <Dialog.Trigger>
-            <IconButton variant="soft" color="red">
-              <Trash size="16" />
-            </IconButton>
-          </Dialog.Trigger>
           <Dialog.Content className={ADMIN_FORM_DIALOG_CLASS} maxWidth={480}>
             <Dialog.Title>{t("common.delete")}</Dialog.Title>
             <Flex gap="2" justify="end" className="border-t border-slate-200/70 pt-4 dark:border-slate-800/70">
@@ -378,8 +420,8 @@ const Row = ({ alert }: { alert: LoadAlert }) => {
             </Flex>
           </Dialog.Content>
         </Dialog.Root>
-      </TableCell>
-    </TableRow>
+      </AdminDataTableCell>
+    </AdminDataTableRow>
   );
 };
 

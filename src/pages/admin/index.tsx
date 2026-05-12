@@ -207,14 +207,14 @@ const getNodeGroupLabel = (node: NodeDetail) => {
   return (
     groupName ||
     translate("admin.nodeTable.defaultGroup", {
-      defaultValue: "Default group",
+      defaultValue: "默认分组",
     })
   );
 };
 
 const getDefaultGroupLabel = () =>
   translate("admin.nodeTable.defaultGroup", {
-    defaultValue: "Default group",
+    defaultValue: "默认分组",
   });
 
 const createEmptyLiveRecord = (): LiveRecord => ({
@@ -240,25 +240,25 @@ const formatUptimeLabel = (secondsValue?: number) => {
 
   if (days > 0) {
     return `${days}${translate("admin.nodeTable.uptimeDayUnit", {
-      defaultValue: "d",
+      defaultValue: "天",
     })} ${hours}${translate("admin.nodeTable.uptimeHourUnit", {
-      defaultValue: "h",
+      defaultValue: "小时",
     })}`;
   }
   if (hours > 0) {
     return `${hours}${translate("admin.nodeTable.uptimeHourUnit", {
-      defaultValue: "h",
+      defaultValue: "小时",
     })} ${minutes}${translate("admin.nodeTable.uptimeMinuteUnit", {
-      defaultValue: "min",
+      defaultValue: "分钟",
     })}`;
   }
   if (minutes > 0) {
     return `${minutes}${translate("admin.nodeTable.uptimeMinuteUnit", {
-      defaultValue: "min",
+      defaultValue: "分钟",
     })}`;
   }
   return translate("admin.nodeTable.justStarted", {
-    defaultValue: "Just started",
+    defaultValue: "刚刚启动",
   });
 };
 
@@ -734,29 +734,29 @@ const Header = ({
     i18n.language.startsWith("zh") ? "zh" : "en"
   );
   const cnConnectivityStatusLabel = settingsLoading
-    ? t("common.loading", { defaultValue: "Loading" })
+    ? t("common.loading", { defaultValue: "加载中" })
     : settingsError
-      ? t("common.error", { defaultValue: "Error" })
+      ? t("common.error", { defaultValue: "错误" })
       : cnConnectivityEnabled
-        ? t("common.enabled", { defaultValue: "Enabled" })
-        : t("common.disabled", { defaultValue: "Disabled" });
+        ? t("common.enabled", { defaultValue: "已启用" })
+        : t("common.disabled", { defaultValue: "未启用" });
   const cnConnectivityTone: "slate" | "green" | "red" | "blue" = settingsError
     ? "red"
     : cnConnectivityEnabled
       ? "green"
       : "slate";
   const cnConnectivityDetail = settingsError
-    ? t("admin.nodeTable.cnConnectivityLoadFailed", {
-        defaultValue: "Failed to load CN connectivity probe settings.",
+      ? t("admin.nodeTable.cnConnectivityLoadFailed", {
+        defaultValue: "CN 互通性探测设置加载失败。",
       })
     : cnConnectivityConfigured
       ? cnConnectivitySummary
       : cnConnectivityEnabled
         ? t("admin.nodeTable.cnConnectivityMissingTarget", {
-            defaultValue: "No targets configured yet.",
+            defaultValue: "还没有配置目标。",
           })
         : t("admin.nodeTable.cnConnectivityDisabledMessage", {
-            defaultValue: "Probe is disabled.",
+            defaultValue: "探测未启用。",
           });
   const handleDeleteOffline = async () => {
     if (offlineNodes.length === 0) return;
@@ -815,14 +815,14 @@ const Header = ({
               failed: failed.length,
               detail,
               defaultValue:
-                "Deleted {{count}} offline nodes, {{failed}} failed: {{detail}}",
+                "已删除 {{count}} 台离线节点，{{failed}} 台失败：{{detail}}",
             })
           );
         } else {
           toast.error(
             t("admin.nodeTable.cleanupOfflineFailed", {
               detail,
-              defaultValue: "Failed to delete offline nodes: {{detail}}",
+              defaultValue: "删除离线节点失败：{{detail}}",
             })
           );
         }
@@ -830,7 +830,7 @@ const Header = ({
         toast.success(
           t("admin.nodeTable.cleanupOfflineSuccess", {
             count: offlineNodes.length,
-            defaultValue: "Deleted {{count}} offline nodes",
+            defaultValue: "已删除 {{count}} 台离线节点",
           })
         );
       }
@@ -849,11 +849,11 @@ const Header = ({
     <div className="flex flex-col gap-4">
       {liveError ? (
         <Alert variant="destructive">
-          <AlertTitle>{t("common.error", { defaultValue: "Error" })}</AlertTitle>
+          <AlertTitle>{t("common.error", { defaultValue: "错误" })}</AlertTitle>
           <AlertDescription>
             {t("admin.nodeTable.liveErrorPausedDeletion", {
               defaultValue:
-                "Live status API failed, so bulk offline deletion is paused.",
+                "实时状态接口失败，已暂停批量下线节点删除。",
             })}
           </AlertDescription>
         </Alert>
@@ -1194,7 +1194,7 @@ const NodeEndpointSummary = ({ node }: { node: NodeDetail }) => {
         setDdnsBinding(null);
         setDdnsLoadError(
           getReadableErrorMessage(error, t("admin.nodeTable.ddnsDomainLoadFailed", {
-              defaultValue: "Failed to load DDNS domain",
+              defaultValue: "DDNS 域名加载失败",
             })),
         );
       })
@@ -1211,16 +1211,16 @@ const NodeEndpointSummary = ({ node }: { node: NodeDetail }) => {
 
   const ddnsDomain = buildDDNSDomainLabel(ddnsBinding);
   const tooltipSecondary = hasFeature("cloud_dns")
-    ? ddnsLoading
+      ? ddnsLoading
       ? t("admin.nodeTable.ddnsDomainLoading", {
-        defaultValue: "Loading DDNS domain...",
+        defaultValue: "DDNS 域名加载中...",
       })
       : ddnsLoadError
         ? t("admin.nodeTable.ddnsDomainLoadFailed", {
-          defaultValue: "Failed to load DDNS domain",
+          defaultValue: "DDNS 域名加载失败",
         })
         : ddnsDomain
-          ? `${t("admin.nodeTable.ddnsDomain", { defaultValue: "DDNS domain" })}: ${ddnsDomain}`
+          ? `${t("admin.nodeTable.ddnsDomain", { defaultValue: "DDNS 域名" })}: ${ddnsDomain}`
           : undefined
     : undefined;
   const copyIp = React.useCallback(
@@ -1230,7 +1230,7 @@ const NodeEndpointSummary = ({ node }: { node: NodeDetail }) => {
       }
       try {
         await navigator.clipboard.writeText(address);
-        toast.success(t("copy_success", { defaultValue: "Copied!" }));
+        toast.success(t("copy_success", { defaultValue: "已复制" }));
       } catch (error) {
         console.error("Failed to copy ip address:", error);
       }
@@ -1245,7 +1245,7 @@ const NodeEndpointSummary = ({ node }: { node: NodeDetail }) => {
       content={
         <NodeTooltipBody
           label={t("admin.nodeTable.hostname", {
-            defaultValue: "Hostname",
+            defaultValue: "主机名",
           })}
           primary={String(node.name || "").trim() || "-"}
           secondary={tooltipSecondary}
@@ -1552,7 +1552,7 @@ const NodeDetailDrawer = ({
     ? `${formatCoreCount(cpuCoreCount * cpuPercent / 100)} / ${formatCoreCount(cpuCoreCount)} ${t(
       "admin.nodeTable.cpuCoresShort",
       {
-        defaultValue: "cores",
+        defaultValue: "核",
       },
     )}`
     : formatPercent(cpuPercent);
@@ -1582,7 +1582,7 @@ const NodeDetailDrawer = ({
               variant={online ? "success" : "destructive"}
               className="shrink-0 rounded-md"
             >
-              {online ? t("nodeCard.online", "Online") : t("nodeCard.offline", "Offline")}
+              {online ? t("nodeCard.online", { defaultValue: "在线" }) : t("nodeCard.offline", { defaultValue: "离线" })}
             </Badge>
           </div>
         </DrawerHeader>
@@ -1590,12 +1590,12 @@ const NodeDetailDrawer = ({
         <div className="flex flex-1 flex-col gap-4 p-4">
           <div className="grid grid-cols-2 gap-3">
             <NodeDrawerInfoItem
-              label={t("admin.nodeTable.columns.version", { defaultValue: "Version" })}
+              label={t("admin.nodeTable.columns.version", { defaultValue: "版本" })}
               value={String(node.version || "").trim() || "-"}
               mono
             />
             <NodeDrawerInfoItem
-              label={t("nodeCard.uptime", { defaultValue: "Uptime" })}
+              label={t("nodeCard.uptime", { defaultValue: "在线时长" })}
               value={formatUptimeLabel(live?.record.uptime)}
             />
             <NodeDrawerInfoItem label="IPv4" value={formatNodeIp(node.ipv4)} mono />
@@ -1610,13 +1610,13 @@ const NodeDetailDrawer = ({
             </div>
             <div className="grid gap-3">
               <NodeDrawerMetric label="CPU" percent={cpuPercent} value={usedCpuCores} />
-              <NodeDrawerMetric
-                label={t("nodeCard.ram", { defaultValue: "RAM" })}
+            <NodeDrawerMetric
+                label={t("nodeCard.ram", { defaultValue: "内存" })}
                 percent={ramPercent}
                 value={ramLabel}
               />
-              <NodeDrawerMetric
-                label={t("nodeCard.disk", { defaultValue: "Disk" })}
+            <NodeDrawerMetric
+                label={t("nodeCard.disk", { defaultValue: "磁盘" })}
                 percent={diskPercent}
                 value={diskLabel}
               />
@@ -1625,14 +1625,14 @@ const NodeDetailDrawer = ({
 
           <div className="grid grid-cols-2 gap-3">
             <NodeDrawerInfoItem
-              label={t("admin.nodeTable.columns.rate", { defaultValue: "Rate" })}
+              label={t("admin.nodeTable.columns.rate", { defaultValue: "速率" })}
               value={`↑ ${formatBytes(live?.record.network.up ?? 0)}/s · ↓ ${formatBytes(
                 live?.record.network.down ?? 0,
               )}/s`}
               mono
             />
             <NodeDrawerInfoItem
-              label={t("admin.nodeTable.columns.traffic", { defaultValue: "Traffic" })}
+              label={t("admin.nodeTable.columns.traffic", { defaultValue: "流量" })}
               value={`↑ ${formatBytes(live?.record.network.totalUp ?? 0)} · ↓ ${formatBytes(
                 live?.record.network.totalDown ?? 0,
               )}`}
@@ -1643,7 +1643,7 @@ const NodeDetailDrawer = ({
           <div className="mt-auto flex flex-wrap items-center gap-2 border-t border-slate-200 pt-4 dark:border-slate-800">
             <Button size="sm" className="rounded-md" onClick={onOpenTerminal}>
               <Terminal className="h-4 w-4" />
-              {t("terminal.title", { defaultValue: "Terminal" })}
+              {t("terminal.title", { defaultValue: "终端" })}
             </Button>
             {canManageDNS ? (
               <Button
@@ -1690,7 +1690,7 @@ const SortableRow = ({
     ? `${formatCoreCount(cpuCoreCount * cpuPercent / 100)} / ${formatCoreCount(cpuCoreCount)} ${t(
       "admin.nodeTable.cpuCoresShort",
       {
-        defaultValue: "cores",
+        defaultValue: "核",
       },
     )}`
     : formatPercent(cpuPercent);
@@ -1744,7 +1744,7 @@ const SortableRow = ({
                 valueLabel={ramLabel}
                 tooltipContent={
                   <NodeTooltipBody
-                    label={t("nodeCard.ram", { defaultValue: "RAM" })}
+                    label={t("nodeCard.ram", { defaultValue: "内存" })}
                     primary={ramLabel}
                   />
                 }
@@ -1756,28 +1756,36 @@ const SortableRow = ({
                 valueLabel={diskLabel}
                 tooltipContent={
                   <NodeTooltipBody
-                    label={t("nodeCard.disk", { defaultValue: "Disk" })}
+                    label={t("nodeCard.disk", { defaultValue: "磁盘" })}
                     primary={diskLabel}
                   />
                 }
               />
             </TableCell>
-            <TableCell className="w-[76px] text-right">
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-8 rounded-md px-2.5 text-sm"
-                onClick={() => setDetailOpen(true)}
-              >
-                {t("common.details", { defaultValue: "详情" })}
-              </Button>
+            <TableCell className="w-[56px] text-right">
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 rounded-md"
+                    onClick={() => setDetailOpen(true)}
+                    aria-label={t("common.details", { defaultValue: "查看详情" })}
+                  >
+                    <MoreHorizontal size={16} />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  {t("common.details", { defaultValue: "查看详情" })}
+                </TooltipContent>
+              </Tooltip>
             </TableCell>
           </TableRow>
         </ContextMenuTrigger>
         <ContextMenuContent className="w-44">
           <ContextMenuItem onSelect={() => openNodeTerminal(node.uuid)}>
             <Terminal className="h-4 w-4" />
-            {t("terminal.title", { defaultValue: "Terminal" })}
+                {t("terminal.title", { defaultValue: "终端" })}
           </ContextMenuItem>
           {hasFeature("cloud_dns") ? (
             <ContextMenuItem
@@ -1865,31 +1873,31 @@ const NodeTableColumns = () => {
     <TableHeader className="bg-slate-100/60 dark:bg-slate-900/60">
       <TableRow>
         <TableHead className={`${stickyHeadClass} min-w-[240px] max-w-[380px]`}>
-          {t("admin.nodeTable.columns.endpoint", { defaultValue: "Public IP" })}
+          {t("admin.nodeTable.columns.endpoint", { defaultValue: "公网IP" })}
         </TableHead>
         <TableHead className={`${stickyHeadClass} min-w-[112px] max-w-[164px]`}>
-          {t("admin.nodeTable.columns.status", { defaultValue: "Status" })}
+          {t("admin.nodeTable.columns.status", { defaultValue: "状态" })}
         </TableHead>
         <TableHead className={`${stickyHeadClass} w-[76px]`}>
-          {t("admin.nodeTable.columns.version", { defaultValue: "Version" })}
+          {t("admin.nodeTable.columns.version", { defaultValue: "版本" })}
         </TableHead>
         <TableHead className={`${stickyHeadClass} min-w-[96px] max-w-[150px]`}>
-          {t("admin.nodeTable.columns.rate", { defaultValue: "Rate" })}
+          {t("admin.nodeTable.columns.rate", { defaultValue: "速率" })}
         </TableHead>
         <TableHead className={`${stickyHeadClass} min-w-[104px] max-w-[160px]`}>
-          {t("admin.nodeTable.columns.traffic", { defaultValue: "Traffic" })}
+          {t("admin.nodeTable.columns.traffic", { defaultValue: "流量" })}
         </TableHead>
         <TableHead className={`${stickyHeadClass} w-[80px]`}>
-          {t("admin.nodeTable.columns.uptime", { defaultValue: "Uptime" })}
+          {t("admin.nodeTable.columns.uptime", { defaultValue: "在线时长" })}
         </TableHead>
         <TableHead className={`${stickyHeadClass} min-w-[112px] max-w-[180px]`}>
           {t("admin.nodeTable.columns.cpu", { defaultValue: "CPU" })}
         </TableHead>
         <TableHead className={`${stickyHeadClass} min-w-[112px] max-w-[180px]`}>
-          {t("admin.nodeTable.columns.ram", { defaultValue: "RAM" })}
+          {t("admin.nodeTable.columns.ram", { defaultValue: "内存" })}
         </TableHead>
         <TableHead className={`${stickyHeadClass} min-w-[112px] max-w-[180px]`}>
-          {t("admin.nodeTable.columns.storage", { defaultValue: "Storage" })}
+          {t("admin.nodeTable.columns.storage", { defaultValue: "磁盘" })}
         </TableHead>
         <TableHead className={`${stickyHeadClass} w-[76px] text-right`}>
           {t("common.action", { defaultValue: "操作" })}
@@ -2001,22 +2009,6 @@ const NodeGroupSection = ({
   installActionsEnabled: boolean;
 }) => {
   const { t } = useTranslation();
-  const totalUploadSpeed = nodes.reduce(
-    (sum, node) => sum + (liveByNode[node.uuid]?.record.network.up ?? 0),
-    0
-  );
-  const totalDownloadSpeed = nodes.reduce(
-    (sum, node) => sum + (liveByNode[node.uuid]?.record.network.down ?? 0),
-    0
-  );
-  const totalUploadTraffic = nodes.reduce(
-    (sum, node) => sum + (liveByNode[node.uuid]?.record.network.totalUp ?? 0),
-    0
-  );
-  const totalDownloadTraffic = nodes.reduce(
-    (sum, node) => sum + (liveByNode[node.uuid]?.record.network.totalDown ?? 0),
-    0
-  );
   const onlineCount = nodes.filter((node) => liveByNode[node.uuid]?.online).length;
   const blockedCount = nodes.filter((node) =>
     isNodeConnectivityBlocked(liveByNode[node.uuid])
@@ -2036,31 +2028,18 @@ const NodeGroupSection = ({
             >
               {t("admin.nodeTable.groupNodeCount", {
                 count: nodes.length,
-                defaultValue: "{{count}} nodes",
+                defaultValue: "{{count}} 台服务器",
               })}
             </Badge>
             <GroupSummaryPill
-              label={t("nodeCard.online", "Online")}
+              label={t("nodeCard.online", { defaultValue: "在线" })}
               value={`${onlineCount}/${nodes.length}`}
               tone="green"
             />
             <GroupSummaryPill
-              label={t("admin.nodeTable.blockedCount", "Blocked")}
+              label={t("admin.nodeTable.blockedCount", { defaultValue: "阻断" })}
               value={`${blockedCount}`}
               tone="red"
-            />
-            <GroupSummaryPill
-              label={t("admin.nodeTable.totalRate", "Total rate")}
-              value={`↑ ${formatBytes(totalUploadSpeed)}/s · ↓ ${formatBytes(
-                totalDownloadSpeed
-              )}/s`}
-              tone="blue"
-            />
-            <GroupSummaryPill
-              label={t("admin.nodeTable.totalTraffic", "Total traffic")}
-              value={`↑ ${formatBytes(totalUploadTraffic)} · ↓ ${formatBytes(
-                totalDownloadTraffic
-              )}`}
             />
           </div>
         </div>
@@ -2152,7 +2131,7 @@ const NodeTable = ({
               ? t("admin.nodeTable.noFilteredNodes", {
                 defaultValue: "没有匹配当前筛选条件的节点",
               })
-              : t("admin.nodeTable.noNodes", "No nodes")
+              : t("admin.nodeTable.noNodes", { defaultValue: "暂无服务器" })
           }
           description={
             hasActiveFilters
@@ -2186,7 +2165,7 @@ const NodeTable = ({
             onPageChange={nodePagination.setPage}
             onPageSizeChange={nodePagination.setPageSize}
             pageSizeOptions={[20, 50, 100]}
-            itemLabel={t("admin.pagination.nodes", { defaultValue: "nodes" })}
+            itemLabel={t("admin.pagination.nodes", { defaultValue: "台设备" })}
             className="rounded-lg border border-border bg-card shadow-sm shadow-slate-900/5"
           />
         </>

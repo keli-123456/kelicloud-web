@@ -18,8 +18,8 @@ import {
 } from "@/contexts/AccountContext";
 import { useRPC2Call } from "@/contexts/RPC2Context";
 import {
-  AdminCardGridSkeleton,
   AdminEmptyState,
+  AdminTableSkeleton,
 } from "@/components/admin/AdminPageShell";
 import { useAdminPageTitle } from "@/contexts/AdminPageTitleContext";
 import {
@@ -128,7 +128,7 @@ function DashboardLoadingState() {
 
   return (
     <div className="flex min-w-0 flex-col gap-[14px] p-3 sm:p-4 md:p-6">
-      <AdminCardGridSkeleton cards={4} />
+      <AdminTableSkeleton columns={5} rows={5} />
     </div>
   );
 }

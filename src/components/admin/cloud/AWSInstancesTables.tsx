@@ -2,6 +2,15 @@ import type { TFunction } from "i18next";
 import { Eye, Plus, Server } from "lucide-react";
 
 import {
+  AdminDataTable,
+  AdminDataTableCell,
+  AdminDataTableEmptyRow,
+  AdminDataTableHead,
+  AdminDataTableHeadRow,
+  AdminDataTableRow,
+  AdminDataTableScroll,
+} from "@/components/admin/AdminDataTable";
+import {
   AdminPagination,
   useClientPagination,
 } from "@/components/admin/AdminPagination";
@@ -17,14 +26,6 @@ import {
   cloudTablePrimaryTextClassName,
   cloudTableSecondaryTextClassName,
 } from "@/components/admin/cloud/cloud-ui";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import type {
   AWSInstance,
   AWSLightsailInstance,
@@ -139,27 +140,29 @@ export function AWSEC2InstancesTable({
 
   return (
     <>
-    <Table className="min-w-[1180px]">
-      <TableHeader>
-        <TableRow>
-          <TableHead>{t("cloud.table.name", "Name")}</TableHead>
-          <TableHead>{t("cloud.table.status", "Status")}</TableHead>
-          <TableHead>{t("cloud.providers.aws.az", "AZ")}</TableHead>
-          <TableHead>{t("cloud.table.ip", "Public IP")}</TableHead>
-          <TableHead>{t("cloud.detail.ipv6", "IPv6 Networks")}</TableHead>
-          <TableHead>{t("cloud.table.size", "Size")}</TableHead>
-          <TableHead>{t("cloud.table.image", "Image")}</TableHead>
-          <TableHead>{t("cloud.table.password", "Root Password")}</TableHead>
-          <TableHead>{t("cloud.table.created_at", "Created")}</TableHead>
-          <TableHead className="text-right">{t("common.action", "Action")}</TableHead>
-        </TableRow>
-      </TableHeader>
-      <TableBody>
+    <AdminDataTableScroll>
+    <AdminDataTable minWidth={1180}>
+      <thead>
+        <AdminDataTableHeadRow>
+          <AdminDataTableHead>{t("cloud.table.name", "名称")}</AdminDataTableHead>
+          <AdminDataTableHead>{t("cloud.table.status", "状态")}</AdminDataTableHead>
+          <AdminDataTableHead>{t("cloud.providers.aws.az", "可用区")}</AdminDataTableHead>
+          <AdminDataTableHead>{t("cloud.table.ip", "公网 IP")}</AdminDataTableHead>
+          <AdminDataTableHead>{t("cloud.detail.ipv6", "IPv6 网络")}</AdminDataTableHead>
+          <AdminDataTableHead>{t("cloud.table.size", "规格")}</AdminDataTableHead>
+          <AdminDataTableHead>{t("cloud.table.image", "镜像")}</AdminDataTableHead>
+          <AdminDataTableHead>{t("cloud.table.password", "Root Password")}</AdminDataTableHead>
+          <AdminDataTableHead>{t("cloud.table.created_at", "创建时间")}</AdminDataTableHead>
+          <AdminDataTableHead align="right" sticky="right">
+            {t("common.action", "操作")}
+          </AdminDataTableHead>
+        </AdminDataTableHeadRow>
+      </thead>
+      <tbody>
         {panelLoading ? (
           <CloudTableSkeletonRows columns={10} />
         ) : instances.length === 0 ? (
-          <TableRow>
-            <TableCell colSpan={10} className="p-5">
+          <AdminDataTableEmptyRow colSpan={10} className="p-5">
               <AdminEmptyState
                 icon={<Server className="h-5 w-5" />}
                 title={emptyTitle}
@@ -167,12 +170,11 @@ export function AWSEC2InstancesTable({
                 actions={emptyActions}
                 className={cloudTableEmptyStateClassName}
               />
-            </TableCell>
-          </TableRow>
+          </AdminDataTableEmptyRow>
         ) : (
           visibleInstances.map((instance) => (
-            <TableRow key={instance.instance_id}>
-              <TableCell className={cloudTablePrimaryTextClassName}>
+            <AdminDataTableRow key={instance.instance_id}>
+              <AdminDataTableCell className={cloudTablePrimaryTextClassName}>
                 <button
                   type="button"
                   className={cloudTableNameButtonClassName}
@@ -182,27 +184,27 @@ export function AWSEC2InstancesTable({
                 >
                   {instance.name || instance.instance_id}
                 </button>
-              </TableCell>
-              <TableCell>
+              </AdminDataTableCell>
+              <AdminDataTableCell>
                 <Badge color={getInstanceStateColor(instance.state)}>
                   {getCloudStatusLabel(instance.state, t)}
                 </Badge>
-              </TableCell>
-              <TableCell>{instance.availability_zone || "-"}</TableCell>
-              <TableCell>{instance.public_ip || instance.private_ip || "-"}</TableCell>
-              <TableCell>{formatAddressList(instance.ipv6_addresses)}</TableCell>
-              <TableCell>{instance.instance_type || "-"}</TableCell>
-              <TableCell>{instance.image_id || "-"}</TableCell>
-              <TableCell>
+              </AdminDataTableCell>
+              <AdminDataTableCell>{instance.availability_zone || "-"}</AdminDataTableCell>
+              <AdminDataTableCell>{instance.public_ip || instance.private_ip || "-"}</AdminDataTableCell>
+              <AdminDataTableCell>{formatAddressList(instance.ipv6_addresses)}</AdminDataTableCell>
+              <AdminDataTableCell>{instance.instance_type || "-"}</AdminDataTableCell>
+              <AdminDataTableCell>{instance.image_id || "-"}</AdminDataTableCell>
+              <AdminDataTableCell>
                 <AWSInstancePasswordState
                   t={t}
                   saved={instance.saved_root_password}
                   updatedAt={instance.saved_root_password_updated_at}
                   passwordStorageEnabled={passwordStorageEnabled}
                 />
-              </TableCell>
-              <TableCell>{formatDateTime(instance.launch_time)}</TableCell>
-              <TableCell className="text-right">
+              </AdminDataTableCell>
+              <AdminDataTableCell>{formatDateTime(instance.launch_time)}</AdminDataTableCell>
+              <AdminDataTableCell align="right" sticky="right">
                 <AWSInstanceRowActions
                   t={t}
                   state={instance.state}
@@ -221,12 +223,13 @@ export function AWSEC2InstancesTable({
                   onShare={() => onShare(instance)}
                   onDelete={() => onDelete(instance)}
                 />
-              </TableCell>
-            </TableRow>
+              </AdminDataTableCell>
+            </AdminDataTableRow>
           ))
         )}
-      </TableBody>
-    </Table>
+      </tbody>
+    </AdminDataTable>
+    </AdminDataTableScroll>
     <AdminPagination
       page={instancePagination.page}
       totalPages={instancePagination.totalPages}
@@ -237,7 +240,7 @@ export function AWSEC2InstancesTable({
       onPageChange={instancePagination.setPage}
       onPageSizeChange={instancePagination.setPageSize}
       pageSizeOptions={[10, 20, 50]}
-      itemLabel={t("admin.pagination.instances", { defaultValue: "instances" })}
+      itemLabel={t("admin.pagination.instances", { defaultValue: "实例" })}
       compact
     />
     </>
@@ -334,27 +337,29 @@ export function AWSLightsailInstancesTable({
 
   return (
     <>
-    <Table className="min-w-[1120px]">
-      <TableHeader>
-        <TableRow>
-          <TableHead>{t("cloud.table.name", "Name")}</TableHead>
-          <TableHead>{t("cloud.table.status", "Status")}</TableHead>
-          <TableHead>{t("cloud.providers.aws.az", "AZ")}</TableHead>
-          <TableHead>{t("cloud.table.ip", "Public IP")}</TableHead>
-          <TableHead>{t("cloud.table.size", "Size")}</TableHead>
-          <TableHead>{t("cloud.table.image", "Image")}</TableHead>
-          <TableHead>{t("cloud.providers.aws.static_ip", "Static IP")}</TableHead>
-          <TableHead>{t("cloud.table.password", "Root Password")}</TableHead>
-          <TableHead>{t("cloud.table.created_at", "Created")}</TableHead>
-          <TableHead className="text-right">{t("common.action", "Action")}</TableHead>
-        </TableRow>
-      </TableHeader>
-      <TableBody>
+    <AdminDataTableScroll>
+    <AdminDataTable minWidth={1120}>
+      <thead>
+        <AdminDataTableHeadRow>
+          <AdminDataTableHead>{t("cloud.table.name", "名称")}</AdminDataTableHead>
+          <AdminDataTableHead>{t("cloud.table.status", "状态")}</AdminDataTableHead>
+          <AdminDataTableHead>{t("cloud.providers.aws.az", "可用区")}</AdminDataTableHead>
+          <AdminDataTableHead>{t("cloud.table.ip", "公网 IP")}</AdminDataTableHead>
+          <AdminDataTableHead>{t("cloud.table.size", "规格")}</AdminDataTableHead>
+          <AdminDataTableHead>{t("cloud.table.image", "镜像")}</AdminDataTableHead>
+          <AdminDataTableHead>{t("cloud.providers.aws.static_ip", "静态 IP")}</AdminDataTableHead>
+          <AdminDataTableHead>{t("cloud.table.password", "Root Password")}</AdminDataTableHead>
+          <AdminDataTableHead>{t("cloud.table.created_at", "创建时间")}</AdminDataTableHead>
+          <AdminDataTableHead align="right" sticky="right">
+            {t("common.action", "操作")}
+          </AdminDataTableHead>
+        </AdminDataTableHeadRow>
+      </thead>
+      <tbody>
         {panelLoading ? (
           <CloudTableSkeletonRows columns={10} />
         ) : instances.length === 0 ? (
-          <TableRow>
-            <TableCell colSpan={10} className="p-5">
+          <AdminDataTableEmptyRow colSpan={10} className="p-5">
               <AdminEmptyState
                 icon={<Server className="h-5 w-5" />}
                 title={emptyTitle}
@@ -362,12 +367,11 @@ export function AWSLightsailInstancesTable({
                 actions={emptyActions}
                 className={cloudTableEmptyStateClassName}
               />
-            </TableCell>
-          </TableRow>
+          </AdminDataTableEmptyRow>
         ) : (
           visibleInstances.map((instance) => (
-            <TableRow key={instance.name}>
-              <TableCell className={cloudTablePrimaryTextClassName}>
+            <AdminDataTableRow key={instance.name}>
+              <AdminDataTableCell className={cloudTablePrimaryTextClassName}>
                 <button
                   type="button"
                   className={cloudTableNameButtonClassName}
@@ -377,27 +381,27 @@ export function AWSLightsailInstancesTable({
                 >
                   {instance.name}
                 </button>
-              </TableCell>
-              <TableCell>
+              </AdminDataTableCell>
+              <AdminDataTableCell>
                 <Badge color={getInstanceStateColor(instance.state)}>
                   {getCloudStatusLabel(instance.state, t)}
                 </Badge>
-              </TableCell>
-              <TableCell>{instance.availability_zone || "-"}</TableCell>
-              <TableCell>{instance.public_ip || instance.private_ip || "-"}</TableCell>
-              <TableCell>{instance.bundle_id || "-"}</TableCell>
-              <TableCell>{instance.blueprint_name || instance.blueprint_id || "-"}</TableCell>
-              <TableCell>{instance.is_static_ip ? t("common.yes", "Yes") : "-"}</TableCell>
-              <TableCell>
+              </AdminDataTableCell>
+              <AdminDataTableCell>{instance.availability_zone || "-"}</AdminDataTableCell>
+              <AdminDataTableCell>{instance.public_ip || instance.private_ip || "-"}</AdminDataTableCell>
+              <AdminDataTableCell>{instance.bundle_id || "-"}</AdminDataTableCell>
+              <AdminDataTableCell>{instance.blueprint_name || instance.blueprint_id || "-"}</AdminDataTableCell>
+              <AdminDataTableCell>{instance.is_static_ip ? t("common.yes", "是") : "-"}</AdminDataTableCell>
+              <AdminDataTableCell>
                 <AWSInstancePasswordState
                   t={t}
                   saved={instance.saved_root_password}
                   updatedAt={instance.saved_root_password_updated_at}
                   passwordStorageEnabled={passwordStorageEnabled}
                 />
-              </TableCell>
-              <TableCell>{formatDateTime(instance.created_at)}</TableCell>
-              <TableCell className="text-right">
+              </AdminDataTableCell>
+              <AdminDataTableCell>{formatDateTime(instance.created_at)}</AdminDataTableCell>
+              <AdminDataTableCell align="right" sticky="right">
                 <AWSInstanceRowActions
                   t={t}
                   state={instance.state}
@@ -412,12 +416,13 @@ export function AWSLightsailInstancesTable({
                   onShare={() => onShare(instance)}
                   onDelete={() => onDelete(instance)}
                 />
-              </TableCell>
-            </TableRow>
+              </AdminDataTableCell>
+            </AdminDataTableRow>
           ))
         )}
-      </TableBody>
-    </Table>
+      </tbody>
+    </AdminDataTable>
+    </AdminDataTableScroll>
     <AdminPagination
       page={instancePagination.page}
       totalPages={instancePagination.totalPages}
@@ -428,7 +433,7 @@ export function AWSLightsailInstancesTable({
       onPageChange={instancePagination.setPage}
       onPageSizeChange={instancePagination.setPageSize}
       pageSizeOptions={[10, 20, 50]}
-      itemLabel={t("admin.pagination.instances", { defaultValue: "instances" })}
+      itemLabel={t("admin.pagination.instances", { defaultValue: "实例" })}
       compact
     />
     </>
@@ -452,8 +457,8 @@ function AWSInstancePasswordState({
     return (
       <span className={cloudTableMutedTextClassName}>
         {passwordStorageEnabled
-          ? t("cloud.password.not_saved", "Not saved")
-          : t("cloud.password.disabled_short", "Vault off")}
+        ? t("cloud.password.not_saved", "未保存")
+          : t("cloud.password.disabled_short", "密库未启用")}
       </span>
     );
   }
@@ -462,8 +467,8 @@ function AWSInstancePasswordState({
     <div className="space-y-1">
       <Badge color={passwordStorageEnabled ? "green" : "amber"}>
         {passwordStorageEnabled
-          ? t("cloud.password.saved", "Saved")
-          : t("cloud.password.locked", "Locked")}
+          ? t("cloud.password.saved", "已保存")
+          : t("cloud.password.locked", "已锁定")}
       </Badge>
       {updatedAt ? (
         <div className={cloudTableSecondaryTextClassName}>

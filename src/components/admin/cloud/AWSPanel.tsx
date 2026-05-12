@@ -2,10 +2,9 @@ import React from "react";
 import type { TFunction } from "i18next";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
-import { ChevronDown, Eye, KeyRound, RefreshCw, RotateCcw, ShieldCheck } from "lucide-react";
+import { ChevronDown, Eye, KeyRound, RefreshCw, RotateCcw, Server, ShieldCheck, Trash2 } from "lucide-react";
 
 import {
-  AdminCardGridSkeleton,
   AdminPageShell,
   AdminTableSkeleton,
 } from "@/components/admin/AdminPageShell";
@@ -13,6 +12,15 @@ import {
   AdminPagination,
   useClientPagination,
 } from "@/components/admin/AdminPagination";
+import {
+  AdminDataTable,
+  AdminDataTableCell,
+  AdminDataTableHead,
+  AdminDataTableHeadRow,
+  AdminDataTableRow,
+  AdminDataTableScroll,
+} from "@/components/admin/AdminDataTable";
+import { AdminRowActions } from "@/components/admin/AdminRowActions";
 import { AWSBackgroundTasksDialog } from "@/components/admin/cloud/AWSBackgroundTasksDialog";
 import {
   AWSCreatedPasswordDialog,
@@ -54,14 +62,6 @@ import {
 import { WarningAlert } from "@/components/ui/warning-alert";
 import { useWarningDialog } from "@/components/ui/warning-dialog";
 import { SegmentedControl } from "@/components/ui/segmented-control";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import {
   getAWSCredentials,
   type AWSEC2Quota,
@@ -214,7 +214,7 @@ export default function AWSPanel() {
     async (text: string) => {
       try {
         await navigator.clipboard.writeText(text);
-        toast.success(t("copy_success", "Copied!"));
+        toast.success(t("copy_success", "已复制！"));
       } catch (copyError) {
         toast.error(toErrorMessage(copyError));
       }
@@ -395,14 +395,13 @@ export default function AWSPanel() {
   if (initializing) {
     return (
       <AdminPageShell
-        eyebrow={t("cloud.title", "Cloud")}
+        eyebrow={t("cloud.title", "云平台")}
         title="AWS"
         description={t(
           "cloud.providers.aws.description",
           "Manage AWS credentials, regional context, EC2 and Lightsail resources from one panel.",
         )}
       >
-        <AdminCardGridSkeleton cards={4} />
         <AdminTableSkeleton columns={6} rows={5} />
       </AdminPageShell>
     );
@@ -425,7 +424,7 @@ export default function AWSPanel() {
             disabled={panelLoading || credentialChecking}
           >
             <RefreshCw className="mr-2 h-4 w-4" />
-            {t("cloud.refresh", "Refresh")}
+            {t("cloud.refresh", "刷新")}
           </Button>
         }
       />
@@ -488,8 +487,8 @@ export default function AWSPanel() {
             "cloud.providers.aws.onboarding_create_description",
             "资源加载后，可以启动 EC2 或 Lightsail，也可以在表格里处理电源、IP 和共享。",
           )}
-          importLabel={t("cloud.providers.aws.import", "Import Credentials")}
-          createLabel={t("cloud.providers.aws.create", "Launch EC2")}
+          importLabel={t("cloud.providers.aws.import", "导入凭证")}
+          createLabel={t("cloud.providers.aws.create", "创建 EC2")}
           onImportCredential={() => setCredentialImportOpen(true)}
           onLoadResources={handleLoadResources}
           onCreate={handleOpenCreateDialog}
@@ -920,8 +919,8 @@ function AWSInlineCreatePanel({
   const advancedHandler = isEC2 ? onOpenEc2Advanced : onOpenLightsailAdvanced;
   const createHandler = isEC2 ? onCreateEc2 : onCreateLightsail;
   const createLabel = isEC2
-    ? t("cloud.providers.aws.create", "Launch EC2")
-    : t("cloud.providers.aws.lightsail_create", "Create Lightsail");
+    ? t("cloud.providers.aws.create", "创建 EC2")
+    : t("cloud.providers.aws.lightsail_create", "创建 Lightsail");
   const disabled = isEC2
     ? submitting ||
       !activeCredential ||
@@ -947,15 +946,15 @@ function AWSInlineCreatePanel({
                 {createLabel}
               </div>
               <Badge color={activeCredential ? "green" : "amber"}>
-                {activeCredential ? t("common.active", "Active") : t("cloud.no_active", "No active")}
+                {activeCredential ? t("common.active", "已激活") : t("cloud.no_active", "未激活")}
               </Badge>
             </div>
             <div className={cloudPanelDescriptionClassName}>
-              {t("cloud.providers.aws.inline_create_description", "Choose EC2 or Lightsail here. Core fields stay open, and advanced network/bootstrap settings remain in the full launcher.")}
+              {t("cloud.providers.aws.inline_create_description", "当前可直接选择 EC2 或 Lightsail；核心字段默认展开，完整高级配置留在完整创建向导。")}
             </div>
           </div>
           <Button variant="outline" size="1" onClick={() => { void advancedHandler(); }} disabled={!activeCredential}>
-            {t("cloud.advanced_options", "Advanced")}
+            {t("cloud.advanced_options", "高级")}
           </Button>
         </div>
       </div>
@@ -990,7 +989,7 @@ function AWSInlineCreatePanel({
             />
             {ec2ArchitectureMismatch ? (
               <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-300">
-                {t("cloud.providers.aws.ec2_architecture_inline_warning", "The selected AMI architecture does not match the selected instance type.")}
+                {t("cloud.providers.aws.ec2_architecture_inline_warning", "选择的 AMI 架构与实例类型不匹配，请调整后再试。")}
               </div>
             ) : null}
           </>
@@ -1017,7 +1016,7 @@ function AWSInlineCreatePanel({
           onClick={() => { void createHandler(); }}
           disabled={disabled}
         >
-          {submitting ? t("cloud.creating", "Creating...") : createLabel}
+          {submitting ? t("cloud.creating", "正在创建...") : createLabel}
         </Button>
       </div>
     </section>
@@ -1056,7 +1055,7 @@ function AWSCredentialRail({
     <aside className={`min-w-0 ${cloudPanelCardClassName} flex h-full min-h-[520px] flex-col`}>
       <div className={cloudPanelHeaderClassName}>
         <div className={cloudPanelTitleClassName}>
-          {t("cloud.providers.aws.credentials", "Credentials")}
+          {t("cloud.providers.aws.credentials", "凭证")}
         </div>
         <div className={cloudPanelDescriptionClassName}>
           {t(
@@ -1069,14 +1068,14 @@ function AWSCredentialRail({
       <div className="flex min-h-0 flex-1 flex-col gap-3 p-4">
         <div className={cloudPanelSubcardClassName}>
           <div className="text-xs font-semibold uppercase tracking-normal text-muted-foreground">
-            {t("cloud.providers.aws.active_credential_label", "Active Credential")}
+            {t("cloud.providers.aws.active_credential_label", "当前凭证")}
           </div>
           <div className={`mt-1 text-sm font-semibold text-foreground ${cloudLongTextClassName}`}>
             {activeCredentialName || "-"}
           </div>
           {activeCredential ? (
             <div className="mt-2 flex flex-wrap gap-2">
-              <Badge color={activeCredential.last_status === "healthy" ? "green" : activeCredential.last_status === "failed" ? "red" : "amber"}>
+               <Badge color={activeCredential.last_status === "healthy" ? "green" : activeCredential.last_status === "failed" ? "red" : "amber"}>
                 {activeCredential.last_status || "unknown"}
               </Badge>
               {activeCredential.account_id ? (
@@ -1089,7 +1088,7 @@ function AWSCredentialRail({
         <AWSRegionSelect
           value={activeRegion || undefined}
           options={regionOptions}
-          placeholder={t("cloud.providers.aws.active_region", "Active Region")}
+          placeholder={t("cloud.providers.aws.active_region", "当前区域")}
           searchPlaceholder={regionSearchPlaceholder}
           emptyLabel={regionSearchEmpty}
           onValueChange={(value) => {
@@ -1107,7 +1106,7 @@ function AWSCredentialRail({
             disabled={!activeContextReady || credentialChecking}
           >
             <ShieldCheck className="mr-2 h-4 w-4" />
-            {t("cloud.providers.aws.check_current", "Check Current")}
+            {t("cloud.providers.aws.check_current", "检查当前")}
           </Button>
           <Button
             variant="outline"
@@ -1116,7 +1115,7 @@ function AWSCredentialRail({
             onClick={onImportCredentials}
           >
             <KeyRound className="mr-2 h-4 w-4" />
-            {t("cloud.providers.aws.import", "Import Credentials")}
+            {t("cloud.providers.aws.import", "导入凭证")}
           </Button>
           <Button
             variant="outline"
@@ -1125,7 +1124,7 @@ function AWSCredentialRail({
             onClick={onOpenBackgroundTasks}
           >
             <Eye className="mr-2 h-4 w-4" />
-            {t("cloud.providers.aws.background_tasks", "Background Tasks")}
+            {t("cloud.providers.aws.background_tasks", "后台任务")}
             {pendingBackgroundTaskCount > 0 ? ` (${pendingBackgroundTaskCount})` : ""}
           </Button>
         </div>
@@ -1134,7 +1133,7 @@ function AWSCredentialRail({
           <div className="flex items-center justify-between gap-2">
             <div className="min-w-0">
               <div className="text-xs font-semibold uppercase tracking-normal text-muted-foreground">
-                {t("cloud.providers.aws.credential_pool", "Credential Pool")}
+                {t("cloud.providers.aws.credential_pool", "凭证池")}
               </div>
               <div className="mt-1 truncate text-sm font-semibold text-foreground">
                 {t("cloud.providers.aws.credential_count", {
@@ -1149,7 +1148,7 @@ function AWSCredentialRail({
               onClick={() => setCredentialPoolOpen((open) => !open)}
             >
               <ChevronDown className={`mr-1.5 h-3.5 w-3.5 transition-transform ${credentialPoolOpen ? "rotate-180" : ""}`} />
-              {credentialPoolOpen ? t("common.collapse", "Collapse") : t("cloud.tokens.manage", "Manage")}
+              {credentialPoolOpen ? t("common.collapse", "Collapse") : t("cloud.tokens.manage", "管理")}
             </Button>
           </div>
 
@@ -1162,80 +1161,80 @@ function AWSCredentialRail({
                 onClick={onCheckAllCredentials}
                 disabled={credentialChecking || !credentialRows.length}
               >
-                {t("cloud.tokens.check_all", "Check All Tokens")}
+                {t("cloud.tokens.check_all", "检查全部凭证")}
               </Button>
               <div className="mt-2 min-h-0 flex-1 overflow-y-auto [scrollbar-gutter:stable]">
                 {credentialRows.length ? (
-                  <div className="overflow-x-auto rounded-lg border border-border">
-                    <Table className="min-w-[700px]">
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>{t("cloud.tokens.table.name", "Name")}</TableHead>
-                          <TableHead>{t("cloud.tokens.group", "Group")}</TableHead>
-                          <TableHead>{t("cloud.tokens.quota", "Quota")}</TableHead>
-                          <TableHead>{t("cloud.tokens.table.status", "Status")}</TableHead>
-                          <TableHead className="text-right">{t("common.action", "Action")}</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
+                  <AdminDataTableScroll className="rounded-lg border border-border">
+                    <AdminDataTable minWidth={700}>
+                      <thead>
+                        <AdminDataTableHeadRow>
+                          <AdminDataTableHead>{t("cloud.tokens.table.name", "名称")}</AdminDataTableHead>
+                          <AdminDataTableHead>{t("cloud.tokens.group", "分组")}</AdminDataTableHead>
+                          <AdminDataTableHead>{t("cloud.tokens.quota", "配额")}</AdminDataTableHead>
+                          <AdminDataTableHead>{t("cloud.tokens.table.status", "状态")}</AdminDataTableHead>
+                          <AdminDataTableHead align="right" sticky="right">
+                            {t("common.action", "操作")}
+                          </AdminDataTableHead>
+                        </AdminDataTableHeadRow>
+                      </thead>
+                      <tbody>
                         {visibleCredentialRows.map((credential) => (
-                          <TableRow key={credential.id}>
-                            <TableCell className={`font-semibold text-foreground ${cloudLongTextClassName}`}>
+                          <AdminDataTableRow key={credential.id}>
+                            <AdminDataTableCell className={`font-semibold text-foreground ${cloudLongTextClassName}`}>
                               <span className="block max-w-44 truncate">{credential.name}</span>
-                            </TableCell>
-                            <TableCell className={`text-xs text-muted-foreground ${cloudLongTextClassName}`}>
+                            </AdminDataTableCell>
+                            <AdminDataTableCell className={`text-xs text-muted-foreground ${cloudLongTextClassName}`}>
                               <span className="block max-w-36 truncate">
-                                {credential.group || t("cloud.tokens.no_group", "No group")}
+                                {credential.group || t("cloud.tokens.no_group", "未分组")}
                               </span>
-                            </TableCell>
-                            <TableCell className={`text-xs text-muted-foreground ${cloudLongTextClassName}`}>
+                            </AdminDataTableCell>
+                            <AdminDataTableCell className={`text-xs text-muted-foreground ${cloudLongTextClassName}`}>
                               {formatAwsCredentialQuota(credential)}
-                            </TableCell>
-                            <TableCell>
+                            </AdminDataTableCell>
+                            <AdminDataTableCell>
                               <Badge color={credential.is_active ? "blue" : credential.last_status === "healthy" ? "green" : credential.last_status === "failed" ? "red" : "gray"}>
-                                {credential.is_active ? t("cloud.tokens.active", "Active") : credential.last_status || "-"}
+                                {credential.is_active ? t("cloud.tokens.active", "已激活") : credential.last_status || "-"}
                               </Badge>
-                            </TableCell>
-                            <TableCell className="text-right">
-                              <div className="flex justify-end gap-1.5">
-                                {!credential.is_active ? (
-                                  <Button
-                                    variant="soft"
-                                    size="1"
-                                    onClick={() => {
+                            </AdminDataTableCell>
+                            <AdminDataTableCell align="right" sticky="right">
+                              <AdminRowActions
+                                contentClassName="min-w-44"
+                                actions={[
+                                  {
+                                    label: credential.is_active
+                                      ? t("cloud.tokens.current", "当前")
+                                      : t("cloud.tokens.use", "使用"),
+                                    icon: <Server className="h-4 w-4" />,
+                                    disabled: credential.is_active,
+                                    onSelect: () => {
                                       void onSelectCredential(credential);
-                                    }}
-                                  >
-                                    {t("cloud.tokens.use", "Use")}
-                                  </Button>
-                                ) : null}
-                                <Button
-                                  variant="ghost"
-                                  size="1"
-                                  disabled={credentialSecretLoading}
-                                  onClick={() => {
-                                    void onViewCredentialSecret(credential);
-                                  }}
-                                >
-                                  {t("cloud.view", "View")}
-                                </Button>
-                                <Button
-                                  variant="ghost"
-                                  size="1"
-                                  color="red"
-                                  onClick={() => {
-                                    void onDeleteCredential(credential);
-                                  }}
-                                >
-                                  {t("cloud.delete", "Delete")}
-                                </Button>
-                              </div>
-                            </TableCell>
-                          </TableRow>
+                                    },
+                                  },
+                                  {
+                                    label: t("cloud.view", "查看"),
+                                    icon: <Eye className="h-4 w-4" />,
+                                    disabled: credentialSecretLoading,
+                                    onSelect: () => {
+                                      void onViewCredentialSecret(credential);
+                                    },
+                                  },
+                                  {
+                                    label: t("cloud.delete", "删除"),
+                                    icon: <Trash2 className="h-4 w-4" />,
+                                    destructive: true,
+                                    onSelect: () => {
+                                      void onDeleteCredential(credential);
+                                    },
+                                  },
+                                ]}
+                              />
+                            </AdminDataTableCell>
+                          </AdminDataTableRow>
                         ))}
-                      </TableBody>
-                    </Table>
-                  </div>
+                      </tbody>
+                    </AdminDataTable>
+                  </AdminDataTableScroll>
                 ) : (
                   <div className="rounded-lg border border-dashed border-border bg-muted/30 px-4 py-8 text-center text-sm text-muted-foreground">
                     {t("cloud.providers.aws.credentials_empty", "还没有保存 AWS 凭证")}
@@ -1252,7 +1251,7 @@ function AWSCredentialRail({
                 onPageChange={credentialPagination.setPage}
                 onPageSizeChange={credentialPagination.setPageSize}
                 pageSizeOptions={[5, 10, 20]}
-                itemLabel={t("admin.pagination.credentials", { defaultValue: "credentials" })}
+                itemLabel={t("admin.pagination.credentials", { defaultValue: "凭证" })}
                 compact
                 className="-mx-3 mt-2 rounded-b-lg"
               />
@@ -1295,7 +1294,7 @@ function AWSFollowUpSummaryPanel({
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
             <div className={cloudPanelTitleClassName}>
-              {t("cloud.providers.aws.follow_up_tasks_label", "Follow-up Tasks")}
+              {t("cloud.providers.aws.follow_up_tasks_label", "后续任务")}
             </div>
             <div className={cloudPanelDescriptionClassName}>
               {t(
@@ -1321,12 +1320,12 @@ function AWSFollowUpSummaryPanel({
       <div className="space-y-3 p-4">
         <div className="grid grid-cols-2 gap-3">
           <AWSMiniMetric
-            label={t("cloud.providers.aws.pending", "Pending")}
+            label={t("cloud.providers.aws.pending", "待处理")}
             value={pendingCount}
             tone={pendingCount > 0 ? "amber" : "slate"}
           />
           <AWSMiniMetric
-            label={t("cloud.providers.aws.failed", "Failed")}
+            label={t("cloud.providers.aws.failed", "失败")}
             value={failedCount}
             tone={failedCount > 0 ? "red" : "slate"}
           />
@@ -1364,7 +1363,7 @@ function AWSFollowUpSummaryPanel({
                       onClick={() => onRetry(task)}
                     >
                       <RotateCcw className="mr-1 h-3.5 w-3.5" />
-                      {t("cloud.providers.aws.retry_task", "Retry")}
+                      {t("cloud.providers.aws.retry_task", "重试")}
                     </Button>
                   ) : null}
                 </div>
@@ -1390,10 +1389,10 @@ function AWSFollowUpSummaryPanel({
         <div className="grid grid-cols-2 gap-2">
           <Button variant="outline" size="1" onClick={onRefresh} disabled={loading}>
             <RefreshCw className={`mr-2 h-4 w-4${loading ? " animate-spin" : ""}`} />
-            {t("cloud.refresh", "Refresh")}
+            {t("cloud.refresh", "刷新")}
           </Button>
           <Button size="1" onClick={onOpenAll}>
-            {t("cloud.providers.aws.view_all_tasks", "View All")}
+            {t("cloud.providers.aws.view_all_tasks", "查看全部")}
           </Button>
         </div>
       </div>
@@ -1426,22 +1425,22 @@ function AWSQuotaStrip({
       </div>
       <div className="grid gap-3 p-4 md:grid-cols-2 xl:grid-cols-4">
         <AWSQuotaMeter
-          label={t("cloud.providers.aws.running_vcpu", "vCPU Running")}
+          label={t("cloud.providers.aws.running_vcpu", "vCPU 运行中")}
           value={quota.running_standard_vcpus}
           max={quota.max_standard_vcpus}
         />
         <AWSQuotaMeter
-          label={t("cloud.providers.aws.running_instances", "Instances Running")}
+          label={t("cloud.providers.aws.running_instances", "运行实例")}
           value={quota.running_instances}
           max={quota.max_instances}
         />
         <AWSQuotaMeter
-          label={t("cloud.providers.aws.elastic_ips", "Elastic IP")}
+          label={t("cloud.providers.aws.elastic_ips", "弹性 IP")}
           value={quota.associated_elastic_ips}
           max={quota.max_elastic_ips}
         />
         <AWSQuotaMeter
-          label={t("cloud.providers.aws.total_instances", "Total Instances")}
+          label={t("cloud.providers.aws.total_instances", "实例总数")}
           value={quota.total_instances}
           max={quota.max_instances}
         />

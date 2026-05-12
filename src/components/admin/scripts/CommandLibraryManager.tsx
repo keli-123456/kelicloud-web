@@ -27,7 +27,17 @@ import {
   AdminSettingsSkeleton,
   AdminTableSkeleton,
 } from "@/components/admin/AdminPageShell";
+import {
+  AdminDataTable,
+  AdminDataTableCell,
+  AdminDataTableEmptyRow,
+  AdminDataTableHead,
+  AdminDataTableHeadRow,
+  AdminDataTableRow,
+  AdminDataTableScroll,
+} from "@/components/admin/AdminDataTable";
 import { AdminPagination } from "@/components/admin/AdminPagination";
+import { AdminRowActions } from "@/components/admin/AdminRowActions";
 import { formatApiErrorMessage, getReadableErrorMessage } from "@/lib/apiErrorMessage";
 import {
   ADMIN_FORM_DIALOG_WIDE_CLASS,
@@ -129,14 +139,14 @@ const resolveCommandName = (
   return firstLine.length > 48 ? `${firstLine.slice(0, 48)}...` : firstLine;
 };
 
-const getCommandTitle = (command: CommandClipboard) => {
+const getCommandTitle = (command: CommandClipboard, fallbackLabel: string) => {
   const name = command.name.trim();
   if (name) return name;
   const firstLine = command.text
     .split(/\r?\n/)
     .map((line) => line.trim())
     .find(Boolean);
-  return firstLine || `Clipboard #${command.id}`;
+  return firstLine || fallbackLabel;
 };
 
 const getCommandPreview = (command: CommandClipboard) =>
@@ -162,6 +172,7 @@ async function fetchCommandPage(
   page: number,
   limit: number,
   search: string,
+  fallbackErrorMessage: string,
   signal?: AbortSignal,
 ): Promise<PaginatedCommandResponse> {
   const params = new URLSearchParams({
@@ -195,7 +206,7 @@ async function fetchCommandPage(
   };
 
   if (!response.ok) {
-    throw new Error(formatApiErrorMessage(payload.message || "Failed to fetch commands", { status: response.status }));
+    throw new Error(formatApiErrorMessage(payload.message || fallbackErrorMessage, { status: response.status }));
   }
 
   const data = payload.data;
@@ -237,7 +248,7 @@ export default function CommandLibraryManager({
   const [selectedCommandId, setSelectedCommandId] = useState<number | null>(null);
   const requestSequenceRef = useRef(0);
   const requestControllerRef = useRef<AbortController | null>(null);
-  const unknownErrorText = t("common.unknown_error", "Unknown error");
+  const unknownErrorText = t("common.unknown_error", "未知错误");
   const deferredSearchTerm = useDeferredValue(searchTerm.trim());
   const pageTitle = t("exec.savedCommands", {
     defaultValue: "脚本库",
@@ -261,7 +272,7 @@ export default function CommandLibraryManager({
     setEditorOpen(true);
     toast.success(
       t("command_clipboard.imported_draft", {
-        defaultValue: "Draft imported from remote exec.",
+        defaultValue: "已从远程执行导入草稿。",
       }),
     );
 
@@ -269,7 +280,7 @@ export default function CommandLibraryManager({
       replace: true,
       state: null,
     });
-  }, [location.pathname, location.search, navigate, routeState, t]);
+}, [location.pathname, location.search, navigate, routeState, t]);
 
   const totalPages = Math.max(1, Math.ceil(total / Math.max(limit, 1)));
   const visibleStart = total === 0 ? 0 : (page - 1) * limit + 1;
@@ -288,7 +299,15 @@ export default function CommandLibraryManager({
     setLoading(true);
     setError(null);
     try {
-      const data = await fetchCommandPage(targetPage, targetLimit, targetSearch, controller.signal);
+      const data = await fetchCommandPage(
+        targetPage,
+        targetLimit,
+        targetSearch,
+        t("command_clipboard.fetch_failed", {
+          defaultValue: "读取脚本列表失败",
+        }),
+        controller.signal,
+      );
       if (requestSequenceRef.current !== requestID) {
         return;
       }
@@ -320,7 +339,7 @@ export default function CommandLibraryManager({
         setLoading(false);
       }
     }
-  }, [unknownErrorText]);
+  }, [t, unknownErrorText]);
 
   useEffect(() => {
     void loadCommands(page, limit, deferredSearchTerm);
@@ -372,7 +391,7 @@ export default function CommandLibraryManager({
     const resolvedName = resolveCommandName(
       formValues,
       t("exec.savedCommandUntitled", {
-        defaultValue: "Untitled command",
+        defaultValue: "未命名脚本",
       }),
     );
     const weight = Number.parseInt(formValues.weight, 10);
@@ -390,7 +409,7 @@ export default function CommandLibraryManager({
         );
         toast.success(
           t("exec.savedCommandUpdated", {
-            defaultValue: "Saved command updated",
+            defaultValue: "脚本已更新",
           }),
         );
         await loadCommands(page, limit, deferredSearchTerm);
@@ -403,7 +422,7 @@ export default function CommandLibraryManager({
         );
         toast.success(
           t("exec.savedCommandSaved", {
-            defaultValue: "Command saved to library",
+            defaultValue: "脚本已保存到脚本库",
           }),
         );
         if (page === 1) {
@@ -419,7 +438,7 @@ export default function CommandLibraryManager({
     } catch (nextError) {
       toast.error(
         getReadableErrorMessage(nextError, t("exec.saveCommandFailed", {
-              defaultValue: "Failed to save command",
+              defaultValue: "保存脚本失败",
             })),
       );
     } finally {
@@ -437,7 +456,7 @@ export default function CommandLibraryManager({
       await deleteCommand(deleteTarget.id);
       toast.success(
         t("exec.savedCommandDeleted", {
-          defaultValue: "Command deleted",
+          defaultValue: "脚本已删除",
         }),
       );
       setDeleteTarget(null);
@@ -445,7 +464,7 @@ export default function CommandLibraryManager({
     } catch (nextError) {
       toast.error(
         getReadableErrorMessage(nextError, t("exec.deleteCommandFailed", {
-              defaultValue: "Failed to delete command",
+              defaultValue: "删除脚本失败",
             })),
       );
     } finally {
@@ -467,7 +486,7 @@ export default function CommandLibraryManager({
   const handleCopy = async (command: CommandClipboard) => {
     try {
       await navigator.clipboard.writeText(command.text);
-      toast.success(t("copy_success", { defaultValue: "Copied!" }));
+      toast.success(t("copy_success", { defaultValue: "已复制" }));
     } catch {
       toast.error(getReadableErrorMessage(null, t("common.unknown_error")));
     }
@@ -598,93 +617,98 @@ export default function CommandLibraryManager({
               </div>
             ) : (
               <>
-                <div className="overflow-x-auto">
-                  <table className="w-full min-w-[760px] text-left text-sm">
+                <AdminDataTableScroll>
+                  <AdminDataTable minWidth={760}>
                     <thead>
-                      <tr className="border-b border-border bg-muted/30 text-[12px] font-semibold text-muted-foreground">
-                        <th className="px-[14px] py-3">{t("command_clipboard.table.script", { defaultValue: "脚本" })}</th>
-                        <th className="px-[14px] py-3">{t("command_clipboard.table.remark", { defaultValue: "备注" })}</th>
-                        <th className="px-[14px] py-3">{t("command_clipboard.table.weight", { defaultValue: "权重" })}</th>
-                        <th className="px-[14px] py-3">{t("command_clipboard.table.updated_at_short", { defaultValue: "更新" })}</th>
-                        <th className="px-[14px] py-3 text-right">{t("common.action", { defaultValue: "操作" })}</th>
-                      </tr>
+                      <AdminDataTableHeadRow>
+                        <AdminDataTableHead>{t("command_clipboard.table.script", { defaultValue: "脚本" })}</AdminDataTableHead>
+                        <AdminDataTableHead>{t("command_clipboard.table.remark", { defaultValue: "备注" })}</AdminDataTableHead>
+                        <AdminDataTableHead>{t("command_clipboard.table.weight", { defaultValue: "权重" })}</AdminDataTableHead>
+                        <AdminDataTableHead>{t("command_clipboard.table.updated_at_short", { defaultValue: "更新" })}</AdminDataTableHead>
+                        <AdminDataTableHead sticky="right" align="right" className="w-[72px]">
+                          {t("common.action", { defaultValue: "操作" })}
+                        </AdminDataTableHead>
+                      </AdminDataTableHeadRow>
                     </thead>
                     <tbody>
                       {commands.length === 0 ? (
-                        <tr>
-                          <td colSpan={5} className="px-[14px] py-8">
-                            <AdminEmptyState
-                              icon={<Search size={18} />}
-                              title={t("command_clipboard.search_empty", { defaultValue: "没有匹配的脚本" })}
-                              description={t("command_clipboard.search_empty_description", { defaultValue: "可以按名称、备注或脚本内容搜索。" })}
-                              className="min-h-28 border-0 bg-muted/25 shadow-none"
-                            />
-                          </td>
-                        </tr>
+                        <AdminDataTableEmptyRow colSpan={5}>
+                          <AdminEmptyState
+                            icon={<Search size={18} />}
+                            title={t("command_clipboard.search_empty", { defaultValue: "没有匹配的脚本" })}
+                            description={t("command_clipboard.search_empty_description", { defaultValue: "可以按名称、备注或脚本内容搜索。" })}
+                            className="min-h-28 border-0 bg-muted/25 shadow-none"
+                          />
+                        </AdminDataTableEmptyRow>
                       ) : commands.map((command) => {
                         const selected = selectedCommand?.id === command.id;
                         return (
-                          <tr
+                          <AdminDataTableRow
                             key={command.id}
+                            selected={selected}
+                            interactive
                             onClick={() => setSelectedCommandId(command.id)}
-                            className={cn(
-                              "cursor-pointer border-b border-border transition-colors last:border-b-0 hover:bg-muted/25",
-                              selected && "bg-blue-50/70 dark:bg-blue-950/20",
-                            )}
                           >
-                            <td className="px-[14px] py-3 align-top">
+                            <AdminDataTableCell className="align-top">
                               <strong className="block max-w-[280px] truncate text-[13px] font-semibold leading-5 text-foreground">
-                                {getCommandTitle(command)}
+                                {getCommandTitle(
+                                  command,
+                                  t("command_clipboard.script_label", {
+                                    defaultValue: "脚本 #{{id}}",
+                                    id: command.id,
+                                  }),
+                                )}
                               </strong>
                               <span className="block max-w-[360px] truncate font-mono text-[11px] leading-4 text-muted-foreground">
                                 {getCommandPreview(command)}
                               </span>
-                            </td>
-                            <td className="max-w-[220px] px-[14px] py-3 align-middle text-[12px] text-foreground">
+                            </AdminDataTableCell>
+                            <AdminDataTableCell className="max-w-[220px]">
                               <span className="block truncate">{command.remark || "-"}</span>
-                            </td>
-                            <td className="px-[14px] py-3 align-middle">
+                            </AdminDataTableCell>
+                            <AdminDataTableCell>
                               <Badge variant="secondary" className="h-6 rounded-full px-2 text-[11px]">
                                 {command.weight}
                               </Badge>
-                            </td>
-                            <td className="px-[14px] py-3 align-middle text-[12px] text-foreground">
+                            </AdminDataTableCell>
+                            <AdminDataTableCell>
                               {formatTimestamp(command.updated_at)}
-                            </td>
-                            <td className="px-[14px] py-3 align-middle">
-                              <div className="flex justify-end gap-1">
-                                <Button
-                                  type="button"
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={(event) => {
-                                    event.stopPropagation();
-                                    handleUseInExec(command);
-                                  }}
-                                  className="h-8 rounded-md px-2 text-[12px]"
-                                >
-                                  {t("common.execute", { defaultValue: "执行" })}
-                                </Button>
-                                <Button
-                                  type="button"
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={(event) => {
-                                    event.stopPropagation();
-                                    openEditDialog(command);
-                                  }}
-                                  className="h-8 rounded-md px-2 text-[12px]"
-                                >
-                                  {t("common.edit", { defaultValue: "编辑" })}
-                                </Button>
-                              </div>
-                            </td>
-                          </tr>
+                            </AdminDataTableCell>
+                            <AdminDataTableCell sticky="right" align="right">
+                              <AdminRowActions
+                                actions={[
+                                  {
+                                    label: t("common.execute", { defaultValue: "执行" }),
+                                    icon: <Play size={14} />,
+                                    onSelect: () => handleUseInExec(command),
+                                  },
+                                  {
+                                    label: t("common.edit", { defaultValue: "编辑" }),
+                                    icon: <PencilLine size={14} />,
+                                    onSelect: () => openEditDialog(command),
+                                  },
+                                  {
+                                    label: t("common.copy", { defaultValue: "复制" }),
+                                    icon: <Copy size={14} />,
+                                    onSelect: () => {
+                                      void handleCopy(command);
+                                    },
+                                  },
+                                  {
+                                    label: t("common.delete", { defaultValue: "删除" }),
+                                    icon: <Trash2 size={14} />,
+                                    destructive: true,
+                                    onSelect: () => setDeleteTarget(command),
+                                  },
+                                ]}
+                              />
+                            </AdminDataTableCell>
+                          </AdminDataTableRow>
                         );
                       })}
                     </tbody>
-                  </table>
-                </div>
+                  </AdminDataTable>
+                </AdminDataTableScroll>
 
                 <AdminPagination
                   page={page}
@@ -694,7 +718,7 @@ export default function CommandLibraryManager({
                   visibleStart={visibleStart}
                   visibleEnd={visibleEnd}
                   onPageChange={setPage}
-                  itemLabel={t("command_clipboard.pagination.items", { defaultValue: "scripts" })}
+                  itemLabel={t("command_clipboard.pagination.items", { defaultValue: "脚本" })}
                 />
               </>
             )}
@@ -703,13 +727,26 @@ export default function CommandLibraryManager({
           <section className={scriptsPanelClass}>
             <ScriptPanelHead
               title={t("command_clipboard.detail_title", { defaultValue: "脚本详情" })}
-              meta={selectedCommand ? `Clipboard #${selectedCommand.id}` : "Clipboard"}
+              meta={
+                selectedCommand
+                  ? t("command_clipboard.script_label", {
+                    defaultValue: "脚本 #{{id}}",
+                    id: selectedCommand.id,
+                  })
+                  : t("command_clipboard.no_script_selected", { defaultValue: "未选择脚本" })
+              }
             />
             {selectedCommand ? (
               <div className="flex flex-col gap-4 p-[14px]">
                 <div className="space-y-1">
                   <h2 className="truncate text-[15px] font-semibold leading-6 text-foreground">
-                    {getCommandTitle(selectedCommand)}
+                    {getCommandTitle(
+                      selectedCommand,
+                      t("command_clipboard.script_label", {
+                        defaultValue: "脚本 #{{id}}",
+                        id: selectedCommand.id,
+                      }),
+                    )}
                   </h2>
                   <p className="text-[12px] leading-5 text-muted-foreground">
                     {selectedCommand.remark || t("command_clipboard.remark_empty", { defaultValue: "暂无备注" })}
@@ -726,7 +763,7 @@ export default function CommandLibraryManager({
                   <div className="flex h-9 items-center justify-between border-b border-white/10 px-3">
                     <div className="flex items-center gap-2 text-[12px] font-semibold text-slate-300">
                       <FileCode2 size={13} />
-                      Clipboard.text
+                      {t("command_clipboard.script_content", { defaultValue: "脚本内容" })}
                     </div>
                     <span className="font-mono text-[11px] text-slate-500">shell</span>
                   </div>
@@ -778,7 +815,7 @@ export default function CommandLibraryManager({
                 <AdminEmptyState
                   icon={<FileCode2 size={18} />}
                   title={t("command_clipboard.select_title", { defaultValue: "选择脚本" })}
-                  description={t("command_clipboard.select_description", { defaultValue: "从左侧选择一条 Clipboard 记录查看内容和操作。" })}
+description={t("command_clipboard.select_description", { defaultValue: "从左侧选择一条脚本记录查看内容和操作。" })}
                   className="min-h-[320px] border-0 bg-muted/25 shadow-none"
                 />
               </div>
@@ -806,17 +843,17 @@ export default function CommandLibraryManager({
           <DialogHeader className="shrink-0">
             <DialogTitle>
               {editingCommand
-                ? t("command_clipboard.editor.edit_title", {
-                    defaultValue: "Edit script",
+              ? t("command_clipboard.editor.edit_title", {
+                    defaultValue: "编辑脚本",
                   })
                 : t("command_clipboard.editor.add_title", {
-                    defaultValue: "New script",
+                    defaultValue: "新增脚本",
                   })}
             </DialogTitle>
             <DialogDescription>
               {t("command_clipboard.page_description", {
                 defaultValue:
-                  "Manage saved shell scripts for remote execution and cloud instance workflows.",
+                  "集中管理用于远程执行和云实例场景的脚本。",
               })}
             </DialogDescription>
           </DialogHeader>
@@ -832,7 +869,7 @@ export default function CommandLibraryManager({
                     value={formValues.name}
                     onChange={(event) => handleEditorChange("name", event.target.value)}
                     placeholder={t("command_clipboard.editor.name_placeholder", {
-                      defaultValue: "Deploy agent bootstrap",
+                      defaultValue: "部署代理服务",
                     })}
                   />
                 </div>
@@ -853,18 +890,18 @@ export default function CommandLibraryManager({
                 <label className="text-sm font-medium text-slate-900 dark:text-slate-100">
                   {t("common.remark")}
                 </label>
-                <Input
-                  value={formValues.remark}
-                  onChange={(event) => handleEditorChange("remark", event.target.value)}
-                  placeholder={t("command_clipboard.editor.remark_placeholder", {
-                    defaultValue: "Optional notes for this script",
-                  })}
-                />
-              </div>
+                  <Input
+                    value={formValues.remark}
+                    onChange={(event) => handleEditorChange("remark", event.target.value)}
+                    placeholder={t("command_clipboard.editor.remark_placeholder", {
+                      defaultValue: "脚本备注（可选）",
+                    })}
+                  />
+                </div>
 
               <p className="text-xs leading-5 text-slate-500 dark:text-slate-400">
                 {t("command_clipboard.editor.weight_hint", {
-                  defaultValue: "Higher weights appear first.",
+                  defaultValue: "权重越高，排序越靠前。",
                 })}
               </p>
 
@@ -928,13 +965,13 @@ export default function CommandLibraryManager({
           <AlertDialogHeader>
             <AlertDialogTitle>
               {t("command_clipboard.delete_title", {
-                defaultValue: "Delete script?",
+                defaultValue: "确定要删除这个脚本吗？",
               })}
             </AlertDialogTitle>
             <AlertDialogDescription>
               {t("command_clipboard.delete_description", {
                 defaultValue:
-                  "This removes the script from the shared library. Existing execution records will not be affected.",
+                  "删除后该脚本将从脚本库移除，不会影响已有执行记录。",
               })}
             </AlertDialogDescription>
           </AlertDialogHeader>

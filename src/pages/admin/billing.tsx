@@ -43,13 +43,16 @@ import {
 } from "@/components/admin/admin-ui";
 import { Input } from "@/components/ui/input";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+  AdminDataTable,
+  AdminDataTableCell,
+  AdminDataTableEmptyRow,
+  AdminDataTableHead,
+  AdminDataTableHeadRow,
+  AdminDataTableRow,
+  AdminDataTableScroll,
+} from "@/components/admin/AdminDataTable";
+import { AdminPagination, useClientPagination } from "@/components/admin/AdminPagination";
+import { AdminRowActions } from "@/components/admin/AdminRowActions";
 import type { AccountFeature } from "@/contexts/AccountContext";
 import { useAccount } from "@/contexts/AccountContext";
 import { formatApiErrorMessage, getReadableErrorMessage } from "@/lib/apiErrorMessage";
@@ -902,6 +905,11 @@ function PlansPanel({
   archivePlan: (plan: BillingPlan) => void;
   featureOptions: Array<{ value: AccountFeature; label: string }>;
 }) {
+  const planPagination = useClientPagination(plans, {
+    initialPageSize: 10,
+    resetKey: plans.length,
+  });
+
   return (
     <div className="space-y-3">
       <div className="flex justify-end">
@@ -913,66 +921,94 @@ function PlansPanel({
       {loading && plans.length === 0 ? (
         <AdminTableSkeleton columns={7} rows={5} />
       ) : (
-        <DataTable>
-          <TableHeader>
-            <TableRow>
-              <TableHead>{t("billing.plan")}</TableHead>
-              <TableHead>{t("billing.price")}</TableHead>
-              <TableHead>{t("billing.duration")}</TableHead>
-              <TableHead>{t("billing.server_quota")}</TableHead>
-              <TableHead>{t("billing.features_label")}</TableHead>
-              <TableHead>{t("billing.status")}</TableHead>
-              <TableHead className="text-right">{t("common.actions")}</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {plans.map((plan) => (
-              <TableRow key={plan.id}>
-                <TableCell>
-                  <div className="font-medium">{plan.name}</div>
-                  <div className="text-xs text-muted-foreground">{plan.code}</div>
-                </TableCell>
-                <TableCell>{formatMoney(plan.price_cents, plan.currency)}</TableCell>
-                <TableCell>{formatDays(plan.duration_days)}</TableCell>
-                <TableCell>{plan.server_quota > 0 ? plan.server_quota : t("billing.unlimited")}</TableCell>
-                <TableCell>
-                  <div className="flex max-w-md flex-wrap gap-1">
-                    {(plan.allowed_features || []).slice(0, 4).map((feature) => (
-                      <Badge key={feature} color="gray" variant="soft">
-                        {featureOptions.find((item) => item.value === feature)?.label || feature}
-                      </Badge>
-                    ))}
-                    {(plan.allowed_features || []).length > 4 ? (
-                      <Badge color="blue" variant="soft">+{(plan.allowed_features || []).length - 4}</Badge>
-                    ) : null}
-                  </div>
-                </TableCell>
-                <TableCell>
-                  <div className="flex gap-1">
-                    <Badge color={plan.active ? "green" : "red"} variant="soft">
-                      {plan.active ? t("billing.active") : t("billing.inactive")}
-                    </Badge>
-                    <Badge color={plan.public ? "blue" : "gray"} variant="soft">
-                      {plan.public ? t("billing.public") : t("billing.private")}
-                    </Badge>
-                  </div>
-                </TableCell>
-                <TableCell>
-                  <div className="flex justify-end gap-2">
-                    <Button variant="outline" size="sm" onClick={() => openPlanDialog(plan)}>
-                      <Pencil className="mr-2 h-4 w-4" />
-                      {t("common.edit")}
-                    </Button>
-                    <Button variant="outline" size="sm" onClick={() => archivePlan(plan)} disabled={submitting}>
-                      <Archive className="mr-2 h-4 w-4" />
-                      {t("billing.archive")}
-                    </Button>
-                  </div>
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </DataTable>
+        <DataTableFrame
+          table={
+            <DataTable minWidth={1040}>
+              <thead>
+                <AdminDataTableHeadRow>
+                  <AdminDataTableHead>{t("billing.plan")}</AdminDataTableHead>
+                  <AdminDataTableHead>{t("billing.price")}</AdminDataTableHead>
+                  <AdminDataTableHead>{t("billing.duration")}</AdminDataTableHead>
+                  <AdminDataTableHead>{t("billing.server_quota")}</AdminDataTableHead>
+                  <AdminDataTableHead>{t("billing.features_label")}</AdminDataTableHead>
+                  <AdminDataTableHead>{t("billing.status")}</AdminDataTableHead>
+                  <AdminDataTableHead align="right" sticky="right">{t("common.actions")}</AdminDataTableHead>
+                </AdminDataTableHeadRow>
+              </thead>
+              <tbody>
+                {planPagination.pageItems.length === 0 ? (
+                  <AdminDataTableEmptyRow colSpan={7} className="py-12 text-center text-sm text-muted-foreground">
+                    {t("billing.no_public_plans")}
+                  </AdminDataTableEmptyRow>
+                ) : null}
+                {planPagination.pageItems.map((plan) => (
+                  <AdminDataTableRow key={plan.id}>
+                    <AdminDataTableCell>
+                      <div className="font-medium">{plan.name}</div>
+                      <div className="text-xs text-muted-foreground">{plan.code}</div>
+                    </AdminDataTableCell>
+                    <AdminDataTableCell>{formatMoney(plan.price_cents, plan.currency)}</AdminDataTableCell>
+                    <AdminDataTableCell>{formatDays(plan.duration_days)}</AdminDataTableCell>
+                    <AdminDataTableCell>{plan.server_quota > 0 ? plan.server_quota : t("billing.unlimited")}</AdminDataTableCell>
+                    <AdminDataTableCell>
+                      <div className="flex max-w-md flex-wrap gap-1">
+                        {(plan.allowed_features || []).slice(0, 4).map((feature) => (
+                          <Badge key={feature} color="gray" variant="soft">
+                            {featureOptions.find((item) => item.value === feature)?.label || feature}
+                          </Badge>
+                        ))}
+                        {(plan.allowed_features || []).length > 4 ? (
+                          <Badge color="blue" variant="soft">+{(plan.allowed_features || []).length - 4}</Badge>
+                        ) : null}
+                      </div>
+                    </AdminDataTableCell>
+                    <AdminDataTableCell>
+                      <div className="flex gap-1">
+                        <Badge color={plan.active ? "green" : "red"} variant="soft">
+                          {plan.active ? t("billing.active") : t("billing.inactive")}
+                        </Badge>
+                        <Badge color={plan.public ? "blue" : "gray"} variant="soft">
+                          {plan.public ? t("billing.public") : t("billing.private")}
+                        </Badge>
+                      </div>
+                    </AdminDataTableCell>
+                    <AdminDataTableCell align="right" sticky="right">
+                      <AdminRowActions
+                        actions={[
+                          {
+                            label: t("common.edit"),
+                            icon: <Pencil className="h-4 w-4" />,
+                            onSelect: () => openPlanDialog(plan),
+                          },
+                          {
+                            label: t("billing.archive"),
+                            icon: <Archive className="h-4 w-4" />,
+                            disabled: submitting,
+                            destructive: true,
+                            onSelect: () => archivePlan(plan),
+                          },
+                        ]}
+                      />
+                    </AdminDataTableCell>
+                  </AdminDataTableRow>
+                ))}
+              </tbody>
+            </DataTable>
+          }
+          pagination={
+            <AdminPagination
+              page={planPagination.page}
+              totalPages={planPagination.totalPages}
+              total={planPagination.total}
+              pageSize={planPagination.pageSize}
+              visibleStart={planPagination.visibleStart}
+              visibleEnd={planPagination.visibleEnd}
+              onPageChange={planPagination.setPage}
+              onPageSizeChange={planPagination.setPageSize}
+              itemLabel={t("billing.tabs.plans")}
+            />
+          }
+        />
       )}
     </div>
   );
@@ -993,6 +1029,11 @@ function PaymentsPanel({
   openPaymentDialog: (method?: PaymentMethod) => void;
   disablePaymentMethod: (method: PaymentMethod) => void;
 }) {
+  const methodPagination = useClientPagination(methods, {
+    initialPageSize: 10,
+    resetKey: methods.length,
+  });
+
   return (
     <div className="space-y-3">
       <div className="flex justify-end">
@@ -1004,50 +1045,78 @@ function PaymentsPanel({
       {loading && methods.length === 0 ? (
         <AdminTableSkeleton columns={6} rows={5} />
       ) : (
-        <DataTable>
-          <TableHeader>
-            <TableRow>
-              <TableHead>{t("billing.payment_method")}</TableHead>
-              <TableHead>{t("billing.type")}</TableHead>
-              <TableHead>{t("billing.instructions")}</TableHead>
-              <TableHead>{t("billing.status")}</TableHead>
-              <TableHead className="text-right">{t("common.actions")}</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {methods.map((method) => (
-              <TableRow key={method.id}>
-                <TableCell>
-                  <div className="font-medium">{method.name}</div>
-                  <div className="text-xs text-muted-foreground">{method.code}</div>
-                </TableCell>
-                <TableCell>{method.type}</TableCell>
-                <TableCell>
-                  <div className="max-w-xl truncate text-sm text-muted-foreground">
-                    {method.instructions || method.payment_url || method.qr_image_url || "-"}
-                  </div>
-                </TableCell>
-                <TableCell>
-                  <Badge color={method.enabled ? "green" : "red"} variant="soft">
-                    {method.enabled ? t("billing.enabled") : t("billing.disabled")}
-                  </Badge>
-                </TableCell>
-                <TableCell>
-                  <div className="flex justify-end gap-2">
-                    <Button variant="outline" size="sm" onClick={() => openPaymentDialog(method)}>
-                      <Pencil className="mr-2 h-4 w-4" />
-                      {t("common.edit")}
-                    </Button>
-                    <Button variant="outline" size="sm" onClick={() => disablePaymentMethod(method)} disabled={submitting}>
-                      <XCircle className="mr-2 h-4 w-4" />
-                      {t("billing.disable")}
-                    </Button>
-                  </div>
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </DataTable>
+        <DataTableFrame
+          table={
+            <DataTable minWidth={920}>
+              <thead>
+                <AdminDataTableHeadRow>
+                  <AdminDataTableHead>{t("billing.payment_method")}</AdminDataTableHead>
+                  <AdminDataTableHead>{t("billing.type")}</AdminDataTableHead>
+                  <AdminDataTableHead>{t("billing.instructions")}</AdminDataTableHead>
+                  <AdminDataTableHead>{t("billing.status")}</AdminDataTableHead>
+                  <AdminDataTableHead align="right" sticky="right">{t("common.actions")}</AdminDataTableHead>
+                </AdminDataTableHeadRow>
+              </thead>
+              <tbody>
+                {methodPagination.pageItems.length === 0 ? (
+                  <AdminDataTableEmptyRow colSpan={5} className="py-12 text-center text-sm text-muted-foreground">
+                    {t("billing.no_payment_methods", { defaultValue: "No payment methods." })}
+                  </AdminDataTableEmptyRow>
+                ) : null}
+                {methodPagination.pageItems.map((method) => (
+                  <AdminDataTableRow key={method.id}>
+                    <AdminDataTableCell>
+                      <div className="font-medium">{method.name}</div>
+                      <div className="text-xs text-muted-foreground">{method.code}</div>
+                    </AdminDataTableCell>
+                    <AdminDataTableCell>{method.type}</AdminDataTableCell>
+                    <AdminDataTableCell>
+                      <div className="max-w-xl truncate text-sm text-muted-foreground">
+                        {method.instructions || method.payment_url || method.qr_image_url || "-"}
+                      </div>
+                    </AdminDataTableCell>
+                    <AdminDataTableCell>
+                      <Badge color={method.enabled ? "green" : "red"} variant="soft">
+                        {method.enabled ? t("billing.enabled") : t("billing.disabled")}
+                      </Badge>
+                    </AdminDataTableCell>
+                    <AdminDataTableCell align="right" sticky="right">
+                      <AdminRowActions
+                        actions={[
+                          {
+                            label: t("common.edit"),
+                            icon: <Pencil className="h-4 w-4" />,
+                            onSelect: () => openPaymentDialog(method),
+                          },
+                          {
+                            label: t("billing.disable"),
+                            icon: <XCircle className="h-4 w-4" />,
+                            disabled: submitting || !method.enabled,
+                            destructive: true,
+                            onSelect: () => disablePaymentMethod(method),
+                          },
+                        ]}
+                      />
+                    </AdminDataTableCell>
+                  </AdminDataTableRow>
+                ))}
+              </tbody>
+            </DataTable>
+          }
+          pagination={
+            <AdminPagination
+              page={methodPagination.page}
+              totalPages={methodPagination.totalPages}
+              total={methodPagination.total}
+              pageSize={methodPagination.pageSize}
+              visibleStart={methodPagination.visibleStart}
+              visibleEnd={methodPagination.visibleEnd}
+              onPageChange={methodPagination.setPage}
+              onPageSizeChange={methodPagination.setPageSize}
+              itemLabel={t("billing.tabs.payments")}
+            />
+          }
+        />
       )}
     </div>
   );
@@ -1072,6 +1141,11 @@ function OrdersTable({
   onMarkPaid?: (order: BillingOrder) => void;
   onCancel?: (order: BillingOrder) => void;
 }) {
+  const orderPagination = useClientPagination(orders, {
+    initialPageSize: 10,
+    resetKey: `${admin ? "admin" : "mine"}-${orders.length}`,
+  });
+
   if (loading && orders.length === 0) {
     return <AdminTableSkeleton columns={admin ? 8 : 6} rows={6} />;
   }
@@ -1079,70 +1153,92 @@ function OrdersTable({
     return <AdminEmptyState icon={<ReceiptText className="h-5 w-5" />} title={emptyTitle} />;
   }
   return (
-    <DataTable>
-      <TableHeader>
-        <TableRow>
-          <TableHead>{t("billing.order_no")}</TableHead>
-          {admin ? <TableHead>{t("billing.user")}</TableHead> : null}
-          <TableHead>{t("billing.plan")}</TableHead>
-          <TableHead>{t("billing.amount")}</TableHead>
-          <TableHead>{t("billing.payment_method")}</TableHead>
-          <TableHead>{t("billing.status")}</TableHead>
-          <TableHead>{t("billing.created_at")}</TableHead>
-          {admin ? <TableHead className="text-right">{t("common.actions")}</TableHead> : null}
-        </TableRow>
-      </TableHeader>
-      <TableBody>
-        {orders.map((order) => (
-          <TableRow key={order.id}>
-            <TableCell>
-              <div className="font-mono text-xs">{order.order_no}</div>
-              {order.payment_reference ? (
-                <div className="mt-1 text-xs text-muted-foreground">
-                  {order.payment_reference}
-                </div>
-              ) : null}
-            </TableCell>
-            {admin ? (
-              <TableCell>
-                <div className="font-medium">{order.username || "-"}</div>
-                <div className="text-xs text-muted-foreground">{order.user_uuid}</div>
-              </TableCell>
-            ) : null}
-            <TableCell>
-              <div className="font-medium">{order.plan_name}</div>
-              <div className="text-xs text-muted-foreground">{formatDays(order.duration_days)}</div>
-            </TableCell>
-            <TableCell>{formatMoney(order.amount_cents, order.currency)}</TableCell>
-            <TableCell>{order.payment_name || order.payment_code || "-"}</TableCell>
-            <TableCell>
-              <Badge color={statusTone(order.status)} variant="soft">
-                {t(`billing.status_${order.status}`, { defaultValue: order.status })}
-              </Badge>
-            </TableCell>
-            <TableCell>{formatDateTime(order.created_at)}</TableCell>
-            {admin ? (
-              <TableCell>
-                <div className="flex justify-end gap-2">
-                  {order.status === "pending" || order.status === "paid" ? (
-                    <Button variant="outline" size="sm" onClick={() => onMarkPaid?.(order)} disabled={submitting}>
-                      <CheckCircle2 className="mr-2 h-4 w-4" />
-                      {t("billing.mark_paid")}
-                    </Button>
+    <DataTableFrame
+      table={
+        <DataTable minWidth={admin ? 1120 : 920}>
+          <thead>
+            <AdminDataTableHeadRow>
+              <AdminDataTableHead>{t("billing.order_no")}</AdminDataTableHead>
+              {admin ? <AdminDataTableHead>{t("billing.user")}</AdminDataTableHead> : null}
+              <AdminDataTableHead>{t("billing.plan")}</AdminDataTableHead>
+              <AdminDataTableHead>{t("billing.amount")}</AdminDataTableHead>
+              <AdminDataTableHead>{t("billing.payment_method")}</AdminDataTableHead>
+              <AdminDataTableHead>{t("billing.status")}</AdminDataTableHead>
+              <AdminDataTableHead>{t("billing.created_at")}</AdminDataTableHead>
+              {admin ? <AdminDataTableHead align="right" sticky="right">{t("common.actions")}</AdminDataTableHead> : null}
+            </AdminDataTableHeadRow>
+          </thead>
+          <tbody>
+            {orderPagination.pageItems.map((order) => (
+              <AdminDataTableRow key={order.id}>
+                <AdminDataTableCell>
+                  <div className="font-mono text-xs">{order.order_no}</div>
+                  {order.payment_reference ? (
+                    <div className="mt-1 text-xs text-muted-foreground">
+                      {order.payment_reference}
+                    </div>
                   ) : null}
-                  {order.status === "pending" ? (
-                    <Button variant="outline" size="sm" onClick={() => onCancel?.(order)} disabled={submitting}>
-                      <XCircle className="mr-2 h-4 w-4" />
-                      {t("billing.cancel_order")}
-                    </Button>
-                  ) : null}
-                </div>
-              </TableCell>
-            ) : null}
-          </TableRow>
-        ))}
-      </TableBody>
-    </DataTable>
+                </AdminDataTableCell>
+                {admin ? (
+                  <AdminDataTableCell>
+                    <div className="font-medium">{order.username || "-"}</div>
+                    <div className="max-w-[220px] truncate text-xs text-muted-foreground">{order.user_uuid}</div>
+                  </AdminDataTableCell>
+                ) : null}
+                <AdminDataTableCell>
+                  <div className="font-medium">{order.plan_name}</div>
+                  <div className="text-xs text-muted-foreground">{formatDays(order.duration_days)}</div>
+                </AdminDataTableCell>
+                <AdminDataTableCell>{formatMoney(order.amount_cents, order.currency)}</AdminDataTableCell>
+                <AdminDataTableCell>{order.payment_name || order.payment_code || "-"}</AdminDataTableCell>
+                <AdminDataTableCell>
+                  <Badge color={statusTone(order.status)} variant="soft">
+                    {t(`billing.status_${order.status}`, { defaultValue: order.status })}
+                  </Badge>
+                </AdminDataTableCell>
+                <AdminDataTableCell>{formatDateTime(order.created_at)}</AdminDataTableCell>
+                {admin ? (
+                  <AdminDataTableCell align="right" sticky="right">
+                    <AdminRowActions
+                      actions={[
+                        {
+                          label: t("billing.mark_paid"),
+                          icon: <CheckCircle2 className="h-4 w-4" />,
+                          hidden: order.status !== "pending" && order.status !== "paid",
+                          disabled: submitting,
+                          onSelect: () => onMarkPaid?.(order),
+                        },
+                        {
+                          label: t("billing.cancel_order"),
+                          icon: <XCircle className="h-4 w-4" />,
+                          hidden: order.status !== "pending",
+                          disabled: submitting,
+                          destructive: true,
+                          onSelect: () => onCancel?.(order),
+                        },
+                      ]}
+                    />
+                  </AdminDataTableCell>
+                ) : null}
+              </AdminDataTableRow>
+            ))}
+          </tbody>
+        </DataTable>
+      }
+      pagination={
+        <AdminPagination
+          page={orderPagination.page}
+          totalPages={orderPagination.totalPages}
+          total={orderPagination.total}
+          pageSize={orderPagination.pageSize}
+          visibleStart={orderPagination.visibleStart}
+          visibleEnd={orderPagination.visibleEnd}
+          onPageChange={orderPagination.setPage}
+          onPageSizeChange={orderPagination.setPageSize}
+          itemLabel={t("billing.tabs.orders")}
+        />
+      }
+    />
   );
 }
 
@@ -1357,12 +1453,31 @@ function Field({
   );
 }
 
-function DataTable({ children }: { children: React.ReactNode }) {
+function DataTableFrame({
+  pagination,
+  table,
+}: {
+  pagination?: React.ReactNode;
+  table: React.ReactNode;
+}) {
   return (
     <div className="overflow-hidden rounded-lg border border-slate-200/80 bg-white shadow-none dark:border-slate-800/90 dark:bg-slate-950">
-      <div className="overflow-x-auto">
-        <Table>{children}</Table>
-      </div>
+      {table}
+      {pagination}
     </div>
+  );
+}
+
+function DataTable({
+  children,
+  minWidth = 900,
+}: {
+  children: React.ReactNode;
+  minWidth?: number;
+}) {
+  return (
+    <AdminDataTableScroll>
+      <AdminDataTable minWidth={minWidth}>{children}</AdminDataTable>
+    </AdminDataTableScroll>
   );
 }

@@ -8,9 +8,9 @@ import {
   TextField,
 } from "@/components/admin/admin-ui";
 import {
-  AdminCardGridSkeleton,
   AdminPageShell,
   AdminSurface,
+  AdminTableSkeleton,
 } from "@/components/admin/AdminPageShell";
 import {
   ADMIN_FORM_FIELD_CLASS,
@@ -35,13 +35,13 @@ const InnerLayout = () => {
       <AdminPageShell
         eyebrow={t("account.title")}
         title={t("account.title")}
-      description={t(
-        "account.page_description",
-        "Manage your username and password.",
-      )}
+        description={t(
+          "account.page_description",
+          "Manage your username and password.",
+        )}
       >
         <div className="grid gap-4">
-          <AdminCardGridSkeleton cards={2} className="xl:col-span-2" />
+          <AdminTableSkeleton columns={2} rows={3} />
         </div>
       </AdminPageShell>
     );

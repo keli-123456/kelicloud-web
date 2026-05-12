@@ -6,7 +6,6 @@ import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
 import {
-  AdminCardGridSkeleton,
   AdminPageShell,
   AdminSurface,
   AdminTableSkeleton,
@@ -2940,12 +2939,12 @@ export default function FailoverV2Page() {
     servicePagination.setPage(nextPage);
     setExpandedServiceID(null);
     setExpandedMemberKey(null);
-  }, [servicePagination.setPage]);
+  }, [servicePagination]);
   const handleServicePageSizeChange = React.useCallback((nextPageSize: number) => {
     servicePagination.setPageSize(nextPageSize);
     setExpandedServiceID(null);
     setExpandedMemberKey(null);
-  }, [servicePagination.setPageSize]);
+  }, [servicePagination]);
   const formatServiceNextCheckCountdown = React.useCallback((service: FailoverV2Service) => {
     const intervalSeconds = Math.max(60, Number(service.check_interval_seconds) || 60);
     const lastCheckedRaw = String(service.last_checked_at || "").trim();
@@ -4308,7 +4307,6 @@ export default function FailoverV2Page() {
         })}
         contentClassName="gap-3"
       >
-        <AdminCardGridSkeleton cards={4} />
         <AdminTableSkeleton columns={7} rows={5} />
       </AdminPageShell>
     );
@@ -4648,7 +4646,7 @@ export default function FailoverV2Page() {
                                   })}
                                 </div>
                               ) : (
-                                <div className="divide-y divide-slate-200/80 dark:divide-slate-800/80">
+                                <div className="divide-y divide-slate-200/80 overflow-y-auto dark:divide-slate-800/80 max-h-[480px]">
                                   {service.members.map((member) => {
                                     const memberBusy = isFailoverV2MemberBusy(service, member);
                                     const memberActionsDisabled = memberBusy;
@@ -4744,17 +4742,6 @@ export default function FailoverV2Page() {
                                               }}
                                             />
                                           </div>
-                                          <Button
-                                            size="sm"
-                                            variant={memberSelected ? "default" : "outline"}
-                                            onClick={(event) => {
-                                              event.stopPropagation();
-                                              setExpandedMemberKey(memberRowKey);
-                                            }}
-                                          >
-                                            <ChevronDown className="size-4 -rotate-90" />
-                                            {t("common.details", { defaultValue: "详情" })}
-                                          </Button>
                                         </div>
 
                                         {memberHealthMessage ? (

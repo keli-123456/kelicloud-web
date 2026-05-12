@@ -2,7 +2,6 @@ import { useMemo, useState } from "react";
 import type { TFunction } from "i18next";
 import {
   KeyRound,
-  MoreHorizontal,
   Power,
   PowerOff,
   RotateCcw,
@@ -13,16 +12,25 @@ import {
   Trash2,
 } from "lucide-react";
 
+import {
+  AdminDataTable,
+  AdminDataTableCell,
+  AdminDataTableEmptyRow,
+  AdminDataTableHead,
+  AdminDataTableHeadRow,
+  AdminDataTableRow,
+  AdminDataTableScroll,
+} from "@/components/admin/AdminDataTable";
 import { AdminEmptyState } from "@/components/admin/AdminPageShell";
 import {
   AdminPagination,
   useClientPagination,
 } from "@/components/admin/AdminPagination";
+import { AdminRowActions } from "@/components/admin/AdminRowActions";
 import type { LinodeInstance, LinodeTokenPool } from "@/lib/cloudLinode";
 import { getCloudStatusLabel } from "@/lib/cloudStatus";
 import {
   Badge,
-  Button,
   CloudTableSkeletonRows,
   Select,
   TextField,
@@ -34,23 +42,8 @@ import {
   cloudTableMutedTextClassName,
   cloudTableNameButtonClassName,
   cloudTablePrimaryTextClassName,
-  cloudTableScrollClassName,
   cloudTableSecondaryTextClassName,
 } from "@/components/admin/cloud/cloud-ui";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import {
   formatDateTime,
   getStatusColor,
@@ -130,30 +123,30 @@ export function LinodeInstancesSection({
   });
   const paginatedInstances = instancePagination.pageItems;
   const emptyTitle = panelLoading
-    ? t("cloud.loading", "Loading cloud resources...")
+    ? t("cloud.loading", "正在加载云资源...")
     : error
-      ? t("cloud.load_failed", "Unable to load cloud resources. Check the warning above and try again.")
+      ? t("cloud.load_failed", "无法加载云资源，请先处理上方提示后再试。")
       : !hasActiveToken(tokenPool)
-        ? t("cloud.providers.linode.no_active_token", "Select an active Linode token first")
+        ? t("cloud.providers.linode.no_active_token", "请先选择已激活的 Linode 令牌")
         : !resourcesLoaded
-          ? t("cloud.load_resources_prompt", "Click View to load cloud resources on demand.")
-          : t("cloud.providers.linode.instance_empty", "No Linode instances found");
+          ? t("cloud.load_resources_prompt", "点击查看按需加载资源。")
+          : t("cloud.providers.linode.instance_empty", "未找到 Linode 实例");
   const emptyDescription = panelLoading
-    ? t("cloud.loading_description", "This usually takes a few seconds when the provider API is reachable.")
+    ? t("cloud.loading_description", "供应商 API 可达时通常需要几秒。")
     : error
-      ? t("cloud.load_failed_description", "Resolve the warning above, then refresh or load resources again.")
+      ? t("cloud.load_failed_description", "请先处理上方警告，再刷新或再次加载资源。")
       : !hasActiveToken(tokenPool)
-        ? t("cloud.providers.linode.no_active_token_description", "Import a token and set it as current before managing Linode instances.")
+        ? t("cloud.providers.linode.no_active_token_description", "管理 Linode 实例前请先导入令牌并设置为当前。")
         : !resourcesLoaded
-          ? t("cloud.load_resources_description", "Cloud resources are loaded on demand so the page stays responsive with multiple accounts.")
-          : t("cloud.providers.linode.instance_empty_description", "Create a Linode instance or switch to a token that already owns resources.");
+          ? t("cloud.load_resources_description", "云资源按需加载，可避免多账号场景下页面卡顿。")
+          : t("cloud.providers.linode.instance_empty_description", "创建 Linode 实例，或切换到已有资源的令牌。");
 
   return (
     <div className={`order-2 ${cloudPanelCardClassName}`}>
       <div className={cloudPanelHeaderClassName}>
         <div>
           <div className={cloudPanelTitleClassName}>
-            {t("cloud.providers.linode.instance_list", "Instance List")}
+            {t("cloud.providers.linode.instance_list", "实例列表")}
           </div>
           <div className={cloudPanelDescriptionClassName}>
             {t(
@@ -170,7 +163,7 @@ export function LinodeInstancesSection({
             size="1"
             value={searchQuery}
             onChange={(event) => setSearchQuery(event.target.value)}
-            placeholder={t("cloud.search_resources", "Search name / IP / region...")}
+            placeholder={t("cloud.search_resources", "搜索名称 / IP / 地区...")}
           >
             <TextField.Slot>
               <Search className="h-4 w-4" />
@@ -180,9 +173,9 @@ export function LinodeInstancesSection({
         <div className="flex shrink-0 items-center gap-2">
           <div className="w-40">
             <Select.Root value={statusFilter} onValueChange={setStatusFilter}>
-              <Select.Trigger placeholder={t("cloud.table.status", "Status")} />
+              <Select.Trigger placeholder={t("cloud.table.status", "状态")} />
               <Select.Content>
-                <Select.Item value="__all__">{t("cloud.all_statuses", "All statuses")}</Select.Item>
+                <Select.Item value="__all__">{t("cloud.all_statuses", "全部状态")}</Select.Item>
                 {statusOptions.map((status) => (
                   <Select.Item key={status} value={status}>
                     {getCloudStatusLabel(status, t)}
@@ -195,53 +188,51 @@ export function LinodeInstancesSection({
         </div>
       </div>
 
-      <div className={cloudTableScrollClassName}>
-      <Table className="min-w-[1120px]">
-        <TableHeader>
-          <TableRow>
-            <TableHead>{t("cloud.table.name", "Name")}</TableHead>
-            <TableHead>{t("cloud.table.status", "Status")}</TableHead>
-            <TableHead>{t("cloud.table.region", "Region")}</TableHead>
-            <TableHead>{t("cloud.table.ip", "Public IP")}</TableHead>
-            <TableHead>{t("cloud.table.size", "Size")}</TableHead>
-            <TableHead>{t("cloud.table.image", "Image")}</TableHead>
-            <TableHead>{t("cloud.table.price", "Monthly")}</TableHead>
-            <TableHead>{t("cloud.table.password", "Root Password")}</TableHead>
-            <TableHead>{t("cloud.table.created_at", "Created")}</TableHead>
-            <TableHead className="text-right">{t("common.action", "Action")}</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
+      <AdminDataTableScroll>
+      <AdminDataTable minWidth={1120}>
+        <thead>
+          <AdminDataTableHeadRow>
+            <AdminDataTableHead>{t("cloud.table.name", "名称")}</AdminDataTableHead>
+            <AdminDataTableHead>{t("cloud.table.status", "状态")}</AdminDataTableHead>
+            <AdminDataTableHead>{t("cloud.table.region", "地区")}</AdminDataTableHead>
+            <AdminDataTableHead>{t("cloud.table.ip", "公网 IP")}</AdminDataTableHead>
+            <AdminDataTableHead>{t("cloud.table.size", "规格")}</AdminDataTableHead>
+            <AdminDataTableHead>{t("cloud.table.image", "镜像")}</AdminDataTableHead>
+            <AdminDataTableHead>{t("cloud.table.price", "月费")}</AdminDataTableHead>
+            <AdminDataTableHead>{t("cloud.table.password", "登录密码")}</AdminDataTableHead>
+            <AdminDataTableHead>{t("cloud.table.created_at", "创建时间")}</AdminDataTableHead>
+            <AdminDataTableHead align="right" sticky="right">
+              {t("common.action", "操作")}
+            </AdminDataTableHead>
+          </AdminDataTableHeadRow>
+        </thead>
+        <tbody>
           {panelLoading ? (
             <CloudTableSkeletonRows columns={10} />
           ) : instances.length === 0 ? (
-            <TableRow>
-              <TableCell colSpan={10} className="p-4">
+            <AdminDataTableEmptyRow colSpan={10} className="p-4">
                 <AdminEmptyState
                   icon={<Server className="h-5 w-5" />}
                   title={emptyTitle}
                   description={emptyDescription}
                   className={cloudTableEmptyStateClassName}
                 />
-              </TableCell>
-            </TableRow>
+            </AdminDataTableEmptyRow>
           ) : visibleInstances.length === 0 ? (
-            <TableRow>
-              <TableCell colSpan={10} className="p-4">
+            <AdminDataTableEmptyRow colSpan={10} className="p-4">
                 <AdminEmptyState
                   icon={<Search className="h-5 w-5" />}
                   title={t("cloud.no_matching_resources", "没有匹配的资源")}
                   description={t("cloud.no_matching_resources_description", "调整搜索关键词或状态筛选后再看。")}
                   className={cloudTableEmptyStateClassName}
                 />
-              </TableCell>
-            </TableRow>
+            </AdminDataTableEmptyRow>
           ) : (
             paginatedInstances.map((instance) => {
               const typeInfo = typePriceMap.get(instance.type);
               return (
-                <TableRow key={instance.id}>
-                  <TableCell className={cloudTablePrimaryTextClassName}>
+                <AdminDataTableRow key={instance.id}>
+                  <AdminDataTableCell className={cloudTablePrimaryTextClassName}>
                     <button
                       type="button"
                       className={cloudTableNameButtonClassName}
@@ -251,26 +242,26 @@ export function LinodeInstancesSection({
                     >
                       {instance.label}
                     </button>
-                  </TableCell>
-                  <TableCell>
+                  </AdminDataTableCell>
+                  <AdminDataTableCell>
                     <Badge color={getStatusColor(instance.status)}>
                       {getCloudStatusLabel(instance.status, t)}
                     </Badge>
-                  </TableCell>
-                  <TableCell>{instance.region || "-"}</TableCell>
-                  <TableCell>{instance.ipv4[0] || instance.ipv6 || "-"}</TableCell>
-                  <TableCell>{instance.type || "-"}</TableCell>
-                  <TableCell>{instance.image || "-"}</TableCell>
-                  <TableCell>
+                  </AdminDataTableCell>
+                  <AdminDataTableCell>{instance.region || "-"}</AdminDataTableCell>
+                  <AdminDataTableCell>{instance.ipv4[0] || instance.ipv6 || "-"}</AdminDataTableCell>
+                  <AdminDataTableCell>{instance.type || "-"}</AdminDataTableCell>
+                  <AdminDataTableCell>{instance.image || "-"}</AdminDataTableCell>
+                  <AdminDataTableCell>
                     {typeInfo ? `$${typeInfo.price.monthly.toFixed(2)}` : "-"}
-                  </TableCell>
-                  <TableCell>
+                  </AdminDataTableCell>
+                  <AdminDataTableCell>
                     {instance.saved_root_password ? (
                       <div className="space-y-1">
                         <Badge color={passwordStorageEnabled ? "green" : "amber"}>
                           {passwordStorageEnabled
-                            ? t("cloud.password.saved", "Saved")
-                            : t("cloud.password.locked", "Locked")}
+                            ? t("cloud.password.saved", "已保存")
+                            : t("cloud.password.locked", "已锁定")}
                         </Badge>
                         {instance.saved_root_password_updated_at ? (
                           <div className={cloudTableSecondaryTextClassName}>
@@ -281,102 +272,76 @@ export function LinodeInstancesSection({
                     ) : (
                       <span className={cloudTableMutedTextClassName}>
                         {passwordStorageEnabled
-                          ? t("cloud.password.not_saved", "Not saved")
-                          : t("cloud.password.disabled_short", "Vault off")}
+                          ? t("cloud.password.not_saved", "未保存")
+                          : t("cloud.password.disabled_short", "密库未启用")}
                       </span>
                     )}
-                  </TableCell>
-                  <TableCell>{formatDateTime(instance.created)}</TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex justify-end gap-2">
-                      <Button
-                        variant="soft"
-                        size="1"
-                        disabled={!instance.saved_root_password || !passwordStorageEnabled || passwordLoading}
-                        onClick={() => {
-                          void onViewPassword(instance);
-                        }}
-                      >
-                        <KeyRound className="mr-1 h-3.5 w-3.5" />
-                        {t("cloud.password.view", "View Password")}
-                      </Button>
-                      {instance.status === "running" ? (
-                        <Button
-                          variant="soft"
-                          size="1"
-                          color="amber"
-                          onClick={() => {
-                            void onInstanceAction(instance, "shutdown");
-                          }}
-                        >
-                          <PowerOff className="mr-1 h-3.5 w-3.5" />
-                          {t("cloud.power_off", "Power Off")}
-                        </Button>
-                      ) : (
-                        <Button
-                          variant="soft"
-                          size="1"
-                          color="green"
-                          onClick={() => {
-                            void onInstanceAction(instance, "boot");
-                          }}
-                        >
-                          <Power className="mr-1 h-3.5 w-3.5" />
-                          {t("cloud.power_on", "Power On")}
-                        </Button>
-                      )}
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8"
-                            aria-label={t("common.action", "Action")}
-                          >
-                            <MoreHorizontal className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" className="min-w-44">
-                          <DropdownMenuItem
-                            onSelect={() => {
-                              void onInstanceAction(instance, "reboot");
-                            }}
-                          >
-                            <RotateCcw className="h-4 w-4" />
-                            {t("cloud.reboot", "Reboot")}
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onSelect={() => onOpenScriptDialog(instance)}>
-                            <Terminal className="h-4 w-4" />
-                            {t("cloud.script.action", "Run Script")}
-                          </DropdownMenuItem>
-                          <DropdownMenuItem
-                            onSelect={() => {
-                              void onOpenShareDialog(instance);
-                            }}
-                          >
-                            <Share2 className="h-4 w-4" />
-                            {t("cloud.share.action", "Share")}
-                          </DropdownMenuItem>
-                          <DropdownMenuItem
-                            variant="destructive"
-                            onSelect={() => {
-                              void onDeleteInstance(instance);
-                            }}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                            {t("cloud.delete", "Delete")}
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </div>
-                  </TableCell>
-                </TableRow>
+                  </AdminDataTableCell>
+                  <AdminDataTableCell>{formatDateTime(instance.created)}</AdminDataTableCell>
+                  <AdminDataTableCell align="right" sticky="right">
+                    <AdminRowActions
+                      contentClassName="min-w-44"
+                      actions={[
+                        {
+                          label: t("cloud.password.view", "查看密码"),
+                          icon: <KeyRound className="h-4 w-4" />,
+                          disabled: !instance.saved_root_password || !passwordStorageEnabled || passwordLoading,
+                          onSelect: () => {
+                            void onViewPassword(instance);
+                          },
+                        },
+                        instance.status === "running"
+                          ? {
+                              label: t("cloud.power_off", "关机"),
+                              icon: <PowerOff className="h-4 w-4" />,
+                              onSelect: () => {
+                                void onInstanceAction(instance, "shutdown");
+                              },
+                            }
+                          : {
+                              label: t("cloud.power_on", "开机"),
+                              icon: <Power className="h-4 w-4" />,
+                              onSelect: () => {
+                                void onInstanceAction(instance, "boot");
+                              },
+                            },
+                        {
+                          label: t("cloud.reboot", "重启"),
+                          icon: <RotateCcw className="h-4 w-4" />,
+                          onSelect: () => {
+                            void onInstanceAction(instance, "reboot");
+                          },
+                        },
+                        {
+                          label: t("cloud.script.action", "执行脚本"),
+                          icon: <Terminal className="h-4 w-4" />,
+                          onSelect: () => onOpenScriptDialog(instance),
+                        },
+                        {
+                          label: t("cloud.share.action", "分享"),
+                          icon: <Share2 className="h-4 w-4" />,
+                          onSelect: () => {
+                            void onOpenShareDialog(instance);
+                          },
+                        },
+                        {
+                          label: t("cloud.delete", "删除"),
+                          icon: <Trash2 className="h-4 w-4" />,
+                          destructive: true,
+                          onSelect: () => {
+                            void onDeleteInstance(instance);
+                          },
+                        },
+                      ]}
+                    />
+                  </AdminDataTableCell>
+                </AdminDataTableRow>
               );
             })
           )}
-        </TableBody>
-      </Table>
-      </div>
+        </tbody>
+      </AdminDataTable>
+      </AdminDataTableScroll>
       <AdminPagination
         page={instancePagination.page}
         totalPages={instancePagination.totalPages}

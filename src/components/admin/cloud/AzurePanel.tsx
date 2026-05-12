@@ -3,14 +3,24 @@ import type { TFunction } from "i18next";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import {
+  CheckCircle2,
   ChevronDown,
   Eye,
+  PencilLine,
   Plus,
   RefreshCw,
+  Trash2,
 } from "lucide-react";
 
 import {
-  AdminCardGridSkeleton,
+  AdminDataTable,
+  AdminDataTableCell,
+  AdminDataTableHead,
+  AdminDataTableHeadRow,
+  AdminDataTableRow,
+  AdminDataTableScroll,
+} from "@/components/admin/AdminDataTable";
+import {
   AdminPageShell,
   AdminTableSkeleton,
 } from "@/components/admin/AdminPageShell";
@@ -43,16 +53,9 @@ import {
   cloudPanelHeaderClassName,
   cloudPanelTitleClassName,
 } from "@/components/admin/cloud/cloud-ui";
+import { AdminRowActions } from "@/components/admin/AdminRowActions";
 import { WarningAlert } from "@/components/ui/warning-alert";
 import { useWarningDialog } from "@/components/ui/warning-dialog";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import {
   azureImagePresets,
   buildScriptTarget,
@@ -260,7 +263,7 @@ export default function AzurePanel() {
       setCredentialPool(nextPool);
       setCredentialGroupEditorCredential(null);
       setCredentialGroupEditorValue("");
-      toast.success(t("cloud.tokens.group_save_success", "Token group updated"));
+      toast.success(t("cloud.tokens.group_save_success", "令牌分组已更新"));
     } catch (error) {
       toast.error(toErrorMessage(error));
     } finally {
@@ -277,14 +280,13 @@ export default function AzurePanel() {
   if (loading) {
     return (
       <AdminPageShell
-        eyebrow={t("cloud.title", "Cloud")}
+        eyebrow={t("cloud.title", "云平台")}
         title={t("cloud.providers.azure.title", "Azure")}
         description={t(
           "cloud.providers.azure.description",
           "Manage multiple Azure service principal credentials, inspect the active subscription, and operate virtual machines from one panel.",
         )}
       >
-        <AdminCardGridSkeleton cards={4} />
         <AdminTableSkeleton columns={6} rows={5} />
       </AdminPageShell>
     );
@@ -307,19 +309,19 @@ export default function AzurePanel() {
                 disabled={!activeCredential || resourceLoading}
               >
                 <Eye className={`mr-2 h-4 w-4${resourceLoading ? " animate-pulse" : ""}`} />
-                {t("cloud.view", "View")}
+                {t("cloud.view", "查看")}
               </Button>
               <Button variant="outline" size="1" onClick={() => void loadAll()} disabled={resourceLoading}>
                 <RefreshCw className={`mr-2 h-4 w-4${resourceLoading ? " animate-spin" : ""}`} />
-                {t("cloud.refresh", "Refresh")}
+                {t("cloud.refresh", "刷新")}
               </Button>
               <Button size="1" onClick={() => setCreateOpen(true)} disabled={!activeCredential}>
                 <Plus className="mr-2 h-4 w-4" />
-                {t("cloud.providers.azure.create", "Create VM")}
+                {t("cloud.providers.azure.create", "创建虚拟机")}
               </Button>
               <Button variant="outline" size="1" onClick={() => setCredentialImportOpen(true)}>
                 <Plus className="mr-2 h-4 w-4" />
-                {t("cloud.providers.azure.import", "Import Credentials")}
+                {t("cloud.providers.azure.import", "导入凭证")}
               </Button>
             </>
           )}
@@ -328,7 +330,7 @@ export default function AzurePanel() {
         {loadError ? (
           <WarningAlert
             tone="destructive"
-            title={t("cloud.providers.azure.load_error_title", "Failed to load Azure resources")}
+            title={t("cloud.providers.azure.load_error_title", "加载 Azure 资源失败")}
             description={loadError}
           />
         ) : null}
@@ -357,8 +359,8 @@ export default function AzurePanel() {
               "cloud.providers.azure.onboarding_create_description",
               "订阅就绪后，可以创建 VM，也可以在表格里查看网络、磁盘和运行状态。",
             )}
-            importLabel={t("cloud.providers.azure.import", "Import Credentials")}
-            createLabel={t("cloud.providers.azure.create", "Create VM")}
+            importLabel={t("cloud.providers.azure.import", "导入凭证")}
+            createLabel={t("cloud.providers.azure.create", "创建虚拟机")}
             onImportCredential={() => setCredentialImportOpen(true)}
             onCreate={() => setCreateOpen(true)}
           />
@@ -560,10 +562,10 @@ function AzureInlineCreatePanel({
           <div className="min-w-0">
             <div className="flex items-center gap-2">
               <div className={cloudPanelTitleClassName}>
-                {t("cloud.providers.azure.create", "Create VM")}
+                {t("cloud.providers.azure.create", "创建虚拟机")}
               </div>
               <Badge color={activeCredential ? "green" : "amber"}>
-                {activeCredential ? t("common.active", "Active") : t("cloud.no_active", "No active")}
+                {activeCredential ? t("common.active", "已激活") : t("cloud.no_active", "未激活")}
               </Badge>
             </div>
             <div className={cloudPanelDescriptionClassName}>
@@ -574,22 +576,22 @@ function AzureInlineCreatePanel({
             </div>
           </div>
           <Button variant="outline" size="1" onClick={onOpenAdvanced} disabled={!activeCredential}>
-            {t("cloud.advanced_options", "Advanced")}
+            {t("cloud.advanced_options", "高级")}
           </Button>
         </div>
       </div>
       <div className="grid gap-3 p-4">
         <div>
-          <label className={cloudPanelFieldLabelClassName}>{t("cloud.table.name", "Name")}</label>
+          <label className={cloudPanelFieldLabelClassName}>{t("cloud.table.name", "名称")}</label>
           <TextField.Root
             value={form.name}
             disabled={!activeCredential}
-            placeholder={t("cloud.providers.azure.create_name_placeholder", "Leave empty to auto-generate a VM name")}
+            placeholder={t("cloud.providers.azure.create_name_placeholder", "留空将自动生成虚拟机名称")}
             onChange={(event) => setForm((previous) => ({ ...previous, name: event.target.value }))}
           />
         </div>
         <div>
-          <label className={cloudPanelFieldLabelClassName}>{t("cloud.form.region", "Region")}</label>
+          <label className={cloudPanelFieldLabelClassName}>{t("cloud.form.region", "地区")}</label>
           <Select.Root
             value={activeLocation}
             disabled={!activeCredential || locationUpdating || locationOptions.length === 0}
@@ -597,7 +599,7 @@ function AzureInlineCreatePanel({
               void onSetLocation(value);
             }}
           >
-            <Select.Trigger placeholder={t("cloud.form.region_placeholder", "Select a region")} />
+            <Select.Trigger placeholder={t("cloud.form.region_placeholder", "选择地区")} />
             <Select.Content>
               {locationOptions.map((location) => (
                 <Select.Item key={location.name} value={location.name}>
@@ -608,13 +610,13 @@ function AzureInlineCreatePanel({
           </Select.Root>
         </div>
         <div>
-          <label className={cloudPanelFieldLabelClassName}>{t("cloud.form.image", "Image")}</label>
+          <label className={cloudPanelFieldLabelClassName}>{t("cloud.form.image", "镜像")}</label>
           <Select.Root
             value={form.image_preset}
             disabled={!activeCredential}
             onValueChange={(value) => setForm((previous) => buildCreateFormFromPreset(value, previous))}
           >
-            <Select.Trigger placeholder={t("cloud.form.image_placeholder", "Select an image")} />
+            <Select.Trigger placeholder={t("cloud.form.image_placeholder", "选择镜像")} />
             <Select.Content>
               {azureImagePresets.map((preset) => (
                 <Select.Item key={preset.id} value={preset.id}>
@@ -625,13 +627,13 @@ function AzureInlineCreatePanel({
           </Select.Root>
         </div>
         <div>
-          <label className={cloudPanelFieldLabelClassName}>{t("cloud.form.size", "Size")}</label>
+          <label className={cloudPanelFieldLabelClassName}>{t("cloud.form.size", "规格")}</label>
           <Select.Root
             value={form.size || getDefaultAzureSize(catalog)}
             disabled={!activeCredential}
             onValueChange={(value) => setForm((previous) => ({ ...previous, size: value }))}
           >
-            <Select.Trigger placeholder={t("cloud.form.size_placeholder", "Select a size")} />
+            <Select.Trigger placeholder={t("cloud.form.size_placeholder", "选择规格")} />
             <Select.Content>
               {(catalog?.sizes || []).map((size) => (
                 <Select.Item key={size.name} value={size.name}>
@@ -642,7 +644,7 @@ function AzureInlineCreatePanel({
           </Select.Root>
         </div>
         <div>
-          <label className={cloudPanelFieldLabelClassName}>{t("cloud.providers.azure.admin_username", "Admin Username")}</label>
+          <label className={cloudPanelFieldLabelClassName}>{t("cloud.providers.azure.admin_username", "管理员账号")}</label>
           <TextField.Root
             value={form.admin_username || ""}
             disabled={!activeCredential}
@@ -656,7 +658,7 @@ function AzureInlineCreatePanel({
           onClick={() => { void onCreate(); }}
           disabled={submitting || !activeCredential || !form.size}
         >
-          {submitting ? t("cloud.creating", "Creating...") : t("cloud.providers.azure.create", "Create VM")}
+          {submitting ? t("cloud.creating", "正在创建...") : t("cloud.providers.azure.create", "创建虚拟机")}
         </Button>
       </div>
     </section>
@@ -697,7 +699,7 @@ function AzureCredentialContextStrip({
                 {t("cloud.providers.azure.subscription_context", "订阅上下文")}
               </div>
               <Badge color={activeCredential ? "green" : "amber"}>
-                {activeCredential ? t("common.active", "Active") : t("cloud.no_active", "No active")}
+                {activeCredential ? t("common.active", "已激活") : t("cloud.no_active", "未激活")}
               </Badge>
               <Badge color="gray">
                 {t("cloud.providers.azure.credential_count", {
@@ -715,7 +717,7 @@ function AzureCredentialContextStrip({
           <div className="flex shrink-0 flex-wrap items-center gap-2">
             <Button size="1" onClick={onImportCredentials}>
               <Plus className="mr-2 h-4 w-4" />
-              {t("cloud.providers.azure.import", "Import Credentials")}
+              {t("cloud.providers.azure.import", "导入凭证")}
             </Button>
             <Button
               variant="outline"
@@ -723,7 +725,7 @@ function AzureCredentialContextStrip({
               onClick={() => setPoolOpen((open) => !open)}
             >
               <ChevronDown className={`mr-2 h-4 w-4 transition-transform ${poolOpen ? "rotate-180" : ""}`} />
-              {poolOpen ? t("common.collapse", "Collapse") : t("cloud.tokens.manage", "Manage")}
+              {poolOpen ? t("common.collapse", "收起") : t("cloud.tokens.manage", "管理")}
             </Button>
             <Button
               variant="outline"
@@ -734,7 +736,7 @@ function AzureCredentialContextStrip({
               disabled={credentials.length === 0 || checkingCredentialsState}
             >
               <RefreshCw className={`mr-2 h-4 w-4${checkingCredentialsState ? " animate-spin" : ""}`} />
-              {t("cloud.credentials.check", "Check")}
+              {t("cloud.credentials.check", "检查")}
             </Button>
           </div>
         </div>
@@ -744,80 +746,79 @@ function AzureCredentialContextStrip({
         <>
           <div className="min-h-0 flex-1 overflow-y-auto p-3 [scrollbar-gutter:stable]">
             {visibleCredentials.length > 0 ? (
-              <div className="overflow-x-auto rounded-lg border border-border">
-                <Table className="min-w-[700px]">
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>{t("cloud.tokens.table.name", "Name")}</TableHead>
-                      <TableHead>{t("cloud.tokens.group", "Group")}</TableHead>
-                      <TableHead>{t("cloud.providers.azure.subscription_state", "Subscription state")}</TableHead>
-                      <TableHead>{t("cloud.tokens.table.status", "Status")}</TableHead>
-                      <TableHead className="text-right">{t("common.action", "Action")}</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
+              <div className="overflow-hidden rounded-lg border border-border bg-card">
+                <AdminDataTableScroll>
+                  <AdminDataTable minWidth={720}>
+                  <thead>
+                    <AdminDataTableHeadRow>
+                      <AdminDataTableHead>{t("cloud.tokens.table.name", "名称")}</AdminDataTableHead>
+                      <AdminDataTableHead>{t("cloud.tokens.group", "分组")}</AdminDataTableHead>
+                      <AdminDataTableHead>{t("cloud.providers.azure.subscription_state", "Subscription state")}</AdminDataTableHead>
+                      <AdminDataTableHead>{t("cloud.tokens.table.status", "状态")}</AdminDataTableHead>
+                      <AdminDataTableHead align="right" sticky="right">{t("common.action", "操作")}</AdminDataTableHead>
+                    </AdminDataTableHeadRow>
+                  </thead>
+                  <tbody>
                     {visibleCredentials.map((credential) => (
-                      <TableRow key={credential.id}>
-                        <TableCell className={`font-semibold text-foreground ${cloudLongTextClassName}`}>
+                      <AdminDataTableRow key={credential.id}>
+                        <AdminDataTableCell className={`font-semibold text-foreground ${cloudLongTextClassName}`}>
                           <span className="block max-w-44 truncate">
                             {credential.name || "-"}
                           </span>
-                        </TableCell>
-                        <TableCell className={`text-xs text-muted-foreground ${cloudLongTextClassName}`}>
+                        </AdminDataTableCell>
+                        <AdminDataTableCell className={`text-xs text-muted-foreground ${cloudLongTextClassName}`}>
                           <span className="block max-w-36 truncate">
-                            {credential.group || t("cloud.tokens.no_group", "No group")}
+                            {credential.group || t("cloud.tokens.no_group", "未分组")}
                           </span>
-                        </TableCell>
-                        <TableCell className={`text-xs text-muted-foreground ${cloudLongTextClassName}`}>
+                        </AdminDataTableCell>
+                        <AdminDataTableCell className={`text-xs text-muted-foreground ${cloudLongTextClassName}`}>
                           {credential.subscription_state || "-"}
-                        </TableCell>
-                        <TableCell>
+                        </AdminDataTableCell>
+                        <AdminDataTableCell>
                           <Badge color={credential.is_active ? "green" : "gray"}>
-                            {credential.is_active ? t("common.active", "Active") : credential.last_status || "-"}
+                            {credential.is_active ? t("common.active", "已激活") : credential.last_status || "-"}
                           </Badge>
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <div className="flex justify-end gap-1.5">
-                            {!credential.is_active ? (
-                              <Button
-                                variant="soft"
-                                color="blue"
-                                size="1"
-                                onClick={() => {
+                        </AdminDataTableCell>
+                        <AdminDataTableCell align="right" sticky="right">
+                          <AdminRowActions
+                            label={t("common.action", "操作")}
+                            actions={[
+                              {
+                                label: t("common.select", "选择"),
+                                icon: <CheckCircle2 className="h-4 w-4" />,
+                                hidden: credential.is_active,
+                                onSelect: () => {
                                   void onSelectCredential(credential);
-                                }}
-                              >
-                                {t("common.select", "Select")}
-                              </Button>
-                            ) : null}
-                            <Button variant="outline" size="1" onClick={() => onOpenGroupEditor(credential)}>
-                              {t("cloud.tokens.group_action", "Group")}
-                            </Button>
-                            <Button
-                              variant="outline"
-                              size="1"
-                              onClick={() => {
-                                void onViewCredential(credential);
-                              }}
-                            >
-                              {t("cloud.view", "View")}
-                            </Button>
-                            <Button
-                              variant="soft"
-                              color="red"
-                              size="1"
-                              onClick={() => {
-                                void onDeleteCredential(credential);
-                              }}
-                            >
-                              {t("delete", "Delete")}
-                            </Button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
+                                },
+                              },
+                              {
+                                label: t("cloud.tokens.group_action", "分组"),
+                                icon: <PencilLine className="h-4 w-4" />,
+                                onSelect: () => onOpenGroupEditor(credential),
+                              },
+                              {
+                                label: t("cloud.view", "查看"),
+                                icon: <Eye className="h-4 w-4" />,
+                                onSelect: () => {
+                                  void onViewCredential(credential);
+                                },
+                              },
+                              {
+                                label: t("delete", "删除"),
+                                icon: <Trash2 className="h-4 w-4" />,
+                                destructive: true,
+                                onSelect: () => {
+                                  void onDeleteCredential(credential);
+                                },
+                              },
+                            ]}
+                          />
+                        </AdminDataTableCell>
+                      </AdminDataTableRow>
                     ))}
-                  </TableBody>
-                </Table>
+                  </tbody>
+                  </AdminDataTable>
+                </AdminDataTableScroll>
               </div>
             ) : (
               <div className="rounded-lg border border-dashed border-border bg-muted/30 px-4 py-8 text-center">

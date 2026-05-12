@@ -56,7 +56,7 @@ const NodeSelector: React.FC<NodeSelectorProps> = ({
   return (
     <Selector
       className={className}
-      scrollAreaClassName={scrollAreaClassName}
+      scrollAreaClassName={`min-h-0 ${scrollAreaClassName}`}
       hiddenDescription={hiddenDescription}
       value={nodesFiltered}
       onChange={onChange}

@@ -30,9 +30,19 @@ import {
     AdminTableSkeleton,
 } from "@/components/admin/AdminPageShell";
 import {
+    AdminDataTable,
+    AdminDataTableCell,
+    AdminDataTableEmptyRow,
+    AdminDataTableHead,
+    AdminDataTableHeadRow,
+    AdminDataTableRow,
+    AdminDataTableScroll,
+} from "@/components/admin/AdminDataTable";
+import {
     AdminPagination,
     useClientPagination,
 } from "@/components/admin/AdminPagination";
+import { AdminRowActions } from "@/components/admin/AdminRowActions";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -105,7 +115,7 @@ const getLineNumbers = (value: string) =>
     Array.from({ length: Math.max(1, getCodeLines(value).length) }, (_, index) => index + 1);
 
 const getLineNumberColumnWidth = (lineCount: number) =>
-    `calc(${Math.max(2, String(Math.max(1, lineCount)).length)}ch + 12px)`;
+  `calc(${Math.min(4, Math.max(2, String(Math.max(1, lineCount)).length))}ch + 8px)`;
 
 const getCommandEditorHeight = (lineCount: number) =>
     Math.min(260, Math.max(96, lineCount * 20 + 32));
@@ -149,11 +159,11 @@ const resolveExecWorkspaceView = (
     return "exec";
 };
 
-const getCommandTitle = (command: CommandClipboard) => {
+const getCommandTitle = (command: CommandClipboard, fallbackLabel: string) => {
     const name = command.name.trim();
     if (name) return name;
     const firstLine = command.text.split(/\r?\n/).map((line) => line.trim()).find(Boolean);
-    return firstLine || `Clipboard #${command.id}`;
+    return firstLine || fallbackLabel;
 };
 
 const getTaskClients = (task: Partial<TaskSummary> | null | undefined) =>
@@ -201,11 +211,8 @@ const extractTaskSummaries = (payload: TaskListResponse | TaskSummary[]): TaskSu
         .filter((item): item is TaskSummary => item !== null);
 };
 
-const getTaskCreatedAt = (task: TaskSummary) =>
-    getTaskResults(task)
-        .map((result) => result.created_at)
-        .filter(Boolean)
-        .sort()[0] || null;
+const getTaskCreatedAt = (task: TaskSummary | null | undefined) =>
+    getTaskResults(task).map((result) => result.created_at).filter(Boolean).sort()[0] || null;
 
 const getTaskCompletion = (task: TaskSummary) => {
     const taskResults = getTaskResults(task);
@@ -379,7 +386,7 @@ const ExecContent = () => {
         setCommand(presetCommand.text);
         toast.success(
             t("exec.savedCommandApplied", {
-                defaultValue: "Command content applied",
+                defaultValue: "已应用命令内容",
             }),
         );
 
@@ -407,11 +414,18 @@ const ExecContent = () => {
             });
             const payload = await response.json().catch(() => ({})) as TaskListResponse | TaskSummary[];
             if (!response.ok) {
-                throw new Error(formatApiErrorMessage(!Array.isArray(payload) && payload.message ? payload.message : "Failed to fetch tasks", { status: response.status }));
+                throw new Error(formatApiErrorMessage(!Array.isArray(payload) && payload.message
+                    ? payload.message
+                    : t("exec.errors.loadTaskListFailed", { defaultValue: "获取任务列表失败" }), { status: response.status }));
             }
             setRecentTasks(extractTaskSummaries(payload));
         } catch (err) {
-            const message = getReadableErrorMessage(err, "获取执行任务失败，请刷新后重试。");
+            const message = getReadableErrorMessage(
+                err,
+                t("exec.errors.loadRecentTasksFailed", {
+                    defaultValue: "获取执行任务失败，请刷新后重试。",
+                }),
+            );
             setTasksError(message);
             setRecentTasks([]);
         } finally {
@@ -419,7 +433,7 @@ const ExecContent = () => {
                 setTasksLoading(false);
             }
         }
-    }, []);
+    }, [t]);
 
     useEffect(() => {
         void loadRecentTasks();
@@ -483,7 +497,7 @@ const ExecContent = () => {
     const visibleRecentTasks = recentTaskPagination.pageItems;
 
     const getTimeoutOutput = () =>
-        t("exec.status.timeout_output", "Execution timed out");
+        t("exec.status.timeout_output", "执行超时");
     const getDisplayOutput = (output: string) =>
         output === EXEC_TIMEOUT_SENTINEL ? getTimeoutOutput() : output;
     const getNodeDisplayAddress = (uuid: string) => {
@@ -520,11 +534,11 @@ const ExecContent = () => {
                 const allCompleted = taskResults.every(result => result.finished_at !== null);
                 if (allCompleted) {
                     clearPolling();
-                    toast.success(t("exec.allCompleted", "All tasks executed successfully"));
+                toast.success(t("exec.allCompleted", "所有任务已完成"));
                 }
             }
         } catch (err) {
-            console.error("Failed to poll task results:", err);
+            console.error("获取任务结果失败:", err);
             clearPolling();
         }
     };
@@ -562,7 +576,7 @@ const ExecContent = () => {
                 )
             );
             clearPolling();
-            toast.warning(t("exec.pollingTimeout", "Task execution timed out"));
+            toast.warning(t("exec.pollingTimeout", "执行任务超时"));
         }, 60000);
     };
 
@@ -620,7 +634,11 @@ const ExecContent = () => {
                 startPolling(data.data.task_id);
                 void loadRecentTasks(true);
             } else {
-                throw new Error(formatApiErrorMessage(data.message || "Failed to fetch tasks"));
+                throw new Error(
+                    formatApiErrorMessage(
+                        data.message || t("exec.errors.taskSubmitFailed", { defaultValue: "执行命令提交失败" }),
+                    ),
+                );
             }
         } catch (err) {
             const errorMessage = getReadableErrorMessage(err, t("common.unknown_error"));
@@ -632,7 +650,7 @@ const ExecContent = () => {
 
     const copyOutput = (output: string) => {
         navigator.clipboard.writeText(output);
-        toast.success(t("copy_success", "Copied!"));
+        toast.success(t("copy_success", "已复制！"));
     };
 
     const loadTaskResults = async (
@@ -673,17 +691,24 @@ const ExecContent = () => {
             if (!response.ok) {
                 const message = typeof payload?.message === "string"
                     ? payload.message
-                    : "Failed to fetch task results";
+                    : t("exec.errors.loadTaskResultsFailed", { defaultValue: "获取任务结果失败" });
                 throw new Error(formatApiErrorMessage(message, { status: response.status }));
             }
 
             const taskResults = extractTaskResults(payload);
             if (!taskResults) {
-                throw new Error(formatApiErrorMessage("Unexpected task result response"));
+                throw new Error(formatApiErrorMessage(t("exec.errors.unexpectedTaskResultResponse", {
+                    defaultValue: "意外的任务结果响应",
+                })));
             }
             setResults(taskResults);
         } catch (err) {
-            const message = getReadableErrorMessage(err, "获取任务结果失败，请稍后重试。");
+            const message = getReadableErrorMessage(
+                err,
+                t("exec.errors.taskResultLoadFailed", {
+                    defaultValue: "获取任务结果失败，请稍后重试。",
+                }),
+            );
             setResultError(message);
             setResults([]);
         } finally {
@@ -700,14 +725,14 @@ const ExecContent = () => {
             return {
                 status: "running",
                 variant: "info" as const,
-                text: t("exec.status.running"),
+                text: t("exec.status.running", "执行中"),
             };
         }
         if (result.result === EXEC_TIMEOUT_SENTINEL) {
             return {
                 status: "timeout",
                 variant: "warning" as const,
-                text: t("exec.status.timeout", "Timeout"),
+                text: t("exec.status.timeout", "超时"),
             };
         }
         if (result.exit_code === 0) {
@@ -845,7 +870,7 @@ const ExecContent = () => {
                                     onChange={(event) => setLibrarySearch(event.target.value)}
                                     placeholder={
                                         activeTab === "history"
-                                            ? t("exec.search_history", { defaultValue: "搜索 Task / 节点" })
+                                            ? t("exec.search_history", { defaultValue: "搜索任务 / 节点" })
                                             : activeTab === "result"
                                                 ? t("exec.search_result", { defaultValue: "搜索节点 / 输出" })
                                                 : t("exec.search_library", { defaultValue: "搜索脚本 / 备注" })
@@ -888,108 +913,101 @@ const ExecContent = () => {
 
                     {activeTab === "library" && (
                         <>
-                        <div className="overflow-x-auto">
-                            <table className="w-full min-w-[680px] text-left text-sm">
+                        <AdminDataTableScroll>
+                            <AdminDataTable minWidth={680}>
                                 <thead>
-                                    <tr className="border-b border-border bg-muted/30 text-[12px] font-semibold text-muted-foreground">
-                                        <th className="px-[14px] py-3">{t("command_clipboard.table.script", { defaultValue: "脚本" })}</th>
-                                        <th className="px-[14px] py-3">{t("command_clipboard.table.remark", { defaultValue: "备注" })}</th>
-                                        <th className="px-[14px] py-3">{t("command_clipboard.table.updated_at", { defaultValue: "更新时间" })}</th>
-                                        <th className="px-[14px] py-3">{t("command_clipboard.table.weight", { defaultValue: "权重" })}</th>
-                                        <th className="px-[14px] py-3 text-right">{t("common.action", { defaultValue: "操作" })}</th>
-                                    </tr>
+                                    <AdminDataTableHeadRow>
+                                        <AdminDataTableHead>{t("command_clipboard.table.script", { defaultValue: "脚本" })}</AdminDataTableHead>
+                                        <AdminDataTableHead>{t("command_clipboard.table.remark", { defaultValue: "备注" })}</AdminDataTableHead>
+                                        <AdminDataTableHead>{t("command_clipboard.table.updated_at", { defaultValue: "更新时间" })}</AdminDataTableHead>
+                                        <AdminDataTableHead>{t("command_clipboard.table.weight", { defaultValue: "权重" })}</AdminDataTableHead>
+                                        <AdminDataTableHead sticky="right" align="right" className="w-[72px]">
+                                            {t("common.action", { defaultValue: "操作" })}
+                                        </AdminDataTableHead>
+                                    </AdminDataTableHeadRow>
                                 </thead>
                                 <tbody>
                                     {commandsLoading ? (
-                                        <tr>
-                                            <td colSpan={5} className="px-[14px] py-5">
-                                                <AdminTableSkeleton columns={5} rows={3} />
-                                            </td>
-                                        </tr>
+                                        <AdminDataTableEmptyRow colSpan={5} className="py-5">
+                                            <AdminTableSkeleton columns={5} rows={3} />
+                                        </AdminDataTableEmptyRow>
                                     ) : commandsError ? (
-                                        <tr>
-                                            <td colSpan={5} className="px-[14px] py-5 text-sm text-destructive">
-                                                {commandsError.message}
-                                            </td>
-                                        </tr>
+                                        <AdminDataTableEmptyRow colSpan={5} className="py-5 text-sm text-destructive">
+                                            {commandsError.message}
+                                        </AdminDataTableEmptyRow>
                                     ) : visibleCommands.length === 0 ? (
-                                        <tr>
-                                            <td colSpan={5} className="px-[14px] py-8">
-                                                <AdminEmptyState
-                                                    icon={<Terminal size={18} />}
-                                                    title={t("exec.library_empty_title", { defaultValue: "暂无脚本" })}
-                                                    description={t("exec.library_empty_description", { defaultValue: "Clipboard 为空。" })}
-                                                    actions={
-                                                        <Button asChild size="sm">
-                                                            <Link to="/admin/exec?view=scripts">
-                                                                <Plus size={14} />
-                                                                {t("command_clipboard.new_command", { defaultValue: "新建脚本" })}
-                                                            </Link>
-                                                        </Button>
-                                                    }
-                                                    className="min-h-28 border-0 bg-muted/25 shadow-none"
-                                                />
-                                            </td>
-                                        </tr>
+                                        <AdminDataTableEmptyRow colSpan={5}>
+                                            <AdminEmptyState
+                                                icon={<Terminal size={18} />}
+                                                title={t("exec.library_empty_title", { defaultValue: "暂无脚本" })}
+                        description={t("exec.library_empty_description", { defaultValue: "脚本库为空。" })}
+                                                actions={
+                                                    <Button asChild size="sm">
+                                                        <Link to="/admin/exec?view=scripts">
+                                                            <Plus size={14} />
+                                                            {t("command_clipboard.new_command", { defaultValue: "新建脚本" })}
+                                                        </Link>
+                                                    </Button>
+                                                }
+                                                className="min-h-28 border-0 bg-muted/25 shadow-none"
+                                            />
+                                        </AdminDataTableEmptyRow>
                                     ) : visibleCommands.map((item) => (
-                                        <tr
-                                            key={item.id}
-                                            className="border-b border-border transition-colors last:border-b-0 hover:bg-muted/25"
-                                        >
-                                            <td className="px-[14px] py-3 align-top">
+                                        <AdminDataTableRow key={item.id}>
+                                            <AdminDataTableCell className="align-top">
                                                 <button
                                                     type="button"
                                                     onClick={() => setCommand(item.text)}
                                                     className="block max-w-[260px] truncate text-left text-[13px] font-semibold leading-5 text-foreground hover:text-primary"
                                                 >
-                                                    {getCommandTitle(item)}
+                                                    {getCommandTitle(
+                                                        item,
+                                                        t("command_clipboard.script_title", {
+                                                            defaultValue: "脚本 #{{id}}",
+                                                            id: item.id,
+                                                        }),
+                                                    )}
                                                 </button>
                                                 <span className="block max-w-[320px] truncate font-mono text-[11px] leading-4 text-muted-foreground">
                                                     {item.text}
                                                 </span>
-                                            </td>
-                                            <td className="max-w-[220px] px-[14px] py-3 align-middle text-[12px] text-foreground">
+                                            </AdminDataTableCell>
+                                            <AdminDataTableCell className="max-w-[220px]">
                                                 <span className="block truncate">{item.remark || "-"}</span>
-                                            </td>
-                                            <td className="px-[14px] py-3 align-middle text-[12px] text-foreground">
+                                            </AdminDataTableCell>
+                                            <AdminDataTableCell>
                                                 {formatTimestamp(item.updated_at)}
-                                            </td>
-                                            <td className="px-[14px] py-3 align-middle">
+                                            </AdminDataTableCell>
+                                            <AdminDataTableCell>
                                                 <Badge variant="secondary" className="h-6 rounded-full px-2 text-[11px]">
                                                     {item.weight}
                                                 </Badge>
-                                            </td>
-                                            <td className="px-[14px] py-3 align-middle">
-                                                <div className="flex justify-end gap-1">
-                                                    <Button
-                                                        type="button"
-                                                        variant="ghost"
-                                                        size="sm"
-                                                        onClick={() => {
-                                                            setCommand(item.text);
-                                                            void executeCommand(item.text);
-                                                        }}
-                                                        disabled={executing || selectedNodes.length === 0}
-                                                        className="h-8 rounded-md px-2 text-[12px]"
-                                                    >
-                                                        执行
-                                                    </Button>
-                                                    <Button
-                                                        type="button"
-                                                        variant="ghost"
-                                                        size="sm"
-                                                        onClick={() => setCommand(item.text)}
-                                                        className="h-8 rounded-md px-2 text-[12px]"
-                                                    >
-                                                        插入
-                                                    </Button>
-                                                </div>
-                                            </td>
-                                        </tr>
+                                            </AdminDataTableCell>
+                                            <AdminDataTableCell sticky="right" align="right">
+                                                <AdminRowActions
+                                                    actions={[
+                                                        {
+                                                            label: t("common.execute", { defaultValue: "执行" }),
+                                                            icon: <Play size={14} />,
+                                                            disabled: executing || selectedNodes.length === 0,
+                                                            onSelect: () => {
+                                                                setCommand(item.text);
+                                                                void executeCommand(item.text);
+                                                            },
+                                                        },
+                                                        {
+                                                            label: t("exec.insert_command", { defaultValue: "插入" }),
+                                                            icon: <Terminal size={14} />,
+                                                            onSelect: () => setCommand(item.text),
+                                                        },
+                                                    ]}
+                                                />
+                                            </AdminDataTableCell>
+                                        </AdminDataTableRow>
                                     ))}
                                 </tbody>
-                            </table>
-                        </div>
+                            </AdminDataTable>
+                        </AdminDataTableScroll>
                         {!commandsLoading && !commandsError ? (
                             <AdminPagination
                                 page={commandPagination.page}
@@ -1001,7 +1019,7 @@ const ExecContent = () => {
                                 onPageChange={commandPagination.setPage}
                                 onPageSizeChange={commandPagination.setPageSize}
                                 pageSizeOptions={[8, 20, 50]}
-                                itemLabel={t("admin.pagination.scripts", { defaultValue: "scripts" })}
+                                itemLabel={t("admin.pagination.scripts", { defaultValue: "脚本" })}
                                 compact
                             />
                         ) : null}
@@ -1010,80 +1028,74 @@ const ExecContent = () => {
 
                     {activeTab === "history" && (
                         <>
-                        <div className="overflow-x-auto">
-                            <table className="w-full min-w-[760px] text-left text-sm">
+                        <AdminDataTableScroll>
+                            <AdminDataTable minWidth={760}>
                                 <thead>
-                                    <tr className="border-b border-border bg-muted/30 text-[12px] font-semibold text-muted-foreground">
-                                        <th className="px-[14px] py-3">Task ID</th>
-                                        <th className="px-[14px] py-3">{t("exec.table.nodes", { defaultValue: "节点" })}</th>
-                                        <th className="px-[14px] py-3">{t("exec.table.created_at", { defaultValue: "创建时间" })}</th>
-                                        <th className="px-[14px] py-3">{t("exec.table.receipts", { defaultValue: "回执" })}</th>
-                                        <th className="px-[14px] py-3">{t("exec.table.status", { defaultValue: "状态" })}</th>
-                                        <th className="px-[14px] py-3 text-right">{t("common.action", { defaultValue: "操作" })}</th>
-                                    </tr>
+                                    <AdminDataTableHeadRow>
+                    <AdminDataTableHead>任务ID</AdminDataTableHead>
+                                        <AdminDataTableHead>{t("exec.table.nodes", { defaultValue: "节点" })}</AdminDataTableHead>
+                                        <AdminDataTableHead>{t("exec.table.created_at", { defaultValue: "创建时间" })}</AdminDataTableHead>
+                                        <AdminDataTableHead>{t("exec.table.receipts", { defaultValue: "回执" })}</AdminDataTableHead>
+                                        <AdminDataTableHead>{t("exec.table.status", { defaultValue: "状态" })}</AdminDataTableHead>
+                                        <AdminDataTableHead sticky="right" align="right" className="w-[72px]">
+                                            {t("common.action", { defaultValue: "操作" })}
+                                        </AdminDataTableHead>
+                                    </AdminDataTableHeadRow>
                                 </thead>
                                 <tbody>
                                     {tasksLoading ? (
-                                        <tr>
-                                            <td colSpan={6} className="px-[14px] py-5">
-                                                <AdminTableSkeleton columns={6} rows={3} />
-                                            </td>
-                                        </tr>
+                                        <AdminDataTableEmptyRow colSpan={6} className="py-5">
+                                            <AdminTableSkeleton columns={6} rows={3} />
+                                        </AdminDataTableEmptyRow>
                                     ) : tasksError ? (
-                                        <tr>
-                                            <td colSpan={6} className="px-[14px] py-5 text-sm text-destructive">
-                                                {tasksError}
-                                            </td>
-                                        </tr>
+                                        <AdminDataTableEmptyRow colSpan={6} className="py-5 text-sm text-destructive">
+                                            {tasksError}
+                                        </AdminDataTableEmptyRow>
                                     ) : visibleRecentTasks.length === 0 ? (
-                                        <tr>
-                                            <td colSpan={6} className="px-[14px] py-8">
-                                                <AdminEmptyState
-                                                    icon={<Clock size={18} />}
-                                                    title={t("exec.history_empty_title", { defaultValue: "暂无执行记录" })}
-                                                    description={t("exec.history_empty_description", { defaultValue: "Task 列表为空。" })}
-                                                    className="min-h-28 border-0 bg-muted/25 shadow-none"
-                                                />
-                                            </td>
-                                        </tr>
+                                        <AdminDataTableEmptyRow colSpan={6}>
+                                            <AdminEmptyState
+                                                icon={<Clock size={18} />}
+                                                title={t("exec.history_empty_title", { defaultValue: "暂无执行记录" })}
+                        description={t("exec.history_empty_description", { defaultValue: "执行列表为空。" })}
+                                                className="min-h-28 border-0 bg-muted/25 shadow-none"
+                                            />
+                                        </AdminDataTableEmptyRow>
                                     ) : visibleRecentTasks.map((item) => {
                                         const completion = getTaskCompletion(item);
                                         const tone = getTaskTone(item);
                                         const selected = currentTaskId === item.task_id;
                                         return (
-                                            <tr
+                                            <AdminDataTableRow
                                                 key={item.task_id}
+                                                selected={selected}
+                                                interactive
                                                 onClick={() => {
                                                     void loadTaskResults(item.task_id, {
                                                         switchTab: true,
                                                     });
                                                 }}
-                                                className={cn(
-                                                    "cursor-pointer border-b border-border transition-colors last:border-b-0 hover:bg-muted/25",
-                                                    selected && "bg-blue-50/70 dark:bg-blue-950/20",
-                                                )}
                                             >
-                                                <td className="px-[14px] py-3 align-middle">
+                                                <AdminDataTableCell>
                                                     <span className="block max-w-[220px] truncate font-mono text-[12px] text-foreground">
                                                         {item.task_id}
                                                     </span>
                                                     <span className="block max-w-[220px] truncate text-[11px] leading-4 text-muted-foreground">
-                                                        {t("exec.command_not_stored", { defaultValue: "command 不由后端保存" })}
+                    {t("exec.command_not_stored", { defaultValue: "该命令不会由后端持久化保存" })}
                                                     </span>
-                                                </td>
-                                                <td className="px-[14px] py-3 align-middle text-[12px] text-foreground">
+                                                </AdminDataTableCell>
+                                                <AdminDataTableCell>
                                                     {t("exec.node_count", {
                                                         count: getTaskClients(item).length,
                                                         defaultValue: "{{count}} 台",
                                                     })}
-                                                </td>
-                                                <td className="px-[14px] py-3 align-middle text-[12px] text-foreground">
+                                                </AdminDataTableCell>
+                                                <AdminDataTableCell>
                                                     {formatTimestamp(getTaskCreatedAt(item))}
-                                                </td>
-                                                <td className="px-[14px] py-3 align-middle text-[12px] text-foreground">
+                                                </AdminDataTableCell>
+                                                <AdminDataTableCell>
                                                     {completion.finished}/{completion.total}
-                                                </td>
-                                                <td className="px-[14px] py-3 align-middle">
+                                                </AdminDataTableCell>
+                                                <AdminDataTableCell>
                                                     <ExecStatus tone={tone}>
                                                         {tone === "bad"
                                                             ? t("exec.status.abnormal", { defaultValue: "异常" })
@@ -1091,32 +1103,28 @@ const ExecContent = () => {
                                                                 ? t("exec.status.done", { defaultValue: "完成" })
                                                                 : t("exec.status.running", { defaultValue: "运行中" })}
                                                     </ExecStatus>
-                                                </td>
-                                                <td className="px-[14px] py-3 align-middle">
-                                                    <div className="flex justify-end">
-                                                        <Button
-                                                            type="button"
-                                                            variant="ghost"
-                                                            size="sm"
-                                                            onClick={(event) => {
-                                                                event.stopPropagation();
-                                                                void loadTaskResults(item.task_id, {
-                                                                    switchTab: true,
-                                                                });
-                                                            }}
-                                                            className="h-8 rounded-md px-2 text-[12px]"
-                                                        >
-                                                            <Eye size={14} />
-                                                            {t("exec.view_results", { defaultValue: "查看结果" })}
-                                                        </Button>
-                                                    </div>
-                                                </td>
-                                            </tr>
+                                                </AdminDataTableCell>
+                                                <AdminDataTableCell sticky="right" align="right">
+                                                    <AdminRowActions
+                                                        actions={[
+                                                            {
+                                                                label: t("exec.view_results", { defaultValue: "查看结果" }),
+                                                                icon: <Eye size={14} />,
+                                                                onSelect: () => {
+                                                                    void loadTaskResults(item.task_id, {
+                                                                        switchTab: true,
+                                                                    });
+                                                                },
+                                                            },
+                                                        ]}
+                                                    />
+                                                </AdminDataTableCell>
+                                            </AdminDataTableRow>
                                         );
                                     })}
                                 </tbody>
-                            </table>
-                        </div>
+                            </AdminDataTable>
+                        </AdminDataTableScroll>
                         {!tasksLoading && !tasksError ? (
                             <AdminPagination
                                 page={recentTaskPagination.page}
@@ -1128,7 +1136,7 @@ const ExecContent = () => {
                                 onPageChange={recentTaskPagination.setPage}
                                 onPageSizeChange={recentTaskPagination.setPageSize}
                                 pageSizeOptions={[8, 20, 50]}
-                                itemLabel={t("admin.pagination.tasks", { defaultValue: "tasks" })}
+                                itemLabel={t("admin.pagination.tasks", { defaultValue: "任务" })}
                                 compact
                             />
                         ) : null}
@@ -1172,8 +1180,8 @@ const ExecContent = () => {
                                         icon={<Terminal size={18} />}
                                         title={t("exec.current_result_empty_title", { defaultValue: "暂无当前结果" })}
                                         description={currentTaskId
-                                            ? t("exec.current_result_empty_pending", { defaultValue: "这个 Task 还没有返回结果。" })
-                                            : t("exec.current_result_empty_description", { defaultValue: "从执行记录中选择一个 Task，或创建任务后查看结果。" })}
+                                            ? t("exec.current_result_empty_pending", { defaultValue: "该任务还没有返回结果。" })
+                                            : t("exec.current_result_empty_description", { defaultValue: "从执行记录中选择一个任务，或创建任务后查看结果。" })}
                                         className="min-h-28 border-0 bg-muted/25 shadow-none"
                                     />
                                 </div>
@@ -1212,7 +1220,7 @@ const ExecContent = () => {
                                     onPageChange={resultPagination.setPage}
                                     onPageSizeChange={resultPagination.setPageSize}
                                     pageSizeOptions={[8, 20, 50]}
-                                    itemLabel={t("admin.pagination.results", { defaultValue: "results" })}
+                                itemLabel={t("admin.pagination.results", { defaultValue: "结果" })}
                                     compact
                                 />
                             ) : null}
@@ -1298,7 +1306,7 @@ const ExecContent = () => {
                                     <div
                                         ref={commandLineNumberRef}
                                         aria-hidden="true"
-                                        className="h-full shrink-0 overflow-hidden border-r border-border bg-muted/30 px-1.5 py-2.5 text-right font-mono text-[12px] leading-5 tabular-nums text-muted-foreground select-none"
+                                        className="h-full shrink-0 overflow-hidden border-r border-border bg-muted/30 px-1 py-2.5 text-right font-mono text-[12px] leading-5 tabular-nums text-muted-foreground select-none"
                                         style={{ width: commandLineNumberColumnWidth }}
                                     >
                                         {commandLineNumbers.map((lineNumber) => (
@@ -1372,7 +1380,7 @@ const ExecContent = () => {
             <section className={execPanelClass}>
                 <ExecPanelHead
                     title={t("exec.results", { defaultValue: "执行结果" })}
-                    meta={currentTaskId ? `Task ${currentTaskId}` : "TaskResult"}
+                    meta={currentTaskId ? `任务 ${currentTaskId}` : "执行结果"}
                 />
 
                 {resultLoading ? (
@@ -1479,7 +1487,7 @@ const ExecContent = () => {
                                                         <Terminal size={13} />
                                                         <span className="truncate">
                                                             {t("exec.output_label", {
-                                                                defaultValue: "Output",
+                                                                defaultValue: "输出",
                                                             })}
                                                         </span>
                                                     </div>
@@ -1495,7 +1503,7 @@ const ExecContent = () => {
                                                             className="border-r border-white/10 bg-white/[0.03] py-2.5 text-right font-mono text-[12px] leading-5 tabular-nums text-slate-500 select-none"
                                                         >
                                                             {outputLines.map((_, index) => (
-                                                                <div key={`${result.client}-${index}`} className="h-5 px-1.5">
+                                                                <div key={`${result.client}-${index}`} className="h-5 px-1">
                                                                     {index + 1}
                                                                 </div>
                                                             ))}
@@ -1518,7 +1526,7 @@ const ExecContent = () => {
                             <div className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
                             <span className="text-sm">
                                 {t("exec.polling_status", {
-                                    defaultValue: "Fetching the latest execution state...",
+                                    defaultValue: "正在获取最新执行状态...",
                                 })}
                             </span>
                         </div>
@@ -1529,7 +1537,7 @@ const ExecContent = () => {
                             className="h-9 rounded-md text-sm"
                         >
                             {t("exec.stop_polling", {
-                                defaultValue: "Stop polling",
+                                defaultValue: "停止轮询",
                             })}
                         </Button>
                     </div>

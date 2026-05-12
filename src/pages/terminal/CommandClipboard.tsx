@@ -33,7 +33,14 @@ const CommandClipboardPanel = ({ ...props }: { [key: string]: any }) => {
       return <Loading />;
     }
     if (error) {
-      return <div>{getReadableErrorMessage(error, "加载脚本库失败，请刷新后重试。")}</div>;
+      return (
+        <div>
+          {getReadableErrorMessage(
+            error,
+            t("command_clipboard.fetch_failed", { defaultValue: "加载脚本库失败，请刷新后重试。" }),
+          )}
+        </div>
+      );
     }
     return (
       <div
@@ -87,7 +94,11 @@ const AddButton = () => {
       setOpen(false);
       toast.success(t("common.added_successfully"));
     } catch (error) {
-      toast.error(getReadableErrorMessage(error, "操作失败，请稍后重试。"));
+      toast.error(
+        getReadableErrorMessage(error, t("command_clipboard.operation_failed", {
+          defaultValue: "操作失败，请稍后重试。",
+        })),
+      );
     } finally {
       setAdding(false);
     }
@@ -139,7 +150,11 @@ const DeleteButton = ({ id }: { id: number }) => {
       toast.success(t("common.deleted_successfully"));
       setOpen(false);
     } catch (error) {
-      toast.error(getReadableErrorMessage(error, "操作失败，请稍后重试。"));
+      toast.error(
+        getReadableErrorMessage(error, t("command_clipboard.operation_failed", {
+          defaultValue: "操作失败，请稍后重试。",
+        })),
+      );
     } finally {
       setDeleting(false);
     }
@@ -199,7 +214,11 @@ const EditButton = ({ id, name, text, remark, weight }: CommandClipboard) => {
       setOpen(false);
       toast.success(t("common.updated_successfully"));
     } catch (error) {
-      toast.error(getReadableErrorMessage(error, "操作失败，请稍后重试。"));
+      toast.error(
+        getReadableErrorMessage(error, t("command_clipboard.operation_failed", {
+          defaultValue: "操作失败，请稍后重试。",
+        })),
+      );
     } finally {
       setUpdating(false);
     }

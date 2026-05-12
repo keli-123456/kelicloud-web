@@ -19,6 +19,7 @@ import {
 import {
   type ColumnDef,
   type ColumnFiltersState,
+  type PaginationState,
   type SortingState,
   type VisibilityState,
   flexRender,
@@ -26,6 +27,7 @@ import {
   getFacetedRowModel,
   getFacetedUniqueValues,
   getFilteredRowModel,
+  getPaginationRowModel,
   getSortedRowModel,
   useReactTable,
 } from "@tanstack/react-table";
@@ -59,6 +61,10 @@ import { toast } from "sonner";
 import { LoadingIcon } from "../Icones/icon";
 import { AdminTableSkeleton } from "@/components/admin/AdminPageShell";
 import {
+  AdminPagination,
+  ADMIN_PAGE_SIZE_OPTIONS,
+} from "@/components/admin/AdminPagination";
+import {
   ADMIN_FORM_DIALOG_CLASS,
   ADMIN_FORM_FIELD_CLASS,
   ADMIN_FORM_SCROLL_CLASS,
@@ -75,11 +81,13 @@ import { useNodeDetails } from "@/contexts/NodeDetailsContext";
 const columns: ColumnDef<z.infer<typeof schema>>[] = [
   {
     id: "drag",
+    size: 44,
     header: () => null,
     cell: ({ row }) => <DragHandle id={row.original.uuid} />,
   },
   {
     id: "select",
+    size: 44,
     header: ({ table }) => (
       <div className="flex items-center justify-center">
         <Checkbox
@@ -107,6 +115,7 @@ const columns: ColumnDef<z.infer<typeof schema>>[] = [
   {
     accessorKey: "name",
     header: t("admin.nodeTable.name"),
+    size: 220,
     cell: ({ row }) => {
       return <TableCellViewer item={row.original} />;
     },
@@ -115,16 +124,18 @@ const columns: ColumnDef<z.infer<typeof schema>>[] = [
   {
     accessorKey: "ipv4",
     header: t("admin.nodeTable.ipAddress"),
+    size: 300,
     cell: ({ row }) => {
       const ipv4 = row.original.ipv4;
       const ipv6 = row.original.ipv6;
       return (
-        <div className="flex flex-col gap-1 min-w-80">
+        <div className="flex min-w-[220px] max-w-[360px] flex-col gap-1">
           {ipv4 && (
-            <div className="flex items-center gap-1">
-              <span>{ipv4}</span>
+            <div className="flex min-w-0 items-center gap-1">
+              <span className="min-w-0 truncate font-mono text-xs">{ipv4}</span>
               <IconButton
                 variant="ghost"
+                className="size-5 shrink-0"
                 onClick={() => {
                   navigator.clipboard.writeText(ipv4);
                   toast.success(t("copy_success"));
@@ -135,11 +146,11 @@ const columns: ColumnDef<z.infer<typeof schema>>[] = [
             </div>
           )}
           {ipv6 && (
-            <div className="flex items-center gap-1">
-              <span>{ipv6}</span>
+            <div className="flex min-w-0 items-center gap-1">
+              <span className="min-w-0 truncate font-mono text-xs">{ipv6}</span>
               <IconButton
                 variant="ghost"
-                className="size-5"
+                className="size-5 shrink-0"
                 onClick={() => {
                   navigator.clipboard.writeText(ipv6);
                   toast.success(t("copy_success"));
@@ -156,10 +167,16 @@ const columns: ColumnDef<z.infer<typeof schema>>[] = [
   {
     accessorKey: "version",
     header: t("admin.nodeTable.clientVersion"),
-    cell: ({ row }) => <div className="w-32">{row.getValue("version")}</div>,
+    size: 128,
+    cell: ({ row }) => (
+      <div className="max-w-32 truncate text-xs text-muted-foreground">
+        {row.getValue("version") || "-"}
+      </div>
+    ),
   },
   {
     id: "actions",
+    size: 260,
     cell: ({ row }) => <ActionsCell row={row} />,
   },
 ];
@@ -180,6 +197,10 @@ export function DataTable() {
     []
   );
   const [sorting, setSorting] = React.useState<SortingState>([]);
+  const [pagination, setPagination] = React.useState<PaginationState>({
+    pageIndex: 0,
+    pageSize: ADMIN_PAGE_SIZE_OPTIONS[1],
+  });
   const sortableId = React.useId();
   const sensors = useSensors(
     useSensor(MouseSensor, {}),
@@ -187,10 +208,6 @@ export function DataTable() {
     useSensor(KeyboardSensor, {})
   );
   const isMobile = useIsMobile();
-  const dataIds = React.useMemo<UniqueIdentifier[]>(
-    () => data?.map(({ uuid }) => uuid) || [],
-    [data]
-  );
   const [newNodeName, setNewNodeName] = React.useState("");
   const [isAddingNode, setIsAddingNode] = React.useState(false);
 
@@ -227,6 +244,7 @@ export function DataTable() {
       columnVisibility,
       rowSelection,
       columnFilters,
+      pagination,
     },
     getRowId: (row) => row.uuid.toString(),
     enableRowSelection: true,
@@ -234,12 +252,19 @@ export function DataTable() {
     onSortingChange: setSorting,
     onColumnFiltersChange: setColumnFilters,
     onColumnVisibilityChange: setColumnVisibility,
+    onPaginationChange: setPagination,
     getCoreRowModel: getCoreRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
     getSortedRowModel: getSortedRowModel(),
+    getPaginationRowModel: getPaginationRowModel(),
     getFacetedRowModel: getFacetedRowModel(),
     getFacetedUniqueValues: getFacetedUniqueValues(),
   });
+  const pageRows = table.getRowModel().rows;
+  const pageDataIds = React.useMemo<UniqueIdentifier[]>(
+    () => pageRows.map((row) => row.original.uuid),
+    [pageRows],
+  );
   function handleDragEnd(event: DragEndEvent) {
     const { active, over } = event;
     if (active && over) {
@@ -386,13 +411,20 @@ export function DataTable() {
               sensors={sensors}
               id={sortableId}
             >
-              <Table className="min-w-[960px]">
+              <div className="overflow-hidden rounded-lg border border-border bg-card">
+              <div className="overflow-x-auto overscroll-x-contain [scrollbar-gutter:stable]">
+              <Table className="min-w-[860px] table-fixed">
                 <TableHeader className="bg-muted">
                   {table.getHeaderGroups().map((headerGroup) => (
                     <TableRow key={headerGroup.id}>
                       {headerGroup.headers.map((header) => {
                         return (
-                          <TableHead key={header.id} colSpan={header.colSpan}>
+                          <TableHead
+                            key={header.id}
+                            colSpan={header.colSpan}
+                            style={{ width: header.getSize() }}
+                            className="text-xs font-semibold text-muted-foreground"
+                          >
                             {header.isPlaceholder
                               ? null
                               : flexRender(
@@ -408,10 +440,10 @@ export function DataTable() {
                 <TableBody className="**:data-[slot=table-cell]:first:w-8">
                   {table.getRowModel().rows?.length ? (
                     <SortableContext
-                      items={dataIds}
+                      items={pageDataIds}
                       strategy={verticalListSortingStrategy}
                     >
-                      {table.getRowModel().rows.map((row) => (
+                      {pageRows.map((row) => (
                         <DraggableRow key={row.id} row={row} />
                       ))}
                     </SortableContext>
@@ -429,11 +461,16 @@ export function DataTable() {
                   )}
                 </TableBody>
               </Table>
+              </div>
+              </div>
             </DndContext>
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div className="text-muted-foreground flex-1 text-sm">
-                {table.getFilteredSelectedRowModel().rows.length} of{" "}
-                {table.getFilteredRowModel().rows.length} row(s) selected.
+                {t("admin.nodeTable.selectionSummary", {
+                  selected: table.getFilteredSelectedRowModel().rows.length,
+                  total: table.getFilteredRowModel().rows.length,
+                  defaultValue: "{{selected}} / {{total}} selected",
+                })}
               </div>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
@@ -470,6 +507,28 @@ export function DataTable() {
                 </DropdownMenuContent>
               </DropdownMenu>
             </div>
+            <AdminPagination
+              page={table.getState().pagination.pageIndex + 1}
+              totalPages={table.getPageCount()}
+              total={table.getFilteredRowModel().rows.length}
+              pageSize={table.getState().pagination.pageSize}
+              visibleStart={
+                table.getFilteredRowModel().rows.length === 0
+                  ? 0
+                  : table.getState().pagination.pageIndex * table.getState().pagination.pageSize + 1
+              }
+              visibleEnd={
+                table.getFilteredRowModel().rows.length === 0
+                  ? 0
+                  : Math.min(
+                      (table.getState().pagination.pageIndex + 1) * table.getState().pagination.pageSize,
+                      table.getFilteredRowModel().rows.length,
+                    )
+              }
+              onPageChange={(page) => table.setPageIndex(page - 1)}
+              onPageSizeChange={(pageSize) => table.setPageSize(pageSize)}
+                itemLabel={t("admin.pagination.nodes", { defaultValue: "设备" })}
+            />
           </div>
         </div>
       </DataTableRefreshContext.Provider>

@@ -1,19 +1,21 @@
 import NodeSelectorDialog from "@/components/NodeSelectorDialog";
 import { AdminEmptyState } from "@/components/admin/AdminPageShell";
 import {
+  AdminDataTable,
+  AdminDataTableCell,
+  AdminDataTableHead,
+  AdminDataTableHeadRow,
+  AdminDataTableRow,
+  AdminDataTableScroll,
+} from "@/components/admin/AdminDataTable";
+import {
   ADMIN_FORM_DIALOG_CLASS,
   ADMIN_FORM_FIELD_CLASS,
   ADMIN_FORM_GRID_2_CLASS,
   ADMIN_FORM_SCROLL_CLASS,
 } from "@/components/admin/AdminFormStyles";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import { AdminPagination, useClientPagination } from "@/components/admin/AdminPagination";
+import { AdminRowActions } from "@/components/admin/AdminRowActions";
 import { useNodeDetails } from "@/contexts/NodeDetailsContext";
 import { usePingTask, type PingTask } from "@/contexts/PingTaskContext";
 import {
@@ -60,6 +62,10 @@ export const TaskView = ({ pingTasks }: { pingTasks: PingTask[] }) => {
         return aKey.localeCompare(bKey, undefined, { sensitivity: "base", numeric: true });
       });
   }, [pingTasks, nodeDetail]);
+  const taskPagination = useClientPagination(processedTasks, {
+    initialPageSize: 10,
+    resetKey: processedTasks.length,
+  });
 
   if (processedTasks.length === 0) {
     return (
@@ -78,23 +84,36 @@ export const TaskView = ({ pingTasks }: { pingTasks: PingTask[] }) => {
 
   return (
     <div className="overflow-hidden">
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>{t("common.name")}</TableHead>
-            <TableHead>{t("common.server")}</TableHead>
-            <TableHead>{t("ping.target")}</TableHead>
-            <TableHead>{t("ping.type")}</TableHead>
-            <TableHead>{t("ping.interval")}</TableHead>
-            <TableHead>{t("common.action")}</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {processedTasks.map((task) => (
+      <AdminDataTableScroll>
+        <AdminDataTable minWidth={860}>
+          <thead>
+          <AdminDataTableHeadRow>
+            <AdminDataTableHead>{t("common.name")}</AdminDataTableHead>
+            <AdminDataTableHead>{t("common.server")}</AdminDataTableHead>
+            <AdminDataTableHead>{t("ping.target")}</AdminDataTableHead>
+            <AdminDataTableHead>{t("ping.type")}</AdminDataTableHead>
+            <AdminDataTableHead>{t("ping.interval")}</AdminDataTableHead>
+            <AdminDataTableHead align="right" sticky="right">{t("common.action")}</AdminDataTableHead>
+          </AdminDataTableHeadRow>
+          </thead>
+          <tbody>
+          {taskPagination.pageItems.map((task) => (
             <Row key={task.id} task={task} />
           ))}
-        </TableBody>
-      </Table>
+          </tbody>
+        </AdminDataTable>
+      </AdminDataTableScroll>
+      <AdminPagination
+        page={taskPagination.page}
+        totalPages={taskPagination.totalPages}
+        total={taskPagination.total}
+        pageSize={taskPagination.pageSize}
+        visibleStart={taskPagination.visibleStart}
+        visibleEnd={taskPagination.visibleEnd}
+        onPageChange={taskPagination.setPage}
+        onPageSizeChange={taskPagination.setPageSize}
+        itemLabel={t("ping.task")}
+      />
     </div>
   );
 };
@@ -190,9 +209,9 @@ const Row = ({
   };
 
   return (
-    <TableRow key={task.id}>
-      <TableCell>{task.name}</TableCell>
-      <TableCell>
+    <AdminDataTableRow key={task.id}>
+      <AdminDataTableCell className="font-medium">{task.name}</AdminDataTableCell>
+      <AdminDataTableCell>
         <Flex gap="2" align="center">
           {task.clients && task.clients.length > 0
             ? (() => {
@@ -219,18 +238,27 @@ const Row = ({
             </IconButton>
           </NodeSelectorDialog>
         </Flex>
-      </TableCell>
-      <TableCell>{task.target}</TableCell>
-      <TableCell>{task.type}</TableCell>
-      <TableCell>{task.interval}</TableCell>
-      <TableCell className="flex items-center gap-2">
-        {/* 编辑按钮 */}
+      </AdminDataTableCell>
+      <AdminDataTableCell>{task.target}</AdminDataTableCell>
+      <AdminDataTableCell>{task.type}</AdminDataTableCell>
+      <AdminDataTableCell>{task.interval}</AdminDataTableCell>
+      <AdminDataTableCell align="right" sticky="right">
+        <AdminRowActions
+          actions={[
+            {
+              label: t("common.edit"),
+              icon: <Pencil className="h-4 w-4" />,
+              onSelect: () => setEditOpen(true),
+            },
+            {
+              label: t("common.delete"),
+              icon: <Trash className="h-4 w-4" />,
+              destructive: true,
+              onSelect: () => setDeleteOpen(true),
+            },
+          ]}
+        />
         <Dialog.Root open={editOpen} onOpenChange={setEditOpen}>
-          <Dialog.Trigger>
-            <IconButton variant="soft">
-              <Pencil size="16" />
-            </IconButton>
-          </Dialog.Trigger>
           <Dialog.Content className={ADMIN_FORM_DIALOG_CLASS} maxWidth={640}>
             <Dialog.Title>{t("common.edit")}</Dialog.Title>
             <form onSubmit={handleEdit} className={`${ADMIN_FORM_SCROLL_CLASS} mt-4 space-y-4`}>
@@ -312,13 +340,7 @@ const Row = ({
             </form>
           </Dialog.Content>
         </Dialog.Root>
-        {/* 删除按钮 */}
         <Dialog.Root open={deleteOpen} onOpenChange={setDeleteOpen}>
-          <Dialog.Trigger>
-            <IconButton variant="soft" color="red">
-              <Trash size="16" />
-            </IconButton>
-          </Dialog.Trigger>
           <Dialog.Content className={ADMIN_FORM_DIALOG_CLASS} maxWidth={480}>
             <Dialog.Title>{t("common.delete")}</Dialog.Title>
             <Flex gap="2" justify="end" className="border-t border-slate-200/70 pt-4 dark:border-slate-800/70">
@@ -343,7 +365,7 @@ const Row = ({
             </Flex>
           </Dialog.Content>
         </Dialog.Root>
-      </TableCell>
-    </TableRow>
+      </AdminDataTableCell>
+    </AdminDataTableRow>
   );
 };

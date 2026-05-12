@@ -1,12 +1,18 @@
 import { Checkbox } from "@/components/ui/checkbox";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+  AdminDataTable,
+  AdminDataTableCell,
+  AdminDataTableEmptyRow,
+  AdminDataTableHead,
+  AdminDataTableHeadRow,
+  AdminDataTableRow,
+  AdminDataTableScroll,
+} from "@/components/admin/AdminDataTable";
+import {
+  AdminPagination,
+  useClientPagination,
+} from "@/components/admin/AdminPagination";
+import { AdminRowActions } from "@/components/admin/AdminRowActions";
 import {
   NodeDetailsProvider,
   useNodeDetails,
@@ -24,7 +30,6 @@ import {
   Button,
   Dialog,
   Flex,
-  IconButton,
   Switch,
   TextField,
 } from "@/components/admin/admin-ui";
@@ -322,18 +327,27 @@ const OfflineNotificationTable = ({
   const { offlineNotification } = useOfflineNotification();
   const { nodeDetail } = useNodeDetails();
   const { t } = useTranslation();
+  const notificationByClient = React.useMemo(
+    () => new Map(offlineNotification.map((item) => [item.client, item])),
+    [offlineNotification],
+  );
   const filtered = [...nodeDetail]
     .sort((a, b) => a.weight - b.weight)
     .filter((node) => node.name.toLowerCase().includes(search.toLowerCase()));
+  const nodePagination = useClientPagination(filtered, {
+    initialPageSize: 10,
+    resetKey: search.trim().toLowerCase(),
+  });
   return (
     <div className="overflow-hidden rounded-lg border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-950/40">
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead className="w-6">
+      <AdminDataTableScroll>
+      <AdminDataTable minWidth={860}>
+        <thead>
+          <AdminDataTableHeadRow>
+            <AdminDataTableHead className="w-10">
               <Checkbox
                 checked={
-                  selected.length === filtered.length
+                  filtered.length > 0 && selected.length === filtered.length
                     ? true
                     : selected.length > 0
                     ? "indeterminate"
@@ -343,19 +357,29 @@ const OfflineNotificationTable = ({
                   onSelectionChange(checked ? filtered.map((n) => n.uuid) : [])
                 }
               />
-            </TableHead>
-            <TableHead>{t("common.server")}</TableHead>
-            <TableHead>{t("common.status")}</TableHead>
+            </AdminDataTableHead>
+            <AdminDataTableHead>{t("common.server")}</AdminDataTableHead>
+            <AdminDataTableHead>{t("common.status")}</AdminDataTableHead>
             {/* <TableHead>{t("notification.offline.cooldown")}</TableHead> */}
-            <TableHead>{t("notification.offline.grace_period")}</TableHead>
-            <TableHead>{t("notification.offline.last_notified")}</TableHead>
-            <TableHead>{t("common.action")}</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {filtered.map((node) => (
-            <TableRow key={node.uuid}>
-              <TableCell>
+            <AdminDataTableHead>{t("notification.offline.grace_period")}</AdminDataTableHead>
+            <AdminDataTableHead>{t("notification.offline.last_notified")}</AdminDataTableHead>
+            <AdminDataTableHead align="right" sticky="right">
+              {t("common.action")}
+            </AdminDataTableHead>
+          </AdminDataTableHeadRow>
+        </thead>
+        <tbody>
+          {nodePagination.pageItems.length === 0 ? (
+            <AdminDataTableEmptyRow colSpan={6}>
+              <div className="text-center text-sm text-muted-foreground">
+                {t("common.no_data", "No data")}
+              </div>
+            </AdminDataTableEmptyRow>
+          ) : nodePagination.pageItems.map((node) => {
+            const notification = notificationByClient.get(node.uuid);
+            return (
+            <AdminDataTableRow key={node.uuid}>
+              <AdminDataTableCell>
                 <Checkbox
                   checked={selected.includes(node.uuid)}
                   onCheckedChange={(checked) => {
@@ -368,63 +392,74 @@ const OfflineNotificationTable = ({
                     }
                   }}
                 />
-              </TableCell>
-              <TableCell>{node.name}</TableCell>
-              <TableCell>
+              </AdminDataTableCell>
+              <AdminDataTableCell>{node.name}</AdminDataTableCell>
+              <AdminDataTableCell>
                 <Badge
                   color={
-                    offlineNotification.find((n) => n.client === node.uuid)
-                      ?.enable
+                    notification?.enable
                       ? "green"
                       : "red"
                   }
                 >
-                  {offlineNotification.find((n) => n.client === node.uuid)
-                    ?.enable
+                  {notification?.enable
                     ? t("common.enabled")
                     : t("common.disabled")}
                 </Badge>
-              </TableCell>
+              </AdminDataTableCell>
               {/* <TableCell>
                 {offlineNotification.find((n) => n.client === node.uuid)
                   ?.cooldown || 1800}{" "}
                 {t("nodeCard.time_second")}
               </TableCell> */}
-              <TableCell>
-                {offlineNotification.find((n) => n.client === node.uuid)
-                  ?.grace_period || 300}
+              <AdminDataTableCell>
+                {notification?.grace_period || 300}
                 {t("nodeCard.time_second")}
-              </TableCell>
-              <TableCell>
+              </AdminDataTableCell>
+              <AdminDataTableCell>
                 {(() => {
-                  const lastNotified = offlineNotification.find(
-                    (n) => n.client === node.uuid
-                  )?.last_notified;
+                  const lastNotified = notification?.last_notified;
                   if (!lastNotified) return "-";
                   const date = new Date(lastNotified);
                   if (date.getFullYear() < 3)
                     return t("notification.offline.never_triggered");
                   return date.toLocaleString();
                 })()}
-              </TableCell>
-              <TableCell>
+              </AdminDataTableCell>
+              <AdminDataTableCell align="right" sticky="right">
                 <ActionButtons
-                  offlineNotifications={offlineNotification.find(
-                    (n) => n.client === node.uuid
-                  )}
+                  clientId={node.uuid}
+                  offlineNotifications={notification}
                 />
-              </TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
+              </AdminDataTableCell>
+            </AdminDataTableRow>
+            );
+          })}
+        </tbody>
+      </AdminDataTable>
+      </AdminDataTableScroll>
+      <AdminPagination
+        page={nodePagination.page}
+        totalPages={nodePagination.totalPages}
+        total={nodePagination.total}
+        pageSize={nodePagination.pageSize}
+        visibleStart={nodePagination.visibleStart}
+        visibleEnd={nodePagination.visibleEnd}
+        onPageChange={nodePagination.setPage}
+        onPageSizeChange={nodePagination.setPageSize}
+        pageSizeOptions={[10, 20, 50]}
+        itemLabel={t("admin.pagination.nodes", { defaultValue: "nodes" })}
+        compact
+      />
     </div>
   );
 };
 
 const ActionButtons = ({
+  clientId,
   offlineNotifications,
 }: {
+  clientId: string;
   offlineNotifications: OfflineNotification | undefined;
 }) => {
   const { t } = useTranslation();
@@ -443,13 +478,17 @@ const ActionButtons = ({
         });
 
   return (
-    <Flex gap="2" align="center">
+    <>
+      <AdminRowActions
+        actions={[
+          {
+            label: t("common.edit"),
+            icon: <Pencil className="h-4 w-4" />,
+            onSelect: () => setEditOpen(true),
+          },
+        ]}
+      />
       <Dialog.Root open={editOpen} onOpenChange={setEditOpen}>
-        <Dialog.Trigger>
-          <IconButton variant="ghost">
-            <Pencil size={16} />
-          </IconButton>
-        </Dialog.Trigger>
         <Dialog.Content className={ADMIN_FORM_DIALOG_CLASS} maxWidth={560}>
           <Dialog.Title>{t("common.edit")}</Dialog.Title>
           <NotificationEditForm
@@ -466,7 +505,7 @@ const ActionButtons = ({
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify([
                   {
-                    client: offlineNotifications?.client,
+                    client: offlineNotifications?.client || clientId,
                     ...values,
                   },
                 ]),
@@ -500,7 +539,7 @@ const ActionButtons = ({
           />
         </Dialog.Content>
       </Dialog.Root>
-    </Flex>
+    </>
   );
 };
 

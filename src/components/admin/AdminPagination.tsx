@@ -1,89 +1,14 @@
-import * as React from "react";
+/* eslint-disable react-refresh/only-export-components */
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-
-export const ADMIN_PAGE_SIZE_OPTIONS = [10, 20, 50] as const;
-
-export function buildAdminPageNumbers(page: number, totalPages: number) {
-  if (totalPages <= 7) {
-    return Array.from({ length: totalPages }, (_, index) => index + 1);
-  }
-
-  const pages: Array<number | "..."> = [1];
-  const start = Math.max(2, page - 1);
-  const end = Math.min(totalPages - 1, page + 1);
-
-  if (start > 2) {
-    pages.push("...");
-  }
-
-  for (let index = start; index <= end; index += 1) {
-    pages.push(index);
-  }
-
-  if (end < totalPages - 1) {
-    pages.push("...");
-  }
-
-  pages.push(totalPages);
-  return pages;
-}
-
-export function useClientPagination<T>(
-  items: T[],
-  options: {
-    initialPageSize?: number;
-    resetKey?: React.Key | null;
-  } = {},
-) {
-  const [page, setPageState] = React.useState(1);
-  const [pageSize, setPageSizeState] = React.useState(options.initialPageSize ?? ADMIN_PAGE_SIZE_OPTIONS[0]);
-  const total = items.length;
-  const safePageSize = Math.max(1, pageSize);
-  const totalPages = Math.max(1, Math.ceil(total / safePageSize));
-  const currentPage = Math.min(Math.max(1, page), totalPages);
-  const startIndex = total === 0 ? 0 : (currentPage - 1) * safePageSize;
-  const endIndex = total === 0 ? 0 : Math.min(startIndex + safePageSize, total);
-  const pageItems = React.useMemo(
-    () => items.slice(startIndex, endIndex),
-    [items, startIndex, endIndex],
-  );
-
-  React.useEffect(() => {
-    setPageState((current) => Math.min(Math.max(1, current), totalPages));
-  }, [totalPages]);
-
-  React.useEffect(() => {
-    setPageState(1);
-  }, [options.resetKey]);
-
-  const setPage = React.useCallback((nextPage: number | ((current: number) => number)) => {
-    setPageState((current) => {
-      const resolved = typeof nextPage === "function" ? nextPage(current) : nextPage;
-      return Math.max(1, Math.min(totalPages, resolved));
-    });
-  }, [totalPages]);
-
-  const setPageSize = React.useCallback((nextPageSize: number) => {
-    setPageSizeState(Math.max(1, nextPageSize));
-    setPageState(1);
-  }, []);
-
-  return {
-    page: currentPage,
-    pageSize: safePageSize,
-    pageItems,
-    total,
-    totalPages,
-    visibleStart: total === 0 ? 0 : startIndex + 1,
-    visibleEnd: endIndex,
-    setPage,
-    setPageSize,
-  };
-}
+import {
+  ADMIN_PAGE_SIZE_OPTIONS,
+  buildAdminPageNumbers,
+} from "@/components/admin/AdminPaginationUtils";
+export { ADMIN_PAGE_SIZE_OPTIONS, useClientPagination } from "@/components/admin/AdminPaginationUtils";
 
 type AdminPaginationProps = {
   page: number;
@@ -120,7 +45,7 @@ export function AdminPagination({
     return null;
   }
 
-  const label = itemLabel ?? t("admin.pagination.items", { defaultValue: "items" });
+  const label = itemLabel ?? t("admin.pagination.items", { defaultValue: "条" });
   const showPageControls = totalPages > 1;
   const smallestPageSize = Math.min(...pageSizeOptions);
 
@@ -151,7 +76,7 @@ export function AdminPagination({
         {onPageSizeChange ? (
           <label className="flex items-center gap-2">
             <span className="whitespace-nowrap">
-              {t("admin.pagination.rows_per_page", { defaultValue: "Rows per page" })}
+            {t("admin.pagination.rows_per_page", { defaultValue: "每页" })}
             </span>
             <select
               value={pageSize}
@@ -179,9 +104,9 @@ export function AdminPagination({
             className="h-8 rounded-md px-2 text-[12px]"
           >
             <ChevronLeft size={14} />
-            {t("admin.pagination.previous", { defaultValue: "Previous" })}
+            {t("admin.pagination.previous", { defaultValue: "上一页" })}
           </Button>
-          {pageNumbers.map((value, index) =>
+          {pageNumbers.map((value: number | "...", index: number) =>
             typeof value === "number" ? (
               <Button
                 key={`${value}-${index}`}
@@ -208,7 +133,7 @@ export function AdminPagination({
             disabled={page >= totalPages}
             className="h-8 rounded-md px-2 text-[12px]"
           >
-            {t("admin.pagination.next", { defaultValue: "Next" })}
+            {t("admin.pagination.next", { defaultValue: "下一页" })}
             <ChevronRight size={14} />
           </Button>
         </div>

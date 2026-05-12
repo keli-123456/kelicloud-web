@@ -91,7 +91,7 @@ export default function CloudSharePage() {
         await navigator.clipboard.writeText(text);
         toast.success(t("copy_success", "Copied!"));
       } catch (copyError) {
-        toast.error(getReadableErrorMessage(copyError, "复制失败，请手动复制。"));
+        toast.error(getReadableErrorMessage(copyError, t("cloud.share.copy_failed", "复制失败，请手动复制。")));
       }
     },
     [t],
@@ -115,7 +115,9 @@ export default function CloudSharePage() {
         setError("");
       } catch (shareError) {
         if (cancelled) return;
-        setError(getReadableErrorMessage(shareError, "加载分享信息失败，请稍后重试。"));
+        setError(getReadableErrorMessage(shareError, t("cloud.share.public_load_failed", {
+          defaultValue: "加载分享信息失败，请稍后重试。",
+        })));
         setShare(null);
       } finally {
         if (!cancelled) {

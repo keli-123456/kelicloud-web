@@ -1,13 +1,5 @@
 import React from "react";
 
-import {
-  Table,
-  TableHeader,
-  TableBody,
-  TableRow,
-  TableHead,
-  TableCell,
-} from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { SegmentedControl } from "@/components/ui/segmented-control";
 import {
@@ -21,17 +13,26 @@ import {
 } from "@/components/ui/dialog";
 import { useTranslation } from "react-i18next";
 
-import NumberPicker from "@/components/ui/number-picker";
 import {
   AdminPageShell,
   AdminSurface,
   AdminTableSkeleton,
 } from "@/components/admin/AdminPageShell";
 import {
+  AdminDataTable,
+  AdminDataTableCell,
+  AdminDataTableEmptyRow,
+  AdminDataTableHead,
+  AdminDataTableHeadRow,
+  AdminDataTableRow,
+  AdminDataTableScroll,
+} from "@/components/admin/AdminDataTable";
+import {
   ADMIN_FORM_DIALOG_CLASS,
   ADMIN_FORM_GRID_2_CLASS,
   ADMIN_FORM_SCROLL_CLASS,
 } from "@/components/admin/AdminFormStyles";
+import { AdminPagination } from "@/components/admin/AdminPagination";
 import { useAccount } from "@/contexts/AccountContext";
 
 interface Log {
@@ -120,8 +121,8 @@ const LogPage = ({ embedded = false }: { embedded?: boolean } = {}) => {
         if (requestSequenceRef.current !== requestID) {
           return;
         }
-        setLogs(data.data.logs);
-        setTotal(data.data.total);
+        setLogs(Array.isArray(data?.data?.logs) ? data.data.logs : []);
+        setTotal(Number.isFinite(Number(data?.data?.total)) ? Number(data.data.total) : 0);
       } catch (err) {
         if (controller.signal.aborted) {
           return;
@@ -170,46 +171,16 @@ const LogPage = ({ embedded = false }: { embedded?: boolean } = {}) => {
           </SegmentedControl.Item>
         </SegmentedControl.Root>
       ) : null}
-      <div className="flex items-center gap-2">
-        <span className="text-slate-500 dark:text-slate-400">
-          {t("logs.limit", { defaultValue: "Rows per page" })}
-        </span>
-        <NumberPicker
-          defaultValue={limit}
-          onChange={(value) => {
-            setPage(1);
-            setLimit(value);
-          }}
-          min={1}
-          max={100}
-        />
-      </div>
     </div>
   );
 
   const totalPages = Math.max(1, Math.ceil(total / limit));
-  const siblingsCount = 1;
-  let pageNumbers: (number | string)[] = [];
-  const leftSibling = Math.max(page - siblingsCount, 1);
-  const rightSibling = Math.min(page + siblingsCount, totalPages);
-  const showLeftDots = leftSibling > 2;
-  const showRightDots = rightSibling < totalPages - 1;
+  const visibleStart = total === 0 ? 0 : (page - 1) * limit + 1;
+  const visibleEnd = total === 0 ? 0 : Math.min(page * limit, total);
 
-  pageNumbers.push(1);
-  if (showLeftDots) {
-    pageNumbers.push("...");
-  } else {
-    for (let i = 2; i < leftSibling; i++) pageNumbers.push(i);
-  }
-  for (let i = leftSibling; i <= rightSibling; i++) {
-    if (i > 1 && i < totalPages) pageNumbers.push(i);
-  }
-  if (showRightDots) {
-    pageNumbers.push("...");
-  } else {
-    for (let i = rightSibling + 1; i < totalPages; i++) pageNumbers.push(i);
-  }
-  if (totalPages > 1) pageNumbers.push(totalPages);
+  React.useEffect(() => {
+    setPage((currentPage) => Math.min(Math.max(1, currentPage), totalPages));
+  }, [totalPages]);
 
   if (loading) {
     return (
@@ -225,19 +196,21 @@ const LogPage = ({ embedded = false }: { embedded?: boolean } = {}) => {
         actions={pageActions}
       >
         <AdminSurface className="overflow-hidden p-0">
-          <div className="border-b border-slate-200/70 px-1 py-3 dark:border-slate-800/70">
-            <div className="flex flex-col gap-1">
-              <label className="text-lg font-semibold tracking-normal text-slate-900 dark:text-slate-50">
-                {t("logs.details_title", { defaultValue: "Log details" })}
-              </label>
-              <p className="text-sm text-slate-500 dark:text-slate-400">
-                {t("logs.details_description", {
-                  defaultValue:
-                    "Click a log ID to inspect the full message, UUID, and timestamp.",
-                })}
-              </p>
+          {!embedded ? (
+            <div className="border-b border-slate-200/70 px-4 py-3 dark:border-slate-800/70">
+              <div className="flex flex-col gap-1">
+                <label className="text-lg font-semibold tracking-normal text-slate-900 dark:text-slate-50">
+                  {t("logs.details_title", { defaultValue: "Log details" })}
+                </label>
+                <p className="text-sm text-slate-500 dark:text-slate-400">
+                  {t("logs.details_description", {
+                    defaultValue:
+                      "Click a log ID to inspect the full message, UUID, and timestamp.",
+                  })}
+                </p>
+              </div>
             </div>
-          </div>
+          ) : null}
           <AdminTableSkeleton columns={showActorColumn ? 6 : 5} rows={limit} className="rounded-none border-0 shadow-none" />
         </AdminSurface>
       </AdminPageShell>
@@ -264,45 +237,50 @@ const LogPage = ({ embedded = false }: { embedded?: boolean } = {}) => {
       actions={pageActions}
     >
       <AdminSurface className="overflow-hidden p-0">
-        <div className="border-b border-slate-200/70 px-1 py-3 dark:border-slate-800/70">
-          <div className="flex flex-col gap-1">
-            <label className="text-lg font-semibold tracking-normal text-slate-900 dark:text-slate-50">
-              {t("logs.details_title", { defaultValue: "Log details" })}
-            </label>
-            <p className="text-sm text-slate-500 dark:text-slate-400">
-              {t("logs.details_description", {
-                defaultValue:
-                  "Click a log ID to inspect the full message, UUID, and timestamp.",
-              })}
-            </p>
+        {!embedded ? (
+          <div className="border-b border-slate-200/70 px-4 py-3 dark:border-slate-800/70">
+            <div className="flex flex-col gap-1">
+              <label className="text-lg font-semibold tracking-normal text-slate-900 dark:text-slate-50">
+                {t("logs.details_title", { defaultValue: "Log details" })}
+              </label>
+              <p className="text-sm text-slate-500 dark:text-slate-400">
+                {t("logs.details_description", {
+                  defaultValue:
+                    "Click a log ID to inspect the full message, UUID, and timestamp.",
+                })}
+              </p>
+            </div>
           </div>
-        </div>
+        ) : null}
 
-        {logs.length === 0 ? (
-          <div className="px-6 py-14 text-center text-sm text-slate-500 dark:text-slate-400">
-            {t("logs.empty", { defaultValue: "No log records found." })}
-          </div>
-        ) : (
-          <Table>
-            <TableHeader className="bg-[linear-gradient(135deg,rgba(19,70,134,0.10),rgba(255,255,255,0.92),rgba(89,172,119,0.10))] dark:bg-[linear-gradient(135deg,rgba(14,165,233,0.16),rgba(2,6,23,0.92),rgba(16,185,129,0.12))]">
-              <TableRow>
-                <TableHead>{t("logs.fields.id", { defaultValue: "ID" })}</TableHead>
+        <AdminDataTableScroll>
+          <AdminDataTable minWidth={showActorColumn ? 1040 : 920}>
+            <thead>
+              <AdminDataTableHeadRow>
+                <AdminDataTableHead>{t("logs.fields.id", { defaultValue: "ID" })}</AdminDataTableHead>
                 {showActorColumn ? (
-                  <TableHead>{t("logs.fields.actor", { defaultValue: "Actor" })}</TableHead>
+                  <AdminDataTableHead>{t("logs.fields.actor", { defaultValue: "Actor" })}</AdminDataTableHead>
                 ) : null}
-                <TableHead>{t("logs.fields.ip", { defaultValue: "IP" })}</TableHead>
-                <TableHead>{t("logs.fields.type", { defaultValue: "Type" })}</TableHead>
-                <TableHead>{t("logs.fields.message", { defaultValue: "Message" })}</TableHead>
-                <TableHead>{t("logs.fields.time", { defaultValue: "Time" })}</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {logs.map((log) => (
-                <TableRow
-                  key={log.id}
-                  className="transition-colors hover:bg-slate-50/60 dark:hover:bg-slate-900/60"
+                <AdminDataTableHead>{t("logs.fields.ip", { defaultValue: "IP" })}</AdminDataTableHead>
+                <AdminDataTableHead>{t("logs.fields.type", { defaultValue: "Type" })}</AdminDataTableHead>
+                <AdminDataTableHead>{t("logs.fields.message", { defaultValue: "Message" })}</AdminDataTableHead>
+                <AdminDataTableHead>{t("logs.fields.time", { defaultValue: "Time" })}</AdminDataTableHead>
+              </AdminDataTableHeadRow>
+            </thead>
+            <tbody>
+              {logs.length === 0 ? (
+                <AdminDataTableEmptyRow
+                  colSpan={showActorColumn ? 6 : 5}
+                  className="py-14 text-center text-sm text-slate-500 dark:text-slate-400"
                 >
-                  <TableCell>
+                  {t("logs.empty", { defaultValue: "No log records found." })}
+                </AdminDataTableEmptyRow>
+              ) : null}
+              {logs.map((log) => (
+                <AdminDataTableRow
+                  key={log.id}
+                >
+                  <AdminDataTableCell>
                     <Dialog>
                       <DialogTrigger asChild>
                         <button
@@ -379,61 +357,41 @@ const LogPage = ({ embedded = false }: { embedded?: boolean } = {}) => {
                         </DialogFooter>
                       </DialogContent>
                     </Dialog>
-                  </TableCell>
+                  </AdminDataTableCell>
                   {showActorColumn ? (
-                    <TableCell className="max-w-[160px] truncate font-mono text-xs">
+                    <AdminDataTableCell className="max-w-[160px] truncate font-mono">
                       {log.user_id || "-"}
-                    </TableCell>
+                    </AdminDataTableCell>
                   ) : null}
-                  <TableCell>{log.ip}</TableCell>
-                  <TableCell>{log.msg_type}</TableCell>
-                  <TableCell>
+                  <AdminDataTableCell className="font-mono">{log.ip}</AdminDataTableCell>
+                  <AdminDataTableCell>{log.msg_type}</AdminDataTableCell>
+                  <AdminDataTableCell className="max-w-[360px] truncate">
                     {log.message.length > 75
                       ? `${log.message.slice(0, 75)}...`
                       : log.message}
-                  </TableCell>
-                  <TableCell>{new Date(log.time).toLocaleString()}</TableCell>
-                </TableRow>
+                  </AdminDataTableCell>
+                  <AdminDataTableCell>{new Date(log.time).toLocaleString()}</AdminDataTableCell>
+                </AdminDataTableRow>
               ))}
-            </TableBody>
-          </Table>
-        )}
+            </tbody>
+          </AdminDataTable>
+        </AdminDataTableScroll>
+        <AdminPagination
+          page={page}
+          totalPages={totalPages}
+          total={total}
+          pageSize={limit}
+          visibleStart={visibleStart}
+          visibleEnd={visibleEnd}
+          onPageChange={setPage}
+          onPageSizeChange={(nextLimit) => {
+            setPage(1);
+            setLimit(nextLimit);
+          }}
+          pageSizeOptions={[10, 20, 50, 100]}
+          itemLabel={t("logs.title", { defaultValue: "logs" })}
+        />
       </AdminSurface>
-
-      <div className="flex justify-center items-center gap-2">
-        <Button
-          type="button"
-          disabled={page === 1}
-          onClick={() => setPage((value) => Math.max(1, value - 1))}
-          variant="outline"
-        >
-          {"<"}
-        </Button>
-        {pageNumbers.map((value, index) =>
-          typeof value === "number" ? (
-            <Button
-              key={index}
-              type="button"
-              variant={value === page ? "default" : "outline"}
-              onClick={() => setPage(value)}
-            >
-              {value}
-            </Button>
-          ) : (
-            <span key={index} className="px-2 text-sm text-slate-500">
-              ...
-            </span>
-          ),
-        )}
-        <Button
-          type="button"
-          disabled={page === totalPages}
-          onClick={() => setPage((value) => Math.min(totalPages, value + 1))}
-          variant="outline"
-        >
-          {">"}
-        </Button>
-      </div>
     </AdminPageShell>
   );
 };

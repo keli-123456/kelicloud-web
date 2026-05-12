@@ -107,10 +107,10 @@ const getCloudCodeLines = (value: string) => {
 };
 
 const getCloudCodeLineNumberWidth = (lineCount: number) =>
-  `calc(${Math.max(2, String(Math.max(1, lineCount)).length)}ch + 12px)`;
+  `calc(${Math.max(2, String(Math.max(1, lineCount)).length)}ch + 8px)`;
 
 const cloudCodeLineNumberClassName =
-  "shrink-0 overflow-hidden border-r border-border bg-muted px-1.5 py-3 text-right font-mono text-[12px] leading-5 tabular-nums text-muted-foreground select-none";
+  "shrink-0 overflow-hidden border-r border-border bg-muted px-1 py-3 text-right font-mono text-[12px] leading-5 tabular-nums text-muted-foreground select-none";
 
 function CloudProviderHeader({
   title,

@@ -1,8 +1,8 @@
 import { Navigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import {
-  AdminCardGridSkeleton,
   AdminPageShell,
+  AdminTableSkeleton,
 } from "@/components/admin/AdminPageShell";
 import CloudDnsProviderSection from "@/components/admin/cloud/CloudDnsProviderSection";
 import { getDefaultAdminPath, useAccount } from "@/contexts/AccountContext";
@@ -20,7 +20,7 @@ export default function CloudDnsPage() {
             "集中管理云 DNS 服务商凭据和解析能力，为故障切换、云资源和自动化脚本提供统一入口。",
         })}
       >
-        <AdminCardGridSkeleton cards={3} />
+        <AdminTableSkeleton columns={4} rows={4} />
       </AdminPageShell>
     );
   }

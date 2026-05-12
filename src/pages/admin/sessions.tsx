@@ -1,14 +1,7 @@
 import React from "react";
 
+import { Trash2 } from "lucide-react";
 import { toast } from "sonner";
-import {
-  Table,
-  TableHeader,
-  TableBody,
-  TableRow,
-  TableHead,
-  TableCell,
-} from "@/components/ui/table";
 import { useTranslation } from "react-i18next";
 import {
   Badge,
@@ -23,10 +16,21 @@ import {
   AdminTableSkeleton,
 } from "@/components/admin/AdminPageShell";
 import {
+  AdminDataTable,
+  AdminDataTableCell,
+  AdminDataTableEmptyRow,
+  AdminDataTableHead,
+  AdminDataTableHeadRow,
+  AdminDataTableRow,
+  AdminDataTableScroll,
+} from "@/components/admin/AdminDataTable";
+import {
   ADMIN_FORM_DIALOG_CLASS,
   ADMIN_FORM_GRID_2_CLASS,
   ADMIN_FORM_SCROLL_CLASS,
 } from "@/components/admin/AdminFormStyles";
+import { AdminPagination, useClientPagination } from "@/components/admin/AdminPagination";
+import { AdminRowActions } from "@/components/admin/AdminRowActions";
 import { formatApiErrorMessage, getReadableErrorMessage } from "@/lib/apiErrorMessage";
 
 type Resp = {
@@ -49,6 +53,12 @@ type Resp = {
 export default function Sessions({ embedded = false }: { embedded?: boolean } = {}) {
   const [t] = useTranslation();
   const [sessions, setSessions] = React.useState<Resp | null>(null);
+  const [deleteSessionID, setDeleteSessionID] = React.useState<string | null>(null);
+  const sessionRows = sessions?.data ?? [];
+  const sessionPagination = useClientPagination(sessionRows, {
+    initialPageSize: 10,
+    resetKey: sessionRows.length,
+  });
 
   React.useEffect(() => {
     fetch("/api/admin/session/get")
@@ -59,7 +69,10 @@ export default function Sessions({ embedded = false }: { embedded?: boolean } = 
         return response.json();
       })
       .then((data: Resp) => {
-        setSessions(data);
+        setSessions({
+          ...data,
+          data: Array.isArray(data.data) ? data.data : [],
+        });
       })
       .catch((error) => {
         console.error("Error fetching sessions:", error);
@@ -113,7 +126,12 @@ export default function Sessions({ embedded = false }: { embedded?: boolean } = 
             window.location.href = "/";
           })
           .catch((error) => {
-            toast.error(getReadableErrorMessage(error, "解析会话响应失败，请刷新后重试。"));
+            toast.error(getReadableErrorMessage(
+              error,
+              t("sessions.parse_response_failed", {
+                defaultValue: "解析会话响应失败，请刷新后重试。",
+              }),
+            ));
           });
       })
       .catch((error) => {
@@ -139,7 +157,8 @@ export default function Sessions({ embedded = false }: { embedded?: boolean } = 
         }
       >
         <AdminSurface className="overflow-hidden p-0">
-          <div className="border-b border-slate-200/70 px-1 py-3 dark:border-slate-800/70">
+          {!embedded ? (
+            <div className="border-b border-slate-200/70 px-4 py-3 dark:border-slate-800/70">
             <div className="flex flex-col gap-1">
               <label className="text-lg font-semibold tracking-normal text-slate-900 dark:text-slate-50">
                 {t("sessions.details_title", "Session details")}
@@ -151,7 +170,8 @@ export default function Sessions({ embedded = false }: { embedded?: boolean } = 
                 )}
               </p>
             </div>
-          </div>
+            </div>
+          ) : null}
           <AdminTableSkeleton columns={7} rows={5} className="rounded-none border-0 shadow-none" />
         </AdminSurface>
       </AdminPageShell>
@@ -195,52 +215,54 @@ export default function Sessions({ embedded = false }: { embedded?: boolean } = 
       }
     >
       <AdminSurface className="overflow-hidden p-0">
-        <div className="border-b border-slate-200/70 px-1 py-3 dark:border-slate-800/70">
-          <div className="flex flex-col gap-1">
-            <label className="text-lg font-semibold tracking-normal text-slate-900 dark:text-slate-50">
-              {t("sessions.details_title", "Session details")}
-            </label>
-            <p className="text-sm text-slate-500 dark:text-slate-400">
-              {t(
-                "sessions.details_description",
-                "Review suspicious devices and expired sessions regularly.",
-              )}
-            </p>
+        {!embedded ? (
+          <div className="border-b border-slate-200/70 px-4 py-3 dark:border-slate-800/70">
+            <div className="flex flex-col gap-1">
+              <label className="text-lg font-semibold tracking-normal text-slate-900 dark:text-slate-50">
+                {t("sessions.details_title", "Session details")}
+              </label>
+              <p className="text-sm text-slate-500 dark:text-slate-400">
+                {t(
+                  "sessions.details_description",
+                  "Review suspicious devices and expired sessions regularly.",
+                )}
+              </p>
+            </div>
           </div>
-        </div>
+        ) : null}
 
-        {sessions.data.length === 0 ? (
-          <div className="px-6 py-14 text-center text-sm text-slate-500 dark:text-slate-400">
-            {t("sessions.empty", "No session records are available right now.")}
-          </div>
-        ) : (
-          <Table>
-            <TableHeader className="bg-[linear-gradient(135deg,rgba(19,70,134,0.10),rgba(255,255,255,0.92),rgba(89,172,119,0.10))] dark:bg-[linear-gradient(135deg,rgba(14,165,233,0.16),rgba(2,6,23,0.92),rgba(16,185,129,0.12))]">
-              <TableRow>
-                <TableHead>{t("sessions.session_id")}</TableHead>
-                <TableHead>{t("sessions.user_agent_short", "UA")}</TableHead>
-                <TableHead>IP</TableHead>
-                <TableHead>{t("sessions.latest_ip", "Latest IP")}</TableHead>
-                <TableHead>{t("sessions.expires_at")}</TableHead>
-                <TableHead>{t("sessions.last_login", "Last Seen")}</TableHead>
-                <TableHead>{t("sessions.actions")}</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {sessions.data.map((session) => {
+        <AdminDataTableScroll>
+          <AdminDataTable minWidth={1040}>
+            <thead>
+              <AdminDataTableHeadRow>
+                <AdminDataTableHead>{t("sessions.session_id")}</AdminDataTableHead>
+                <AdminDataTableHead>{t("sessions.user_agent_short", "UA")}</AdminDataTableHead>
+                <AdminDataTableHead>IP</AdminDataTableHead>
+                <AdminDataTableHead>{t("sessions.latest_ip", "Latest IP")}</AdminDataTableHead>
+                <AdminDataTableHead>{t("sessions.expires_at")}</AdminDataTableHead>
+                <AdminDataTableHead>{t("sessions.last_login", "Last Seen")}</AdminDataTableHead>
+                <AdminDataTableHead align="right" sticky="right">{t("sessions.actions")}</AdminDataTableHead>
+              </AdminDataTableHeadRow>
+            </thead>
+            <tbody>
+              {sessionPagination.pageItems.length === 0 ? (
+                <AdminDataTableEmptyRow colSpan={7} className="py-14 text-center text-sm text-slate-500 dark:text-slate-400">
+                  {t("sessions.empty", "No session records are available right now.")}
+                </AdminDataTableEmptyRow>
+              ) : null}
+              {sessionPagination.pageItems.map((session) => {
                 const isCurrent = session.session === sessions.current;
 
                 return (
-                  <TableRow
+                  <AdminDataTableRow
                     key={session.uuid}
-                    className="transition-colors hover:bg-slate-50/60 dark:hover:bg-slate-900/60"
                   >
-                    <TableCell>
+                    <AdminDataTableCell>
                       <Dialog.Root>
                         <Dialog.Trigger>
                           <button
                             type="button"
-                            className="flex items-center gap-2 text-left text-sm font-medium text-slate-900 hover:text-slate-700 dark:text-slate-100 dark:hover:text-slate-300"
+                            className="flex items-center gap-2 text-left text-[12px] font-semibold text-slate-900 hover:text-slate-700 dark:text-slate-100 dark:hover:text-slate-300"
                           >
                             <span>{session.session.slice(0, 8)}...</span>
                             {isCurrent && (
@@ -309,60 +331,90 @@ export default function Sessions({ embedded = false }: { embedded?: boolean } = 
                           </div>
                         </Dialog.Content>
                       </Dialog.Root>
-                    </TableCell>
-                    <TableCell>{UserAgentHelper.format(session.user_agent)}</TableCell>
-                    <TableCell>{session.ip}</TableCell>
-                    <TableCell>{session.latest_ip}</TableCell>
-                    <TableCell>
+                    </AdminDataTableCell>
+                    <AdminDataTableCell className="max-w-[220px] truncate">
+                      {UserAgentHelper.format(session.user_agent)}
+                    </AdminDataTableCell>
+                    <AdminDataTableCell className="font-mono">{session.ip}</AdminDataTableCell>
+                    <AdminDataTableCell className="font-mono">{session.latest_ip}</AdminDataTableCell>
+                    <AdminDataTableCell>
                       {new Date(session.expires).toLocaleString()}
-                    </TableCell>
-                    <TableCell>
+                    </AdminDataTableCell>
+                    <AdminDataTableCell>
                       {new Date(session.latest_online).toLocaleString()} (
                       {formatDuration(
                         Date.now() - new Date(session.latest_online).getTime(),
                         t,
                       )}
                       )
-                    </TableCell>
-                    <TableCell>
-                      {!isCurrent && (
-                        <Dialog.Root>
-                          <Dialog.Trigger>
-                              <Button color="red" variant="ghost">
-                              {t("delete", "Delete")}
-                            </Button>
-                          </Dialog.Trigger>
-                          <Dialog.Content className={ADMIN_FORM_DIALOG_CLASS} maxWidth={520}>
-                            <Dialog.Title>
-                              {t("sessions.confirm_delete")}
-                            </Dialog.Title>
-                            <Dialog.Description className={`${ADMIN_FORM_SCROLL_CLASS} mt-1 text-sm leading-6 text-slate-600 dark:text-slate-400`}>
-                              {t("sessions.delete_one_desc")}
-                            </Dialog.Description>
-                            <div className="flex justify-end gap-2 border-t border-slate-200/70 pt-4 dark:border-slate-800/70">
-                              <Dialog.Close>
-                                <Button variant="soft">
-                                  {t("sessions.cancel")}
-                                </Button>
-                              </Dialog.Close>
-                              <Button
-                                color="red"
-                                onClick={() => deleteSession(session.session)}
-                              >
-                                {t("delete", "Delete")}
-                              </Button>
-                            </div>
-                          </Dialog.Content>
-                        </Dialog.Root>
-                      )}
-                    </TableCell>
-                  </TableRow>
+                    </AdminDataTableCell>
+                    <AdminDataTableCell align="right" sticky="right">
+                      <AdminRowActions
+                        actions={[
+                          {
+                            label: t("delete", "Delete"),
+                            icon: <Trash2 className="h-4 w-4" />,
+                            destructive: true,
+                            disabled: isCurrent,
+                            onSelect: () => setDeleteSessionID(session.session),
+                          },
+                        ]}
+                      />
+                    </AdminDataTableCell>
+                  </AdminDataTableRow>
                 );
               })}
-            </TableBody>
-          </Table>
-        )}
+            </tbody>
+          </AdminDataTable>
+        </AdminDataTableScroll>
+        <AdminPagination
+          page={sessionPagination.page}
+          totalPages={sessionPagination.totalPages}
+          total={sessionPagination.total}
+          pageSize={sessionPagination.pageSize}
+          visibleStart={sessionPagination.visibleStart}
+          visibleEnd={sessionPagination.visibleEnd}
+          onPageChange={sessionPagination.setPage}
+          onPageSizeChange={sessionPagination.setPageSize}
+          itemLabel={t("sessions.title", "sessions")}
+        />
       </AdminSurface>
+
+      <Dialog.Root
+        open={Boolean(deleteSessionID)}
+        onOpenChange={(open) => {
+          if (!open) {
+            setDeleteSessionID(null);
+          }
+        }}
+      >
+        <Dialog.Content className={ADMIN_FORM_DIALOG_CLASS} maxWidth={520}>
+          <Dialog.Title>
+            {t("sessions.confirm_delete")}
+          </Dialog.Title>
+          <Dialog.Description className={`${ADMIN_FORM_SCROLL_CLASS} mt-1 text-sm leading-6 text-slate-600 dark:text-slate-400`}>
+            {t("sessions.delete_one_desc")}
+          </Dialog.Description>
+          <div className="flex justify-end gap-2 border-t border-slate-200/70 pt-4 dark:border-slate-800/70">
+            <Dialog.Close>
+              <Button variant="soft">
+                {t("sessions.cancel")}
+              </Button>
+            </Dialog.Close>
+            <Button
+              color="red"
+              onClick={() => {
+                if (deleteSessionID) {
+                  deleteSession(deleteSessionID);
+                  setDeleteSessionID(null);
+                }
+              }}
+            >
+              {t("delete", "Delete")}
+            </Button>
+          </div>
+        </Dialog.Content>
+      </Dialog.Root>
     </AdminPageShell>
   );
 }

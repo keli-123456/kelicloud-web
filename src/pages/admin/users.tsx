@@ -9,12 +9,26 @@ import {
   AdminTableSkeleton,
 } from "@/components/admin/AdminPageShell";
 import {
+  AdminDataTable,
+  AdminDataTableCell,
+  AdminDataTableEmptyRow,
+  AdminDataTableHead,
+  AdminDataTableHeadRow,
+  AdminDataTableRow,
+  AdminDataTableScroll,
+} from "@/components/admin/AdminDataTable";
+import {
   ADMIN_FORM_DIALOG_CLASS,
   ADMIN_FORM_FIELD_CLASS,
   ADMIN_FORM_GRID_2_CLASS,
   ADMIN_FORM_SCROLL_CLASS,
   ADMIN_FORM_TOGGLE_CLASS,
 } from "@/components/admin/AdminFormStyles";
+import {
+  AdminPagination,
+  useClientPagination,
+} from "@/components/admin/AdminPagination";
+import { AdminRowActions } from "@/components/admin/AdminRowActions";
 import { PlatformAdminNotice } from "@/components/admin/PlatformAdminNotice";
 import {
   Badge,
@@ -26,14 +40,6 @@ import {
 } from "@/components/admin/admin-ui";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import {
   type AccountFeature,
   isDefaultGrantedAccountFeature,
@@ -921,6 +927,11 @@ export default function AdminUsersPage() {
     }
   };
 
+  const usersPagination = useClientPagination(users, {
+    initialPageSize: 10,
+  });
+  const visibleUsers = usersPagination.pageItems;
+
   if (accountLoading || loading) {
     return (
       <AdminPageShell
@@ -1159,20 +1170,29 @@ export default function AdminUsersPage() {
       <AdminSurface>
         <Dialog.Root open={Boolean(policyUser)} onOpenChange={(open) => !open && closePolicyEditor()}>
           <div className="overflow-hidden rounded-lg border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-950/40">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>{t("login.username")}</TableHead>
-                  <TableHead>{t("admin.users.role")}</TableHead>
-                  <TableHead>{t("admin.users.plan_name", "Plan")}</TableHead>
-                  <TableHead>{t("admin.users.server_quota", "Server quota")}</TableHead>
-                  <TableHead>{t("admin.users.allowed_features", "Allowed features")}</TableHead>
-                  <TableHead>{t("admin.users.created_at")}</TableHead>
-                  <TableHead className="text-right">{t("common.action")}</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {users.map((user) => {
+            <AdminDataTableScroll>
+              <AdminDataTable minWidth={1080}>
+                <thead>
+                  <AdminDataTableHeadRow>
+                    <AdminDataTableHead>{t("login.username")}</AdminDataTableHead>
+                    <AdminDataTableHead>{t("admin.users.role")}</AdminDataTableHead>
+                    <AdminDataTableHead>{t("admin.users.plan_name", "Plan")}</AdminDataTableHead>
+                    <AdminDataTableHead>{t("admin.users.server_quota", "Server quota")}</AdminDataTableHead>
+                    <AdminDataTableHead>{t("admin.users.allowed_features", "Allowed features")}</AdminDataTableHead>
+                    <AdminDataTableHead>{t("admin.users.created_at")}</AdminDataTableHead>
+                    <AdminDataTableHead align="right" sticky="right">
+                      {t("common.action")}
+                    </AdminDataTableHead>
+                  </AdminDataTableHeadRow>
+                </thead>
+                <tbody>
+                {visibleUsers.length === 0 ? (
+                  <AdminDataTableEmptyRow colSpan={7}>
+                    <div className="text-center text-sm text-muted-foreground">
+                      {t("admin.users.empty", "No users found")}
+                    </div>
+                  </AdminDataTableEmptyRow>
+                ) : visibleUsers.map((user) => {
                   const isSelf = user.uuid === account?.uuid;
                   const role = normalizeRole(user.role);
                   const quota = Number(user.server_quota || 0);
@@ -1185,8 +1205,8 @@ export default function AdminUsersPage() {
                   );
 
                   return (
-                    <TableRow key={user.uuid}>
-                      <TableCell>
+                    <AdminDataTableRow key={user.uuid}>
+                      <AdminDataTableCell>
                         <div className="flex flex-col gap-1">
                           <span className="font-medium text-slate-900 dark:text-slate-100">
                             {user.username}
@@ -1195,8 +1215,8 @@ export default function AdminUsersPage() {
                             {user.uuid}
                           </span>
                         </div>
-                      </TableCell>
-                      <TableCell>
+                      </AdminDataTableCell>
+                      <AdminDataTableCell>
                         <Select.Root
                           value={role}
                           disabled={isSelf || updatingRoleUUID === user.uuid}
@@ -1210,8 +1230,8 @@ export default function AdminUsersPage() {
                             <Select.Item value="admin">{t("admin.users.role_admin")}</Select.Item>
                           </Select.Content>
                         </Select.Root>
-                      </TableCell>
-                      <TableCell>
+                      </AdminDataTableCell>
+                      <AdminDataTableCell>
                         <div className="min-w-[150px] space-y-1.5">
                           <div className="flex flex-wrap items-center gap-2">
                             <span className="font-medium text-slate-900 dark:text-slate-100">
@@ -1231,11 +1251,11 @@ export default function AdminUsersPage() {
                                   date: formatDateInput(user.plan_expires_at),
                                   defaultValue: "Expires {{date}}",
                                 })
-                              : t("admin.users.no_expiration", "No expiration")}
+                            : t("admin.users.no_expiration", "No expiration")}
                           </div>
                         </div>
-                      </TableCell>
-                      <TableCell>
+                      </AdminDataTableCell>
+                      <AdminDataTableCell>
                         <div className="min-w-[180px] space-y-2">
                           <div className="flex items-center justify-between gap-3">
                             <span className="font-medium text-slate-900 dark:text-slate-100">
@@ -1262,8 +1282,8 @@ export default function AdminUsersPage() {
                             {t("admin.users.server_usage", "Servers in use")}
                           </span>
                         </div>
-                      </TableCell>
-                      <TableCell>
+                      </AdminDataTableCell>
+                      <AdminDataTableCell>
                         <div className="flex flex-wrap gap-2">
                           {allowedFeatures.length === 0 ? (
                             <Badge color="green" variant="soft">
@@ -1277,32 +1297,46 @@ export default function AdminUsersPage() {
                             ))
                           )}
                         </div>
-                      </TableCell>
-                      <TableCell>{formatDateTime(user.created_at)}</TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex justify-end gap-2 border-t border-slate-200/70 pt-4 dark:border-slate-800/70">
-                          <Button
-                            variant="outline"
-                            onClick={() => openPolicyEditor(user)}
-                          >
-                            {t("admin.users.edit_access", "Edit access")}
-                          </Button>
-                          <Button
-                            variant="outline"
-                            className="border-red-200 bg-red-50 text-red-700 hover:bg-red-100 dark:border-red-900 dark:bg-red-950/40 dark:text-red-300 dark:hover:bg-red-950/60"
-                            disabled={isSelf || deletingUUID === user.uuid}
-                            onClick={() => void handleDeleteUser(user)}
-                          >
-                            {deletingUUID === user.uuid ? t("loading") : t("common.delete")}
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
+                      </AdminDataTableCell>
+                      <AdminDataTableCell>{formatDateTime(user.created_at)}</AdminDataTableCell>
+                      <AdminDataTableCell align="right" sticky="right">
+                        <AdminRowActions
+                          actions={[
+                            {
+                              label: t("admin.users.edit_access", "Edit access"),
+                              onSelect: () => openPolicyEditor(user),
+                            },
+                            {
+                              label: deletingUUID === user.uuid ? t("loading") : t("common.delete"),
+                              destructive: true,
+                              disabled: isSelf || deletingUUID === user.uuid,
+                              onSelect: () => {
+                                void handleDeleteUser(user);
+                              },
+                            },
+                          ]}
+                        />
+                      </AdminDataTableCell>
+                    </AdminDataTableRow>
                   );
                 })}
-              </TableBody>
-            </Table>
+                </tbody>
+              </AdminDataTable>
+            </AdminDataTableScroll>
           </div>
+          <AdminPagination
+            page={usersPagination.page}
+            totalPages={usersPagination.totalPages}
+            total={usersPagination.total}
+            pageSize={usersPagination.pageSize}
+            visibleStart={usersPagination.visibleStart}
+            visibleEnd={usersPagination.visibleEnd}
+            onPageChange={usersPagination.setPage}
+            onPageSizeChange={usersPagination.setPageSize}
+            pageSizeOptions={[10, 20, 50]}
+            itemLabel={t("admin.pagination.users", { defaultValue: "users" })}
+            compact
+          />
           <Dialog.Content className={ADMIN_FORM_DIALOG_CLASS} maxWidth={720}>
             <Dialog.Title>{t("admin.users.access_title", "Edit user access")}</Dialog.Title>
             {policyUser ? (

@@ -1,25 +1,16 @@
 import type { TFunction } from "i18next";
 import {
   KeyRound,
-  MoreHorizontal,
   Power,
   PowerOff,
   RefreshCw,
   RotateCcw,
   Share2,
+  Terminal,
   Trash2,
 } from "lucide-react";
 
-import {
-  Button,
-  Flex,
-} from "@/components/admin/cloud/cloud-ui";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+import { AdminRowActions } from "@/components/admin/AdminRowActions";
 
 type MaybePromise<T> = T | Promise<T>;
 
@@ -63,97 +54,71 @@ export function AWSInstanceRowActions({
   const isRunning = state === "running";
 
   return (
-    <Flex justify="end" gap="2" wrap="nowrap">
-      <Button
-        variant="soft"
-        size="1"
-        disabled={!savedRootPassword || !passwordStorageEnabled || passwordLoading}
-        onClick={() => {
-          void onViewPassword();
-        }}
-      >
-        <KeyRound className="mr-1 h-3.5 w-3.5" />
-        {t("cloud.password.view", "View Password")}
-      </Button>
-      {isRunning ? (
-        <Button
-          variant="soft"
-          size="1"
-          color="amber"
-          onClick={() => {
-            void onPowerAction("stop");
-          }}
-        >
-          <PowerOff className="mr-1 h-3.5 w-3.5" />
-          {t("cloud.power_off", "Power Off")}
-        </Button>
-      ) : (
-        <Button
-          variant="soft"
-          size="1"
-          color="green"
-          disabled={disableStart}
-          onClick={() => {
-            void onPowerAction("start");
-          }}
-        >
-          <Power className="mr-1 h-3.5 w-3.5" />
-          {t("cloud.power_on", "Power On")}
-        </Button>
-      )}
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-8 w-8"
-            aria-label={t("common.action", "Action")}
-          >
-            <MoreHorizontal className="h-4 w-4" />
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="min-w-44">
-          <DropdownMenuItem
-            disabled={disableReboot}
-            onSelect={() => {
-              void onReboot();
-            }}
-          >
-            <RotateCcw className="h-4 w-4" />
-            {t("cloud.reboot", "Reboot")}
-          </DropdownMenuItem>
-          <DropdownMenuItem
-            disabled={disableReplaceIP}
-            onSelect={() => {
-              void onReplaceIP();
-            }}
-          >
-            <RefreshCw className="h-4 w-4" />
-            {t("cloud.providers.aws.replace_ip", "Replace IP")}
-          </DropdownMenuItem>
-          <DropdownMenuItem onSelect={onRunScript}>
-            {t("cloud.script.action", "Run Script")}
-          </DropdownMenuItem>
-          <DropdownMenuItem
-            onSelect={() => {
-              void onShare();
-            }}
-          >
-            <Share2 className="h-4 w-4" />
-            {t("cloud.share.action", "Share")}
-          </DropdownMenuItem>
-          <DropdownMenuItem
-            variant="destructive"
-            disabled={disableDelete}
-            onSelect={() => {
-              void onDelete();
-            }}
-          >
-            <Trash2 className="h-4 w-4" />
-            {t("cloud.delete", "Delete")}
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
-    </Flex>
+    <AdminRowActions
+      contentClassName="min-w-44"
+      actions={[
+        {
+    label: t("cloud.password.view", "查看密码"),
+          icon: <KeyRound className="h-4 w-4" />,
+          disabled: !savedRootPassword || !passwordStorageEnabled || passwordLoading,
+          onSelect: () => {
+            void onViewPassword();
+          },
+        },
+        isRunning
+          ? {
+    label: t("cloud.power_off", "关闭电源"),
+              icon: <PowerOff className="h-4 w-4" />,
+              onSelect: () => {
+                void onPowerAction("stop");
+              },
+            }
+          : {
+    label: t("cloud.power_on", "启动"),
+              icon: <Power className="h-4 w-4" />,
+              disabled: disableStart,
+              onSelect: () => {
+                void onPowerAction("start");
+              },
+            },
+        {
+    label: t("cloud.reboot", "重启"),
+          icon: <RotateCcw className="h-4 w-4" />,
+          disabled: disableReboot,
+          onSelect: () => {
+            void onReboot();
+          },
+        },
+        {
+    label: t("cloud.providers.aws.replace_ip", "切换 IP"),
+          icon: <RefreshCw className="h-4 w-4" />,
+          disabled: disableReplaceIP,
+          onSelect: () => {
+            void onReplaceIP();
+          },
+        },
+        {
+    label: t("cloud.script.action", "执行脚本"),
+          icon: <Terminal className="h-4 w-4" />,
+          onSelect: onRunScript,
+        },
+        {
+    label: t("cloud.share.action", "分享"),
+          icon: <Share2 className="h-4 w-4" />,
+          onSelect: () => {
+            void onShare();
+          },
+        },
+        {
+    label: t("cloud.delete", "删除"),
+          icon: <Trash2 className="h-4 w-4" />,
+          destructive: true,
+          disabled: disableDelete,
+          onSelect: () => {
+            void onDelete();
+          },
+        },
+      ]}
+    />
   );
 }

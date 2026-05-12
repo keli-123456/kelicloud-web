@@ -3,7 +3,6 @@ import type { TFunction } from "i18next";
 import {
   Eye,
   KeyRound,
-  MoreHorizontal,
   Power,
   PowerOff,
   RefreshCw,
@@ -15,10 +14,19 @@ import {
 } from "lucide-react";
 
 import {
+  AdminDataTable,
+  AdminDataTableCell,
+  AdminDataTableHead,
+  AdminDataTableHeadRow,
+  AdminDataTableRow,
+  AdminDataTableScroll,
+} from "@/components/admin/AdminDataTable";
+import {
   AdminPagination,
   useClientPagination,
 } from "@/components/admin/AdminPagination";
 import { AdminEmptyState } from "@/components/admin/AdminPageShell";
+import { AdminRowActions } from "@/components/admin/AdminRowActions";
 import type {
   AzureAccount,
   AzureCatalog,
@@ -28,7 +36,6 @@ import type {
 import { getCloudStatusLabel } from "@/lib/cloudStatus";
 import {
   Badge,
-  Button,
   CloudTableSkeletonRows,
   cloudLongTextClassName,
   cloudPanelCardClassName,
@@ -38,26 +45,11 @@ import {
   cloudTableEmptyStateClassName,
   cloudTableMutedTextClassName,
   cloudTableNameButtonClassName,
-  cloudTableScrollClassName,
   cloudTableSecondaryTextClassName,
   Flex,
   Select,
   TextField,
 } from "@/components/admin/cloud/cloud-ui";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import {
   formatDateTime,
   formatList,
@@ -147,7 +139,7 @@ export function AzureInstancesSection({
         <Flex justify="between" align="center" wrap="wrap" gap="2">
           <div>
             <div className={cloudPanelTitleClassName}>
-              {t("cloud.providers.azure.instance_list", "Virtual Machines")}
+              {t("cloud.providers.azure.instance_list", "虚拟机")}
             </div>
             <div className={cloudPanelDescriptionClassName}>
               {t(
@@ -164,7 +156,7 @@ export function AzureInstancesSection({
                   onValueChange={(value) => void onSetLocation(value)}
                   disabled={locationUpdating}
                 >
-                  <Select.Trigger placeholder={t("cloud.providers.azure.active_location", "Active Location")} />
+                  <Select.Trigger placeholder={t("cloud.providers.azure.active_location", "当前地区")} />
                   <Select.Content>
                     {catalog.locations.map((location) => (
                       <Select.Item key={location.name} value={location.name}>
@@ -183,7 +175,7 @@ export function AzureInstancesSection({
         {!activeCredential ? (
           <AdminEmptyState
             icon={<KeyRound className="h-5 w-5" />}
-            title={t("cloud.providers.azure.no_active_credential", "Select an active Azure credential first")}
+            title={t("cloud.providers.azure.no_active_credential", "请先选择已激活的 Azure 凭证")}
             description={t(
               "cloud.providers.azure.no_active_credential_description",
               "Import credentials or select an existing subscription before loading virtual machines.",
@@ -191,30 +183,32 @@ export function AzureInstancesSection({
             className={cloudTableEmptyStateClassName}
           />
         ) : resourceLoading ? (
-          <div className={cloudTableScrollClassName}>
-            <Table className="min-w-[1180px]">
-              <TableHeader>
-                <TableRow>
-                  <TableHead>{t("cloud.table.name", "Name")}</TableHead>
-                  <TableHead>{t("cloud.providers.azure.resource_group", "Resource Group")}</TableHead>
-                  <TableHead>{t("cloud.table.region", "Region")}</TableHead>
-                  <TableHead>{t("cloud.table.status", "Status")}</TableHead>
-                  <TableHead>{t("cloud.table.size", "Size")}</TableHead>
-                  <TableHead>{t("cloud.table.ip", "Public IP")}</TableHead>
-                  <TableHead>{t("cloud.providers.azure.private_ip", "Private IP")}</TableHead>
-                  <TableHead>{t("cloud.table.password", "Root Password")}</TableHead>
-                  <TableHead className="text-right">{t("common.actions", "Actions")}</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
+          <AdminDataTableScroll>
+            <AdminDataTable minWidth={1180}>
+              <thead>
+                <AdminDataTableHeadRow>
+                  <AdminDataTableHead>{t("cloud.table.name", "名称")}</AdminDataTableHead>
+                  <AdminDataTableHead>{t("cloud.providers.azure.resource_group", "资源组")}</AdminDataTableHead>
+                  <AdminDataTableHead>{t("cloud.table.region", "地区")}</AdminDataTableHead>
+                  <AdminDataTableHead>{t("cloud.table.status", "状态")}</AdminDataTableHead>
+                  <AdminDataTableHead>{t("cloud.table.size", "规格")}</AdminDataTableHead>
+                  <AdminDataTableHead>{t("cloud.table.ip", "公网 IP")}</AdminDataTableHead>
+                  <AdminDataTableHead>{t("cloud.providers.azure.private_ip", "内网 IP")}</AdminDataTableHead>
+                  <AdminDataTableHead>{t("cloud.table.password", "登录密码")}</AdminDataTableHead>
+                  <AdminDataTableHead align="right" sticky="right">
+                    {t("common.actions", "操作")}
+                  </AdminDataTableHead>
+                </AdminDataTableHeadRow>
+              </thead>
+              <tbody>
                 <CloudTableSkeletonRows columns={9} />
-              </TableBody>
-            </Table>
-          </div>
+              </tbody>
+            </AdminDataTable>
+          </AdminDataTableScroll>
         ) : !instances.length ? (
           <AdminEmptyState
             icon={<Server className="h-5 w-5" />}
-            title={t("cloud.providers.azure.instances_empty", "No Azure virtual machines found")}
+            title={t("cloud.providers.azure.instances_empty", "未找到 Azure 虚拟机")}
             description={t(
               "cloud.providers.azure.instances_empty_description",
               "Create a VM in the active subscription or switch to another credential/location with existing machines.",
@@ -229,7 +223,7 @@ export function AzureInstancesSection({
                 size="1"
                 value={searchQuery}
                 onChange={(event) => setSearchQuery(event.target.value)}
-                placeholder={t("cloud.search_resources", "Search name / IP / region...")}
+                placeholder={t("cloud.search_resources", "搜索名称 / IP / 地区...")}
               >
                 <TextField.Slot>
                   <Search className="h-4 w-4" />
@@ -239,9 +233,9 @@ export function AzureInstancesSection({
             <div className="flex shrink-0 items-center gap-2">
               <div className="w-44">
                 <Select.Root value={statusFilter} onValueChange={setStatusFilter}>
-                  <Select.Trigger placeholder={t("cloud.table.status", "Status")} />
+                  <Select.Trigger placeholder={t("cloud.table.status", "状态")} />
                   <Select.Content>
-                    <Select.Item value="__all__">{t("cloud.all_statuses", "All statuses")}</Select.Item>
+                    <Select.Item value="__all__">{t("cloud.all_statuses", "全部状态")}</Select.Item>
                     {statusOptions.map((status) => (
                       <Select.Item key={status} value={status}>
                         {getCloudStatusLabel(status, t)}
@@ -262,25 +256,27 @@ export function AzureInstancesSection({
             />
           ) : (
           <>
-          <div className={cloudTableScrollClassName}>
-            <Table className="min-w-[1180px]">
-              <TableHeader>
-                <TableRow>
-                  <TableHead>{t("cloud.table.name", "Name")}</TableHead>
-                  <TableHead>{t("cloud.providers.azure.resource_group", "Resource Group")}</TableHead>
-                  <TableHead>{t("cloud.table.region", "Region")}</TableHead>
-                  <TableHead>{t("cloud.table.status", "Status")}</TableHead>
-                  <TableHead>{t("cloud.table.size", "Size")}</TableHead>
-                  <TableHead>{t("cloud.table.ip", "Public IP")}</TableHead>
-                  <TableHead>{t("cloud.providers.azure.private_ip", "Private IP")}</TableHead>
-                  <TableHead>{t("cloud.table.password", "Root Password")}</TableHead>
-                  <TableHead className="text-right">{t("common.actions", "Actions")}</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
+          <AdminDataTableScroll>
+            <AdminDataTable minWidth={1180}>
+              <thead>
+                <AdminDataTableHeadRow>
+                  <AdminDataTableHead>{t("cloud.table.name", "名称")}</AdminDataTableHead>
+                  <AdminDataTableHead>{t("cloud.providers.azure.resource_group", "资源组")}</AdminDataTableHead>
+                  <AdminDataTableHead>{t("cloud.table.region", "地区")}</AdminDataTableHead>
+                  <AdminDataTableHead>{t("cloud.table.status", "状态")}</AdminDataTableHead>
+                  <AdminDataTableHead>{t("cloud.table.size", "规格")}</AdminDataTableHead>
+                  <AdminDataTableHead>{t("cloud.table.ip", "公网 IP")}</AdminDataTableHead>
+                  <AdminDataTableHead>{t("cloud.providers.azure.private_ip", "内网 IP")}</AdminDataTableHead>
+                  <AdminDataTableHead>{t("cloud.table.password", "登录密码")}</AdminDataTableHead>
+                  <AdminDataTableHead align="right" sticky="right">
+                    {t("common.actions", "操作")}
+                  </AdminDataTableHead>
+                </AdminDataTableHeadRow>
+              </thead>
+              <tbody>
                 {paginatedInstances.map((instance) => (
-                  <TableRow key={instance.instance_id}>
-                    <TableCell className="align-top">
+                  <AdminDataTableRow key={instance.instance_id}>
+                    <AdminDataTableCell className="align-top">
                       <button
                         type="button"
                         className={`${cloudTableNameButtonClassName} ${cloudLongTextClassName}`}
@@ -293,24 +289,24 @@ export function AzureInstancesSection({
                       <div className={`mt-1 ${cloudTableSecondaryTextClassName}`}>
                         {instance.os_type || "-"}
                       </div>
-                    </TableCell>
-                    <TableCell className="align-top">{instance.resource_group || "-"}</TableCell>
-                    <TableCell className="align-top">{getLocationLabel(catalog, instance.location)}</TableCell>
-                    <TableCell className="align-top">
+                    </AdminDataTableCell>
+                    <AdminDataTableCell className="align-top">{instance.resource_group || "-"}</AdminDataTableCell>
+                    <AdminDataTableCell className="align-top">{getLocationLabel(catalog, instance.location)}</AdminDataTableCell>
+                    <AdminDataTableCell className="align-top">
                       <Badge color={getInstanceStateColor(instance)}>
                         {getCloudStatusLabel(instance.power_state || instance.provisioning_state, t)}
                       </Badge>
-                    </TableCell>
-                    <TableCell className="align-top">{instance.size || "-"}</TableCell>
-                    <TableCell className="align-top">{formatList(instance.public_ips)}</TableCell>
-                    <TableCell className="align-top">{formatList(instance.private_ips)}</TableCell>
-                    <TableCell className="align-top">
+                    </AdminDataTableCell>
+                    <AdminDataTableCell className="align-top">{instance.size || "-"}</AdminDataTableCell>
+                    <AdminDataTableCell className="align-top">{formatList(instance.public_ips)}</AdminDataTableCell>
+                    <AdminDataTableCell className="align-top">{formatList(instance.private_ips)}</AdminDataTableCell>
+                    <AdminDataTableCell className="align-top">
                       {instance.saved_root_password ? (
                         <div className="space-y-1">
                           <Badge color={passwordStorageEnabled ? "green" : "amber"}>
                             {passwordStorageEnabled
-                              ? t("cloud.password.saved", "Saved")
-                              : t("cloud.password.locked", "Locked")}
+                              ? t("cloud.password.saved", "已保存")
+                              : t("cloud.password.locked", "已锁定")}
                           </Badge>
                           {instance.saved_root_password_updated_at ? (
                             <div className={cloudTableSecondaryTextClassName}>
@@ -321,85 +317,84 @@ export function AzureInstancesSection({
                       ) : (
                         <span className={cloudTableMutedTextClassName}>
                           {passwordStorageEnabled
-                            ? t("cloud.password.not_saved", "Not saved")
-                            : t("cloud.password.disabled_short", "Vault off")}
+                            ? t("cloud.password.not_saved", "未保存")
+                            : t("cloud.password.disabled_short", "密库未启用")}
                         </span>
                       )}
-                    </TableCell>
-                    <TableCell className="align-top text-right">
-                      <div className="flex justify-end gap-2">
-                        <Button variant="outline" size="sm" onClick={() => void onOpenDetail(instance)}>
-                          <Eye className="mr-1 h-3.5 w-3.5" />
-                          {t("cloud.view", "View")}
-                        </Button>
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-8 w-8"
-                              aria-label={t("common.action", "Action")}
-                            >
-                              <MoreHorizontal className="h-4 w-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end" className="min-w-44">
-                            <DropdownMenuItem onSelect={() => onOpenScript(instance)}>
-                              <Terminal className="h-4 w-4" />
-                              {t("cloud.script.action", "Run Script")}
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                              disabled={!instance.saved_root_password || !passwordStorageEnabled || passwordLoading}
-                              onSelect={() => void onViewPassword(instance)}
-                            >
-                              <KeyRound className="h-4 w-4" />
-                              {t("cloud.password.view", "View Password")}
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                              disabled={workingInstanceId === instance.instance_id}
-                              onSelect={() => void onInstanceAction(instance, "start")}
-                            >
-                              <Power className="h-4 w-4" />
-                              {t("cloud.power_on", "Power On")}
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                              disabled={workingInstanceId === instance.instance_id}
-                              onSelect={() => void onInstanceAction(instance, "deallocate")}
-                            >
-                              <PowerOff className="h-4 w-4" />
-                              {t("cloud.power_off", "Power Off")}
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                              disabled={workingInstanceId === instance.instance_id}
-                              onSelect={() => void onInstanceAction(instance, "restart")}
-                            >
-                              <RotateCcw className="h-4 w-4" />
-                              {t("cloud.reboot", "Reboot")}
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                              disabled={workingInstanceId === instance.instance_id}
-                              onSelect={() => void onReplaceInstanceIP(instance)}
-                            >
-                              <RefreshCw className="h-4 w-4" />
-                              {t("cloud.providers.azure.replace_ip", "Replace IP")}
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                              variant="destructive"
-                              disabled={workingInstanceId === instance.instance_id}
-                              onSelect={() => void onDeleteInstance(instance)}
-                            >
-                              <Trash2 className="h-4 w-4" />
-                              {t("cloud.delete", "Delete")}
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </div>
-                    </TableCell>
-                  </TableRow>
+                    </AdminDataTableCell>
+                    <AdminDataTableCell align="right" className="align-top" sticky="right">
+                      <AdminRowActions
+                        contentClassName="min-w-44"
+                        actions={[
+                          {
+                            label: t("cloud.view", "查看"),
+                            icon: <Eye className="h-4 w-4" />,
+                            onSelect: () => {
+                              void onOpenDetail(instance);
+                            },
+                          },
+                          {
+                            label: t("cloud.script.action", "执行脚本"),
+                            icon: <Terminal className="h-4 w-4" />,
+                            onSelect: () => onOpenScript(instance),
+                          },
+                          {
+                            label: t("cloud.password.view", "查看密码"),
+                            icon: <KeyRound className="h-4 w-4" />,
+                            disabled: !instance.saved_root_password || !passwordStorageEnabled || passwordLoading,
+                            onSelect: () => {
+                              void onViewPassword(instance);
+                            },
+                          },
+                          {
+                            label: t("cloud.power_on", "开机"),
+                            icon: <Power className="h-4 w-4" />,
+                            disabled: workingInstanceId === instance.instance_id,
+                            onSelect: () => {
+                              void onInstanceAction(instance, "start");
+                            },
+                          },
+                          {
+                            label: t("cloud.power_off", "关机"),
+                            icon: <PowerOff className="h-4 w-4" />,
+                            disabled: workingInstanceId === instance.instance_id,
+                            onSelect: () => {
+                              void onInstanceAction(instance, "deallocate");
+                            },
+                          },
+                          {
+                            label: t("cloud.reboot", "重启"),
+                            icon: <RotateCcw className="h-4 w-4" />,
+                            disabled: workingInstanceId === instance.instance_id,
+                            onSelect: () => {
+                              void onInstanceAction(instance, "restart");
+                            },
+                          },
+                          {
+                            label: t("cloud.providers.azure.replace_ip", "更换 IP"),
+                            icon: <RefreshCw className="h-4 w-4" />,
+                            disabled: workingInstanceId === instance.instance_id,
+                            onSelect: () => {
+                              void onReplaceInstanceIP(instance);
+                            },
+                          },
+                          {
+                            label: t("cloud.delete", "删除"),
+                            icon: <Trash2 className="h-4 w-4" />,
+                            destructive: true,
+                            disabled: workingInstanceId === instance.instance_id,
+                            onSelect: () => {
+                              void onDeleteInstance(instance);
+                            },
+                          },
+                        ]}
+                      />
+                    </AdminDataTableCell>
+                  </AdminDataTableRow>
                 ))}
-              </TableBody>
-            </Table>
-          </div>
+              </tbody>
+            </AdminDataTable>
+          </AdminDataTableScroll>
           <AdminPagination
             page={instancePagination.page}
             totalPages={instancePagination.totalPages}

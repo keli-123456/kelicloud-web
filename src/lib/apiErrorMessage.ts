@@ -40,6 +40,7 @@ const exactMessages: Record<string, string> = {
   "failed to add command": "添加脚本失败，请稍后重试。",
   "failed to update command": "更新脚本失败，请稍后重试。",
   "failed to delete command": "删除脚本失败，请稍后重试。",
+  "failed to delete session": "删除会话失败，请稍后重试。",
   "failed to fetch notification tasks": "获取负载告警任务失败，请刷新后重试。",
   "failed to fetch offline notifications": "获取离线通知配置失败，请刷新后重试。",
   "failed to fetch ping tasks": "获取 Ping 监测任务失败，请刷新后重试。",
@@ -307,7 +308,10 @@ export function formatApiErrorMessage(value: unknown, context: ApiErrorMessageCo
     return message;
   }
 
-  return translateEnglishMessage(message, context) || message;
+  return (
+    translateEnglishMessage(message, context)
+    || (/[A-Za-z]/.test(message) ? `请求失败：${message}` : message)
+  );
 }
 
 export function getReadableErrorMessage(error: unknown, fallback = "请求失败。") {

@@ -1,7 +1,6 @@
 import { Suspense, lazy } from "react";
 
 import {
-  AdminCardGridSkeleton,
   AdminPageShell,
   AdminTableSkeleton,
 } from "@/components/admin/AdminPageShell";
@@ -13,7 +12,6 @@ export default function FailoverV2PageRoute() {
     <Suspense
       fallback={
         <AdminPageShell>
-          <AdminCardGridSkeleton cards={4} />
           <AdminTableSkeleton rows={6} columns={6} />
         </AdminPageShell>
       }

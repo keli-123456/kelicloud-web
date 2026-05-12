@@ -1,11 +1,20 @@
 import type { TFunction } from "i18next";
-import { CheckCircle2, Eye, KeyRound, MoreHorizontal, PencilLine, Trash2 } from "lucide-react";
+import { CheckCircle2, Eye, KeyRound, PencilLine, Trash2 } from "lucide-react";
 
+import {
+  AdminDataTable,
+  AdminDataTableCell,
+  AdminDataTableHead,
+  AdminDataTableHeadRow,
+  AdminDataTableRow,
+  AdminDataTableScroll,
+} from "@/components/admin/AdminDataTable";
 import {
   AdminPagination,
   useClientPagination,
 } from "@/components/admin/AdminPagination";
 import { AdminEmptyState } from "@/components/admin/AdminPageShell";
+import { AdminRowActions } from "@/components/admin/AdminRowActions";
 import type {
   AzureCatalog,
   AzureCredentialPool,
@@ -22,24 +31,9 @@ import {
   cloudPanelTitleClassName,
   cloudTableEmptyStateClassName,
   cloudTablePrimaryTextClassName,
-  cloudTableScrollClassName,
   cloudTableSecondaryTextClassName,
   Flex,
 } from "@/components/admin/cloud/cloud-ui";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import {
   formatDateTime,
   getCredentialStatusColor,
@@ -85,7 +79,7 @@ export function AzureCredentialsSection({
         <Flex justify="between" align="center" wrap="wrap" gap="2">
           <div>
             <div className={cloudPanelTitleClassName}>
-              {t("cloud.providers.azure.credentials", "Credentials")}
+              {t("cloud.providers.azure.credentials", "凭证")}
             </div>
             <div className={cloudPanelDescriptionClassName}>
               {t(
@@ -100,7 +94,7 @@ export function AzureCredentialsSection({
             disabled={!credentialPool?.credentials.length || checkingCredentialsState}
           >
             <CheckCircle2 className={`mr-2 h-4 w-4${checkingCredentialsState ? " animate-spin" : ""}`} />
-            {t("cloud.providers.azure.check", "Check")}
+            {t("cloud.providers.azure.check", "检查")}
           </Button>
         </Flex>
       </div>
@@ -108,7 +102,7 @@ export function AzureCredentialsSection({
         {!credentialRows.length ? (
           <AdminEmptyState
             icon={<KeyRound className="h-5 w-5" />}
-            title={t("cloud.providers.azure.credentials_empty", "No Azure credentials saved yet")}
+            title={t("cloud.providers.azure.credentials_empty", "尚未保存 Azure 凭证")}
             description={t(
               "cloud.providers.azure.credentials_empty_description",
               "Import an Azure service principal to choose a subscription, set a default location, and manage virtual machines.",
@@ -116,40 +110,40 @@ export function AzureCredentialsSection({
             actions={(
               <Button size="1" onClick={onImportCredentials}>
                 <KeyRound className="mr-2 h-4 w-4" />
-                {t("cloud.providers.azure.import", "Import Credentials")}
+                {t("cloud.providers.azure.import", "导入凭证")}
               </Button>
             )}
             className={cloudTableEmptyStateClassName}
           />
         ) : (
-          <div className={cloudTableScrollClassName}>
-            <Table className="min-w-[980px]">
-              <TableHeader>
-                <TableRow>
-                  <TableHead>{t("cloud.table.name", "Name")}</TableHead>
-                  <TableHead>{t("cloud.tokens.group", "Group")}</TableHead>
-                  <TableHead>{t("cloud.providers.azure.subscription", "Subscription")}</TableHead>
-                  <TableHead>{t("cloud.table.region", "Region")}</TableHead>
-                  <TableHead>{t("cloud.table.status", "Status")}</TableHead>
-                  <TableHead>{t("cloud.providers.azure.checked_at", "Last Checked")}</TableHead>
-                  <TableHead className="text-right">{t("common.actions", "Actions")}</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
+          <AdminDataTableScroll>
+            <AdminDataTable minWidth={980}>
+              <thead>
+                <AdminDataTableHeadRow>
+                  <AdminDataTableHead>{t("cloud.table.name", "名称")}</AdminDataTableHead>
+                  <AdminDataTableHead>{t("cloud.tokens.group", "分组")}</AdminDataTableHead>
+                  <AdminDataTableHead>{t("cloud.providers.azure.subscription", "订阅")}</AdminDataTableHead>
+                  <AdminDataTableHead>{t("cloud.table.region", "地区")}</AdminDataTableHead>
+                  <AdminDataTableHead>{t("cloud.table.status", "状态")}</AdminDataTableHead>
+                  <AdminDataTableHead>{t("cloud.providers.azure.checked_at", "最后检查")}</AdminDataTableHead>
+                  <AdminDataTableHead align="right" sticky="right">{t("common.actions", "操作")}</AdminDataTableHead>
+                </AdminDataTableHeadRow>
+              </thead>
+              <tbody>
                 {visibleCredentialRows.map((credential) => (
-                  <TableRow key={credential.id}>
-                    <TableCell className="align-top">
+                  <AdminDataTableRow key={credential.id}>
+                    <AdminDataTableCell className="align-top">
                       <div className={`${cloudTablePrimaryTextClassName} ${cloudLongTextClassName}`}>
                         {credential.name}
                       </div>
                       <div className={`mt-1 ${cloudTableSecondaryTextClassName}`}>
                         {credential.masked_client_id || "-"}
                       </div>
-                    </TableCell>
-                    <TableCell className="align-top">
+                    </AdminDataTableCell>
+                    <AdminDataTableCell className="align-top">
                       {credential.group || "-"}
-                    </TableCell>
-                    <TableCell className="align-top">
+                    </AdminDataTableCell>
+                    <AdminDataTableCell className="align-top">
                       <div className={cloudLongTextClassName}>
                         {credential.subscription_display_name || credential.subscription_id || "-"}
                       </div>
@@ -158,73 +152,64 @@ export function AzureCredentialsSection({
                           {credential.subscription_id}
                         </div>
                       ) : null}
-                    </TableCell>
-                    <TableCell className="align-top">
+                    </AdminDataTableCell>
+                    <AdminDataTableCell className="align-top">
                       {getLocationLabel(catalog, credential.default_location)}
-                    </TableCell>
-                    <TableCell className="align-top">
+                    </AdminDataTableCell>
+                    <AdminDataTableCell className="align-top">
                       <div className="space-y-2">
                         <Badge color={getCredentialStatusColor(credential.last_status)}>
                           {getCloudStatusLabel(credential.last_status, t)}
                         </Badge>
                         {credential.is_active ? (
                           <div>
-                            <Badge color="blue">{t("cloud.active", "Active")}</Badge>
+                            <Badge color="blue">{t("cloud.active", "已激活")}</Badge>
                           </div>
                         ) : null}
                       </div>
-                    </TableCell>
-                    <TableCell className="align-top">
+                    </AdminDataTableCell>
+                    <AdminDataTableCell className="align-top">
                       {formatDateTime(credential.last_checked_at)}
                       {credential.last_error ? (
                         <div className={`mt-1 text-xs text-red-600 dark:text-red-400 ${cloudLongTextClassName}`}>
                           {credential.last_error}
                         </div>
                       ) : null}
-                    </TableCell>
-                    <TableCell className="align-top text-right">
-                      <div className="flex justify-end gap-2">
-                        {!credential.is_active ? (
-                          <Button variant="outline" size="sm" onClick={() => void onSelectCredential(credential)}>
-                            {t("cloud.select", "Select")}
-                          </Button>
-                        ) : null}
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-8 w-8"
-                              aria-label={t("common.action", "Action")}
-                            >
-                              <MoreHorizontal className="h-4 w-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end" className="min-w-44">
-                            <DropdownMenuItem onSelect={() => onOpenGroupEditor(credential)}>
-                              <PencilLine className="h-4 w-4" />
-                              {t("cloud.tokens.set_group", "Set Group")}
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onSelect={() => void onViewCredential(credential)}>
-                              <Eye className="h-4 w-4" />
-                              {t("cloud.view", "View")}
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                              variant="destructive"
-                              onSelect={() => void onDeleteCredential(credential)}
-                            >
-                              <Trash2 className="h-4 w-4" />
-                              {t("cloud.delete", "Delete")}
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </div>
-                    </TableCell>
-                  </TableRow>
+                    </AdminDataTableCell>
+                    <AdminDataTableCell className="align-top" align="right" sticky="right">
+                      <AdminRowActions
+                        label={t("common.action", "操作")}
+                        actions={[
+                          {
+                            label: t("cloud.select", "选择"),
+                            icon: <CheckCircle2 className="h-4 w-4" />,
+                            hidden: credential.is_active,
+                            onSelect: () => void onSelectCredential(credential),
+                          },
+                          {
+                            label: t("cloud.tokens.set_group", "设置分组"),
+                            icon: <PencilLine className="h-4 w-4" />,
+                            onSelect: () => onOpenGroupEditor(credential),
+                          },
+                          {
+                            label: t("cloud.view", "查看"),
+                            icon: <Eye className="h-4 w-4" />,
+                            onSelect: () => void onViewCredential(credential),
+                          },
+                          {
+                            label: t("cloud.delete", "删除"),
+                            icon: <Trash2 className="h-4 w-4" />,
+                            destructive: true,
+                            onSelect: () => void onDeleteCredential(credential),
+                          },
+                        ]}
+                      />
+                    </AdminDataTableCell>
+                  </AdminDataTableRow>
                 ))}
-              </TableBody>
-            </Table>
-          </div>
+              </tbody>
+            </AdminDataTable>
+          </AdminDataTableScroll>
         )}
       </div>
       <AdminPagination
