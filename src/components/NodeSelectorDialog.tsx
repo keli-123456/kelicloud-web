@@ -61,6 +61,7 @@ const NodeSelectorDialog: React.FC<NodeSelectorDialogProps> = ({
             value={temp}
             onChange={setTemp}
             className={className}
+            scrollAreaClassName="max-h-[430px] min-h-0"
             hiddenUuidOnlyClient={hiddenUuidOnlyClient}
             hiddenDescription={hiddenDescription}
           />

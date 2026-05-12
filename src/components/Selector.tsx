@@ -43,7 +43,7 @@ export interface SelectorProps<T> {
 function SelectorInner<T>(props: SelectorProps<T>) {
   const {
     className = "",
-    scrollAreaClassName = "",
+    scrollAreaClassName = "max-h-[360px] overflow-y-auto overflow-x-hidden overscroll-contain [scrollbar-gutter:stable]",
     hiddenDescription = false,
     value: externalValue,
     onChange,
@@ -124,7 +124,7 @@ function SelectorInner<T>(props: SelectorProps<T>) {
         </div>
       </div>
       <div
-        className={`selector min-h-0 rounded-md overflow-hidden ${scrollAreaClassName}`}
+        className={`selector min-h-0 rounded-md ${scrollAreaClassName}`}
       >
         <Table>
           <TableHeader className="sticky top-0 z-10 bg-background">
