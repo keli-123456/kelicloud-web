@@ -164,8 +164,8 @@
         "ping": "延迟",
         "proxy": "代理设置",
         "scripts": "脚本",
-        "sessions": "会话",
         "servers": "服务器",
+        "sessions": "会话",
         "settings": "系统设置",
         "users": "用户"
       }
