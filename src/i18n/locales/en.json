@@ -148,19 +148,25 @@
         "governance": "Governance",
         "infrastructure": "Infrastructure",
         "operations": "Operations",
-        "overview": "Home"
+        "overview": "Overview"
       },
       "short": {
-        "audit": "Audit",
-        "billing": "商业化",
-        "cloud": "Cloud",
-        "exec": "Exec",
-        "failover": "Failover",
+        "account": "Users & Account",
+        "audit": "Audit Logs",
+        "billing": "Plans & Billing",
+        "cloud": "Cloud Providers",
+        "dashboard": "Dashboard",
+        "dns": "DNS",
+        "exec": "Scripts & Exec",
+        "failover": "Failover V1",
         "failover_v2": "Failover V2",
+        "notifications": "Notifications",
         "ping": "Ping",
-        "proxy": "Proxy",
+        "proxy": "Proxy Settings",
         "scripts": "Scripts",
         "sessions": "Sessions",
+        "servers": "Servers",
+        "settings": "System Settings",
         "users": "Users"
       }
     },

@@ -247,14 +247,16 @@ const getMenuGroupKey = (target: string): MenuGroup["key"] => {
   const targetUrl = new URL(target, "https://komari.local");
   const normalizedPath = normalizePath(targetUrl.pathname);
 
-  if (normalizedPath === "/admin" || normalizedPath === "/admin/client") {
+  if (normalizedPath === "/admin") {
     return "overview";
   }
 
   if (
+    normalizedPath === "/admin/client" ||
     normalizedPath === "/admin/cloud" ||
     normalizedPath.startsWith("/admin/failover") ||
-    normalizedPath === "/admin/dns"
+    normalizedPath === "/admin/dns" ||
+    normalizedPath === "/admin/proxy"
   ) {
     return "infrastructure";
   }
@@ -412,8 +414,14 @@ function AdminPanelBarContent({ content }: AdminPanelBarProps) {
     const normalizedPath = normalizePath(targetUrl.pathname);
     const provider = targetUrl.searchParams.get("provider");
 
+    if (normalizedPath === "/admin") {
+      return t("admin.nav.short.dashboard", { defaultValue: "Dashboard" });
+    }
+    if (normalizedPath === "/admin/client") {
+      return t("admin.nav.short.servers", { defaultValue: "Servers" });
+    }
     if (normalizedPath === "/admin/cloud") {
-      if (provider === "digitalocean") return "DO";
+      if (provider === "digitalocean") return "DigitalOcean";
       if (provider === "aws") return "AWS";
       if (provider === "linode") return "Linode";
       if (provider === "vultr") return "Vultr";
@@ -428,7 +436,10 @@ function AdminPanelBarContent({ content }: AdminPanelBarProps) {
       return t("admin.nav.short.failover_v2", { defaultValue: "Failover V2" });
     }
     if (normalizedPath === "/admin/dns") {
-      return "DNS";
+      return t("admin.nav.short.dns", { defaultValue: "DNS" });
+    }
+    if (normalizedPath === "/admin/settings") {
+      return t("admin.nav.short.settings", { defaultValue: "Settings" });
     }
     if (normalizedPath === "/admin/exec") {
       return t("admin.nav.short.exec", { defaultValue: "Exec" });
@@ -447,6 +458,12 @@ function AdminPanelBarContent({ content }: AdminPanelBarProps) {
     }
     if (normalizedPath === "/admin/proxy") {
       return t("admin.nav.short.proxy", { defaultValue: "Proxy" });
+    }
+    if (normalizedPath === "/admin/notification") {
+      return t("admin.nav.short.notifications", { defaultValue: "Notifications" });
+    }
+    if (normalizedPath === "/admin/account") {
+      return t("admin.nav.short.account", { defaultValue: "Account" });
     }
 
     return getMenuLabel(item);

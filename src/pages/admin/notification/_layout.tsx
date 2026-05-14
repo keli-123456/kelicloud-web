@@ -26,7 +26,7 @@ export default function NotificationLayout() {
 
   return (
     <AdminPageShell
-      className="mx-auto w-full max-w-5xl"
+      className="mx-auto w-full max-w-6xl"
       title={t("notification.title", {
         defaultValue: "通知",
       })}
@@ -34,7 +34,7 @@ export default function NotificationLayout() {
         defaultValue: "集中配置离线、负载和通用通知策略，避免告警规则分散在不同页面。",
       })}
       subnav={(
-        <AdminSubnav>
+        <AdminSubnav className="border-slate-200/80 bg-slate-50/70 p-1 dark:border-slate-800 dark:bg-slate-900/30">
           {navItems.map((item) => {
             const active = location.pathname === item.path;
             return (
@@ -44,9 +44,9 @@ export default function NotificationLayout() {
                 variant={active ? "default" : "outline"}
                 size="sm"
                 className={cn(
-                  "rounded-md",
+                  "h-8 rounded-md px-3 shadow-none",
                   !active
-                    && "border-slate-200 bg-white text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200 dark:hover:bg-slate-900",
+                    && "border-transparent bg-transparent text-slate-600 hover:bg-white hover:text-slate-950 dark:text-slate-300 dark:hover:bg-slate-950 dark:hover:text-white",
                 )}
               >
                 <Link to={item.path}>{t(item.labelKey)}</Link>

@@ -3,12 +3,12 @@
     {
       "labelKey": "admin.dashboard.menu",
       "path": "/admin",
-      "icon": "Home"
+      "icon": "LayoutDashboard"
     },
     {
       "labelKey": "common.server",
       "path": "/admin/client",
-      "icon": "Server"
+      "icon": "ServerCog"
     },
     {
       "labelKey": "cloud.title",
@@ -18,79 +18,79 @@
         {
           "labelKey": "cloud.providers.digitalocean.title",
           "path": "/admin/cloud?provider=digitalocean",
-          "icon": "Cloud"
+          "icon": "CloudSun"
         },
         {
           "labelKey": "cloud.providers.linode.title",
           "path": "/admin/cloud?provider=linode",
-          "icon": "Server"
+          "icon": "DatabaseZap"
         },
         {
           "labelKey": "cloud.providers.vultr.title",
           "path": "/admin/cloud?provider=vultr",
-          "icon": "Cloud"
+          "icon": "CloudLightning"
         },
         {
           "labelKey": "cloud.providers.azure.title",
           "path": "/admin/cloud?provider=azure",
-          "icon": "Cloud"
+          "icon": "CloudCog"
         },
         {
           "labelKey": "cloud.providers.aws.title",
           "path": "/admin/cloud?provider=aws",
-          "icon": "ShipWheel"
+          "icon": "CloudUpload"
         },
         {
           "labelKey": "cloud.failover.title",
           "path": "/admin/failover",
-          "icon": "RefreshCw"
+          "icon": "Route"
         },
         {
           "labelKey": "cloud.failover_v2.title",
           "path": "/admin/failover-v2",
-          "icon": "ShieldAlert"
+          "icon": "Workflow"
         }
       ]
     },
     {
       "labelKey": "cloud.dns.title",
       "path": "/admin/dns",
-      "icon": "AtSign"
+      "icon": "Globe2"
     },
     {
       "labelKey": "settings.title",
       "path": "/admin/settings",
-      "icon": "Bolt"
+      "icon": "Settings2"
     },
     {
       "labelKey": "settings.proxy.title",
       "path": "/admin/proxy",
-      "icon": "Unplug"
+      "icon": "Network"
     },
     {
       "labelKey": "notification.title",
       "path": "/admin/notification",
-      "icon": "Bell"
+      "icon": "BellRing"
     },
     {
       "labelKey": "exec.title",
       "path": "/admin/exec",
-      "icon": "Code"
+      "icon": "TerminalSquare"
     },
     {
       "labelKey": "admin.audit.title",
       "path": "/admin/audit",
-      "icon": "FileText"
+      "icon": "ScrollText"
     },
     {
       "labelKey": "billing.title",
       "path": "/admin/billing",
-      "icon": "CreditCard"
+      "icon": "ReceiptText"
     },
     {
       "labelKey": "account.title",
       "path": "/admin/account",
-      "icon": "UserCircle"
+      "icon": "UsersRound"
     }
   ]
 }

@@ -66,11 +66,11 @@ const InnerLayout = () => {
   });
   if (isLoading || nodeDetailLoading) {
     return (
-      <Flex direction="column" gap="4" className="p-4 text-slate-900 dark:text-slate-100">
-        <div className="flex items-center justify-between">
-          <label className="text-2xl font-bold text-slate-900 dark:text-slate-100">
+      <Flex direction="column" gap="4" className="text-slate-900 dark:text-slate-100">
+        <div className="flex flex-col gap-3 rounded-lg border border-border bg-card p-3 shadow-sm shadow-slate-900/5 dark:border-slate-800 dark:bg-slate-950 sm:flex-row sm:items-center sm:justify-between">
+          <div className="text-sm font-medium text-foreground">
             {t("notification.load.title")}
-          </label>
+          </div>
           <AddButton />
         </div>
         <AdminTableSkeleton columns={7} rows={5} />
@@ -85,11 +85,16 @@ const InnerLayout = () => {
     );
   }
   return (
-    <Flex direction="column" gap="4" className="p-4 text-slate-900 dark:text-slate-100">
-      <div className="flex justify-between items-center">
-        <label className="text-2xl font-bold text-slate-900 dark:text-slate-100">
+    <Flex direction="column" gap="4" className="text-slate-900 dark:text-slate-100">
+      <div className="flex flex-col gap-3 rounded-lg border border-border bg-card p-3 shadow-sm shadow-slate-900/5 dark:border-slate-800 dark:bg-slate-950 sm:flex-row sm:items-center sm:justify-between">
+        <div className="min-w-0">
+          <div className="text-sm font-medium text-foreground">
           {t("notification.load.title")}
-        </label>
+          </div>
+          <div className="mt-0.5 text-xs text-muted-foreground">
+            {t("admin.pagination.alerts", { defaultValue: "alerts" })}: {sortedAlerts.length}
+          </div>
+        </div>
         <AddButton />
       </div>
 

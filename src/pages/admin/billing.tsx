@@ -592,6 +592,7 @@ export default function BillingPage() {
 
   return (
     <AdminPageShell
+      className="mx-auto w-full max-w-7xl"
       title={t("billing.title")}
       actions={
         <Button variant="outline" size="sm" onClick={refreshAll} disabled={loadingCatalog || loadingAdmin}>
@@ -601,7 +602,7 @@ export default function BillingPage() {
       }
     >
       <Tabs.Root value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-        <Tabs.List>
+        <Tabs.List className="h-auto w-full justify-start gap-1 overflow-x-auto rounded-lg border border-border bg-slate-50/70 p-1 dark:border-slate-800 dark:bg-slate-900/30">
           <Tabs.Trigger value="shop">{t("billing.tabs.shop")}</Tabs.Trigger>
           <Tabs.Trigger value="orders">{t("billing.tabs.my_orders")}</Tabs.Trigger>
           {platformAdmin ? <Tabs.Trigger value="plans">{t("billing.tabs.plans")}</Tabs.Trigger> : null}
@@ -779,8 +780,8 @@ function ShopPanel({
   }
 
   return (
-    <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_22rem]">
-      <div className="grid gap-3 lg:grid-cols-3">
+    <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_24rem]">
+      <div className="overflow-hidden rounded-lg border border-border bg-card shadow-sm shadow-slate-900/5 dark:border-slate-800 dark:bg-slate-950">
         {plans.map((plan) => {
           const selected = String(plan.id) === selectedPlanID;
           return (
@@ -788,47 +789,49 @@ function ShopPanel({
               type="button"
               key={plan.id}
               className={cn(
-                "flex min-h-52 flex-col rounded-lg border bg-white p-4 text-left shadow-none transition-colors dark:bg-slate-950",
+                "flex w-full min-w-0 flex-col gap-3 border-b border-border px-4 py-4 text-left transition-colors last:border-b-0 sm:flex-row sm:items-center sm:justify-between dark:border-slate-800",
                 selected
-                  ? "border-blue-500 ring-2 ring-blue-500/15 dark:border-blue-400"
-                  : "border-slate-200 hover:border-slate-300 dark:border-slate-800 dark:hover:border-slate-700",
+                  ? "bg-blue-50/70 dark:bg-blue-950/25"
+                  : "bg-card hover:bg-muted/35",
               )}
               onClick={() => setSelectedPlanID(String(plan.id))}
             >
-              <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0">
+              <div className="min-w-0 flex-1">
+                <div className="flex min-w-0 items-center gap-2">
+                  {selected ? <CheckCircle2 className="h-4 w-4 shrink-0 text-blue-600" /> : null}
                   <div className="truncate text-base font-semibold text-foreground">
                     {plan.name}
                   </div>
-                  <div className="mt-1 text-sm text-muted-foreground">
-                    {plan.description || t("billing.no_description")}
-                  </div>
                 </div>
-                {selected ? <CheckCircle2 className="h-5 w-5 shrink-0 text-blue-600" /> : null}
+                <div className="mt-1 line-clamp-2 text-sm text-muted-foreground">
+                  {plan.description || t("billing.no_description")}
+                </div>
+                <div className="mt-2 flex flex-wrap gap-1.5">
+                  {(plan.allowed_features || []).slice(0, 4).map((feature) => (
+                    <Badge key={feature} color="gray" variant="soft">
+                      {featureOptions.find((item) => item.value === feature)?.label || feature}
+                    </Badge>
+                  ))}
+                  {(plan.allowed_features || []).length > 4 ? (
+                    <Badge color="blue" variant="soft">+{(plan.allowed_features || []).length - 4}</Badge>
+                  ) : null}
+                </div>
               </div>
-              <div className="mt-4 text-2xl font-semibold tracking-normal">
-                {formatMoney(plan.price_cents, plan.currency)}
-              </div>
-              <div className="mt-1 text-sm text-muted-foreground">
-                {formatDays(plan.duration_days)} · {plan.server_quota > 0 ? t("billing.quota_count", { count: plan.server_quota }) : t("billing.unlimited_quota")}
-              </div>
-              <div className="mt-auto flex flex-wrap gap-1.5 pt-4">
-                {(plan.allowed_features || []).slice(0, 5).map((feature) => (
-                  <Badge key={feature} color="gray" variant="soft">
-                    {featureOptions.find((item) => item.value === feature)?.label || feature}
-                  </Badge>
-                ))}
-                {(plan.allowed_features || []).length > 5 ? (
-                  <Badge color="blue" variant="soft">+{(plan.allowed_features || []).length - 5}</Badge>
-                ) : null}
+              <div className="flex shrink-0 flex-row items-center justify-between gap-4 sm:min-w-44 sm:flex-col sm:items-end">
+                <div className="text-xl font-semibold tracking-normal">
+                  {formatMoney(plan.price_cents, plan.currency)}
+                </div>
+                <div className="text-sm text-muted-foreground">
+                  {formatDays(plan.duration_days)} · {plan.server_quota > 0 ? t("billing.quota_count", { count: plan.server_quota }) : t("billing.unlimited_quota")}
+                </div>
               </div>
             </button>
           );
         })}
       </div>
 
-      <AdminSurface className="rounded-lg border border-slate-200 bg-white p-4 shadow-none dark:border-slate-800 dark:bg-slate-950">
-        <div className="flex items-center gap-2 text-base font-semibold">
+      <AdminSurface className="self-start rounded-lg border border-border bg-card p-4 shadow-sm shadow-slate-900/5 dark:border-slate-800 dark:bg-slate-950">
+        <div className="flex items-center gap-2 text-sm font-semibold">
           <CreditCard className="h-4 w-4" />
           {t("billing.checkout")}
         </div>
@@ -912,7 +915,7 @@ function PlansPanel({
 
   return (
     <div className="space-y-3">
-      <div className="flex justify-end">
+      <div className="flex justify-end rounded-lg border border-border bg-card p-3 shadow-sm shadow-slate-900/5 dark:border-slate-800 dark:bg-slate-950">
         <Button onClick={() => openPlanDialog()}>
           <Plus className="mr-2 h-4 w-4" />
           {t("billing.new_plan")}
@@ -1036,7 +1039,7 @@ function PaymentsPanel({
 
   return (
     <div className="space-y-3">
-      <div className="flex justify-end">
+      <div className="flex justify-end rounded-lg border border-border bg-card p-3 shadow-sm shadow-slate-900/5 dark:border-slate-800 dark:bg-slate-950">
         <Button onClick={() => openPaymentDialog()}>
           <Plus className="mr-2 h-4 w-4" />
           {t("billing.new_payment")}

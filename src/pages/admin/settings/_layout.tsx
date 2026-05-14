@@ -32,13 +32,13 @@ export default function SettingLayout() {
 
   return (
     <AdminPageShell
-      className="mx-auto w-full max-w-5xl"
+      className="mx-auto w-full max-w-6xl"
       title={t("settings.title", { defaultValue: "设置" })}
       description={t("settings.page_description", {
         defaultValue: "集中管理站点、节点脚本和系统配置。",
       })}
       subnav={(
-        <AdminSubnav>
+        <AdminSubnav className="border-slate-200/80 bg-slate-50/70 p-1 dark:border-slate-800 dark:bg-slate-900/30">
           {visibleItems.map((item) => {
             const active = location.pathname === item.path;
             return (
@@ -48,9 +48,9 @@ export default function SettingLayout() {
                 variant={active ? "default" : "outline"}
                 size="sm"
                 className={cn(
-                  "rounded-full",
+                  "h-8 rounded-md px-3 shadow-none",
                   !active &&
-                    "border-slate-200 bg-white text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200 dark:hover:bg-slate-900"
+                    "border-transparent bg-transparent text-slate-600 hover:bg-white hover:text-slate-950 dark:text-slate-300 dark:hover:bg-slate-950 dark:hover:text-white"
                 )}
               >
                 <Link to={item.path}>{t(item.labelKey)}</Link>

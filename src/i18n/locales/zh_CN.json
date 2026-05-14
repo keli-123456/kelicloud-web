@@ -145,22 +145,28 @@
     "nav": {
       "console": "控制台",
       "groups": {
-        "governance": "系统管理",
+        "governance": "管理",
         "infrastructure": "基础设施",
-        "operations": "运维工具",
-        "overview": "主页"
+        "operations": "运维",
+        "overview": "概览"
       },
       "short": {
-        "audit": "审计",
-        "billing": "商业化",
-        "cloud": "云资源",
-        "exec": "执行",
-        "failover": "切换",
-        "failover_v2": "切换 V2",
+        "account": "用户账户",
+        "audit": "审计日志",
+        "billing": "套餐计费",
+        "cloud": "云厂商",
+        "dashboard": "仪表盘",
+        "dns": "DNS 管理",
+        "exec": "脚本执行",
+        "failover": "故障切换 V1",
+        "failover_v2": "故障切换 V2",
+        "notifications": "通知管理",
         "ping": "延迟",
-        "proxy": "代理",
+        "proxy": "代理设置",
         "scripts": "脚本",
         "sessions": "会话",
+        "servers": "服务器",
+        "settings": "系统设置",
         "users": "用户"
       }
     },

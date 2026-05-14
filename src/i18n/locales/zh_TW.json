@@ -145,22 +145,28 @@
     "nav": {
       "console": "控制台",
       "groups": {
-        "governance": "系統管理",
+        "governance": "管理",
         "infrastructure": "基礎設施",
-        "operations": "運維工具",
-        "overview": "主頁"
+        "operations": "運維",
+        "overview": "概覽"
       },
       "short": {
-        "audit": "審計",
-        "billing": "商业化",
-        "cloud": "雲資源",
-        "exec": "執行",
-        "failover": "切換",
-        "failover_v2": "切換 V2",
+        "account": "使用者帳戶",
+        "audit": "審計日誌",
+        "billing": "方案計費",
+        "cloud": "雲廠商",
+        "dashboard": "儀表盤",
+        "dns": "DNS 管理",
+        "exec": "腳本執行",
+        "failover": "故障切換 V1",
+        "failover_v2": "故障切換 V2",
+        "notifications": "通知管理",
         "ping": "延遲",
-        "proxy": "代理",
+        "proxy": "代理設定",
         "scripts": "腳本",
         "sessions": "會話",
+        "servers": "伺服器",
+        "settings": "系統設定",
         "users": "使用者"
       }
     },

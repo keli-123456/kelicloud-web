@@ -148,19 +148,25 @@
         "governance": "システム管理",
         "infrastructure": "インフラ",
         "operations": "運用",
-        "overview": "ホーム"
+        "overview": "概要"
       },
       "short": {
-        "audit": "Audit",
-        "billing": "商业化",
-        "cloud": "クラウド",
-        "exec": "実行",
-        "failover": "フェイルオーバー",
+        "account": "ユーザーとアカウント",
+        "audit": "監査ログ",
+        "billing": "プランと請求",
+        "cloud": "クラウド事業者",
+        "dashboard": "ダッシュボード",
+        "dns": "DNS 管理",
+        "exec": "スクリプト実行",
+        "failover": "フェイルオーバー V1",
         "failover_v2": "フェイルオーバー V2",
+        "notifications": "通知管理",
         "ping": "Ping",
-        "proxy": "プロキシ",
+        "proxy": "プロキシ設定",
         "scripts": "スクリプト",
         "sessions": "セッション",
+        "servers": "サーバー",
+        "settings": "システム設定",
         "users": "ユーザー"
       }
     },

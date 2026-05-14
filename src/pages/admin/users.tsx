@@ -943,6 +943,8 @@ export function AdminUsersSection({
         eyebrow={t("common.admin_console")}
         title={t("admin.users.title")}
         description={t("admin.users.description")}
+        className={embedded ? "p-0" : undefined}
+        contentClassName={embedded ? "gap-3" : undefined}
         actions={
           <>
             <Button variant="outline" disabled>
@@ -973,6 +975,8 @@ export function AdminUsersSection({
         eyebrow={t("common.admin_console")}
         title={t("admin.users.title")}
         description={t("admin.users.description")}
+        className={embedded ? "p-0" : undefined}
+        contentClassName={embedded ? "gap-3" : undefined}
         actions={
         <>
           <Button variant="outline" onClick={() => void loadUsers()}>

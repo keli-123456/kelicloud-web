@@ -2,7 +2,7 @@ import React from "react";
 
 import { toast } from "sonner";
 import { useSearchParams } from "react-router-dom";
-import { ArrowRight, CircleUserRound, Users } from "lucide-react";
+import { CircleUserRound, Users } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useAccount } from "@/contexts/AccountContext";
 import {
@@ -30,7 +30,6 @@ const sectionButtonClass = (active: boolean) =>
 const Account = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const activeSection = searchParams.get("tab") === "users" ? "users" : "account";
-  const { account } = useAccount();
   const { t } = useTranslation();
   const accountSectionRef = React.useRef<HTMLDivElement>(null);
   const usersSectionRef = React.useRef<HTMLDivElement>(null);
@@ -62,23 +61,18 @@ const Account = () => {
     });
   }, [activeSection]);
 
-  const title = account?.username
-    ? t("account.greeting", { username: account.username })
-    : t("account.title");
-
-  const description = t("account.page_description");
-
   return (
     <AdminPageShell
-      title={title}
-      description={description}
+      className="mx-auto w-full max-w-7xl"
+      title={t("account.title")}
+      description={t("account.page_description")}
       subnav={
-        <div className="inline-flex w-full min-w-0 flex-wrap gap-2">
+        <div className="inline-flex w-full min-w-0 flex-wrap gap-1 rounded-lg border border-border bg-slate-50/70 p-1 dark:border-slate-800 dark:bg-slate-900/30">
           <button
             type="button"
-            className={`inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-sm transition ${sectionButtonClass(
+            className={`inline-flex h-8 items-center gap-1.5 rounded-md px-3 text-sm transition ${sectionButtonClass(
               activeSection === "account",
-            )} dark:border-slate-700`}
+            )}`}
             onClick={() => navigateToSection("account")}
           >
             <CircleUserRound className="h-4 w-4" />
@@ -86,22 +80,24 @@ const Account = () => {
           </button>
           <button
             type="button"
-            className={`inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-sm transition ${sectionButtonClass(
+            className={`inline-flex h-8 items-center gap-1.5 rounded-md px-3 text-sm transition ${sectionButtonClass(
               activeSection === "users",
-            )} dark:border-slate-700`}
+            )}`}
             onClick={() => navigateToSection("users")}
           >
             <Users className="h-4 w-4" />
             <span>{t("admin.users.title")}</span>
-            <ArrowRight className="h-3.5 w-3.5 opacity-80" />
           </button>
         </div>
       }
     >
-      <div className="grid gap-4">
-        <section ref={accountSectionRef}>
-          <div className="rounded-lg border border-slate-200 bg-white p-3 shadow-sm shadow-slate-900/5 dark:border-slate-800 dark:bg-slate-950 sm:p-4">
-            <div className="mb-4 flex items-center justify-between border-b border-slate-200/70 pb-3 dark:border-slate-700/70">
+      <div className="grid items-start gap-4 xl:grid-cols-[360px_minmax(0,1fr)]">
+        <section
+          ref={accountSectionRef}
+          className="overflow-hidden rounded-lg border border-border bg-card shadow-sm shadow-slate-900/5 dark:border-slate-800 dark:bg-slate-950"
+        >
+          <div className="p-4">
+            <div className="mb-4 border-b border-slate-200/70 pb-3 dark:border-slate-700/70">
               <div>
                 <h2 className="text-sm font-semibold tracking-wide text-slate-900 dark:text-slate-50">
                   {t("account.profile_title", "Profile")}
@@ -113,22 +109,14 @@ const Account = () => {
                   )}
                 </p>
               </div>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => navigateToSection("users")}
-              >
-                {t("admin.users.title")}
-                <ArrowRight className="ml-1.5 h-3.5 w-3.5" />
-              </Button>
             </div>
             <AccountProfileSection />
           </div>
         </section>
 
-        <section ref={usersSectionRef}>
-          <div className="rounded-lg border border-slate-200 bg-white shadow-sm shadow-slate-900/5 dark:border-slate-800 dark:bg-slate-950">
-            <div className="flex items-start justify-between border-b border-slate-200/70 px-4 py-3 dark:border-slate-700/70">
+        <section ref={usersSectionRef} className="min-w-0">
+          <div className="overflow-hidden rounded-lg border border-border bg-card shadow-sm shadow-slate-900/5 dark:border-slate-800 dark:bg-slate-950">
+            <div className="border-b border-slate-200/70 px-4 py-3 dark:border-slate-700/70">
               <div>
                 <h2 className="text-sm font-semibold tracking-wide text-slate-900 dark:text-slate-50">
                   {t("admin.users.title")}
@@ -137,13 +125,6 @@ const Account = () => {
                   {t("admin.users.description")}
                 </p>
               </div>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => navigateToSection("account")}
-              >
-                {t("account.title")}
-              </Button>
             </div>
             <AdminUsersSection embedded />
           </div>
@@ -255,7 +236,7 @@ const AccountProfileSection = () => {
     <>
       <div className="grid gap-4">
         <AdminSurface className="flex flex-col gap-6">
-          <form className="max-w-xl space-y-4" onSubmit={handleSubmitUsernameChange}>
+          <form className="space-y-4" onSubmit={handleSubmitUsernameChange}>
             <div className={ADMIN_FORM_FIELD_CLASS}>
               <label
                 data-slot="label"
@@ -280,7 +261,7 @@ const AccountProfileSection = () => {
 
           <div className="h-px bg-[linear-gradient(90deg,rgba(148,163,184,0.10),rgba(148,163,184,0.65),rgba(148,163,184,0.10))]" />
 
-          <form onSubmit={changePassword} className="max-w-xl space-y-4">
+          <form onSubmit={changePassword} className="space-y-4">
             <label className="text-sm font-medium text-slate-700 dark:text-slate-300">
               {t("account.change_password_title")}
             </label>

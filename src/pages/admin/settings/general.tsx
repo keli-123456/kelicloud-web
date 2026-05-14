@@ -22,6 +22,9 @@ import { useAccount } from "@/contexts/AccountContext";
 import { PlatformAdminNotice } from "@/components/admin/PlatformAdminNotice";
 import { formatApiErrorMessage } from "@/lib/apiErrorMessage";
 
+const settingsPanelClass =
+  "overflow-hidden rounded-lg border border-border bg-card px-4 py-2 shadow-sm shadow-slate-900/5 dark:border-slate-800 dark:bg-slate-950";
+
 export default function GeneralSettings() {
   const { t } = useTranslation();
   const { platformAdmin, loading: accountLoading } = useAccount();
@@ -44,34 +47,36 @@ export default function GeneralSettings() {
   }
 
   return (
-    <>
-      <SettingCardShortTextInput
-        title={t("settings.site.script_domain")}
-        description={t("settings.site.script_domain_description")}
-        placeholder={window.location.origin}
-        defaultValue={settings.script_domain || ""}
-        OnSave={async (value) => {
-          await updateSettingsWithToast({ script_domain: value }, t);
-        }}
-      />
-      <SettingCardShortTextInput
-        title={t("settings.site.base_scripts_url", "Agent script source")}
-        description={t(
-          "settings.site.base_scripts_url_description",
-          "Install script source used by one-click commands and auto-connect. Supports a GitHub repo URL, tree/blob URL, or raw URL. Leave empty to use the official repository.",
-        )}
-        placeholder="https://github.com/your-name/komari-agent"
-        defaultValue={settings.base_scripts_url || ""}
-        OnSave={async (value) => {
-          await updateSettingsWithToast({ base_scripts_url: value }, t);
-        }}
-      />
+    <div className="grid gap-4">
+      <section className={settingsPanelClass}>
+        <SettingCardShortTextInput
+          title={t("settings.site.script_domain")}
+          description={t("settings.site.script_domain_description")}
+          placeholder={window.location.origin}
+          defaultValue={settings.script_domain || ""}
+          OnSave={async (value) => {
+            await updateSettingsWithToast({ script_domain: value }, t);
+          }}
+        />
+        <SettingCardShortTextInput
+          title={t("settings.site.base_scripts_url", "Agent script source")}
+          description={t(
+            "settings.site.base_scripts_url_description",
+            "Install script source used by one-click commands and auto-connect. Supports a GitHub repo URL, tree/blob URL, or raw URL. Leave empty to use the official repository.",
+          )}
+          placeholder="https://github.com/your-name/komari-agent"
+          defaultValue={settings.base_scripts_url || ""}
+          OnSave={async (value) => {
+            await updateSettingsWithToast({ base_scripts_url: value }, t);
+          }}
+        />
+      </section>
       {platformAdmin ? (
-        <>
+        <section className={settingsPanelClass}>
           <SettingCardLabel>{t("settings.system_settings_title")}</SettingCardLabel>
-          <label className="text-sm text-muted-foreground -mt-4">
+          <div className="-mt-1 px-0 pb-1 text-sm text-muted-foreground">
             {t("settings.system_settings_description")}
-          </label>
+          </div>
           <SettingCardSwitch
             title={t("settings.site.cros")}
             description={t("settings.site.cros_description")}
@@ -159,7 +164,7 @@ export default function GeneralSettings() {
               <div className="w-full">
                 {geoip_testResult && (
                   <pre
-                    className="max-h-96 w-full overflow-auto whitespace-pre-wrap rounded-md p-3 text-sm overscroll-contain [scrollbar-gutter:stable]"
+                    className="max-h-96 w-full overflow-auto whitespace-pre-wrap rounded-md border border-border bg-muted/30 p-3 text-sm overscroll-contain [scrollbar-gutter:stable]"
                   >
                     {geoip_testResult}
                   </pre>
@@ -167,13 +172,13 @@ export default function GeneralSettings() {
               </div>
             </div>
           </SettingCardCollapse>
-        </>
+        </section>
       ) : (
         <PlatformAdminNotice
           title={t("settings.system_settings_title")}
           description={t("settings.system_settings_restricted_description")}
         />
       )}
-    </>
+    </div>
   );
 }

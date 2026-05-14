@@ -206,14 +206,14 @@ const InnerLayout = () => {
 
   if (onLoading || onNodeLoading) {
     return (
-      <div className="flex flex-col gap-4 p-1 text-slate-900 dark:text-slate-100 md:p-4">
-        <Flex justify="between" align="center" wrap="wrap">
-          <label className="text-2xl font-semibold text-slate-900 dark:text-slate-100">
+      <div className="flex flex-col gap-4 text-slate-900 dark:text-slate-100">
+        <div className="flex flex-col gap-3 rounded-lg border border-border bg-card p-3 shadow-sm shadow-slate-900/5 dark:border-slate-800 dark:bg-slate-950 sm:flex-row sm:items-center sm:justify-between">
+          <div className="text-sm text-muted-foreground">
             {t("notification.offline.full_title", "Offline Alerts Configuration")}
-          </label>
+          </div>
           <TextField.Root
             type="text"
-            className="max-w-64"
+            className="w-full sm:max-w-64"
             placeholder={t("common.search")}
             disabled
           >
@@ -221,7 +221,7 @@ const InnerLayout = () => {
               <Search size={16} />
             </TextField.Slot>
           </TextField.Root>
-        </Flex>
+        </div>
         <AdminTableSkeleton columns={6} rows={6} />
         <label className="text-sm text-muted-foreground">
           {t("common.selected", { count: 0 })}
@@ -245,14 +245,21 @@ const InnerLayout = () => {
     );
   }
   return (
-    <div className="flex flex-col gap-4 p-1 text-slate-900 dark:text-slate-100 md:p-4">
-      <Flex justify="between" align="center" wrap="wrap">
-        <label className="text-2xl font-semibold text-slate-900 dark:text-slate-100">
-          {t("notification.offline.full_title", "Offline Alerts Configuration")}
-        </label>
+    <div className="flex flex-col gap-4 text-slate-900 dark:text-slate-100">
+      <div className="flex flex-col gap-3 rounded-lg border border-border bg-card p-3 shadow-sm shadow-slate-900/5 dark:border-slate-800 dark:bg-slate-950 sm:flex-row sm:items-center sm:justify-between">
+        <div className="min-w-0">
+          <div className="text-sm font-medium text-foreground">
+            {t("notification.offline.full_title", "Offline Alerts Configuration")}
+          </div>
+          <div className="mt-0.5 text-xs text-muted-foreground">
+            {t("common.selected", {
+              count: selected.length,
+            })}
+          </div>
+        </div>
         <TextField.Root
           type="text"
-          className="max-w-64"
+          className="w-full sm:max-w-64"
           placeholder={t("common.search")}
           value={search}
           onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
@@ -263,18 +270,13 @@ const InnerLayout = () => {
             <Search size={16} />
           </TextField.Slot>
         </TextField.Root>
-      </Flex>
+      </div>
       <OfflineNotificationTable
         search={search}
         selected={selected}
         onSelectionChange={setSelected}
       />
-      <label className="text-sm text-muted-foreground">
-        {t("common.selected", {
-          count: selected.length,
-        })}
-      </label>
-      <Flex gap="2" align="center">
+      <div className="flex flex-wrap items-center gap-2 rounded-lg border border-border bg-card p-3 shadow-sm shadow-slate-900/5 dark:border-slate-800 dark:bg-slate-950">
         <Dialog.Root open={batchDialogOpen} onOpenChange={setBatchDialogOpen}>
           <Dialog.Trigger>
             <Button
@@ -305,7 +307,7 @@ const InnerLayout = () => {
             />
           </Dialog.Content>
         </Dialog.Root>
-      </Flex>
+      </div>
       <label className="text-sm text-muted-foreground">
         <span
           dangerouslySetInnerHTML={{ __html: t("notification.offline.tips") }}

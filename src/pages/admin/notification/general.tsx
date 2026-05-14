@@ -19,9 +19,12 @@ import {
 } from "@/lib/apiErrorMessage";
 import { renderProviderInputs } from "@/utils/renderProviders";
 
+const notificationPanelClass =
+  "overflow-hidden rounded-lg border border-border bg-card px-4 py-2 shadow-sm shadow-slate-900/5 dark:border-slate-800 dark:bg-slate-950";
+
 const GeneralNotification = () => {
   return (
-    <div className="flex flex-col gap-4 p-0">
+    <div className="flex flex-col gap-4">
       <Inner />
     </div>
   );
@@ -270,180 +273,186 @@ const Inner = () => {
   };
 
   return (
-    <>
-      <SettingCardLabel>
-        {t("settings.notification.target_binding_title")}
-      </SettingCardLabel>
-      <p className="text-sm text-muted-foreground">
-        {t("settings.notification.target_binding_description")}
-      </p>
-      {renderUserBinding()}
+    <div className="grid gap-4">
+      <section className={notificationPanelClass}>
+        <SettingCardLabel>
+          {t("settings.notification.target_binding_title")}
+        </SettingCardLabel>
+        <div className="-mt-1 pb-1 text-sm text-muted-foreground">
+          {t("settings.notification.target_binding_description")}
+        </div>
+        {renderUserBinding()}
+      </section>
 
       {platformAdmin ? (
         <>
-          <SettingCardLabel>
-            {t("settings.notification.platform_sender_title")}
-          </SettingCardLabel>
-          <SettingCardSwitch
-            title={t("settings.notification.enable")}
-            description={t("settings.notification.enable_description")}
-            defaultChecked={systemSettings.notification_enabled}
-            onChange={async (checked) => {
-              await updateSettingsWithToast(
-                { notification_enabled: checked },
-                t,
-                "system",
-              );
-              await Promise.all([systemState.refetch(), userState.refetch()]);
-            }}
-          />
-          <SettingCardLongTextInput
-            title={t("settings.notification.template")}
-            description={t("settings.notification.template_description")}
-            defaultValue={systemSettings.notification_template}
-            OnSave={async (value) => {
-              await updateSettingsWithToast(
-                { notification_template: value },
-                t,
-                "system",
-              );
-              await systemState.refetch();
-            }}
-          />
-          <SettingCardSelect
-            title={t("settings.notification.method")}
-            description={t("settings.notification.method_description")}
-            options={messageList.map((sender) => ({
-              value: sender,
-              label: sender,
-            }))}
-            value={currentMessageSender}
-            OnSave={async (val: string) => {
-              if (val === currentMessageSender) return;
-              await updateSettingsWithToast(
-                { notification_method: val },
-                t,
-                "system",
-              );
-              setCurrentMessageSender(val);
-              await Promise.all([systemState.refetch(), userState.refetch()]);
-            }}
-          />
-          {messageError ? (
-            <p className="text-sm text-destructive">{messageError}</p>
-          ) : messageLoading ? (
-            <AdminSettingsSkeleton sections={2} />
-          ) : (
-            renderProviderInputs({
-              currentProvider: currentMessageSender,
-              providerDefs: messageDefs,
-              providerValues: messageValues,
-              translationPrefix: `settings.notification.${currentMessageSender}`,
-              title: t("settings.notification.provider_fields"),
-              description: t(
-                "settings.notification.provider_fields_description",
-              ),
-              setProviderValues: setMessageValues,
-              handleSave: handleMessageSave,
-              t,
-            })
-          )}
-          <SettingCardButton
-            title={t("settings.notification.test_title")}
-            description={t("settings.notification.test_description")}
-            onClick={async () => {
-              try {
-                const res = await fetch("/api/admin/test/sendMessage", {
-                  method: "POST",
-                });
-                const data = await res.json().catch(() => null);
-                if (!data) {
-                  toast.error(t("common.error"));
-                  return;
-                }
-                if (data.message && data.code !== 200) {
-                  toast.error(formatApiErrorMessage(data.message));
-                  return;
-                }
-                toast.success(t("common.success"));
-              } catch (error) {
-                toast.error(
-                  `${t("common.error")}: ${getReadableErrorMessage(
-                    error,
-                    t("common.error"),
-                  )}`,
+          <section className={notificationPanelClass}>
+            <SettingCardLabel>
+              {t("settings.notification.platform_sender_title")}
+            </SettingCardLabel>
+            <SettingCardSwitch
+              title={t("settings.notification.enable")}
+              description={t("settings.notification.enable_description")}
+              defaultChecked={systemSettings.notification_enabled}
+              onChange={async (checked) => {
+                await updateSettingsWithToast(
+                  { notification_enabled: checked },
+                  t,
+                  "system",
                 );
-              }
-            }}
-          >
-            {t("settings.notification.test_title")}
-          </SettingCardButton>
+                await Promise.all([systemState.refetch(), userState.refetch()]);
+              }}
+            />
+            <SettingCardSelect
+              title={t("settings.notification.method")}
+              description={t("settings.notification.method_description")}
+              options={messageList.map((sender) => ({
+                value: sender,
+                label: sender,
+              }))}
+              value={currentMessageSender}
+              OnSave={async (val: string) => {
+                if (val === currentMessageSender) return;
+                await updateSettingsWithToast(
+                  { notification_method: val },
+                  t,
+                  "system",
+                );
+                setCurrentMessageSender(val);
+                await Promise.all([systemState.refetch(), userState.refetch()]);
+              }}
+            />
+            {messageError ? (
+              <p className="px-0 py-3 text-sm text-destructive">{messageError}</p>
+            ) : messageLoading ? (
+              <AdminSettingsSkeleton sections={2} />
+            ) : (
+              renderProviderInputs({
+                currentProvider: currentMessageSender,
+                providerDefs: messageDefs,
+                providerValues: messageValues,
+                translationPrefix: `settings.notification.${currentMessageSender}`,
+                title: t("settings.notification.provider_fields"),
+                description: t(
+                  "settings.notification.provider_fields_description",
+                ),
+                setProviderValues: setMessageValues,
+                handleSave: handleMessageSave,
+                t,
+              })
+            )}
+            <SettingCardLongTextInput
+              title={t("settings.notification.template")}
+              description={t("settings.notification.template_description")}
+              defaultValue={systemSettings.notification_template}
+              OnSave={async (value) => {
+                await updateSettingsWithToast(
+                  { notification_template: value },
+                  t,
+                  "system",
+                );
+                await systemState.refetch();
+              }}
+            />
+            <SettingCardButton
+              title={t("settings.notification.test_title")}
+              description={t("settings.notification.test_description")}
+              onClick={async () => {
+                try {
+                  const res = await fetch("/api/admin/test/sendMessage", {
+                    method: "POST",
+                  });
+                  const data = await res.json().catch(() => null);
+                  if (!data) {
+                    toast.error(t("common.error"));
+                    return;
+                  }
+                  if (data.message && data.code !== 200) {
+                    toast.error(formatApiErrorMessage(data.message));
+                    return;
+                  }
+                  toast.success(t("common.success"));
+                } catch (error) {
+                  toast.error(
+                    `${t("common.error")}: ${getReadableErrorMessage(
+                      error,
+                      t("common.error"),
+                    )}`,
+                  );
+                }
+              }}
+            >
+              {t("settings.notification.test_title")}
+            </SettingCardButton>
+          </section>
 
-          <SettingCardLabel>{t("admin.notification.expire_title")}</SettingCardLabel>
-          <SettingCardSwitch
-            defaultChecked={systemSettings.expire_notification_enabled}
-            title={t("admin.notification.expire_enable")}
-            description={t("admin.notification.expire_enable_description")}
-            onChange={async (checked) => {
-              await updateSettingsWithToast(
-                { expire_notification_enabled: checked },
-                t,
-                "system",
-              );
-            }}
-          />
-          <SettingCardShortTextInput
-            type="number"
-            title={t("admin.notification.expire_time")}
-            description={t("admin.notification.expire_time_description")}
-            defaultValue={systemSettings.expire_notification_lead_days}
-            OnSave={async (value) => {
-              const numValue = Number(value);
-              if (Number.isNaN(numValue) || numValue < 0) {
-                toast.error(
-                  t("settings.invalid_number", {
-                    defaultValue: "请输入有效的非负数字",
-                  }),
+          <section className={notificationPanelClass}>
+            <SettingCardLabel>{t("admin.notification.expire_title")}</SettingCardLabel>
+            <SettingCardSwitch
+              defaultChecked={systemSettings.expire_notification_enabled}
+              title={t("admin.notification.expire_enable")}
+              description={t("admin.notification.expire_enable_description")}
+              onChange={async (checked) => {
+                await updateSettingsWithToast(
+                  { expire_notification_enabled: checked },
+                  t,
+                  "system",
                 );
-                return;
-              }
-              await updateSettingsWithToast(
-                { expire_notification_lead_days: numValue },
-                t,
-                "system",
-              );
-            }}
-          />
-          <SettingCardLabel>{t("admin.notification.login")}</SettingCardLabel>
-          <SettingCardSwitch
-            title={t("admin.notification.login")}
-            description={t("admin.notification.login_description")}
-            defaultChecked={systemSettings.login_notification}
-            onChange={async (checked) => {
-              await updateSettingsWithToast(
-                { login_notification: checked },
-                t,
-                "system",
-              );
-            }}
-          />
-          <SettingCardLabel>{t("admin.notification.traffic")}</SettingCardLabel>
-          <SettingCardShortTextInput
-            title={t("admin.notification.traffic")}
-            description={t("admin.notification.traffic_description")}
-            defaultValue={systemSettings.traffic_limit_percentage}
-            type="number"
-            OnSave={async (value) => {
-              await updateSettingsWithToast(
-                { traffic_limit_percentage: Number(value) },
-                t,
-                "system",
-              );
-            }}
-          />
+              }}
+            />
+            <SettingCardShortTextInput
+              type="number"
+              title={t("admin.notification.expire_time")}
+              description={t("admin.notification.expire_time_description")}
+              defaultValue={systemSettings.expire_notification_lead_days}
+              OnSave={async (value) => {
+                const numValue = Number(value);
+                if (Number.isNaN(numValue) || numValue < 0) {
+                  toast.error(
+                    t("settings.invalid_number", {
+                      defaultValue: "请输入有效的非负数字",
+                    }),
+                  );
+                  return;
+                }
+                await updateSettingsWithToast(
+                  { expire_notification_lead_days: numValue },
+                  t,
+                  "system",
+                );
+              }}
+            />
+            <SettingCardLabel>{t("admin.notification.login")}</SettingCardLabel>
+            <SettingCardSwitch
+              title={t("admin.notification.login")}
+              description={t("admin.notification.login_description")}
+              defaultChecked={systemSettings.login_notification}
+              onChange={async (checked) => {
+                await updateSettingsWithToast(
+                  { login_notification: checked },
+                  t,
+                  "system",
+                );
+              }}
+            />
+            <SettingCardLabel>{t("admin.notification.traffic")}</SettingCardLabel>
+            <SettingCardShortTextInput
+              title={t("admin.notification.traffic")}
+              description={t("admin.notification.traffic_description")}
+              defaultValue={systemSettings.traffic_limit_percentage}
+              type="number"
+              OnSave={async (value) => {
+                await updateSettingsWithToast(
+                  { traffic_limit_percentage: Number(value) },
+                  t,
+                  "system",
+                );
+              }}
+            />
+          </section>
         </>
       ) : null}
-    </>
+    </div>
   );
 };
 

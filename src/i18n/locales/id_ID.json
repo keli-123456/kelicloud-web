@@ -148,19 +148,25 @@
         "governance": "Tata kelola",
         "infrastructure": "Infrastruktur",
         "operations": "Operasi",
-        "overview": "Home"
+        "overview": "Ringkasan"
       },
       "short": {
-        "audit": "Audit",
-        "billing": "商业化",
-        "cloud": "Cloud",
-        "exec": "Eksekusi",
-        "failover": "Failover",
+        "account": "User & Akun",
+        "audit": "Log Audit",
+        "billing": "Paket & Billing",
+        "cloud": "Penyedia Cloud",
+        "dashboard": "Dashboard",
+        "dns": "DNS",
+        "exec": "Skrip & Eksekusi",
+        "failover": "Failover V1",
         "failover_v2": "Failover V2",
+        "notifications": "Notifikasi",
         "ping": "Ping",
-        "proxy": "Proxy",
+        "proxy": "Pengaturan Proxy",
         "scripts": "Skrip",
         "sessions": "Sesi",
+        "servers": "Server",
+        "settings": "Pengaturan Sistem",
         "users": "User"
       }
     },
