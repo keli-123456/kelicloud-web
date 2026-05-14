@@ -158,6 +158,7 @@ export type CreateVultrInstanceInput = {
   backups_enabled: boolean;
   ddos_protection: boolean;
   activation_email: boolean;
+  firewall_group_id?: string;
   tags: string[];
   user_data: string;
   auto_connect: boolean;
