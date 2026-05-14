@@ -2,7 +2,15 @@ import React from "react";
 import type { TFunction } from "i18next";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
-import { ChevronDown, Eye, KeyRound, RefreshCw, RotateCcw, Server, ShieldCheck, Trash2 } from "lucide-react";
+import {
+  CheckCircle2,
+  ChevronDown,
+  Eye,
+  PencilLine,
+  Plus,
+  RefreshCw,
+  Trash2,
+} from "lucide-react";
 
 import {
   AdminPageShell,
@@ -21,7 +29,6 @@ import {
   AdminDataTableScroll,
 } from "@/components/admin/AdminDataTable";
 import { AdminRowActions } from "@/components/admin/AdminRowActions";
-import { AWSBackgroundTasksDialog } from "@/components/admin/cloud/AWSBackgroundTasksDialog";
 import {
   AWSCreatedPasswordDialog,
   AWSCredentialSecretDialog,
@@ -52,11 +59,10 @@ import {
   Button,
   CloudProviderHeader,
   cloudLongTextClassName,
-  cloudPanelBodyTextClassName,
   cloudPanelCardClassName,
   cloudPanelDescriptionClassName,
+  cloudPanelFieldLabelClassName,
   cloudPanelHeaderClassName,
-  cloudPanelSubcardClassName,
   cloudPanelTitleClassName,
 } from "@/components/admin/cloud/cloud-ui";
 import { WarningAlert } from "@/components/ui/warning-alert";
@@ -67,7 +73,6 @@ import {
   type AWSEC2Quota,
   type AWSCredentialRecord,
   type AWSCredentialPool,
-  type AWSFollowUpTask,
 } from "@/lib/cloudAws";
 import {
   hasActiveCredential,
@@ -91,36 +96,11 @@ import { useAWSPanelContext } from "./useAWSPanelContext";
 import { useAWSPanelResources } from "./useAWSPanelResources";
 import { useAWSResourcePasswords } from "./useAWSResourcePasswords";
 import { useCloudInstanceShare } from "./useCloudInstanceShare";
-import { useAWSBackgroundTasks } from "./useAWSBackgroundTasks";
 
 export default function AWSPanel() {
   const { t } = useTranslation();
   const { confirm, dialog } = useWarningDialog();
-  const {
-    backgroundTasksOpen,
-    setBackgroundTasksOpen,
-    backgroundTasksLoading,
-    backgroundTasks,
-    filteredBackgroundTasks,
-    backgroundTaskCredentialFilter,
-    setBackgroundTaskCredentialFilter,
-    backgroundTaskCredentialOptions,
-    backgroundTaskRegionFilter,
-    setBackgroundTaskRegionFilter,
-    backgroundTaskRegionOptions,
-    backgroundTaskStatusFilter,
-    setBackgroundTaskStatusFilter,
-    backgroundTaskRetryingId,
-    backgroundTaskClearing,
-    pendingBackgroundTaskCount,
-    failedBackgroundTaskCount,
-    cancelledBackgroundTaskCount,
-    skippedBackgroundTaskCount,
-    terminalBackgroundTaskCount,
-    loadBackgroundTasks,
-    handleRetryBackgroundTask,
-    handleClearTerminalBackgroundTasks,
-  } = useAWSBackgroundTasks({ t, confirm });
+  const refreshBackgroundTasks = React.useCallback(async () => {}, []);
 
   const [instanceView, setInstanceView] = React.useState<"ec2" | "lightsail">("ec2");
   const [createService, setCreateService] = React.useState<AWSCreateService>("ec2");
@@ -286,6 +266,7 @@ export default function AWSPanel() {
     credentialGroupEditorValue,
     setCredentialGroupEditorValue,
     credentialGroupEditorIds,
+    openCredentialGroupEditor,
     openCredentialCheckDialog,
     handleImportCredentials,
     handleSaveCredentialGroup,
@@ -306,7 +287,7 @@ export default function AWSPanel() {
     resourcesLoaded,
     setAccount,
     clearPanelState,
-    loadBackgroundTasks,
+    loadBackgroundTasks: refreshBackgroundTasks,
   });
 
   React.useEffect(() => {
@@ -382,7 +363,7 @@ export default function AWSPanel() {
     setInstances,
     setCreatedPassword,
     loadLightsailData,
-    loadBackgroundTasks,
+    loadBackgroundTasks: refreshBackgroundTasks,
   });
   const handleLoadResources = async () => {
     if (!activeContextReady) {
@@ -537,7 +518,6 @@ export default function AWSPanel() {
           activeContextReady={activeContextReady}
           credentialChecking={credentialChecking}
           credentialSecretLoading={credentialSecretLoading}
-          pendingBackgroundTaskCount={pendingBackgroundTaskCount}
           onRegionChange={handleRegionChange}
           onCheckCurrentCredential={() => {
             if (!activeCredential) {
@@ -547,67 +527,50 @@ export default function AWSPanel() {
           }}
           onCheckAllCredentials={openCredentialCheckDialog}
           onImportCredentials={() => setCredentialImportOpen(true)}
-          onOpenBackgroundTasks={() => setBackgroundTasksOpen(true)}
           onSelectCredential={handleSelectCredential}
+          onOpenGroupEditor={openCredentialGroupEditor}
           onViewCredentialSecret={handleViewCredentialSecret}
           onDeleteCredential={handleDeleteCredential}
         />
       </div>
 
-      <div className="grid min-w-0 gap-4 2xl:grid-cols-[minmax(0,1fr)_320px]">
-        <div className="min-w-0 space-y-4">
-          <AWSComputeSection
-            t={t}
-            instanceView={instanceView}
-            instances={instances}
-            lightsailInstances={lightsailInstances}
-            panelLoading={panelLoading}
-            error={error}
-            lightsailError={lightsailError}
-            hasCredential={hasActiveCredential(credentialPool)}
-            activeContextReady={activeContextReady}
-            resourcesLoaded={resourcesLoaded}
-            passwordStorageEnabled={passwordStorageEnabled}
-            passwordLoading={passwordLoading}
-            canCreate={Boolean(activeCredential)}
-            onInstanceViewChange={setInstanceView}
-            onLoadResources={handleLoadResources}
-            onOpenEC2Create={handleOpenCreateDialog}
-            onOpenLightsailCreate={handleOpenLightsailCreateDialog}
-            onLoadEC2Detail={loadInstanceDetail}
-            onViewEC2Password={handleViewInstancePassword}
-            onEC2PowerAction={handleInstanceAction}
-            onEC2Reboot={(instance) => handleInstanceAction(instance, "reboot")}
-            onEC2ReplaceIP={handleQuickReplaceEc2Address}
-            onRunEC2Script={openEC2ScriptDialog}
-            onShareEC2={openEC2ShareDialog}
-            onDeleteEC2={handleDeleteInstance}
-            onLoadLightsailDetail={loadLightsailDetail}
-            onViewLightsailPassword={handleViewLightsailPassword}
-            onLightsailPowerAction={handleLightsailInstanceAction}
-            onLightsailReboot={(instance) => handleLightsailInstanceAction(instance, "reboot")}
-            onLightsailReplaceIP={handleQuickReplaceLightsailStaticIP}
-            onRunLightsailScript={openLightsailScriptDialog}
-            onShareLightsail={openLightsailShareDialog}
-            onDeleteLightsail={handleDeleteLightsailInstance}
-          />
-          <AWSQuotaStrip t={t} quota={activeQuota} activeRegion={activeRegion} />
-        </div>
-        <AWSFollowUpSummaryPanel
+      <div className="min-w-0 space-y-4">
+        <AWSComputeSection
           t={t}
-          tasks={backgroundTasks}
-          loading={backgroundTasksLoading}
-          retryingId={backgroundTaskRetryingId}
-          pendingCount={pendingBackgroundTaskCount}
-          failedCount={failedBackgroundTaskCount}
-          onOpenAll={() => setBackgroundTasksOpen(true)}
-          onRefresh={() => {
-            void loadBackgroundTasks();
-          }}
-          onRetry={(task) => {
-            void handleRetryBackgroundTask(task);
-          }}
+          instanceView={instanceView}
+          instances={instances}
+          lightsailInstances={lightsailInstances}
+          panelLoading={panelLoading}
+          error={error}
+          lightsailError={lightsailError}
+          hasCredential={hasActiveCredential(credentialPool)}
+          activeContextReady={activeContextReady}
+          resourcesLoaded={resourcesLoaded}
+          passwordStorageEnabled={passwordStorageEnabled}
+          passwordLoading={passwordLoading}
+          canCreate={Boolean(activeCredential)}
+          onInstanceViewChange={setInstanceView}
+          onLoadResources={handleLoadResources}
+          onOpenEC2Create={handleOpenCreateDialog}
+          onOpenLightsailCreate={handleOpenLightsailCreateDialog}
+          onLoadEC2Detail={loadInstanceDetail}
+          onViewEC2Password={handleViewInstancePassword}
+          onEC2PowerAction={handleInstanceAction}
+          onEC2Reboot={(instance) => handleInstanceAction(instance, "reboot")}
+          onEC2ReplaceIP={handleQuickReplaceEc2Address}
+          onRunEC2Script={openEC2ScriptDialog}
+          onShareEC2={openEC2ShareDialog}
+          onDeleteEC2={handleDeleteInstance}
+          onLoadLightsailDetail={loadLightsailDetail}
+          onViewLightsailPassword={handleViewLightsailPassword}
+          onLightsailPowerAction={handleLightsailInstanceAction}
+          onLightsailReboot={(instance) => handleLightsailInstanceAction(instance, "reboot")}
+          onLightsailReplaceIP={handleQuickReplaceLightsailStaticIP}
+          onRunLightsailScript={openLightsailScriptDialog}
+          onShareLightsail={openLightsailShareDialog}
+          onDeleteLightsail={handleDeleteLightsailInstance}
         />
+        <AWSQuotaStrip t={t} quota={activeQuota} activeRegion={activeRegion} />
       </div>
 
       <AWSCredentialImportDialog
@@ -778,35 +741,6 @@ export default function AWSPanel() {
         }}
       />
 
-      <AWSBackgroundTasksDialog
-        open={backgroundTasksOpen}
-        onOpenChange={setBackgroundTasksOpen}
-        t={t}
-        tasks={backgroundTasks}
-        filteredTasks={filteredBackgroundTasks}
-        loading={backgroundTasksLoading}
-        clearing={backgroundTaskClearing}
-        retryingId={backgroundTaskRetryingId}
-        pendingCount={pendingBackgroundTaskCount}
-        failedCount={failedBackgroundTaskCount}
-        cancelledCount={cancelledBackgroundTaskCount}
-        skippedCount={skippedBackgroundTaskCount}
-        terminalCount={terminalBackgroundTaskCount}
-        credentialFilter={backgroundTaskCredentialFilter}
-        onCredentialFilterChange={setBackgroundTaskCredentialFilter}
-        credentialOptions={backgroundTaskCredentialOptions}
-        regionFilter={backgroundTaskRegionFilter}
-        onRegionFilterChange={setBackgroundTaskRegionFilter}
-        regionOptions={backgroundTaskRegionOptions}
-        statusFilter={backgroundTaskStatusFilter}
-        onStatusFilterChange={setBackgroundTaskStatusFilter}
-        onClearTerminalTasks={handleClearTerminalBackgroundTasks}
-        onRefresh={() => {
-          void loadBackgroundTasks();
-        }}
-        onRetryTask={handleRetryBackgroundTask}
-      />
-
       <AWSCredentialSecretDialog
         credentialSecret={credentialSecret}
         t={t}
@@ -842,13 +776,12 @@ type AWSCredentialRailProps = {
   activeContextReady: boolean;
   credentialChecking: boolean;
   credentialSecretLoading: boolean;
-  pendingBackgroundTaskCount: number;
   onRegionChange: (region: string) => void | Promise<void>;
   onCheckCurrentCredential: () => void | Promise<void>;
   onCheckAllCredentials: () => void;
   onImportCredentials: () => void;
-  onOpenBackgroundTasks: () => void;
   onSelectCredential: (credential: AWSCredentialRecord) => void | Promise<void>;
+  onOpenGroupEditor: (credentials: AWSCredentialRecord[]) => void;
   onViewCredentialSecret: (credential: AWSCredentialRecord) => void | Promise<void>;
   onDeleteCredential: (credential: AWSCredentialRecord) => void | Promise<void>;
 };
@@ -1035,13 +968,12 @@ function AWSCredentialRail({
   activeContextReady,
   credentialChecking,
   credentialSecretLoading,
-  pendingBackgroundTaskCount,
   onRegionChange,
   onCheckCurrentCredential,
   onCheckAllCredentials,
   onImportCredentials,
-  onOpenBackgroundTasks,
   onSelectCredential,
+  onOpenGroupEditor,
   onViewCredentialSecret,
   onDeleteCredential,
 }: AWSCredentialRailProps) {
@@ -1050,120 +982,99 @@ function AWSCredentialRail({
   });
   const visibleCredentialRows = credentialPagination.pageItems;
   const [credentialPoolOpen, setCredentialPoolOpen] = React.useState(true);
+  const contextLabel = activeCredential
+    ? `${activeCredential.account_id || activeCredential.masked_access_key_id || activeCredentialName || "-"} · ${activeRegion || "-"}`
+    : t(
+        "cloud.providers.aws.credentials_description",
+        "Save AWS access keys here. Pick one credential first, then switch region and operate EC2 or Lightsail from the active context below.",
+      );
 
   return (
-    <aside className={`min-w-0 ${cloudPanelCardClassName} flex h-full min-h-[520px] flex-col`}>
+    <section className={`min-w-0 ${cloudPanelCardClassName} flex h-full min-h-[520px] flex-col`}>
       <div className={cloudPanelHeaderClassName}>
-        <div className={cloudPanelTitleClassName}>
-          {t("cloud.providers.aws.credentials", "凭证")}
-        </div>
-        <div className={cloudPanelDescriptionClassName}>
-          {t(
-            "cloud.providers.aws.credentials_description",
-            "Save AWS access keys here. Pick one credential first, then switch region and operate EC2 or Lightsail from the active context below.",
-          )}
-        </div>
-      </div>
-
-      <div className="flex min-h-0 flex-1 flex-col gap-3 p-4">
-        <div className={cloudPanelSubcardClassName}>
-          <div className="text-xs font-semibold uppercase tracking-normal text-muted-foreground">
-            {t("cloud.providers.aws.active_credential_label", "当前凭证")}
-          </div>
-          <div className={`mt-1 text-sm font-semibold text-foreground ${cloudLongTextClassName}`}>
-            {activeCredentialName || "-"}
-          </div>
-          {activeCredential ? (
-            <div className="mt-2 flex flex-wrap gap-2">
-               <Badge color={activeCredential.last_status === "healthy" ? "green" : activeCredential.last_status === "failed" ? "red" : "amber"}>
-                {activeCredential.last_status || "unknown"}
-              </Badge>
-              {activeCredential.account_id ? (
-                <Badge color="blue">{activeCredential.account_id}</Badge>
-              ) : null}
-            </div>
-          ) : null}
-        </div>
-
-        <AWSRegionSelect
-          value={activeRegion || undefined}
-          options={regionOptions}
-          placeholder={t("cloud.providers.aws.active_region", "当前区域")}
-          searchPlaceholder={regionSearchPlaceholder}
-          emptyLabel={regionSearchEmpty}
-          onValueChange={(value) => {
-            void onRegionChange(value);
-          }}
-        />
-
-        <div className="grid gap-2">
-          <Button
-            size="1"
-            className="w-full justify-center"
-            onClick={() => {
-              void onCheckCurrentCredential();
-            }}
-            disabled={!activeContextReady || credentialChecking}
-          >
-            <ShieldCheck className="mr-2 h-4 w-4" />
-            {t("cloud.providers.aws.check_current", "检查当前")}
-          </Button>
-          <Button
-            variant="outline"
-            size="1"
-            className="w-full justify-center"
-            onClick={onImportCredentials}
-          >
-            <KeyRound className="mr-2 h-4 w-4" />
-            {t("cloud.providers.aws.import", "导入凭证")}
-          </Button>
-          <Button
-            variant="outline"
-            size="1"
-            className="w-full justify-center"
-            onClick={onOpenBackgroundTasks}
-          >
-            <Eye className="mr-2 h-4 w-4" />
-            {t("cloud.providers.aws.background_tasks", "后台任务")}
-            {pendingBackgroundTaskCount > 0 ? ` (${pendingBackgroundTaskCount})` : ""}
-          </Button>
-        </div>
-
-        <div className="flex min-h-0 flex-1 flex-col rounded-lg border border-border bg-muted/20 px-3 py-2">
-          <div className="flex items-center justify-between gap-2">
-            <div className="min-w-0">
-              <div className="text-xs font-semibold uppercase tracking-normal text-muted-foreground">
-                {t("cloud.providers.aws.credential_pool", "凭证池")}
+        <div className="flex min-w-0 flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+          <div className="min-w-0">
+            <div className="flex min-w-0 flex-wrap items-center gap-2">
+              <div className={cloudPanelTitleClassName}>
+                {t("cloud.providers.aws.credentials", "凭证管理")}
               </div>
-              <div className="mt-1 truncate text-sm font-semibold text-foreground">
+              <Badge color={activeCredential ? "green" : "amber"}>
+                {activeCredential ? t("common.active", "已激活") : t("cloud.no_active", "未激活")}
+              </Badge>
+              <Badge color="gray">
                 {t("cloud.providers.aws.credential_count", {
                   count: credentialRows.length,
                   defaultValue: "{{count}} credentials",
                 })}
-              </div>
+              </Badge>
             </div>
+            <div className="mt-1 min-w-0 truncate text-xs leading-5 text-muted-foreground">
+              {contextLabel}
+            </div>
+          </div>
+          <div className="flex shrink-0 flex-wrap items-center gap-2">
+            <Button size="1" onClick={onImportCredentials}>
+              <Plus className="mr-2 h-4 w-4" />
+              {t("cloud.providers.aws.import", "导入凭证")}
+            </Button>
             <Button
               variant="outline"
               size="1"
               onClick={() => setCredentialPoolOpen((open) => !open)}
             >
-              <ChevronDown className={`mr-1.5 h-3.5 w-3.5 transition-transform ${credentialPoolOpen ? "rotate-180" : ""}`} />
-              {credentialPoolOpen ? t("common.collapse", "Collapse") : t("cloud.tokens.manage", "管理")}
+              <ChevronDown className={`mr-2 h-4 w-4 transition-transform ${credentialPoolOpen ? "rotate-180" : ""}`} />
+              {credentialPoolOpen ? t("common.collapse", "收起") : t("cloud.tokens.manage", "管理")}
+            </Button>
+            <Button
+              variant="outline"
+              size="1"
+              onClick={onCheckAllCredentials}
+              disabled={credentialRows.length === 0 || credentialChecking}
+            >
+              <RefreshCw className={`mr-2 h-4 w-4${credentialChecking ? " animate-spin" : ""}`} />
+              {t("cloud.credentials.check", "检查")}
             </Button>
           </div>
+        </div>
+      </div>
 
+      <div className="flex min-h-0 flex-1 flex-col gap-3 p-3">
+        <div className="grid gap-2">
+          <label className={cloudPanelFieldLabelClassName}>
+            {t("cloud.providers.aws.active_region", "当前区域")}
+          </label>
+          <div className="flex flex-col gap-2 sm:flex-row">
+            <div className="min-w-0 flex-1">
+              <AWSRegionSelect
+                value={activeRegion || undefined}
+                options={regionOptions}
+                placeholder={t("cloud.providers.aws.active_region", "当前区域")}
+                searchPlaceholder={regionSearchPlaceholder}
+                emptyLabel={regionSearchEmpty}
+                onValueChange={(value) => {
+                  void onRegionChange(value);
+                }}
+              />
+            </div>
+            <Button
+              variant="outline"
+              size="1"
+              className="shrink-0 justify-center"
+              onClick={() => {
+                void onCheckCurrentCredential();
+              }}
+              disabled={!activeContextReady || credentialChecking}
+            >
+              <RefreshCw className={`mr-2 h-4 w-4${credentialChecking ? " animate-spin" : ""}`} />
+              {t("cloud.providers.aws.check_current", "检查当前")}
+            </Button>
+          </div>
+        </div>
+
+        <div className="flex min-h-0 flex-1 flex-col">
           {credentialPoolOpen ? (
-            <div className="mt-3 flex min-h-0 flex-1 flex-col border-t border-border pt-3">
-              <Button
-                variant="ghost"
-                size="1"
-                className="w-full justify-center"
-                onClick={onCheckAllCredentials}
-                disabled={credentialChecking || !credentialRows.length}
-              >
-                {t("cloud.tokens.check_all", "检查全部凭证")}
-              </Button>
-              <div className="mt-2 min-h-0 flex-1 overflow-y-auto [scrollbar-gutter:stable]">
+            <div className="flex min-h-0 flex-1 flex-col">
+              <div className="min-h-0 flex-1 overflow-y-auto [scrollbar-gutter:stable]">
                 {credentialRows.length ? (
                   <AdminDataTableScroll className="rounded-lg border border-border">
                     <AdminDataTable minWidth={700}>
@@ -1205,11 +1116,16 @@ function AWSCredentialRail({
                                     label: credential.is_active
                                       ? t("cloud.tokens.current", "当前")
                                       : t("cloud.tokens.use", "使用"),
-                                    icon: <Server className="h-4 w-4" />,
+                                    icon: <CheckCircle2 className="h-4 w-4" />,
                                     disabled: credential.is_active,
                                     onSelect: () => {
                                       void onSelectCredential(credential);
                                     },
+                                  },
+                                  {
+                                    label: t("cloud.tokens.group_action", "分组"),
+                                    icon: <PencilLine className="h-4 w-4" />,
+                                    onSelect: () => onOpenGroupEditor([credential]),
                                   },
                                   {
                                     label: t("cloud.view", "查看"),
@@ -1253,150 +1169,12 @@ function AWSCredentialRail({
                 pageSizeOptions={[5, 10, 20]}
                 itemLabel={t("admin.pagination.credentials", { defaultValue: "凭证" })}
                 compact
-                className="-mx-3 mt-2 rounded-b-lg"
               />
             </div>
           ) : null}
         </div>
       </div>
-    </aside>
-  );
-}
-
-type AWSFollowUpSummaryPanelProps = {
-  t: TFunction;
-  tasks: AWSFollowUpTask[];
-  loading: boolean;
-  retryingId: number | null;
-  pendingCount: number;
-  failedCount: number;
-  onOpenAll: () => void;
-  onRefresh: () => void;
-  onRetry: (task: AWSFollowUpTask) => void;
-};
-
-function AWSFollowUpSummaryPanel({
-  t,
-  tasks,
-  loading,
-  retryingId,
-  pendingCount,
-  failedCount,
-  onOpenAll,
-  onRefresh,
-  onRetry,
-}: AWSFollowUpSummaryPanelProps) {
-  const visibleTasks = tasks.slice(0, 5);
-
-  return (
-    <aside className={`min-w-0 self-start ${cloudPanelCardClassName}`}>
-      <div className={cloudPanelHeaderClassName}>
-        <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0">
-            <div className={cloudPanelTitleClassName}>
-              {t("cloud.providers.aws.follow_up_tasks_label", "后续任务")}
-            </div>
-            <div className={cloudPanelDescriptionClassName}>
-              {t(
-                "cloud.providers.aws.follow_up_tasks_description",
-                "Lightsail 密码、静态 IP、脚本安装和失败重试都在这里作为一等状态展示。",
-              )}
-            </div>
-          </div>
-          <Badge color={failedCount > 0 ? "red" : pendingCount > 0 ? "amber" : "green"}>
-            {failedCount > 0
-              ? t("cloud.providers.aws.failed_tasks_hint", {
-                count: failedCount,
-                defaultValue: "{{count}} failed",
-              })
-              : t("cloud.providers.aws.pending_tasks_hint", {
-                count: pendingCount,
-                defaultValue: "{{count}} pending",
-              })}
-          </Badge>
-        </div>
-      </div>
-
-      <div className="space-y-3 p-4">
-        <div className="grid grid-cols-2 gap-3">
-          <AWSMiniMetric
-            label={t("cloud.providers.aws.pending", "待处理")}
-            value={pendingCount}
-            tone={pendingCount > 0 ? "amber" : "slate"}
-          />
-          <AWSMiniMetric
-            label={t("cloud.providers.aws.failed", "失败")}
-            value={failedCount}
-            tone={failedCount > 0 ? "red" : "slate"}
-          />
-        </div>
-
-        {visibleTasks.length > 0 ? (
-          <div className="space-y-2">
-            {visibleTasks.map((task) => (
-              <div key={task.id} className={cloudPanelSubcardClassName}>
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <div className={`text-sm font-semibold text-foreground ${cloudLongTextClassName}`}>
-                      #{task.id} · {task.task_type || "-"}
-                    </div>
-                    <div className={`mt-1 text-xs text-muted-foreground ${cloudLongTextClassName}`}>
-                      {task.resource_id || "-"} · {task.region || "-"}
-                    </div>
-                  </div>
-                  <Badge color={getAwsTaskTone(task.status)}>{task.status || "-"}</Badge>
-                </div>
-                {task.last_error ? (
-                  <div className={`mt-2 rounded-md bg-red-50 px-2 py-1 text-xs leading-5 text-red-700 dark:bg-red-950/30 dark:text-red-300 ${cloudLongTextClassName}`}>
-                    {task.last_error}
-                  </div>
-                ) : null}
-                <div className="mt-3 flex items-center justify-between gap-2">
-                  <span className="text-xs text-muted-foreground">
-                    {task.attempts}/{task.max_attempts || "-"} · {formatAwsPanelDate(task.next_run_at || task.created_at)}
-                  </span>
-                  {task.status === "failed" || task.status === "retryable" ? (
-                    <Button
-                      variant="outline"
-                      size="1"
-                      disabled={retryingId === task.id}
-                      onClick={() => onRetry(task)}
-                    >
-                      <RotateCcw className="mr-1 h-3.5 w-3.5" />
-                      {t("cloud.providers.aws.retry_task", "重试")}
-                    </Button>
-                  ) : null}
-                </div>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <div className="rounded-lg border border-dashed border-border bg-muted/30 px-4 py-8 text-center">
-            <div className="text-sm font-semibold text-foreground">
-              {loading
-                ? t("cloud.loading", "正在加载云资源...")
-                : t("cloud.providers.aws.no_follow_up_tasks", "暂无后续任务")}
-            </div>
-            <p className={cloudPanelBodyTextClassName}>
-              {t(
-                "cloud.providers.aws.no_follow_up_tasks_description",
-                "创建实例、获取密码或安装 Agent 后，有等待和重试的任务会显示在这里。",
-              )}
-            </p>
-          </div>
-        )}
-
-        <div className="grid grid-cols-2 gap-2">
-          <Button variant="outline" size="1" onClick={onRefresh} disabled={loading}>
-            <RefreshCw className={`mr-2 h-4 w-4${loading ? " animate-spin" : ""}`} />
-            {t("cloud.refresh", "刷新")}
-          </Button>
-          <Button size="1" onClick={onOpenAll}>
-            {t("cloud.providers.aws.view_all_tasks", "查看全部")}
-          </Button>
-        </div>
-      </div>
-    </aside>
+    </section>
   );
 }
 
@@ -1476,38 +1254,6 @@ function AWSQuotaMeter({
   );
 }
 
-function AWSMiniMetric({
-  label,
-  value,
-  tone,
-}: {
-  label: React.ReactNode;
-  value: React.ReactNode;
-  tone: "amber" | "red" | "slate";
-}) {
-  const toneClassName =
-    tone === "red"
-      ? "border-red-200 bg-red-50 text-red-700 dark:border-red-900/60 dark:bg-red-950/30 dark:text-red-300"
-      : tone === "amber"
-        ? "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-300"
-        : "border-border bg-muted/30 text-foreground";
-
-  return (
-    <div className={`rounded-lg border px-3 py-2 ${toneClassName}`}>
-      <div className="text-[11px] font-semibold text-muted-foreground">{label}</div>
-      <div className="mt-1 text-lg font-semibold leading-6 tabular-nums">{value}</div>
-    </div>
-  );
-}
-
-function getAwsTaskTone(status: string) {
-  const normalized = status.trim().toLowerCase();
-  if (normalized === "failed" || normalized === "error") return "red";
-  if (normalized === "pending" || normalized === "retryable") return "amber";
-  if (normalized === "completed" || normalized === "success") return "green";
-  return "gray";
-}
-
 function formatAwsCredentialQuota(credential: AWSCredentialRecord) {
   const quota = credential.ec2_quota;
   if (!quota) {
@@ -1515,11 +1261,4 @@ function formatAwsCredentialQuota(credential: AWSCredentialRecord) {
   }
 
   return `${quota.running_instances}/${quota.max_instances || "-"} instances · ${quota.running_standard_vcpus}/${quota.max_standard_vcpus || "-"} vCPU`;
-}
-
-function formatAwsPanelDate(value: string) {
-  if (!value) return "-";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return value;
-  return date.toLocaleString();
 }
