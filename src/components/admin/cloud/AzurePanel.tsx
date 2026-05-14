@@ -644,12 +644,13 @@ function AzureInlineCreatePanel({
           </Select.Root>
         </div>
         <div>
-          <label className={cloudPanelFieldLabelClassName}>{t("cloud.providers.azure.admin_username", "管理员账号")}</label>
+          <label className={cloudPanelFieldLabelClassName}>{t("cloud.form.root_password", "Root Password")}</label>
           <TextField.Root
-            value={form.admin_username || ""}
+            value={form.admin_password || ""}
             disabled={!activeCredential}
-            placeholder="azureuser"
-            onChange={(event) => setForm((previous) => ({ ...previous, admin_username: event.target.value }))}
+            type="password"
+            placeholder={t("cloud.form.root_password_placeholder", "输入 root 密码（留空随机）")}
+            onChange={(event) => setForm((previous) => ({ ...previous, admin_password: event.target.value }))}
           />
         </div>
       </div>

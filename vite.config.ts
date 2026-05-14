@@ -4,12 +4,15 @@ import tailwindcss from "@tailwindcss/vite";
 import Pages from "vite-plugin-pages";
 import { visualizer } from "rollup-plugin-visualizer";
 import { VitePWA } from "vite-plugin-pwa";
+import { fileURLToPath } from "node:url";
 
 // https://vite.dev/config/
 import type { Plugin, UserConfig } from "vite";
 import * as fs from "fs";
 import * as path from "path";
 import dotenv from "dotenv";
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 function localKomariThemePlugin(): Plugin {
   const themeRequestPath = "/themes/default/komari-theme.json";
@@ -125,7 +128,23 @@ export default defineConfig(({ mode }) => {
     resolve: {
       alias: {
         "@": path.resolve(__dirname, "./src"),
+        "void-elements": path.resolve(__dirname, "src/compat/void-elements-shim.ts"),
+        cookie: path.resolve(process.cwd(), "node_modules/cookie/index.js"),
+        "set-cookie-parser": path.resolve(
+          process.cwd(),
+          "node_modules/set-cookie-parser/lib/set-cookie.js",
+        ),
       },
+    },
+    optimizeDeps: {
+      include: [
+        "react-router",
+        "react-router-dom",
+        "cookie",
+        "set-cookie-parser",
+        "html-parse-stringify",
+        "void-elements",
+      ],
     },
     build: {
       assetsDir: "assets",

@@ -11,6 +11,10 @@ import type {
 import { RPC2ConnectionState } from "../types/rpc2";
 import { formatApiErrorMessage } from "@/lib/apiErrorMessage";
 
+type ResolvedRPC2ConnectionOptions = Required<Omit<RPC2ConnectionOptions, "wsUrl">> & {
+  wsUrl?: string;
+};
+
 /**
  * RPC2 客户端类
  * 支持通过 WebSocket 和 HTTP POST 调用 JSON-RPC 2.0 接口
@@ -28,9 +32,11 @@ export class RPC2Client {
   private reconnectTimeout?: NodeJS.Timeout;
   private heartbeatInterval?: NodeJS.Timeout;
   private eventListeners: RPC2EventListeners = {};
+  private readonly wsEnabled: boolean;
+  private readonly wsUrl?: string;
  
   private readonly baseUrl: string;
-  private readonly options: Required<RPC2ConnectionOptions>;
+  private readonly options: ResolvedRPC2ConnectionOptions;
 
   constructor(
     baseUrl = "/api/rpc2",
@@ -39,6 +45,7 @@ export class RPC2Client {
     this.baseUrl = baseUrl;
     this.options = {
       autoConnect: true,
+      wsEnabled: true,
       autoReconnect: true,
       reconnectInterval: 3000,
       maxReconnectAttempts: 5,
@@ -50,6 +57,8 @@ export class RPC2Client {
       },
       ...options,
     };
+    this.wsEnabled = Boolean(this.options.wsEnabled);
+    this.wsUrl = this.options.wsUrl || undefined;
 
     // 自动建立连接
     if (this.options.autoConnect) {
@@ -75,6 +84,10 @@ export class RPC2Client {
    * 建立 WebSocket 连接
    */
   async connect(): Promise<void> {
+    if (!this.wsEnabled) {
+      throw new Error("WebSocket 未启用");
+    }
+
     if (this.connectionState === RPC2ConnectionState.CONNECTED || 
         this.connectionState === RPC2ConnectionState.CONNECTING) {
       return;
@@ -123,6 +136,10 @@ export class RPC2Client {
    * 自动建立连接（非阻塞）
    */
   private autoConnect(): void {
+    if (!this.wsEnabled) {
+      return;
+    }
+
     if (this.connectionState !== RPC2ConnectionState.DISCONNECTED) {
       return;
     }
@@ -296,6 +313,10 @@ export class RPC2Client {
     params?: TParams,
     options: RPC2CallOptions = {}
   ): Promise<TResult> {
+    if (!this.wsEnabled) {
+      return this.callViaHTTP(method, params, options);
+    }
+
     // 如果启用了自动连接，且当前未连接，尝试建立连接（不阻塞使用 HTTP 回退）
     if (this.options.autoConnect && 
         this.connectionState === RPC2ConnectionState.DISCONNECTED) {
@@ -321,7 +342,8 @@ export class RPC2Client {
   private getWebSocketUrl(): string {
     const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
     const host = window.location.host;
-    return `${protocol}//${host}${this.baseUrl}`;
+    const wsPath = this.wsUrl || this.baseUrl;
+    return `${protocol}//${host}${wsPath}`;
   }
 
   private setupWebSocketHandlers(): void {

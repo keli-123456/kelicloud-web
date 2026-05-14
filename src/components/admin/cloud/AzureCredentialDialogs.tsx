@@ -323,7 +323,7 @@ export function AzureSavedPasswordDialog({
           <div className="grid gap-3 sm:grid-cols-2">
             <CloudDetailItem label={t("cloud.table.name", "Name")} value={savedPassword.instance.name || "-"} className="bg-card" />
             <CloudDetailItem label={t("cloud.providers.azure.resource_group", "Resource Group")} value={savedPassword.instance.resource_group || "-"} className="bg-card" />
-            <CloudDetailItem label={t("cloud.providers.azure.admin_username", "Admin Username")} value={savedPassword.credential.username || "-"} className="bg-card" />
+            <CloudDetailItem label={t("cloud.password.username", "登录用户")} value={savedPassword.credential.username || "-"} className="bg-card" />
           </div>
           <CloudSecretValueBlock
             title={t("cloud.password.root_password", "Root Password")}

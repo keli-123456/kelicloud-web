@@ -1,6 +1,7 @@
 import * as React from "react";
 import type { TFunction } from "i18next";
 import { useTranslation } from "react-i18next";
+import { Navigate } from "react-router-dom";
 import { toast } from "sonner";
 
 import {
@@ -647,7 +648,11 @@ const createDefaultForm = (availableFeatures: AccountFeature[]): CreateUserForm 
   accountDisabled: false,
 });
 
-export default function AdminUsersPage() {
+export function AdminUsersSection({
+  embedded = false,
+}: {
+  embedded?: boolean;
+}) {
   const { t } = useTranslation();
   const { account, platformAdmin, loading: accountLoading } = useAccount();
   const [users, setUsers] = React.useState<ManagedUser[]>([]);
@@ -946,6 +951,7 @@ export default function AdminUsersPage() {
             <Button disabled>{t("common.add")}</Button>
           </>
         }
+        registerHeader={!embedded}
       >
         <AdminSurface className="overflow-hidden p-0">
           <AdminTableSkeleton columns={8} rows={6} className="rounded-none border-0 shadow-none" />
@@ -963,11 +969,11 @@ export default function AdminUsersPage() {
   }
 
   return (
-    <AdminPageShell
-      eyebrow={t("common.admin_console")}
-      title={t("admin.users.title")}
-      description={t("admin.users.description")}
-      actions={
+      <AdminPageShell
+        eyebrow={t("common.admin_console")}
+        title={t("admin.users.title")}
+        description={t("admin.users.description")}
+        actions={
         <>
           <Button variant="outline" onClick={() => void loadUsers()}>
             {t("common.refresh")}
@@ -1166,6 +1172,7 @@ export default function AdminUsersPage() {
           </Dialog.Root>
         </>
       }
+      registerHeader={!embedded}
     >
       <AdminSurface>
         <Dialog.Root open={Boolean(policyUser)} onOpenChange={(open) => !open && closePolicyEditor()}>
@@ -1474,3 +1481,7 @@ export default function AdminUsersPage() {
     </AdminPageShell>
   );
 }
+
+const DefaultAdminUsersPage = () => <Navigate to="/admin/account?tab=users" replace />;
+
+export default DefaultAdminUsersPage;

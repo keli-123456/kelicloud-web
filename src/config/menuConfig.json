@@ -83,11 +83,6 @@
       "icon": "FileText"
     },
     {
-      "labelKey": "admin.users.title",
-      "path": "/admin/users",
-      "icon": "ShieldCheck"
-    },
-    {
       "labelKey": "billing.title",
       "path": "/admin/billing",
       "icon": "CreditCard"

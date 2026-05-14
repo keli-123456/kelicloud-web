@@ -20,11 +20,13 @@ import {
   Select,
   TextField,
 } from "@/components/admin/cloud/cloud-ui";
+import { WarningAlert } from "@/components/ui/warning-alert";
 import {
   azureImagePresets,
   buildCreateFormFromPreset,
   formatAzureSizeOption,
   getDefaultAzureSize,
+  getCreateRootPasswordMode,
   getLocationLabel,
   type AzureCreateFormState,
 } from "./azurePanelUtils";
@@ -203,58 +205,25 @@ export function AzureCreateDialog({
           />
 
           <label className={cloudPanelFieldLabelClassName}>
-            {t("cloud.providers.azure.admin_username", "Admin Username")}
+            {t("cloud.form.root_password", "Root Password")}
           </label>
           <TextField.Root
-            value={createForm.admin_username || ""}
-            placeholder="azureuser"
-            onChange={(event) => setCreateForm((previous) => ({ ...previous, admin_username: event.target.value }))}
+            type="password"
+            value={createForm.admin_password || ""}
+            placeholder={t("cloud.form.root_password_placeholder", "输入 root 密码")}
+            onChange={(event) => setCreateForm((previous) => ({ ...previous, admin_password: event.target.value }))}
           />
-
-          <label className={cloudPanelFieldLabelClassName}>
-            {t("cloud.providers.azure.auth_mode", "Authentication")}
-          </label>
-          <Select.Root
-            value={createForm.auth_mode}
-            onValueChange={(value) =>
-              setCreateForm((previous) => ({
-                ...previous,
-                auth_mode: value === "ssh" ? "ssh" : "password",
-              }))
+          <WarningAlert
+            tone="info"
+            description={
+              getCreateRootPasswordMode(createForm.admin_password || "") === "random"
+                ? t("cloud.form.root_password_random_help", "系统会在后端随机生成一个 root 密码，并在创建成功后只展示一次。")
+                : t(
+                    "cloud.providers.azure.admin_password_help",
+                    "Create the VM with this root password.",
+                  )
             }
-          >
-            <Select.Trigger placeholder={t("cloud.providers.azure.auth_mode", "Authentication")} />
-            <Select.Content>
-              <Select.Item value="password">{t("cloud.providers.azure.auth_password", "Password")}</Select.Item>
-              <Select.Item value="ssh">{t("cloud.providers.azure.auth_ssh", "SSH Public Key")}</Select.Item>
-            </Select.Content>
-          </Select.Root>
-
-          {createForm.auth_mode === "password" ? (
-            <>
-              <label className={cloudPanelFieldLabelClassName}>
-                {t("cloud.providers.azure.admin_password", "Admin Password")}
-              </label>
-              <TextField.Root
-                type="password"
-                value={createForm.admin_password || ""}
-                placeholder={t("cloud.providers.azure.admin_password_placeholder", "Use a strong password that meets Azure complexity requirements")}
-                onChange={(event) => setCreateForm((previous) => ({ ...previous, admin_password: event.target.value }))}
-              />
-            </>
-          ) : (
-            <>
-              <label className={cloudPanelFieldLabelClassName}>
-                {t("cloud.providers.azure.ssh_public_key", "SSH Public Key")}
-              </label>
-              <CloudCodeTextarea
-                minHeightClassName="min-h-28"
-                value={createForm.ssh_public_key || ""}
-                placeholder="ssh-ed25519 AAAA..."
-                onChange={(event) => setCreateForm((previous) => ({ ...previous, ssh_public_key: event.target.value }))}
-              />
-            </>
-          )}
+          />
 
           <label className={`flex items-center gap-2 ${cloudPanelBodyTextClassName}`}>
             <Checkbox
@@ -330,7 +299,6 @@ export function AzureCreateDialog({
                 || !createForm.image_publisher
                 || !createForm.image_offer
                 || !createForm.image_sku
-                || (createForm.auth_mode === "password" ? !createForm.admin_password : !createForm.ssh_public_key)
               }
             >
               {submitting

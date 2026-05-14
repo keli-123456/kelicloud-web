@@ -66,9 +66,10 @@ export const routes: RouteObject[] = [
       },
       {
         path: "users",
-        element: React.createElement(
-          lazy(() => import("./pages/admin/users"))
-        ),
+        element: React.createElement(Navigate, {
+          to: "/admin/account?tab=users",
+          replace: true,
+        }),
       },
       {
         path: "billing",

@@ -6226,31 +6226,21 @@ export default function FailoverV2Page() {
                     </div>
                   </div>
 
-                  <div className={FORM_GRID_2_CLASS}>
-                    <div className={FORM_FIELD_CLASS}>
-                      <Label>{t("cloud.providers.azure.admin_username", { defaultValue: "Admin username" })}</Label>
-                      <Input
-                        value={getJsonStringValue(memberPlanPayload, "admin_username")}
-                        onChange={(event) => updateMemberPlanPayload({ admin_username: event.target.value })}
-                        placeholder="azureuser"
-                      />
-                    </div>
-                    <div className={FORM_FIELD_CLASS}>
-                      <Label>{t("failover_v2.root_password_mode", { defaultValue: "Root password mode" })}</Label>
-                      <Select
-                        value={azureRootPasswordMode}
-                        onValueChange={(value) => updateMemberPlanPayload({ root_password_mode: value })}
-                      >
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="random">{t("failover_v2.root_password_mode_random", { defaultValue: "Generate and save" })}</SelectItem>
-                          <SelectItem value="custom">{t("failover_v2.root_password_mode_custom", { defaultValue: "Use custom password" })}</SelectItem>
-                          <SelectItem value="none">{t("failover_v2.root_password_mode_none", { defaultValue: "SSH key only" })}</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
+                  <div className={FORM_FIELD_CLASS}>
+                    <Label>{t("failover_v2.root_password_mode", { defaultValue: "Root password mode" })}</Label>
+                    <Select
+                      value={azureRootPasswordMode}
+                      onValueChange={(value) => updateMemberPlanPayload({ root_password_mode: value })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="random">{t("failover_v2.root_password_mode_random", { defaultValue: "Generate and save" })}</SelectItem>
+                        <SelectItem value="custom">{t("failover_v2.root_password_mode_custom", { defaultValue: "Use custom password" })}</SelectItem>
+                        <SelectItem value="none">{t("failover_v2.root_password_mode_none", { defaultValue: "SSH key only" })}</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
 
                   {azureRootPasswordMode === "custom" ? (

@@ -8,6 +8,7 @@ import {
 } from "@/lib/cloudAzure";
 import {
   buildCreateFormFromPreset,
+  getCreateRootPasswordMode,
   getDefaultAzureSize,
   initialAzureImagePreset,
   initialCreateForm,
@@ -50,9 +51,7 @@ export function useAzureCreateInstance({
         name: createForm.name || "",
         resource_group: createForm.resource_group || "",
         size: createForm.size,
-        admin_username: createForm.admin_username || "azureuser",
-        admin_password: createForm.auth_mode === "password" ? createForm.admin_password || "" : "",
-        ssh_public_key: createForm.auth_mode === "ssh" ? createForm.ssh_public_key || "" : "",
+        admin_password: createForm.admin_password || "",
         user_data: createForm.user_data || "",
         public_ip: createForm.public_ip,
         assign_ipv6: createForm.assign_ipv6,
@@ -66,6 +65,10 @@ export function useAzureCreateInstance({
         },
       });
       toast.success(t("cloud.providers.azure.create_success", "Azure VM created"));
+      const passwordMode = getCreateRootPasswordMode(createForm.admin_password || "");
+      if (passwordMode === "random" && !createForm.admin_password) {
+        toast.info(t("cloud.form.root_password_random", "Leave blank for random"));
+      }
       if (result.password_save_error) {
         toast.error(result.password_save_error);
       }

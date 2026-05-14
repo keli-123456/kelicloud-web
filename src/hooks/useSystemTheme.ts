@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import * as React from "react";
 import type { Appearance } from '../contexts/ThemeContext';
 
 /**
@@ -7,7 +7,7 @@ import type { Appearance } from '../contexts/ThemeContext';
  * @returns The resolved appearance for Radix UI ("light" or "dark")
  */
 export const useSystemTheme = (appearance: Appearance): "light" | "dark" => {
-  const [systemTheme, setSystemTheme] = useState<"light" | "dark">(() => {
+  const [systemTheme, setSystemTheme] = React.useState<"light" | "dark">(() => {
     // Initial system theme detection
     if (typeof window !== 'undefined' && window.matchMedia) {
       return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
@@ -15,7 +15,7 @@ export const useSystemTheme = (appearance: Appearance): "light" | "dark" => {
     return 'light';
   });
 
-  useEffect(() => {
+  React.useEffect(() => {
     if (typeof window === 'undefined' || !window.matchMedia) {
       return;
     }

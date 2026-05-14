@@ -442,9 +442,6 @@ function AdminPanelBarContent({ content }: AdminPanelBarProps) {
     if (normalizedPath === "/admin/sessions") {
       return t("admin.nav.short.sessions", { defaultValue: "Sessions" });
     }
-    if (normalizedPath === "/admin/users") {
-      return t("admin.nav.short.users", { defaultValue: "Users" });
-    }
     if (normalizedPath === "/admin/billing") {
       return t("admin.nav.short.billing", { defaultValue: "Billing" });
     }
@@ -464,7 +461,6 @@ function AdminPanelBarContent({ content }: AdminPanelBarProps) {
     return [
       "/admin/settings/site",
       "/admin/notification/general",
-      "/admin/users",
       "/admin/proxy",
     ].includes(normalizePath(targetUrl.pathname));
   }, []);

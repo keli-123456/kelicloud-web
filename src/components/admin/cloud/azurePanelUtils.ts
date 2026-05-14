@@ -34,7 +34,6 @@ export type AzureCreateFormState = Omit<CreateAzureInstanceInput, "image"> & {
   image_offer: string;
   image_sku: string;
   image_version: string;
-  auth_mode: "password" | "ssh";
 };
 
 export const azureImagePresets: AzureImagePreset[] = [
@@ -78,9 +77,7 @@ export const initialCreateForm: AzureCreateFormState = {
   name: "",
   resource_group: "",
   size: "",
-  admin_username: "azureuser",
   admin_password: "",
-  ssh_public_key: "",
   user_data: "",
   public_ip: true,
   assign_ipv6: true,
@@ -91,8 +88,11 @@ export const initialCreateForm: AzureCreateFormState = {
   image_offer: initialAzureImagePreset.offer,
   image_sku: initialAzureImagePreset.sku,
   image_version: initialAzureImagePreset.version || "latest",
-  auth_mode: "password",
 };
+
+export function getCreateRootPasswordMode(rootPassword: string): "custom" | "random" {
+  return rootPassword.trim() ? "custom" : "random";
+}
 
 export function toErrorMessage(error: unknown) {
   return getReadableErrorMessage(error);

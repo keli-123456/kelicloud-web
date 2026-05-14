@@ -1,5 +1,5 @@
 import React, { StrictMode, useMemo } from "react";
-import { createRoot } from "react-dom/client";
+import { createRoot, type Root } from "react-dom/client";
 import "./global.css";
 import "./styles/vendor/radix-theme-tokens.css";
 import "./styles/vendor/radix-layout-tokens.css";
@@ -134,7 +134,13 @@ async function bootstrap() {
     console.error("Failed to initialize i18n resources:", error);
   }
 
-  createRoot(document.getElementById("root")!).render(
+  const rootElement = document.getElementById("root")! as HTMLElement & {
+    __komariRoot?: Root;
+  };
+  const root = rootElement.__komariRoot ?? createRoot(rootElement);
+  rootElement.__komariRoot = root;
+
+  root.render(
     <ErrorBoundary>
       <StrictMode>
         <BrowserRouter>

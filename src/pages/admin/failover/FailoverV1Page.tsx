@@ -2863,7 +2863,6 @@ function defaultPlanPayload(provider: string, actionType: string) {
       resource_group: "",
       region: DEFAULT_AZURE_REGION,
       size: DEFAULT_AZURE_SIZE,
-      admin_username: DEFAULT_AZURE_ADMIN_USERNAME,
       root_password_mode: "random",
       root_password: "",
       ssh_public_key: "",
@@ -3158,7 +3157,6 @@ function validatePlanPayload(
     const image = normalizeAzureImageReference(payload);
     requirePlanField(t, index, t("failover.editor.region", { defaultValue: "Region" }), payload.region);
     requirePlanField(t, index, t("failover.editor.size", { defaultValue: "Size" }), payload.size);
-    requirePlanField(t, index, t("cloud.form.admin_username", { defaultValue: "Admin username" }), payload.admin_username);
     requirePlanField(t, index, t("cloud.providers.azure.image_publisher", { defaultValue: "Image publisher" }), image.publisher);
     requirePlanField(t, index, t("cloud.providers.azure.image_offer", { defaultValue: "Image offer" }), image.offer);
     requirePlanField(t, index, t("cloud.providers.azure.image_sku", { defaultValue: "Image SKU" }), image.sku);
@@ -9322,17 +9320,7 @@ function TaskEditorDialog({
                               </div>
                             </div>
                             <div className="grid gap-4 lg:grid-cols-2">
-                              <div className="space-y-2">
-                                <Label>{t("cloud.form.admin_username", { defaultValue: "Admin username" })}</Label>
-                                <Input
-                                  value={getStringValue(selectedPlanPayload.admin_username) || DEFAULT_AZURE_ADMIN_USERNAME}
-                                  onChange={(event) => updateSelectedPlanPayload((current) => ({
-                                    ...current,
-                                    admin_username: event.target.value,
-                                  }))}
-                                />
-                              </div>
-                              <div className="space-y-2">
+                              <div className="space-y-2 lg:col-span-2">
                                 <Label>{t("cloud.form.root_password", { defaultValue: "Root password" })}</Label>
                                 <Input
                                   type="password"

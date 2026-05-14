@@ -1,5 +1,5 @@
 import { usePWA } from '../hooks/usePWA';
-import { useEffect } from 'react';
+import * as React from "react";
 import { toast } from 'sonner';
 import { WifiOff, Wifi } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
@@ -8,7 +8,7 @@ export const OfflineIndicator = () => {
   const { isOnline: isOnlineOffline } = usePWA();
   const { t: tOffline } = useTranslation();
   // 只在离线时弹出 Toast
-  useEffect(() => {
+  React.useEffect(() => {
     if (!isOnlineOffline) {
       toast.error(
         <div className="flex items-center gap-2 text-sm">

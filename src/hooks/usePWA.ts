@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import * as React from "react";
 
 interface PWAState {
   isInstalled: boolean;
@@ -8,14 +8,14 @@ interface PWAState {
 }
 
 export const usePWA = (): PWAState => {
-  const [state, setState] = useState<PWAState>({
+  const [state, setState] = React.useState<PWAState>({
     isInstalled: false,
     isStandalone: false,
     canInstall: false,
     isOnline: navigator.onLine
   });
 
-  useEffect(() => {
+  React.useEffect(() => {
     // Check if app is in standalone mode
     const isStandalone = window.matchMedia('(display-mode: standalone)').matches;
     

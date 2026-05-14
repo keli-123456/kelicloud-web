@@ -584,10 +584,18 @@ const Layout = ({
   }, [call, liveScopeUUIDs]);
 
   if (isLoading) return <AdminDashboardLoadingState />;
-  if (error) return <div>{error}</div>;
+  if (error) {
+    return (
+      <AdminEmptyState
+        icon={<Terminal className="h-5 w-5" />}
+        title={error}
+        description={null}
+      />
+    );
+  }
 
   return (
-    <div className="flex min-w-0 flex-col gap-4 p-3 sm:p-4 md:gap-5">
+    <AdminPageShell>
       <Header
         nodes={allNodes}
         visibleNodes={visibleNodes}
@@ -615,7 +623,7 @@ const Layout = ({
         installActionsEnabled
         paginationKey={normalizedToolbarSearchKeyword}
       />
-    </div>
+    </AdminPageShell>
   );
 };
 
@@ -846,7 +854,7 @@ const Header = ({
     liveLoaded && !liveError && offlineNodes.length > 0 && !cleanupLoading;
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-3">
       {liveError ? (
         <Alert variant="destructive">
           <AlertTitle>{t("common.error", { defaultValue: "错误" })}</AlertTitle>
@@ -859,9 +867,9 @@ const Header = ({
         </Alert>
       ) : null}
 
-      <div className="rounded-lg border border-border bg-card p-3 shadow-sm shadow-slate-900/5">
-        <div className="flex flex-wrap items-center gap-2 xl:flex-nowrap xl:gap-3">
-          <div className="min-w-[260px] flex-1 xl:max-w-[360px]">
+      <div className="rounded-lg border border-border/80 bg-card px-3 py-2.5 shadow-sm shadow-slate-900/5">
+        <div className="grid gap-2 lg:grid-cols-[minmax(0,1.25fr)_minmax(0,1fr)_auto] lg:items-center">
+          <div className="min-w-[260px]">
             <form
               className="relative"
               onSubmit={(event) => {
@@ -884,7 +892,7 @@ const Header = ({
             </form>
           </div>
 
-          <div className="min-w-0 flex-1 text-sm text-muted-foreground">
+          <div className="min-w-0 text-sm text-muted-foreground">
             {hasEffectiveFilters ? (
               <div className="truncate">
                 <span className="font-medium text-foreground">
@@ -928,7 +936,7 @@ const Header = ({
             )}
           </div>
 
-          <div className="ml-auto flex shrink-0 items-center gap-2">
+          <div className="flex flex-wrap items-center justify-end gap-2">
             <Badge
               variant="secondary"
               className={`h-9 shrink-0 rounded-md border border-border/60 bg-transparent px-2.5 text-sm font-medium shadow-none ${

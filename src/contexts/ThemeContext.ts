@@ -1,4 +1,4 @@
-import { createContext } from 'react';
+import * as React from "react";
 
 export const allowedColors = [
   "gray", "gold", "bronze", "brown", "yellow", "amber",
@@ -25,7 +25,7 @@ export interface ThemeContextType {
   setColor: (color: Colors) => void;
 }
 
-export const ThemeContext = createContext<ThemeContextType>({
+export const ThemeContext = React.createContext<ThemeContextType>({
   appearance: THEME_DEFAULTS.appearance,
   setAppearance: () => {},
   color: THEME_DEFAULTS.color,

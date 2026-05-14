@@ -107,6 +107,10 @@ export interface RPC2ConnectionOptions {
   autoConnect?: boolean;
   /** 自动重连 */
   autoReconnect?: boolean;
+  /** 是否启用 WebSocket 通道 */
+  wsEnabled?: boolean;
+  /** WebSocket 地址（可选，默认与 baseUrl 一致） */
+  wsUrl?: string;
   /** 重连间隔（毫秒） */
   reconnectInterval?: number;
   /** 最大重连次数 */

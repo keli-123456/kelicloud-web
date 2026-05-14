@@ -18,10 +18,17 @@ let __rpc2_singleton__: RPC2Client | null = null;
 let __rpc2_refcount = 0;
 
 export const RPC2Provider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const rpc2WsEnabled = import.meta.env.VITE_RPC2_WS_ENABLED === "true";
+
   // 创建/复用客户端实例，默认启用自动连接
   const [client] = useState(() => {
     if (!__rpc2_singleton__) {
-      __rpc2_singleton__ = new RPC2Client("/api/rpc2", { autoConnect: true });
+      __rpc2_singleton__ = new RPC2Client("/api/rpc2", {
+        autoConnect: rpc2WsEnabled,
+        autoReconnect: rpc2WsEnabled,
+        wsEnabled: rpc2WsEnabled,
+        wsUrl: import.meta.env.VITE_RPC2_WS_URL || undefined,
+      });
     }
     return __rpc2_singleton__;
   });

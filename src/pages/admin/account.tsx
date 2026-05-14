@@ -1,8 +1,10 @@
 import React from "react";
 
 import { toast } from "sonner";
+import { useSearchParams } from "react-router-dom";
+import { ArrowRight, CircleUserRound, Users } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { AccountProvider, useAccount } from "@/contexts/AccountContext";
+import { useAccount } from "@/contexts/AccountContext";
 import {
   Button,
   TextField,
@@ -16,35 +18,148 @@ import {
   ADMIN_FORM_FIELD_CLASS,
 } from "@/components/admin/AdminFormStyles";
 import { formatApiErrorMessage, getReadableErrorMessage } from "@/lib/apiErrorMessage";
+import { AdminUsersSection } from "./users";
+
+type AccountSection = "account" | "users";
+
+const sectionButtonClass = (active: boolean) =>
+  active
+    ? "bg-blue-600/90 text-white shadow-sm shadow-blue-900/10 dark:bg-blue-500/80 dark:text-white"
+    : "bg-white text-slate-600 hover:bg-slate-50 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800";
 
 const Account = () => {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const activeSection = searchParams.get("tab") === "users" ? "users" : "account";
+  const { account } = useAccount();
+  const { t } = useTranslation();
+  const accountSectionRef = React.useRef<HTMLDivElement>(null);
+  const usersSectionRef = React.useRef<HTMLDivElement>(null);
+
+  const navigateToSection = (nextSection: AccountSection) => {
+    const container = nextSection === "account"
+      ? accountSectionRef.current
+      : usersSectionRef.current;
+    container?.scrollIntoView({
+      behavior: "smooth",
+      block: "start",
+    });
+    const next = new URLSearchParams(searchParams);
+    if (nextSection === "account") {
+      next.delete("tab");
+    } else {
+      next.set("tab", "users");
+    }
+    setSearchParams(next, { replace: true });
+  };
+
+  React.useEffect(() => {
+    const target = activeSection === "users"
+      ? usersSectionRef.current
+      : accountSectionRef.current;
+    target?.scrollIntoView({
+      behavior: "auto",
+      block: "start",
+    });
+  }, [activeSection]);
+
+  const title = account?.username
+    ? t("account.greeting", { username: account.username })
+    : t("account.title");
+
+  const description = t("account.page_description");
+
   return (
-    <AccountProvider>
-      <InnerLayout />
-    </AccountProvider>
+    <AdminPageShell
+      title={title}
+      description={description}
+      subnav={
+        <div className="inline-flex w-full min-w-0 flex-wrap gap-2">
+          <button
+            type="button"
+            className={`inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-sm transition ${sectionButtonClass(
+              activeSection === "account",
+            )} dark:border-slate-700`}
+            onClick={() => navigateToSection("account")}
+          >
+            <CircleUserRound className="h-4 w-4" />
+            <span>{t("account.title")}</span>
+          </button>
+          <button
+            type="button"
+            className={`inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-sm transition ${sectionButtonClass(
+              activeSection === "users",
+            )} dark:border-slate-700`}
+            onClick={() => navigateToSection("users")}
+          >
+            <Users className="h-4 w-4" />
+            <span>{t("admin.users.title")}</span>
+            <ArrowRight className="h-3.5 w-3.5 opacity-80" />
+          </button>
+        </div>
+      }
+    >
+      <div className="grid gap-4">
+        <section ref={accountSectionRef}>
+          <div className="rounded-lg border border-slate-200 bg-white p-3 shadow-sm shadow-slate-900/5 dark:border-slate-800 dark:bg-slate-950 sm:p-4">
+            <div className="mb-4 flex items-center justify-between border-b border-slate-200/70 pb-3 dark:border-slate-700/70">
+              <div>
+                <h2 className="text-sm font-semibold tracking-wide text-slate-900 dark:text-slate-50">
+                  {t("account.profile_title", "Profile")}
+                </h2>
+                <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                  {t(
+                    "account.profile_description",
+                    "Update your username and login password. After a successful password change, you will be redirected to the homepage.",
+                  )}
+                </p>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => navigateToSection("users")}
+              >
+                {t("admin.users.title")}
+                <ArrowRight className="ml-1.5 h-3.5 w-3.5" />
+              </Button>
+            </div>
+            <AccountProfileSection />
+          </div>
+        </section>
+
+        <section ref={usersSectionRef}>
+          <div className="rounded-lg border border-slate-200 bg-white shadow-sm shadow-slate-900/5 dark:border-slate-800 dark:bg-slate-950">
+            <div className="flex items-start justify-between border-b border-slate-200/70 px-4 py-3 dark:border-slate-700/70">
+              <div>
+                <h2 className="text-sm font-semibold tracking-wide text-slate-900 dark:text-slate-50">
+                  {t("admin.users.title")}
+                </h2>
+                <p className="mt-1 max-w-2xl text-xs text-slate-500 dark:text-slate-400">
+                  {t("admin.users.description")}
+                </p>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => navigateToSection("account")}
+              >
+                {t("account.title")}
+              </Button>
+            </div>
+            <AdminUsersSection embedded />
+          </div>
+        </section>
+      </div>
+    </AdminPageShell>
   );
 };
 
-const InnerLayout = () => {
+const AccountProfileSection = () => {
   const { t } = useTranslation();
   const { account, loading, error } = useAccount();
   const [usernameSaving, setUsernameSaving] = React.useState(false);
   const [passwordSaving, setPasswordSaving] = React.useState(false);
   if (loading) {
-    return (
-      <AdminPageShell
-        eyebrow={t("account.title")}
-        title={t("account.title")}
-        description={t(
-          "account.page_description",
-          "Manage your username and password.",
-        )}
-      >
-        <div className="grid gap-4">
-          <AdminTableSkeleton columns={2} rows={3} />
-        </div>
-      </AdminPageShell>
-    );
+    return <AdminTableSkeleton columns={2} rows={3} />;
   }
   if (error) {
     return (
@@ -137,27 +252,9 @@ const InnerLayout = () => {
   }
 
   return (
-    <AdminPageShell
-      eyebrow={t("account.title")}
-      title={t("account.greeting", { username: account?.username })}
-      description={t(
-        "account.page_description",
-        "Manage your username and password.",
-      )}
-    >
+    <>
       <div className="grid gap-4">
         <AdminSurface className="flex flex-col gap-6">
-          <div className="space-y-2">
-          <label className="text-xl font-semibold tracking-normal text-slate-900 dark:text-slate-50">
-              {t("account.profile_title", "Profile")}
-            </label>
-            <p className="text-sm leading-6 text-slate-500 dark:text-slate-400">
-              {t(
-                "account.profile_description",
-                "Update your username and login password. After a successful password change, you will be redirected to the homepage.",
-              )}
-            </p>
-          </div>
           <form className="max-w-xl space-y-4" onSubmit={handleSubmitUsernameChange}>
             <div className={ADMIN_FORM_FIELD_CLASS}>
               <label
@@ -225,7 +322,7 @@ const InnerLayout = () => {
           </form>
         </AdminSurface>
       </div>
-    </AdminPageShell>
+    </>
   );
 };
 

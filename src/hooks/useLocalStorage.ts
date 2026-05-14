@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import * as React from "react";
 
 export function useLocalStorage<T>(key: string, initialValue: T) {
   // 获取初始值
@@ -12,7 +12,7 @@ export function useLocalStorage<T>(key: string, initialValue: T) {
     }
   };
 
-  const [storedValue, setStoredValue] = useState<T>(getStoredValue);
+  const [storedValue, setStoredValue] = React.useState<T>(getStoredValue);
 
   // 更新存储的值
   const setValue = (value: T | ((val: T) => T)) => {
