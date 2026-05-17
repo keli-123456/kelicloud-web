@@ -2880,7 +2880,7 @@ export default function FailoverV2Page() {
     if (loading) {
       return;
     }
-    if (!hasFeature("cloud_failover") || !hasFeature("cn_connectivity")) {
+    if (!hasFeature("cloud_failover_v2")) {
       return;
     }
 
@@ -2976,7 +2976,7 @@ export default function FailoverV2Page() {
   }, [nowTickMs, t]);
 
   React.useEffect(() => {
-    if (loading || !hasFeature("cloud_failover") || !hasFeature("cn_connectivity") || !hasBusyService) {
+    if (loading || !hasFeature("cloud_failover_v2") || !hasBusyService) {
       return undefined;
     }
 
@@ -2989,8 +2989,7 @@ export default function FailoverV2Page() {
   React.useEffect(() => {
     if (
       loading
-      || !hasFeature("cloud_failover")
-      || !hasFeature("cn_connectivity")
+      || !hasFeature("cloud_failover_v2")
       || hasBusyService
       || !schedulerEnabled
       || enabledServiceCount <= 0
@@ -4312,7 +4311,7 @@ export default function FailoverV2Page() {
     );
   }
 
-  if (!hasFeature("cloud_failover") || !hasFeature("cn_connectivity")) {
+  if (!hasFeature("cloud_failover_v2")) {
     return <Navigate to={getDefaultAdminPath(account)} replace />;
   }
 

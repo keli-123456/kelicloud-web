@@ -92,6 +92,7 @@ type PaymentMethod = {
   instructions?: string;
   payment_url?: string;
   qr_image_url?: string;
+  config?: string;
   enabled: boolean;
   sort_order: number;
 };
@@ -116,6 +117,7 @@ type BillingOrder = {
   payment_code?: string;
   payment_name?: string;
   payment_reference?: string;
+  payment_url?: string;
   admin_note?: string;
   paid_at?: string | null;
   fulfilled_at?: string | null;
@@ -168,8 +170,17 @@ type PaymentFormState = {
   instructions: string;
   paymentURL: string;
   qrImageURL: string;
+  epusdt: EpusdtPaymentConfig;
   sortOrder: string;
   enabled: boolean;
+};
+
+type EpusdtPaymentConfig = {
+  pid: string;
+  secret_key: string;
+  currency: string;
+  token: string;
+  network: string;
 };
 
 const FEATURE_ORDER: AccountFeature[] = [
@@ -184,11 +195,29 @@ const FEATURE_ORDER: AccountFeature[] = [
   "cloud_azure",
   "cloud_aws",
   "cloud_dns",
-  "cloud_failover",
+  "cloud_failover_v1",
+  "cloud_failover_v2",
   "clipboard",
   "logs",
-  "cn_connectivity",
 ];
+
+const SERVER_BOUND_FEATURES = new Set<AccountFeature>(
+  FEATURE_ORDER.filter((feature) => feature !== "clients"),
+);
+
+const LEGACY_FEATURE_ALIASES: Partial<Record<AccountFeature, AccountFeature[]>> = {
+  cloud: [
+    "cloud_digitalocean",
+    "cloud_linode",
+    "cloud_vultr",
+    "cloud_azure",
+    "cloud_aws",
+    "cloud_dns",
+    "cloud_failover_v1",
+    "cloud_failover_v2",
+  ],
+  cloud_failover: ["cloud_failover_v1", "cloud_failover_v2"],
+};
 
 const FEATURE_META: Record<
   AccountFeature,
@@ -207,6 +236,8 @@ const FEATURE_META: Record<
   cloud_aws: { key: "billing.features.cloud_aws", defaultValue: "AWS" },
   cloud_dns: { key: "billing.features.cloud_dns", defaultValue: "DNS" },
   cloud_failover: { key: "billing.features.cloud_failover", defaultValue: "故障切换" },
+  cloud_failover_v1: { key: "billing.features.cloud_failover_v1", defaultValue: "故障切换 V1" },
+  cloud_failover_v2: { key: "billing.features.cloud_failover_v2", defaultValue: "故障切换 V2" },
   clipboard: { key: "billing.features.clipboard", defaultValue: "脚本库" },
   logs: { key: "billing.features.logs", defaultValue: "日志" },
   cn_connectivity: { key: "billing.features.cn_connectivity", defaultValue: "国内连通性" },
@@ -233,6 +264,13 @@ const emptyPaymentForm: PaymentFormState = {
   instructions: "",
   paymentURL: "",
   qrImageURL: "",
+  epusdt: {
+    pid: "",
+    secret_key: "",
+    currency: "cny",
+    token: "usdt",
+    network: "tron",
+  },
   sortOrder: "10",
   enabled: true,
 };
@@ -281,13 +319,32 @@ const normalizeFeatureList = (
   availableFeatures?: AccountFeature[],
 ) => {
   const available = new Set(availableFeatures?.length ? availableFeatures : FEATURE_ORDER);
+  const expanded = (features || []).flatMap((feature) => {
+    const aliases = LEGACY_FEATURE_ALIASES[feature];
+    return aliases?.length ? aliases : [feature];
+  });
   return Array.from(
     new Set(
-      (features || []).filter((feature): feature is AccountFeature =>
+      expanded.filter((feature): feature is AccountFeature =>
         available.has(feature as AccountFeature),
       ),
     ),
   );
+};
+
+const normalizePlanFeaturesForSave = (
+  features: AccountFeature[],
+  availableFeatures: AccountFeature[],
+) => {
+  const normalized = normalizeFeatureList(features, availableFeatures);
+  if (
+    normalized.some((feature) => SERVER_BOUND_FEATURES.has(feature)) &&
+    availableFeatures.includes("clients") &&
+    !normalized.includes("clients")
+  ) {
+    return normalizeFeatureList(["clients", ...normalized], availableFeatures);
+  }
+  return normalized;
 };
 
 const planToForm = (plan?: BillingPlan): PlanFormState => {
@@ -308,9 +365,26 @@ const planToForm = (plan?: BillingPlan): PlanFormState => {
   };
 };
 
+const parseEpusdtConfig = (config?: string): EpusdtPaymentConfig => {
+  const fallback = { ...emptyPaymentForm.epusdt };
+  if (!config) return fallback;
+  try {
+    const parsed = JSON.parse(config) as Partial<EpusdtPaymentConfig>;
+    return {
+      pid: String(parsed.pid || ""),
+      secret_key: String(parsed.secret_key || ""),
+      currency: String(parsed.currency || fallback.currency),
+      token: String(parsed.token || fallback.token),
+      network: String(parsed.network || fallback.network),
+    };
+  } catch {
+    return fallback;
+  }
+};
+
 const paymentToForm = (method?: PaymentMethod): PaymentFormState => {
   if (!method) {
-    return { ...emptyPaymentForm };
+    return { ...emptyPaymentForm, epusdt: { ...emptyPaymentForm.epusdt } };
   }
   return {
     id: method.id,
@@ -320,6 +394,7 @@ const paymentToForm = (method?: PaymentMethod): PaymentFormState => {
     instructions: method.instructions || "",
     paymentURL: method.payment_url || "",
     qrImageURL: method.qr_image_url || "",
+    epusdt: parseEpusdtConfig(method.config),
     sortOrder: String(method.sort_order ?? 0),
     enabled: Boolean(method.enabled),
   };
@@ -332,9 +407,20 @@ const statusTone = (status: BillingOrderStatus) => {
   return "amber";
 };
 
+const accessStatusTone = (status?: string) => {
+  if (status === "disabled") return "red";
+  if (status === "expired") return "amber";
+  return "green";
+};
+
+const getFeatureOptionLabel = (
+  feature: AccountFeature,
+  featureOptions: Array<{ value: AccountFeature; label: string }>,
+) => featureOptions.find((item) => item.value === feature)?.label || feature;
+
 export default function BillingPage() {
   const [t] = useTranslation();
-  const { platformAdmin } = useAccount();
+  const { platformAdmin, refresh: refreshAccount } = useAccount();
   const [activeTab, setActiveTab] = React.useState(platformAdmin ? "shop" : "shop");
   const [catalog, setCatalog] = React.useState<BillingCatalog>({});
   const [plans, setPlans] = React.useState<BillingPlan[]>([]);
@@ -418,8 +504,8 @@ export default function BillingPage() {
   }, [platformAdmin, t]);
 
   const refreshAll = React.useCallback(async () => {
-    await Promise.all([loadCatalog(), loadAdminData()]);
-  }, [loadAdminData, loadCatalog]);
+    await Promise.all([loadCatalog(), loadAdminData(), refreshAccount()]);
+  }, [loadAdminData, loadCatalog, refreshAccount]);
 
   React.useEffect(() => {
     void refreshAll();
@@ -478,7 +564,7 @@ export default function BillingPage() {
         currency: planForm.currency,
         duration_days: Number(planForm.durationDays || 0),
         server_quota: Number(planForm.serverQuota || 0),
-        allowed_features: normalizeFeatureList(planForm.allowedFeatures, availableFeatures),
+        allowed_features: normalizePlanFeaturesForSave(planForm.allowedFeatures, availableFeatures),
         sort_order: Number(planForm.sortOrder || 0),
         active: planForm.active,
         public: planForm.public,
@@ -526,6 +612,10 @@ export default function BillingPage() {
           instructions: paymentForm.instructions,
           payment_url: paymentForm.paymentURL,
           qr_image_url: paymentForm.qrImageURL,
+          config:
+            paymentForm.type === "epusdt"
+              ? JSON.stringify(paymentForm.epusdt)
+              : "",
           sort_order: Number(paymentForm.sortOrder || 0),
           enabled: paymentForm.enabled,
         }),
@@ -660,6 +750,7 @@ export default function BillingPage() {
           <Tabs.Content value="shop" className="mt-0">
             <ShopPanel
               t={t}
+              policy={catalog.policy}
               plans={catalogPlans}
               methods={catalogMethods}
               loading={loadingCatalog}
@@ -675,12 +766,20 @@ export default function BillingPage() {
           </Tabs.Content>
 
           <Tabs.Content value="orders" className="mt-0">
-            <OrdersTable
-              t={t}
-              orders={myOrders}
-              loading={loadingCatalog}
-              emptyTitle={t("billing.no_my_orders")}
-            />
+            <div className="space-y-4">
+              <PolicySummary
+                t={t}
+                policy={catalog.policy}
+                featureOptions={featureOptions}
+              />
+              <OrdersTable
+                t={t}
+                orders={myOrders}
+                loading={loadingCatalog}
+                emptyTitle={t("billing.no_my_orders")}
+                paymentMethods={catalogMethods}
+              />
+            </div>
           </Tabs.Content>
 
           {platformAdmin ? (
@@ -786,8 +885,81 @@ export default function BillingPage() {
   );
 }
 
+function PolicySummary({
+  t,
+  policy,
+  featureOptions,
+}: {
+  t: TFunction;
+  policy?: UserPolicy;
+  featureOptions: Array<{ value: AccountFeature; label: string }>;
+}) {
+  const availableFeatures = React.useMemo(
+    () => featureOptions.map((item) => item.value),
+    [featureOptions],
+  );
+  const explicitFeatures = React.useMemo(
+    () => normalizeFeatureList(policy?.allowed_features, availableFeatures),
+    [availableFeatures, policy?.allowed_features],
+  );
+  const accessStatus = policy?.access_status || "active";
+  const planName = policy?.plan_name || t("billing.free_access", { defaultValue: "默认权限" });
+  const quotaText = policy?.server_quota && policy.server_quota > 0
+    ? t("billing.quota_count", { count: policy.server_quota })
+    : t("billing.unlimited_quota");
+  const expiresText = policy?.plan_expires_at
+    ? formatDateTime(policy.plan_expires_at)
+    : t("billing.no_expiry", { defaultValue: "长期有效" });
+
+  return (
+    <AdminSurface className="rounded-lg border border-border bg-card px-4 py-3 shadow-sm shadow-slate-900/5 dark:border-slate-800 dark:bg-slate-950">
+      <div className="flex min-w-0 flex-wrap items-center gap-x-6 gap-y-2 text-sm">
+        <div className="flex min-w-0 items-center gap-2">
+          <span className="text-muted-foreground">
+            {t("billing.current_entitlement", { defaultValue: "当前权益" })}
+          </span>
+          <span className="truncate font-semibold text-foreground">{planName}</span>
+          <Badge color={accessStatusTone(accessStatus)} variant="soft">
+            {t(`billing.access_status_${accessStatus}`, { defaultValue: accessStatus })}
+          </Badge>
+        </div>
+        <div className="text-muted-foreground">
+          {t("billing.server_quota")}:
+          <span className="ml-1 font-medium text-foreground">{quotaText}</span>
+        </div>
+        <div className="text-muted-foreground">
+          {t("billing.expires_at")}:
+          <span className="ml-1 font-medium text-foreground">{expiresText}</span>
+        </div>
+      </div>
+      <div className="mt-3 flex min-w-0 flex-wrap items-center gap-1.5 border-t border-border pt-3 dark:border-slate-800">
+        <span className="mr-1 text-sm text-muted-foreground">
+          {t("billing.features_label")}:
+        </span>
+        {explicitFeatures.length > 0 ? (
+          explicitFeatures.map((feature) => (
+            <Badge key={feature} color="gray" variant="soft">
+              {getFeatureOptionLabel(feature, featureOptions)}
+            </Badge>
+          ))
+        ) : (
+          <span className="text-sm text-muted-foreground">
+            {t("billing.default_features_hint", { defaultValue: "未绑定套餐时使用默认权限。" })}
+          </span>
+        )}
+      </div>
+      {policy?.plan_note ? (
+        <div className="mt-2 text-sm text-muted-foreground">
+          {policy.plan_note}
+        </div>
+      ) : null}
+    </AdminSurface>
+  );
+}
+
 function ShopPanel({
   t,
+  policy,
   plans,
   methods,
   loading,
@@ -801,6 +973,7 @@ function ShopPanel({
   featureOptions,
 }: {
   t: TFunction;
+  policy?: UserPolicy;
   plans: BillingPlan[];
   methods: PaymentMethod[];
   loading: boolean;
@@ -828,113 +1001,125 @@ function ShopPanel({
   }
 
   return (
-    <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_24rem]">
-      <div className="overflow-hidden rounded-lg border border-border bg-card shadow-sm shadow-slate-900/5 dark:border-slate-800 dark:bg-slate-950">
-        {plans.map((plan) => {
-          const selected = String(plan.id) === selectedPlanID;
-          return (
-            <button
-              type="button"
-              key={plan.id}
-              className={cn(
-                "flex w-full min-w-0 flex-col gap-3 border-b border-border px-4 py-4 text-left transition-colors last:border-b-0 sm:flex-row sm:items-center sm:justify-between dark:border-slate-800",
-                selected
-                  ? "bg-blue-50/70 dark:bg-blue-950/25"
-                  : "bg-card hover:bg-muted/35",
-              )}
-              onClick={() => setSelectedPlanID(String(plan.id))}
-            >
-              <div className="min-w-0 flex-1">
-                <div className="flex min-w-0 items-center gap-2">
-                  {selected ? <CheckCircle2 className="h-4 w-4 shrink-0 text-blue-600" /> : null}
-                  <div className="truncate text-base font-semibold text-foreground">
-                    {plan.name}
+    <div className="space-y-4">
+      <PolicySummary
+        t={t}
+        policy={policy}
+        featureOptions={featureOptions}
+      />
+      <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_24rem]">
+        <div className="overflow-hidden rounded-lg border border-border bg-card shadow-sm shadow-slate-900/5 dark:border-slate-800 dark:bg-slate-950">
+          {plans.map((plan) => {
+            const selected = String(plan.id) === selectedPlanID;
+            return (
+              <button
+                type="button"
+                key={plan.id}
+                className={cn(
+                  "flex w-full min-w-0 flex-col gap-3 border-b border-border px-4 py-4 text-left transition-colors last:border-b-0 sm:flex-row sm:items-center sm:justify-between dark:border-slate-800",
+                  selected
+                    ? "bg-blue-50/70 dark:bg-blue-950/25"
+                    : "bg-card hover:bg-muted/35",
+                )}
+                onClick={() => setSelectedPlanID(String(plan.id))}
+              >
+                <div className="min-w-0 flex-1">
+                  <div className="flex min-w-0 items-center gap-2">
+                    {selected ? <CheckCircle2 className="h-4 w-4 shrink-0 text-blue-600" /> : null}
+                    <div className="truncate text-base font-semibold text-foreground">
+                      {plan.name}
+                    </div>
+                  </div>
+                  <div className="mt-1 line-clamp-2 text-sm text-muted-foreground">
+                    {plan.description || t("billing.no_description")}
+                  </div>
+                  <div className="mt-2 flex flex-wrap gap-1.5">
+                    {(plan.allowed_features || []).slice(0, 4).map((feature) => (
+                      <Badge key={feature} color="gray" variant="soft">
+                        {featureOptions.find((item) => item.value === feature)?.label || feature}
+                      </Badge>
+                    ))}
+                    {(plan.allowed_features || []).length > 4 ? (
+                      <Badge color="blue" variant="soft">+{(plan.allowed_features || []).length - 4}</Badge>
+                    ) : null}
                   </div>
                 </div>
-                <div className="mt-1 line-clamp-2 text-sm text-muted-foreground">
-                  {plan.description || t("billing.no_description")}
+                <div className="flex shrink-0 flex-row items-center justify-between gap-4 sm:min-w-44 sm:flex-col sm:items-end">
+                  <div className="text-xl font-semibold tracking-normal">
+                    {formatMoney(plan.price_cents, plan.currency)}
+                  </div>
+                  <div className="text-sm text-muted-foreground">
+                    {formatDays(plan.duration_days)} · {plan.server_quota > 0 ? t("billing.quota_count", { count: plan.server_quota }) : t("billing.unlimited_quota")}
+                  </div>
                 </div>
-                <div className="mt-2 flex flex-wrap gap-1.5">
-                  {(plan.allowed_features || []).slice(0, 4).map((feature) => (
-                    <Badge key={feature} color="gray" variant="soft">
-                      {featureOptions.find((item) => item.value === feature)?.label || feature}
-                    </Badge>
-                  ))}
-                  {(plan.allowed_features || []).length > 4 ? (
-                    <Badge color="blue" variant="soft">+{(plan.allowed_features || []).length - 4}</Badge>
-                  ) : null}
-                </div>
-              </div>
-              <div className="flex shrink-0 flex-row items-center justify-between gap-4 sm:min-w-44 sm:flex-col sm:items-end">
-                <div className="text-xl font-semibold tracking-normal">
-                  {formatMoney(plan.price_cents, plan.currency)}
-                </div>
-                <div className="text-sm text-muted-foreground">
-                  {formatDays(plan.duration_days)} · {plan.server_quota > 0 ? t("billing.quota_count", { count: plan.server_quota }) : t("billing.unlimited_quota")}
-                </div>
-              </div>
-            </button>
-          );
-        })}
-      </div>
-
-      <AdminSurface className="self-start rounded-lg border border-border bg-card p-4 shadow-sm shadow-slate-900/5 dark:border-slate-800 dark:bg-slate-950">
-        <div className="flex items-center gap-2 text-sm font-semibold">
-          <CreditCard className="h-4 w-4" />
-          {t("billing.checkout")}
+              </button>
+            );
+          })}
         </div>
-        <div className="mt-4 space-y-4">
-          <Field label={t("billing.payment_method")}>
-            <Select.Root value={selectedPaymentID} onValueChange={setSelectedPaymentID}>
-              <Select.Trigger className={ADMIN_FORM_SELECT_TRIGGER_CLASS} placeholder={t("billing.select_payment")} />
-              <Select.Content>
-                {methods.map((method) => (
-                  <Select.Item key={method.id} value={String(method.id)}>
-                    {method.name}
-                  </Select.Item>
-                ))}
-              </Select.Content>
-            </Select.Root>
-          </Field>
-          {selectedPayment ? (
-            <div className="rounded-lg border border-slate-200/80 bg-slate-50/70 p-3 text-sm dark:border-slate-800 dark:bg-slate-900/40">
-              <div className="font-medium">{selectedPayment.name}</div>
-              {selectedPayment.instructions ? (
-                <p className="mt-2 whitespace-pre-wrap text-muted-foreground">
-                  {selectedPayment.instructions}
-                </p>
-              ) : null}
-              {selectedPayment.payment_url ? (
-                <a
-                  className="mt-3 inline-flex text-blue-600 hover:underline dark:text-blue-400"
-                  href={selectedPayment.payment_url}
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                  {t("billing.open_payment_link")}
-                </a>
-              ) : null}
-              {selectedPayment.qr_image_url ? (
-                <div className="mt-3 flex items-center gap-3">
-                  <QrCode className="h-4 w-4 text-muted-foreground" />
+
+        <AdminSurface className="self-start rounded-lg border border-border bg-card p-4 shadow-sm shadow-slate-900/5 dark:border-slate-800 dark:bg-slate-950">
+          <div className="flex items-center gap-2 text-sm font-semibold">
+            <CreditCard className="h-4 w-4" />
+            {t("billing.checkout")}
+          </div>
+          <p className="mt-1 text-sm leading-6 text-muted-foreground">
+            {t("billing.checkout_hint", {
+              defaultValue: "创建订单并完成付款后，管理员确认收款即可自动开通对应权限。",
+            })}
+          </p>
+          <div className="mt-4 space-y-4">
+            <Field label={t("billing.payment_method")}>
+              <Select.Root value={selectedPaymentID} onValueChange={setSelectedPaymentID}>
+                <Select.Trigger className={ADMIN_FORM_SELECT_TRIGGER_CLASS} placeholder={t("billing.select_payment")} />
+                <Select.Content>
+                  {methods.map((method) => (
+                    <Select.Item key={method.id} value={String(method.id)}>
+                      {method.name}
+                    </Select.Item>
+                  ))}
+                </Select.Content>
+              </Select.Root>
+            </Field>
+            {selectedPayment ? (
+              <div className="rounded-lg border border-slate-200/80 bg-slate-50/70 p-3 text-sm dark:border-slate-800 dark:bg-slate-900/40">
+                <div className="font-medium">{selectedPayment.name}</div>
+                {selectedPayment.instructions ? (
+                  <p className="mt-2 whitespace-pre-wrap text-muted-foreground">
+                    {selectedPayment.instructions}
+                  </p>
+                ) : null}
+                {selectedPayment.payment_url && selectedPayment.type !== "epusdt" ? (
                   <a
-                    className="text-blue-600 hover:underline dark:text-blue-400"
-                    href={selectedPayment.qr_image_url}
+                    className="mt-3 inline-flex text-blue-600 hover:underline dark:text-blue-400"
+                    href={selectedPayment.payment_url}
                     target="_blank"
                     rel="noreferrer"
                   >
-                    {t("billing.open_qr")}
+                    {t("billing.open_payment_link")}
                   </a>
-                </div>
-              ) : null}
-            </div>
-          ) : null}
-          <Button className="w-full" onClick={createOrder} disabled={submitting || methods.length === 0}>
-            <ReceiptText className="mr-2 h-4 w-4" />
-            {t("billing.create_order")}
-          </Button>
-        </div>
-      </AdminSurface>
+                ) : null}
+                {selectedPayment.qr_image_url ? (
+                  <div className="mt-3 flex items-center gap-3">
+                    <QrCode className="h-4 w-4 text-muted-foreground" />
+                    <a
+                      className="text-blue-600 hover:underline dark:text-blue-400"
+                      href={selectedPayment.qr_image_url}
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      {t("billing.open_qr")}
+                    </a>
+                  </div>
+                ) : null}
+              </div>
+            ) : null}
+            <Button className="w-full" onClick={createOrder} disabled={submitting || methods.length === 0}>
+              <ReceiptText className="mr-2 h-4 w-4" />
+              {t("billing.create_order")}
+            </Button>
+          </div>
+        </AdminSurface>
+      </div>
     </div>
   );
 }
@@ -1178,6 +1363,7 @@ function OrdersTable({
   orders,
   loading,
   emptyTitle,
+  paymentMethods,
   admin,
   submitting,
   onMarkPaid,
@@ -1187,6 +1373,7 @@ function OrdersTable({
   orders: BillingOrder[];
   loading: boolean;
   emptyTitle: string;
+  paymentMethods?: PaymentMethod[];
   admin?: boolean;
   submitting?: boolean;
   onMarkPaid?: (order: BillingOrder) => void;
@@ -1204,92 +1391,170 @@ function OrdersTable({
     return <AdminEmptyState icon={<ReceiptText className="h-5 w-5" />} title={emptyTitle} />;
   }
   return (
-    <DataTableFrame
-      table={
-        <DataTable minWidth={admin ? 1120 : 920}>
-          <thead>
-            <AdminDataTableHeadRow>
-              <AdminDataTableHead>{t("billing.order_no")}</AdminDataTableHead>
-              {admin ? <AdminDataTableHead>{t("billing.user")}</AdminDataTableHead> : null}
-              <AdminDataTableHead>{t("billing.plan")}</AdminDataTableHead>
-              <AdminDataTableHead>{t("billing.amount")}</AdminDataTableHead>
-              <AdminDataTableHead>{t("billing.payment_method")}</AdminDataTableHead>
-              <AdminDataTableHead>{t("billing.status")}</AdminDataTableHead>
-              <AdminDataTableHead>{t("billing.created_at")}</AdminDataTableHead>
-              {admin ? <AdminDataTableHead align="right" sticky="right">{t("common.actions")}</AdminDataTableHead> : null}
-            </AdminDataTableHeadRow>
-          </thead>
-          <tbody>
-            {orderPagination.pageItems.map((order) => (
-              <AdminDataTableRow key={order.id}>
-                <AdminDataTableCell>
-                  <div className="font-mono text-xs">{order.order_no}</div>
-                  {order.payment_reference ? (
-                    <div className="mt-1 text-xs text-muted-foreground">
-                      {order.payment_reference}
-                    </div>
-                  ) : null}
-                </AdminDataTableCell>
-                {admin ? (
-                  <AdminDataTableCell>
-                    <div className="font-medium">{order.username || "-"}</div>
-                    <div className="max-w-[220px] truncate text-xs text-muted-foreground">{order.user_uuid}</div>
-                  </AdminDataTableCell>
-                ) : null}
-                <AdminDataTableCell>
-                  <div className="font-medium">{order.plan_name}</div>
-                  <div className="text-xs text-muted-foreground">{formatDays(order.duration_days)}</div>
-                </AdminDataTableCell>
-                <AdminDataTableCell>{formatMoney(order.amount_cents, order.currency)}</AdminDataTableCell>
-                <AdminDataTableCell>{order.payment_name || order.payment_code || "-"}</AdminDataTableCell>
-                <AdminDataTableCell>
-                  <Badge color={statusTone(order.status)} variant="soft">
-                    {t(`billing.status_${order.status}`, { defaultValue: order.status })}
-                  </Badge>
-                </AdminDataTableCell>
-                <AdminDataTableCell>{formatDateTime(order.created_at)}</AdminDataTableCell>
-                {admin ? (
-                  <AdminDataTableCell align="right" sticky="right">
-                    <AdminRowActions
-                      actions={[
-                        {
-                          label: t("billing.mark_paid"),
-                          icon: <CheckCircle2 className="h-4 w-4" />,
-                          hidden: order.status !== "pending" && order.status !== "paid",
-                          disabled: submitting,
-                          onSelect: () => onMarkPaid?.(order),
-                        },
-                        {
-                          label: t("billing.cancel_order"),
-                          icon: <XCircle className="h-4 w-4" />,
-                          hidden: order.status !== "pending",
-                          disabled: submitting,
-                          destructive: true,
-                          onSelect: () => onCancel?.(order),
-                        },
-                      ]}
-                    />
-                  </AdminDataTableCell>
-                ) : null}
-              </AdminDataTableRow>
-            ))}
-          </tbody>
-        </DataTable>
-      }
-      pagination={
-        <AdminPagination
-          page={orderPagination.page}
-          totalPages={orderPagination.totalPages}
-          total={orderPagination.total}
-          pageSize={orderPagination.pageSize}
-          visibleStart={orderPagination.visibleStart}
-          visibleEnd={orderPagination.visibleEnd}
-          onPageChange={orderPagination.setPage}
-          onPageSizeChange={orderPagination.setPageSize}
-          itemLabel={t("billing.tabs.orders")}
+    <div className="space-y-3">
+      {!admin ? (
+        <PendingPaymentNotice
+          t={t}
+          orders={orders}
+          paymentMethods={paymentMethods || []}
         />
-      }
-    />
+      ) : null}
+      <DataTableFrame
+        table={
+          <DataTable minWidth={admin ? 1120 : 920}>
+            <thead>
+              <AdminDataTableHeadRow>
+                <AdminDataTableHead>{t("billing.order_no")}</AdminDataTableHead>
+                {admin ? <AdminDataTableHead>{t("billing.user")}</AdminDataTableHead> : null}
+                <AdminDataTableHead>{t("billing.plan")}</AdminDataTableHead>
+                <AdminDataTableHead>{t("billing.amount")}</AdminDataTableHead>
+                <AdminDataTableHead>{t("billing.payment_method")}</AdminDataTableHead>
+                <AdminDataTableHead>{t("billing.status")}</AdminDataTableHead>
+                <AdminDataTableHead>{t("billing.created_at")}</AdminDataTableHead>
+                {admin ? <AdminDataTableHead align="right" sticky="right">{t("common.actions")}</AdminDataTableHead> : null}
+              </AdminDataTableHeadRow>
+            </thead>
+            <tbody>
+              {orderPagination.pageItems.map((order) => (
+                <AdminDataTableRow key={order.id}>
+                  <AdminDataTableCell>
+                    <div className="font-mono text-xs">{order.order_no}</div>
+                    {order.payment_reference ? (
+                      <div className="mt-1 text-xs text-muted-foreground">
+                        {order.payment_reference}
+                      </div>
+                    ) : null}
+                  </AdminDataTableCell>
+                  {admin ? (
+                    <AdminDataTableCell>
+                      <div className="font-medium">{order.username || "-"}</div>
+                      <div className="max-w-[220px] truncate text-xs text-muted-foreground">{order.user_uuid}</div>
+                    </AdminDataTableCell>
+                  ) : null}
+                  <AdminDataTableCell>
+                    <div className="font-medium">{order.plan_name}</div>
+                    <div className="text-xs text-muted-foreground">{formatDays(order.duration_days)}</div>
+                  </AdminDataTableCell>
+                  <AdminDataTableCell>{formatMoney(order.amount_cents, order.currency)}</AdminDataTableCell>
+                  <AdminDataTableCell>{order.payment_name || order.payment_code || "-"}</AdminDataTableCell>
+                  <AdminDataTableCell>
+                    <Badge color={statusTone(order.status)} variant="soft">
+                      {t(`billing.status_${order.status}`, { defaultValue: order.status })}
+                    </Badge>
+                  </AdminDataTableCell>
+                  <AdminDataTableCell>{formatDateTime(order.created_at)}</AdminDataTableCell>
+                  {admin ? (
+                    <AdminDataTableCell align="right" sticky="right">
+                      <AdminRowActions
+                        actions={[
+                          {
+                            label: t("billing.mark_paid"),
+                            icon: <CheckCircle2 className="h-4 w-4" />,
+                            hidden: order.status !== "pending" && order.status !== "paid",
+                            disabled: submitting,
+                            onSelect: () => onMarkPaid?.(order),
+                          },
+                          {
+                            label: t("billing.cancel_order"),
+                            icon: <XCircle className="h-4 w-4" />,
+                            hidden: order.status !== "pending",
+                            disabled: submitting,
+                            destructive: true,
+                            onSelect: () => onCancel?.(order),
+                          },
+                        ]}
+                      />
+                    </AdminDataTableCell>
+                  ) : null}
+                </AdminDataTableRow>
+              ))}
+            </tbody>
+          </DataTable>
+        }
+        pagination={
+          <AdminPagination
+            page={orderPagination.page}
+            totalPages={orderPagination.totalPages}
+            total={orderPagination.total}
+            pageSize={orderPagination.pageSize}
+            visibleStart={orderPagination.visibleStart}
+            visibleEnd={orderPagination.visibleEnd}
+            onPageChange={orderPagination.setPage}
+            onPageSizeChange={orderPagination.setPageSize}
+            itemLabel={t("billing.tabs.orders")}
+          />
+        }
+      />
+    </div>
+  );
+}
+
+function PendingPaymentNotice({
+  t,
+  orders,
+  paymentMethods,
+}: {
+  t: TFunction;
+  orders: BillingOrder[];
+  paymentMethods: PaymentMethod[];
+}) {
+  const pendingOrder = orders.find((order) => order.status === "pending");
+  if (!pendingOrder) {
+    return null;
+  }
+  const method = paymentMethods.find((item) => item.id === pendingOrder.payment_method_id);
+  const paymentHref =
+    pendingOrder.payment_url ||
+    (method?.type === "epusdt" ? "" : method?.payment_url || "");
+
+  return (
+    <AdminSurface className="rounded-lg border border-amber-200/80 bg-amber-50/70 px-4 py-3 text-sm shadow-sm shadow-amber-950/5 dark:border-amber-900/60 dark:bg-amber-950/20">
+      <div className="flex min-w-0 flex-wrap items-center justify-between gap-2">
+        <div className="min-w-0">
+          <div className="font-semibold text-amber-950 dark:text-amber-100">
+            {t("billing.pending_payment_title", { defaultValue: "待付款订单" })}
+          </div>
+          <div className="mt-1 text-amber-900/80 dark:text-amber-100/75">
+            {pendingOrder.order_no} · {pendingOrder.plan_name} · {formatMoney(pendingOrder.amount_cents, pendingOrder.currency)}
+          </div>
+        </div>
+        <Badge color="amber" variant="soft">
+          {pendingOrder.payment_name || method?.name || t("billing.payment_method")}
+        </Badge>
+      </div>
+      <p className="mt-2 leading-6 text-amber-900/80 dark:text-amber-100/75">
+        {t("billing.pending_payment_description", {
+          defaultValue: "完成付款后等待管理员确认，确认后权限会自动生效。",
+        })}
+      </p>
+      {method?.instructions ? (
+        <p className="mt-2 whitespace-pre-wrap rounded-md border border-amber-200/70 bg-white/70 p-2 text-amber-950 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-100">
+          {method.instructions}
+        </p>
+      ) : null}
+      <div className="mt-2 flex flex-wrap gap-3">
+        {paymentHref ? (
+          <a
+            className="font-medium text-blue-700 hover:underline dark:text-blue-300"
+            href={paymentHref}
+            target="_blank"
+            rel="noreferrer"
+          >
+            {t("billing.open_payment_link")}
+          </a>
+        ) : null}
+        {method?.qr_image_url ? (
+          <a
+            className="font-medium text-blue-700 hover:underline dark:text-blue-300"
+            href={method.qr_image_url}
+            target="_blank"
+            rel="noreferrer"
+          >
+            {t("billing.open_qr")}
+          </a>
+        ) : null}
+      </div>
+    </AdminSurface>
   );
 }
 
@@ -1315,9 +1580,18 @@ function PlanDialog({
   const toggleFeature = (feature: AccountFeature, checked: boolean) => {
     setForm((prev) => ({
       ...prev,
-      allowedFeatures: checked
-        ? Array.from(new Set([...prev.allowedFeatures, feature]))
-        : prev.allowedFeatures.filter((item) => item !== feature),
+      allowedFeatures: normalizeFeatureList(
+        checked
+          ? [
+              ...prev.allowedFeatures,
+              feature,
+              ...(SERVER_BOUND_FEATURES.has(feature) ? ["clients" as AccountFeature] : []),
+            ]
+          : feature === "clients"
+            ? prev.allowedFeatures.filter((item) => item === "clients" ? false : !SERVER_BOUND_FEATURES.has(item))
+            : prev.allowedFeatures.filter((item) => item !== feature),
+        featureOptions.map((item) => item.value),
+      ),
     }));
   };
 
@@ -1419,6 +1693,24 @@ function PaymentDialog({
   onOpenChange: (open: boolean) => void;
   onSave: () => void;
 }) {
+  const updateEpusdt = (patch: Partial<EpusdtPaymentConfig>) => {
+    setForm((prev) => ({
+      ...prev,
+      epusdt: {
+        ...prev.epusdt,
+        ...patch,
+      },
+    }));
+  };
+  const handleTypeChange = (value: string) => {
+    setForm((prev) => ({
+      ...prev,
+      type: value,
+      code: value === "epusdt" && !prev.code ? "epusdt" : prev.code,
+      name: value === "epusdt" && !prev.name ? "Epusdt" : prev.name,
+    }));
+  };
+
   return (
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
       <Dialog.Content className={ADMIN_FORM_DIALOG_CLASS} maxWidth="48rem">
@@ -1435,26 +1727,59 @@ function PaymentDialog({
                 <TextField.Root value={form.name} onChange={(event) => setForm((prev) => ({ ...prev, name: event.target.value }))} placeholder="Manual payment" />
               </Field>
               <Field label={t("billing.type")}>
-                <Select.Root value={form.type} onValueChange={(value) => setForm((prev) => ({ ...prev, type: value }))}>
+                <Select.Root value={form.type} onValueChange={handleTypeChange}>
                   <Select.Trigger className={ADMIN_FORM_SELECT_TRIGGER_CLASS} />
                   <Select.Content>
                     <Select.Item value="manual">{t("billing.payment_type_manual")}</Select.Item>
                     <Select.Item value="alipay">{t("billing.payment_type_alipay")}</Select.Item>
                     <Select.Item value="wechat">{t("billing.payment_type_wechat")}</Select.Item>
                     <Select.Item value="stripe">{t("billing.payment_type_stripe")}</Select.Item>
+                    <Select.Item value="epusdt">{t("billing.payment_type_epusdt", { defaultValue: "Epusdt" })}</Select.Item>
                   </Select.Content>
                 </Select.Root>
               </Field>
               <Field label={t("billing.sort_order")}>
                 <TextField.Root value={form.sortOrder} onChange={(event) => setForm((prev) => ({ ...prev, sortOrder: event.target.value }))} type="number" />
               </Field>
-              <Field label={t("billing.payment_url")}>
-                <TextField.Root value={form.paymentURL} onChange={(event) => setForm((prev) => ({ ...prev, paymentURL: event.target.value }))} placeholder="https://" />
-              </Field>
-              <Field label={t("billing.qr_image_url")}>
-                <TextField.Root value={form.qrImageURL} onChange={(event) => setForm((prev) => ({ ...prev, qrImageURL: event.target.value }))} placeholder="https://" />
-              </Field>
+              {form.type === "epusdt" ? (
+                <>
+                  <Field label={t("billing.epusdt_gateway_url", { defaultValue: "Epusdt 网关地址" })} required>
+                    <TextField.Root value={form.paymentURL} onChange={(event) => setForm((prev) => ({ ...prev, paymentURL: event.target.value }))} placeholder="https://pay.example.com" />
+                  </Field>
+                  <Field label={t("billing.epusdt_pid", { defaultValue: "商户 PID" })} required>
+                    <TextField.Root value={form.epusdt.pid} onChange={(event) => updateEpusdt({ pid: event.target.value })} placeholder="1000" />
+                  </Field>
+                  <Field label={t("billing.epusdt_secret_key", { defaultValue: "商户 Secret Key" })} required>
+                    <TextField.Root value={form.epusdt.secret_key} onChange={(event) => updateEpusdt({ secret_key: event.target.value })} type="password" placeholder="secret_key" />
+                  </Field>
+                  <Field label={t("billing.epusdt_currency", { defaultValue: "法币" })}>
+                    <TextField.Root value={form.epusdt.currency} onChange={(event) => updateEpusdt({ currency: event.target.value })} placeholder="cny" />
+                  </Field>
+                  <Field label={t("billing.epusdt_token", { defaultValue: "代币" })}>
+                    <TextField.Root value={form.epusdt.token} onChange={(event) => updateEpusdt({ token: event.target.value })} placeholder="usdt" />
+                  </Field>
+                  <Field label={t("billing.epusdt_network", { defaultValue: "网络" })}>
+                    <TextField.Root value={form.epusdt.network} onChange={(event) => updateEpusdt({ network: event.target.value })} placeholder="tron" />
+                  </Field>
+                </>
+              ) : (
+                <>
+                  <Field label={t("billing.payment_url")}>
+                    <TextField.Root value={form.paymentURL} onChange={(event) => setForm((prev) => ({ ...prev, paymentURL: event.target.value }))} placeholder="https://" />
+                  </Field>
+                  <Field label={t("billing.qr_image_url")}>
+                    <TextField.Root value={form.qrImageURL} onChange={(event) => setForm((prev) => ({ ...prev, qrImageURL: event.target.value }))} placeholder="https://" />
+                  </Field>
+                </>
+              )}
             </div>
+            {form.type === "epusdt" ? (
+              <p className="mt-3 rounded-lg border border-blue-200/80 bg-blue-50/80 px-3 py-2 text-sm leading-6 text-blue-900 dark:border-blue-900/60 dark:bg-blue-950/30 dark:text-blue-100">
+                {t("billing.epusdt_help", {
+                  defaultValue: "用户下单后会自动创建 Epusdt 托管收银台订单；支付成功回调会自动验签并开通套餐。",
+                })}
+              </p>
+            ) : null}
             <Field className="mt-3" label={t("billing.instructions")}>
               <TextArea value={form.instructions} onChange={(event) => setForm((prev) => ({ ...prev, instructions: event.target.value }))} rows={5} />
             </Field>

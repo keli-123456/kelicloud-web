@@ -149,10 +149,10 @@ const FEATURE_ORDER: AccountFeature[] = [
   "cloud_azure",
   "cloud_aws",
   "cloud_dns",
-  "cloud_failover",
+  "cloud_failover_v1",
+  "cloud_failover_v2",
   "clipboard",
   "logs",
-  "cn_connectivity",
 ];
 
 const LEGACY_CLOUD_FEATURES: AccountFeature[] = [
@@ -162,8 +162,15 @@ const LEGACY_CLOUD_FEATURES: AccountFeature[] = [
   "cloud_azure",
   "cloud_aws",
   "cloud_dns",
-  "cloud_failover",
+  "cloud_failover_v1",
+  "cloud_failover_v2",
 ];
+
+const LEGACY_FEATURE_ALIASES: Partial<Record<AccountFeature, AccountFeature[]>> = {
+  cloud_failover: ["cloud_failover_v1", "cloud_failover_v2"],
+};
+
+const SERVER_BOUND_FEATURES = FEATURE_ORDER.filter((feature) => feature !== "clients");
 
 const FEATURE_GROUPS: FeatureGroup[] = [
   {
@@ -192,21 +199,15 @@ const FEATURE_GROUPS: FeatureGroup[] = [
       "cloud_azure",
       "cloud_aws",
       "cloud_dns",
-      "cloud_failover",
+      "cloud_failover_v1",
+      "cloud_failover_v2",
     ],
-  },
-  {
-    titleKey: "admin.users.group_sensitive",
-    defaultTitle: "Additional probes",
-    descriptionKey: "admin.users.group_sensitive_description",
-    defaultDescription: "Low-frequency features with extra dependencies.",
-    features: ["cn_connectivity"],
   },
 ];
 
-const FEATURE_DEPENDENCIES: FeatureDependencyMap = {
-  cloud_failover: ["cn_connectivity"],
-};
+const FEATURE_DEPENDENCIES = Object.fromEntries(
+  SERVER_BOUND_FEATURES.map((feature) => [feature, ["clients"]]),
+) as FeatureDependencyMap;
 
 const PLAN_PRESETS: PlanPreset[] = [
   {
@@ -261,6 +262,10 @@ const normalizeFeatures = (
     const value = String(feature || "").trim().toLowerCase();
     if (value === "cloud") {
       return LEGACY_CLOUD_FEATURES;
+    }
+    const aliases = LEGACY_FEATURE_ALIASES[value as AccountFeature];
+    if (aliases?.length) {
+      return aliases;
     }
     return [value];
   });
@@ -398,6 +403,10 @@ const getFeatureLabel = (
       return t("admin.users.feature_cloud_dns", "DNS providers");
     case "cloud_failover":
       return t("admin.users.feature_cloud_failover", "Failover");
+    case "cloud_failover_v1":
+      return t("admin.users.feature_cloud_failover_v1", "Failover V1");
+    case "cloud_failover_v2":
+      return t("admin.users.feature_cloud_failover_v2", "Failover V2");
     case "clipboard":
       return t("admin.users.feature_clipboard", "Scripts");
     case "logs":
@@ -460,12 +469,12 @@ const applyFeatureSelection = (
     ? normalizeFeatures([...current, feature], availableFeatures)
     : current.filter((item) => item !== feature);
 
-  if (feature === "cloud_failover" && checked && availableSet.has("cn_connectivity")) {
-    next = normalizeFeatures([...next, "cn_connectivity"], availableFeatures);
+  if (checked && feature !== "clients" && availableSet.has("clients")) {
+    next = normalizeFeatures([...next, "clients"], availableFeatures);
   }
 
-  if (feature === "cn_connectivity" && !checked) {
-    next = next.filter((item) => item !== "cloud_failover");
+  if (feature === "clients" && !checked) {
+    next = next.filter((item) => item === "clients" ? false : !SERVER_BOUND_FEATURES.includes(item));
   }
 
   return next;
@@ -496,7 +505,7 @@ function FeatureAccessEditor({
         <div className="text-xs text-slate-500 dark:text-slate-400">
           {t(
             "admin.users.allowed_features_hint_v2",
-            "Leave everything unchecked to use default access. Selecting failover will also enable the CN connectivity probe dependency.",
+            "普通用户默认只保留账户和套餐商店。勾选任一菜单功能时，会自动绑定服务器页面权限。",
           )}
         </div>
       </div>

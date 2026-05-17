@@ -18,6 +18,7 @@ import LoginDialog from "../Login";
 import Tips from "../ui/tips";
 import {
   isAnyAccountFeatureAllowed,
+  type AccountFeature,
   useAccount,
 } from "@/contexts/AccountContext";
 import {
@@ -193,10 +194,10 @@ const getRequiredFeatureForPath = (target: string) => {
   const normalizedPath = normalizePath(targetUrl.pathname);
 
   if (normalizedPath === "/admin/failover-v2" || normalizedPath.startsWith("/admin/failover-v2/")) {
-    return "cloud_failover";
+    return "cloud_failover_v2";
   }
   if (normalizedPath === "/admin/failover" || normalizedPath.startsWith("/admin/failover/")) {
-    return "cloud_failover";
+    return "cloud_failover_v1";
   }
   if (normalizedPath === "/admin/dns" || normalizedPath.startsWith("/admin/dns/")) {
     return "cloud_dns";
@@ -507,7 +508,10 @@ function AdminPanelBarContent({ content }: AdminPanelBarProps) {
         || normalizedPath === "/admin/failover"
         || normalizedPath.startsWith("/admin/failover/")
       ) {
-        return hasFeature("cloud_failover") && hasFeature("cn_connectivity");
+        const feature: AccountFeature = normalizedPath.startsWith("/admin/failover-v2")
+          ? "cloud_failover_v2"
+          : "cloud_failover_v1";
+        return hasFeature(feature);
       }
       if (normalizedPath === "/admin/exec") {
         if (targetUrl.searchParams.get("view") === "scripts") {

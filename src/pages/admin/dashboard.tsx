@@ -302,7 +302,8 @@ function DashboardPageContent() {
     "cloud_azure",
     "cloud_aws",
     "cloud_dns",
-    "cloud_failover",
+    "cloud_failover_v1",
+    "cloud_failover_v2",
   ].some((feature) => hasFeature(feature as AccountFeature));
   const featureModules = [
     {

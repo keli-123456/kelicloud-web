@@ -555,11 +555,11 @@
       "userSearchPlaceholder": "搜尋使用者節點"
     },
     "notification": {
-      "expire_enable": "是否啟用過期提醒",
-      "expire_enable_description": "啟用後，kelicloud將在到期前發送提醒通知。",
-      "expire_time": "提前多少天開始提醒",
-      "expire_time_description": "設置在到期前多少天開始發送提醒通知。",
-      "expire_title": "過期提醒",
+      "expire_enable": "啟用套餐到期提醒",
+      "expire_enable_description": "啟用後，kelicloud 會在使用者套餐或伺服器到期前發送提醒通知。",
+      "expire_time": "提前提醒天數",
+      "expire_time_description": "設定在套餐或伺服器到期前多少天開始發送提醒通知。",
+      "expire_title": "套餐到期提醒",
       "login": "登錄通知",
       "login_description": "當有新的會話登錄到kelicloud時，向您發送通知",
       "traffic": "流量用量",
@@ -699,6 +699,13 @@
     "edit_payment": "编辑支付方式",
     "edit_plan": "编辑套餐",
     "enabled": "已启用",
+    "epusdt_currency": "法幣",
+    "epusdt_gateway_url": "Epusdt 閘道地址",
+    "epusdt_help": "使用者下單後會自動建立 Epusdt 託管收銀台訂單；支付成功回調會自動驗簽並開通套餐。",
+    "epusdt_network": "網路",
+    "epusdt_pid": "商戶 PID",
+    "epusdt_secret_key": "商戶 Secret Key",
+    "epusdt_token": "代幣",
     "expires_at": "到期时间",
     "features": {
       "clients": "服务器",
@@ -748,6 +755,7 @@
     "payment_reference": "支付流水/备注",
     "payment_saved": "支付方式已保存",
     "payment_type_alipay": "支付宝",
+    "payment_type_epusdt": "Epusdt",
     "payment_type_manual": "人工确认",
     "payment_type_stripe": "Stripe",
     "payment_type_wechat": "微信支付",
@@ -3651,7 +3659,22 @@
     "visible_badge": "{{count}} 可見"
   },
   "notification": {
+    "events": {
+      "description": "通知主要圍繞使用者套餐、故障切換和資源告警，不再維護獨立的離線通知規則。",
+      "failover_description": "故障切換任務觸發、等待人工處理和執行完成時通知任務所屬使用者。",
+      "failover_title": "故障切換",
+      "load_description": "負載閾值和流量閾值達到規則時發送資源告警。",
+      "load_title": "負載與流量",
+      "plan_expire_description": "套餐和伺服器到期前按提前天數提醒對應使用者。",
+      "plan_expire_title": "套餐到期",
+      "title": "通知範圍"
+    },
+    "general": {
+      "description": "套餐到期、故障切換和系統事件",
+      "title": "通知通道"
+    },
     "load": {
+      "description": "負載閾值告警",
       "title": "負載通知"
     },
     "offline": {
@@ -3670,7 +3693,7 @@
       "tips": "為了避免頻繁發送通知，我們設定了寬限期：</br> <b>寬限期</b>：客戶端離線後，如果在這段時間內沒有重新上線，就會發送離線通知",
       "title": "離線通知"
     },
-    "page_description": "集中配置离线、负载和通用通知策略，避免告警规则分散在不同页面。",
+    "page_description": "集中配置套餐到期、故障切換、負載和流量等通知策略。",
     "title": "通知"
   },
   "page_not_found": "真不巧，網頁被小鞠吃掉了。",
@@ -3866,7 +3889,7 @@
         "username": "用戶名"
       },
       "enable": "開啟通知",
-      "enable_description": "通過首選方式獲取及時通知。",
+      "enable_description": "開啟後，套餐到期、故障切換、負載和流量等事件會通過當前渠道發送。",
       "fetch_channels_error": "獲取消息通道資訊失敗",
       "fetch_settings_error": "獲取通知設定失敗",
       "Javascript": {
@@ -3891,7 +3914,7 @@
       "smtp_username": "用戶名",
       "target_binding_bark_device_key": "Bark 设备 Key",
       "target_binding_bark_device_key_description": "填写你自己的 Bark 设备 Key。留空则不会向你的 Bark 目标发送通知。",
-      "target_binding_description": "平台统一选择通知渠道，每个用户在这里绑定自己的接收目标。",
+      "target_binding_description": "平台統一選擇通知渠道，每個使用者在這裡綁定自己的接收目標，用於接收套餐到期、故障切換和資源告警。",
       "target_binding_disabled": "平台通知当前未启用。你仍然可以先保存自己的接收目标，等平台开启后生效。",
       "target_binding_no_method": "平台还没有设置通知渠道，暂时无法绑定个人接收目标。",
       "target_binding_telegram_chat_id": "Telegram Chat ID",

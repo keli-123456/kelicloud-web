@@ -555,11 +555,11 @@
       "userSearchPlaceholder": "ユーザーのノードを検索"
     },
     "notification": {
-      "expire_enable": "期限切れ通知を有効にしますか",
-      "expire_enable_description": "有効にすると、kelicloudは期限前に通知を送信します。",
-      "expire_time": "何日前から通知を開始しますか",
-      "expire_time_description": "期限前に何日前から通知を送信するかを設定します。",
-      "expire_title": "期限切れ通知",
+      "expire_enable": "プラン期限通知を有効化",
+      "expire_enable_description": "有効にすると、kelicloud はユーザープランまたはサーバーの期限前に通知します。",
+      "expire_time": "通知開始日数",
+      "expire_time_description": "プランまたはサーバー期限の何日前から通知を開始するかを設定します。",
+      "expire_title": "プラン期限通知",
       "login": "ログイン通知",
       "login_description": "新しいセッションがkelicloudにログインしたときに通知を送信します。",
       "traffic": "トラフィック使用量",
@@ -699,6 +699,13 @@
     "edit_payment": "编辑支付方式",
     "edit_plan": "编辑套餐",
     "enabled": "已启用",
+    "epusdt_currency": "Currency",
+    "epusdt_gateway_url": "Epusdt gateway URL",
+    "epusdt_help": "After a user creates an order, kelicloud creates an Epusdt hosted checkout order. The successful payment callback is verified and fulfills the plan automatically.",
+    "epusdt_network": "Network",
+    "epusdt_pid": "Merchant PID",
+    "epusdt_secret_key": "Merchant Secret Key",
+    "epusdt_token": "Token",
     "expires_at": "到期时间",
     "features": {
       "clients": "服务器",
@@ -748,6 +755,7 @@
     "payment_reference": "支付流水/备注",
     "payment_saved": "支付方式已保存",
     "payment_type_alipay": "支付宝",
+    "payment_type_epusdt": "Epusdt",
     "payment_type_manual": "人工确认",
     "payment_type_stripe": "Stripe",
     "payment_type_wechat": "微信支付",
@@ -3651,7 +3659,22 @@
     "visible_badge": "{{count}} 件表示"
   },
   "notification": {
+    "events": {
+      "description": "通知はユーザープラン、フェイルオーバー、リソースアラートを中心に扱います。独立したオフライン通知ルールは維持しません。",
+      "failover_description": "フェイルオーバータスクの起動、手動確認待ち、完了時に所有ユーザーへ通知します。",
+      "failover_title": "フェイルオーバー",
+      "load_description": "負荷またはトラフィックしきい値に達したときにリソースアラートを送信します。",
+      "load_title": "負荷とトラフィック",
+      "plan_expire_description": "プランとサーバーの期限前に対象ユーザーへ通知します。",
+      "plan_expire_title": "プラン期限",
+      "title": "通知範囲"
+    },
+    "general": {
+      "description": "プラン期限、フェイルオーバー、システムイベント",
+      "title": "通知チャンネル"
+    },
     "load": {
+      "description": "負荷しきい値アラート",
       "title": "負荷通知"
     },
     "offline": {
@@ -3670,7 +3693,7 @@
       "tips": "頻繁な通知を避けるために、猶予期間を設定しました：</br> <b>猶予期間</b>：クライアントがオフラインになった後、この期間内に再度オンラインにならなければ、オフライン通知が送信されます。",
       "title": "オフライン通知"
     },
-    "page_description": "集中配置离线、负载和通用通知策略，避免告警规则分散在不同页面。",
+    "page_description": "プラン期限、フェイルオーバー、負荷、トラフィック通知をまとめて設定します。",
     "title": "通知"
   },
   "page_not_found": "残念ながら、ページは小鞠に食べられてしまいました。",
@@ -3866,7 +3889,7 @@
         "username": "ユーザー名"
       },
       "enable": "通知を有効にする",
-      "enable_description": "好みの方法でタイムリーな通知を受け取ります。",
+      "enable_description": "選択したチャンネルでプラン期限、フェイルオーバー、負荷、トラフィック通知を送信します。",
       "fetch_channels_error": "通知チャネルの読み込みに失敗しました",
       "fetch_settings_error": "通知設定の読み込みに失敗しました",
       "Javascript": {
@@ -3891,7 +3914,7 @@
       "smtp_username": "ユーザー名",
       "target_binding_bark_device_key": "Bark device key",
       "target_binding_bark_device_key_description": "Set your own Bark device key. Leave empty to skip Bark delivery for your account.",
-      "target_binding_description": "The platform chooses the notification channel globally, and each user binds their own delivery target here.",
+      "target_binding_description": "プラットフォームが通知チャンネルを一元的に選択し、各ユーザーはプラン期限、フェイルオーバー、リソースアラート用の受信先をここで設定します。",
       "target_binding_disabled": "Platform notifications are currently disabled. You can still save your own target now and it will take effect after notifications are enabled.",
       "target_binding_no_method": "No platform notification channel is configured yet, so there is no personal delivery target to bind.",
       "target_binding_telegram_chat_id": "Telegram chat ID",

@@ -10353,7 +10353,7 @@ function FailoverPageContent() {
   }, [allowedPlanProviders]);
 
   React.useEffect(() => {
-    if (accountLoading || !hasFeature("cloud_failover") || !hasFeature("cn_connectivity")) {
+    if (accountLoading || !hasFeature("cloud_failover_v1")) {
       return;
     }
 
@@ -10361,7 +10361,7 @@ function FailoverPageContent() {
   }, [accountLoading, hasFeature, refreshResources, refreshTasks]);
 
   React.useEffect(() => {
-    if (accountLoading || !hasFeature("cloud_failover") || !hasFeature("cn_connectivity")) {
+    if (accountLoading || !hasFeature("cloud_failover_v1")) {
       return;
     }
 
@@ -10708,7 +10708,7 @@ function FailoverPageContent() {
     );
   }
 
-  if (!hasFeature("cloud_failover") || !hasFeature("cn_connectivity")) {
+  if (!hasFeature("cloud_failover_v1")) {
     return <Navigate to={getDefaultAdminPath(account)} replace />;
   }
 

@@ -1,5 +1,6 @@
 import React from "react";
 import { useTranslation } from "react-i18next";
+import { CalendarClock, GitBranch, Gauge } from "lucide-react";
 import { toast } from "sonner";
 
 import { AdminSettingsSkeleton } from "@/components/admin/AdminPageShell";
@@ -272,8 +273,71 @@ const Inner = () => {
     );
   };
 
+  const eventScopes = [
+    {
+      icon: CalendarClock,
+      title: t("notification.events.plan_expire_title", {
+        defaultValue: "套餐到期",
+      }),
+      description: t("notification.events.plan_expire_description", {
+        defaultValue: "套餐和服务器到期前按提前天数提醒对应用户。",
+      }),
+    },
+    {
+      icon: GitBranch,
+      title: t("notification.events.failover_title", {
+        defaultValue: "故障切换",
+      }),
+      description: t("notification.events.failover_description", {
+        defaultValue: "故障切换任务触发、等待人工处理和执行完成时通知任务所属用户。",
+      }),
+    },
+    {
+      icon: Gauge,
+      title: t("notification.events.load_title", {
+        defaultValue: "负载与流量",
+      }),
+      description: t("notification.events.load_description", {
+        defaultValue: "负载阈值和流量阈值达到规则时发送资源告警。",
+      }),
+    },
+  ];
+
   return (
     <div className="grid gap-4">
+      <section className={notificationPanelClass}>
+        <SettingCardLabel>
+          {t("notification.events.title", {
+            defaultValue: "通知范围",
+          })}
+        </SettingCardLabel>
+        <div className="-mt-1 pb-1 text-sm text-muted-foreground">
+          {t("notification.events.description", {
+            defaultValue: "通知主要围绕用户套餐、故障切换和资源告警，不再维护独立的离线通知规则。",
+          })}
+        </div>
+        <div className="divide-y divide-border/70">
+          {eventScopes.map((item) => {
+            const Icon = item.icon;
+            return (
+              <div key={item.title} className="flex items-start gap-3 py-3">
+                <span className="mt-0.5 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
+                  <Icon className="h-4 w-4" />
+                </span>
+                <span className="min-w-0">
+                  <span className="block text-sm font-semibold text-foreground">
+                    {item.title}
+                  </span>
+                  <span className="mt-1 block text-sm leading-6 text-muted-foreground">
+                    {item.description}
+                  </span>
+                </span>
+              </div>
+            );
+          })}
+        </div>
+      </section>
+
       <section className={notificationPanelClass}>
         <SettingCardLabel>
           {t("settings.notification.target_binding_title")}

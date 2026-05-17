@@ -86,7 +86,13 @@ const fieldLabels: Record<string, string> = {
   dns_payload: "DNS 配置",
   dns_record_refs: "DNS 记录引用",
   entry_id: "凭证",
+  "epusdt config": "Epusdt 配置",
+  "epusdt gateway url": "Epusdt 网关地址",
+  "epusdt pid": "Epusdt 商户 PID",
+  "epusdt secret key": "Epusdt 商户 Secret Key",
   plan_payload: "计划参数",
+  "payment method code": "支付方式编码",
+  "payment method name": "支付方式名称",
   provider: "云服务商",
   provider_entry_group: "凭证分组",
   provider_entry_id: "云凭证",
@@ -155,6 +161,8 @@ function translateAction(action: string) {
   if (normalized.includes("delete instance")) return "删除实例";
   if (normalized.includes("fetch settings")) return "获取设置";
   if (normalized.includes("update settings")) return "保存设置";
+  if (normalized.includes("save payment method")) return "保存支付方式";
+  if (normalized.includes("create billing order")) return "创建订单";
   return action.trim() || "操作";
 }
 

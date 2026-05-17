@@ -555,11 +555,11 @@
       "userSearchPlaceholder": "Cari node pengguna"
     },
     "notification": {
-      "expire_enable": "Aktifkan Pengingat Kedaluwarsa",
-      "expire_enable_description": "Jika diaktifkan, sistem akan mengirimkan notifikasi pengingat sebelum masa kedaluwarsa.",
-      "expire_time": "Hari Sebelum Pengingat",
-      "expire_time_description": "Atur berapa hari sebelumnya notifikasi pengingat akan dikirim sebelum masa kedaluwarsa.",
-      "expire_title": "Notifikasi Kedaluwarsa",
+      "expire_enable": "Aktifkan pengingat kedaluwarsa paket",
+      "expire_enable_description": "Jika diaktifkan, kelicloud akan mengingatkan pengguna sebelum paket atau server kedaluwarsa.",
+      "expire_time": "Hari sebelum pengingat",
+      "expire_time_description": "Atur berapa hari sebelum paket atau server kedaluwarsa pengingat mulai dikirim.",
+      "expire_title": "Pengingat kedaluwarsa paket",
       "login": "Notifikasi Masuk",
       "login_description": "Kirim notifikasi saat sesi baru masuk ke kelicloud.",
       "traffic": "Penggunaan Trafik",
@@ -699,6 +699,13 @@
     "edit_payment": "编辑支付方式",
     "edit_plan": "编辑套餐",
     "enabled": "已启用",
+    "epusdt_currency": "Currency",
+    "epusdt_gateway_url": "Epusdt gateway URL",
+    "epusdt_help": "After a user creates an order, kelicloud creates an Epusdt hosted checkout order. The successful payment callback is verified and fulfills the plan automatically.",
+    "epusdt_network": "Network",
+    "epusdt_pid": "Merchant PID",
+    "epusdt_secret_key": "Merchant Secret Key",
+    "epusdt_token": "Token",
     "expires_at": "到期时间",
     "features": {
       "clients": "服务器",
@@ -748,6 +755,7 @@
     "payment_reference": "支付流水/备注",
     "payment_saved": "支付方式已保存",
     "payment_type_alipay": "支付宝",
+    "payment_type_epusdt": "Epusdt",
     "payment_type_manual": "人工确认",
     "payment_type_stripe": "Stripe",
     "payment_type_wechat": "微信支付",
@@ -3651,7 +3659,22 @@
     "visible_badge": "{{count}} terlihat"
   },
   "notification": {
+    "events": {
+      "description": "Notifikasi kini berfokus pada paket pengguna, failover, dan peringatan sumber daya. Aturan notifikasi offline mandiri tidak lagi dipertahankan.",
+      "failover_description": "Beri tahu pemilik tugas saat failover dipicu, menunggu tinjauan manual, atau selesai.",
+      "failover_title": "Failover",
+      "load_description": "Kirim peringatan sumber daya saat ambang beban atau trafik tercapai.",
+      "load_title": "Beban dan trafik",
+      "plan_expire_description": "Ingatkan pengguna sebelum paket dan server kedaluwarsa.",
+      "plan_expire_title": "Kedaluwarsa paket",
+      "title": "Lingkup notifikasi"
+    },
+    "general": {
+      "description": "Kedaluwarsa paket, failover, dan event sistem",
+      "title": "Kanal notifikasi"
+    },
     "load": {
+      "description": "Peringatan ambang beban",
       "title": "Beban"
     },
     "offline": {
@@ -3670,7 +3693,7 @@
       "tips": "Untuk mencegah notifikasi terlalu sering, kami menggunakan masa tenggang:</br> <b>Masa Tenggang</b>: Jika klien offline dan tidak terhubung kembali dalam waktu ini, notifikasi offline akan dikirim.",
       "title": "Mati"
     },
-    "page_description": "集中配置离线、负载和通用通知策略，避免告警规则分散在不同页面。",
+    "page_description": "Konfigurasikan notifikasi kedaluwarsa paket, failover, beban, dan trafik di satu tempat.",
     "title": "Notifikasi"
   },
   "page_not_found": "Server tidak dapat menemukan halaman yang Anda minta.",
@@ -3866,7 +3889,7 @@
         "username": "Nama Pengguna"
       },
       "enable": "Aktifkan Notifikasi",
-      "enable_description": "Aktifkan untuk mendapatkan pembaruan melalui metode pilihan Anda.",
+      "enable_description": "Kirim event kedaluwarsa paket, failover, beban, dan trafik melalui kanal yang dipilih.",
       "fetch_channels_error": "Gagal memuat saluran pesan",
       "fetch_settings_error": "Gagal memuat pengaturan notifikasi",
       "Javascript": {
@@ -3891,7 +3914,7 @@
       "smtp_username": "Nama Pengguna",
       "target_binding_bark_device_key": "Bark device key",
       "target_binding_bark_device_key_description": "Set your own Bark device key. Leave empty to skip Bark delivery for your account.",
-      "target_binding_description": "The platform chooses the notification channel globally, and each user binds their own delivery target here.",
+      "target_binding_description": "Platform memilih kanal notifikasi secara global, dan setiap pengguna mengikat target penerimaan sendiri untuk kedaluwarsa paket, failover, dan peringatan sumber daya.",
       "target_binding_disabled": "Platform notifications are currently disabled. You can still save your own target now and it will take effect after notifications are enabled.",
       "target_binding_no_method": "No platform notification channel is configured yet, so there is no personal delivery target to bind.",
       "target_binding_telegram_chat_id": "Telegram chat ID",

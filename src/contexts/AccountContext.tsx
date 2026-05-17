@@ -15,6 +15,8 @@ export type AccountFeature =
   | "cloud_aws"
   | "cloud_dns"
   | "cloud_failover"
+  | "cloud_failover_v1"
+  | "cloud_failover_v2"
   | "clipboard"
   | "logs"
   | "cn_connectivity";
@@ -36,21 +38,7 @@ export function isPlatformAdminAccount(account: Account | null) {
   return (account?.role || "").toLowerCase() === "admin";
 }
 
-const defaultGrantedAccountFeatures = new Set<AccountFeature>([
-  "clients",
-  "records",
-  "tasks",
-  "notifications",
-  "cloud_digitalocean",
-  "cloud_linode",
-  "cloud_vultr",
-  "cloud_azure",
-  "cloud_aws",
-  "cloud_dns",
-  "cloud_failover",
-  "clipboard",
-  "logs",
-]);
+const defaultGrantedAccountFeatures = new Set<AccountFeature>();
 
 const legacyCloudAccountFeatures: AccountFeature[] = [
   "cloud_digitalocean",
@@ -59,7 +47,8 @@ const legacyCloudAccountFeatures: AccountFeature[] = [
   "cloud_azure",
   "cloud_aws",
   "cloud_dns",
-  "cloud_failover",
+  "cloud_failover_v1",
+  "cloud_failover_v2",
 ];
 
 export function isDefaultGrantedAccountFeature(feature: AccountFeature) {
@@ -88,6 +77,16 @@ export function isAccountFeatureAllowed(
     return (
       allowed.includes("cloud") ||
       legacyCloudAccountFeatures.some((item) => allowed.includes(item))
+    );
+  }
+  if (feature === "cloud_failover_v1" || feature === "cloud_failover_v2") {
+    return allowed.includes(feature) || allowed.includes("cloud_failover");
+  }
+  if (feature === "cloud_failover") {
+    return (
+      allowed.includes("cloud_failover") ||
+      allowed.includes("cloud_failover_v1") ||
+      allowed.includes("cloud_failover_v2")
     );
   }
 
@@ -122,11 +121,11 @@ export function getDefaultAdminPath(account: Account | null) {
   if (isAccountFeatureAllowed(account, "cloud_dns")) {
     return "/admin/dns";
   }
-  if (
-    isAccountFeatureAllowed(account, "cloud_failover") &&
-    isAccountFeatureAllowed(account, "cn_connectivity")
-  ) {
+  if (isAccountFeatureAllowed(account, "cloud_failover_v1")) {
     return "/admin/failover";
+  }
+  if (isAccountFeatureAllowed(account, "cloud_failover_v2")) {
+    return "/admin/failover-v2";
   }
   if (isAccountFeatureAllowed(account, "notifications")) {
     return "/admin/notification";
@@ -140,7 +139,7 @@ export function getDefaultAdminPath(account: Account | null) {
   if (isAccountFeatureAllowed(account, "logs")) {
     return "/admin/audit?tab=logs";
   }
-  return "/admin/account";
+  return "/admin/billing";
 }
 
 interface AccountContextType {
