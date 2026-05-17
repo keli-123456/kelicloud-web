@@ -5,9 +5,11 @@ import {
   CheckCircle2,
   CircleDotDashed,
   Clock3,
+  Eye,
   GitMerge,
   RefreshCw,
   Search,
+  ShieldCheck,
   XCircle,
 } from "lucide-react";
 
@@ -22,6 +24,8 @@ import {
 import { cn } from "@/lib/utils";
 
 const PAGE_SIZE = 12;
+const SOURCE_FILTERS = ["all", "ddns", "failover_v1", "failover_v2"] as const;
+type SourceFilter = (typeof SOURCE_FILTERS)[number];
 
 function formatDateTime(value?: string | null) {
   if (!value) return "-";
@@ -45,6 +49,10 @@ function statusColor(status: string) {
       return "red";
     case "skipped_duplicate":
       return "amber";
+    case "disabled":
+      return "gray";
+    case "watching":
+      return "blue";
     default:
       return "blue";
   }
@@ -58,6 +66,10 @@ function statusIcon(status: string) {
       return <XCircle className="h-3.5 w-3.5" />;
     case "skipped_duplicate":
       return <GitMerge className="h-3.5 w-3.5" />;
+    case "watching":
+      return <Eye className="h-3.5 w-3.5" />;
+    case "disabled":
+      return <CircleDotDashed className="h-3.5 w-3.5" />;
     default:
       return <CircleDotDashed className="h-3.5 w-3.5" />;
   }
@@ -71,9 +83,46 @@ function statusLabel(status: string, t: ReturnType<typeof useTranslation>["t"]) 
       return t("cloud.dns.scheduler.status.error", { defaultValue: "异常" });
     case "skipped_duplicate":
       return t("cloud.dns.scheduler.status.skipped_duplicate", { defaultValue: "已合并" });
+    case "watching":
+      return t("cloud.dns.scheduler.status.watching", { defaultValue: "监听中" });
+    case "disabled":
+      return t("cloud.dns.scheduler.status.disabled", { defaultValue: "已停用" });
     default:
       return t("cloud.dns.scheduler.status.pending", { defaultValue: "待调度" });
   }
+}
+
+function sourceLabel(sourceType: string, t: ReturnType<typeof useTranslation>["t"]) {
+  switch (sourceType) {
+    case "ddns":
+      return t("cloud.dns.scheduler.source.ddns", { defaultValue: "DDNS" });
+    case "failover_v1":
+      return t("cloud.dns.scheduler.source.failover_v1", { defaultValue: "故障切换 V1" });
+    case "failover_v2":
+      return t("cloud.dns.scheduler.source.failover_v2", { defaultValue: "故障切换 V2" });
+    default:
+      return sourceType || "-";
+  }
+}
+
+function sourceColor(sourceType: string) {
+  switch (sourceType) {
+    case "ddns":
+      return "blue";
+    case "failover_v1":
+      return "amber";
+    case "failover_v2":
+      return "green";
+    default:
+      return "gray";
+  }
+}
+
+function sourceFilterLabel(sourceFilter: SourceFilter, t: ReturnType<typeof useTranslation>["t"]) {
+  if (sourceFilter === "all") {
+    return t("cloud.dns.scheduler.source.all", { defaultValue: "全部" });
+  }
+  return sourceLabel(sourceFilter, t);
 }
 
 function renderIPPair(item: DNSSchedulerItem) {
@@ -87,7 +136,7 @@ function renderIPPair(item: DNSSchedulerItem) {
 function SchedulerFlow() {
   const { t } = useTranslation();
   const steps = [
-    t("cloud.dns.scheduler.flow.scan", { defaultValue: "扫描启用绑定" }),
+    t("cloud.dns.scheduler.flow.scan", { defaultValue: "扫描 DDNS 和故障切换 DNS" }),
     t("cloud.dns.scheduler.flow.merge", { defaultValue: "按用户/令牌/记录合并" }),
     t("cloud.dns.scheduler.flow.diff", { defaultValue: "对比本地 IP 状态" }),
     t("cloud.dns.scheduler.flow.apply", { defaultValue: "必要时请求 DNS API" }),
@@ -122,6 +171,7 @@ function SchedulerToolbar({
 }) {
   const { t } = useTranslation();
   const run = snapshot?.last_run;
+  const execution = snapshot?.dns_execution;
 
   return (
     <div className="flex min-w-0 flex-col gap-3 rounded-lg border border-border bg-card px-4 py-3 shadow-sm shadow-slate-900/5 dark:border-slate-800 dark:bg-slate-950 md:flex-row md:items-center md:justify-between">
@@ -158,6 +208,56 @@ function SchedulerToolbar({
             })}
           </Badge>
         ) : null}
+        <span className="mx-1 hidden h-4 w-px bg-border sm:inline-block" />
+        <Badge color="blue">
+          {t("cloud.dns.scheduler.source_ddns_count", {
+            defaultValue: "DDNS {{count}}",
+            count: snapshot?.source_counts?.ddns || 0,
+          })}
+        </Badge>
+        <Badge color="amber">
+          {t("cloud.dns.scheduler.source_v1_count", {
+            defaultValue: "V1 {{count}}",
+            count: snapshot?.source_counts?.failover_v1 || 0,
+          })}
+        </Badge>
+        <Badge color="green">
+          {t("cloud.dns.scheduler.source_v2_count", {
+            defaultValue: "V2 {{count}}",
+            count: snapshot?.source_counts?.failover_v2 || 0,
+          })}
+        </Badge>
+        <span className="mx-1 hidden h-4 w-px bg-border sm:inline-block" />
+        <Badge color={execution?.inflight ? "blue" : "gray"}>
+          {t("cloud.dns.scheduler.execution_inflight", {
+            defaultValue: "执行中 {{count}}",
+            count: execution?.inflight || 0,
+          })}
+        </Badge>
+        <Badge color="gray">
+          {t("cloud.dns.scheduler.execution_api_requests", {
+            defaultValue: "API {{count}}",
+            count: execution?.api_requests || 0,
+          })}
+        </Badge>
+        <Badge color="blue">
+          {t("cloud.dns.scheduler.execution_cf_batch", {
+            defaultValue: "CF 批量 {{count}}",
+            count: execution?.cloudflare_batch_writes || 0,
+          })}
+        </Badge>
+        <Badge color="amber">
+          {t("cloud.dns.scheduler.execution_aliyun_single", {
+            defaultValue: "阿里云单条 {{count}}",
+            count: execution?.aliyun_single_writes || 0,
+          })}
+        </Badge>
+        <Badge color="amber">
+          {t("cloud.dns.scheduler.execution_coalesced", {
+            defaultValue: "并发合并 {{count}}",
+            count: execution?.coalesced || 0,
+          })}
+        </Badge>
       </div>
       <div className="flex shrink-0 items-center gap-2">
         <div className="hidden items-center gap-1 text-xs text-muted-foreground sm:flex">
@@ -193,6 +293,7 @@ export default function CloudDnsSchedulerSection() {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState("");
   const [query, setQuery] = useState("");
+  const [sourceFilter, setSourceFilter] = useState<SourceFilter>("all");
   const [page, setPage] = useState(1);
 
   const loadSnapshot = async (quiet = false) => {
@@ -222,9 +323,15 @@ export default function CloudDnsSchedulerSection() {
   const filteredItems = useMemo(() => {
     const normalized = query.trim().toLowerCase();
     const items = snapshot?.items || [];
-    if (!normalized) return items;
-    return items.filter((item) =>
+    const sourceItems = sourceFilter === "all"
+      ? items
+      : items.filter((item) => item.source_type === sourceFilter);
+    if (!normalized) return sourceItems;
+    return sourceItems.filter((item) =>
       [
+        item.source_type,
+        item.source_name,
+        item.source_status,
         item.client_name,
         item.client_uuid,
         item.provider,
@@ -239,7 +346,7 @@ export default function CloudDnsSchedulerSection() {
         .toLowerCase()
         .includes(normalized),
     );
-  }, [query, snapshot]);
+  }, [query, snapshot, sourceFilter]);
 
   const totalPages = Math.max(1, Math.ceil(filteredItems.length / PAGE_SIZE));
   const safePage = Math.min(page, totalPages);
@@ -247,13 +354,13 @@ export default function CloudDnsSchedulerSection() {
 
   useEffect(() => {
     setPage(1);
-  }, [query]);
+  }, [query, sourceFilter]);
 
   if (loading) {
     return (
       <div className="space-y-4">
         <SchedulerFlow />
-        <AdminTableSkeleton columns={5} rows={6} />
+        <AdminTableSkeleton columns={6} rows={6} />
       </div>
     );
   }
@@ -273,22 +380,44 @@ export default function CloudDnsSchedulerSection() {
         <div className="flex flex-col gap-3 border-b border-border px-4 py-3 dark:border-slate-800 md:flex-row md:items-center md:justify-between">
           <div className="min-w-0">
             <div className="text-sm font-semibold text-slate-950 dark:text-slate-50">
-              {t("cloud.dns.scheduler.queue_title", { defaultValue: "调度队列" })}
+              {t("cloud.dns.scheduler.queue_title", { defaultValue: "DNS 任务队列" })}
             </div>
             <div className="text-xs text-muted-foreground">
               {t("cloud.dns.scheduler.queue_hint", {
-                defaultValue: "只展示已启用的 DDNS 绑定；IP 未变化时不会请求外部 DNS API。",
+                defaultValue: "DDNS 与故障切换共用 DNS 执行入口；同凭证会串行，Cloudflare 写入会尽量批量提交。",
               })}
             </div>
           </div>
-          <div className="relative w-full md:w-72">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-            <Input
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-              placeholder={t("cloud.dns.scheduler.search", { defaultValue: "搜索节点 / 记录 / IP" })}
-              className="pl-9"
-            />
+          <div className="flex w-full flex-col gap-2 md:w-auto md:flex-row md:items-center">
+            <div className="flex overflow-x-auto rounded-md border border-border bg-slate-50 p-1 dark:border-slate-800 dark:bg-slate-900/40">
+              {SOURCE_FILTERS.map((value) => (
+                <button
+                  key={value}
+                  type="button"
+                  className={cn(
+                    "whitespace-nowrap rounded px-3 py-1.5 text-xs font-medium text-muted-foreground transition",
+                    sourceFilter === value && "bg-card text-slate-950 shadow-sm dark:bg-slate-950 dark:text-slate-50",
+                  )}
+                  onClick={() => setSourceFilter(value)}
+                >
+                  {sourceFilterLabel(value, t)}
+                  {value !== "all" ? (
+                    <span className="ml-1 text-[11px] text-slate-500">
+                      {snapshot?.source_counts?.[value] || 0}
+                    </span>
+                  ) : null}
+                </button>
+              ))}
+            </div>
+            <div className="relative w-full md:w-72">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+              <Input
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                placeholder={t("cloud.dns.scheduler.search", { defaultValue: "搜索任务 / 记录 / IP" })}
+                className="pl-9"
+              />
+            </div>
           </div>
         </div>
 
@@ -298,26 +427,40 @@ export default function CloudDnsSchedulerSection() {
               <table className="min-w-full text-sm">
                 <thead className="bg-slate-50/80 text-xs text-slate-500 dark:bg-slate-900/30 dark:text-slate-400">
                   <tr>
-                    <th className="w-[22%] px-4 py-3 text-left font-medium">
+                    <th className="w-[16%] px-4 py-3 text-left font-medium">
+                      {t("cloud.dns.scheduler.table.source", { defaultValue: "来源" })}
+                    </th>
+                    <th className="w-[20%] px-4 py-3 text-left font-medium">
                       {t("cloud.dns.scheduler.table.node", { defaultValue: "节点" })}
                     </th>
                     <th className="w-[28%] px-4 py-3 text-left font-medium">
                       {t("cloud.dns.scheduler.table.record", { defaultValue: "DNS 目标" })}
                     </th>
-                    <th className="w-[22%] px-4 py-3 text-left font-medium">
+                    <th className="w-[18%] px-4 py-3 text-left font-medium">
                       {t("cloud.dns.scheduler.table.current_ip", { defaultValue: "当前 IP" })}
                     </th>
-                    <th className="w-[16%] px-4 py-3 text-left font-medium">
-                      {t("cloud.dns.scheduler.table.synced_at", { defaultValue: "最近同步" })}
+                    <th className="w-[10%] px-4 py-3 text-left font-medium">
+                      {t("cloud.dns.scheduler.table.synced_at", { defaultValue: "最近时间" })}
                     </th>
-                    <th className="w-[12%] px-4 py-3 text-left font-medium">
+                    <th className="w-[8%] px-4 py-3 text-left font-medium">
                       {t("common.status", { defaultValue: "状态" })}
                     </th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border dark:divide-slate-800">
                   {pageItems.map((item) => (
-                    <tr key={`${item.id}-${item.client_uuid}`} className="align-top">
+                    <tr key={`${item.source_type}-${item.id}-${item.client_uuid}`} className="align-top">
+                      <td className="px-4 py-3">
+                        <div className="flex min-w-0 flex-col gap-1.5">
+                          <Badge color={sourceColor(item.source_type)} className="w-fit gap-1">
+                            <ShieldCheck className="h-3.5 w-3.5" />
+                            {sourceLabel(item.source_type, t)}
+                          </Badge>
+                          <div className="max-w-[160px] truncate text-xs text-muted-foreground">
+                            {item.source_name || item.source_id || "-"}
+                          </div>
+                        </div>
+                      </td>
                       <td className="px-4 py-3">
                         <div className="min-w-0">
                           <div className="truncate font-medium text-slate-950 dark:text-slate-50">
@@ -408,9 +551,9 @@ export default function CloudDnsSchedulerSection() {
           </>
         ) : (
           <AdminEmptyState
-            title={t("cloud.dns.scheduler.empty_title", { defaultValue: "暂无 DDNS 调度项" })}
+            title={t("cloud.dns.scheduler.empty_title", { defaultValue: "暂无 DNS 调度项" })}
             description={t("cloud.dns.scheduler.empty_description", {
-              defaultValue: "在服务器页面为节点启用 DDNS 后，这里会显示每分钟调度状态。",
+              defaultValue: "启用 DDNS 或为故障切换配置 DNS 后，这里会显示对应状态。",
             })}
           />
         )}

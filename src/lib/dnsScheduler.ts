@@ -20,11 +20,23 @@ export type DNSSchedulerItemStatus =
   | "synced"
   | "pending"
   | "error"
-  | "skipped_duplicate";
+  | "skipped_duplicate"
+  | "watching"
+  | "disabled";
+
+export type DNSSchedulerSourceType =
+  | "ddns"
+  | "failover_v1"
+  | "failover_v2"
+  | string;
 
 export type DNSSchedulerItem = {
   id: number;
   user_id?: string;
+  source_type: DNSSchedulerSourceType;
+  source_name: string;
+  source_id: string;
+  source_status: string;
   client_uuid: string;
   client_name: string;
   provider: string;
@@ -55,6 +67,18 @@ export type DNSSchedulerRunSummary = {
   last_error?: string;
 };
 
+export type DNSSchedulerExecution = {
+  inflight: number;
+  submitted: number;
+  coalesced: number;
+  executed: number;
+  failed: number;
+  api_requests: number;
+  cloudflare_batch_writes: number;
+  cloudflare_single_writes: number;
+  aliyun_single_writes: number;
+};
+
 export type DNSSchedulerSnapshot = {
   running: boolean;
   last_run: DNSSchedulerRunSummary;
@@ -64,6 +88,8 @@ export type DNSSchedulerSnapshot = {
   failed: number;
   deduped: number;
   dedupe_groups: number;
+  source_counts: Record<string, number>;
+  dns_execution: DNSSchedulerExecution;
   load_error?: string;
   items: DNSSchedulerItem[];
 };
@@ -78,6 +104,18 @@ const emptyRun: DNSSchedulerRunSummary = {
   skipped: 0,
   failed: 0,
   deduped: 0,
+};
+
+const emptyExecution: DNSSchedulerExecution = {
+  inflight: 0,
+  submitted: 0,
+  coalesced: 0,
+  executed: 0,
+  failed: 0,
+  api_requests: 0,
+  cloudflare_batch_writes: 0,
+  cloudflare_single_writes: 0,
+  aliyun_single_writes: 0,
 };
 
 function normalizeString(value: unknown) {
@@ -97,6 +135,16 @@ function normalizeBoolean(value: unknown) {
   return typeof value === "boolean" ? value : Boolean(value);
 }
 
+function normalizeStringNumberRecord(value: unknown): Record<string, number> {
+  const raw = value && typeof value === "object" ? value as Record<string, unknown> : {};
+  return Object.entries(raw).reduce<Record<string, number>>((acc, [key, count]) => {
+    const normalizedKey = normalizeString(key);
+    if (!normalizedKey) return acc;
+    acc[normalizedKey] = normalizeNumber(count);
+    return acc;
+  }, {});
+}
+
 function normalizeRun(value: unknown): DNSSchedulerRunSummary {
   const raw = value && typeof value === "object" ? value as Record<string, unknown> : {};
   return {
@@ -113,11 +161,30 @@ function normalizeRun(value: unknown): DNSSchedulerRunSummary {
   };
 }
 
+function normalizeExecution(value: unknown): DNSSchedulerExecution {
+  const raw = value && typeof value === "object" ? value as Record<string, unknown> : {};
+  return {
+    inflight: normalizeNumber(raw.inflight),
+    submitted: normalizeNumber(raw.submitted),
+    coalesced: normalizeNumber(raw.coalesced),
+    executed: normalizeNumber(raw.executed),
+    failed: normalizeNumber(raw.failed),
+    api_requests: normalizeNumber(raw.api_requests),
+    cloudflare_batch_writes: normalizeNumber(raw.cloudflare_batch_writes),
+    cloudflare_single_writes: normalizeNumber(raw.cloudflare_single_writes),
+    aliyun_single_writes: normalizeNumber(raw.aliyun_single_writes),
+  };
+}
+
 function normalizeItem(value: unknown): DNSSchedulerItem {
   const raw = value && typeof value === "object" ? value as Record<string, unknown> : {};
   return {
     id: normalizeNumber(raw.id),
     user_id: normalizeString(raw.user_id),
+    source_type: normalizeString(raw.source_type) || "ddns",
+    source_name: normalizeString(raw.source_name),
+    source_id: normalizeString(raw.source_id),
+    source_status: normalizeString(raw.source_status),
     client_uuid: normalizeString(raw.client_uuid),
     client_name: normalizeString(raw.client_name),
     provider: normalizeString(raw.provider),
@@ -147,6 +214,8 @@ function normalizeSnapshot(value: unknown): DNSSchedulerSnapshot {
     failed: normalizeNumber(raw.failed),
     deduped: normalizeNumber(raw.deduped),
     dedupe_groups: normalizeNumber(raw.dedupe_groups),
+    source_counts: normalizeStringNumberRecord(raw.source_counts),
+    dns_execution: normalizeExecution(raw.dns_execution || emptyExecution),
     load_error: normalizeString(raw.load_error),
     items: Array.isArray(raw.items) ? raw.items.map(normalizeItem) : [],
   };
