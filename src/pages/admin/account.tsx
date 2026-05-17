@@ -11,6 +11,9 @@ import {
 } from "@/components/admin/admin-ui";
 import {
   AdminPageShell,
+  AdminSideNav,
+  AdminSideNavButton,
+  AdminSplitLayout,
   AdminSurface,
   AdminTableSkeleton,
 } from "@/components/admin/AdminPageShell";
@@ -21,11 +24,6 @@ import { formatApiErrorMessage, getReadableErrorMessage } from "@/lib/apiErrorMe
 import { AdminUsersSection } from "./users";
 
 type AccountSection = "account" | "users";
-
-const sectionButtonClass = (active: boolean) =>
-  active
-    ? "bg-blue-600/90 text-white shadow-sm shadow-blue-900/10 dark:bg-blue-500/80 dark:text-white"
-    : "bg-white text-slate-600 hover:bg-slate-50 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800";
 
 const Account = () => {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -63,73 +61,70 @@ const Account = () => {
 
   return (
     <AdminPageShell
-      className="mx-auto w-full max-w-7xl"
+      className="w-full"
       title={t("account.title")}
       description={t("account.page_description")}
-      subnav={
-        <div className="inline-flex w-full min-w-0 flex-wrap gap-1 rounded-lg border border-border bg-slate-50/70 p-1 dark:border-slate-800 dark:bg-slate-900/30">
-          <button
-            type="button"
-            className={`inline-flex h-8 items-center gap-1.5 rounded-md px-3 text-sm transition ${sectionButtonClass(
-              activeSection === "account",
-            )}`}
-            onClick={() => navigateToSection("account")}
-          >
-            <CircleUserRound className="h-4 w-4" />
-            <span>{t("account.title")}</span>
-          </button>
-          <button
-            type="button"
-            className={`inline-flex h-8 items-center gap-1.5 rounded-md px-3 text-sm transition ${sectionButtonClass(
-              activeSection === "users",
-            )}`}
-            onClick={() => navigateToSection("users")}
-          >
-            <Users className="h-4 w-4" />
-            <span>{t("admin.users.title")}</span>
-          </button>
-        </div>
-      }
     >
-      <div className="grid items-start gap-4 xl:grid-cols-[360px_minmax(0,1fr)]">
-        <section
-          ref={accountSectionRef}
-          className="overflow-hidden rounded-lg border border-border bg-card shadow-sm shadow-slate-900/5 dark:border-slate-800 dark:bg-slate-950"
-        >
-          <div className="p-4">
-            <div className="mb-4 border-b border-slate-200/70 pb-3 dark:border-slate-700/70">
-              <div>
-                <h2 className="text-sm font-semibold tracking-wide text-slate-900 dark:text-slate-50">
-                  {t("account.profile_title", "Profile")}
-                </h2>
-                <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-                  {t(
-                    "account.profile_description",
-                    "Update your username and login password. After a successful password change, you will be redirected to the homepage.",
-                  )}
-                </p>
+      <AdminSplitLayout
+        sidebar={(
+          <AdminSideNav aria-label={t("account.title")}>
+            <AdminSideNavButton
+              active={activeSection === "account"}
+              icon={<CircleUserRound className="h-4 w-4" />}
+              label={t("account.title")}
+              description={t("account.profile_title", "Profile")}
+              onClick={() => navigateToSection("account")}
+            />
+            <AdminSideNavButton
+              active={activeSection === "users"}
+              icon={<Users className="h-4 w-4" />}
+              label={t("admin.users.title")}
+              description={t("admin.users.description")}
+              onClick={() => navigateToSection("users")}
+            />
+          </AdminSideNav>
+        )}
+      >
+        <div className="grid items-start gap-4 xl:grid-cols-[360px_minmax(0,1fr)]">
+          <section
+            ref={accountSectionRef}
+            className="overflow-hidden rounded-lg border border-border bg-card shadow-sm shadow-slate-900/5 dark:border-slate-800 dark:bg-slate-950"
+          >
+            <div className="p-4">
+              <div className="mb-4 border-b border-slate-200/70 pb-3 dark:border-slate-700/70">
+                <div>
+                  <h2 className="text-sm font-semibold tracking-wide text-slate-900 dark:text-slate-50">
+                    {t("account.profile_title", "Profile")}
+                  </h2>
+                  <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                    {t(
+                      "account.profile_description",
+                      "Update your username and login password. After a successful password change, you will be redirected to the homepage.",
+                    )}
+                  </p>
+                </div>
               </div>
+              <AccountProfileSection />
             </div>
-            <AccountProfileSection />
-          </div>
-        </section>
+          </section>
 
-        <section ref={usersSectionRef} className="min-w-0">
-          <div className="overflow-hidden rounded-lg border border-border bg-card shadow-sm shadow-slate-900/5 dark:border-slate-800 dark:bg-slate-950">
-            <div className="border-b border-slate-200/70 px-4 py-3 dark:border-slate-700/70">
-              <div>
-                <h2 className="text-sm font-semibold tracking-wide text-slate-900 dark:text-slate-50">
-                  {t("admin.users.title")}
-                </h2>
-                <p className="mt-1 max-w-2xl text-xs text-slate-500 dark:text-slate-400">
-                  {t("admin.users.description")}
-                </p>
+          <section ref={usersSectionRef} className="min-w-0">
+            <div className="overflow-hidden rounded-lg border border-border bg-card shadow-sm shadow-slate-900/5 dark:border-slate-800 dark:bg-slate-950">
+              <div className="border-b border-slate-200/70 px-4 py-3 dark:border-slate-700/70">
+                <div>
+                  <h2 className="text-sm font-semibold tracking-wide text-slate-900 dark:text-slate-50">
+                    {t("admin.users.title")}
+                  </h2>
+                  <p className="mt-1 max-w-2xl text-xs text-slate-500 dark:text-slate-400">
+                    {t("admin.users.description")}
+                  </p>
+                </div>
               </div>
+              <AdminUsersSection embedded />
             </div>
-            <AdminUsersSection embedded />
-          </div>
-        </section>
-      </div>
+          </section>
+        </div>
+      </AdminSplitLayout>
     </AdminPageShell>
   );
 };

@@ -300,31 +300,6 @@ export default function AzurePanel() {
       >
         <CloudProviderHeader
           title={t("cloud.providers.azure.title", "Azure")}
-          actions={(
-            <>
-              <Button
-                variant="outline"
-                size="1"
-                onClick={() => void loadResources()}
-                disabled={!activeCredential || resourceLoading}
-              >
-                <Eye className={`mr-2 h-4 w-4${resourceLoading ? " animate-pulse" : ""}`} />
-                {t("cloud.view", "查看")}
-              </Button>
-              <Button variant="outline" size="1" onClick={() => void loadAll()} disabled={resourceLoading}>
-                <RefreshCw className={`mr-2 h-4 w-4${resourceLoading ? " animate-spin" : ""}`} />
-                {t("cloud.refresh", "刷新")}
-              </Button>
-              <Button size="1" onClick={() => setCreateOpen(true)} disabled={!activeCredential}>
-                <Plus className="mr-2 h-4 w-4" />
-                {t("cloud.providers.azure.create", "创建虚拟机")}
-              </Button>
-              <Button variant="outline" size="1" onClick={() => setCredentialImportOpen(true)}>
-                <Plus className="mr-2 h-4 w-4" />
-                {t("cloud.providers.azure.import", "导入凭证")}
-              </Button>
-            </>
-          )}
         />
 
         {loadError ? (

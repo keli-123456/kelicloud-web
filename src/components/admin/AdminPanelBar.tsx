@@ -793,22 +793,6 @@ function AdminPanelBarContent({ content }: AdminPanelBarProps) {
               ))}
             </div>
           </div>
-          <div className="flex justify-end">
-            <Button
-              asChild
-              variant="outline"
-              size="sm"
-              className="border-slate-200 bg-white shadow-none hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-950 dark:hover:bg-slate-900"
-            >
-              <a
-                href={latestRelease.html_url}
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                Github
-              </a>
-            </Button>
-          </div>
         </div>
       </Tips>
     ) : null;

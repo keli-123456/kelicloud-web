@@ -5,16 +5,16 @@ import { AWSRegionSelect } from "@/components/admin/cloud/AWSRegionSelect";
 import {
   Badge,
   Button,
-  CloudCodeTextarea,
+  CloudImportFormSection,
   CloudSensitiveDialogContent,
   CloudStatusNotice,
   cloudPanelFieldLabelClassName,
   Dialog,
   Flex,
+  TextArea,
   TextField,
 } from "@/components/admin/cloud/cloud-ui";
 import type { AWSRegionOption } from "./awsPanelCatalog";
-import { DEFAULT_AWS_REGION } from "./awsPanelUtils";
 
 type AsyncAction = () => void | Promise<void>;
 
@@ -51,50 +51,43 @@ export function AWSCredentialImportDialog({
         )}
         icon={<Upload className="size-4" />}
         badge={<Badge color="blue">{t("cloud.providers.aws.name", "AWS")}</Badge>}
-        side={(
-          <div className="space-y-4">
-            <CloudStatusNotice tone="blue">
-              {t(
-                "cloud.providers.aws.import_dialog_hint",
-                `If name is omitted, Komari will generate one from the access key. If region is omitted, ${DEFAULT_AWS_REGION} is used as the initial fallback and you can switch region after selecting the credential.`,
-              )}
-            </CloudStatusNotice>
-            <CloudStatusNotice tone="gray">
-              {t(
-                "cloud.providers.aws.import_secret_hint",
-                "Review access keys and session tokens before submitting. The backend stores imported credentials for later cloud operations.",
-              )}
-            </CloudStatusNotice>
-          </div>
-        )}
+        className="sm:max-w-3xl"
       >
-        <div className="space-y-2">
-          <label className={cloudPanelFieldLabelClassName}>
-            {t("cloud.tokens.group", "Group")}
-          </label>
-          <TextField.Root
-            value={group}
-            placeholder={t("cloud.tokens.group_placeholder", "Optional token group")}
-            onChange={(event) => onGroupChange(event.target.value)}
-          />
-        </div>
-        <CloudCodeTextarea
-          value={text}
-          minHeightClassName="min-h-52"
-          placeholder={"AKIA...,secret...\nAKIA... secret...\nprod,AKIA...,secret...,ap-southeast-1\nbackup|AKIA...|secret...|ap-southeast-1|session-token"}
-          onChange={(event) => onTextChange(event.target.value)}
+        <CloudImportFormSection
+          groupLabel={t("cloud.tokens.group", "Group")}
+          groupControl={(
+            <TextField.Root
+              className="sm:max-w-xs"
+              value={group}
+              placeholder={t("cloud.tokens.group_placeholder", "Optional token group")}
+              onChange={(event) => onGroupChange(event.target.value)}
+            />
+          )}
+          editorLabel={t("cloud.providers.aws.credential_content", "Credential Content")}
+          editor={(
+            <TextArea
+              value={text}
+              rows={10}
+              resize="vertical"
+              className="min-h-56 font-mono text-sm leading-6"
+              placeholder={"AKIA...,secret...\nAKIA... secret...\nprod,AKIA...,secret...,ap-southeast-1\nbackup|AKIA...|secret...|ap-southeast-1|session-token"}
+              onChange={(event) => onTextChange(event.target.value)}
+            />
+          )}
+          footer={(
+            <>
+              <Button variant="outline" onClick={() => onOpenChange(false)} disabled={saving}>
+                {t("common.cancel", "Cancel")}
+              </Button>
+              <Button onClick={() => { void onImport(); }} disabled={saving}>
+                <CheckCircle2 className="mr-2 h-4 w-4" />
+                {saving
+                  ? t("cloud.tokens.importing", "Importing...")
+                  : t("cloud.providers.aws.import", "Import Credentials")}
+              </Button>
+            </>
+          )}
         />
-        <Flex justify="end" gap="2">
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={saving}>
-            {t("common.cancel", "Cancel")}
-          </Button>
-          <Button onClick={() => { void onImport(); }} disabled={saving}>
-            <CheckCircle2 className="mr-2 h-4 w-4" />
-            {saving
-              ? t("cloud.tokens.importing", "Importing...")
-              : t("cloud.providers.aws.import", "Import Credentials")}
-          </Button>
-        </Flex>
       </CloudSensitiveDialogContent>
     </Dialog.Root>
   );

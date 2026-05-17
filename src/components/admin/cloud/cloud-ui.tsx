@@ -393,6 +393,53 @@ function CloudCodeTextarea({
   );
 }
 
+type CloudImportFormSectionProps = {
+  groupLabel: React.ReactNode;
+  groupControl: React.ReactNode;
+  editorLabel: React.ReactNode;
+  editor: React.ReactNode;
+  footer: React.ReactNode;
+  className?: string;
+};
+
+function CloudImportFormSection({
+  groupLabel,
+  groupControl,
+  editorLabel,
+  editor,
+  footer,
+  className,
+}: CloudImportFormSectionProps) {
+  return (
+    <section
+      className={cn(
+        "min-w-0 space-y-4",
+        className,
+      )}
+    >
+      <div className="space-y-4">
+        <div className="grid min-w-0 gap-2 sm:grid-cols-[4.5rem_minmax(0,1fr)] sm:items-center">
+          <label className={cloudPanelFieldLabelClassName}>
+            {groupLabel}
+          </label>
+          <div className="min-w-0">
+            {groupControl}
+          </div>
+        </div>
+        <div className="min-w-0 space-y-2">
+          <div className={cloudPanelFieldLabelClassName}>
+            {editorLabel}
+          </div>
+          {editor}
+        </div>
+      </div>
+      <div className="flex flex-col-reverse gap-2 border-t border-border pt-4 sm:flex-row sm:justify-end">
+        {footer}
+      </div>
+    </section>
+  );
+}
+
 type CloudSensitiveDialogContentProps = {
   title: React.ReactNode;
   description?: React.ReactNode;
@@ -532,6 +579,7 @@ export {
   CloudCopyBlock,
   CloudDetailDialogSkeleton,
   CloudDetailItem,
+  CloudImportFormSection,
   CloudReadonlyCodeBlock,
   CloudSecretValueBlock,
   CloudSensitiveDialogContent,

@@ -18,6 +18,9 @@ import {
 import {
   AdminEmptyState,
   AdminPageShell,
+  AdminSideNav,
+  AdminSideNavButton,
+  AdminSplitLayout,
   AdminSurface,
   AdminTableSkeleton,
 } from "@/components/admin/AdminPageShell";
@@ -426,6 +429,42 @@ export default function BillingPage() {
   const catalogMethods = catalog.payment_methods || [];
   const selectedPlan = catalogPlans.find((plan) => String(plan.id) === selectedPlanID) || null;
   const selectedPayment = catalogMethods.find((method) => String(method.id) === selectedPaymentID) || null;
+  const billingNavItems = [
+    {
+      value: "shop",
+      label: t("billing.tabs.shop"),
+      description: t("billing.nav.shop_description", { defaultValue: "套餐购买" }),
+      icon: <PackagePlus className="h-4 w-4" />,
+    },
+    {
+      value: "orders",
+      label: t("billing.tabs.my_orders"),
+      description: t("billing.nav.my_orders_description", { defaultValue: "我的订单" }),
+      icon: <ReceiptText className="h-4 w-4" />,
+    },
+    ...(platformAdmin
+      ? [
+          {
+            value: "plans",
+            label: t("billing.tabs.plans"),
+            description: t("billing.nav.plans_description", { defaultValue: "套餐维护" }),
+            icon: <Archive className="h-4 w-4" />,
+          },
+          {
+            value: "payments",
+            label: t("billing.tabs.payments"),
+            description: t("billing.nav.payments_description", { defaultValue: "收款方式" }),
+            icon: <CreditCard className="h-4 w-4" />,
+          },
+          {
+            value: "admin_orders",
+            label: t("billing.tabs.orders"),
+            description: t("billing.nav.orders_description", { defaultValue: "订单处理" }),
+            icon: <CheckCircle2 className="h-4 w-4" />,
+          },
+        ]
+      : []),
+  ];
 
   const savePlan = async () => {
     setSubmitting(true);
@@ -592,7 +631,7 @@ export default function BillingPage() {
 
   return (
     <AdminPageShell
-      className="mx-auto w-full max-w-7xl"
+      className="w-full"
       title={t("billing.title")}
       actions={
         <Button variant="outline" size="sm" onClick={refreshAll} disabled={loadingCatalog || loadingAdmin}>
@@ -601,86 +640,95 @@ export default function BillingPage() {
         </Button>
       }
     >
-      <Tabs.Root value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-        <Tabs.List className="h-auto w-full justify-start gap-1 overflow-x-auto rounded-lg border border-border bg-slate-50/70 p-1 dark:border-slate-800 dark:bg-slate-900/30">
-          <Tabs.Trigger value="shop">{t("billing.tabs.shop")}</Tabs.Trigger>
-          <Tabs.Trigger value="orders">{t("billing.tabs.my_orders")}</Tabs.Trigger>
-          {platformAdmin ? <Tabs.Trigger value="plans">{t("billing.tabs.plans")}</Tabs.Trigger> : null}
-          {platformAdmin ? <Tabs.Trigger value="payments">{t("billing.tabs.payments")}</Tabs.Trigger> : null}
-          {platformAdmin ? <Tabs.Trigger value="admin_orders">{t("billing.tabs.orders")}</Tabs.Trigger> : null}
-        </Tabs.List>
-
-        <Tabs.Content value="shop">
-          <ShopPanel
-            t={t}
-            plans={catalogPlans}
-            methods={catalogMethods}
-            loading={loadingCatalog}
-            selectedPlanID={selectedPlanID}
-            selectedPaymentID={selectedPaymentID}
-            selectedPayment={selectedPayment}
-            submitting={submitting}
-            setSelectedPlanID={setSelectedPlanID}
-            setSelectedPaymentID={setSelectedPaymentID}
-            createOrder={createOrder}
-            featureOptions={featureOptions}
-          />
-        </Tabs.Content>
-
-        <Tabs.Content value="orders">
-          <OrdersTable
-            t={t}
-            orders={myOrders}
-            loading={loadingCatalog}
-            emptyTitle={t("billing.no_my_orders")}
-          />
-        </Tabs.Content>
-
-        {platformAdmin ? (
-          <Tabs.Content value="plans">
-            <PlansPanel
+      <Tabs.Root value={activeTab} onValueChange={setActiveTab} className="min-w-0">
+        <AdminSplitLayout
+          sidebar={(
+            <AdminSideNav aria-label={t("billing.title")}>
+              {billingNavItems.map((item) => (
+                <AdminSideNavButton
+                  key={item.value}
+                  active={activeTab === item.value}
+                  icon={item.icon}
+                  label={item.label}
+                  description={item.description}
+                  onClick={() => setActiveTab(item.value)}
+                />
+              ))}
+            </AdminSideNav>
+          )}
+        >
+          <Tabs.Content value="shop" className="mt-0">
+            <ShopPanel
               t={t}
-              plans={plans}
-              loading={loadingAdmin}
+              plans={catalogPlans}
+              methods={catalogMethods}
+              loading={loadingCatalog}
+              selectedPlanID={selectedPlanID}
+              selectedPaymentID={selectedPaymentID}
+              selectedPayment={selectedPayment}
               submitting={submitting}
-              openPlanDialog={openPlanDialog}
-              archivePlan={archivePlan}
+              setSelectedPlanID={setSelectedPlanID}
+              setSelectedPaymentID={setSelectedPaymentID}
+              createOrder={createOrder}
               featureOptions={featureOptions}
             />
           </Tabs.Content>
-        ) : null}
 
-        {platformAdmin ? (
-          <Tabs.Content value="payments">
-            <PaymentsPanel
-              t={t}
-              methods={paymentMethods}
-              loading={loadingAdmin}
-              submitting={submitting}
-              openPaymentDialog={openPaymentDialog}
-              disablePaymentMethod={disablePaymentMethod}
-            />
-          </Tabs.Content>
-        ) : null}
-
-        {platformAdmin ? (
-          <Tabs.Content value="admin_orders">
+          <Tabs.Content value="orders" className="mt-0">
             <OrdersTable
               t={t}
-              orders={orders}
-              loading={loadingAdmin}
-              emptyTitle={t("billing.no_orders")}
-              admin
-              submitting={submitting}
-              onMarkPaid={(order) => {
-                setPaidOrder(order);
-                setPaymentReference(order.payment_reference || "");
-                setAdminNote(order.admin_note || "");
-              }}
-              onCancel={cancelOrder}
+              orders={myOrders}
+              loading={loadingCatalog}
+              emptyTitle={t("billing.no_my_orders")}
             />
           </Tabs.Content>
-        ) : null}
+
+          {platformAdmin ? (
+            <Tabs.Content value="plans" className="mt-0">
+              <PlansPanel
+                t={t}
+                plans={plans}
+                loading={loadingAdmin}
+                submitting={submitting}
+                openPlanDialog={openPlanDialog}
+                archivePlan={archivePlan}
+                featureOptions={featureOptions}
+              />
+            </Tabs.Content>
+          ) : null}
+
+          {platformAdmin ? (
+            <Tabs.Content value="payments" className="mt-0">
+              <PaymentsPanel
+                t={t}
+                methods={paymentMethods}
+                loading={loadingAdmin}
+                submitting={submitting}
+                openPaymentDialog={openPaymentDialog}
+                disablePaymentMethod={disablePaymentMethod}
+              />
+            </Tabs.Content>
+          ) : null}
+
+          {platformAdmin ? (
+            <Tabs.Content value="admin_orders" className="mt-0">
+              <OrdersTable
+                t={t}
+                orders={orders}
+                loading={loadingAdmin}
+                emptyTitle={t("billing.no_orders")}
+                admin
+                submitting={submitting}
+                onMarkPaid={(order) => {
+                  setPaidOrder(order);
+                  setPaymentReference(order.payment_reference || "");
+                  setAdminNote(order.admin_note || "");
+                }}
+                onCancel={cancelOrder}
+              />
+            </Tabs.Content>
+          ) : null}
+        </AdminSplitLayout>
       </Tabs.Root>
 
       <PlanDialog

@@ -46,6 +46,7 @@ import {
   Checkbox,
   CloudCodeTextarea,
   CloudDetailItem,
+  CloudImportFormSection,
   CloudProviderHeader,
   CloudSecretValueBlock,
   CloudSensitiveDialogContent,
@@ -54,6 +55,7 @@ import {
   Dialog,
   Flex,
   Select,
+  TextArea,
   TextField,
   cloudPanelCardClassName,
   cloudPanelDescriptionClassName,
@@ -702,41 +704,6 @@ export default function VultrPanel() {
     <AdminPageShell title={t("cloud.providers.vultr.title", "Vultr")} hideHeader>
       <CloudProviderHeader
         title={t("cloud.providers.vultr.title", "Vultr")}
-        actions={(
-          <>
-            <Button
-              variant="outline"
-              size="1"
-              onClick={() => window.location.reload()}
-              disabled={panelLoading || tokenChecking}
-            >
-              <RefreshCw className="mr-2 h-4 w-4" />
-              {t("cloud.refresh", "刷新")}
-            </Button>
-            <Button
-              variant="outline"
-              size="1"
-              onClick={() => { void loadPanelData(); }}
-              disabled={!activeToken || panelLoading}
-            >
-              <Eye className="mr-2 h-4 w-4" />
-              {t("cloud.view", "查看")}
-            </Button>
-            <Button
-              size="1"
-              onClick={() => { void handleOpenCreateDialog(); }}
-              disabled={!activeToken}
-              aria-busy={createCatalogLoading}
-            >
-              {createCatalogLoading ? (
-                <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
-              ) : (
-                <Plus className="mr-2 h-4 w-4" />
-              )}
-              {t("cloud.providers.vultr.create", "创建实例")}
-            </Button>
-          </>
-        )}
       />
 
       {error ? (
@@ -1710,65 +1677,64 @@ function VultrTokenImportDialog({
         )}
         icon={<Upload className="size-4" />}
         badge={<Badge color="blue">{t("cloud.providers.vultr.title", "Vultr")}</Badge>}
-        side={(
-          <div className="space-y-4">
-            <CloudStatusNotice tone="blue">
-              {t(
-                "cloud.providers.vultr.import_hint",
-                "Use Vultr API v2 tokens. Health check calls /v2/account to verify each token.",
-              )}
-            </CloudStatusNotice>
-            {existingTokenGroups.length ? (
-              <div className="rounded-lg border border-border bg-card px-4 py-3">
-                <div className="text-sm font-semibold text-foreground">
-                  {t("cloud.tokens.existing_groups", "现有分组")}
-                </div>
-                <div className="mt-3 flex flex-wrap gap-2">
-                  {existingTokenGroups.map((group) => (
-                    <Button
-                      key={group}
-                      variant={tokenImportGroup.trim() === group ? "solid" : "outline"}
-                      size="1"
-                      type="button"
-                      onClick={() => setTokenImportGroup(group)}
-                    >
-                      {group}
-                    </Button>
-                  ))}
-                </div>
-              </div>
-            ) : null}
-          </div>
-        )}
+        className="sm:max-w-3xl"
       >
-        <div className="space-y-2">
-          <label className={cloudPanelFieldLabelClassName}>
-            {t("cloud.tokens.group", "分组")}
-          </label>
-          <TextField.Root
-            value={tokenImportGroup}
-            placeholder={t("cloud.tokens.group_placeholder", "可选令牌分组")}
-            onChange={(event) => setTokenImportGroup(event.target.value)}
-          />
-        </div>
-        <CloudCodeTextarea
-          value={tokenImportText}
-          minHeightClassName="min-h-52"
-          placeholder={t(
-            "cloud.providers.vultr.import_placeholder",
-            "prod-account,vultr_api_token_xxx\nbackup-account|vultr_api_token_yyy\nvultr_api_token_zzz",
+        <CloudImportFormSection
+          groupLabel={t("cloud.tokens.group", "分组")}
+          groupControl={(
+            <div className="flex min-w-0 flex-col gap-2 lg:flex-row lg:items-center">
+              <TextField.Root
+                className="lg:max-w-xs"
+                value={tokenImportGroup}
+                placeholder={t("cloud.tokens.group_placeholder", "可选令牌分组")}
+                onChange={(event) => setTokenImportGroup(event.target.value)}
+              />
+              {existingTokenGroups.length ? (
+                <Select.Root
+                  value={existingTokenGroups.includes(tokenImportGroup.trim()) ? tokenImportGroup.trim() : ""}
+                  onValueChange={setTokenImportGroup}
+                >
+                  <Select.Trigger
+                    className="w-full lg:w-40"
+                    placeholder={t("cloud.tokens.pick_existing_group", "选择已有分组")}
+                  />
+                  <Select.Content>
+                    {existingTokenGroups.map((group) => (
+                      <Select.Item key={group} value={group}>
+                        {group}
+                      </Select.Item>
+                    ))}
+                  </Select.Content>
+                </Select.Root>
+              ) : null}
+            </div>
           )}
-          onChange={(event) => setTokenImportText(event.target.value)}
+          editorLabel={t("cloud.tokens.import_content", "令牌内容")}
+          editor={(
+            <TextArea
+              value={tokenImportText}
+              rows={10}
+              resize="vertical"
+              className="min-h-56 font-mono text-sm leading-6"
+              placeholder={t(
+                "cloud.providers.vultr.import_placeholder",
+                "prod-account,vultr_api_token_xxx\nbackup-account|vultr_api_token_yyy\nvultr_api_token_zzz",
+              )}
+              onChange={(event) => setTokenImportText(event.target.value)}
+            />
+          )}
+          footer={(
+            <>
+              <Button variant="outline" onClick={() => onOpenChange(false)} disabled={saving}>
+                {t("common.cancel", "取消")}
+              </Button>
+              <Button onClick={() => { void onImport(); }} disabled={saving}>
+                <CheckCircle2 className="mr-2 h-4 w-4" />
+                {saving ? t("cloud.tokens.importing", "导入中...") : t("cloud.tokens.import", "导入令牌")}
+              </Button>
+            </>
+          )}
         />
-        <Flex justify="end" gap="2">
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={saving}>
-            {t("common.cancel", "取消")}
-          </Button>
-          <Button onClick={() => { void onImport(); }} disabled={saving}>
-            <CheckCircle2 className="mr-2 h-4 w-4" />
-            {saving ? t("cloud.tokens.importing", "导入中...") : t("cloud.tokens.import", "导入令牌")}
-          </Button>
-        </Flex>
       </CloudSensitiveDialogContent>
     </Dialog.Root>
   );

@@ -534,21 +534,6 @@ export default function CommandLibraryManager({
   return (
     <>
       <div className="flex min-w-0 flex-col gap-[14px] p-3 sm:p-4 md:p-6">
-        <div className="flex min-w-0 flex-wrap items-center justify-end gap-2">
-          <div className="flex shrink-0 flex-wrap items-center gap-2">
-            <Button variant="outline" asChild className="h-9 rounded-md px-4 text-sm">
-              <Link to="/admin/exec">
-                <Play size={15} />
-                {t("command_clipboard.open_exec", { defaultValue: "远程执行" })}
-              </Link>
-            </Button>
-            <Button onClick={openCreateDialog} className="h-9 rounded-md px-4 text-sm">
-              <Plus size={15} />
-              {t("command_clipboard.new_command", { defaultValue: "新建脚本" })}
-            </Button>
-          </div>
-        </div>
-
         <div className="grid gap-[14px] xl:grid-cols-[minmax(0,1fr)_360px]">
           <section className={scriptsPanelClass}>
             <div className="flex min-h-[54px] flex-col gap-3 border-b border-border px-[14px] py-3 lg:flex-row lg:items-center lg:justify-between">
@@ -559,6 +544,10 @@ export default function CommandLibraryManager({
               </div>
 
               <div className="flex w-full flex-col gap-2 sm:flex-row lg:w-auto">
+                <Button onClick={openCreateDialog} className="h-9 shrink-0 rounded-md px-3 text-[12px]">
+                  <Plus size={14} />
+                  {t("command_clipboard.new_command", { defaultValue: "新建脚本" })}
+                </Button>
                 <div className="relative min-w-0 flex-1 sm:min-w-[260px]">
                   <Search
                     size={14}

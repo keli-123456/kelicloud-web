@@ -2,11 +2,6 @@ import React from "react";
 import type { TFunction } from "i18next";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
-import {
-  Eye,
-  Plus,
-  RefreshCw,
-} from "lucide-react";
 
 import {
   AdminPageShell,
@@ -383,47 +378,6 @@ export default function DigitalOceanPanel() {
       >
       <CloudProviderHeader
         title={t("cloud.providers.digitalocean.title", "DigitalOcean")}
-        actions={
-          <>
-          <Button
-            variant="outline"
-            size="1"
-            onClick={() => {
-              window.location.reload();
-            }}
-            disabled={panelLoading || tokenChecking}
-          >
-            <RefreshCw className="mr-2 h-4 w-4" />
-            {t("cloud.refresh", "Refresh")}
-          </Button>
-          <Button
-            variant="outline"
-            size="1"
-            onClick={() => {
-              void handleLoadResources();
-            }}
-            disabled={!activeToken || panelLoading}
-          >
-            <Eye className="mr-2 h-4 w-4" />
-            {t("cloud.view", "View")}
-          </Button>
-          <Button
-            size="1"
-            onClick={() => {
-              void handleOpenCreateDialog();
-            }}
-            disabled={!activeToken}
-            aria-busy={createCatalogLoading}
-          >
-            {createCatalogLoading ? (
-              <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
-            ) : (
-              <Plus className="mr-2 h-4 w-4" />
-            )}
-            {t("cloud.create", "Create Droplet")}
-          </Button>
-          </>
-        }
       />
       {error ? (
         <WarningAlert tone="warning" description={error} />

@@ -836,15 +836,6 @@ const ExecContent = () => {
 
     return (
         <div className="flex min-w-0 flex-col gap-[14px] p-3 sm:p-4 md:p-6">
-            <div className="flex min-w-0 flex-wrap items-center justify-end gap-2">
-                <Button asChild className="h-9 shrink-0 rounded-md px-4 text-sm">
-                    <Link to="/admin/exec?view=scripts">
-                        <Plus size={15} />
-                        {t("command_clipboard.new_command", { defaultValue: "新建脚本" })}
-                    </Link>
-                </Button>
-            </div>
-
             <div className="grid gap-[14px] xl:grid-cols-[minmax(0,1fr)_360px]">
                 <section className={execPanelClass}>
                     <div className="flex min-h-[54px] flex-col gap-3 border-b border-border px-[14px] py-3 sm:flex-row sm:items-center sm:justify-between">
@@ -860,6 +851,14 @@ const ExecContent = () => {
                             </ExecToolbarTab>
                         </div>
                         <div className="flex w-full gap-2 sm:w-auto">
+                            {activeTab === "library" && (
+                                <Button asChild size="sm" className="h-9 shrink-0 rounded-md px-3 text-[12px]">
+                                    <Link to="/admin/exec?view=scripts">
+                                        <Plus size={14} />
+                                        {t("command_clipboard.new_command", { defaultValue: "新建脚本" })}
+                                    </Link>
+                                </Button>
+                            )}
                             <div className="relative min-w-0 flex-1 sm:w-[260px]">
                                 <Search
                                     size={14}

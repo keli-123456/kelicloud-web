@@ -101,6 +101,12 @@ type PolicyForm = {
   accountDisabled: boolean;
 };
 
+type AccountIdentityForm = {
+  username: string;
+  password: string;
+  passwordRepeat: string;
+};
+
 type FeatureGroup = {
   titleKey: string;
   defaultTitle: string;
@@ -648,6 +654,12 @@ const createDefaultForm = (availableFeatures: AccountFeature[]): CreateUserForm 
   accountDisabled: false,
 });
 
+const createIdentityForm = (user?: ManagedUser | null): AccountIdentityForm => ({
+  username: user?.username || "",
+  password: "",
+  passwordRepeat: "",
+});
+
 export function AdminUsersSection({
   embedded = false,
 }: {
@@ -664,6 +676,11 @@ export function AdminUsersSection({
   const [createForm, setCreateForm] = React.useState<CreateUserForm>(() =>
     createDefaultForm(FEATURE_ORDER),
   );
+  const [identityUser, setIdentityUser] = React.useState<ManagedUser | null>(null);
+  const [identityForm, setIdentityForm] = React.useState<AccountIdentityForm>(() =>
+    createIdentityForm(),
+  );
+  const [identitySubmitting, setIdentitySubmitting] = React.useState(false);
   const [policyUser, setPolicyUser] = React.useState<ManagedUser | null>(null);
   const [policyForm, setPolicyForm] = React.useState<PolicyForm>({
     serverQuota: "0",
@@ -751,6 +768,16 @@ export function AdminUsersSection({
     });
   };
 
+  const openIdentityEditor = (user: ManagedUser) => {
+    setIdentityUser(user);
+    setIdentityForm(createIdentityForm(user));
+  };
+
+  const closeIdentityEditor = () => {
+    setIdentityUser(null);
+    setIdentityForm(createIdentityForm());
+  };
+
   const closePolicyEditor = () => {
     setPolicyUser(null);
     setPolicyForm({
@@ -761,6 +788,76 @@ export function AdminUsersSection({
       planNote: "",
       accountDisabled: false,
     });
+  };
+
+  const handleSaveIdentity = async () => {
+    if (!identityUser) return;
+    const username = identityForm.username.trim();
+    const password = identityForm.password;
+    const passwordRepeat = identityForm.passwordRepeat;
+    if (username.length < 3) {
+      toast.error(t("admin.users.username_min_length"));
+      return;
+    }
+    if (password || passwordRepeat) {
+      if (password.length < 6) {
+        toast.error(t("admin.users.password_min_length"));
+        return;
+      }
+      if (password !== passwordRepeat) {
+        toast.error(t("admin.users.password_mismatch"));
+        return;
+      }
+    }
+
+    setIdentitySubmitting(true);
+    try {
+      const payload: {
+        uuid: string;
+        username: string;
+        password?: string;
+      } = {
+        uuid: identityUser.uuid,
+        username,
+      };
+      if (password) {
+        payload.password = password;
+      }
+      const response = await fetch("/api/admin/update/user", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
+      });
+      const responsePayload = (await response.json().catch(() => ({}))) as ApiEnvelope<{
+        uuid?: string;
+      }>;
+      if (!response.ok || responsePayload.status === "error") {
+        throw new Error(formatApiErrorMessage(responsePayload.message || t("admin.users.update_failed"), { status: response.status }));
+      }
+      setUsers((current) =>
+        current.map((user) =>
+          user.uuid === identityUser.uuid ? { ...user, username } : user,
+        ),
+      );
+      toast.success(t("common.updated_successfully"));
+      const selfPasswordChanged = identityUser.uuid === account?.uuid && Boolean(password);
+      closeIdentityEditor();
+      if (selfPasswordChanged) {
+        setTimeout(() => {
+          window.location.href = "/";
+        }, 1200);
+        return;
+      }
+      await loadUsers();
+    } catch (updateError) {
+      toast.error(
+        getReadableErrorMessage(updateError, t("admin.users.update_failed")),
+      );
+    } finally {
+      setIdentitySubmitting(false);
+    }
   };
 
   const handleCreateUser = async (event: React.FormEvent<HTMLFormElement>) => {
@@ -1314,6 +1411,10 @@ export function AdminUsersSection({
                         <AdminRowActions
                           actions={[
                             {
+                              label: t("admin.users.edit_account", "编辑账号资料"),
+                              onSelect: () => openIdentityEditor(user),
+                            },
+                            {
                               label: t("admin.users.edit_access", "Edit access"),
                               onSelect: () => openPolicyEditor(user),
                             },
@@ -1475,6 +1576,88 @@ export function AdminUsersSection({
                   </Dialog.Close>
                   <Button onClick={() => void handleSavePolicy()} disabled={policySubmitting}>
                     {policySubmitting ? t("loading") : t("common.save")}
+                  </Button>
+                </div>
+              </div>
+            ) : null}
+          </Dialog.Content>
+        </Dialog.Root>
+        <Dialog.Root open={Boolean(identityUser)} onOpenChange={(open) => !open && closeIdentityEditor()}>
+          <Dialog.Content className={ADMIN_FORM_DIALOG_CLASS} maxWidth={560}>
+            <Dialog.Title>{t("admin.users.account_title", "编辑账号资料")}</Dialog.Title>
+            {identityUser ? (
+              <div className={`${ADMIN_FORM_SCROLL_CLASS} mt-4 space-y-4`}>
+                <div className="rounded-lg border border-dashed border-slate-300 bg-muted/20 px-4 py-3 text-sm dark:border-slate-700">
+                  <div className="font-medium text-slate-900 dark:text-slate-100">
+                    {identityUser.username}
+                  </div>
+                  <div className="text-xs text-slate-500 dark:text-slate-400">
+                    {identityUser.uuid}
+                  </div>
+                </div>
+                <label className={ADMIN_FORM_FIELD_CLASS}>
+                  <div className="text-sm font-medium text-slate-900 dark:text-slate-100">
+                    {t("login.username")}
+                  </div>
+                  <Input
+                    value={identityForm.username}
+                    onChange={(event) =>
+                      setIdentityForm((current) => ({
+                        ...current,
+                        username: event.target.value,
+                      }))
+                    }
+                    minLength={3}
+                    required
+                  />
+                </label>
+                <div className={ADMIN_FORM_GRID_2_CLASS}>
+                  <label className={ADMIN_FORM_FIELD_CLASS}>
+                    <div className="text-sm font-medium text-slate-900 dark:text-slate-100">
+                      {t("admin.users.new_password_optional", "新密码")}
+                    </div>
+                    <Input
+                      type="password"
+                      value={identityForm.password}
+                      onChange={(event) =>
+                        setIdentityForm((current) => ({
+                          ...current,
+                          password: event.target.value,
+                        }))
+                      }
+                      minLength={6}
+                      autoComplete="new-password"
+                    />
+                  </label>
+                  <label className={ADMIN_FORM_FIELD_CLASS}>
+                    <div className="text-sm font-medium text-slate-900 dark:text-slate-100">
+                      {t("admin.users.repeat_new_password", "重复新密码")}
+                    </div>
+                    <Input
+                      type="password"
+                      value={identityForm.passwordRepeat}
+                      onChange={(event) =>
+                        setIdentityForm((current) => ({
+                          ...current,
+                          passwordRepeat: event.target.value,
+                        }))
+                      }
+                      minLength={6}
+                      autoComplete="new-password"
+                    />
+                  </label>
+                </div>
+                <div className="rounded-md border border-blue-200 bg-blue-50 px-3 py-2 text-xs leading-5 text-blue-700 dark:border-blue-900/60 dark:bg-blue-950/30 dark:text-blue-200">
+                  {t("admin.users.password_optional_hint", "密码留空时只修改用户名；填写新密码后，该用户现有会话会失效。")}
+                </div>
+                <div className="flex justify-end gap-2 border-t border-slate-200/70 pt-4 dark:border-slate-800/70">
+                  <Dialog.Close asChild>
+                    <Button variant="outline" type="button" onClick={closeIdentityEditor}>
+                      {t("common.cancel")}
+                    </Button>
+                  </Dialog.Close>
+                  <Button onClick={() => void handleSaveIdentity()} disabled={identitySubmitting}>
+                    {identitySubmitting ? t("loading") : t("common.save")}
                   </Button>
                 </div>
               </div>

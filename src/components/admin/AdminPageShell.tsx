@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 
+import { Link } from "react-router-dom";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAdminPageTitle } from "@/contexts/AdminPageTitleContext";
 import { cn } from "@/lib/utils";
@@ -121,6 +122,149 @@ export function AdminSubnav({
     >
       {children}
     </div>
+  );
+}
+
+export function AdminSplitLayout({
+  sidebar,
+  children,
+  className,
+  sidebarClassName,
+  contentClassName,
+}: {
+  sidebar: ReactNode;
+  children: ReactNode;
+  className?: string;
+  sidebarClassName?: string;
+  contentClassName?: string;
+}) {
+  return (
+    <div
+      className={cn(
+        "grid min-w-0 items-start gap-4 lg:grid-cols-[220px_minmax(0,1fr)]",
+        className,
+      )}
+    >
+      <aside className={cn("min-w-0 lg:sticky lg:top-4", sidebarClassName)}>
+        {sidebar}
+      </aside>
+      <div className={cn("min-w-0", contentClassName)}>{children}</div>
+    </div>
+  );
+}
+
+export function AdminSideNav({
+  children,
+  className,
+  "aria-label": ariaLabel,
+}: {
+  children: ReactNode;
+  className?: string;
+  "aria-label"?: string;
+}) {
+  return (
+    <nav
+      aria-label={ariaLabel}
+      className={cn(
+        "flex min-w-0 gap-2 overflow-x-auto rounded-lg border border-border bg-card p-2 shadow-sm shadow-slate-900/5 dark:border-slate-800 dark:bg-slate-950 lg:flex-col lg:overflow-visible",
+        className,
+      )}
+    >
+      {children}
+    </nav>
+  );
+}
+
+const sideNavItemClass = (active?: boolean) =>
+  cn(
+    "group inline-flex min-h-10 min-w-[150px] items-center gap-2 rounded-md px-3 py-2 text-left text-sm transition lg:min-w-0",
+    active
+      ? "bg-blue-600 text-white shadow-sm shadow-blue-950/10 dark:bg-blue-500"
+      : "text-slate-600 hover:bg-slate-100 hover:text-slate-950 dark:text-slate-300 dark:hover:bg-slate-900 dark:hover:text-white",
+  );
+
+function AdminSideNavInner({
+  active,
+  icon,
+  label,
+  description,
+}: {
+  active?: boolean;
+  icon?: ReactNode;
+  label: ReactNode;
+  description?: ReactNode;
+}) {
+  return (
+    <>
+      {icon ? (
+        <span className={cn("shrink-0", active ? "text-white" : "text-slate-500 dark:text-slate-400")}>
+          {icon}
+        </span>
+      ) : null}
+      <span className="min-w-0 flex-1">
+        <span className="block truncate font-medium leading-5">{label}</span>
+        {description ? (
+          <span
+            className={cn(
+              "mt-0.5 hidden truncate text-xs leading-4 lg:block",
+              active ? "text-blue-50/80" : "text-slate-500 dark:text-slate-400",
+            )}
+          >
+            {description}
+          </span>
+        ) : null}
+      </span>
+    </>
+  );
+}
+
+export function AdminSideNavLink({
+  to,
+  active,
+  icon,
+  label,
+  description,
+}: {
+  to: string;
+  active?: boolean;
+  icon?: ReactNode;
+  label: ReactNode;
+  description?: ReactNode;
+}) {
+  return (
+    <Link to={to} className={sideNavItemClass(active)}>
+      <AdminSideNavInner
+        active={active}
+        icon={icon}
+        label={label}
+        description={description}
+      />
+    </Link>
+  );
+}
+
+export function AdminSideNavButton({
+  active,
+  icon,
+  label,
+  description,
+  onClick,
+}: {
+  active?: boolean;
+  icon?: ReactNode;
+  label: ReactNode;
+  description?: ReactNode;
+  onClick: () => void;
+}) {
+  return (
+    <button type="button" className={sideNavItemClass(active)} onClick={onClick}>
+      <AdminSideNavInner
+        active={active}
+        icon={icon}
+        label={label}
+        description={description}
+      />
+    </button>
   );
 }
 

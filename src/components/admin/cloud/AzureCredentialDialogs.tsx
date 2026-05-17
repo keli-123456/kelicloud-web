@@ -5,13 +5,14 @@ import { KeyRound, LockKeyhole, ShieldCheck, Tags, Upload } from "lucide-react";
 import {
   Badge,
   Button,
-  CloudCodeTextarea,
   CloudDetailItem,
+  CloudImportFormSection,
   CloudSecretValueBlock,
   CloudSensitiveDialogContent,
   CloudStatusNotice,
   Dialog,
   Flex,
+  TextArea,
   TextField,
   cloudPanelFieldLabelClassName,
 } from "@/components/admin/cloud/cloud-ui";
@@ -113,50 +114,42 @@ export function AzureCredentialImportDialog({
         )}
         icon={<Upload className="size-4" />}
         badge={<Badge color="blue">{t("cloud.providers.azure.name", "Azure")}</Badge>}
-        side={(
-          <SecretSidePanel
-            t={t}
-            title={t("cloud.providers.azure.import_format", "Import Format")}
-            description={t(
-              "cloud.providers.azure.import_format_description",
-              "Use CSV, pipe, tab, JSON object, or JSON array. appId/password/tenant/displayName are recognized, and group is optional.",
-            )}
-          >
-            <CloudStatusNotice tone="gray">
-              {t(
-                "cloud.providers.azure.import_secret_hint",
-                "Imported client secrets are stored by the backend; review the pasted text before submitting.",
-              )}
-            </CloudStatusNotice>
-          </SecretSidePanel>
-        )}
+        className="sm:max-w-3xl"
       >
-        <div className="space-y-2">
-          <label className={cloudPanelFieldLabelClassName}>
-            {t("cloud.tokens.group", "Group")}
-          </label>
-          <TextField.Root
-            value={importGroup}
-            placeholder={t("cloud.tokens.group_placeholder", "Optional token group")}
-            onChange={(event) => setImportGroup(event.target.value)}
-          />
-        </div>
-        <CloudCodeTextarea
-          minHeightClassName="min-h-56"
-          value={importText}
-          onChange={(event) => setImportText(event.target.value)}
-          placeholder='{"appId":"...","displayName":"azure-cli-...","password":"...","tenant":"..."}'
+        <CloudImportFormSection
+          groupLabel={t("cloud.tokens.group", "Group")}
+          groupControl={(
+            <TextField.Root
+              className="sm:max-w-xs"
+              value={importGroup}
+              placeholder={t("cloud.tokens.group_placeholder", "Optional token group")}
+              onChange={(event) => setImportGroup(event.target.value)}
+            />
+          )}
+          editorLabel={t("cloud.providers.azure.credential_content", "Credential Content")}
+          editor={(
+            <TextArea
+              rows={10}
+              resize="vertical"
+              className="min-h-60 font-mono text-sm leading-6"
+              value={importText}
+              onChange={(event) => setImportText(event.target.value)}
+              placeholder='{"appId":"...","displayName":"azure-cli-...","password":"...","tenant":"..."}'
+            />
+          )}
+          footer={(
+            <>
+              <Button variant="outline" onClick={() => onOpenChange(false)} disabled={saving}>
+                {t("common.cancel", "Cancel")}
+              </Button>
+              <Button onClick={() => { void onImport(); }} disabled={saving}>
+                {saving
+                  ? t("cloud.providers.azure.importing", "Importing...")
+                  : t("cloud.providers.azure.import", "Import Credentials")}
+              </Button>
+            </>
+          )}
         />
-        <Flex justify="end" gap="2">
-          <Dialog.Close>
-            <Button variant="outline">{t("common.cancel", "Cancel")}</Button>
-          </Dialog.Close>
-          <Button onClick={() => { void onImport(); }} disabled={saving}>
-            {saving
-              ? t("cloud.providers.azure.importing", "Importing...")
-              : t("cloud.providers.azure.import", "Import Credentials")}
-          </Button>
-        </Flex>
       </CloudSensitiveDialogContent>
     </Dialog.Root>
   );

@@ -395,19 +395,6 @@ export default function AWSPanel() {
     >
       <CloudProviderHeader
         title="AWS"
-        actions={
-          <Button
-            variant="outline"
-            size="1"
-            onClick={() => {
-              window.location.reload();
-            }}
-            disabled={panelLoading || credentialChecking}
-          >
-            <RefreshCw className="mr-2 h-4 w-4" />
-            {t("cloud.refresh", "刷新")}
-          </Button>
-        }
       />
 
       {error ? (
