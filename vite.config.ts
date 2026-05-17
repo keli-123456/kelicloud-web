@@ -14,7 +14,7 @@ import dotenv from "dotenv";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-function localKomariThemePlugin(): Plugin {
+function localKeliCloudThemePlugin(): Plugin {
   const themeRequestPath = "/themes/default/komari-theme.json";
   const localThemeFile = path.resolve(__dirname, "komari-theme.json");
 
@@ -60,7 +60,7 @@ export default defineConfig(({ mode }) => {
   const baseConfig: UserConfig = {
     base: base,
     plugins: [
-      localKomariThemePlugin(),
+      localKeliCloudThemePlugin(),
       react(),
       tailwindcss(),
       Pages({
@@ -71,8 +71,8 @@ export default defineConfig(({ mode }) => {
         registerType: "autoUpdate",
         includeAssets: ["favicon.ico", "assets/pwa-icon.png"],
         manifest: {
-          name: "Komari Monitor",
-          short_name: "Komari Monitor",
+          name: "kelicloud",
+          short_name: "kelicloud",
           description: "A simple server monitor tool",
           theme_color: "#2563eb",
           background_color: "#ffffff",

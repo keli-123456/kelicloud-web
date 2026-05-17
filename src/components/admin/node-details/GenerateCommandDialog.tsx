@@ -111,11 +111,11 @@ const getDefaultGroupLabel = () =>
 const getDefaultInstallDir = (platform: Platform) => {
   switch (platform) {
     case "windows":
-      return "$Env:ProgramFiles\\Komari";
+      return "$Env:ProgramFiles\\kelicloud-agent";
     case "macos":
-      return "/usr/local/komari";
+      return "/usr/local/kelicloud-agent";
     default:
-      return "/opt/komari";
+      return "/opt/kelicloud-agent";
   }
 };
 
@@ -467,7 +467,7 @@ export default function GenerateCommandDialog({
           const windowsInstallDir =
             enableCustomDir && installOptions.dir.trim()
               ? powershellQuote(installOptions.dir.trim())
-              : "$Env:ProgramFiles\\Komari";
+              : "$Env:ProgramFiles\\kelicloud-agent";
           finalCommand += `$ksBindFile = Join-Path ${windowsInstallDir} 'auto-discovery.json'; if (Test-Path $ksBindFile) { Remove-Item $ksBindFile -Force }; `;
         }
         finalCommand +=
@@ -485,7 +485,7 @@ export default function GenerateCommandDialog({
           const macInstallDir =
             enableCustomDir && installOptions.dir.trim()
               ? shellQuote(installOptions.dir.trim())
-              : `$(if [ "$(id -u)" -eq 0 ] || [ -w /usr/local ]; then printf %s /usr/local/komari; else printf %s "$HOME/.komari"; fi)`;
+              : `$(if [ "$(id -u)" -eq 0 ] || [ -w /usr/local ]; then printf %s /usr/local/kelicloud-agent; else printf %s "$HOME/.kelicloud-agent"; fi)`;
           return (
             `AUTO_DISCOVERY_DIR=${macInstallDir}; AUTO_DISCOVERY_FILE="$AUTO_DISCOVERY_DIR/auto-discovery.json"; ` +
             `if [ -f "$AUTO_DISCOVERY_FILE" ]; then rm -f "$AUTO_DISCOVERY_FILE"; fi; ` +
@@ -795,7 +795,7 @@ export default function GenerateCommandDialog({
                     enabled={enableCustomDir}
                     placeholder={t(
                       "admin.nodeTable.install_dir_placeholder",
-                      "Installation directory, leave empty to use the default directory (/opt/komari-agent)",
+                      "Installation directory, leave empty to use the default directory (/opt/kelicloud-agent)",
                     )}
                     value={installOptions.dir}
                     onEnabledChange={(enabled) => {
@@ -821,7 +821,7 @@ export default function GenerateCommandDialog({
                     enabled={enableCustomServiceName}
                     placeholder={t(
                       "admin.nodeTable.serviceName_placeholder",
-                      "Service name, leave empty to use the default name (komari-agent)",
+                      "Service name, leave empty to use the default name (kelicloud-agent)",
                     )}
                     value={installOptions.serviceName}
                     onEnabledChange={(enabled) => {

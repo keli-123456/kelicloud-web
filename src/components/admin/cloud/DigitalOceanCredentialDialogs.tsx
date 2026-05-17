@@ -177,7 +177,7 @@ export function DigitalOceanManagedKeyDialog({
           title={t("cloud.tokens.managed_key_dialog_title", "Managed SSH Key")}
           description={t(
             "cloud.tokens.managed_key_dialog_description",
-            "This is the shared managed SSH key Komari reuses as a fallback when creating DigitalOcean Droplets with root password mode.",
+            "This is the shared managed SSH key kelicloud reuses as a fallback when creating DigitalOcean Droplets with root password mode.",
           )}
           icon={<KeyRound className="size-4" />}
           badge={(
@@ -202,7 +202,7 @@ export function DigitalOceanManagedKeyDialog({
                     })
                   : t(
                       "cloud.tokens.managed_key_pending_registration",
-                      "Not registered for this account yet. Komari will register the shared public key the first time this credential creates a Droplet with root password mode.",
+                      "Not registered for this account yet. kelicloud will register the shared public key the first time this credential creates a Droplet with root password mode.",
                     )
               }
             >

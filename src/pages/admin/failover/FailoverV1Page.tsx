@@ -7982,7 +7982,7 @@ function TaskEditorDialog({
                     <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-900/40 dark:bg-amber-950/30 dark:text-amber-100">
                       {t("failover.editor.script_domain_required_hint", {
                         defaultValue:
-                          "Agent connection address is not configured yet. Set it in Settings -> Site, otherwise failover-created instances cannot auto-connect back to Komari.",
+                          "Agent connection address is not configured yet. Set it in Settings -> Site, otherwise failover-created instances cannot auto-connect back to kelicloud.",
                       })}
                     </div>
                   ) : null}
@@ -8241,7 +8241,7 @@ function TaskEditorDialog({
                               <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-900/40 dark:bg-amber-950/30 dark:text-amber-100">
                                 {t("failover.editor.script_domain_required_hint", {
                                   defaultValue:
-                                    "Agent connection address is not configured yet. Set it in Settings -> Site, otherwise failover-created instances cannot auto-connect back to Komari.",
+                                    "Agent connection address is not configured yet. Set it in Settings -> Site, otherwise failover-created instances cannot auto-connect back to kelicloud.",
                                 })}
                               </div>
                             ) : null}
@@ -8410,7 +8410,7 @@ function TaskEditorDialog({
                           <div className="rounded-lg border border-dashed px-4 py-3 text-sm text-muted-foreground">
                             {selectedPlan.provider === "aws"
                               ? t("failover.editor.aws_action_auto_hint", {
-                                defaultValue: "AWS automatically checks whether the selected credential already has the current outlet IP. If it does, Komari only replaces the public IP; otherwise it creates a new instance.",
+                                defaultValue: "AWS automatically checks whether the selected credential already has the current outlet IP. If it does, kelicloud only replaces the public IP; otherwise it creates a new instance.",
                               })
                               : t("failover.editor.provision_action_auto_hint", {
                                 defaultValue: "This provider always creates a new instance for failover.",
@@ -8871,7 +8871,7 @@ function TaskEditorDialog({
                             <>
                               <div className="rounded-lg border border-dashed px-4 py-3 text-xs text-muted-foreground lg:col-span-2">
                                 {t("failover.editor.aws_rebind_by_ip_hint", {
-                                  defaultValue: "Komari will first check whether this AWS credential already has an EC2 instance with the task's current IP. If it does, Komari only replaces that instance's public IP. If it does not, Komari creates a new EC2 instance with the configuration below.",
+                                  defaultValue: "kelicloud will first check whether this AWS credential already has an EC2 instance with the task's current IP. If it does, kelicloud only replaces that instance's public IP. If it does not, kelicloud creates a new EC2 instance with the configuration below.",
                                 })}
                               </div>
                               <div className="rounded-lg border border-dashed px-4 py-3 text-xs text-muted-foreground lg:col-span-2">
@@ -9017,7 +9017,7 @@ function TaskEditorDialog({
                                 <Label>{t("cloud.form.tags", { defaultValue: "Tags" })}</Label>
                                 <div className="text-xs text-muted-foreground">
                                   {t("failover.editor.aws_tags_hint", {
-                                    defaultValue: "Use key=value pairs separated by commas or new lines. These tags are applied only when Komari needs to create a replacement instance.",
+                                    defaultValue: "Use key=value pairs separated by commas or new lines. These tags are applied only when kelicloud needs to create a replacement instance.",
                                   })}
                                 </div>
                                 <Textarea
@@ -9041,7 +9041,7 @@ function TaskEditorDialog({
                                 />
                                 <div className="text-xs text-muted-foreground">
                                   {t("failover.editor.aws_user_data_hint", {
-                                    defaultValue: "This runs before Komari's auto-connect bootstrap. Use shell script or cloud-init that is compatible with your selected image.",
+                                    defaultValue: "This runs before kelicloud's auto-connect bootstrap. Use shell script or cloud-init that is compatible with your selected image.",
                                   })}
                                 </div>
                               </div>
@@ -9050,7 +9050,7 @@ function TaskEditorDialog({
                             <>
                               <div className="rounded-lg border border-dashed px-4 py-3 text-xs text-muted-foreground lg:col-span-2">
                                 {t("failover.editor.aws_rebind_by_ip_hint_lightsail", {
-                                  defaultValue: "Komari will first check whether this AWS credential already has a Lightsail instance with the task's current IP. If it does, Komari only replaces that instance's public IP. If it does not, Komari creates a new Lightsail instance with the configuration below.",
+                                  defaultValue: "kelicloud will first check whether this AWS credential already has a Lightsail instance with the task's current IP. If it does, kelicloud only replaces that instance's public IP. If it does not, kelicloud creates a new Lightsail instance with the configuration below.",
                                 })}
                               </div>
                               <div className="rounded-lg border border-dashed px-4 py-3 text-xs text-muted-foreground lg:col-span-2">
@@ -9071,7 +9071,7 @@ function TaskEditorDialog({
                                 <div className="text-xs text-muted-foreground">
                                   {t("failover.editor.aws_lightsail_az_hint", {
                                     az: getDefaultLightsailAvailabilityZone(selectedPlanRegion),
-                                    defaultValue: "Lightsail requires a concrete availability zone. Komari usually starts with {{az}} when you pick a region, but you can replace it manually if the account prefers another zone.",
+                                    defaultValue: "Lightsail requires a concrete availability zone. kelicloud usually starts with {{az}} when you pick a region, but you can replace it manually if the account prefers another zone.",
                                   })}
                                 </div>
                               </div>
@@ -9206,7 +9206,7 @@ function TaskEditorDialog({
                                 <Label>{t("cloud.form.tags", { defaultValue: "Tags" })}</Label>
                                 <div className="text-xs text-muted-foreground">
                                   {t("failover.editor.aws_tags_hint", {
-                                    defaultValue: "Use key=value pairs separated by commas or new lines. These tags are applied only when Komari needs to create a replacement instance.",
+                                    defaultValue: "Use key=value pairs separated by commas or new lines. These tags are applied only when kelicloud needs to create a replacement instance.",
                                   })}
                                 </div>
                                 <Textarea

@@ -179,7 +179,7 @@ export function EC2CreateNetworkSection({
         <div className="mt-1 text-xs text-slate-500 dark:text-slate-400">
           {t(
             "cloud.providers.aws.security_group_manual_hint",
-            "Enter one or more security group IDs separated by commas or new lines. Leave empty to let Komari keep the default security group on the automatically selected default subnet.",
+            "Enter one or more security group IDs separated by commas or new lines. Leave empty to let kelicloud keep the default security group on the automatically selected default subnet.",
           )}
         </div>
         <CloudCodeTextarea
@@ -262,7 +262,7 @@ export function EC2CreateBootstrapSection({
                 setForm((previous) => ({ ...previous, auto_connect: Boolean(checked) }))
               }
             />
-            {t("cloud.providers.aws.auto_connect_toggle", "Bootstrap Komari agent auto-connect")}
+            {t("cloud.providers.aws.auto_connect_toggle", "Bootstrap kelicloud agent auto-connect")}
           </label>
           {form.auto_connect ? (
             <>

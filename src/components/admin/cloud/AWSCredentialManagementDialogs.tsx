@@ -191,7 +191,7 @@ export function AWSCredentialCheckDialog({
         title={t("cloud.providers.aws.check_dialog_title", "Batch Check AWS Credentials")}
         description={t(
           "cloud.providers.aws.check_dialog_description",
-          "Choose the AWS region used for this batch health check before Komari validates the selected credentials.",
+          "Choose the AWS region used for this batch health check before kelicloud validates the selected credentials.",
         )}
         icon={<ShieldCheck className="size-4" />}
         badge={<Badge color="blue">{t("cloud.providers.aws.name", "AWS")}</Badge>}

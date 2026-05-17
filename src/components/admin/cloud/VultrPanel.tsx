@@ -1791,7 +1791,7 @@ function VultrCreateDialog({
         title={t("cloud.providers.vultr.create", "创建实例")}
         description={t(
           "cloud.providers.vultr.create_description",
-          "Create a Vultr instance with optional IPv6, backups, SSH keys, tags, and Komari auto-connect userdata.",
+          "Create a Vultr instance with optional IPv6, backups, SSH keys, tags, and kelicloud auto-connect userdata.",
         )}
         icon={<Server className="size-4" />}
         badge={<Badge color="blue">{t("cloud.providers.vultr.title", "Vultr")}</Badge>}
@@ -1925,7 +1925,7 @@ function VultrCreateDialog({
             onCheckedChange={(checked) => setForm((current) => ({ ...current, activation_email: checked }))}
           />
           <ToggleRow
-            label={t("cloud.form.auto_connect", "Komari 自动连接")}
+            label={t("cloud.form.auto_connect", "kelicloud 自动连接")}
             checked={form.auto_connect}
             onCheckedChange={(checked) => setForm((current) => ({ ...current, auto_connect: checked }))}
           />

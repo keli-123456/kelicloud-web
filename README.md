@@ -1,11 +1,11 @@
-# Komari Web UI
+# kelicloud Web UI
 
-参与翻译Komari？
+参与翻译kelicloud？
 - 直接提PR
 
 We use AI to assist with translations. If you find any issues, please let us know!
 
-How to contribute to Komari translations?
+How to contribute to kelicloud translations?
 - Directly PR
 
 ## 开发环境配置
@@ -60,7 +60,7 @@ npm run build
 
 > 如果你是在 Linux 系统下开发，可以直接运行脚本 `build-theme.sh` 快速生成主题包。
 
-2. 修改 `komari-theme.json` 中的相关配置，具体可参考 [主题配置文件 | Komari](https://komari-document.pages.dev/dev/theme.html#%E4%B8%BB%E9%A2%98%E9%85%8D%E7%BD%AE%E6%96%87%E4%BB%B6)
+2. 修改 `komari-theme.json` 中的相关配置，具体可参考 [主题配置文件 | kelicloud](https://komari-document.pages.dev/dev/theme.html#%E4%B8%BB%E9%A2%98%E9%85%8D%E7%BD%AE%E6%96%87%E4%BB%B6)
 
 3. 发挥你的想象和创造力，设计并实现你独特的主题风格！
 
@@ -76,4 +76,4 @@ npm run build
 
 7. 将 `my-theme` 文件夹打包为 ZIP 文件。
 
-8. 在 Komari 的主题管理页面上传并应用你的自定义主题。
+8. 在 kelicloud 的主题管理页面上传并应用你的自定义主题。

@@ -30,7 +30,7 @@ export default function AboutPage() {
   return (
     <AdminPageShell
       eyebrow={t("about.title")}
-      title={t("about.page_title", "About Komari")}
+      title={t("about.page_title", "About kelicloud")}
       description={t(
         "about.description",
         "Review open-source licenses, legal statements, and the project README.",

@@ -72,7 +72,7 @@ export function AzureCreateDialog({
         title={t("cloud.providers.azure.create", "Create VM")}
         description={t(
             "cloud.providers.azure.create_description",
-            "Create a Linux VM in the current active Azure location. Komari will automatically prepare the resource group network stack and bootstrap agent auto-connect.",
+            "Create a Linux VM in the current active Azure location. kelicloud will automatically prepare the resource group network stack and bootstrap agent auto-connect.",
           )}
         icon={<Server className="size-4" />}
         badge={<Badge color="blue">{t("cloud.providers.azure.name", "Azure")}</Badge>}
@@ -232,7 +232,7 @@ export function AzureCreateDialog({
                 setCreateForm((previous) => ({ ...previous, auto_connect: Boolean(checked) }))
               }
             />
-            {t("cloud.providers.azure.auto_connect_toggle", "Bootstrap Komari agent auto-connect")}
+            {t("cloud.providers.azure.auto_connect_toggle", "Bootstrap kelicloud agent auto-connect")}
           </label>
 
           {createForm.auto_connect ? (
@@ -281,7 +281,7 @@ export function AzureCreateDialog({
             />
             {t(
               "cloud.providers.azure.assign_ipv6_toggle",
-              "Enable IPv6. Komari will prepare a dual-stack VNet/NIC and attach a public IPv6 address when public IP is also enabled",
+              "Enable IPv6. kelicloud will prepare a dual-stack VNet/NIC and attach a public IPv6 address when public IP is also enabled",
             )}
           </label>
 

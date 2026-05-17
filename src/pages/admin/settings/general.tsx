@@ -64,7 +64,7 @@ export default function GeneralSettings() {
             "settings.site.base_scripts_url_description",
             "Install script source used by one-click commands and auto-connect. Supports a GitHub repo URL, tree/blob URL, or raw URL. Leave empty to use the official repository.",
           )}
-          placeholder="https://github.com/your-name/komari-agent"
+          placeholder="https://github.com/your-name/kelicloud-agent"
           defaultValue={settings.base_scripts_url || ""}
           OnSave={async (value) => {
             await updateSettingsWithToast({ base_scripts_url: value }, t);

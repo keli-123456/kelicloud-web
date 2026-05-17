@@ -87,7 +87,7 @@ export function AWSEC2CreateDialog({
         title={t("cloud.providers.aws.create", "Launch EC2")}
         description={t(
             "cloud.providers.aws.create_description",
-            "Launch a single EC2 instance in the region selected for this dialog. Leave subnet empty to let Komari use the default VPC and default subnet automatically. If the account is missing them, Komari will try to create or repair the default network during launch.",
+            "Launch a single EC2 instance in the region selected for this dialog. Leave subnet empty to let kelicloud use the default VPC and default subnet automatically. If the account is missing them, kelicloud will try to create or repair the default network during launch.",
           )}
         icon={<Server className="size-4" />}
         badge={<Badge color="blue">{t("cloud.providers.aws.ec2_label", "AWS EC2")}</Badge>}
@@ -98,7 +98,7 @@ export function AWSEC2CreateDialog({
           <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-600 dark:border-slate-800 dark:bg-slate-900/40 dark:text-slate-300">
             {t(
               "cloud.providers.aws.create_static_presets_help",
-              "This EC2 dialog uses built-in static presets instead of loading AWS catalogs. Regions, sizes, and image presets are built in. Key pair, subnet, and security groups are optional advanced overrides, and leaving subnet empty lets Komari prepare the default AWS network automatically.",
+              "This EC2 dialog uses built-in static presets instead of loading AWS catalogs. Regions, sizes, and image presets are built in. Key pair, subnet, and security groups are optional advanced overrides, and leaving subnet empty lets kelicloud prepare the default AWS network automatically.",
             )}
           </div>
 

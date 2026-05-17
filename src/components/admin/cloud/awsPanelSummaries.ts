@@ -239,6 +239,6 @@ export function getCreateFollowUpWarningMessage(
 ) {
   return t("cloud.providers.aws.post_create_warning", {
     message: warning,
-    defaultValue: `The resource was created. Komari is still processing a post-create step in the background: ${warning}`,
+    defaultValue: `The resource was created. kelicloud is still processing a post-create step in the background: ${warning}`,
   });
 }

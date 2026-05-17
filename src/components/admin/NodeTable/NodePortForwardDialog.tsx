@@ -366,7 +366,7 @@ export function NodePortForwardDialog({
               <p className="mt-3 text-xs leading-5 text-muted-foreground">
                 {t(
                   "admin.nodeTable.portForward.nodeHint",
-                  "应用时会重建该节点上由 Komari 管理的转发链；停用的规则不会下发。",
+                  "应用时会重建该节点上由 kelicloud 管理的转发链；停用的规则不会下发。",
                 )}
               </p>
             </div>

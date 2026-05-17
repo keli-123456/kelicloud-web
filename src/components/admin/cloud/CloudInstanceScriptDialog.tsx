@@ -323,7 +323,7 @@ export default function CloudInstanceScriptDialog({
       toast.error(
         t(
           "cloud.script.unmatched",
-          "No matching Komari node was found. Make sure the agent is connected and the IP or hostname can be matched.",
+          "No matching kelicloud node was found. Make sure the agent is connected and the IP or hostname can be matched.",
         ),
       );
       return;
@@ -439,7 +439,7 @@ export default function CloudInstanceScriptDialog({
           </DialogTitle>
           <DialogDescription>
             {t("cloud.script.dialog_description", {
-              defaultValue: "Choose a saved script and execute it directly on the matched Komari node for this instance.",
+              defaultValue: "Choose a saved script and execute it directly on the matched kelicloud node for this instance.",
             })}
           </DialogDescription>
         </DialogHeader>
@@ -501,7 +501,7 @@ export default function CloudInstanceScriptDialog({
                   <span className={cloudLongTextClassName}>
                     {t(
                       "cloud.script.unmatched",
-                      "No matching Komari node was found. Make sure the agent is connected and the IP or hostname can be matched.",
+                      "No matching kelicloud node was found. Make sure the agent is connected and the IP or hostname can be matched.",
                     )}
                   </span>
                 </div>

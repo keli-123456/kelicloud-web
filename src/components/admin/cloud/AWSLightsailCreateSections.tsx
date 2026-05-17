@@ -104,7 +104,7 @@ export function LightsailCreateCoreSection({
           <div className={`mt-2 text-xs ${cloudPanelBodyTextClassName}`}>
             {t("cloud.providers.aws.lightsail_static_rules_help", {
               az: getDefaultLightsailAvailabilityZone(resolvedRegion),
-              defaultValue: "Lightsail requires an availability zone such as us-east-1a. Komari defaults this field to {{az}}, but you can replace it manually if your account prefers another zone.",
+              defaultValue: "Lightsail requires an availability zone such as us-east-1a. kelicloud defaults this field to {{az}}, but you can replace it manually if your account prefers another zone.",
             })}
           </div>
         </div>
@@ -315,7 +315,7 @@ export function LightsailCreateBootstrapSection({
                 setForm((previous) => ({ ...previous, auto_connect: Boolean(checked) }))
               }
             />
-            {t("cloud.providers.aws.auto_connect_toggle", "Bootstrap Komari agent auto-connect")}
+            {t("cloud.providers.aws.auto_connect_toggle", "Bootstrap kelicloud agent auto-connect")}
           </label>
           {form.auto_connect ? (
             <>

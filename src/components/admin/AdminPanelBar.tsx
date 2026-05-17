@@ -325,7 +325,7 @@ function AdminPanelBarContent({ content }: AdminPanelBarProps) {
   );
   const [updateAvailable, setUpdateAvailable] = useState(false);
   const [releasesSince, setReleasesSince] = useState<GithubReleaseInfo[]>([]);
-  const appName = publicInfo?.sitename?.trim() || "Komari";
+  const appName = publicInfo?.sitename?.trim() || "kelicloud";
 
   useEffect(() => {
     const fetchVersionInfo = async () => {

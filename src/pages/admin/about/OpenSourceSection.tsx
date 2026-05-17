@@ -110,7 +110,7 @@ export default function OpenSourceSection() {
           title="MIT License"
           description={t(
             "about.license_cards.mit_description",
-            "Copyright (C) 2025 Komari Monitor",
+            "Copyright (C) 2025 kelicloud",
           )}
         >
           <pre className="text-wrap">{MIT_LICENSE}</pre>

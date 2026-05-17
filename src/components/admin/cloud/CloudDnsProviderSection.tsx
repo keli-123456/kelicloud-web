@@ -127,7 +127,7 @@ function getProviderFooter(provider: string, t: ReturnType<typeof useTranslation
 
   return t(
     "cloud.dns.generic_hint",
-    "Save DNS credentials here so Komari can reuse them in domain resolution workflows.",
+    "Save DNS credentials here so kelicloud can reuse them in domain resolution workflows.",
   );
 }
 
@@ -883,7 +883,7 @@ export default function CloudDnsProviderSection({
                 title: t("cloud.dns.dialog.form_title", "Credentials"),
                 description: t(
                   "cloud.dns.dialog.form_description",
-                  "Save a display name and the credentials Komari should use for this DNS provider.",
+                  "Save a display name and the credentials kelicloud should use for this DNS provider.",
                 ),
                 footer: getProviderFooter(activeProvider, t),
                 collapsible: false,

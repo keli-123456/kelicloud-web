@@ -200,20 +200,29 @@ const normalizeAgentReleaseArch = (value?: string | null) => {
   return null;
 };
 
-const buildAgentReleaseAssetName = (node: NodeDetail) => {
+const buildAgentReleaseAssetNameCandidates = (node: NodeDetail) => {
   const arch = normalizeAgentReleaseArch(node.arch);
   if (!arch) {
-    return null;
+    return [];
   }
 
   const platform = detectNodePlatform(node);
   if (platform === "windows") {
-    return `komari-agent-windows-${arch}.exe`;
+    return [
+      `kelicloud-agent-windows-${arch}.exe`,
+      `komari-agent-windows-${arch}.exe`,
+    ];
   }
   if (platform === "macos") {
-    return `komari-agent-darwin-${arch}`;
+    return [
+      `kelicloud-agent-darwin-${arch}`,
+      `komari-agent-darwin-${arch}`,
+    ];
   }
-  return `komari-agent-linux-${arch}`;
+  return [
+    `kelicloud-agent-linux-${arch}`,
+    `komari-agent-linux-${arch}`,
+  ];
 };
 
 const resolveLatestAgentUpgradeVersion = async (nodes: NodeDetail[]) => {
@@ -239,12 +248,11 @@ const resolveLatestAgentUpgradeVersion = async (nodes: NodeDetail[]) => {
     throw new Error(formatApiErrorMessage("Latest agent release tag is unavailable"));
   }
 
+  const requiredAssetGroups = nodes
+    .map((node) => buildAgentReleaseAssetNameCandidates(node))
+    .filter((candidates) => candidates.length > 0);
   const requiredAssets = Array.from(
-    new Set(
-      nodes
-        .map((node) => buildAgentReleaseAssetName(node))
-        .filter((value): value is string => Boolean(value)),
-    ),
+    new Set(requiredAssetGroups.map((candidates) => candidates[0])),
   );
   if (requiredAssets.length === 0) {
     return releaseTag;
@@ -255,12 +263,15 @@ const resolveLatestAgentUpgradeVersion = async (nodes: NodeDetail[]) => {
       .map((asset) => String(asset?.name || "").trim())
       .filter(Boolean),
   );
-  const missingAssets = requiredAssets.filter(
-    (assetName) => !publishedAssets.has(assetName),
-  );
-  if (missingAssets.length > 0) {
+  const missingAssets = requiredAssetGroups
+    .filter((candidates) =>
+      !candidates.some((assetName) => publishedAssets.has(assetName)),
+    )
+    .map((candidates) => candidates[0]);
+  const uniqueMissingAssets = Array.from(new Set(missingAssets));
+  if (uniqueMissingAssets.length > 0) {
     throw new Error(
-      formatApiErrorMessage(`Agent release ${releaseTag} is not fully published yet. Missing assets: ${missingAssets.join(", ")}`),
+      formatApiErrorMessage(`Agent release ${releaseTag} is not fully published yet. Missing assets: ${uniqueMissingAssets.join(", ")}`),
     );
   }
 
@@ -317,7 +328,7 @@ const buildAgentUpgradeCommand = (
     return (
       "powershell.exe -NoProfile -ExecutionPolicy Bypass -Command " +
       powershellQuote(
-        `$scriptPath = Join-Path $env:TEMP ('komari-install-' + [guid]::NewGuid().ToString() + '.ps1'); ` +
+        `$scriptPath = Join-Path $env:TEMP ('kelicloud-install-' + [guid]::NewGuid().ToString() + '.ps1'); ` +
           `Invoke-WebRequest ${powershellQuote(scriptUrl)} -UseBasicParsing -OutFile $scriptPath; ` +
           `$jobArgs = @(${jobArgs.join(",")}); ` +
           `Start-Process -FilePath 'powershell.exe' -ArgumentList $jobArgs -WindowStyle Hidden; ` +
@@ -350,7 +361,7 @@ const buildAgentUpgradeCommand = (
 
   return [
     `INSTALL_CMD=${shellQuote(installCommand)}`,
-    'if command -v systemd-run >/dev/null 2>&1 && systemctl list-units >/dev/null 2>&1; then UNIT="komari-agent-upgrade-$(date +%s)"; systemd-run --unit "$UNIT" --collect /bin/sh -lc "$INSTALL_CMD"; STATUS=$?; else nohup /bin/sh -lc "$INSTALL_CMD" >/tmp/komari-agent-upgrade.log 2>&1 </dev/null & STATUS=$?; fi',
+    'if command -v systemd-run >/dev/null 2>&1 && systemctl list-units >/dev/null 2>&1; then UNIT="kelicloud-agent-upgrade-$(date +%s)"; systemd-run --unit "$UNIT" --collect /bin/sh -lc "$INSTALL_CMD"; STATUS=$?; else nohup /bin/sh -lc "$INSTALL_CMD" >/tmp/kelicloud-agent-upgrade.log 2>&1 </dev/null & STATUS=$?; fi',
     'if [ "$STATUS" -ne 0 ]; then exit "$STATUS"; fi',
     `echo ${shellQuote(`Agent upgrade scheduled. The node may go offline briefly while the service restarts.${targetVersionMessage}`)}`,
     "exit 0",

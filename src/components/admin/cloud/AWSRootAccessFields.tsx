@@ -71,7 +71,7 @@ export function AWSRootAccessFields({
                   )
                 : t(
                     "cloud.providers.aws.root_access_none_help",
-                    "Use the selected key pair or image defaults only. Komari will not inject a root password.",
+                    "Use the selected key pair or image defaults only. kelicloud will not inject a root password.",
                   )}
             </div>
           )}
@@ -84,7 +84,7 @@ export function AWSRootAccessFields({
             tone="info"
             description={t(
               "cloud.providers.aws.root_access_help",
-              "Komari will append a startup script to set the root password and enable password login on supported Linux images.",
+              "kelicloud will append a startup script to set the root password and enable password login on supported Linux images.",
             )}
           />
           <div className={`text-xs ${cloudPanelBodyTextClassName}`}>

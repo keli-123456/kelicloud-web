@@ -1,6 +1,6 @@
 {
-  "name": "Komari Monitor",
-  "short_name": "Komari Monitor",
+  "name": "kelicloud",
+  "short_name": "kelicloud",
   "description": "A simple server monitor tool",
   "start_url": "/",
   "display": "standalone",

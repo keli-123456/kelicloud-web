@@ -312,7 +312,7 @@ export function ActionsCell({ row }: { row: Row<z.infer<typeof schema>> }) {
                     className={NODE_INPUT_CLASS}
                     placeholder={t(
                       "admin.nodeTable.install_dir_placeholder",
-                      "安装目录，为空则使用默认目录(/opt/komari-agent)"
+                      "安装目录，为空则使用默认目录(/opt/kelicloud-agent)"
                     )}
                     onChange={(e) =>
                       setInstallOptions((prev) => ({
@@ -330,7 +330,7 @@ export function ActionsCell({ row }: { row: Row<z.infer<typeof schema>> }) {
                     className={NODE_INPUT_CLASS}
                     placeholder={t(
                       "admin.nodeTable.serviceName_placeholder",
-                      "服务名称，为空则使用默认名称(komari-agent)"
+                      "服务名称，为空则使用默认名称(kelicloud-agent)"
                     )}
                     onChange={(e) =>
                       setInstallOptions((prev) => ({

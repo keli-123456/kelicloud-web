@@ -162,7 +162,7 @@ export function DigitalOceanCreateDialog({
             tone="info"
             description={t(
               "cloud.form.root_access_password_help",
-              "Komari will ensure a managed SSH key exists for this token, attach it to the Droplet, and run a startup script to set the root password and enable password login.",
+              "kelicloud will ensure a managed SSH key exists for this token, attach it to the Droplet, and run a startup script to set the root password and enable password login.",
             )}
           />
           <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-300">
