@@ -95,6 +95,8 @@ export type FailoverTask = {
   probe: FailoverProbe;
   cooldown_remaining_seconds: number;
   next_eligible_at: string | null;
+  next_monitor_check_at: string | null;
+  next_monitor_check_remaining_seconds: number;
   next_scheduled_check_at: string | null;
   next_scheduled_check_remaining_seconds: number;
   latest_execution: FailoverExecutionSummary | null;
@@ -583,6 +585,8 @@ function normalizeTask(task: unknown): FailoverTask {
     probe: normalizeProbe(raw.probe),
     cooldown_remaining_seconds: normalizeNumber(raw.cooldown_remaining_seconds),
     next_eligible_at: normalizeNullableString(raw.next_eligible_at),
+    next_monitor_check_at: normalizeNullableString(raw.next_monitor_check_at),
+    next_monitor_check_remaining_seconds: normalizeNumber(raw.next_monitor_check_remaining_seconds),
     next_scheduled_check_at: normalizeNullableString(raw.next_scheduled_check_at),
     next_scheduled_check_remaining_seconds: normalizeNumber(raw.next_scheduled_check_remaining_seconds),
     latest_execution: normalizeExecutionSummary(raw.latest_execution),

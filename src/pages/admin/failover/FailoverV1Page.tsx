@@ -4291,7 +4291,7 @@ function createEmptyTaskForm(providerEntries: ProviderEntriesMap): TaskFormState
     current_client_uuid: "",
     failure_threshold: "2",
     stale_after_seconds: "300",
-    cooldown_seconds: "1800",
+    cooldown_seconds: "0",
     provision_retry_limit: "6",
     provision_failure_fallback_limit: "3",
     dns_provider: defaultProvider,
@@ -4358,7 +4358,7 @@ function taskToForm(task: FailoverTask, providerEntries: ProviderEntriesMap): Ta
     current_client_uuid: task.current_client_uuid || task.watch_client_uuid || "",
     failure_threshold: String(task.failure_threshold || 2),
     stale_after_seconds: String(task.stale_after_seconds || 300),
-    cooldown_seconds: String(task.cooldown_seconds || 1800),
+    cooldown_seconds: String(task.cooldown_seconds),
     provision_retry_limit: String(task.provision_retry_limit || 6),
     provision_failure_fallback_limit: String(task.provision_failure_fallback_limit || 3),
     dns_provider: task.dns_provider,
@@ -4758,7 +4758,7 @@ function buildTaskInput(formState: TaskFormState, t: TFunction): FailoverTaskInp
     current_client_uuid: currentClientUUID,
     failure_threshold: numberOrDefault(formState.failure_threshold, 2),
     stale_after_seconds: numberOrDefault(formState.stale_after_seconds, 300),
-    cooldown_seconds: numberOrDefault(formState.cooldown_seconds, 1800),
+    cooldown_seconds: numberOrDefault(formState.cooldown_seconds, 0),
     provision_retry_limit: numberOrDefault(formState.provision_retry_limit, 6),
     provision_failure_fallback_limit: numberOrDefault(formState.provision_failure_fallback_limit, 3),
     dns_provider: dnsProvider,
@@ -10448,11 +10448,23 @@ function FailoverPageContent() {
     const cooldownSummary = task.cooldown_remaining_seconds > 0
       ? formatDurationSeconds(task.cooldown_remaining_seconds, t)
       : t("failover.cooldown.ready", { defaultValue: "Ready" });
-    const nextCycleAt = task.next_scheduled_check_at ? new Date(task.next_scheduled_check_at).getTime() : Number.NaN;
+    const hasMonitorCycle = Boolean(task.next_monitor_check_at) || task.next_monitor_check_remaining_seconds > 0;
+    const canUseLegacyCycle = !hasMonitorCycle && task.cooldown_remaining_seconds <= 0;
+    const nextCycleSourceAt = hasMonitorCycle
+      ? task.next_monitor_check_at
+      : canUseLegacyCycle
+        ? task.next_scheduled_check_at
+        : null;
+    const nextCycleSourceRemaining = hasMonitorCycle
+      ? task.next_monitor_check_remaining_seconds
+      : canUseLegacyCycle
+        ? task.next_scheduled_check_remaining_seconds
+        : 0;
+    const nextCycleAt = nextCycleSourceAt ? new Date(nextCycleSourceAt).getTime() : Number.NaN;
     const nextCycleRemainingSeconds = Number.isFinite(nextCycleAt)
       ? Math.max(0, Math.ceil((nextCycleAt - clockNow) / 1000))
-      : Math.max(0, task.next_scheduled_check_remaining_seconds);
-    const nextCycleSummary = task.enabled && !task.has_active_execution && (task.next_scheduled_check_at || task.next_scheduled_check_remaining_seconds > 0)
+      : Math.max(0, nextCycleSourceRemaining);
+    const nextCycleSummary = task.enabled && !task.has_active_execution && (nextCycleSourceAt || nextCycleSourceRemaining > 0)
       ? nextCycleRemainingSeconds > 0
         ? formatDurationSeconds(nextCycleRemainingSeconds, t)
         : t("failover.table.next_cycle_now", { defaultValue: "Now" })
