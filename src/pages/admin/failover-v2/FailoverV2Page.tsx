@@ -1,6 +1,6 @@
 import React from "react";
 import type { TFunction } from "i18next";
-import { Navigate, useNavigate } from "react-router-dom";
+import { Navigate, useNavigate, useSearchParams } from "react-router-dom";
 import { ArrowDown, ArrowUp, Check, ChevronDown, ChevronUp, LoaderCircle, PencilLine, Play, Plus, RefreshCw, Share2, Trash2, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
@@ -2697,6 +2697,7 @@ function parseServiceDNSPayload(provider: string, payload: unknown) {
 export default function FailoverV2Page() {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { account, hasFeature, loading, platformAdmin } = useAccount();
   const systemState = useSettings("system", { enabled: platformAdmin });
   const serviceLoadSeqRef = React.useRef(0);
@@ -2936,6 +2937,40 @@ export default function FailoverV2Page() {
   const servicePagination = useClientPagination(services, {
     initialPageSize: 8,
   });
+  const servicePageSize = servicePagination.pageSize;
+  const setServicePage = servicePagination.setPage;
+  const focusedServiceID = React.useMemo(() => {
+    const raw = String(searchParams.get("service") || searchParams.get("service_id") || "").trim();
+    if (!raw) {
+      return null;
+    }
+    const parsed = Number(raw);
+    return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+  }, [searchParams]);
+  const focusedMemberID = React.useMemo(() => {
+    const raw = String(searchParams.get("member") || searchParams.get("member_id") || "").trim();
+    if (!raw) {
+      return null;
+    }
+    const parsed = Number(raw);
+    return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+  }, [searchParams]);
+  React.useEffect(() => {
+    if (!focusedServiceID || services.length === 0) {
+      return;
+    }
+    const focusedIndex = services.findIndex((service) => service.id === focusedServiceID);
+    if (focusedIndex < 0) {
+      return;
+    }
+    const focusedService = services[focusedIndex];
+    setServicePage(Math.floor(focusedIndex / servicePageSize) + 1);
+    setExpandedServiceID((current) => current === focusedServiceID ? current : focusedServiceID);
+    if (focusedMemberID && focusedService.members.some((member) => member.id === focusedMemberID)) {
+      const nextKey = `${focusedServiceID}:${focusedMemberID}`;
+      setExpandedMemberKey((current) => current === nextKey ? current : nextKey);
+    }
+  }, [expandedServiceID, focusedMemberID, focusedServiceID, servicePageSize, services, setServicePage]);
   const handleServicePageChange = React.useCallback((nextPage: number) => {
     servicePagination.setPage(nextPage);
     setExpandedServiceID(null);

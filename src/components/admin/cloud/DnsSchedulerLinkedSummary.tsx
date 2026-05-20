@@ -102,6 +102,25 @@ function renderIPPair(item: DNSSchedulerItem) {
   return values.length ? values.join(" / ") : "-";
 }
 
+function mergeGroupLabel(
+  item: DNSSchedulerItem,
+  t: ReturnType<typeof useTranslation>["t"],
+) {
+  const size = Number(item.merge_group_size) || 0;
+  if (size <= 1) {
+    return t("cloud.dns.scheduler.merge_group_single", { defaultValue: "独立目标" });
+  }
+  return item.merge_group_primary
+    ? t("cloud.dns.scheduler.merge_group_primary", {
+      count: size,
+      defaultValue: "合并组 {{count}} · 主项",
+    })
+    : t("cloud.dns.scheduler.merge_group_follower", {
+      count: size,
+      defaultValue: "合并组 {{count}} · 跟随",
+    });
+}
+
 function getDnsSchedulerLink(
   sourceType: DnsSchedulerLinkedSummaryProps["sourceType"],
   sourceId: DnsSchedulerLinkedSummaryProps["sourceId"],
@@ -196,6 +215,11 @@ export default function DnsSchedulerLinkedSummary({
         <div className="mt-3 space-y-3">
           <div className="flex flex-wrap items-center gap-2">
             <Badge variant={statusVariant(item.status)}>{statusLabel(item.status, t)}</Badge>
+            {item.merge_group_size > 1 ? (
+              <Badge variant="warning">
+                {mergeGroupLabel(item, t)}
+              </Badge>
+            ) : null}
             {item.status === "skipped_duplicate" ? (
               <Badge variant="warning">
                 {t("cloud.dns.scheduler.linked_coalesced", { defaultValue: "已合并写入" })}
@@ -239,6 +263,22 @@ export default function DnsSchedulerLinkedSummary({
               </div>
               <div className="mt-1 truncate font-medium text-foreground">
                 {formatDateTime(item.last_synced_at || item.updated_at)}
+              </div>
+            </div>
+            <div className="min-w-0 rounded-md border border-border bg-background/60 px-2.5 py-2 dark:border-slate-800">
+              <div className="text-[11px] font-medium text-muted-foreground">
+                {t("cloud.dns.scheduler.detail_merge_group", { defaultValue: "合并组" })}
+              </div>
+              <div className="mt-1 truncate font-medium text-foreground" title={mergeGroupLabel(item, t)}>
+                {mergeGroupLabel(item, t)}
+              </div>
+            </div>
+            <div className="min-w-0 rounded-md border border-border bg-background/60 px-2.5 py-2 dark:border-slate-800">
+              <div className="text-[11px] font-medium text-muted-foreground">
+                {t("cloud.dns.scheduler.detail_source_status", { defaultValue: "来源状态" })}
+              </div>
+              <div className="mt-1 truncate font-medium text-foreground">
+                {item.source_status || "-"}
               </div>
             </div>
           </div>

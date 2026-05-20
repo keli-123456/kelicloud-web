@@ -1051,6 +1051,7 @@
         "detail_node": "Node",
         "detail_node_source": "Node and source",
         "detail_node_uuid": "Node UUID",
+        "detail_open_source_task": "Buka tugas sumber",
         "detail_provider": "Provider",
         "detail_reason": "Scheduler note",
         "detail_record": "Record",

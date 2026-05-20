@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
-import { useSearchParams } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import {
   Activity,
   CheckCircle2,
   CircleDotDashed,
   Clock3,
+  ExternalLink,
   Eye,
   GitMerge,
   Info,
@@ -197,6 +198,20 @@ function mergeGroupBadge(item: DNSSchedulerItem, t: ReturnType<typeof useTransla
       defaultValue: "合并组 {{count}} · 跟随",
       count: groupSize,
     });
+}
+
+function getSourceTaskHref(item: DNSSchedulerItem) {
+  const sourceId = String(item.source_id || "").trim();
+  if (!sourceId) {
+    return "";
+  }
+  if (item.source_type === "failover_v1") {
+    return `/admin/failover?${new URLSearchParams({ task: sourceId }).toString()}`;
+  }
+  if (item.source_type === "failover_v2") {
+    return `/admin/failover-v2?${new URLSearchParams({ service: sourceId }).toString()}`;
+  }
+  return "";
 }
 
 function SchedulerFlow() {
@@ -645,6 +660,7 @@ function SchedulerTaskDetailPanel({
   item: DNSSchedulerItem | null;
 }) {
   const { t } = useTranslation();
+  const navigate = useNavigate();
 
   if (!item) {
     return (
@@ -663,6 +679,8 @@ function SchedulerTaskDetailPanel({
       </aside>
     );
   }
+
+  const sourceTaskHref = getSourceTaskHref(item);
 
   return (
     <aside className="border-t border-border bg-slate-50/40 p-4 dark:border-slate-800 dark:bg-slate-900/15 lg:border-l lg:border-t-0">
@@ -735,6 +753,18 @@ function SchedulerTaskDetailPanel({
             <SchedulerDetailField label={t("cloud.dns.scheduler.detail_node_uuid", { defaultValue: "节点 UUID" })} value={displayValue(item.client_uuid)} mono />
             {item.user_id ? (
               <SchedulerDetailField label={t("cloud.dns.scheduler.detail_user", { defaultValue: "用户" })} value={displayValue(item.user_id)} mono />
+            ) : null}
+            {sourceTaskHref ? (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="h-8 justify-center gap-2 text-xs"
+                onClick={() => navigate(sourceTaskHref)}
+              >
+                <ExternalLink className="h-3.5 w-3.5" />
+                {t("cloud.dns.scheduler.detail_open_source_task", { defaultValue: "Open source task" })}
+              </Button>
             ) : null}
           </div>
         </SchedulerDetailSection>

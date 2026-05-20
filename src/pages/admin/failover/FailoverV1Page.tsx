@@ -1,5 +1,5 @@
 import React from "react";
-import { Navigate } from "react-router-dom";
+import { Navigate, useSearchParams } from "react-router-dom";
 import {
   ArrowDown,
   ArrowUp,
@@ -10262,6 +10262,7 @@ function TaskEditorDialog({
 
 function FailoverPageContent() {
   const { t } = useTranslation();
+  const [searchParams] = useSearchParams();
   const { account, hasFeature, loading: accountLoading } = useAccount();
   const [tasks, setTasks] = React.useState<FailoverTask[]>([]);
   const [nodes, setNodes] = React.useState<FailoverNodeOption[]>([]);
@@ -10405,6 +10406,28 @@ function FailoverPageContent() {
   const taskPagination = useClientPagination(tasks, {
     initialPageSize: 12,
   });
+  const taskPageSize = taskPagination.pageSize;
+  const setTaskPage = taskPagination.setPage;
+  const focusedTaskID = React.useMemo(() => {
+    const raw = String(searchParams.get("task") || searchParams.get("task_id") || "").trim();
+    if (!raw) {
+      return null;
+    }
+    const parsed = Number(raw);
+    return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+  }, [searchParams]);
+
+  React.useEffect(() => {
+    if (!focusedTaskID || tasks.length === 0) {
+      return;
+    }
+    const focusedIndex = tasks.findIndex((task) => task.id === focusedTaskID);
+    if (focusedIndex < 0) {
+      return;
+    }
+    setSelectedTaskID((current) => current === focusedTaskID ? current : focusedTaskID);
+    setTaskPage(Math.floor(focusedIndex / taskPageSize) + 1);
+  }, [focusedTaskID, setTaskPage, taskPageSize, tasks]);
 
   const getTaskView = React.useCallback((task: FailoverTask) => {
     const currentClientUUID = task.current_client_uuid || task.watch_client_uuid;

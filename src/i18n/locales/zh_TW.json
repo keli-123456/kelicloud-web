@@ -1051,6 +1051,7 @@
         "detail_node": "節點",
         "detail_node_source": "節點與來源",
         "detail_node_uuid": "節點 UUID",
+        "detail_open_source_task": "開啟來源任務",
         "detail_provider": "服務商",
         "detail_reason": "調度說明",
         "detail_record": "記錄",
