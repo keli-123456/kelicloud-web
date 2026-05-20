@@ -727,6 +727,20 @@
     "epusdt_secret_key": "商户 Secret Key",
     "epusdt_token": "代币",
     "expires_at": "到期时间",
+    "feature_dependency_hint": "云厂商、DNS、故障切换和运维工具都会自动绑定服务器页面权限。",
+    "feature_group_clear": "清空本组",
+    "feature_group_select_all": "全选本组",
+    "feature_group_selected": "已选 {{selected}}/{{total}}",
+    "feature_groups": {
+      "cloud": "云资源",
+      "cloud_description": "云厂商、DNS 和故障切换，适合按套餐拆分售卖。",
+      "operations": "运维工具",
+      "operations_description": "脚本执行、脚本库、日志和连通性检测等日常运维入口。",
+      "other": "其他功能",
+      "other_description": "后端新增但尚未归类的功能入口。",
+      "standard": "基础菜单",
+      "standard_description": "服务器、监控记录和通知，是大多数套餐的基础能力。"
+    },
     "features": {
       "clients": "服务器",
       "clipboard": "脚本库",
@@ -748,20 +762,6 @@
       "tasks": "执行任务"
     },
     "features_label": "功能权限",
-    "feature_dependency_hint": "云厂商、DNS、故障切换和运维工具都会自动绑定服务器页面权限。",
-    "feature_group_clear": "清空本组",
-    "feature_group_select_all": "全选本组",
-    "feature_group_selected": "已选 {{selected}}/{{total}}",
-    "feature_groups": {
-      "cloud": "云资源",
-      "cloud_description": "云厂商、DNS 和故障切换，适合按套餐拆分售卖。",
-      "operations": "运维工具",
-      "operations_description": "脚本执行、脚本库、日志和连通性检测等日常运维入口。",
-      "other": "其他功能",
-      "other_description": "后端新增但尚未归类的功能入口。",
-      "standard": "基础菜单",
-      "standard_description": "服务器、监控记录和通知，是大多数套餐的基础能力。"
-    },
     "free_access": "未开通套餐",
     "inactive": "已停用",
     "instructions": "付款说明",
