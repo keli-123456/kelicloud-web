@@ -357,10 +357,10 @@ function AdminPanelBarContent({ content }: AdminPanelBarProps) {
   const accountStatusLabel = t(`billing.access_status_${accountAccessStatus}`, {
     defaultValue:
       accountAccessStatus === "disabled"
-        ? "已停用"
+        ? "Disabled"
         : accountAccessStatus === "expired"
-          ? "已到期"
-          : "正常",
+          ? "Expired"
+          : "Active",
   });
   const accountExpiryLabel = formatAccountPlanExpiry(
     account,

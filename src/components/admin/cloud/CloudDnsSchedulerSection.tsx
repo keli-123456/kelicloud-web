@@ -44,10 +44,12 @@ function formatDateTime(value?: string | null) {
   return date.toLocaleString();
 }
 
-function providerLabel(value: string) {
+function providerLabel(value: string, t: ReturnType<typeof useTranslation>["t"]) {
   const normalized = value.trim().toLowerCase();
   if (normalized === "cloudflare") return "Cloudflare";
-  if (normalized === "aliyun") return "阿里云";
+  if (normalized === "aliyun") {
+    return t("cloud.dns.provider_names.aliyun", { defaultValue: "Aliyun" });
+  }
   return value || "-";
 }
 
@@ -542,7 +544,7 @@ function SchedulerTaskDetailPanel({
           icon={<Network className="h-3.5 w-3.5" />}
         >
           <div className="grid gap-2">
-            <SchedulerDetailField label={t("cloud.dns.scheduler.detail_provider", { defaultValue: "服务商" })} value={providerLabel(item.provider)} />
+            <SchedulerDetailField label={t("cloud.dns.scheduler.detail_provider", { defaultValue: "服务商" })} value={providerLabel(item.provider, t)} />
             <SchedulerDetailField label={t("cloud.dns.scheduler.detail_entry", { defaultValue: "凭据 / Token" })} value={displayValue(item.entry_id)} mono />
             <SchedulerDetailField label={t("cloud.dns.scheduler.detail_record", { defaultValue: "记录" })} value={displayValue(item.record_key)} mono />
             <SchedulerDetailField label={t("cloud.dns.scheduler.detail_address_mode", { defaultValue: "地址模式" })} value={displayValue(item.address_mode || "ipv4")} />
@@ -862,7 +864,7 @@ export default function CloudDnsSchedulerSection() {
                       <td className="px-4 py-3">
                         <div className="flex min-w-0 flex-col gap-1">
                           <div className="flex min-w-0 flex-wrap items-center gap-1.5">
-                            <Badge color="gray">{providerLabel(item.provider)}</Badge>
+                            <Badge color="gray">{providerLabel(item.provider, t)}</Badge>
                             <Badge color="gray">{item.address_mode || "ipv4"}</Badge>
                             {mergeGroupBadge(item, t) ? (
                               <Badge color="amber">{mergeGroupBadge(item, t)}</Badge>

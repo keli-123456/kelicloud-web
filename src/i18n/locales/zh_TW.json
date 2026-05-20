@@ -764,6 +764,13 @@
     "no_plan": "未设置",
     "no_public_plans": "暂无可购买套餐",
     "no_public_plans_desc": "管理员需要先创建并公开套餐。",
+    "nav": {
+      "my_orders_description": "查看自己的購買和續費記錄",
+      "orders_description": "確認收款、開通套餐和處理訂單",
+      "payments_description": "配置人工收款、Epusdt 等支付方式",
+      "plans_description": "維護可售套餐和對應功能權限",
+      "shop_description": "普通使用者購買或續費套餐"
+    },
     "open_payment_link": "打开支付链接",
     "open_qr": "打开收款二维码",
     "order_cancelled": "订单已取消",
@@ -788,6 +795,7 @@
     "pending_payment_description": "完成付款后等待管理员确认，确认后权限会自动生效。",
     "pending_payment_title": "待付款订单",
     "plan": "套餐",
+    "platform_admin": "平台管理員",
     "plan_archived": "套餐已归档",
     "plan_code": "套餐代码",
     "plan_name": "套餐名称",
@@ -934,6 +942,8 @@
       "delete_confirm_title": "删除凭证",
       "delete_success": "凭证已删除",
       "description": "在这里配置 DNS 服务商，后续真正要创建或更新解析记录时再复用这些凭证。",
+      "credentials_tab": "憑證池",
+      "credentials_tab_description": "DNS API 憑據",
       "dialog": {
         "add_entry_title": "添加 {{provider}} 凭证",
         "add_title": "添加 {{provider}}",
@@ -964,6 +974,10 @@
       "provider_description": "选择 kelicloud 应该用于域名自动化的 DNS 服务商。",
       "provider_fields": "凭证字段",
       "provider_fields_description": "保存这个 DNS 服务商要使用的 API 凭证。",
+      "provider_names": {
+        "aliyun": "阿里雲",
+        "cloudflare": "Cloudflare"
+      },
       "providers": {
         "aliyun": {
           "access_key_id": "AccessKey ID",
@@ -995,6 +1009,8 @@
       "recommended": "推荐",
       "save_success": "DNS 服务商配置已保存",
       "scheduler": {
+        "deduped_count": "合併 {{count}}",
+        "dedupe_groups": "目標合併組 {{count}}",
         "detail_address_mode": "地址模式",
         "detail_candidate": "候選",
         "detail_disabled": "任務已停用，不會進入寫入佇列",
@@ -1030,6 +1046,23 @@
         "detail_title": "任務詳情",
         "detail_updated_at": "更新時間",
         "detail_user": "使用者",
+        "empty_description": "啟用 DDNS 或為故障切換配置 DNS 後，這裡會顯示對應狀態。",
+        "empty_title": "暫無 DNS 調度項",
+        "execution_aliyun_single": "阿里雲單條 {{count}}",
+        "execution_api_requests": "API {{count}}",
+        "execution_cf_batch": "CF 批量 {{count}}",
+        "execution_coalesced": "並發合併 {{count}}",
+        "execution_inflight": "執行中 {{count}}",
+        "failed_count": "異常 {{count}}",
+        "flow": {
+          "apply": "必要時請求 DNS API",
+          "diff": "對比本機 IP 狀態",
+          "merge": "按使用者/令牌/記錄合併",
+          "scan": "掃描 DDNS 和故障切換 DNS"
+        },
+        "idle": "等待下一輪",
+        "last_ip": "上次：{{ipv4}} {{ipv6}}",
+        "last_run": "最近一輪 {{time}} · {{ms}}ms",
         "linked_coalesced": "已合併寫入",
         "linked_empty": "這個任務目前沒有進入 DNS 調度佇列，通常是未配置 DNS 或任務不可用。",
         "linked_hint": "統一佇列會合併同憑據同記錄的寫入請求。",
@@ -1037,10 +1070,42 @@
         "linked_next_run": "下一輪約 {{time}}",
         "linked_open": "查看調度詳情",
         "linked_title": "DNS 調度",
-        "dedupe_groups": "目標合併組 {{count}}",
         "merge_group_follower": "合併組 {{count}} · 跟隨",
         "merge_group_primary": "合併組 {{count}} · 主項",
-        "merge_group_single": "獨立目標"
+        "merge_group_single": "獨立目標",
+        "pagination": "顯示 {{start}}-{{end}} 條，共 {{total}} 條",
+        "pending_count": "待處理 {{count}}",
+        "queue_hint": "DDNS 與故障切換共用 DNS 執行入口；同憑證會串行，Cloudflare 寫入會儘量批量提交。",
+        "queue_title": "DNS 任務佇列",
+        "running": "調度中",
+        "search": "搜尋任務 / 記錄 / IP",
+        "source": {
+          "all": "全部",
+          "ddns": "DDNS",
+          "failover_v1": "故障切換 V1",
+          "failover_v2": "故障切換 V2"
+        },
+        "source_ddns_count": "DDNS {{count}}",
+        "source_v1_count": "V1 {{count}}",
+        "source_v2_count": "V2 {{count}}",
+        "status": {
+          "disabled": "已停用",
+          "error": "異常",
+          "pending": "待調度",
+          "skipped_duplicate": "已合併",
+          "synced": "已同步",
+          "watching": "監聽中"
+        },
+        "synced_count": "已同步 {{count}}",
+        "tab": "調度中心",
+        "tab_description": "DDNS 佇列狀態",
+        "table": {
+          "current_ip": "目前 IP",
+          "node": "節點",
+          "record": "DNS 目標",
+          "source": "來源",
+          "synced_at": "最近時間"
+        }
       },
       "status": {
         "configured": "已配置",
@@ -1484,6 +1549,7 @@
         "active_credential": "当前凭证",
         "active_location": "当前活动区域",
         "admin_password": "管理员密码",
+        "admin_password_help": "使用這個 root 密碼建立虛擬機；留空或選擇隨機時，後端會生成並只展示一次。",
         "admin_password_placeholder": "请使用符合 Azure 复杂度要求的强密码",
         "admin_username": "管理员用户名",
         "app_credential": "应用憑證",
@@ -3766,6 +3832,17 @@
       "save_failed_generic": "保存离线通知设置失败",
       "tips": "為了避免頻繁發送通知，我們設定了寬限期：</br> <b>寬限期</b>：客戶端離線後，如果在這段時間內沒有重新上線，就會發送離線通知",
       "title": "離線通知"
+    },
+    "scheduler": {
+      "channel": "發送通道",
+      "channel_disabled": "未配置",
+      "check_time": "檢查時間",
+      "daily_check": "每天 {{time}}",
+      "disabled": "未啟用",
+      "enabled": "已啟用",
+      "lead_days": "{{count}} 天",
+      "lead_time": "提前提醒",
+      "status": "狀態"
     },
     "page_description": "集中配置套餐到期、故障切換、負載和流量等通知策略。",
     "title": "通知"

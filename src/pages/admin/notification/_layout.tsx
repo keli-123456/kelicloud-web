@@ -13,17 +13,17 @@ const navItems = [
   {
     path: "/admin/notification/general",
     labelKey: "notification.general.title",
-    labelDefault: "通知通道",
+    labelDefault: "Notification channel",
     descriptionKey: "notification.general.description",
-    descriptionDefault: "套餐到期、故障切换和系统事件",
+    descriptionDefault: "Plan expiration, failover, and system events",
     icon: Bell,
   },
   {
     path: "/admin/notification/load",
     labelKey: "notification.load.title",
-    labelDefault: "负载告警",
+    labelDefault: "Load alerts",
     descriptionKey: "notification.load.description",
-    descriptionDefault: "负载阈值告警",
+    descriptionDefault: "Load threshold alerts",
     icon: Gauge,
   },
 ] as const;

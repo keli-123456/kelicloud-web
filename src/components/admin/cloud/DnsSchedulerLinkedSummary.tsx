@@ -68,12 +68,15 @@ function statusLabel(status: string | undefined, t: ReturnType<typeof useTransla
   }
 }
 
-function formatProvider(provider: string) {
+function formatProvider(
+  provider: string,
+  t: ReturnType<typeof useTranslation>["t"],
+) {
   switch (String(provider || "").trim().toLowerCase()) {
     case "cloudflare":
       return "Cloudflare";
     case "aliyun":
-      return "阿里云";
+      return t("cloud.dns.provider_names.aliyun", { defaultValue: "Aliyun" });
     default:
       return provider || "-";
   }
@@ -173,7 +176,7 @@ export default function DnsSchedulerLinkedSummary({
           className="rounded-md p-1 text-muted-foreground transition hover:bg-muted hover:text-foreground"
           onClick={() => void loadSnapshot()}
           disabled={refreshing}
-          title={t("refresh", { defaultValue: "Refresh" })}
+          title={t("common.refresh", { defaultValue: "Refresh" })}
         >
           {refreshing ? <LoaderCircle className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
         </button>
@@ -219,7 +222,7 @@ export default function DnsSchedulerLinkedSummary({
                 {t("cloud.dns.scheduler.detail_provider", { defaultValue: "服务商" })}
               </div>
               <div className="mt-1 truncate font-medium text-foreground">
-                {formatProvider(item.provider)} / {item.entry_id || "-"}
+                {formatProvider(item.provider, t)} / {item.entry_id || "-"}
               </div>
             </div>
             <div className="min-w-0 rounded-md border border-border bg-background/60 px-2.5 py-2 dark:border-slate-800">

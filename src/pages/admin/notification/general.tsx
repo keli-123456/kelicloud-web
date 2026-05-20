@@ -54,6 +54,55 @@ const Inner = () => {
   const notificationsEnabled = Boolean(
     systemSettings.notification_enabled ?? userSettings.notification_enabled,
   );
+  const expireNotificationsEnabled = Boolean(
+    systemSettings.expire_notification_enabled,
+  );
+  const expireLeadDays = Number(systemSettings.expire_notification_lead_days ?? 7);
+  const expireStatusItems = [
+    {
+      label: t("notification.scheduler.status", {
+        defaultValue: "状态",
+      }),
+      value: expireNotificationsEnabled
+        ? t("notification.scheduler.enabled", {
+            defaultValue: "已启用",
+          })
+        : t("notification.scheduler.disabled", {
+            defaultValue: "未启用",
+          }),
+      active: expireNotificationsEnabled,
+    },
+    {
+      label: t("notification.scheduler.lead_time", {
+        defaultValue: "提前提醒",
+      }),
+      value: t("notification.scheduler.lead_days", {
+        count: expireLeadDays,
+        defaultValue: "{{count}} 天",
+      }),
+    },
+    {
+      label: t("notification.scheduler.check_time", {
+        defaultValue: "检查时间",
+      }),
+      value: t("notification.scheduler.daily_check", {
+        time: "17:00",
+        defaultValue: "每天 {{time}}",
+      }),
+    },
+    {
+      label: t("notification.scheduler.channel", {
+        defaultValue: "发送通道",
+      }),
+      value:
+        notificationsEnabled && currentNotificationMethod
+          ? currentNotificationMethod
+          : t("notification.scheduler.channel_disabled", {
+              defaultValue: "未配置",
+            }),
+      active: notificationsEnabled && Boolean(currentNotificationMethod),
+    },
+  ];
 
   React.useEffect(() => {
     if (!platformAdmin || loading) return;
@@ -452,8 +501,28 @@ const Inner = () => {
 
           <section className={notificationPanelClass}>
             <SettingCardLabel>{t("admin.notification.expire_title")}</SettingCardLabel>
+            <div className="mb-2 grid gap-2 rounded-md border border-border/70 bg-muted/30 p-3 sm:grid-cols-2 xl:grid-cols-4">
+              {expireStatusItems.map((item) => (
+                <div key={item.label} className="min-w-0">
+                  <div className="text-xs font-medium text-muted-foreground">
+                    {item.label}
+                  </div>
+                  <div
+                    className={`mt-1 truncate text-sm font-semibold ${
+                      item.active === undefined
+                        ? "text-foreground"
+                        : item.active
+                          ? "text-emerald-600 dark:text-emerald-400"
+                          : "text-muted-foreground"
+                    }`}
+                  >
+                    {item.value}
+                  </div>
+                </div>
+              ))}
+            </div>
             <SettingCardSwitch
-              defaultChecked={systemSettings.expire_notification_enabled}
+              defaultChecked={expireNotificationsEnabled}
               title={t("admin.notification.expire_enable")}
               description={t("admin.notification.expire_enable_description")}
               onChange={async (checked) => {
@@ -462,13 +531,14 @@ const Inner = () => {
                   t,
                   "system",
                 );
+                await systemState.refetch();
               }}
             />
             <SettingCardShortTextInput
               type="number"
               title={t("admin.notification.expire_time")}
               description={t("admin.notification.expire_time_description")}
-              defaultValue={systemSettings.expire_notification_lead_days}
+              defaultValue={expireLeadDays}
               OnSave={async (value) => {
                 const numValue = Number(value);
                 if (Number.isNaN(numValue) || numValue < 0) {
@@ -484,6 +554,7 @@ const Inner = () => {
                   t,
                   "system",
                 );
+                await systemState.refetch();
               }}
             />
             <SettingCardLabel>{t("admin.notification.login")}</SettingCardLabel>
