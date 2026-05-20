@@ -20,6 +20,7 @@ import {
   AdminFormToggle as ToggleCard,
 } from "@/components/admin/AdminForm";
 import FailoverV2ShareDialog from "@/components/admin/failover-v2/FailoverV2ShareDialog";
+import DnsSchedulerLinkedSummary from "@/components/admin/cloud/DnsSchedulerLinkedSummary";
 import {
   ADMIN_FORM_DIALOG_CLASS,
   ADMIN_FORM_DIALOG_WIDE_CLASS,
@@ -4879,6 +4880,11 @@ export default function FailoverV2Page() {
                               {localizeFailoverV2RuntimeMessage(t, service.last_message)}
                             </div>
                           ) : null}
+                          <DnsSchedulerLinkedSummary
+                            sourceType="failover_v2"
+                            sourceId={service.id}
+                            className="mt-3"
+                          />
                         </div>
 
                         <div className="flex flex-wrap gap-1.5">

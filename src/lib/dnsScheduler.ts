@@ -49,6 +49,8 @@ export type DNSSchedulerItem = {
   last_ipv6: string;
   status: DNSSchedulerItemStatus | string;
   reason?: string;
+  merge_group_size: number;
+  merge_group_primary: boolean;
   last_synced_at: string | null;
   last_error?: string;
   updated_at: string;
@@ -197,6 +199,8 @@ function normalizeItem(value: unknown): DNSSchedulerItem {
     last_ipv6: normalizeString(raw.last_ipv6),
     status: normalizeString(raw.status) || "pending",
     reason: normalizeString(raw.reason),
+    merge_group_size: normalizeNumber(raw.merge_group_size),
+    merge_group_primary: normalizeBoolean(raw.merge_group_primary),
     last_synced_at: normalizeNullableString(raw.last_synced_at),
     last_error: normalizeString(raw.last_error),
     updated_at: normalizeString(raw.updated_at),

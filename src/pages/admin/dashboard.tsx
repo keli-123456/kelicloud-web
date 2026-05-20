@@ -1,9 +1,18 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
-import { Link, Navigate } from "react-router-dom";
+import { Navigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import {
+  Activity,
   AlertTriangle,
-  Server,
+  CheckCircle2,
+  Cpu,
+  HardDrive,
+  Layers3,
+  MemoryStick,
+  RefreshCw,
+  ShieldCheck,
+  Signal,
+  WifiOff,
 } from "lucide-react";
 
 import {
@@ -30,6 +39,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import type { Record as LiveRecord } from "@/types/LiveData";
+import { formatBytes } from "@/utils/unitHelper";
 
 type NodeLiveSnapshot = {
   online: boolean;
@@ -113,6 +123,27 @@ const getNodeGroupLabel = (node: NodeDetail, fallback: string) => {
   return groupName || fallback;
 };
 
+const formatPercent = (value: number) => `${Math.round(clampPercent(value))}%`;
+
+const getUsageTone = (value: number): "ok" | "warn" | "bad" | "info" => {
+  if (value >= 90) return "bad";
+  if (value >= 75) return "warn";
+  return "ok";
+};
+
+const getWorstUsage = (cpu: number, ram: number, disk: number) =>
+  Math.max(clampPercent(cpu), clampPercent(ram), clampPercent(disk));
+
+const getWorstMetricLabel = (cpu: number, ram: number, disk: number) => {
+  const entries = [
+    { label: "CPU", value: cpu },
+    { label: "RAM", value: ram },
+    { label: "DISK", value: disk },
+  ].sort((left, right) => right.value - left.value);
+
+  return `${entries[0].label} ${formatPercent(entries[0].value)}`;
+};
+
 const panelClass =
   "overflow-hidden rounded-lg border border-border bg-card shadow-sm shadow-slate-900/5";
 
@@ -121,8 +152,7 @@ function DashboardLoadingState() {
   useAdminPageTitle(
     t("admin.dashboard.menu", { defaultValue: "仪表盘" }),
     t("admin.dashboard.homeDescription", {
-      defaultValue:
-        "聚合 /api/me、settings、feature scope、clients、orders、logs，为管理员提供一屏判断。",
+      defaultValue: "集中查看服务器健康、资源压力、分组状态和可用能力。",
     }),
   );
 
@@ -141,8 +171,7 @@ function DashboardPageContent() {
   useAdminPageTitle(
     t("admin.dashboard.homeTitle", { defaultValue: "后台首页" }),
     t("admin.dashboard.homeDescription", {
-      defaultValue:
-        "聚合 /api/me、settings、feature scope、clients、orders、logs，为管理员提供一屏判断。",
+      defaultValue: "集中查看服务器健康、资源压力、分组状态和可用能力。",
     }),
   );
   const [liveByNode, setLiveByNode] = useState<Record<string, NodeLiveSnapshot>>(
@@ -243,7 +272,7 @@ function DashboardPageContent() {
           const cnStatus = live?.record.cn_connectivity?.status;
           const connectivityRisk =
             cnStatus === "blocked_suspected" || cnStatus === "degraded";
-          const highUsage = Math.max(cpu, ram, disk);
+          const highUsage = getWorstUsage(cpu, ram, disk);
           const score =
             (offline ? 120 : 0) +
             (connectivityRisk ? 90 : 0) +
@@ -266,35 +295,98 @@ function DashboardPageContent() {
             node,
             score,
             reason,
+            tone: offline || highUsage >= 90 ? ("bad" as const) : ("warn" as const),
+            group: getNodeGroupLabel(node, defaultGroupLabel),
             cpu,
             ram,
             disk,
+            usageLabel: getWorstMetricLabel(cpu, ram, disk),
           };
         })
         .filter((item) => item.score > 0)
         .sort((left, right) => right.score - left.score),
-    [liveByNode, liveLoaded, nodes, t],
+    [defaultGroupLabel, liveByNode, liveLoaded, nodes, t],
   );
   const riskNodes = useMemo(() => riskItems.slice(0, 6), [riskItems]);
   const abnormalCount = riskItems.length;
+  const capacityItems = useMemo(
+    () =>
+      nodes
+        .map((node) => {
+          const live = liveByNode[node.uuid];
+          const cpu = clampPercent(live?.record.cpu.usage ?? 0);
+          const ram = clampPercent(getNodeRamUsagePercent(node, live));
+          const disk = clampPercent(getNodeDiskUsagePercent(node, live));
+          const pressure = getWorstUsage(cpu, ram, disk);
+
+          return {
+            node,
+            group: getNodeGroupLabel(node, defaultGroupLabel),
+            cpu,
+            ram,
+            disk,
+            pressure,
+            traffic: `${formatBytes(live?.record.network.up ?? 0)}/s ↑ · ${formatBytes(
+              live?.record.network.down ?? 0,
+            )}/s ↓`,
+            online: isNodeOnline(live),
+          };
+        })
+        .sort((left, right) => right.pressure - left.pressure)
+        .slice(0, 5),
+    [defaultGroupLabel, liveByNode, nodes],
+  );
   const groupSummaries = useMemo(() => {
-    const groups = new Map<string, { total: number; online: number }>();
+    const groups = new Map<
+      string,
+      { total: number; online: number; risks: number; pressureTotal: number }
+    >();
 
     nodes.forEach((node) => {
       const groupName = getNodeGroupLabel(node, defaultGroupLabel);
-      const current = groups.get(groupName) || { total: 0, online: 0 };
+      const live = liveByNode[node.uuid];
+      const cpu = clampPercent(live?.record.cpu.usage ?? 0);
+      const ram = clampPercent(getNodeRamUsagePercent(node, live));
+      const disk = clampPercent(getNodeDiskUsagePercent(node, live));
+      const pressure = getWorstUsage(cpu, ram, disk);
+      const connectivityRisk =
+        live?.record.cn_connectivity?.status === "blocked_suspected" ||
+        live?.record.cn_connectivity?.status === "degraded";
+      const current = groups.get(groupName) || {
+        total: 0,
+        online: 0,
+        risks: 0,
+        pressureTotal: 0,
+      };
       current.total += 1;
-      if (isNodeOnline(liveByNode[node.uuid])) {
+      current.pressureTotal += pressure;
+      if (isNodeOnline(live)) {
         current.online += 1;
+      }
+      if ((liveLoaded && !isNodeOnline(live)) || connectivityRisk || pressure >= 75) {
+        current.risks += 1;
       }
       groups.set(groupName, current);
     });
 
     return Array.from(groups.entries())
-      .map(([name, summary]) => ({ name, ...summary }))
-      .sort((left, right) => right.total - left.total || left.name.localeCompare(right.name))
+      .map(([name, summary]) => ({
+        name,
+        ...summary,
+        offline: Math.max(summary.total - summary.online, 0),
+        averagePressure: summary.total
+          ? summary.pressureTotal / summary.total
+          : 0,
+      }))
+      .sort(
+        (left, right) =>
+          right.risks - left.risks ||
+          right.offline - left.offline ||
+          right.total - left.total ||
+          left.name.localeCompare(right.name),
+      )
       .slice(0, 6);
-  }, [defaultGroupLabel, liveByNode, nodes]);
+  }, [defaultGroupLabel, liveByNode, liveLoaded, nodes]);
   const anyCloudEnabled = [
     "cloud_digitalocean",
     "cloud_linode",
@@ -307,7 +399,7 @@ function DashboardPageContent() {
   ].some((feature) => hasFeature(feature as AccountFeature));
   const featureModules = [
     {
-      title: "Clients / Records",
+      title: t("admin.nav.short.servers", { defaultValue: "服务器" }),
       description: t("admin.dashboard.moduleClients", {
         defaultValue: "节点与历史记录",
       }),
@@ -316,7 +408,7 @@ function DashboardPageContent() {
       label: t("common.available", { defaultValue: "可用" }),
     },
     {
-      title: "Cloud / DNS",
+      title: t("admin.nav.short.cloud", { defaultValue: "云厂商" }),
       description: t("admin.dashboard.moduleCloud", {
         defaultValue: "云实例与解析绑定",
       }),
@@ -327,7 +419,7 @@ function DashboardPageContent() {
         : t("common.disabled", { defaultValue: "Disabled" }),
     },
     {
-      title: "Terminal / Exec",
+      title: t("admin.nav.short.exec", { defaultValue: "脚本执行" }),
       description: t("admin.dashboard.moduleExec", {
         defaultValue: "远程终端与命令任务",
       }),
@@ -336,7 +428,7 @@ function DashboardPageContent() {
       label: t("admin.dashboard.audit", { defaultValue: "需审计" }),
     },
     {
-      title: "Billing",
+      title: t("admin.nav.short.billing", { defaultValue: "套餐计费" }),
       description: t("admin.dashboard.moduleBilling", {
         defaultValue: "套餐、支付与订单",
       }),
@@ -347,8 +439,25 @@ function DashboardPageContent() {
         : t("common.disabled", { defaultValue: "Disabled" }),
     },
   ];
-  const canUseClients = hasFeature("clients");
-  const canUseScripts = hasFeature("clipboard");
+  const healthTone: "ok" | "warn" | "bad" =
+    offlineCount > 0 ? "bad" : abnormalCount > 0 ? "warn" : "ok";
+  const healthTitle =
+    healthTone === "bad"
+      ? t("admin.dashboard.healthNeedsAction", { defaultValue: "有节点需要立即处理" })
+      : healthTone === "warn"
+        ? t("admin.dashboard.healthNeedsAttention", { defaultValue: "运行中存在风险" })
+        : t("admin.dashboard.healthStable", { defaultValue: "当前运行平稳" });
+  const healthDescription =
+    nodes.length === 0
+      ? t("admin.dashboard.noNodesForDashboard", {
+          defaultValue: "接入服务器后，这里会显示在线状态和资源压力。",
+        })
+      : t("admin.dashboard.healthSummary", {
+          online: onlineCount,
+          total: nodes.length,
+          risk: abnormalCount,
+          defaultValue: "{{online}}/{{total}} 台在线，{{risk}} 个风险项。",
+        });
 
   if (isLoading) {
     return <DashboardLoadingState />;
@@ -373,20 +482,6 @@ function DashboardPageContent() {
 
   return (
     <div className="flex min-w-0 flex-col gap-[14px] p-3 sm:p-4 md:p-6">
-      <div className="flex min-w-0 flex-wrap items-center justify-end gap-2">
-          <Button variant="outline" onClick={() => void refresh()}>
-            {t("admin.dashboard.selfCheck", { defaultValue: "运行自检" })}
-          </Button>
-          {canUseClients ? (
-          <Button asChild>
-            <Link to="/admin/client">
-              <Server className="h-4 w-4" />
-              {t("admin.dashboard.addNode", { defaultValue: "添加节点" })}
-            </Link>
-          </Button>
-          ) : null}
-      </div>
-
       {liveError ? (
         <Alert variant="destructive">
           <AlertTitle>{t("common.error", { defaultValue: "Error" })}</AlertTitle>
@@ -398,155 +493,220 @@ function DashboardPageContent() {
         </Alert>
       ) : null}
 
-      <div className="grid gap-[14px] lg:grid-cols-[0.95fr_1.25fr_0.8fr]">
-        <section className={panelClass}>
-          <DashboardPanelHead
-            title={t("admin.dashboard.modulesTitle", { defaultValue: "功能模块" })}
-            meta="UserFeature"
-          />
-          <div className="flex flex-col">
-            {featureModules.map((module) => (
-              <DashboardListRow
-                key={module.title}
-                title={module.title}
-                description={module.description}
-                status={<DashboardStatus tone={module.enabled ? module.tone : "info"}>{module.label}</DashboardStatus>}
-              />
-            ))}
-          </div>
-        </section>
-
+      <div className="grid gap-[14px] xl:grid-cols-[minmax(0,1.35fr)_minmax(320px,0.75fr)]">
         <section className={panelClass}>
           <DashboardPanelHead
             title={t("admin.dashboard.healthTitle", { defaultValue: "系统健康" })}
-            meta={t("admin.dashboard.last24h", { defaultValue: "最近 24 小时" })}
-          />
-          <DashboardChart />
-          <DashboardMiniTable
-            rows={[
-              {
-                label: t("nodeCard.online", { defaultValue: "Online" }),
-                value: `${onlineCount}`,
-                status: (
-                  <DashboardStatus tone="ok">
-                    {t("admin.dashboard.normal", { defaultValue: "正常" })}
-                  </DashboardStatus>
-                ),
-              },
-              {
-                label: t("nodeCard.offline", { defaultValue: "Offline" }),
-                value: `${offlineCount}`,
-                status: (
-                  <DashboardStatus tone={offlineCount > 0 ? "warn" : "ok"}>
-                    {offlineCount > 0
-                      ? t("admin.dashboard.attention", { defaultValue: "关注" })
-                      : t("admin.dashboard.normal", { defaultValue: "正常" })}
-                  </DashboardStatus>
-                ),
-              },
-              {
-                label: t("admin.dashboard.abnormal", { defaultValue: "异常风险" }),
-                value: `${abnormalCount}`,
-                status: (
-                  <DashboardStatus tone={abnormalCount > 0 ? "warn" : "ok"}>
-                    {abnormalCount > 0
-                      ? t("admin.dashboard.attention", { defaultValue: "关注" })
-                      : t("admin.dashboard.healthy", { defaultValue: "运行正常" })}
-                  </DashboardStatus>
-                ),
-              },
-            ]}
-          />
-        </section>
-
-        <section className={panelClass}>
-          <DashboardPanelHead
-            title={t("admin.dashboard.quickActions", { defaultValue: "快捷入口" })}
-            meta={t("admin.dashboard.frequentActions", { defaultValue: "高频动作" })}
-          />
-          <div className="grid gap-2.5 p-[14px]">
-            {canUseClients ? (
-              <Button asChild>
-                <Link to="/admin/client">
-                  {t("admin.dashboard.installCommand", {
-                    defaultValue: "生成 Agent 安装命令",
-                  })}
-                </Link>
+            meta={t("admin.dashboard.realtime", { defaultValue: "实时巡检" })}
+            action={(
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-8 gap-1.5 px-2.5"
+                onClick={() => void refresh()}
+              >
+                <RefreshCw className="h-3.5 w-3.5" />
+                {t("common.refresh", { defaultValue: "刷新" })}
               </Button>
-            ) : null}
-            {canUseScripts ? (
-              <Button asChild variant="outline">
-                <Link to="/admin/exec?view=scripts">
-                  {t("admin.dashboard.commandLibrary", { defaultValue: "命令库" })}
-                </Link>
-              </Button>
-            ) : null}
+            )}
+          />
+          <div className="grid gap-4 p-4 lg:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]">
+            <div className="flex min-w-0 flex-col gap-4">
+              <div className="flex min-w-0 items-start gap-3">
+                <div
+                  className={cn(
+                    "mt-0.5 flex h-11 w-11 shrink-0 items-center justify-center rounded-lg",
+                    healthTone === "bad"
+                      ? "bg-red-50 text-red-600 dark:bg-red-950/25 dark:text-red-300"
+                      : healthTone === "warn"
+                        ? "bg-amber-50 text-amber-600 dark:bg-amber-950/25 dark:text-amber-300"
+                        : "bg-emerald-50 text-emerald-600 dark:bg-emerald-950/25 dark:text-emerald-300",
+                  )}
+                >
+                  {healthTone === "bad" ? (
+                    <WifiOff className="h-5 w-5" />
+                  ) : healthTone === "warn" ? (
+                    <AlertTriangle className="h-5 w-5" />
+                  ) : (
+                    <CheckCircle2 className="h-5 w-5" />
+                  )}
+                </div>
+                <div className="min-w-0">
+                  <h2 className="text-lg font-semibold leading-7 text-foreground">
+                    {healthTitle}
+                  </h2>
+                  <p className="mt-1 text-sm leading-6 text-muted-foreground">
+                    {healthDescription}
+                  </p>
+                </div>
+              </div>
+              <DashboardHealthRail
+                online={onlineCount}
+                offline={offlineCount}
+                risks={abnormalCount}
+                total={nodes.length}
+              />
+            </div>
+            <div className="grid min-w-0 grid-cols-2 gap-2.5 sm:grid-cols-4 lg:grid-cols-2 2xl:grid-cols-4">
+              <DashboardMetricPill
+                icon={<Signal className="h-4 w-4" />}
+                label={t("nodeCard.online", { defaultValue: "Online" })}
+                value={`${onlineCount}`}
+                tone="ok"
+              />
+              <DashboardMetricPill
+                icon={<WifiOff className="h-4 w-4" />}
+                label={t("nodeCard.offline", { defaultValue: "Offline" })}
+                value={`${offlineCount}`}
+                tone={offlineCount > 0 ? "bad" : "ok"}
+              />
+              <DashboardMetricPill
+                icon={<AlertTriangle className="h-4 w-4" />}
+                label={t("admin.dashboard.abnormal", { defaultValue: "异常风险" })}
+                value={`${abnormalCount}`}
+                tone={abnormalCount > 0 ? "warn" : "ok"}
+              />
+              <DashboardMetricPill
+                icon={<Layers3 className="h-4 w-4" />}
+                label={t("admin.dashboard.groupsTitle", { defaultValue: "分组状态" })}
+                value={`${groupSummaries.length}`}
+                tone="info"
+              />
+            </div>
           </div>
         </section>
-      </div>
 
-      <div className="grid gap-[14px] lg:grid-cols-[1.2fr_0.8fr]">
         <section className={panelClass}>
           <DashboardPanelHead
             title={t("admin.dashboard.attentionTitle", { defaultValue: "近期风险" })}
-            meta={t("admin.dashboard.nodeRisk", { defaultValue: "Node risk" })}
+            meta={t("admin.dashboard.nodeRisk", { defaultValue: "节点风险" })}
           />
           {riskNodes.length > 0 ? (
             <div className="flex flex-col">
-              {riskNodes.slice(0, 4).map(({ node, reason, cpu, ram, disk }) => (
-                <DashboardListRow
+              {riskNodes.slice(0, 5).map(({ node, reason, tone, group, cpu, ram, disk, usageLabel }) => (
+                <DashboardSignalRow
                   key={node.uuid}
                   title={node.name || node.uuid}
-                  description={`${getNodeGroupLabel(node, defaultGroupLabel)} · CPU ${Math.round(cpu)}% · RAM ${Math.round(ram)}% · DISK ${Math.round(disk)}%`}
-                  status={<DashboardStatus tone="warn">{reason}</DashboardStatus>}
-                  to="/admin/client"
+                  description={`${group} · ${usageLabel}`}
+                  detail={`CPU ${formatPercent(cpu)} · RAM ${formatPercent(ram)} · DISK ${formatPercent(disk)}`}
+                  status={<DashboardStatus tone={tone}>{reason}</DashboardStatus>}
                 />
               ))}
             </div>
           ) : (
-            <DashboardListRow
+            <DashboardSignalRow
               title={t("admin.dashboard.noRiskTitle", { defaultValue: "暂无明显风险" })}
               description={t("admin.dashboard.noRiskDescription", {
                 defaultValue: "当前没有离线、连通性异常或高资源占用的节点。",
               })}
+              detail={t("admin.dashboard.healthy", { defaultValue: "运行正常" })}
               status={<DashboardStatus tone="ok">{t("admin.dashboard.healthy", { defaultValue: "运行正常" })}</DashboardStatus>}
             />
           )}
         </section>
+      </div>
 
+      <div className="grid gap-[14px] xl:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)]">
         <section className={panelClass}>
           <DashboardPanelHead
-            title={t("admin.dashboard.groupsTitle", { defaultValue: "分组状态" })}
-            meta={t("admin.dashboard.groupsDescription", {
-              defaultValue: "按服务器分组查看容量和在线状态。",
+            title={t("admin.dashboard.capacityTitle", { defaultValue: "容量压力" })}
+            meta={t("admin.dashboard.capacityDescription", {
+              defaultValue: "按最高资源占用排序",
             })}
           />
-          {groupSummaries.length > 0 ? (
+          {capacityItems.length > 0 ? (
             <div className="flex flex-col">
-              {groupSummaries.slice(0, 4).map((group) => (
-                <DashboardListRow
-                  key={group.name}
-                  title={group.name}
-                  description={t("admin.dashboard.groupNodeCount", {
-                    total: group.total,
-                    defaultValue: "{{total}} 台服务器",
-                  })}
-                  status={<DashboardStatus tone="info">{group.online}/{group.total}</DashboardStatus>}
-                  to="/admin/client"
+              {capacityItems.map(({ node, group, cpu, ram, disk, pressure, traffic, online }) => (
+                <DashboardSignalRow
+                  key={node.uuid}
+                  title={node.name || node.uuid}
+                  description={`${group} · ${traffic}`}
+                  detail={(
+                    <div className="grid gap-1.5 pt-1">
+                      <DashboardUsageBar icon={<Cpu className="h-3.5 w-3.5" />} label="CPU" value={cpu} />
+                      <DashboardUsageBar icon={<MemoryStick className="h-3.5 w-3.5" />} label="RAM" value={ram} />
+                      <DashboardUsageBar icon={<HardDrive className="h-3.5 w-3.5" />} label="DISK" value={disk} />
+                    </div>
+                  )}
+                  status={(
+                    <DashboardStatus tone={!online ? "bad" : getUsageTone(pressure)}>
+                      {!online
+                        ? t("nodeCard.offline", { defaultValue: "离线" })
+                        : formatPercent(pressure)}
+                    </DashboardStatus>
+                  )}
                 />
               ))}
             </div>
           ) : (
-            <DashboardListRow
+            <DashboardSignalRow
               title={t("admin.nodeTable.noNodes", { defaultValue: "No nodes" })}
               description={t("admin.nodeTable.noNodesDescription", {
                 defaultValue: "生成 Agent 接入命令并在服务器执行后，节点会自动出现在这里。",
               })}
+              detail={t("admin.dashboard.noNodesForDashboard", {
+                defaultValue: "接入服务器后，这里会显示在线状态和资源压力。",
+              })}
               status={<DashboardStatus tone="info">0</DashboardStatus>}
-              to="/admin/client"
             />
           )}
         </section>
+
+        <div className="grid min-w-0 gap-[14px]">
+          <section className={panelClass}>
+            <DashboardPanelHead
+              title={t("admin.dashboard.groupsTitle", { defaultValue: "分组状态" })}
+              meta={t("admin.dashboard.groupsDescription", {
+                defaultValue: "按服务器分组查看容量和在线状态。",
+              })}
+            />
+            {groupSummaries.length > 0 ? (
+              <div className="flex flex-col">
+                {groupSummaries.map((group) => (
+                  <DashboardGroupRow
+                    key={group.name}
+                    name={group.name}
+                    total={group.total}
+                    online={group.online}
+                    risks={group.risks}
+                    pressure={group.averagePressure}
+                  />
+                ))}
+              </div>
+            ) : (
+              <DashboardSignalRow
+                title={t("admin.nodeTable.noNodes", { defaultValue: "No nodes" })}
+                description={t("admin.nodeTable.noNodesDescription", {
+                  defaultValue: "生成 Agent 接入命令并在服务器执行后，节点会自动出现在这里。",
+                })}
+                detail={t("admin.dashboard.noNodesForDashboard", {
+                  defaultValue: "接入服务器后，这里会显示在线状态和资源压力。",
+                })}
+                status={<DashboardStatus tone="info">0</DashboardStatus>}
+              />
+            )}
+          </section>
+
+          <section className={panelClass}>
+            <DashboardPanelHead
+              title={t("admin.dashboard.modulesTitle", { defaultValue: "功能模块" })}
+              meta={t("admin.dashboard.permissionScope", {
+                defaultValue: "当前账号可用能力",
+              })}
+            />
+            <div className="grid gap-2.5 p-[14px] sm:grid-cols-2">
+              {featureModules.map((module) => (
+                <DashboardFeatureRow
+                  key={String(module.title)}
+                  title={module.title}
+                  description={module.description}
+                  enabled={module.enabled}
+                  status={<DashboardStatus tone={module.enabled ? module.tone : "info"}>{module.label}</DashboardStatus>}
+                />
+              ))}
+            </div>
+          </section>
+        </div>
       </div>
     </div>
   );
@@ -555,61 +715,23 @@ function DashboardPageContent() {
 function DashboardPanelHead({
   title,
   meta,
+  action,
 }: {
   title: ReactNode;
   meta: ReactNode;
+  action?: ReactNode;
 }) {
   return (
     <div className="flex min-h-[52px] items-center justify-between gap-3 border-b border-border px-4">
-      <strong className="text-sm font-semibold leading-5 text-foreground">
-        {title}
-      </strong>
-      <span className="truncate text-[12px] leading-4 text-muted-foreground">
-        {meta}
-      </span>
-    </div>
-  );
-}
-
-function DashboardListRow({
-  title,
-  description,
-  status,
-  to,
-}: {
-  title: ReactNode;
-  description: ReactNode;
-  status: ReactNode;
-  to?: string;
-}) {
-  const content = (
-    <>
       <div className="min-w-0">
-        <strong className="block truncate text-[13px] font-semibold leading-5 text-foreground">
+        <strong className="block truncate text-sm font-semibold leading-5 text-foreground">
           {title}
         </strong>
-        <span className="block truncate text-[11px] leading-4 text-muted-foreground">
-          {description}
+        <span className="block truncate text-[12px] leading-4 text-muted-foreground">
+          {meta}
         </span>
       </div>
-      <div className="shrink-0">{status}</div>
-    </>
-  );
-
-  if (to) {
-    return (
-      <Link
-        to={to}
-        className="grid min-h-14 grid-cols-[minmax(0,1fr)_auto] items-center gap-3 border-b border-border px-[14px] py-2.5 transition-colors last:border-b-0 hover:bg-muted/35"
-      >
-        {content}
-      </Link>
-    );
-  }
-
-  return (
-    <div className="grid min-h-14 grid-cols-[minmax(0,1fr)_auto] items-center gap-3 border-b border-border px-[14px] py-2.5 last:border-b-0">
-      {content}
+      {action ? <div className="shrink-0">{action}</div> : null}
     </div>
   );
 }
@@ -641,83 +763,246 @@ function DashboardStatus({
   );
 }
 
-function DashboardChart() {
+function DashboardMetricPill({
+  icon,
+  label,
+  value,
+  tone,
+}: {
+  icon: ReactNode;
+  label: ReactNode;
+  value: ReactNode;
+  tone: "ok" | "warn" | "bad" | "info";
+}) {
+  const toneClass = {
+    ok: "border-emerald-200/80 bg-emerald-50/75 text-emerald-700 dark:border-emerald-900/50 dark:bg-emerald-950/20 dark:text-emerald-300",
+    warn: "border-amber-200/80 bg-amber-50/75 text-amber-700 dark:border-amber-900/50 dark:bg-amber-950/20 dark:text-amber-300",
+    bad: "border-red-200/80 bg-red-50/75 text-red-700 dark:border-red-900/50 dark:bg-red-950/20 dark:text-red-300",
+    info: "border-blue-200/80 bg-blue-50/75 text-blue-700 dark:border-blue-900/50 dark:bg-blue-950/20 dark:text-blue-300",
+  }[tone];
+
   return (
-    <div
-      className="relative h-40 border-b border-border px-4 pb-3 pt-4"
-      style={{
-        backgroundImage:
-          "linear-gradient(var(--border) 1px, transparent 1px), linear-gradient(90deg, var(--border) 1px, transparent 1px)",
-        backgroundPosition: "0 30px, 0 0",
-        backgroundSize: "100% 36px, 66px 100%",
-      }}
-    >
-      <svg
-        viewBox="0 0 560 130"
-        preserveAspectRatio="none"
-        className="h-full w-full overflow-visible"
-        aria-hidden="true"
-      >
-        <path
-          d="M0,88 C52,72 74,80 116,48 S190,28 236,58 316,110 374,64 462,30 560,42"
-          fill="none"
-          stroke="#2f6fe4"
-          strokeWidth="4"
-          strokeLinecap="round"
-        />
-        <path
-          d="M0,108 C82,96 112,106 168,88 S276,58 348,78 452,102 560,72"
-          fill="none"
-          stroke="#159f95"
-          strokeWidth="4"
-          strokeLinecap="round"
-        />
-      </svg>
+    <div className={cn("min-w-0 rounded-lg border px-3 py-2.5", toneClass)}>
+      <div className="flex items-center gap-2 text-[12px] font-semibold leading-4">
+        {icon}
+        <span className="truncate">{label}</span>
+      </div>
+      <div className="mt-2 text-2xl font-semibold leading-7 tabular-nums text-foreground">
+        {value}
+      </div>
     </div>
   );
 }
 
-function DashboardMiniTable({
-  rows,
+function DashboardHealthRail({
+  online,
+  offline,
+  risks,
+  total,
 }: {
-  rows: Array<{
-    label: ReactNode;
-    value: ReactNode;
-    status: ReactNode;
-  }>;
+  online: number;
+  offline: number;
+  risks: number;
+  total: number;
+}) {
+  const { t } = useTranslation();
+  const onlineRisk = Math.min(Math.max(risks - offline, 0), online);
+  const healthy = Math.max(online - onlineRisk, 0);
+  const denominator = Math.max(total, 1);
+
+  if (total === 0) {
+    return (
+      <div className="rounded-lg border border-dashed border-border bg-muted/30 p-3">
+        <div className="h-2 rounded-full bg-muted" />
+        <div className="mt-2 text-[12px] leading-4 text-muted-foreground">
+          {t("admin.dashboard.healthRailPending", {
+            defaultValue: "等待服务器接入后生成健康轨迹。",
+          })}
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="rounded-lg border border-border bg-muted/20 p-3">
+      <div className="flex h-2 overflow-hidden rounded-full bg-muted">
+        <span
+          className="bg-emerald-500"
+          style={{ width: `${(healthy / denominator) * 100}%` }}
+        />
+        <span
+          className="bg-amber-400"
+          style={{ width: `${(onlineRisk / denominator) * 100}%` }}
+        />
+        <span
+          className="bg-red-500"
+          style={{ width: `${(offline / denominator) * 100}%` }}
+        />
+      </div>
+      <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-[12px] leading-4 text-muted-foreground">
+        <span className="inline-flex items-center gap-1.5">
+          <span className="h-2 w-2 rounded-full bg-emerald-500" />
+          {t("admin.dashboard.healthyNodes", { defaultValue: "健康" })} {healthy}
+        </span>
+        <span className="inline-flex items-center gap-1.5">
+          <span className="h-2 w-2 rounded-full bg-amber-400" />
+          {t("admin.dashboard.attention", { defaultValue: "关注" })} {onlineRisk}
+        </span>
+        <span className="inline-flex items-center gap-1.5">
+          <span className="h-2 w-2 rounded-full bg-red-500" />
+          {t("nodeCard.offline", { defaultValue: "离线" })} {offline}
+        </span>
+      </div>
+    </div>
+  );
+}
+
+function DashboardSignalRow({
+  title,
+  description,
+  detail,
+  status,
+}: {
+  title: ReactNode;
+  description: ReactNode;
+  detail: ReactNode;
+  status: ReactNode;
 }) {
   return (
-    <div className="overflow-x-auto">
-      <table className="w-full border-collapse text-[12px]">
-        <thead>
-          <tr className="bg-muted/45 text-muted-foreground">
-            <th className="h-[42px] whitespace-nowrap border-b border-border px-[14px] text-left font-bold">
-              事件
-            </th>
-            <th className="h-[42px] whitespace-nowrap border-b border-border px-[14px] text-left font-bold">
-              数量
-            </th>
-            <th className="h-[42px] whitespace-nowrap border-b border-border px-[14px] text-left font-bold">
-              趋势
-            </th>
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((row, index) => (
-            <tr key={index}>
-              <td className="h-[42px] whitespace-nowrap border-b border-border px-[14px] last:border-b-0">
-                {row.label}
-              </td>
-              <td className="h-[42px] whitespace-nowrap border-b border-border px-[14px] font-semibold tabular-nums last:border-b-0">
-                {row.value}
-              </td>
-              <td className="h-[42px] whitespace-nowrap border-b border-border px-[14px] last:border-b-0">
-                {row.status}
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+    <div className="grid min-h-[72px] grid-cols-[minmax(0,1fr)_auto] gap-3 border-b border-border px-[14px] py-3 last:border-b-0">
+      <div className="min-w-0">
+        <strong className="block truncate text-[13px] font-semibold leading-5 text-foreground">
+          {title}
+        </strong>
+        <span className="block truncate text-[12px] leading-5 text-muted-foreground">
+          {description}
+        </span>
+        <div className="mt-1 text-[11px] leading-4 text-muted-foreground">
+          {detail}
+        </div>
+      </div>
+      <div className="shrink-0 pt-0.5">{status}</div>
+    </div>
+  );
+}
+
+function DashboardUsageBar({
+  icon,
+  label,
+  value,
+}: {
+  icon: ReactNode;
+  label: ReactNode;
+  value: number;
+}) {
+  const tone = getUsageTone(value);
+  const barClass = {
+    ok: "bg-emerald-500",
+    warn: "bg-amber-400",
+    bad: "bg-red-500",
+    info: "bg-blue-500",
+  }[tone];
+
+  return (
+    <div className="grid grid-cols-[56px_minmax(0,1fr)_40px] items-center gap-2">
+      <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold leading-4 text-muted-foreground">
+        {icon}
+        {label}
+      </span>
+      <span className="h-1.5 overflow-hidden rounded-full bg-muted">
+        <span
+          className={cn("block h-full rounded-full", barClass)}
+          style={{ width: `${clampPercent(value)}%` }}
+        />
+      </span>
+      <span className="text-right text-[11px] font-semibold leading-4 tabular-nums text-foreground">
+        {formatPercent(value)}
+      </span>
+    </div>
+  );
+}
+
+function DashboardGroupRow({
+  name,
+  total,
+  online,
+  risks,
+  pressure,
+}: {
+  name: string;
+  total: number;
+  online: number;
+  risks: number;
+  pressure: number;
+}) {
+  const { t } = useTranslation();
+  const offline = Math.max(total - online, 0);
+  const tone = offline > 0 ? "bad" : risks > 0 ? "warn" : "ok";
+
+  return (
+    <div className="grid min-h-[66px] grid-cols-[minmax(0,1fr)_auto] gap-3 border-b border-border px-[14px] py-3 last:border-b-0">
+      <div className="min-w-0">
+        <div className="flex items-center gap-2">
+          <strong className="truncate text-[13px] font-semibold leading-5 text-foreground">
+            {name}
+          </strong>
+          <span className="rounded-full bg-muted px-2 py-0.5 text-[11px] font-semibold leading-4 text-muted-foreground">
+            {online}/{total}
+          </span>
+        </div>
+        <div className="mt-2">
+          <DashboardUsageBar
+            icon={<Activity className="h-3.5 w-3.5" />}
+            label={t("admin.dashboard.pressure", { defaultValue: "压力" })}
+            value={pressure}
+          />
+        </div>
+      </div>
+      <DashboardStatus tone={tone}>
+        {offline > 0
+          ? t("nodeCard.offline", { defaultValue: "离线" })
+          : risks > 0
+            ? t("admin.dashboard.attention", { defaultValue: "关注" })
+            : t("admin.dashboard.normal", { defaultValue: "正常" })}
+      </DashboardStatus>
+    </div>
+  );
+}
+
+function DashboardFeatureRow({
+  title,
+  description,
+  enabled,
+  status,
+}: {
+  title: ReactNode;
+  description: ReactNode;
+  enabled: boolean;
+  status: ReactNode;
+}) {
+  return (
+    <div className="grid min-h-[76px] grid-cols-[32px_minmax(0,1fr)] gap-3 rounded-lg border border-border bg-background/65 p-3">
+      <div
+        className={cn(
+          "flex h-8 w-8 items-center justify-center rounded-md",
+          enabled
+            ? "bg-blue-50 text-blue-700 dark:bg-blue-950/25 dark:text-blue-300"
+            : "bg-muted text-muted-foreground",
+        )}
+      >
+        {enabled ? <ShieldCheck className="h-4 w-4" /> : <AlertTriangle className="h-4 w-4" />}
+      </div>
+      <div className="min-w-0">
+        <div className="flex items-center justify-between gap-2">
+          <strong className="truncate text-[13px] font-semibold leading-5 text-foreground">
+            {title}
+          </strong>
+          <div className="shrink-0">{status}</div>
+        </div>
+        <p className="mt-1 line-clamp-2 text-[12px] leading-5 text-muted-foreground">
+          {description}
+        </p>
+      </div>
     </div>
   );
 }

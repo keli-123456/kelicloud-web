@@ -37,6 +37,7 @@ import {
   ADMIN_FORM_TOGGLE_CLASS as FORM_TOGGLE_CLASS,
 } from "@/components/admin/AdminFormStyles";
 import FailoverShareDialog from "@/components/admin/failover/FailoverShareDialog";
+import DnsSchedulerLinkedSummary from "@/components/admin/cloud/DnsSchedulerLinkedSummary";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -11103,6 +11104,11 @@ function FailoverPageContent() {
                         </div>
                       </div>
                     </div>
+
+                    <DnsSchedulerLinkedSummary
+                      sourceType="failover_v1"
+                      sourceId={selectedTask.id}
+                    />
 
                     <div className="rounded-lg border border-border">
                       <div className="flex items-center justify-between gap-2 border-b border-border px-3 py-2">
