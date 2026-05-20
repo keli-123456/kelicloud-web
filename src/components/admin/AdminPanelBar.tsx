@@ -18,6 +18,7 @@ import LoginDialog from "../Login";
 import Tips from "../ui/tips";
 import {
   isAnyAccountFeatureAllowed,
+  type Account,
   type AccountFeature,
   useAccount,
 } from "@/contexts/AccountContext";
@@ -283,6 +284,28 @@ const isCloudMenuParent = (item: MenuItem) => {
   return normalizePath(targetUrl.pathname) === "/admin/cloud" && !targetUrl.search;
 };
 
+const formatAccountPlanExpiry = (account: Account | null, fallback: string) => {
+  const value = account?.plan_expires_at?.trim();
+  if (!value) {
+    return fallback;
+  }
+  const parsed = new Date(value.includes("T") ? value : `${value}T23:59:59`);
+  if (Number.isNaN(parsed.getTime())) {
+    return value;
+  }
+  return parsed.toLocaleDateString();
+};
+
+const getAccountStatusDotClass = (status?: string) => {
+  if (status === "disabled") {
+    return "bg-red-500 shadow-red-500/30";
+  }
+  if (status === "expired") {
+    return "bg-amber-500 shadow-amber-500/30";
+  }
+  return "bg-emerald-500 shadow-emerald-500/30";
+};
+
 export default function AdminPanelBar(props: AdminPanelBarProps) {
   return (
     <AdminPageTitleProvider>
@@ -327,6 +350,23 @@ function AdminPanelBarContent({ content }: AdminPanelBarProps) {
   const [updateAvailable, setUpdateAvailable] = useState(false);
   const [releasesSince, setReleasesSince] = useState<GithubReleaseInfo[]>([]);
   const appName = publicInfo?.sitename?.trim() || "kelicloud";
+  const accountAccessStatus = account?.access_status || "active";
+  const accountPlanLabel = platformAdmin
+    ? t("billing.platform_admin", { defaultValue: "平台管理员" })
+    : account?.plan_name?.trim() || t("billing.free_access", { defaultValue: "默认权限" });
+  const accountStatusLabel = t(`billing.access_status_${accountAccessStatus}`, {
+    defaultValue:
+      accountAccessStatus === "disabled"
+        ? "已停用"
+        : accountAccessStatus === "expired"
+          ? "已到期"
+          : "正常",
+  });
+  const accountExpiryLabel = formatAccountPlanExpiry(
+    account,
+    t("billing.no_expiry", { defaultValue: "长期有效" }),
+  );
+  const accountPlanTitle = `${accountPlanLabel} · ${accountStatusLabel} · ${accountExpiryLabel}`;
 
   useEffect(() => {
     const fetchVersionInfo = async () => {
@@ -1116,6 +1156,30 @@ function AdminPanelBarContent({ content }: AdminPanelBarProps) {
                 onLoginSuccess={() => window.location.reload()}
               />
             )}
+            {account?.logged_in ? (
+              <Link
+                to="/admin/billing"
+                className="hidden h-9 max-w-[260px] items-center gap-2 rounded-md px-2 text-sm transition-colors hover:bg-muted dark:hover:bg-slate-900/70 sm:flex"
+                title={accountPlanTitle}
+                aria-label={accountPlanTitle}
+              >
+                <span
+                  className={cn(
+                    "h-2 w-2 shrink-0 rounded-full shadow-[0_0_0_4px]",
+                    getAccountStatusDotClass(accountAccessStatus),
+                  )}
+                />
+                <span className="hidden min-w-0 max-w-[120px] truncate text-xs font-semibold text-foreground lg:block">
+                  {accountPlanLabel}
+                </span>
+                <span className="shrink-0 text-xs font-medium text-muted-foreground">
+                  {accountStatusLabel}
+                </span>
+                <span className="hidden shrink-0 text-xs text-muted-foreground xl:block">
+                  {accountExpiryLabel}
+                </span>
+              </Link>
+            ) : null}
             <ThemeSwitch />
             <LanguageSwitch />
             <Separator orientation="vertical" className="h-5" />

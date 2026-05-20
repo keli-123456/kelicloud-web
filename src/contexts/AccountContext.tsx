@@ -32,6 +32,11 @@ export type Account = {
   server_quota?: number;
   allowed_features?: AccountFeature[];
   available_features?: AccountFeature[];
+  plan_name?: string;
+  plan_expires_at?: string;
+  plan_note?: string;
+  account_disabled?: boolean;
+  access_status?: "active" | "expired" | "disabled" | string;
 };
 
 export function isPlatformAdminAccount(account: Account | null) {

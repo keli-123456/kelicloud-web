@@ -188,7 +188,31 @@ function translateNested(message: string, context: ApiErrorMessageContext) {
   return translated || message;
 }
 
+function translateMixedChineseMessage(message: string, context: ApiErrorMessageContext) {
+  const wrappers = [
+    /^请求失败[:：]\s*(.+)$/i,
+    /^操作失败[:：]\s*(.+)$/i,
+    /^加载失败[:：]\s*(.+)$/i,
+    /^保存失败[:：]\s*(.+)$/i,
+  ];
+  for (const pattern of wrappers) {
+    const match = message.match(pattern);
+    if (!match) {
+      continue;
+    }
+    const translated = translateEnglishMessage(match[1] || "", context);
+    if (translated) {
+      return translated;
+    }
+  }
+  return "";
+}
+
 const translationRules: TranslationRule[] = [
+  {
+    pattern: /^request failed:\s*(.+)$/i,
+    build: (match, context) => translateNested(match[1] || "", context),
+  },
   {
     pattern: /^failed to\s+(.+?):\s*(.+)$/i,
     build: (match, context) => `${translateAction(match[1] || "")}失败：${translateNested(match[2] || "", context)}`,
@@ -333,8 +357,11 @@ function translateEnglishMessage(message: string, context: ApiErrorMessageContex
 
 export function formatApiErrorMessage(value: unknown, context: ApiErrorMessageContext = {}) {
   const message = normalizeMessage(value, context);
-  if (!shouldUseChineseErrorMessage() || /[\u4e00-\u9fff]/.test(message)) {
+  if (!shouldUseChineseErrorMessage()) {
     return message;
+  }
+  if (/[\u4e00-\u9fff]/.test(message)) {
+    return translateMixedChineseMessage(message, context) || message;
   }
 
   return (
