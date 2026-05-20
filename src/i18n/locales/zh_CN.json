@@ -754,6 +754,13 @@
     "load_failed": "加载商业化数据失败",
     "mark_paid": "标记已付款",
     "mark_paid_title": "确认收款并开通套餐",
+    "nav": {
+      "my_orders_description": "查看自己的购买和续费记录",
+      "orders_description": "确认收款、开通套餐和处理订单",
+      "payments_description": "配置人工收款、Epusdt 等支付方式",
+      "plans_description": "维护可售套餐和对应功能权限",
+      "shop_description": "普通用户购买或续费套餐"
+    },
     "new_payment": "新建支付方式",
     "new_plan": "新建套餐",
     "no_description": "暂无描述",
@@ -764,13 +771,6 @@
     "no_plan": "未设置",
     "no_public_plans": "暂无可购买套餐",
     "no_public_plans_desc": "管理员需要先创建并公开套餐。",
-    "nav": {
-      "my_orders_description": "查看自己的购买和续费记录",
-      "orders_description": "确认收款、开通套餐和处理订单",
-      "payments_description": "配置人工收款、Epusdt 等支付方式",
-      "plans_description": "维护可售套餐和对应功能权限",
-      "shop_description": "普通用户购买或续费套餐"
-    },
     "open_payment_link": "打开支付链接",
     "open_qr": "打开收款二维码",
     "order_cancelled": "订单已取消",
@@ -795,11 +795,11 @@
     "pending_payment_description": "完成付款后等待管理员确认，确认后权限会自动生效。",
     "pending_payment_title": "待付款订单",
     "plan": "套餐",
-    "platform_admin": "平台管理员",
     "plan_archived": "套餐已归档",
     "plan_code": "套餐代码",
     "plan_name": "套餐名称",
     "plan_saved": "套餐已保存",
+    "platform_admin": "平台管理员",
     "price": "价格",
     "private": "内部",
     "public": "公开",
@@ -938,12 +938,12 @@
       "add_entry": "添加凭证",
       "aliyun_hint": "请使用对目标域名具备 AliDNS 记录管理权限的 AccessKey。",
       "cloudflare_hint": "请使用对目标 Cloudflare Zone 具备 DNS 记录编辑权限的 API Token。",
+      "credentials_tab": "凭证池",
+      "credentials_tab_description": "DNS API 凭据",
       "delete_confirm_description": "确认从 {{provider}} 删除凭证“{{name}}”？这只会移除已保存的凭证配置。",
       "delete_confirm_title": "删除凭证",
       "delete_success": "凭证已删除",
       "description": "在这里配置 DNS 服务商，后续真正要创建或更新解析记录时再复用这些凭证。",
-      "credentials_tab": "凭证池",
-      "credentials_tab_description": "DNS API 凭据",
       "dialog": {
         "add_entry_title": "添加 {{provider}} 凭证",
         "add_title": "添加 {{provider}}",
@@ -1009,8 +1009,8 @@
       "recommended": "推荐",
       "save_success": "DNS 服务商配置已保存",
       "scheduler": {
-        "deduped_count": "合并 {{count}}",
         "dedupe_groups": "目标合并组 {{count}}",
+        "deduped_count": "合并 {{count}}",
         "detail_address_mode": "地址模式",
         "detail_candidate": "候选",
         "detail_disabled": "任务已停用，不会进入写入队列",
@@ -3833,6 +3833,7 @@
       "tips": "为了避免频繁发送通知，我们设置了宽限期：</br> <b>宽限期</b>：客户端离线后，如果在这段时间内没有重新上线，就会发送离线通知",
       "title": "离线通知"
     },
+    "page_description": "集中配置套餐到期、故障切换、负载和流量等通知策略。",
     "scheduler": {
       "channel": "发送通道",
       "channel_disabled": "未配置",
@@ -3844,7 +3845,6 @@
       "lead_time": "提前提醒",
       "status": "状态"
     },
-    "page_description": "集中配置套餐到期、故障切换、负载和流量等通知策略。",
     "title": "通知"
   },
   "page_not_found": "真不巧，网页被小鞠吃掉了。",
