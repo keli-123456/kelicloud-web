@@ -748,6 +748,20 @@
       "tasks": "执行任务"
     },
     "features_label": "功能权限",
+    "feature_dependency_hint": "雲廠商、DNS、故障切換和維運工具都會自動綁定伺服器頁面權限。",
+    "feature_group_clear": "清空本組",
+    "feature_group_select_all": "全選本組",
+    "feature_group_selected": "已選 {{selected}}/{{total}}",
+    "feature_groups": {
+      "cloud": "雲資源",
+      "cloud_description": "雲廠商、DNS 和故障切換，適合按方案拆分銷售。",
+      "operations": "維運工具",
+      "operations_description": "腳本執行、腳本庫、日誌和連通性檢測等日常維運入口。",
+      "other": "其他功能",
+      "other_description": "後端新增但尚未歸類的功能入口。",
+      "standard": "基礎選單",
+      "standard_description": "伺服器、監控記錄和通知，是大多數方案的基礎能力。"
+    },
     "free_access": "未开通套餐",
     "inactive": "已停用",
     "instructions": "付款说明",

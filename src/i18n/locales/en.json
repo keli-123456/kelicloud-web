@@ -748,6 +748,20 @@
       "tasks": "执行任务"
     },
     "features_label": "功能权限",
+    "feature_dependency_hint": "Cloud providers, DNS, failover, and operations tools automatically include Servers access.",
+    "feature_group_clear": "Clear group",
+    "feature_group_select_all": "Select group",
+    "feature_group_selected": "{{selected}}/{{total}} selected",
+    "feature_groups": {
+      "cloud": "Cloud resources",
+      "cloud_description": "Cloud providers, DNS, and failover can be sold separately by plan.",
+      "operations": "Operations tools",
+      "operations_description": "Script execution, script library, logs, and connectivity checks for daily operations.",
+      "other": "Other features",
+      "other_description": "New backend features that have not been categorized yet.",
+      "standard": "Core menus",
+      "standard_description": "Servers, monitoring records, and notifications are the base capabilities for most plans."
+    },
     "free_access": "No active plan",
     "inactive": "已停用",
     "instructions": "付款说明",

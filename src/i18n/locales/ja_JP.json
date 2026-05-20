@@ -748,6 +748,20 @@
       "tasks": "执行任务"
     },
     "features_label": "功能权限",
+    "feature_dependency_hint": "クラウド、DNS、フェイルオーバー、運用ツールはサーバーページ権限を自動的に含みます。",
+    "feature_group_clear": "このグループを解除",
+    "feature_group_select_all": "このグループを選択",
+    "feature_group_selected": "{{selected}}/{{total}} 選択済み",
+    "feature_groups": {
+      "cloud": "クラウドリソース",
+      "cloud_description": "クラウド、DNS、フェイルオーバーをプランごとに分けて販売できます。",
+      "operations": "運用ツール",
+      "operations_description": "スクリプト実行、スクリプトライブラリ、ログ、疎通確認など日常運用の入口です。",
+      "other": "その他の機能",
+      "other_description": "バックエンドで追加された未分類の機能です。",
+      "standard": "基本メニュー",
+      "standard_description": "サーバー、監視記録、通知は多くのプランの基本機能です。"
+    },
     "free_access": "No active plan",
     "inactive": "已停用",
     "instructions": "付款说明",

@@ -748,6 +748,20 @@
       "tasks": "执行任务"
     },
     "features_label": "功能权限",
+    "feature_dependency_hint": "Penyedia cloud, DNS, failover, dan alat operasi otomatis menyertakan akses halaman Server.",
+    "feature_group_clear": "Kosongkan grup",
+    "feature_group_select_all": "Pilih grup",
+    "feature_group_selected": "{{selected}}/{{total}} dipilih",
+    "feature_groups": {
+      "cloud": "Sumber daya cloud",
+      "cloud_description": "Penyedia cloud, DNS, dan failover dapat dijual terpisah per paket.",
+      "operations": "Alat operasi",
+      "operations_description": "Eksekusi skrip, pustaka skrip, log, dan pemeriksaan konektivitas untuk operasi harian.",
+      "other": "Fitur lain",
+      "other_description": "Fitur backend baru yang belum dikategorikan.",
+      "standard": "Menu inti",
+      "standard_description": "Server, riwayat monitoring, dan notifikasi adalah kemampuan dasar untuk sebagian besar paket."
+    },
     "free_access": "No active plan",
     "inactive": "已停用",
     "instructions": "付款说明",

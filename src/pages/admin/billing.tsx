@@ -188,6 +188,7 @@ const FEATURE_ORDER: AccountFeature[] = [
   "records",
   "tasks",
   "ping",
+  "cn_connectivity",
   "notifications",
   "cloud_digitalocean",
   "cloud_linode",
@@ -242,6 +243,59 @@ const FEATURE_META: Record<
   logs: { key: "billing.features.logs", defaultValue: "日志" },
   cn_connectivity: { key: "billing.features.cn_connectivity", defaultValue: "国内连通性" },
 };
+
+type FeatureOption = { value: AccountFeature; label: string };
+
+type BillingFeatureGroupConfig = {
+  id: "standard" | "cloud" | "operations" | "other";
+  key: string;
+  descriptionKey: string;
+  defaultValue: string;
+  defaultDescription: string;
+  features: AccountFeature[];
+};
+
+type BillingFeatureGroup = Omit<BillingFeatureGroupConfig, "key" | "descriptionKey" | "defaultValue" | "defaultDescription" | "features"> & {
+  label: string;
+  description: string;
+  features: FeatureOption[];
+};
+
+const BILLING_FEATURE_GROUPS: BillingFeatureGroupConfig[] = [
+  {
+    id: "standard",
+    key: "billing.feature_groups.standard",
+    descriptionKey: "billing.feature_groups.standard_description",
+    defaultValue: "基础菜单",
+    defaultDescription: "服务器、监控记录和通知，是大多数套餐的基础能力。",
+    features: ["clients", "records", "notifications"],
+  },
+  {
+    id: "cloud",
+    key: "billing.feature_groups.cloud",
+    descriptionKey: "billing.feature_groups.cloud_description",
+    defaultValue: "云资源",
+    defaultDescription: "云厂商、DNS 和故障切换，适合按套餐拆分售卖。",
+    features: [
+      "cloud_digitalocean",
+      "cloud_linode",
+      "cloud_vultr",
+      "cloud_azure",
+      "cloud_aws",
+      "cloud_dns",
+      "cloud_failover_v1",
+      "cloud_failover_v2",
+    ],
+  },
+  {
+    id: "operations",
+    key: "billing.feature_groups.operations",
+    descriptionKey: "billing.feature_groups.operations_description",
+    defaultValue: "运维工具",
+    defaultDescription: "脚本执行、脚本库、日志和连通性检测等日常运维入口。",
+    features: ["tasks", "clipboard", "logs", "ping", "cn_connectivity"],
+  },
+];
 
 const emptyPlanForm: PlanFormState = {
   code: "",
@@ -415,8 +469,42 @@ const accessStatusTone = (status?: string) => {
 
 const getFeatureOptionLabel = (
   feature: AccountFeature,
-  featureOptions: Array<{ value: AccountFeature; label: string }>,
+  featureOptions: FeatureOption[],
 ) => featureOptions.find((item) => item.value === feature)?.label || feature;
+
+const getBillingFeatureGroups = (
+  t: TFunction,
+  featureOptions: FeatureOption[],
+): BillingFeatureGroup[] => {
+  const optionMap = new Map(featureOptions.map((option) => [option.value, option]));
+  const grouped = new Set<AccountFeature>();
+  const groups = BILLING_FEATURE_GROUPS.map((group) => {
+    const features = group.features
+      .map((feature) => optionMap.get(feature))
+      .filter((feature): feature is FeatureOption => Boolean(feature));
+
+    features.forEach((feature) => grouped.add(feature.value));
+
+    return {
+      id: group.id,
+      label: t(group.key, { defaultValue: group.defaultValue }),
+      description: t(group.descriptionKey, { defaultValue: group.defaultDescription }),
+      features,
+    };
+  }).filter((group) => group.features.length > 0);
+
+  const otherFeatures = featureOptions.filter((feature) => !grouped.has(feature.value));
+  if (otherFeatures.length) {
+    groups.push({
+      id: "other",
+      label: t("billing.feature_groups.other", { defaultValue: "其他功能" }),
+      description: t("billing.feature_groups.other_description", { defaultValue: "后端新增但尚未归类的功能入口。" }),
+      features: otherFeatures,
+    });
+  }
+
+  return groups;
+};
 
 export default function BillingPage() {
   const [t] = useTranslation();
@@ -1575,8 +1663,21 @@ function PlanDialog({
   setForm: React.Dispatch<React.SetStateAction<PlanFormState>>;
   onOpenChange: (open: boolean) => void;
   onSave: () => void;
-  featureOptions: Array<{ value: AccountFeature; label: string }>;
+  featureOptions: FeatureOption[];
 }) {
+  const availableFeatureValues = React.useMemo(
+    () => featureOptions.map((item) => item.value),
+    [featureOptions],
+  );
+  const featureGroups = React.useMemo(
+    () => getBillingFeatureGroups(t, featureOptions),
+    [featureOptions, t],
+  );
+  const selectedFeatures = React.useMemo(
+    () => new Set(form.allowedFeatures),
+    [form.allowedFeatures],
+  );
+
   const toggleFeature = (feature: AccountFeature, checked: boolean) => {
     setForm((prev) => ({
       ...prev,
@@ -1590,9 +1691,36 @@ function PlanDialog({
           : feature === "clients"
             ? prev.allowedFeatures.filter((item) => item === "clients" ? false : !SERVER_BOUND_FEATURES.has(item))
             : prev.allowedFeatures.filter((item) => item !== feature),
-        featureOptions.map((item) => item.value),
+        availableFeatureValues,
       ),
     }));
+  };
+
+  const toggleFeatureGroup = (group: BillingFeatureGroup, checked: boolean) => {
+    const groupValues = group.features.map((feature) => feature.value);
+    const shouldBindServers = groupValues.some((feature) => SERVER_BOUND_FEATURES.has(feature));
+
+    setForm((prev) => {
+      const next = checked
+        ? [
+            ...prev.allowedFeatures,
+            ...groupValues,
+            ...(shouldBindServers ? ["clients" as AccountFeature] : []),
+          ]
+        : prev.allowedFeatures.filter((feature) => !groupValues.includes(feature));
+      const hasServerBoundFeature = next.some((feature) => SERVER_BOUND_FEATURES.has(feature));
+      const normalized = normalizeFeatureList(
+        hasServerBoundFeature && !next.includes("clients")
+          ? [...next, "clients" as AccountFeature]
+          : next,
+        availableFeatureValues,
+      );
+
+      return {
+        ...prev,
+        allowedFeatures: normalized,
+      };
+    });
   };
 
   return (
@@ -1629,17 +1757,76 @@ function PlanDialog({
           </section>
 
           <section className={ADMIN_FORM_SECTION_CLASS}>
-            <div className="mb-3 text-sm font-medium">{t("billing.features_label")}</div>
-            <div className="grid gap-2 md:grid-cols-2">
-              {featureOptions.map((feature) => (
-                <label key={feature.value} className="flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-sm dark:border-slate-800">
-                  <Checkbox
-                    checked={form.allowedFeatures.includes(feature.value)}
-                    onCheckedChange={(checked) => toggleFeature(feature.value, checked === true)}
-                  />
-                  <span>{feature.label}</span>
-                </label>
-              ))}
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <div className="text-sm font-medium">{t("billing.features_label")}</div>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  {t("billing.feature_dependency_hint")}
+                </p>
+              </div>
+              <Badge color="blue" variant="soft">
+                {t("billing.feature_group_selected", {
+                  selected: featureOptions.filter((feature) => selectedFeatures.has(feature.value)).length,
+                  total: featureOptions.length,
+                })}
+              </Badge>
+            </div>
+            <div className="mt-4 space-y-3">
+              {featureGroups.map((group) => {
+                const selectedCount = group.features.filter((feature) => selectedFeatures.has(feature.value)).length;
+                const allSelected = selectedCount === group.features.length;
+
+                return (
+                  <div key={group.id} className="overflow-hidden rounded-xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-950">
+                    <div className="flex flex-wrap items-start justify-between gap-3 border-b border-slate-200 px-3 py-3 dark:border-slate-800">
+                      <div className="min-w-0">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="text-sm font-medium">{group.label}</span>
+                          <Badge color={selectedCount ? "blue" : "gray"} variant="soft">
+                            {t("billing.feature_group_selected", {
+                              selected: selectedCount,
+                              total: group.features.length,
+                            })}
+                          </Badge>
+                        </div>
+                        <p className="mt-1 text-xs text-muted-foreground">{group.description}</p>
+                      </div>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="ghost"
+                        className="h-8 px-2"
+                        onClick={() => toggleFeatureGroup(group, !allSelected)}
+                      >
+                        {allSelected ? t("billing.feature_group_clear") : t("billing.feature_group_select_all")}
+                      </Button>
+                    </div>
+                    <div className="grid gap-2 p-3 md:grid-cols-2">
+                      {group.features.map((feature) => {
+                        const selected = selectedFeatures.has(feature.value);
+
+                        return (
+                          <label
+                            key={feature.value}
+                            className={cn(
+                              "flex items-center gap-2 rounded-lg border px-3 py-2 text-sm transition-colors",
+                              selected
+                                ? "border-blue-200 bg-blue-50 text-blue-950 dark:border-blue-900/60 dark:bg-blue-950/30 dark:text-blue-100"
+                                : "border-slate-200 bg-white text-slate-700 hover:border-slate-300 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-200 dark:hover:border-slate-700",
+                            )}
+                          >
+                            <Checkbox
+                              checked={selected}
+                              onCheckedChange={(checked) => toggleFeature(feature.value, checked === true)}
+                            />
+                            <span className="truncate">{feature.label}</span>
+                          </label>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           </section>
 
