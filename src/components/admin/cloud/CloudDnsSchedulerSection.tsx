@@ -358,6 +358,174 @@ function SchedulerToolbar({
   );
 }
 
+function SchedulerSourceOverview({
+  snapshot,
+  sourceFilter,
+  onSourceFilterChange,
+}: {
+  snapshot: DNSSchedulerSnapshot | null;
+  sourceFilter: SourceFilter;
+  onSourceFilterChange: (value: SourceFilter) => void;
+}) {
+  const { t } = useTranslation();
+  const total = Math.max(1, snapshot?.total || 0);
+  const execution = snapshot?.dns_execution;
+  const sourceItems: Array<{ key: Exclude<SourceFilter, "all">; tone: BadgeTone }> = [
+    { key: "ddns", tone: "blue" },
+    { key: "failover_v1", tone: "amber" },
+    { key: "failover_v2", tone: "green" },
+  ];
+  const executionItems = [
+    {
+      label: t("cloud.dns.scheduler.api_pressure_submitted", { defaultValue: "提交任务" }),
+      value: execution?.submitted || 0,
+    },
+    {
+      label: t("cloud.dns.scheduler.api_pressure_coalesced", { defaultValue: "并发合并" }),
+      value: execution?.coalesced || 0,
+    },
+    {
+      label: t("cloud.dns.scheduler.api_pressure_requests", { defaultValue: "实际 API" }),
+      value: execution?.api_requests || 0,
+    },
+    {
+      label: t("cloud.dns.scheduler.api_pressure_failed", { defaultValue: "失败" }),
+      value: execution?.failed || 0,
+    },
+  ];
+  const providerWrites = [
+    {
+      label: t("cloud.dns.scheduler.provider_write_cloudflare", { defaultValue: "Cloudflare" }),
+      value: (execution?.cloudflare_batch_writes || 0) + (execution?.cloudflare_single_writes || 0),
+      detail: t("cloud.dns.scheduler.provider_write_cloudflare_detail", {
+        defaultValue: "批量 {{batch}} / 单条 {{single}}",
+        batch: execution?.cloudflare_batch_writes || 0,
+        single: execution?.cloudflare_single_writes || 0,
+      }),
+      tone: "blue" as BadgeTone,
+    },
+    {
+      label: t("cloud.dns.scheduler.provider_write_aliyun", { defaultValue: "阿里云" }),
+      value: execution?.aliyun_single_writes || 0,
+      detail: t("cloud.dns.scheduler.provider_write_aliyun_detail", {
+        defaultValue: "单条 {{count}}",
+        count: execution?.aliyun_single_writes || 0,
+      }),
+      tone: "amber" as BadgeTone,
+    },
+  ];
+
+  return (
+    <div className="grid gap-4 xl:grid-cols-[minmax(0,1.25fr)_minmax(360px,0.75fr)]">
+      <section className="rounded-lg border border-border bg-card p-4 shadow-sm shadow-slate-900/5 dark:border-slate-800 dark:bg-slate-950">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div className="min-w-0">
+            <div className="text-sm font-semibold text-slate-950 dark:text-slate-50">
+              {t("cloud.dns.scheduler.source_overview_title", { defaultValue: "来源分布" })}
+            </div>
+            <div className="mt-1 text-xs leading-5 text-muted-foreground">
+              {t("cloud.dns.scheduler.source_overview_hint", {
+                defaultValue: "DDNS、故障切换 V1 和 V2 会进入同一个 DNS 调度队列，再按目标合并。",
+              })}
+            </div>
+          </div>
+          <Button
+            type="button"
+            variant={sourceFilter === "all" ? "solid" : "outline"}
+            size="sm"
+            onClick={() => onSourceFilterChange("all")}
+          >
+            {t("cloud.dns.scheduler.source.all", { defaultValue: "全部" })}
+          </Button>
+        </div>
+        <div className="mt-4 grid gap-3 md:grid-cols-3">
+          {sourceItems.map((source) => {
+            const count = snapshot?.source_counts?.[source.key] || 0;
+            const percentage = Math.min(100, Math.round((count / total) * 100));
+            const active = sourceFilter === source.key;
+
+            return (
+              <button
+                key={source.key}
+                type="button"
+                data-testid={`dns-scheduler-source-${source.key}`}
+                className={cn(
+                  "min-w-0 rounded-lg border px-3 py-3 text-left transition hover:border-blue-300 hover:bg-blue-50/40 dark:hover:border-blue-800 dark:hover:bg-blue-950/20",
+                  active
+                    ? "border-blue-300 bg-blue-50 shadow-sm shadow-blue-950/5 dark:border-blue-800 dark:bg-blue-950/25"
+                    : "border-border bg-background/60 dark:border-slate-800 dark:bg-slate-900/20",
+                )}
+                onClick={() => onSourceFilterChange(source.key)}
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <Badge color={source.tone}>{sourceLabel(source.key, t)}</Badge>
+                  <span className="text-lg font-semibold tabular-nums text-slate-950 dark:text-slate-50">
+                    {count}
+                  </span>
+                </div>
+                <div className="mt-2 text-xs leading-5 text-muted-foreground">
+                  {t(`cloud.dns.scheduler.source_description.${source.key}`, {
+                    defaultValue: source.key === "ddns"
+                      ? "Syncs records automatically when a node public IP changes."
+                      : source.key === "failover_v1"
+                        ? "Writes the active V1 failover address back to DNS after switching."
+                        : "Queues V2 member changes through the unified scheduler.",
+                  })}
+                </div>
+                <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
+                  <div
+                    className={cn(
+                      "h-full rounded-full",
+                      source.tone === "green" ? "bg-green-500" : source.tone === "amber" ? "bg-amber-500" : "bg-blue-500",
+                    )}
+                    style={{ width: `${percentage}%` }}
+                  />
+                </div>
+                <div className="mt-2 text-[11px] text-muted-foreground">
+                  {t("cloud.dns.scheduler.source_card_count", {
+                    defaultValue: "占队列 {{percent}}%",
+                    percent: percentage,
+                  })}
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      </section>
+
+      <section className="rounded-lg border border-border bg-card p-4 shadow-sm shadow-slate-900/5 dark:border-slate-800 dark:bg-slate-950">
+        <div className="text-sm font-semibold text-slate-950 dark:text-slate-50">
+          {t("cloud.dns.scheduler.api_pressure_title", { defaultValue: "API 压力" })}
+        </div>
+        <div className="mt-1 text-xs leading-5 text-muted-foreground">
+          {t("cloud.dns.scheduler.api_pressure_hint", {
+            defaultValue: "同凭证同记录会先合并；Cloudflare 尽量批量写入，阿里云按单条写入。",
+          })}
+        </div>
+        <div className="mt-4 grid grid-cols-2 gap-2">
+          {executionItems.map((item) => (
+            <div key={item.label} className="rounded-md border border-border bg-background/60 px-3 py-2 dark:border-slate-800 dark:bg-slate-900/20">
+              <div className="text-[11px] font-medium text-muted-foreground">{item.label}</div>
+              <div className="mt-1 text-lg font-semibold tabular-nums text-slate-950 dark:text-slate-50">{item.value}</div>
+            </div>
+          ))}
+        </div>
+        <div className="mt-3 grid gap-2">
+          {providerWrites.map((item) => (
+            <div key={item.label} className="flex items-center justify-between gap-3 rounded-md border border-border bg-background/60 px-3 py-2 dark:border-slate-800 dark:bg-slate-900/20">
+              <div className="min-w-0">
+                <div className="text-xs font-semibold text-slate-900 dark:text-slate-100">{item.label}</div>
+                <div className="mt-0.5 truncate text-[11px] text-muted-foreground">{item.detail}</div>
+              </div>
+              <Badge color={item.tone}>{item.value}</Badge>
+            </div>
+          ))}
+        </div>
+      </section>
+    </div>
+  );
+}
+
 function SchedulerDetailField({
   label,
   value,
@@ -739,6 +907,11 @@ export default function CloudDnsSchedulerSection() {
     <div className="space-y-4">
       <SchedulerFlow />
       <SchedulerToolbar snapshot={snapshot} refreshing={refreshing} onRefresh={() => loadSnapshot()} />
+      <SchedulerSourceOverview
+        snapshot={snapshot}
+        sourceFilter={sourceFilter}
+        onSourceFilterChange={handleSourceFilterChange}
+      />
 
       {error || snapshot?.load_error ? (
         <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-200">

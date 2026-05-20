@@ -1023,6 +1023,12 @@
       "recommended": "Recommended",
       "save_success": "DNS provider configuration saved",
       "scheduler": {
+        "api_pressure_coalesced": "Coalesced",
+        "api_pressure_failed": "Failed",
+        "api_pressure_hint": "Tasks sharing the same credential and record are merged first; Cloudflare is batched where possible, while Aliyun writes one record at a time.",
+        "api_pressure_requests": "Actual API",
+        "api_pressure_submitted": "Submitted",
+        "api_pressure_title": "API pressure",
         "deduped_count": "Merged {{count}}",
         "dedupe_groups": "Target merge groups {{count}}",
         "detail_address_mode": "Address mode",
@@ -1089,6 +1095,10 @@
         "merge_group_single": "Independent target",
         "pagination": "Showing {{start}}-{{end}} of {{total}}",
         "pending_count": "Pending {{count}}",
+        "provider_write_aliyun": "Aliyun",
+        "provider_write_aliyun_detail": "Single {{count}}",
+        "provider_write_cloudflare": "Cloudflare",
+        "provider_write_cloudflare_detail": "Batch {{batch}} / single {{single}}",
         "queue_hint": "DDNS and failover share one DNS execution path. Writes are serialized by credential, and Cloudflare writes are batched where possible.",
         "queue_title": "DNS task queue",
         "running": "Scheduling",
@@ -1099,7 +1109,15 @@
           "failover_v1": "Failover V1",
           "failover_v2": "Failover V2"
         },
+        "source_card_count": "{{percent}}% of queue",
         "source_ddns_count": "DDNS {{count}}",
+        "source_description": {
+          "ddns": "Syncs records automatically when a node public IP changes.",
+          "failover_v1": "Writes the active V1 failover address back to DNS after switching.",
+          "failover_v2": "Queues V2 member detach or DNS binding changes through the unified scheduler."
+        },
+        "source_overview_hint": "DDNS, Failover V1, and Failover V2 enter one DNS scheduler queue, then merge by target.",
+        "source_overview_title": "Source distribution",
         "source_v1_count": "V1 {{count}}",
         "source_v2_count": "V2 {{count}}",
         "status": {

@@ -1023,6 +1023,12 @@
       "recommended": "Recommended",
       "save_success": "DNS provider configuration saved",
       "scheduler": {
+        "api_pressure_coalesced": "統合済み",
+        "api_pressure_failed": "失敗",
+        "api_pressure_hint": "同じ認証情報とレコードのタスクは先に統合されます。Cloudflare は可能な限りバッチ書き込み、Aliyun は 1 件ずつ書き込みます。",
+        "api_pressure_requests": "実 API",
+        "api_pressure_submitted": "投入タスク",
+        "api_pressure_title": "API 負荷",
         "deduped_count": "Merged {{count}}",
         "dedupe_groups": "Target merge groups {{count}}",
         "detail_address_mode": "Address mode",
@@ -1089,6 +1095,10 @@
         "merge_group_single": "Independent target",
         "pagination": "Showing {{start}}-{{end}} of {{total}}",
         "pending_count": "Pending {{count}}",
+        "provider_write_aliyun": "Aliyun",
+        "provider_write_aliyun_detail": "単一 {{count}}",
+        "provider_write_cloudflare": "Cloudflare",
+        "provider_write_cloudflare_detail": "バッチ {{batch}} / 単一 {{single}}",
         "queue_hint": "DDNS and failover share one DNS execution path. Writes are serialized by credential, and Cloudflare writes are batched where possible.",
         "queue_title": "DNS task queue",
         "running": "Scheduling",
@@ -1099,7 +1109,15 @@
           "failover_v1": "Failover V1",
           "failover_v2": "Failover V2"
         },
+        "source_card_count": "キューの {{percent}}%",
         "source_ddns_count": "DDNS {{count}}",
+        "source_description": {
+          "ddns": "ノードの公開 IP が変化したら対応するレコードを自動同期します。",
+          "failover_v1": "V1 タスクの切り替え後、アクティブな出口アドレスを DNS に書き戻します。",
+          "failover_v2": "V2 メンバーの切り離しや DNS 紐付け変更を統一スケジューラーに投入します。"
+        },
+        "source_overview_hint": "DDNS、Failover V1、Failover V2 は同じ DNS スケジューラーキューに入り、対象ごとに統合されます。",
+        "source_overview_title": "ソース分布",
         "source_v1_count": "V1 {{count}}",
         "source_v2_count": "V2 {{count}}",
         "status": {

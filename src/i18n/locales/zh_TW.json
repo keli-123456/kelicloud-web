@@ -1023,6 +1023,12 @@
       "recommended": "推荐",
       "save_success": "DNS 服务商配置已保存",
       "scheduler": {
+        "api_pressure_coalesced": "並發合併",
+        "api_pressure_failed": "失敗",
+        "api_pressure_hint": "同憑據同記錄會先合併；Cloudflare 儘量批量寫入，阿里雲按單條寫入。",
+        "api_pressure_requests": "實際 API",
+        "api_pressure_submitted": "提交任務",
+        "api_pressure_title": "API 壓力",
         "deduped_count": "合併 {{count}}",
         "dedupe_groups": "目標合併組 {{count}}",
         "detail_address_mode": "地址模式",
@@ -1089,6 +1095,10 @@
         "merge_group_single": "獨立目標",
         "pagination": "顯示 {{start}}-{{end}} 條，共 {{total}} 條",
         "pending_count": "待處理 {{count}}",
+        "provider_write_aliyun": "阿里雲",
+        "provider_write_aliyun_detail": "單條 {{count}}",
+        "provider_write_cloudflare": "Cloudflare",
+        "provider_write_cloudflare_detail": "批量 {{batch}} / 單條 {{single}}",
         "queue_hint": "DDNS 與故障切換共用 DNS 執行入口；同憑證會串行，Cloudflare 寫入會儘量批量提交。",
         "queue_title": "DNS 任務佇列",
         "running": "調度中",
@@ -1099,7 +1109,15 @@
           "failover_v1": "故障切換 V1",
           "failover_v2": "故障切換 V2"
         },
+        "source_card_count": "佔佇列 {{percent}}%",
         "source_ddns_count": "DDNS {{count}}",
+        "source_description": {
+          "ddns": "節點公網 IP 變化後自動同步對應記錄。",
+          "failover_v1": "V1 任務切換成功後把出口地址寫回 DNS。",
+          "failover_v2": "V2 成員移除或掛載 DNS 線路時進入統一調度。"
+        },
+        "source_overview_hint": "DDNS、故障切換 V1 和 V2 會進入同一個 DNS 調度佇列，再按目標合併。",
+        "source_overview_title": "來源分佈",
         "source_v1_count": "V1 {{count}}",
         "source_v2_count": "V2 {{count}}",
         "status": {

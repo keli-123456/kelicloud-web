@@ -1023,6 +1023,12 @@
       "recommended": "推荐",
       "save_success": "DNS 服务商配置已保存",
       "scheduler": {
+        "api_pressure_coalesced": "并发合并",
+        "api_pressure_failed": "失败",
+        "api_pressure_hint": "同凭证同记录会先合并；Cloudflare 尽量批量写入，阿里云按单条写入。",
+        "api_pressure_requests": "实际 API",
+        "api_pressure_submitted": "提交任务",
+        "api_pressure_title": "API 压力",
         "dedupe_groups": "目标合并组 {{count}}",
         "deduped_count": "合并 {{count}}",
         "detail_address_mode": "地址模式",
@@ -1089,6 +1095,10 @@
         "merge_group_single": "独立目标",
         "pagination": "显示 {{start}}-{{end}} 条，共 {{total}} 条",
         "pending_count": "待处理 {{count}}",
+        "provider_write_aliyun": "阿里云",
+        "provider_write_aliyun_detail": "单条 {{count}}",
+        "provider_write_cloudflare": "Cloudflare",
+        "provider_write_cloudflare_detail": "批量 {{batch}} / 单条 {{single}}",
         "queue_hint": "DDNS 与故障切换共用 DNS 执行入口；同凭证会串行，Cloudflare 写入会尽量批量提交。",
         "queue_title": "DNS 任务队列",
         "running": "调度中",
@@ -1099,7 +1109,15 @@
           "failover_v1": "故障切换 V1",
           "failover_v2": "故障切换 V2"
         },
+        "source_card_count": "占队列 {{percent}}%",
         "source_ddns_count": "DDNS {{count}}",
+        "source_description": {
+          "ddns": "节点公网 IP 变化后自动同步对应记录。",
+          "failover_v1": "V1 任务切换成功后把出口地址写回 DNS。",
+          "failover_v2": "V2 成员摘除或挂载 DNS 线路时进入统一调度。"
+        },
+        "source_overview_hint": "DDNS、故障切换 V1 和 V2 会进入同一个 DNS 调度队列，再按目标合并。",
+        "source_overview_title": "来源分布",
         "source_v1_count": "V1 {{count}}",
         "source_v2_count": "V2 {{count}}",
         "status": {

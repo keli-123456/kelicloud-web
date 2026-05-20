@@ -1023,6 +1023,12 @@
       "recommended": "Recommended",
       "save_success": "DNS provider configuration saved",
       "scheduler": {
+        "api_pressure_coalesced": "Digabung",
+        "api_pressure_failed": "Gagal",
+        "api_pressure_hint": "Tugas dengan kredensial dan record yang sama digabung lebih dulu; Cloudflare dibatch jika memungkinkan, sedangkan Aliyun menulis satu record per panggilan.",
+        "api_pressure_requests": "API aktual",
+        "api_pressure_submitted": "Tugas masuk",
+        "api_pressure_title": "Tekanan API",
         "deduped_count": "Merged {{count}}",
         "dedupe_groups": "Target merge groups {{count}}",
         "detail_address_mode": "Address mode",
@@ -1089,6 +1095,10 @@
         "merge_group_single": "Independent target",
         "pagination": "Showing {{start}}-{{end}} of {{total}}",
         "pending_count": "Pending {{count}}",
+        "provider_write_aliyun": "Aliyun",
+        "provider_write_aliyun_detail": "Single {{count}}",
+        "provider_write_cloudflare": "Cloudflare",
+        "provider_write_cloudflare_detail": "Batch {{batch}} / single {{single}}",
         "queue_hint": "DDNS and failover share one DNS execution path. Writes are serialized by credential, and Cloudflare writes are batched where possible.",
         "queue_title": "DNS task queue",
         "running": "Scheduling",
@@ -1099,7 +1109,15 @@
           "failover_v1": "Failover V1",
           "failover_v2": "Failover V2"
         },
+        "source_card_count": "{{percent}}% antrean",
         "source_ddns_count": "DDNS {{count}}",
+        "source_description": {
+          "ddns": "Menyinkronkan record otomatis saat IP publik node berubah.",
+          "failover_v1": "Menulis alamat aktif Failover V1 kembali ke DNS setelah switch.",
+          "failover_v2": "Mengirim perubahan member V2 atau binding DNS ke scheduler terpadu."
+        },
+        "source_overview_hint": "DDNS, Failover V1, dan Failover V2 masuk ke antrean DNS terpadu lalu digabung berdasarkan target.",
+        "source_overview_title": "Distribusi sumber",
         "source_v1_count": "V1 {{count}}",
         "source_v2_count": "V2 {{count}}",
         "status": {
