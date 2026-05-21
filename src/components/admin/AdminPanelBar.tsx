@@ -872,15 +872,12 @@ function AdminPanelBarContent({ content }: AdminPanelBarProps) {
               sidebarCollapsed && "md:w-full md:justify-center md:px-0",
             )}
           >
-            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-600 text-sm font-semibold text-white shadow-[0_12px_24px_-16px_rgba(37,99,235,0.9)]">
-              {sidebarCollapsed ? (
-                <span className="hidden md:inline">
-                  {(appName || "K").trim().slice(0, 1).toUpperCase()}
-                </span>
-              ) : null}
-              <span className={cn(sidebarCollapsed && "md:hidden")}>
-                {(appName || "K").trim().slice(0, 1).toUpperCase()}
-              </span>
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-slate-200 bg-white shadow-[0_12px_24px_-18px_rgba(15,23,42,0.45)] dark:border-slate-800 dark:bg-slate-900">
+              <img
+                src="/favicon.ico"
+                alt={appName}
+                className="h-7 w-7 object-contain"
+              />
             </span>
             <span className={cn("min-w-0", sidebarCollapsed && "md:hidden")}>
               <span className="block truncate text-[15px] font-semibold leading-5 tracking-normal">

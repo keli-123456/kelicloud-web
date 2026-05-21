@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
@@ -33,10 +34,25 @@ const settingsPanelClass = `${ADMIN_PANEL_CLASS} px-4 py-2`;
 
 export default function SiteSettings() {
   const { t } = useTranslation();
+  const [faviconVersion, setFaviconVersion] = useState(() => Date.now());
   const { platformAdmin, loading: accountLoading } = useAccount();
   const { settings, loading, error } = useSettings("system", {
     enabled: platformAdmin,
   });
+
+  const refreshFavicon = () => {
+    const nextVersion = Date.now();
+    const nextHref = `/favicon.ico?v=${nextVersion}`;
+    setFaviconVersion(nextVersion);
+
+    let faviconLink = document.querySelector<HTMLLinkElement>("link[rel~='icon']");
+    if (!faviconLink) {
+      faviconLink = document.createElement("link");
+      faviconLink.rel = "icon";
+      document.head.appendChild(faviconLink);
+    }
+    faviconLink.href = nextHref;
+  };
 
   if (accountLoading || loading) {
     return <AdminSettingsSkeleton sections={4} />;
@@ -85,28 +101,28 @@ export default function SiteSettings() {
           {t("settings.platform_tools_description")}
         </div>
         <SettingCardCollapse
-          title={t("settings.custom.favicon", "Customize Favicon")}
+          title={t("settings.custom.favicon", "Customize Logo and Favicon")}
           description={t(
             "settings.custom.favicon_description",
-            "Icons displayed in browser tabs",
+            "Shared logo for the console, login page, and browser tab",
           )}
           defaultOpen
         >
           <div className="flex w-full flex-col items-start gap-3">
             <div className="flex items-center gap-3 rounded-xl border border-slate-200/80 bg-slate-50 px-3 py-2 text-sm dark:border-slate-800 dark:bg-slate-900/35">
               <img
-                src="/favicon.ico"
-                alt={t("settings.custom.favicon", "Customize Favicon")}
+                src={`/favicon.ico?v=${faviconVersion}`}
+                alt={t("settings.custom.favicon", "Customize Logo and Favicon")}
                 className="h-8 w-8 rounded-md"
               />
               <span className="font-medium text-foreground">
-                {t("settings.custom.favicon_current", "Current Favicon")}
+                {t("settings.custom.favicon_current", "Current Logo / Favicon")}
               </span>
             </div>
             <label className="text-sm text-muted-foreground">
               {t(
                 "settings.custom.favicon_note",
-                "Favicon icons can be slow to update and it is often necessary to clear your browser's cache to see the changes.",
+                "The preview refreshes after saving. If the browser tab still shows the old icon, refresh the page once.",
               )}
             </label>
             <div className="flex flex-wrap items-center gap-2">
@@ -146,9 +162,10 @@ export default function SiteSettings() {
                               toast.success(
                                 t(
                                   "settings.custom.favicon_default_success",
-                                  "Default favicon has been restored",
+                                  "Default logo and favicon have been restored",
                                 ),
                               );
+                              refreshFavicon();
                               return;
                             }
                             toast.error(
@@ -156,7 +173,7 @@ export default function SiteSettings() {
                                 ? formatApiErrorMessage(data.message)
                                 : t(
                                   "settings.custom.favicon_default_failed",
-                                  "Failed to restore default favicon",
+                                  "Failed to restore default logo and favicon",
                                 ),
                             );
                           } catch (error) {
@@ -192,9 +209,10 @@ export default function SiteSettings() {
                         toast.success(
                           t(
                             "settings.custom.favicon_update_success",
-                            "Favicon updated",
+                            "Logo and favicon updated",
                           ),
                         );
+                        refreshFavicon();
                         return;
                       }
                       toast.error(
@@ -202,7 +220,7 @@ export default function SiteSettings() {
                           ? formatApiErrorMessage(data.message)
                           : t(
                             "settings.custom.favicon_update_failed",
-                            "Failed to update favicon",
+                            "Failed to update logo and favicon",
                           ),
                       );
                     } catch (error) {
@@ -212,7 +230,7 @@ export default function SiteSettings() {
                   input.click();
                 }}
               >
-                {t("settings.custom.favicon_change", "Update Favicon")}
+                {t("settings.custom.favicon_change", "Update Logo / Favicon")}
               </Button>
             </div>
           </div>
