@@ -363,7 +363,9 @@ export default function AzurePanel() {
             catalog={effectiveCatalog}
             activeCredential={activeCredential}
             checkingCredentialsState={checkingCredentialsState}
+            resourceLoading={resourceLoading}
             onImportCredentials={() => setCredentialImportOpen(true)}
+            onViewInstances={loadResources}
             onCheckCredentials={handleCheckCredentials}
             onSelectCredential={handleSelectCredential}
             onOpenGroupEditor={openCredentialGroupEditor}
@@ -493,7 +495,9 @@ type AzureCredentialContextStripProps = {
   catalog: AzureCatalog | null;
   activeCredential: AzureCredentialRecord | null;
   checkingCredentialsState: boolean;
+  resourceLoading: boolean;
   onImportCredentials: () => void;
+  onViewInstances: () => void | Promise<void>;
   onCheckCredentials: () => void | Promise<void>;
   onSelectCredential: (credential: AzureCredentialRecord) => void | Promise<void>;
   onOpenGroupEditor: (credential: AzureCredentialRecord) => void;
@@ -649,7 +653,9 @@ function AzureCredentialContextStrip({
   catalog,
   activeCredential,
   checkingCredentialsState,
+  resourceLoading,
   onImportCredentials,
+  onViewInstances,
   onCheckCredentials,
   onSelectCredential,
   onOpenGroupEditor,
@@ -696,6 +702,21 @@ function AzureCredentialContextStrip({
             <Button size="1" onClick={onImportCredentials}>
               <Plus className="mr-2 h-4 w-4" />
               {t("cloud.providers.azure.import", "导入凭证")}
+            </Button>
+            <Button
+              variant="outline"
+              size="1"
+              onClick={() => {
+                void onViewInstances();
+              }}
+              disabled={!activeCredential || resourceLoading}
+            >
+              {resourceLoading ? (
+                <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <Eye className="mr-2 h-4 w-4" />
+              )}
+              {t("cloud.providers.azure.view_instances", "查看实例")}
             </Button>
             <Button
               variant="outline"

@@ -192,6 +192,7 @@ const LoginDialog = ({
     const [confirmPassword, setConfirmPassword] = React.useState("");
     const [turnstileToken, setTurnstileToken] = React.useState("");
     const [turnstileError, setTurnstileError] = React.useState("");
+    const [turnstileResetKey, setTurnstileResetKey] = React.useState(0);
     const { publicInfo } = usePublicInfo();
     const siteName = getSiteName(publicInfo?.sitename);
     const logoUrl = getLogoUrl(publicInfo?.favicon_version);
@@ -200,7 +201,7 @@ const LoginDialog = ({
     const isRegisterMode = allowRegistration && authMode === "register";
     const turnstileEnabled = publicInfo?.turnstile_enabled === true;
     const turnstileSiteKey = (publicInfo?.turnstile_site_key || "").trim();
-    const turnstileRequired = isRegisterMode && turnstileEnabled;
+    const turnstileRequired = turnstileEnabled;
     const turnstileReady =
       !turnstileRequired || (turnstileSiteKey !== "" && turnstileToken.trim() !== "");
     const simpleCardClassName =
@@ -212,7 +213,7 @@ const LoginDialog = ({
     const hasBaseCredentials = username.trim() !== "" && password.trim() !== "";
     const isFormValid = isRegisterMode
       ? hasBaseCredentials && confirmPassword.trim() !== "" && turnstileReady
-      : hasBaseCredentials;
+      : hasBaseCredentials && turnstileReady;
 
     React.useEffect(() => {
       if (autoOpen) {
@@ -228,20 +229,38 @@ const LoginDialog = ({
     }, [allowRegistration, authMode]);
 
     React.useEffect(() => {
-      if (!isRegisterMode || !turnstileEnabled) {
+      if (!turnstileEnabled) {
         setTurnstileToken("");
         setTurnstileError("");
       }
-    }, [isRegisterMode, turnstileEnabled]);
+    }, [turnstileEnabled]);
+
+    const resetTurnstile = React.useCallback(() => {
+      setTurnstileToken("");
+      setTurnstileError("");
+      setTurnstileResetKey((value) => value + 1);
+    }, []);
 
     const handleLogin = async () => {
-      if (!isFormValid) {
+      if (!hasBaseCredentials) {
         setErrorMsg(
           t(
             "login.required_credentials",
             "请输入用户名和密码",
           ),
         );
+        return;
+      }
+      if (turnstileEnabled && !turnstileSiteKey) {
+        setErrorMsg(
+          t("login.turnstile_unconfigured", {
+            defaultValue: "人机验证未配置，请联系管理员。",
+          }),
+        );
+        return;
+      }
+      if (turnstileRequired && !turnstileToken.trim()) {
+        setErrorMsg(t("login.turnstile_required", "请先完成人机验证"));
         return;
       }
 
@@ -256,6 +275,7 @@ const LoginDialog = ({
           body: JSON.stringify({
             username,
             password,
+            turnstile_token: turnstileToken || undefined,
             ...(twoFac && !account?.["2fa_enabled"]
               ? { "2fa_code": twoFac }
               : {}),
@@ -272,7 +292,11 @@ const LoginDialog = ({
         } else {
           if (data.message === "2FA code is required") {
             setRequire2FA(true);
+            resetTurnstile();
             return;
+          }
+          if (turnstileRequired) {
+            resetTurnstile();
           }
           setErrorMsg(
             data.message
@@ -346,6 +370,9 @@ const LoginDialog = ({
           }
           window.open(getDefaultAdminPath(nextAccount), "_self");
         } else {
+          if (turnstileRequired) {
+            resetTurnstile();
+          }
           setErrorMsg(
             data.message
               ? formatApiErrorMessage(data.message, { status: res.status })
@@ -382,8 +409,7 @@ const LoginDialog = ({
       setRequire2FA(false);
       setTwoFac("");
       setConfirmPassword("");
-      setTurnstileToken("");
-      setTurnstileError("");
+      resetTurnstile();
     };
 
     const handleTurnstileToken = React.useCallback((token: string) => {
@@ -638,6 +664,7 @@ const LoginDialog = ({
                 </div>
                 <div className="min-h-[78px] overflow-hidden rounded-md border border-slate-200 bg-white px-3 py-2 dark:border-slate-800 dark:bg-slate-950">
                   <TurnstileWidget
+                    key={`${authMode}-${turnstileResetKey}`}
                     siteKey={turnstileSiteKey}
                     onToken={handleTurnstileToken}
                     onExpire={handleTurnstileExpire}

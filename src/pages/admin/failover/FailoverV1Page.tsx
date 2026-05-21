@@ -1105,6 +1105,14 @@ function getCleanupFailureClassLabel(t: TFunction, failureClass: string) {
       return t("failover.execution.cleanup_failure_classes.billing_locked", {
         defaultValue: "account locked or billing restricted",
       });
+    case "provider_not_registered":
+      return t("failover.execution.cleanup_failure_classes.provider_not_registered", {
+        defaultValue: "Azure resource provider is not registered",
+      });
+    case "region_disallowed":
+      return t("failover.execution.cleanup_failure_classes.region_disallowed", {
+        defaultValue: "Azure policy does not allow this region",
+      });
     case "rate_limited":
       return t("failover.execution.cleanup_failure_classes.rate_limited", {
         defaultValue: "provider API rate limited the request",
@@ -9898,7 +9906,7 @@ function TaskEditorDialog({
                           className="lg:col-span-2"
                           title={t("failover.editor.scripts", { defaultValue: "Scripts" })}
                           description={t("failover.editor.scripts_compact_hint", {
-                            defaultValue: "???????????????????????????????????????",
+                            defaultValue: "可选脚本会在替换出口通过检查后按顺序执行。点击配置脚本再选择、排序和设置超时。",
                           })}
                           scripts={sortedScripts}
                           selectedScriptIDs={selectedPlan.script_clipboard_ids}

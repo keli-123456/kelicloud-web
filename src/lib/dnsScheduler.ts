@@ -62,6 +62,8 @@ export type DNSSchedulerRunSummary = {
   duration_ms: number;
   total_bindings: number;
   eligible_bindings: number;
+  failover_v1_targets: number;
+  failover_v2_targets: number;
   applied: number;
   skipped: number;
   failed: number;
@@ -102,6 +104,8 @@ const emptyRun: DNSSchedulerRunSummary = {
   duration_ms: 0,
   total_bindings: 0,
   eligible_bindings: 0,
+  failover_v1_targets: 0,
+  failover_v2_targets: 0,
   applied: 0,
   skipped: 0,
   failed: 0,
@@ -155,6 +159,8 @@ function normalizeRun(value: unknown): DNSSchedulerRunSummary {
     duration_ms: normalizeNumber(raw.duration_ms),
     total_bindings: normalizeNumber(raw.total_bindings),
     eligible_bindings: normalizeNumber(raw.eligible_bindings),
+    failover_v1_targets: normalizeNumber(raw.failover_v1_targets),
+    failover_v2_targets: normalizeNumber(raw.failover_v2_targets),
     applied: normalizeNumber(raw.applied),
     skipped: normalizeNumber(raw.skipped),
     failed: normalizeNumber(raw.failed),
@@ -254,4 +260,51 @@ export async function getDNSSchedulerSnapshot(): Promise<DNSSchedulerSnapshot> {
   }
 
   return normalizeSnapshot(payload?.data);
+}
+
+export type DNSSchedulerSyncResult = {
+  started: boolean;
+  summary: DNSSchedulerRunSummary;
+  snapshot: DNSSchedulerSnapshot;
+};
+
+function normalizeSyncResult(value: unknown): DNSSchedulerSyncResult {
+  const raw = value && typeof value === "object" ? value as Record<string, unknown> : {};
+  return {
+    started: normalizeBoolean(raw.started),
+    summary: normalizeRun(raw.summary || emptyRun),
+    snapshot: normalizeSnapshot(raw.snapshot),
+  };
+}
+
+export async function syncDNSSchedulerNow(): Promise<DNSSchedulerSyncResult> {
+  const requestUrl = `/api/admin/dns/scheduler/sync?__ts=${Date.now()}`;
+  const response = await fetch(requestUrl, {
+    method: "POST",
+    credentials: "same-origin",
+    cache: "no-store",
+    headers: {
+      Accept: "application/json",
+      "Cache-Control": "no-cache, no-store, max-age=0",
+      Pragma: "no-cache",
+      "X-Requested-With": "XMLHttpRequest",
+    },
+  });
+
+  const text = await response.text();
+  const trimmed = text.trim();
+  let payload: ApiEnvelope<unknown> | null = null;
+  if (trimmed) {
+    try {
+      payload = JSON.parse(trimmed) as ApiEnvelope<unknown>;
+    } catch {
+      throw new DNSSchedulerApiError("Invalid JSON response from DNS scheduler sync", response.status);
+    }
+  }
+
+  if (!response.ok || payload?.status === "error") {
+    throw new DNSSchedulerApiError(payload?.message || `HTTP ${response.status}`, response.status);
+  }
+
+  return normalizeSyncResult(payload?.data);
 }

@@ -1036,6 +1036,7 @@
         "api_pressure_requests": "實際 API",
         "api_pressure_submitted": "提交任務",
         "api_pressure_title": "API 壓力",
+        "auto_refresh": "每 15 秒自動更新",
         "deduped_count": "合併 {{count}}",
         "dedupe_groups": "目標合併組 {{count}}",
         "detail_address_mode": "地址模式",
@@ -1101,6 +1102,11 @@
         "merge_group_follower": "合併組 {{count}} · 跟隨",
         "merge_group_primary": "合併組 {{count}} · 主項",
         "merge_group_single": "獨立目標",
+        "manual_sync": "立即同步",
+        "manual_sync_already_running": "DNS 調度正在執行，已刷新目前狀態",
+        "manual_sync_failed": "DNS 手動同步失敗",
+        "manual_sync_success": "DNS 手動同步已完成",
+        "manual_syncing": "同步中",
         "pagination": "顯示 {{start}}-{{end}} 條，共 {{total}} 條",
         "pending_count": "待處理 {{count}}",
         "provider_write_aliyun": "阿里雲",
@@ -1701,6 +1707,7 @@
         "tenant_id": "租户 ID",
         "title": "Azure",
         "user_data": "Cloud-init User Data",
+        "view_instances": "查看實例",
         "vm_id": "虚拟机 ID",
         "vm_side_description": "把建立入口、订阅上下文和目前 VM 摘要放在一处。",
         "vm_side_empty": "暂無 VM",
@@ -2692,8 +2699,10 @@
       "cleanup_failure_classes": {
         "auth_invalid": "凭证已失效或被拒绝",
         "billing_locked": "账号被锁定或受账单限制",
+        "provider_not_registered": "Azure 訂閱未註冊所需資源提供程序",
         "quota_exhausted": "账号配额或限制阻止了请求",
         "rate_limited": "云厂商接口触发限流",
+        "region_disallowed": "Azure 訂閱策略不允許該地區",
         "transient_error": "云厂商接口查询失败"
       },
       "cleanup_messages": {
@@ -2776,7 +2785,9 @@
       "exit_code": "退出码：{{code}}",
       "failure_classes": {
         "post_provision_error": "创建后的收尾步骤失败",
-        "pre_reclaim_error": "创建前回收旧实例失败"
+        "provider_not_registered": "Azure 訂閱未註冊所需資源提供程序",
+        "pre_reclaim_error": "创建前回收旧实例失败",
+        "region_disallowed": "Azure 訂閱策略不允許該地區"
       },
       "instance_identifier": {
         "droplet": "Droplet #{{id}}",
@@ -4010,7 +4021,7 @@
       "allow_registration": "開放使用者註冊",
       "allow_registration_description": "開啟後訪客可以在登入頁自行註冊普通使用者；關閉後只能由管理員建立帳號。",
       "turnstile_enabled": "Cloudflare Turnstile",
-      "turnstile_enabled_description": "開啟後註冊帳號必須通過 Cloudflare Turnstile 人機驗證。",
+      "turnstile_enabled_description": "開啟後登入和註冊帳號都必須通過 Cloudflare Turnstile 人機驗證。",
       "turnstile_secret_key": "Turnstile Secret Key",
       "turnstile_secret_key_description": "Cloudflare Turnstile 的服務端 Secret Key，僅用於後端校驗，不會暴露給前端。",
       "turnstile_site_key": "Turnstile Site Key",

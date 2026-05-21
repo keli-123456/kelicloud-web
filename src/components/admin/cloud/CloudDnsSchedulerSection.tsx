@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate, useSearchParams } from "react-router-dom";
+import { toast } from "sonner";
 import {
   Activity,
   CheckCircle2,
@@ -12,6 +13,7 @@ import {
   Info,
   ListChecks,
   Network,
+  Play,
   RefreshCw,
   Search,
   Server,
@@ -24,6 +26,7 @@ import { AdminEmptyState, AdminTableSkeleton } from "@/components/admin/AdminPag
 import { Input } from "@/components/ui/input";
 import {
   getDNSSchedulerSnapshot,
+  syncDNSSchedulerNow,
   type DNSSchedulerItem,
   type DNSSchedulerSnapshot,
 } from "@/lib/dnsScheduler";
@@ -244,11 +247,15 @@ function SchedulerFlow() {
 function SchedulerToolbar({
   snapshot,
   refreshing,
+  syncing,
   onRefresh,
+  onSync,
 }: {
   snapshot: DNSSchedulerSnapshot | null;
   refreshing: boolean;
+  syncing: boolean;
   onRefresh: () => void;
+  onSync: () => void;
 }) {
   const { t } = useTranslation();
   const run = snapshot?.last_run;
@@ -347,9 +354,13 @@ function SchedulerToolbar({
         </Badge>
       </div>
       <div className="flex shrink-0 items-center gap-2">
-        <div className="hidden items-center gap-1 text-xs text-muted-foreground sm:flex">
-          <Clock3 className="h-3.5 w-3.5" />
-          <span>
+        <div className="hidden flex-col items-end gap-1 text-xs text-muted-foreground sm:flex">
+          <span className="inline-flex items-center gap-1">
+            <RefreshCw className="h-3.5 w-3.5" />
+            {t("cloud.dns.scheduler.auto_refresh", { defaultValue: "每 15 秒自动更新" })}
+          </span>
+          <span className="inline-flex items-center gap-1">
+            <Clock3 className="h-3.5 w-3.5" />
             {t("cloud.dns.scheduler.last_run", {
               defaultValue: "最近一轮 {{time}} · {{ms}}ms",
               time: formatDateTime(run?.finished_at || run?.started_at),
@@ -357,6 +368,23 @@ function SchedulerToolbar({
             })}
           </span>
         </div>
+        <Button
+          type="button"
+          variant="default"
+          size="sm"
+          className="gap-2"
+          disabled={refreshing || syncing || snapshot?.running}
+          onClick={onSync}
+        >
+          {syncing || snapshot?.running ? (
+            <RefreshCw className="h-4 w-4 animate-spin" />
+          ) : (
+            <Play className="h-4 w-4" />
+          )}
+          {syncing || snapshot?.running
+            ? t("cloud.dns.scheduler.manual_syncing", { defaultValue: "同步中" })
+            : t("cloud.dns.scheduler.manual_sync", { defaultValue: "立即同步" })}
+        </Button>
         <Button
           type="button"
           variant="outline"
@@ -803,6 +831,7 @@ export default function CloudDnsSchedulerSection() {
   const [snapshot, setSnapshot] = useState<DNSSchedulerSnapshot | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [syncing, setSyncing] = useState(false);
   const [error, setError] = useState("");
   const [query, setQuery] = useState("");
   const [sourceFilter, setSourceFilter] = useState<SourceFilter>(() => focusedSource);
@@ -924,6 +953,33 @@ export default function CloudDnsSchedulerSection() {
     setSearchParams(params, { replace: true });
   }, [searchParams, setSearchParams]);
 
+  const handleManualSync = useCallback(async () => {
+    setSyncing(true);
+    setError("");
+    try {
+      const result = await syncDNSSchedulerNow();
+      setSnapshot(result.snapshot);
+      if (result.started) {
+        toast.success(t("cloud.dns.scheduler.manual_sync_success", {
+          defaultValue: "DNS 手动同步已完成",
+        }));
+      } else {
+        toast.info(t("cloud.dns.scheduler.manual_sync_already_running", {
+          defaultValue: "DNS 调度正在运行，已刷新当前状态",
+        }));
+      }
+    } catch (err) {
+      const message = err instanceof Error
+        ? err.message
+        : t("cloud.dns.scheduler.manual_sync_failed", { defaultValue: "DNS 手动同步失败" });
+      setError(message);
+      toast.error(message);
+    } finally {
+      setSyncing(false);
+      setLoading(false);
+    }
+  }, [t]);
+
   if (loading) {
     return (
       <div className="space-y-4">
@@ -936,7 +992,13 @@ export default function CloudDnsSchedulerSection() {
   return (
     <div className="space-y-4">
       <SchedulerFlow />
-      <SchedulerToolbar snapshot={snapshot} refreshing={refreshing} onRefresh={() => loadSnapshot()} />
+      <SchedulerToolbar
+        snapshot={snapshot}
+        refreshing={refreshing}
+        syncing={syncing}
+        onRefresh={() => loadSnapshot()}
+        onSync={handleManualSync}
+      />
       <SchedulerSourceOverview
         snapshot={snapshot}
         sourceFilter={sourceFilter}

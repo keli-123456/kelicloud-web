@@ -259,6 +259,7 @@ export const COMMON_AZURE_LOCATIONS: BuiltinPlanOption[] = [
   { value: "swedencentral", label: "Sweden Central", zh: "\u745e\u5178\u4e2d\u90e8" },
   { value: "francecentral", label: "France Central", zh: "\u6cd5\u56fd\u4e2d\u90e8" },
   { value: "switzerlandnorth", label: "Switzerland North", zh: "\u745e\u58eb\u5317\u90e8" },
+  { value: "uaenorth", label: "UAE North", zh: "\u963f\u8054\u914b\u5317\u90e8" },
   { value: "japaneast", label: "Japan East", zh: "\u65e5\u672c\u4e1c\u90e8" },
   { value: "japanwest", label: "Japan West", zh: "\u65e5\u672c\u897f\u90e8" },
   { value: "koreacentral", label: "Korea Central", zh: "\u97e9\u56fd\u4e2d\u90e8" },
