@@ -4145,8 +4145,11 @@
       "telegram": {
         "bot_token": "Token Bot Telegram",
         "chat_id": "ID Chat",
+        "chat_id_help": "Optional default chat ID. User-scoped notification bindings can override this field.",
         "endpoint": "Endpoint Permintaan",
-        "endpoint_help": "Endpoint permintaan untuk API Bot Telegram, biasanya `https://api.telegram.org/bot`"
+        "endpoint_help": "Endpoint permintaan untuk API Bot Telegram, biasanya `https://api.telegram.org/bot`",
+        "message_thread_id": "Message Thread ID",
+        "message_thread_id_help": "Optional. Unique identifier of a message thread to which the message belongs; for supergroups only."
       },
       "telegram_bot_token": "Token Bot Telegram",
       "telegram_chat_id_error": "ID Chat harus berupa angka",

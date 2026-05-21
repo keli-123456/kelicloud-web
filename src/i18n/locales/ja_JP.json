@@ -4145,8 +4145,11 @@
       "telegram": {
         "bot_token": "Telegramボットトークン",
         "chat_id": "チャットID",
+        "chat_id_help": "Optional default chat ID. User-scoped notification bindings can override this field.",
         "endpoint": "リクエストエンドポイント",
-        "endpoint_help": "Telegram ボット API のリクエストエンドポイント、通常は `https://api.telegram.org/bot`"
+        "endpoint_help": "Telegram ボット API のリクエストエンドポイント、通常は `https://api.telegram.org/bot`",
+        "message_thread_id": "Message Thread ID",
+        "message_thread_id_help": "Optional. Unique identifier of a message thread to which the message belongs; for supergroups only."
       },
       "telegram_bot_token": "Telegram ボットトークン",
       "telegram_chat_id_error": "チャット ID は空にできません",
