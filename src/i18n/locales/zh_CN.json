@@ -1099,14 +1099,14 @@
         "linked_next_run": "下一轮约 {{time}}",
         "linked_open": "查看调度详情",
         "linked_title": "DNS 调度",
-        "merge_group_follower": "合并组 {{count}} · 跟随",
-        "merge_group_primary": "合并组 {{count}} · 主项",
-        "merge_group_single": "独立目标",
         "manual_sync": "立即同步",
         "manual_sync_already_running": "DNS 调度正在运行，已刷新当前状态",
         "manual_sync_failed": "DNS 手动同步失败",
         "manual_sync_success": "DNS 手动同步已完成",
         "manual_syncing": "同步中",
+        "merge_group_follower": "合并组 {{count}} · 跟随",
+        "merge_group_primary": "合并组 {{count}} · 主项",
+        "merge_group_single": "独立目标",
         "pagination": "显示 {{start}}-{{end}} 条，共 {{total}} 条",
         "pending_count": "待处理 {{count}}",
         "provider_write_aliyun": "阿里云",
@@ -2785,8 +2785,8 @@
       "exit_code": "退出码：{{code}}",
       "failure_classes": {
         "post_provision_error": "创建后的收尾步骤失败",
-        "provider_not_registered": "Azure 订阅未注册所需资源提供程序",
         "pre_reclaim_error": "创建前回收旧实例失败",
+        "provider_not_registered": "Azure 订阅未注册所需资源提供程序",
         "region_disallowed": "Azure 订阅策略不允许该地区"
       },
       "instance_identifier": {

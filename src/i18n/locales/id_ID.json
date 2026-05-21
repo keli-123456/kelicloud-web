@@ -1036,6 +1036,7 @@
         "api_pressure_requests": "API aktual",
         "api_pressure_submitted": "Tugas masuk",
         "api_pressure_title": "Tekanan API",
+        "auto_refresh": "Auto refreshes every 15 seconds",
         "dedupe_groups": "Target merge groups {{count}}",
         "deduped_count": "Merged {{count}}",
         "detail_address_mode": "Address mode",
@@ -1098,6 +1099,11 @@
         "linked_next_run": "Next round around {{time}}",
         "linked_open": "View scheduler details",
         "linked_title": "DNS scheduler",
+        "manual_sync": "Sync now",
+        "manual_sync_already_running": "DNS scheduler is already running. Current status refreshed.",
+        "manual_sync_failed": "Manual DNS sync failed",
+        "manual_sync_success": "Manual DNS sync completed",
+        "manual_syncing": "Syncing",
         "merge_group_follower": "Merge group {{count}} · follower",
         "merge_group_primary": "Merge group {{count}} · primary",
         "merge_group_single": "Independent target",
@@ -1701,6 +1707,7 @@
         "tenant_id": "Tenant ID",
         "title": "Azure",
         "user_data": "Cloud-init User Data",
+        "view_instances": "View Instances",
         "vm_id": "VM ID",
         "vm_side_description": "Keep creation entry points, subscription context, and current VM summaries together.",
         "vm_side_empty": "No VMs",
@@ -2692,8 +2699,10 @@
       "cleanup_failure_classes": {
         "auth_invalid": "credential rejected",
         "billing_locked": "account locked or billing restricted",
+        "provider_not_registered": "Azure resource provider is not registered",
         "quota_exhausted": "provider quota or account limits blocked the request",
         "rate_limited": "provider API rate limited the request",
+        "region_disallowed": "Azure policy does not allow this region",
         "transient_error": "provider API query failed"
       },
       "cleanup_messages": {
@@ -2776,7 +2785,9 @@
       "exit_code": "Exit code: {{code}}",
       "failure_classes": {
         "post_provision_error": "post-provision setup failed",
-        "pre_reclaim_error": "pre-cleanup failed"
+        "pre_reclaim_error": "pre-cleanup failed",
+        "provider_not_registered": "Azure resource provider is not registered",
+        "region_disallowed": "Azure policy does not allow this region"
       },
       "instance_identifier": {
         "droplet": "Droplet #{{id}}",
