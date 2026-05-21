@@ -4118,7 +4118,7 @@
       "moved": "Looking for expired notifications? Moved to notification-general",
       "platform_sender_title": "Platform sender settings",
       "provider_fields": "Send Settings",
-      "provider_fields_description": "Detailed settings for the information sending channel you choose",
+      "provider_fields_description": "Only configure the Telegram bot token. Recipients come from each user's notification target.",
       "smtp_description": "Configure SMTP mail info to send email notifications.",
       "smtp_host": "SMTP Host",
       "smtp_password": "Password",
@@ -4145,8 +4145,11 @@
       "telegram": {
         "bot_token": "Telegram Bot Token",
         "chat_id": "Chat ID",
+        "chat_id_help": "Optional default chat ID. User-scoped notification bindings can override this field.",
         "endpoint": "Request Endpoint",
-        "endpoint_help": "Request endpoint for the Telegram Bot API, usually `https://api.telegram.org/bot`"
+        "endpoint_help": "Request endpoint for the Telegram Bot API, usually `https://api.telegram.org/bot`",
+        "message_thread_id": "Message Thread ID",
+        "message_thread_id_help": "Optional. Unique identifier of a message thread to which the message belongs; for supergroups only."
       },
       "telegram_bot_token": "Telegram Bot Token",
       "telegram_chat_id_error": "Chat ID must be a number",

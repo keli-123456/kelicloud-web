@@ -139,7 +139,7 @@ export function getDefaultAdminPath(account: Account | null) {
     return "/admin/exec";
   }
   if (isAccountFeatureAllowed(account, "clipboard")) {
-    return "/admin/exec?view=scripts";
+    return "/admin/exec";
   }
   if (isAccountFeatureAllowed(account, "logs")) {
     return "/admin/audit?tab=logs";

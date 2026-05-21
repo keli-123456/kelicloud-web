@@ -10,12 +10,14 @@ import {
   getSiteName,
   getSiteSubtitle,
 } from "@/constants/siteBrand";
+import { getLogoUrl } from "@/lib/logoUrl";
 
 const NavBar = () => {
   const { publicInfo } = usePublicInfo();
   const { t } = useTranslation();
   const siteName = getSiteName(publicInfo?.sitename);
   const siteSubtitle = getSiteSubtitle(publicInfo?.site_subtitle, t("site.subtitle"));
+  const logoUrl = getLogoUrl(publicInfo?.favicon_version);
 
   return (
     <nav className="sticky top-0 z-30 border-b border-border/80 bg-background/95 backdrop-blur">
@@ -23,7 +25,7 @@ const NavBar = () => {
         <Link to="/" className="flex min-w-0 items-center gap-3">
           <div className="flex size-8 shrink-0 items-center justify-center overflow-hidden rounded-md border bg-card">
             <img
-              src="/favicon.ico"
+              src={logoUrl}
               alt={siteName}
               className="size-5 object-contain"
             />

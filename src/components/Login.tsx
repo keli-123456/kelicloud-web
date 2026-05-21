@@ -1,6 +1,6 @@
 import * as React from "react";
 import { useTranslation } from "react-i18next";
-import { AlertCircle, KeyRound, LogIn, ShieldCheck, UserPlus } from "lucide-react";
+import { AlertCircle, KeyRound, LogIn, UserPlus } from "lucide-react";
 
 import {
   Alert,
@@ -34,6 +34,7 @@ import { usePublicInfo } from "@/contexts/PublicInfoContext";
 import { Navigate } from "react-router-dom";
 import { getSiteName } from "@/constants/siteBrand";
 import { formatApiErrorMessage } from "@/lib/apiErrorMessage";
+import { getLogoUrl } from "@/lib/logoUrl";
 import { cn } from "@/lib/utils";
 
 import { TablerSettings } from "./Icones/Tabler";
@@ -193,6 +194,7 @@ const LoginDialog = ({
     const [turnstileError, setTurnstileError] = React.useState("");
     const { publicInfo } = usePublicInfo();
     const siteName = getSiteName(publicInfo?.sitename);
+    const logoUrl = getLogoUrl(publicInfo?.favicon_version);
     const isSimpleInline = inline && variant === "simple";
     const allowRegistration = publicInfo?.allow_registration !== false;
     const isRegisterMode = allowRegistration && authMode === "register";
@@ -458,8 +460,13 @@ const LoginDialog = ({
           <Card className={cn("overflow-hidden", className)}>
             <CardHeader className="gap-3 border-b border-border px-5 py-5">
               <div className="flex items-center gap-3">
-                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-blue-600 to-teal-500 text-white shadow-sm shadow-blue-950/15">
-                  <ShieldCheck className="h-5 w-5" />
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm shadow-slate-900/5 dark:border-slate-800 dark:bg-slate-900">
+                  <img
+                    src={logoUrl}
+                    alt=""
+                    className="h-6 w-6 object-contain"
+                    aria-hidden="true"
+                  />
                 </span>
                 <div>
                   <CardTitle className="text-xl font-semibold tracking-normal">
@@ -739,7 +746,7 @@ const LoginDialog = ({
             <div className="flex flex-col items-center text-center">
               <span className="flex h-12 w-12 items-center justify-center overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm shadow-slate-900/5 dark:border-slate-800 dark:bg-slate-900">
                 <img
-                  src="/favicon.ico"
+                  src={logoUrl}
                   alt=""
                   className="h-8 w-8 object-contain"
                   aria-hidden="true"
@@ -770,8 +777,13 @@ const LoginDialog = ({
           <CardHeader className="gap-4 border-b border-border px-5 py-5">
             <div className="flex items-start justify-between gap-3">
               <div className="flex min-w-0 items-center gap-3">
-                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-blue-600 to-teal-500 text-white shadow-sm shadow-blue-950/15">
-                  <ShieldCheck className="h-5 w-5" />
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm shadow-slate-900/5 dark:border-slate-800 dark:bg-slate-900">
+                  <img
+                    src={logoUrl}
+                    alt=""
+                    className="h-6 w-6 object-contain"
+                    aria-hidden="true"
+                  />
                 </span>
                 <div className="min-w-0">
                   <CardTitle className="text-xl font-semibold tracking-normal">
@@ -810,8 +822,13 @@ const LoginDialog = ({
         </DialogTrigger>
         <DialogContent className="sm:max-w-[440px]">
           <DialogHeader className="gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gradient-to-br from-blue-600 to-teal-500 text-white shadow-sm shadow-blue-950/15">
-              <ShieldCheck className="h-5 w-5" />
+            <div className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm shadow-slate-900/5 dark:border-slate-800 dark:bg-slate-900">
+              <img
+                src={logoUrl}
+                alt=""
+                className="h-6 w-6 object-contain"
+                aria-hidden="true"
+              />
             </div>
             <DialogTitle className="text-xl tracking-normal">
               {isRegisterMode

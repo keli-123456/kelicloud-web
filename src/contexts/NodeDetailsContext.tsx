@@ -15,11 +15,13 @@ const NodeDetailsContext = React.createContext<NodeDetailsContextType | undefine
 
 type NodeDetailsProviderProps = {
   children: React.ReactNode;
+  enabled?: boolean;
   listEndpoint?: string;
 };
 
 export const NodeDetailsProvider: React.FC<NodeDetailsProviderProps> = ({
   children,
+  enabled = true,
   listEndpoint,
 }) => {
   const { platformAdmin } = useAccount();
@@ -38,6 +40,13 @@ export const NodeDetailsProvider: React.FC<NodeDetailsProviderProps> = ({
   }, [nodeDetail]);
 
   const refresh = React.useCallback(async (options?: { silent?: boolean }) => {
+    if (!enabled) {
+      setNodeDetail([]);
+      setIsLoading(false);
+      setError(null);
+      return;
+    }
+
     const silent = options?.silent ?? false;
     const shouldShowLoading = !silent && nodeDetailRef.current.length === 0;
 
@@ -61,7 +70,7 @@ export const NodeDetailsProvider: React.FC<NodeDetailsProviderProps> = ({
         setIsLoading(false);
       }
     }
-  }, [resolvedListEndpoint]);
+  }, [enabled, resolvedListEndpoint]);
 
   React.useEffect(() => {
     void refresh();

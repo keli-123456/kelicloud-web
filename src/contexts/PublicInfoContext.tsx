@@ -1,5 +1,6 @@
 import React from "react";
 import { formatApiErrorMessage, getReadableErrorMessage } from "@/lib/apiErrorMessage";
+import { getLogoUrl } from "@/lib/logoUrl";
 //import { useRPC2Call } from "./RPC2Context";
 
 export interface PublicInfo {
@@ -12,6 +13,7 @@ export interface PublicInfo {
   description: string;
   disable_password_login: boolean;
   github_url?: string;
+  favicon_version?: string | number;
   oauth_provider: string;
   oauth_enable: boolean;
   ping_record_preserve_time: number;
@@ -70,6 +72,20 @@ export const PublicInfoProvider: React.FC<{ children: React.ReactNode }> = ({
   React.useEffect(() => {
     void refresh();
   }, [refresh]);
+
+  React.useEffect(() => {
+    if (!publicInfo) {
+      return;
+    }
+
+    let faviconLink = document.querySelector<HTMLLinkElement>("link[rel~='icon']");
+    if (!faviconLink) {
+      faviconLink = document.createElement("link");
+      faviconLink.rel = "icon";
+      document.head.appendChild(faviconLink);
+    }
+    faviconLink.href = getLogoUrl(publicInfo.favicon_version);
+  }, [publicInfo]);
 
   const value = React.useMemo(
     () => ({ publicInfo, isLoading, error, refresh }),

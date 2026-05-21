@@ -1,5 +1,5 @@
-import { lazy, Suspense, useState, useRef, useEffect, useMemo, useCallback, type ReactNode, type UIEvent } from "react";
-import { Link, useLocation, useNavigate } from "react-router-dom";
+import { useState, useRef, useEffect, useMemo, useCallback, type FormEvent, type ReactNode, type UIEvent } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import { NodeDetailsProvider, useNodeDetails } from "@/contexts/NodeDetailsContext";
 import { useAdminPageTitle } from "@/contexts/AdminPageTitleContext";
 import { useAccount } from "@/contexts/AccountContext";
@@ -19,6 +19,7 @@ import {
     Eye,
     Save,
     Plus,
+    PencilLine,
     RefreshCw,
     Search,
 } from "lucide-react";
@@ -45,9 +46,29 @@ import {
 import { AdminRowActions } from "@/components/admin/AdminRowActions";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+    Dialog,
+    DialogClose,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { formatApiErrorMessage, getReadableErrorMessage } from "@/lib/apiErrorMessage";
 import { cn } from "@/lib/utils";
+import {
+    ADMIN_FORM_BODY_CLASS,
+    ADMIN_FORM_DIALOG_CHROME_CLASS,
+    ADMIN_FORM_DIALOG_WIDE_CLASS,
+    ADMIN_FORM_FIELD_CLASS,
+    ADMIN_FORM_FOOTER_CLASS,
+    ADMIN_FORM_HEADER_CLASS,
+    ADMIN_FORM_HEADER_INSET_CLASS,
+    ADMIN_FORM_HELP_CLASS,
+    ADMIN_FORM_LABEL_CLASS,
+} from "@/components/admin/AdminFormStyles";
 
 interface TaskResult {
     task_id: string;
@@ -104,6 +125,20 @@ interface TaskListResponse {
     message?: string;
 }
 
+type ScriptFormValues = {
+    name: string;
+    text: string;
+    remark: string;
+    weight: string;
+};
+
+const EMPTY_SCRIPT_FORM_VALUES: ScriptFormValues = {
+    name: "",
+    text: "",
+    remark: "",
+    weight: "0",
+};
+
 const EXEC_TIMEOUT_SENTINEL = "__KOMARI_EXEC_TIMEOUT__";
 
 const getCodeLines = (value: string) => {
@@ -127,8 +162,6 @@ type ExecStatusTone = "ok" | "warn" | "bad" | "info";
 
 type ExecLibraryTab = "library" | "history" | "result";
 
-type ExecWorkspaceView = "exec" | "scripts";
-
 type LoadTaskResultsOptions = {
     switchTab?: boolean;
     stopPolling?: boolean;
@@ -139,24 +172,6 @@ const formatTimestamp = (value?: string | null) => {
     const date = new Date(value);
     if (Number.isNaN(date.getTime())) return value;
     return date.toLocaleString();
-};
-
-const CommandLibraryManager = lazy(() => import("@/components/admin/scripts/CommandLibraryManager"));
-
-const getExecWorkspaceView = (search: string): ExecWorkspaceView => {
-    const params = new URLSearchParams(search);
-    return params.get("view") === "scripts" ? "scripts" : "exec";
-};
-
-const resolveExecWorkspaceView = (
-    requestedView: ExecWorkspaceView,
-    canUseExec: boolean,
-    canUseScripts: boolean,
-): ExecWorkspaceView => {
-    if ((requestedView === "scripts" && canUseScripts) || (!canUseExec && canUseScripts)) {
-        return "scripts";
-    }
-    return "exec";
 };
 
 const getCommandTitle = (command: CommandClipboard, fallbackLabel: string) => {
@@ -214,6 +229,27 @@ const extractTaskSummaries = (payload: TaskListResponse | TaskSummary[]): TaskSu
 const getTaskCreatedAt = (task: TaskSummary | null | undefined) =>
     getTaskResults(task).map((result) => result.created_at).filter(Boolean).sort()[0] || null;
 
+const toScriptFormValues = (
+    command?: Partial<Pick<CommandClipboard, "name" | "text" | "remark" | "weight">>,
+): ScriptFormValues => ({
+    name: command?.name ?? "",
+    text: command?.text ?? "",
+    remark: command?.remark ?? "",
+    weight: typeof command?.weight === "number" ? String(command.weight) : "0",
+});
+
+const resolveScriptName = (values: ScriptFormValues, fallback: string) => {
+    const explicitName = values.name.trim();
+    if (explicitName) return explicitName;
+
+    const firstLine = values.text
+        .split(/\r?\n/)
+        .map((line) => line.trim())
+        .find(Boolean);
+    if (!firstLine) return fallback;
+    return firstLine.length > 48 ? `${firstLine.slice(0, 48)}...` : firstLine;
+};
+
 const getTaskCompletion = (task: TaskSummary) => {
     const taskResults = getTaskResults(task);
     const taskClients = getTaskClients(task);
@@ -256,69 +292,53 @@ type ExecPageLocationState = {
 
 const ExecPage = () => {
     const location = useLocation();
-    const { hasFeature } = useAccount();
-    const workspaceView = resolveExecWorkspaceView(
-        getExecWorkspaceView(location.search),
-        hasFeature("tasks"),
-        hasFeature("clipboard"),
-    );
+    const navigate = useNavigate();
+
+    useEffect(() => {
+        const params = new URLSearchParams(location.search);
+        if (params.get("view") !== "scripts") {
+            return;
+        }
+
+        params.delete("view");
+        const nextSearch = params.toString();
+        navigate(`${location.pathname}${nextSearch ? `?${nextSearch}` : ""}`, {
+            replace: true,
+            state: location.state,
+        });
+    }, [location.pathname, location.search, location.state, navigate]);
 
     return (
-        <CommandClipboardProvider
-            autoLoad={workspaceView !== "scripts"}
-            refreshAfterMutations={workspaceView !== "scripts"}
-        >
-            <ExecWorkspace view={workspaceView} />
+        <CommandClipboardProvider>
+            <ExecWorkspace />
         </CommandClipboardProvider>
     );
 };
 
-function ExecWorkspace({ view }: { view: ExecWorkspaceView }) {
+function ExecWorkspace() {
     const { t } = useTranslation();
     const { hasFeature } = useAccount();
-    const resolvedView = resolveExecWorkspaceView(
-        view,
-        hasFeature("tasks"),
-        hasFeature("clipboard"),
-    );
+    const canUseExec = hasFeature("tasks");
 
     useAdminPageTitle(
-        resolvedView === "scripts"
-            ? t("exec.savedCommands", { defaultValue: "脚本库" })
-            : t("exec.title", { defaultValue: "远程执行" }),
-        resolvedView === "scripts"
-            ? t("command_clipboard.page_description", {
-                defaultValue: "集中管理远程执行和云实例场景复用的脚本命令。",
-            })
-            : t("exec.page_description", {
+        t("exec.title", { defaultValue: "远程执行" }),
+        canUseExec
+            ? t("exec.page_description", {
                 defaultValue: "选择目标节点，编写一次性命令或复用脚本库，并在同一工作台追踪执行结果。",
+            })
+            : t("command_clipboard.page_description", {
+                defaultValue: "集中管理远程执行和云实例场景复用的脚本命令。",
             }),
     );
 
-    if (resolvedView === "scripts") {
-        return (
-            <Suspense
-                fallback={(
-                    <div className="flex min-w-0 flex-col gap-[14px] p-3 sm:p-4 md:p-6">
-                        <section className={execPanelClass}>
-                            <AdminTableSkeleton columns={5} rows={6} className="p-4" />
-                        </section>
-                    </div>
-                )}
-            >
-                <CommandLibraryManager setPageTitle={false} />
-            </Suspense>
-        );
-    }
-
     return (
-        <NodeDetailsProvider>
-            <ExecContent />
+        <NodeDetailsProvider enabled={canUseExec}>
+            <ExecContent canUseExec={canUseExec} />
         </NodeDetailsProvider>
     );
 }
 
-const ExecContent = () => {
+const ExecContent = ({ canUseExec }: { canUseExec: boolean }) => {
     const { t } = useTranslation();
     const navigate = useNavigate();
     const location = useLocation();
@@ -328,6 +348,8 @@ const ExecContent = () => {
         commands,
         loading: commandsLoading,
         error: commandsError,
+        addCommand,
+        updateCommand,
     } = useCommandClipboard();
     const [command, setCommand] = useState("");
     const [selectedNodes, setSelectedNodes] = useState<string[]>([]);
@@ -343,6 +365,10 @@ const ExecContent = () => {
     const [selectedResultTaskId, setSelectedResultTaskId] = useState<string | null>(null);
     const [resultLoading, setResultLoading] = useState(false);
     const [resultError, setResultError] = useState<string | null>(null);
+    const [scriptEditorOpen, setScriptEditorOpen] = useState(false);
+    const [editingScript, setEditingScript] = useState<CommandClipboard | null>(null);
+    const [scriptFormValues, setScriptFormValues] = useState<ScriptFormValues>(EMPTY_SCRIPT_FORM_VALUES);
+    const [scriptSubmitting, setScriptSubmitting] = useState(false);
 
     // Keep polling handles in refs.
     const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -396,7 +422,97 @@ const ExecContent = () => {
         });
     }, [location.pathname, location.search, navigate, routeState, t]);
 
+    const openCreateScriptDialog = () => {
+        setEditingScript(null);
+        setScriptFormValues(EMPTY_SCRIPT_FORM_VALUES);
+        setScriptEditorOpen(true);
+    };
+
+    const openSaveCurrentScriptDialog = () => {
+        setEditingScript(null);
+        setScriptFormValues({
+            ...EMPTY_SCRIPT_FORM_VALUES,
+            text: command,
+        });
+        setScriptEditorOpen(true);
+    };
+
+    const openEditScriptDialog = (script: CommandClipboard) => {
+        setEditingScript(script);
+        setScriptFormValues(toScriptFormValues(script));
+        setScriptEditorOpen(true);
+    };
+
+    const handleScriptFormChange = (field: keyof ScriptFormValues, value: string) => {
+        setScriptFormValues((current) => ({
+            ...current,
+            [field]: value,
+        }));
+    };
+
+    const handleScriptSubmit = async (event: FormEvent<HTMLFormElement>) => {
+        event.preventDefault();
+
+        const scriptText = scriptFormValues.text.trim();
+        if (!scriptText) {
+            toast.error(t("exec.errors.emptyCommand"));
+            return;
+        }
+
+        const resolvedName = resolveScriptName(
+            scriptFormValues,
+            t("exec.savedCommandUntitled", {
+                defaultValue: "未命名脚本",
+            }),
+        );
+        const weight = Number.parseInt(scriptFormValues.weight, 10);
+        const safeWeight = Number.isNaN(weight) ? 0 : weight;
+
+        setScriptSubmitting(true);
+        try {
+            if (editingScript) {
+                await updateCommand(
+                    editingScript.id,
+                    resolvedName,
+                    scriptText,
+                    scriptFormValues.remark.trim(),
+                    safeWeight,
+                );
+                toast.success(t("exec.savedCommandUpdated", { defaultValue: "脚本已更新" }));
+            } else {
+                await addCommand(
+                    resolvedName,
+                    scriptText,
+                    scriptFormValues.remark.trim(),
+                    safeWeight,
+                );
+                toast.success(t("exec.savedCommandSaved", { defaultValue: "脚本已保存到脚本库" }));
+            }
+
+            setScriptEditorOpen(false);
+            setEditingScript(null);
+            setScriptFormValues(EMPTY_SCRIPT_FORM_VALUES);
+            setLibrarySearch("");
+            setActiveTab("library");
+        } catch (nextError) {
+            toast.error(
+                getReadableErrorMessage(nextError, t("exec.saveCommandFailed", {
+                    defaultValue: "保存脚本失败",
+                })),
+            );
+        } finally {
+            setScriptSubmitting(false);
+        }
+    };
+
     const loadRecentTasks = useCallback(async (silent = false) => {
+        if (!canUseExec) {
+            setRecentTasks([]);
+            setTasksLoading(false);
+            setTasksError(null);
+            return;
+        }
+
         if (!silent) {
             setTasksLoading(true);
         }
@@ -433,11 +549,19 @@ const ExecContent = () => {
                 setTasksLoading(false);
             }
         }
-    }, [t]);
+    }, [canUseExec, t]);
 
     useEffect(() => {
-        void loadRecentTasks();
-    }, [loadRecentTasks]);
+        if (canUseExec) {
+            void loadRecentTasks();
+        }
+    }, [canUseExec, loadRecentTasks]);
+
+    useEffect(() => {
+        if (!canUseExec && activeTab !== "library") {
+            setActiveTab("library");
+        }
+    }, [activeTab, canUseExec]);
 
     const normalizedLibrarySearch = librarySearch.trim().toLowerCase();
     const filteredCommands = useMemo(() => {
@@ -581,6 +705,11 @@ const ExecContent = () => {
     };
 
     const executeCommand = async (commandOverride?: string) => {
+        if (!canUseExec) {
+            toast.error(t("exec.errors.noTaskPermission", { defaultValue: "当前账号没有执行任务权限" }));
+            return;
+        }
+
         const commandToRun = (commandOverride ?? command).trim();
 
         if (!commandToRun) {
@@ -657,6 +786,10 @@ const ExecContent = () => {
         targetTaskId: string,
         options: LoadTaskResultsOptions = {},
     ) => {
+        if (!canUseExec) {
+            return;
+        }
+
         const trimmedTaskId = targetTaskId.trim();
         if (!trimmedTaskId) return;
 
@@ -835,28 +968,39 @@ const ExecContent = () => {
     }
 
     return (
+        <>
         <div className="flex min-w-0 flex-col gap-[14px] p-3 sm:p-4 md:p-6">
-            <div className="grid items-start gap-[14px] xl:grid-cols-[minmax(0,1fr)_360px]">
+            <div className={cn(
+                "grid items-start gap-[14px]",
+                canUseExec ? "xl:grid-cols-[minmax(0,1fr)_360px]" : "xl:grid-cols-1",
+            )}>
                 <section className={cn(execPanelClass, "xl:max-h-[calc(100dvh-11rem)] xl:overflow-hidden")}>
                     <div className="flex min-h-[54px] flex-col gap-3 border-b border-border px-[14px] py-3 sm:flex-row sm:items-center sm:justify-between">
                         <div className="flex w-full rounded-lg border border-slate-200/80 bg-slate-50 p-1 shadow-sm shadow-slate-900/5 dark:border-slate-800 dark:bg-slate-900/35 sm:w-auto">
                             <ExecToolbarTab active={activeTab === "library"} onClick={() => setActiveTab("library")}>
                                 {t("command_clipboard.open_library", { defaultValue: "脚本库" })}
                             </ExecToolbarTab>
-                            <ExecToolbarTab active={activeTab === "history"} onClick={() => setActiveTab("history")}>
-                                {t("exec.history", { defaultValue: "执行记录" })}
-                            </ExecToolbarTab>
-                            <ExecToolbarTab active={activeTab === "result"} onClick={() => setActiveTab("result")}>
-                                {t("exec.result", { defaultValue: "结果" })}
-                            </ExecToolbarTab>
+                            {canUseExec && (
+                                <>
+                                <ExecToolbarTab active={activeTab === "history"} onClick={() => setActiveTab("history")}>
+                                    {t("exec.history", { defaultValue: "执行记录" })}
+                                </ExecToolbarTab>
+                                <ExecToolbarTab active={activeTab === "result"} onClick={() => setActiveTab("result")}>
+                                    {t("exec.result", { defaultValue: "结果" })}
+                                </ExecToolbarTab>
+                                </>
+                            )}
                         </div>
                         <div className="flex w-full gap-2 sm:w-auto">
                             {activeTab === "library" && (
-                                <Button asChild size="sm" className="h-9 shrink-0 rounded-md px-3 text-[12px]">
-                                    <Link to="/admin/exec?view=scripts">
-                                        <Plus size={14} />
-                                        {t("command_clipboard.new_command", { defaultValue: "新建脚本" })}
-                                    </Link>
+                                <Button
+                                    type="button"
+                                    size="sm"
+                                    onClick={openCreateScriptDialog}
+                                    className="h-9 shrink-0 rounded-md px-3 text-[12px]"
+                                >
+                                    <Plus size={14} />
+                                    {t("command_clipboard.new_command", { defaultValue: "新建脚本" })}
                                 </Button>
                             )}
                             <div className="relative min-w-0 flex-1 sm:w-[260px]">
@@ -938,13 +1082,11 @@ const ExecContent = () => {
                                             <AdminEmptyState
                                                 icon={<Terminal size={18} />}
                                                 title={t("exec.library_empty_title", { defaultValue: "暂无脚本" })}
-                        description={t("exec.library_empty_description", { defaultValue: "脚本库为空。" })}
+                                                description={t("exec.library_empty_description", { defaultValue: "脚本库为空。" })}
                                                 actions={
-                                                    <Button asChild size="sm">
-                                                        <Link to="/admin/exec?view=scripts">
-                                                            <Plus size={14} />
-                                                            {t("command_clipboard.new_command", { defaultValue: "新建脚本" })}
-                                                        </Link>
+                                                    <Button type="button" onClick={openCreateScriptDialog} size="sm">
+                                                        <Plus size={14} />
+                                                        {t("command_clipboard.new_command", { defaultValue: "新建脚本" })}
                                                     </Button>
                                                 }
                                                 className="min-h-28 border-0 bg-muted/25 shadow-none"
@@ -979,7 +1121,7 @@ const ExecContent = () => {
                                             <AdminDataTableCell sticky="right" align="right">
                                                 <AdminRowActions
                                                     actions={[
-                                                        {
+                                                        ...(canUseExec ? [{
                                                             label: t("common.execute", { defaultValue: "执行" }),
                                                             icon: <Play size={14} />,
                                                             disabled: executing || selectedNodes.length === 0,
@@ -987,11 +1129,16 @@ const ExecContent = () => {
                                                                 setCommand(item.text);
                                                                 void executeCommand(item.text);
                                                             },
-                                                        },
+                                                        }] : []),
                                                         {
                                                             label: t("exec.insert_command", { defaultValue: "插入" }),
                                                             icon: <Terminal size={14} />,
                                                             onSelect: () => setCommand(item.text),
+                                                        },
+                                                        {
+                                                            label: t("common.edit", { defaultValue: "编辑" }),
+                                                            icon: <PencilLine size={14} />,
+                                                            onSelect: () => openEditScriptDialog(item),
                                                         },
                                                     ]}
                                                 />
@@ -1251,6 +1398,7 @@ const ExecContent = () => {
                     </div>
                 </section>
 
+                {canUseExec && (
                 <section className={execPanelClass}>
                     <ExecPanelHead title={t("exec.configuration", { defaultValue: "执行配置" })} meta="/api/admin/task/exec" />
                     <div className="flex flex-col gap-4 p-[14px]">
@@ -1343,36 +1491,22 @@ const ExecContent = () => {
                             )}
                         </Button>
 
-                        <div className="grid grid-cols-2 gap-2">
-                            <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => {
-                                    navigate("/admin/exec?view=scripts", {
-                                        state: {
-                                            draftCommand: {
-                                                text: command,
-                                            },
-                                        },
-                                    });
-                                }}
-                                disabled={!command.trim()}
-                                className="h-9 rounded-md text-[12px]"
-                            >
-                                <Save size={14} />
-                                保存
-                            </Button>
-                            <Button variant="outline" size="sm" asChild className="h-9 rounded-md text-[12px]">
-                                <Link to="/admin/exec?view=scripts">
-                                    <Save size={14} />
-                                    脚本库
-                                </Link>
-                            </Button>
-                        </div>
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={openSaveCurrentScriptDialog}
+                            disabled={!command.trim()}
+                            className="h-9 w-full rounded-md text-[12px]"
+                        >
+                            <Save size={14} />
+                            保存
+                        </Button>
                     </div>
                 </section>
+                )}
             </div>
 
+            {canUseExec && (
             <section className={cn(execPanelClass, "xl:max-h-[calc(100dvh-11rem)] xl:overflow-y-auto")}>
                 <ExecPanelHead
                     title={t("exec.results", { defaultValue: "执行结果" })}
@@ -1539,7 +1673,122 @@ const ExecContent = () => {
                     </div>
                 )}
             </section>
+            )}
         </div>
+
+        <Dialog
+            open={scriptEditorOpen}
+            onOpenChange={(open) => {
+                setScriptEditorOpen(open);
+                if (!open) {
+                    setEditingScript(null);
+                    setScriptFormValues(EMPTY_SCRIPT_FORM_VALUES);
+                }
+            }}
+        >
+            <DialogContent
+                className={cn(
+                    ADMIN_FORM_DIALOG_WIDE_CLASS,
+                    ADMIN_FORM_DIALOG_CHROME_CLASS,
+                    "h-[min(88vh,820px)] sm:max-w-[calc(100vw-2rem)] lg:max-w-5xl",
+                )}
+            >
+                <div className={ADMIN_FORM_HEADER_CLASS}>
+                    <div className={ADMIN_FORM_HEADER_INSET_CLASS}>
+                        <DialogTitle>
+                            {editingScript
+                                ? t("command_clipboard.editor.edit_title", { defaultValue: "编辑脚本" })
+                                : t("command_clipboard.editor.add_title", { defaultValue: "新增脚本" })}
+                        </DialogTitle>
+                        <DialogDescription>
+                            {t("exec.script_editor_description", {
+                                defaultValue: "在执行页直接保存当前命令或新增脚本，保存后会留在当前工作台继续执行。",
+                            })}
+                        </DialogDescription>
+                    </div>
+                </div>
+
+                <form onSubmit={handleScriptSubmit} className="flex min-h-0 flex-1 flex-col overflow-hidden">
+                    <div className={cn(ADMIN_FORM_BODY_CLASS, "flex min-h-0 flex-col gap-4")}>
+                        <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_8rem]">
+                            <div className={ADMIN_FORM_FIELD_CLASS}>
+                                <label className={ADMIN_FORM_LABEL_CLASS}>
+                                    {t("common.name", { defaultValue: "名称" })}
+                                </label>
+                                <Input
+                                    value={scriptFormValues.name}
+                                    onChange={(event) => handleScriptFormChange("name", event.target.value)}
+                                    placeholder={t("command_clipboard.editor.name_placeholder", {
+                                        defaultValue: "部署代理服务",
+                                    })}
+                                />
+                            </div>
+                            <div className={ADMIN_FORM_FIELD_CLASS}>
+                                <label className={ADMIN_FORM_LABEL_CLASS}>
+                                    {t("common.weight", { defaultValue: "权重" })}
+                                </label>
+                                <Input
+                                    type="number"
+                                    value={scriptFormValues.weight}
+                                    onChange={(event) => handleScriptFormChange("weight", event.target.value)}
+                                />
+                            </div>
+                        </div>
+
+                        <div className={ADMIN_FORM_FIELD_CLASS}>
+                            <label className={ADMIN_FORM_LABEL_CLASS}>
+                                {t("common.remark", { defaultValue: "备注" })}
+                            </label>
+                            <Input
+                                value={scriptFormValues.remark}
+                                onChange={(event) => handleScriptFormChange("remark", event.target.value)}
+                                placeholder={t("command_clipboard.editor.remark_placeholder", {
+                                    defaultValue: "脚本备注（可选）",
+                                })}
+                            />
+                        </div>
+
+                        <p className={ADMIN_FORM_HELP_CLASS}>
+                            {t("command_clipboard.editor.weight_hint", {
+                                defaultValue: "权重越高，排序越靠前。",
+                            })}
+                        </p>
+
+                        <div className={cn(ADMIN_FORM_FIELD_CLASS, "min-h-0 flex-1")}>
+                            <label className={ADMIN_FORM_LABEL_CLASS}>
+                                {t("common.content", { defaultValue: "内容" })}
+                            </label>
+                            <Textarea
+                                value={scriptFormValues.text}
+                                onChange={(event) => handleScriptFormChange("text", event.target.value)}
+                                placeholder={t("command_clipboard.editor.content_placeholder", {
+                                    defaultValue: "#!/usr/bin/env bash",
+                                })}
+                                spellCheck={false}
+                                wrap="off"
+                                className="min-h-[360px] flex-1 resize-none overflow-auto rounded-md font-mono text-[12px] leading-5 whitespace-pre [scrollbar-gutter:stable] lg:min-h-[460px]"
+                            />
+                        </div>
+                    </div>
+
+                    <DialogFooter className={ADMIN_FORM_FOOTER_CLASS}>
+                        <DialogClose asChild>
+                            <Button type="button" variant="outline">
+                                {t("common.cancel", { defaultValue: "取消" })}
+                            </Button>
+                        </DialogClose>
+                        <Button type="submit" disabled={scriptSubmitting || !scriptFormValues.text.trim()}>
+                            {scriptSubmitting
+                                ? t("common.saving", { defaultValue: "保存中..." })
+                                : editingScript
+                                    ? t("common.update", { defaultValue: "更新" })
+                                    : t("common.add", { defaultValue: "添加" })}
+                        </Button>
+                    </DialogFooter>
+                </form>
+            </DialogContent>
+        </Dialog>
+        </>
     );
 };
 

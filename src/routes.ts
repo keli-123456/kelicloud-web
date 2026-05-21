@@ -217,7 +217,7 @@ export const routes: RouteObject[] = [
       {
         path: "scripts",
         element: React.createElement(Navigate, {
-          to: "/admin/exec?view=scripts",
+          to: "/admin/exec",
           replace: true,
         }),
       },

@@ -11,12 +11,11 @@ import {
   SettingCardButton,
   SettingCardLabel,
   SettingCardLongTextInput,
-  SettingCardSelect,
   SettingCardShortTextInput,
   SettingCardSwitch,
 } from "@/components/admin/SettingCard";
 import { useAccount } from "@/contexts/AccountContext";
-import { updateSettingsWithToast, useSettings } from "@/lib/api";
+import { updateSettings, updateSettingsWithToast, useSettings } from "@/lib/api";
 import {
   formatApiErrorMessage,
   getReadableErrorMessage,
@@ -24,6 +23,8 @@ import {
 import { renderProviderInputs } from "@/utils/renderProviders";
 
 const notificationPanelClass = `${ADMIN_PANEL_CLASS} px-4 py-2`;
+const TELEGRAM_NOTIFICATION_METHOD = "telegram";
+const TELEGRAM_DEFAULT_ENDPOINT = "https://api.telegram.org/bot";
 
 const GeneralNotification = () => {
   return (
@@ -43,16 +44,13 @@ const Inner = () => {
   const loading = userState.loading || (platformAdmin && systemState.loading);
   const error = userState.error || systemState.error;
   const [messageDefs, setMessageDefs] = React.useState<any>({});
-  const [messageList, setMessageList] = React.useState<string[]>([]);
-  const [currentMessageSender, setCurrentMessageSender] = React.useState("");
+  const [currentMessageSender, setCurrentMessageSender] = React.useState(
+    TELEGRAM_NOTIFICATION_METHOD,
+  );
   const [messageValues, setMessageValues] = React.useState<any>({});
   const [messageLoading, setMessageLoading] = React.useState(false);
   const [messageError, setMessageError] = React.useState("");
-  const currentNotificationMethod =
-    systemSettings.notification_method ||
-    userSettings.notification_method ||
-    currentMessageSender ||
-    "";
+  const currentNotificationMethod = TELEGRAM_NOTIFICATION_METHOD;
   const notificationsEnabled = Boolean(
     systemSettings.notification_enabled ?? userSettings.notification_enabled,
   );
@@ -114,15 +112,20 @@ const Inner = () => {
       .then((res) => res.json())
       .then((data) => {
         if (data.status === "success" && data.data) {
-          setMessageDefs(data.data);
-          const senders = Object.keys(data.data);
-          setMessageList(senders);
-          const initialSender =
-            systemSettings.notification_method &&
-            senders.includes(systemSettings.notification_method)
-              ? systemSettings.notification_method
-              : "";
-          setCurrentMessageSender(initialSender);
+          const telegramDefinition = data.data[TELEGRAM_NOTIFICATION_METHOD];
+          if (!telegramDefinition) {
+            setMessageError(
+              t(
+                "settings.notification.fetch_channels_error",
+                "获取消息通道信息失败",
+              ),
+            );
+            return;
+          }
+          setMessageDefs({
+            [TELEGRAM_NOTIFICATION_METHOD]: telegramDefinition,
+          });
+          setCurrentMessageSender(TELEGRAM_NOTIFICATION_METHOD);
           return;
         }
         setMessageError(
@@ -143,7 +146,7 @@ const Inner = () => {
         ),
       )
       .finally(() => setMessageLoading(false));
-  }, [loading, platformAdmin, systemSettings.notification_method, t]);
+  }, [loading, platformAdmin, t]);
 
   React.useEffect(() => {
     if (!platformAdmin || !currentMessageSender) return;
@@ -154,7 +157,10 @@ const Inner = () => {
       .then((data) => {
         if (data.status === "success" && data.data) {
           try {
-            setMessageValues(JSON.parse(data.data.addition || "{}"));
+            const parsedValues = JSON.parse(data.data.addition || "{}");
+            setMessageValues({
+              bot_token: parsedValues.bot_token || "",
+            });
           } catch {
             setMessageValues({});
           }
@@ -183,13 +189,17 @@ const Inner = () => {
   const handleMessageSave = async (values: any) => {
     setMessageLoading(true);
     setMessageError("");
+    const telegramValues = {
+      bot_token: String(values?.bot_token || "").trim(),
+      endpoint: TELEGRAM_DEFAULT_ENDPOINT,
+    };
     try {
       const res = await fetch("/api/admin/settings/message-sender", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          name: currentMessageSender,
-          addition: JSON.stringify(values),
+          name: TELEGRAM_NOTIFICATION_METHOD,
+          addition: JSON.stringify(telegramValues),
         }),
       });
       const data = await res.json();
@@ -200,7 +210,14 @@ const Inner = () => {
           }),
         );
       }
-      setMessageValues(values);
+      if (systemSettings.notification_method !== TELEGRAM_NOTIFICATION_METHOD) {
+        await updateSettings(
+          { notification_method: TELEGRAM_NOTIFICATION_METHOD },
+          "system",
+        );
+      }
+      setMessageValues({ bot_token: telegramValues.bot_token });
+      await Promise.all([systemState.refetch(), userState.refetch()]);
       toast.success(t("common.success"));
     } catch (error) {
       toast.error(getReadableErrorMessage(error, t("common.error")));
@@ -217,101 +234,18 @@ const Inner = () => {
     return <p className="text-sm text-destructive">{error}</p>;
   }
 
+  const visibleMessageDefs = {
+    ...messageDefs,
+    [TELEGRAM_NOTIFICATION_METHOD]: Array.isArray(
+      messageDefs[TELEGRAM_NOTIFICATION_METHOD],
+    )
+      ? messageDefs[TELEGRAM_NOTIFICATION_METHOD].filter(
+          (field: any) => field.name === "bot_token",
+        )
+      : messageDefs[TELEGRAM_NOTIFICATION_METHOD],
+  };
+
   const renderUserBinding = () => {
-    if (!currentNotificationMethod || currentNotificationMethod === "none") {
-      return (
-        <p className="text-sm text-muted-foreground">
-          {t("settings.notification.target_binding_no_method")}
-        </p>
-      );
-    }
-
-    const content = (() => {
-      switch (currentNotificationMethod) {
-        case "telegram":
-          return (
-            <>
-              <SettingCardShortTextInput
-                title={t("settings.notification.target_binding_telegram_chat_id")}
-                description={t(
-                  "settings.notification.target_binding_telegram_chat_id_description",
-                )}
-                defaultValue={userSettings.notification_telegram_chat_id || ""}
-                OnSave={async (value) => {
-                  await updateSettingsWithToast(
-                    { notification_telegram_chat_id: value.trim() },
-                    t,
-                  );
-                  await userState.refetch();
-                }}
-              />
-              <SettingCardShortTextInput
-                title={t(
-                  "settings.notification.target_binding_telegram_thread_id",
-                )}
-                description={t(
-                  "settings.notification.target_binding_telegram_thread_id_description",
-                )}
-                defaultValue={
-                  userSettings.notification_telegram_message_thread_id || ""
-                }
-                OnSave={async (value) => {
-                  await updateSettingsWithToast(
-                    {
-                      notification_telegram_message_thread_id: value.trim(),
-                    },
-                    t,
-                  );
-                  await userState.refetch();
-                }}
-              />
-            </>
-          );
-        case "bark":
-          return (
-            <SettingCardShortTextInput
-              title={t("settings.notification.target_binding_bark_device_key")}
-              description={t(
-                "settings.notification.target_binding_bark_device_key_description",
-              )}
-              defaultValue={userSettings.notification_bark_device_key || ""}
-              OnSave={async (value) => {
-                await updateSettingsWithToast(
-                  { notification_bark_device_key: value.trim() },
-                  t,
-                );
-                await userState.refetch();
-              }}
-            />
-          );
-        case "webhook":
-          return (
-            <SettingCardShortTextInput
-              title={t("settings.notification.target_binding_webhook_url")}
-              description={t(
-                "settings.notification.target_binding_webhook_url_description",
-              )}
-              defaultValue={userSettings.notification_webhook_url || ""}
-              OnSave={async (value) => {
-                await updateSettingsWithToast(
-                  { notification_webhook_url: value.trim() },
-                  t,
-                );
-                await userState.refetch();
-              }}
-            />
-          );
-        default:
-          return (
-            <p className="text-sm text-muted-foreground">
-              {t("settings.notification.target_binding_unsupported", {
-                method: currentNotificationMethod,
-              })}
-            </p>
-          );
-      }
-    })();
-
     return (
       <>
         {!notificationsEnabled ? (
@@ -319,7 +253,38 @@ const Inner = () => {
             {t("settings.notification.target_binding_disabled")}
           </p>
         ) : null}
-        {content}
+        <SettingCardShortTextInput
+          title={t("settings.notification.target_binding_telegram_chat_id")}
+          description={t(
+            "settings.notification.target_binding_telegram_chat_id_description",
+          )}
+          defaultValue={userSettings.notification_telegram_chat_id || ""}
+          OnSave={async (value) => {
+            await updateSettingsWithToast(
+              { notification_telegram_chat_id: value.trim() },
+              t,
+            );
+            await userState.refetch();
+          }}
+        />
+        <SettingCardShortTextInput
+          title={t("settings.notification.target_binding_telegram_thread_id")}
+          description={t(
+            "settings.notification.target_binding_telegram_thread_id_description",
+          )}
+          defaultValue={
+            userSettings.notification_telegram_message_thread_id || ""
+          }
+          OnSave={async (value) => {
+            await updateSettingsWithToast(
+              {
+                notification_telegram_message_thread_id: value.trim(),
+              },
+              t,
+            );
+            await userState.refetch();
+          }}
+        />
       </>
     );
   };
@@ -411,32 +376,31 @@ const Inner = () => {
               defaultChecked={systemSettings.notification_enabled}
               onChange={async (checked) => {
                 await updateSettingsWithToast(
-                  { notification_enabled: checked },
+                  {
+                    notification_enabled: checked,
+                    notification_method: TELEGRAM_NOTIFICATION_METHOD,
+                  },
                   t,
                   "system",
                 );
                 await Promise.all([systemState.refetch(), userState.refetch()]);
               }}
             />
-            <SettingCardSelect
-              title={t("settings.notification.method")}
-              description={t("settings.notification.method_description")}
-              options={messageList.map((sender) => ({
-                value: sender,
-                label: sender,
-              }))}
-              value={currentMessageSender}
-              OnSave={async (val: string) => {
-                if (val === currentMessageSender) return;
-                await updateSettingsWithToast(
-                  { notification_method: val },
-                  t,
-                  "system",
-                );
-                setCurrentMessageSender(val);
-                await Promise.all([systemState.refetch(), userState.refetch()]);
-              }}
-            />
+            <div className="flex items-center justify-between gap-4 border-b border-border/70 py-3">
+              <div className="min-w-0">
+                <div className="text-sm font-medium text-foreground">
+                  {t("settings.notification.method")}
+                </div>
+                <div className="mt-1 text-sm text-muted-foreground">
+                  {t("settings.notification.telegram_only_description", {
+                    defaultValue: "当前仅保留 Telegram 作为通知发送通道。",
+                  })}
+                </div>
+              </div>
+              <span className="shrink-0 rounded-full border border-primary/20 bg-primary/10 px-3 py-1 text-sm font-semibold text-primary">
+                Telegram
+              </span>
+            </div>
             {messageError ? (
               <p className="px-0 py-3 text-sm text-destructive">{messageError}</p>
             ) : messageLoading ? (
@@ -444,7 +408,7 @@ const Inner = () => {
             ) : (
               renderProviderInputs({
                 currentProvider: currentMessageSender,
-                providerDefs: messageDefs,
+                providerDefs: visibleMessageDefs,
                 providerValues: messageValues,
                 translationPrefix: `settings.notification.${currentMessageSender}`,
                 title: t("settings.notification.provider_fields"),

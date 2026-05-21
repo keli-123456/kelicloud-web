@@ -30,7 +30,6 @@ export default function GeneralSettings() {
   const { platformAdmin, loading: accountLoading } = useAccount();
   const userState = useSettings();
   const systemState = useSettings("system", { enabled: platformAdmin });
-  const settings = userState.settings;
   const systemSettings = systemState.settings;
   const loading = userState.loading || (platformAdmin && systemState.loading);
   const error = userState.error || systemState.error;
@@ -48,35 +47,38 @@ export default function GeneralSettings() {
 
   return (
     <div className="grid gap-4">
-      <section className={settingsPanelClass}>
-        <SettingCardShortTextInput
-          title={t("settings.site.script_domain")}
-          description={t("settings.site.script_domain_description")}
-          placeholder={window.location.origin}
-          defaultValue={settings.script_domain || ""}
-          OnSave={async (value) => {
-            await updateSettingsWithToast({ script_domain: value }, t);
-          }}
-        />
-        <SettingCardShortTextInput
-          title={t("settings.site.base_scripts_url", "Agent script source")}
-          description={t(
-            "settings.site.base_scripts_url_description",
-            "Install script source used by one-click commands and auto-connect. Supports a GitHub repo URL, tree/blob URL, or raw URL. Leave empty to use the official repository.",
-          )}
-          placeholder="https://github.com/your-name/kelicloud-agent"
-          defaultValue={settings.base_scripts_url || ""}
-          OnSave={async (value) => {
-            await updateSettingsWithToast({ base_scripts_url: value }, t);
-          }}
-        />
-      </section>
       {platformAdmin ? (
-        <section className={settingsPanelClass}>
-          <SettingCardLabel>{t("settings.system_settings_title")}</SettingCardLabel>
-          <div className="-mt-1 px-0 pb-1 text-sm text-muted-foreground">
-            {t("settings.system_settings_description")}
-          </div>
+        <>
+          <section className={settingsPanelClass}>
+            <SettingCardShortTextInput
+              title={t("settings.site.script_domain")}
+              description={t("settings.site.script_domain_description")}
+              placeholder={window.location.origin}
+              defaultValue={systemSettings.script_domain || ""}
+              OnSave={async (value) => {
+                await updateSettingsWithToast({ script_domain: value }, t, "system");
+                await systemState.refetch();
+              }}
+            />
+            <SettingCardShortTextInput
+              title={t("settings.site.base_scripts_url", "Agent script source")}
+              description={t(
+                "settings.site.base_scripts_url_description",
+                "Install script source used by one-click commands and auto-connect. Supports a GitHub repo URL, tree/blob URL, or raw URL. Leave empty to use the official repository.",
+              )}
+              placeholder="https://github.com/your-name/kelicloud-agent"
+              defaultValue={systemSettings.base_scripts_url || ""}
+              OnSave={async (value) => {
+                await updateSettingsWithToast({ base_scripts_url: value }, t, "system");
+                await systemState.refetch();
+              }}
+            />
+          </section>
+          <section className={settingsPanelClass}>
+            <SettingCardLabel>{t("settings.system_settings_title")}</SettingCardLabel>
+            <div className="-mt-1 px-0 pb-1 text-sm text-muted-foreground">
+              {t("settings.system_settings_description")}
+            </div>
           <SettingCardSwitch
             title={t("settings.auth.allow_registration", "开放用户注册")}
             description={t(
@@ -219,7 +221,8 @@ export default function GeneralSettings() {
               </div>
             </div>
           </SettingCardCollapse>
-        </section>
+          </section>
+        </>
       ) : (
         <PlatformAdminNotice
           title={t("settings.system_settings_title")}

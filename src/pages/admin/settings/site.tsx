@@ -22,6 +22,7 @@ import {
   SettingCardShortTextInput,
 } from "@/components/admin/SettingCard";
 import { useAccount } from "@/contexts/AccountContext";
+import { usePublicInfo } from "@/contexts/PublicInfoContext";
 import { PlatformAdminNotice } from "@/components/admin/PlatformAdminNotice";
 import { updateSettingsWithToast, useSettings } from "@/lib/api";
 import {
@@ -36,6 +37,7 @@ export default function SiteSettings() {
   const { t } = useTranslation();
   const [faviconVersion, setFaviconVersion] = useState(() => Date.now());
   const { platformAdmin, loading: accountLoading } = useAccount();
+  const { refresh: refreshPublicInfo } = usePublicInfo();
   const { settings, loading, error } = useSettings("system", {
     enabled: platformAdmin,
   });
@@ -166,6 +168,7 @@ export default function SiteSettings() {
                                 ),
                               );
                               refreshFavicon();
+                              void refreshPublicInfo();
                               return;
                             }
                             toast.error(
@@ -213,6 +216,7 @@ export default function SiteSettings() {
                           ),
                         );
                         refreshFavicon();
+                        void refreshPublicInfo();
                         return;
                       }
                       toast.error(

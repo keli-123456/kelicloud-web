@@ -44,6 +44,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Separator } from "@/components/ui/separator";
 import { iconMap } from "@/utils/iconHelper";
+import { getLogoUrl } from "@/lib/logoUrl";
 import { cn } from "@/lib/utils";
 import type { MenuItem } from "@/types/menu";
 import menuConfig from "@/config/menuConfig.json";
@@ -228,9 +229,6 @@ const getRequiredFeatureForPath = (target: string) => {
   if (normalizedPath.startsWith("/admin/exec")) {
     return "tasks";
   }
-  if (normalizedPath.startsWith("/admin/scripts")) {
-    return "clipboard";
-  }
   if (normalizedPath.startsWith("/admin/logs")) {
     return "logs";
   }
@@ -265,7 +263,6 @@ const getMenuGroupKey = (target: string): MenuGroup["key"] => {
 
   if (
     normalizedPath.startsWith("/admin/exec") ||
-    normalizedPath.startsWith("/admin/scripts") ||
     normalizedPath.startsWith("/admin/audit") ||
     normalizedPath.startsWith("/admin/sessions")
   ) {
@@ -350,6 +347,7 @@ function AdminPanelBarContent({ content }: AdminPanelBarProps) {
   const [updateAvailable, setUpdateAvailable] = useState(false);
   const [releasesSince, setReleasesSince] = useState<GithubReleaseInfo[]>([]);
   const appName = publicInfo?.sitename?.trim() || "kelicloud";
+  const logoUrl = getLogoUrl(publicInfo?.favicon_version);
   const accountAccessStatus = account?.access_status || "active";
   const accountPlanLabel = platformAdmin
     ? t("billing.platform_admin", { defaultValue: "平台管理员" })
@@ -485,9 +483,6 @@ function AdminPanelBarContent({ content }: AdminPanelBarProps) {
     if (normalizedPath === "/admin/exec") {
       return t("admin.nav.short.exec", { defaultValue: "Exec" });
     }
-    if (normalizedPath === "/admin/scripts") {
-      return t("admin.nav.short.scripts", { defaultValue: "Scripts" });
-    }
     if (normalizedPath === "/admin/audit") {
       return t("admin.nav.short.audit", { defaultValue: "Audit" });
     }
@@ -516,11 +511,15 @@ function AdminPanelBarContent({ content }: AdminPanelBarProps) {
     }
 
     const targetUrl = new URL(target, "https://komari.local");
-    return [
-      "/admin/settings/site",
-      "/admin/notification/general",
-      "/admin/proxy",
-    ].includes(normalizePath(targetUrl.pathname));
+    const normalizedPath = normalizePath(targetUrl.pathname);
+    return (
+      normalizedPath === "/admin/settings" ||
+      normalizedPath.startsWith("/admin/settings/") ||
+      [
+        "/admin/notification/general",
+        "/admin/proxy",
+      ].includes(normalizedPath)
+    );
   }, []);
 
   const isFeatureAllowedPath = useCallback(
@@ -554,9 +553,6 @@ function AdminPanelBarContent({ content }: AdminPanelBarProps) {
         return hasFeature(feature);
       }
       if (normalizedPath === "/admin/exec") {
-        if (targetUrl.searchParams.get("view") === "scripts") {
-          return hasFeature("clipboard");
-        }
         return hasFeature("tasks") || hasFeature("clipboard");
       }
       const feature = getRequiredFeatureForPath(target);
@@ -874,7 +870,7 @@ function AdminPanelBarContent({ content }: AdminPanelBarProps) {
           >
             <span className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-slate-200 bg-white shadow-[0_12px_24px_-18px_rgba(15,23,42,0.45)] dark:border-slate-800 dark:bg-slate-900">
               <img
-                src="/favicon.ico"
+                src={logoUrl}
                 alt={appName}
                 className="h-7 w-7 object-contain"
               />
