@@ -58,7 +58,7 @@ type TurnstileRenderOptions = {
   sitekey: string;
   callback: (token: string) => void;
   "expired-callback": () => void;
-  "error-callback": () => void;
+  "error-callback": (errorCode?: string) => boolean | void;
 };
 
 declare global {
@@ -112,7 +112,7 @@ type TurnstileWidgetProps = {
   siteKey: string;
   onToken: (token: string) => void;
   onExpire: () => void;
-  onError: () => void;
+  onError: (errorCode?: string) => void;
 };
 
 function TurnstileWidget({
@@ -141,7 +141,10 @@ function TurnstileWidget({
           sitekey: siteKey,
           callback: onToken,
           "expired-callback": onExpire,
-          "error-callback": onError,
+          "error-callback": (errorCode?: string) => {
+            onError(errorCode);
+            return true;
+          },
         });
       })
       .catch(() => {
@@ -390,12 +393,49 @@ const LoginDialog = ({
       setTurnstileToken("");
     }, []);
 
-    const handleTurnstileError = React.useCallback(() => {
+    const handleTurnstileError = React.useCallback((errorCode?: string) => {
       setTurnstileToken("");
+      const code = String(errorCode || "").trim();
+      if (code.startsWith("110200")) {
+        setTurnstileError(
+          t("login.turnstile_domain_error", {
+            code,
+            hostname: window.location.hostname,
+            defaultValue:
+              "人机验证域名未授权（{{code}}）：请确认当前域名 {{hostname}} 已加入这个 Site Key 的 Cloudflare Turnstile 主机名，并确认后台保存的是同一个小组件的 Site Key。",
+          }),
+        );
+        return;
+      }
+      if (code.startsWith("110100") || code.startsWith("110110") || code.startsWith("400020")) {
+        setTurnstileError(
+          t("login.turnstile_sitekey_error", {
+            code,
+            defaultValue:
+              "人机验证 Site Key 无效（{{code}}）：请检查后台保存的 Turnstile Site Key 是否正确。",
+          }),
+        );
+        return;
+      }
+      if (code.startsWith("400070")) {
+        setTurnstileError(
+          t("login.turnstile_disabled_error", {
+            code,
+            defaultValue:
+              "人机验证小组件已停用（{{code}}）：请在 Cloudflare Turnstile 后台启用这个 Site Key。",
+          }),
+        );
+        return;
+      }
       setTurnstileError(
-        t("login.turnstile_failed", {
-          defaultValue: "人机验证加载失败，请刷新后重试。",
-        }),
+        code
+          ? t("login.turnstile_failed_with_code", {
+              code,
+              defaultValue: "人机验证失败（{{code}}），请刷新后重试。",
+            })
+          : t("login.turnstile_failed", {
+              defaultValue: "人机验证加载失败，请刷新后重试。",
+            }),
       );
     }, [t]);
 

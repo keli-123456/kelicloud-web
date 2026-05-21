@@ -99,7 +99,12 @@ export const LiveDataProvider: React.FC<{ children: React.ReactNode; uuid?: stri
         setShowCallout(true);
         notifyRefreshCallbacks(live);
       } catch (e) {
-        console.error("RPC2 获取最新状态失败:", e);
+        const message = e instanceof Error ? e.message : String(e);
+        if (message.includes("401") || message.toLowerCase().includes("unauthorized")) {
+          stopped = true;
+        } else {
+          console.error("RPC2 获取最新状态失败:", e);
+        }
         setShowCallout(false);
       } finally {
         running = false;

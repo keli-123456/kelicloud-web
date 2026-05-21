@@ -22,11 +22,13 @@ const IndexLayout = () => {
     </div>
   );
 
+  if (isStandalonePublicPage) {
+    return content;
+  }
+
   return (
     <NodeListProvider>
-      {location.pathname === "/" ? (
-        <LiveDataProvider>{content}</LiveDataProvider>
-      ) : instanceUUID ? (
+      {instanceUUID ? (
         <LiveDataProvider uuid={instanceUUID}>{content}</LiveDataProvider>
       ) : (
         content
