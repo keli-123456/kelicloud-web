@@ -44,6 +44,7 @@
     "password_mismatch_error": "Passwords do not match",
     "password_strength_error": "Password must contain uppercase, lowercase letters, and numbers",
     "password_too_short_error": "Password must be at least 8 characters long",
+    "password_update_failed": "Failed to update password",
     "profile_description": "Update your username and login password. After a successful password change, you will be redirected to the homepage.",
     "profile_title": "Profile",
     "qr_fetch_error": "Unable to load qrcode",
@@ -58,7 +59,8 @@
       "two_factor_disabled_hint": "Enable two-factor authentication to improve admin security.",
       "two_factor_enabled_hint": "Two-factor authentication is enabled."
     },
-    "title": "Account"
+    "title": "Account",
+    "username_update_failed": "Failed to update username"
   },
   "account_settings": {
     "bind_github": "Bind GitHub Account",
@@ -93,6 +95,8 @@
   "admin": {
     "audit": {
       "description": "Review active sessions and backend operation logs in one place.",
+      "logs_description": "Operation records",
+      "sessions_description": "Login sessions",
       "title": "Audit"
     },
     "dashboard": {
@@ -541,6 +545,8 @@
       "upgradeDialogDescription": "Only online nodes in the current group will receive the upgrade script. The terminal entry remains available from the node row context menu.",
       "upgradeDialogTitle": "{{groupName}} · Upgrade agent",
       "upgradeFailedShort": "Failed",
+      "upgradeLatestReleaseFailed": "Failed to load latest Agent release (GitHub HTTP {{status}})",
+      "upgradeLatestReleaseTagUnavailable": "Latest Agent release tag is unavailable",
       "upgradeLatestOutput": "Latest output",
       "upgradeMissingTaskId": "No task ID was returned.",
       "upgradeMissingToken": "Node is missing a token and cannot be upgraded.",
@@ -797,6 +803,7 @@
     "payment_enabled_desc": "关闭后用户不能选择该支付方式。",
     "payment_method": "支付方式",
     "payment_name": "支付名称",
+    "payment_name_placeholder": "Manual payment",
     "payment_reference": "支付流水/备注",
     "payment_saved": "支付方式已保存",
     "payment_type_alipay": "支付宝",
@@ -1604,7 +1611,7 @@
         "copy_client_id": "Client ID copied",
         "copy_client_secret": "Client secret copied",
         "create": "Create VM",
-        "create_description": "Create a Linux VM in the current active Azure location. kelicloud will automatically prepare the resource group network stack and bootstrap agent auto-connect.",
+        "create_description": "Create a Linux VM in the current active Azure location. kelicloud will automatically prepare the network stack and bootstrap agent auto-connect.",
         "create_location_hint": "Active location: {{location}}",
         "create_name_placeholder": "Leave empty to auto-generate a VM name",
         "create_option": "Create Option",
@@ -1951,6 +1958,9 @@
       "booting": "Booting",
       "disabled": "Disabled",
       "enabled": "Enabled",
+      "error": "Error",
+      "failed": "Failed",
+      "healthy": "Healthy",
       "new": "New",
       "off": "Off",
       "offline": "Offline",
@@ -1960,7 +1970,8 @@
       "shutting_down": "Shutting down",
       "stopped": "Stopped",
       "stopping": "Stopping",
-      "terminated": "Terminated"
+      "terminated": "Terminated",
+      "unknown": "Unknown"
     },
     "stop": "Stop",
     "table": {
@@ -2049,6 +2060,7 @@
       "shared_managed_key_ready": "Shared managed SSH key: {{name}}",
       "status": {
         "error": "Error",
+        "failed": "Failed",
         "healthy": "Healthy",
         "unknown": "Unknown"
       },
@@ -4025,6 +4037,7 @@
       "cn_connectivity_timeout_seconds": "Single probe timeout (seconds)",
       "cn_connectivity_timeout_seconds_description": "Maximum time the agent waits for one ICMP probe attempt before considering it failed.",
       "cn_connectivity_timeout_seconds_invalid": "Probe timeout must be greater than 0",
+      "description": "User preferences, system switches, and GeoIP.",
       "offline_cleanup": "Offline node cleanup",
       "offline_cleanup_enabled": "Enable daily offline cleanup",
       "offline_cleanup_enabled_description": "Once enabled, kelicloud will automatically delete nodes that are still offline at the scheduled time every day.",
@@ -4133,6 +4146,8 @@
     "platform_tools_restricted_description": "Favicon management is only available to platform admins.",
     "platform_tools_title": "Platform tools",
     "proxy": {
+      "connection_description": "Cloud provider APIs, credential checks, and instance actions use this outbound proxy configuration.",
+      "connection_title": "Proxy connection",
       "description": "Manage the outbound proxy used by cloud provider credential requests. Requests that do not use cloud provider credentials keep using the server's local IP. Proxy requests use short-lived connections and reconnect on every request. A failed proxy attempt will automatically retry the current request once without the proxy.",
       "enable": "Enable global outbound proxy",
       "enable_description": "Applies to cloud provider APIs that use DigitalOcean, Linode, or AWS credentials.",
@@ -4204,6 +4219,7 @@
       "github_url_description": "Set the external GitHub link exposed in the public navigation.",
       "name": "Site Name",
       "name_description": "Set the name of the site",
+      "nav_description": "Site display and platform branding.",
       "script_domain": "Agent connection address",
       "script_domain_description": "Define the connection address for the installation script panel, convenient for users with multiple domains, and it will not affect access to other domains. Cloud pages can fall back to the current domain when left empty, but async failover tasks should set this explicitly.",
       "subtitle": "Site Subtitle",

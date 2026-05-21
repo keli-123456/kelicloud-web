@@ -224,7 +224,7 @@ function SchedulerFlow() {
   ];
 
   return (
-    <div className="overflow-hidden rounded-lg border border-border bg-card shadow-sm shadow-slate-900/5 dark:border-slate-800 dark:bg-slate-950">
+    <div className="overflow-hidden rounded-xl border border-slate-200/80 bg-white shadow-[0_18px_45px_-34px_rgba(15,23,42,0.65)] dark:border-slate-800/90 dark:bg-slate-950">
       <div className="grid divide-y divide-border dark:divide-slate-800 md:grid-cols-4 md:divide-x md:divide-y-0">
         {steps.map((step, index) => (
           <div key={step} className="flex min-h-14 items-center gap-3 px-4 py-3">
@@ -255,7 +255,7 @@ function SchedulerToolbar({
   const execution = snapshot?.dns_execution;
 
   return (
-    <div className="flex min-w-0 flex-col gap-3 rounded-lg border border-border bg-card px-4 py-3 shadow-sm shadow-slate-900/5 dark:border-slate-800 dark:bg-slate-950 md:flex-row md:items-center md:justify-between">
+    <div className="flex min-w-0 flex-col gap-3 rounded-xl border border-slate-200/80 bg-white px-4 py-3 shadow-[0_18px_45px_-34px_rgba(15,23,42,0.65)] dark:border-slate-800/90 dark:bg-slate-950 md:flex-row md:items-center md:justify-between">
       <div className="flex min-w-0 flex-wrap items-center gap-2">
         <Badge color={snapshot?.running ? "blue" : "gray"} className="gap-1">
           <Activity className="h-3.5 w-3.5" />
@@ -432,7 +432,7 @@ function SchedulerSourceOverview({
 
   return (
     <div className="grid gap-4 xl:grid-cols-[minmax(0,1.25fr)_minmax(360px,0.75fr)]">
-      <section className="rounded-lg border border-border bg-card p-4 shadow-sm shadow-slate-900/5 dark:border-slate-800 dark:bg-slate-950">
+      <section className="rounded-xl border border-slate-200/80 bg-white p-4 shadow-[0_18px_45px_-34px_rgba(15,23,42,0.65)] dark:border-slate-800/90 dark:bg-slate-950">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="min-w-0">
             <div className="text-sm font-semibold text-slate-950 dark:text-slate-50">
@@ -508,7 +508,7 @@ function SchedulerSourceOverview({
         </div>
       </section>
 
-      <section className="rounded-lg border border-border bg-card p-4 shadow-sm shadow-slate-900/5 dark:border-slate-800 dark:bg-slate-950">
+      <section className="rounded-xl border border-slate-200/80 bg-white p-4 shadow-[0_18px_45px_-34px_rgba(15,23,42,0.65)] dark:border-slate-800/90 dark:bg-slate-950">
         <div className="text-sm font-semibold text-slate-950 dark:text-slate-50">
           {t("cloud.dns.scheduler.api_pressure_title", { defaultValue: "API 压力" })}
         </div>
@@ -949,7 +949,7 @@ export default function CloudDnsSchedulerSection() {
         </div>
       ) : null}
 
-      <div className="overflow-hidden rounded-lg border border-border bg-card shadow-sm shadow-slate-900/5 dark:border-slate-800 dark:bg-slate-950">
+      <div className="overflow-hidden rounded-xl border border-slate-200/80 bg-white shadow-[0_18px_45px_-34px_rgba(15,23,42,0.65)] dark:border-slate-800/90 dark:bg-slate-950">
         <div className="flex flex-col gap-3 border-b border-border px-4 py-3 dark:border-slate-800 md:flex-row md:items-center md:justify-between">
           <div className="min-w-0">
             <div className="text-sm font-semibold text-slate-950 dark:text-slate-50">

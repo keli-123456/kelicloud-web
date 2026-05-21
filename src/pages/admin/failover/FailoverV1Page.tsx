@@ -101,6 +101,11 @@ import {
   initialAzureImagePreset,
   type AzureImagePreset,
 } from "@/components/admin/cloud/azurePanelUtils";
+import {
+  COMMON_AWS_REGIONS as FAILOVER_PRESET_AWS_REGIONS,
+  COMMON_AZURE_LOCATIONS as FAILOVER_PRESET_AZURE_LOCATIONS,
+  COMMON_AZURE_SIZES as FAILOVER_PRESET_AZURE_SIZES,
+} from "@/lib/failoverV2Presets";
 import { useSettings } from "@/lib/api";
 import { getReadableErrorMessage } from "@/lib/apiErrorMessage";
 import {
@@ -271,6 +276,71 @@ function SelectContent({
       className={cn("z-[60]", className)}
       {...props}
     />
+  );
+}
+
+type StickySummaryRow = {
+  label: string;
+  value: React.ReactNode;
+};
+
+function StickyEditorSummaryPanel({
+  title,
+  hint,
+  rows,
+  children,
+}: {
+  title: string;
+  hint: string;
+  rows: StickySummaryRow[];
+  children?: React.ReactNode;
+}) {
+  return (
+    <aside className="hidden min-w-0 xl:block">
+      <div className="sticky top-0 space-y-3 rounded-xl border border-slate-200/80 bg-slate-50/80 p-4 shadow-sm shadow-slate-900/5 dark:border-slate-800 dark:bg-slate-900/40">
+        <div className="space-y-1">
+          <div className="text-sm font-semibold text-slate-900 dark:text-slate-50">{title}</div>
+          <p className="text-xs leading-5 text-muted-foreground">{hint}</p>
+        </div>
+        {rows.length > 0 ? (
+          <div className="overflow-hidden rounded-lg border bg-background">
+            {rows.map((row) => (
+              <div key={row.label} className="grid grid-cols-[96px_minmax(0,1fr)] gap-3 border-b px-3 py-2.5 text-sm last:border-b-0">
+                <div className="text-xs font-medium text-muted-foreground">{row.label}</div>
+                <div className="min-w-0 break-words font-medium text-slate-900 dark:text-slate-50">{row.value}</div>
+              </div>
+            ))}
+          </div>
+        ) : null}
+        {children}
+      </div>
+    </aside>
+  );
+}
+
+function SummaryNoteList({
+  title,
+  notes,
+}: {
+  title: string;
+  notes: string[];
+}) {
+  if (notes.length === 0) {
+    return null;
+  }
+
+  return (
+    <div className="rounded-lg border bg-background p-3">
+      <div className="text-xs font-semibold uppercase tracking-normal text-muted-foreground">{title}</div>
+      <div className="mt-2 space-y-2">
+        {notes.map((note) => (
+          <div key={note} className="flex gap-2 text-xs leading-5 text-muted-foreground">
+            <Check className="mt-0.5 size-3.5 shrink-0 text-emerald-600" />
+            <span>{note}</span>
+          </div>
+        ))}
+      </div>
+    </div>
   );
 }
 
@@ -492,18 +562,18 @@ const COMMON_AWS_REGIONS: FailoverCatalogOption[] = [
   { value: "us-gov-west-1", label: "AWS GovCloud (US-West)", hint: "" },
 ];
 const STATIC_EC2_INSTANCE_TYPE_PRESETS: StaticEC2InstanceTypePreset[] = [
-  { value: "t3.micro", label: "t3.micro", summary: "Burstable x86 general purpose" },
-  { value: "t3.small", label: "t3.small", summary: "Burstable x86 general purpose" },
-  { value: "t3.medium", label: "t3.medium", summary: "Burstable x86 general purpose" },
-  { value: "m7i.large", label: "m7i.large", summary: "Balanced x86 general purpose" },
-  { value: "c7i.large", label: "c7i.large", summary: "x86 compute optimized" },
-  { value: "r7i.large", label: "r7i.large", summary: "x86 memory optimized" },
-  { value: "t4g.micro", label: "t4g.micro", summary: "Burstable Graviton (ARM64)" },
-  { value: "t4g.small", label: "t4g.small", summary: "Burstable Graviton (ARM64)" },
-  { value: "t4g.medium", label: "t4g.medium", summary: "Burstable Graviton (ARM64)" },
-  { value: "m7g.large", label: "m7g.large", summary: "Balanced Graviton (ARM64)" },
-  { value: "c7g.large", label: "c7g.large", summary: "Graviton compute optimized" },
-  { value: "r7g.large", label: "r7g.large", summary: "Graviton memory optimized" },
+  { value: "t3.micro", label: "t3.micro", summary: "2 vCPU / 1 GB / x86" },
+  { value: "t3.small", label: "t3.small", summary: "2 vCPU / 2 GB / x86" },
+  { value: "t3.medium", label: "t3.medium", summary: "2 vCPU / 4 GB / x86" },
+  { value: "m7i.large", label: "m7i.large", summary: "2 vCPU / 8 GB / x86" },
+  { value: "c7i.large", label: "c7i.large", summary: "2 vCPU / 4 GB / x86" },
+  { value: "r7i.large", label: "r7i.large", summary: "2 vCPU / 16 GB / x86" },
+  { value: "t4g.micro", label: "t4g.micro", summary: "2 vCPU / 1 GB / ARM64" },
+  { value: "t4g.small", label: "t4g.small", summary: "2 vCPU / 2 GB / ARM64" },
+  { value: "t4g.medium", label: "t4g.medium", summary: "2 vCPU / 4 GB / ARM64" },
+  { value: "m7g.large", label: "m7g.large", summary: "2 vCPU / 8 GB / ARM64" },
+  { value: "c7g.large", label: "c7g.large", summary: "2 vCPU / 4 GB / ARM64" },
+  { value: "r7g.large", label: "r7g.large", summary: "2 vCPU / 16 GB / ARM64" },
 ];
 const STATIC_EC2_IMAGE_PRESETS: StaticEC2ImagePreset[] = [
   {
@@ -2598,6 +2668,14 @@ function formatPlanRegionOptionLabel(
   provider: string,
   option: { value: string; label: string; hint?: string },
 ) {
+  if (provider === "aws" || provider === "azure") {
+    const preset = (provider === "aws" ? FAILOVER_PRESET_AWS_REGIONS : FAILOVER_PRESET_AZURE_LOCATIONS)
+      .find((item) => item.value === option.value || item.label === option.label);
+    if (preset?.zh) {
+      return `${option.value} (${preset.zh}) / ${option.label || preset.label}`;
+    }
+  }
+
   if (provider === "digitalocean") {
     const countryCode = DIGITALOCEAN_REGION_COUNTRIES[getDigitalOceanRegionPrefix(option.value)];
     const country = countryCode ? localizeCountryLabel(t, countryCode) : "";
@@ -3072,12 +3150,22 @@ function mergeVultrPlanCatalogWithCommon(
 
 function buildCommonAzurePlanCatalog(region = "") {
   return {
-    ...createEmptyPlanCatalog("azure", "provision_instance", "", region || DEFAULT_AZURE_REGION, [
-      { value: DEFAULT_AZURE_REGION, label: DEFAULT_AZURE_REGION, hint: "" },
-    ]),
-    sizes: [
-      { value: DEFAULT_AZURE_SIZE, label: DEFAULT_AZURE_SIZE, hint: "1 vCPU · 1 GiB" },
-    ],
+    ...createEmptyPlanCatalog(
+      "azure",
+      "provision_instance",
+      "",
+      region || DEFAULT_AZURE_REGION,
+      FAILOVER_PRESET_AZURE_LOCATIONS.map((location) => ({
+        value: location.value,
+        label: location.label,
+        hint: location.hint || "",
+      })),
+    ),
+    sizes: FAILOVER_PRESET_AZURE_SIZES.map((size) => ({
+      value: size.value,
+      label: size.label,
+      hint: size.hint || "",
+    })),
     images: buildAzureImagePresetOptions(),
   } satisfies FailoverPlanCatalog;
 }
@@ -4438,17 +4526,10 @@ function summarizePlanPayload(t: TFunction, plan: PlanFormState) {
             count: securityGroupIDs.length,
           }));
         }
-        if (getBooleanValue(payload.assign_ipv6, false)) {
-          parts.push(t("cloud.form.ipv6", { defaultValue: "Enable IPv6" }));
-        }
-        if (getBooleanValue(payload.allow_all_traffic, false)) {
-          parts.push(t("cloud.providers.aws.allow_all_traffic", { defaultValue: "Allow All Traffic" }));
-        }
       } else {
         const zone = getStringValue(payload.availability_zone);
         const blueprint = getStringValue(payload.blueprint_id);
         const bundle = getStringValue(payload.bundle_id);
-        const ipAddressType = getStringValue(payload.ip_address_type);
         if (zone) {
           parts.push(zone);
         }
@@ -4457,12 +4538,6 @@ function summarizePlanPayload(t: TFunction, plan: PlanFormState) {
         }
         if (bundle) {
           parts.push(bundle);
-        }
-        if (ipAddressType) {
-          parts.push(ipAddressType);
-        }
-        if (getBooleanValue(payload.allow_all_traffic, false)) {
-          parts.push(t("cloud.providers.aws.allow_all_traffic", { defaultValue: "Allow All Traffic" }));
         }
       }
     } else {
@@ -4490,12 +4565,6 @@ function summarizePlanPayload(t: TFunction, plan: PlanFormState) {
         if (image) {
           parts.push(image);
         }
-        if (getBooleanValue(payload.assign_ipv6, false)) {
-          parts.push(t("cloud.form.ipv6", { defaultValue: "Enable IPv6" }));
-        }
-        if (getBooleanValue(payload.allow_all_traffic, false)) {
-          parts.push(t("cloud.providers.aws.allow_all_traffic", { defaultValue: "Allow All Traffic" }));
-        }
       } else {
         const zone = getStringValue(payload.availability_zone);
         const blueprint = getStringValue(payload.blueprint_id);
@@ -4508,9 +4577,6 @@ function summarizePlanPayload(t: TFunction, plan: PlanFormState) {
         }
         if (bundle) {
           parts.push(bundle);
-        }
-        if (getBooleanValue(payload.allow_all_traffic, false)) {
-          parts.push(t("cloud.providers.aws.allow_all_traffic", { defaultValue: "Allow All Traffic" }));
         }
       }
     }
@@ -4551,7 +4617,6 @@ function summarizePlanPayload(t: TFunction, plan: PlanFormState) {
     const size = getStringValue(payload.size);
     const imagePreset = findAzureImagePreset(payload);
     const name = getStringValue(payload.name);
-    const resourceGroup = getStringValue(payload.resource_group);
     if (region) {
       parts.push(region);
     }
@@ -4560,15 +4625,6 @@ function summarizePlanPayload(t: TFunction, plan: PlanFormState) {
     }
     if (imagePreset?.label) {
       parts.push(imagePreset.label);
-    }
-    if (getBooleanValue(payload.public_ip, true)) {
-      parts.push(t("failover.editor.assign_public_ip", { defaultValue: "Assign public IP" }));
-    }
-    if (getBooleanValue(payload.assign_ipv6, true)) {
-      parts.push(t("cloud.form.ipv6", { defaultValue: "Enable IPv6" }));
-    }
-    if (resourceGroup) {
-      parts.push(resourceGroup);
     }
     if (name) {
       parts.push(name);
@@ -5287,7 +5343,7 @@ function ExecutionDetailDialog({
     } catch (nextError) {
       setError(
         getReadableErrorMessage(nextError, t("failover.messages.load_execution_failed", {
-            defaultValue: "Failed to load execution details",
+            defaultValue: "加载执行详情失败",
           })),
       );
     } finally {
@@ -6655,6 +6711,147 @@ function TaskEditorDialog({
     () => describePlanOptionalSettings(t, selectedPlan, selectedPlanScriptNames),
     [selectedPlan, selectedPlanScriptNames, t],
   );
+  const selectedPlanDialogSummaryRows = (() => {
+    if (!selectedPlan) {
+      return [];
+    }
+
+    const rows = [
+      {
+        label: t("failover.editor.current_plan", { defaultValue: "Current plan" }),
+        value: getPlanDisplayName(selectedPlan, selectedPlanIndex >= 0 ? selectedPlanIndex : 0, t),
+      },
+      {
+        label: t("cloud.title", { defaultValue: "Cloud" }),
+        value: selectedPlan.provider ? getPlanProviderLabel(t, selectedPlan.provider) : t("common.not_set", { defaultValue: "Not set" }),
+      },
+      {
+        label: t("failover.editor.action_type", { defaultValue: "Action type" }),
+        value: selectedPlan.action_type ? getActionTypeLabel(t, selectedPlan.action_type) : t("common.not_set", { defaultValue: "Not set" }),
+      },
+      {
+        label: t("failover.editor.provider_entry_group", { defaultValue: "Token pool group" }),
+        value: selectedPlan.provider_entry_group || t("failover.editor.provider_entry_group_all", { defaultValue: "All entries" }),
+      },
+    ];
+
+    if (selectedPlan.provider === "aws") {
+      rows.push({ label: t("failover.editor.aws_service", { defaultValue: "AWS service" }), value: selectedPlanService.toUpperCase() });
+      rows.push({ label: t("failover.editor.region", { defaultValue: "Region" }), value: selectedPlanRegion || t("common.not_set", { defaultValue: "Not set" }) });
+      rows.push({
+        label: selectedPlanService === "lightsail"
+          ? t("failover.editor.bundle", { defaultValue: "Bundle" })
+          : t("failover.editor.instance_type", { defaultValue: "Instance type" }),
+        value: selectedPlanService === "lightsail"
+          ? getStringValue(selectedPlanPayload.bundle_id) || DEFAULT_AWS_FAILOVER_LIGHTSAIL_BUNDLE_ID
+          : getStringValue(selectedPlanPayload.instance_type) || DEFAULT_AWS_FAILOVER_EC2_INSTANCE_TYPE,
+      });
+    } else if (selectedPlan.provider === "azure") {
+      rows.push({ label: t("failover.editor.region", { defaultValue: "Region" }), value: selectedPlanRegion || DEFAULT_AZURE_REGION });
+      rows.push({ label: t("failover.editor.size", { defaultValue: "Size" }), value: selectedPlanSize || DEFAULT_AZURE_SIZE });
+      rows.push({ label: t("failover.editor.image", { defaultValue: "Image" }), value: findAzureImagePreset(selectedPlanPayload).label });
+    } else if (selectedPlan.provider) {
+      rows.push({ label: t("failover.editor.region", { defaultValue: "Region" }), value: selectedPlanRegion || "-" });
+      rows.push({
+        label: selectedPlan.provider === "linode"
+          ? t("failover.editor.type", { defaultValue: "Plan type" })
+          : selectedPlan.provider === "vultr"
+            ? t("failover.editor.plan", { defaultValue: "Plan" })
+            : t("failover.editor.size", { defaultValue: "Size" }),
+        value: selectedPlan.provider === "linode"
+          ? selectedPlanType || "-"
+          : selectedPlan.provider === "vultr"
+            ? getStringValue(selectedPlanPayload.plan) || "-"
+            : selectedPlanSize || "-",
+      });
+    }
+
+    rows.push({
+      label: t("failover.editor.scripts", { defaultValue: "Scripts" }),
+      value: selectedPlanScriptNames.length > 0
+        ? selectedPlanScriptNames.slice(0, 2).join(" -> ")
+        : t("failover.editor.no_script", { defaultValue: "No script" }),
+    });
+    return rows;
+  })();
+  const selectedPlanDialogPolicyNotes = [
+    t("failover.editor.plan_summary_default_network", { defaultValue: "出口创建默认按后端策略保持公网可达，普通编辑不再暴露网络细节。" }),
+    t("failover.editor.plan_summary_dns_after_success", { defaultValue: "DNS 会在实例或公网 IP 准备完成后再切换，降低提前切流风险。" }),
+    t("failover.editor.plan_summary_order", { defaultValue: "多计划按左侧顺序回退，右侧只保留当前计划的关键结果。" }),
+  ];
+  const mainTaskSummaryRows: StickySummaryRow[] = [
+    {
+      label: t("common.name", { defaultValue: "Name" }),
+      value: formState.name.trim() || t("common.not_set", { defaultValue: "Not set" }),
+    },
+    {
+      label: t("common.status", { defaultValue: "Status" }),
+      value: formState.enabled
+        ? t("common.enabled", { defaultValue: "Enabled" })
+        : t("common.disabled", { defaultValue: "Disabled" }),
+    },
+    {
+      label: t("failover.editor.current_client", { defaultValue: "Current client" }),
+      value: selectedCurrentClientNode
+        ? getNodeLabel(selectedCurrentClientNode)
+        : formState.current_client_uuid.trim() || t("failover.editor.current_client_optional", { defaultValue: "Optional" }),
+    },
+    {
+      label: t("failover.editor.dns", { defaultValue: "DNS and cleanup" }),
+      value: hasDnsEnabled
+        ? [
+          dnsProviderSummaryLabel,
+          dnsTargetSummaryLabel || t("common.not_set", { defaultValue: "Not set" }),
+        ].filter(Boolean).join(" · ")
+        : t("failover.editor.no_dns", { defaultValue: "Do not switch DNS" }),
+    },
+    {
+      label: t("failover.editor.plans", { defaultValue: "Failover plans" }),
+      value: t("failover.editor.plan_count_summary", {
+        defaultValue: "{{count}} plans",
+        count: formState.plans.length,
+      }),
+    },
+    {
+      label: t("failover.preview.status_label", { defaultValue: "Preview status" }),
+      value: previewSummaryItems.find((item) => item.label === t("failover.preview.status_label", { defaultValue: "Preview status" }))?.value
+        || t("failover.preview.not_run", { defaultValue: "Not run yet" }),
+    },
+  ];
+  const mainTaskPolicyNotes = [
+    t("failover.editor.main_summary_task_note", { defaultValue: "主弹窗只保留任务身份、DNS 摘要、方案顺序和预检状态。" }),
+    t("failover.editor.main_summary_nested_note", { defaultValue: "监控、DNS、方案、预检都拆到二级弹窗，避免主表单变成细长列表。" }),
+    t("failover.editor.main_summary_save_note", { defaultValue: "保存前会按当前配置生成预检签名，预检过期时会阻止保存。" }),
+  ];
+  const taskDialogSummaryRows: StickySummaryRow[] = taskMonitoringSummaryItems.map((item) => ({
+    label: item.label,
+    value: item.value,
+  }));
+  const taskDialogPolicyNotes = [
+    t("failover.editor.monitoring_summary_threshold_note", { defaultValue: "失败阈值决定连续异常多少次后进入故障切换判断。" }),
+    t("failover.editor.monitoring_summary_cooldown_note", { defaultValue: "冷却时间是一次执行后的保护间隔，避免节点抖动时重复创建实例。" }),
+    t("failover.editor.monitoring_summary_retry_note", { defaultValue: "凭证或出口创建失败时，会按重试次数和方案顺序回退。" }),
+  ];
+  const dnsDialogSummaryRows: StickySummaryRow[] = hasDnsEnabled
+    ? dnsSummaryItems.map((item) => ({
+      label: item.label,
+      value: item.value,
+    }))
+    : [
+      {
+        label: t("failover.editor.dns", { defaultValue: "DNS and cleanup" }),
+        value: t("failover.editor.no_dns", { defaultValue: "Do not switch DNS" }),
+      },
+      {
+        label: t("failover.editor.delete_strategy", { defaultValue: "Old instance strategy" }),
+        value: deleteStrategyLabel,
+      },
+    ];
+  const dnsDialogPolicyNotes = [
+    t("failover.editor.dns_summary_scheduler_note", { defaultValue: "DNS 更新会进入统一调度队列，减少 DDNS 和故障切换同时触发时的 API 压力。" }),
+    t("failover.editor.dns_summary_stack_note", { defaultValue: "双栈模式会优先更新 A 记录，只有新出口有 IPv6 时才同步 AAAA。" }),
+    t("failover.editor.dns_summary_cleanup_note", { defaultValue: "旧实例清理策略独立于 DNS 切换，DNS 成功后再进入清理步骤。" }),
+  ];
   const openPlanDialogFor = React.useCallback((localID: string) => {
     setSelectedPlanID(localID);
     setPlanDialogOpen(true);
@@ -7105,7 +7302,8 @@ function TaskEditorDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
         className={cn(
-          ADMIN_FORM_DIALOG_CLASS,
+          ADMIN_FORM_DIALOG_WIDE_CLASS,
+          "h-[92vh] max-w-[1280px] sm:max-w-[1280px]",
           "[&_.grid>*]:min-w-0",
           "[&_button[data-slot=select-trigger]]:w-full",
           "[&_button[data-slot=select-trigger]]:min-w-0",
@@ -7133,7 +7331,8 @@ function TaskEditorDialog({
 
         <form className="flex min-h-0 flex-1 flex-col overflow-hidden" onSubmit={handleSubmit}>
           <div className={ADMIN_FORM_SCROLL_CLASS}>
-              <div className="space-y-5">
+            <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_340px]">
+              <div className="min-w-0 space-y-5">
                 <section className={FORM_SECTION_CLASS}>
                   <div className="mb-4 flex flex-col gap-1">
                     <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-50">
@@ -7178,7 +7377,7 @@ function TaskEditorDialog({
                       <div className="flex items-center gap-2">
                         <Label>{t("failover.editor.current_client", { defaultValue: "Current client" })}</Label>
                         <span className="rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
-                          {t("failover.editor.current_client_optional", { defaultValue: "Optional" })}
+                          {t("failover.editor.current_client_optional", { defaultValue: "可选" })}
                         </span>
                       </div>
                       <SearchableCatalogSelect
@@ -7195,7 +7394,7 @@ function TaskEditorDialog({
                         {selectedCurrentClientNode
                           ? `${t("failover.editor.current_ip", { defaultValue: "IP" })}: ${selectedCurrentClientNode.ipv4 || selectedCurrentClientNode.ipv6 || t("failover.editor.current_ip_empty", { defaultValue: "IP not recorded yet." })}`
                           : t("failover.editor.current_client_hint", {
-                            defaultValue: "Optional. Leave this empty to save the task first, then initialize or bind the outlet later.",
+                            defaultValue: "可选。留空也可以先保存任务，后续初始化或运行时再绑定出口机器。",
                           })}
                       </div>
                     </div>
@@ -7244,7 +7443,7 @@ function TaskEditorDialog({
               </section>
 
               <Dialog open={taskDialogOpen} onOpenChange={setTaskDialogOpen}>
-                <DialogContent className={cn(ADMIN_FORM_DIALOG_CLASS, "h-[82vh] max-w-4xl")}>
+                <DialogContent className={cn(ADMIN_FORM_DIALOG_WIDE_CLASS, "h-[82vh] max-w-[1180px] sm:max-w-[1180px]")}>
                   <DialogHeader>
                     <DialogTitle>
                       {t("failover.editor.show_task_advanced", {
@@ -7258,7 +7457,8 @@ function TaskEditorDialog({
                     </DialogDescription>
                   </DialogHeader>
                   <div className={ADMIN_FORM_SCROLL_CLASS}>
-                    <section className="space-y-3">
+                    <section className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_340px]">
+                      <div className="min-w-0 space-y-3">
                       <Collapsible open={taskAdvancedOpen} onOpenChange={setTaskAdvancedOpen}>
                         <div className="rounded-lg border">
                           <CollapsibleTrigger asChild>
@@ -7377,6 +7577,19 @@ function TaskEditorDialog({
                           </CollapsibleContent>
                         </div>
                       </Collapsible>
+                      </div>
+                      <StickyEditorSummaryPanel
+                        title={t("failover.editor.monitoring_summary_title", { defaultValue: "监控策略预览" })}
+                        hint={t("failover.editor.monitoring_summary_hint", {
+                          defaultValue: "这些值决定什么时候触发切换、什么时候暂停重试，以及方案如何回退。",
+                        })}
+                        rows={taskDialogSummaryRows}
+                      >
+                        <SummaryNoteList
+                          title={t("failover.editor.monitoring_summary_policy", { defaultValue: "运行含义" })}
+                          notes={taskDialogPolicyNotes}
+                        />
+                      </StickyEditorSummaryPanel>
                     </section>
                   </div>
                 </DialogContent>
@@ -7453,7 +7666,7 @@ function TaskEditorDialog({
               </section>
 
               <Dialog open={dnsDialogOpen} onOpenChange={setDnsDialogOpen}>
-                <DialogContent className={cn(ADMIN_FORM_DIALOG_CLASS, "h-[90vh] max-w-5xl")}>
+                <DialogContent className={cn(ADMIN_FORM_DIALOG_WIDE_CLASS, "h-[90vh] max-w-[1240px] sm:max-w-[1240px]")}>
                   <DialogHeader>
                     <DialogTitle>{t("failover.editor.dns", { defaultValue: "DNS and cleanup" })}</DialogTitle>
                     <DialogDescription>
@@ -7463,7 +7676,8 @@ function TaskEditorDialog({
                     </DialogDescription>
                   </DialogHeader>
                   <div className={ADMIN_FORM_SCROLL_CLASS}>
-                    <section className="space-y-3">
+                    <section className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_340px]">
+                      <div className="min-w-0 space-y-3">
                       <Collapsible open={dnsCoreOpen} onOpenChange={setDnsCoreOpen}>
                         <div className="rounded-lg border">
                           <CollapsibleTrigger asChild>
@@ -7955,6 +8169,19 @@ function TaskEditorDialog({
                           </CollapsibleContent>
                         </div>
                       </Collapsible>
+                      </div>
+                      <StickyEditorSummaryPanel
+                        title={t("failover.editor.dns_summary_title", { defaultValue: "DNS 策略预览" })}
+                        hint={t("failover.editor.dns_summary_panel_hint", {
+                          defaultValue: "右侧同步展示目标记录、同步模式和旧实例清理策略，避免改表单时失去上下文。",
+                        })}
+                        rows={dnsDialogSummaryRows}
+                      >
+                        <SummaryNoteList
+                          title={t("failover.editor.dns_summary_policy", { defaultValue: "同步策略" })}
+                          notes={dnsDialogPolicyNotes}
+                        />
+                      </StickyEditorSummaryPanel>
                     </section>
                   </div>
                 </DialogContent>
@@ -8072,7 +8299,7 @@ function TaskEditorDialog({
               </section>
 
               <Dialog open={planDialogOpen} onOpenChange={setPlanDialogOpen}>
-                <DialogContent className={cn(ADMIN_FORM_DIALOG_WIDE_CLASS, "h-[92vh]")}>
+                <DialogContent className={cn(ADMIN_FORM_DIALOG_WIDE_CLASS, "h-[92vh] max-w-[1180px] sm:max-w-[1180px]")}>
                   <DialogHeader>
                     <DialogTitle>{t("failover.editor.plans", { defaultValue: "Failover plans" })}</DialogTitle>
                     <DialogDescription>
@@ -8082,7 +8309,8 @@ function TaskEditorDialog({
                     </DialogDescription>
                   </DialogHeader>
                   <div className={ADMIN_FORM_SCROLL_CLASS}>
-                    <section className="space-y-3">
+                    <section className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_340px]">
+                      <div className="min-w-0 space-y-3">
                       {selectedPlan ? (
                         <>
                     <Collapsible
@@ -8630,67 +8858,6 @@ function TaskEditorDialog({
                                   emptyLabel={t("failover.editor.instance_type_search_empty", { defaultValue: "No matching instance type" })}
                                 />
                               </div>
-                              <div className="rounded-lg bg-muted/20 px-4 py-3 lg:col-span-2">
-                                <div className="flex items-center justify-between gap-4">
-                                  <div className="space-y-1">
-                                    <div className="text-sm font-medium text-slate-900 dark:text-slate-50">
-                                      {t("failover.editor.assign_public_ip", { defaultValue: "Assign public IP" })}
-                                    </div>
-                                    <div className="text-xs text-muted-foreground">
-                                      {t("failover.editor.assign_public_ip_hint", { defaultValue: "Keep this enabled so the new outlet gets a reachable IPv4 address." })}
-                                    </div>
-                                  </div>
-                                  <Switch
-                                    checked={Boolean(selectedPlanPayload.assign_public_ip)}
-                                    onCheckedChange={(checked) => updateSelectedPlanPayload((current) => ({
-                                      ...current,
-                                      assign_public_ip: Boolean(checked),
-                                    }))}
-                                  />
-                                </div>
-                              </div>
-                              <div className="rounded-lg bg-muted/20 px-4 py-3 lg:col-span-2">
-                                <div className="flex items-center justify-between gap-4">
-                                  <div className="space-y-1">
-                                    <div className="text-sm font-medium text-slate-900 dark:text-slate-50">
-                                      {t("cloud.form.ipv6", { defaultValue: "Enable IPv6" })}
-                                    </div>
-                                    <div className="text-xs text-muted-foreground">
-                                      {t("failover.editor.assign_ipv6_hint", {
-                                        defaultValue: "Request an IPv6 address during instance creation and verify it after launch.",
-                                      })}
-                                    </div>
-                                  </div>
-                                  <Switch
-                                    checked={getBooleanValue(selectedPlanPayload.assign_ipv6, true)}
-                                    onCheckedChange={(checked) => updateSelectedPlanPayload((current) => ({
-                                      ...current,
-                                      assign_ipv6: Boolean(checked),
-                                    }))}
-                                  />
-                                </div>
-                              </div>
-                              <div className="rounded-lg bg-muted/20 px-4 py-3 lg:col-span-2">
-                                <div className="flex items-center justify-between gap-4">
-                                  <div className="space-y-1">
-                                    <div className="text-sm font-medium text-slate-900 dark:text-slate-50">
-                                      {t("cloud.providers.aws.allow_all_traffic", { defaultValue: "Allow All Traffic" })}
-                                    </div>
-                                    <div className="text-xs text-muted-foreground">
-                                      {t("cloud.providers.aws.allow_all_traffic_on_create", {
-                                        defaultValue: "After launch, allow all IPv4 and IPv6 traffic",
-                                      })}
-                                    </div>
-                                  </div>
-                                  <Switch
-                                    checked={getBooleanValue(selectedPlanPayload.allow_all_traffic, true)}
-                                    onCheckedChange={(checked) => updateSelectedPlanPayload((current) => ({
-                                      ...current,
-                                      allow_all_traffic: Boolean(checked),
-                                    }))}
-                                  />
-                                </div>
-                              </div>
                             </>
                           ) : (
                             <>
@@ -8770,46 +8937,6 @@ function TaskEditorDialog({
                                   searchPlaceholder={t("failover.editor.bundle_search_placeholder", { defaultValue: "Search bundles..." })}
                                   emptyLabel={t("failover.editor.bundle_search_empty", { defaultValue: "No matching bundle" })}
                                 />
-                              </div>
-                              <div className="space-y-2">
-                                <Label>{t("cloud.providers.aws.ip_address_type", { defaultValue: "IP Address Type" })}</Label>
-                                <Select
-                                  value={getStringValue(selectedPlanPayload.ip_address_type) || "dualstack"}
-                                  onValueChange={(value) => updateSelectedPlanPayload((current) => ({
-                                    ...current,
-                                    ip_address_type: value,
-                                  }))}
-                                >
-                                  <SelectTrigger>
-                                    <SelectValue placeholder={t("cloud.providers.aws.ip_address_type", { defaultValue: "IP Address Type" })} />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    <SelectItem value="dualstack">dualstack</SelectItem>
-                                    <SelectItem value="ipv4">ipv4</SelectItem>
-                                    <SelectItem value="ipv6">ipv6</SelectItem>
-                                  </SelectContent>
-                                </Select>
-                              </div>
-                              <div className="rounded-lg bg-muted/20 px-4 py-3 lg:col-span-2">
-                                <div className="flex items-center justify-between gap-4">
-                                  <div className="space-y-1">
-                                    <div className="text-sm font-medium text-slate-900 dark:text-slate-50">
-                                      {t("cloud.providers.aws.allow_all_traffic", { defaultValue: "Allow All Traffic" })}
-                                    </div>
-                                    <div className="text-xs text-muted-foreground">
-                                      {t("cloud.providers.aws.allow_all_traffic_on_create", {
-                                        defaultValue: "After launch, allow all IPv4 and IPv6 traffic",
-                                      })}
-                                    </div>
-                                  </div>
-                                  <Switch
-                                    checked={getBooleanValue(selectedPlanPayload.allow_all_traffic, true)}
-                                    onCheckedChange={(checked) => updateSelectedPlanPayload((current) => ({
-                                      ...current,
-                                      allow_all_traffic: Boolean(checked),
-                                    }))}
-                                  />
-                                </div>
                               </div>
                             </>
                           )}
@@ -8933,77 +9060,16 @@ function TaskEditorDialog({
                                     return preset ? getStaticEC2InstanceTypePresetLabel(preset) : formatCatalogOptionLabel(option);
                                   }}
                                 />
-                                <Input
-                                  value={selectedAWSEC2InstanceType}
-                                  onChange={(event) => updateSelectedPlanPayload((current) => ({
-                                    ...current,
-                                    instance_type: event.target.value,
-                                  }))}
-                                  placeholder={t("cloud.providers.aws.instance_type_manual_placeholder", { defaultValue: "Or enter an instance type manually" })}
-                                />
-                              </div>
-                              <div className="rounded-lg bg-muted/20 px-4 py-3 lg:col-span-2">
-                                <div className="flex items-center justify-between gap-4">
-                                  <div className="space-y-1">
-                                    <div className="text-sm font-medium text-slate-900 dark:text-slate-50">
-                                      {t("failover.editor.assign_public_ip", { defaultValue: "Assign public IP" })}
-                                    </div>
-                                    <div className="text-xs text-muted-foreground">
-                                      {t("failover.editor.assign_public_ip_hint", { defaultValue: "Keep this enabled so the new outlet gets a reachable IPv4 address." })}
-                                    </div>
-                                  </div>
-                                  <Switch
-                                    checked={Boolean(selectedPlanPayload.assign_public_ip)}
-                                    onCheckedChange={(checked) => updateSelectedPlanPayload((current) => ({
-                                      ...current,
-                                      assign_public_ip: Boolean(checked),
-                                    }))}
-                                  />
-                                </div>
-                              </div>
-                              <div className="rounded-lg bg-muted/20 px-4 py-3 lg:col-span-2">
-                                <div className="flex items-center justify-between gap-4">
-                                  <div className="space-y-1">
-                                    <div className="text-sm font-medium text-slate-900 dark:text-slate-50">
-                                      {t("cloud.form.ipv6", { defaultValue: "Enable IPv6" })}
-                                    </div>
-                                    <div className="text-xs text-muted-foreground">
-                                      {t("failover.editor.assign_ipv6_hint", {
-                                        defaultValue: "Request an IPv6 address during instance creation and verify it after launch.",
-                                      })}
-                                    </div>
-                                  </div>
-                                  <Switch
-                                    checked={getBooleanValue(selectedPlanPayload.assign_ipv6, true)}
-                                    onCheckedChange={(checked) => updateSelectedPlanPayload((current) => ({
-                                      ...current,
-                                      assign_ipv6: Boolean(checked),
-                                    }))}
-                                  />
-                                </div>
-                              </div>
-                              <div className="rounded-lg bg-muted/20 px-4 py-3 lg:col-span-2">
-                                <div className="flex items-center justify-between gap-4">
-                                  <div className="space-y-1">
-                                    <div className="text-sm font-medium text-slate-900 dark:text-slate-50">
-                                      {t("cloud.providers.aws.allow_all_traffic", { defaultValue: "Allow All Traffic" })}
-                                    </div>
-                                    <div className="text-xs text-muted-foreground">
-                                      {t("cloud.providers.aws.allow_all_traffic_on_create", {
-                                        defaultValue: "After launch, allow all IPv4 and IPv6 traffic",
-                                      })}
-                                    </div>
-                                  </div>
-                                  <Switch
-                                    checked={getBooleanValue(selectedPlanPayload.allow_all_traffic, true)}
-                                    onCheckedChange={(checked) => updateSelectedPlanPayload((current) => ({
-                                      ...current,
-                                      allow_all_traffic: Boolean(checked),
-                                    }))}
-                                  />
-                                </div>
-                              </div>
-                              <div className="space-y-2">
+                              <Input
+                                value={selectedAWSEC2InstanceType}
+                                onChange={(event) => updateSelectedPlanPayload((current) => ({
+                                  ...current,
+                                  instance_type: event.target.value,
+                                }))}
+                                placeholder={t("cloud.providers.aws.instance_type_manual_placeholder", { defaultValue: "Or enter an instance type manually" })}
+                              />
+                            </div>
+                            <div className="space-y-2">
                                 <Label>{t("cloud.form.name", { defaultValue: "Name" })}</Label>
                                 <Input
                                   value={getStringValue(selectedPlanPayload.name)}
@@ -9153,25 +9219,6 @@ function TaskEditorDialog({
                                 </div>
                               ) : null}
                               <div className="space-y-2">
-                                <Label>{t("cloud.providers.aws.ip_address_type", { defaultValue: "IP Address Type" })}</Label>
-                                <Select
-                                  value={getStringValue(selectedPlanPayload.ip_address_type) || "dualstack"}
-                                  onValueChange={(value) => updateSelectedPlanPayload((current) => ({
-                                    ...current,
-                                    ip_address_type: value,
-                                  }))}
-                                >
-                                  <SelectTrigger>
-                                    <SelectValue placeholder={t("cloud.providers.aws.ip_address_type", { defaultValue: "IP Address Type" })} />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    <SelectItem value="dualstack">dualstack</SelectItem>
-                                    <SelectItem value="ipv4">ipv4</SelectItem>
-                                    <SelectItem value="ipv6">ipv6</SelectItem>
-                                  </SelectContent>
-                                </Select>
-                              </div>
-                              <div className="space-y-2">
                                 <Label>{t("cloud.form.name", { defaultValue: "Name" })}</Label>
                                 <Input
                                   value={getStringValue(selectedPlanPayload.name)}
@@ -9181,27 +9228,6 @@ function TaskEditorDialog({
                                   }))}
                                   placeholder={t("cloud.providers.aws.auto_name", { defaultValue: "Auto name" })}
                                 />
-                              </div>
-                              <div className="rounded-lg bg-muted/20 px-4 py-3 lg:col-span-2">
-                                <div className="flex items-center justify-between gap-4">
-                                  <div className="space-y-1">
-                                    <div className="text-sm font-medium text-slate-900 dark:text-slate-50">
-                                      {t("cloud.providers.aws.allow_all_traffic", { defaultValue: "Allow All Traffic" })}
-                                    </div>
-                                    <div className="text-xs text-muted-foreground">
-                                      {t("cloud.providers.aws.allow_all_traffic_on_create", {
-                                        defaultValue: "After launch, allow all IPv4 and IPv6 traffic",
-                                      })}
-                                    </div>
-                                  </div>
-                                  <Switch
-                                    checked={getBooleanValue(selectedPlanPayload.allow_all_traffic, true)}
-                                    onCheckedChange={(checked) => updateSelectedPlanPayload((current) => ({
-                                      ...current,
-                                      allow_all_traffic: Boolean(checked),
-                                    }))}
-                                  />
-                                </div>
                               </div>
                               <div className="space-y-2 lg:col-span-2">
                                 <Label>{t("cloud.form.tags", { defaultValue: "Tags" })}</Label>
@@ -9312,11 +9338,11 @@ function TaskEditorDialog({
                           <div className="space-y-3">
                             <div className="min-w-0">
                               <div className="text-sm font-medium text-slate-900 dark:text-slate-50">
-                                {t("failover.editor.azure_access_section", { defaultValue: "Access and network" })}
+                                {t("failover.editor.azure_login_section", { defaultValue: "Login and initialization" })}
                               </div>
                               <div className="mt-1 text-xs leading-5 text-muted-foreground">
-                                {t("failover.editor.azure_access_section_hint", {
-                                  defaultValue: "Keep public IPv4 and IPv6 enabled so DNS failover can point to a reachable machine.",
+                                {t("failover.editor.azure_login_section_hint", {
+                                  defaultValue: "Set the root password, optional SSH key, and startup script for the replacement outlet.",
                                 })}
                               </div>
                             </div>
@@ -9342,17 +9368,6 @@ function TaskEditorDialog({
                                 </div>
                               </div>
                               <div className="space-y-2">
-                                <Label>{t("cloud.providers.azure.resource_group", { defaultValue: "Resource group" })}</Label>
-                                <Input
-                                  value={getStringValue(selectedPlanPayload.resource_group)}
-                                  onChange={(event) => updateSelectedPlanPayload((current) => ({
-                                    ...current,
-                                    resource_group: event.target.value,
-                                  }))}
-                                  placeholder={t("cloud.providers.azure.auto_resource_group", { defaultValue: "Auto resource group" })}
-                                />
-                              </div>
-                              <div className="space-y-2">
                                 <Label>{t("cloud.form.name", { defaultValue: "Name" })}</Label>
                                 <Input
                                   value={getStringValue(selectedPlanPayload.name)}
@@ -9363,46 +9378,6 @@ function TaskEditorDialog({
                                   placeholder={t("cloud.providers.azure.auto_name", { defaultValue: "Auto name" })}
                                 />
                               </div>
-                              <div className="rounded-lg bg-muted/20 px-4 py-3">
-                                <div className="flex items-center justify-between gap-4">
-                                  <div className="space-y-1">
-                                    <div className="text-sm font-medium text-slate-900 dark:text-slate-50">
-                                      {t("failover.editor.assign_public_ip", { defaultValue: "Assign public IP" })}
-                                    </div>
-                                    <div className="text-xs text-muted-foreground">
-                                      {t("failover.editor.assign_public_ip_hint", { defaultValue: "Keep this enabled so the new outlet gets a reachable IPv4 address." })}
-                                    </div>
-                                  </div>
-                                  <Switch
-                                    checked={getBooleanValue(selectedPlanPayload.public_ip, true)}
-                                    onCheckedChange={(checked) => updateSelectedPlanPayload((current) => ({
-                                      ...current,
-                                      public_ip: Boolean(checked),
-                                    }))}
-                                  />
-                                </div>
-                              </div>
-                              <div className="rounded-lg bg-muted/20 px-4 py-3">
-                                <div className="flex items-center justify-between gap-4">
-                                  <div className="space-y-1">
-                                    <div className="text-sm font-medium text-slate-900 dark:text-slate-50">
-                                      {t("cloud.form.ipv6", { defaultValue: "Enable IPv6" })}
-                                    </div>
-                                    <div className="text-xs text-muted-foreground">
-                                      {t("failover.editor.assign_ipv6_hint", {
-                                        defaultValue: "Request an IPv6 address during instance creation and verify it after launch.",
-                                      })}
-                                    </div>
-                                  </div>
-                                  <Switch
-                                    checked={getBooleanValue(selectedPlanPayload.assign_ipv6, true)}
-                                    onCheckedChange={(checked) => updateSelectedPlanPayload((current) => ({
-                                      ...current,
-                                      assign_ipv6: Boolean(checked),
-                                    }))}
-                                  />
-                                </div>
-                              </div>
                               <div className="space-y-2 lg:col-span-2">
                                 <Label>{t("cloud.form.ssh_public_key", { defaultValue: "SSH public key" })}</Label>
                                 <Textarea
@@ -9412,7 +9387,7 @@ function TaskEditorDialog({
                                     ...current,
                                     ssh_public_key: event.target.value,
                                   }))}
-                                  placeholder={t("cloud.form.ssh_public_key_optional", { defaultValue: "Optional SSH public key" })}
+                                  placeholder={t("cloud.form.ssh_public_key_optional", { defaultValue: "可选 SSH 公钥" })}
                                 />
                               </div>
                               <div className="space-y-2 lg:col-span-2">
@@ -9855,7 +9830,7 @@ function TaskEditorDialog({
                             <div className="min-w-0 flex-1 space-y-1">
                               <div className="text-sm font-medium text-slate-900 dark:text-slate-50">
                                 {t("failover.editor.show_plan_optional", {
-                                  defaultValue: "Optional plan settings",
+                                  defaultValue: "可选方案配置",
                                 })}
                               </div>
                               <div className="line-clamp-2 break-words text-xs text-muted-foreground">
@@ -9874,7 +9849,7 @@ function TaskEditorDialog({
                           <div className="space-y-4">
                             <div className="text-sm font-medium text-slate-900 dark:text-slate-50">
                               {t("failover.editor.show_plan_optional", {
-                                defaultValue: "Optional plan settings",
+                                defaultValue: "可选方案配置",
                               })}
                             </div>
                             <div className="grid gap-4 lg:grid-cols-2">
@@ -10172,6 +10147,54 @@ function TaskEditorDialog({
                     </Collapsible>
                         </>
                       ) : null}
+                      </div>
+                      {selectedPlan ? (
+                        <aside className="hidden min-w-0 xl:block">
+                          <div className="sticky top-0 space-y-3 rounded-xl border border-slate-200/80 bg-slate-50/80 p-4 shadow-sm shadow-slate-900/5 dark:border-slate-800 dark:bg-slate-900/40">
+                            <div className="space-y-1">
+                              <div className="text-sm font-semibold text-slate-900 dark:text-slate-50">
+                                {t("failover.editor.plan_summary_title", { defaultValue: "出口计划预览" })}
+                              </div>
+                              <p className="text-xs leading-5 text-muted-foreground">
+                                {t("failover.editor.plan_summary_hint", {
+                                  defaultValue: "右侧固定展示当前计划的关键结果，左侧负责修改顺序、凭证和实例参数。",
+                                })}
+                              </p>
+                            </div>
+                            <div className="overflow-hidden rounded-lg border bg-background">
+                              {selectedPlanDialogSummaryRows.map((row) => (
+                                <div key={row.label} className="grid grid-cols-[96px_minmax(0,1fr)] gap-3 border-b px-3 py-2.5 text-sm last:border-b-0">
+                                  <div className="text-xs font-medium text-muted-foreground">{row.label}</div>
+                                  <div className="min-w-0 break-words font-medium text-slate-900 dark:text-slate-50">{row.value}</div>
+                                </div>
+                              ))}
+                            </div>
+                            <div className="rounded-lg border bg-background p-3">
+                              <div className="text-xs font-semibold uppercase tracking-normal text-muted-foreground">
+                                {t("failover.editor.plan_summary_policy", { defaultValue: "执行策略" })}
+                              </div>
+                              <div className="mt-2 space-y-2">
+                                {selectedPlanDialogPolicyNotes.map((note) => (
+                                  <div key={note} className="flex gap-2 text-xs leading-5 text-muted-foreground">
+                                    <Check className="mt-0.5 size-3.5 shrink-0 text-emerald-600" />
+                                    <span>{note}</span>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                            <div className="rounded-lg border bg-background p-3">
+                              <div className="text-xs font-semibold uppercase tracking-normal text-muted-foreground">
+                                {t("failover.editor.plan_summary_auto_connect", { defaultValue: "自动接入分组" })}
+                              </div>
+                              <div className="mt-2 break-words text-sm font-medium text-slate-900 dark:text-slate-50">
+                                {selectedPlanDisplayedAutoConnectGroup
+                                  || suggestedAutoConnectGroup
+                                  || t("common.not_set", { defaultValue: "Not set" })}
+                              </div>
+                            </div>
+                          </div>
+                        </aside>
+                      ) : null}
                     </section>
                   </div>
                 </DialogContent>
@@ -10219,6 +10242,19 @@ function TaskEditorDialog({
                   </div>
                 </DialogContent>
               </Dialog>
+              </div>
+              <StickyEditorSummaryPanel
+                title={t("failover.editor.main_summary_title", { defaultValue: "任务配置总览" })}
+                hint={t("failover.editor.main_summary_hint", {
+                  defaultValue: "右侧只保留会影响执行结果的关键状态，左侧负责编辑具体表单。",
+                })}
+                rows={mainTaskSummaryRows}
+              >
+                <SummaryNoteList
+                  title={t("failover.editor.main_summary_policy", { defaultValue: "编辑节奏" })}
+                  notes={mainTaskPolicyNotes}
+                />
+              </StickyEditorSummaryPanel>
             </div>
           </div>
 
@@ -10313,7 +10349,7 @@ function FailoverPageContent() {
     } catch (nextError) {
       setError(
         getReadableErrorMessage(nextError, t("failover.messages.load_tasks_failed", {
-            defaultValue: "Failed to load failover tasks",
+            defaultValue: "加载故障切换任务失败",
           })),
       );
     } finally {
@@ -10815,15 +10851,13 @@ function FailoverPageContent() {
               </div>
 
               <div className="overflow-x-auto">
-                <table className="w-full min-w-[980px] text-left text-sm">
+                <table className="w-full min-w-[560px] text-left text-sm">
                   <thead>
                     <tr className="border-b border-border bg-muted/30 text-[12px] font-semibold text-muted-foreground">
-                      <th className="px-4 py-3">{t("failover.workspace.col_task", { defaultValue: "任务" })}</th>
-                      <th className="px-4 py-3">{t("failover.workspace.col_outlet", { defaultValue: "当前出口" })}</th>
-                      <th className="px-4 py-3">{t("failover.workspace.col_dns", { defaultValue: "DNS" })}</th>
-                      <th className="px-4 py-3">{t("failover.workspace.col_execution", { defaultValue: "最近执行" })}</th>
-                      <th className="px-4 py-3">{t("failover.workspace.col_schedule", { defaultValue: "调度" })}</th>
-                      <th className="px-4 py-3 text-right">{t("common.actions", { defaultValue: "Actions" })}</th>
+                      <th className="px-3 py-2.5">{t("failover.workspace.col_task", { defaultValue: "任务" })}</th>
+                      <th className="px-3 py-2.5">{t("failover.workspace.col_outlet", { defaultValue: "当前出口" })}</th>
+                      <th className="px-3 py-2.5">{t("failover.workspace.col_execution", { defaultValue: "最近执行" })}</th>
+                      <th className="px-3 py-2.5 text-right">{t("common.actions", { defaultValue: "Actions" })}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -10852,7 +10886,7 @@ function FailoverPageContent() {
                             task.has_active_execution && "bg-amber-50/60 dark:bg-amber-950/15",
                           )}
                         >
-                          <td className="max-w-[260px] px-4 py-3 align-top">
+                          <td className="max-w-[250px] px-3 py-2.5 align-top">
                             <div className="min-w-0">
                               <div className="truncate text-[13px] font-semibold leading-5 text-foreground" title={task.name}>
                                 {task.name}
@@ -10878,25 +10912,23 @@ function FailoverPageContent() {
                               </div>
                             </div>
                           </td>
-                          <td className="max-w-[210px] px-4 py-3 align-top">
+                          <td className="max-w-[260px] px-3 py-2.5 align-top">
                             <div className="truncate text-[13px] leading-5 text-foreground" title={view.currentOutletLabel}>
                               {view.currentOutletLabel}
                             </div>
-                            <div className="mt-1 truncate text-[11px] leading-4 text-muted-foreground" title={view.currentClientUUID || undefined}>
+                            <div className="truncate text-[11px] leading-4 text-muted-foreground" title={view.currentClientUUID || undefined}>
                               {view.currentClientUUID || t("failover.task.uninitialized_hint", { defaultValue: "等待初始化" })}
                             </div>
-                          </td>
-                          <td className="max-w-[220px] px-4 py-3 align-top">
                             {view.dnsTargetLabel ? (
-                              <div className="truncate text-[13px] leading-5 text-foreground" title={view.dnsTargetLabel}>
+                              <div className="mt-1 truncate text-[12px] leading-5 text-foreground" title={view.dnsTargetLabel}>
                                 {view.dnsTargetLabel}
                               </div>
                             ) : (
-                              <div className="text-[13px] leading-5 text-muted-foreground">
+                              <div className="mt-1 text-[12px] leading-5 text-muted-foreground">
                                 {t("failover.task.no_dns", { defaultValue: "No DNS" })}
                               </div>
                             )}
-                            <div className="mt-1 flex flex-wrap gap-1.5">
+                            <div className="mt-1 flex flex-wrap gap-1">
                               {task.dns_provider ? (
                                 <Badge variant={getStatusVariant(view.dnsStatus || "pending", "dns")}>
                                   {getDnsTaskStatusLabel(t, view.dnsStatus)}
@@ -10914,8 +10946,8 @@ function FailoverPageContent() {
                               ) : null}
                             </div>
                           </td>
-                          <td className="max-w-[280px] px-4 py-3 align-top">
-                            <div className="flex flex-wrap items-center gap-1.5">
+                          <td className="max-w-[260px] px-3 py-2.5 align-top">
+                            <div className="flex flex-wrap items-center gap-1">
                               {latestExecution ? (
                                 <Badge variant={getStatusVariant(latestExecution.status, "execution")}>
                                   {getStatusLabel(t, latestExecution.status)}
@@ -10939,83 +10971,87 @@ function FailoverPageContent() {
                             </div>
                             <div
                               className={cn(
-                                "mt-1 line-clamp-2 text-[12px] leading-5",
+                                "mt-1 line-clamp-1 text-[12px] leading-5",
                                 latestExecution?.error_message ? "text-red-600 dark:text-red-300" : "text-muted-foreground",
                               )}
                               title={latestExecution?.error_message || view.latestExecutionSummary}
                             >
                               {view.latestExecutionSummary}
                             </div>
-                          </td>
-                          <td className="max-w-[180px] px-4 py-3 align-top">
-                            <div className="text-[12px] leading-5 text-foreground">
+                            <div className="mt-1 text-[11px] leading-4 text-muted-foreground">
                               {t("failover.table.cooldown", { defaultValue: "Cooldown" })}: {view.cooldownSummary}
+                              {view.nextCycleSummary ? (
+                                <span className="ml-2">
+                                  {t("failover.table.next_cycle", { defaultValue: "Next cycle" })}: {view.nextCycleSummary}
+                                </span>
+                              ) : null}
                             </div>
-                            {view.nextCycleSummary ? (
-                              <div className="mt-1 text-[11px] leading-4 text-muted-foreground">
-                                {t("failover.table.next_cycle", { defaultValue: "Next cycle" })}: {view.nextCycleSummary}
-                              </div>
-                            ) : null}
                           </td>
-                          <td className="px-4 py-3 align-top">
-                            <div className="flex justify-end gap-1.5">
+                          <td className="px-3 py-2.5 align-top">
+                            <div className="flex justify-end gap-1">
                               <Button
                                 type="button"
                                 size="sm"
                                 variant="ghost"
-                                className="h-8 rounded-md px-2 text-[12px]"
+                                className="h-8 w-8 rounded-md px-0"
                                 onClick={(event) => {
                                   event.stopPropagation();
                                   void openEditDialog(task);
                                 }}
                                 disabled={taskBusy || taskRunning}
+                                title={t("common.edit", { defaultValue: "Edit" })}
+                                aria-label={t("common.edit", { defaultValue: "Edit" })}
                               >
                                 {taskBusy ? <LoaderCircle className="size-3.5 animate-spin" /> : <PencilLine className="size-3.5" />}
-                                {t("common.edit", { defaultValue: "Edit" })}
                               </Button>
                               <Button
                                 type="button"
                                 size="sm"
                                 variant="ghost"
-                                className="h-8 rounded-md px-2 text-[12px]"
+                                className="h-8 w-8 rounded-md px-0"
                                 onClick={(event) => {
                                   event.stopPropagation();
                                   void handleRunTask(task);
                                 }}
                                 disabled={taskRunning || task.has_active_execution || !task.enabled}
-                              >
-                                {taskRunning ? <LoaderCircle className="size-3.5 animate-spin" /> : <Play className="size-3.5" />}
-                                {view.requiresInitialization
+                                title={view.requiresInitialization
                                   ? t("failover.actions.initialize", { defaultValue: "Initialize" })
                                   : t("failover.actions.run", { defaultValue: "Run" })}
+                                aria-label={view.requiresInitialization
+                                  ? t("failover.actions.initialize", { defaultValue: "Initialize" })
+                                  : t("failover.actions.run", { defaultValue: "Run" })}
+                              >
+                                {taskRunning ? <LoaderCircle className="size-3.5 animate-spin" /> : <Play className="size-3.5" />}
                               </Button>
                               {latestExecution ? (
                                 <Button
                                   type="button"
                                   size="sm"
                                   variant="ghost"
-                                  className="h-8 rounded-md px-2 text-[12px]"
+                                  className="h-8 w-8 rounded-md px-0"
                                   onClick={(event) => {
                                     event.stopPropagation();
                                     openExecutionDialog(latestExecution.id, task.name);
                                   }}
+                                  title={t("failover.table.view_latest", { defaultValue: "View details" })}
+                                  aria-label={t("failover.table.view_latest", { defaultValue: "View details" })}
                                 >
                                   <Eye className="size-3.5" />
-                                  {t("failover.table.view_latest", { defaultValue: "View details" })}
                                 </Button>
                               ) : null}
                               <Button
                                 type="button"
                                 size="sm"
                                 variant="ghost"
-                                className="h-8 rounded-md px-2 text-[12px]"
+                                className="h-8 w-8 rounded-md px-0"
                                 onClick={(event) => {
                                   event.stopPropagation();
                                   openShareDialog(task);
                                 }}
+                                title={t("failover.share.short", { defaultValue: "分享" })}
+                                aria-label={t("failover.share.short", { defaultValue: "分享" })}
                               >
                                 <Share2 className="size-3.5" />
-                                {t("failover.share.short", { defaultValue: "分享" })}
                               </Button>
                             </div>
                           </td>
@@ -11061,7 +11097,7 @@ function FailoverPageContent() {
 
                 return (
                   <div className="space-y-4 p-4">
-                    <div className="min-w-0 rounded-lg border border-border bg-muted/20 px-3 py-3">
+                    <div className="min-w-0 rounded-xl border border-slate-200/80 bg-slate-50 px-3 py-3 dark:border-slate-800 dark:bg-slate-900/35">
                       <div className="flex flex-wrap items-center gap-2">
                         <div className="min-w-0 flex-1 truncate text-[15px] font-semibold leading-6 text-foreground" title={selectedTask.name}>
                           {selectedTask.name}

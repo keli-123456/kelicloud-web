@@ -47,6 +47,7 @@ export function AWSRegionSelect({
       const haystack = [
         option.name,
         option.label,
+        getAWSRegionOptionLabel(option),
         option.country,
         option.endpoint,
       ].filter(Boolean).join(" ").toLowerCase();
@@ -110,10 +111,8 @@ export function AWSRegionSelect({
           ) : (
             filteredOptions.map((option) => {
               const isSelected = option.name === value;
-              const primaryLabel = option.label || option.name;
-              const detailLabel = option.label && option.label !== option.name
-                ? [option.name, option.endpoint].filter(Boolean).join(" · ")
-                : option.endpoint || "";
+              const primaryLabel = getAWSRegionOptionLabel(option);
+              const detailLabel = [option.name, option.endpoint].filter(Boolean).join(" · ");
 
               return (
                 <button

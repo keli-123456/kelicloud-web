@@ -5,10 +5,8 @@ import { Server } from "lucide-react";
 import {
   EC2CreateBootstrapSection,
   EC2CreateCoreSection,
-  EC2CreateNetworkSection,
 } from "@/components/admin/cloud/AWSEC2CreateSections";
 import {
-  LightsailCreateAccessSection,
   LightsailCreateBootstrapSection,
   LightsailCreateCoreSection,
 } from "@/components/admin/cloud/AWSLightsailCreateSections";
@@ -16,13 +14,14 @@ import { CompactSummaryMetric } from "@/components/admin/cloud/AWSPanelDetailCom
 import {
   Badge,
   Button,
+  CloudFormActions,
   CloudSensitiveDialogContent,
   Dialog,
-  Flex,
 } from "@/components/admin/cloud/cloud-ui";
 import { WarningAlert } from "@/components/ui/warning-alert";
 import {
   getAWSRegionOptionLabel,
+  getStaticLightsailBundlePresetLabel,
   type AWSRegionOption,
   type StaticLightsailBlueprintPreset,
   type StaticLightsailBundlePreset,
@@ -46,7 +45,6 @@ type AWSEC2CreateDialogProps = {
   imageLabel: string;
   instanceTypeLabel: string;
   coreSummary: string;
-  networkSummary: string;
   bootstrapSummary: string;
   architectureMismatch: boolean;
   selectedImageArchitecture: string;
@@ -70,7 +68,6 @@ export function AWSEC2CreateDialog({
   imageLabel,
   instanceTypeLabel,
   coreSummary,
-  networkSummary,
   bootstrapSummary,
   architectureMismatch,
   selectedImageArchitecture,
@@ -116,10 +113,6 @@ export function AWSEC2CreateDialog({
                 label={t("cloud.table.size", "Size")}
                 value={instanceTypeLabel || "-"}
               />
-              <CompactSummaryMetric
-                label={t("cloud.providers.aws.create_network", "Network & Access")}
-                value={networkSummary || "-"}
-              />
             </div>
           </section>
 
@@ -154,13 +147,6 @@ export function AWSEC2CreateDialog({
             onRegionChange={onRegionChange}
           />
 
-          <EC2CreateNetworkSection
-            t={t}
-            form={form}
-            setForm={setForm}
-            summary={networkSummary}
-          />
-
           <EC2CreateBootstrapSection
             t={t}
             form={form}
@@ -168,9 +154,9 @@ export function AWSEC2CreateDialog({
             summary={bootstrapSummary}
           />
 
-          <Flex justify="end" gap="2">
+          <CloudFormActions>
             <Button variant="outline" onClick={() => onOpenChange(false)} disabled={submitting}>
-              {t("common.cancel", "Cancel")}
+              {t("common.cancel", "取消")}
             </Button>
             <Button
               onClick={() => {
@@ -185,10 +171,10 @@ export function AWSEC2CreateDialog({
               }
             >
               {submitting
-                ? t("cloud.creating", "Creating...")
+                ? t("cloud.creating", "创建中...")
                 : t("cloud.providers.aws.create", "Launch EC2")}
             </Button>
-          </Flex>
+          </CloudFormActions>
         </div>
       </CloudSensitiveDialogContent>
     </Dialog.Root>
@@ -207,7 +193,6 @@ type AWSLightsailCreateDialogProps = {
   selectedBlueprintPreset: StaticLightsailBlueprintPreset | null;
   selectedBundlePreset: StaticLightsailBundlePreset | null;
   coreSummary: string;
-  accessSummary: string;
   bootstrapSummary: string;
   platformMismatch: boolean;
   regionOptions: AWSRegionOption[];
@@ -229,7 +214,6 @@ export function AWSLightsailCreateDialog({
   selectedBlueprintPreset,
   selectedBundlePreset,
   coreSummary,
-  accessSummary,
   bootstrapSummary,
   platformMismatch,
   regionOptions,
@@ -244,7 +228,7 @@ export function AWSLightsailCreateDialog({
         title={t("cloud.providers.aws.lightsail_create", "Create Lightsail")}
         description={t(
             "cloud.providers.aws.lightsail_create_description",
-            "Create a Lightsail instance with built-in blueprint and bundle presets, or enter IDs manually without loading the AWS catalog.",
+            "Create a Lightsail instance with built-in blueprint and bundle presets without loading the AWS catalog.",
           )}
         icon={<Server className="size-4" />}
         badge={<Badge color="blue">{t("cloud.providers.aws.lightsail_label", "AWS Lightsail")}</Badge>}
@@ -256,7 +240,7 @@ export function AWSLightsailCreateDialog({
             tone="info"
             description={t(
               "cloud.providers.aws.lightsail_static_presets_help",
-              "This Lightsail dialog now uses built-in static presets instead of loading the AWS catalog. The availability zone defaults to region + a, blueprint and bundle can be selected from common presets or entered manually, and the key pair name is typed directly.",
+              "This Lightsail dialog uses built-in static presets instead of loading the AWS catalog. The availability zone defaults to region + a, and blueprint and bundle are selected from common presets.",
             )}
           />
           <section className="pt-0">
@@ -275,7 +259,7 @@ export function AWSLightsailCreateDialog({
               />
               <CompactSummaryMetric
                 label={t("cloud.table.size", "Size")}
-                value={selectedBundlePreset ? selectedBundlePreset.label : form.bundle_id || "-"}
+                value={selectedBundlePreset ? getStaticLightsailBundlePresetLabel(selectedBundlePreset) : form.bundle_id || "-"}
               />
             </div>
           </section>
@@ -295,13 +279,6 @@ export function AWSLightsailCreateDialog({
             platformMismatch={platformMismatch}
           />
 
-          <LightsailCreateAccessSection
-            t={t}
-            form={form}
-            setForm={setForm}
-            summary={accessSummary}
-          />
-
           <LightsailCreateBootstrapSection
             t={t}
             form={form}
@@ -309,9 +286,9 @@ export function AWSLightsailCreateDialog({
             summary={bootstrapSummary}
           />
 
-          <Flex justify="end" gap="2">
+          <CloudFormActions>
             <Button variant="outline" onClick={() => onOpenChange(false)} disabled={submitting}>
-              {t("common.cancel", "Cancel")}
+              {t("common.cancel", "取消")}
             </Button>
             <Button
               onClick={() => {
@@ -327,10 +304,10 @@ export function AWSLightsailCreateDialog({
               }
             >
               {submitting
-                ? t("cloud.creating", "Creating...")
+                ? t("cloud.creating", "创建中...")
                 : t("cloud.providers.aws.lightsail_create", "Create Lightsail")}
             </Button>
-          </Flex>
+          </CloudFormActions>
         </div>
       </CloudSensitiveDialogContent>
     </Dialog.Root>

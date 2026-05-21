@@ -1000,7 +1000,7 @@ function PolicySummary({
     : t("billing.no_expiry", { defaultValue: "长期有效" });
 
   return (
-    <AdminSurface className="rounded-lg border border-border bg-card px-4 py-3 shadow-sm shadow-slate-900/5 dark:border-slate-800 dark:bg-slate-950">
+    <AdminSurface className="rounded-xl border border-slate-200/80 bg-white px-4 py-3 shadow-[0_18px_45px_-34px_rgba(15,23,42,0.65)] dark:border-slate-800/90 dark:bg-slate-950">
       <div className="flex min-w-0 flex-wrap items-center gap-x-6 gap-y-2 text-sm">
         <div className="flex min-w-0 items-center gap-2">
           <span className="text-muted-foreground">
@@ -1096,7 +1096,7 @@ function ShopPanel({
         featureOptions={featureOptions}
       />
       <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_24rem]">
-        <div className="overflow-hidden rounded-lg border border-border bg-card shadow-sm shadow-slate-900/5 dark:border-slate-800 dark:bg-slate-950">
+        <div className="overflow-hidden rounded-xl border border-slate-200/80 bg-white shadow-[0_18px_45px_-34px_rgba(15,23,42,0.65)] dark:border-slate-800/90 dark:bg-slate-950">
           {plans.map((plan) => {
             const selected = String(plan.id) === selectedPlanID;
             return (
@@ -1145,7 +1145,7 @@ function ShopPanel({
           })}
         </div>
 
-        <AdminSurface className="self-start rounded-lg border border-border bg-card p-4 shadow-sm shadow-slate-900/5 dark:border-slate-800 dark:bg-slate-950">
+        <AdminSurface className="self-start rounded-xl border border-slate-200/80 bg-white p-4 shadow-[0_18px_45px_-34px_rgba(15,23,42,0.65)] dark:border-slate-800/90 dark:bg-slate-950">
           <div className="flex items-center gap-2 text-sm font-semibold">
             <CreditCard className="h-4 w-4" />
             {t("billing.checkout")}
@@ -1236,7 +1236,7 @@ function PlansPanel({
 
   return (
     <div className="space-y-3">
-      <div className="flex justify-end rounded-lg border border-border bg-card p-3 shadow-sm shadow-slate-900/5 dark:border-slate-800 dark:bg-slate-950">
+      <div className="flex justify-end rounded-xl border border-slate-200/80 bg-white p-3 shadow-[0_18px_45px_-34px_rgba(15,23,42,0.65)] dark:border-slate-800/90 dark:bg-slate-950">
         <Button onClick={() => openPlanDialog()}>
           <Plus className="mr-2 h-4 w-4" />
           {t("billing.new_plan")}
@@ -1360,7 +1360,7 @@ function PaymentsPanel({
 
   return (
     <div className="space-y-3">
-      <div className="flex justify-end rounded-lg border border-border bg-card p-3 shadow-sm shadow-slate-900/5 dark:border-slate-800 dark:bg-slate-950">
+      <div className="flex justify-end rounded-xl border border-slate-200/80 bg-white p-3 shadow-[0_18px_45px_-34px_rgba(15,23,42,0.65)] dark:border-slate-800/90 dark:bg-slate-950">
         <Button onClick={() => openPaymentDialog()}>
           <Plus className="mr-2 h-4 w-4" />
           {t("billing.new_payment")}
@@ -1911,7 +1911,7 @@ function PaymentDialog({
                 <TextField.Root value={form.code} onChange={(event) => setForm((prev) => ({ ...prev, code: event.target.value }))} placeholder="manual" />
               </Field>
               <Field label={t("billing.payment_name")} required>
-                <TextField.Root value={form.name} onChange={(event) => setForm((prev) => ({ ...prev, name: event.target.value }))} placeholder="Manual payment" />
+                <TextField.Root value={form.name} onChange={(event) => setForm((prev) => ({ ...prev, name: event.target.value }))} placeholder={t("billing.payment_name_placeholder", "手动支付")} />
               </Field>
               <Field label={t("billing.type")}>
                 <Select.Root value={form.type} onValueChange={handleTypeChange}>

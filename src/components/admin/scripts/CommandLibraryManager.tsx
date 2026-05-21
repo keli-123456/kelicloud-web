@@ -40,9 +40,15 @@ import { AdminPagination } from "@/components/admin/AdminPagination";
 import { AdminRowActions } from "@/components/admin/AdminRowActions";
 import { formatApiErrorMessage, getReadableErrorMessage } from "@/lib/apiErrorMessage";
 import {
+  ADMIN_FORM_BODY_CLASS,
+  ADMIN_FORM_DIALOG_CHROME_CLASS,
   ADMIN_FORM_DIALOG_WIDE_CLASS,
   ADMIN_FORM_FIELD_CLASS,
-  ADMIN_FORM_SCROLL_CLASS,
+  ADMIN_FORM_FOOTER_CLASS,
+  ADMIN_FORM_HEADER_CLASS,
+  ADMIN_FORM_HEADER_INSET_CLASS,
+  ADMIN_FORM_HELP_CLASS,
+  ADMIN_FORM_LABEL_CLASS,
 } from "@/components/admin/AdminFormStyles";
 import {
   AlertDialog,
@@ -61,8 +67,6 @@ import {
   DialogClose,
   DialogContent,
   DialogDescription,
-  DialogFooter,
-  DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -102,7 +106,7 @@ const EMPTY_FORM_VALUES: CommandFormValues = {
 const DEFAULT_PAGE_SIZE = 20;
 
 const scriptsPanelClass =
-  "overflow-hidden rounded-lg border border-border bg-card shadow-sm shadow-slate-900/5";
+  "overflow-hidden rounded-xl border border-slate-200/80 bg-white shadow-[0_18px_45px_-34px_rgba(15,23,42,0.65)] dark:border-slate-800/90 dark:bg-slate-950";
 
 const CodeEditor = lazy(async () => {
   const module = await import("@/components/ui/code-editor");
@@ -504,7 +508,7 @@ export default function CommandLibraryManager({
         </div>
         <div className="grid gap-[14px] md:grid-cols-3">
           {Array.from({ length: 3 }).map((_, index) => (
-            <div key={index} className="min-h-[92px] rounded-lg border border-border bg-card p-[14px] shadow-sm shadow-slate-900/5">
+            <div key={index} className="min-h-[92px] rounded-xl border border-slate-200/80 bg-white p-[14px] shadow-sm shadow-slate-900/5 dark:border-slate-800 dark:bg-slate-950">
               <div className="h-3 w-20 rounded bg-muted" />
               <div className="mt-3 h-7 w-14 rounded bg-muted" />
               <div className="mt-3 h-3 w-32 rounded bg-muted" />
@@ -537,7 +541,7 @@ export default function CommandLibraryManager({
         <div className="grid gap-[14px] xl:grid-cols-[minmax(0,1fr)_360px]">
           <section className={scriptsPanelClass}>
             <div className="flex min-h-[54px] flex-col gap-3 border-b border-border px-[14px] py-3 lg:flex-row lg:items-center lg:justify-between">
-              <div className="flex w-full rounded-md border border-border bg-muted/30 p-1 sm:w-auto">
+              <div className="flex w-full rounded-lg border border-slate-200/80 bg-slate-50 p-1 shadow-sm shadow-slate-900/5 dark:border-slate-800 dark:bg-slate-900/35 sm:w-auto">
                 <ScriptToolbarTab active>{t("command_clipboard.open_library", { defaultValue: "脚本库" })}</ScriptToolbarTab>
                 <ScriptToolbarLink to="/admin/exec">{t("exec.history", { defaultValue: "执行记录" })}</ScriptToolbarLink>
                 <ScriptToolbarLink to="/admin/exec">{t("exec.result", { defaultValue: "结果" })}</ScriptToolbarLink>
@@ -826,32 +830,35 @@ description={t("command_clipboard.select_description", { defaultValue: "从左�
         <DialogContent
           className={cn(
             ADMIN_FORM_DIALOG_WIDE_CLASS,
+            ADMIN_FORM_DIALOG_CHROME_CLASS,
             "h-[min(92vh,920px)] sm:max-w-[calc(100vw-2rem)] lg:max-w-6xl xl:max-w-7xl",
           )}
         >
-          <DialogHeader className="shrink-0">
-            <DialogTitle>
-              {editingCommand
-              ? t("command_clipboard.editor.edit_title", {
-                    defaultValue: "编辑脚本",
-                  })
-                : t("command_clipboard.editor.add_title", {
-                    defaultValue: "新增脚本",
-                  })}
-            </DialogTitle>
-            <DialogDescription>
-              {t("command_clipboard.page_description", {
-                defaultValue:
-                  "集中管理用于远程执行和云实例场景的脚本。",
-              })}
-            </DialogDescription>
-          </DialogHeader>
+          <div className={ADMIN_FORM_HEADER_CLASS}>
+            <div className={ADMIN_FORM_HEADER_INSET_CLASS}>
+              <DialogTitle>
+                {editingCommand
+                ? t("command_clipboard.editor.edit_title", {
+                      defaultValue: "编辑脚本",
+                    })
+                  : t("command_clipboard.editor.add_title", {
+                      defaultValue: "新增脚本",
+                    })}
+              </DialogTitle>
+              <DialogDescription>
+                {t("command_clipboard.page_description", {
+                  defaultValue:
+                    "集中管理用于远程执行和云实例场景的脚本。",
+                })}
+              </DialogDescription>
+            </div>
+          </div>
 
           <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col overflow-hidden">
-            <div className={cn(ADMIN_FORM_SCROLL_CLASS, "flex flex-col gap-4")}>
+            <div className={cn(ADMIN_FORM_BODY_CLASS, "flex flex-col gap-4")}>
               <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_10rem]">
                 <div className={ADMIN_FORM_FIELD_CLASS}>
-                  <label className="text-sm font-medium text-slate-900 dark:text-slate-100">
+                  <label className={ADMIN_FORM_LABEL_CLASS}>
                     {t("common.name")}
                   </label>
                   <Input
@@ -864,7 +871,7 @@ description={t("command_clipboard.select_description", { defaultValue: "从左�
                 </div>
 
                 <div className={ADMIN_FORM_FIELD_CLASS}>
-                  <label className="text-sm font-medium text-slate-900 dark:text-slate-100">
+                  <label className={ADMIN_FORM_LABEL_CLASS}>
                     {t("common.weight")}
                   </label>
                   <Input
@@ -876,7 +883,7 @@ description={t("command_clipboard.select_description", { defaultValue: "从左�
               </div>
 
               <div className={ADMIN_FORM_FIELD_CLASS}>
-                <label className="text-sm font-medium text-slate-900 dark:text-slate-100">
+                <label className={ADMIN_FORM_LABEL_CLASS}>
                   {t("common.remark")}
                 </label>
                   <Input
@@ -888,14 +895,14 @@ description={t("command_clipboard.select_description", { defaultValue: "从左�
                   />
                 </div>
 
-              <p className="text-xs leading-5 text-slate-500 dark:text-slate-400">
+              <p className={ADMIN_FORM_HELP_CLASS}>
                 {t("command_clipboard.editor.weight_hint", {
                   defaultValue: "权重越高，排序越靠前。",
                 })}
               </p>
 
               <div className={cn(ADMIN_FORM_FIELD_CLASS, "min-h-0")}>
-                <label className="text-sm font-medium text-slate-900 dark:text-slate-100">
+                <label className={ADMIN_FORM_LABEL_CLASS}>
                   {t("common.content")}
                 </label>
                 <Suspense
@@ -930,14 +937,14 @@ description={t("command_clipboard.select_description", { defaultValue: "从左�
               </div>
             </div>
 
-            <DialogFooter className="mt-4 shrink-0">
+            <div className={ADMIN_FORM_FOOTER_CLASS}>
               <DialogClose asChild>
                 <Button variant="outline">{t("common.cancel")}</Button>
               </DialogClose>
               <Button type="submit" disabled={submitting}>
                 {editingCommand ? t("common.update") : t("common.add")}
               </Button>
-            </DialogFooter>
+            </div>
           </form>
         </DialogContent>
       </Dialog>

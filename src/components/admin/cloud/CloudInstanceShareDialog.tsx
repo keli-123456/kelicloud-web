@@ -173,7 +173,7 @@ function ShareOptionRow({
             : "border-border bg-card hover:bg-muted/50",
       )}
     >
-      <span className="mt-0.5 inline-flex size-8 shrink-0 items-center justify-center rounded-lg border border-border bg-muted text-muted-foreground">
+      <span className="mt-0.5 inline-flex size-8 shrink-0 items-center justify-center rounded-xl border border-slate-200/80 bg-slate-50 text-muted-foreground dark:border-slate-800 dark:bg-slate-900/35">
         {icon}
       </span>
       <span className="min-w-0 flex-1">
@@ -266,7 +266,7 @@ export default function CloudInstanceShareDialog({
           <>
             <div className="grid min-h-0 flex-1 gap-0 overflow-hidden lg:grid-cols-[minmax(0,1fr)_360px]">
               <div className="min-w-0 space-y-5 overflow-y-auto px-5 py-5 [scrollbar-gutter:stable]">
-                <div className="rounded-lg border border-border bg-muted/35 px-4 py-4">
+                <div className="rounded-xl border border-slate-200/80 bg-slate-50 px-4 py-4 dark:border-slate-800 dark:bg-slate-900/35">
                   <div className="flex min-w-0 items-start justify-between gap-4">
                     <div className="min-w-0">
                       <div className="text-xs font-semibold uppercase tracking-normal text-muted-foreground">
@@ -399,7 +399,7 @@ export default function CloudInstanceShareDialog({
                   <Textarea
                     className="min-h-24"
                     value={note}
-                    placeholder={t("cloud.share.note_placeholder", "Optional note shown on the public share page")}
+                    placeholder={t("cloud.share.note_placeholder", "可选，显示在公开分享页的备注")}
                     onChange={(event) => onNoteChange(event.target.value)}
                   />
                 </div>
@@ -418,7 +418,7 @@ export default function CloudInstanceShareDialog({
                         {shareStatusLabel}
                       </div>
                     </div>
-                    <span className="inline-flex size-9 shrink-0 items-center justify-center rounded-lg border border-border bg-card text-muted-foreground">
+                    <span className="inline-flex size-9 shrink-0 items-center justify-center rounded-xl border border-slate-200/80 bg-white text-muted-foreground dark:border-slate-800 dark:bg-slate-950">
                       <Link2 className="size-4" />
                     </span>
                   </div>
@@ -440,8 +440,8 @@ export default function CloudInstanceShareDialog({
                         size="icon"
                         disabled={!hasLink}
                         onClick={onCopyLink}
-                        aria-label={t("common.copy", "Copy")}
-                        title={t("common.copy", "Copy")}
+                        aria-label={t("common.copy", "复制")}
+                        title={t("common.copy", "复制")}
                       >
                         <Copy className="size-4" />
                       </Button>
@@ -474,7 +474,7 @@ export default function CloudInstanceShareDialog({
                   />
                 </div>
 
-                <div className="mt-4 rounded-lg border border-border bg-card px-4 py-3">
+                <div className="mt-4 rounded-xl border border-slate-200/80 bg-white px-4 py-3 shadow-sm shadow-slate-900/5 dark:border-slate-800 dark:bg-slate-950">
                   <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
                     <Clock3 className="size-4 text-muted-foreground" />
                     {t("cloud.share.lifecycle", "Lifecycle")}
@@ -504,7 +504,7 @@ export default function CloudInstanceShareDialog({
               <Button onClick={onSave} disabled={saving || deleting}>
                 <Share2 className="mr-2 h-4 w-4" />
                 {saving
-                  ? t("cloud.share.saving", "Saving...")
+                  ? t("cloud.share.saving", "保存中...")
                   : share?.token
                     ? t("cloud.share.update", "Update Share")
                     : t("cloud.share.create", "Create Share")}

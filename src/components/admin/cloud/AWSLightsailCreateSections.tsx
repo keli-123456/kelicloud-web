@@ -15,7 +15,6 @@ import {
 import { WarningAlert } from "@/components/ui/warning-alert";
 import { cn } from "@/lib/utils";
 import {
-  SELECT_NONE,
   STATIC_LIGHTSAIL_BLUEPRINT_PRESETS,
   STATIC_LIGHTSAIL_BUNDLE_PRESETS,
   getDefaultLightsailAvailabilityZone,
@@ -67,6 +66,7 @@ export function LightsailCreateCoreSection({
       title={t("cloud.providers.aws.create_core", "Core")}
       summary={summary || "-"}
       defaultOpen
+      hideSummary
     >
       <div className={cn("grid gap-4", !singleColumn && "sm:grid-cols-2")}>
         <div>
@@ -116,11 +116,8 @@ export function LightsailCreateCoreSection({
             {t("cloud.form.image", "Image")}
           </label>
           <Select.Root
-            value={selectedBlueprintPreset?.value || SELECT_NONE}
+            value={selectedBlueprintPreset?.value}
             onValueChange={(value) => {
-              if (value === SELECT_NONE) {
-                return;
-              }
               const nextBlueprint = STATIC_LIGHTSAIL_BLUEPRINT_PRESETS.find((preset) => preset.value === value);
               if (!nextBlueprint) {
                 return;
@@ -134,9 +131,6 @@ export function LightsailCreateCoreSection({
           >
             <Select.Trigger placeholder={t("cloud.form.image_placeholder", "Select an image")} />
             <Select.Content>
-              <Select.Item value={SELECT_NONE}>
-                {t("cloud.form.manual_entry", "Manual entry")}
-              </Select.Item>
               {STATIC_LIGHTSAIL_BLUEPRINT_PRESETS.map((preset) => (
                 <Select.Item key={preset.value} value={preset.value}>
                   {getStaticLightsailBlueprintPresetLabel(preset)}
@@ -144,33 +138,19 @@ export function LightsailCreateCoreSection({
               ))}
             </Select.Content>
           </Select.Root>
-          <TextField.Root
-            className="mt-3"
-            value={form.blueprint_id}
-            placeholder={t("cloud.providers.aws.lightsail_blueprint_manual_placeholder", "Or enter a blueprint ID manually")}
-            onChange={(event) =>
-              setForm((previous) => ({ ...previous, blueprint_id: event.target.value }))
-            }
-          />
         </div>
         <div>
           <label className={cloudPanelFieldLabelClassName}>
             {t("cloud.form.size", "Size")}
           </label>
           <Select.Root
-            value={selectedBundlePreset?.value || SELECT_NONE}
+            value={selectedBundlePreset?.value}
             onValueChange={(value) => {
-              if (value === SELECT_NONE) {
-                return;
-              }
               setForm((previous) => ({ ...previous, bundle_id: value }));
             }}
           >
             <Select.Trigger placeholder={t("cloud.form.size_placeholder", "Select a size")} />
             <Select.Content>
-              <Select.Item value={SELECT_NONE}>
-                {t("cloud.form.manual_entry", "Manual entry")}
-              </Select.Item>
               {STATIC_LIGHTSAIL_BUNDLE_PRESETS.map((preset) => (
                 <Select.Item key={preset.value} value={preset.value}>
                   {getStaticLightsailBundlePresetLabel(preset)}
@@ -178,14 +158,6 @@ export function LightsailCreateCoreSection({
               ))}
             </Select.Content>
           </Select.Root>
-          <TextField.Root
-            className="mt-3"
-            value={form.bundle_id}
-            placeholder={t("cloud.providers.aws.lightsail_bundle_manual_placeholder", "Or enter a bundle ID manually")}
-            onChange={(event) =>
-              setForm((previous) => ({ ...previous, bundle_id: event.target.value }))
-            }
-          />
         </div>
       </div>
 
@@ -224,7 +196,7 @@ export function LightsailCreateAccessSection({
           </label>
           <TextField.Root
             value={form.key_pair_name || ""}
-            placeholder={t("cloud.providers.aws.key_pair_manual_placeholder", "Optional key pair name")}
+            placeholder={t("cloud.providers.aws.key_pair_manual_placeholder", "可选密钥对名称")}
             onChange={(event) =>
               setForm((previous) => ({ ...previous, key_pair_name: event.target.value }))
             }

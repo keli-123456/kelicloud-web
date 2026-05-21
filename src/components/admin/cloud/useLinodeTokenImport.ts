@@ -41,7 +41,7 @@ export function useLinodeTokenImport({
       group: importGroup,
     }));
     if (!tokens.length) {
-      toast.error(t("cloud.tokens.import_empty", "No valid tokens found"));
+      toast.error(t("cloud.tokens.import_empty", "没有识别到可用令牌"));
       return;
     }
 

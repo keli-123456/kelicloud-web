@@ -126,7 +126,7 @@ export function DigitalOceanDropletDetailDialog({
                         }}
                       >
                         <KeyRound className="mr-1 h-3.5 w-3.5" />
-                        {t("cloud.password.view", "View Password")}
+                        {t("cloud.password.view", "查看密码")}
                       </Button>
                     ) : (
                       t("cloud.password.not_saved", "Not saved")

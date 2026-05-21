@@ -6,13 +6,13 @@ import {
   Badge,
   Button,
   CloudDetailItem,
+  CloudCodeTextarea,
   CloudImportFormSection,
   CloudSecretValueBlock,
   CloudSensitiveDialogContent,
   CloudStatusNotice,
   Dialog,
   Flex,
-  TextArea,
   TextField,
   cloudPanelFieldLabelClassName,
 } from "@/components/admin/cloud/cloud-ui";
@@ -73,7 +73,7 @@ function SecretSidePanel({
 }) {
   return (
     <div className="space-y-4">
-      <div className="rounded-lg border border-border bg-card px-4 py-3">
+      <div className="rounded-xl border border-slate-200/80 bg-white px-4 py-3 shadow-sm shadow-slate-900/5 dark:border-slate-800 dark:bg-slate-950">
         <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
           <ShieldCheck className="size-4 text-blue-600" />
           {title}
@@ -86,7 +86,7 @@ function SecretSidePanel({
       <CloudStatusNotice tone="blue">
         {t(
           "cloud.secret.copy_hint",
-          "Copy sensitive values only when needed, then close this dialog when you are done.",
+          "只在需要时复制敏感值，使用完成后请关闭弹窗。",
         )}
       </CloudStatusNotice>
     </div>
@@ -107,31 +107,29 @@ export function AzureCredentialImportDialog({
   return (
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
       <CloudSensitiveDialogContent
-        title={t("cloud.providers.azure.import_dialog_title", "Batch Import Azure Credentials")}
+        title={t("cloud.providers.azure.import_dialog_title", "批量导入 Azure 凭证")}
         description={t(
           "cloud.providers.azure.import_dialog_description",
-          "One credential per line (CSV/pipe/tab) or paste JSON object/array. Azure CLI service principal JSON is supported; subscription_id is optional.",
+          "每行一个凭证（CSV/竖线/Tab），或直接粘贴 JSON 对象/数组。支持 Azure CLI 服务主体 JSON；subscription_id 可选。",
         )}
         icon={<Upload className="size-4" />}
         badge={<Badge color="blue">{t("cloud.providers.azure.name", "Azure")}</Badge>}
         className="sm:max-w-3xl"
       >
         <CloudImportFormSection
-          groupLabel={t("cloud.tokens.group", "Group")}
+          groupLabel={t("cloud.tokens.group", "分组")}
           groupControl={(
             <TextField.Root
               className="sm:max-w-xs"
               value={importGroup}
-              placeholder={t("cloud.tokens.group_placeholder", "Optional token group")}
+              placeholder={t("cloud.tokens.group_placeholder", "可选的凭证分组")}
               onChange={(event) => setImportGroup(event.target.value)}
             />
           )}
-          editorLabel={t("cloud.providers.azure.credential_content", "Credential Content")}
+          editorLabel={t("cloud.providers.azure.credential_content", "凭证内容")}
           editor={(
-            <TextArea
-              rows={10}
-              resize="vertical"
-              className="min-h-60 font-mono text-sm leading-6"
+            <CloudCodeTextarea
+              minHeightClassName="min-h-72"
               value={importText}
               onChange={(event) => setImportText(event.target.value)}
               placeholder='{"appId":"...","displayName":"azure-cli-...","password":"...","tenant":"..."}'
@@ -140,12 +138,12 @@ export function AzureCredentialImportDialog({
           footer={(
             <>
               <Button variant="outline" onClick={() => onOpenChange(false)} disabled={saving}>
-                {t("common.cancel", "Cancel")}
+                {t("common.cancel", "取消")}
               </Button>
               <Button onClick={() => { void onImport(); }} disabled={saving}>
                 {saving
-                  ? t("cloud.providers.azure.importing", "Importing...")
-                  : t("cloud.providers.azure.import", "Import Credentials")}
+                  ? t("cloud.providers.azure.importing", "导入中...")
+                  : t("cloud.providers.azure.import", "导入凭证")}
               </Button>
             </>
           )}
@@ -167,10 +165,10 @@ export function AzureCredentialGroupDialog({
   return (
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
       <CloudSensitiveDialogContent
-        title={t("cloud.tokens.set_group", "Set Group")}
+        title={t("cloud.tokens.set_group", "设置分组")}
         description={t("cloud.tokens.set_group_description", {
           count: 1,
-          defaultValue: "Update the group for 1 selected credential. Leave empty to remove the group.",
+          defaultValue: "为已选 1 个凭证设置分组。留空则清除分组。",
         })}
         icon={<Tags className="size-4" />}
         badge={<Badge color="blue">{t("cloud.providers.azure.name", "Azure")}</Badge>}
@@ -178,18 +176,18 @@ export function AzureCredentialGroupDialog({
           <CloudStatusNotice tone="gray">
             {t(
               "cloud.tokens.group_dialog_hint",
-              "Groups only affect organization and filtering. They do not change the credential itself.",
+              "分组只影响组织和筛选，不会修改凭证本身。",
             )}
           </CloudStatusNotice>
         )}
       >
         <div className="space-y-2">
           <label className={cloudPanelFieldLabelClassName}>
-            {t("cloud.tokens.group", "Group")}
+            {t("cloud.tokens.group", "分组")}
           </label>
           <TextField.Root
             value={value}
-            placeholder={t("cloud.tokens.group_placeholder", "Optional token group")}
+            placeholder={t("cloud.tokens.group_placeholder", "可选的凭证分组")}
             onChange={(event) => onValueChange(event.target.value)}
           />
         </div>
@@ -199,10 +197,10 @@ export function AzureCredentialGroupDialog({
             onClick={() => onOpenChange(false)}
             disabled={saving}
           >
-            {t("common.cancel", "Cancel")}
+            {t("common.cancel", "取消")}
           </Button>
           <Button onClick={() => { void onSave(); }} disabled={saving}>
-            {saving ? t("common.saving", "Saving...") : t("common.save", "Save")}
+            {saving ? t("common.saving", "保存中...") : t("common.save", "保存")}
           </Button>
         </Flex>
       </CloudSensitiveDialogContent>
@@ -220,29 +218,29 @@ export function AzureCredentialSecretDialog({
     <Dialog.Root open={Boolean(credentialSecret)} onOpenChange={(open) => !open && onClose()}>
       {credentialSecret ? (
         <CloudSensitiveDialogContent
-          title={t("cloud.providers.azure.credential_dialog_title", "Credential Details")}
+          title={t("cloud.providers.azure.credential_dialog_title", "凭证详情")}
           description={t(
             "cloud.providers.azure.credential_dialog_description",
-            "View the full Azure app credential only when you need to copy or verify it.",
+            "仅在需要复制或核对时查看完整 Azure 应用凭证。",
           )}
           icon={<KeyRound className="size-4" />}
           badge={(
             <>
               <Badge color="blue">{t("cloud.providers.azure.name", "Azure")}</Badge>
-              <Badge color="amber">{t("cloud.providers.azure.app_credential", "App Credential")}</Badge>
+              <Badge color="amber">{t("cloud.providers.azure.app_credential", "应用凭证")}</Badge>
             </>
           )}
           side={(
             <SecretSidePanel
               t={t}
-              title={t("cloud.secret.scope", "Access Scope")}
+              title={t("cloud.secret.scope", "访问范围")}
               description={t(
                 "cloud.secret.token_scope_hint",
-                "This credential can manage cloud resources through the provider API.",
+                "这个凭证可以通过云厂商 API 管理云资源。",
               )}
             >
               <CloudDetailItem
-                label={t("cloud.providers.azure.default_location", "Default Location")}
+                label={t("cloud.providers.azure.default_location", "默认区域")}
                 value={credentialSecret.secret.default_location || "-"}
                 className="bg-card"
               />
@@ -250,22 +248,22 @@ export function AzureCredentialSecretDialog({
           )}
         >
           <div className="grid gap-3 sm:grid-cols-2">
-            <CloudDetailItem label={t("cloud.table.name", "Name")} value={credentialSecret.secret.credential_name || "-"} className="bg-card" />
-            <CloudDetailItem label={t("cloud.providers.azure.subscription", "Subscription")} value={credentialSecret.secret.subscription_display_name || credentialSecret.secret.subscription_id || "-"} className="bg-card" />
+            <CloudDetailItem label={t("cloud.table.name", "名称")} value={credentialSecret.secret.credential_name || "-"} className="bg-card" />
+            <CloudDetailItem label={t("cloud.providers.azure.subscription", "订阅")} value={credentialSecret.secret.subscription_display_name || credentialSecret.secret.subscription_id || "-"} className="bg-card" />
             <CloudDetailItem label={t("cloud.providers.azure.tenant_id", "Tenant ID")} value={credentialSecret.secret.tenant_id || "-"} className="bg-card" />
           </div>
 
           <CloudSecretValueBlock
             title={t("cloud.providers.azure.client_id", "Client ID")}
-            copyLabel={t("common.copy", "Copy")}
-            onCopy={() => void onCopy(credentialSecret.secret.client_id, t("cloud.providers.azure.copy_client_id", "Client ID copied"))}
+            copyLabel={t("common.copy", "复制")}
+            onCopy={() => void onCopy(credentialSecret.secret.client_id, t("cloud.providers.azure.copy_client_id", "客户端 ID 已复制"))}
             value={credentialSecret.secret.client_id || "-"}
           />
 
           <CloudSecretValueBlock
             title={t("cloud.providers.azure.client_secret", "Client Secret")}
-            copyLabel={t("common.copy", "Copy")}
-            onCopy={() => void onCopy(credentialSecret.secret.client_secret, t("cloud.providers.azure.copy_client_secret", "Client secret copied"))}
+            copyLabel={t("common.copy", "复制")}
+            onCopy={() => void onCopy(credentialSecret.secret.client_secret, t("cloud.providers.azure.copy_client_secret", "客户端密钥已复制"))}
             value={credentialSecret.secret.client_secret || "-"}
           />
         </CloudSensitiveDialogContent>
@@ -284,29 +282,29 @@ export function AzureSavedPasswordDialog({
     <Dialog.Root open={Boolean(savedPassword)} onOpenChange={(open) => !open && onClose()}>
       {savedPassword ? (
         <CloudSensitiveDialogContent
-          title={t("cloud.password.view", "View Password")}
+          title={t("cloud.password.view", "查看密码")}
           description={t(
             "cloud.providers.azure.password_dialog_description",
-            "View the saved root password for this Azure VM from the current active credential.",
+            "查看当前活动凭证下这台 Azure VM 保存的 Root 密码。",
           )}
           icon={<LockKeyhole className="size-4" />}
           badge={(
             <>
               <Badge color="blue">{t("cloud.providers.azure.name", "Azure")}</Badge>
-              <Badge color="green">{t("cloud.password.saved", "Saved")}</Badge>
+              <Badge color="green">{t("cloud.password.saved", "已保存")}</Badge>
             </>
           )}
           side={(
             <SecretSidePanel
               t={t}
-              title={t("cloud.password.login_context", "Login Context")}
+              title={t("cloud.password.login_context", "登录信息")}
               description={t(
                 "cloud.password.login_context_description",
-                "Use the username and password together when connecting to this instance.",
+                "连接这个实例时请同时使用用户名和密码。",
               )}
             >
               <CloudDetailItem
-                label={t("cloud.providers.azure.checked_at", "Last Checked")}
+                label={t("cloud.providers.azure.checked_at", "最近检查")}
                 value={formatDateTime(savedPassword.credential.updated_at)}
                 className="bg-card"
               />
@@ -314,14 +312,13 @@ export function AzureSavedPasswordDialog({
           )}
         >
           <div className="grid gap-3 sm:grid-cols-2">
-            <CloudDetailItem label={t("cloud.table.name", "Name")} value={savedPassword.instance.name || "-"} className="bg-card" />
-            <CloudDetailItem label={t("cloud.providers.azure.resource_group", "Resource Group")} value={savedPassword.instance.resource_group || "-"} className="bg-card" />
+            <CloudDetailItem label={t("cloud.table.name", "名称")} value={savedPassword.instance.name || "-"} className="bg-card" />
             <CloudDetailItem label={t("cloud.password.username", "登录用户")} value={savedPassword.credential.username || "-"} className="bg-card" />
           </div>
           <CloudSecretValueBlock
-            title={t("cloud.password.root_password", "Root Password")}
-            copyLabel={t("common.copy", "Copy")}
-            onCopy={() => void onCopy(savedPassword.credential.root_password, t("cloud.password.copy_success", "Root password copied"))}
+            title={t("cloud.password.root_password", "Root 密码")}
+            copyLabel={t("common.copy", "复制")}
+            onCopy={() => void onCopy(savedPassword.credential.root_password, t("cloud.password.copy_success", "Root 密码已复制"))}
             value={savedPassword.credential.root_password || "-"}
           />
         </CloudSensitiveDialogContent>

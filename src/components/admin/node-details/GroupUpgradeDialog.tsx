@@ -19,9 +19,9 @@ import type { Record as LiveRecord } from "@/types/LiveData";
 import { formatBytes } from "@/utils/unitHelper";
 
 const NODE_DIALOG_CONTENT_CLASS =
-  "max-h-[90vh] w-[min(96vw,760px)] overflow-y-auto overscroll-contain rounded-lg border border-border bg-card p-6 shadow-xl shadow-slate-900/10 [scrollbar-gutter:stable]";
+  "max-h-[90vh] w-[min(96vw,760px)] overflow-y-auto overscroll-contain rounded-xl border border-slate-200/80 bg-white p-5 shadow-[0_30px_90px_-55px_rgba(15,23,42,0.9)] [scrollbar-gutter:stable] dark:border-slate-800 dark:bg-slate-950";
 const NODE_DIALOG_FOOTER_CLASS =
-  "mt-6 flex flex-col-reverse gap-2.5 sm:flex-row sm:justify-end";
+  "sticky bottom-0 -mx-5 -mb-5 mt-5 flex flex-col-reverse gap-2 border-t border-slate-200/80 bg-white/95 px-5 py-3 backdrop-blur dark:border-slate-800 dark:bg-slate-950/95 sm:flex-row sm:justify-end";
 
 type NodeLiveSnapshot = {
   online: boolean;
@@ -238,14 +238,24 @@ const resolveLatestAgentUpgradeVersion = async (nodes: NodeDetail[]) => {
 
   if (!response.ok) {
     throw new Error(
-      formatApiErrorMessage(`Failed to load latest agent release (GitHub HTTP ${response.status})`, { status: response.status }),
+      formatApiErrorMessage(
+        translate("admin.nodeTable.upgradeLatestReleaseFailed", {
+          status: response.status,
+          defaultValue: "Failed to load latest Agent release (GitHub HTTP {{status}})",
+        }),
+        { status: response.status },
+      ),
     );
   }
 
   const payload = (await response.json()) as GithubReleasePayload;
   const releaseTag = normalizeAgentReleaseTag(payload.tag_name || payload.name);
   if (!releaseTag) {
-    throw new Error(formatApiErrorMessage("Latest agent release tag is unavailable"));
+    throw new Error(formatApiErrorMessage(
+      translate("admin.nodeTable.upgradeLatestReleaseTagUnavailable", {
+        defaultValue: "Latest Agent release tag is unavailable",
+      }),
+    ));
   }
 
   const requiredAssetGroups = nodes
@@ -925,7 +935,7 @@ export default function GroupUpgradeDialog({
         </Dialog.Description>
 
         <div className="mt-4 grid gap-3 sm:grid-cols-4">
-          <div className="dialog-section px-3 py-3">
+          <div className="rounded-xl border border-slate-200/80 bg-slate-50 px-3 py-3 dark:border-slate-800 dark:bg-slate-900/35">
             <div className="text-xs text-slate-500 dark:text-slate-400">
               {t("admin.nodeTable.upgradeOnlineNodes", "Online nodes")}
             </div>
@@ -933,7 +943,7 @@ export default function GroupUpgradeDialog({
               {onlineNodes.length}
             </div>
           </div>
-          <div className="dialog-section px-3 py-3">
+          <div className="rounded-xl border border-slate-200/80 bg-slate-50 px-3 py-3 dark:border-slate-800 dark:bg-slate-900/35">
             <div className="text-xs text-slate-500 dark:text-slate-400">
               {t("admin.nodeTable.upgradeRunning", "Running")}
             </div>
@@ -959,7 +969,7 @@ export default function GroupUpgradeDialog({
           </div>
         </div>
 
-        <div className="dialog-section mt-4 overflow-hidden px-0 py-0">
+        <div className="mt-4 overflow-hidden rounded-xl border border-slate-200/80 bg-slate-50 px-0 py-0 dark:border-slate-800 dark:bg-slate-900/35">
           <div className="border-b border-slate-200/80 px-4 py-3 text-sm text-slate-600 dark:border-slate-800/80 dark:text-slate-300">
             {t("admin.nodeTable.upgradeStatusTitle", "Node execution status")}
           </div>

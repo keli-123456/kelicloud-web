@@ -753,7 +753,7 @@ function LinodeInlineCreatePanel({
           onClick={() => { void onCreate(); }}
           disabled={submitting || disabled || !form.region || !form.type || !form.image}
         >
-          {submitting ? t("cloud.creating", "Creating...") : t("cloud.providers.linode.create", "Create Instance")}
+          {submitting ? t("cloud.creating", "创建中...") : t("cloud.providers.linode.create", "创建实例")}
         </Button>
       </div>
     </section>

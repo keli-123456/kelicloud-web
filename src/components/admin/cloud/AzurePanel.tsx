@@ -60,6 +60,7 @@ import {
   azureImagePresets,
   buildScriptTarget,
   buildCreateFormFromPreset,
+  formatAzureLocationOption,
   formatAzureSizeOption,
   getActiveCredential,
   getDefaultAzureSize,
@@ -75,6 +76,7 @@ import {
   type AzureCredentialPool,
   type AzureCredentialRecord,
 } from "@/lib/cloudAzure";
+import { getCloudStatusLabel } from "@/lib/cloudStatus";
 import { useAzureCreateInstance } from "./useAzureCreateInstance";
 import { useAzureCredentialActivation } from "./useAzureCredentialActivation";
 import { useAzureCredentialDeletion } from "./useAzureCredentialDeletion";
@@ -578,7 +580,7 @@ function AzureInlineCreatePanel({
             <Select.Content>
               {locationOptions.map((location) => (
                 <Select.Item key={location.name} value={location.name}>
-                  {location.regionalDisplayName || location.displayName || location.name}
+                  {formatAzureLocationOption(location)}
                 </Select.Item>
               ))}
             </Select.Content>
@@ -722,9 +724,9 @@ function AzureCredentialContextStrip({
         <>
           <div className="min-h-0 flex-1 overflow-y-auto p-3 [scrollbar-gutter:stable]">
             {visibleCredentials.length > 0 ? (
-              <div className="overflow-hidden rounded-lg border border-border bg-card">
+              <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-950">
                 <AdminDataTableScroll>
-                  <AdminDataTable minWidth={720}>
+                  <AdminDataTable minWidth={500} className="[&_td]:px-2 [&_th]:px-2">
                   <thead>
                     <AdminDataTableHeadRow>
                       <AdminDataTableHead>{t("cloud.tokens.table.name", "名称")}</AdminDataTableHead>
@@ -752,7 +754,9 @@ function AzureCredentialContextStrip({
                         </AdminDataTableCell>
                         <AdminDataTableCell>
                           <Badge color={credential.is_active ? "green" : "gray"}>
-                            {credential.is_active ? t("common.active", "已激活") : credential.last_status || "-"}
+                            {credential.is_active
+                              ? t("common.active", "已激活")
+                              : getCloudStatusLabel(credential.last_status, t)}
                           </Badge>
                         </AdminDataTableCell>
                         <AdminDataTableCell align="right" sticky="right">
@@ -797,7 +801,7 @@ function AzureCredentialContextStrip({
                 </AdminDataTableScroll>
               </div>
             ) : (
-              <div className="rounded-lg border border-dashed border-border bg-muted/30 px-4 py-8 text-center">
+              <div className="rounded-xl border border-dashed border-slate-200/80 bg-slate-50 px-4 py-8 text-center dark:border-slate-800 dark:bg-slate-900/35">
                 <p className={cloudPanelBodyTextClassName}>
                 {t("cloud.providers.azure.no_credentials", "尚未导入 Azure 服务主体凭据。")}
                 </p>

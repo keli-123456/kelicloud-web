@@ -91,11 +91,13 @@ export function CompactDetailSection({
   summary,
   children,
   defaultOpen = false,
+  hideSummary = false,
 }: {
   title: React.ReactNode;
   summary: React.ReactNode;
   children: React.ReactNode;
   defaultOpen?: boolean;
+  hideSummary?: boolean;
 }) {
   const [open, setOpen] = React.useState(defaultOpen);
 
@@ -106,13 +108,15 @@ export function CompactDetailSection({
           <Button
             type="button"
             variant="ghost"
-            className="flex h-auto w-full items-start justify-between rounded-lg px-0 py-0 text-left hover:bg-transparent"
+            className="flex h-auto w-full items-start justify-between rounded-lg px-0 py-0 text-left whitespace-normal hover:bg-transparent"
           >
             <div className="min-w-0 space-y-1">
               <div className={cloudPanelTitleClassName}>{title}</div>
-              <div className="text-xs text-muted-foreground">
-                {summary === undefined || summary === null || summary === "" ? "-" : summary}
-              </div>
+              {!hideSummary ? (
+                <div className="text-xs text-muted-foreground [overflow-wrap:anywhere]">
+                  {summary === undefined || summary === null || summary === "" ? "-" : summary}
+                </div>
+              ) : null}
             </div>
             <ChevronDown className={`mt-0.5 h-4 w-4 shrink-0 text-muted-foreground transition-transform ${open ? "rotate-180" : ""}`} />
           </Button>

@@ -33,6 +33,10 @@ import type {
 import { getCloudStatusLabel } from "@/lib/cloudStatus";
 import { formatAddressList } from "./awsPanelSummaries";
 import {
+  getEC2InstanceTypeDisplay,
+  getLightsailBundleDisplay,
+} from "./awsPanelCatalog";
+import {
   formatDateTime,
   getInstanceStateColor,
 } from "./awsPanelUtils";
@@ -193,7 +197,7 @@ export function AWSEC2InstancesTable({
               <AdminDataTableCell>{instance.availability_zone || "-"}</AdminDataTableCell>
               <AdminDataTableCell>{instance.public_ip || instance.private_ip || "-"}</AdminDataTableCell>
               <AdminDataTableCell>{formatAddressList(instance.ipv6_addresses)}</AdminDataTableCell>
-              <AdminDataTableCell>{instance.instance_type || "-"}</AdminDataTableCell>
+              <AdminDataTableCell>{getEC2InstanceTypeDisplay(instance.instance_type)}</AdminDataTableCell>
               <AdminDataTableCell>{instance.image_id || "-"}</AdminDataTableCell>
               <AdminDataTableCell>
                 <AWSInstancePasswordState
@@ -389,7 +393,7 @@ export function AWSLightsailInstancesTable({
               </AdminDataTableCell>
               <AdminDataTableCell>{instance.availability_zone || "-"}</AdminDataTableCell>
               <AdminDataTableCell>{instance.public_ip || instance.private_ip || "-"}</AdminDataTableCell>
-              <AdminDataTableCell>{instance.bundle_id || "-"}</AdminDataTableCell>
+              <AdminDataTableCell>{getLightsailBundleDisplay(instance.bundle_id)}</AdminDataTableCell>
               <AdminDataTableCell>{instance.blueprint_name || instance.blueprint_id || "-"}</AdminDataTableCell>
               <AdminDataTableCell>{instance.is_static_ip ? t("common.yes", "是") : "-"}</AdminDataTableCell>
               <AdminDataTableCell>

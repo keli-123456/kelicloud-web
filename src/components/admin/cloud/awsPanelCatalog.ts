@@ -1,3 +1,5 @@
+import { COMMON_AWS_REGIONS } from "@/lib/failoverV2Presets";
+
 export type AWSRootPasswordMode = "none" | "custom" | "random";
 
 export type AWSRegionOption = {
@@ -38,6 +40,71 @@ export type StaticLightsailBundlePreset = {
 export const SELECT_NONE = "__none__";
 export const BACKGROUND_TASK_FILTER_ALL = "__all__";
 export const AWS_BACKGROUND_TASK_POLL_INTERVAL = 15_000;
+
+type InstanceSpec = {
+  vcpus: number;
+  memoryGb: number;
+  cpuLabel: string;
+};
+
+const EC2_INSTANCE_TYPE_SPECS: Record<string, InstanceSpec> = {
+  "t3.micro": { vcpus: 2, memoryGb: 1, cpuLabel: "x86" },
+  "t3.small": { vcpus: 2, memoryGb: 2, cpuLabel: "x86" },
+  "t3.medium": { vcpus: 2, memoryGb: 4, cpuLabel: "x86" },
+  "m7i.large": { vcpus: 2, memoryGb: 8, cpuLabel: "x86" },
+  "c7i.large": { vcpus: 2, memoryGb: 4, cpuLabel: "x86" },
+  "r7i.large": { vcpus: 2, memoryGb: 16, cpuLabel: "x86" },
+  "t4g.micro": { vcpus: 2, memoryGb: 1, cpuLabel: "ARM64" },
+  "t4g.small": { vcpus: 2, memoryGb: 2, cpuLabel: "ARM64" },
+  "t4g.medium": { vcpus: 2, memoryGb: 4, cpuLabel: "ARM64" },
+  "m7g.large": { vcpus: 2, memoryGb: 8, cpuLabel: "ARM64" },
+  "c7g.large": { vcpus: 2, memoryGb: 4, cpuLabel: "ARM64" },
+  "r7g.large": { vcpus: 2, memoryGb: 16, cpuLabel: "ARM64" },
+};
+
+function normalizeAWSRegion(value: string) {
+  return value.trim().toLowerCase();
+}
+
+function getCommonAWSRegion(value: string) {
+  const normalized = normalizeAWSRegion(value);
+  if (!normalized) return null;
+  return COMMON_AWS_REGIONS.find((region) => (
+    normalizeAWSRegion(region.value) === normalized
+    || normalizeAWSRegion(region.label) === normalized
+  )) || null;
+}
+
+function formatMemoryGb(value: number) {
+  return Number.isInteger(value) ? String(value) : value.toFixed(1);
+}
+
+function formatEC2InstanceSpec(value: string) {
+  const spec = EC2_INSTANCE_TYPE_SPECS[value.trim().toLowerCase()];
+  if (!spec) return "";
+  return `${spec.vcpus} vCPU · ${formatMemoryGb(spec.memoryGb)} GB RAM · ${spec.cpuLabel}`;
+}
+
+function formatStaticSummary(summary: string) {
+  return summary
+    .split(",")
+    .map((part) => part.trim())
+    .filter(Boolean)
+    .join(" · ");
+}
+
+export function getEC2InstanceTypeDisplay(value: string) {
+  const preset = STATIC_EC2_INSTANCE_TYPE_PRESETS.find((item) => item.value === value);
+  if (preset) return getStaticEC2InstanceTypePresetLabel(preset);
+  const spec = formatEC2InstanceSpec(value);
+  return spec ? `${value} · ${spec}` : value || "-";
+}
+
+export function getLightsailBundleDisplay(value: string) {
+  const preset = STATIC_LIGHTSAIL_BUNDLE_PRESETS.find((item) => item.value === value);
+  if (preset) return getStaticLightsailBundlePresetLabel(preset);
+  return value || "-";
+}
 
 export const AWS_REGION_OPTIONS = [
   { name: "us-east-2", label: "US East (Ohio)", country: "us" },
@@ -261,37 +328,37 @@ export const STATIC_LIGHTSAIL_BUNDLE_PRESETS: StaticLightsailBundlePreset[] = [
   {
     value: "nano_3_0",
     label: "Nano",
-    summary: "$5/mo, 0.5 GB RAM, 20 GB SSD",
+    summary: "$5/mo, 2 vCPU, 0.5 GB RAM, 20 GB SSD",
     platform: "linux",
   },
   {
     value: "micro_3_0",
     label: "Micro",
-    summary: "$7/mo, 1 GB RAM, 40 GB SSD",
+    summary: "$7/mo, 2 vCPU, 1 GB RAM, 40 GB SSD",
     platform: "linux",
   },
   {
     value: "small_3_0",
     label: "Small",
-    summary: "$12/mo, 2 GB RAM, 60 GB SSD",
+    summary: "$12/mo, 2 vCPU, 2 GB RAM, 60 GB SSD",
     platform: "linux",
   },
   {
     value: "medium_3_0",
     label: "Medium",
-    summary: "$24/mo, 4 GB RAM, 80 GB SSD",
+    summary: "$24/mo, 2 vCPU, 4 GB RAM, 80 GB SSD",
     platform: "linux",
   },
   {
     value: "large_3_0",
     label: "Large",
-    summary: "$44/mo, 8 GB RAM, 160 GB SSD",
+    summary: "$44/mo, 2 vCPU, 8 GB RAM, 160 GB SSD",
     platform: "linux",
   },
   {
     value: "large_win_3_0",
     label: "Large Windows",
-    summary: "Windows plan example from AWS docs",
+    summary: "Windows, 2 vCPU, 8 GB RAM, 160 GB SSD",
     platform: "windows",
   },
 ];
@@ -305,30 +372,43 @@ export const DEFAULT_STATIC_LIGHTSAIL_WINDOWS_BUNDLE_ID =
   STATIC_LIGHTSAIL_BUNDLE_PRESETS.find((preset) => preset.platform === "windows")
     ?.value || "large_win_3_0";
 
+export function formatAWSRegionLabel(regionName: string, fallbackLabel?: string) {
+  const fallback = (fallbackLabel || regionName).trim();
+  const commonRegion = getCommonAWSRegion(regionName) || getCommonAWSRegion(fallback);
+  const englishLabel = fallback || commonRegion?.label || regionName;
+  const chineseLabel = commonRegion?.zh || "";
+  if (!chineseLabel) return englishLabel || regionName || "-";
+  if (!englishLabel || normalizeAWSRegion(englishLabel) === normalizeAWSRegion(chineseLabel)) {
+    return chineseLabel;
+  }
+  return `${chineseLabel} · ${englishLabel}`;
+}
+
 export function getAWSRegionOptionLabel(region: { label?: string; name: string }) {
-  return region.label ? `${region.label} (${region.name})` : region.name;
+  return formatAWSRegionLabel(region.name, region.label);
 }
 
 export function getStaticEC2ImagePresetLabel(preset: StaticEC2ImagePreset) {
-  return `${preset.label} (${preset.summary})`;
+  return preset.label;
 }
 
 export function getStaticEC2InstanceTypePresetLabel(
   preset: StaticEC2InstanceTypePreset,
 ) {
-  return `${preset.label} (${preset.summary})`;
+  const spec = formatEC2InstanceSpec(preset.value);
+  return spec ? `${preset.label} · ${spec}` : `${preset.label} · ${preset.summary}`;
 }
 
 export function getStaticLightsailBlueprintPresetLabel(
   preset: StaticLightsailBlueprintPreset,
 ) {
-  return `${preset.label} (${preset.summary})`;
+  return preset.label;
 }
 
 export function getStaticLightsailBundlePresetLabel(
   preset: StaticLightsailBundlePreset,
 ) {
-  return `${preset.label} (${preset.summary})`;
+  return `${preset.label} · ${formatStaticSummary(preset.summary)}`;
 }
 
 export function getDefaultLightsailAvailabilityZone(region: string) {

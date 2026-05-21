@@ -109,12 +109,12 @@ export function AWSCredentialsSection({
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <div className={cloudPanelTitleClassName}>
-              {t("cloud.providers.aws.credentials", "Credentials")}
+              {t("cloud.providers.aws.credentials", "凭证")}
             </div>
             <div className={cloudPanelDescriptionClassName}>
               {t(
                 "cloud.providers.aws.credentials_description",
-                "Save AWS access keys here. Pick one credential first, then switch region and operate EC2 or Lightsail from the active context below.",
+                "在这里保存 AWS 访问密钥。先选择一个凭证，再切换区域并操作 EC2 或 Lightsail。",
               )}
             </div>
           </div>
@@ -123,7 +123,7 @@ export function AWSCredentialsSection({
               <AWSRegionSelect
                 value={activeRegion || undefined}
                 options={regionOptions}
-                placeholder={t("cloud.providers.aws.active_region", "Active Region")}
+                placeholder={t("cloud.providers.aws.active_region", "当前区域")}
                 searchPlaceholder={regionSearchPlaceholder}
                 emptyLabel={regionSearchEmpty}
                 onValueChange={(value) => {
@@ -140,7 +140,7 @@ export function AWSCredentialsSection({
               disabled={!activeContextReady || credentialChecking}
             >
               <ShieldCheck className="mr-2 h-4 w-4" />
-              {t("cloud.providers.aws.check_current", "Check Current")}
+              {t("cloud.providers.aws.check_current", "检查当前")}
             </Button>
             <Button
               variant="outline"
@@ -149,33 +149,33 @@ export function AWSCredentialsSection({
               disabled={credentialChecking || !credentialRows.length}
             >
               <ShieldCheck className="mr-2 h-4 w-4" />
-              {t("cloud.tokens.check_all", "Check All Tokens")}
+              {t("cloud.tokens.check_all", "批量测活")}
             </Button>
             <Button size="1" onClick={onImportCredentials}>
               <CheckCircle2 className="mr-2 h-4 w-4" />
-              {t("cloud.providers.aws.import", "Import Credentials")}
+              {t("cloud.providers.aws.import", "导入凭证")}
             </Button>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button
                   variant="outline"
                   size="1"
-                  aria-label={t("cloud.providers.aws.more_actions", "More actions")}
+                  aria-label={t("cloud.providers.aws.more_actions", "更多操作")}
                 >
                   <MoreHorizontal className="mr-2 h-4 w-4" />
-                  {t("cloud.providers.aws.more_actions", "More actions")}
+                  {t("cloud.providers.aws.more_actions", "更多操作")}
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="min-w-48">
                 <DropdownMenuItem onSelect={onOpenBackgroundTasks}>
-                  {t("cloud.providers.aws.background_tasks", "Background Tasks")}
+                  {t("cloud.providers.aws.background_tasks", "后台任务")}
                   {pendingBackgroundTaskCount > 0 ? ` (${pendingBackgroundTaskCount})` : ""}
                 </DropdownMenuItem>
                 <DropdownMenuItem
                   disabled={selectedActionsDisabled}
                   onSelect={onOpenSelectedGroupEditor}
                 >
-                  {t("cloud.tokens.set_group", "Set Group")}
+                  {t("cloud.tokens.set_group", "设置分组")}
                 </DropdownMenuItem>
                 <DropdownMenuItem
                   variant="destructive"
@@ -187,7 +187,7 @@ export function AWSCredentialsSection({
                   <Trash2 className="h-4 w-4" />
                   {t("cloud.tokens.delete_selected", {
                     count: selectedCredentialCount,
-                    defaultValue: "Delete selected",
+                    defaultValue: "删除已选",
                   })}
                 </DropdownMenuItem>
               </DropdownMenuContent>
@@ -323,19 +323,19 @@ export function AWSComputeSection({
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
                 <div className={cloudPanelTitleClassName}>
-                  {t("cloud.providers.aws.compute", "Compute")}
+                  {t("cloud.providers.aws.compute", "计算实例")}
                 </div>
                 <div className={cloudPanelDescriptionClassName}>
                   {t(
                     "cloud.providers.aws.instance_list_description",
-                    "The list is scoped to the active credential and active region.",
+                    "实例列表按当前凭证和当前区域筛选，点击查看后才会加载云端资源。",
                   )}
                 </div>
               </div>
               <Flex gap="2" wrap="wrap" align="center">
                 <Tabs.List>
                   <Tabs.Trigger value="ec2">
-                    {t("cloud.providers.aws.instance_list", "EC2 Instances")} ({instances.length})
+                    {t("cloud.providers.aws.instance_list", "EC2 实例")} ({instances.length})
                   </Tabs.Trigger>
                   <Tabs.Trigger value="lightsail">
                     {t("cloud.providers.aws.lightsail_instances", "Lightsail")} ({lightsailInstances.length})
@@ -350,13 +350,13 @@ export function AWSComputeSection({
                   disabled={!activeContextReady || panelLoading}
                 >
                   <Eye className="mr-2 h-4 w-4" />
-                  {t("cloud.view", "View")}
+                  {t("cloud.view", "查看")}
                 </Button>
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button size="1" disabled={!canCreate}>
                       <Plus className="mr-2 h-4 w-4" />
-                      {t("common.create", "Create")}
+                      {t("common.create", "创建")}
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end" className="min-w-44">
@@ -368,7 +368,7 @@ export function AWSComputeSection({
                       }}
                     >
                       <Plus className="h-4 w-4" />
-                      {t("cloud.providers.aws.create", "Launch EC2")}
+                      {t("cloud.providers.aws.create", "启动 EC2")}
                     </DropdownMenuItem>
                     <DropdownMenuItem
                       disabled={!canCreate}
@@ -378,7 +378,7 @@ export function AWSComputeSection({
                       }}
                     >
                       <Plus className="h-4 w-4" />
-                      {t("cloud.providers.aws.lightsail_create", "Create Lightsail")}
+                      {t("cloud.providers.aws.lightsail_create", "创建 Lightsail")}
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
@@ -392,7 +392,7 @@ export function AWSComputeSection({
                 size="1"
                 value={searchQuery}
                 onChange={(event) => setSearchQuery(event.target.value)}
-                placeholder={t("cloud.search_resources", "Search name / IP / region...")}
+                placeholder={t("cloud.search_resources", "搜索名称 / IP / 区域...")}
               >
                 <TextField.Slot>
                   <Search className="h-4 w-4" />

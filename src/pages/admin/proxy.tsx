@@ -3,6 +3,9 @@ import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
 import {
+  AdminPanel,
+  AdminPanelBody,
+  AdminPanelHeader,
   AdminPageShell,
   AdminSettingsSkeleton,
 } from "@/components/admin/AdminPageShell";
@@ -257,7 +260,14 @@ export default function ProxySettings() {
       title={t("settings.proxy.title")}
       description={pageDescription}
     >
-      <section className="space-y-3">
+      <AdminPanel>
+        <AdminPanelHeader
+          title={t("settings.proxy.connection_title", { defaultValue: "代理连接" })}
+          description={t("settings.proxy.connection_description", {
+            defaultValue: "云厂商接口、凭证检测和实例操作会按这里的代理配置出站。",
+          })}
+        />
+        <AdminPanelBody className="py-2">
         <SettingCard
           title={t("settings.proxy.enable")}
           description={t("settings.proxy.enable_description")}
@@ -335,7 +345,7 @@ export default function ProxySettings() {
         description={t("settings.proxy.username_description")}
         value={form.outbound_proxy_username}
         showSaveButton={false}
-        placeholder={t("common.optional", "Optional")}
+        placeholder={t("common.optional", "可选")}
         onChange={(event) =>
           setForm((current) => ({
             ...current,
@@ -350,7 +360,7 @@ export default function ProxySettings() {
         value={form.outbound_proxy_password}
         showSaveButton={false}
         type="password"
-        placeholder={t("common.optional", "Optional")}
+        placeholder={t("common.optional", "可选")}
         onChange={(event) =>
           setForm((current) => ({
             ...current,
@@ -360,7 +370,7 @@ export default function ProxySettings() {
       />
 
       {probeResult ? (
-        <div className="rounded-lg border border-border/70 bg-muted/30 px-4 py-3 text-sm">
+        <div className="rounded-xl border border-slate-200/80 bg-slate-50 px-4 py-3 text-sm shadow-sm shadow-slate-900/5 dark:border-slate-800 dark:bg-slate-900/35">
           <div className="font-medium text-foreground">
             {t("settings.proxy.last_test_title")}
           </div>
@@ -400,10 +410,11 @@ export default function ProxySettings() {
           {testing ? t("settings.proxy.testing") : t("settings.proxy.test")}
         </Button>
         <Button onClick={handleSave} disabled={saving || testing}>
-          {saving ? t("common.saving", "Saving...") : t("save")}
+          {saving ? t("common.saving", "保存中...") : t("common.save", "保存")}
         </Button>
       </div>
-      </section>
+        </AdminPanelBody>
+      </AdminPanel>
     </AdminPageShell>
   );
 }

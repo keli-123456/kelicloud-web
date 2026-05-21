@@ -39,22 +39,22 @@ const cloudLongTextClassName =
   "min-w-0 whitespace-pre-wrap break-words [overflow-wrap:anywhere]";
 
 const cloudPanelCardClassName =
-  "overflow-hidden rounded-lg border border-border bg-card shadow-sm shadow-slate-900/5";
+  "overflow-hidden rounded-xl border border-slate-200/80 bg-white shadow-[0_18px_45px_-34px_rgba(15,23,42,0.65)] dark:border-slate-800/90 dark:bg-slate-950";
 
 const cloudPanelHeaderClassName =
-  "border-b border-border px-5 py-4";
+  "border-b border-slate-200/80 bg-slate-50 px-5 py-3.5 dark:border-slate-800 dark:bg-slate-900/45";
 
 const cloudPanelTitleClassName =
-  "text-sm font-semibold text-foreground";
+  "text-[15px] font-semibold text-slate-950 dark:text-slate-50";
 
 const cloudPanelDescriptionClassName =
-  "mt-1 text-sm leading-6 text-muted-foreground";
+  "mt-1 text-sm leading-6 text-slate-500 dark:text-slate-400";
 
 const cloudPanelSectionClassName =
-  "rounded-lg border border-dashed border-border bg-muted/35 px-4 py-3";
+  "rounded-xl border border-slate-200/80 bg-slate-50 px-4 py-3 dark:border-slate-800 dark:bg-slate-900/35";
 
 const cloudPanelSubcardClassName =
-  "rounded-lg border border-border bg-card px-4 py-3 shadow-sm shadow-slate-900/5";
+  "rounded-xl border border-slate-200/80 bg-white px-4 py-3 shadow-[0_14px_35px_-30px_rgba(15,23,42,0.7)] dark:border-slate-800/90 dark:bg-slate-950";
 
 const cloudPanelFieldLabelClassName =
   "text-sm font-semibold text-foreground";
@@ -63,13 +63,13 @@ const cloudPanelBodyTextClassName =
   "text-sm leading-6 text-muted-foreground";
 
 const cloudDetailSectionClassName =
-  "border-t border-border pt-4";
+  "border-t border-slate-200/80 pt-4 dark:border-slate-800";
 
 const cloudDetailListClassName =
-  "overflow-hidden rounded-lg border border-border bg-card shadow-sm shadow-slate-900/5";
+  "overflow-hidden rounded-xl border border-slate-200/80 bg-white shadow-[0_18px_45px_-34px_rgba(15,23,42,0.65)] dark:border-slate-800/90 dark:bg-slate-950";
 
 const cloudDetailListItemClassName =
-  "border-t border-border px-4 py-3 first:border-t-0";
+  "border-t border-slate-200/80 px-4 py-3 first:border-t-0 dark:border-slate-800";
 
 const cloudDetailLabelClassName =
   "text-xs font-semibold uppercase tracking-normal text-muted-foreground";
@@ -99,7 +99,7 @@ const cloudTableCodeTextClassName =
   "font-mono text-xs text-muted-foreground";
 
 const cloudTableEmptyStateClassName =
-  "min-h-36 border-border/70 bg-muted/35 shadow-none";
+  "min-h-36 border-slate-200/80 bg-slate-50 shadow-none dark:border-slate-800 dark:bg-slate-900/35";
 
 const getCloudCodeLines = (value: string) => {
   const lines = value.split(/\r?\n/);
@@ -107,10 +107,10 @@ const getCloudCodeLines = (value: string) => {
 };
 
 const getCloudCodeLineNumberWidth = (lineCount: number) =>
-  `calc(${Math.max(2, String(Math.max(1, lineCount)).length)}ch + 8px)`;
+  `calc(${Math.max(2, String(Math.max(1, lineCount)).length)}ch + 6px)`;
 
 const cloudCodeLineNumberClassName =
-  "shrink-0 overflow-hidden border-r border-border bg-muted px-1 py-3 text-right font-mono text-[12px] leading-5 tabular-nums text-muted-foreground select-none";
+  "shrink-0 overflow-hidden border-r border-slate-200/80 bg-slate-50 px-1 py-3 text-right font-mono text-[12px] leading-5 tabular-nums text-slate-400 select-none dark:border-slate-800 dark:bg-slate-900/45 dark:text-slate-500";
 
 function CloudProviderHeader({
   title,
@@ -153,8 +153,8 @@ function CloudDetailItem({
     <div
       className={cn(
         variant === "plain"
-          ? "min-w-0 border-b border-border py-3 last:border-b-0"
-          : "min-w-0 rounded-lg border border-border bg-muted/35 px-4 py-3",
+          ? "min-w-0 border-b border-slate-200/80 py-3 last:border-b-0 dark:border-slate-800"
+          : "min-w-0 rounded-xl border border-slate-200/80 bg-slate-50 px-4 py-3 dark:border-slate-800 dark:bg-slate-900/35",
         className,
       )}
     >
@@ -197,7 +197,7 @@ function CloudCopyBlock({
   return (
     <div
       className={cn(
-        "min-w-0 rounded-lg border border-border bg-card px-4 py-3 shadow-sm shadow-slate-900/5",
+        "min-w-0 rounded-xl border border-slate-200/80 bg-white px-4 py-3 shadow-[0_14px_35px_-30px_rgba(15,23,42,0.7)] dark:border-slate-800/90 dark:bg-slate-950",
         className,
       )}
     >
@@ -313,7 +313,7 @@ function CloudReadonlyCodeBlock({
   return (
     <div
       className={cn(
-        "min-w-0 overflow-auto rounded-lg border border-border bg-card text-xs [scrollbar-gutter:stable]",
+        "min-w-0 overflow-auto rounded-xl border border-slate-200/80 bg-white text-xs shadow-[0_14px_35px_-30px_rgba(15,23,42,0.7)] [scrollbar-gutter:stable] dark:border-slate-800/90 dark:bg-slate-950",
         minHeightClassName,
         maxHeightClassName,
       )}
@@ -360,7 +360,7 @@ function CloudCodeTextarea({
   return (
     <div
       className={cn(
-        "flex min-w-0 overflow-hidden rounded-lg border border-border bg-card text-xs focus-within:border-ring focus-within:ring-2 focus-within:ring-ring/30",
+        "flex min-w-0 overflow-hidden rounded-xl border border-slate-200/80 bg-white text-xs shadow-[0_14px_35px_-30px_rgba(15,23,42,0.7)] focus-within:border-ring focus-within:ring-2 focus-within:ring-ring/30 dark:border-slate-800/90 dark:bg-slate-950",
         minHeightClassName,
         className,
       )}
@@ -402,6 +402,77 @@ type CloudImportFormSectionProps = {
   className?: string;
 };
 
+function CloudFormStack({
+  className,
+  ...props
+}: React.ComponentProps<"div">) {
+  return (
+    <div
+      className={cn("min-w-0 space-y-4", className)}
+      {...props}
+    />
+  );
+}
+
+function CloudFormGrid({
+  className,
+  ...props
+}: React.ComponentProps<"div">) {
+  return (
+    <div
+      className={cn("grid min-w-0 gap-4 sm:grid-cols-2", className)}
+      {...props}
+    />
+  );
+}
+
+function CloudFormField({
+  label,
+  help,
+  className,
+  labelClassName,
+  helpClassName,
+  children,
+  ...props
+}: React.ComponentProps<"div"> & {
+  label: React.ReactNode;
+  help?: React.ReactNode;
+  labelClassName?: string;
+  helpClassName?: string;
+}) {
+  return (
+    <div
+      className={cn("min-w-0 space-y-2", className)}
+      {...props}
+    >
+      <div className={cn(cloudPanelFieldLabelClassName, labelClassName)}>
+        {label}
+      </div>
+      {children}
+      {help ? (
+        <div className={cn("text-xs leading-5 text-muted-foreground", helpClassName)}>
+          {help}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function CloudFormActions({
+  className,
+  ...props
+}: React.ComponentProps<"div">) {
+  return (
+    <div
+      className={cn(
+        "sticky bottom-0 z-10 -mx-5 -mb-5 mt-1 flex flex-col-reverse gap-2 border-t border-slate-200/80 bg-white/95 px-5 py-3 backdrop-blur dark:border-slate-800 dark:bg-slate-950/95 sm:flex-row sm:justify-end",
+        className,
+      )}
+      {...props}
+    />
+  );
+}
+
 function CloudImportFormSection({
   groupLabel,
   groupControl,
@@ -413,29 +484,33 @@ function CloudImportFormSection({
   return (
     <section
       className={cn(
-        "min-w-0 space-y-4",
+        "min-w-0 space-y-5",
         className,
       )}
     >
-      <div className="space-y-4">
-        <div className="grid min-w-0 gap-2 sm:grid-cols-[4.5rem_minmax(0,1fr)] sm:items-center">
-          <label className={cloudPanelFieldLabelClassName}>
+      <div className="rounded-xl border border-slate-200/80 bg-slate-50 px-4 py-3 dark:border-slate-800 dark:bg-slate-900/35">
+        <div className="grid min-w-0 gap-2 lg:grid-cols-[5rem_minmax(0,1fr)] lg:items-center">
+          <label className={cn(cloudPanelFieldLabelClassName, "leading-9")}>
             {groupLabel}
           </label>
           <div className="min-w-0">
             {groupControl}
           </div>
         </div>
-        <div className="min-w-0 space-y-2">
+      </div>
+
+      <div className="min-w-0 space-y-2">
+        <div className="flex min-w-0 items-center justify-between gap-3">
           <div className={cloudPanelFieldLabelClassName}>
             {editorLabel}
           </div>
-          {editor}
         </div>
+        {editor}
       </div>
-      <div className="flex flex-col-reverse gap-2 border-t border-border pt-4 sm:flex-row sm:justify-end">
+
+      <CloudFormActions className="mt-0">
         {footer}
-      </div>
+      </CloudFormActions>
     </section>
   );
 }
@@ -469,7 +544,7 @@ function CloudSensitiveDialogContent({
         className,
       )}
     >
-      <div className="border-b border-border bg-card px-5 py-4">
+      <div className="border-b border-slate-200/80 bg-slate-50 px-5 py-4 dark:border-slate-800 dark:bg-slate-900/45">
         <div className="flex min-w-0 flex-col gap-3 pr-8 sm:flex-row sm:items-start sm:justify-between">
           <div className="flex min-w-0 items-start gap-3">
             {icon ? (
@@ -504,7 +579,7 @@ function CloudSensitiveDialogContent({
           {children}
         </div>
         {side ? (
-          <aside className="min-w-0 border-t border-border bg-muted/25 px-5 py-5 lg:border-l lg:border-t-0">
+          <aside className="min-w-0 border-t border-slate-200/80 bg-slate-50 px-5 py-5 dark:border-slate-800 dark:bg-slate-900/35 lg:border-l lg:border-t-0">
             {side}
           </aside>
         ) : null}
@@ -533,7 +608,7 @@ function CloudSecretValueBlock({
       title={title}
       copyLabel={copyLabel}
       onCopy={onCopy}
-      className="border-border bg-card px-4 py-3"
+      className="border-slate-200/80 bg-white px-4 py-3 dark:border-slate-800 dark:bg-slate-950"
       titleClassName="text-sm font-semibold text-foreground"
       contentClassName="mt-3"
     >
@@ -579,6 +654,10 @@ export {
   CloudCopyBlock,
   CloudDetailDialogSkeleton,
   CloudDetailItem,
+  CloudFormActions,
+  CloudFormField,
+  CloudFormGrid,
+  CloudFormStack,
   CloudImportFormSection,
   CloudReadonlyCodeBlock,
   CloudSecretValueBlock,

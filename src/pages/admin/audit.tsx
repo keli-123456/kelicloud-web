@@ -1,13 +1,17 @@
 import * as React from "react";
+import { History, ScrollText } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useSearchParams } from "react-router-dom";
 
-import { AdminPageShell } from "@/components/admin/AdminPageShell";
+import {
+  AdminPageShell,
+  AdminSideNav,
+  AdminSideNavButton,
+  AdminSplitLayout,
+} from "@/components/admin/AdminPageShell";
 import {
   Tabs,
   TabsContent,
-  TabsList,
-  TabsTrigger,
 } from "@/components/ui/tabs";
 import { useAccount } from "@/contexts/AccountContext";
 import LogPage from "./log";
@@ -40,37 +44,47 @@ export default function AuditPage() {
       description={t("admin.audit.description", {
         defaultValue: "集中查看当前会话和后台操作日志。",
       })}
-      subnav={
-        <Tabs
-          value={activeTab}
-          onValueChange={(value) => {
-            const next = new URLSearchParams(searchParams);
-            next.set("tab", value);
-            setSearchParams(next);
-          }}
-        >
-          <TabsList className="h-9">
-            <TabsTrigger value="sessions">
-              {t("sessions.title", { defaultValue: "会话" })}
-            </TabsTrigger>
-            {canViewLogs ? (
-              <TabsTrigger value="logs">
-                {t("logs.title", { defaultValue: "日志" })}
-              </TabsTrigger>
-            ) : null}
-          </TabsList>
-        </Tabs>
-      }
     >
       <Tabs value={activeTab} className="min-w-0">
-        <TabsContent value="sessions" className="mt-0">
-          <Sessions embedded />
-        </TabsContent>
-        {canViewLogs ? (
-          <TabsContent value="logs" className="mt-0">
-            <LogPage embedded />
+        <AdminSplitLayout
+          sidebar={(
+            <AdminSideNav aria-label={t("admin.audit.title", { defaultValue: "审计" })}>
+              <AdminSideNavButton
+                active={activeTab === "sessions"}
+                icon={<History className="h-4 w-4" />}
+                label={t("sessions.title", { defaultValue: "会话" })}
+                description={t("admin.audit.sessions_description", { defaultValue: "登录会话" })}
+                onClick={() => {
+                  const next = new URLSearchParams(searchParams);
+                  next.set("tab", "sessions");
+                  setSearchParams(next);
+                }}
+              />
+              {canViewLogs ? (
+                <AdminSideNavButton
+                  active={activeTab === "logs"}
+                  icon={<ScrollText className="h-4 w-4" />}
+                  label={t("logs.title", { defaultValue: "日志" })}
+                  description={t("admin.audit.logs_description", { defaultValue: "操作记录" })}
+                  onClick={() => {
+                    const next = new URLSearchParams(searchParams);
+                    next.set("tab", "logs");
+                    setSearchParams(next);
+                  }}
+                />
+              ) : null}
+            </AdminSideNav>
+          )}
+        >
+          <TabsContent value="sessions" className="mt-0">
+            <Sessions embedded />
           </TabsContent>
-        ) : null}
+          {canViewLogs ? (
+            <TabsContent value="logs" className="mt-0">
+              <LogPage embedded />
+            </TabsContent>
+          ) : null}
+        </AdminSplitLayout>
       </Tabs>
     </AdminPageShell>
   );

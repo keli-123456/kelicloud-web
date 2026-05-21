@@ -5,13 +5,13 @@ import { AWSRegionSelect } from "@/components/admin/cloud/AWSRegionSelect";
 import {
   Badge,
   Button,
+  CloudCodeTextarea,
   CloudImportFormSection,
   CloudSensitiveDialogContent,
   CloudStatusNotice,
   cloudPanelFieldLabelClassName,
   Dialog,
   Flex,
-  TextArea,
   TextField,
 } from "@/components/admin/cloud/cloud-ui";
 import type { AWSRegionOption } from "./awsPanelCatalog";
@@ -44,32 +44,30 @@ export function AWSCredentialImportDialog({
   return (
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
       <CloudSensitiveDialogContent
-        title={t("cloud.providers.aws.import_dialog_title", "Batch Import AWS Credentials")}
+        title={t("cloud.providers.aws.import_dialog_title", "批量导入 AWS 凭证")}
         description={t(
           "cloud.providers.aws.import_dialog_description",
-          "One line per credential. Supported formats: accessKeyId,secretAccessKey; accessKeyId,secretAccessKey,region; or name,accessKeyId,secretAccessKey[,region[,sessionToken]]. Region is optional and only used as an initial fallback.",
+          "每行一个凭证。支持 accessKeyId,secretAccessKey、accessKeyId,secretAccessKey,region，或 name,accessKeyId,secretAccessKey[,region[,sessionToken]]。区域可选，只作为初始兜底。",
         )}
         icon={<Upload className="size-4" />}
         badge={<Badge color="blue">{t("cloud.providers.aws.name", "AWS")}</Badge>}
         className="sm:max-w-3xl"
       >
         <CloudImportFormSection
-          groupLabel={t("cloud.tokens.group", "Group")}
+          groupLabel={t("cloud.tokens.group", "分组")}
           groupControl={(
             <TextField.Root
               className="sm:max-w-xs"
               value={group}
-              placeholder={t("cloud.tokens.group_placeholder", "Optional token group")}
+              placeholder={t("cloud.tokens.group_placeholder", "可选的凭证分组")}
               onChange={(event) => onGroupChange(event.target.value)}
             />
           )}
-          editorLabel={t("cloud.providers.aws.credential_content", "Credential Content")}
+          editorLabel={t("cloud.providers.aws.credential_content", "凭证内容")}
           editor={(
-            <TextArea
+            <CloudCodeTextarea
               value={text}
-              rows={10}
-              resize="vertical"
-              className="min-h-56 font-mono text-sm leading-6"
+              minHeightClassName="min-h-72"
               placeholder={"AKIA...,secret...\nAKIA... secret...\nprod,AKIA...,secret...,ap-southeast-1\nbackup|AKIA...|secret...|ap-southeast-1|session-token"}
               onChange={(event) => onTextChange(event.target.value)}
             />
@@ -77,13 +75,13 @@ export function AWSCredentialImportDialog({
           footer={(
             <>
               <Button variant="outline" onClick={() => onOpenChange(false)} disabled={saving}>
-                {t("common.cancel", "Cancel")}
+                {t("common.cancel", "取消")}
               </Button>
               <Button onClick={() => { void onImport(); }} disabled={saving}>
                 <CheckCircle2 className="mr-2 h-4 w-4" />
                 {saving
-                  ? t("cloud.tokens.importing", "Importing...")
-                  : t("cloud.providers.aws.import", "Import Credentials")}
+                  ? t("cloud.tokens.importing", "导入中...")
+                  : t("cloud.providers.aws.import", "导入凭证")}
               </Button>
             </>
           )}
@@ -117,10 +115,10 @@ export function AWSCredentialGroupDialog({
   return (
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
       <CloudSensitiveDialogContent
-        title={t("cloud.tokens.set_group", "Set Group")}
+        title={t("cloud.tokens.set_group", "设置分组")}
         description={t("cloud.tokens.set_group_description", {
           count: selectedCount,
-          defaultValue: `Update the group for ${selectedCount} selected credential(s). Leave empty to remove the group.`,
+          defaultValue: `为已选 ${selectedCount} 个凭证设置分组。留空则清除分组。`,
         })}
         icon={<Tags className="size-4" />}
         badge={<Badge color="blue">{t("cloud.providers.aws.name", "AWS")}</Badge>}
@@ -128,18 +126,18 @@ export function AWSCredentialGroupDialog({
           <CloudStatusNotice tone="gray">
             {t(
               "cloud.tokens.group_dialog_hint",
-              "Groups only affect organization and filtering. They do not change the credential itself.",
+              "分组只影响组织和筛选，不会修改凭证本身。",
             )}
           </CloudStatusNotice>
         )}
       >
         <div className="space-y-2">
           <label className={cloudPanelFieldLabelClassName}>
-            {t("cloud.tokens.group", "Group")}
+            {t("cloud.tokens.group", "分组")}
           </label>
           <TextField.Root
             value={value}
-            placeholder={t("cloud.tokens.group_placeholder", "Optional token group")}
+            placeholder={t("cloud.tokens.group_placeholder", "可选的凭证分组")}
             onChange={(event) => onValueChange(event.target.value)}
           />
         </div>
@@ -149,10 +147,10 @@ export function AWSCredentialGroupDialog({
             onClick={() => onOpenChange(false)}
             disabled={saving}
           >
-            {t("common.cancel", "Cancel")}
+            {t("common.cancel", "取消")}
           </Button>
           <Button onClick={() => { void onSave(); }} disabled={saving}>
-            {saving ? t("common.saving", "Saving...") : t("common.save", "Save")}
+            {saving ? t("common.saving", "保存中...") : t("common.save", "保存")}
           </Button>
         </Flex>
       </CloudSensitiveDialogContent>
@@ -188,10 +186,10 @@ export function AWSCredentialCheckDialog({
   return (
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
       <CloudSensitiveDialogContent
-        title={t("cloud.providers.aws.check_dialog_title", "Batch Check AWS Credentials")}
+        title={t("cloud.providers.aws.check_dialog_title", "批量检测 AWS 凭证")}
         description={t(
           "cloud.providers.aws.check_dialog_description",
-          "Choose the AWS region used for this batch health check before kelicloud validates the selected credentials.",
+          "先选择本次批量测活使用的 AWS 区域，然后 kelicloud 会验证所选凭证。",
         )}
         icon={<ShieldCheck className="size-4" />}
         badge={<Badge color="blue">{t("cloud.providers.aws.name", "AWS")}</Badge>}
@@ -199,19 +197,19 @@ export function AWSCredentialCheckDialog({
           <CloudStatusNotice tone="blue">
             {t(
               "cloud.providers.aws.check_dialog_hint",
-              "The selected region is used for the validation request and quota-related checks.",
+              "所选区域会用于验证请求和配额相关检查。",
             )}
           </CloudStatusNotice>
         )}
       >
         <div className="space-y-2">
           <label className={cloudPanelFieldLabelClassName}>
-            {t("cloud.providers.aws.region", "Region")}
+            {t("cloud.providers.aws.region", "区域")}
           </label>
           <AWSRegionSelect
             value={region}
             options={regionOptions}
-            placeholder={t("cloud.providers.aws.region", "Region")}
+            placeholder={t("cloud.providers.aws.region", "区域")}
             searchPlaceholder={searchPlaceholder}
             emptyLabel={emptyLabel}
             onValueChange={onRegionChange}
@@ -223,7 +221,7 @@ export function AWSCredentialCheckDialog({
             onClick={() => onOpenChange(false)}
             disabled={checking}
           >
-            {t("common.cancel", "Cancel")}
+            {t("common.cancel", "取消")}
           </Button>
           <Button
             onClick={() => {
@@ -232,7 +230,7 @@ export function AWSCredentialCheckDialog({
             disabled={checking || !region}
           >
             <ShieldCheck className="mr-2 h-4 w-4" />
-            {t("cloud.tokens.check_all", "Check All Tokens")}
+            {t("cloud.tokens.check_all", "批量测活")}
           </Button>
         </Flex>
       </CloudSensitiveDialogContent>

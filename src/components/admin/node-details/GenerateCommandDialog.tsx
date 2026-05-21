@@ -20,15 +20,15 @@ import type { SettingsResponse } from "@/lib/api";
 import { buildAgentInstallScriptURL } from "@/lib/installScriptSource";
 
 const NODE_DIALOG_CONTENT_CLASS =
-  "max-h-[90vh] w-[min(96vw,1040px)] overflow-y-auto overscroll-contain rounded-lg border border-border bg-card p-6 shadow-xl shadow-slate-900/10 [scrollbar-gutter:stable]";
+  "max-h-[90vh] w-[min(96vw,1040px)] overflow-y-auto overscroll-contain rounded-xl border border-slate-200/80 bg-white p-5 shadow-[0_30px_90px_-55px_rgba(15,23,42,0.9)] [scrollbar-gutter:stable] dark:border-slate-800 dark:bg-slate-950";
 const NODE_DIALOG_SECTION_CLASS =
-  "rounded-lg border border-border bg-muted/25 p-4 shadow-none";
+  "rounded-xl border border-slate-200/80 bg-slate-50 p-4 shadow-sm shadow-slate-900/5 dark:border-slate-800 dark:bg-slate-900/35";
 const NODE_DIALOG_HINT_CLASS =
   "text-sm leading-6 text-muted-foreground";
 const NODE_DIALOG_FOOTER_CLASS =
-  "mt-6 flex flex-col-reverse gap-2.5 sm:flex-row sm:justify-end";
+  "sticky bottom-0 -mx-5 -mb-5 mt-5 flex flex-col-reverse gap-2 border-t border-slate-200/80 bg-white/95 px-5 py-3 backdrop-blur dark:border-slate-800 dark:bg-slate-950/95 sm:flex-row sm:justify-end";
 const NODE_INPUT_CLASS =
-  "h-11 rounded-md border border-border bg-muted/35 px-3 text-[14px] shadow-none hover:bg-card";
+  "h-10 rounded-lg border border-slate-200/80 bg-white px-3 text-[14px] shadow-sm shadow-slate-900/5 hover:bg-white dark:border-slate-800 dark:bg-slate-950";
 
 type Platform = "linux" | "windows" | "macos";
 

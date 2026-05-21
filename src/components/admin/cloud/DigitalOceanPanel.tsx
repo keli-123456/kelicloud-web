@@ -428,7 +428,7 @@ export default function DigitalOceanPanel() {
             "按需拉取 Droplet 资源，切换账户时页面会更快、更可控。",
           )}
           createTitle={t("cloud.onboarding.create_title", "创建或管理 Droplet")}
-          createLabel={t("cloud.create", "Create Droplet")}
+          createLabel={t("cloud.create", "创建 Droplet")}
           importLabel={t("cloud.tokens.import", "Import Tokens")}
           onImportCredential={() => setTokenImportOpen(true)}
           onLoadResources={() => {
@@ -686,7 +686,7 @@ function DigitalOceanInlineCreatePanel({
           <div className="min-w-0">
             <div className="flex items-center gap-2">
               <div className={cloudPanelTitleClassName}>
-                {t("cloud.create", "Create Droplet")}
+                {t("cloud.create", "创建 Droplet")}
               </div>
               <Badge color={activeToken ? "green" : "amber"}>
                 {activeToken ? t("cloud.tokens.active", "Active") : t("cloud.no_active", "No active")}
@@ -769,7 +769,7 @@ function DigitalOceanInlineCreatePanel({
           onClick={() => { void onCreate(); }}
           disabled={submitting || disabled || !form.region || !form.size || !form.image}
         >
-          {submitting ? t("cloud.creating", "Creating...") : t("cloud.create", "Create Droplet")}
+          {submitting ? t("cloud.creating", "创建中...") : t("cloud.create", "创建 Droplet")}
         </Button>
       </div>
     </section>

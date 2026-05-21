@@ -104,7 +104,7 @@ export function SettingCard({
             {title}
           </div>
           {description ? (
-      <div className="max-w-3xl text-sm leading-5 text-slate-500 dark:text-slate-400">
+            <div className="max-w-3xl text-sm leading-5 text-slate-500 dark:text-slate-400">
               {description}
             </div>
           ) : null}
@@ -117,7 +117,7 @@ export function SettingCard({
 }
 
 function Action({ children }: { children: React.ReactNode }) {
-  return <div data-setting-action="true">{children}</div>;
+  return <div data-setting-action="true" className="shrink-0">{children}</div>;
 }
 
 SettingCard.Action = Action;
@@ -165,7 +165,7 @@ export function SettingCardSwitch({
     <SettingCard {...props} direction="column">
       <SettingCard.Action>
         <div className="flex items-center gap-2">
-            <label className="text-sm text-muted-foreground">{label}</label>
+          <label className="text-sm text-muted-foreground">{label}</label>
           <Switch
             ref={switchRef}
             checked={checked}
@@ -210,7 +210,7 @@ export function SettingCardButton({
     <SettingCard {...props} direction="column">
       <SettingCard.Action>
         <div className="flex items-center gap-2">
-            <label className="text-sm text-muted-foreground">{label}</label>
+          <label className="text-sm text-muted-foreground">{label}</label>
           <Button
             onClick={handleClick}
             variant={mapButtonVariant(variant)}

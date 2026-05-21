@@ -44,6 +44,7 @@
     "password_mismatch_error": "2回入力したパスワードが一致しません",
     "password_strength_error": "パスワードには大文字、小文字、数字を含める必要があります",
     "password_too_short_error": "パスワードの長さは最低8文字でなければなりません",
+    "password_update_failed": "パスワードの更新に失敗しました",
     "profile_description": "Update your username and login password. After a successful password change, you will be redirected to the homepage.",
     "profile_title": "Profile",
     "qr_fetch_error": "QRコードを読み込めません",
@@ -58,7 +59,8 @@
       "two_factor_disabled_hint": "Enable two-factor authentication to improve admin security.",
       "two_factor_enabled_hint": "Two-factor authentication is enabled."
     },
-    "title": "アカウント"
+    "title": "アカウント",
+    "username_update_failed": "ユーザー名の更新に失敗しました"
   },
   "account_settings": {
     "bind_github": "GitHubアカウントをバインド",
@@ -93,6 +95,8 @@
   "admin": {
     "audit": {
       "description": "Review active sessions and backend operation logs in one place.",
+      "logs_description": "Operation records",
+      "sessions_description": "Login sessions",
       "title": "Audit"
     },
     "dashboard": {
@@ -541,6 +545,8 @@
       "upgradeDialogDescription": "Only online nodes in the current group will receive the upgrade script. The terminal entry remains available from the node row context menu.",
       "upgradeDialogTitle": "{{groupName}} · Upgrade agent",
       "upgradeFailedShort": "Failed",
+      "upgradeLatestReleaseFailed": "最新の Agent リリースを取得できませんでした: {{status}}",
+      "upgradeLatestReleaseTagUnavailable": "最新の Agent バージョンタグを読み取れませんでした。",
       "upgradeLatestOutput": "Latest output",
       "upgradeMissingTaskId": "No task ID was returned.",
       "upgradeMissingToken": "Node is missing a token and cannot be upgraded.",
@@ -797,6 +803,7 @@
     "payment_enabled_desc": "关闭后用户不能选择该支付方式。",
     "payment_method": "支付方式",
     "payment_name": "支付名称",
+    "payment_name_placeholder": "支払い方法名",
     "payment_reference": "支付流水/备注",
     "payment_saved": "支付方式已保存",
     "payment_type_alipay": "支付宝",
@@ -1188,7 +1195,7 @@
     },
     "form": {
       "activation_email": "Activation email",
-      "admin_username": "????????",
+      "admin_username": "管理者ユーザー名",
       "auto_connect": "初回起動後に kelicloud へ自動接続",
       "auto_connect_group": "自動接続グループ",
       "auto_connect_group_placeholder": "現在の資格情報から自動生成",
@@ -1593,8 +1600,8 @@
         "auto_connect_group": "Auto-connect Group",
         "auto_connect_group_placeholder": "Optional. Leave empty to use the default group",
         "auto_connect_toggle": "Bootstrap kelicloud agent auto-connect",
-        "auto_name": "????",
-        "auto_resource_group": "??????????",
+        "auto_name": "自動名",
+        "auto_resource_group": "自動リソースグループ",
         "check": "Check",
         "check_success": "Azure credentials checked",
         "checked_at": "Last Checked",
@@ -1951,6 +1958,9 @@
       "booting": "起動中",
       "disabled": "無効",
       "enabled": "有効",
+      "error": "エラー",
+      "failed": "失敗",
+      "healthy": "正常",
       "new": "新規作成中",
       "off": "停止",
       "offline": "オフライン",
@@ -1960,7 +1970,8 @@
       "shutting_down": "シャットダウン中",
       "stopped": "停止済み",
       "stopping": "停止中",
-      "terminated": "終了済み"
+      "terminated": "終了済み",
+      "unknown": "不明"
     },
     "stop": "Stop",
     "table": {
@@ -2049,6 +2060,7 @@
       "shared_managed_key_ready": "Shared managed SSH key: {{name}}",
       "status": {
         "error": "エラー",
+        "failed": "失敗",
         "healthy": "正常",
         "unknown": "不明"
       },
@@ -2454,11 +2466,11 @@
       "aws_static_presets_hint": "AWS failover uses the same built-in region, image, and instance-size presets as the AWS create-instance page. No catalog request is required for the basic form.",
       "aws_tags_hint": "Use key=value pairs separated by commas or new lines. These tags are applied only when kelicloud needs to create a replacement instance.",
       "aws_user_data_hint": "This runs before kelicloud's auto-connect bootstrap. Use shell script or cloud-init that is compatible with your selected image.",
-      "azure_access_section": "???????????",
-      "azure_access_section_hint": "DNS ??????????????????????????? IPv4 ? IPv6 ???????????",
-      "azure_common_options_hint": "Azure ?????????????VM ????Linux ??????????????????????????????????? Azure ?????????????",
+      "azure_access_section": "Azure アクセス設定",
+      "azure_access_section_hint": "IPv4、IPv6、DNS 関連オプションをまとめて設定します。",
+      "azure_common_options_hint": "Azure はこれらの共通オプションを使って Linux VM を作成し、その後の接続処理を行います。",
       "azure_compute_section": "Azure VM",
-      "azure_compute_section_hint": "??????????????????????????????VM ????Linux ??????????",
+      "azure_compute_section_hint": "リージョン、サイズ、イメージ、ログインパスワードを選択します。",
       "backups": "Backups",
       "basics": "Task basics",
       "basics_hint": "Only required fields stay here. Monitoring thresholds usually work well with their defaults.",
@@ -2530,7 +2542,7 @@
       "linode_common_options_hint": "Common Linode regions, plans, and images are shown by default. Load the full Linode list only if you need account-specific or uncommon options.",
       "load_plan_options": "Load options",
       "load_plan_options_first": "Choose a region first, then load provider options.",
-      "load_plan_options_full_azure": "Azure ???????????????",
+      "load_plan_options_full_azure": "Azure の詳細オプションを読み込む",
       "load_plan_options_full_digitalocean": "Load full DigitalOcean list",
       "load_plan_options_full_linode": "Load full Linode list",
       "load_plan_regions": "Load regions",
@@ -4025,6 +4037,7 @@
       "cn_connectivity_timeout_seconds": "Single probe timeout (seconds)",
       "cn_connectivity_timeout_seconds_description": "Maximum time the agent waits for one ICMP probe attempt before considering it failed.",
       "cn_connectivity_timeout_seconds_invalid": "Probe timeout must be greater than 0",
+      "description": "ノード、クリーンアップ、接続性プローブのグローバル実行設定です。",
       "offline_cleanup": "Offline node cleanup",
       "offline_cleanup_enabled": "Enable daily offline cleanup",
       "offline_cleanup_enabled_description": "Once enabled, kelicloud will automatically delete nodes that are still offline at the scheduled time every day.",
@@ -4133,6 +4146,8 @@
     "platform_tools_restricted_description": "Favicon 管理はプラットフォーム管理者のみ利用できます。",
     "platform_tools_title": "プラットフォームツール",
     "proxy": {
+      "connection_description": "クラウドプロバイダーの資格情報リクエストに、このアウトバウンドプロキシを使用できます。プロキシが失敗した場合、kelicloud は現在のリクエストを直接接続で一度だけ再試行します。",
+      "connection_title": "クラウド API アウトバウンド接続",
       "description": "Manage the outbound proxy used by cloud provider credential requests. Requests that do not use cloud provider credentials keep using the server's local IP. Proxy requests use short-lived connections and reconnect on every request. A failed proxy attempt will automatically retry the current request once without the proxy.",
       "enable": "Enable global outbound proxy",
       "enable_description": "Applies to cloud provider APIs that use DigitalOcean, Linode, or AWS credentials.",
@@ -4204,6 +4219,7 @@
       "github_url_description": "公開ナビゲーションに表示する GitHub 外部リンクを設定します。",
       "name": "サイト名",
       "name_description": "サイト名を設定します",
+      "nav_description": "サイト名、説明、公開表示に関する基本設定です。",
       "script_domain": "エージェント接続アドレス",
       "script_domain_description": "インストールスクリプトの接続アドレスを定義します。複数のドメインのユーザーに便利で、他のドメインのアクセスには影響しません。空白の場合は現在のドメインを使用します。",
       "subtitle": "サイトサブタイトル",

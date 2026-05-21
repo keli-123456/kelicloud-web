@@ -168,7 +168,7 @@ export default function FailoverV2ShareDialog({
           ) : (
             <>
               <div className="grid gap-3 sm:grid-cols-3">
-                <div className="rounded-lg border border-border bg-muted/25 px-4 py-3">
+                <div className="rounded-xl border border-slate-200/80 bg-slate-50 px-4 py-3 dark:border-slate-800 dark:bg-slate-900/35">
                   <div className="text-xs font-medium text-muted-foreground">
                     {t("failover_v2.share.target_task", { defaultValue: "任务" })}
                   </div>
@@ -176,7 +176,7 @@ export default function FailoverV2ShareDialog({
                     {service?.name || "-"}
                   </div>
                 </div>
-                <div className="rounded-lg border border-border bg-muted/25 px-4 py-3">
+                <div className="rounded-xl border border-slate-200/80 bg-slate-50 px-4 py-3 dark:border-slate-800 dark:bg-slate-900/35">
                   <div className="text-xs font-medium text-muted-foreground">
                     {t("failover_v2.share.member_scope", { defaultValue: "成员范围" })}
                   </div>
@@ -184,7 +184,7 @@ export default function FailoverV2ShareDialog({
                     {service ? `${service.enabled_member_count} / ${service.member_count}` : "-"}
                   </div>
                 </div>
-                <div className="rounded-lg border border-border bg-muted/25 px-4 py-3">
+                <div className="rounded-xl border border-slate-200/80 bg-slate-50 px-4 py-3 dark:border-slate-800 dark:bg-slate-900/35">
                   <div className="text-xs font-medium text-muted-foreground">
                     {t("failover_v2.share.access_count", { defaultValue: "访问次数" })}
                   </div>
@@ -285,7 +285,7 @@ export default function FailoverV2ShareDialog({
                     </div>
                   </div>
 
-                  <div className="rounded-lg border border-border bg-card p-4 text-sm">
+                  <div className="rounded-xl border border-slate-200/80 bg-white p-4 text-sm shadow-sm shadow-slate-900/5 dark:border-slate-800 dark:bg-slate-950">
                     <div className="font-semibold text-foreground">
                       {t("failover_v2.share.audit_info", { defaultValue: "分享状态" })}
                     </div>

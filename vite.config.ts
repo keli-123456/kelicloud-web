@@ -137,14 +137,9 @@ export default defineConfig(({ mode }) => {
       },
     },
     optimizeDeps: {
-      include: [
-        "react-router",
-        "react-router-dom",
-        "cookie",
-        "set-cookie-parser",
-        "html-parse-stringify",
-        "void-elements",
-      ],
+      disabled: "dev",
+      noDiscovery: true,
+      include: [],
     },
     build: {
       assetsDir: "assets",

@@ -67,7 +67,7 @@ const InnerLayout = () => {
   if (isLoading || nodeDetailLoading) {
     return (
       <Flex direction="column" gap="4" className="text-slate-900 dark:text-slate-100">
-        <div className="flex flex-col gap-3 rounded-lg border border-border bg-card p-3 shadow-sm shadow-slate-900/5 dark:border-slate-800 dark:bg-slate-950 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-col gap-3 rounded-xl border border-slate-200/80 bg-white p-3 shadow-[0_18px_45px_-34px_rgba(15,23,42,0.65)] dark:border-slate-800/90 dark:bg-slate-950 sm:flex-row sm:items-center sm:justify-between">
           <div className="text-sm font-medium text-foreground">
             {t("notification.load.title")}
           </div>
@@ -80,13 +80,13 @@ const InnerLayout = () => {
   if (error || nodeDetailError) {
     return (
       <div className="rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive">
-        {error || nodeDetailError || t("loadAlert.load_failed", "Failed to load load alerts")}
+        {error || nodeDetailError || t("loadAlert.load_failed", "加载负载告警失败")}
       </div>
     );
   }
   return (
     <Flex direction="column" gap="4" className="text-slate-900 dark:text-slate-100">
-      <div className="flex flex-col gap-3 rounded-lg border border-border bg-card p-3 shadow-sm shadow-slate-900/5 dark:border-slate-800 dark:bg-slate-950 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-col gap-3 rounded-xl border border-slate-200/80 bg-white p-3 shadow-[0_18px_45px_-34px_rgba(15,23,42,0.65)] dark:border-slate-800/90 dark:bg-slate-950 sm:flex-row sm:items-center sm:justify-between">
         <div className="min-w-0">
           <div className="text-sm font-medium text-foreground">
           {t("notification.load.title")}

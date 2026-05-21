@@ -19,14 +19,15 @@ import {
 import { normalizeCNConnectivityTargets } from "@/lib/cnConnectivityTargets";
 
 const NODE_DIALOG_CONTENT_CLASS =
-  "max-h-[90vh] w-[min(96vw,860px)] overflow-y-auto overscroll-contain rounded-lg border border-border bg-card p-6 shadow-xl shadow-slate-900/10 [scrollbar-gutter:stable]";
-const NODE_DIALOG_SECTION_CLASS = "dialog-section space-y-4";
+  "max-h-[90vh] w-[min(96vw,860px)] overflow-y-auto overscroll-contain rounded-xl border border-slate-200/80 bg-white p-5 shadow-[0_30px_90px_-55px_rgba(15,23,42,0.9)] [scrollbar-gutter:stable] dark:border-slate-800 dark:bg-slate-950";
+const NODE_DIALOG_SECTION_CLASS =
+  "space-y-4 rounded-xl border border-slate-200/80 bg-slate-50 px-4 py-4 dark:border-slate-800 dark:bg-slate-900/35";
 const NODE_DIALOG_FOOTER_CLASS =
-  "mt-6 flex flex-col-reverse gap-2.5 sm:flex-row sm:justify-end";
+  "sticky bottom-0 -mx-5 -mb-5 mt-5 flex flex-col-reverse gap-2 border-t border-slate-200/80 bg-white/95 px-5 py-3 backdrop-blur dark:border-slate-800 dark:bg-slate-950/95 sm:flex-row sm:justify-end";
 const NODE_INPUT_CLASS =
-  "h-11 rounded-md border border-border bg-muted/35 px-3 text-sm shadow-none hover:bg-card";
+  "h-10 rounded-lg border border-slate-200/80 bg-white px-3 text-sm shadow-sm shadow-slate-900/5 hover:bg-white dark:border-slate-800 dark:bg-slate-950";
 const NODE_TEXTAREA_CLASS =
-  "min-h-32 rounded-lg border border-border bg-muted/35 px-4 py-3 text-sm leading-6 shadow-none";
+  "min-h-32 rounded-xl border border-slate-200/80 bg-white px-4 py-3 text-sm leading-6 shadow-sm shadow-slate-900/5 dark:border-slate-800 dark:bg-slate-950";
 
 const normalizeDailyCleanupTime = (value: string) => {
   const trimmed = String(value || "").trim();

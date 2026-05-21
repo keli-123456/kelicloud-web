@@ -115,13 +115,13 @@ const getLineNumbers = (value: string) =>
     Array.from({ length: Math.max(1, getCodeLines(value).length) }, (_, index) => index + 1);
 
 const getLineNumberColumnWidth = (lineCount: number) =>
-  `calc(${Math.min(4, Math.max(2, String(Math.max(1, lineCount)).length))}ch + 8px)`;
+  `calc(${Math.min(4, Math.max(2, String(Math.max(1, lineCount)).length))}ch + 6px)`;
 
 const getCommandEditorHeight = (lineCount: number) =>
     Math.min(260, Math.max(96, lineCount * 20 + 32));
 
 const execPanelClass =
-    "overflow-hidden rounded-lg border border-border bg-card shadow-sm shadow-slate-900/5";
+    "overflow-hidden rounded-xl border border-slate-200/80 bg-white shadow-[0_18px_45px_-34px_rgba(15,23,42,0.65)] dark:border-slate-800/90 dark:bg-slate-950";
 
 type ExecStatusTone = "ok" | "warn" | "bad" | "info";
 
@@ -836,10 +836,10 @@ const ExecContent = () => {
 
     return (
         <div className="flex min-w-0 flex-col gap-[14px] p-3 sm:p-4 md:p-6">
-            <div className="grid gap-[14px] xl:grid-cols-[minmax(0,1fr)_360px]">
-                <section className={execPanelClass}>
+            <div className="grid items-start gap-[14px] xl:grid-cols-[minmax(0,1fr)_360px]">
+                <section className={cn(execPanelClass, "xl:max-h-[calc(100dvh-11rem)] xl:overflow-hidden")}>
                     <div className="flex min-h-[54px] flex-col gap-3 border-b border-border px-[14px] py-3 sm:flex-row sm:items-center sm:justify-between">
-                        <div className="flex w-full rounded-md border border-border bg-muted/30 p-1 sm:w-auto">
+                        <div className="flex w-full rounded-lg border border-slate-200/80 bg-slate-50 p-1 shadow-sm shadow-slate-900/5 dark:border-slate-800 dark:bg-slate-900/35 sm:w-auto">
                             <ExecToolbarTab active={activeTab === "library"} onClick={() => setActiveTab("library")}>
                                 {t("command_clipboard.open_library", { defaultValue: "脚本库" })}
                             </ExecToolbarTab>
@@ -913,13 +913,12 @@ const ExecContent = () => {
                     {activeTab === "library" && (
                         <>
                         <AdminDataTableScroll>
-                            <AdminDataTable minWidth={680}>
+                            <AdminDataTable minWidth={560} className="[&_td]:px-3 [&_th]:px-3">
                                 <thead>
                                     <AdminDataTableHeadRow>
                                         <AdminDataTableHead>{t("command_clipboard.table.script", { defaultValue: "脚本" })}</AdminDataTableHead>
                                         <AdminDataTableHead>{t("command_clipboard.table.remark", { defaultValue: "备注" })}</AdminDataTableHead>
                                         <AdminDataTableHead>{t("command_clipboard.table.updated_at", { defaultValue: "更新时间" })}</AdminDataTableHead>
-                                        <AdminDataTableHead>{t("command_clipboard.table.weight", { defaultValue: "权重" })}</AdminDataTableHead>
                                         <AdminDataTableHead sticky="right" align="right" className="w-[72px]">
                                             {t("common.action", { defaultValue: "操作" })}
                                         </AdminDataTableHead>
@@ -927,15 +926,15 @@ const ExecContent = () => {
                                 </thead>
                                 <tbody>
                                     {commandsLoading ? (
-                                        <AdminDataTableEmptyRow colSpan={5} className="py-5">
-                                            <AdminTableSkeleton columns={5} rows={3} />
+                                        <AdminDataTableEmptyRow colSpan={4} className="py-5">
+                                            <AdminTableSkeleton columns={4} rows={3} />
                                         </AdminDataTableEmptyRow>
                                     ) : commandsError ? (
-                                        <AdminDataTableEmptyRow colSpan={5} className="py-5 text-sm text-destructive">
+                                        <AdminDataTableEmptyRow colSpan={4} className="py-5 text-sm text-destructive">
                                             {commandsError.message}
                                         </AdminDataTableEmptyRow>
                                     ) : visibleCommands.length === 0 ? (
-                                        <AdminDataTableEmptyRow colSpan={5}>
+                                        <AdminDataTableEmptyRow colSpan={4}>
                                             <AdminEmptyState
                                                 icon={<Terminal size={18} />}
                                                 title={t("exec.library_empty_title", { defaultValue: "暂无脚本" })}
@@ -957,7 +956,7 @@ const ExecContent = () => {
                                                 <button
                                                     type="button"
                                                     onClick={() => setCommand(item.text)}
-                                                    className="block max-w-[260px] truncate text-left text-[13px] font-semibold leading-5 text-foreground hover:text-primary"
+                                                    className="block max-w-[240px] truncate text-left text-[13px] font-semibold leading-5 text-foreground hover:text-primary"
                                                 >
                                                     {getCommandTitle(
                                                         item,
@@ -967,20 +966,15 @@ const ExecContent = () => {
                                                         }),
                                                     )}
                                                 </button>
-                                                <span className="block max-w-[320px] truncate font-mono text-[11px] leading-4 text-muted-foreground">
-                                                    {item.text}
+                                                <span className="mt-1 inline-flex h-5 items-center rounded-full bg-slate-100 px-2 font-mono text-[11px] leading-5 text-slate-500 dark:bg-slate-900 dark:text-slate-400">
+                                                    #{item.id} · {t("command_clipboard.table.weight", { defaultValue: "权重" })} {item.weight}
                                                 </span>
                                             </AdminDataTableCell>
-                                            <AdminDataTableCell className="max-w-[220px]">
-                                                <span className="block truncate">{item.remark || "-"}</span>
+                                            <AdminDataTableCell className="max-w-[220px] align-top">
+                                                <span className="block line-clamp-2 text-[12px] leading-5">{item.remark || "-"}</span>
                                             </AdminDataTableCell>
-                                            <AdminDataTableCell>
+                                            <AdminDataTableCell className="whitespace-nowrap align-top">
                                                 {formatTimestamp(item.updated_at)}
-                                            </AdminDataTableCell>
-                                            <AdminDataTableCell>
-                                                <Badge variant="secondary" className="h-6 rounded-full px-2 text-[11px]">
-                                                    {item.weight}
-                                                </Badge>
                                             </AdminDataTableCell>
                                             <AdminDataTableCell sticky="right" align="right">
                                                 <AdminRowActions
@@ -1028,7 +1022,7 @@ const ExecContent = () => {
                     {activeTab === "history" && (
                         <>
                         <AdminDataTableScroll>
-                            <AdminDataTable minWidth={760}>
+                            <AdminDataTable minWidth={640} className="[&_td]:px-3 [&_th]:px-3">
                                 <thead>
                                     <AdminDataTableHeadRow>
                     <AdminDataTableHead>任务ID</AdminDataTableHead>
@@ -1296,7 +1290,7 @@ const ExecContent = () => {
                                     </div>
                                     <span className="text-[11px] text-muted-foreground">
                                         {t("exec.command_line_count", {
-                                            defaultValue: "{{count}} lines",
+                                            defaultValue: "{{count}} 行",
                                             count: commandLineNumbers.length,
                                         })}
                                     </span>
@@ -1379,7 +1373,7 @@ const ExecContent = () => {
                 </section>
             </div>
 
-            <section className={execPanelClass}>
+            <section className={cn(execPanelClass, "xl:max-h-[calc(100dvh-11rem)] xl:overflow-y-auto")}>
                 <ExecPanelHead
                     title={t("exec.results", { defaultValue: "执行结果" })}
                     meta={currentTaskId ? `任务 ${currentTaskId}` : "执行结果"}

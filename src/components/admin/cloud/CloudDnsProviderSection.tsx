@@ -114,20 +114,20 @@ function getProviderFooter(provider: string, t: ReturnType<typeof useTranslation
   if (isCloudflareProvider(provider)) {
     return t(
       "cloud.dns.cloudflare_hint",
-      "Use an API token that can edit DNS records for the target Cloudflare zone.",
+      "请使用具备目标 Cloudflare Zone DNS 记录编辑权限的 API Token。",
     );
   }
 
   if (isAliyunProvider(provider)) {
     return t(
       "cloud.dns.aliyun_hint",
-      "Use an AccessKey pair with AliDNS record permissions for the target domain.",
+      "请使用具备目标域名 AliDNS 解析记录权限的 AccessKey。",
     );
   }
 
   return t(
     "cloud.dns.generic_hint",
-    "Save DNS credentials here so kelicloud can reuse them in domain resolution workflows.",
+    "在这里保存 DNS 凭证，kelicloud 后续会在解析自动化流程中复用。",
   );
 }
 
@@ -166,7 +166,7 @@ function buildProviderNameField(): CloudProviderField {
     name: "name",
     required: true,
     type: "string",
-    help: "Friendly label for this DNS credential set.",
+    help: "",
   };
 }
 
@@ -541,7 +541,7 @@ export default function CloudDnsProviderSection({
         },
       ),
       confirmLabel: t("common.delete", "Delete"),
-      cancelLabel: t("common.cancel", "Cancel"),
+      cancelLabel: t("common.cancel", "取消"),
     });
     if (!confirmed) {
       return;
@@ -800,14 +800,14 @@ export default function CloudDnsProviderSection({
                                           variant="outline"
                                           onClick={() => openEditDialog(provider, entry)}
                                         >
-                                          {t("common.edit", "Edit")}
+                                          {t("common.edit", "编辑")}
                                         </Button>
                                         <Button
                                           size="sm"
                                           variant="outline"
                                           onClick={() => void handleDeleteEntry(provider, entry)}
                                         >
-                                          {t("common.delete", "Delete")}
+                                          {t("common.delete", "删除")}
                                         </Button>
                                       </div>
                                     </div>
@@ -821,7 +821,7 @@ export default function CloudDnsProviderSection({
                                 <div className="text-sm text-slate-500 dark:text-slate-400">
                                   {t(
                                     "cloud.dns.dialog.credentials_only_hint",
-                                    "This page only stores config names and credentials. Domain or zone binding will be selected later.",
+                                    "这里仅保存配置名称和凭证，域名或 Zone 绑定会在实际使用 DNS 自动化时再选择。",
                                   )}
                                 </div>
                                 <Button
@@ -829,7 +829,7 @@ export default function CloudDnsProviderSection({
                                   disabled={Boolean(providerError)}
                                   onClick={() => openCreateDialog(provider)}
                                 >
-                                  {t("cloud.dns.add_entry", "Add Credential")}
+                                  {t("cloud.dns.add_entry", "添加凭证")}
                                 </Button>
                               </div>
                             </>
@@ -850,17 +850,17 @@ export default function CloudDnsProviderSection({
           <DialogHeader>
             <DialogTitle>
               {dialogState?.entryId
-                ? t("cloud.dns.dialog.edit_entry_title", "Edit {{provider}} Credential", {
+                ? t("cloud.dns.dialog.edit_entry_title", "编辑 {{provider}} 凭证", {
                   provider: activeProviderLabel,
                 })
-                : t("cloud.dns.dialog.add_entry_title", "Add {{provider}} Credential", {
+                : t("cloud.dns.dialog.add_entry_title", "添加 {{provider}} 凭证", {
                   provider: activeProviderLabel,
                 })}
             </DialogTitle>
             <DialogDescription>
               {t(
                 "cloud.dns.dialog.description",
-                "Only config names and provider credentials are stored here. Domain binding will be selected later when DNS automation is actually used.",
+                "这里仅保存配置名称和服务商凭证，域名绑定会在实际使用 DNS 自动化时再选择。",
               )}
             </DialogDescription>
           </DialogHeader>
@@ -871,7 +871,7 @@ export default function CloudDnsProviderSection({
                 tone="info"
                 description={t(
                   "cloud.dns.dialog.credentials_only_hint",
-                  "This page only stores config names and credentials. Domain or zone binding will be selected later.",
+                  "这里仅保存配置名称和凭证，域名或 Zone 绑定会在实际使用 DNS 自动化时再选择。",
                 )}
               />
 
@@ -880,10 +880,10 @@ export default function CloudDnsProviderSection({
                 providerDefs: { [activeProvider]: activeProviderFields },
                 providerValues: dialogState.values,
                 translationPrefix: `cloud.dns.providers.${activeProviderKey}`,
-                title: t("cloud.dns.dialog.form_title", "Credentials"),
+                title: t("cloud.dns.dialog.form_title", "凭证"),
                 description: t(
                   "cloud.dns.dialog.form_description",
-                  "Save a display name and the credentials kelicloud should use for this DNS provider.",
+                  "保存显示名称，以及 kelicloud 调用这个 DNS 服务商时使用的凭证。",
                 ),
                 footer: getProviderFooter(activeProvider, t),
                 collapsible: false,
@@ -919,7 +919,7 @@ export default function CloudDnsProviderSection({
                   await persistProviderEntries(
                     activeProvider,
                     nextEntries,
-                    t("cloud.dns.entry_save_success", "Credential saved"),
+                    t("cloud.dns.entry_save_success", "凭证已保存"),
                   );
                   closeDialog();
                 },

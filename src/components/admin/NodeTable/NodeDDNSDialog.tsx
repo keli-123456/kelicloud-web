@@ -15,6 +15,12 @@ import {
   TextArea,
   TextField,
 } from "@/components/admin/admin-ui";
+import {
+  ADMIN_FORM_BODY_CLASS,
+  ADMIN_FORM_DIALOG_CHROME_CLASS,
+  ADMIN_FORM_HEADER_CLASS,
+  ADMIN_FORM_HEADER_INSET_CLASS,
+} from "@/components/admin/AdminFormStyles";
 import { getCloudProviderEntries, type CloudProviderCredentialEntry } from "@/lib/cloud";
 import { getReadableErrorMessage } from "@/lib/apiErrorMessage";
 import {
@@ -26,6 +32,7 @@ import {
   type ClientDDNSBinding,
 } from "@/lib/clientDDNS";
 import type { FailoverDnsCatalog } from "@/lib/failover";
+import { cn } from "@/lib/utils";
 
 type NodeDDNSTarget = {
   uuid: string;
@@ -64,13 +71,16 @@ const DEFAULT_ALIYUN_FORM: AliyunFormState = {
 };
 
 const NODE_DIALOG_CONTENT_CLASS =
-  "max-h-[90vh] w-[min(96vw,760px)] overflow-y-auto overscroll-contain rounded-lg border border-border bg-card p-6 shadow-xl shadow-slate-900/10 [scrollbar-gutter:stable]";
+  cn(
+    "flex max-h-[90vh] w-[calc(100vw-1.5rem)] max-w-[760px] flex-col overflow-hidden",
+    ADMIN_FORM_DIALOG_CHROME_CLASS,
+  );
 const NODE_DIALOG_SECTION_CLASS =
-  "dialog-section px-4 py-4";
+  "rounded-xl border border-slate-200/80 bg-slate-50 px-4 py-4 dark:border-slate-800 dark:bg-slate-900/35";
 const NODE_DIALOG_INFO_CLASS =
-  "rounded-lg border border-border/60 bg-background p-4 shadow-none";
+  "flex items-center justify-between gap-3 rounded-xl border border-slate-200/80 bg-white p-4 shadow-sm shadow-slate-900/5 dark:border-slate-800 dark:bg-slate-950";
 const NODE_DIALOG_DANGER_CLASS =
-  "dialog-danger px-3 py-2";
+  "rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-900/50 dark:bg-red-950/40 dark:text-red-200";
 
 function normalizeProvider(value: string): DDNSProvider {
   return value === "aliyun" ? "aliyun" : "cloudflare";
@@ -245,7 +255,7 @@ export function NodeDDNSDialog({
       } catch (error) {
         if (!cancelled) {
           toast.error(
-            getReadableErrorMessage(error, t("admin.nodeTable.ddns.loadFailed", "Failed to load DDNS settings")),
+            getReadableErrorMessage(error, t("admin.nodeTable.ddns.loadFailed", "加载 DDNS 设置失败")),
           );
         }
       } finally {
@@ -282,7 +292,7 @@ export function NodeDDNSDialog({
         if (!cancelled) {
           setEntries([]);
           toast.error(
-            getReadableErrorMessage(error, t("admin.nodeTable.ddns.entryLoadFailed", "Failed to load credential entries")),
+            getReadableErrorMessage(error, t("admin.nodeTable.ddns.entryLoadFailed", "加载 DNS 凭证条目失败")),
           );
         }
       } finally {
@@ -350,7 +360,7 @@ export function NodeDDNSDialog({
         if (!cancelled) {
           setCatalog(null);
           setCatalogError(
-            getReadableErrorMessage(error, t("admin.nodeTable.ddns.catalogLoadFailed", "Failed to load DNS catalog")),
+            getReadableErrorMessage(error, t("admin.nodeTable.ddns.catalogLoadFailed", "加载 DNS 目录失败")),
           );
         }
       } finally {
@@ -481,15 +491,19 @@ export function NodeDDNSDialog({
         maxWidth={720}
         className={NODE_DIALOG_CONTENT_CLASS}
       >
-        <Dialog.Title>{t("admin.nodeTable.ddns.title", "DDNS")}</Dialog.Title>
-        <Dialog.Description>
-          {t(
-            "admin.nodeTable.ddns.description",
-            "Bind this node to a DNS record and keep it updated when the node IP changes.",
-          )}
-        </Dialog.Description>
+        <div className={ADMIN_FORM_HEADER_CLASS}>
+          <div className={ADMIN_FORM_HEADER_INSET_CLASS}>
+            <Dialog.Title>{t("admin.nodeTable.ddns.title", "DDNS")}</Dialog.Title>
+            <Dialog.Description>
+              {t(
+                "admin.nodeTable.ddns.description",
+                "Bind this node to a DNS record and keep it updated when the node IP changes.",
+              )}
+            </Dialog.Description>
+          </div>
+        </div>
 
-        <div className="mt-4 flex flex-col gap-4">
+        <div className={cn(ADMIN_FORM_BODY_CLASS, "space-y-4")}>
           <div className={NODE_DIALOG_SECTION_CLASS}>
             <div className="text-sm font-semibold">
               {t("admin.nodeTable.ddns.currentIPs", "Current node IPs")}
@@ -935,7 +949,7 @@ export function NodeDDNSDialog({
                 }}
               >
                 {saving
-                  ? t("admin.nodeTable.ddns.saving", "Saving...")
+                  ? t("admin.nodeTable.ddns.saving", "保存中...")
                   : t("admin.nodeTable.ddns.save", "Save DDNS")}
               </Button>
             </Flex>

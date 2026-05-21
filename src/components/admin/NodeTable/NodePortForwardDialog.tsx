@@ -13,6 +13,12 @@ import {
   Switch,
   TextField,
 } from "@/components/admin/admin-ui";
+import {
+  ADMIN_FORM_BODY_CLASS,
+  ADMIN_FORM_DIALOG_CHROME_CLASS,
+  ADMIN_FORM_HEADER_CLASS,
+  ADMIN_FORM_HEADER_INSET_CLASS,
+} from "@/components/admin/AdminFormStyles";
 import { getReadableErrorMessage } from "@/lib/apiErrorMessage";
 import {
   applyClientPortForwardRules,
@@ -22,6 +28,7 @@ import {
   type ClientPortForwardProtocol,
   type ClientPortForwardRule,
 } from "@/lib/clientPortForward";
+import { cn } from "@/lib/utils";
 
 type NodePortForwardTarget = {
   uuid: string;
@@ -50,11 +57,14 @@ const DEFAULT_FORM: PortForwardFormState = {
 };
 
 const NODE_DIALOG_CONTENT_CLASS =
-  "max-h-[90vh] w-[min(96vw,860px)] overflow-y-auto overscroll-contain rounded-lg border border-border bg-card p-6 shadow-xl shadow-slate-900/10 [scrollbar-gutter:stable]";
+  cn(
+    "flex max-h-[90vh] w-[calc(100vw-1.5rem)] max-w-[860px] flex-col overflow-hidden",
+    ADMIN_FORM_DIALOG_CHROME_CLASS,
+  );
 const NODE_DIALOG_SECTION_CLASS =
-  "dialog-section px-4 py-4";
+  "rounded-xl border border-slate-200/80 bg-slate-50 px-4 py-4 dark:border-slate-800 dark:bg-slate-900/35";
 const NODE_DIALOG_INFO_CLASS =
-  "rounded-lg border border-border/60 bg-background p-4 shadow-none";
+  "rounded-xl border border-slate-200/80 bg-white p-4 shadow-sm shadow-slate-900/5 dark:border-slate-800 dark:bg-slate-950";
 
 function buildFormFromRule(rule: ClientPortForwardRule): PortForwardFormState {
   return {
@@ -342,15 +352,19 @@ export function NodePortForwardDialog({
         maxWidth={820}
         className={NODE_DIALOG_CONTENT_CLASS}
       >
-        <Dialog.Title>{t("admin.nodeTable.portForward.title", "端口中转")}</Dialog.Title>
-        <Dialog.Description>
-          {t(
-            "admin.nodeTable.portForward.description",
-            "使用当前服务器作为公网入口，通过 iptables 转发到另一台服务器的端口。",
-          )}
-        </Dialog.Description>
+        <div className={ADMIN_FORM_HEADER_CLASS}>
+          <div className={ADMIN_FORM_HEADER_INSET_CLASS}>
+            <Dialog.Title>{t("admin.nodeTable.portForward.title", "端口中转")}</Dialog.Title>
+            <Dialog.Description>
+              {t(
+                "admin.nodeTable.portForward.description",
+                "使用当前服务器作为公网入口，通过 iptables 转发到另一台服务器的端口。",
+              )}
+            </Dialog.Description>
+          </div>
+        </div>
 
-        <div className="mt-5 grid gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
+        <div className={cn(ADMIN_FORM_BODY_CLASS, "grid gap-4 lg:grid-cols-[minmax(0,1fr)_320px]")}>
           <div className="space-y-4">
             <div className={NODE_DIALOG_INFO_CLASS}>
               <div className="grid gap-3 text-sm sm:grid-cols-2">
@@ -532,7 +546,7 @@ export function NodePortForwardDialog({
                 />
               </Flex>
 
-              <div className="flex items-center justify-between gap-3 rounded-lg border border-border/70 bg-background px-3 py-2.5">
+              <div className="flex items-center justify-between gap-3 rounded-xl border border-slate-200/80 bg-white px-3 py-2.5 shadow-sm shadow-slate-900/5 dark:border-slate-800 dark:bg-slate-950">
                 <div>
                   <div className="text-sm font-semibold">
                     {t("admin.nodeTable.portForward.enabled", "启用规则")}

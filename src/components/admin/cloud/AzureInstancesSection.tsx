@@ -52,6 +52,7 @@ import {
 } from "@/components/admin/cloud/cloud-ui";
 import {
   formatDateTime,
+  formatAzureLocationOption,
   formatList,
   getInstanceStateColor,
   getLocationLabel,
@@ -117,7 +118,6 @@ export function AzureInstancesSection({
       return [
         instance.name,
         instance.instance_id,
-        instance.resource_group,
         instance.location,
         state,
         instance.size,
@@ -160,7 +160,7 @@ export function AzureInstancesSection({
                   <Select.Content>
                     {catalog.locations.map((location) => (
                       <Select.Item key={location.name} value={location.name}>
-                        {location.regionalDisplayName || location.displayName || location.name}
+                        {formatAzureLocationOption(location)}
                       </Select.Item>
                     ))}
                   </Select.Content>
@@ -178,17 +178,16 @@ export function AzureInstancesSection({
             title={t("cloud.providers.azure.no_active_credential", "请先选择已激活的 Azure 凭证")}
             description={t(
               "cloud.providers.azure.no_active_credential_description",
-              "Import credentials or select an existing subscription before loading virtual machines.",
+              "加载虚拟机前，请先导入凭证或选择已有订阅。",
             )}
             className={cloudTableEmptyStateClassName}
           />
         ) : resourceLoading ? (
           <AdminDataTableScroll>
-            <AdminDataTable minWidth={1180}>
+            <AdminDataTable minWidth={1040}>
               <thead>
                 <AdminDataTableHeadRow>
                   <AdminDataTableHead>{t("cloud.table.name", "名称")}</AdminDataTableHead>
-                  <AdminDataTableHead>{t("cloud.providers.azure.resource_group", "资源组")}</AdminDataTableHead>
                   <AdminDataTableHead>{t("cloud.table.region", "地区")}</AdminDataTableHead>
                   <AdminDataTableHead>{t("cloud.table.status", "状态")}</AdminDataTableHead>
                   <AdminDataTableHead>{t("cloud.table.size", "规格")}</AdminDataTableHead>
@@ -201,7 +200,7 @@ export function AzureInstancesSection({
                 </AdminDataTableHeadRow>
               </thead>
               <tbody>
-                <CloudTableSkeletonRows columns={9} />
+                <CloudTableSkeletonRows columns={8} />
               </tbody>
             </AdminDataTable>
           </AdminDataTableScroll>
@@ -211,7 +210,7 @@ export function AzureInstancesSection({
             title={t("cloud.providers.azure.instances_empty", "未找到 Azure 虚拟机")}
             description={t(
               "cloud.providers.azure.instances_empty_description",
-              "Create a VM in the active subscription or switch to another credential/location with existing machines.",
+              "可以在当前订阅创建虚拟机，或切换到已有机器的凭证和地区。",
             )}
             className={cloudTableEmptyStateClassName}
           />
@@ -257,11 +256,10 @@ export function AzureInstancesSection({
           ) : (
           <>
           <AdminDataTableScroll>
-            <AdminDataTable minWidth={1180}>
+            <AdminDataTable minWidth={1040}>
               <thead>
                 <AdminDataTableHeadRow>
                   <AdminDataTableHead>{t("cloud.table.name", "名称")}</AdminDataTableHead>
-                  <AdminDataTableHead>{t("cloud.providers.azure.resource_group", "资源组")}</AdminDataTableHead>
                   <AdminDataTableHead>{t("cloud.table.region", "地区")}</AdminDataTableHead>
                   <AdminDataTableHead>{t("cloud.table.status", "状态")}</AdminDataTableHead>
                   <AdminDataTableHead>{t("cloud.table.size", "规格")}</AdminDataTableHead>
@@ -290,7 +288,6 @@ export function AzureInstancesSection({
                         {instance.os_type || "-"}
                       </div>
                     </AdminDataTableCell>
-                    <AdminDataTableCell className="align-top">{instance.resource_group || "-"}</AdminDataTableCell>
                     <AdminDataTableCell className="align-top">{getLocationLabel(catalog, instance.location)}</AdminDataTableCell>
                     <AdminDataTableCell className="align-top">
                       <Badge color={getInstanceStateColor(instance)}>

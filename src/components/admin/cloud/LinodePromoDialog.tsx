@@ -65,7 +65,7 @@ export function LinodePromoDialog({
           />
           <Flex justify="end" gap="2">
             <Button variant="outline" onClick={() => onOpenChange(false)} disabled={submitting}>
-              {t("common.cancel", "Cancel")}
+              {t("common.cancel", "取消")}
             </Button>
             <Button
               onClick={() => {

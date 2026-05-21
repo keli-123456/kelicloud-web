@@ -29,7 +29,7 @@ export function useAzureCredentialHealth({
     try {
       const nextPool = await checkAzureCredentials();
       setCredentialPool(nextPool);
-      toast.success(t("cloud.providers.azure.check_success", "Azure credentials checked"));
+      toast.success(t("cloud.providers.azure.check_success", "Azure 凭证检测完成"));
       if (hasActiveCredential(nextPool)) {
         await loadResources(nextPool);
       }

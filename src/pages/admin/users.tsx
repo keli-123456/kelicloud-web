@@ -19,10 +19,17 @@ import {
   AdminDataTableScroll,
 } from "@/components/admin/AdminDataTable";
 import {
+  ADMIN_FORM_BODY_CLASS,
+  ADMIN_FORM_CONTEXT_CARD_CLASS,
+  ADMIN_FORM_DIALOG_CHROME_CLASS,
   ADMIN_FORM_DIALOG_CLASS,
   ADMIN_FORM_FIELD_CLASS,
+  ADMIN_FORM_FOOTER_CLASS,
   ADMIN_FORM_GRID_2_CLASS,
-  ADMIN_FORM_SCROLL_CLASS,
+  ADMIN_FORM_HEADER_CLASS,
+  ADMIN_FORM_HEADER_INSET_CLASS,
+  ADMIN_FORM_HELP_CLASS,
+  ADMIN_FORM_LABEL_CLASS,
   ADMIN_FORM_TOGGLE_CLASS,
 } from "@/components/admin/AdminFormStyles";
 import {
@@ -1100,11 +1107,19 @@ export function AdminUsersSection({
             <Dialog.Trigger asChild>
               <Button>{t("common.add")}</Button>
             </Dialog.Trigger>
-            <Dialog.Content className={ADMIN_FORM_DIALOG_CLASS} maxWidth={720}>
-              <Dialog.Title>{t("admin.users.create_title")}</Dialog.Title>
-              <form className={`${ADMIN_FORM_SCROLL_CLASS} mt-4 space-y-4`} onSubmit={handleCreateUser}>
+            <Dialog.Content className={`${ADMIN_FORM_DIALOG_CLASS} ${ADMIN_FORM_DIALOG_CHROME_CLASS}`} maxWidth={720}>
+              <div className={ADMIN_FORM_HEADER_CLASS}>
+                <div className={ADMIN_FORM_HEADER_INSET_CLASS}>
+                  <Dialog.Title>{t("admin.users.create_title")}</Dialog.Title>
+                  <Dialog.Description>
+                    {t("admin.users.description")}
+                  </Dialog.Description>
+                </div>
+              </div>
+              <form className="flex min-h-0 flex-1 flex-col overflow-hidden" onSubmit={handleCreateUser}>
+                <div className={`${ADMIN_FORM_BODY_CLASS} space-y-4`}>
                 <label className={ADMIN_FORM_FIELD_CLASS}>
-                  <div className="text-sm font-medium text-slate-900 dark:text-slate-100">
+                  <div className={ADMIN_FORM_LABEL_CLASS}>
                     {t("login.username")}
                   </div>
                   <Input
@@ -1121,7 +1136,7 @@ export function AdminUsersSection({
                   />
                 </label>
                 <label className={ADMIN_FORM_FIELD_CLASS}>
-                  <div className="text-sm font-medium text-slate-900 dark:text-slate-100">
+                  <div className={ADMIN_FORM_LABEL_CLASS}>
                     {t("login.password")}
                   </div>
                   <Input
@@ -1152,7 +1167,7 @@ export function AdminUsersSection({
                 />
                 <div className={ADMIN_FORM_GRID_2_CLASS}>
                   <label className={ADMIN_FORM_FIELD_CLASS}>
-                    <div className="text-sm font-medium text-slate-900 dark:text-slate-100">
+                    <div className={ADMIN_FORM_LABEL_CLASS}>
                       {t("admin.users.plan_name", "Plan")}
                     </div>
                     <Input
@@ -1168,7 +1183,7 @@ export function AdminUsersSection({
                     />
                   </label>
                   <label className={ADMIN_FORM_FIELD_CLASS}>
-                    <div className="text-sm font-medium text-slate-900 dark:text-slate-100">
+                    <div className={ADMIN_FORM_LABEL_CLASS}>
                       {t("admin.users.plan_expires_at", "Expires")}
                     </div>
                     <Input
@@ -1184,7 +1199,7 @@ export function AdminUsersSection({
                   </label>
                 </div>
                 <label className={ADMIN_FORM_FIELD_CLASS}>
-                  <div className="text-sm font-medium text-slate-900 dark:text-slate-100">
+                  <div className={ADMIN_FORM_LABEL_CLASS}>
                     {t("admin.users.plan_note", "Internal note")}
                   </div>
                   <Textarea
@@ -1201,10 +1216,10 @@ export function AdminUsersSection({
                 </label>
                 <label className={ADMIN_FORM_TOGGLE_CLASS}>
                   <div>
-                    <div className="text-sm font-medium text-slate-900 dark:text-slate-100">
+                    <div className={ADMIN_FORM_LABEL_CLASS}>
                       {t("admin.users.account_disabled", "Disable account")}
                     </div>
-                    <div className="text-xs text-slate-500 dark:text-slate-400">
+                    <div className={ADMIN_FORM_HELP_CLASS}>
                       {t("admin.users.account_disabled_hint", "Disabled or expired users cannot log in or use admin APIs.")}
                     </div>
                   </div>
@@ -1220,7 +1235,7 @@ export function AdminUsersSection({
                 </label>
                 <div className={ADMIN_FORM_GRID_2_CLASS}>
                   <label className={ADMIN_FORM_FIELD_CLASS}>
-                    <div className="text-sm font-medium text-slate-900 dark:text-slate-100">
+                    <div className={ADMIN_FORM_LABEL_CLASS}>
                       {t("admin.users.role")}
                     </div>
                     <Select.Root
@@ -1240,7 +1255,7 @@ export function AdminUsersSection({
                     </Select.Root>
                   </label>
                   <label className={ADMIN_FORM_FIELD_CLASS}>
-                    <div className="text-sm font-medium text-slate-900 dark:text-slate-100">
+                    <div className={ADMIN_FORM_LABEL_CLASS}>
                       {t("admin.users.server_quota", "Server quota")}
                     </div>
                     <Input
@@ -1254,7 +1269,7 @@ export function AdminUsersSection({
                         }))
                       }
                     />
-                    <div className="text-xs text-slate-500 dark:text-slate-400">
+                    <div className={ADMIN_FORM_HELP_CLASS}>
                       {t("admin.users.server_quota_hint", "Set to 0 for unlimited.")}
                     </div>
                   </label>
@@ -1267,7 +1282,8 @@ export function AdminUsersSection({
                   }
                   t={t}
                 />
-                <div className="flex justify-end gap-2 border-t border-slate-200/70 pt-4 dark:border-slate-800/70">
+                </div>
+                <div className={ADMIN_FORM_FOOTER_CLASS}>
                   <Dialog.Close asChild>
                     <Button variant="outline" type="button">
                       {t("common.cancel")}
@@ -1286,17 +1302,15 @@ export function AdminUsersSection({
     >
       <AdminSurface>
         <Dialog.Root open={Boolean(policyUser)} onOpenChange={(open) => !open && closePolicyEditor()}>
-          <div className="overflow-hidden rounded-lg border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-950/40">
+          <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-950/40">
             <AdminDataTableScroll>
-              <AdminDataTable minWidth={1080}>
+              <AdminDataTable minWidth={620} className="[&_td]:px-2 [&_th]:px-2">
                 <thead>
                   <AdminDataTableHeadRow>
                     <AdminDataTableHead>{t("login.username")}</AdminDataTableHead>
                     <AdminDataTableHead>{t("admin.users.role")}</AdminDataTableHead>
-                    <AdminDataTableHead>{t("admin.users.plan_name", "Plan")}</AdminDataTableHead>
                     <AdminDataTableHead>{t("admin.users.server_quota", "Server quota")}</AdminDataTableHead>
                     <AdminDataTableHead>{t("admin.users.allowed_features", "Allowed features")}</AdminDataTableHead>
-                    <AdminDataTableHead>{t("admin.users.created_at")}</AdminDataTableHead>
                     <AdminDataTableHead align="right" sticky="right">
                       {t("common.action")}
                     </AdminDataTableHead>
@@ -1304,7 +1318,7 @@ export function AdminUsersSection({
                 </thead>
                 <tbody>
                 {visibleUsers.length === 0 ? (
-                  <AdminDataTableEmptyRow colSpan={7}>
+                  <AdminDataTableEmptyRow colSpan={5}>
                     <div className="text-center text-sm text-muted-foreground">
                       {t("admin.users.empty", "No users found")}
                     </div>
@@ -1328,52 +1342,54 @@ export function AdminUsersSection({
                           <span className="font-medium text-slate-900 dark:text-slate-100">
                             {user.username}
                           </span>
-                          <span className="text-xs text-slate-500 dark:text-slate-400">
+                          <span className="max-w-[260px] truncate text-xs text-slate-500 dark:text-slate-400">
                             {user.uuid}
+                          </span>
+                          <div className="mt-1 flex flex-wrap items-center gap-1.5">
+                            <Badge color={getAccessStatusTone(accessStatus)} variant="soft">
+                              {normalizeTextInput(user.plan_name) ||
+                                t("admin.users.plan_none", "No plan")}
+                            </Badge>
+                            <span className="text-xs text-slate-500 dark:text-slate-400">
+                              {formatDateInput(user.plan_expires_at)
+                                ? t("admin.users.expires_on", {
+                                    date: formatDateInput(user.plan_expires_at),
+                                    defaultValue: "Expires {{date}}",
+                                  })
+                                : t("admin.users.no_expiration", "No expiration")}
+                            </span>
+                          </div>
+                          <span className="text-xs text-slate-400 dark:text-slate-500">
+                            {formatDateTime(user.created_at)}
                           </span>
                         </div>
                       </AdminDataTableCell>
                       <AdminDataTableCell>
-                        <Select.Root
-                          value={role}
-                          disabled={isSelf || updatingRoleUUID === user.uuid}
-                          onValueChange={(value) =>
-                            void handleRoleChange(user.uuid, value as UserRole)
-                          }
-                        >
-                          <Select.Trigger className="max-w-[160px]" />
-                          <Select.Content>
-                            <Select.Item value="user">{t("admin.users.role_user")}</Select.Item>
-                            <Select.Item value="admin">{t("admin.users.role_admin")}</Select.Item>
-                          </Select.Content>
-                        </Select.Root>
-                      </AdminDataTableCell>
-                      <AdminDataTableCell>
-                        <div className="min-w-[150px] space-y-1.5">
-                          <div className="flex flex-wrap items-center gap-2">
-                            <span className="font-medium text-slate-900 dark:text-slate-100">
-                              {normalizeTextInput(user.plan_name) ||
-                                t("admin.users.plan_none", "No plan")}
-                            </span>
-                            <Badge
-                              color={getAccessStatusTone(accessStatus)}
-                              variant="soft"
-                            >
-                              {getAccessStatusLabel(accessStatus, t)}
-                            </Badge>
-                          </div>
-                          <div className="text-xs text-slate-500 dark:text-slate-400">
-                            {formatDateInput(user.plan_expires_at)
-                              ? t("admin.users.expires_on", {
-                                  date: formatDateInput(user.plan_expires_at),
-                                  defaultValue: "Expires {{date}}",
-                                })
-                            : t("admin.users.no_expiration", "No expiration")}
-                          </div>
+                        <div className="flex min-w-[130px] flex-col gap-2">
+                          <Select.Root
+                            value={role}
+                            disabled={isSelf || updatingRoleUUID === user.uuid}
+                            onValueChange={(value) =>
+                              void handleRoleChange(user.uuid, value as UserRole)
+                            }
+                          >
+                            <Select.Trigger className="max-w-[150px]" />
+                            <Select.Content>
+                              <Select.Item value="user">{t("admin.users.role_user")}</Select.Item>
+                              <Select.Item value="admin">{t("admin.users.role_admin")}</Select.Item>
+                            </Select.Content>
+                          </Select.Root>
+                          <Badge
+                            color={getAccessStatusTone(accessStatus)}
+                            variant="soft"
+                            className="w-fit"
+                          >
+                            {getAccessStatusLabel(accessStatus, t)}
+                          </Badge>
                         </div>
                       </AdminDataTableCell>
                       <AdminDataTableCell>
-                        <div className="min-w-[180px] space-y-2">
+                        <div className="min-w-[150px] space-y-2">
                           <div className="flex items-center justify-between gap-3">
                             <span className="font-medium text-slate-900 dark:text-slate-100">
                               {clientCount} /{" "}
@@ -1401,21 +1417,25 @@ export function AdminUsersSection({
                         </div>
                       </AdminDataTableCell>
                       <AdminDataTableCell>
-                        <div className="flex flex-wrap gap-2">
+                        <div className="flex max-w-[220px] flex-wrap gap-1">
                           {allowedFeatures.length === 0 ? (
                             <Badge color="green" variant="soft">
                               {getImplicitStandardFeaturesLabel(t)}
                             </Badge>
                           ) : (
-                            allowedFeatures.map((feature) => (
+                            allowedFeatures.slice(0, 4).map((feature) => (
                               <Badge key={feature} color="blue" variant="soft">
                                 {getFeatureLabel(feature, t)}
                               </Badge>
                             ))
                           )}
+                          {allowedFeatures.length > 4 ? (
+                            <Badge color="gray" variant="soft">
+                              +{allowedFeatures.length - 4}
+                            </Badge>
+                          ) : null}
                         </div>
                       </AdminDataTableCell>
-                      <AdminDataTableCell>{formatDateTime(user.created_at)}</AdminDataTableCell>
                       <AdminDataTableCell align="right" sticky="right">
                         <AdminRowActions
                           actions={[
@@ -1458,15 +1478,23 @@ export function AdminUsersSection({
             itemLabel={t("admin.pagination.users", { defaultValue: "users" })}
             compact
           />
-          <Dialog.Content className={ADMIN_FORM_DIALOG_CLASS} maxWidth={720}>
-            <Dialog.Title>{t("admin.users.access_title", "Edit user access")}</Dialog.Title>
+          <Dialog.Content className={`${ADMIN_FORM_DIALOG_CLASS} ${ADMIN_FORM_DIALOG_CHROME_CLASS}`} maxWidth={720}>
+            <div className={ADMIN_FORM_HEADER_CLASS}>
+              <div className={ADMIN_FORM_HEADER_INSET_CLASS}>
+                <Dialog.Title>{t("admin.users.access_title", "Edit user access")}</Dialog.Title>
+                <Dialog.Description>
+                  {t("admin.users.description")}
+                </Dialog.Description>
+              </div>
+            </div>
             {policyUser ? (
-              <div className={`${ADMIN_FORM_SCROLL_CLASS} mt-4 space-y-4`}>
-                <div className="rounded-lg border border-dashed border-slate-300 bg-muted/20 px-4 py-3 text-sm dark:border-slate-700">
-                  <div className="font-medium text-slate-900 dark:text-slate-100">
+              <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+                <div className={`${ADMIN_FORM_BODY_CLASS} space-y-4`}>
+                <div className={ADMIN_FORM_CONTEXT_CARD_CLASS}>
+                  <div className={ADMIN_FORM_LABEL_CLASS}>
                     {policyUser.username}
                   </div>
-                  <div className="text-xs text-slate-500 dark:text-slate-400">
+                  <div className={ADMIN_FORM_HELP_CLASS}>
                     {policyUser.uuid}
                   </div>
                 </div>
@@ -1484,7 +1512,7 @@ export function AdminUsersSection({
                 />
                 <div className={ADMIN_FORM_GRID_2_CLASS}>
                   <label className={ADMIN_FORM_FIELD_CLASS}>
-                    <div className="text-sm font-medium text-slate-900 dark:text-slate-100">
+                    <div className={ADMIN_FORM_LABEL_CLASS}>
                       {t("admin.users.plan_name", "Plan")}
                     </div>
                     <Input
@@ -1500,7 +1528,7 @@ export function AdminUsersSection({
                     />
                   </label>
                   <label className={ADMIN_FORM_FIELD_CLASS}>
-                    <div className="text-sm font-medium text-slate-900 dark:text-slate-100">
+                    <div className={ADMIN_FORM_LABEL_CLASS}>
                       {t("admin.users.plan_expires_at", "Expires")}
                     </div>
                     <Input
@@ -1516,7 +1544,7 @@ export function AdminUsersSection({
                   </label>
                 </div>
                 <label className={ADMIN_FORM_FIELD_CLASS}>
-                  <div className="text-sm font-medium text-slate-900 dark:text-slate-100">
+                  <div className={ADMIN_FORM_LABEL_CLASS}>
                     {t("admin.users.plan_note", "Internal note")}
                   </div>
                   <Textarea
@@ -1533,10 +1561,10 @@ export function AdminUsersSection({
                 </label>
                 <label className={ADMIN_FORM_TOGGLE_CLASS}>
                   <div>
-                    <div className="text-sm font-medium text-slate-900 dark:text-slate-100">
+                    <div className={ADMIN_FORM_LABEL_CLASS}>
                       {t("admin.users.account_disabled", "Disable account")}
                     </div>
-                    <div className="text-xs text-slate-500 dark:text-slate-400">
+                    <div className={ADMIN_FORM_HELP_CLASS}>
                       {t("admin.users.account_disabled_hint", "Disabled or expired users cannot log in or use admin APIs.")}
                     </div>
                   </div>
@@ -1551,7 +1579,7 @@ export function AdminUsersSection({
                   />
                 </label>
                 <label className={ADMIN_FORM_FIELD_CLASS}>
-                  <div className="text-sm font-medium text-slate-900 dark:text-slate-100">
+                  <div className={ADMIN_FORM_LABEL_CLASS}>
                     {t("admin.users.server_quota", "Server quota")}
                   </div>
                   <Input
@@ -1565,7 +1593,7 @@ export function AdminUsersSection({
                       }))
                     }
                   />
-                  <div className="text-xs text-slate-500 dark:text-slate-400">
+                  <div className={ADMIN_FORM_HELP_CLASS}>
                     {t("admin.users.server_quota_hint", "Set to 0 for unlimited.")}
                   </div>
                 </label>
@@ -1577,7 +1605,8 @@ export function AdminUsersSection({
                   }
                   t={t}
                 />
-                <div className="flex justify-end gap-2 border-t border-slate-200/70 pt-4 dark:border-slate-800/70">
+                </div>
+                <div className={ADMIN_FORM_FOOTER_CLASS}>
                   <Dialog.Close asChild>
                     <Button variant="outline" type="button" onClick={closePolicyEditor}>
                       {t("common.cancel")}
@@ -1592,20 +1621,28 @@ export function AdminUsersSection({
           </Dialog.Content>
         </Dialog.Root>
         <Dialog.Root open={Boolean(identityUser)} onOpenChange={(open) => !open && closeIdentityEditor()}>
-          <Dialog.Content className={ADMIN_FORM_DIALOG_CLASS} maxWidth={560}>
-            <Dialog.Title>{t("admin.users.account_title", "编辑账号资料")}</Dialog.Title>
+          <Dialog.Content className={`${ADMIN_FORM_DIALOG_CLASS} ${ADMIN_FORM_DIALOG_CHROME_CLASS}`} maxWidth={560}>
+            <div className={ADMIN_FORM_HEADER_CLASS}>
+              <div className={ADMIN_FORM_HEADER_INSET_CLASS}>
+                <Dialog.Title>{t("admin.users.account_title", "编辑账号资料")}</Dialog.Title>
+                <Dialog.Description>
+                  {t("admin.users.password_optional_hint", "密码留空时只修改用户名；填写新密码后，该用户现有会话会失效。")}
+                </Dialog.Description>
+              </div>
+            </div>
             {identityUser ? (
-              <div className={`${ADMIN_FORM_SCROLL_CLASS} mt-4 space-y-4`}>
-                <div className="rounded-lg border border-dashed border-slate-300 bg-muted/20 px-4 py-3 text-sm dark:border-slate-700">
-                  <div className="font-medium text-slate-900 dark:text-slate-100">
+              <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+                <div className={`${ADMIN_FORM_BODY_CLASS} space-y-4`}>
+                <div className={ADMIN_FORM_CONTEXT_CARD_CLASS}>
+                  <div className={ADMIN_FORM_LABEL_CLASS}>
                     {identityUser.username}
                   </div>
-                  <div className="text-xs text-slate-500 dark:text-slate-400">
+                  <div className={ADMIN_FORM_HELP_CLASS}>
                     {identityUser.uuid}
                   </div>
                 </div>
                 <label className={ADMIN_FORM_FIELD_CLASS}>
-                  <div className="text-sm font-medium text-slate-900 dark:text-slate-100">
+                  <div className={ADMIN_FORM_LABEL_CLASS}>
                     {t("login.username")}
                   </div>
                   <Input
@@ -1622,7 +1659,7 @@ export function AdminUsersSection({
                 </label>
                 <div className={ADMIN_FORM_GRID_2_CLASS}>
                   <label className={ADMIN_FORM_FIELD_CLASS}>
-                    <div className="text-sm font-medium text-slate-900 dark:text-slate-100">
+                    <div className={ADMIN_FORM_LABEL_CLASS}>
                       {t("admin.users.new_password_optional", "新密码")}
                     </div>
                     <Input
@@ -1639,7 +1676,7 @@ export function AdminUsersSection({
                     />
                   </label>
                   <label className={ADMIN_FORM_FIELD_CLASS}>
-                    <div className="text-sm font-medium text-slate-900 dark:text-slate-100">
+                    <div className={ADMIN_FORM_LABEL_CLASS}>
                       {t("admin.users.repeat_new_password", "重复新密码")}
                     </div>
                     <Input
@@ -1656,10 +1693,11 @@ export function AdminUsersSection({
                     />
                   </label>
                 </div>
-                <div className="rounded-md border border-blue-200 bg-blue-50 px-3 py-2 text-xs leading-5 text-blue-700 dark:border-blue-900/60 dark:bg-blue-950/30 dark:text-blue-200">
+                <div className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs leading-5 text-blue-700 dark:border-blue-900/60 dark:bg-blue-950/30 dark:text-blue-200">
                   {t("admin.users.password_optional_hint", "密码留空时只修改用户名；填写新密码后，该用户现有会话会失效。")}
                 </div>
-                <div className="flex justify-end gap-2 border-t border-slate-200/70 pt-4 dark:border-slate-800/70">
+                </div>
+                <div className={ADMIN_FORM_FOOTER_CLASS}>
                   <Dialog.Close asChild>
                     <Button variant="outline" type="button" onClick={closeIdentityEditor}>
                       {t("common.cancel")}

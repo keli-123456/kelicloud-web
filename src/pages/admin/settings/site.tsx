@@ -11,7 +11,10 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { AdminSettingsSkeleton } from "@/components/admin/AdminPageShell";
+import {
+  ADMIN_PANEL_CLASS,
+  AdminSettingsSkeleton,
+} from "@/components/admin/AdminPageShell";
 import {
   SettingCardCollapse,
   SettingCardLabel,
@@ -26,8 +29,7 @@ import {
 } from "@/lib/apiErrorMessage";
 import { ADMIN_FORM_DIALOG_CLASS } from "@/components/admin/AdminFormStyles";
 
-const settingsPanelClass =
-  "overflow-hidden rounded-lg border border-border bg-card px-4 py-2 shadow-sm shadow-slate-900/5 dark:border-slate-800 dark:bg-slate-950";
+const settingsPanelClass = `${ADMIN_PANEL_CLASS} px-4 py-2`;
 
 export default function SiteSettings() {
   const { t } = useTranslation();
@@ -91,7 +93,7 @@ export default function SiteSettings() {
           defaultOpen
         >
           <div className="flex w-full flex-col items-start gap-3">
-            <div className="flex items-center gap-3 rounded-lg border border-border bg-muted/25 px-3 py-2 text-sm">
+            <div className="flex items-center gap-3 rounded-xl border border-slate-200/80 bg-slate-50 px-3 py-2 text-sm dark:border-slate-800 dark:bg-slate-900/35">
               <img
                 src="/favicon.ico"
                 alt={t("settings.custom.favicon", "Customize Favicon")}
@@ -129,7 +131,7 @@ export default function SiteSettings() {
                   </DialogDescription>
                   <DialogFooter className="border-t border-slate-200/70 pt-4 dark:border-slate-800/70">
                     <DialogClose asChild>
-                      <Button variant="outline">{t("common.cancel", "Cancel")}</Button>
+                      <Button variant="outline">{t("common.cancel", "取消")}</Button>
                     </DialogClose>
                     <DialogClose asChild>
                       <Button

@@ -219,8 +219,8 @@ export function DigitalOceanTokensSection({
             className={cloudTableEmptyStateClassName}
           />
         ) : (
-          <AdminDataTableScroll className="rounded-lg border border-border">
-            <AdminDataTable minWidth={720}>
+          <AdminDataTableScroll className="rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-950">
+            <AdminDataTable minWidth={460} className="[&_td]:px-2 [&_th]:px-2">
               <thead>
                 <AdminDataTableHeadRow>
                   <AdminDataTableHead className="w-10" />

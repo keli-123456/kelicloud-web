@@ -411,7 +411,7 @@ export function DataTable() {
               sensors={sensors}
               id={sortableId}
             >
-              <div className="overflow-hidden rounded-lg border border-border bg-card">
+              <div className="overflow-hidden rounded-xl border border-slate-200/80 bg-white dark:border-slate-800 dark:bg-slate-950">
               <div className="overflow-x-auto overscroll-x-contain [scrollbar-gutter:stable]">
               <Table className="min-w-[860px] table-fixed">
                 <TableHeader className="bg-muted">

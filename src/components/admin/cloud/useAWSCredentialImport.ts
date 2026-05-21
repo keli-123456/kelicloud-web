@@ -36,7 +36,7 @@ export function useAWSCredentialImport({
       group: importGroup,
     }));
     if (!credentials.length) {
-      toast.error(t("cloud.providers.aws.import_empty", "No valid credentials found"));
+      toast.error(t("cloud.providers.aws.import_empty", "没有找到有效凭证"));
       return;
     }
 
@@ -54,7 +54,7 @@ export function useAWSCredentialImport({
       toast.success(
         t("cloud.providers.aws.import_success", {
           count: credentials.length,
-          defaultValue: `Imported ${credentials.length} credentials`,
+          defaultValue: `已导入 ${credentials.length} 个凭证`,
         }),
       );
       clearPanelState();

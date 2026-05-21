@@ -79,10 +79,10 @@ export function AWSBackgroundTasksDialog({
   return (
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
       <CloudSensitiveDialogContent
-        title={t("cloud.providers.aws.background_tasks", "Background Tasks")}
+        title={t("cloud.providers.aws.background_tasks", "后台任务")}
         description={t(
             "cloud.providers.aws.background_tasks_description",
-            "Pending, failed, cancelled, and skipped AWS post-create tasks.",
+            "显示待处理、失败、已取消和已跳过的 AWS 创建后任务。",
           )}
         icon={<RefreshCw className="size-4" />}
         badge={<Badge color="blue">{t("cloud.providers.aws.name", "AWS")}</Badge>}
@@ -92,19 +92,19 @@ export function AWSBackgroundTasksDialog({
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex flex-wrap gap-4">
             <CompactSummaryMetric
-              label={t("cloud.providers.aws.background_pending", "Pending")}
+              label={t("cloud.providers.aws.background_pending", "待处理")}
               value={pendingCount}
             />
             <CompactSummaryMetric
-              label={t("cloud.providers.aws.background_failed", "Failed")}
+              label={t("cloud.providers.aws.background_failed", "失败")}
               value={failedCount}
             />
             <CompactSummaryMetric
-              label={t("cloud.providers.aws.background_cancelled", "Cancelled")}
+              label={t("cloud.providers.aws.background_cancelled", "已取消")}
               value={cancelledCount}
             />
             <CompactSummaryMetric
-              label={t("cloud.providers.aws.background_skipped", "Skipped")}
+              label={t("cloud.providers.aws.background_skipped", "已跳过")}
               value={skippedCount}
             />
           </div>
@@ -118,7 +118,7 @@ export function AWSBackgroundTasksDialog({
               disabled={loading || clearing || terminalCount === 0}
             >
               <Trash2 className="mr-2 h-4 w-4" />
-              {t("cloud.providers.aws.clear_terminal_tasks", "Clear Terminal Tasks")}
+              {t("cloud.providers.aws.clear_terminal_tasks", "清理已结束任务")}
             </Button>
             <Button
               variant="outline"
@@ -129,26 +129,26 @@ export function AWSBackgroundTasksDialog({
               disabled={loading || clearing}
             >
               <RefreshCw className="mr-2 h-4 w-4" />
-              {t("cloud.refresh", "Refresh")}
+              {t("cloud.refresh", "刷新")}
             </Button>
           </Flex>
         </div>
         <div className="mt-2 text-xs text-slate-500 dark:text-slate-400">
           {t(
             "cloud.providers.aws.background_auto_refresh",
-            "Auto refreshes every 15 seconds while pending tasks exist.",
+            "存在待处理任务时每 15 秒自动刷新一次。",
           )}
         </div>
         <div className="mt-4 grid gap-3 md:grid-cols-3">
           <div>
             <div className={cloudPanelFieldLabelClassName}>
-              {t("cloud.providers.aws.filter_credential", "Credential")}
+              {t("cloud.providers.aws.filter_credential", "凭证")}
             </div>
             <Select.Root value={credentialFilter} onValueChange={onCredentialFilterChange}>
               <Select.Trigger className="mt-2" />
               <Select.Content>
                 <Select.Item value={BACKGROUND_TASK_FILTER_ALL}>
-                  {t("cloud.providers.aws.filter_all_credentials", "All Credentials")}
+                  {t("cloud.providers.aws.filter_all_credentials", "全部凭证")}
                 </Select.Item>
                 {credentialOptions.map(([credentialId, credentialLabel]) => (
                   <Select.Item key={credentialId || "deleted"} value={credentialId}>
@@ -160,13 +160,13 @@ export function AWSBackgroundTasksDialog({
           </div>
           <div>
             <div className={cloudPanelFieldLabelClassName}>
-              {t("cloud.providers.aws.filter_region", "Region")}
+              {t("cloud.providers.aws.filter_region", "区域")}
             </div>
             <Select.Root value={regionFilter} onValueChange={onRegionFilterChange}>
               <Select.Trigger className="mt-2" />
               <Select.Content>
                 <Select.Item value={BACKGROUND_TASK_FILTER_ALL}>
-                  {t("cloud.providers.aws.filter_all_regions", "All Regions")}
+                  {t("cloud.providers.aws.filter_all_regions", "全部区域")}
                 </Select.Item>
                 {regionOptions.map((region) => (
                   <Select.Item key={region} value={region}>
@@ -178,13 +178,13 @@ export function AWSBackgroundTasksDialog({
           </div>
           <div>
             <div className={cloudPanelFieldLabelClassName}>
-              {t("cloud.providers.aws.filter_status", "Status")}
+              {t("cloud.providers.aws.filter_status", "状态")}
             </div>
             <Select.Root value={statusFilter} onValueChange={onStatusFilterChange}>
               <Select.Trigger className="mt-2" />
               <Select.Content>
                 <Select.Item value={BACKGROUND_TASK_FILTER_ALL}>
-                  {t("cloud.providers.aws.filter_all_statuses", "All Statuses")}
+                  {t("cloud.providers.aws.filter_all_statuses", "全部状态")}
                 </Select.Item>
                 {["pending", "failed", "cancelled", "skipped"].map((status) => (
                   <Select.Item key={status} value={status}>
@@ -199,7 +199,7 @@ export function AWSBackgroundTasksDialog({
           {t("cloud.providers.aws.background_filtered_count", {
             shown: filteredTasks.length,
             total: tasks.length,
-            defaultValue: `Showing ${filteredTasks.length} of ${tasks.length} tasks`,
+            defaultValue: `显示 ${filteredTasks.length} / ${tasks.length} 个任务`,
           })}
         </div>
 
@@ -222,11 +222,11 @@ export function AWSBackgroundTasksDialog({
             </div>
           ) : !tasks.length ? (
             <div className="px-4 py-6 text-sm text-slate-500">
-              {t("cloud.providers.aws.background_tasks_empty", "No AWS background tasks")}
+              {t("cloud.providers.aws.background_tasks_empty", "当前没有 AWS 后台任务")}
             </div>
           ) : !filteredTasks.length ? (
             <div className="px-4 py-6 text-sm text-slate-500">
-              {t("cloud.providers.aws.background_tasks_filtered_empty", "No AWS background tasks match the current filters")}
+              {t("cloud.providers.aws.background_tasks_filtered_empty", "当前筛选条件下没有匹配的 AWS 后台任务")}
             </div>
           ) : (
             <div className="divide-y divide-slate-200/80 dark:divide-slate-800">
@@ -234,10 +234,10 @@ export function AWSBackgroundTasksDialog({
                 const credentialLabel =
                   task.credential_name && task.credential_name !== task.credential_id
                     ? task.credential_name
-                    : t("cloud.providers.aws.deleted_credential", "Deleted Credential");
+                    : t("cloud.providers.aws.deleted_credential", "已删除凭证");
                 const timingLabel =
                   task.status === "pending"
-                    ? t("cloud.providers.aws.next_run", "Next Run")
+                    ? t("cloud.providers.aws.next_run", "下次运行")
                     : t("cloud.providers.aws.completed_at", "Completed");
                 const timingValue =
                   task.status === "pending"

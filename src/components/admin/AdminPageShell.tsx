@@ -1,9 +1,71 @@
-import type { ReactNode } from "react";
+import type { ComponentPropsWithoutRef, ReactNode } from "react";
 
 import { Link } from "react-router-dom";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAdminPageTitle } from "@/contexts/AdminPageTitleContext";
 import { cn } from "@/lib/utils";
+
+export const ADMIN_PANEL_CLASS =
+  "overflow-hidden rounded-xl border border-slate-200/80 bg-white shadow-[0_18px_45px_-34px_rgba(15,23,42,0.65)] dark:border-slate-800/90 dark:bg-slate-950 dark:shadow-black/20";
+
+export const ADMIN_PANEL_HEADER_CLASS =
+  "flex min-w-0 flex-col gap-3 border-b border-slate-200/80 bg-slate-50 px-5 py-3.5 dark:border-slate-800 dark:bg-slate-900/45 md:flex-row md:items-center md:justify-between";
+
+export const ADMIN_PANEL_BODY_CLASS = "min-w-0 px-5 py-4";
+
+export function AdminPanel({
+  children,
+  className,
+  ...props
+}: ComponentPropsWithoutRef<"section">) {
+  return (
+    <section className={cn(ADMIN_PANEL_CLASS, className)} {...props}>
+      {children}
+    </section>
+  );
+}
+
+export function AdminPanelHeader({
+  title,
+  description,
+  actions,
+  className,
+}: {
+  title?: ReactNode;
+  description?: ReactNode;
+  actions?: ReactNode;
+  className?: string;
+}) {
+  return (
+    <div className={cn(ADMIN_PANEL_HEADER_CLASS, className)}>
+      <div className="min-w-0">
+        {title ? (
+          <div className="text-[15px] font-semibold leading-5 text-slate-950 dark:text-slate-50">
+            {title}
+          </div>
+        ) : null}
+        {description ? (
+          <div className="mt-1 max-w-3xl text-sm leading-5 text-slate-500 dark:text-slate-400">
+            {description}
+          </div>
+        ) : null}
+      </div>
+      {actions ? <div className="flex shrink-0 flex-wrap items-center gap-2">{actions}</div> : null}
+    </div>
+  );
+}
+
+export function AdminPanelBody({
+  children,
+  className,
+  ...props
+}: ComponentPropsWithoutRef<"div">) {
+  return (
+    <div className={cn(ADMIN_PANEL_BODY_CLASS, className)} {...props}>
+      {children}
+    </div>
+  );
+}
 
 export function AdminPageShell({
   title,
@@ -33,7 +95,7 @@ export function AdminPageShell({
   return (
     <section
       className={cn(
-        "flex min-w-0 flex-col gap-4 p-3 sm:p-4",
+        "flex min-w-0 flex-col gap-5 p-4 sm:p-5",
         className,
       )}
     >
@@ -49,7 +111,7 @@ export function AdminPageShell({
         </div>
       ) : null}
 
-      <div className={cn("flex min-w-0 flex-col gap-4", contentClassName)}>{children}</div>
+      <div className={cn("flex min-w-0 flex-col gap-5", contentClassName)}>{children}</div>
     </section>
   );
 }
@@ -80,12 +142,12 @@ export function AdminEmptyState({
   return (
     <div
       className={cn(
-        "flex min-h-36 min-w-0 flex-col items-center justify-center rounded-lg border border-border bg-card px-5 py-6 text-center shadow-sm shadow-slate-900/5 dark:border-slate-800 dark:bg-slate-950",
+        "flex min-h-36 min-w-0 flex-col items-center justify-center rounded-xl border border-slate-200/80 bg-white px-5 py-7 text-center shadow-[0_18px_45px_-34px_rgba(15,23,42,0.65)] dark:border-slate-800/90 dark:bg-slate-950",
         className,
       )}
     >
       {icon ? (
-        <div className="mb-3 flex h-9 w-9 items-center justify-center rounded-md border border-slate-200 bg-slate-50 text-slate-500 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-400">
+        <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-lg border border-slate-200 bg-slate-50 text-slate-500 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-400">
           {icon}
         </div>
       ) : null}
@@ -116,7 +178,7 @@ export function AdminSubnav({
   return (
     <div
       className={cn(
-        "flex flex-wrap gap-2 rounded-lg border border-border bg-card p-2 shadow-sm shadow-slate-900/5",
+        "flex flex-wrap gap-2 rounded-xl border border-slate-200/80 bg-white p-2 shadow-[0_18px_45px_-34px_rgba(15,23,42,0.65)] dark:border-slate-800/90 dark:bg-slate-950",
         className,
       )}
     >
@@ -166,7 +228,7 @@ export function AdminSideNav({
     <nav
       aria-label={ariaLabel}
       className={cn(
-        "flex min-w-0 gap-2 overflow-x-auto rounded-lg border border-border bg-card p-2 shadow-sm shadow-slate-900/5 dark:border-slate-800 dark:bg-slate-950 lg:flex-col lg:overflow-visible",
+        "flex min-w-0 gap-2 overflow-x-auto rounded-xl border border-slate-200/80 bg-white p-2 shadow-[0_18px_45px_-34px_rgba(15,23,42,0.65)] dark:border-slate-800/90 dark:bg-slate-950 lg:flex-col lg:overflow-visible",
         className,
       )}
     >
@@ -177,7 +239,7 @@ export function AdminSideNav({
 
 const sideNavItemClass = (active?: boolean) =>
   cn(
-    "group inline-flex min-h-10 min-w-[150px] items-center gap-2 rounded-md px-3 py-2 text-left text-sm transition lg:min-w-0",
+    "group inline-flex min-h-10 min-w-[150px] items-center gap-2 rounded-lg px-3 py-2 text-left text-sm transition lg:min-w-0",
     active
       ? "bg-blue-600 text-white shadow-sm shadow-blue-950/10 dark:bg-blue-500"
       : "text-slate-600 hover:bg-slate-100 hover:text-slate-950 dark:text-slate-300 dark:hover:bg-slate-900 dark:hover:text-white",
@@ -280,7 +342,7 @@ export function AdminCardGridSkeleton({
       role="status"
       aria-label="Loading content"
       className={cn(
-        "overflow-hidden rounded-lg border border-border bg-card shadow-sm shadow-slate-900/5 dark:border-slate-800/90 dark:bg-slate-950",
+        "overflow-hidden rounded-xl border border-slate-200/80 bg-white shadow-[0_18px_45px_-34px_rgba(15,23,42,0.65)] dark:border-slate-800/90 dark:bg-slate-950",
         className,
       )}
     >
@@ -315,12 +377,12 @@ export function AdminTableSkeleton({
       role="status"
       aria-label="Loading table"
       className={cn(
-        "overflow-hidden rounded-lg border border-border bg-card shadow-sm shadow-slate-900/5 dark:border-slate-800/90 dark:bg-slate-950",
+        "overflow-hidden rounded-xl border border-slate-200/80 bg-white shadow-[0_18px_45px_-34px_rgba(15,23,42,0.65)] dark:border-slate-800/90 dark:bg-slate-950",
         className,
       )}
     >
       <div
-        className="grid gap-3 border-b border-slate-200/70 bg-slate-50/80 px-4 py-3 dark:border-slate-800 dark:bg-slate-900/30"
+        className="grid gap-3 border-b border-slate-200/80 bg-slate-50 px-4 py-3 dark:border-slate-800 dark:bg-slate-900/45"
         style={{ gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` }}
       >
         {Array.from({ length: columns }).map((_, index) => (

@@ -6,6 +6,8 @@ import {
   STATIC_EC2_INSTANCE_TYPE_PRESETS,
   STATIC_LIGHTSAIL_BLUEPRINT_PRESETS,
   STATIC_LIGHTSAIL_BUNDLE_PRESETS,
+  getEC2InstanceTypeDisplay,
+  getLightsailBundleDisplay,
   inferEC2ImageArchitecture,
   inferEC2InstanceArchitecture,
   inferLightsailBlueprintPlatform,
@@ -164,7 +166,7 @@ export function getAWSEC2CreateDerived(
   );
   const coreSummary = joinSummaryParts([
     selectedImagePreset ? selectedImagePreset.label : form.image_id,
-    selectedInstanceTypePreset ? selectedInstanceTypePreset.label : form.instance_type,
+    getEC2InstanceTypeDisplay(form.instance_type),
     selectedImageArchitecture ? selectedImageArchitecture.toUpperCase() : "",
   ]);
   const networkSummary = joinSummaryParts([
@@ -224,7 +226,7 @@ export function getAWSLightsailCreateDerived(
   const coreSummary = joinSummaryParts([
     form.availability_zone || resolvedRegion,
     selectedBlueprintPreset ? selectedBlueprintPreset.label : form.blueprint_id,
-    selectedBundlePreset ? selectedBundlePreset.label : form.bundle_id,
+    getLightsailBundleDisplay(form.bundle_id),
   ]);
   const accessSummary = joinSummaryParts([
     form.key_pair_name || t("cloud.providers.aws.none", "None"),

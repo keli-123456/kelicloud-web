@@ -116,7 +116,6 @@ export function AzureInstanceDetailDialog({
               </div>
               <div className="mt-2 grid gap-x-6 sm:grid-cols-2 xl:grid-cols-3">
                 <CloudDetailItem variant="plain" label={t("cloud.table.name", "Name")} value={detailData.instance.name || "-"} />
-                <CloudDetailItem variant="plain" label={t("cloud.providers.azure.resource_group", "Resource Group")} value={detailData.instance.resource_group || "-"} />
                 <CloudDetailItem variant="plain" label={t("cloud.table.region", "Region")} value={getLocationLabel(catalog, detailData.instance.location)} />
                 <CloudDetailItem variant="plain" label={t("cloud.table.status", "Status")} value={getCloudStatusLabel(detailData.instance.power_state || detailData.instance.provisioning_state, t)} />
                 <CloudDetailItem variant="plain" label={t("cloud.table.size", "Size")} value={detailData.instance.size || "-"} />
@@ -154,7 +153,7 @@ export function AzureInstanceDetailDialog({
                   onClick={() => void onViewPassword(detailData.instance)}
                 >
                   <KeyRound className="mr-1 h-3.5 w-3.5" />
-                  {t("cloud.password.view", "View Password")}
+                  {t("cloud.password.view", "查看密码")}
                 </Button>
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>

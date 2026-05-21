@@ -2,6 +2,7 @@ import type { TFunction } from "i18next";
 
 import type { CloudInstanceScriptTarget } from "@/components/admin/cloud/CloudInstanceScriptDialog";
 import { getReadableErrorMessage } from "@/lib/apiErrorMessage";
+import { COMMON_AZURE_LOCATIONS } from "@/lib/failoverV2Presets";
 import type {
   AzureCatalog,
   AzureCredentialInput,
@@ -10,6 +11,7 @@ import type {
   AzureImageReference,
   AzureInstance,
   AzureInstancePassword,
+  AzureLocation,
   AzureVMSku,
   CreateAzureInstanceInput,
 } from "@/lib/cloudAzure";
@@ -108,6 +110,32 @@ export function getActiveCredential(pool: AzureCredentialPool | null) {
 
 export function normalizeLocation(location: string) {
   return location.trim().toLowerCase();
+}
+
+function getCommonAzureLocation(location: string) {
+  const normalized = normalizeLocation(location);
+  return COMMON_AZURE_LOCATIONS.find((item) => (
+    normalizeLocation(item.value) === normalized
+    || normalizeLocation(item.label) === normalized
+  )) || null;
+}
+
+function getAzureLocationChineseLabel(location: string) {
+  const match = getCommonAzureLocation(location);
+  if (!match) return "";
+  if (match.value === "southeastasia") return "新加坡";
+  if (match.value === "eastasia") return "香港";
+  return match.zh || "";
+}
+
+function formatAzureLocationLabel(location: string, fallbackLabel?: string) {
+  const fallback = (fallbackLabel || location).trim();
+  const chineseLabel = getAzureLocationChineseLabel(location || fallback);
+  if (!chineseLabel) return fallback || "-";
+  if (!fallback || normalizeLocation(fallback) === normalizeLocation(chineseLabel)) {
+    return chineseLabel;
+  }
+  return `${chineseLabel} · ${fallback}`;
 }
 
 function toOptionalString(value: unknown): string {
@@ -302,8 +330,15 @@ export function formatList(values: string[]) {
 export function getLocationLabel(catalog: AzureCatalog | null, location: string) {
   const normalized = normalizeLocation(location);
   const match = catalog?.locations.find((item) => normalizeLocation(item.name) === normalized) || null;
-  if (!match) return normalized || "-";
-  return match.regionalDisplayName || match.displayName || match.name;
+  if (!match) return formatAzureLocationLabel(normalized || location);
+  return formatAzureLocationOption(match);
+}
+
+export function formatAzureLocationOption(location: AzureLocation) {
+  return formatAzureLocationLabel(
+    location.name,
+    location.regionalDisplayName || location.displayName || location.name,
+  );
 }
 
 export function getInstanceAddresses(instance: AzureInstance) {
@@ -333,8 +368,13 @@ export function buildCreateFormFromPreset(
 export function formatAzureSizeOption(size: AzureVMSku) {
   const parts = [size.name];
   if (size.vcpus > 0) parts.push(`${size.vcpus} vCPU`);
-  if (size.memory_gb > 0) parts.push(`${size.memory_gb.toFixed(1)} GB`);
-  return parts.join(" / ");
+  if (size.memory_gb > 0) {
+    const memory = Number.isInteger(size.memory_gb)
+      ? String(size.memory_gb)
+      : size.memory_gb.toFixed(1);
+    parts.push(`${memory} GB RAM`);
+  }
+  return parts.join(" · ");
 }
 
 export function getDefaultAzureSize(catalog: AzureCatalog | null) {

@@ -74,14 +74,16 @@ import {
   type AWSCredentialRecord,
   type AWSCredentialPool,
 } from "@/lib/cloudAws";
+import { getCloudStatusLabel } from "@/lib/cloudStatus";
 import {
   hasActiveCredential,
   toErrorMessage,
 } from "./awsPanelUtils";
-import type {
-  AWSRegionOption,
-  StaticLightsailBlueprintPreset,
-  StaticLightsailBundlePreset,
+import {
+  getEC2InstanceTypeDisplay,
+  type AWSRegionOption,
+  type StaticLightsailBlueprintPreset,
+  type StaticLightsailBundlePreset,
 } from "./awsPanelCatalog";
 import {
   type CreatedPasswordState,
@@ -326,12 +328,10 @@ export default function AWSPanel() {
     resolvedCreateRegion,
     selectedCreateRegionOption,
     selectedImagePreset,
-    selectedInstanceTypePreset,
     selectedImageArchitecture,
     selectedInstanceArchitecture,
     ec2ArchitectureMismatch,
     ec2CoreSummary,
-    ec2NetworkSummary,
     ec2BootstrapSummary,
     lightsailCreateOpen,
     setLightsailCreateOpen,
@@ -344,7 +344,6 @@ export default function AWSPanel() {
     selectedLightsailBundlePreset,
     lightsailPlatformMismatch,
     lightsailCoreSummary,
-    lightsailAccessSummary,
     lightsailBootstrapSummary,
     handleCreateDialogRegionChange,
     handleLightsailDialogRegionChange,
@@ -604,9 +603,8 @@ export default function AWSPanel() {
         resolvedRegion={resolvedCreateRegion}
         selectedRegionOption={selectedCreateRegionOption}
         imageLabel={selectedImagePreset ? selectedImagePreset.label : createForm.image_id}
-        instanceTypeLabel={selectedInstanceTypePreset ? selectedInstanceTypePreset.label : createForm.instance_type}
+        instanceTypeLabel={getEC2InstanceTypeDisplay(createForm.instance_type)}
         coreSummary={ec2CoreSummary}
-        networkSummary={ec2NetworkSummary}
         bootstrapSummary={ec2BootstrapSummary}
         architectureMismatch={ec2ArchitectureMismatch}
         selectedImageArchitecture={selectedImageArchitecture}
@@ -630,7 +628,6 @@ export default function AWSPanel() {
         selectedBlueprintPreset={selectedLightsailBlueprintPreset}
         selectedBundlePreset={selectedLightsailBundlePreset}
         coreSummary={lightsailCoreSummary}
-        accessSummary={lightsailAccessSummary}
         bootstrapSummary={lightsailBootstrapSummary}
         platformMismatch={lightsailPlatformMismatch}
         regionOptions={regionOptions}
@@ -1063,8 +1060,8 @@ function AWSCredentialRail({
             <div className="flex min-h-0 flex-1 flex-col">
               <div className="min-h-0 flex-1 overflow-y-auto [scrollbar-gutter:stable]">
                 {credentialRows.length ? (
-                  <AdminDataTableScroll className="rounded-lg border border-border">
-                    <AdminDataTable minWidth={700}>
+                  <AdminDataTableScroll className="rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-950">
+                    <AdminDataTable minWidth={500} className="[&_td]:px-2 [&_th]:px-2">
                       <thead>
                         <AdminDataTableHeadRow>
                           <AdminDataTableHead>{t("cloud.tokens.table.name", "名称")}</AdminDataTableHead>
@@ -1092,7 +1089,9 @@ function AWSCredentialRail({
                             </AdminDataTableCell>
                             <AdminDataTableCell>
                               <Badge color={credential.is_active ? "blue" : credential.last_status === "healthy" ? "green" : credential.last_status === "failed" ? "red" : "gray"}>
-                                {credential.is_active ? t("cloud.tokens.active", "已激活") : credential.last_status || "-"}
+                                {credential.is_active
+                                  ? t("cloud.tokens.active", "已激活")
+                                  : getCloudStatusLabel(credential.last_status, t)}
                               </Badge>
                             </AdminDataTableCell>
                             <AdminDataTableCell align="right" sticky="right">
@@ -1139,7 +1138,7 @@ function AWSCredentialRail({
                     </AdminDataTable>
                   </AdminDataTableScroll>
                 ) : (
-                  <div className="rounded-lg border border-dashed border-border bg-muted/30 px-4 py-8 text-center text-sm text-muted-foreground">
+                  <div className="rounded-xl border border-dashed border-slate-200/80 bg-slate-50 px-4 py-8 text-center text-sm text-muted-foreground dark:border-slate-800 dark:bg-slate-900/35">
                     {t("cloud.providers.aws.credentials_empty", "还没有保存 AWS 凭证")}
                   </div>
                 )}
@@ -1226,7 +1225,7 @@ function AWSQuotaMeter({
   const percent = max > 0 ? Math.min(100, Math.round((value / max) * 100)) : 0;
 
   return (
-    <div className="rounded-lg border border-border bg-muted/25 px-3 py-2">
+    <div className="rounded-xl border border-slate-200/80 bg-slate-50 px-3 py-2 dark:border-slate-800 dark:bg-slate-900/35">
       <div className="flex items-center justify-between gap-2 text-xs">
         <span className="font-semibold text-muted-foreground">{label}</span>
         <span className="font-medium text-foreground tabular-nums">{value}/{max || "-"}</span>

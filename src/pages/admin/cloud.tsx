@@ -39,7 +39,7 @@ function CloudPageSkeleton({ provider }: { provider?: ProviderKey }) {
       title={providerTitle}
       description={t("cloud.loading_description", {
         defaultValue:
-          "Cloud credentials and inventory are loading. Static controls stay available while data arrives.",
+          "正在加载云凭证与实例数据，创建表单和本地选项会保持可用。",
       })}
     >
       <AdminTableSkeleton columns={6} rows={5} />

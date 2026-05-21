@@ -37,7 +37,7 @@ export function useAzureCredentialImport({
       group: importGroup || credential.group || "",
     }));
     if (!credentials.length) {
-      toast.error(t("cloud.providers.azure.import_empty", "No valid Azure credentials found"));
+      toast.error(t("cloud.providers.azure.import_empty", "没有找到有效 Azure 凭证"));
       return;
     }
 
@@ -51,7 +51,7 @@ export function useAzureCredentialImport({
       toast.success(
         t("cloud.providers.azure.import_success", {
           count: credentials.length,
-          defaultValue: `Imported ${credentials.length} Azure credentials`,
+          defaultValue: `已导入 ${credentials.length} 个 Azure 凭证`,
         }),
       );
       if (hasActiveCredential(nextPool)) {

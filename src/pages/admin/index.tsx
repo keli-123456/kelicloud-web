@@ -778,7 +778,7 @@ const Header = ({
         { count: offlineNodes.length },
       ),
       confirmLabel: t("common.delete", "Delete"),
-      cancelLabel: t("common.cancel", "Cancel"),
+      cancelLabel: t("common.cancel", "取消"),
     });
     if (!confirmed) {
       return;
@@ -867,7 +867,7 @@ const Header = ({
         </Alert>
       ) : null}
 
-      <div className="rounded-lg border border-border/80 bg-card px-3 py-2.5 shadow-sm shadow-slate-900/5">
+      <div className="rounded-xl border border-slate-200/80 bg-white px-3 py-2.5 shadow-[0_18px_45px_-34px_rgba(15,23,42,0.65)] dark:border-slate-800/90 dark:bg-slate-950">
         <div className="grid gap-2 lg:grid-cols-[minmax(0,1.25fr)_minmax(0,1fr)_auto] lg:items-center">
           <div className="min-w-[260px]">
             <form
@@ -1358,7 +1358,7 @@ const NodeInfoTooltip = ({
     <TooltipTrigger asChild>{children}</TooltipTrigger>
     <TooltipContent
       sideOffset={8}
-      className="rounded-lg border border-border/70 bg-popover px-3 py-2 text-sm text-foreground shadow-lg shadow-slate-950/10 dark:shadow-black/30"
+      className="rounded-xl border border-slate-200/80 bg-popover px-3 py-2 text-sm text-foreground shadow-[0_24px_70px_-45px_rgba(15,23,42,0.85)] dark:border-slate-800 dark:shadow-black/40"
     >
       {content}
     </TooltipContent>
@@ -2174,7 +2174,7 @@ const NodeTable = ({
             onPageSizeChange={nodePagination.setPageSize}
             pageSizeOptions={[20, 50, 100]}
             itemLabel={t("admin.pagination.nodes", { defaultValue: "台设备" })}
-            className="rounded-lg border border-border bg-card shadow-sm shadow-slate-900/5"
+            className="rounded-xl border border-slate-200/80 bg-white shadow-[0_18px_45px_-34px_rgba(15,23,42,0.65)] dark:border-slate-800/90 dark:bg-slate-950"
           />
         </>
       )}

@@ -7,12 +7,13 @@ import {
   Badge,
   Button,
   Checkbox,
+  CloudFormActions,
+  CloudFormField,
+  CloudFormStack,
   CloudSensitiveDialogContent,
   cloudPanelBodyTextClassName,
-  cloudPanelFieldLabelClassName,
   cloudPanelSectionClassName,
   Dialog,
-  Flex,
   Select,
   TextField,
 } from "@/components/admin/cloud/cloud-ui";
@@ -70,7 +71,7 @@ export function DigitalOceanCreateDialog({
   return (
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
       <CloudSensitiveDialogContent
-        title={t("cloud.create", "Create Droplet")}
+        title={t("cloud.create", "创建 Droplet")}
         description={t(
             "cloud.create_description",
             "Select a region, size, and image to provision a new Droplet.",
@@ -79,10 +80,8 @@ export function DigitalOceanCreateDialog({
         badge={<Badge color="blue">{t("cloud.providers.digitalocean.name", "DigitalOcean")}</Badge>}
       >
 
-        <div className="flex flex-col gap-4">
-          <label className={cloudPanelFieldLabelClassName}>
-            {t("cloud.form.region", "Region")}
-          </label>
+        <CloudFormStack>
+          <CloudFormField label={t("cloud.form.region", "Region")}>
           <Select.Root
             value={form.region}
             onValueChange={(value) =>
@@ -100,10 +99,9 @@ export function DigitalOceanCreateDialog({
               ))}
             </Select.Content>
           </Select.Root>
+          </CloudFormField>
 
-          <label className={cloudPanelFieldLabelClassName}>
-            {t("cloud.form.size", "Size")}
-          </label>
+          <CloudFormField label={t("cloud.form.size", "Size")}>
           <Select.Root
             value={form.size}
             onValueChange={(value) =>
@@ -122,10 +120,9 @@ export function DigitalOceanCreateDialog({
               ))}
             </Select.Content>
           </Select.Root>
+          </CloudFormField>
 
-          <label className={cloudPanelFieldLabelClassName}>
-            {t("cloud.form.image", "Image")}
-          </label>
+          <CloudFormField label={t("cloud.form.image", "Image")}>
           <Select.Root
             value={form.image}
             onValueChange={(value) =>
@@ -143,10 +140,9 @@ export function DigitalOceanCreateDialog({
               ))}
             </Select.Content>
           </Select.Root>
+          </CloudFormField>
 
-          <label className={cloudPanelFieldLabelClassName}>
-            {t("cloud.form.root_password", "Root Password")}
-          </label>
+          <CloudFormField label={t("cloud.form.root_password", "Root Password")}>
           <TextField.Root
             type="password"
             value={form.root_password}
@@ -158,6 +154,7 @@ export function DigitalOceanCreateDialog({
               }))
             }
           />
+          </CloudFormField>
           <WarningAlert
             tone="info"
             description={t(
@@ -173,7 +170,7 @@ export function DigitalOceanCreateDialog({
           </div>
 
           <div className={cloudPanelSectionClassName}>
-            <div className={cloudPanelFieldLabelClassName}>
+            <div className="text-sm font-semibold text-foreground">
               {t("cloud.form.options", "Options")}
             </div>
             <div className="mt-3 flex flex-col gap-3">
@@ -216,13 +213,13 @@ export function DigitalOceanCreateDialog({
             </div>
           </div>
 
-          <Flex justify="end" gap="2" className="mt-2">
+          <CloudFormActions>
             <Button
               variant="outline"
               onClick={() => onOpenChange(false)}
               disabled={submitting}
             >
-              {t("common.cancel", "Cancel")}
+              {t("common.cancel", "取消")}
             </Button>
             <Button
               onClick={() => {
@@ -236,11 +233,11 @@ export function DigitalOceanCreateDialog({
               }
             >
               {submitting
-                ? t("cloud.creating", "Creating...")
-                : t("cloud.create", "Create Droplet")}
+                ? t("cloud.creating", "创建中...")
+                : t("cloud.create", "创建 Droplet")}
             </Button>
-          </Flex>
-        </div>
+          </CloudFormActions>
+        </CloudFormStack>
       </CloudSensitiveDialogContent>
     </Dialog.Root>
   );

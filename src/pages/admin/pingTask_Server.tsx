@@ -7,6 +7,14 @@ import {
   AdminDataTableScroll,
 } from "@/components/admin/AdminDataTable";
 import { AdminPagination, useClientPagination } from "@/components/admin/AdminPagination";
+import {
+  ADMIN_FORM_BODY_CLASS,
+  ADMIN_FORM_DIALOG_CHROME_CLASS,
+  ADMIN_FORM_DIALOG_CLASS,
+  ADMIN_FORM_FOOTER_CLASS,
+  ADMIN_FORM_HEADER_CLASS,
+  ADMIN_FORM_HEADER_INSET_CLASS,
+} from "@/components/admin/AdminFormStyles";
 import { AdminEmptyState } from "@/components/admin/AdminPageShell";
 import { useNodeDetails } from "@/contexts/NodeDetailsContext";
 import { usePingTask, type PingTask } from "@/contexts/PingTaskContext";
@@ -185,11 +193,18 @@ const ServerRow: React.FC<{
                 <MoreHorizontal size={16} />
               </IconButton>
             </Dialog.Trigger>
-            <Dialog.Content className="sm:max-w-[450px]">
-              <Dialog.Title>
-                {t("common.server")} - {nodeName}
-              </Dialog.Title>
-              <div className="mt-2">
+            <Dialog.Content
+              className={`${ADMIN_FORM_DIALOG_CLASS} ${ADMIN_FORM_DIALOG_CHROME_CLASS}`}
+              maxWidth={520}
+            >
+              <div className={ADMIN_FORM_HEADER_CLASS}>
+                <div className={ADMIN_FORM_HEADER_INSET_CLASS}>
+                  <Dialog.Title>
+                    {t("common.server")} - {nodeName}
+                  </Dialog.Title>
+                </div>
+              </div>
+              <div className={ADMIN_FORM_BODY_CLASS}>
                 <Selector
                   value={selectedIds}
                   onChange={setSelectedIds}
@@ -210,7 +225,7 @@ const ServerRow: React.FC<{
                   }
                 />
               </div>
-              <Flex gap="2" justify="end" className="mt-4">
+              <Flex gap="2" justify="end" className={ADMIN_FORM_FOOTER_CLASS}>
                 <Dialog.Close>
                   <Button
                     variant="soft"

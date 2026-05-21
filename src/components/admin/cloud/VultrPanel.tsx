@@ -46,6 +46,10 @@ import {
   Checkbox,
   CloudCodeTextarea,
   CloudDetailItem,
+  CloudFormActions,
+  CloudFormField,
+  CloudFormGrid,
+  CloudFormStack,
   CloudImportFormSection,
   CloudProviderHeader,
   CloudSecretValueBlock,
@@ -53,9 +57,7 @@ import {
   CloudStatusNotice,
   CloudTableSkeletonRows,
   Dialog,
-  Flex,
   Select,
-  TextArea,
   TextField,
   cloudPanelCardClassName,
   cloudPanelDescriptionClassName,
@@ -97,6 +99,7 @@ import {
   type VultrTokenSecret,
 } from "@/lib/cloudVultr";
 import { getReadableErrorMessage } from "@/lib/apiErrorMessage";
+import { getCloudStatusLabel } from "@/lib/cloudStatus";
 import { cn } from "@/lib/utils";
 import { buildStaticVultrCatalog } from "./cloudStaticCatalogs";
 
@@ -1524,8 +1527,8 @@ function VultrTokensSection({
         <>
       <div className="min-h-0 flex-1 overflow-y-auto p-3 [scrollbar-gutter:stable]">
         {tokenRows.length ? (
-          <AdminDataTableScroll className="rounded-lg border border-border">
-            <AdminDataTable minWidth={700}>
+          <AdminDataTableScroll className="rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-950">
+            <AdminDataTable minWidth={480} className="[&_td]:px-2 [&_th]:px-2">
               <thead>
                 <AdminDataTableHeadRow>
                   <AdminDataTableHead>{t("cloud.tokens.table.name", "名称")}</AdminDataTableHead>
@@ -1559,7 +1562,7 @@ function VultrTokensSection({
                           <Badge color="green">{t("cloud.tokens.active", "已激活")}</Badge>
                         ) : null}
                         <Badge color={getTokenStatusColor(token.last_status)}>
-                          {token.last_status || "unknown"}
+                          {getCloudStatusLabel(token.last_status || "unknown", t)}
                         </Badge>
                       </div>
                     </AdminDataTableCell>
@@ -1673,7 +1676,7 @@ function VultrTokenImportDialog({
         title={t("cloud.tokens.import_dialog_title", "批量导入令牌")}
         description={t(
           "cloud.tokens.import_dialog_description",
-          "One line per token. Supported formats: name,token ; name|token ; or token only.",
+          "每行一个令牌。支持 name,token、name|token，或只填 token。",
         )}
         icon={<Upload className="size-4" />}
         badge={<Badge color="blue">{t("cloud.providers.vultr.title", "Vultr")}</Badge>}
@@ -1711,11 +1714,9 @@ function VultrTokenImportDialog({
           )}
           editorLabel={t("cloud.tokens.import_content", "令牌内容")}
           editor={(
-            <TextArea
+            <CloudCodeTextarea
               value={tokenImportText}
-              rows={10}
-              resize="vertical"
-              className="min-h-56 font-mono text-sm leading-6"
+              minHeightClassName="min-h-72"
               placeholder={t(
                 "cloud.providers.vultr.import_placeholder",
                 "prod-account,vultr_api_token_xxx\nbackup-account|vultr_api_token_yyy\nvultr_api_token_zzz",
@@ -1791,7 +1792,7 @@ function VultrCreateDialog({
         title={t("cloud.providers.vultr.create", "创建实例")}
         description={t(
           "cloud.providers.vultr.create_description",
-          "Create a Vultr instance with optional IPv6, backups, SSH keys, tags, and kelicloud auto-connect userdata.",
+          "创建 Vultr 实例，可按需启用 IPv6、备份、SSH 密钥、标签和 kelicloud 自动接入脚本。",
         )}
         icon={<Server className="size-4" />}
         badge={<Badge color="blue">{t("cloud.providers.vultr.title", "Vultr")}</Badge>}
@@ -1821,31 +1822,23 @@ function VultrCreateDialog({
           </div>
         )}
       >
-        <div className="grid gap-4 sm:grid-cols-2">
-          <div className="space-y-2">
-            <label className={cloudPanelFieldLabelClassName}>
-              {t("cloud.form.label", "标签")}
-            </label>
+        <CloudFormStack>
+        <CloudFormGrid>
+          <CloudFormField label={t("cloud.form.label", "标签")}>
             <TextField.Root
               value={form.label}
               placeholder="komari-vultr-01"
               onChange={(event) => setForm((current) => ({ ...current, label: event.target.value }))}
             />
-          </div>
-          <div className="space-y-2">
-            <label className={cloudPanelFieldLabelClassName}>
-              {t("cloud.form.hostname", "主机名")}
-            </label>
+          </CloudFormField>
+          <CloudFormField label={t("cloud.form.hostname", "主机名")}>
             <TextField.Root
               value={form.hostname}
               placeholder={t("cloud.form.hostname_placeholder", "默认为标签名")}
               onChange={(event) => setForm((current) => ({ ...current, hostname: event.target.value }))}
             />
-          </div>
-          <div className="space-y-2">
-            <label className={cloudPanelFieldLabelClassName}>
-              {t("cloud.table.region", "地区")}
-            </label>
+          </CloudFormField>
+          <CloudFormField label={t("cloud.table.region", "地区")}>
             <Select.Root
               value={form.region}
               onValueChange={(value) => setForm((current) => ({ ...current, region: value }))}
@@ -1859,11 +1852,8 @@ function VultrCreateDialog({
                 ))}
               </Select.Content>
             </Select.Root>
-          </div>
-          <div className="space-y-2">
-            <label className={cloudPanelFieldLabelClassName}>
-              {t("cloud.table.size", "规格")}
-            </label>
+          </CloudFormField>
+          <CloudFormField label={t("cloud.table.size", "规格")}>
             <Select.Root
               value={form.plan}
               onValueChange={(value) => setForm((current) => ({ ...current, plan: value }))}
@@ -1877,11 +1867,8 @@ function VultrCreateDialog({
                 ))}
               </Select.Content>
             </Select.Root>
-          </div>
-          <div className="space-y-2 sm:col-span-2">
-            <label className={cloudPanelFieldLabelClassName}>
-              {t("cloud.table.image", "镜像")}
-            </label>
+          </CloudFormField>
+          <CloudFormField label={t("cloud.table.image", "镜像")} className="sm:col-span-2">
             <Select.Root
               value={form.os_id}
               onValueChange={(value) => setForm((current) => ({ ...current, os_id: value }))}
@@ -1895,8 +1882,8 @@ function VultrCreateDialog({
                 ))}
               </Select.Content>
             </Select.Root>
-          </div>
-        </div>
+          </CloudFormField>
+        </CloudFormGrid>
 
         <div className="grid gap-3 sm:grid-cols-2">
           <ToggleRow
@@ -1931,35 +1918,26 @@ function VultrCreateDialog({
           />
         </div>
 
-        <div className="grid gap-4 sm:grid-cols-2">
-          <div className="space-y-2">
-            <label className={cloudPanelFieldLabelClassName}>
-              {t("cloud.form.auto_connect_group", "自动连接分组")}
-            </label>
+        <CloudFormGrid>
+          <CloudFormField label={t("cloud.form.auto_connect_group", "自动连接分组")}>
             <TextField.Root
               value={form.auto_connect_group}
               disabled={!form.auto_connect}
               onChange={(event) => setForm((current) => ({ ...current, auto_connect_group: event.target.value }))}
             />
-          </div>
-          <div className="space-y-2">
-            <label className={cloudPanelFieldLabelClassName}>
-              {t("cloud.form.tags", "标签")}
-            </label>
+          </CloudFormField>
+          <CloudFormField label={t("cloud.form.tags", "标签")}>
             <TextField.Root
               value={form.tagsText}
               placeholder={t("cloud.form.tags_placeholder", "英文逗号分隔")}
               onChange={(event) => setForm((current) => ({ ...current, tagsText: event.target.value }))}
             />
-          </div>
-        </div>
+          </CloudFormField>
+        </CloudFormGrid>
 
-        <div className="space-y-2">
-          <label className={cloudPanelFieldLabelClassName}>
-            {t("cloud.form.ssh_keys", "SSH 密钥")}
-          </label>
+        <CloudFormField label={t("cloud.form.ssh_keys", "SSH 密钥")}>
           {(catalog?.ssh_keys || []).length ? (
-            <div className="grid max-h-52 gap-2 overflow-y-auto rounded-lg border border-border bg-card p-3 [scrollbar-gutter:stable] sm:grid-cols-2">
+            <div className="grid max-h-52 gap-2 overflow-y-auto rounded-xl border border-slate-200/80 bg-white p-3 shadow-sm shadow-slate-900/5 [scrollbar-gutter:stable] dark:border-slate-800 dark:bg-slate-950 sm:grid-cols-2">
               {(catalog?.ssh_keys || []).map((key) => {
                 const checked = form.sshkey_id.includes(key.id);
                 return (
@@ -1995,21 +1973,18 @@ function VultrCreateDialog({
               {t("cloud.form.no_ssh_keys", "当前账号未返回 SSH 密钥。")}
             </CloudStatusNotice>
           )}
-        </div>
+        </CloudFormField>
 
-        <div className="space-y-2">
-          <label className={cloudPanelFieldLabelClassName}>
-            {t("cloud.form.user_data", "用户数据")}
-          </label>
+        <CloudFormField label={t("cloud.form.user_data", "用户数据")}>
           <CloudCodeTextarea
             value={form.user_data}
             minHeightClassName="min-h-36"
             placeholder="#!/bin/bash"
             onChange={(event) => setForm((current) => ({ ...current, user_data: event.target.value }))}
           />
-        </div>
+        </CloudFormField>
 
-        <Flex justify="end" gap="2">
+        <CloudFormActions>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={submitting}>
             {t("common.cancel", "取消")}
           </Button>
@@ -2021,7 +1996,8 @@ function VultrCreateDialog({
             )}
             {submitting ? t("cloud.creating", "正在创建...") : t("cloud.providers.vultr.create", "创建实例")}
           </Button>
-        </Flex>
+        </CloudFormActions>
+        </CloudFormStack>
       </CloudSensitiveDialogContent>
     </Dialog.Root>
   );
@@ -2037,7 +2013,7 @@ function ToggleRow({
   onCheckedChange: (checked: boolean) => void;
 }) {
   return (
-    <label className="flex min-w-0 items-center justify-between gap-3 rounded-lg border border-border bg-card px-4 py-3">
+    <label className="flex min-w-0 items-center justify-between gap-3 rounded-xl border border-slate-200/80 bg-slate-50 px-4 py-3 shadow-sm dark:border-slate-800 dark:bg-slate-900/35">
       <span className="min-w-0 text-sm font-medium text-foreground">{label}</span>
       <Checkbox
         checked={checked}
@@ -2258,7 +2234,7 @@ function SecretSidePanel({
 }) {
   return (
     <div className="space-y-4">
-      <div className="rounded-lg border border-border bg-card px-4 py-3">
+      <div className="rounded-xl border border-slate-200/80 bg-white px-4 py-3 shadow-sm shadow-slate-900/5 dark:border-slate-800 dark:bg-slate-950">
         <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
           <ShieldCheck className="size-4 text-blue-600" />
           {title}

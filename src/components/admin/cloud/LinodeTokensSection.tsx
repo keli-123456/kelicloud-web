@@ -239,9 +239,9 @@ export function LinodeTokensSection({
             className={cloudTableEmptyStateClassName}
           />
         ) : (
-          <div className="overflow-hidden rounded-lg border border-border bg-card">
+          <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-950">
             <AdminDataTableScroll>
-              <AdminDataTable minWidth={720}>
+              <AdminDataTable minWidth={480} className="[&_td]:px-2 [&_th]:px-2">
                 <thead>
                   <AdminDataTableHeadRow>
                     <AdminDataTableHead className="w-10" />

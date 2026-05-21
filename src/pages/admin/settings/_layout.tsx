@@ -14,7 +14,8 @@ const navItems = [
   {
     path: "/admin/settings/site",
     labelKey: "settings.site.title",
-    descriptionKey: "settings.site.description",
+    descriptionKey: "settings.site.nav_description",
+    descriptionDefault: "Site display and platform branding.",
     icon: Globe2,
     platformOnly: true,
   },
@@ -22,6 +23,7 @@ const navItems = [
     path: "/admin/settings/general",
     labelKey: "settings.general.title",
     descriptionKey: "settings.general.description",
+    descriptionDefault: "User preferences, system switches, and GeoIP.",
     icon: SlidersHorizontal,
     platformOnly: false,
   },
@@ -54,8 +56,8 @@ export default function SettingLayout() {
                   to={item.path}
                   active={location.pathname === item.path}
                   icon={<Icon className="h-4 w-4" />}
-                  label={t(item.labelKey)}
-                  description={t(item.descriptionKey, { defaultValue: "" })}
+                  label={t(item.labelKey, { defaultValue: item.labelKey })}
+                  description={t(item.descriptionKey, { defaultValue: item.descriptionDefault })}
                 />
               );
             })}

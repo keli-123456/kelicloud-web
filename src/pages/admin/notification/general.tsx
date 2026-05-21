@@ -3,7 +3,10 @@ import { useTranslation } from "react-i18next";
 import { CalendarClock, GitBranch, Gauge } from "lucide-react";
 import { toast } from "sonner";
 
-import { AdminSettingsSkeleton } from "@/components/admin/AdminPageShell";
+import {
+  ADMIN_PANEL_CLASS,
+  AdminSettingsSkeleton,
+} from "@/components/admin/AdminPageShell";
 import {
   SettingCardButton,
   SettingCardLabel,
@@ -20,8 +23,7 @@ import {
 } from "@/lib/apiErrorMessage";
 import { renderProviderInputs } from "@/utils/renderProviders";
 
-const notificationPanelClass =
-  "overflow-hidden rounded-lg border border-border bg-card px-4 py-2 shadow-sm shadow-slate-900/5 dark:border-slate-800 dark:bg-slate-950";
+const notificationPanelClass = `${ADMIN_PANEL_CLASS} px-4 py-2`;
 
 const GeneralNotification = () => {
   return (
@@ -128,7 +130,7 @@ const Inner = () => {
             ? formatApiErrorMessage(data.message)
             : t(
                 "settings.notification.fetch_channels_error",
-                "Failed to load message channels",
+                "获取消息通道信息失败",
               ),
         );
       })
@@ -136,7 +138,7 @@ const Inner = () => {
         setMessageError(
           t(
             "settings.notification.fetch_channels_error",
-            "Failed to load message channels",
+            "获取消息通道信息失败",
           ),
         ),
       )
@@ -163,7 +165,7 @@ const Inner = () => {
             ? formatApiErrorMessage(data.message)
             : t(
                 "settings.notification.fetch_settings_error",
-                "Failed to load notification settings",
+                "获取通知设置失败",
               ),
         );
       })
@@ -171,7 +173,7 @@ const Inner = () => {
         setMessageError(
           t(
             "settings.notification.fetch_settings_error",
-            "Failed to load notification settings",
+            "获取通知设置失败",
           ),
         ),
       )
@@ -501,7 +503,7 @@ const Inner = () => {
 
           <section className={notificationPanelClass}>
             <SettingCardLabel>{t("admin.notification.expire_title")}</SettingCardLabel>
-            <div className="mb-2 grid gap-2 rounded-md border border-border/70 bg-muted/30 p-3 sm:grid-cols-2 xl:grid-cols-4">
+            <div className="mb-2 grid gap-2 rounded-xl border border-slate-200/80 bg-slate-50 p-3 shadow-sm shadow-slate-900/5 dark:border-slate-800 dark:bg-slate-900/35 sm:grid-cols-2 xl:grid-cols-4">
               {expireStatusItems.map((item) => (
                 <div key={item.label} className="min-w-0">
                   <div className="text-xs font-medium text-muted-foreground">

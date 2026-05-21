@@ -10,6 +10,8 @@ import {
   TextField,
 } from "@/components/admin/admin-ui";
 import {
+  ADMIN_PANEL_CLASS,
+  ADMIN_PANEL_HEADER_CLASS,
   AdminPageShell,
   AdminSideNav,
   AdminSideNavButton,
@@ -29,17 +31,7 @@ const Account = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const activeSection = searchParams.get("tab") === "users" ? "users" : "account";
   const { t } = useTranslation();
-  const accountSectionRef = React.useRef<HTMLDivElement>(null);
-  const usersSectionRef = React.useRef<HTMLDivElement>(null);
-
   const navigateToSection = (nextSection: AccountSection) => {
-    const container = nextSection === "account"
-      ? accountSectionRef.current
-      : usersSectionRef.current;
-    container?.scrollIntoView({
-      behavior: "smooth",
-      block: "start",
-    });
     const next = new URLSearchParams(searchParams);
     if (nextSection === "account") {
       next.delete("tab");
@@ -48,16 +40,6 @@ const Account = () => {
     }
     setSearchParams(next, { replace: true });
   };
-
-  React.useEffect(() => {
-    const target = activeSection === "users"
-      ? usersSectionRef.current
-      : accountSectionRef.current;
-    target?.scrollIntoView({
-      behavior: "auto",
-      block: "start",
-    });
-  }, [activeSection]);
 
   return (
     <AdminPageShell
@@ -85,32 +67,29 @@ const Account = () => {
           </AdminSideNav>
         )}
       >
-        <div className="grid items-start gap-4 xl:grid-cols-[360px_minmax(0,1fr)]">
-          <section
-            ref={accountSectionRef}
-            className="overflow-hidden rounded-lg border border-border bg-card shadow-sm shadow-slate-900/5 dark:border-slate-800 dark:bg-slate-950"
-          >
-            <div className="p-4">
-              <div className="mb-4 border-b border-slate-200/70 pb-3 dark:border-slate-700/70">
-                <div>
-                  <h2 className="text-sm font-semibold tracking-wide text-slate-900 dark:text-slate-50">
-                    {t("account.profile_title", "Profile")}
-                  </h2>
-                  <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-                    {t(
-                      "account.profile_description",
-                      "Update your username and login password. After a successful password change, you will be redirected to the homepage.",
-                    )}
-                  </p>
-                </div>
+        {activeSection === "account" ? (
+          <section className={ADMIN_PANEL_CLASS}>
+            <div className={ADMIN_PANEL_HEADER_CLASS}>
+              <div>
+                <h2 className="text-sm font-semibold tracking-wide text-slate-900 dark:text-slate-50">
+                  {t("account.profile_title", "个人资料")}
+                </h2>
+                <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                  {t(
+                    "account.profile_description",
+                    "更新用户名和登录密码。密码修改成功后会跳转到首页。",
+                  )}
+                </p>
               </div>
+            </div>
+            <div className="p-4">
               <AccountProfileSection />
             </div>
           </section>
-
-          <section ref={usersSectionRef} className="min-w-0">
-            <div className="overflow-hidden rounded-lg border border-border bg-card shadow-sm shadow-slate-900/5 dark:border-slate-800 dark:bg-slate-950">
-              <div className="border-b border-slate-200/70 px-4 py-3 dark:border-slate-700/70">
+        ) : (
+          <section className="min-w-0">
+            <div className={ADMIN_PANEL_CLASS}>
+              <div className={ADMIN_PANEL_HEADER_CLASS}>
                 <div>
                   <h2 className="text-sm font-semibold tracking-wide text-slate-900 dark:text-slate-50">
                     {t("admin.users.title")}
@@ -123,7 +102,7 @@ const Account = () => {
               <AdminUsersSection embedded />
             </div>
           </section>
-        </div>
+        )}
       </AdminSplitLayout>
     </AdminPageShell>
   );
@@ -160,7 +139,7 @@ const AccountProfileSection = () => {
     })
       .then((response) => {
         if (!response.ok) {
-          throw new Error(formatApiErrorMessage("Failed to update username", { status: response.status }));
+          throw new Error(formatApiErrorMessage(t("account.username_update_failed", "更新用户名失败"), { status: response.status }));
         }
         return response.json();
       })
@@ -209,7 +188,7 @@ const AccountProfileSection = () => {
       .then(async (response) => {
         if (!response.ok) {
           const data = await response.json();
-          throw new Error(formatApiErrorMessage(data.message || "Failed to update password", { status: response.status }));
+          throw new Error(formatApiErrorMessage(data.message || t("account.password_update_failed", "更新密码失败"), { status: response.status }));
         }
         return response.json();
       })

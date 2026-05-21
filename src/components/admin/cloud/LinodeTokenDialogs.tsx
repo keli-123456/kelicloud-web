@@ -4,6 +4,7 @@ import { CheckCircle2, Tags, Upload } from "lucide-react";
 import {
   Badge,
   Button,
+  CloudCodeTextarea,
   CloudImportFormSection,
   CloudSensitiveDialogContent,
   CloudStatusNotice,
@@ -11,7 +12,6 @@ import {
   Dialog,
   Flex,
   Select,
-  TextArea,
   TextField,
 } from "@/components/admin/cloud/cloud-ui";
 
@@ -85,23 +85,23 @@ export function LinodeTokenImportDialog({
   return (
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
       <CloudSensitiveDialogContent
-        title={t("cloud.tokens.import_dialog_title", "Batch Import Tokens")}
+        title={t("cloud.tokens.import_dialog_title", "批量导入令牌")}
         description={t(
           "cloud.tokens.import_dialog_description",
-          "One line per token. Supported formats: name,token ; name|token ; or token only.",
+          "每行一个令牌。支持 name,token、name|token，或只填 token。",
         )}
         icon={<Upload className="size-4" />}
         badge={<Badge color="blue">{t("cloud.providers.linode.name", "Linode")}</Badge>}
         className="sm:max-w-3xl"
       >
         <CloudImportFormSection
-          groupLabel={t("cloud.tokens.group", "Group")}
+          groupLabel={t("cloud.tokens.group", "分组")}
           groupControl={(
             <div className="flex min-w-0 flex-col gap-2 lg:flex-row lg:items-center">
               <TextField.Root
                 className="lg:max-w-xs"
                 value={tokenImportGroup}
-                placeholder={t("cloud.tokens.group_placeholder", "Optional token group")}
+                placeholder={t("cloud.tokens.group_placeholder", "可选的令牌池分组")}
                 onChange={(event) => setTokenImportGroup(event.target.value)}
               />
               {existingTokenGroups.length ? (
@@ -124,13 +124,11 @@ export function LinodeTokenImportDialog({
               ) : null}
             </div>
           )}
-          editorLabel={t("cloud.tokens.import_content", "Token Content")}
+          editorLabel={t("cloud.tokens.import_content", "令牌内容")}
           editor={(
-            <TextArea
+            <CloudCodeTextarea
               value={tokenImportText}
-              rows={10}
-              resize="vertical"
-              className="min-h-56 font-mono text-sm leading-6"
+              minHeightClassName="min-h-72"
               placeholder={t(
                 "cloud.tokens.import_placeholder",
                 "prod-account,dop_v1_xxx\nbackup-account|dop_v1_yyy\ndop_v1_zzz",
@@ -141,11 +139,11 @@ export function LinodeTokenImportDialog({
           footer={(
             <>
               <Button variant="outline" onClick={() => onOpenChange(false)} disabled={saving}>
-                {t("common.cancel", "Cancel")}
+                {t("common.cancel", "取消")}
               </Button>
               <Button onClick={() => { void onImport(); }} disabled={saving}>
                 <CheckCircle2 className="mr-2 h-4 w-4" />
-                {saving ? t("cloud.tokens.importing", "Importing...") : t("cloud.tokens.import", "Import Tokens")}
+                {saving ? t("cloud.tokens.importing", "导入中...") : t("cloud.tokens.import", "导入令牌")}
               </Button>
             </>
           )}
@@ -169,10 +167,10 @@ export function LinodeTokenGroupDialog({
   return (
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
       <CloudSensitiveDialogContent
-        title={t("cloud.tokens.set_group", "Set Group")}
+        title={t("cloud.tokens.set_group", "设置分组")}
         description={t("cloud.tokens.set_group_description", {
           count: tokenGroupEditorIds.length,
-          defaultValue: `Update the group for ${tokenGroupEditorIds.length} selected token(s). Leave empty to remove the group.`,
+          defaultValue: `为已选 ${tokenGroupEditorIds.length} 个令牌设置分组。留空则清除分组。`,
         })}
         icon={<Tags className="size-4" />}
         badge={<Badge color="blue">{t("cloud.providers.linode.name", "Linode")}</Badge>}
@@ -181,13 +179,13 @@ export function LinodeTokenGroupDialog({
             <CloudStatusNotice tone="gray">
               {t(
                 "cloud.tokens.group_dialog_hint",
-                "Groups only affect organization and filtering. They do not change the credential itself.",
+                "分组只影响组织和筛选，不会修改凭证本身。",
               )}
             </CloudStatusNotice>
             {existingTokenGroups.length ? (
-              <div className="rounded-lg border border-border bg-card px-4 py-3">
+              <div className="rounded-xl border border-slate-200/80 bg-white px-4 py-3 shadow-sm shadow-slate-900/5 dark:border-slate-800 dark:bg-slate-950">
                 <div className="text-sm font-semibold text-foreground">
-                  {t("cloud.tokens.existing_groups", "Existing Groups")}
+                  {t("cloud.tokens.existing_groups", "已有分组")}
                 </div>
                 <div className="mt-3">
                   <GroupPresetButtons
@@ -203,11 +201,11 @@ export function LinodeTokenGroupDialog({
       >
         <div className="space-y-2">
           <label className={cloudPanelFieldLabelClassName}>
-            {t("cloud.tokens.group", "Group")}
+            {t("cloud.tokens.group", "分组")}
           </label>
           <TextField.Root
             value={tokenGroupEditorValue}
-            placeholder={t("cloud.tokens.group_placeholder", "Optional token group")}
+            placeholder={t("cloud.tokens.group_placeholder", "可选的令牌池分组")}
             onChange={(event) => setTokenGroupEditorValue(event.target.value)}
           />
         </div>
@@ -217,10 +215,10 @@ export function LinodeTokenGroupDialog({
             onClick={() => onOpenChange(false)}
             disabled={saving}
           >
-            {t("common.cancel", "Cancel")}
+            {t("common.cancel", "取消")}
           </Button>
           <Button onClick={() => { void onSave(); }} disabled={saving}>
-            {saving ? t("common.saving", "Saving...") : t("common.save", "Save")}
+            {saving ? t("common.saving", "保存中...") : t("common.save", "保存")}
           </Button>
         </Flex>
       </CloudSensitiveDialogContent>

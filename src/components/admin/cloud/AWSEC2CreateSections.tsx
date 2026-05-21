@@ -57,6 +57,7 @@ export function EC2CreateCoreSection({
       title={t("cloud.providers.aws.create_core", "Core")}
       summary={summary || "-"}
       defaultOpen
+      hideSummary
     >
       <div className={cn("grid gap-4", !singleColumn && "sm:grid-cols-2")}>
         <div>
@@ -102,17 +103,6 @@ export function EC2CreateCoreSection({
 
       <div className="mt-4">
         <label className={cloudPanelFieldLabelClassName}>
-          {t("cloud.providers.aws.instance_type", "Instance Type")}
-        </label>
-        <TextField.Root
-          value={form.instance_type}
-          placeholder={t("cloud.providers.aws.instance_type_manual_placeholder", "Or enter an instance type manually")}
-          onChange={(event) => setForm((previous) => ({ ...previous, instance_type: event.target.value }))}
-        />
-      </div>
-
-      <div className="mt-4">
-        <label className={cloudPanelFieldLabelClassName}>
           {t("cloud.providers.aws.ami", "AMI")}
         </label>
         <Select.Root
@@ -128,17 +118,6 @@ export function EC2CreateCoreSection({
             ))}
           </Select.Content>
         </Select.Root>
-      </div>
-
-      <div className="mt-4">
-        <label className={cloudPanelFieldLabelClassName}>
-          {t("cloud.providers.aws.ami", "AMI")}
-        </label>
-        <TextField.Root
-          value={form.image_id}
-          placeholder={t("cloud.providers.aws.ami_manual_placeholder", "Or enter an AMI ID manually")}
-          onChange={(event) => setForm((previous) => ({ ...previous, image_id: event.target.value }))}
-        />
       </div>
     </CompactDetailSection>
   );
@@ -166,7 +145,7 @@ export function EC2CreateNetworkSection({
           </label>
           <TextField.Root
             value={form.key_name}
-            placeholder={t("cloud.providers.aws.key_pair_manual_placeholder", "Optional key pair name")}
+            placeholder={t("cloud.providers.aws.key_pair_manual_placeholder", "可选密钥对名称")}
             onChange={(event) => setForm((previous) => ({ ...previous, key_name: event.target.value }))}
           />
         </div>

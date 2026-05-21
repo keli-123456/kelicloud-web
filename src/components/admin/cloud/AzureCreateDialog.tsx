@@ -12,11 +12,12 @@ import {
   Button,
   Checkbox,
   CloudCodeTextarea,
+  CloudFormActions,
+  CloudFormField,
+  CloudFormStack,
   CloudSensitiveDialogContent,
   cloudPanelBodyTextClassName,
-  cloudPanelFieldLabelClassName,
   Dialog,
-  Flex,
   Select,
   TextField,
 } from "@/components/admin/cloud/cloud-ui";
@@ -24,6 +25,7 @@ import { WarningAlert } from "@/components/ui/warning-alert";
 import {
   azureImagePresets,
   buildCreateFormFromPreset,
+  formatAzureLocationOption,
   formatAzureSizeOption,
   getDefaultAzureSize,
   getCreateRootPasswordMode,
@@ -69,17 +71,17 @@ export function AzureCreateDialog({
   return (
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
       <CloudSensitiveDialogContent
-        title={t("cloud.providers.azure.create", "Create VM")}
+        title={t("cloud.providers.azure.create", "创建虚拟机")}
         description={t(
             "cloud.providers.azure.create_description",
-            "Create a Linux VM in the current active Azure location. kelicloud will automatically prepare the resource group network stack and bootstrap agent auto-connect.",
+            "Create a Linux VM in the current active Azure location. kelicloud will automatically prepare the network stack and bootstrap agent auto-connect.",
           )}
         icon={<Server className="size-4" />}
         badge={<Badge color="blue">{t("cloud.providers.azure.name", "Azure")}</Badge>}
         className="sm:max-w-5xl"
       >
 
-        <div className="flex flex-col gap-4">
+        <CloudFormStack>
           <div className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700 dark:border-slate-800 dark:bg-slate-900/50 dark:text-slate-300">
             {t("cloud.providers.azure.create_location_hint", {
               location: activeLocationLabel,
@@ -87,9 +89,7 @@ export function AzureCreateDialog({
             })}
           </div>
 
-          <label className={cloudPanelFieldLabelClassName}>
-            {t("cloud.form.region", "Region")}
-          </label>
+          <CloudFormField label={t("cloud.form.region", "Region")}>
           <Select.Root
             value={activeLocation}
             disabled={!activeCredential || locationUpdating || locationOptions.length === 0}
@@ -101,38 +101,27 @@ export function AzureCreateDialog({
             <Select.Content>
               {locationOptions.map((location) => (
                 <Select.Item key={location.name} value={location.name}>
-                  {location.regionalDisplayName || location.displayName || location.name}
+                  {formatAzureLocationOption(location)}
                 </Select.Item>
               ))}
             </Select.Content>
           </Select.Root>
+          </CloudFormField>
 
-          <label className={cloudPanelFieldLabelClassName}>
-            {t("cloud.table.name", "Name")}
-          </label>
+          <CloudFormField label={t("cloud.table.name", "名称")}>
           <TextField.Root
             value={createForm.name}
-            placeholder={t("cloud.providers.azure.create_name_placeholder", "Leave empty to auto-generate a VM name")}
+            placeholder={t("cloud.providers.azure.create_name_placeholder", "留空时自动生成虚拟机名称")}
             onChange={(event) => setCreateForm((previous) => ({ ...previous, name: event.target.value }))}
           />
+          </CloudFormField>
 
-          <label className={cloudPanelFieldLabelClassName}>
-            {t("cloud.providers.azure.resource_group", "Resource Group")}
-          </label>
-          <TextField.Root
-            value={createForm.resource_group || ""}
-            placeholder={t("cloud.providers.azure.resource_group_placeholder", "Optional. Leave empty to auto-create a dedicated resource group")}
-            onChange={(event) => setCreateForm((previous) => ({ ...previous, resource_group: event.target.value }))}
-          />
-
-          <label className={cloudPanelFieldLabelClassName}>
-            {t("cloud.form.image", "Image")}
-          </label>
+          <CloudFormField label={t("cloud.form.image", "镜像")}>
           <Select.Root
             value={createForm.image_preset}
             onValueChange={(value) => setCreateForm((previous) => buildCreateFormFromPreset(value, previous))}
           >
-            <Select.Trigger placeholder={t("cloud.form.image_placeholder", "Select an image")} />
+            <Select.Trigger placeholder={t("cloud.form.image_placeholder", "选择镜像")} />
             <Select.Content>
               {azureImagePresets.map((preset) => (
                 <Select.Item key={preset.id} value={preset.id}>
@@ -141,50 +130,9 @@ export function AzureCreateDialog({
               ))}
             </Select.Content>
           </Select.Root>
+          </CloudFormField>
 
-          <div className="grid gap-3 sm:grid-cols-2">
-            <div>
-              <label className={cloudPanelFieldLabelClassName}>
-                {t("cloud.providers.azure.image_publisher", "Publisher")}
-              </label>
-              <TextField.Root
-                value={createForm.image_publisher}
-                onChange={(event) => setCreateForm((previous) => ({ ...previous, image_publisher: event.target.value }))}
-              />
-            </div>
-            <div>
-              <label className={cloudPanelFieldLabelClassName}>
-                {t("cloud.providers.azure.image_offer", "Offer")}
-              </label>
-              <TextField.Root
-                value={createForm.image_offer}
-                onChange={(event) => setCreateForm((previous) => ({ ...previous, image_offer: event.target.value }))}
-              />
-            </div>
-            <div>
-              <label className={cloudPanelFieldLabelClassName}>
-                {t("cloud.providers.azure.image_sku", "SKU")}
-              </label>
-              <TextField.Root
-                value={createForm.image_sku}
-                onChange={(event) => setCreateForm((previous) => ({ ...previous, image_sku: event.target.value }))}
-              />
-            </div>
-            <div>
-              <label className={cloudPanelFieldLabelClassName}>
-                {t("cloud.providers.azure.image_version", "Version")}
-              </label>
-              <TextField.Root
-                value={createForm.image_version || ""}
-                placeholder="latest"
-                onChange={(event) => setCreateForm((previous) => ({ ...previous, image_version: event.target.value }))}
-              />
-            </div>
-          </div>
-
-          <label className={cloudPanelFieldLabelClassName}>
-            {t("cloud.form.size", "Size")}
-          </label>
+          <CloudFormField label={t("cloud.form.size", "Size")}>
           <Select.Root
             value={createForm.size || getDefaultAzureSize(catalog)}
             onValueChange={(value) => setCreateForm((previous) => ({ ...previous, size: value }))}
@@ -198,21 +146,16 @@ export function AzureCreateDialog({
               ))}
             </Select.Content>
           </Select.Root>
-          <TextField.Root
-            value={createForm.size}
-            placeholder={t("cloud.providers.azure.size_manual_placeholder", "Or enter an Azure VM size manually")}
-            onChange={(event) => setCreateForm((previous) => ({ ...previous, size: event.target.value }))}
-          />
+          </CloudFormField>
 
-          <label className={cloudPanelFieldLabelClassName}>
-            {t("cloud.form.root_password", "Root Password")}
-          </label>
+          <CloudFormField label={t("cloud.form.root_password", "Root Password")}>
           <TextField.Root
             type="password"
             value={createForm.admin_password || ""}
             placeholder={t("cloud.form.root_password_placeholder", "输入 root 密码")}
             onChange={(event) => setCreateForm((previous) => ({ ...previous, admin_password: event.target.value }))}
           />
+          </CloudFormField>
           <WarningAlert
             tone="info"
             description={
@@ -236,31 +179,25 @@ export function AzureCreateDialog({
           </label>
 
           {createForm.auto_connect ? (
-            <div>
-              <label className={cloudPanelFieldLabelClassName}>
-                {t("cloud.providers.azure.auto_connect_group", "Auto-connect Group")}
-              </label>
+            <CloudFormField label={t("cloud.providers.azure.auto_connect_group", "自动接入分组")}>
               <TextField.Root
                 value={createForm.auto_connect_group || ""}
-                placeholder={t("cloud.providers.azure.auto_connect_group_placeholder", "Optional. Leave empty to use the default group")}
+                placeholder={t("cloud.providers.azure.auto_connect_group_placeholder", "可选，留空则使用默认分组")}
                 onChange={(event) =>
                   setCreateForm((previous) => ({ ...previous, auto_connect_group: event.target.value }))
                 }
               />
-            </div>
+            </CloudFormField>
           ) : null}
 
-          <div>
-            <label className={cloudPanelFieldLabelClassName}>
-              {t("cloud.providers.azure.user_data", "Cloud-init User Data")}
-            </label>
+          <CloudFormField label={t("cloud.providers.azure.user_data", "Cloud-init 用户数据")}>
             <CloudCodeTextarea
               minHeightClassName="min-h-28"
               value={createForm.user_data || ""}
               placeholder="#cloud-config"
               onChange={(event) => setCreateForm((previous) => ({ ...previous, user_data: event.target.value }))}
             />
-          </div>
+          </CloudFormField>
 
           <label className={`flex items-center gap-2 ${cloudPanelBodyTextClassName}`}>
             <Checkbox
@@ -269,7 +206,7 @@ export function AzureCreateDialog({
                 setCreateForm((previous) => ({ ...previous, public_ip: Boolean(checked) }))
               }
             />
-            {t("cloud.providers.azure.public_ip_toggle", "Allocate a public IPv4 address and open inbound traffic by default")}
+            {t("cloud.providers.azure.public_ip_toggle", "分配公网 IPv4，并默认放通入站流量")}
           </label>
 
           <label className={`flex items-center gap-2 ${cloudPanelBodyTextClassName}`}>
@@ -281,13 +218,13 @@ export function AzureCreateDialog({
             />
             {t(
               "cloud.providers.azure.assign_ipv6_toggle",
-              "Enable IPv6. kelicloud will prepare a dual-stack VNet/NIC and attach a public IPv6 address when public IP is also enabled",
+              "启用 IPv6。kelicloud 会自动准备双栈 VNet/NIC；如果同时启用公网 IP，也会附加公网 IPv6 地址。",
             )}
           </label>
 
-          <Flex justify="end" gap="2">
+          <CloudFormActions>
             <Button variant="outline" onClick={() => onOpenChange(false)} disabled={submitting}>
-              {t("common.cancel", "Cancel")}
+              {t("common.cancel", "取消")}
             </Button>
             <Button
               onClick={() => {
@@ -296,17 +233,15 @@ export function AzureCreateDialog({
               disabled={
                 submitting
                 || !createForm.size
-                || !createForm.image_publisher
-                || !createForm.image_offer
-                || !createForm.image_sku
+                || !createForm.image_preset
               }
             >
               {submitting
-                ? t("cloud.creating", "Creating...")
-                : t("cloud.providers.azure.create", "Create VM")}
+                ? t("cloud.creating", "创建中...")
+                : t("cloud.providers.azure.create", "创建虚拟机")}
             </Button>
-          </Flex>
-        </div>
+          </CloudFormActions>
+        </CloudFormStack>
       </CloudSensitiveDialogContent>
     </Dialog.Root>
   );

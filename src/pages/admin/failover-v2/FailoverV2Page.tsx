@@ -22,6 +22,10 @@ import {
 import FailoverV2ShareDialog from "@/components/admin/failover-v2/FailoverV2ShareDialog";
 import DnsSchedulerLinkedSummary from "@/components/admin/cloud/DnsSchedulerLinkedSummary";
 import {
+  azureImagePresets,
+  initialAzureImagePreset,
+} from "@/components/admin/cloud/azurePanelUtils";
+import {
   ADMIN_FORM_DIALOG_CLASS,
   ADMIN_FORM_DIALOG_WIDE_CLASS,
   ADMIN_FORM_FIELD_CLASS as FORM_FIELD_CLASS,
@@ -1836,6 +1840,7 @@ function getDefaultMemberPlanPayload(provider: string) {
         instance_type: DEFAULT_STATIC_EC2_INSTANCE_TYPE,
         assign_public_ip: true,
         assign_ipv6: true,
+        allow_all_traffic: true,
       }, null, 2);
     case "azure":
       return JSON.stringify({
@@ -1843,6 +1848,8 @@ function getDefaultMemberPlanPayload(provider: string) {
         size: DEFAULT_AZURE_SIZE,
         public_ip: true,
         assign_ipv6: true,
+        root_password_mode: "random",
+        image_preset: "ubuntu-2404",
         image: DEFAULT_AZURE_IMAGE,
       }, null, 2);
     default:
@@ -2492,7 +2499,8 @@ function buildPlanSelectOptions(options: BuiltinPlanOption[], currentValue: stri
 }
 
 function formatPlanOptionLabel(option: BuiltinPlanOption) {
-  return option.zh ? `${option.label || option.value} / ${option.zh}` : option.label || option.value;
+  const baseLabel = option.zh ? `${option.label || option.value} / ${option.zh}` : option.label || option.value;
+  return option.hint ? `${baseLabel} · ${option.hint}` : baseLabel;
 }
 
 function getPlanOptionSearchText(option: BuiltinPlanOption) {
@@ -2827,7 +2835,7 @@ export default function FailoverV2Page() {
         t,
         loadError,
         t("failover_v2.load_failed", {
-          defaultValue: "Failed to load failover v2 services",
+          defaultValue: "加载故障切换 V2 服务失败",
         }),
       );
       if (!silent && serviceLoadSeqRef.current === requestSeq) {
@@ -3126,7 +3134,6 @@ export default function FailoverV2Page() {
     [memberForm.plan_payload, memberForm.provider],
   );
   const awsPlanService = normalizeAWSPlanService(getJsonStringValue(memberPlanPayload, "service"));
-  const awsLightsailIPAddressType = getJsonStringValue(memberPlanPayload, "ip_address_type") === "dualstack" ? "dualstack" : "ipv4";
   const memberPlanRegion = getJsonStringValue(memberPlanPayload, "region");
   const awsLightsailBlueprintPlatform = inferLightsailBlueprintPlatform(getJsonStringValue(memberPlanPayload, "blueprint_id"));
   const awsLightsailBundlePresetSource = awsLightsailBlueprintPlatform
@@ -3199,10 +3206,6 @@ export default function FailoverV2Page() {
     [memberPlanPayload],
   );
   const azurePlanLocation = getJsonStringValue(memberPlanPayload, "location") || getJsonStringValue(memberPlanPayload, "region");
-  const azurePlanImage = React.useMemo(
-    () => asJsonObject(memberPlanPayload.image) || DEFAULT_AZURE_IMAGE,
-    [memberPlanPayload],
-  );
   const azureRootPasswordMode = (() => {
     const mode = getJsonStringValue(memberPlanPayload, "root_password_mode");
     return mode === "custom" || mode === "none" ? mode : "random";
@@ -3214,6 +3217,13 @@ export default function FailoverV2Page() {
   const azureSizeOptions = React.useMemo(
     () => buildPlanSelectOptions(COMMON_AZURE_SIZES, getJsonStringValue(memberPlanPayload, "size") || DEFAULT_AZURE_SIZE),
     [memberPlanPayload],
+  );
+  const azureImagePresetOptions = React.useMemo(
+    () => azureImagePresets.map((preset) => ({
+      value: preset.id,
+      label: preset.label,
+    })),
+    [],
   );
   const currentNodeOptions = React.useMemo(
     () => mergeCurrentNode(nodes, memberForm.watch_client_uuid),
@@ -3242,6 +3252,68 @@ export default function FailoverV2Page() {
     })),
     [serviceForm.script_clipboard_ids, serviceScriptLookup],
   );
+  const serviceDNSTargetLabel = (() => {
+    if (serviceDNSProvider === "cloudflare") {
+      return [
+        getJsonStringValue(serviceDNSPayload, "record_name"),
+        getJsonStringValue(serviceDNSPayload, "zone_name"),
+      ].filter(Boolean).join(" / ");
+    }
+
+    return [
+      getJsonStringValue(serviceDNSPayload, "rr") || "@",
+      getJsonStringValue(serviceDNSPayload, "domain_name"),
+    ].filter(Boolean).join(".");
+  })();
+  const serviceDialogSummaryRows = [
+    {
+      label: t("common.name", { defaultValue: "Name" }),
+      value: serviceForm.name.trim() || t("common.not_set", { defaultValue: "Not set" }),
+    },
+    {
+      label: t("common.status", { defaultValue: "Status" }),
+      value: serviceForm.enabled
+        ? t("common.enabled", { defaultValue: "Enabled" })
+        : t("common.disabled", { defaultValue: "Disabled" }),
+    },
+    {
+      label: t("failover_v2.dns_provider", { defaultValue: "DNS provider" }),
+      value: formatProviderLabel(serviceDNSProvider),
+    },
+    {
+      label: t("failover_v2.dns_entry", { defaultValue: "DNS entry" }),
+      value: serviceForm.dns_entry_id || t("common.not_set", { defaultValue: "Not set" }),
+    },
+    {
+      label: t("failover_v2.dns_target", { defaultValue: "DNS target" }),
+      value: serviceDNSTargetLabel || t("common.not_set", { defaultValue: "Not set" }),
+    },
+    {
+      label: t("failover_v2.dns_record_type", { defaultValue: "Record type" }),
+      value: getJsonBooleanValue(serviceDNSPayload, "sync_ipv6")
+        ? `${serviceDNSRecordType} + ${serviceDNSRecordType === "A" ? "AAAA" : "A"}`
+        : serviceDNSRecordType,
+    },
+    {
+      label: t("failover_v2.dns_ttl", { defaultValue: "TTL" }),
+      value: getJsonNumberInputValue(serviceDNSPayload, "ttl", serviceDNSProvider === "cloudflare" ? 120 : 600),
+    },
+    {
+      label: t("failover_v2.service_scripts", { defaultValue: "Scripts" }),
+      value: selectedServiceScriptEntries.length > 0
+        ? selectedServiceScriptEntries.slice(0, 2).map(({ id, script }) => script?.name || `#${id}`).join(" -> ")
+        : t("failover.editor.no_script", { defaultValue: "No script" }),
+    },
+    {
+      label: t("failover_v2.check_interval", { defaultValue: "Check interval" }),
+      value: `${serviceForm.check_interval_seconds || "60"}s`,
+    },
+  ];
+  const serviceDialogPolicyNotes = [
+    t("failover_v2.service_summary_dns_note", { defaultValue: "服务只管理共享 DNS 目标，具体线路会在成员里绑定。" }),
+    t("failover_v2.service_summary_scheduler_note", { defaultValue: "调度间隔决定服务级健康巡检频率，成员执行仍按自己的状态判断。" }),
+    t("failover_v2.service_summary_script_note", { defaultValue: "服务脚本会在替换出口通过检查后按顺序执行。" }),
+  ];
   const filteredServiceScripts = React.useMemo(() => {
     const query = serviceScriptSearchQuery.trim().toLowerCase();
     return [...scripts]
@@ -3261,6 +3333,88 @@ export default function FailoverV2Page() {
         ].some((value) => String(value || "").toLowerCase().includes(query));
       });
   }, [scripts, serviceScriptSearchQuery]);
+  const memberDialogSummaryRows = (() => {
+    const rows = [
+      {
+        label: t("common.name", { defaultValue: "Name" }),
+        value: memberForm.name.trim() || t("common.not_set", { defaultValue: "Not set" }),
+      },
+      {
+        label: t("failover_v2.member_mode", { defaultValue: "Mode" }),
+        value: formatMemberModeLabel(t, memberFormMode),
+      },
+    ];
+
+    if (memberUsesExistingClient) {
+      rows.push({
+        label: t("failover_v2.watch_client", { defaultValue: "Current client" }),
+        value: memberForm.watch_client_uuid || t("common.not_set", { defaultValue: "Not set" }),
+      });
+      rows.push({
+        label: t("failover_v2.current_address", { defaultValue: "Current address" }),
+        value: memberRuntimeAddress || t("failover_v2.runtime_not_initialized", { defaultValue: "Not initialized yet" }),
+      });
+      return rows;
+    }
+
+    rows.push({
+      label: t("failover_v2.provider", { defaultValue: "Provider" }),
+      value: formatProviderLabel(memberProvider),
+    });
+    rows.push({
+      label: t("failover_v2.provider_entry_group", { defaultValue: "Credential group" }),
+      value: memberForm.provider_entry_group || t("failover_v2.provider_entry_group_all", { defaultValue: "All credentials" }),
+    });
+    rows.push({
+      label: t("failover_v2.provider_entry", { defaultValue: "Provider credential" }),
+      value: memberForm.provider_entry_id === FAILOVER_V2_AUTOMATIC_PROVIDER_ENTRY_ID
+        ? t("failover_v2.provider_entry_active", { defaultValue: "Use active credential" })
+        : memberForm.provider_entry_id || t("common.not_set", { defaultValue: "Not set" }),
+    });
+
+    if (memberProvider === "aws") {
+      rows.push({ label: t("failover_v2.aws_service", { defaultValue: "AWS service" }), value: awsPlanService.toUpperCase() });
+      rows.push({ label: t("failover_v2.plan_region", { defaultValue: "Region" }), value: memberPlanRegion || DEFAULT_AWS_REGION });
+      rows.push({
+        label: awsPlanService === "lightsail"
+          ? t("failover_v2.aws_bundle_id", { defaultValue: "Bundle ID" })
+          : t("failover_v2.aws_instance_type", { defaultValue: "Instance type" }),
+        value: awsPlanService === "lightsail"
+          ? getJsonStringValue(memberPlanPayload, "bundle_id") || DEFAULT_STATIC_LIGHTSAIL_BUNDLE_ID
+          : getJsonStringValue(memberPlanPayload, "instance_type") || DEFAULT_STATIC_EC2_INSTANCE_TYPE,
+      });
+    } else if (memberProvider === "azure") {
+      rows.push({ label: t("failover_v2.plan_location", { defaultValue: "Location" }), value: azurePlanLocation || DEFAULT_AZURE_LOCATION });
+      rows.push({ label: t("failover_v2.azure_size", { defaultValue: "Size" }), value: getJsonStringValue(memberPlanPayload, "size") || DEFAULT_AZURE_SIZE });
+      rows.push({
+        label: t("failover_v2.plan_image", { defaultValue: "Image" }),
+        value: azureImagePresets.find((preset) => preset.id === getJsonStringValue(memberPlanPayload, "image_preset"))?.label
+          || initialAzureImagePreset.label,
+      });
+    } else {
+      rows.push({ label: t("failover_v2.plan_region", { defaultValue: "Region" }), value: getJsonStringValue(memberPlanPayload, "region") || "-" });
+      rows.push({
+        label: memberProvider === "linode"
+          ? t("failover_v2.linode_type", { defaultValue: "Type" })
+          : memberProvider === "vultr"
+            ? t("failover_v2.vultr_plan", { defaultValue: "Plan" })
+            : t("failover_v2.digitalocean_size", { defaultValue: "Size" }),
+        value: getJsonStringValue(memberPlanPayload, memberProvider === "linode" ? "type" : memberProvider === "vultr" ? "plan" : "size") || "-",
+      });
+    }
+
+    return rows;
+  })();
+  const memberDialogPolicyNotes = memberUsesExistingClient
+    ? [
+      t("failover_v2.summary_existing_dns_detach", { defaultValue: "触发时只摘除所选 DNS 线路，不创建新云实例。" }),
+      t("failover_v2.summary_existing_state_safe", { defaultValue: "当前出口状态从已绑定客户端读取，可在运行态字段中修复。" }),
+    ]
+    : [
+      t("failover_v2.summary_provider_auto_network", { defaultValue: "云实例默认公网可达，并按后端策略放行必要网络。" }),
+      t("failover_v2.summary_provider_dns_attach", { defaultValue: "实例创建成功后再挂载 DNS，避免提前切流。" }),
+      t("failover_v2.summary_provider_json_advanced", { defaultValue: "不常用字段已收进 JSON 高级编辑，日常无需处理。" }),
+    ];
 
   const handleServiceDNSProviderChange = React.useCallback((provider: string) => {
     const nextProvider = normalizeProviderKey(provider, FAILOVER_V2_DNS_PROVIDER);
@@ -3370,7 +3524,7 @@ export default function FailoverV2Page() {
       }
       const message = loadError instanceof Error
         ? loadError.message
-        : t("failover_v2.dns_catalog_error", { defaultValue: "Failed to load DNS options." });
+        : t("failover_v2.dns_catalog_error", { defaultValue: "加载 DNS 选项失败。" });
       setServiceDNSCatalog(null);
       setServiceDNSCatalogError(message);
       setServiceSelectedDNSRecordKey("");
@@ -3414,7 +3568,7 @@ export default function FailoverV2Page() {
       }
       const message = loadError instanceof Error
         ? loadError.message
-        : t("failover_v2.dns_catalog_error", { defaultValue: "Failed to load DNS options." });
+        : t("failover_v2.dns_catalog_error", { defaultValue: "加载 DNS 选项失败。" });
       setMemberDNSCatalog(null);
       setMemberDNSCatalogError(message);
     } finally {
@@ -3995,7 +4149,7 @@ export default function FailoverV2Page() {
         t,
         loadError,
         t("failover_v2.execution_load_failed", {
-          defaultValue: "Failed to load execution details",
+          defaultValue: "加载执行详情失败",
         }),
       );
       if (!silent) {
@@ -4053,7 +4207,7 @@ export default function FailoverV2Page() {
         t,
         loadError,
         t("failover_v2.execution_history_failed", {
-          defaultValue: "Failed to load execution history",
+          defaultValue: "加载执行历史失败",
         }),
       );
       if (!silent) {
@@ -4181,7 +4335,7 @@ export default function FailoverV2Page() {
         t,
         loadError,
         t("failover_v2.pending_cleanup_load_failed", {
-          defaultValue: "Failed to load pending cleanups",
+          defaultValue: "加载待清理任务失败",
         }),
       );
       setPendingCleanupError(message);
@@ -5089,7 +5243,7 @@ export default function FailoverV2Page() {
       </Dialog>
 
       <Dialog open={serviceDialogOpen} onOpenChange={setServiceDialogOpen}>
-        <DialogContent className={ADMIN_FORM_DIALOG_CLASS}>
+        <DialogContent className={cn(ADMIN_FORM_DIALOG_WIDE_CLASS, "h-[92vh] max-w-[1280px] sm:max-w-[1280px]")}>
           <DialogHeader>
             <DialogTitle>
               {editingService
@@ -5103,7 +5257,9 @@ export default function FailoverV2Page() {
             </DialogDescription>
           </DialogHeader>
 
-          <div className={cn(ADMIN_FORM_SCROLL_CLASS, "space-y-3")}>
+          <div className={cn(ADMIN_FORM_SCROLL_CLASS, "px-1")}>
+            <div className="grid w-full gap-5 xl:grid-cols-[minmax(0,1fr)_340px]">
+              <div className="min-w-0 space-y-3">
             <section className={FORM_SECTION_CLASS}>
               <div className="mb-4 flex flex-col gap-1">
                 <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-50">
@@ -5371,7 +5527,7 @@ export default function FailoverV2Page() {
                       <Input
                         value={getJsonStringValue(serviceDNSPayload, "zone_id")}
                         onChange={(event) => updateServiceDNSPayload({ zone_id: event.target.value })}
-                        placeholder={t("failover_v2.cloudflare_zone_id_placeholder", { defaultValue: "Optional when zone name is filled" })}
+                        placeholder={t("failover_v2.cloudflare_zone_id_placeholder", { defaultValue: "填写 Zone 名称时可选" })}
                       />
                     </div>
                     <div className={`${FORM_FIELD_CLASS} md:col-span-2`}>
@@ -5630,7 +5786,7 @@ export default function FailoverV2Page() {
                 </h3>
                 <p className="text-xs text-slate-500 dark:text-slate-400">
                   {t("failover_v2.service_section_scripts_hint", {
-                    defaultValue: "Optional clipboard scripts run after the replacement instance passes connectivity checks.",
+                    defaultValue: "可选剪贴板脚本会在替换实例通过连通性检查后执行。",
                   })}
                 </p>
               </div>
@@ -5796,6 +5952,64 @@ export default function FailoverV2Page() {
                 </div>
               </div>
             </section>
+              </div>
+              <aside className="hidden min-w-0 xl:block">
+                <div className="sticky top-0 space-y-3 rounded-xl border border-slate-200/80 bg-slate-50/80 p-4 shadow-sm shadow-slate-900/5 dark:border-slate-800 dark:bg-slate-900/40">
+                  <div className="space-y-1">
+                    <div className="text-sm font-semibold text-slate-900 dark:text-slate-50">
+                      {t("failover_v2.service_summary_title", { defaultValue: "服务配置预览" })}
+                    </div>
+                    <p className="text-xs leading-5 text-muted-foreground">
+                      {t("failover_v2.service_summary_hint", {
+                        defaultValue: "右侧固定展示服务级 DNS、调度和脚本策略，左侧负责编辑具体字段。",
+                      })}
+                    </p>
+                  </div>
+
+                  <div className="overflow-hidden rounded-lg border bg-background">
+                    {serviceDialogSummaryRows.map((row) => (
+                      <div key={row.label} className="grid grid-cols-[96px_minmax(0,1fr)] gap-3 border-b px-3 py-2.5 text-sm last:border-b-0">
+                        <div className="text-xs font-medium text-muted-foreground">{row.label}</div>
+                        <div className="min-w-0 break-words font-medium text-slate-900 dark:text-slate-50">{row.value}</div>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="rounded-lg border bg-background p-3">
+                    <div className="text-xs font-semibold uppercase tracking-normal text-muted-foreground">
+                      {t("failover_v2.service_summary_policy", { defaultValue: "服务策略" })}
+                    </div>
+                    <div className="mt-2 space-y-2">
+                      {serviceDialogPolicyNotes.map((note) => (
+                        <div key={note} className="flex gap-2 text-xs leading-5 text-muted-foreground">
+                          <Check className="mt-0.5 size-3.5 shrink-0 text-emerald-600" />
+                          <span>{note}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="rounded-lg border bg-background p-3">
+                    <div className="text-xs font-semibold uppercase tracking-normal text-muted-foreground">
+                      {t("failover_v2.dns_available_lines", { defaultValue: "Available routing lines" })}
+                    </div>
+                    <div className="mt-2 flex flex-wrap gap-1.5">
+                      {serviceDNSProvider === "aliyun" && serviceDNSLineOptions.length > 0 ? (
+                        serviceDNSLineOptions.slice(0, 8).map((line) => (
+                          <InlineBadge key={line.value} variant="secondary">{line.label}</InlineBadge>
+                        ))
+                      ) : (
+                        <span className="text-xs text-muted-foreground">
+                          {serviceDNSProvider === "aliyun"
+                            ? t("failover_v2.dns_lines_empty", { defaultValue: "No routing lines loaded yet." })
+                            : t("failover_v2.dns_lines_member_hint", { defaultValue: "Cloudflare records do not use Aliyun routing lines." })}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </aside>
+            </div>
           </div>
 
           <DialogFooter>
@@ -5826,7 +6040,7 @@ export default function FailoverV2Page() {
           setMemberDialogOpen(true);
         }}
       >
-        <DialogContent className={cn(ADMIN_FORM_DIALOG_CLASS, "max-w-4xl")}>
+        <DialogContent className={cn(ADMIN_FORM_DIALOG_WIDE_CLASS, "h-[92vh] max-w-[1280px] sm:max-w-[1280px]")}>
           <DialogHeader>
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div className="min-w-0 space-y-2">
@@ -5846,8 +6060,9 @@ export default function FailoverV2Page() {
             </div>
           </DialogHeader>
 
-          <div className={ADMIN_FORM_SCROLL_CLASS}>
-            <div className="mx-auto w-full max-w-3xl space-y-5">
+          <div className={cn(ADMIN_FORM_SCROLL_CLASS, "px-1")}>
+            <div className="grid w-full gap-5 xl:grid-cols-[minmax(0,1fr)_340px]">
+              <div className="min-w-0 space-y-5">
                 <FlowSection
                   title={t("failover_v2.member_section_basic", { defaultValue: "Member basics" })}
                   description={t("failover_v2.member_section_basic_hint", {
@@ -5894,7 +6109,7 @@ export default function FailoverV2Page() {
                     })}
                   >
                     <div className="space-y-3">
-                      <TabsList className="grid h-auto w-full grid-cols-2 rounded-lg bg-muted/60 p-1">
+                      <TabsList className="grid h-auto w-full grid-cols-2 rounded-lg border border-slate-200/80 bg-slate-50 p-1 shadow-sm shadow-slate-900/5 dark:border-slate-800 dark:bg-slate-900/35">
                         <MemberModeOption
                           value="existing_client"
                           title={t("failover_v2.member_mode_existing_client", { defaultValue: "Existing client" })}
@@ -6047,7 +6262,7 @@ export default function FailoverV2Page() {
                             )}
                             <p className="text-xs text-muted-foreground">
                               {t("failover_v2.provider_entry_group_hint", {
-                                defaultValue: "Optional. When selected, V2 will only use credentials from this group.",
+                                defaultValue: "可选。选择后，V2 只会使用这个分组里的凭证。",
                               })}
                             </p>
                           </div>
@@ -6124,11 +6339,11 @@ export default function FailoverV2Page() {
                           <Input
                             value={getJsonStringValue(memberPlanPayload, "auto_connect_group")}
                             onChange={(event) => updateMemberPlanPayload({ auto_connect_group: event.target.value })}
-                            placeholder={t("failover_v2.auto_connect_group_placeholder", { defaultValue: "Optional; generated automatically when empty" })}
+                            placeholder={t("failover_v2.auto_connect_group_placeholder", { defaultValue: "可选，留空自动生成" })}
                           />
                           <p className="text-xs text-muted-foreground">
                             {t("failover_v2.auto_connect_group_hint", {
-                              defaultValue: "Optional. Leave empty to let V2 generate the target group automatically.",
+                              defaultValue: "可选。留空时 V2 会自动生成目标分组。",
                             })}
                           </p>
                         </div>
@@ -6204,64 +6419,29 @@ export default function FailoverV2Page() {
                       <Input
                         value={getJsonStringValue(memberPlanPayload, "name")}
                         onChange={(event) => updateMemberPlanPayload({ name: event.target.value })}
-                        placeholder={t("failover_v2.plan_instance_name_placeholder", { defaultValue: "Optional; generated automatically when empty" })}
-                      />
-                    </div>
-                    <div className={FORM_FIELD_CLASS}>
-                      <Label>{t("cloud.providers.azure.resource_group", { defaultValue: "Resource group" })}</Label>
-                      <Input
-                        value={getJsonStringValue(memberPlanPayload, "resource_group")}
-                        onChange={(event) => updateMemberPlanPayload({ resource_group: event.target.value })}
-                        placeholder={t("failover_v2.azure_resource_group_placeholder", { defaultValue: "Optional; created automatically when empty" })}
-                      />
-                    </div>
-                  </div>
-
-                  <div className={FORM_GRID_4_CLASS}>
-                    <div className={FORM_FIELD_CLASS}>
-                      <Label className="flex items-center gap-1">
-                        {t("cloud.providers.azure.image_publisher", { defaultValue: "Image publisher" })}
-                        <RequiredMark />
-                      </Label>
-                      <Input
-                        value={getJsonStringValue(azurePlanImage, "publisher")}
-                        onChange={(event) => updateMemberPlanPayload({
-                          image: { ...DEFAULT_AZURE_IMAGE, ...azurePlanImage, publisher: event.target.value },
-                        })}
+                        placeholder={t("failover_v2.plan_instance_name_placeholder", { defaultValue: "可选，留空自动生成" })}
                       />
                     </div>
                     <div className={FORM_FIELD_CLASS}>
                       <Label className="flex items-center gap-1">
-                        {t("cloud.providers.azure.image_offer", { defaultValue: "Image offer" })}
+                        {t("failover_v2.plan_image", { defaultValue: "Image" })}
                         <RequiredMark />
                       </Label>
-                      <Input
-                        value={getJsonStringValue(azurePlanImage, "offer")}
-                        onChange={(event) => updateMemberPlanPayload({
-                          image: { ...DEFAULT_AZURE_IMAGE, ...azurePlanImage, offer: event.target.value },
-                        })}
-                      />
-                    </div>
-                    <div className={FORM_FIELD_CLASS}>
-                      <Label className="flex items-center gap-1">
-                        {t("cloud.providers.azure.image_sku", { defaultValue: "Image SKU" })}
-                        <RequiredMark />
-                      </Label>
-                      <Input
-                        value={getJsonStringValue(azurePlanImage, "sku")}
-                        onChange={(event) => updateMemberPlanPayload({
-                          image: { ...DEFAULT_AZURE_IMAGE, ...azurePlanImage, sku: event.target.value },
-                        })}
-                      />
-                    </div>
-                    <div className={FORM_FIELD_CLASS}>
-                      <Label>{t("cloud.providers.azure.image_version", { defaultValue: "Image version" })}</Label>
-                      <Input
-                        value={getJsonStringValue(azurePlanImage, "version")}
-                        onChange={(event) => updateMemberPlanPayload({
-                          image: { ...DEFAULT_AZURE_IMAGE, ...azurePlanImage, version: event.target.value },
-                        })}
-                        placeholder="latest"
+                      <PlanPresetSelect
+                        value={getJsonStringValue(memberPlanPayload, "image_preset") || "ubuntu-2404"}
+                        onValueChange={(value) => {
+                          const preset = azureImagePresets.find((item) => item.id === value) || initialAzureImagePreset;
+                          updateMemberPlanPayload({
+                            image_preset: preset.id,
+                            image: {
+                              publisher: preset.publisher,
+                              offer: preset.offer,
+                              sku: preset.sku,
+                              version: preset.version || "latest",
+                            },
+                          });
+                        }}
+                        options={azureImagePresetOptions}
                       />
                     </div>
                   </div>
@@ -6312,26 +6492,6 @@ export default function FailoverV2Page() {
                     </div>
                   ) : null}
 
-                  <div className="grid gap-3 md:grid-cols-2">
-                    <ToggleCard
-                      title={t("failover_v2.assign_public_ip", { defaultValue: "Assign public IPv4" })}
-                      description={t("failover_v2.azure_public_ip_hint", { defaultValue: "Creates a public IPv4 and opens inbound traffic on the Azure security group." })}
-                    >
-                      <Switch
-                        checked={getJsonBooleanValue(memberPlanPayload, "public_ip", true)}
-                        onCheckedChange={(checked) => updateMemberPlanPayload({ public_ip: checked })}
-                      />
-                    </ToggleCard>
-                    <ToggleCard
-                      title={t("failover_v2.assign_ipv6", { defaultValue: "Assign IPv6" })}
-                      description={t("failover_v2.azure_ipv6_hint", { defaultValue: "Creates dual-stack network resources and an IPv6 public address." })}
-                    >
-                      <Switch
-                        checked={getJsonBooleanValue(memberPlanPayload, "assign_ipv6", true)}
-                        onCheckedChange={(checked) => updateMemberPlanPayload({ assign_ipv6: checked })}
-                      />
-                    </ToggleCard>
-                  </div>
                 </div>
               ) : memberProvider === "aws" ? (
                 <div className="space-y-4">
@@ -6350,12 +6510,17 @@ export default function FailoverV2Page() {
                                 || DEFAULT_STATIC_LIGHTSAIL_BLUEPRINT_ID,
                               bundle_id: getJsonStringValue(memberPlanPayload, "bundle_id")
                                 || DEFAULT_STATIC_LIGHTSAIL_BUNDLE_ID,
+                              ip_address_type: "dualstack",
+                              allow_all_traffic: true,
                             }
                             : {
                               image_id: getJsonStringValue(memberPlanPayload, "image_id")
                                 || DEFAULT_STATIC_EC2_IMAGE_ID,
                               instance_type: getJsonStringValue(memberPlanPayload, "instance_type")
                                 || DEFAULT_STATIC_EC2_INSTANCE_TYPE,
+                              assign_public_ip: true,
+                              assign_ipv6: true,
+                              allow_all_traffic: true,
                             }),
                         })}
                       >
@@ -6389,7 +6554,7 @@ export default function FailoverV2Page() {
                       <Input
                         value={getJsonStringValue(memberPlanPayload, "name")}
                         onChange={(event) => updateMemberPlanPayload({ name: event.target.value })}
-                        placeholder={t("failover_v2.plan_instance_name_placeholder", { defaultValue: "Optional; generated automatically when empty" })}
+                        placeholder={t("failover_v2.plan_instance_name_placeholder", { defaultValue: "可选，留空自动生成" })}
                       />
                     </div>
                   </div>
@@ -6406,21 +6571,6 @@ export default function FailoverV2Page() {
                           onValueChange={(value) => updateMemberPlanPayload({ availability_zone: value })}
                           options={awsLightsailAvailabilityZoneOptions}
                         />
-                      </div>
-                      <div className={FORM_FIELD_CLASS}>
-                        <Label>{t("failover_v2.aws_ip_address_type", { defaultValue: "IP address type" })}</Label>
-                        <Select
-                          value={awsLightsailIPAddressType}
-                          onValueChange={(value) => updateMemberPlanPayload({ ip_address_type: value === "dualstack" ? "dualstack" : "" })}
-                        >
-                          <SelectTrigger>
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="ipv4">{t("failover_v2.aws_ip_address_type_ipv4", { defaultValue: "IPv4 only" })}</SelectItem>
-                            <SelectItem value="dualstack">{t("failover_v2.aws_ip_address_type_dualstack", { defaultValue: "IPv4 + IPv6" })}</SelectItem>
-                          </SelectContent>
-                        </Select>
                       </div>
                       <div className={FORM_FIELD_CLASS}>
                         <Label className="flex items-center gap-1">
@@ -6482,22 +6632,6 @@ export default function FailoverV2Page() {
                     </div>
                   )}
 
-                  {awsPlanService === "ec2" ? (
-                  <div className="grid gap-3 md:grid-cols-2">
-                    <ToggleCard title={t("failover_v2.assign_public_ip", { defaultValue: "Assign public IPv4" })}>
-                      <Switch
-                        checked={getJsonBooleanValue(memberPlanPayload, "assign_public_ip", true)}
-                        onCheckedChange={(checked) => updateMemberPlanPayload({ assign_public_ip: checked })}
-                      />
-                    </ToggleCard>
-                    <ToggleCard title={t("failover_v2.assign_ipv6", { defaultValue: "Assign IPv6" })}>
-                      <Switch
-                        checked={getJsonBooleanValue(memberPlanPayload, "assign_ipv6", true)}
-                        onCheckedChange={(checked) => updateMemberPlanPayload({ assign_ipv6: checked })}
-                      />
-                    </ToggleCard>
-                  </div>
-                  ) : null}
                 </div>
               ) : (
                 <div className="space-y-4">
@@ -6818,6 +6952,59 @@ export default function FailoverV2Page() {
                   </FlowSection>
                 </>
               ) : null}
+              </div>
+              <aside className="hidden min-w-0 xl:block">
+                <div className="sticky top-0 space-y-3 rounded-xl border border-slate-200/80 bg-slate-50/80 p-4 shadow-sm shadow-slate-900/5 dark:border-slate-800 dark:bg-slate-900/40">
+                  <div className="space-y-1">
+                    <div className="text-sm font-semibold text-slate-900 dark:text-slate-50">
+                      {t("failover_v2.member_summary_title", { defaultValue: "出口配置预览" })}
+                    </div>
+                    <p className="text-xs leading-5 text-muted-foreground">
+                      {t("failover_v2.member_summary_hint", {
+                        defaultValue: "右侧只看关键结果，左侧负责编辑。默认网络与 DNS 挂载策略由后端统一处理。",
+                      })}
+                    </p>
+                  </div>
+
+                  <div className="overflow-hidden rounded-lg border bg-background">
+                    {memberDialogSummaryRows.map((row) => (
+                      <div key={row.label} className="grid grid-cols-[96px_minmax(0,1fr)] gap-3 border-b px-3 py-2.5 text-sm last:border-b-0">
+                        <div className="text-xs font-medium text-muted-foreground">{row.label}</div>
+                        <div className="min-w-0 break-words font-medium text-slate-900 dark:text-slate-50">{row.value}</div>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="rounded-lg border bg-background p-3">
+                    <div className="text-xs font-semibold uppercase tracking-normal text-muted-foreground">
+                      {t("failover_v2.member_summary_policy", { defaultValue: "默认策略" })}
+                    </div>
+                    <div className="mt-2 space-y-2">
+                      {memberDialogPolicyNotes.map((note) => (
+                        <div key={note} className="flex gap-2 text-xs leading-5 text-muted-foreground">
+                          <Check className="mt-0.5 size-3.5 shrink-0 text-emerald-600" />
+                          <span>{note}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="rounded-lg border bg-background p-3">
+                    <div className="text-xs font-semibold uppercase tracking-normal text-muted-foreground">
+                      {t("failover_v2.member_summary_dns", { defaultValue: "DNS 线路" })}
+                    </div>
+                    <div className="mt-2 flex flex-wrap gap-1.5">
+                      {memberFormDNSLines.length > 0 ? memberFormDNSLines.map((line) => (
+                        <InlineBadge key={line} variant="secondary">{line}</InlineBadge>
+                      )) : (
+                        <span className="text-xs text-muted-foreground">
+                          {t("failover_v2.member_dns_lines_empty", { defaultValue: "No DNS lines selected yet." })}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </aside>
             </div>
           </div>
 

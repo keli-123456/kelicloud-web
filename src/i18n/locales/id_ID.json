@@ -44,6 +44,7 @@
     "password_mismatch_error": "Kata sandi tidak cocok",
     "password_strength_error": "Kata sandi harus mengandung huruf besar, huruf kecil, dan angka",
     "password_too_short_error": "Kata sandi minimal 8 karakter",
+    "password_update_failed": "Gagal memperbarui kata sandi",
     "profile_description": "Update your username and login password. After a successful password change, you will be redirected to the homepage.",
     "profile_title": "Profile",
     "qr_fetch_error": "Tidak dapat memuat kode QR",
@@ -58,7 +59,8 @@
       "two_factor_disabled_hint": "Enable two-factor authentication to improve admin security.",
       "two_factor_enabled_hint": "Two-factor authentication is enabled."
     },
-    "title": "Akun"
+    "title": "Akun",
+    "username_update_failed": "Gagal memperbarui nama pengguna"
   },
   "account_settings": {
     "bind_github": "Hubungkan Akun GitHub",
@@ -93,6 +95,8 @@
   "admin": {
     "audit": {
       "description": "Review active sessions and backend operation logs in one place.",
+      "logs_description": "Operation records",
+      "sessions_description": "Login sessions",
       "title": "Audit"
     },
     "dashboard": {
@@ -541,6 +545,8 @@
       "upgradeDialogDescription": "Only online nodes in the current group will receive the upgrade script. The terminal entry remains available from the node row context menu.",
       "upgradeDialogTitle": "{{groupName}} · Upgrade agent",
       "upgradeFailedShort": "Failed",
+      "upgradeLatestReleaseFailed": "Failed to load latest Agent release: {{status}}",
+      "upgradeLatestReleaseTagUnavailable": "Could not read the latest Agent version tag.",
       "upgradeLatestOutput": "Latest output",
       "upgradeMissingTaskId": "No task ID was returned.",
       "upgradeMissingToken": "Node is missing a token and cannot be upgraded.",
@@ -797,6 +803,7 @@
     "payment_enabled_desc": "关闭后用户不能选择该支付方式。",
     "payment_method": "支付方式",
     "payment_name": "支付名称",
+    "payment_name_placeholder": "Payment method name",
     "payment_reference": "支付流水/备注",
     "payment_saved": "支付方式已保存",
     "payment_type_alipay": "支付宝",
@@ -1951,6 +1958,9 @@
       "booting": "Sedang boot",
       "disabled": "Nonaktif",
       "enabled": "Aktif",
+      "error": "Error",
+      "failed": "Failed",
+      "healthy": "Healthy",
       "new": "Baru",
       "off": "Mati",
       "offline": "Offline",
@@ -1960,7 +1970,8 @@
       "shutting_down": "Sedang dimatikan",
       "stopped": "Berhenti",
       "stopping": "Sedang berhenti",
-      "terminated": "Dihentikan"
+      "terminated": "Dihentikan",
+      "unknown": "Unknown"
     },
     "stop": "Stop",
     "table": {
@@ -2049,6 +2060,7 @@
       "shared_managed_key_ready": "Shared managed SSH key: {{name}}",
       "status": {
         "error": "Error",
+        "failed": "Failed",
         "healthy": "Sehat",
         "unknown": "Tidak diketahui"
       },
@@ -4025,6 +4037,7 @@
       "cn_connectivity_timeout_seconds": "Single probe timeout (seconds)",
       "cn_connectivity_timeout_seconds_description": "Maximum time the agent waits for one ICMP probe attempt before considering it failed.",
       "cn_connectivity_timeout_seconds_invalid": "Probe timeout must be greater than 0",
+      "description": "Global runtime settings for nodes, cleanup, and connectivity probes.",
       "offline_cleanup": "Offline node cleanup",
       "offline_cleanup_enabled": "Enable daily offline cleanup",
       "offline_cleanup_enabled_description": "Once enabled, kelicloud will automatically delete nodes that are still offline at the scheduled time every day.",
@@ -4133,6 +4146,8 @@
     "platform_tools_restricted_description": "Manajemen favicon hanya tersedia untuk admin platform.",
     "platform_tools_title": "Alat platform",
     "proxy": {
+      "connection_description": "Cloud provider credential requests can use this outbound proxy. If the proxy fails, kelicloud retries the current request directly once.",
+      "connection_title": "Cloud API outbound connection",
       "description": "Manage the outbound proxy used by cloud provider credential requests. Requests that do not use cloud provider credentials keep using the server's local IP. Proxy requests use short-lived connections and reconnect on every request. A failed proxy attempt will automatically retry the current request once without the proxy.",
       "enable": "Enable global outbound proxy",
       "enable_description": "Applies to cloud provider APIs that use DigitalOcean, Linode, or AWS credentials.",
@@ -4204,6 +4219,7 @@
       "github_url_description": "Atur tautan GitHub eksternal yang ditampilkan di navigasi publik.",
       "name": "Nama Situs",
       "name_description": "Atur nama situs",
+      "nav_description": "Basic site identity and public display settings.",
       "script_domain": "Alamat koneksi Agen",
       "script_domain_description": "Tentukan alamat koneksi panel untuk skrip instalasi, memudahkan pengguna dengan beberapa domain, dan tidak akan mempengaruhi akses domain lain. Biarkan kosong untuk menggunakan domain saat ini.",
       "subtitle": "Subjudul Situs",

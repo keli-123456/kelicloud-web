@@ -255,7 +255,7 @@ export function AWSEC2DetailDialog({
                         }}
                       >
                         <KeyRound className="mr-1 h-3.5 w-3.5" />
-                        {t("cloud.password.view", "View Password")}
+                        {t("cloud.password.view", "查看密码")}
                       </Button>
                     ) : (
                       t("cloud.password.not_saved", "Not saved")
@@ -524,7 +524,7 @@ export function AWSEC2DetailDialog({
                 </Select.Root>
                 <TextField.Root
                   value={detailActionForm.privateIp}
-                  placeholder={t("cloud.providers.aws.private_ip_optional", "Optional private IP")}
+                  placeholder={t("cloud.providers.aws.private_ip_optional", "可选内网 IP")}
                   onChange={(event) =>
                     setDetailActionForm((previous) => ({ ...previous, privateIp: event.target.value }))
                   }
