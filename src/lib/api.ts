@@ -13,6 +13,10 @@ export interface SettingsResponse {
   description: string;
   site_subtitle: string;
   github_url: string;
+  allow_registration: boolean;
+  turnstile_enabled: boolean;
+  turnstile_site_key: string;
+  turnstile_secret_key: string;
   allow_cors: boolean;
   base_scripts_url: string;
   cn_connectivity_enabled: boolean;
@@ -68,6 +72,10 @@ const DEFAULT_SETTINGS: SettingsResponse = {
   description: "",
   site_subtitle: "",
   github_url: "",
+  allow_registration: true,
+  turnstile_enabled: false,
+  turnstile_site_key: "",
+  turnstile_secret_key: "",
   allow_cors: false,
   base_scripts_url: "",
   cn_connectivity_enabled: false,

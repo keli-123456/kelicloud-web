@@ -3743,14 +3743,20 @@
     "password_login": "密碼登入",
     "password_mismatch": "兩次輸入的密碼不一致",
     "password_placeholder": "請輸入您的密碼",
+    "create_account": "註冊帳號",
     "register": "註冊",
     "register_failed": "註冊失敗",
+    "registration_closed": "目前站點已關閉註冊，請聯絡管理員開通帳號。",
     "registering": "註冊中...",
     "required_credentials": "使用者名稱和密碼不能為空",
     "required_register_credentials": "請輸入信箱/使用者名稱、密碼和確認密碼",
     "secure": "安全登入",
     "subtitle": "登入後直接進入管理後台",
     "title": "登入",
+    "turnstile_failed": "人機驗證載入失敗，請重新整理後再試。",
+    "turnstile_label": "人機驗證",
+    "turnstile_required": "請先完成人機驗證",
+    "turnstile_unconfigured": "人機驗證未設定，請聯絡管理員。",
     "two_factor": "雙因素認證",
     "unavailable": "登入服务暂时不可用",
     "username": "用戶名"
@@ -3995,6 +4001,16 @@
       "description": "使用API密鑰可以訪問並操作所有資源，包括不限於遠程控制、修改設置和帳號密碼等，請謹慎保管。留空表示取消API密鑰功能。",
       "key_length_error": "API 密鑰長度至少為12",
       "title": "API密鑰"
+    },
+    "auth": {
+      "allow_registration": "開放使用者註冊",
+      "allow_registration_description": "開啟後訪客可以在登入頁自行註冊普通使用者；關閉後只能由管理員建立帳號。",
+      "turnstile_enabled": "Cloudflare Turnstile",
+      "turnstile_enabled_description": "開啟後註冊帳號必須通過 Cloudflare Turnstile 人機驗證。",
+      "turnstile_secret_key": "Turnstile Secret Key",
+      "turnstile_secret_key_description": "Cloudflare Turnstile 的服務端 Secret Key，僅用於後端校驗，不會暴露給前端。",
+      "turnstile_site_key": "Turnstile Site Key",
+      "turnstile_site_key_description": "Cloudflare Turnstile 的公開 Site Key，用於前端渲染驗證元件。"
     },
     "custom": {
       "body": "自定義 Body",

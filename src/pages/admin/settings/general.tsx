@@ -78,6 +78,53 @@ export default function GeneralSettings() {
             {t("settings.system_settings_description")}
           </div>
           <SettingCardSwitch
+            title={t("settings.auth.allow_registration", "开放用户注册")}
+            description={t(
+              "settings.auth.allow_registration_description",
+              "开启后访客可以在登录页自行注册普通用户；关闭后只能由管理员创建账号。",
+            )}
+            defaultChecked={systemSettings.allow_registration !== false}
+            onChange={async (checked) => {
+              await updateSettingsWithToast({ allow_registration: checked }, t, "system");
+            }}
+          />
+          <SettingCardSwitch
+            title={t("settings.auth.turnstile_enabled", "Cloudflare Turnstile")}
+            description={t(
+              "settings.auth.turnstile_enabled_description",
+              "开启后注册账号必须通过 Cloudflare Turnstile 人机验证。",
+            )}
+            defaultChecked={systemSettings.turnstile_enabled === true}
+            onChange={async (checked) => {
+              await updateSettingsWithToast({ turnstile_enabled: checked }, t, "system");
+            }}
+          />
+          <SettingCardShortTextInput
+            title={t("settings.auth.turnstile_site_key", "Turnstile Site Key")}
+            description={t(
+              "settings.auth.turnstile_site_key_description",
+              "Cloudflare Turnstile 的公开 Site Key，用于前端渲染验证组件。",
+            )}
+            defaultValue={systemSettings.turnstile_site_key || ""}
+            placeholder="0x4AAAA..."
+            OnSave={async (value) => {
+              await updateSettingsWithToast({ turnstile_site_key: value }, t, "system");
+            }}
+          />
+          <SettingCardShortTextInput
+            title={t("settings.auth.turnstile_secret_key", "Turnstile Secret Key")}
+            description={t(
+              "settings.auth.turnstile_secret_key_description",
+              "Cloudflare Turnstile 的服务端 Secret Key，仅用于后端校验，不会暴露给前端。",
+            )}
+            defaultValue={systemSettings.turnstile_secret_key || ""}
+            placeholder="0x4AAAA..."
+            type="password"
+            OnSave={async (value) => {
+              await updateSettingsWithToast({ turnstile_secret_key: value }, t, "system");
+            }}
+          />
+          <SettingCardSwitch
             title={t("settings.site.cros")}
             description={t("settings.site.cros_description")}
             defaultChecked={systemSettings.allow_cors}

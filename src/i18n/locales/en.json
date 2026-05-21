@@ -3743,14 +3743,20 @@
     "password_login": "Password login",
     "password_mismatch": "The two passwords do not match",
     "password_placeholder": "Enter your password",
+    "create_account": "Create account",
     "register": "Register",
     "register_failed": "Registration failed",
+    "registration_closed": "Registration is currently closed. Please contact an administrator for an account.",
     "registering": "Registering...",
     "required_credentials": "Username and password are required",
     "required_register_credentials": "Enter email/username, password, and confirmation password",
     "secure": "安全登录",
     "subtitle": "Sign in to enter the admin console directly.",
     "title": "Login",
+    "turnstile_failed": "Human verification failed to load. Please refresh and try again.",
+    "turnstile_label": "Human verification",
+    "turnstile_required": "Please complete human verification first",
+    "turnstile_unconfigured": "Human verification is not configured. Please contact an administrator.",
     "two_factor": "Two-Factor Authentication",
     "unavailable": "Login service is temporarily unavailable",
     "username": "Username"
@@ -3995,6 +4001,16 @@
       "description": "API keys can be used to access and operate all resources, including but not limited to remote control, modification of settings, and account passwords. Please keep them safe. Leaving this field blank will disable the API key function.",
       "key_length_error": "The API key must be at least 12 characters long",
       "title": "API key"
+    },
+    "auth": {
+      "allow_registration": "Allow user registration",
+      "allow_registration_description": "When enabled, visitors can create normal user accounts from the login page. When disabled, only administrators can create accounts.",
+      "turnstile_enabled": "Cloudflare Turnstile",
+      "turnstile_enabled_description": "Require Cloudflare Turnstile verification before visitors can register an account.",
+      "turnstile_secret_key": "Turnstile Secret Key",
+      "turnstile_secret_key_description": "The Cloudflare Turnstile server-side Secret Key. It is only used by the backend and is never exposed to the frontend.",
+      "turnstile_site_key": "Turnstile Site Key",
+      "turnstile_site_key_description": "The public Cloudflare Turnstile Site Key used to render the frontend verification widget."
     },
     "custom": {
       "body": "Custom Body",

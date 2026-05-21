@@ -4,6 +4,9 @@ import { formatApiErrorMessage, getReadableErrorMessage } from "@/lib/apiErrorMe
 
 export interface PublicInfo {
   allow_cors: boolean;
+  allow_registration?: boolean;
+  turnstile_enabled?: boolean;
+  turnstile_site_key?: string;
   custom_body: string;
   custom_head: string;
   description: string;
