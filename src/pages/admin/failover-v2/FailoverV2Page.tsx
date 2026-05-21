@@ -1,7 +1,7 @@
 import React from "react";
 import type { TFunction } from "i18next";
 import { Navigate, useNavigate, useSearchParams } from "react-router-dom";
-import { ArrowDown, ArrowUp, Check, ChevronDown, ChevronUp, LoaderCircle, PencilLine, Play, Plus, RefreshCw, Share2, Trash2, X } from "lucide-react";
+import { Check, ChevronDown, ChevronUp, LoaderCircle, PencilLine, Play, Plus, RefreshCw, Share2, Trash2, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
@@ -20,6 +20,7 @@ import {
   AdminFormToggle as ToggleCard,
 } from "@/components/admin/AdminForm";
 import FailoverV2ShareDialog from "@/components/admin/failover-v2/FailoverV2ShareDialog";
+import FailoverScriptPolicyDialog from "@/components/admin/failover/FailoverScriptPolicyDialog";
 import DnsSchedulerLinkedSummary from "@/components/admin/cloud/DnsSchedulerLinkedSummary";
 import {
   azureImagePresets,
@@ -49,7 +50,6 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
   DialogContent,
@@ -3314,25 +3314,14 @@ export default function FailoverV2Page() {
     t("failover_v2.service_summary_scheduler_note", { defaultValue: "调度间隔决定服务级健康巡检频率，成员执行仍按自己的状态判断。" }),
     t("failover_v2.service_summary_script_note", { defaultValue: "服务脚本会在替换出口通过检查后按顺序执行。" }),
   ];
-  const filteredServiceScripts = React.useMemo(() => {
-    const query = serviceScriptSearchQuery.trim().toLowerCase();
-    return [...scripts]
-      .sort((left, right) => {
-        const leftName = left.name || `#${left.id}`;
-        const rightName = right.name || `#${right.id}`;
-        return leftName.localeCompare(rightName);
-      })
-      .filter((script) => {
-        if (!query) {
-          return true;
-        }
-        return [
-          script.name,
-          script.remark,
-          String(script.id),
-        ].some((value) => String(value || "").toLowerCase().includes(query));
-      });
-  }, [scripts, serviceScriptSearchQuery]);
+  const sortedServiceScripts = React.useMemo(
+    () => [...scripts].sort((left, right) => {
+      const leftName = left.name || `#${left.id}`;
+      const rightName = right.name || `#${right.id}`;
+      return leftName.localeCompare(rightName);
+    }),
+    [scripts],
+  );
   const memberDialogSummaryRows = (() => {
     const rows = [
       {
@@ -5780,177 +5769,21 @@ export default function FailoverV2Page() {
             </section>
 
             <section className={FORM_SECTION_CLASS}>
-              <div className="mb-4 flex flex-col gap-1">
-                <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-50">
-                  {t("failover_v2.service_scripts", { defaultValue: "Scripts" })}
-                </h3>
-                <p className="text-xs text-slate-500 dark:text-slate-400">
-                  {t("failover_v2.service_section_scripts_hint", {
-                    defaultValue: "可选剪贴板脚本会在替换实例通过连通性检查后执行。",
-                  })}
-                </p>
-              </div>
-              <div className={FORM_FIELD_CLASS}>
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <Label>{t("failover.editor.scripts", { defaultValue: "Scripts" })}</Label>
-                  <div className="text-xs text-muted-foreground">
-                    {serviceForm.script_clipboard_ids.length > 0
-                      ? t("failover.editor.scripts_selected", {
-                        defaultValue: "{{count}} selected",
-                        count: serviceForm.script_clipboard_ids.length,
-                      })
-                      : t("failover.editor.no_script", { defaultValue: "No script" })}
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <div className="text-xs font-medium uppercase tracking-normal text-muted-foreground">
-                      {t("failover.editor.scripts_execution_order_title", {
-                        defaultValue: "Execution order",
-                      })}
-                    </div>
-                    {selectedServiceScriptEntries.length > 0 ? (
-                      <div className="text-xs text-muted-foreground">
-                        {t("failover.editor.scripts_execution_order_hint", {
-                          defaultValue: "Scripts run from top to bottom. Move entries here to change the actual execution order.",
-                        })}
-                      </div>
-                    ) : null}
-                  </div>
-                  {selectedServiceScriptEntries.length > 0 ? (
-                    <div className="overflow-hidden rounded-lg border">
-                      {selectedServiceScriptEntries.map(({ id, script }, index) => {
-                        const canMoveUp = index > 0;
-                        const canMoveDown = index < selectedServiceScriptEntries.length - 1;
-                        return (
-                          <div
-                            key={id}
-                            className="flex items-start gap-3 border-b px-3 py-3 text-sm last:border-b-0"
-                          >
-                            <Badge color="gray" className="mt-0.5 min-w-8 justify-center">
-                              {index + 1}
-                            </Badge>
-                            <div className="min-w-0 flex-1">
-                              <div className="truncate font-medium text-slate-900 dark:text-slate-50">
-                                {script?.name || `#${id}`}
-                              </div>
-                              {script?.remark ? (
-                                <div className="truncate text-xs text-muted-foreground" title={script.remark}>
-                                  {script.remark}
-                                </div>
-                              ) : null}
-                              {!script ? (
-                                <div className="text-xs text-amber-700 dark:text-amber-300">
-                                  {t("failover.editor.script_missing_hint", {
-                                    defaultValue: "This script is no longer in the library, but it will stay in the saved execution order until you remove it.",
-                                  })}
-                                </div>
-                              ) : null}
-                            </div>
-                            <div className="flex shrink-0 items-center gap-1">
-                              <Button
-                                type="button"
-                                variant="outline"
-                                size="icon"
-                                onClick={() => moveServiceScriptToIndex(id, index - 1)}
-                                disabled={!canMoveUp}
-                                title={t("failover.editor.move_script_up", { defaultValue: "Move script up" })}
-                              >
-                                <ArrowUp className="size-4" />
-                              </Button>
-                              <Button
-                                type="button"
-                                variant="outline"
-                                size="icon"
-                                onClick={() => moveServiceScriptToIndex(id, index + 1)}
-                                disabled={!canMoveDown}
-                                title={t("failover.editor.move_script_down", { defaultValue: "Move script down" })}
-                              >
-                                <ArrowDown className="size-4" />
-                              </Button>
-                              <Button
-                                type="button"
-                                variant="outline"
-                                size="icon"
-                                onClick={() => handleServiceScriptToggle(id, false)}
-                                title={t("failover.editor.remove_script", { defaultValue: "Remove script" })}
-                              >
-                                <Trash2 className="size-4" />
-                              </Button>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  ) : (
-                    <div className="rounded-lg border border-dashed px-4 py-3 text-sm text-muted-foreground">
-                      {t("failover.editor.scripts_execution_order_empty_detail", {
-                        defaultValue: "No scripts are selected yet. Pick scripts below, then reorder them here from top to bottom.",
-                      })}
-                    </div>
-                  )}
-                </div>
-
-                <Input
-                  value={serviceScriptSearchQuery}
-                  onChange={(event) => setServiceScriptSearchQuery(event.target.value)}
-                  placeholder={t("failover.editor.scripts_search_placeholder", {
-                    defaultValue: "Search scripts by name or remark, e.g. sg1",
-                  })}
-                />
-
-                <div className="text-xs font-medium uppercase tracking-normal text-muted-foreground">
-                  {t("failover.editor.available_scripts", {
-                    defaultValue: "Available scripts",
-                  })}
-                </div>
-                <div className="max-h-56 overflow-y-auto overscroll-contain rounded-lg border [scrollbar-gutter:stable]">
-                  {scripts.length === 0 ? (
-                    <div className="px-3 py-3 text-sm text-muted-foreground">
-                      {t("scripts.empty", { defaultValue: "No saved scripts yet." })}
-                    </div>
-                  ) : filteredServiceScripts.length === 0 ? (
-                    <div className="px-3 py-3 text-sm text-muted-foreground">
-                      {t("failover.editor.scripts_search_empty", {
-                        defaultValue: "No matching scripts",
-                      })}
-                    </div>
-                  ) : (
-                    filteredServiceScripts.map((script) => {
-                      const checked = serviceForm.script_clipboard_ids.includes(script.id);
-                      return (
-                        <label
-                          key={script.id}
-                          className="flex cursor-pointer items-start gap-3 border-b px-3 py-3 text-sm last:border-b-0"
-                        >
-                          <Checkbox
-                            checked={checked}
-                            onCheckedChange={(nextChecked) => handleServiceScriptToggle(script.id, Boolean(nextChecked))}
-                          />
-                          <div className="min-w-0 flex-1">
-                            <div className="truncate font-medium text-slate-900 dark:text-slate-50">
-                              {script.name || `#${script.id}`}
-                            </div>
-                            {script.remark ? (
-                              <div className="truncate text-xs text-muted-foreground" title={script.remark}>
-                                {script.remark}
-                              </div>
-                            ) : null}
-                          </div>
-                        </label>
-                      );
-                    })
-                  )}
-                </div>
-                <div className="line-clamp-2 break-words text-xs leading-5 text-muted-foreground">
-                  {selectedServiceScriptEntries.length > 0
-                    ? selectedServiceScriptEntries.map(({ id, script }) => script?.name || `#${id}`).join(" -> ")
-                    : t("failover.editor.scripts_execution_order_empty", {
-                      defaultValue: "Selected scripts run from top to bottom.",
-                    })}
-                </div>
-              </div>
+              <FailoverScriptPolicyDialog
+                title={t("failover_v2.service_scripts", { defaultValue: "Scripts" })}
+                description={t("failover_v2.service_section_scripts_hint", {
+                  defaultValue: "可选脚本会在替换实例通过连通性检查后执行。点击配置脚本再选择、排序和设置超时。",
+                })}
+                scripts={sortedServiceScripts}
+                selectedScriptIDs={serviceForm.script_clipboard_ids.map(String)}
+                searchQuery={serviceScriptSearchQuery}
+                onSearchQueryChange={setServiceScriptSearchQuery}
+                onToggleScript={(scriptID, checked) => handleServiceScriptToggle(Number(scriptID), checked)}
+                onMoveScript={(scriptID, targetIndex) => moveServiceScriptToIndex(Number(scriptID), targetIndex)}
+                onRemoveScript={(scriptID) => handleServiceScriptToggle(Number(scriptID), false)}
+                timeoutValue={serviceForm.script_timeout_sec}
+                onTimeoutChange={(value) => setServiceForm((current) => ({ ...current, script_timeout_sec: value }))}
+              />
             </section>
               </div>
               <aside className="hidden min-w-0 xl:block">

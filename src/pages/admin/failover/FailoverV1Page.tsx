@@ -37,6 +37,7 @@ import {
   ADMIN_FORM_TOGGLE_CLASS as FORM_TOGGLE_CLASS,
 } from "@/components/admin/AdminFormStyles";
 import FailoverShareDialog from "@/components/admin/failover/FailoverShareDialog";
+import FailoverScriptPolicyDialog from "@/components/admin/failover/FailoverScriptPolicyDialog";
 import DnsSchedulerLinkedSummary from "@/components/admin/cloud/DnsSchedulerLinkedSummary";
 import {
   AlertDialog,
@@ -6017,19 +6018,6 @@ function TaskEditorDialog({
     () => (selectedPlan ? planScriptSearchQueries[selectedPlan.local_id] || "" : ""),
     [planScriptSearchQueries, selectedPlan],
   );
-  const filteredScripts = React.useMemo(
-    () => {
-      const normalizedQuery = selectedPlanScriptSearch.trim().toLowerCase();
-      if (!normalizedQuery) {
-        return sortedScripts;
-      }
-      return sortedScripts.filter((script) => {
-        const haystack = `${String(script.name || "").trim()} ${String(script.remark || "").trim()}`.toLowerCase();
-        return haystack.includes(normalizedQuery);
-      });
-    },
-    [selectedPlanScriptSearch, sortedScripts],
-  );
   const configuredScriptDomain = React.useMemo(
     () => String(userSettings.script_domain || "").trim(),
     [userSettings.script_domain],
@@ -9906,168 +9894,30 @@ function TaskEditorDialog({
                             })}
                           </div>
                         </div>
-                        <div className="space-y-2 lg:col-span-2">
-                          <div className="flex flex-wrap items-center justify-between gap-2">
-                            <Label>{t("failover.editor.scripts", { defaultValue: "Scripts" })}</Label>
-                            <div className="text-xs text-muted-foreground">
-                              {selectedPlan.script_clipboard_ids.length > 0
-                                ? t("failover.editor.scripts_selected", {
-                                  defaultValue: "{{count}} selected",
-                                  count: selectedPlan.script_clipboard_ids.length,
-                                })
-                                : t("failover.editor.no_script", { defaultValue: "No script" })}
-                            </div>
-                          </div>
-                          <div className="space-y-2">
-                            <div className="flex flex-wrap items-center justify-between gap-2">
-                              <div className="text-xs font-medium uppercase tracking-normal text-muted-foreground">
-                                {t("failover.editor.scripts_execution_order_title", {
-                                  defaultValue: "Execution order",
-                                })}
-                              </div>
-                              {selectedPlanScriptEntries.length > 0 ? (
-                                <div className="text-xs text-muted-foreground">
-                                  {t("failover.editor.scripts_execution_order_hint", {
-                                    defaultValue: "Scripts run from top to bottom. Move entries here to change the actual execution order.",
-                                  })}
-                                </div>
-                              ) : null}
-                            </div>
-                            {selectedPlanScriptEntries.length > 0 ? (
-                              <div className="overflow-hidden rounded-lg border">
-                                {selectedPlanScriptEntries.map(({ id, script }, index) => {
-                                  const canMoveUp = index > 0;
-                                  const canMoveDown = index < selectedPlanScriptEntries.length - 1;
-                                  return (
-                                    <div
-                                      key={id}
-                                      className="flex items-start gap-3 border-b px-3 py-3 last:border-b-0"
-                                    >
-                                      <Badge variant="secondary" className="mt-0.5 min-w-8 justify-center">
-                                        {index + 1}
-                                      </Badge>
-                                      <div className="min-w-0 flex-1">
-                                        <div className="font-medium text-slate-900 dark:text-slate-50">
-                                          {getScriptDisplayName(id)}
-                                        </div>
-                                        {script?.remark ? (
-                                          <div className="truncate text-xs text-muted-foreground" title={script.remark}>
-                                            {script.remark}
-                                          </div>
-                                        ) : null}
-                                        {!script ? (
-                                          <div className="text-xs text-amber-700 dark:text-amber-300">
-                                            {t("failover.editor.script_missing_hint", {
-                                              defaultValue: "This script is no longer in the library, but it will stay in the saved execution order until you remove it.",
-                                            })}
-                                          </div>
-                                        ) : null}
-                                      </div>
-                                      <div className="flex shrink-0 items-center gap-1">
-                                        <Button
-                                          type="button"
-                                          variant="outline"
-                                          size="icon"
-                                          onClick={() => movePlanScriptToIndex(selectedPlan.local_id, id, index - 1)}
-                                          disabled={!canMoveUp}
-                                          title={t("failover.editor.move_script_up", { defaultValue: "Move script up" })}
-                                        >
-                                          <ArrowUp className="size-4" />
-                                        </Button>
-                                        <Button
-                                          type="button"
-                                          variant="outline"
-                                          size="icon"
-                                          onClick={() => movePlanScriptToIndex(selectedPlan.local_id, id, index + 1)}
-                                          disabled={!canMoveDown}
-                                          title={t("failover.editor.move_script_down", { defaultValue: "Move script down" })}
-                                        >
-                                          <ArrowDown className="size-4" />
-                                        </Button>
-                                        <Button
-                                          type="button"
-                                          variant="outline"
-                                          size="icon"
-                                          onClick={() => removePlanScript(selectedPlan.local_id, id)}
-                                          title={t("failover.editor.remove_script", { defaultValue: "Remove script" })}
-                                        >
-                                          <Trash2 className="size-4" />
-                                        </Button>
-                                      </div>
-                                    </div>
-                                  );
-                                })}
-                              </div>
-                            ) : (
-                              <div className="rounded-lg border border-dashed px-4 py-3 text-sm text-muted-foreground">
-                                {t("failover.editor.scripts_execution_order_empty_detail", {
-                                  defaultValue: "No scripts are selected yet. Pick scripts below, then reorder them here from top to bottom.",
-                                })}
-                              </div>
-                            )}
-                          </div>
-                          <Input
-                            value={selectedPlanScriptSearch}
-                            onChange={(event) => {
-                              const nextValue = event.target.value;
-                              setPlanScriptSearchQueries((current) => ({
-                                ...current,
-                                [selectedPlan.local_id]: nextValue,
-                              }));
-                            }}
-                            placeholder={t("failover.editor.scripts_search_placeholder", {
-                              defaultValue: "Search scripts by name or remark, e.g. sg1",
-                            })}
-                          />
-                          <div className="text-xs font-medium uppercase tracking-normal text-muted-foreground">
-                            {t("failover.editor.available_scripts", {
-                              defaultValue: "Available scripts",
-                            })}
-                          </div>
-                          <div className="max-h-56 overflow-y-auto overscroll-contain rounded-lg border [scrollbar-gutter:stable]">
-                            {sortedScripts.length === 0 ? (
-                              <div className="px-3 py-3 text-sm text-muted-foreground">
-                                {t("scripts.empty", { defaultValue: "No saved scripts yet." })}
-                              </div>
-                            ) : filteredScripts.length === 0 ? (
-                              <div className="px-3 py-3 text-sm text-muted-foreground">
-                                {t("failover.editor.scripts_search_empty", {
-                                  defaultValue: "No matching scripts",
-                                })}
-                              </div>
-                            ) : (
-                              filteredScripts.map((script) => {
-                                const checked = selectedPlan.script_clipboard_ids.includes(String(script.id));
-                                return (
-                                  <label
-                                    key={script.id}
-                                    className="flex cursor-pointer items-start gap-3 border-b px-3 py-3 text-sm last:border-b-0"
-                                  >
-                                    <Checkbox
-                                      checked={checked}
-                                      onCheckedChange={(nextChecked) => togglePlanScript(selectedPlan.local_id, String(script.id), Boolean(nextChecked))}
-                                    />
-                                    <div className="min-w-0 flex-1">
-                                      <div className="font-medium text-slate-900 dark:text-slate-50">{script.name}</div>
-                                      {script.remark ? (
-                                        <div className="truncate text-xs text-muted-foreground" title={script.remark}>
-                                          {script.remark}
-                                        </div>
-                                      ) : null}
-                                    </div>
-                                  </label>
-                                );
-                              })
-                            )}
-                          </div>
-                          <div className="line-clamp-2 break-words text-xs leading-5 text-muted-foreground">
-                            {selectedPlanScriptNames.length > 0
-                              ? selectedPlanScriptNames.join(" -> ")
-                              : t("failover.editor.scripts_execution_order_empty", {
-                                defaultValue: "Selected scripts run from top to bottom.",
-                              })}
-                          </div>
-                        </div>
+                        <FailoverScriptPolicyDialog
+                          className="lg:col-span-2"
+                          title={t("failover.editor.scripts", { defaultValue: "Scripts" })}
+                          description={t("failover.editor.scripts_compact_hint", {
+                            defaultValue: "???????????????????????????????????????",
+                          })}
+                          scripts={sortedScripts}
+                          selectedScriptIDs={selectedPlan.script_clipboard_ids}
+                          searchQuery={selectedPlanScriptSearch}
+                          onSearchQueryChange={(nextValue) => {
+                            setPlanScriptSearchQueries((current) => ({
+                              ...current,
+                              [selectedPlan.local_id]: nextValue,
+                            }));
+                          }}
+                          onToggleScript={(scriptID, checked) => togglePlanScript(selectedPlan.local_id, scriptID, checked)}
+                          onMoveScript={(scriptID, targetIndex) => movePlanScriptToIndex(selectedPlan.local_id, scriptID, targetIndex)}
+                          onRemoveScript={(scriptID) => removePlanScript(selectedPlan.local_id, scriptID)}
+                          timeoutValue={selectedPlan.script_timeout_sec}
+                          onTimeoutChange={(value) => updatePlan(selectedPlan.local_id, (current) => ({
+                            ...current,
+                            script_timeout_sec: value,
+                          }))}
+                        />
                             </div>
                           </div>
                         </CollapsibleContent>
