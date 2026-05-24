@@ -1,6 +1,6 @@
 import { Outlet, useLocation } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import { Bell, Gauge } from "lucide-react";
+import { Bell } from "lucide-react";
 
 import {
   AdminPageShell,
@@ -17,14 +17,6 @@ const navItems = [
     descriptionKey: "notification.general.description",
     descriptionDefault: "Plan expiration, failover, and system events",
     icon: Bell,
-  },
-  {
-    path: "/admin/notification/load",
-    labelKey: "notification.load.title",
-    labelDefault: "Load alerts",
-    descriptionKey: "notification.load.description",
-    descriptionDefault: "Load threshold alerts",
-    icon: Gauge,
   },
 ] as const;
 

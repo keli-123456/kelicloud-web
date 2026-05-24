@@ -3712,20 +3712,6 @@
     "summary_description": "Focus on a single node's live load, connectivity, and historical trends. This page separates node identity, current status, and chart entry points into clearer reading layers."
   },
   "just_now": "Baru saja",
-  "loadAlert": {
-    "add_failed": "Failed to add load alert: {{statusText}}",
-    "add_failed_generic": "Failed to add load alert",
-    "delete_failed": "Failed to delete load alert: {{statusText}}",
-    "delete_failed_generic": "Failed to delete load alert",
-    "empty": "暂无负载告警配置",
-    "load_failed": "Failed to load load alerts",
-    "metric": "Metrik",
-    "ratio": "Rasio",
-    "threshold_placeholder": "'80' untuk 80%",
-    "title": "Peringatan Beban",
-    "update_failed": "Failed to update load alert: {{statusText}}",
-    "update_failed_generic": "Failed to update load alert"
-  },
   "loading": "Memuat",
   "log": {
     "title": "Log"
@@ -3874,10 +3860,6 @@
     "general": {
       "description": "Kedaluwarsa paket, failover, dan event sistem",
       "title": "Kanal notifikasi"
-    },
-    "load": {
-      "description": "Peringatan ambang beban",
-      "title": "Beban"
     },
     "offline": {
       "batch_edit": "Edit Massal",

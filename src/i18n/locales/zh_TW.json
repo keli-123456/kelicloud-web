@@ -3712,20 +3712,6 @@
     "summary_description": "聚焦单节点的实时负载、连通性和历史趋势。这个页把节点身份、当前状态和图表入口拆成了更清晰的阅读层级。"
   },
   "just_now": "剛剛",
-  "loadAlert": {
-    "add_failed": "添加负载警报失败：{{statusText}}",
-    "add_failed_generic": "添加负载警报失败",
-    "delete_failed": "删除负载警报失败：{{statusText}}",
-    "delete_failed_generic": "删除负载警报失败",
-    "empty": "暂无负载告警配置",
-    "load_failed": "加载负载警报失败",
-    "metric": "監控項",
-    "ratio": "時間佔比",
-    "threshold_placeholder": "百分比，例如80代表80%",
-    "title": "負載警報",
-    "update_failed": "更新负载警报失败：{{statusText}}",
-    "update_failed_generic": "更新负载警报失败"
-  },
   "loading": "加載中...",
   "log": {
     "title": "日誌"
@@ -3874,10 +3860,6 @@
     "general": {
       "description": "套餐到期、故障切換和系統事件",
       "title": "通知通道"
-    },
-    "load": {
-      "description": "負載閾值告警",
-      "title": "負載通知"
     },
     "offline": {
       "batch_edit": "批量修改",
