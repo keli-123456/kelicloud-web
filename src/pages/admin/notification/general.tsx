@@ -1,6 +1,6 @@
 import React from "react";
 import { useTranslation } from "react-i18next";
-import { CalendarClock, GitBranch, Gauge } from "lucide-react";
+import { CalendarClock, GitBranch } from "lucide-react";
 import { toast } from "sonner";
 
 import {
@@ -10,7 +10,6 @@ import {
 import {
   SettingCardButton,
   SettingCardLabel,
-  SettingCardLongTextInput,
   SettingCardShortTextInput,
   SettingCardSwitch,
 } from "@/components/admin/SettingCard";
@@ -267,24 +266,6 @@ const Inner = () => {
             await userState.refetch();
           }}
         />
-        <SettingCardShortTextInput
-          title={t("settings.notification.target_binding_telegram_thread_id")}
-          description={t(
-            "settings.notification.target_binding_telegram_thread_id_description",
-          )}
-          defaultValue={
-            userSettings.notification_telegram_message_thread_id || ""
-          }
-          OnSave={async (value) => {
-            await updateSettingsWithToast(
-              {
-                notification_telegram_message_thread_id: value.trim(),
-              },
-              t,
-            );
-            await userState.refetch();
-          }}
-        />
       </>
     );
   };
@@ -308,15 +289,6 @@ const Inner = () => {
         defaultValue: "故障切换任务触发、等待人工处理和执行完成时通知任务所属用户。",
       }),
     },
-    {
-      icon: Gauge,
-      title: t("notification.events.load_title", {
-        defaultValue: "负载与流量",
-      }),
-      description: t("notification.events.load_description", {
-        defaultValue: "负载阈值和流量阈值达到规则时发送资源告警。",
-      }),
-    },
   ];
 
   return (
@@ -329,7 +301,8 @@ const Inner = () => {
         </SettingCardLabel>
         <div className="-mt-1 pb-1 text-sm text-muted-foreground">
           {t("notification.events.description", {
-            defaultValue: "通知主要围绕用户套餐、故障切换和资源告警，不再维护独立的离线通知规则。",
+            defaultValue:
+              "通知主要围绕用户套餐、故障切换和登录安全，不再维护独立的离线或资源告警规则。",
           })}
         </div>
         <div className="divide-y divide-border/70">
@@ -420,24 +393,30 @@ const Inner = () => {
                 t,
               })
             )}
-            <SettingCardLongTextInput
-              title={t("settings.notification.template")}
-              description={t("settings.notification.template_description")}
-              defaultValue={systemSettings.notification_template}
-              OnSave={async (value) => {
-                await updateSettingsWithToast(
-                  { notification_template: value },
-                  t,
-                  "system",
-                );
-                await systemState.refetch();
-              }}
-            />
             <SettingCardButton
               title={t("settings.notification.test_title")}
               description={t("settings.notification.test_description")}
               onClick={async () => {
                 try {
+                  if (!notificationsEnabled) {
+                    toast.error(
+                      t("settings.notification.test_requires_enabled", {
+                        defaultValue: "请先启用通知发送通道。",
+                      }),
+                    );
+                    return;
+                  }
+                  if (
+                    !String(userSettings.notification_telegram_chat_id || "").trim()
+                  ) {
+                    toast.error(
+                      t("settings.notification.test_requires_telegram_chat_id", {
+                        defaultValue:
+                          "请先在个人接收目标里填写 Telegram 聊天 ID。",
+                      }),
+                    );
+                    return;
+                  }
                   const res = await fetch("/api/admin/test/sendMessage", {
                     method: "POST",
                   });
@@ -531,20 +510,6 @@ const Inner = () => {
               onChange={async (checked) => {
                 await updateSettingsWithToast(
                   { login_notification: checked },
-                  t,
-                  "system",
-                );
-              }}
-            />
-            <SettingCardLabel>{t("admin.notification.traffic")}</SettingCardLabel>
-            <SettingCardShortTextInput
-              title={t("admin.notification.traffic")}
-              description={t("admin.notification.traffic_description")}
-              defaultValue={systemSettings.traffic_limit_percentage}
-              type="number"
-              OnSave={async (value) => {
-                await updateSettingsWithToast(
-                  { traffic_limit_percentage: Number(value) },
                   t,
                   "system",
                 );

@@ -579,9 +579,7 @@
       "expire_time_description": "Set how many days before plan or server expiration reminders should begin.",
       "expire_title": "Plan expiration reminders",
       "login": "Login Notification",
-      "login_description": "Send a notification when a new session logs into kelicloud.",
-      "traffic": "Traffic Usage",
-      "traffic_description": "kelicloud will send notifications when the server reaches the specified percentage of traffic usage, with reminders at 5% increments. If no traffic threshold is set, no notifications will be sent. Set to 0 to disable traffic reminders."
+      "login_description": "Send a notification when a new session logs into kelicloud."
     },
     "pagination": {
       "alerts": "告警",
@@ -3866,11 +3864,9 @@
   },
   "notification": {
     "events": {
-      "description": "Notifications now focus on user plans, failover, and resource alerts. Independent offline notification rules are no longer maintained.",
+      "description": "Notifications now focus on user plans, failover, and login security. Independent offline or resource alert rules are no longer maintained.",
       "failover_description": "Notify the task owner when failover is triggered, needs manual review, or completes.",
       "failover_title": "Failover",
-      "load_description": "Send resource alerts when load or traffic thresholds are reached.",
-      "load_title": "Load and traffic",
       "plan_expire_description": "Remind the target user before plans and servers expire.",
       "plan_expire_title": "Plan expiration",
       "title": "Notification scope"
@@ -3910,7 +3906,7 @@
       "lead_time": "Lead time",
       "status": "Status"
     },
-    "page_description": "Configure notifications for plan expiration, failover, load, and traffic in one place.",
+    "page_description": "Configure plan expiration, failover, and login security notifications in one place.",
     "title": "Notification"
   },
   "page_not_found": "The server cannot find the specific page you're trying to access.",
@@ -4117,7 +4113,7 @@
         "username": "Username"
       },
       "enable": "Enable Notifications",
-      "enable_description": "Send plan expiration, failover, load, and traffic events through the selected channel.",
+      "enable_description": "Send plan expiration, failover, and login security events through the selected channel.",
       "fetch_channels_error": "Failed to load message channels",
       "fetch_settings_error": "Failed to load notification settings",
       "Javascript": {
@@ -4142,13 +4138,11 @@
       "smtp_username": "Username",
       "target_binding_bark_device_key": "Bark device key",
       "target_binding_bark_device_key_description": "Set your own Bark device key. Leave empty to skip Bark delivery for your account.",
-      "target_binding_description": "The platform chooses the notification channel globally, and each user binds their own delivery target for plan expiration, failover, and resource alerts.",
+      "target_binding_description": "The platform chooses the notification channel globally, and each user binds their own delivery target for plan expiration, failover, and login security notifications.",
       "target_binding_disabled": "Platform notifications are currently disabled. You can still save your own target now and it will take effect after notifications are enabled.",
       "target_binding_no_method": "No platform notification channel is configured yet, so there is no personal delivery target to bind.",
       "target_binding_telegram_chat_id": "Telegram chat ID",
       "target_binding_telegram_chat_id_description": "Set your own Telegram chat ID for personal notifications.",
-      "target_binding_telegram_thread_id": "Telegram thread ID",
-      "target_binding_telegram_thread_id_description": "Optional. Set the message thread ID for forum topics in supergroups.",
       "target_binding_title": "Personal delivery target",
       "target_binding_unsupported": "The current notification channel {{method}} does not support user-scoped delivery targets yet.",
       "target_binding_webhook_url": "Webhook URL",
@@ -4158,17 +4152,13 @@
         "chat_id": "Chat ID",
         "chat_id_help": "Optional default chat ID. User-scoped notification bindings can override this field.",
         "endpoint": "Request Endpoint",
-        "endpoint_help": "Request endpoint for the Telegram Bot API, usually `https://api.telegram.org/bot`",
-        "message_thread_id": "Message Thread ID",
-        "message_thread_id_help": "Optional. Unique identifier of a message thread to which the message belongs; for supergroups only."
+        "endpoint_help": "Request endpoint for the Telegram Bot API, usually `https://api.telegram.org/bot`"
       },
       "telegram_bot_token": "Telegram Bot Token",
       "telegram_chat_id_error": "Chat ID must be a number",
       "telegram_description": "Configure your Telegram bot to get alerts directly in your chat.",
       "telegram_endpoint": "Endpoint",
       "telegram_title": "Telegram Configuration",
-      "template": "Notification template",
-      "template_description": "kelicloud will send notifications according to the notification template",
       "test_description": "Send a test message",
       "test_title": "Send test message",
       "title": "Notifications"

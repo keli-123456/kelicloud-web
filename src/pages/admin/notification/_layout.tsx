@@ -39,7 +39,7 @@ export default function NotificationLayout() {
         defaultValue: "通知",
       })}
       description={t("notification.page_description", {
-        defaultValue: "集中配置套餐到期、故障切换、负载和流量等通知策略。",
+        defaultValue: "集中配置套餐到期、故障切换和登录安全等通知策略。",
       })}
     >
       <AdminSplitLayout

@@ -42,9 +42,7 @@ export interface SettingsResponse {
   custom_head: string;
   notification_enabled: boolean;
   notification_method: string;
-  notification_template: string;
   notification_telegram_chat_id: string;
-  notification_telegram_message_thread_id: string;
   notification_bark_device_key: string;
   notification_webhook_url: string;
   CreatedAt: string;
@@ -101,9 +99,7 @@ const DEFAULT_SETTINGS: SettingsResponse = {
   custom_head: "",
   notification_enabled: false,
   notification_method: "",
-  notification_template: "",
   notification_telegram_chat_id: "",
-  notification_telegram_message_thread_id: "",
   notification_bark_device_key: "",
   notification_webhook_url: "",
   CreatedAt: "",

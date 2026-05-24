@@ -579,9 +579,7 @@
       "expire_time_description": "设置在套餐或服务器到期前多少天开始发送提醒通知。",
       "expire_title": "套餐到期提醒",
       "login": "登录通知",
-      "login_description": "当有新的会话登录到kelicloud时，向您发送通知",
-      "traffic": "流量用量",
-      "traffic_description": "kelicloud将会在服务器到达指定的流量使用百分比时发送通知，并以5%为梯度持续提醒。如果服务器没有设置流量阈值，不发送通知。设置为0禁用流量提醒。"
+      "login_description": "当有新的会话登录到kelicloud时，向您发送通知"
     },
     "pagination": {
       "alerts": "告警",
@@ -3866,11 +3864,9 @@
   },
   "notification": {
     "events": {
-      "description": "通知主要围绕用户套餐、故障切换和资源告警，不再维护独立的离线通知规则。",
+      "description": "通知主要围绕用户套餐、故障切换和登录安全，不再维护独立的离线或资源告警规则。",
       "failover_description": "故障切换任务触发、等待人工处理和执行完成时通知任务所属用户。",
       "failover_title": "故障切换",
-      "load_description": "负载阈值和流量阈值达到规则时发送资源告警。",
-      "load_title": "负载与流量",
       "plan_expire_description": "套餐和服务器到期前按提前天数提醒对应用户。",
       "plan_expire_title": "套餐到期",
       "title": "通知范围"
@@ -3899,7 +3895,7 @@
       "tips": "为了避免频繁发送通知，我们设置了宽限期：</br> <b>宽限期</b>：客户端离线后，如果在这段时间内没有重新上线，就会发送离线通知",
       "title": "离线通知"
     },
-    "page_description": "集中配置套餐到期、故障切换、负载和流量等通知策略。",
+    "page_description": "集中配置套餐到期、故障切换和登录安全等通知策略。",
     "scheduler": {
       "channel": "发送通道",
       "channel_disabled": "未配置",
@@ -4117,7 +4113,7 @@
         "username": "用户名"
       },
       "enable": "开启通知",
-      "enable_description": "开启后，套餐到期、故障切换、负载和流量等事件会通过当前渠道发送。",
+      "enable_description": "开启后，套餐到期、故障切换和登录安全等事件会通过当前渠道发送。",
       "fetch_channels_error": "获取消息通道信息失败",
       "fetch_settings_error": "获取通知设置失败",
       "Javascript": {
@@ -4142,13 +4138,11 @@
       "smtp_username": "用户名",
       "target_binding_bark_device_key": "Bark 设备 Key",
       "target_binding_bark_device_key_description": "填写你自己的 Bark 设备 Key。留空则不会向你的 Bark 目标发送通知。",
-      "target_binding_description": "平台统一选择通知渠道，每个用户在这里绑定自己的接收目标，用于接收套餐到期、故障切换和资源告警。",
+      "target_binding_description": "平台统一选择通知渠道，每个用户在这里绑定自己的接收目标，用于接收套餐到期、故障切换和登录安全通知。",
       "target_binding_disabled": "平台通知当前未启用。你仍然可以先保存自己的接收目标，等平台开启后生效。",
       "target_binding_no_method": "平台还没有设置通知渠道，暂时无法绑定个人接收目标。",
       "target_binding_telegram_chat_id": "Telegram 聊天 ID",
       "target_binding_telegram_chat_id_description": "填写你自己的 Telegram 聊天 ID，用于接收个人通知。",
-      "target_binding_telegram_thread_id": "Telegram 话题 ID",
-      "target_binding_telegram_thread_id_description": "可选。群组话题场景下填写话题 ID。",
       "target_binding_title": "个人接收目标",
       "target_binding_unsupported": "当前通知渠道 {{method}} 暂不支持用户级接收目标绑定。",
       "target_binding_webhook_url": "Webhook URL",
@@ -4158,17 +4152,13 @@
         "chat_id": "默认 Chat ID",
         "chat_id_help": "可选的默认 Chat ID。用户自己的接收目标会优先覆盖这个值。",
         "endpoint": "请求端点",
-        "endpoint_help": "Telegram Bot API 的请求端点，通常为 `https://api.telegram.org/bot`",
-        "message_thread_id": "话题 ID",
-        "message_thread_id_help": "可选。仅群组话题场景需要填写，表示消息所属的话题 ID。"
+        "endpoint_help": "Telegram Bot API 的请求端点，通常为 `https://api.telegram.org/bot`"
       },
       "telegram_bot_token": "Telegram 机器人令牌",
       "telegram_chat_id_error": "Chat ID 不可为空",
       "telegram_description": "配置您的 Telegram 机器人以在聊天中直接接收提醒。",
       "telegram_endpoint": "请求端点",
       "telegram_title": "Telegram 配置",
-      "template": "消息通知模板",
-      "template_description": "kelicloud 将按照消息通知模板发送通知",
       "test_description": "发送测试消息",
       "test_title": "发送测试消息",
       "title": "通知"

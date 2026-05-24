@@ -579,9 +579,7 @@
       "expire_time_description": "プランまたはサーバー期限の何日前から通知を開始するかを設定します。",
       "expire_title": "プラン期限通知",
       "login": "ログイン通知",
-      "login_description": "新しいセッションがkelicloudにログインしたときに通知を送信します。",
-      "traffic": "トラフィック使用量",
-      "traffic_description": "kelicloudは、サーバーが指定されたトラフィック使用率に達したときに通知を送信し、5%の間隔で継続的にリマインダーを表示します。サーバーにトラフィック閾値が設定されていない場合、通知は送信されません。0に設定するとトラフィックリマインダーが無効になります。"
+      "login_description": "新しいセッションがkelicloudにログインしたときに通知を送信します。"
     },
     "pagination": {
       "alerts": "告警",
@@ -3866,11 +3864,9 @@
   },
   "notification": {
     "events": {
-      "description": "通知はユーザープラン、フェイルオーバー、リソースアラートを中心に扱います。独立したオフライン通知ルールは維持しません。",
+      "description": "通知はユーザープラン、フェイルオーバー、ログインセキュリティを中心に扱います。独立したオフライン通知やリソースアラートルールは維持しません。",
       "failover_description": "フェイルオーバータスクの起動、手動確認待ち、完了時に所有ユーザーへ通知します。",
       "failover_title": "フェイルオーバー",
-      "load_description": "負荷またはトラフィックしきい値に達したときにリソースアラートを送信します。",
-      "load_title": "負荷とトラフィック",
       "plan_expire_description": "プランとサーバーの期限前に対象ユーザーへ通知します。",
       "plan_expire_title": "プラン期限",
       "title": "通知範囲"
@@ -3899,7 +3895,7 @@
       "tips": "頻繁な通知を避けるために、猶予期間を設定しました：</br> <b>猶予期間</b>：クライアントがオフラインになった後、この期間内に再度オンラインにならなければ、オフライン通知が送信されます。",
       "title": "オフライン通知"
     },
-    "page_description": "プラン期限、フェイルオーバー、負荷、トラフィック通知をまとめて設定します。",
+    "page_description": "プラン期限、フェイルオーバー、ログインセキュリティ通知をまとめて設定します。",
     "scheduler": {
       "channel": "送信チャンネル",
       "channel_disabled": "未設定",
@@ -4117,7 +4113,7 @@
         "username": "ユーザー名"
       },
       "enable": "通知を有効にする",
-      "enable_description": "選択したチャンネルでプラン期限、フェイルオーバー、負荷、トラフィック通知を送信します。",
+      "enable_description": "選択したチャンネルでプラン期限、フェイルオーバー、ログインセキュリティ通知を送信します。",
       "fetch_channels_error": "通知チャネルの読み込みに失敗しました",
       "fetch_settings_error": "通知設定の読み込みに失敗しました",
       "Javascript": {
@@ -4142,13 +4138,11 @@
       "smtp_username": "ユーザー名",
       "target_binding_bark_device_key": "Bark device key",
       "target_binding_bark_device_key_description": "Set your own Bark device key. Leave empty to skip Bark delivery for your account.",
-      "target_binding_description": "プラットフォームが通知チャンネルを一元的に選択し、各ユーザーはプラン期限、フェイルオーバー、リソースアラート用の受信先をここで設定します。",
+      "target_binding_description": "プラットフォームが通知チャンネルを一元的に選択し、各ユーザーはプラン期限、フェイルオーバー、ログインセキュリティ通知用の受信先をここで設定します。",
       "target_binding_disabled": "Platform notifications are currently disabled. You can still save your own target now and it will take effect after notifications are enabled.",
       "target_binding_no_method": "No platform notification channel is configured yet, so there is no personal delivery target to bind.",
       "target_binding_telegram_chat_id": "Telegram chat ID",
       "target_binding_telegram_chat_id_description": "Set your own Telegram chat ID for personal notifications.",
-      "target_binding_telegram_thread_id": "Telegram thread ID",
-      "target_binding_telegram_thread_id_description": "Optional. Set the message thread ID for forum topics in supergroups.",
       "target_binding_title": "Personal delivery target",
       "target_binding_unsupported": "The current notification channel {{method}} does not support user-scoped delivery targets yet.",
       "target_binding_webhook_url": "Webhook URL",
@@ -4158,17 +4152,13 @@
         "chat_id": "チャットID",
         "chat_id_help": "Optional default chat ID. User-scoped notification bindings can override this field.",
         "endpoint": "リクエストエンドポイント",
-        "endpoint_help": "Telegram ボット API のリクエストエンドポイント、通常は `https://api.telegram.org/bot`",
-        "message_thread_id": "Message Thread ID",
-        "message_thread_id_help": "Optional. Unique identifier of a message thread to which the message belongs; for supergroups only."
+        "endpoint_help": "Telegram ボット API のリクエストエンドポイント、通常は `https://api.telegram.org/bot`"
       },
       "telegram_bot_token": "Telegram ボットトークン",
       "telegram_chat_id_error": "チャット ID は空にできません",
       "telegram_description": "チャットで直接通知を受け取るために、Telegram ボットを設定します。",
       "telegram_endpoint": "リクエストエンドポイント",
       "telegram_title": "Telegram 設定",
-      "template": "メッセージ通知テンプレート",
-      "template_description": "kelicloudはメッセージ通知テンプレートに従って通知を送信します",
       "test_description": "テストメッセージを送信",
       "test_title": "テストメッセージを送信",
       "title": "通知"

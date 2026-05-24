@@ -579,9 +579,7 @@
       "expire_time_description": "Atur berapa hari sebelum paket atau server kedaluwarsa pengingat mulai dikirim.",
       "expire_title": "Pengingat kedaluwarsa paket",
       "login": "Notifikasi Masuk",
-      "login_description": "Kirim notifikasi saat sesi baru masuk ke kelicloud.",
-      "traffic": "Penggunaan Trafik",
-      "traffic_description": "kelicloud akan mengirim notifikasi ketika penggunaan trafik server mencapai persentase tertentu, dengan pengingat setiap kenaikan 5%. Jika tidak ada batas trafik yang ditetapkan, maka tidak ada notifikasi yang dikirim. Atur ke 0 untuk menonaktifkan pengingat trafik."
+      "login_description": "Kirim notifikasi saat sesi baru masuk ke kelicloud."
     },
     "pagination": {
       "alerts": "告警",
@@ -3866,11 +3864,9 @@
   },
   "notification": {
     "events": {
-      "description": "Notifikasi kini berfokus pada paket pengguna, failover, dan peringatan sumber daya. Aturan notifikasi offline mandiri tidak lagi dipertahankan.",
+      "description": "Notifikasi kini berfokus pada paket pengguna, failover, dan keamanan login. Aturan notifikasi offline atau peringatan sumber daya mandiri tidak lagi dipertahankan.",
       "failover_description": "Beri tahu pemilik tugas saat failover dipicu, menunggu tinjauan manual, atau selesai.",
       "failover_title": "Failover",
-      "load_description": "Kirim peringatan sumber daya saat ambang beban atau trafik tercapai.",
-      "load_title": "Beban dan trafik",
       "plan_expire_description": "Ingatkan pengguna sebelum paket dan server kedaluwarsa.",
       "plan_expire_title": "Kedaluwarsa paket",
       "title": "Lingkup notifikasi"
@@ -3899,7 +3895,7 @@
       "tips": "Untuk mencegah notifikasi terlalu sering, kami menggunakan masa tenggang:</br> <b>Masa Tenggang</b>: Jika klien offline dan tidak terhubung kembali dalam waktu ini, notifikasi offline akan dikirim.",
       "title": "Mati"
     },
-    "page_description": "Konfigurasikan notifikasi kedaluwarsa paket, failover, beban, dan trafik di satu tempat.",
+    "page_description": "Konfigurasikan notifikasi kedaluwarsa paket, failover, dan keamanan login di satu tempat.",
     "scheduler": {
       "channel": "Kanal",
       "channel_disabled": "Belum dikonfigurasi",
@@ -4117,7 +4113,7 @@
         "username": "Nama Pengguna"
       },
       "enable": "Aktifkan Notifikasi",
-      "enable_description": "Kirim event kedaluwarsa paket, failover, beban, dan trafik melalui kanal yang dipilih.",
+      "enable_description": "Kirim event kedaluwarsa paket, failover, dan keamanan login melalui kanal yang dipilih.",
       "fetch_channels_error": "Gagal memuat saluran pesan",
       "fetch_settings_error": "Gagal memuat pengaturan notifikasi",
       "Javascript": {
@@ -4142,13 +4138,11 @@
       "smtp_username": "Nama Pengguna",
       "target_binding_bark_device_key": "Bark device key",
       "target_binding_bark_device_key_description": "Set your own Bark device key. Leave empty to skip Bark delivery for your account.",
-      "target_binding_description": "Platform memilih kanal notifikasi secara global, dan setiap pengguna mengikat target penerimaan sendiri untuk kedaluwarsa paket, failover, dan peringatan sumber daya.",
+      "target_binding_description": "Platform memilih kanal notifikasi secara global, dan setiap pengguna mengikat target penerimaan sendiri untuk kedaluwarsa paket, failover, dan keamanan login.",
       "target_binding_disabled": "Platform notifications are currently disabled. You can still save your own target now and it will take effect after notifications are enabled.",
       "target_binding_no_method": "No platform notification channel is configured yet, so there is no personal delivery target to bind.",
       "target_binding_telegram_chat_id": "Telegram chat ID",
       "target_binding_telegram_chat_id_description": "Set your own Telegram chat ID for personal notifications.",
-      "target_binding_telegram_thread_id": "Telegram thread ID",
-      "target_binding_telegram_thread_id_description": "Optional. Set the message thread ID for forum topics in supergroups.",
       "target_binding_title": "Personal delivery target",
       "target_binding_unsupported": "The current notification channel {{method}} does not support user-scoped delivery targets yet.",
       "target_binding_webhook_url": "Webhook URL",
@@ -4158,17 +4152,13 @@
         "chat_id": "ID Chat",
         "chat_id_help": "Optional default chat ID. User-scoped notification bindings can override this field.",
         "endpoint": "Endpoint Permintaan",
-        "endpoint_help": "Endpoint permintaan untuk API Bot Telegram, biasanya `https://api.telegram.org/bot`",
-        "message_thread_id": "Message Thread ID",
-        "message_thread_id_help": "Optional. Unique identifier of a message thread to which the message belongs; for supergroups only."
+        "endpoint_help": "Endpoint permintaan untuk API Bot Telegram, biasanya `https://api.telegram.org/bot`"
       },
       "telegram_bot_token": "Token Bot Telegram",
       "telegram_chat_id_error": "ID Chat harus berupa angka",
       "telegram_description": "Konfigurasikan bot Telegram Anda untuk mendapatkan peringatan langsung di chat.",
       "telegram_endpoint": "Endpoint",
       "telegram_title": "Konfigurasi Telegram",
-      "template": "Template pemberitahuan pesan",
-      "template_description": "kelicloud akan mengirim pemberitahuan sesuai dengan template pemberitahuan pesan",
       "test_description": "Kirim pesan uji coba",
       "test_title": "Kirim pesan uji coba",
       "title": "Notifikasi"

@@ -73,10 +73,15 @@ const exactMessages: Record<string, string> = {
   "azure credential is not configured": "Azure 凭证未配置。",
   "azure credential is incomplete": "Azure 凭证缺少租户 ID、应用 ID 或客户端密钥，请检查后重新导入。",
   "azure service principal has no accessible subscriptions": "这个 Azure 服务主体没有可访问的订阅，请给应用分配订阅权限，或导入时填写 subscription_id。",
-  "invalid token": "令牌无效，请检查令牌是否正确、是否启用，以及权限是否足够。",
-  "invalid api key": "API Key 无效，请检查凭证是否正确。",
+  "telegram bot token is not configured": "Telegram Bot Token 未配置，请先填写后再试。",
+  "telegram chat id is not configured": "Telegram 聊天 ID 未配置，请先在个人接收目标里填写。",
+  "notification is not enabled": "通知发送通道未启用，请先开启后再试。",
+  "bad request: chat not found": "Telegram 聊天不存在或机器人无权访问。请先给机器人发消息，或把机器人加入对应群组。",
   "unauthorized": "未授权，请检查令牌权限或服务商访问控制。",
   "unauthorized.": "请先登录。",
+  "forbidden: bot was blocked by the user": "Telegram 机器人已被用户屏蔽，请先在 Telegram 中解除屏蔽。",
+  "invalid token": "令牌无效，请检查令牌是否正确、是否启用，以及权限是否足够。",
+  "invalid api key": "API Key 无效，请检查凭证是否正确。",
   "login required": "请先登录。",
   "forbidden": "没有权限执行此操作。",
   "permission denied": "权限不足，无法执行此操作。",
@@ -118,6 +123,8 @@ const fieldLabels: Record<string, string> = {
   vultr: "Vultr",
   username: "用户名",
   password: "密码",
+  "telegram_bot_token": "Telegram Bot Token",
+  "telegram_chat_id": "Telegram 聊天 ID",
   watch_client_uuid: "当前客户端",
 };
 
@@ -180,6 +187,7 @@ function translateAction(action: string) {
   if (normalized.includes("update settings")) return "保存设置";
   if (normalized.includes("save payment method")) return "保存支付方式";
   if (normalized.includes("create billing order")) return "创建订单";
+  if (normalized.includes("send message")) return "发送消息";
   return action.trim() || "操作";
 }
 
@@ -256,6 +264,14 @@ const translationRules: TranslationRule[] = [
   {
     pattern: /^http\s+(\d+):\s*(.+)$/i,
     build: (match) => statusLabels[Number(match[1])] || `请求失败：HTTP ${match[1]}：${match[2]}`,
+  },
+  {
+    pattern: /^telegram api returned status\s+(\d+):\s*(.+)$/i,
+    build: (match, context) => `Telegram API 返回错误（${match[1]}）：${translateNested(match[2] || "", context)}`,
+  },
+  {
+    pattern: /^notification target is not configured for this user:\s*(.+)$/i,
+    build: (match) => `当前用户没有配置通知接收目标：${labelField(match[1] || "")}。`,
   },
   {
     pattern: /^rpc error\s+(-?\d+):\s*(.+)$/i,
