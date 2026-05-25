@@ -135,9 +135,6 @@ export function getDefaultAdminPath(account: Account | null) {
   if (isAccountFeatureAllowed(account, "notifications")) {
     return "/admin/notification";
   }
-  if (isAccountFeatureAllowed(account, "tasks")) {
-    return "/admin/exec";
-  }
   if (isAccountFeatureAllowed(account, "clipboard")) {
     return "/admin/exec";
   }

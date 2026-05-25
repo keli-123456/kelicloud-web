@@ -9,13 +9,13 @@ import {
   AdminPageShell,
   AdminSettingsSkeleton,
 } from "@/components/admin/AdminPageShell";
-import { PlatformAdminNotice } from "@/components/admin/PlatformAdminNotice";
 import {
   SettingCard,
   SettingCardSelect,
   SettingCardShortTextInput,
 } from "@/components/admin/SettingCard";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { useAccount } from "@/contexts/AccountContext";
 import { updateSettingsWithToast, useSettings } from "@/lib/api";
@@ -140,7 +140,7 @@ export default function ProxySettings() {
     settings.outbound_proxy_password,
   ]);
 
-  if (accountLoading || loading) {
+  if (accountLoading || (platformAdmin && loading)) {
     return (
       <AdminPageShell
         className="mx-auto w-full max-w-5xl"
@@ -157,9 +157,30 @@ export default function ProxySettings() {
       <AdminPageShell
         className="mx-auto w-full max-w-5xl"
         title={t("settings.proxy.title")}
-        description={pageDescription}
+        description={t("settings.proxy.user_page_description", {
+          defaultValue: "平台代理由管理员统一维护，云服务请求会自动按平台策略处理。",
+        })}
       >
-        <PlatformAdminNotice />
+        <AdminPanel>
+          <AdminPanelHeader
+            title={t("settings.proxy.user_title", { defaultValue: "平台代理" })}
+            description={t("settings.proxy.user_description", {
+              defaultValue: "普通用户无需配置服务器或出站细节。需要调整代理时，请联系管理员统一处理。",
+            })}
+          />
+          <AdminPanelBody>
+            <div className="flex flex-wrap items-center gap-2 rounded-lg border border-slate-200 bg-slate-50/70 px-4 py-3 text-sm text-slate-600 dark:border-slate-800 dark:bg-slate-900/35 dark:text-slate-300">
+              <Badge variant="secondary" className="rounded-full">
+                {t("settings.proxy.managed_badge", { defaultValue: "平台统一管理" })}
+              </Badge>
+              <span>
+                {t("settings.proxy.user_hint", {
+                  defaultValue: "你的云资源操作会使用平台可用的网络出口，不需要在这里维护服务器或节点信息。",
+                })}
+              </span>
+            </div>
+          </AdminPanelBody>
+        </AdminPanel>
       </AdminPageShell>
     );
   }

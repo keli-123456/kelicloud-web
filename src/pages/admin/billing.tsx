@@ -239,6 +239,26 @@ const FEATURE_META: Record<
   cn_connectivity: { key: "billing.features.cn_connectivity", defaultValue: "国内连通性" },
 };
 
+const PUBLIC_FEATURE_META: Partial<Record<AccountFeature, { key: string; defaultValue: string }>> = {
+  records: { key: "billing.public_features.records", defaultValue: "服务记录" },
+  tasks: { key: "billing.public_features.tasks", defaultValue: "自动化任务" },
+  ping: { key: "billing.public_features.ping", defaultValue: "线路检测" },
+  notifications: { key: "billing.public_features.notifications", defaultValue: "消息通知" },
+  cloud: { key: "billing.public_features.cloud", defaultValue: "云资源" },
+  cloud_digitalocean: { key: "billing.public_features.cloud_digitalocean", defaultValue: "DigitalOcean" },
+  cloud_linode: { key: "billing.public_features.cloud_linode", defaultValue: "Linode" },
+  cloud_vultr: { key: "billing.public_features.cloud_vultr", defaultValue: "Vultr" },
+  cloud_azure: { key: "billing.public_features.cloud_azure", defaultValue: "Azure" },
+  cloud_aws: { key: "billing.public_features.cloud_aws", defaultValue: "AWS" },
+  cloud_dns: { key: "billing.public_features.cloud_dns", defaultValue: "域名解析" },
+  cloud_failover: { key: "billing.public_features.cloud_failover", defaultValue: "线路保障" },
+  cloud_failover_v1: { key: "billing.public_features.cloud_failover_v1", defaultValue: "线路保障 V1" },
+  cloud_failover_v2: { key: "billing.public_features.cloud_failover_v2", defaultValue: "线路保障 V2" },
+  clipboard: { key: "billing.public_features.clipboard", defaultValue: "脚本模板" },
+  logs: { key: "billing.public_features.logs", defaultValue: "安全记录" },
+  cn_connectivity: { key: "billing.public_features.cn_connectivity", defaultValue: "线路保障" },
+};
+
 type FeatureOption = { value: AccountFeature; label: string };
 
 type BillingFeatureGroupConfig = {
@@ -530,6 +550,20 @@ export default function BillingPage() {
       }),
     }));
   }, [availableFeatures, t]);
+  const publicFeatureOptions = React.useMemo(
+    () =>
+      featureOptions.map((feature) => {
+        const meta = PUBLIC_FEATURE_META[feature.value];
+        return {
+          ...feature,
+          label: meta
+            ? t(meta.key, { defaultValue: meta.defaultValue })
+            : feature.label,
+        };
+      }),
+    [featureOptions, t],
+  );
+  const userFacingFeatureOptions = platformAdmin ? featureOptions : publicFeatureOptions;
 
   const loadCatalog = React.useCallback(async () => {
     setLoadingCatalog(true);
@@ -837,7 +871,7 @@ export default function BillingPage() {
               setSelectedPlanID={setSelectedPlanID}
               setSelectedPaymentID={setSelectedPaymentID}
               createOrder={createOrder}
-              featureOptions={featureOptions}
+              featureOptions={userFacingFeatureOptions}
             />
           </Tabs.Content>
 
@@ -846,7 +880,7 @@ export default function BillingPage() {
               <PolicySummary
                 t={t}
                 policy={catalog.policy}
-                featureOptions={featureOptions}
+                featureOptions={userFacingFeatureOptions}
               />
               <OrdersTable
                 t={t}

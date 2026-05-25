@@ -2485,7 +2485,7 @@ function describeTaskRetrySettings(t: TFunction, state: TaskFormState) {
   ].join(" · ");
 }
 
-function describePlanAdvancedSettings(t: TFunction, plan: PlanFormState | null) {
+function describePlanAdvancedSettings(t: TFunction, plan: PlanFormState | null, platformAdmin = true) {
   if (!plan) {
     return "";
   }
@@ -2493,8 +2493,10 @@ function describePlanAdvancedSettings(t: TFunction, plan: PlanFormState | null) 
   return [
     `${t("failover.editor.priority", { defaultValue: "Priority" })}: ${plan.priority || "-"}`,
     `${t("failover.editor.script_timeout", { defaultValue: "Script timeout (s)" })}: ${plan.script_timeout_sec || "-"}`,
-    `${t("failover.editor.wait_agent_timeout", { defaultValue: "接入等待时间 (秒)" })}: ${plan.wait_agent_timeout_sec || "-"}`,
-  ].join(" · ");
+    platformAdmin
+      ? `${t("failover.editor.wait_agent_timeout", { defaultValue: "接入等待时间 (秒)" })}: ${plan.wait_agent_timeout_sec || "-"}`
+      : "",
+  ].filter(Boolean).join(" · ");
 }
 
 function describePlanCoreSettings(
@@ -2542,6 +2544,7 @@ function describePlanOptionalSettings(
   t: TFunction,
   plan: PlanFormState | null,
   scriptNames: string[],
+  platformAdmin = true,
 ) {
   if (!plan) {
     return "";
@@ -2558,7 +2561,7 @@ function describePlanOptionalSettings(
     normalizedName
       ? `${t("common.name", { defaultValue: "Name" })}: ${normalizedName}`
       : "",
-    normalizedGroup
+    platformAdmin && normalizedGroup
       ? `${t("failover.editor.auto_connect_group", { defaultValue: "Auto-connect group" })}: ${normalizedGroup}`
       : "",
     scriptSummary,
@@ -5875,6 +5878,7 @@ function TaskEditorDialog({
   scripts,
   providerEntries,
   allowedPlanProviders,
+  platformAdmin,
   onOpenChange,
   onSaved,
 }: {
@@ -5886,6 +5890,7 @@ function TaskEditorDialog({
   scripts: FailoverScriptOption[];
   providerEntries: ProviderEntriesMap;
   allowedPlanProviders: readonly string[];
+  platformAdmin: boolean;
   onOpenChange: (open: boolean) => void;
   onSaved: () => Promise<void>;
 }) {
@@ -6744,8 +6749,8 @@ function TaskEditorDialog({
     [selectedPlan, t],
   );
   const selectedPlanOptionalSummary = React.useMemo(
-    () => describePlanOptionalSettings(t, selectedPlan, selectedPlanScriptNames),
-    [selectedPlan, selectedPlanScriptNames, t],
+    () => describePlanOptionalSettings(t, selectedPlan, selectedPlanScriptNames, platformAdmin),
+    [platformAdmin, selectedPlan, selectedPlanScriptNames, t],
   );
   const selectedPlanDialogSummaryRows = (() => {
     if (!selectedPlan) {
@@ -8244,10 +8249,13 @@ function TaskEditorDialog({
 
                   {!settingsLoading && hasEnabledProvisionPlan && !configuredScriptDomain ? (
                     <div className="border-l-2 border-amber-300 bg-amber-50/70 px-3 py-2 text-sm text-amber-900 dark:border-amber-800 dark:bg-amber-950/20 dark:text-amber-100">
-                      {t("failover.editor.script_domain_required_hint", {
-                        defaultValue:
-                          "平台接入地址尚未配置，自动创建的服务器暂时无法完成接入，请联系管理员处理。",
-                      })}
+                      {platformAdmin
+                        ? t("failover.editor.script_domain_required_hint", {
+                            defaultValue: "平台接入地址尚未配置，自动创建的服务器暂时无法完成接入，请联系管理员处理。",
+                          })
+                        : t("failover.public.connection_config_required", {
+                            defaultValue: "平台连接配置尚未完成，请联系管理员处理后再运行服务恢复。",
+                          })}
                     </div>
                   ) : null}
 
@@ -8309,7 +8317,7 @@ function TaskEditorDialog({
                             {entrySummary ? (
                               <div className="min-w-0 break-words">{entrySummary}</div>
                             ) : null}
-                            {plan.auto_connect_group ? (
+                            {platformAdmin && plan.auto_connect_group ? (
                               <div className="min-w-0 break-words">
                                 {t("failover.editor.auto_connect_group", { defaultValue: "Auto-connect group" })}: {plan.auto_connect_group}
                               </div>
@@ -8504,10 +8512,13 @@ function TaskEditorDialog({
                           <div className="space-y-4">
                             {!settingsLoading && hasEnabledProvisionPlan && !configuredScriptDomain ? (
                               <div className="border-l-2 border-amber-300 bg-amber-50/70 px-3 py-2 text-sm text-amber-900 dark:border-amber-800 dark:bg-amber-950/20 dark:text-amber-100">
-                                {t("failover.editor.script_domain_required_hint", {
-                                  defaultValue:
-                                    "平台接入地址尚未配置，自动创建的服务器暂时无法完成接入，请联系管理员处理。",
-                                })}
+                                {platformAdmin
+                                  ? t("failover.editor.script_domain_required_hint", {
+                                      defaultValue: "平台接入地址尚未配置，自动创建的服务器暂时无法完成接入，请联系管理员处理。",
+                                    })
+                                  : t("failover.public.connection_config_required", {
+                                      defaultValue: "平台连接配置尚未完成，请联系管理员处理后再运行服务恢复。",
+                                    })}
                               </div>
                             ) : null}
                             <div className="text-sm font-medium text-slate-900 dark:text-slate-50">
@@ -9899,6 +9910,7 @@ function TaskEditorDialog({
                             })}
                           />
                         </div>
+                        {platformAdmin ? (
                         <div className="space-y-2">
                           <Label>{t("failover.editor.auto_connect_group", { defaultValue: "Auto-connect group" })}</Label>
                           <div className="rounded-lg bg-muted/20 px-4 py-3">
@@ -9942,6 +9954,7 @@ function TaskEditorDialog({
                             })}
                           </div>
                         </div>
+                        ) : null}
                         <FailoverScriptPolicyDialog
                           className="lg:col-span-2"
                           title={t("failover.editor.scripts", { defaultValue: "Scripts" })}
@@ -9987,7 +10000,7 @@ function TaskEditorDialog({
                                 })}
                               </div>
                               <div className="line-clamp-2 break-words text-xs text-muted-foreground">
-                                {describePlanAdvancedSettings(t, selectedPlan)}
+                                {describePlanAdvancedSettings(t, selectedPlan, platformAdmin)}
                               </div>
                             </div>
                             <ChevronDown
@@ -10030,6 +10043,7 @@ function TaskEditorDialog({
                                 onChange={(event) => updatePlan(selectedPlan.local_id, (current) => ({ ...current, script_timeout_sec: event.target.value }))}
                               />
                             </div>
+                            {platformAdmin ? (
                             <div className="space-y-2">
                               <Label>{t("failover.editor.wait_agent_timeout", { defaultValue: "接入等待时间 (秒)" })}</Label>
                               <Input
@@ -10039,6 +10053,7 @@ function TaskEditorDialog({
                                 onChange={(event) => updatePlan(selectedPlan.local_id, (current) => ({ ...current, wait_agent_timeout_sec: event.target.value }))}
                               />
                             </div>
+                            ) : null}
                           </div>
                         </CollapsibleContent>
                       </div>
@@ -10080,6 +10095,7 @@ function TaskEditorDialog({
                                 ))}
                               </div>
                             </div>
+                            {platformAdmin ? (
                             <div className="border-t border-slate-200/80 pt-3 dark:border-slate-800">
                               <div className="text-xs font-semibold uppercase tracking-normal text-muted-foreground">
                                 {t("failover.editor.plan_summary_auto_connect", { defaultValue: "自动接入分组" })}
@@ -10090,6 +10106,7 @@ function TaskEditorDialog({
                                   || t("common.not_set", { defaultValue: "Not set" })}
                               </div>
                             </div>
+                            ) : null}
                           </div>
                         </aside>
                       ) : null}
@@ -10230,6 +10247,17 @@ function FailoverPageContent() {
     () => PLAN_PROVIDER_VALUES.filter((provider) => hasFeature(PLAN_PROVIDER_REQUIRED_FEATURES[provider])),
     [hasFeature],
   );
+  const pageTitle = platformAdmin
+    ? t("cloud.failover.title", { defaultValue: "故障切换" })
+    : t("failover.public.title", { defaultValue: "线路保障" });
+  const pageDescription = platformAdmin
+    ? t("failover.page_description", {
+        defaultValue:
+          "监控线路连通性，按计划创建或切换云实例，并在需要时执行脚本和更新 DNS。",
+      })
+    : t("failover.public.page_description", {
+        defaultValue: "查看线路服务状态、当前出口和最近处理结果，必要时手动发起恢复。",
+      });
 
   const refreshTasks = React.useCallback(async (options?: { silent?: boolean }) => {
     const silent = options?.silent ?? false;
@@ -10665,11 +10693,8 @@ function FailoverPageContent() {
       <AdminPageShell
         className="gap-3"
         contentClassName="gap-3"
-        title={t("cloud.failover.title", { defaultValue: "故障切换" })}
-        description={t("failover.page_description", {
-          defaultValue:
-            "监控线路连通性，按计划创建或切换云实例，并在需要时执行脚本和更新 DNS。",
-        })}
+        title={pageTitle}
+        description={pageDescription}
       >
         <AdminTableSkeleton columns={6} rows={5} />
       </AdminPageShell>
@@ -10685,11 +10710,8 @@ function FailoverPageContent() {
       <AdminPageShell
         className="gap-3"
         contentClassName="gap-3"
-        title={t("cloud.failover.title", { defaultValue: "故障切换" })}
-        description={t("failover.page_description", {
-          defaultValue:
-            "监控线路连通性，按计划创建或切换云实例，并在需要时执行脚本和更新 DNS。",
-        })}
+        title={pageTitle}
+        description={pageDescription}
       >
         {loading ? <AdminTableSkeleton columns={6} rows={5} /> : null}
 
@@ -10702,10 +10724,14 @@ function FailoverPageContent() {
         {!loading && !error && tasks.length === 0 ? (
           <AdminEmptyState
             title={t("failover.empty_title", { defaultValue: "No failover tasks yet" })}
-            description={t("failover.empty_description", {
-              defaultValue:
-                "Create your first task to watch CN connectivity, provision or rebind IPs, optionally run a clipboard script, and switch DNS only when needed.",
-            })}
+            description={platformAdmin
+              ? t("failover.empty_description", {
+                  defaultValue:
+                    "Create your first task to watch CN connectivity, provision or rebind IPs, optionally run a clipboard script, and switch DNS only when needed.",
+                })
+              : t("failover.public.empty_description", {
+                  defaultValue: "开通线路保障后，可在这里查看服务状态并按需发起恢复。",
+                })}
             actions={(
               <Button type="button" onClick={openCreateDialog}>
                 <Plus className="size-4" />
@@ -10724,7 +10750,9 @@ function FailoverPageContent() {
                     {t("failover.workspace.tasks", { defaultValue: "任务列表" })}
                   </h2>
                   <p className="mt-1 text-xs leading-5 text-muted-foreground">
-                    {t("failover.workspace.tasks_hint", { defaultValue: "按任务、出口、DNS 与最近执行状态快速扫描。" })}
+                    {platformAdmin
+                      ? t("failover.workspace.tasks_hint", { defaultValue: "按任务、出口、DNS 与最近执行状态快速扫描。" })
+                      : t("failover.public.tasks_hint", { defaultValue: "查看服务、当前地址和最近处理状态。" })}
                   </p>
                 </div>
                 <Button type="button" size="sm" onClick={openCreateDialog} className="shrink-0">
@@ -10738,8 +10766,16 @@ function FailoverPageContent() {
                   <thead>
                     <tr className="border-b border-border bg-muted/30 text-[12px] font-semibold text-muted-foreground">
                       <th className="px-3 py-2.5">{t("failover.workspace.col_task", { defaultValue: "任务" })}</th>
-                      <th className="px-3 py-2.5">{t("failover.workspace.col_outlet", { defaultValue: "当前出口" })}</th>
-                      <th className="px-3 py-2.5">{t("failover.workspace.col_execution", { defaultValue: "最近执行" })}</th>
+                      <th className="px-3 py-2.5">
+                        {platformAdmin
+                          ? t("failover.workspace.col_outlet", { defaultValue: "当前出口" })
+                          : t("failover.public.col_outlet", { defaultValue: "当前地址" })}
+                      </th>
+                      <th className="px-3 py-2.5">
+                        {platformAdmin
+                          ? t("failover.workspace.col_execution", { defaultValue: "最近执行" })
+                          : t("failover.public.col_execution", { defaultValue: "最近处理" })}
+                      </th>
                       <th className="w-[190px] px-3 py-2.5 text-right">{t("common.actions", { defaultValue: "Actions" })}</th>
                     </tr>
                   </thead>
@@ -10768,7 +10804,9 @@ function FailoverPageContent() {
                         : task.has_active_execution
                           ? t("failover.task.active_execution", { defaultValue: "Active execution" })
                           : task.probe.stale
-                            ? view.staleRetrySummary || t("failover.probe.stale", { defaultValue: "Stale" })
+                            ? platformAdmin
+                              ? view.staleRetrySummary || t("failover.probe.stale", { defaultValue: "Stale" })
+                              : t("failover.public.state_pending", { defaultValue: "状态待确认" })
                             : taskNormalLabel;
                       const dnsSummaryParts = [
                         task.dns_provider ? getDnsTaskStatusLabel(t, view.dnsStatus) : null,
@@ -10777,10 +10815,16 @@ function FailoverPageContent() {
                       const cooldownReadyLabel = t("failover.cooldown.ready", { defaultValue: "Ready" });
                       const timingSummary = [
                         view.cooldownSummary !== cooldownReadyLabel
-                          ? `${t("failover.table.cooldown", { defaultValue: "Cooldown" })}: ${view.cooldownSummary}`
+                          ? `${platformAdmin
+                              ? t("failover.table.cooldown", { defaultValue: "Cooldown" })
+                              : t("failover.public.protection_time", { defaultValue: "保护时间" })
+                            }: ${view.cooldownSummary}`
                           : null,
                         view.nextCycleSummary
-                          ? `${t("failover.table.next_cycle", { defaultValue: "Next cycle" })}: ${view.nextCycleSummary}`
+                          ? `${platformAdmin
+                              ? t("failover.table.next_cycle", { defaultValue: "Next cycle" })
+                              : t("failover.public.next_check", { defaultValue: "下次检查" })
+                            }: ${view.nextCycleSummary}`
                           : null,
                       ].filter(Boolean).join(" · ");
 
@@ -10989,10 +11033,14 @@ function FailoverPageContent() {
               <div className="flex min-h-[54px] items-center justify-between gap-3 border-b border-border bg-slate-50/70 px-4 py-3 dark:bg-slate-900/35">
                 <div className="min-w-0">
                   <h2 className="text-sm font-semibold leading-5 text-foreground">
-                    {t("failover.workspace.inspector", { defaultValue: "任务观察台" })}
+                    {platformAdmin
+                      ? t("failover.workspace.inspector", { defaultValue: "任务观察台" })
+                      : t("failover.public.inspector", { defaultValue: "服务概览" })}
                   </h2>
                   <p className="mt-1 text-xs leading-5 text-muted-foreground">
-                    {t("failover.workspace.inspector_hint", { defaultValue: "选中任务后查看最近步骤、风险和操作。" })}
+                    {platformAdmin
+                      ? t("failover.workspace.inspector_hint", { defaultValue: "选中任务后查看最近步骤、风险和操作。" })
+                      : t("failover.public.inspector_hint", { defaultValue: "选中服务后查看状态、当前地址和处理结果。" })}
                   </p>
                 </div>
               </div>
@@ -11028,11 +11076,15 @@ function FailoverPageContent() {
                         ) : null}
                         {selectedTask.probe.stale ? (
                           <Badge variant="warning" title={selectedTask.last_message || undefined}>
-                            {view.staleRetrySummary || t("failover.probe.stale", { defaultValue: "Stale" })}
+                            {platformAdmin
+                              ? view.staleRetrySummary || t("failover.probe.stale", { defaultValue: "Stale" })
+                              : t("failover.public.state_pending", { defaultValue: "状态待确认" })}
                           </Badge>
                         ) : (
                           <Badge variant={getStatusVariant(selectedTask.probe.status, "probe")}>
-                            {t("failover.table.probe", { defaultValue: "Probe" })}: {getStatusLabel(t, selectedTask.probe.status)}
+                            {platformAdmin
+                              ? t("failover.table.probe", { defaultValue: "Probe" })
+                              : t("failover.public.line_status", { defaultValue: "线路状态" })}: {getStatusLabel(t, selectedTask.probe.status)}
                           </Badge>
                         )}
                       </div>
@@ -11041,7 +11093,9 @@ function FailoverPageContent() {
                     <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-1 2xl:grid-cols-2">
                       <div className="min-w-0 rounded-md border border-slate-200/70 bg-white/80 px-3 py-2 dark:border-slate-800 dark:bg-slate-900/25">
                         <div className="text-[11px] font-semibold leading-4 text-muted-foreground">
-                          {t("failover.task.outlet_ip_label", { defaultValue: "Outlet IP" })}
+                          {platformAdmin
+                            ? t("failover.task.outlet_ip_label", { defaultValue: "Outlet IP" })
+                            : t("failover.public.outlet_ip_label", { defaultValue: "当前地址" })}
                         </div>
                         <div className="mt-1 truncate text-[13px] leading-5 text-foreground" title={view.currentOutletLabel}>
                           {view.currentOutletLabel}
@@ -11059,7 +11113,9 @@ function FailoverPageContent() {
                       ) : null}
                       <div className="min-w-0 rounded-md border border-slate-200/70 bg-white/80 px-3 py-2 dark:border-slate-800 dark:bg-slate-900/25">
                         <div className="text-[11px] font-semibold leading-4 text-muted-foreground">
-                          {t("failover.table.cooldown", { defaultValue: "Cooldown" })}
+                          {platformAdmin
+                            ? t("failover.table.cooldown", { defaultValue: "Cooldown" })
+                            : t("failover.public.protection_time", { defaultValue: "保护时间" })}
                         </div>
                         <div className="mt-1 truncate text-[13px] leading-5 text-foreground">
                           {view.cooldownSummary}
@@ -11087,7 +11143,9 @@ function FailoverPageContent() {
                     <div className="overflow-hidden rounded-md border border-slate-200/80 bg-slate-50/55 dark:border-slate-800 dark:bg-slate-900/25">
                       <div className="flex items-center justify-between gap-2 border-b border-border px-3 py-2">
                         <div className="text-[12px] font-semibold leading-5 text-foreground">
-                          {t("failover.table.latest", { defaultValue: "Latest execution" })}
+                          {platformAdmin
+                            ? t("failover.table.latest", { defaultValue: "Latest execution" })
+                            : t("failover.public.latest_result", { defaultValue: "最近处理" })}
                         </div>
                         {latestExecution ? (
                           <Badge variant={getStatusVariant(latestExecution.status, "execution")}>
@@ -11260,6 +11318,7 @@ function FailoverPageContent() {
         scripts={scripts}
         providerEntries={providerEntries}
         allowedPlanProviders={allowedPlanProviders}
+        platformAdmin={platformAdmin}
         onOpenChange={(nextOpen) => {
           setEditorOpen(nextOpen);
           if (!nextOpen) {

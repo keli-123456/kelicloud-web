@@ -1431,6 +1431,7 @@ function getMemberProbeBadgeLabel(
   t: TFunction,
   member: FailoverV2Member,
   memberBusy: boolean,
+  detailed = true,
 ) {
   if (memberBusy) {
     return {
@@ -1460,7 +1461,9 @@ function getMemberProbeBadgeLabel(
   if (member.probe?.stale) {
     return {
       type: "warning" as const,
-      label: staleWithRetryText || t("failover_v2.probe.stale", { defaultValue: "Stale" }),
+      label: detailed
+        ? staleWithRetryText || t("failover_v2.probe.stale", { defaultValue: "Stale" })
+        : t("failover_v2.public.state_pending", { defaultValue: "状态待确认" }),
       status: "warning" as const,
     };
   }
@@ -1468,7 +1471,9 @@ function getMemberProbeBadgeLabel(
   const probeStatus = member.probe?.status || "unknown";
   return {
     type: "status" as const,
-    label: `${t("failover_v2.table.probe", { defaultValue: "Probe" })}: ${localizeFailoverV2Status(t, probeStatus)}`,
+    label: detailed
+      ? `${t("failover_v2.table.probe", { defaultValue: "Probe" })}: ${localizeFailoverV2Status(t, probeStatus)}`
+      : `${t("failover_v2.public.line_status", { defaultValue: "线路状态" })}: ${localizeFailoverV2Status(t, probeStatus)}`,
     status: probeStatus,
   };
 }
@@ -2037,7 +2042,7 @@ function buildServiceInput(t: TFunction, formState: ServiceFormState): FailoverV
     dns_payload: parseJsonField(t, formState.dns_payload, {}, t("failover_v2.dns_payload", { defaultValue: "DNS payload" })),
     script_clipboard_ids: Array.from(new Set(formState.script_clipboard_ids.filter((id) => Number.isFinite(id) && id > 0))),
     script_timeout_sec: parseNumberField(t, formState.script_timeout_sec, t("failover_v2.script_timeout", { defaultValue: "Script timeout" }), 600, { min: 1 }),
-    wait_agent_timeout_sec: parseNumberField(t, formState.wait_agent_timeout_sec, t("failover_v2.wait_agent_timeout", { defaultValue: "接入等待时间" }), 600, { min: 1 }),
+    wait_agent_timeout_sec: parseNumberField(t, formState.wait_agent_timeout_sec, t("failover_v2.service_ready_timeout", { defaultValue: "服务准备时间" }), 600, { min: 1 }),
     check_interval_seconds: parseNumberField(t, formState.check_interval_seconds, t("failover_v2.check_interval", { defaultValue: "Check interval" }), 60, { min: 60 }),
     delete_strategy: FAILOVER_V2_DEFAULT_DELETE_STRATEGY,
     delete_delay_seconds: FAILOVER_V2_DEFAULT_DELETE_DELAY_SECONDS,
@@ -2205,7 +2210,7 @@ function resolveMemberAddressByFamily(
   return inferAddressFamily(currentAddress) === family ? currentAddress : "";
 }
 
-function formatMemberResolveStatus(t: TFunction, member: FailoverV2Member) {
+function formatMemberResolveStatus(t: TFunction, member: FailoverV2Member, detailed = true) {
   const staleWithRetryText = member.probe?.stale && member.failure_threshold > 0
     ? t("failover_v2.probe.stale_with_retry", {
       defaultValue: "Stale ({{current}}/{{total}})",
@@ -2214,7 +2219,9 @@ function formatMemberResolveStatus(t: TFunction, member: FailoverV2Member) {
     })
     : null;
   if (member.probe?.stale) {
-    return staleWithRetryText || t("failover_v2.probe.stale", { defaultValue: "Stale" });
+    return detailed
+      ? staleWithRetryText || t("failover_v2.probe.stale", { defaultValue: "Stale" })
+      : t("failover_v2.public.state_pending", { defaultValue: "状态待确认" });
   }
   return localizeFailoverV2Status(t, member.probe?.status || "unknown");
 }
@@ -2783,6 +2790,17 @@ export default function FailoverV2Page() {
   const [selectedExecution, setSelectedExecution] = React.useState<FailoverV2Execution | null>(null);
   const [loadingExecutionDetail, setLoadingExecutionDetail] = React.useState(false);
   const [executionError, setExecutionError] = React.useState("");
+  const pageTitle = platformAdmin
+    ? t("cloud.failover_v2.title", { defaultValue: "故障切换 V2" })
+    : t("failover_v2.public.title", { defaultValue: "线路保障 V2" });
+  const pageDescription = platformAdmin
+    ? t("failover_v2.page_description", {
+        defaultValue:
+          "以服务和成员为单位管理第二代故障切换，支持独立调度、多线路 DNS 和云资源模板。",
+      })
+    : t("failover_v2.public.page_description", {
+        defaultValue: "查看多线路服务状态、成员地址和最近处理结果，必要时手动发起恢复。",
+      });
   const [executionActionTarget, setExecutionActionTarget] = React.useState<ExecutionActionTarget>(null);
   const [stoppingExecution, setStoppingExecution] = React.useState(false);
   const [retryingAttachDNS, setRetryingAttachDNS] = React.useState(false);
@@ -3309,14 +3327,22 @@ export default function FailoverV2Page() {
         : t("failover.editor.no_script", { defaultValue: "No script" }),
     },
     {
-      label: t("failover_v2.check_interval", { defaultValue: "Check interval" }),
+      label: platformAdmin
+        ? t("failover_v2.check_interval", { defaultValue: "Check interval" })
+        : t("failover_v2.public.check_interval", { defaultValue: "检查间隔" }),
       value: `${serviceForm.check_interval_seconds || "60"}s`,
     },
   ];
   const serviceDialogPolicyNotes = [
-    t("failover_v2.service_summary_dns_note", { defaultValue: "服务只管理共享 DNS 目标，具体线路会在成员里绑定。" }),
-    t("failover_v2.service_summary_scheduler_note", { defaultValue: "调度间隔决定服务级健康巡检频率，成员执行仍按自己的状态判断。" }),
-    t("failover_v2.service_summary_script_note", { defaultValue: "服务脚本会在替换出口通过检查后按顺序执行。" }),
+    platformAdmin
+      ? t("failover_v2.service_summary_dns_note", { defaultValue: "服务只管理共享 DNS 目标，具体线路会在成员里绑定。" })
+      : t("failover_v2.public.service_summary_dns_note", { defaultValue: "服务会统一维护对外访问地址。" }),
+    platformAdmin
+      ? t("failover_v2.service_summary_scheduler_note", { defaultValue: "调度间隔决定服务级健康巡检频率，成员执行仍按自己的状态判断。" })
+      : t("failover_v2.public.service_summary_scheduler_note", { defaultValue: "检查间隔决定服务状态更新频率。" }),
+    platformAdmin
+      ? t("failover_v2.service_summary_script_note", { defaultValue: "服务脚本会在替换出口通过检查后按顺序执行。" })
+      : t("failover_v2.public.service_summary_script_note", { defaultValue: "服务脚本会在恢复资源准备完成后按顺序执行。" }),
   ];
   const sortedServiceScripts = React.useMemo(
     () => [...scripts].sort((left, right) => {
@@ -4482,11 +4508,8 @@ export default function FailoverV2Page() {
   if (loading) {
     return (
       <AdminPageShell
-        title={t("cloud.failover_v2.title", { defaultValue: "故障切换 V2" })}
-        description={t("failover_v2.page_description", {
-          defaultValue:
-            "以服务和成员为单位管理第二代故障切换，支持独立调度、多线路 DNS 和云资源模板。",
-        })}
+        title={pageTitle}
+        description={pageDescription}
         contentClassName="gap-3"
       >
         <AdminTableSkeleton columns={7} rows={5} />
@@ -4501,11 +4524,8 @@ export default function FailoverV2Page() {
   return (
     <>
       <AdminPageShell
-        title={t("cloud.failover_v2.title", { defaultValue: "故障切换 V2" })}
-        description={t("failover_v2.page_description", {
-          defaultValue:
-            "以服务和成员为单位管理第二代故障切换，支持独立调度、多线路 DNS 和云资源模板。",
-        })}
+        title={pageTitle}
+        description={pageDescription}
         contentClassName="gap-3"
       >
         {platformAdmin ? (
@@ -4576,7 +4596,9 @@ export default function FailoverV2Page() {
                     {t("failover_v2.workbench.task_queue", { defaultValue: "任务列表" })}
                   </h2>
                   <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-                    {t("failover_v2.workbench.task_queue_hint", { defaultValue: "先看任务健康和最近执行，点击任务展开子成员。" })}
+                    {platformAdmin
+                      ? t("failover_v2.workbench.task_queue_hint", { defaultValue: "先看任务健康和最近执行，点击任务展开子成员。" })
+                      : t("failover_v2.public.task_queue_hint", { defaultValue: "查看服务状态、成员地址和最近处理结果，点击任务展开成员。" })}
                   </p>
                 </div>
                 <div className="flex shrink-0 items-center gap-2">
@@ -4813,7 +4835,7 @@ export default function FailoverV2Page() {
                                     const watchedNode = findNodeByWatchClientUUID(nodes, member.watch_client_uuid);
                                     const memberIPv4Address = resolveMemberAddressByFamily(member, latestMemberExecution, watchedNode, "ipv4");
                                     const memberIPv6Address = resolveMemberAddressByFamily(member, latestMemberExecution, watchedNode, "ipv6");
-                                    const probeBadge = member.probe ? getMemberProbeBadgeLabel(t, member, memberBusy) : null;
+                                    const probeBadge = member.probe ? getMemberProbeBadgeLabel(t, member, memberBusy, platformAdmin) : null;
                                     const memberRowKey = `${service.id}:${member.id}`;
                                     const memberSelected = selectedMemberDetailKey === memberRowKey;
                                     const memberPrimaryAddress = memberIPv4Address
@@ -4931,7 +4953,7 @@ export default function FailoverV2Page() {
                   const watchedNode = findNodeByWatchClientUUID(nodes, member.watch_client_uuid);
                   const memberIPv4Address = resolveMemberAddressByFamily(member, latestMemberExecution, watchedNode, "ipv4");
                   const memberIPv6Address = resolveMemberAddressByFamily(member, latestMemberExecution, watchedNode, "ipv6");
-                  const memberResolveStatus = formatMemberResolveStatus(t, member);
+                  const memberResolveStatus = formatMemberResolveStatus(t, member, platformAdmin);
                   const memberDnsStatus = formatMemberDnsStatusSummary(t, latestMemberExecution);
                   const memberScriptStatus = formatMemberScriptStatusSummary(t, latestMemberExecution);
                   const memberBusyTitle = memberActionsDisabled
@@ -5053,7 +5075,7 @@ export default function FailoverV2Page() {
                             </Badge>
                           ) : null}
                           {member.probe ? (() => {
-                            const probeBadge = getMemberProbeBadgeLabel(t, member, memberBusy);
+                            const probeBadge = getMemberProbeBadgeLabel(t, member, memberBusy, platformAdmin);
                             return (
                               <Badge color={getStatusBadgeColor(probeBadge.status)}>
                                 {probeBadge.label}
@@ -5067,7 +5089,11 @@ export default function FailoverV2Page() {
                             {platformAdmin ? <div>{formatMemberSubtitle(member) || "-"}</div> : null}
                             <div>{t("failover_v2.detail_fields.ipv4", { defaultValue: "IPv4" })}: {memberIPv4Address || t("failover_v2.no_current_ip", { defaultValue: "No current IP" })}</div>
                             <div>{t("failover_v2.detail_fields.ipv6", { defaultValue: "IPv6" })}: {memberIPv6Address || t("failover_v2.no_current_ip", { defaultValue: "No current IP" })}</div>
-                            <div>{t("failover_v2.member_resolve_status", { defaultValue: "Resolve status" })}: {memberResolveStatus}</div>
+                            <div>
+                              {platformAdmin
+                                ? t("failover_v2.member_resolve_status", { defaultValue: "Resolve status" })
+                                : t("failover_v2.public.line_status", { defaultValue: "线路状态" })}: {memberResolveStatus}
+                            </div>
                             {platformAdmin ? (
                               <>
                                 <div>{t("failover_v2.member_dns_status", { defaultValue: "DNS status" })}: {memberDnsStatus}</div>
@@ -5088,7 +5114,9 @@ export default function FailoverV2Page() {
                             {getModeActionLabel(t, member)}
                           </Button>
                           <Button size="sm" variant="outline" onClick={() => setDetachTarget({ service, member })} disabled={memberActionsDisabled} title={memberBusyTitle}>
-                            {t("failover_v2.detach_dns", { defaultValue: "Detach DNS" })}
+                            {platformAdmin
+                              ? t("failover_v2.detach_dns", { defaultValue: "Detach DNS" })
+                              : t("failover_v2.public.pause_line", { defaultValue: "暂停线路" })}
                           </Button>
                           <Button size="sm" variant="outline" onClick={() => openEditMemberDialog(service, member)} disabled={memberActionsDisabled} title={memberBusyTitle}>
                             <PencilLine className="size-4" />
@@ -5699,12 +5727,18 @@ export default function FailoverV2Page() {
             <section className={FORM_SECTION_CLASS}>
               <div className="mb-4 flex flex-col gap-1">
                 <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-50">
-                  {t("failover_v2.service_section_policy", { defaultValue: "Execution policy" })}
+                  {platformAdmin
+                    ? t("failover_v2.service_section_policy", { defaultValue: "Execution policy" })
+                    : t("failover_v2.public.service_section_policy", { defaultValue: "服务策略" })}
                 </h3>
                 <p className="text-xs text-slate-500 dark:text-slate-400">
-                  {t("failover_v2.service_section_policy_hint", {
-                    defaultValue: "Tune health-check and execution timeout settings for this service.",
-                  })}
+                  {platformAdmin
+                    ? t("failover_v2.service_section_policy_hint", {
+                        defaultValue: "Tune health-check and execution timeout settings for this service.",
+                      })
+                    : t("failover_v2.public.service_section_policy_hint", {
+                        defaultValue: "设置服务检查频率和处理超时时间。",
+                      })}
                 </p>
               </div>
               <div className={FORM_GRID_4_CLASS}>
@@ -5721,7 +5755,11 @@ export default function FailoverV2Page() {
                   </p>
                 </div>
                 <div className={FORM_FIELD_CLASS}>
-                  <Label>{t("failover_v2.wait_agent_timeout", { defaultValue: "接入等待时间" })}</Label>
+                  <Label>
+                    {platformAdmin
+                      ? t("failover_v2.wait_agent_timeout", { defaultValue: "接入等待时间" })
+                      : t("failover_v2.public.ready_timeout", { defaultValue: "服务准备时间" })}
+                  </Label>
                   <Input
                     type="number"
                     min={1}
@@ -5733,7 +5771,11 @@ export default function FailoverV2Page() {
                   </p>
                 </div>
                 <div className={FORM_FIELD_CLASS}>
-                  <Label>{t("failover_v2.check_interval", { defaultValue: "Check interval" })}</Label>
+                  <Label>
+                    {platformAdmin
+                      ? t("failover_v2.check_interval", { defaultValue: "Check interval" })
+                      : t("failover_v2.public.check_interval", { defaultValue: "检查间隔" })}
+                  </Label>
                   <Input
                     type="number"
                     min={60}
@@ -5741,9 +5783,13 @@ export default function FailoverV2Page() {
                     onChange={(event) => setServiceForm((current) => ({ ...current, check_interval_seconds: event.target.value }))}
                   />
                   <p className="text-xs text-slate-500 dark:text-slate-400">
-                    {t("failover_v2.check_interval_hint", {
-                      defaultValue: "Controls how often this service runs automatic health checks. Unit: seconds.",
-                    })}
+                    {platformAdmin
+                      ? t("failover_v2.check_interval_hint", {
+                          defaultValue: "Controls how often this service runs automatic health checks. Unit: seconds.",
+                        })
+                      : t("failover_v2.public.check_interval_hint", {
+                          defaultValue: "控制服务状态检查频率，单位：秒。",
+                        })}
                   </p>
                 </div>
               </div>
@@ -5752,9 +5798,13 @@ export default function FailoverV2Page() {
             <section className={FORM_SECTION_CLASS}>
               <FailoverScriptPolicyDialog
                 title={t("failover_v2.service_scripts", { defaultValue: "Scripts" })}
-                description={t("failover_v2.service_section_scripts_hint", {
-                  defaultValue: "可选脚本会在替换实例通过连通性检查后执行。点击配置脚本再选择、排序和设置超时。",
-                })}
+                description={platformAdmin
+                  ? t("failover_v2.service_section_scripts_hint", {
+                      defaultValue: "可选脚本会在替换实例通过连通性检查后执行。点击配置脚本再选择、排序和设置超时。",
+                    })
+                  : t("failover_v2.public.service_scripts_hint", {
+                      defaultValue: "可选脚本会在恢复资源准备完成后执行。点击配置脚本再选择、排序和设置超时。",
+                    })}
                 scripts={sortedServiceScripts}
                 selectedScriptIDs={serviceForm.script_clipboard_ids.map(String)}
                 searchQuery={serviceScriptSearchQuery}
@@ -5774,9 +5824,13 @@ export default function FailoverV2Page() {
                       {t("failover_v2.service_summary_title", { defaultValue: "服务配置预览" })}
                     </div>
                     <p className="text-xs leading-5 text-muted-foreground">
-                      {t("failover_v2.service_summary_hint", {
-                        defaultValue: "右侧固定展示服务级 DNS、调度和脚本策略，左侧负责编辑具体字段。",
-                      })}
+                      {platformAdmin
+                        ? t("failover_v2.service_summary_hint", {
+                            defaultValue: "右侧固定展示服务级 DNS、调度和脚本策略，左侧负责编辑具体字段。",
+                          })
+                        : t("failover_v2.public.service_summary_hint", {
+                            defaultValue: "右侧固定展示服务地址、检查间隔和脚本策略，左侧负责编辑具体字段。",
+                          })}
                     </p>
                   </div>
 
@@ -6896,12 +6950,18 @@ export default function FailoverV2Page() {
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>
-              {t("failover_v2.detach_dns", { defaultValue: "Detach DNS" })}
+              {platformAdmin
+                ? t("failover_v2.detach_dns", { defaultValue: "Detach DNS" })
+                : t("failover_v2.public.pause_line", { defaultValue: "暂停线路" })}
             </AlertDialogTitle>
             <AlertDialogDescription>
-              {t("failover_v2.detach_dns_description", {
-                defaultValue: "This will immediately remove the selected member line from the configured DNS provider and mark the member as detached until later recovery.",
-              })}
+              {platformAdmin
+                ? t("failover_v2.detach_dns_description", {
+                    defaultValue: "This will immediately remove the selected member line from the configured DNS provider and mark the member as detached until later recovery.",
+                  })
+                : t("failover_v2.public.pause_line_description", {
+                    defaultValue: "这会暂停所选成员的对外服务，后续可重新恢复。",
+                  })}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -6911,8 +6971,12 @@ export default function FailoverV2Page() {
             <AlertDialogAction onClick={() => void handleConfirmDetachDNS()} disabled={detachingDNS}>
               {detachingDNS ? <LoaderCircle className="mr-2 size-4 animate-spin" /> : null}
               {detachingDNS
-                ? t("failover_v2.detaching_dns", { defaultValue: "Detaching" })
-                : t("failover_v2.detach_dns_confirm", { defaultValue: "Detach now" })}
+                ? platformAdmin
+                  ? t("failover_v2.detaching_dns", { defaultValue: "Detaching" })
+                  : t("failover_v2.public.pausing_line", { defaultValue: "正在暂停" })
+                : platformAdmin
+                  ? t("failover_v2.detach_dns_confirm", { defaultValue: "Detach now" })
+                  : t("failover_v2.public.pause_line_confirm", { defaultValue: "确认暂停" })}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -6930,9 +6994,13 @@ export default function FailoverV2Page() {
               {t("failover_v2.failover_now", { defaultValue: "Failover now" })}
             </AlertDialogTitle>
             <AlertDialogDescription>
-              {t("failover_v2.failover_now_description", {
-                defaultValue: "This will detach the selected member line from DNS, create a replacement instance with the configured member provider, wait for the new agent, validate outlet connectivity, run service scripts, and then attach the new IP back to this line. The old instance is kept for now.",
-              })}
+              {platformAdmin
+                ? t("failover_v2.failover_now_description", {
+                    defaultValue: "This will detach the selected member line from DNS, create a replacement instance with the configured member provider, wait for the new agent, validate outlet connectivity, run service scripts, and then attach the new IP back to this line. The old instance is kept for now.",
+                  })
+                : t("failover_v2.public.failover_now_description", {
+                    defaultValue: "这会立即为所选成员发起恢复流程。处理完成后，线路会切换到新的可用地址。",
+                  })}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -7293,11 +7361,13 @@ export default function FailoverV2Page() {
                 <div className="space-y-4">
                   <ExecutionDetailSection
                     title={t("failover_v2.execution_summary", { defaultValue: "执行摘要" })}
-                    description={t("failover_v2.execution_summary_hint", {
-                      defaultValue: platformAdmin
-                        ? "集中展示执行对象、触发类型、总状态和基础元信息。"
-                        : "集中展示执行对象、状态和处理结果。",
-                    })}
+                    description={platformAdmin
+                      ? t("failover_v2.execution_summary_hint", {
+                          defaultValue: "集中展示执行对象、触发类型、总状态和基础元信息。",
+                        })
+                      : t("failover_v2.public.execution_summary_hint", {
+                          defaultValue: "集中展示执行对象、状态和处理结果。",
+                        })}
                   >
                     <div className="space-y-4">
                       <div className="space-y-2 border-b border-slate-200 pb-4 dark:border-slate-800">

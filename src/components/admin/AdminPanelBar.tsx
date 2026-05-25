@@ -484,7 +484,11 @@ function AdminPanelBarContent({ content }: AdminPanelBarProps) {
       return t("admin.nav.short.exec", { defaultValue: "Exec" });
     }
     if (normalizedPath === "/admin/audit") {
-      return t("admin.nav.short.audit", { defaultValue: "Audit" });
+      return platformAdmin
+        ? t("admin.nav.short.audit", { defaultValue: "Audit" })
+        : t("admin.nav.short.security_sessions", {
+            defaultValue: "安全与会话",
+          });
     }
     if (normalizedPath === "/admin/sessions") {
       return t("admin.nav.short.sessions", { defaultValue: "Sessions" });
@@ -519,7 +523,6 @@ function AdminPanelBarContent({ content }: AdminPanelBarProps) {
       normalizedPath.startsWith("/admin/settings/") ||
       [
         "/admin/notification/general",
-        "/admin/proxy",
       ].includes(normalizedPath)
     );
   }, []);
@@ -558,7 +561,9 @@ function AdminPanelBarContent({ content }: AdminPanelBarProps) {
         return hasFeature(feature);
       }
       if (normalizedPath === "/admin/exec") {
-        return hasFeature("tasks") || hasFeature("clipboard");
+        return platformAdmin
+          ? hasFeature("tasks") || hasFeature("clipboard")
+          : hasFeature("clipboard");
       }
       const feature = getRequiredFeatureForPath(target);
       if (!feature) {

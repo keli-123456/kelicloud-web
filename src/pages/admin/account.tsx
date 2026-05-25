@@ -29,11 +29,13 @@ type AccountSection = "account" | "users";
 
 const Account = () => {
   const [searchParams, setSearchParams] = useSearchParams();
-  const activeSection = searchParams.get("tab") === "users" ? "users" : "account";
+  const { platformAdmin } = useAccount();
+  const activeSection =
+    platformAdmin && searchParams.get("tab") === "users" ? "users" : "account";
   const { t } = useTranslation();
   const navigateToSection = (nextSection: AccountSection) => {
     const next = new URLSearchParams(searchParams);
-    if (nextSection === "account") {
+    if (nextSection === "account" || !platformAdmin) {
       next.delete("tab");
     } else {
       next.set("tab", "users");
@@ -57,13 +59,15 @@ const Account = () => {
               description={t("account.profile_title", "Profile")}
               onClick={() => navigateToSection("account")}
             />
-            <AdminSideNavButton
-              active={activeSection === "users"}
-              icon={<Users className="h-4 w-4" />}
-              label={t("admin.users.title")}
-              description={t("admin.users.description")}
-              onClick={() => navigateToSection("users")}
-            />
+            {platformAdmin ? (
+              <AdminSideNavButton
+                active={activeSection === "users"}
+                icon={<Users className="h-4 w-4" />}
+                label={t("admin.users.title")}
+                description={t("admin.users.description")}
+                onClick={() => navigateToSection("users")}
+              />
+            ) : null}
           </AdminSideNav>
         )}
       >

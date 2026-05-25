@@ -309,19 +309,20 @@ const ExecPage = () => {
     }, [location.pathname, location.search, location.state, navigate]);
 
     return (
-        <CommandClipboardProvider>
-            <ExecWorkspace />
-        </CommandClipboardProvider>
+        <ExecWorkspace />
     );
 };
 
 function ExecWorkspace() {
     const { t } = useTranslation();
-    const { hasFeature } = useAccount();
-    const canUseExec = hasFeature("tasks");
+    const { hasFeature, platformAdmin } = useAccount();
+    const canUseExec = platformAdmin && hasFeature("tasks");
+    const canUseScripts = canUseExec || hasFeature("clipboard");
 
     useAdminPageTitle(
-        t("exec.title", { defaultValue: "远程执行" }),
+        canUseExec
+            ? t("exec.title", { defaultValue: "远程执行" })
+            : t("command_clipboard.page_title", { defaultValue: "脚本库" }),
         canUseExec
             ? t("exec.page_description", {
                 defaultValue: "选择目标节点，编写一次性命令或复用脚本库，并在同一工作台追踪执行结果。",
@@ -332,13 +333,15 @@ function ExecWorkspace() {
     );
 
     return (
-        <NodeDetailsProvider enabled={canUseExec}>
-            <ExecContent canUseExec={canUseExec} />
-        </NodeDetailsProvider>
+        <CommandClipboardProvider autoLoad={canUseScripts}>
+            <NodeDetailsProvider enabled={canUseExec}>
+                <ExecContent canUseExec={canUseExec} canUseScripts={canUseScripts} />
+            </NodeDetailsProvider>
+        </CommandClipboardProvider>
     );
 }
 
-const ExecContent = ({ canUseExec }: { canUseExec: boolean }) => {
+const ExecContent = ({ canUseExec, canUseScripts }: { canUseExec: boolean; canUseScripts: boolean }) => {
     const { t } = useTranslation();
     const navigate = useNavigate();
     const location = useLocation();
@@ -967,6 +970,21 @@ const ExecContent = ({ canUseExec }: { canUseExec: boolean }) => {
         );
     }
 
+    if (!canUseScripts) {
+        return (
+            <div className="p-3 sm:p-4 md:p-6">
+                <AdminEmptyState
+                    icon={<Terminal size={18} />}
+                    title={t("exec.no_script_permission_title", { defaultValue: "暂无脚本权限" })}
+                    description={t("exec.no_script_permission_description", {
+                        defaultValue: "当前账号没有脚本库权限，请联系管理员开通后再使用。",
+                    })}
+                    className="min-h-56"
+                />
+            </div>
+        );
+    }
+
     return (
         <>
         <div className="flex min-w-0 flex-col gap-[14px] p-3 sm:p-4 md:p-6">
@@ -1097,7 +1115,13 @@ const ExecContent = ({ canUseExec }: { canUseExec: boolean }) => {
                                             <AdminDataTableCell className="align-top">
                                                 <button
                                                     type="button"
-                                                    onClick={() => setCommand(item.text)}
+                                                    onClick={() => {
+                                                        if (canUseExec) {
+                                                            setCommand(item.text);
+                                                            return;
+                                                        }
+                                                        openEditScriptDialog(item);
+                                                    }}
                                                     className="block max-w-[240px] truncate text-left text-[13px] font-semibold leading-5 text-foreground hover:text-primary"
                                                 >
                                                     {getCommandTitle(
@@ -1129,12 +1153,11 @@ const ExecContent = ({ canUseExec }: { canUseExec: boolean }) => {
                                                                 setCommand(item.text);
                                                                 void executeCommand(item.text);
                                                             },
-                                                        }] : []),
-                                                        {
+                                                        }, {
                                                             label: t("exec.insert_command", { defaultValue: "插入" }),
                                                             icon: <Terminal size={14} />,
                                                             onSelect: () => setCommand(item.text),
-                                                        },
+                                                        }] : []),
                                                         {
                                                             label: t("common.edit", { defaultValue: "编辑" }),
                                                             icon: <PencilLine size={14} />,
@@ -1367,6 +1390,7 @@ const ExecContent = ({ canUseExec }: { canUseExec: boolean }) => {
                         </div>
                     )}
 
+                    {canUseExec ? (
                     <div className="border-t border-border p-[14px]">
                         <div className="overflow-hidden rounded-lg border border-slate-900 bg-slate-950 shadow-none">
                             <div className="flex h-9 items-center justify-between border-b border-white/10 px-3">
@@ -1396,6 +1420,7 @@ const ExecContent = ({ canUseExec }: { canUseExec: boolean }) => {
                             </div>
                         </div>
                     </div>
+                    ) : null}
                 </section>
 
                 {canUseExec && (
