@@ -307,7 +307,7 @@ export type FailoverV2PublicMember = {
 };
 
 export type FailoverV2PublicExecutionSummary = {
-  member_name: string;
+  member_name?: string;
   status: string;
   started_at: string;
   finished_at: string | null;
@@ -321,6 +321,7 @@ export type FailoverV2PublicService = {
   last_checked_at: string | null;
   member_count: number;
   enabled_member_count: number;
+  latest_execution: FailoverV2PublicExecutionSummary | null;
   members: FailoverV2PublicMember[];
   recent_executions: FailoverV2PublicExecutionSummary[];
   created_at: string;
@@ -727,6 +728,7 @@ function normalizePublicService(service: unknown): FailoverV2PublicService {
     last_checked_at: normalizeNullableString(raw.last_checked_at),
     member_count: normalizeNumber(raw.member_count),
     enabled_member_count: normalizeNumber(raw.enabled_member_count),
+    latest_execution: raw.latest_execution ? normalizePublicExecutionSummary(raw.latest_execution) : null,
     members: Array.isArray(raw.members) ? raw.members.map(normalizePublicMember) : [],
     recent_executions: Array.isArray(raw.recent_executions) ? raw.recent_executions.map(normalizePublicExecutionSummary) : [],
     created_at: normalizeString(raw.created_at),

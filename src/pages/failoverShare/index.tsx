@@ -9,7 +9,6 @@ import { Button } from "@/components/ui/button";
 import {
   getPublicFailoverV2Share,
   type FailoverV2PublicExecutionSummary,
-  type FailoverV2PublicMember,
   type FailoverV2PublicShareData,
 } from "@/lib/failoverV2";
 import { getReadableErrorMessage } from "@/lib/apiErrorMessage";
@@ -27,26 +26,33 @@ function formatDateTime(value?: string | null) {
   return date.toLocaleString();
 }
 
-function getMemberAddress(member: FailoverV2PublicMember) {
-  return member.current_address || "-";
-}
-
-function getExecutionMemberName(execution: FailoverV2PublicExecutionSummary) {
-  return execution.member_name || "-";
-}
-
-function ReadOnlyTable({
-  children,
-  className,
+function PublicMetric({
+  label,
+  value,
+  tone = "default",
 }: {
-  children: React.ReactNode;
-  className?: string;
+  label: string;
+  value: React.ReactNode;
+  tone?: "default" | "gray" | "green" | "amber" | "red" | "blue";
 }) {
+  const toneClass = {
+    default: "border-slate-200 bg-slate-50 text-slate-900",
+    gray: "border-slate-200 bg-slate-50 text-slate-900",
+    green: "border-emerald-200 bg-emerald-50 text-emerald-950",
+    amber: "border-amber-200 bg-amber-50 text-amber-950",
+    red: "border-red-200 bg-red-50 text-red-950",
+    blue: "border-blue-200 bg-blue-50 text-blue-950",
+  }[tone];
   return (
-    <div className={cn("overflow-hidden rounded-lg border border-slate-200 bg-white shadow-none", className)}>
-      <div className="overflow-x-auto">{children}</div>
+    <div className={cn("rounded-lg border px-4 py-3", toneClass)}>
+      <div className="text-xs font-medium text-slate-500">{label}</div>
+      <div className="mt-1 break-all text-sm font-semibold">{value || "-"}</div>
     </div>
   );
+}
+
+function getLatestExecution(service: FailoverV2PublicShareData["service"]): FailoverV2PublicExecutionSummary | null {
+  return service.latest_execution || service.recent_executions?.[0] || null;
 }
 
 export default function FailoverSharePage() {
@@ -96,8 +102,7 @@ export default function FailoverSharePage() {
   }, [t]);
 
   const service = share?.service ?? null;
-  const members = service?.members ?? [];
-  const executions = service?.recent_executions ?? [];
+  const latestExecution = service ? getLatestExecution(service) : null;
 
   return (
     <main className="min-h-screen bg-slate-100 text-slate-950">
@@ -122,7 +127,6 @@ export default function FailoverSharePage() {
                 {share?.title || service?.name || t("failover_v2.share.public_title", { defaultValue: "故障切换任务状态" })}
               </h1>
               <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-slate-500">
-                <span>{service?.name || "-"}</span>
                 <span>{t("failover_v2.share.generated_at", { defaultValue: "生成" })}: {formatDateTime(share?.generated_at)}</span>
                 <span>{t("failover_v2.share.expires_at", { defaultValue: "过期" })}: {formatDateTime(share?.expires_at)}</span>
               </div>
@@ -159,8 +163,8 @@ export default function FailoverSharePage() {
           </section>
         ) : service ? (
           <>
-            <section className="rounded-lg border border-slate-200 bg-white px-5 py-4 shadow-none">
-              <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+            <section className="rounded-lg border border-slate-200 bg-white px-5 py-5 shadow-none">
+              <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
                 <div className="min-w-0">
                   <div className="flex flex-wrap items-center gap-2">
                     <span className="truncate text-lg font-semibold text-slate-950">{service.name}</span>
@@ -173,108 +177,62 @@ export default function FailoverSharePage() {
                       {getPublicFailoverStatusLabel(t, service.last_status)}
                     </Badge>
                   </div>
-                  <div className="mt-1 text-sm text-slate-500">
-                    {service.enabled_member_count} {t("common.enabled", { defaultValue: "已启用" })} / {service.member_count} {t("failover_v2.share.members", { defaultValue: "成员" })}
+                  <div className="mt-2 max-w-2xl text-sm leading-6 text-slate-500">
+                    {t("failover_v2.share.public_description", {
+                      defaultValue: "此页面仅展示对外服务状态，详细处理流程仅管理员可见。",
+                    })}
                   </div>
                 </div>
-                <div className="text-sm text-slate-500">
-                  {t("failover_v2.share.last_checked_at", { defaultValue: "最近检查" })}: {formatDateTime(service.last_checked_at)}
+                <Badge color={getPublicFailoverStatusTone(service.last_status)}>
+                  {getPublicFailoverStatusLabel(t, service.last_status)}
+                </Badge>
+              </div>
+
+              <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+                <PublicMetric
+                  label={t("failover_v2.share.service_status", { defaultValue: "服务状态" })}
+                  value={getPublicFailoverStatusLabel(t, service.last_status)}
+                  tone={getPublicFailoverStatusTone(service.last_status)}
+                />
+                <PublicMetric
+                  label={t("failover_v2.share.line_coverage", { defaultValue: "线路覆盖" })}
+                  value={`${service.enabled_member_count}/${service.member_count}`}
+                  tone={service.enabled_member_count > 0 ? "green" : "amber"}
+                />
+                <PublicMetric
+                  label={t("failover_v2.share.last_checked_at", { defaultValue: "最近检查" })}
+                  value={formatDateTime(service.last_checked_at)}
+                />
+                <PublicMetric
+                  label={t("failover_v2.share.last_update", { defaultValue: "最近更新" })}
+                  value={formatDateTime(service.updated_at)}
+                />
+              </div>
+            </section>
+
+            <section className="rounded-lg border border-slate-200 bg-white px-5 py-5 shadow-none">
+              <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                <div>
+                  <div className="text-base font-semibold text-slate-950">
+                    {t("failover_v2.share.latest_result", { defaultValue: "最近处理" })}
+                  </div>
+                  <div className="mt-1 text-sm leading-6 text-slate-600">
+                    {latestExecution
+                      ? getPublicFailoverResultText(t, latestExecution.status)
+                      : t("failover_v2.share.no_recent_result", { defaultValue: "暂无公开处理记录。" })}
+                  </div>
                 </div>
+                {latestExecution ? (
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Badge color={getPublicFailoverStatusTone(latestExecution.status)}>
+                      {getPublicFailoverStatusLabel(t, latestExecution.status)}
+                    </Badge>
+                    <span className="text-sm text-slate-500">
+                      {formatDateTime(latestExecution.finished_at || latestExecution.started_at)}
+                    </span>
+                  </div>
+                ) : null}
               </div>
-            </section>
-
-            <section className="space-y-3">
-              <div className="flex items-center justify-between gap-3">
-                <h2 className="text-base font-semibold text-slate-950">
-                  {t("failover_v2.share.member_status", { defaultValue: "成员状态" })}
-                </h2>
-                <span className="text-sm text-slate-500">{members.length}</span>
-              </div>
-              <ReadOnlyTable>
-                <table className="min-w-full text-sm">
-                  <thead className="bg-slate-50 text-xs uppercase text-slate-500">
-                    <tr>
-                      <th className="px-4 py-3 text-left font-semibold">{t("failover_v2.member", { defaultValue: "成员" })}</th>
-                      <th className="px-4 py-3 text-left font-semibold">{t("failover_v2.workbench.current_outlet", { defaultValue: "当前出口" })}</th>
-                      <th className="px-4 py-3 text-left font-semibold">{t("common.status", { defaultValue: "状态" })}</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-200">
-                    {members.length === 0 ? (
-                      <tr>
-                        <td className="px-4 py-8 text-center text-slate-500" colSpan={3}>
-                          {t("failover_v2.no_members", { defaultValue: "当前还没有成员。" })}
-                        </td>
-                      </tr>
-                    ) : members.map((member) => (
-                      <tr key={member.id} className="align-top">
-                        <td className="px-4 py-3">
-                          <div className="font-semibold text-slate-950">{member.name || `#${member.id}`}</div>
-                        </td>
-                        <td className="px-4 py-3 font-mono text-xs text-slate-700">{getMemberAddress(member)}</td>
-                        <td className="px-4 py-3">
-                          <div className="flex flex-wrap gap-1.5">
-                            <Badge color={member.enabled ? "green" : "gray"}>
-                              {member.enabled
-                                ? t("common.enabled", { defaultValue: "已启用" })
-                                : t("common.disabled", { defaultValue: "停用" })}
-                            </Badge>
-                            <Badge color={getPublicFailoverStatusTone(member.last_status)}>
-                              {getPublicFailoverStatusLabel(t, member.last_status)}
-                            </Badge>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </ReadOnlyTable>
-            </section>
-
-            <section className="space-y-3">
-              <div className="flex items-center justify-between gap-3">
-                <h2 className="text-base font-semibold text-slate-950">
-                  {t("failover_v2.share.recent_executions", { defaultValue: "最近执行" })}
-                </h2>
-                <span className="text-sm text-slate-500">{executions.length}</span>
-              </div>
-              <ReadOnlyTable>
-                <table className="min-w-full text-sm">
-                  <thead className="bg-slate-50 text-xs uppercase text-slate-500">
-                    <tr>
-                      <th className="px-4 py-3 text-left font-semibold">{t("failover_v2.member", { defaultValue: "成员" })}</th>
-                      <th className="px-4 py-3 text-left font-semibold">{t("common.status", { defaultValue: "状态" })}</th>
-                      <th className="px-4 py-3 text-left font-semibold">{t("common.result", { defaultValue: "结果" })}</th>
-                      <th className="px-4 py-3 text-left font-semibold">{t("common.time", { defaultValue: "时间" })}</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-200">
-                    {executions.length === 0 ? (
-                      <tr>
-                        <td className="px-4 py-8 text-center text-slate-500" colSpan={4}>
-                          {t("failover_v2.execution_empty", { defaultValue: "暂无执行记录" })}
-                        </td>
-                      </tr>
-                    ) : executions.map((execution, index) => (
-                      <tr key={`${execution.started_at}-${execution.member_name}-${index}`} className="align-top">
-                        <td className="px-4 py-3 text-slate-600">{getExecutionMemberName(execution)}</td>
-                        <td className="px-4 py-3">
-                          <Badge color={getPublicFailoverStatusTone(execution.status)}>
-                            {getPublicFailoverStatusLabel(t, execution.status)}
-                          </Badge>
-                        </td>
-                        <td className="max-w-lg px-4 py-3 text-slate-600">
-                          {getPublicFailoverResultText(t, execution.status)}
-                        </td>
-                        <td className="px-4 py-3 text-slate-500">
-                          <div>{formatDateTime(execution.started_at)}</div>
-                          <div className="mt-1 text-xs">{formatDateTime(execution.finished_at)}</div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </ReadOnlyTable>
             </section>
           </>
         ) : null}
