@@ -111,7 +111,7 @@ export default function SiteSettings() {
           defaultOpen
         >
           <div className="flex w-full flex-col items-start gap-3">
-            <div className="flex items-center gap-3 rounded-xl border border-slate-200/80 bg-slate-50 px-3 py-2 text-sm dark:border-slate-800 dark:bg-slate-900/35">
+            <div className="flex items-center gap-3 border-t border-slate-200/80 pt-3 text-sm dark:border-slate-800">
               <img
                 src={`/favicon.ico?v=${faviconVersion}`}
                 alt={t("settings.custom.favicon", "Customize Logo and Favicon")}

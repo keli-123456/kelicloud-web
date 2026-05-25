@@ -296,6 +296,37 @@ export type SaveFailoverV2ShareInput = {
   expires_at: string | null;
 };
 
+export type FailoverV2PublicMember = {
+  id: number;
+  name: string;
+  enabled: boolean;
+  current_address: string;
+  last_status: string;
+  created_at: string;
+  updated_at: string;
+};
+
+export type FailoverV2PublicExecutionSummary = {
+  member_name: string;
+  status: string;
+  started_at: string;
+  finished_at: string | null;
+};
+
+export type FailoverV2PublicService = {
+  id: number;
+  name: string;
+  enabled: boolean;
+  last_status: string;
+  last_checked_at: string | null;
+  member_count: number;
+  enabled_member_count: number;
+  members: FailoverV2PublicMember[];
+  recent_executions: FailoverV2PublicExecutionSummary[];
+  created_at: string;
+  updated_at: string;
+};
+
 export type FailoverV2PublicShareData = {
   token: string;
   title: string;
@@ -305,7 +336,7 @@ export type FailoverV2PublicShareData = {
   created_at: string;
   updated_at: string;
   generated_at: string;
-  service: FailoverV2Service;
+  service: FailoverV2PublicService;
 };
 
 function normalizeString(value: unknown) {
@@ -663,6 +694,46 @@ function normalizeService(service: unknown): FailoverV2Service {
   };
 }
 
+function normalizePublicMember(member: unknown): FailoverV2PublicMember {
+  const raw = member && typeof member === "object" ? member as Record<string, unknown> : {};
+  return {
+    id: normalizeNumber(raw.id),
+    name: normalizeString(raw.name),
+    enabled: normalizeBoolean(raw.enabled),
+    current_address: normalizeString(raw.current_address),
+    last_status: normalizeString(raw.last_status),
+    created_at: normalizeString(raw.created_at),
+    updated_at: normalizeString(raw.updated_at),
+  };
+}
+
+function normalizePublicExecutionSummary(execution: unknown): FailoverV2PublicExecutionSummary {
+  const raw = execution && typeof execution === "object" ? execution as Record<string, unknown> : {};
+  return {
+    member_name: normalizeString(raw.member_name),
+    status: normalizeString(raw.status),
+    started_at: normalizeString(raw.started_at),
+    finished_at: normalizeNullableString(raw.finished_at),
+  };
+}
+
+function normalizePublicService(service: unknown): FailoverV2PublicService {
+  const raw = service && typeof service === "object" ? service as Record<string, unknown> : {};
+  return {
+    id: normalizeNumber(raw.id),
+    name: normalizeString(raw.name),
+    enabled: normalizeBoolean(raw.enabled),
+    last_status: normalizeString(raw.last_status),
+    last_checked_at: normalizeNullableString(raw.last_checked_at),
+    member_count: normalizeNumber(raw.member_count),
+    enabled_member_count: normalizeNumber(raw.enabled_member_count),
+    members: Array.isArray(raw.members) ? raw.members.map(normalizePublicMember) : [],
+    recent_executions: Array.isArray(raw.recent_executions) ? raw.recent_executions.map(normalizePublicExecutionSummary) : [],
+    created_at: normalizeString(raw.created_at),
+    updated_at: normalizeString(raw.updated_at),
+  };
+}
+
 function normalizeShareRecord(share: unknown): FailoverV2ShareRecord {
   const raw = share && typeof share === "object" ? share as Record<string, unknown> : {};
   return {
@@ -695,7 +766,7 @@ function normalizePublicShareData(share: unknown): FailoverV2PublicShareData {
     created_at: normalizeString(raw.created_at),
     updated_at: normalizeString(raw.updated_at),
     generated_at: normalizeString(raw.generated_at),
-    service: normalizeService(raw.service),
+    service: normalizePublicService(raw.service),
   };
 }
 

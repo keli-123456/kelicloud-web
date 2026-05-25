@@ -156,7 +156,7 @@ const getCommandEditorHeight = (lineCount: number) =>
     Math.min(260, Math.max(96, lineCount * 20 + 32));
 
 const execPanelClass =
-    "overflow-hidden rounded-xl border border-slate-200/80 bg-white shadow-[0_18px_45px_-34px_rgba(15,23,42,0.65)] dark:border-slate-800/90 dark:bg-slate-950";
+    "overflow-hidden rounded-lg border border-slate-200/80 bg-white shadow-none dark:border-slate-800/90 dark:bg-slate-950";
 
 type ExecStatusTone = "ok" | "warn" | "bad" | "info";
 
@@ -976,7 +976,7 @@ const ExecContent = ({ canUseExec }: { canUseExec: boolean }) => {
             )}>
                 <section className={cn(execPanelClass, "xl:max-h-[calc(100dvh-11rem)] xl:overflow-hidden")}>
                     <div className="flex min-h-[54px] flex-col gap-3 border-b border-border px-[14px] py-3 sm:flex-row sm:items-center sm:justify-between">
-                        <div className="flex w-full rounded-lg border border-slate-200/80 bg-slate-50 p-1 shadow-sm shadow-slate-900/5 dark:border-slate-800 dark:bg-slate-900/35 sm:w-auto">
+                        <div className="flex w-full gap-1 border-b border-slate-200/80 pb-1 dark:border-slate-800 sm:w-auto">
                             <ExecToolbarTab active={activeTab === "library"} onClick={() => setActiveTab("library")}>
                                 {t("command_clipboard.open_library", { defaultValue: "脚本库" })}
                             </ExecToolbarTab>
@@ -1172,7 +1172,7 @@ const ExecContent = ({ canUseExec }: { canUseExec: boolean }) => {
                             <AdminDataTable minWidth={640} className="[&_td]:px-3 [&_th]:px-3">
                                 <thead>
                                     <AdminDataTableHeadRow>
-                    <AdminDataTableHead>任务ID</AdminDataTableHead>
+                    <AdminDataTableHead>{t("exec.table.task_id", { defaultValue: "任务 ID" })}</AdminDataTableHead>
                                         <AdminDataTableHead>{t("exec.table.nodes", { defaultValue: "节点" })}</AdminDataTableHead>
                                         <AdminDataTableHead>{t("exec.table.created_at", { defaultValue: "创建时间" })}</AdminDataTableHead>
                                         <AdminDataTableHead>{t("exec.table.receipts", { defaultValue: "回执" })}</AdminDataTableHead>
@@ -1368,7 +1368,7 @@ const ExecContent = ({ canUseExec }: { canUseExec: boolean }) => {
                     )}
 
                     <div className="border-t border-border p-[14px]">
-                        <div className="overflow-hidden rounded-lg border border-slate-900 bg-slate-950 shadow-sm">
+                        <div className="overflow-hidden rounded-lg border border-slate-900 bg-slate-950 shadow-none">
                             <div className="flex h-9 items-center justify-between border-b border-white/10 px-3">
                                 <div className="flex items-center gap-2 text-[12px] font-semibold text-slate-300">
                                     <Terminal size={13} />
@@ -1486,7 +1486,7 @@ const ExecContent = ({ canUseExec }: { canUseExec: boolean }) => {
                             ) : (
                                 <>
                                     <Play size={16} />
-                                    创建任务
+                                    {t("exec.create_task", { defaultValue: "创建任务" })}
                                 </>
                             )}
                         </Button>
@@ -1499,7 +1499,7 @@ const ExecContent = ({ canUseExec }: { canUseExec: boolean }) => {
                             className="h-9 w-full rounded-md text-[12px]"
                         >
                             <Save size={14} />
-                            保存
+                            {t("save", { defaultValue: "保存" })}
                         </Button>
                     </div>
                 </section>
@@ -1510,7 +1510,7 @@ const ExecContent = ({ canUseExec }: { canUseExec: boolean }) => {
             <section className={cn(execPanelClass, "xl:max-h-[calc(100dvh-11rem)] xl:overflow-y-auto")}>
                 <ExecPanelHead
                     title={t("exec.results", { defaultValue: "执行结果" })}
-                    meta={currentTaskId ? `任务 ${currentTaskId}` : "执行结果"}
+                    meta={currentTaskId ? `${t("exec.task_label", { defaultValue: "任务" })} ${currentTaskId}` : t("exec.results", { defaultValue: "执行结果" })}
                 />
 
                 {resultLoading ? (
@@ -1827,7 +1827,7 @@ function ExecToolbarTab({
             className={cn(
                 "h-7 flex-1 rounded px-3 text-[12px] font-semibold leading-none text-muted-foreground transition-colors sm:flex-none",
                 active
-                    ? "bg-background text-foreground shadow-sm"
+                    ? "bg-background text-foreground"
                     : "hover:bg-background/70 hover:text-foreground",
             )}
         >
@@ -1846,7 +1846,7 @@ function ExecSummaryItem({
     mono?: boolean;
 }) {
     return (
-        <div className="min-w-0 rounded-md border border-border bg-background px-3 py-2">
+        <div className="min-w-0 border-y border-border bg-transparent px-1 py-2">
             <div className="text-[11px] font-semibold leading-4 text-muted-foreground">
                 {label}
             </div>

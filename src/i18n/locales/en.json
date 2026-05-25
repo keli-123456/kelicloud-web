@@ -465,7 +465,7 @@
       "noFilteredNodes": "No nodes match the current filters",
       "noFilteredNodesDescription": "调整搜索关键词后再试，或者清空筛选查看全部节点。",
       "noNodes": "No nodes",
-      "noNodesDescription": "生成 Agent 接入命令并在服务器执行后，节点会自动出现在这里。",
+      "noNodesDescription": "Nodes will appear here after the server is connected.",
       "noResults": "No results",
       "offlineCleanupManageHint": "This runs once per day and deletes every node currently confirmed offline across the panel.",
       "offlineCountBadge": "{{count}} offline",
@@ -608,7 +608,7 @@
       "all_features": "All features",
       "allowed_features": "Allowed features",
       "allowed_features_hint": "Leave all unchecked to allow every feature.",
-      "allowed_features_hint_v2": "Regular users keep only Account and Plan Store by default. Selecting any menu feature also binds the Servers page permission.",
+      "allowed_features_hint_v2": "Regular users keep only Account and Plan Store by default. Access is granted per menu; server management is visible only to platform admins.",
       "auth": "Sign-in",
       "create_failed": "Failed to create user",
       "create_title": "Create user",
@@ -752,7 +752,7 @@
       "tasks": "执行任务"
     },
     "features_label": "功能权限",
-    "feature_dependency_hint": "Cloud providers, DNS, failover, and operations tools automatically include Servers access.",
+    "feature_dependency_hint": "Cloud providers, DNS, failover, and operations tools are granted independently; server management is visible only to platform admins.",
     "feature_group_clear": "Clear group",
     "feature_group_select_all": "Select group",
     "feature_group_selected": "{{selected}}/{{total}} selected",
@@ -1325,7 +1325,7 @@
         "assign_public_ip": "Assign public IPv4 when subnet configuration allows it",
         "associated_elastic_ips": "Attached EIPs",
         "attach_existing": "Attach Existing",
-        "auto_connect_toggle": "Bootstrap kelicloud agent auto-connect",
+        "auto_connect_toggle": "Connect to platform after creation",
         "auto_name": "Auto name",
         "az": "AZ",
         "background_auto_refresh": "Auto refreshes every 15 seconds while pending tasks exist.",
@@ -1603,7 +1603,7 @@
         "auth_ssh": "SSH Public Key",
         "auto_connect_group": "Auto-connect Group",
         "auto_connect_group_placeholder": "Optional. Leave empty to use the default group",
-        "auto_connect_toggle": "Bootstrap kelicloud agent auto-connect",
+        "auto_connect_toggle": "Connect to platform after creation",
         "auto_name": "Auto name",
         "auto_resource_group": "Auto resource group",
         "check": "Check",
@@ -1615,7 +1615,7 @@
         "copy_client_id": "Client ID copied",
         "copy_client_secret": "Client secret copied",
         "create": "Create VM",
-        "create_description": "Create a Linux VM in the current active Azure location. kelicloud will automatically prepare the network stack and bootstrap agent auto-connect.",
+        "create_description": "Create a Linux VM in the current active Azure location and connect it to the platform after creation.",
         "create_location_hint": "Active location: {{location}}",
         "create_name_placeholder": "Leave empty to auto-generate a VM name",
         "create_option": "Create Option",
@@ -2273,7 +2273,12 @@
     "updated_successfully": "Updated successfully",
     "warning": "Warning",
     "weight": "Weight",
-    "yes": "Yes"
+    "yes": "Yes",
+    "completed": "Completed",
+    "exception": "Exception",
+    "not_set": "Not set",
+    "processing": "Processing",
+    "result": "Result"
   },
   "copy": "Copy",
   "copy_success": "Copied!",
@@ -2305,7 +2310,8 @@
       "noNodes": "Please select at least one node.",
       "taskResultLoadFailed": "获取任务结果失败，请稍后重试。",
       "taskSubmitFailed": "执行命令提交失败",
-      "unexpectedTaskResultResponse": "意外的任务结果响应"
+      "unexpectedTaskResultResponse": "意外的任务结果响应",
+      "noTaskPermission": "This account does not have permission to execute tasks."
     },
     "execute": "Remote Exec",
     "executing": "Executing",
@@ -2380,7 +2386,8 @@
       "created_at": "Created at",
       "nodes": "Nodes",
       "receipts": "Receipts",
-      "status": "Status"
+      "status": "Status",
+      "task_id": "Task ID"
     },
     "target_nodes": "Target nodes",
     "task_id_label": "Task ID",
@@ -2392,7 +2399,9 @@
     "title": "Remote Exec",
     "useSavedCommand": "Use",
     "view_results": "View results",
-    "waiting_for_result": "Waiting for task result..."
+    "waiting_for_result": "Waiting for task result...",
+    "script_editor_description": "Save the current command or create a script directly from the execution page. After saving, you stay in the same workspace.",
+    "create_task": "Create task"
   },
   "failover": {
     "action_type": {
@@ -2628,7 +2637,7 @@
       "rr": "Host / RR",
       "script": "Script",
       "script_attached": "Script attached",
-      "script_domain_required_hint": "Agent connection address is not configured yet. Set it in Settings -> Site, otherwise failover-created instances cannot auto-connect back to kelicloud.",
+      "script_domain_required_hint": "The platform connection address is not configured yet. Contact an administrator before using automatic failover creation.",
       "script_missing": "Missing script #{{id}}",
       "script_missing_hint": "This script is no longer in the library, but it will stay in the saved execution order until you remove it.",
       "script_timeout": "Script timeout (s)",
@@ -2682,10 +2691,40 @@
       "vultr_backups_hint": "Enable Vultr backups for the replacement instance.",
       "vultr_ddos_hint": "Request Vultr DDoS protection when it is available for the plan and region.",
       "vultr_ipv6_hint": "Provision a dual-stack Vultr instance when the selected region supports IPv6.",
-      "wait_agent_timeout": "Wait agent timeout (s)",
+      "wait_agent_timeout": "Connection wait time (s)",
       "watch_node": "Watch node",
       "watch_node_placeholder": "Choose a node",
-      "zone_name": "Zone / domain"
+      "zone_name": "Zone / domain",
+      "azure_login_section": "Login and initialization",
+      "azure_login_section_hint": "Set the root password, optional SSH key, and startup script for the replacement outlet.",
+      "configure_scripts": "Configure scripts",
+      "dns_summary_cleanup_note": "Old instance cleanup is independent of DNS switching and runs after DNS succeeds.",
+      "dns_summary_panel_hint": "The right side keeps target records, sync mode, and old-instance cleanup visible while editing.",
+      "dns_summary_policy": "Sync policy",
+      "dns_summary_scheduler_note": "DNS updates enter the unified scheduler to reduce API pressure when DDNS and failover trigger together.",
+      "dns_summary_stack_note": "Dual-stack mode updates A first and syncs AAAA only when the new outlet has IPv6.",
+      "dns_summary_title": "DNS policy preview",
+      "main_summary_hint": "The right side keeps only execution-critical state; the left side edits the form.",
+      "main_summary_nested_note": "Monitoring, DNS, plans, and preflight are split into secondary dialogs so the main form stays compact.",
+      "main_summary_policy": "Editing flow",
+      "main_summary_save_note": "A preflight signature is generated before saving. Expired preflight blocks the save.",
+      "main_summary_task_note": "The main dialog keeps only task identity, DNS summary, plan order, and preflight state.",
+      "main_summary_title": "Task configuration overview",
+      "monitoring_summary_cooldown_note": "Cooldown is the protection interval after one execution, avoiding repeated instance creation during flapping.",
+      "monitoring_summary_hint": "These values decide when switching triggers, when retries pause, and how plans fall back.",
+      "monitoring_summary_policy": "Runtime meaning",
+      "monitoring_summary_retry_note": "When credentials or outlet creation fail, fallback follows retry counts and plan order.",
+      "monitoring_summary_threshold_note": "The failure threshold decides how many consecutive failures trigger failover evaluation.",
+      "monitoring_summary_title": "Monitoring policy preview",
+      "plan_summary_auto_connect": "Auto-connect group",
+      "plan_summary_default_network": "Replacement outlets stay publicly reachable by backend policy; normal editing no longer exposes network details.",
+      "plan_summary_dns_after_success": "DNS switches only after the instance or public IP is ready, reducing early cutover risk.",
+      "plan_summary_hint": "The right side keeps key results for the current plan while the left edits order, credentials, and instance parameters.",
+      "plan_summary_order": "Multiple plans fall back in left-side order; the right side keeps only the current plan result.",
+      "plan_summary_policy": "Execution policy",
+      "plan_summary_title": "Outlet plan preview",
+      "script_timeout_summary": "{{seconds}}s timeout",
+      "scripts_compact_hint": "Optional scripts run in order after the replacement outlet passes checks. Open script configuration to choose, sort, and set timeouts."
     },
     "empty_description": "Create your first task to watch CN connectivity, provision or rebind IPs, optionally run a clipboard script, and switch DNS only when needed.",
     "empty_title": "No failover tasks yet",
@@ -2881,7 +2920,9 @@
       "timeline": "Timeline",
       "timeline_hint": "Each step is persisted by the backend so you can see exactly where a run failed.",
       "title": "Execution details",
-      "trigger_snapshot": "Trigger snapshot"
+      "trigger_snapshot": "Trigger snapshot",
+      "finished": "Finished",
+      "public_description": "View task status, result, and latest update time."
     },
     "messages": {
       "created": "Failover task created",
@@ -2999,7 +3040,8 @@
       "status_not_shared": "未分享",
       "target_task": "任务",
       "title_label": "分享标题",
-      "title_placeholder": "默认使用任务名"
+      "title_placeholder": "默认使用任务名",
+      "available_outlets": "Available standby outlets"
     },
     "stats": {
       "active": "Active",
@@ -3083,7 +3125,8 @@
       "script_pending": "Not run yet",
       "script_status_label": "Script status",
       "uninitialized": "Not initialized",
-      "uninitialized_hint": "Save the task first, then run initialization once to create the first outlet."
+      "uninitialized_hint": "Save the task first, then run initialization once to create the first outlet.",
+      "state_normal": "Running normally"
     },
     "trigger_reason": "触发原因",
     "validation": {
@@ -3101,7 +3144,7 @@
       "plan_provider_entry_required": "Plan {{index}} requires a provider entry",
       "plan_provider_required": "Plan {{index}} requires a cloud provider",
       "plan_required": "At least one failover plan is required",
-      "script_domain_required": "Agent connection address is required for failover auto-connect. Set it in Settings -> Site before saving or running this task.",
+      "script_domain_required": "The platform connection address is required. Contact an administrator before saving or running this task.",
       "task_name_required": "Task name is required",
       "watch_node_required": "Choose a watch node"
     },
@@ -3116,6 +3159,11 @@
       "more_plans": "more plans",
       "tasks": "Task list",
       "tasks_hint": "Scan by task, outlet, DNS, and recent execution status."
+    },
+    "public_result": {
+      "completed": "Processing completed.",
+      "needs_admin": "This run did not complete. Contact an administrator.",
+      "processing": "Processing. Refresh later for the latest status."
     }
   },
   "failover_v2": {
@@ -3682,7 +3730,7 @@
     "validation_warnings": "Validation passed with warnings",
     "vultr_ddos_protection": "DDoS protection",
     "vultr_plan": "Plan",
-    "wait_agent_timeout": "Wait agent timeout",
+    "wait_agent_timeout": "Connection wait time",
     "watch_client": "Current client",
     "watch_client_none": "Leave unbound",
     "watch_client_placeholder": "Choose a client",
@@ -3699,7 +3747,24 @@
       "task_detail": "Main task",
       "task_queue": "Task list",
       "task_queue_hint": "Check task health and recent execution first, then expand a task to see members."
-    }
+    },
+    "dns_lines_member_hint": "Cloudflare records do not use Aliyun routing lines.",
+    "dns_target": "DNS target",
+    "member_summary_dns": "DNS lines",
+    "member_summary_hint": "The right side shows only key results while the left side handles editing. Default network and DNS attach policies are handled by the backend.",
+    "member_summary_policy": "Default policy",
+    "member_summary_title": "Outlet configuration preview",
+    "service_summary_dns_note": "The service manages only the shared DNS target. Individual lines are bound on members.",
+    "service_summary_hint": "The right side keeps service-level DNS, scheduling, and script policies visible while the left side edits fields.",
+    "service_summary_policy": "Service policy",
+    "service_summary_scheduler_note": "The interval controls service-level health checks. Each member still runs based on its own state.",
+    "service_summary_script_note": "Service scripts run in order after the replacement outlet passes checks.",
+    "service_summary_title": "Service configuration preview",
+    "summary_existing_dns_detach": "On trigger, only the selected DNS line is detached. No new cloud instance is created.",
+    "summary_existing_state_safe": "Current outlet state is read from the bound client and can be repaired in runtime fields.",
+    "summary_provider_auto_network": "Cloud instances are public by default, with required traffic allowed by backend policy.",
+    "summary_provider_dns_attach": "DNS is attached only after the instance is ready, avoiding early traffic switching.",
+    "summary_provider_json_advanced": "Uncommon fields are kept in advanced JSON editing and are not needed for daily use."
   },
   "go_to_home": "Go to home",
   "home_title": "kelicloud",
@@ -4143,7 +4208,10 @@
       "telegram_title": "Telegram Configuration",
       "test_description": "Send a test message",
       "test_title": "Send test message",
-      "title": "Notifications"
+      "title": "Notifications",
+      "telegram_only_description": "Telegram is currently the only notification delivery channel.",
+      "test_requires_enabled": "Enable the notification delivery channel first.",
+      "test_requires_telegram_chat_id": "Enter your Telegram chat ID under personal delivery targets first."
     },
     "page_description": "Manage site, node scripts, notifications, and system configuration.",
     "platform_admin_required_description": "This section manages platform-wide system settings. Switch to a platform admin account to edit it.",
@@ -4226,7 +4294,7 @@
       "name": "Site Name",
       "name_description": "Set the name of the site",
       "nav_description": "Site display and platform branding.",
-      "script_domain": "Agent connection address",
+      "script_domain": "Platform connection address",
       "script_domain_description": "Define the connection address for the installation script panel, convenient for users with multiple domains, and it will not affect access to other domains. Cloud pages can fall back to the current domain when left empty, but async failover tasks should set this explicitly.",
       "subtitle": "Site Subtitle",
       "subtitle_description": "Set the short subtitle shown under the public site name.",

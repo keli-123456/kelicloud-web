@@ -62,9 +62,9 @@ const NODE_DIALOG_CONTENT_CLASS =
     ADMIN_FORM_DIALOG_CHROME_CLASS,
   );
 const NODE_DIALOG_SECTION_CLASS =
-  "rounded-xl border border-slate-200/80 bg-slate-50 px-4 py-4 dark:border-slate-800 dark:bg-slate-900/35";
+  "border-t border-slate-200/80 bg-transparent pt-4 dark:border-slate-800";
 const NODE_DIALOG_INFO_CLASS =
-  "rounded-xl border border-slate-200/80 bg-white p-4 shadow-sm shadow-slate-900/5 dark:border-slate-800 dark:bg-slate-950";
+  "border-l-2 border-slate-200/90 bg-transparent py-2 pl-3 dark:border-slate-700";
 
 function buildFormFromRule(rule: ClientPortForwardRule): PortForwardFormState {
   return {
@@ -405,13 +405,13 @@ export function NodePortForwardDialog({
                 </Button>
               </div>
 
-              <div className="max-h-[320px] space-y-2 overflow-y-auto pr-1">
+              <div className="mt-3 max-h-[320px] overflow-y-auto pr-1">
                 {loading ? (
-                  <div className="rounded-lg border border-dashed border-border px-3 py-8 text-center text-sm text-muted-foreground">
+                  <div className="border-y border-dashed border-border px-3 py-8 text-center text-sm text-muted-foreground">
                     {t("admin.nodeTable.portForward.loading", "正在加载端口中转规则...")}
                   </div>
                 ) : rules.length === 0 ? (
-                  <div className="rounded-lg border border-dashed border-border px-3 py-8 text-center text-sm text-muted-foreground">
+                  <div className="border-y border-dashed border-border px-3 py-8 text-center text-sm text-muted-foreground">
                     {t("admin.nodeTable.portForward.empty", "还没有端口中转规则")}
                   </div>
                 ) : (
@@ -420,10 +420,10 @@ export function NodePortForwardDialog({
                       key={rule.id}
                       type="button"
                       className={[
-                        "w-full rounded-lg border px-3 py-2.5 text-left transition-colors",
+                        "w-full border-b px-1 py-3 text-left transition-colors",
                         rule.id === form.id
                           ? "border-primary/45 bg-primary/5"
-                          : "border-border/70 bg-background hover:border-primary/25 hover:bg-muted/35",
+                          : "border-border/70 bg-transparent hover:bg-muted/35",
                       ].join(" ")}
                       onClick={() => setForm(buildFormFromRule(rule))}
                     >
@@ -439,7 +439,7 @@ export function NodePortForwardDialog({
                         </Badge>
                       </div>
                       {rule.last_error ? (
-                        <div className="mt-2 truncate rounded-md border border-red-200 bg-red-50 px-2 py-1 text-xs text-red-700 dark:border-red-900/50 dark:bg-red-950/40 dark:text-red-200">
+                        <div className="mt-2 truncate border-l-2 border-red-300 py-1 pl-2 text-xs text-red-700 dark:border-red-800 dark:text-red-200">
                           {rule.last_error}
                         </div>
                       ) : null}
@@ -473,7 +473,7 @@ export function NodePortForwardDialog({
             </div>
 
             {error ? (
-              <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-900/50 dark:bg-red-950/40 dark:text-red-200">
+              <div className="border-l-2 border-red-300 py-2 pl-3 text-sm text-red-700 dark:border-red-800 dark:text-red-200">
                 {error}
               </div>
             ) : null}
@@ -546,7 +546,7 @@ export function NodePortForwardDialog({
                 />
               </Flex>
 
-              <div className="flex items-center justify-between gap-3 rounded-xl border border-slate-200/80 bg-white px-3 py-2.5 shadow-sm shadow-slate-900/5 dark:border-slate-800 dark:bg-slate-950">
+              <div className="flex items-center justify-between gap-3 border-l-2 border-slate-200/90 py-2 pl-3 dark:border-slate-700">
                 <div>
                   <div className="text-sm font-semibold">
                     {t("admin.nodeTable.portForward.enabled", "启用规则")}

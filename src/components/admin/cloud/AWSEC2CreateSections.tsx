@@ -241,7 +241,7 @@ export function EC2CreateBootstrapSection({
                 setForm((previous) => ({ ...previous, auto_connect: Boolean(checked) }))
               }
             />
-            {t("cloud.providers.aws.auto_connect_toggle", "Bootstrap kelicloud agent auto-connect")}
+            {t("cloud.providers.aws.auto_connect_toggle", "创建后自动接入平台")}
           </label>
           {form.auto_connect ? (
             <>

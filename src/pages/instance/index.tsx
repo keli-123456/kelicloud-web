@@ -68,7 +68,7 @@ export default function InstancePage() {
 
   return (
     <div className="mx-auto flex w-full max-w-7xl flex-col gap-5 px-4 py-5 md:px-6 md:py-6">
-      <Card className="rounded-xl border-border/70 shadow-none">
+      <Card className="rounded-lg border-border/70 shadow-none">
         <CardHeader className="gap-5">
           <div className="flex flex-col gap-5 xl:flex-row xl:items-start xl:justify-between">
             <div className="min-w-0 space-y-3">
@@ -132,7 +132,7 @@ export default function InstancePage() {
         </Alert>
       ) : null}
 
-      <Card className="rounded-xl border-border/70 shadow-none">
+      <Card className="rounded-lg border-border/70 shadow-none">
         <CardHeader className="gap-2">
           <div className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
             {t("instance.details_title")}
@@ -149,7 +149,7 @@ export default function InstancePage() {
         </CardContent>
       </Card>
 
-      <Card className="rounded-xl border-border/70 shadow-none">
+      <Card className="rounded-lg border-border/70 shadow-none">
         <CardHeader className="gap-4">
           <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
             <div className="space-y-2">

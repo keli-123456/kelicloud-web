@@ -107,7 +107,7 @@ export default function FailoverScriptPolicyDialog({
     : t("failover.editor.no_script", { defaultValue: "No script" });
 
   return (
-    <div className={cn("rounded-lg border bg-background p-3", className)}>
+    <div className={cn("border-l-2 border-slate-200 py-2 pl-3 dark:border-slate-800", className)}>
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="min-w-0 space-y-1">
           <div className="flex flex-wrap items-center gap-2">
@@ -150,7 +150,7 @@ export default function FailoverScriptPolicyDialog({
           </DialogHeader>
 
           <div className="grid min-h-0 gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(300px,0.82fr)]">
-            <section className="min-w-0 rounded-lg border">
+            <section className="min-w-0 border-y border-slate-200/80 dark:border-slate-800">
               <div className="flex flex-wrap items-center justify-between gap-2 border-b px-3 py-3">
                 <div className="flex items-center gap-2 text-sm font-medium">
                   <ListChecks className="size-4 text-blue-600" />
@@ -254,7 +254,7 @@ export default function FailoverScriptPolicyDialog({
               </div>
             </section>
 
-            <section className="min-w-0 rounded-lg border">
+            <section className="min-w-0 border-y border-slate-200/80 dark:border-slate-800">
               <div className="space-y-3 border-b px-3 py-3">
                 <div className="text-sm font-medium">
                   {t("failover.editor.available_scripts", {

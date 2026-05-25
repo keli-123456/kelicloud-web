@@ -109,7 +109,7 @@ export function getDefaultAdminPath(account: Account | null) {
   if (!account?.logged_in) {
     return "/admin";
   }
-  if (isAccountFeatureAllowed(account, "clients")) {
+  if (isPlatformAdminAccount(account)) {
     return "/admin";
   }
   if (

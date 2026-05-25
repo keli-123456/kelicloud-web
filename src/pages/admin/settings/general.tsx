@@ -213,7 +213,7 @@ export default function GeneralSettings() {
               <div className="w-full">
                 {geoip_testResult && (
                   <pre
-                    className="max-h-96 w-full overflow-auto whitespace-pre-wrap rounded-xl border border-slate-200/80 bg-slate-50 p-3 text-sm overscroll-contain shadow-sm shadow-slate-900/5 [scrollbar-gutter:stable] dark:border-slate-800 dark:bg-slate-900/35"
+                    className="max-h-96 w-full overflow-auto whitespace-pre-wrap rounded-lg border border-slate-200/80 bg-white p-3 text-sm overscroll-contain shadow-none [scrollbar-gutter:stable] dark:border-slate-800 dark:bg-slate-950"
                   >
                     {geoip_testResult}
                   </pre>

@@ -129,17 +129,23 @@ export default defineConfig(({ mode }) => {
       alias: {
         "@": path.resolve(__dirname, "./src"),
         "void-elements": path.resolve(__dirname, "src/compat/void-elements-shim.ts"),
-        cookie: path.resolve(process.cwd(), "node_modules/cookie/index.js"),
+        cookie: path.resolve(__dirname, "src/compat/cookie-shim.ts"),
         "set-cookie-parser": path.resolve(
-          process.cwd(),
-          "node_modules/set-cookie-parser/lib/set-cookie.js",
+          __dirname,
+          "src/compat/set-cookie-parser-shim.ts",
         ),
       },
     },
     optimizeDeps: {
-      disabled: "dev",
       noDiscovery: true,
-      include: [],
+      include: [
+        "react",
+        "react-dom",
+        "react-dom/client",
+        "react/jsx-runtime",
+        "react/jsx-dev-runtime",
+        "use-sync-external-store/shim",
+      ],
     },
     build: {
       assetsDir: "assets",
@@ -157,7 +163,7 @@ export default defineConfig(({ mode }) => {
   };
 
   if (mode === "development") {
-    const envPath = path.resolve(process.cwd(), ".env.development");
+    const envPath = path.resolve(__dirname, ".env.development");
     if (fs.existsSync(envPath)) {
       const envConfig = dotenv.parse(fs.readFileSync(envPath));
       for (const k in envConfig) {

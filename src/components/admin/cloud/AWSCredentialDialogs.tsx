@@ -55,7 +55,7 @@ function SecretSidePanel({
 }) {
   return (
     <div className="space-y-4">
-      <div className="rounded-xl border border-slate-200/80 bg-white px-4 py-3 shadow-sm shadow-slate-900/5 dark:border-slate-800 dark:bg-slate-950">
+      <div className="border-y border-slate-200/80 bg-transparent py-3 shadow-none dark:border-slate-800">
         <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
           <ShieldCheck className="size-4 text-blue-600" />
           {title}
@@ -113,7 +113,7 @@ export function AWSCredentialSecretDialog({
               )}
             >
               {(credentialSecret.secret.ec2_quota || credentialSecret.secret.ec2_quota_error) ? (
-                <div className="rounded-xl border border-slate-200/80 bg-white px-4 py-3 shadow-sm shadow-slate-900/5 dark:border-slate-800 dark:bg-slate-950">
+                <div className="border-y border-slate-200/80 bg-transparent py-3 shadow-none dark:border-slate-800">
                   <div className="text-xs font-semibold uppercase tracking-normal text-muted-foreground">
                     {t("cloud.providers.aws.ec2_quota", "EC2 配额")}
                   </div>

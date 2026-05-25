@@ -205,7 +205,7 @@ const LoginDialog = ({
     const turnstileReady =
       !turnstileRequired || (turnstileSiteKey !== "" && turnstileToken.trim() !== "");
     const simpleCardClassName =
-      "overflow-hidden rounded-xl border border-slate-200/80 bg-white shadow-sm shadow-slate-900/5 dark:border-slate-800 dark:bg-slate-950";
+      "overflow-hidden rounded-lg border border-slate-200/80 bg-white shadow-none dark:border-slate-800 dark:bg-slate-950";
     const simpleInputClassName =
       "h-11 rounded-lg border-slate-200 bg-white px-3.5 text-sm text-slate-950 shadow-xs placeholder:text-slate-400 focus-visible:ring-2 focus-visible:ring-blue-100 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-50 dark:focus-visible:ring-blue-950/50";
     const defaultInputClassName = "h-10 rounded-md bg-muted/45";
@@ -472,7 +472,7 @@ const LoginDialog = ({
         return (
           <Card className={cn(simpleCardClassName, className)}>
             <CardContent className="px-6 py-6 sm:px-7 sm:py-7">
-              <div className="mx-auto h-12 w-12 rounded-xl bg-slate-100 dark:bg-slate-900" />
+              <div className="mx-auto h-12 w-12 rounded-lg bg-slate-100 dark:bg-slate-900" />
               <div className="mx-auto mt-3 h-4 w-32 rounded bg-slate-100 dark:bg-slate-900" />
               <div className="mt-7 h-11 rounded-lg bg-slate-100 dark:bg-slate-900" />
               <div className="mt-3 h-11 rounded-lg bg-slate-100 dark:bg-slate-900" />
@@ -486,7 +486,7 @@ const LoginDialog = ({
           <Card className={cn("overflow-hidden", className)}>
             <CardHeader className="gap-3 border-b border-border px-5 py-5">
               <div className="flex items-center gap-3">
-                <span className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm shadow-slate-900/5 dark:border-slate-800 dark:bg-slate-900">
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-slate-200 bg-white shadow-none dark:border-slate-800 dark:bg-slate-900">
                   <img
                     src={logoUrl}
                     alt=""
@@ -519,7 +519,7 @@ const LoginDialog = ({
           <Card className={cn(simpleCardClassName, className)}>
             <CardContent className="px-6 py-6 sm:px-7 sm:py-7">
               <div className="flex flex-col items-center text-center">
-                <span className="flex h-12 w-12 items-center justify-center rounded-xl border border-red-100 bg-red-50 text-red-700 dark:border-red-900/60 dark:bg-red-950/30 dark:text-red-200">
+                <span className="flex h-12 w-12 items-center justify-center rounded-lg border border-red-100 bg-red-50 text-red-700 dark:border-red-900/60 dark:bg-red-950/30 dark:text-red-200">
                   <AlertCircle className="h-5 w-5" />
                 </span>
                 <h1 className="mt-3 text-lg font-semibold text-slate-800 dark:text-slate-100">
@@ -771,7 +771,7 @@ const LoginDialog = ({
         <Card className={cn(simpleCardClassName, className)}>
           <CardContent className="px-6 py-6 sm:px-7 sm:py-7">
             <div className="flex flex-col items-center text-center">
-              <span className="flex h-12 w-12 items-center justify-center overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm shadow-slate-900/5 dark:border-slate-800 dark:bg-slate-900">
+              <span className="flex h-12 w-12 items-center justify-center overflow-hidden rounded-lg border border-slate-200 bg-white shadow-none dark:border-slate-800 dark:bg-slate-900">
                 <img
                   src={logoUrl}
                   alt=""
@@ -804,7 +804,7 @@ const LoginDialog = ({
           <CardHeader className="gap-4 border-b border-border px-5 py-5">
             <div className="flex items-start justify-between gap-3">
               <div className="flex min-w-0 items-center gap-3">
-                <span className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm shadow-slate-900/5 dark:border-slate-800 dark:bg-slate-900">
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-slate-200 bg-white shadow-none dark:border-slate-800 dark:bg-slate-900">
                   <img
                     src={logoUrl}
                     alt=""
@@ -849,7 +849,7 @@ const LoginDialog = ({
         </DialogTrigger>
         <DialogContent className="sm:max-w-[440px]">
           <DialogHeader className="gap-3">
-            <div className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm shadow-slate-900/5 dark:border-slate-800 dark:bg-slate-900">
+            <div className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-lg border border-slate-200 bg-white shadow-none dark:border-slate-800 dark:bg-slate-900">
               <img
                 src={logoUrl}
                 alt=""

@@ -20,15 +20,15 @@ import type { SettingsResponse } from "@/lib/api";
 import { buildAgentInstallScriptURL } from "@/lib/installScriptSource";
 
 const NODE_DIALOG_CONTENT_CLASS =
-  "max-h-[90vh] w-[min(96vw,1040px)] overflow-y-auto overscroll-contain rounded-xl border border-slate-200/80 bg-white p-5 shadow-[0_30px_90px_-55px_rgba(15,23,42,0.9)] [scrollbar-gutter:stable] dark:border-slate-800 dark:bg-slate-950";
+  "max-h-[90vh] w-[min(96vw,1040px)] overflow-y-auto overscroll-contain rounded-lg border border-slate-200/80 bg-white p-5 shadow-[0_24px_70px_-50px_rgba(15,23,42,0.72)] [scrollbar-gutter:stable] dark:border-slate-800 dark:bg-slate-950";
 const NODE_DIALOG_SECTION_CLASS =
-  "rounded-xl border border-slate-200/80 bg-slate-50 p-4 shadow-sm shadow-slate-900/5 dark:border-slate-800 dark:bg-slate-900/35";
+  "border-t border-slate-200/80 bg-transparent pt-4 dark:border-slate-800";
 const NODE_DIALOG_HINT_CLASS =
   "text-sm leading-6 text-muted-foreground";
 const NODE_DIALOG_FOOTER_CLASS =
-  "sticky bottom-0 -mx-5 -mb-5 mt-5 flex flex-col-reverse gap-2 border-t border-slate-200/80 bg-white/95 px-5 py-3 backdrop-blur dark:border-slate-800 dark:bg-slate-950/95 sm:flex-row sm:justify-end";
+  "-mx-5 -mb-5 mt-5 flex flex-col-reverse gap-2 border-t border-slate-200/80 bg-white/95 px-5 py-3 dark:border-slate-800 dark:bg-slate-950/95 sm:flex-row sm:justify-end";
 const NODE_INPUT_CLASS =
-  "h-10 rounded-lg border border-slate-200/80 bg-white px-3 text-[14px] shadow-sm shadow-slate-900/5 hover:bg-white dark:border-slate-800 dark:bg-slate-950";
+  "h-10 rounded-lg border border-slate-200/80 bg-white px-3 text-[14px] shadow-none hover:bg-white dark:border-slate-800 dark:bg-slate-950";
 
 type Platform = "linux" | "windows" | "macos";
 
@@ -977,19 +977,18 @@ export default function GenerateCommandDialog({
                   />
                 </div>
               </div>
-
-              <div className={NODE_DIALOG_FOOTER_CLASS}>
-                <Dialog.Close>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="w-full sm:w-auto"
-                  >
-                    {t("close", "Close")}
-                  </Button>
-                </Dialog.Close>
-              </div>
             </div>
+          </div>
+          <div className={NODE_DIALOG_FOOTER_CLASS}>
+            <Dialog.Close>
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full sm:w-auto"
+              >
+                {t("close", "Close")}
+              </Button>
+            </Dialog.Close>
           </div>
         </div>
       </Dialog.Content>

@@ -465,7 +465,7 @@
       "noFilteredNodes": "没有匹配当前筛选条件的节点",
       "noFilteredNodesDescription": "调整搜索关键词后再试，或者清空筛选查看全部节点。",
       "noNodes": "当前没有节点",
-      "noNodesDescription": "生成 Agent 接入命令并在服务器执行后，节点会自动出现在这里。",
+      "noNodesDescription": "完成伺服器接入後，節點會自動出現在這裡。",
       "noResults": "No results",
       "offlineCleanupManageHint": "这个任务每天只会执行一次，会删除整站当前确认离线的节点。",
       "offlineCountBadge": "{{count}} 离线",
@@ -608,7 +608,7 @@
       "all_features": "全部功能",
       "allowed_features": "允許使用的功能",
       "allowed_features_hint": "全部不勾選時代表允許使用所有功能。",
-      "allowed_features_hint_v2": "全部不勾选时使用默认访问。勾选故障切换时会自动附带国内连通性探测权限。",
+      "allowed_features_hint_v2": "普通使用者預設只保留帳戶和套餐商店。這裡按選單授權，伺服器管理僅平台管理員可見。",
       "auth": "登入方式",
       "create_failed": "建立使用者失敗",
       "create_title": "建立使用者",
@@ -752,7 +752,7 @@
       "tasks": "执行任务"
     },
     "features_label": "功能权限",
-    "feature_dependency_hint": "雲廠商、DNS、故障切換和維運工具都會自動綁定伺服器頁面權限。",
+    "feature_dependency_hint": "雲廠商、DNS、故障切換和維運工具按選單獨立授權；伺服器管理僅平台管理員可見。",
     "feature_group_clear": "清空本組",
     "feature_group_select_all": "全選本組",
     "feature_group_selected": "已選 {{selected}}/{{total}}",
@@ -1325,7 +1325,7 @@
         "assign_public_ip": "在子網設定允許時分配公網 IPv4",
         "associated_elastic_ips": "已绑定 EIP",
         "attach_existing": "綁定既有 IP",
-        "auto_connect_toggle": "Bootstrap kelicloud agent auto-connect",
+        "auto_connect_toggle": "建立後自動接入平台",
         "auto_name": "自动命名",
         "az": "可用區",
         "background_auto_refresh": "只要还有待处理任务，这里就会每 15 秒自动刷新一次。",
@@ -1603,7 +1603,7 @@
         "auth_ssh": "SSH 公钥",
         "auto_connect_group": "Auto-connect Group",
         "auto_connect_group_placeholder": "Optional. Leave empty to use the default group",
-        "auto_connect_toggle": "Bootstrap kelicloud agent auto-connect",
+        "auto_connect_toggle": "建立後自動接入平台",
         "auto_name": "自動名稱",
         "auto_resource_group": "自動資源群組",
         "check": "检查",
@@ -1714,7 +1714,7 @@
         "zones": "可用区"
       },
       "digitalocean": {
-        "description": "Manage API tokens, inspect Droplet inventory, and create or operate DigitalOcean instances from one panel.",
+        "description": "管理 DigitalOcean API 權杖、查看 Droplet 實例，並在同一頁面建立或操作實例。",
         "locked_account_help": "DigitalOcean 帳戶已被鎖定，後續健康檢查與實例操作可能會持續失敗。",
         "name": "DigitalOcean",
         "title": "DigitalOcean",
@@ -2159,7 +2159,7 @@
     "search_empty": "沒有符合條件的腳本",
     "search_empty_description": "可以按名称、備註或腳本內容搜尋。",
     "search_placeholder": "依腳本名、備註或內容搜尋",
-    "select_description": "从左侧選擇一条 Clipboard 記錄檢視內容和操作。",
+    "select_description": "從左側選擇一條腳本記錄查看內容和操作。",
     "select_title": "選擇腳本",
     "stats": {
       "total": "已保存腳本",
@@ -2273,7 +2273,12 @@
     "updated_successfully": "成功更新",
     "warning": "警告",
     "weight": "權重",
-    "yes": "是"
+    "yes": "是",
+    "completed": "已完成",
+    "exception": "異常",
+    "not_set": "未設定",
+    "processing": "處理中",
+    "result": "結果"
   },
   "copy": "複製",
   "copy_success": "已複製到剪貼板",
@@ -2290,8 +2295,8 @@
     "commandEditorHint": "常用腳本請在腳本庫頁面統一管理，再對選中節點批量執行。",
     "commandPlaceholder": "whoami",
     "configuration": "執行配置",
-    "current_result_empty_description": "从執行記錄中選擇一个 Task，或建立任務后檢視結果。",
-    "current_result_empty_pending": "这个 Task 还没有返回結果。",
+    "current_result_empty_description": "從執行記錄中選擇一個任務，或建立任務後查看結果。",
+    "current_result_empty_pending": "這個任務還沒有返回結果。",
     "current_result_empty_title": "暂無目前結果",
     "deleteCommandFailed": "删除脚本失败",
     "description": "在選定的節點上遠程執行命令",
@@ -2305,16 +2310,17 @@
       "noNodes": "請至少選擇一個節點",
       "taskResultLoadFailed": "获取任务结果失败，请稍后重试。",
       "taskSubmitFailed": "执行命令提交失败",
-      "unexpectedTaskResultResponse": "意外的任务结果响应"
+      "unexpectedTaskResultResponse": "意外的任务结果响应",
+      "noTaskPermission": "目前帳號沒有執行任務權限"
     },
     "execute": "執行命令",
     "executing": "執行中...",
     "exit_code_label": "退出码",
     "history": "執行記錄",
-    "history_empty_description": "Task 列表为空。",
+    "history_empty_description": "執行列表為空。",
     "history_empty_title": "暂無執行記錄",
     "insert_command": "插入",
-    "library_empty_description": "Clipboard 为空。",
+    "library_empty_description": "腳本庫為空。",
     "library_empty_title": "暂無腳本",
     "node_count": "{{count}} 台",
     "output_label": "Output",
@@ -2341,7 +2347,7 @@
     "savedCommandsHint": "腳本保存在資料庫裡，可供遠端執行與雲實例流程復用。",
     "savedCommandUntitled": "未命名命令",
     "savedCommandUpdated": "已更新保存脚本",
-    "search_history": "搜尋 Task / 節點",
+    "search_history": "搜尋任務 / 節點",
     "search_library": "搜尋腳本 / 備註",
     "search_result": "搜尋節點 / 输出",
     "select_nodes_placeholder": "按分組選擇 · 请選擇節點",
@@ -2380,7 +2386,8 @@
       "created_at": "建立时间",
       "nodes": "節點",
       "receipts": "回执",
-      "status": "狀態"
+      "status": "狀態",
+      "task_id": "任務 ID"
     },
     "target_nodes": "目标節點",
     "task_id_label": "任务 ID",
@@ -2388,11 +2395,13 @@
     "task_preview": "任务预览",
     "taskStarted": "任務已啟動",
     "timeout_policy": "超时策略",
-    "timeout_policy_description": "后端建立 Task，前端轮询 60 秒",
+    "timeout_policy_description": "後端建立任務，前端輪詢 60 秒",
     "title": "遠程執行",
     "useSavedCommand": "使用",
     "view_results": "檢視結果",
-    "waiting_for_result": "等待执行结果..."
+    "waiting_for_result": "等待执行结果...",
+    "script_editor_description": "在執行頁直接儲存目前命令或新增腳本，儲存後會留在目前工作台繼續執行。",
+    "create_task": "建立任務"
   },
   "failover": {
     "action_type": {
@@ -2685,7 +2694,37 @@
       "wait_agent_timeout": "等待 Agent 超时（秒）",
       "watch_node": "监控节点",
       "watch_node_placeholder": "选择一个节点",
-      "zone_name": "Zone / 主域名"
+      "zone_name": "Zone / 主域名",
+      "azure_login_section": "登入與初始化",
+      "azure_login_section_hint": "設定替換出口的 root 密碼、可選 SSH 金鑰和啟動腳本。",
+      "configure_scripts": "配置腳本",
+      "dns_summary_cleanup_note": "舊實例清理策略獨立於 DNS 切換，DNS 成功後再進入清理步驟。",
+      "dns_summary_panel_hint": "右側同步展示目標記錄、同步模式和舊實例清理策略，避免改表單時失去上下文。",
+      "dns_summary_policy": "同步策略",
+      "dns_summary_scheduler_note": "DNS 更新會進入統一排程佇列，減少 DDNS 和故障切換同時觸發時的 API 壓力。",
+      "dns_summary_stack_note": "雙棧模式會優先更新 A 記錄，只有新出口有 IPv6 時才同步 AAAA。",
+      "dns_summary_title": "DNS 策略預覽",
+      "main_summary_hint": "右側只保留會影響執行結果的關鍵狀態，左側負責編輯具體表單。",
+      "main_summary_nested_note": "監控、DNS、方案、預檢都拆到二級彈窗，避免主表單變成細長列表。",
+      "main_summary_policy": "編輯節奏",
+      "main_summary_save_note": "儲存前會按目前配置產生預檢簽章，預檢過期時會阻止儲存。",
+      "main_summary_task_note": "主彈窗只保留任務身份、DNS 摘要、方案順序和預檢狀態。",
+      "main_summary_title": "任務配置總覽",
+      "monitoring_summary_cooldown_note": "冷卻時間是一次執行後的保護間隔，避免節點抖動時重複建立實例。",
+      "monitoring_summary_hint": "這些值決定什麼時候觸發切換、什麼時候暫停重試，以及方案如何回退。",
+      "monitoring_summary_policy": "執行含義",
+      "monitoring_summary_retry_note": "憑證或出口建立失敗時，會按重試次數和方案順序回退。",
+      "monitoring_summary_threshold_note": "失敗閾值決定連續異常多少次後進入故障切換判斷。",
+      "monitoring_summary_title": "監控策略預覽",
+      "plan_summary_auto_connect": "自動接入分組",
+      "plan_summary_default_network": "出口建立預設按後端策略保持公網可達，普通編輯不再暴露網路細節。",
+      "plan_summary_dns_after_success": "DNS 會在實例或公網 IP 準備完成後再切換，降低提前切流風險。",
+      "plan_summary_hint": "右側固定展示目前方案的關鍵結果，左側負責修改順序、憑證和實例參數。",
+      "plan_summary_order": "多方案按左側順序回退，右側只保留目前方案的關鍵結果。",
+      "plan_summary_policy": "執行策略",
+      "plan_summary_title": "出口方案預覽",
+      "script_timeout_summary": "{{seconds}} 秒逾時",
+      "scripts_compact_hint": "可選腳本會在替換出口通過檢查後按順序執行。點擊配置腳本再選擇、排序和設定逾時。"
     },
     "empty_description": "创建第一个任务，监控中国大陆连通性，执行云修复方案，可选运行脚本，并在需要时再切换 DNS。",
     "empty_title": "还没有故障切换任务",
@@ -2881,7 +2920,9 @@
       "timeline": "时间线",
       "timeline_hint": "后端会持久化每个步骤，方便准确定位失败位置。",
       "title": "执行详情",
-      "trigger_snapshot": "触发快照"
+      "trigger_snapshot": "触发快照",
+      "finished": "結束時間",
+      "public_description": "查看任務狀態、處理結果和最近更新時間。"
     },
     "messages": {
       "created": "故障切换任务已创建",
@@ -2999,7 +3040,8 @@
       "status_not_shared": "未分享",
       "target_task": "任务",
       "title_label": "分享标题",
-      "title_placeholder": "默认使用任务名"
+      "title_placeholder": "默认使用任务名",
+      "available_outlets": "可用備用出口"
     },
     "stats": {
       "active": "运行中",
@@ -3083,7 +3125,8 @@
       "script_pending": "未执行",
       "script_status_label": "脚本状态",
       "uninitialized": "未初始化",
-      "uninitialized_hint": "先保存任务，再执行一次初始化来创建首个出口。"
+      "uninitialized_hint": "先保存任务，再执行一次初始化来创建首个出口。",
+      "state_normal": "運行正常"
     },
     "trigger_reason": "触发原因",
     "validation": {
@@ -3116,6 +3159,11 @@
       "more_plans": "更多方案",
       "tasks": "任務列表",
       "tasks_hint": "按任務、出口、DNS 与最近執行狀態快速扫描。"
+    },
+    "public_result": {
+      "completed": "處理完成。",
+      "needs_admin": "本次處理未完成，請聯絡管理員處理。",
+      "processing": "正在處理，請稍後重新整理查看最新狀態。"
     }
   },
   "failover_v2": {
@@ -3699,7 +3747,24 @@
       "task_detail": "主任務",
       "task_queue": "任務列表",
       "task_queue_hint": "先看任務健康和最近執行，点击任務展开子成員。"
-    }
+    },
+    "dns_lines_member_hint": "Cloudflare 記錄不使用阿里雲線路。",
+    "dns_target": "DNS 目標",
+    "member_summary_dns": "DNS 線路",
+    "member_summary_hint": "右側只看關鍵結果，左側負責編輯。預設網路與 DNS 掛載策略由後端統一處理。",
+    "member_summary_policy": "預設策略",
+    "member_summary_title": "出口配置預覽",
+    "service_summary_dns_note": "服務只管理共用 DNS 目標，具體線路會在成員裡綁定。",
+    "service_summary_hint": "右側固定展示服務級 DNS、排程和腳本策略，左側負責編輯具體欄位。",
+    "service_summary_policy": "服務策略",
+    "service_summary_scheduler_note": "排程間隔決定服務級健康巡檢頻率，成員執行仍按自己的狀態判斷。",
+    "service_summary_script_note": "服務腳本會在替換出口通過檢查後按順序執行。",
+    "service_summary_title": "服務配置預覽",
+    "summary_existing_dns_detach": "觸發時只摘除所選 DNS 線路，不建立新雲端實例。",
+    "summary_existing_state_safe": "目前出口狀態從已綁定用戶端讀取，可在執行態欄位中修復。",
+    "summary_provider_auto_network": "雲端實例預設公網可達，並按後端策略放行必要網路。",
+    "summary_provider_dns_attach": "實例建立成功後再掛載 DNS，避免提前切流。",
+    "summary_provider_json_advanced": "不常用欄位已收進 JSON 進階編輯，日常無需處理。"
   },
   "go_to_home": "回到首頁",
   "home_title": "kelicloud",
@@ -4143,7 +4208,10 @@
       "telegram_title": "Telegram 配置",
       "test_description": "發送測試消息",
       "test_title": "發送測試消息",
-      "title": "通知"
+      "title": "通知",
+      "telegram_only_description": "目前僅保留 Telegram 作為通知發送通道。",
+      "test_requires_enabled": "請先啟用通知發送通道。",
+      "test_requires_telegram_chat_id": "請先在個人接收目標裡填寫 Telegram 聊天 ID。"
     },
     "page_description": "集中管理站點、節點腳本、通知和系統設定。",
     "platform_admin_required_description": "這裡管理的是整個平台共用的系統設定，請切換到平台管理員帳號後再編輯。",

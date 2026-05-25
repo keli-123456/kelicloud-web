@@ -116,15 +116,7 @@ const NodeDisplay: React.FC<NodeDisplayProps> = ({ nodes, liveData }) => {
 
   return (
     <div className="w-full space-y-4">
-      <div className="relative mx-4 overflow-hidden rounded-[28px] border border-border/60 bg-background/90 p-4 shadow-[0_20px_60px_-40px_rgba(15,23,42,0.55)]">
-        <div
-          className="pointer-events-none absolute inset-y-0 right-0 w-48 opacity-35"
-          style={{
-            background:
-              "radial-gradient(circle at top right, var(--accent-a8), transparent 60%)",
-          }}
-        />
-
+      <div className="relative mx-4 overflow-hidden rounded-lg border border-border/60 bg-background/90 p-4 shadow-none">
         <div className="relative flex flex-col gap-4">
           <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
             <div className="space-y-3">
@@ -174,7 +166,7 @@ const NodeDisplay: React.FC<NodeDisplayProps> = ({ nodes, liveData }) => {
                   })}
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="search-box min-w-32 rounded-full border-border/60 bg-background/90 pr-20 pl-9 shadow-sm"
+                  className="search-box min-w-32 rounded-full border-border/60 bg-background/90 pr-20 pl-9 shadow-none"
                 />
                 <span className="pointer-events-none absolute right-11 top-1/2 -translate-y-1/2 rounded-full border border-border/60 bg-muted/70 px-2 py-0.5 text-[11px] text-muted-foreground">
                   /
@@ -292,7 +284,7 @@ const NodeDisplay: React.FC<NodeDisplayProps> = ({ nodes, liveData }) => {
       </div>
 
       {filteredNodes.length === 0 ? (
-        <div className="mx-4 rounded-[28px] border border-dashed border-border/70 bg-background/70 px-6 py-16 text-center">
+        <div className="mx-4 rounded-lg border border-dashed border-border/70 bg-background/70 px-6 py-16 text-center">
           <span className="mb-2 block text-xl text-muted-foreground">
             {searchTerm.trim()
               ? t("search.no_results", { defaultValue: "未找到匹配的节点" })

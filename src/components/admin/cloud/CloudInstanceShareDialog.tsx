@@ -121,18 +121,18 @@ function PolicyOption({
       type="button"
       onClick={onClick}
       className={cn(
-        "flex min-w-0 flex-1 items-start gap-3 rounded-lg border px-4 py-3 text-left transition-colors",
+        "flex min-w-0 flex-1 items-start gap-3 border-l-2 px-3 py-2.5 text-left transition-colors",
         active
-          ? "border-blue-300 bg-blue-50 text-blue-950 shadow-sm shadow-blue-950/5 dark:border-blue-800/70 dark:bg-blue-950/30 dark:text-blue-50"
-          : "border-border bg-card text-foreground hover:bg-muted/60",
+          ? "border-blue-500 bg-blue-50/70 text-blue-950 shadow-none dark:border-blue-500 dark:bg-blue-950/20 dark:text-blue-50"
+          : "border-slate-200 bg-transparent text-foreground hover:bg-muted/40 dark:border-slate-800",
       )}
     >
       <span
         className={cn(
-          "mt-0.5 inline-flex size-8 shrink-0 items-center justify-center rounded-lg border",
+          "mt-0.5 inline-flex size-8 shrink-0 items-center justify-center rounded-md",
           active
-            ? "border-blue-200 bg-white text-blue-700 dark:border-blue-800 dark:bg-blue-950/70 dark:text-blue-300"
-            : "border-border bg-muted text-muted-foreground",
+            ? "bg-blue-100 text-blue-700 dark:bg-blue-950/70 dark:text-blue-300"
+            : "bg-muted text-muted-foreground",
         )}
       >
         {icon}
@@ -165,15 +165,15 @@ function ShareOptionRow({
   return (
     <label
       className={cn(
-        "flex min-w-0 items-start gap-3 rounded-lg border px-4 py-3 transition-colors",
+        "flex min-w-0 items-start gap-3 border-l-2 px-3 py-2.5 transition-colors",
         disabled
-          ? "border-dashed border-border bg-muted/25 text-muted-foreground"
+          ? "border-slate-200 bg-muted/20 text-muted-foreground dark:border-slate-800"
           : checked
-            ? "border-blue-200 bg-blue-50/70 dark:border-blue-900/60 dark:bg-blue-950/20"
-            : "border-border bg-card hover:bg-muted/50",
+            ? "border-blue-500 bg-blue-50/70 dark:border-blue-500 dark:bg-blue-950/20"
+            : "border-slate-200 bg-transparent hover:bg-muted/40 dark:border-slate-800",
       )}
     >
-      <span className="mt-0.5 inline-flex size-8 shrink-0 items-center justify-center rounded-xl border border-slate-200/80 bg-slate-50 text-muted-foreground dark:border-slate-800 dark:bg-slate-900/35">
+      <span className="mt-0.5 inline-flex size-8 shrink-0 items-center justify-center rounded-md bg-slate-100 text-muted-foreground dark:bg-slate-900/55">
         {icon}
       </span>
       <span className="min-w-0 flex-1">
@@ -234,7 +234,7 @@ export default function CloudInstanceShareDialog({
           "gap-0 overflow-hidden p-0 sm:max-w-5xl md:p-0",
         )}
       >
-        <div className="border-b border-border bg-card px-5 py-4">
+        <div className="border-b border-border bg-transparent px-5 py-4">
           <DialogHeader className="space-y-2">
             <div className="flex min-w-0 flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
               <div className="min-w-0">
@@ -266,7 +266,7 @@ export default function CloudInstanceShareDialog({
           <>
             <div className="grid min-h-0 flex-1 gap-0 overflow-hidden lg:grid-cols-[minmax(0,1fr)_360px]">
               <div className="min-w-0 space-y-5 overflow-y-auto px-5 py-5 [scrollbar-gutter:stable]">
-                <div className="rounded-xl border border-slate-200/80 bg-slate-50 px-4 py-4 dark:border-slate-800 dark:bg-slate-900/35">
+                <div className="border-b border-slate-200/80 pb-4 dark:border-slate-800">
                   <div className="flex min-w-0 items-start justify-between gap-4">
                     <div className="min-w-0">
                       <div className="text-xs font-semibold uppercase tracking-normal text-muted-foreground">
@@ -276,7 +276,7 @@ export default function CloudInstanceShareDialog({
                         {target.resourceName}
                       </div>
                     </div>
-                    <span className="inline-flex size-10 shrink-0 items-center justify-center rounded-lg bg-blue-600 text-white shadow-sm shadow-blue-950/15">
+                    <span className="inline-flex size-10 shrink-0 items-center justify-center rounded-lg bg-blue-600 text-white shadow-none">
                       <Share2 className="size-4" />
                     </span>
                   </div>
@@ -284,17 +284,14 @@ export default function CloudInstanceShareDialog({
                     <CloudDetailItem
                       label={t("cloud.tokens.table.account", "Account")}
                       value={target.credentialName || "-"}
-                      className="bg-card"
                     />
                     <CloudDetailItem
                       label={t("cloud.table.region", "Region")}
                       value={target.region || "-"}
-                      className="bg-card"
                     />
                     <CloudDetailItem
                       label={t("cloud.table.ip", "Public IP")}
                       value={target.primaryAddress || "-"}
-                      className="bg-card"
                     />
                   </div>
                 </div>
@@ -405,8 +402,8 @@ export default function CloudInstanceShareDialog({
                 </div>
               </div>
 
-              <aside className="min-w-0 border-t border-border bg-muted/25 px-5 py-5 lg:border-l lg:border-t-0">
-                <div className={cn("rounded-lg border px-4 py-4", getSharePanelClassName(shareStatus))}>
+              <aside className="min-w-0 border-t border-border bg-transparent px-5 py-5 lg:border-l lg:border-t-0">
+                <div className={cn("border-l-2 px-3 py-2.5", getSharePanelClassName(shareStatus))}>
                   <div className="flex items-center justify-between gap-3">
                     <div className="min-w-0">
                       <div className="text-sm font-semibold text-foreground">
@@ -418,7 +415,7 @@ export default function CloudInstanceShareDialog({
                         {shareStatusLabel}
                       </div>
                     </div>
-                    <span className="inline-flex size-9 shrink-0 items-center justify-center rounded-xl border border-slate-200/80 bg-white text-muted-foreground dark:border-slate-800 dark:bg-slate-950">
+                    <span className="inline-flex size-9 shrink-0 items-center justify-center rounded-md bg-white text-muted-foreground dark:bg-slate-950">
                       <Link2 className="size-4" />
                     </span>
                   </div>
@@ -453,28 +450,24 @@ export default function CloudInstanceShareDialog({
                   <CloudDetailItem
                     label={t("cloud.share.access_count", "Access Count")}
                     value={String(share?.access_count || 0)}
-                    className="bg-card"
                   />
                   <CloudDetailItem
                     label={t("cloud.share.last_accessed_at", "Last Accessed")}
                     value={formatShareDate(share?.last_accessed_at)}
-                    className="bg-card"
                   />
                   <CloudDetailItem
                     label={t("cloud.share.consumed_at", "Consumed At")}
                     value={formatShareDate(share?.consumed_at)}
-                    className="bg-card"
                   />
                   <CloudDetailItem
                     label={t("cloud.share.expires_at", "Expires At")}
                     value={share?.expires_at
                       ? formatShareDate(share.expires_at)
                       : t("cloud.share.never_expires", "Never")}
-                    className="bg-card"
                   />
                 </div>
 
-                <div className="mt-4 rounded-xl border border-slate-200/80 bg-white px-4 py-3 shadow-sm shadow-slate-900/5 dark:border-slate-800 dark:bg-slate-950">
+                <div className="mt-4 border-t border-slate-200/80 pt-3 dark:border-slate-800">
                   <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
                     <Clock3 className="size-4 text-muted-foreground" />
                     {t("cloud.share.lifecycle", "Lifecycle")}
@@ -488,7 +481,7 @@ export default function CloudInstanceShareDialog({
               </aside>
             </div>
 
-            <DialogFooter className="border-t border-border bg-card px-5 py-4">
+            <DialogFooter className="border-t border-border bg-transparent px-5 py-4">
               {share?.token ? (
                 <Button
                   variant="destructive"

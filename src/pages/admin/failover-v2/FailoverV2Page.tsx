@@ -1,7 +1,7 @@
 import React from "react";
 import type { TFunction } from "i18next";
-import { Navigate, useNavigate, useSearchParams } from "react-router-dom";
-import { Check, ChevronDown, ChevronUp, LoaderCircle, PencilLine, Play, Plus, RefreshCw, Share2, Trash2, X } from "lucide-react";
+import { Navigate, useSearchParams } from "react-router-dom";
+import { Check, ChevronDown, ChevronUp, LoaderCircle, MoreHorizontal, PencilLine, Play, Plus, RefreshCw, Share2, Trash2, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
@@ -58,6 +58,12 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Badge as InlineBadge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -75,6 +81,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { getDefaultAdminPath, type AccountFeature, useAccount } from "@/contexts/AccountContext";
 import { updateSettingsWithToast, useSettings } from "@/lib/api";
+import {
+  getPublicFailoverResultText,
+} from "@/lib/failoverPublicView";
 import {
   getCloudProviderEntries,
   getDigitalOceanTokens,
@@ -330,7 +339,7 @@ function MemberModeOption({
       value={value}
       className={cn(
         "h-9 rounded-md px-3 text-sm font-medium",
-        "data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm",
+        "data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-none",
       )}
     >
       <span>{title}</span>
@@ -425,7 +434,7 @@ function MemberDNSLinesEditor({
           </Button>
         </div>
 
-        <div className="rounded-lg border border-dashed bg-muted/20 p-3">
+        <div className="border-y border-dashed border-slate-200/80 py-3 dark:border-slate-800/80">
           {lines.length > 0 ? (
             <div className="flex flex-wrap gap-2">
               {lines.map((line) => (
@@ -1464,10 +1473,6 @@ function getMemberProbeBadgeLabel(
   };
 }
 
-function getMemberHealthMessage(member: FailoverV2Member) {
-  return member.probe?.message || "";
-}
-
 function findLatestMemberExecutionSummary(service: FailoverV2Service, memberID: number) {
   let latestExecution: FailoverV2ExecutionSummary | null = null;
   let latestStartedAt = -1;
@@ -2032,7 +2037,7 @@ function buildServiceInput(t: TFunction, formState: ServiceFormState): FailoverV
     dns_payload: parseJsonField(t, formState.dns_payload, {}, t("failover_v2.dns_payload", { defaultValue: "DNS payload" })),
     script_clipboard_ids: Array.from(new Set(formState.script_clipboard_ids.filter((id) => Number.isFinite(id) && id > 0))),
     script_timeout_sec: parseNumberField(t, formState.script_timeout_sec, t("failover_v2.script_timeout", { defaultValue: "Script timeout" }), 600, { min: 1 }),
-    wait_agent_timeout_sec: parseNumberField(t, formState.wait_agent_timeout_sec, t("failover_v2.wait_agent_timeout", { defaultValue: "Wait agent timeout" }), 600, { min: 1 }),
+    wait_agent_timeout_sec: parseNumberField(t, formState.wait_agent_timeout_sec, t("failover_v2.wait_agent_timeout", { defaultValue: "接入等待时间" }), 600, { min: 1 }),
     check_interval_seconds: parseNumberField(t, formState.check_interval_seconds, t("failover_v2.check_interval", { defaultValue: "Check interval" }), 60, { min: 60 }),
     delete_strategy: FAILOVER_V2_DEFAULT_DELETE_STRATEGY,
     delete_delay_seconds: FAILOVER_V2_DEFAULT_DELETE_DELAY_SECONDS,
@@ -2704,7 +2709,6 @@ function parseServiceDNSPayload(provider: string, payload: unknown) {
 
 export default function FailoverV2Page() {
   const { t } = useTranslation();
-  const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { account, hasFeature, loading, platformAdmin } = useAccount();
   const systemState = useSettings("system", { enabled: platformAdmin });
@@ -4504,44 +4508,38 @@ export default function FailoverV2Page() {
         })}
         contentClassName="gap-3"
       >
-        <AdminSurface>
-          <div className="flex flex-wrap items-center justify-end gap-2">
-              {platformAdmin ? (
-                <div className="flex shrink-0 items-center justify-between gap-3 rounded-full border border-slate-200 bg-slate-50/80 px-3 py-2 dark:border-slate-700 dark:bg-slate-900/60">
-                  <div className="flex items-center gap-2 text-sm font-semibold text-slate-900 dark:text-slate-50">
-                    <span>{t("failover_v2.scheduler.title", { defaultValue: "Automatic Scheduler" })}</span>
-                    <Badge color={schedulerEnabled ? "green" : "amber"}>
-                      {schedulerEnabled
-                        ? t("failover_v2.scheduler.enabled", { defaultValue: "Enabled" })
-                        : t("failover_v2.scheduler.disabled", { defaultValue: "Disabled" })}
-                    </Badge>
-                  </div>
-                  <Switch
-                    checked={schedulerEnabled}
-                    disabled={schedulerEnableBusy || systemState.loading}
-                    onCheckedChange={(checked) => {
-                      handleRequestToggleScheduler(checked);
-                    }}
-                  />
-                </div>
-              ) : null}
-              <Button size="sm" variant="outline" onClick={() => void loadServices()} disabled={loadingServices}>
-                <RefreshCw className="mr-2 size-4" />
-                {t("common.refresh", { defaultValue: "Refresh" })}
-              </Button>
-              <Button size="sm" variant="outline" onClick={openCreateServiceDialog}>
-                <Plus className="mr-2 size-4" />
-                {t("failover_v2.create_service", { defaultValue: "Create service" })}
-              </Button>
-              <Button size="sm" variant="outline" onClick={() => navigate("/admin/failover")}>
-                {t("failover_v2.open_v1", { defaultValue: "Open V1" })}
-              </Button>
+        {platformAdmin ? (
+          <div className="flex items-center justify-between gap-3 rounded-lg border border-slate-200/80 bg-white px-4 py-3 shadow-[0_18px_45px_-42px_rgba(15,23,42,0.75)] dark:border-slate-800/90 dark:bg-slate-950">
+            <div className="min-w-0">
+              <div className="text-sm font-semibold text-slate-900 dark:text-slate-50">
+                {t("failover_v2.scheduler.title", { defaultValue: "Automatic Scheduler" })}
+              </div>
+              <div className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                {schedulerEnabled
+                  ? t("failover_v2.scheduler.enabled_hint", { defaultValue: "调度器正在统一巡检 V2 任务。" })
+                  : t("failover_v2.scheduler.disabled_hint", { defaultValue: "启用后由调度器统一巡检 V2 任务。" })}
+              </div>
+            </div>
+            <div className="flex shrink-0 items-center gap-3">
+              <Badge color={schedulerEnabled ? "green" : "amber"}>
+                {schedulerEnabled
+                  ? t("failover_v2.scheduler.enabled", { defaultValue: "Enabled" })
+                  : t("failover_v2.scheduler.disabled", { defaultValue: "Disabled" })}
+              </Badge>
+              <Switch
+                checked={schedulerEnabled}
+                disabled={schedulerEnableBusy || systemState.loading}
+                onCheckedChange={(checked) => {
+                  handleRequestToggleScheduler(checked);
+                }}
+              />
+            </div>
           </div>
-        </AdminSurface>
+        ) : null}
 
         {error ? (
           <AdminSurface>
-            <div className="rounded-lg border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900/70 dark:bg-red-950/20 dark:text-red-300">
+            <div className="border-l-2 border-red-300 bg-red-50/70 px-3 py-2 text-sm text-red-700 dark:border-red-800 dark:bg-red-950/20 dark:text-red-300">
               {error}
             </div>
           </AdminSurface>
@@ -4549,7 +4547,7 @@ export default function FailoverV2Page() {
 
         {!loadingServices && services.length === 0 ? (
           <AdminSurface>
-            <div className="rounded-lg border border-dashed border-slate-300 bg-white/80 px-5 py-6 dark:border-slate-700 dark:bg-slate-950/50">
+            <div className="border-y border-dashed border-slate-300 bg-transparent py-6 dark:border-slate-700">
               <div className="max-w-2xl space-y-3">
                 <h2 className="text-base font-semibold text-slate-900 dark:text-slate-50">
                   {t("failover_v2.empty_title", { defaultValue: "No V2 services yet" })}
@@ -4570,10 +4568,9 @@ export default function FailoverV2Page() {
         ) : null}
 
         {!loadingServices && services.length > 0 ? (
-          <div className="grid min-w-0 gap-3 xl:grid-cols-[minmax(0,1fr)_380px]">
-            <AdminSurface>
-              <div className="overflow-hidden rounded-lg border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-950/70">
-              <div className="flex min-h-[54px] flex-col gap-2 border-b border-slate-200 px-4 py-3 sm:flex-row sm:items-center sm:justify-between dark:border-slate-800">
+          <div className="grid min-w-0 gap-3 xl:grid-cols-[minmax(0,1fr)_390px]">
+            <div className="min-w-0 overflow-hidden rounded-lg border border-slate-200/80 bg-white shadow-[0_18px_45px_-42px_rgba(15,23,42,0.75)] dark:border-slate-800/90 dark:bg-slate-950">
+              <div className="flex min-h-[54px] flex-col gap-2 border-b border-slate-200 bg-slate-50/70 px-4 py-3 sm:flex-row sm:items-center sm:justify-between dark:border-slate-800 dark:bg-slate-900/35">
                 <div className="min-w-0">
                   <h2 className="text-sm font-semibold text-slate-900 dark:text-slate-50">
                     {t("failover_v2.workbench.task_queue", { defaultValue: "任务列表" })}
@@ -4582,20 +4579,22 @@ export default function FailoverV2Page() {
                     {t("failover_v2.workbench.task_queue_hint", { defaultValue: "先看任务健康和最近执行，点击任务展开子成员。" })}
                   </p>
                 </div>
-                <span className="shrink-0 rounded-md bg-slate-50 px-2.5 py-1.5 text-xs text-slate-500 ring-1 ring-slate-200 dark:bg-slate-900/50 dark:text-slate-400 dark:ring-slate-800">
-                  {services.length} {t("failover_v2.workbench.task_count_suffix", { defaultValue: "个任务" })}
-                </span>
+                <div className="flex shrink-0 items-center gap-2">
+                  <span className="rounded-md bg-white px-2.5 py-1.5 text-xs text-slate-500 ring-1 ring-slate-200 dark:bg-slate-950/60 dark:text-slate-400 dark:ring-slate-800">
+                    {services.length} {t("failover_v2.workbench.task_count_suffix", { defaultValue: "个任务" })}
+                  </span>
+                  <Button size="sm" onClick={openCreateServiceDialog}>
+                    <Plus className="size-4" />
+                    {t("failover_v2.create_service", { defaultValue: "Create service" })}
+                  </Button>
+                </div>
               </div>
 
-              <div className="divide-y divide-slate-200/80 dark:divide-slate-800/80">
+              <div className="overflow-x-auto">
+              <div className="min-w-[880px] divide-y divide-slate-200/80 dark:divide-slate-800/80">
                 {servicePagination.pageItems.map((service) => {
                   const expanded = expandedServiceID === service.id;
                   const serviceBusy = isFailoverV2ServiceBusy(service);
-                  const busyTitle = serviceBusy
-                    ? t("failover_v2.active_execution_action_disabled", {
-                      defaultValue: "Actions are disabled while this service has an active execution.",
-                    })
-                    : undefined;
                   const activeExecutionID = findActiveFailoverV2ExecutionID(service.recent_executions);
                   const latestExecution = service.recent_executions.find((execution) => execution.id === activeExecutionID)
                     || service.recent_executions[0]
@@ -4634,6 +4633,14 @@ export default function FailoverV2Page() {
                   const toggleServiceExpanded = () => {
                     setExpandedServiceID(expanded ? null : service.id);
                   };
+                  const serviceMemberSummary = `${t("failover_v2.summary.members", { defaultValue: "Members" })}: ${service.enabled_member_count}/${service.member_count}`;
+                  const serviceDnsSummary = platformAdmin && service.dns_provider
+                    ? `${t("failover_v2.detail_fields.dns", { defaultValue: "DNS" })}: ${formatProviderLabel(service.dns_provider)}`
+                    : null;
+                  const latestExecutionLabel = latestExecution
+                    ? `${platformAdmin ? `#${latestExecution.id} ` : ""}${localizeFailoverV2Status(t, latestExecution.status || "unknown")}`
+                    : t("failover_v2.execution_empty_short", { defaultValue: "暂无执行" });
+                  const nextCheckSummary = `${t("failover_v2.summary.next_check", { defaultValue: "Next check" })}: ${formatServiceNextCheckCountdown(service)}`;
 
                   return (
                     <div
@@ -4654,161 +4661,133 @@ export default function FailoverV2Page() {
                             toggleServiceExpanded();
                           }
                         }}
-                        className="grid cursor-pointer gap-3 px-4 py-3 transition-colors hover:bg-slate-50/80 dark:hover:bg-slate-900/40 lg:grid-cols-[minmax(220px,1.1fr)_minmax(170px,0.7fr)_minmax(190px,0.8fr)_auto] lg:items-center"
+                        className="grid cursor-pointer grid-cols-[minmax(150px,0.9fr)_minmax(180px,1fr)_minmax(220px,1fr)_112px] items-center gap-3 px-3 py-2 transition-colors hover:bg-slate-50/80 dark:hover:bg-slate-900/40"
                       >
                         <div className="min-w-0">
-                          <div className="flex min-w-0 flex-wrap items-center gap-2">
-                            <span className="truncate text-sm font-semibold text-slate-900 dark:text-slate-50" title={service.name}>
+                          <div className="flex min-w-0 items-center gap-2 whitespace-nowrap">
+                            <span className="min-w-0 truncate text-sm font-semibold text-slate-900 dark:text-slate-50" title={service.name}>
                               {service.name}
                             </span>
                             {serviceBusy ? <LoaderCircle className="size-3.5 shrink-0 animate-spin text-sky-500" /> : null}
-                          </div>
-                          <div className="mt-1 flex flex-wrap gap-1.5">
                             <Badge color={serviceHealthColor}>{serviceHealthLabel}</Badge>
-                            <Badge color={getStatusBadgeColor(service.last_status || "unknown")}>
-                              {localizeFailoverV2Status(t, service.last_status || "unknown")}
-                            </Badge>
-                            <Badge color={service.enabled ? "green" : "gray"}>
-                              {service.enabled
-                                ? t("common.enabled", { defaultValue: "Enabled" })
-                                : t("common.disabled", { defaultValue: "Disabled" })}
-                            </Badge>
+                            {!service.enabled ? (
+                              <Badge color="gray">{t("common.disabled", { defaultValue: "Disabled" })}</Badge>
+                            ) : null}
                           </div>
                         </div>
 
-                        <div className="min-w-0 text-xs text-slate-500 dark:text-slate-400">
-                          <div className="truncate text-sm font-medium text-slate-800 dark:text-slate-100">
-                            {service.enabled_member_count} / {service.member_count}
-                          </div>
-                          <div className="mt-1 truncate">
-                            {service.dns_provider ? formatProviderLabel(service.dns_provider) : "-"} / {service.dns_entry_id || "-"}
-                          </div>
-                        </div>
-
-                        <div className="min-w-0">
-                          {latestExecution ? (
-                            <div className="flex flex-wrap items-center gap-1.5">
-                              <Badge color={getStatusBadgeColor(latestExecution.status || "unknown")}>
-                                #{latestExecution.id} {localizeFailoverV2Status(t, latestExecution.status || "unknown")}
-                              </Badge>
-                            </div>
-                          ) : (
-                            <Badge color="gray">
-                              {t("failover_v2.execution_empty_short", { defaultValue: "暂无执行" })}
-                            </Badge>
-                          )}
-                          <div className="mt-1 truncate text-xs text-slate-500 dark:text-slate-400">
-                            {t("failover_v2.summary.next_check", { defaultValue: "Next check" })}: {formatServiceNextCheckCountdown(service)}
-                          </div>
-                        </div>
-
-                        <div className="flex flex-wrap items-center justify-start gap-1.5 lg:justify-end">
-                          <div
-                            className="flex items-center gap-2 rounded-md border border-slate-200 bg-white px-2.5 py-1.5 dark:border-slate-800 dark:bg-slate-950/60"
-                            onClick={(event) => event.stopPropagation()}
-                          >
-                            <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400">
-                              {t("failover_v2.quick_member_toggle_short", { defaultValue: "自动" })}
+                        <div className="flex min-w-0 items-center gap-2 whitespace-nowrap text-xs text-slate-500 dark:text-slate-400">
+                          <span className="shrink-0 font-medium text-slate-800 dark:text-slate-100">
+                            {serviceMemberSummary}
+                          </span>
+                          {serviceDnsSummary ? (
+                            <span className="min-w-0 truncate" title={serviceDnsSummary}>
+                              {serviceDnsSummary}
                             </span>
-                            {togglingServiceID === service.id ? <LoaderCircle className="size-3.5 animate-spin text-slate-400" /> : null}
-                            <Switch
-                              checked={service.enabled}
-                              disabled={serviceBusy || togglingServiceID === service.id}
-                              onCheckedChange={(checked) => {
-                                void handleToggleServiceEnabled(service, checked);
-                              }}
-                            />
-                          </div>
+                          ) : null}
+                        </div>
+
+                        <div className="flex min-w-0 items-center gap-2 whitespace-nowrap">
+                          <Badge color={latestExecution ? getStatusBadgeColor(latestExecution.status || "unknown") : "gray"}>
+                            {latestExecutionLabel}
+                          </Badge>
+                          <span className="min-w-0 truncate text-xs text-slate-500 dark:text-slate-400" title={nextCheckSummary}>
+                            {nextCheckSummary}
+                          </span>
+                        </div>
+
+                        <div className="flex items-center justify-end gap-1 whitespace-nowrap">
                           <Button
                             size="sm"
-                            onClick={(event) => {
-                              event.stopPropagation();
-                              openCreateMemberDialog(service);
-                            }}
-                            disabled={serviceBusy}
-                            title={busyTitle}
-                          >
-                            <Plus className="size-4" />
-                            {t("failover_v2.add_member_short", { defaultValue: "成员" })}
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={(event) => {
-                              event.stopPropagation();
-                              void handleValidateExistingService(service);
-                            }}
-                            disabled={validatingServiceID === service.id}
-                          >
-                            {validatingServiceID === service.id ? <LoaderCircle className="size-4 animate-spin" /> : <Check className="size-4" />}
-                            {t("failover_v2.validate_short", { defaultValue: "校验" })}
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={(event) => {
-                              event.stopPropagation();
-                              openExecutionDialog(service, service.last_execution_id ?? null);
-                            }}
-                          >
-                            <RefreshCw className="size-4" />
-                            {t("failover_v2.execution_history_short", { defaultValue: "记录" })}
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={(event) => {
-                              event.stopPropagation();
-                              openPendingCleanupDialog(service);
-                            }}
-                          >
-                            <RefreshCw className="size-4" />
-                            {t("failover_v2.pending_cleanup_short", { defaultValue: "清理" })}
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={(event) => {
-                              event.stopPropagation();
-                              openShareDialog(service);
-                            }}
-                          >
-                            <Share2 className="size-4" />
-                            {t("failover_v2.share.short", { defaultValue: "分享" })}
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={(event) => {
-                              event.stopPropagation();
-                              openEditServiceDialog(service);
-                            }}
-                            disabled={serviceBusy}
-                            title={busyTitle}
-                          >
-                            <PencilLine className="size-4" />
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="outline"
+                            variant="ghost"
+                            className="h-8 rounded-md px-2.5 text-[12px]"
                             aria-expanded={expanded}
                             onClick={(event) => {
                               event.stopPropagation();
                               toggleServiceExpanded();
                             }}
                           >
-                            {expanded ? <ChevronUp className="mr-2 size-4" /> : <ChevronDown className="mr-2 size-4" />}
-                            {expanded
-                              ? t("failover_v2.workbench.collapse_task", { defaultValue: "收起" })
-                              : t("failover_v2.workbench.expand_task", { defaultValue: "展开" })}
+                            {expanded ? <ChevronUp className="size-3.5" /> : <ChevronDown className="size-3.5" />}
+                            <span>
+                              {expanded
+                                ? t("failover_v2.workbench.collapse_task", { defaultValue: "收起" })
+                                : t("failover_v2.workbench.expand_task", { defaultValue: "展开" })}
+                            </span>
                           </Button>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button
+                                type="button"
+                                size="sm"
+                                variant="ghost"
+                                className="h-8 w-8 rounded-md px-0"
+                                onClick={(event) => event.stopPropagation()}
+                                title={t("common.more_actions", { defaultValue: "More actions" })}
+                                aria-label={t("common.more_actions", { defaultValue: "More actions" })}
+                              >
+                                <MoreHorizontal className="size-3.5" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" onClick={(event) => event.stopPropagation()}>
+                              <DropdownMenuItem
+                                onSelect={() => openCreateMemberDialog(service)}
+                                disabled={serviceBusy}
+                              >
+                                <Plus className="size-4" />
+                                {t("failover_v2.add_member_short", { defaultValue: "成员" })}
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                onSelect={() => { void handleValidateExistingService(service); }}
+                                disabled={validatingServiceID === service.id}
+                              >
+                                {validatingServiceID === service.id ? <LoaderCircle className="size-4 animate-spin" /> : <Check className="size-4" />}
+                                {t("failover_v2.validate_short", { defaultValue: "校验" })}
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onSelect={() => openExecutionDialog(service, service.last_execution_id ?? null)}>
+                                <RefreshCw className="size-4" />
+                                {t("failover_v2.execution_history_short", { defaultValue: "记录" })}
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onSelect={() => openPendingCleanupDialog(service)}>
+                                <RefreshCw className="size-4" />
+                                {t("failover_v2.pending_cleanup_short", { defaultValue: "清理" })}
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onSelect={() => openShareDialog(service)}>
+                                <Share2 className="size-4" />
+                                {t("failover_v2.share.short", { defaultValue: "分享" })}
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                onSelect={() => openEditServiceDialog(service)}
+                                disabled={serviceBusy}
+                              >
+                                <PencilLine className="size-4" />
+                                {t("common.edit", { defaultValue: "Edit" })}
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                onSelect={() => { void handleToggleServiceEnabled(service, !service.enabled); }}
+                                disabled={serviceBusy || togglingServiceID === service.id}
+                              >
+                                {togglingServiceID === service.id ? <LoaderCircle className="size-4 animate-spin" /> : null}
+                                {service.enabled
+                                  ? t("failover_v2.actions.disable_service", { defaultValue: "停用任务" })
+                                  : t("failover_v2.actions.enable_service", { defaultValue: "启用任务" })}
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                variant="destructive"
+                                onSelect={() => setDeleteTarget({ kind: "service", service })}
+                                disabled={serviceBusy}
+                              >
+                                <Trash2 className="size-4" />
+                                {t("common.delete", { defaultValue: "Delete" })}
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
                         </div>
                       </div>
 
                       {expanded ? (
-                        <div className="space-y-4 border-t border-slate-200 bg-slate-50/55 px-4 py-4 dark:border-slate-800 dark:bg-slate-900/25">
-                          <div className="rounded-lg border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-950/65">
-                              <div className="border-b border-slate-200 px-3 py-2 dark:border-slate-800">
+                        <div className="border-t border-slate-200 bg-slate-50/35 px-3 py-3 dark:border-slate-800 dark:bg-slate-900/15">
+                          <div className="overflow-hidden rounded-md border border-slate-200/80 bg-white dark:border-slate-800 dark:bg-slate-950/70">
+                              <div className="border-b border-slate-200 bg-slate-50/70 px-3 py-2 dark:border-slate-800 dark:bg-slate-900/35">
                                 <div className="text-sm font-semibold text-slate-900 dark:text-slate-50">
                                   {t("failover_v2.workbench.member_list", { defaultValue: "子成员" })}
                                 </div>
@@ -4831,7 +4810,6 @@ export default function FailoverV2Page() {
                                     const memberLineCodes = getMemberLineCodes(member);
                                     const latestMemberExecution = findLatestMemberExecutionSummary(service, member.id);
                                     const memberTaskStatus = formatMemberTaskStatusSummary(t, latestMemberExecution);
-                                    const memberHealthMessage = getMemberHealthMessage(member);
                                     const watchedNode = findNodeByWatchClientUUID(nodes, member.watch_client_uuid);
                                     const memberIPv4Address = resolveMemberAddressByFamily(member, latestMemberExecution, watchedNode, "ipv4");
                                     const memberIPv6Address = resolveMemberAddressByFamily(member, latestMemberExecution, watchedNode, "ipv6");
@@ -4855,13 +4833,13 @@ export default function FailoverV2Page() {
                                           }
                                         }}
                                         className={cn(
-                                          "grid cursor-pointer gap-3 px-3 py-3 transition-colors hover:bg-slate-50/80 dark:hover:bg-slate-900/45 lg:grid-cols-[minmax(180px,1fr)_minmax(140px,0.65fr)_minmax(150px,0.7fr)_auto] lg:items-center",
+                                          "grid cursor-pointer grid-cols-[minmax(220px,1fr)_minmax(150px,0.7fr)_minmax(170px,0.8fr)_auto] items-center gap-3 px-3 py-2 transition-colors hover:bg-slate-50/80 dark:hover:bg-slate-900/45",
                                           memberSelected && "bg-sky-50/80 dark:bg-sky-950/25",
                                           memberBusy && "bg-sky-50/60 dark:bg-sky-950/15",
                                         )}
                                       >
                                         <div className="min-w-0">
-                                          <div className="flex flex-wrap items-center gap-2">
+                                          <div className="flex min-w-0 items-center gap-2 whitespace-nowrap">
                                             <span className="min-w-0 truncate text-sm font-semibold text-slate-900 dark:text-slate-50">
                                               {getMemberDisplayTitle(member)}
                                             </span>
@@ -4880,33 +4858,27 @@ export default function FailoverV2Page() {
                                             ) : null}
                                             {memberBusy ? <LoaderCircle className="size-3.5 animate-spin text-sky-500" /> : null}
                                           </div>
-                                          <div className="mt-1 line-clamp-1 break-words text-xs text-slate-500 dark:text-slate-400">
+                                          <div className="mt-1 truncate text-xs text-slate-500 dark:text-slate-400">
                                             {memberLineCodes.length > 0
                                               ? formatMemberLinesSummary(t, memberLineCodes)
                                               : formatMemberSubtitle(member) || "-"}
                                           </div>
                                         </div>
 
-                                        <div className="min-w-0 text-xs text-slate-500 dark:text-slate-400">
-                                          <div className="text-[11px] font-medium uppercase">
-                                            {t("failover_v2.workbench.current_outlet", { defaultValue: "当前出口" })}
-                                          </div>
-                                          <div className="mt-1 truncate text-sm font-medium text-slate-800 dark:text-slate-100">
+                                        <div className="min-w-0 whitespace-nowrap text-xs text-slate-500 dark:text-slate-400">
+                                          <div className="truncate text-sm font-medium text-slate-800 dark:text-slate-100" title={memberPrimaryAddress}>
                                             {memberPrimaryAddress}
                                           </div>
                                         </div>
 
-                                        <div className="min-w-0 text-xs text-slate-500 dark:text-slate-400">
-                                          <div className="text-[11px] font-medium uppercase">
-                                            {t("failover_v2.workbench.execution_state", { defaultValue: "执行状态" })}
-                                          </div>
-                                          <div className="mt-1 truncate text-sm font-medium text-slate-800 dark:text-slate-100">
+                                        <div className="min-w-0 whitespace-nowrap text-xs text-slate-500 dark:text-slate-400">
+                                          <div className="truncate text-sm font-medium text-slate-800 dark:text-slate-100" title={memberTaskStatus}>
                                             {memberTaskStatus}
                                           </div>
                                         </div>
 
-                                        <div className="flex flex-wrap items-center gap-2 lg:justify-end">
-                                          <div className="flex items-center gap-2 rounded-md border border-slate-200 bg-white px-2.5 py-1.5 dark:border-slate-800 dark:bg-slate-950/60">
+                                        <div className="flex flex-wrap items-center justify-end gap-2">
+                                          <div className="flex items-center gap-2 border-l-2 border-slate-200 bg-transparent px-2.5 py-1 dark:border-slate-800">
                                             <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400">
                                               {t("failover_v2.quick_member_toggle_short", { defaultValue: "自动" })}
                                             </span>
@@ -4921,12 +4893,6 @@ export default function FailoverV2Page() {
                                             />
                                           </div>
                                         </div>
-
-                                        {memberHealthMessage ? (
-                                          <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:border-amber-900/70 dark:bg-amber-950/20 dark:text-amber-200 lg:col-span-4">
-                                            {localizeFailoverV2RuntimeMessage(t, memberHealthMessage)}
-                                          </div>
-                                        ) : null}
                                       </div>
                                     );
                                   })}
@@ -4939,6 +4905,7 @@ export default function FailoverV2Page() {
                     </div>
                   );
                 })}
+              </div>
               </div>
               <AdminPagination
                 page={servicePagination.page}
@@ -4954,10 +4921,8 @@ export default function FailoverV2Page() {
                 compact
               />
             </div>
-            </AdminSurface>
 
-            <AdminSurface>
-              <div className="overflow-hidden rounded-lg border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-950/70 xl:sticky xl:top-4">
+            <div className="min-w-0 overflow-hidden rounded-lg border border-slate-200/80 bg-white shadow-[0_18px_45px_-42px_rgba(15,23,42,0.75)] dark:border-slate-800/90 dark:bg-slate-950 xl:sticky xl:top-4 xl:self-start">
                 {selectedMemberDetail ? (() => {
                   const { service, member } = selectedMemberDetail;
                   const memberBusy = isFailoverV2MemberBusy(service, member);
@@ -5006,7 +4971,7 @@ export default function FailoverV2Page() {
                       </div>
 
                       <div className="space-y-3 p-4">
-                        <div className="rounded-lg border border-slate-200 bg-slate-50/70 p-3 dark:border-slate-800 dark:bg-slate-900/35">
+                        <div className="rounded-md border border-slate-200/80 bg-slate-50/70 px-3 py-3 dark:border-slate-800 dark:bg-slate-900/35">
                           <div className="flex items-start justify-between gap-3">
                             <div className="min-w-0">
                               <div className="text-[11px] font-medium uppercase text-slate-500 dark:text-slate-400">
@@ -5021,24 +4986,30 @@ export default function FailoverV2Page() {
                             </Badge>
                           </div>
                           <div className="mt-2 space-y-1 text-xs text-slate-500 dark:text-slate-400">
-                            <div>{service.dns_provider ? formatProviderLabel(service.dns_provider) : "-"} / {service.dns_entry_id || "-"}</div>
+                            {platformAdmin ? (
+                              <div>{service.dns_provider ? formatProviderLabel(service.dns_provider) : "-"} / {service.dns_entry_id || "-"}</div>
+                            ) : null}
                             <div>{t("failover_v2.summary.next_check", { defaultValue: "Next check" })}: {formatServiceNextCheckCountdown(service)}</div>
                             <div>{t("failover_v2.summary.members", { defaultValue: "Members" })}: {service.enabled_member_count} / {service.member_count}</div>
                           </div>
                           {serviceLatestExecution ? (
-                            <div className="mt-3 rounded-md border border-slate-200 bg-white px-3 py-2 dark:border-slate-800 dark:bg-slate-950/60">
+                            <div className="mt-3 rounded-md border border-slate-200/80 bg-white/80 px-3 py-2 dark:border-slate-800 dark:bg-slate-950/40">
                               <div className="flex flex-wrap items-center gap-2">
-                                <span className="text-sm font-semibold text-slate-900 dark:text-slate-50">
-                                  #{serviceLatestExecution.id}
-                                </span>
+                                {platformAdmin ? (
+                                  <span className="text-sm font-semibold text-slate-900 dark:text-slate-50">
+                                    #{serviceLatestExecution.id}
+                                  </span>
+                                ) : null}
                                 <Badge color={getStatusBadgeColor(serviceLatestExecution.status || "unknown")}>
                                   {localizeFailoverV2Status(t, serviceLatestExecution.status || "unknown")}
                                 </Badge>
                                 {serviceActiveExecutionID === serviceLatestExecution.id ? <LoaderCircle className="size-3.5 animate-spin text-sky-500" /> : null}
                               </div>
                               <div className="mt-1 truncate text-xs text-slate-500 dark:text-slate-400">
-                                {findMemberLabel(service, serviceLatestExecution.member_id)} / {localizeFailoverV2TriggerReason(t, serviceLatestExecution.trigger_reason)}
+                                {findMemberLabel(service, serviceLatestExecution.member_id)}
+                                {platformAdmin ? ` / ${localizeFailoverV2TriggerReason(t, serviceLatestExecution.trigger_reason)}` : ""}
                               </div>
+                              {platformAdmin ? (
                               <div className="mt-2 flex flex-wrap gap-1.5">
                                 {serviceExecutionStageItems.map((stage) => (
                                   <Badge key={stage.key} color={getStatusBadgeColor(stage.status)}>
@@ -5046,23 +5017,28 @@ export default function FailoverV2Page() {
                                   </Badge>
                                 ))}
                               </div>
+                              ) : null}
                               {serviceLatestExecution.error_message ? (
-                                <div className="mt-2 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700 dark:border-red-900/70 dark:bg-red-950/20 dark:text-red-300">
-                                  {localizeFailoverV2RuntimeMessage(t, serviceLatestExecution.error_message)}
+                                <div className="mt-2 border-l-2 border-red-300 bg-red-50/70 px-3 py-2 text-xs text-red-700 dark:border-red-800 dark:bg-red-950/20 dark:text-red-300">
+                                  {platformAdmin
+                                    ? localizeFailoverV2RuntimeMessage(t, serviceLatestExecution.error_message)
+                                    : getPublicFailoverResultText(t, serviceLatestExecution.status, serviceLatestExecution.error_message)}
                                 </div>
                               ) : null}
                             </div>
                           ) : null}
-                          {service.last_message ? (
-                            <div className="mt-3 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:border-amber-900/70 dark:bg-amber-950/20 dark:text-amber-200">
+                          {platformAdmin && service.last_message ? (
+                            <div className="mt-3 border-l-2 border-amber-300 bg-amber-50/70 px-3 py-2 text-xs text-amber-800 dark:border-amber-800 dark:bg-amber-950/20 dark:text-amber-200">
                               {localizeFailoverV2RuntimeMessage(t, service.last_message)}
                             </div>
                           ) : null}
-                          <DnsSchedulerLinkedSummary
-                            sourceType="failover_v2"
-                            sourceId={service.id}
-                            className="mt-3"
-                          />
+                          {platformAdmin ? (
+                            <DnsSchedulerLinkedSummary
+                              sourceType="failover_v2"
+                              sourceId={service.id}
+                              className="mt-3"
+                            />
+                          ) : null}
                         </div>
 
                         <div className="flex flex-wrap gap-1.5">
@@ -5071,9 +5047,11 @@ export default function FailoverV2Page() {
                               ? t("common.enabled", { defaultValue: "Enabled" })
                               : t("common.disabled", { defaultValue: "Disabled" })}
                           </Badge>
-                          <Badge color={normalizeMemberModeValue(member.mode) === "existing_client" ? "amber" : "blue"}>
-                            {formatMemberModeLabel(t, member.mode)}
-                          </Badge>
+                          {platformAdmin ? (
+                            <Badge color={normalizeMemberModeValue(member.mode) === "existing_client" ? "amber" : "blue"}>
+                              {formatMemberModeLabel(t, member.mode)}
+                            </Badge>
+                          ) : null}
                           {member.probe ? (() => {
                             const probeBadge = getMemberProbeBadgeLabel(t, member, memberBusy);
                             return (
@@ -5084,14 +5062,18 @@ export default function FailoverV2Page() {
                           })() : null}
                         </div>
 
-                        <div className="rounded-lg border border-slate-200 bg-slate-50/70 p-3 dark:border-slate-800 dark:bg-slate-900/35">
+                        <div className="rounded-md border border-slate-200/80 bg-slate-50/55 px-3 py-3 dark:border-slate-800 dark:bg-slate-900/25">
                           <div className="space-y-2 break-words text-xs text-slate-600 dark:text-slate-300">
-                            <div>{formatMemberSubtitle(member) || "-"}</div>
+                            {platformAdmin ? <div>{formatMemberSubtitle(member) || "-"}</div> : null}
                             <div>{t("failover_v2.detail_fields.ipv4", { defaultValue: "IPv4" })}: {memberIPv4Address || t("failover_v2.no_current_ip", { defaultValue: "No current IP" })}</div>
                             <div>{t("failover_v2.detail_fields.ipv6", { defaultValue: "IPv6" })}: {memberIPv6Address || t("failover_v2.no_current_ip", { defaultValue: "No current IP" })}</div>
                             <div>{t("failover_v2.member_resolve_status", { defaultValue: "Resolve status" })}: {memberResolveStatus}</div>
-                            <div>{t("failover_v2.member_dns_status", { defaultValue: "DNS status" })}: {memberDnsStatus}</div>
-                            <div>{t("failover_v2.member_script_status", { defaultValue: "Script status" })}: {memberScriptStatus}</div>
+                            {platformAdmin ? (
+                              <>
+                                <div>{t("failover_v2.member_dns_status", { defaultValue: "DNS status" })}: {memberDnsStatus}</div>
+                                <div>{t("failover_v2.member_script_status", { defaultValue: "Script status" })}: {memberScriptStatus}</div>
+                              </>
+                            ) : null}
                           </div>
                         </div>
 
@@ -5131,8 +5113,7 @@ export default function FailoverV2Page() {
                   </div>
                 )}
               </div>
-            </AdminSurface>
-          </div>
+            </div>
         ) : null}
       </AdminPageShell>
 
@@ -5202,7 +5183,7 @@ export default function FailoverV2Page() {
             {validationDialogTarget?.result.checks.map((check) => (
               <div
                 key={check.key}
-                className="rounded-lg border border-slate-200 bg-slate-50/70 px-4 py-3 dark:border-slate-800 dark:bg-slate-950/40"
+                className="border-l-2 border-slate-300 bg-slate-50/60 px-3 py-2 dark:border-slate-700 dark:bg-slate-950/30"
               >
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div className="space-y-1">
@@ -5468,7 +5449,7 @@ export default function FailoverV2Page() {
                     </div>
 
                     {serviceDNSCatalogError ? (
-                      <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-xs text-red-700 dark:border-red-900/40 dark:bg-red-950/30 dark:text-red-200">
+                      <div className="border-l-2 border-red-300 bg-red-50/70 px-3 py-2 text-xs text-red-700 dark:border-red-800 dark:bg-red-950/20 dark:text-red-200">
                         {serviceDNSCatalogError}
                       </div>
                     ) : null}
@@ -5591,7 +5572,7 @@ export default function FailoverV2Page() {
                 {serviceDNSProvider === "aliyun" ? (
                   <div className={FORM_FIELD_CLASS}>
                     <Label>{t("failover_v2.dns_available_lines", { defaultValue: "Available routing lines" })}</Label>
-                    <div className="flex flex-wrap gap-2 rounded-lg border border-dashed border-slate-200 px-3 py-2 dark:border-slate-800">
+                    <div className="flex flex-wrap gap-2 border-y border-dashed border-slate-200/80 py-2 dark:border-slate-800/80">
                       {serviceDNSCatalog && serviceDNSLineOptions.length > 0 ? (
                         serviceDNSLineOptions.map((line) => (
                           <span
@@ -5740,7 +5721,7 @@ export default function FailoverV2Page() {
                   </p>
                 </div>
                 <div className={FORM_FIELD_CLASS}>
-                  <Label>{t("failover_v2.wait_agent_timeout", { defaultValue: "Wait agent timeout" })}</Label>
+                  <Label>{t("failover_v2.wait_agent_timeout", { defaultValue: "接入等待时间" })}</Label>
                   <Input
                     type="number"
                     min={1}
@@ -5787,7 +5768,7 @@ export default function FailoverV2Page() {
             </section>
               </div>
               <aside className="hidden min-w-0 xl:block">
-                <div className="sticky top-0 space-y-3 rounded-xl border border-slate-200/80 bg-slate-50/80 p-4 shadow-sm shadow-slate-900/5 dark:border-slate-800 dark:bg-slate-900/40">
+                <div className="sticky top-0 space-y-3 border-l border-slate-200/80 bg-transparent py-1 pl-4 dark:border-slate-800">
                   <div className="space-y-1">
                     <div className="text-sm font-semibold text-slate-900 dark:text-slate-50">
                       {t("failover_v2.service_summary_title", { defaultValue: "服务配置预览" })}
@@ -5799,16 +5780,16 @@ export default function FailoverV2Page() {
                     </p>
                   </div>
 
-                  <div className="overflow-hidden rounded-lg border bg-background">
+                  <div className="overflow-hidden border-y border-slate-200/80 dark:border-slate-800">
                     {serviceDialogSummaryRows.map((row) => (
-                      <div key={row.label} className="grid grid-cols-[96px_minmax(0,1fr)] gap-3 border-b px-3 py-2.5 text-sm last:border-b-0">
+                      <div key={row.label} className="grid grid-cols-[96px_minmax(0,1fr)] gap-3 border-b border-slate-200/80 py-2.5 text-sm last:border-b-0 dark:border-slate-800">
                         <div className="text-xs font-medium text-muted-foreground">{row.label}</div>
                         <div className="min-w-0 break-words font-medium text-slate-900 dark:text-slate-50">{row.value}</div>
                       </div>
                     ))}
                   </div>
 
-                  <div className="rounded-lg border bg-background p-3">
+                  <div className="border-t border-slate-200/80 pt-3 dark:border-slate-800">
                     <div className="text-xs font-semibold uppercase tracking-normal text-muted-foreground">
                       {t("failover_v2.service_summary_policy", { defaultValue: "服务策略" })}
                     </div>
@@ -5822,7 +5803,7 @@ export default function FailoverV2Page() {
                     </div>
                   </div>
 
-                  <div className="rounded-lg border bg-background p-3">
+                  <div className="border-t border-slate-200/80 pt-3 dark:border-slate-800">
                     <div className="text-xs font-semibold uppercase tracking-normal text-muted-foreground">
                       {t("failover_v2.dns_available_lines", { defaultValue: "Available routing lines" })}
                     </div>
@@ -5942,7 +5923,7 @@ export default function FailoverV2Page() {
                     })}
                   >
                     <div className="space-y-3">
-                      <TabsList className="grid h-auto w-full grid-cols-2 rounded-lg border border-slate-200/80 bg-slate-50 p-1 shadow-sm shadow-slate-900/5 dark:border-slate-800 dark:bg-slate-900/35">
+                      <TabsList className="grid h-auto w-full grid-cols-2 gap-1 border-b border-slate-200/80 pb-1 shadow-none dark:border-slate-800">
                         <MemberModeOption
                           value="existing_client"
                           title={t("failover_v2.member_mode_existing_client", { defaultValue: "Existing client" })}
@@ -6087,7 +6068,7 @@ export default function FailoverV2Page() {
                                 </SelectContent>
                               </Select>
                             ) : (
-                              <div className="rounded-lg border border-dashed bg-muted/20 px-3 py-2 text-sm text-muted-foreground">
+                              <div className="border-y border-dashed border-slate-200/80 py-2 text-sm text-muted-foreground dark:border-slate-800/80">
                                 {t("failover_v2.provider_entry_group_missing", {
                                   defaultValue: "No credential groups have been assigned for this provider yet.",
                                 })}
@@ -6590,7 +6571,7 @@ export default function FailoverV2Page() {
                     : t("failover_v2.show_plan_json", { defaultValue: "Edit JSON" })}
                 </Button>
                 {memberPlanAdvancedOpen ? (
-                  <div className="grid gap-3 rounded-lg border bg-muted/20 p-4">
+                  <div className="grid gap-3 border-y border-slate-200/80 py-3 dark:border-slate-800/80">
                     <p className="text-xs text-muted-foreground">
                       {t("failover_v2.plan_payload_advanced_hint", {
                         defaultValue: "Advanced: edit the raw plan payload only when importing or repairing unsupported fields.",
@@ -6720,7 +6701,7 @@ export default function FailoverV2Page() {
                     />
                     <div className={FORM_FIELD_CLASS}>
                       <Label>{t("failover_v2.dns_lines", { defaultValue: "DNS lines" })}</Label>
-                      <div className="rounded-lg border bg-background p-3">
+                      <div className="border-y border-slate-200/80 py-3 dark:border-slate-800/80">
                         {memberRuntimeLines.length > 0 ? (
                           <div className="flex flex-wrap gap-2">
                             {memberRuntimeLines.map((line) => (
@@ -6746,7 +6727,7 @@ export default function FailoverV2Page() {
                     />
                     </div>
                     {memberStateAdvancedOpen ? (
-                      <div className="grid gap-4 rounded-lg border bg-muted/20 p-4">
+                      <div className="grid gap-4 border-y border-slate-200/80 py-3 dark:border-slate-800/80">
                         <p className="text-xs text-muted-foreground">
                           {t("failover_v2.advanced_state_fields_hint", {
                             defaultValue: "DNS record refs and current instance refs are V2 recovery anchors. Leave them unchanged unless you are importing or repairing state.",
@@ -6787,7 +6768,7 @@ export default function FailoverV2Page() {
               ) : null}
               </div>
               <aside className="hidden min-w-0 xl:block">
-                <div className="sticky top-0 space-y-3 rounded-xl border border-slate-200/80 bg-slate-50/80 p-4 shadow-sm shadow-slate-900/5 dark:border-slate-800 dark:bg-slate-900/40">
+                <div className="sticky top-0 space-y-3 border-l border-slate-200/80 bg-transparent py-1 pl-4 dark:border-slate-800">
                   <div className="space-y-1">
                     <div className="text-sm font-semibold text-slate-900 dark:text-slate-50">
                       {t("failover_v2.member_summary_title", { defaultValue: "出口配置预览" })}
@@ -6799,16 +6780,16 @@ export default function FailoverV2Page() {
                     </p>
                   </div>
 
-                  <div className="overflow-hidden rounded-lg border bg-background">
+                  <div className="overflow-hidden border-y border-slate-200/80 dark:border-slate-800">
                     {memberDialogSummaryRows.map((row) => (
-                      <div key={row.label} className="grid grid-cols-[96px_minmax(0,1fr)] gap-3 border-b px-3 py-2.5 text-sm last:border-b-0">
+                      <div key={row.label} className="grid grid-cols-[96px_minmax(0,1fr)] gap-3 border-b border-slate-200/80 py-2.5 text-sm last:border-b-0 dark:border-slate-800">
                         <div className="text-xs font-medium text-muted-foreground">{row.label}</div>
                         <div className="min-w-0 break-words font-medium text-slate-900 dark:text-slate-50">{row.value}</div>
                       </div>
                     ))}
                   </div>
 
-                  <div className="rounded-lg border bg-background p-3">
+                  <div className="border-t border-slate-200/80 pt-3 dark:border-slate-800">
                     <div className="text-xs font-semibold uppercase tracking-normal text-muted-foreground">
                       {t("failover_v2.member_summary_policy", { defaultValue: "默认策略" })}
                     </div>
@@ -6822,7 +6803,7 @@ export default function FailoverV2Page() {
                     </div>
                   </div>
 
-                  <div className="rounded-lg border bg-background p-3">
+                  <div className="border-t border-slate-200/80 pt-3 dark:border-slate-800">
                     <div className="text-xs font-semibold uppercase tracking-normal text-muted-foreground">
                       {t("failover_v2.member_summary_dns", { defaultValue: "DNS 线路" })}
                     </div>
@@ -7013,19 +6994,19 @@ export default function FailoverV2Page() {
             </div>
 
             {pendingCleanupError ? (
-              <div className="mb-4 rounded-lg border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900/70 dark:bg-red-950/20 dark:text-red-300">
+              <div className="mb-4 border-l-2 border-red-300 bg-red-50/70 px-3 py-2 text-sm text-red-700 dark:border-red-800 dark:bg-red-950/20 dark:text-red-300">
                 {pendingCleanupError}
               </div>
             ) : null}
 
             {loadingPendingCleanups && pendingCleanups.length === 0 ? (
-              <div className="rounded-lg border border-dashed border-slate-300 px-4 py-8 text-sm text-slate-500 dark:border-slate-700 dark:text-slate-400">
+              <div className="border-y border-dashed border-slate-300 py-6 text-sm text-slate-500 dark:border-slate-700 dark:text-slate-400">
                 {t("failover_v2.pending_cleanup_loading", { defaultValue: "Loading pending cleanups..." })}
               </div>
             ) : null}
 
             {!loadingPendingCleanups && pendingCleanups.length === 0 ? (
-              <div className="rounded-lg border border-dashed border-slate-300 px-4 py-8 text-sm text-slate-500 dark:border-slate-700 dark:text-slate-400">
+              <div className="border-y border-dashed border-slate-300 py-6 text-sm text-slate-500 dark:border-slate-700 dark:text-slate-400">
                 {t("failover_v2.pending_cleanup_empty", { defaultValue: "No pending cleanup items recorded for this service." })}
               </div>
             ) : null}
@@ -7036,7 +7017,7 @@ export default function FailoverV2Page() {
                 return (
                   <div
                     key={cleanup.id}
-                    className="rounded-lg border border-slate-200 bg-slate-50/70 p-4 dark:border-slate-800 dark:bg-slate-950/30"
+                    className="border-y border-slate-200 py-4 dark:border-slate-800"
                   >
                     <div className="flex flex-wrap items-start justify-between gap-3">
                       <div className="space-y-1">
@@ -7058,7 +7039,7 @@ export default function FailoverV2Page() {
                     </div>
 
                     <div className="mt-4 grid gap-3 text-sm text-slate-600 dark:text-slate-300 md:grid-cols-2 xl:grid-cols-4">
-                      <div className="rounded-lg border border-slate-200 bg-white/80 p-3 dark:border-slate-800 dark:bg-slate-950/50">
+                      <div className="border-l-2 border-slate-200 py-2 pl-3 dark:border-slate-800">
                         <div className="text-xs uppercase tracking-wide text-slate-500 dark:text-slate-400">
                           {t("failover_v2.pending_cleanup_attempts", { defaultValue: "Attempts" })}
                         </div>
@@ -7066,7 +7047,7 @@ export default function FailoverV2Page() {
                           {cleanup.attempt_count}
                         </div>
                       </div>
-                      <div className="rounded-lg border border-slate-200 bg-white/80 p-3 dark:border-slate-800 dark:bg-slate-950/50">
+                      <div className="border-l-2 border-slate-200 py-2 pl-3 dark:border-slate-800">
                         <div className="text-xs uppercase tracking-wide text-slate-500 dark:text-slate-400">
                           {t("failover_v2.pending_cleanup_last_attempt", { defaultValue: "Last attempt" })}
                         </div>
@@ -7074,7 +7055,7 @@ export default function FailoverV2Page() {
                           {formatTimestamp(cleanup.last_attempted_at)}
                         </div>
                       </div>
-                      <div className="rounded-lg border border-slate-200 bg-white/80 p-3 dark:border-slate-800 dark:bg-slate-950/50">
+                      <div className="border-l-2 border-slate-200 py-2 pl-3 dark:border-slate-800">
                         <div className="text-xs uppercase tracking-wide text-slate-500 dark:text-slate-400">
                           {t("failover_v2.pending_cleanup_next_retry", { defaultValue: "Next retry" })}
                         </div>
@@ -7082,7 +7063,7 @@ export default function FailoverV2Page() {
                           {formatTimestamp(cleanup.next_retry_at)}
                         </div>
                       </div>
-                      <div className="rounded-lg border border-slate-200 bg-white/80 p-3 dark:border-slate-800 dark:bg-slate-950/50">
+                      <div className="border-l-2 border-slate-200 py-2 pl-3 dark:border-slate-800">
                         <div className="text-xs uppercase tracking-wide text-slate-500 dark:text-slate-400">
                           {t("failover_v2.pending_cleanup_resolved_at", { defaultValue: "Resolved" })}
                         </div>
@@ -7093,13 +7074,13 @@ export default function FailoverV2Page() {
                     </div>
 
                     {cleanup.last_error ? (
-                      <div className="mt-4 rounded-lg border border-red-200 bg-red-50/70 px-4 py-3 text-sm text-red-700 dark:border-red-900/60 dark:bg-red-950/20 dark:text-red-300">
+                      <div className="mt-4 border-l-2 border-red-300 bg-red-50/70 px-3 py-2 text-sm text-red-700 dark:border-red-800 dark:bg-red-950/20 dark:text-red-300">
                         {cleanup.last_error}
                       </div>
                     ) : null}
 
                     {instanceRefBlock ? (
-                      <div className="mt-4 rounded-lg border border-slate-200 bg-white/80 p-4 dark:border-slate-800 dark:bg-slate-950/50">
+                      <div className="mt-4 border-y border-slate-200 py-3 dark:border-slate-800">
                         <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
                           {t("failover_v2.pending_cleanup_instance_ref", { defaultValue: "Saved instance ref" })}
                         </div>
@@ -7239,13 +7220,13 @@ export default function FailoverV2Page() {
               </div>
 
               {loadingExecutions && executionSummaries.length === 0 ? (
-                <div className="rounded-lg border border-dashed border-slate-300 px-4 py-6 text-sm text-slate-500 dark:border-slate-700 dark:text-slate-400">
+                <div className="border-y border-dashed border-slate-300 py-5 text-sm text-slate-500 dark:border-slate-700 dark:text-slate-400">
                   {t("failover_v2.execution_loading", { defaultValue: "Loading executions..." })}
                 </div>
               ) : null}
 
               {!loadingExecutions && executionSummaries.length === 0 ? (
-                <div className="rounded-lg border border-dashed border-slate-300 px-4 py-6 text-sm text-slate-500 dark:border-slate-700 dark:text-slate-400">
+                <div className="border-y border-dashed border-slate-300 py-5 text-sm text-slate-500 dark:border-slate-700 dark:text-slate-400">
                   {t("failover_v2.execution_empty", { defaultValue: "No executions recorded yet." })}
                 </div>
               ) : null}
@@ -7256,9 +7237,9 @@ export default function FailoverV2Page() {
                     key={execution.id}
                     type="button"
                     className={cn(
-                      "w-full rounded-lg border px-3 py-3 text-left transition",
+                      "w-full border-l-2 px-3 py-3 text-left transition",
                       execution.id === selectedExecutionID
-                        ? "border-sky-300 bg-sky-50 shadow-sm dark:border-sky-800 dark:bg-sky-950/30"
+                        ? "border-sky-300 bg-sky-50 shadow-none dark:border-sky-800 dark:bg-sky-950/30"
                         : "border-slate-200 bg-white hover:border-slate-300 dark:border-slate-800 dark:bg-slate-950/40 dark:hover:border-slate-700",
                     )}
                     onClick={() => handleSelectExecution(execution.id)}
@@ -7269,9 +7250,11 @@ export default function FailoverV2Page() {
                           <div className="truncate text-sm font-semibold text-slate-900 dark:text-slate-50">
                             {findMemberLabel(executionDialogTarget.service, execution.member_id)}
                           </div>
-                          <div className="mt-1 truncate text-xs text-slate-500 dark:text-slate-400">
-                            #{execution.id} · {localizeFailoverV2TriggerReason(t, execution.trigger_reason)}
-                          </div>
+                          {platformAdmin ? (
+                            <div className="mt-1 truncate text-xs text-slate-500 dark:text-slate-400">
+                              #{execution.id} · {localizeFailoverV2TriggerReason(t, execution.trigger_reason)}
+                            </div>
+                          ) : null}
                         </div>
                         <Badge color={getStatusBadgeColor(execution.status || "unknown")}>
                           {localizeFailoverV2Status(t, execution.status)}
@@ -7288,7 +7271,7 @@ export default function FailoverV2Page() {
 
             <main className="min-h-0 overflow-y-auto bg-slate-100/60 p-4 dark:bg-slate-950/20 sm:p-5">
               {executionError ? (
-                <div className="rounded-lg border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900/70 dark:bg-red-950/20 dark:text-red-300">
+                <div className="border-l-2 border-red-300 bg-red-50/70 px-3 py-2 text-sm text-red-700 dark:border-red-800 dark:bg-red-950/20 dark:text-red-300">
                   {executionError}
                 </div>
               ) : null}
@@ -7301,7 +7284,7 @@ export default function FailoverV2Page() {
               ) : null}
 
               {!loadingExecutionDetail && !executionError && !selectedExecution ? (
-                <div className="rounded-lg border border-dashed border-slate-300 px-4 py-10 text-sm text-slate-500 dark:border-slate-700 dark:text-slate-400">
+                <div className="border-y border-dashed border-slate-300 py-8 text-sm text-slate-500 dark:border-slate-700 dark:text-slate-400">
                   {t("failover_v2.execution_select_hint", { defaultValue: "Select an execution to inspect its timeline." })}
                 </div>
               ) : null}
@@ -7311,7 +7294,9 @@ export default function FailoverV2Page() {
                   <ExecutionDetailSection
                     title={t("failover_v2.execution_summary", { defaultValue: "执行摘要" })}
                     description={t("failover_v2.execution_summary_hint", {
-                      defaultValue: "集中展示执行对象、触发类型、总状态和基础元信息。",
+                      defaultValue: platformAdmin
+                        ? "集中展示执行对象、触发类型、总状态和基础元信息。"
+                        : "集中展示执行对象、状态和处理结果。",
                     })}
                   >
                     <div className="space-y-4">
@@ -7326,24 +7311,28 @@ export default function FailoverV2Page() {
                           <Badge color={getStatusBadgeColor(selectedExecution.status || "unknown")}>
                             {localizeFailoverV2Status(t, selectedExecution.status)}
                           </Badge>
-                          <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-600 dark:bg-slate-900 dark:text-slate-300">
-                            {localizeFailoverV2TriggerReason(t, selectedExecution.trigger_reason)}
-                          </span>
+                          {platformAdmin ? (
+                            <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-600 dark:bg-slate-900 dark:text-slate-300">
+                              {localizeFailoverV2TriggerReason(t, selectedExecution.trigger_reason)}
+                            </span>
+                          ) : null}
                         </div>
                       </div>
 
-                      <div className="grid gap-5 xl:grid-cols-[minmax(0,1.45fr)_minmax(240px,0.85fr)]">
+                      <div className={cn("grid gap-5", platformAdmin ? "xl:grid-cols-[minmax(0,1.45fr)_minmax(240px,0.85fr)]" : "")}>
                         <div>
                           <div className="mb-3 text-xs font-medium text-slate-500 dark:text-slate-400">
                             {t("failover_v2.execution_basic_info", { defaultValue: "基础信息" })}
                           </div>
                           <dl className="grid gap-x-5 gap-y-3 text-sm sm:grid-cols-2 xl:grid-cols-3">
-                            <div className="min-w-0">
-                              <dt className="text-xs text-slate-500 dark:text-slate-400">
-                                {t("failover_v2.execution_id", { defaultValue: "执行 ID" })}
-                              </dt>
-                              <dd className="mt-1 font-semibold text-slate-950 dark:text-slate-50">#{selectedExecution.id}</dd>
-                            </div>
+                            {platformAdmin ? (
+                              <div className="min-w-0">
+                                <dt className="text-xs text-slate-500 dark:text-slate-400">
+                                  {t("failover_v2.execution_id", { defaultValue: "执行 ID" })}
+                                </dt>
+                                <dd className="mt-1 font-semibold text-slate-950 dark:text-slate-50">#{selectedExecution.id}</dd>
+                              </div>
+                            ) : null}
                             <div className="min-w-0">
                               <dt className="text-xs text-slate-500 dark:text-slate-400">
                                 {t("failover_v2.execution_started", { defaultValue: "开始时间" })}
@@ -7356,21 +7345,35 @@ export default function FailoverV2Page() {
                               </dt>
                               <dd className="mt-1 font-semibold text-slate-950 dark:text-slate-50">{formatTimestamp(selectedExecution.finished_at)}</dd>
                             </div>
-                            <div className="min-w-0">
-                              <dt className="text-xs text-slate-500 dark:text-slate-400">
-                                {t("failover_v2.execution_old_client", { defaultValue: "旧客户端" })}
-                              </dt>
-                              <dd className="mt-1 break-words font-mono text-xs font-semibold text-slate-950 dark:text-slate-50">{selectedExecution.old_client_uuid || "-"}</dd>
-                            </div>
-                            <div className="min-w-0">
-                              <dt className="text-xs text-slate-500 dark:text-slate-400">
-                                {t("failover_v2.execution_new_client", { defaultValue: "新客户端" })}
-                              </dt>
-                              <dd className="mt-1 break-words font-mono text-xs font-semibold text-slate-950 dark:text-slate-50">{selectedExecution.new_client_uuid || "-"}</dd>
-                            </div>
+                            {platformAdmin ? (
+                              <>
+                                <div className="min-w-0">
+                                  <dt className="text-xs text-slate-500 dark:text-slate-400">
+                                    {t("failover_v2.execution_old_client", { defaultValue: "旧客户端" })}
+                                  </dt>
+                                  <dd className="mt-1 break-words font-mono text-xs font-semibold text-slate-950 dark:text-slate-50">{selectedExecution.old_client_uuid || "-"}</dd>
+                                </div>
+                                <div className="min-w-0">
+                                  <dt className="text-xs text-slate-500 dark:text-slate-400">
+                                    {t("failover_v2.execution_new_client", { defaultValue: "新客户端" })}
+                                  </dt>
+                                  <dd className="mt-1 break-words font-mono text-xs font-semibold text-slate-950 dark:text-slate-50">{selectedExecution.new_client_uuid || "-"}</dd>
+                                </div>
+                              </>
+                            ) : (
+                              <div className="min-w-0">
+                                <dt className="text-xs text-slate-500 dark:text-slate-400">
+                                  {t("common.result", { defaultValue: "结果" })}
+                                </dt>
+                                <dd className="mt-1 font-semibold text-slate-950 dark:text-slate-50">
+                                  {getPublicFailoverResultText(t, selectedExecution.status, selectedExecution.error_message)}
+                                </dd>
+                              </div>
+                            )}
                           </dl>
                         </div>
 
+                        {platformAdmin ? (
                         <div className="border-t border-slate-200 pt-4 xl:border-l xl:border-t-0 xl:pl-5 xl:pt-0 dark:border-slate-800">
                           <div className="mb-3 text-xs font-medium text-slate-500 dark:text-slate-400">
                             {t("failover_v2.execution_stage_status", { defaultValue: "阶段状态" })}
@@ -7395,16 +7398,21 @@ export default function FailoverV2Page() {
                             ))}
                           </div>
                         </div>
+                        ) : null}
                       </div>
                     </div>
 
                     {selectedExecution.error_message ? (
-                      <div className="mt-4 rounded-lg border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900/70 dark:bg-red-950/20 dark:text-red-300">
-                        {selectedExecution.error_message}
+                      <div className="mt-4 border-l-2 border-red-300 bg-red-50/70 px-3 py-2 text-sm text-red-700 dark:border-red-800 dark:bg-red-950/20 dark:text-red-300">
+                        {platformAdmin
+                          ? selectedExecution.error_message
+                          : getPublicFailoverResultText(t, selectedExecution.status, selectedExecution.error_message)}
                       </div>
                     ) : null}
                   </ExecutionDetailSection>
 
+                  {platformAdmin ? (
+                  <>
                   <ExecutionDetailSection
                     title={t("failover_v2.execution_steps", { defaultValue: "步骤状态" })}
                     description={t("failover_v2.execution_steps_hint", {
@@ -7412,11 +7420,11 @@ export default function FailoverV2Page() {
                     })}
                   >
                     {selectedExecution.steps.length === 0 ? (
-                      <div className="rounded-lg border border-dashed border-slate-300 px-4 py-6 text-sm text-slate-500 dark:border-slate-700 dark:text-slate-400">
+                      <div className="border-y border-dashed border-slate-300 py-5 text-sm text-slate-500 dark:border-slate-700 dark:text-slate-400">
                         {t("failover_v2.execution_steps_empty", { defaultValue: "暂无步骤记录。" })}
                       </div>
                     ) : (
-                      <ol className="relative overflow-hidden rounded-lg border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-950/40">
+                      <ol className="relative overflow-hidden border-y border-slate-200 dark:border-slate-800">
                         {selectedExecution.steps.map((step, stepIndex) => {
                           const detailBlock = formatJsonBlock(step.detail);
                           const detailSummaryItems = getFailoverV2DetailSummaryItems(t, step.detail);
@@ -7560,7 +7568,7 @@ export default function FailoverV2Page() {
                       })).filter((block) => Boolean(block.content));
 
                       return infoBlocks.length > 0 ? (
-                        <div className="overflow-hidden rounded-lg border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-950/40 [&>*:not(:last-child)]:border-b [&>*:not(:last-child)]:border-slate-200 dark:[&>*:not(:last-child)]:border-slate-800">
+                        <div className="overflow-hidden border-y border-slate-200 dark:border-slate-800 [&>*:not(:last-child)]:border-b [&>*:not(:last-child)]:border-slate-200 dark:[&>*:not(:last-child)]:border-slate-800">
                           {infoBlocks.map((block) => (
                             <ExecutionJsonBlock
                               key={block.key}
@@ -7573,7 +7581,7 @@ export default function FailoverV2Page() {
                           ))}
                         </div>
                       ) : (
-                        <div className="rounded-lg border border-dashed border-slate-300 px-4 py-6 text-sm text-slate-500 dark:border-slate-700 dark:text-slate-400">
+                        <div className="border-y border-dashed border-slate-300 py-5 text-sm text-slate-500 dark:border-slate-700 dark:text-slate-400">
                           {t("failover_v2.execution_key_info_empty", { defaultValue: "本次执行没有记录结构化详情。" })}
                         </div>
                       );
@@ -7586,7 +7594,7 @@ export default function FailoverV2Page() {
                       defaultValue: "操作按当前执行保存的数据进行复用，不会改动后端接口或既有流程。",
                     })}
                   >
-                    <div className="overflow-hidden rounded-lg border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-950/40 [&>*:not(:last-child)]:border-b [&>*:not(:last-child)]:border-slate-200 dark:[&>*:not(:last-child)]:border-slate-800">
+                    <div className="overflow-hidden border-y border-slate-200 dark:border-slate-800 [&>*:not(:last-child)]:border-b [&>*:not(:last-child)]:border-slate-200 dark:[&>*:not(:last-child)]:border-slate-800">
                       <ExecutionActionCard
                         tone="danger"
                         title={t("failover_v2.stop_execution", { defaultValue: "停止执行" })}
@@ -7660,6 +7668,8 @@ export default function FailoverV2Page() {
                       </ExecutionActionCard>
                     </div>
                   </ExecutionDetailSection>
+                  </>
+                  ) : null}
                 </div>
               ) : null}
             </main>

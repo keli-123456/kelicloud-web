@@ -745,7 +745,7 @@ function AzureCredentialContextStrip({
         <>
           <div className="min-h-0 flex-1 overflow-y-auto p-3 [scrollbar-gutter:stable]">
             {visibleCredentials.length > 0 ? (
-              <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-950">
+              <div className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-none dark:border-slate-800 dark:bg-slate-950">
                 <AdminDataTableScroll>
                   <AdminDataTable minWidth={500} className="[&_td]:px-2 [&_th]:px-2">
                   <thead>
@@ -822,7 +822,7 @@ function AzureCredentialContextStrip({
                 </AdminDataTableScroll>
               </div>
             ) : (
-              <div className="rounded-xl border border-dashed border-slate-200/80 bg-slate-50 px-4 py-8 text-center dark:border-slate-800 dark:bg-slate-900/35">
+              <div className="border-y border-dashed border-slate-200/80 px-4 py-8 text-center dark:border-slate-800">
                 <p className={cloudPanelBodyTextClassName}>
                 {t("cloud.providers.azure.no_credentials", "尚未导入 Azure 服务主体凭据。")}
                 </p>

@@ -227,7 +227,7 @@ function SchedulerFlow() {
   ];
 
   return (
-    <div className="overflow-hidden rounded-xl border border-slate-200/80 bg-white shadow-[0_18px_45px_-34px_rgba(15,23,42,0.65)] dark:border-slate-800/90 dark:bg-slate-950">
+    <div className="overflow-hidden rounded-lg border border-slate-200/80 bg-white shadow-none dark:border-slate-800/90 dark:bg-slate-950">
       <div className="grid divide-y divide-border dark:divide-slate-800 md:grid-cols-4 md:divide-x md:divide-y-0">
         {steps.map((step, index) => (
           <div key={step} className="flex min-h-14 items-center gap-3 px-4 py-3">
@@ -262,7 +262,7 @@ function SchedulerToolbar({
   const execution = snapshot?.dns_execution;
 
   return (
-    <div className="flex min-w-0 flex-col gap-3 rounded-xl border border-slate-200/80 bg-white px-4 py-3 shadow-[0_18px_45px_-34px_rgba(15,23,42,0.65)] dark:border-slate-800/90 dark:bg-slate-950 md:flex-row md:items-center md:justify-between">
+    <div className="flex min-w-0 flex-col gap-3 rounded-lg border border-slate-200/80 bg-white px-4 py-3 shadow-none dark:border-slate-800/90 dark:bg-slate-950 md:flex-row md:items-center md:justify-between">
       <div className="flex min-w-0 flex-wrap items-center gap-2">
         <Badge color={snapshot?.running ? "blue" : "gray"} className="gap-1">
           <Activity className="h-3.5 w-3.5" />
@@ -460,7 +460,7 @@ function SchedulerSourceOverview({
 
   return (
     <div className="grid gap-4 xl:grid-cols-[minmax(0,1.25fr)_minmax(360px,0.75fr)]">
-      <section className="rounded-xl border border-slate-200/80 bg-white p-4 shadow-[0_18px_45px_-34px_rgba(15,23,42,0.65)] dark:border-slate-800/90 dark:bg-slate-950">
+      <section className="rounded-lg border border-slate-200/80 bg-white p-4 shadow-none dark:border-slate-800/90 dark:bg-slate-950">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="min-w-0">
             <div className="text-sm font-semibold text-slate-950 dark:text-slate-50">
@@ -493,10 +493,10 @@ function SchedulerSourceOverview({
                 type="button"
                 data-testid={`dns-scheduler-source-${source.key}`}
                 className={cn(
-                  "min-w-0 rounded-lg border px-3 py-3 text-left transition hover:border-blue-300 hover:bg-blue-50/40 dark:hover:border-blue-800 dark:hover:bg-blue-950/20",
+                  "min-w-0 border-b px-1 py-3 text-left transition hover:bg-blue-50/40 dark:hover:bg-blue-950/20",
                   active
-                    ? "border-blue-300 bg-blue-50 shadow-sm shadow-blue-950/5 dark:border-blue-800 dark:bg-blue-950/25"
-                    : "border-border bg-background/60 dark:border-slate-800 dark:bg-slate-900/20",
+                    ? "border-blue-300 bg-blue-50 dark:border-blue-800 dark:bg-blue-950/25"
+                    : "border-border bg-transparent dark:border-slate-800",
                 )}
                 onClick={() => onSourceFilterChange(source.key)}
               >
@@ -536,7 +536,7 @@ function SchedulerSourceOverview({
         </div>
       </section>
 
-      <section className="rounded-xl border border-slate-200/80 bg-white p-4 shadow-[0_18px_45px_-34px_rgba(15,23,42,0.65)] dark:border-slate-800/90 dark:bg-slate-950">
+      <section className="rounded-lg border border-slate-200/80 bg-white p-4 shadow-none dark:border-slate-800/90 dark:bg-slate-950">
         <div className="text-sm font-semibold text-slate-950 dark:text-slate-50">
           {t("cloud.dns.scheduler.api_pressure_title", { defaultValue: "API 压力" })}
         </div>
@@ -547,7 +547,7 @@ function SchedulerSourceOverview({
         </div>
         <div className="mt-4 grid grid-cols-2 gap-2">
           {executionItems.map((item) => (
-            <div key={item.label} className="rounded-md border border-border bg-background/60 px-3 py-2 dark:border-slate-800 dark:bg-slate-900/20">
+            <div key={item.label} className="border-b border-border bg-transparent px-1 py-2 dark:border-slate-800">
               <div className="text-[11px] font-medium text-muted-foreground">{item.label}</div>
               <div className="mt-1 text-lg font-semibold tabular-nums text-slate-950 dark:text-slate-50">{item.value}</div>
             </div>
@@ -555,7 +555,7 @@ function SchedulerSourceOverview({
         </div>
         <div className="mt-3 grid gap-2">
           {providerWrites.map((item) => (
-            <div key={item.label} className="flex items-center justify-between gap-3 rounded-md border border-border bg-background/60 px-3 py-2 dark:border-slate-800 dark:bg-slate-900/20">
+            <div key={item.label} className="flex items-center justify-between gap-3 border-b border-border bg-transparent px-1 py-2 dark:border-slate-800">
               <div className="min-w-0">
                 <div className="text-xs font-semibold text-slate-900 dark:text-slate-100">{item.label}</div>
                 <div className="mt-0.5 truncate text-[11px] text-muted-foreground">{item.detail}</div>
@@ -579,7 +579,7 @@ function SchedulerDetailField({
   mono?: boolean;
 }) {
   return (
-    <div className="min-w-0 rounded-md border border-border bg-background/65 px-3 py-2 dark:border-slate-800 dark:bg-slate-900/25">
+    <div className="min-w-0 border-y border-border bg-transparent px-1 py-2 dark:border-slate-800">
       <div className="text-[11px] font-medium text-muted-foreground">{label}</div>
       <div
         className={cn(
@@ -693,7 +693,7 @@ function SchedulerTaskDetailPanel({
   if (!item) {
     return (
       <aside className="border-t border-border p-4 dark:border-slate-800 lg:border-l lg:border-t-0">
-        <div className="flex min-h-[360px] flex-col items-center justify-center rounded-lg border border-dashed border-border bg-muted/25 px-6 text-center dark:border-slate-800">
+        <div className="flex min-h-[360px] flex-col items-center justify-center border-y border-dashed border-border bg-transparent px-6 text-center dark:border-slate-800">
           <Info className="mb-3 h-8 w-8 text-muted-foreground" />
           <div className="text-sm font-semibold text-slate-950 dark:text-slate-50">
             {t("cloud.dns.scheduler.detail_empty_title", { defaultValue: "选择任务查看详情" })}
@@ -711,7 +711,7 @@ function SchedulerTaskDetailPanel({
   const sourceTaskHref = getSourceTaskHref(item);
 
   return (
-    <aside className="border-t border-border bg-slate-50/40 p-4 dark:border-slate-800 dark:bg-slate-900/15 lg:border-l lg:border-t-0">
+    <aside className="border-t border-border bg-transparent p-4 dark:border-slate-800 lg:border-l lg:border-t-0">
       <div className="space-y-4 lg:sticky lg:top-4">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
@@ -738,10 +738,10 @@ function SchedulerTaskDetailPanel({
         {(item.reason || item.last_error) ? (
           <div
             className={cn(
-              "rounded-lg border px-3 py-2.5 text-xs leading-5",
+              "border-l-2 py-2.5 pl-3 text-xs leading-5",
               item.status === "error"
-                ? "border-red-200 bg-red-50 text-red-700 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-200"
-                : "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-200",
+                ? "border-red-300 text-red-700 dark:border-red-800 dark:text-red-200"
+                : "border-amber-300 text-amber-700 dark:border-amber-800 dark:text-amber-200",
             )}
           >
             <div className="font-semibold">
@@ -1011,7 +1011,7 @@ export default function CloudDnsSchedulerSection() {
         </div>
       ) : null}
 
-      <div className="overflow-hidden rounded-xl border border-slate-200/80 bg-white shadow-[0_18px_45px_-34px_rgba(15,23,42,0.65)] dark:border-slate-800/90 dark:bg-slate-950">
+      <div className="overflow-hidden rounded-lg border border-slate-200/80 bg-white shadow-none dark:border-slate-800/90 dark:bg-slate-950">
         <div className="flex flex-col gap-3 border-b border-border px-4 py-3 dark:border-slate-800 md:flex-row md:items-center md:justify-between">
           <div className="min-w-0">
             <div className="text-sm font-semibold text-slate-950 dark:text-slate-50">
@@ -1024,14 +1024,14 @@ export default function CloudDnsSchedulerSection() {
             </div>
           </div>
           <div className="flex w-full flex-col gap-2 md:w-auto md:flex-row md:items-center">
-            <div className="flex overflow-x-auto rounded-md border border-border bg-slate-50 p-1 dark:border-slate-800 dark:bg-slate-900/40">
+            <div className="flex overflow-x-auto gap-1 border-b border-border pb-1 dark:border-slate-800">
               {SOURCE_FILTERS.map((value) => (
                 <button
                   key={value}
                   type="button"
                   className={cn(
                     "whitespace-nowrap rounded px-3 py-1.5 text-xs font-medium text-muted-foreground transition",
-                    sourceFilter === value && "bg-card text-slate-950 shadow-sm dark:bg-slate-950 dark:text-slate-50",
+                    sourceFilter === value && "bg-card text-slate-950 dark:bg-slate-950 dark:text-slate-50",
                   )}
                   onClick={() => handleSourceFilterChange(value)}
                 >

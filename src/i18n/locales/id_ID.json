@@ -465,7 +465,7 @@
       "noFilteredNodes": "No nodes match the current filters",
       "noFilteredNodesDescription": "调整搜索关键词后再试，或者清空筛选查看全部节点。",
       "noNodes": "No nodes",
-      "noNodesDescription": "生成 Agent 接入命令并在服务器执行后，节点会自动出现在这里。",
+      "noNodesDescription": "节点会在服务器接入完成后显示在这里。",
       "noResults": "Tidak ada hasil",
       "offlineCleanupManageHint": "This runs once per day and deletes every node currently confirmed offline across the panel.",
       "offlineCountBadge": "{{count}} offline",
@@ -608,7 +608,7 @@
       "all_features": "Semua fitur",
       "allowed_features": "Fitur yang diizinkan",
       "allowed_features_hint": "Biarkan semua tidak dicentang untuk mengizinkan semua fitur.",
-      "allowed_features_hint_v2": "Leave everything unchecked to use default access. Selecting failover also enables the CN connectivity probe dependency.",
+      "allowed_features_hint_v2": "Regular users keep only Account and Plan Store by default. Access is granted per menu; server management is visible only to platform admins.",
       "auth": "Metode masuk",
       "create_failed": "Gagal membuat pengguna",
       "create_title": "Buat pengguna",
@@ -731,7 +731,7 @@
     "epusdt_secret_key": "Merchant Secret Key",
     "epusdt_token": "Token",
     "expires_at": "到期时间",
-    "feature_dependency_hint": "Penyedia cloud, DNS, failover, dan alat operasi otomatis menyertakan akses halaman Server.",
+    "feature_dependency_hint": "Cloud providers, DNS, failover, and operations tools are granted independently; server management is visible only to platform admins.",
     "feature_group_clear": "Kosongkan grup",
     "feature_group_select_all": "Pilih grup",
     "feature_group_selected": "{{selected}}/{{total}} dipilih",
@@ -1325,7 +1325,7 @@
         "assign_public_ip": "Berikan IPv4 publik jika konfigurasi subnet mengizinkan",
         "associated_elastic_ips": "Attached EIPs",
         "attach_existing": "Pasang IP yang sudah ada",
-        "auto_connect_toggle": "Bootstrap kelicloud agent auto-connect",
+        "auto_connect_toggle": "创建后自动接入平台",
         "auto_name": "Auto name",
         "az": "AZ",
         "background_auto_refresh": "Auto refreshes every 15 seconds while pending tasks exist.",
@@ -1603,7 +1603,7 @@
         "auth_ssh": "SSH Public Key",
         "auto_connect_group": "Auto-connect Group",
         "auto_connect_group_placeholder": "Optional. Leave empty to use the default group",
-        "auto_connect_toggle": "Bootstrap kelicloud agent auto-connect",
+        "auto_connect_toggle": "创建后自动接入平台",
         "auto_name": "Nama otomatis",
         "auto_resource_group": "Resource group otomatis",
         "check": "Check",
@@ -1615,7 +1615,7 @@
         "copy_client_id": "Client ID copied",
         "copy_client_secret": "Client secret copied",
         "create": "Create VM",
-        "create_description": "Create a Linux VM in the current active Azure location. kelicloud will automatically prepare the resource group network stack and bootstrap agent auto-connect.",
+        "create_description": "创建 Linux 虚拟机，并在创建完成后自动接入平台。",
         "create_location_hint": "Active location: {{location}}",
         "create_name_placeholder": "Leave empty to auto-generate a VM name",
         "create_option": "Create Option",
@@ -2273,7 +2273,12 @@
     "updated_successfully": "Berhasil diperbarui",
     "warning": "Warning",
     "weight": "Bobot",
-    "yes": "Yes"
+    "yes": "Yes",
+    "completed": "Selesai",
+    "exception": "Gangguan",
+    "not_set": "Belum diatur",
+    "processing": "Diproses",
+    "result": "Hasil"
   },
   "copy": "Salin",
   "copy_success": "Berhasil disalin!",
@@ -2305,7 +2310,8 @@
       "noNodes": "Silakan pilih minimal satu node.",
       "taskResultLoadFailed": "获取任务结果失败，请稍后重试。",
       "taskSubmitFailed": "执行命令提交失败",
-      "unexpectedTaskResultResponse": "意外的任务结果响应"
+      "unexpectedTaskResultResponse": "意外的任务结果响应",
+      "noTaskPermission": "Akun ini tidak memiliki izin untuk menjalankan tugas."
     },
     "execute": "Eksekusi Jarak Jauh",
     "executing": "Sedang mengeksekusi",
@@ -2380,7 +2386,8 @@
       "created_at": "Created at",
       "nodes": "Nodes",
       "receipts": "Receipts",
-      "status": "Status"
+      "status": "Status",
+      "task_id": "ID tugas"
     },
     "target_nodes": "Target nodes",
     "task_id_label": "Task ID",
@@ -2392,7 +2399,9 @@
     "title": "Eksekusi Jarak Jauh",
     "useSavedCommand": "Use",
     "view_results": "View results",
-    "waiting_for_result": "Waiting for task result..."
+    "waiting_for_result": "Waiting for task result...",
+    "script_editor_description": "Simpan perintah saat ini atau buat skrip langsung dari halaman eksekusi. Setelah disimpan, Anda tetap berada di workspace yang sama.",
+    "create_task": "Buat tugas"
   },
   "failover": {
     "action_type": {
@@ -2628,7 +2637,7 @@
       "rr": "Host / RR",
       "script": "Script",
       "script_attached": "Script attached",
-      "script_domain_required_hint": "Agent connection address is not configured yet. Set it in Settings -> Site, otherwise failover-created instances cannot auto-connect back to kelicloud.",
+      "script_domain_required_hint": "平台接入地址尚未配置，请联系管理员处理。",
       "script_missing": "Missing script #{{id}}",
       "script_missing_hint": "This script is no longer in the library, but it will stay in the saved execution order until you remove it.",
       "script_timeout": "Script timeout (s)",
@@ -2682,10 +2691,40 @@
       "vultr_backups_hint": "Enable Vultr backups for the replacement instance.",
       "vultr_ddos_hint": "Request Vultr DDoS protection when it is available for the plan and region.",
       "vultr_ipv6_hint": "Provision a dual-stack Vultr instance when the selected region supports IPv6.",
-      "wait_agent_timeout": "Wait agent timeout (s)",
+      "wait_agent_timeout": "接入等待时间 (秒)",
       "watch_node": "Watch node",
       "watch_node_placeholder": "Choose a node",
-      "zone_name": "Zone / domain"
+      "zone_name": "Zone / domain",
+      "azure_login_section": "Login dan inisialisasi",
+      "azure_login_section_hint": "Atur password root, SSH key opsional, dan skrip startup untuk outlet pengganti.",
+      "configure_scripts": "Konfigurasi skrip",
+      "dns_summary_cleanup_note": "Pembersihan instance lama terpisah dari perpindahan DNS dan berjalan setelah DNS berhasil.",
+      "dns_summary_panel_hint": "Sisi kanan menampilkan record target, mode sinkronisasi, dan kebijakan pembersihan instance lama saat mengedit.",
+      "dns_summary_policy": "Kebijakan sinkronisasi",
+      "dns_summary_scheduler_note": "Pembaruan DNS masuk ke scheduler terpadu untuk mengurangi tekanan API saat DDNS dan failover terpicu bersamaan.",
+      "dns_summary_stack_note": "Mode dual-stack memperbarui record A terlebih dahulu dan hanya menyinkronkan AAAA jika outlet baru memiliki IPv6.",
+      "dns_summary_title": "Pratinjau kebijakan DNS",
+      "main_summary_hint": "Sisi kanan hanya menyimpan status penting yang memengaruhi hasil eksekusi; sisi kiri mengedit formulir.",
+      "main_summary_nested_note": "Monitoring, DNS, rencana, dan preflight dipisah ke dialog sekunder agar formulir utama tetap ringkas.",
+      "main_summary_policy": "Alur edit",
+      "main_summary_save_note": "Signature preflight dibuat sebelum menyimpan. Preflight kedaluwarsa akan memblokir penyimpanan.",
+      "main_summary_task_note": "Dialog utama hanya menyimpan identitas tugas, ringkasan DNS, urutan rencana, dan status preflight.",
+      "main_summary_title": "Ringkasan konfigurasi tugas",
+      "monitoring_summary_cooldown_note": "Cooldown adalah interval pelindung setelah eksekusi agar instance tidak dibuat berulang saat node flapping.",
+      "monitoring_summary_hint": "Nilai ini menentukan kapan perpindahan dipicu, kapan retry dijeda, dan bagaimana rencana fallback.",
+      "monitoring_summary_policy": "Makna saat berjalan",
+      "monitoring_summary_retry_note": "Saat kredensial atau pembuatan outlet gagal, fallback mengikuti jumlah retry dan urutan rencana.",
+      "monitoring_summary_threshold_note": "Ambang kegagalan menentukan berapa kegagalan beruntun yang memicu evaluasi failover.",
+      "monitoring_summary_title": "Pratinjau kebijakan monitoring",
+      "plan_summary_auto_connect": "Grup auto-connect",
+      "plan_summary_default_network": "Outlet pengganti tetap dapat dijangkau publik oleh kebijakan backend; detail jaringan tidak lagi ditampilkan untuk edit normal.",
+      "plan_summary_dns_after_success": "DNS berpindah setelah instance atau IP publik siap, sehingga risiko cutover terlalu awal berkurang.",
+      "plan_summary_hint": "Sisi kanan menampilkan hasil penting rencana saat ini; sisi kiri mengubah urutan, kredensial, dan parameter instance.",
+      "plan_summary_order": "Beberapa rencana fallback mengikuti urutan di kiri; sisi kanan hanya menampilkan hasil rencana saat ini.",
+      "plan_summary_policy": "Kebijakan eksekusi",
+      "plan_summary_title": "Pratinjau rencana outlet",
+      "script_timeout_summary": "Timeout {{seconds}} detik",
+      "scripts_compact_hint": "Skrip opsional berjalan berurutan setelah outlet pengganti lolos pemeriksaan. Buka konfigurasi skrip untuk memilih, mengurutkan, dan mengatur timeout."
     },
     "empty_description": "Create your first task to watch CN connectivity, provision or rebind IPs, optionally run a clipboard script, and switch DNS only when needed.",
     "empty_title": "No failover tasks yet",
@@ -2881,7 +2920,9 @@
       "timeline": "Timeline",
       "timeline_hint": "Each step is persisted by the backend so you can see exactly where a run failed.",
       "title": "Execution details",
-      "trigger_snapshot": "Trigger snapshot"
+      "trigger_snapshot": "Trigger snapshot",
+      "finished": "Waktu selesai",
+      "public_description": "Lihat status tugas, hasil, dan waktu pembaruan terbaru."
     },
     "messages": {
       "created": "Failover task created",
@@ -2999,7 +3040,8 @@
       "status_not_shared": "未分享",
       "target_task": "任务",
       "title_label": "分享标题",
-      "title_placeholder": "默认使用任务名"
+      "title_placeholder": "默认使用任务名",
+      "available_outlets": "Outlet cadangan tersedia"
     },
     "stats": {
       "active": "Active",
@@ -3083,7 +3125,8 @@
       "script_pending": "Not run yet",
       "script_status_label": "Script status",
       "uninitialized": "Not initialized",
-      "uninitialized_hint": "Save the task first, then run initialization once to create the first outlet."
+      "uninitialized_hint": "Save the task first, then run initialization once to create the first outlet.",
+      "state_normal": "Berjalan normal"
     },
     "trigger_reason": "触发原因",
     "validation": {
@@ -3101,7 +3144,7 @@
       "plan_provider_entry_required": "Plan {{index}} requires a provider entry",
       "plan_provider_required": "Plan {{index}} requires a cloud provider",
       "plan_required": "At least one failover plan is required",
-      "script_domain_required": "Agent connection address is required for failover auto-connect. Set it in Settings -> Site before saving or running this task.",
+      "script_domain_required": "平台接入地址尚未配置，请联系管理员完成基础配置后再保存或运行任务。",
       "task_name_required": "Task name is required",
       "watch_node_required": "Choose a watch node"
     },
@@ -3116,6 +3159,11 @@
       "more_plans": "more plans",
       "tasks": "Task list",
       "tasks_hint": "Scan by task, outlet, DNS, and recent execution status."
+    },
+    "public_result": {
+      "completed": "Pemrosesan selesai.",
+      "needs_admin": "Proses ini belum selesai. Hubungi administrator.",
+      "processing": "Sedang diproses. Segarkan nanti untuk melihat status terbaru."
     }
   },
   "failover_v2": {
@@ -3699,7 +3747,24 @@
       "task_detail": "Main task",
       "task_queue": "Task list",
       "task_queue_hint": "Check task health and recent execution first, then expand a task to see members."
-    }
+    },
+    "dns_lines_member_hint": "Record Cloudflare tidak menggunakan routing line Aliyun.",
+    "dns_target": "Target DNS",
+    "member_summary_dns": "Line DNS",
+    "member_summary_hint": "Sisi kanan hanya menampilkan hasil penting, sementara sisi kiri digunakan untuk mengedit. Kebijakan jaringan dan pemasangan DNS default ditangani backend.",
+    "member_summary_policy": "Kebijakan default",
+    "member_summary_title": "Pratinjau konfigurasi outlet",
+    "service_summary_dns_note": "Layanan hanya mengelola target DNS bersama. Line spesifik diikat pada anggota.",
+    "service_summary_hint": "Sisi kanan menampilkan DNS tingkat layanan, penjadwalan, dan kebijakan skrip; sisi kiri mengedit field.",
+    "service_summary_policy": "Kebijakan layanan",
+    "service_summary_scheduler_note": "Interval menentukan frekuensi pemeriksaan kesehatan layanan. Eksekusi anggota tetap mengikuti status masing-masing.",
+    "service_summary_script_note": "Skrip layanan berjalan berurutan setelah outlet pengganti lolos pemeriksaan.",
+    "service_summary_title": "Pratinjau konfigurasi layanan",
+    "summary_existing_dns_detach": "Saat dipicu, hanya line DNS terpilih yang dilepas. Tidak ada instance cloud baru yang dibuat.",
+    "summary_existing_state_safe": "Status outlet saat ini dibaca dari client yang terikat dan dapat diperbaiki di field runtime.",
+    "summary_provider_auto_network": "Instance cloud dapat dijangkau publik secara default, dengan lalu lintas penting diizinkan oleh kebijakan backend.",
+    "summary_provider_dns_attach": "DNS dipasang setelah instance siap agar lalu lintas tidak berpindah terlalu cepat.",
+    "summary_provider_json_advanced": "Field yang jarang dipakai disimpan di editor JSON lanjutan dan biasanya tidak perlu diubah."
   },
   "go_to_home": "Kembali ke Beranda",
   "home_title": "Pemantau kelicloud",
@@ -4143,7 +4208,10 @@
       "telegram_title": "Konfigurasi Telegram",
       "test_description": "Kirim pesan uji coba",
       "test_title": "Kirim pesan uji coba",
-      "title": "Notifikasi"
+      "title": "Notifikasi",
+      "telegram_only_description": "Saat ini Telegram adalah satu-satunya kanal pengiriman notifikasi.",
+      "test_requires_enabled": "Aktifkan kanal pengiriman notifikasi terlebih dahulu.",
+      "test_requires_telegram_chat_id": "Isi Telegram chat ID di target penerimaan pribadi terlebih dahulu."
     },
     "page_description": "Kelola situs, skrip node, notifikasi, dan konfigurasi sistem.",
     "platform_admin_required_description": "Bagian ini mengelola pengaturan sistem untuk seluruh platform. Gunakan akun admin platform untuk mengeditnya.",

@@ -76,11 +76,11 @@ const NODE_DIALOG_CONTENT_CLASS =
     ADMIN_FORM_DIALOG_CHROME_CLASS,
   );
 const NODE_DIALOG_SECTION_CLASS =
-  "rounded-xl border border-slate-200/80 bg-slate-50 px-4 py-4 dark:border-slate-800 dark:bg-slate-900/35";
+  "border-t border-slate-200/80 bg-transparent pt-4 dark:border-slate-800";
 const NODE_DIALOG_INFO_CLASS =
-  "flex items-center justify-between gap-3 rounded-xl border border-slate-200/80 bg-white p-4 shadow-sm shadow-slate-900/5 dark:border-slate-800 dark:bg-slate-950";
+  "flex items-center justify-between gap-3 border-l-2 border-slate-200/90 bg-transparent py-2 pl-3 dark:border-slate-700";
 const NODE_DIALOG_DANGER_CLASS =
-  "rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-900/50 dark:bg-red-950/40 dark:text-red-200";
+  "border-l-2 border-red-300 bg-transparent py-2 pl-3 text-sm text-red-700 dark:border-red-800 dark:text-red-200";
 
 function normalizeProvider(value: string): DDNSProvider {
   return value === "aliyun" ? "aliyun" : "cloudflare";
@@ -835,7 +835,7 @@ export function NodeDDNSDialog({
           </div>
 
           {catalogError ? (
-            <div className="rounded-lg border border-amber-200/80 bg-amber-50/92 px-3 py-2 text-sm text-amber-700 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-300">
+            <div className="border-l-2 border-amber-300 bg-transparent py-2 pl-3 text-sm text-amber-700 dark:border-amber-800 dark:text-amber-300">
               {catalogError}
             </div>
           ) : null}

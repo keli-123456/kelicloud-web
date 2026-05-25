@@ -1527,7 +1527,7 @@ function VultrTokensSection({
         <>
       <div className="min-h-0 flex-1 overflow-y-auto p-3 [scrollbar-gutter:stable]">
         {tokenRows.length ? (
-          <AdminDataTableScroll className="rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-950">
+          <AdminDataTableScroll className="rounded-lg border border-slate-200 bg-white shadow-none dark:border-slate-800 dark:bg-slate-950">
             <AdminDataTable minWidth={480} className="[&_td]:px-2 [&_th]:px-2">
               <thead>
                 <AdminDataTableHeadRow>
@@ -1792,7 +1792,7 @@ function VultrCreateDialog({
         title={t("cloud.providers.vultr.create", "创建实例")}
         description={t(
           "cloud.providers.vultr.create_description",
-          "创建 Vultr 实例，可按需启用 IPv6、备份、SSH 密钥、标签和 kelicloud 自动接入脚本。",
+          "创建 Vultr 实例，可按需启用 IPv6、备份、SSH 密钥、标签，并在创建完成后自动接入平台。",
         )}
         icon={<Server className="size-4" />}
         badge={<Badge color="blue">{t("cloud.providers.vultr.title", "Vultr")}</Badge>}
@@ -1937,7 +1937,7 @@ function VultrCreateDialog({
 
         <CloudFormField label={t("cloud.form.ssh_keys", "SSH 密钥")}>
           {(catalog?.ssh_keys || []).length ? (
-            <div className="grid max-h-52 gap-2 overflow-y-auto rounded-xl border border-slate-200/80 bg-white p-3 shadow-sm shadow-slate-900/5 [scrollbar-gutter:stable] dark:border-slate-800 dark:bg-slate-950 sm:grid-cols-2">
+            <div className="grid max-h-52 gap-2 overflow-y-auto border-y border-slate-200/80 py-3 shadow-none [scrollbar-gutter:stable] dark:border-slate-800 sm:grid-cols-2">
               {(catalog?.ssh_keys || []).map((key) => {
                 const checked = form.sshkey_id.includes(key.id);
                 return (
@@ -2013,7 +2013,7 @@ function ToggleRow({
   onCheckedChange: (checked: boolean) => void;
 }) {
   return (
-    <label className="flex min-w-0 items-center justify-between gap-3 rounded-xl border border-slate-200/80 bg-slate-50 px-4 py-3 shadow-sm dark:border-slate-800 dark:bg-slate-900/35">
+    <label className="flex min-w-0 items-center justify-between gap-3 border-t border-slate-200/80 pt-3 shadow-none dark:border-slate-800">
       <span className="min-w-0 text-sm font-medium text-foreground">{label}</span>
       <Checkbox
         checked={checked}
@@ -2234,7 +2234,7 @@ function SecretSidePanel({
 }) {
   return (
     <div className="space-y-4">
-      <div className="rounded-xl border border-slate-200/80 bg-white px-4 py-3 shadow-sm shadow-slate-900/5 dark:border-slate-800 dark:bg-slate-950">
+      <div className="border-t border-slate-200/80 pt-3 shadow-none dark:border-slate-800">
         <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
           <ShieldCheck className="size-4 text-blue-600" />
           {title}

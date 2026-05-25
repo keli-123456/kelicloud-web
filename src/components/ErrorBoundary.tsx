@@ -30,7 +30,7 @@ class ErrorBoundary extends React.Component<
   render() {
     if (this.state.hasError) {
       return (
-        <div className="flex flex-col items-center justify-center min-h-[300px] p-8 bg-gradient-to-br from-rose-50 to-red-50 border border-red-200 rounded-md shadow-md max-w-3xl mx-auto">
+        <div className="flex flex-col items-center justify-center min-h-[300px] p-8 bg-rose-50 border border-red-200 rounded-md shadow-none max-w-3xl mx-auto">
           {/* Icon for visual emphasis */}
           <svg
             className="w-12 h-12 text-red-500 mb-4"
@@ -62,7 +62,7 @@ class ErrorBoundary extends React.Component<
             <summary className="cursor-pointer text-sm font-medium text-red-500 hover:text-red-700 transition-colors duration-200">
               View Error Details
             </summary>
-            <pre className="mt-3 p-4 bg-red-100 text-sm text-red-900 border border-red-200 rounded-lg shadow-sm overflow-x-auto">
+            <pre className="mt-3 p-4 bg-red-100 text-sm text-red-900 border border-red-200 rounded-lg shadow-none overflow-x-auto">
               {this.state.error?.stack || "No stack trace available."}
             </pre>
           </details>

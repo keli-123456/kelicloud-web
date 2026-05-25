@@ -11,7 +11,6 @@ import {
 } from "lucide-react";
 
 import { Button } from "@/components/admin/cloud/cloud-ui";
-import { cn } from "@/lib/utils";
 
 type MaybePromise<T> = T | Promise<T>;
 
@@ -163,7 +162,7 @@ export function CloudOnboardingPanel({
   });
 
   return (
-    <div className="rounded-lg border border-blue-200/70 bg-blue-50/50 p-4 shadow-sm dark:border-blue-900/50 dark:bg-blue-950/20">
+    <div className="rounded-lg border border-blue-200/70 bg-blue-50/45 p-4 shadow-none dark:border-blue-900/50 dark:bg-blue-950/15">
       <div className="flex flex-col gap-1 md:flex-row md:items-start md:justify-between">
         <div>
           <div className="text-sm font-semibold text-blue-950 dark:text-blue-100">
@@ -183,38 +182,38 @@ export function CloudOnboardingPanel({
           </div>
         </div>
       </div>
-      <div
-        className={cn(
-          "mt-4 grid gap-3",
-          steps.length === 2 ? "lg:grid-cols-2" : "lg:grid-cols-3",
-        )}
-      >
+      <div className="mt-4 divide-y divide-blue-200/70 rounded-lg border border-blue-200/70 bg-white/70 dark:divide-blue-900/50 dark:border-blue-900/50 dark:bg-slate-950/35">
         {steps.map((step, index) => {
           const Icon = step.icon;
           return (
-            <div
-              key={step.key}
-              className="min-w-0 rounded-lg border border-white/80 bg-white/85 p-3 shadow-xs dark:border-blue-900/50 dark:bg-slate-950/60"
-            >
-              <div className="flex items-start gap-3">
-                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-blue-100 bg-blue-50 text-blue-700 dark:border-blue-900/60 dark:bg-blue-950/50 dark:text-blue-200">
-                  {step.done ? <CheckCircle2 className="h-4 w-4" /> : <Icon className="h-4 w-4" />}
+            <div key={step.key} className="min-w-0 p-3">
+              <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                <div className="flex min-w-0 items-start gap-3">
+                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-blue-100 bg-blue-50 text-blue-700 dark:border-blue-900/60 dark:bg-blue-950/50 dark:text-blue-200">
+                    {step.done ? (
+                      <CheckCircle2 className="h-4 w-4" />
+                    ) : (
+                      <Icon className="h-4 w-4" />
+                    )}
+                  </div>
+                  <div className="min-w-0">
+                    <div className="text-xs font-medium text-slate-500 dark:text-slate-400">
+                      {t("cloud.onboarding.step", {
+                        count: index + 1,
+                        defaultValue: "步骤 {{count}}",
+                      })}
+                    </div>
+                    <div className="mt-0.5 text-sm font-semibold text-slate-950 dark:text-slate-50">
+                      {step.title}
+                    </div>
+                    <div className="mt-1 text-sm leading-5 text-slate-500 dark:text-slate-400">
+                      {step.description}
+                    </div>
+                  </div>
                 </div>
-                <div className="min-w-0">
-                  <div className="text-xs font-medium text-slate-500 dark:text-slate-400">
-                    {t("cloud.onboarding.step", {
-                      count: index + 1,
-                      defaultValue: "步骤 {{count}}",
-                    })}
-                  </div>
-                  <div className="mt-0.5 text-sm font-semibold text-slate-950 dark:text-slate-50">
-                    {step.title}
-                  </div>
-                  <div className="mt-1 text-sm leading-5 text-slate-500 dark:text-slate-400">
-                    {step.description}
-                  </div>
-                  {step.action ? <div className="mt-3">{step.action}</div> : null}
-                </div>
+                {step.action ? (
+                  <div className="shrink-0 md:pl-3">{step.action}</div>
+                ) : null}
               </div>
             </div>
           );

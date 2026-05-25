@@ -173,7 +173,7 @@ const NodeDetailsPage = () => {
   if (loading) {
     return <AdminDashboardLoadingState />;
   }
-  if (!hasFeature("clients")) {
+  if (!platformAdmin) {
     return <Navigate to={getDefaultAdminPath(account)} replace />;
   }
 
@@ -867,7 +867,7 @@ const Header = ({
         </Alert>
       ) : null}
 
-      <div className="rounded-xl border border-slate-200/80 bg-white px-3 py-2.5 shadow-[0_18px_45px_-34px_rgba(15,23,42,0.65)] dark:border-slate-800/90 dark:bg-slate-950">
+      <div className="rounded-lg border border-slate-200/80 bg-white px-3 py-2.5 shadow-none dark:border-slate-800/90 dark:bg-slate-950">
         <div className="grid gap-2 lg:grid-cols-[minmax(0,1.25fr)_minmax(0,1fr)_auto] lg:items-center">
           <div className="min-w-[260px]">
             <form
@@ -1358,7 +1358,7 @@ const NodeInfoTooltip = ({
     <TooltipTrigger asChild>{children}</TooltipTrigger>
     <TooltipContent
       sideOffset={8}
-      className="rounded-xl border border-slate-200/80 bg-popover px-3 py-2 text-sm text-foreground shadow-[0_24px_70px_-45px_rgba(15,23,42,0.85)] dark:border-slate-800 dark:shadow-black/40"
+      className="rounded-lg border border-slate-200/80 bg-popover px-3 py-2 text-sm text-foreground shadow-[0_18px_50px_-38px_rgba(15,23,42,0.7)] dark:border-slate-800 dark:shadow-black/30"
     >
       {content}
     </TooltipContent>
@@ -2147,7 +2147,7 @@ const NodeTable = ({
                 defaultValue: "调整搜索关键词后再试，或者清空筛选查看全部节点。",
               })
               : t("admin.nodeTable.noNodesDescription", {
-                defaultValue: "生成 Agent 接入命令并在服务器执行后，节点会自动出现在这里。",
+                defaultValue: "完成服务器接入后，节点会自动出现在这里。",
               })
           }
         />
@@ -2174,7 +2174,7 @@ const NodeTable = ({
             onPageSizeChange={nodePagination.setPageSize}
             pageSizeOptions={[20, 50, 100]}
             itemLabel={t("admin.pagination.nodes", { defaultValue: "台设备" })}
-            className="rounded-xl border border-slate-200/80 bg-white shadow-[0_18px_45px_-34px_rgba(15,23,42,0.65)] dark:border-slate-800/90 dark:bg-slate-950"
+            className="rounded-lg border border-slate-200/80 bg-white shadow-none dark:border-slate-800/90 dark:bg-slate-950"
           />
         </>
       )}

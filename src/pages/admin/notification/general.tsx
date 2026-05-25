@@ -446,7 +446,7 @@ const Inner = () => {
 
           <section className={notificationPanelClass}>
             <SettingCardLabel>{t("admin.notification.expire_title")}</SettingCardLabel>
-            <div className="mb-2 grid gap-2 rounded-xl border border-slate-200/80 bg-slate-50 p-3 shadow-sm shadow-slate-900/5 dark:border-slate-800 dark:bg-slate-900/35 sm:grid-cols-2 xl:grid-cols-4">
+            <div className="mb-2 grid gap-2 border-y border-slate-200/80 py-3 dark:border-slate-800 sm:grid-cols-2 xl:grid-cols-4">
               {expireStatusItems.map((item) => (
                 <div key={item.label} className="min-w-0">
                   <div className="text-xs font-medium text-muted-foreground">

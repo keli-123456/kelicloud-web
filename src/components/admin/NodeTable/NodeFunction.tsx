@@ -89,17 +89,17 @@ type InstallOptions = {
 type Platform = "linux" | "windows" | "macos";
 
 const NODE_DIALOG_CONTENT_CLASS =
-  "max-h-[90vh] w-[min(96vw,840px)] overflow-y-auto overscroll-contain rounded-xl border border-slate-200/80 bg-white p-5 shadow-[0_30px_90px_-55px_rgba(15,23,42,0.9)] [scrollbar-gutter:stable] dark:border-slate-800 dark:bg-slate-950";
+  "max-h-[90vh] w-[min(96vw,840px)] overflow-y-auto overscroll-contain rounded-lg border border-slate-200/80 bg-white p-5 shadow-[0_24px_70px_-50px_rgba(15,23,42,0.72)] [scrollbar-gutter:stable] dark:border-slate-800 dark:bg-slate-950";
 const NODE_DIALOG_COMPACT_CONTENT_CLASS =
-  "max-h-[90vh] w-[min(96vw,560px)] overflow-y-auto overscroll-contain rounded-xl border border-slate-200/80 bg-white p-5 shadow-[0_30px_90px_-55px_rgba(15,23,42,0.9)] [scrollbar-gutter:stable] dark:border-slate-800 dark:bg-slate-950";
+  "max-h-[90vh] w-[min(96vw,560px)] overflow-y-auto overscroll-contain rounded-lg border border-slate-200/80 bg-white p-5 shadow-[0_24px_70px_-50px_rgba(15,23,42,0.72)] [scrollbar-gutter:stable] dark:border-slate-800 dark:bg-slate-950";
 const NODE_DIALOG_SECTION_CLASS =
-  "space-y-4 rounded-xl border border-slate-200/80 bg-slate-50 px-4 py-4 dark:border-slate-800 dark:bg-slate-900/35";
+  "space-y-4 border-t border-slate-200/80 bg-transparent pt-4 dark:border-slate-800";
 const NODE_DIALOG_FOOTER_CLASS =
   "sticky bottom-0 -mx-5 -mb-5 mt-5 flex flex-col-reverse gap-2 border-t border-slate-200/80 bg-white/95 px-5 py-3 backdrop-blur dark:border-slate-800 dark:bg-slate-950/95 sm:flex-row sm:justify-end";
 const NODE_INPUT_CLASS =
-  "h-10 rounded-lg border border-slate-200/80 bg-white px-3 text-[14px] shadow-sm shadow-slate-900/5 hover:bg-white dark:border-slate-800 dark:bg-slate-950";
+  "h-10 rounded-lg border border-slate-200/80 bg-white px-3 text-[14px] shadow-none hover:bg-white dark:border-slate-800 dark:bg-slate-950";
 const NODE_TEXTAREA_CLASS =
-  "min-h-[120px] max-h-[320px] overflow-y-auto rounded-xl border border-slate-200/80 bg-white px-4 py-3 font-mono text-[13px] leading-6 whitespace-pre-wrap break-words shadow-sm shadow-slate-900/5 [overflow-wrap:anywhere] dark:border-slate-800 dark:bg-slate-950";
+  "min-h-[120px] max-h-[320px] overflow-y-auto rounded-lg border border-slate-200/80 bg-white px-4 py-3 font-mono text-[13px] leading-6 whitespace-pre-wrap break-words shadow-none [overflow-wrap:anywhere] dark:border-slate-800 dark:bg-slate-950";
 
 export function ActionsCell({ row }: { row: Row<z.infer<typeof schema>> }) {
   const refreshTable = React.useContext(DataTableRefreshContext);
@@ -403,7 +403,7 @@ export function ActionsCell({ row }: { row: Row<z.infer<typeof schema>> }) {
             This entry is still pending a proper pricing form and currently remains
             a placeholder surface.
           </Dialog.Description>
-          <div className="mt-4 rounded-xl border border-slate-200/80 bg-slate-50 px-4 py-4 dark:border-slate-800 dark:bg-slate-900/35">
+          <div className="mt-4 border-t border-slate-200/80 pt-4 dark:border-slate-800">
             <label className="block text-sm font-medium text-muted-foreground">
               Placeholder
             </label>
@@ -427,7 +427,7 @@ export function ActionsCell({ row }: { row: Row<z.infer<typeof schema>> }) {
           <Dialog.Description className="mt-2">
             {t("admin.nodeTable.cannotUndo")}
           </Dialog.Description>
-          <div className="mt-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900/50 dark:bg-red-950/40 dark:text-red-200">
+          <div className="mt-4 border-l-2 border-red-300 py-2 pl-3 text-sm text-red-700 dark:border-red-800 dark:text-red-200">
             <p className="text-sm leading-6 text-red-700 dark:text-red-200">
               Deleting a node removes it from the management console immediately.
               This action cannot be undone.

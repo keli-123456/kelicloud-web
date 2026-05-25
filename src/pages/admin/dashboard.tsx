@@ -612,7 +612,7 @@ function DashboardPageContent() {
               <DashboardSignalRow
                 title={t("admin.nodeTable.noNodes", { defaultValue: "No nodes" })}
                 description={t("admin.nodeTable.noNodesDescription", {
-                  defaultValue: "生成 Agent 接入命令并在服务器执行后，节点会自动出现在这里。",
+                  defaultValue: "完成服务器接入后，节点会自动出现在这里。",
                 })}
                 detail={t("admin.dashboard.noNodesForDashboard", {
                   defaultValue: "接入服务器后，这里会显示在线状态和资源压力。",
@@ -677,7 +677,7 @@ function DashboardPageContent() {
               <DashboardSignalRow
                 title={t("admin.nodeTable.noNodes", { defaultValue: "No nodes" })}
                 description={t("admin.nodeTable.noNodesDescription", {
-                  defaultValue: "生成 Agent 接入命令并在服务器执行后，节点会自动出现在这里。",
+                  defaultValue: "完成服务器接入后，节点会自动出现在这里。",
                 })}
                 detail={t("admin.dashboard.noNodesForDashboard", {
                   defaultValue: "接入服务器后，这里会显示在线状态和资源压力。",
@@ -812,7 +812,7 @@ function DashboardHealthRail({
 
   if (total === 0) {
     return (
-      <div className="rounded-xl border border-dashed border-slate-200/80 bg-slate-50 p-3 dark:border-slate-800 dark:bg-slate-900/35">
+      <div className="border-y border-dashed border-slate-200/80 py-3 dark:border-slate-800">
         <div className="h-2 rounded-full bg-muted" />
         <div className="mt-2 text-[12px] leading-4 text-muted-foreground">
           {t("admin.dashboard.healthRailPending", {
@@ -824,7 +824,7 @@ function DashboardHealthRail({
   }
 
   return (
-    <div className="rounded-xl border border-slate-200/80 bg-slate-50 p-3 dark:border-slate-800 dark:bg-slate-900/35">
+    <div className="border-y border-slate-200/80 py-3 dark:border-slate-800">
       <div className="flex h-2 overflow-hidden rounded-full bg-muted">
         <span
           className="bg-emerald-500"
@@ -1008,13 +1008,13 @@ function DashboardFeatureRow({
 }
 
 export default function AdminDashboardPage() {
-  const { account, hasFeature, loading } = useAccount();
+  const { account, loading, platformAdmin } = useAccount();
 
   if (loading) {
     return <DashboardLoadingState />;
   }
 
-  if (!hasFeature("clients")) {
+  if (!platformAdmin) {
     return <Navigate to={getDefaultAdminPath(account)} replace />;
   }
 

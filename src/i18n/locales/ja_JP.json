@@ -465,7 +465,7 @@
       "noFilteredNodes": "No nodes match the current filters",
       "noFilteredNodesDescription": "调整搜索关键词后再试，或者清空筛选查看全部节点。",
       "noNodes": "No nodes",
-      "noNodesDescription": "生成 Agent 接入命令并在服务器执行后，节点会自动出现在这里。",
+      "noNodesDescription": "服务器接入完成后，节点会显示在这里。",
       "noResults": "結果がありません",
       "offlineCleanupManageHint": "This runs once per day and deletes every node currently confirmed offline across the panel.",
       "offlineCountBadge": "{{count}} offline",
@@ -608,7 +608,7 @@
       "all_features": "すべての機能",
       "allowed_features": "許可された機能",
       "allowed_features_hint": "何も選択しない場合は、すべての機能を許可します。",
-      "allowed_features_hint_v2": "Leave everything unchecked to use default access. Selecting failover also enables the CN connectivity probe dependency.",
+      "allowed_features_hint_v2": "Regular users keep only Account and Plan Store by default. Access is granted per menu; server management is visible only to platform admins.",
       "auth": "サインイン",
       "create_failed": "ユーザーの作成に失敗しました",
       "create_title": "ユーザーを作成",
@@ -731,7 +731,7 @@
     "epusdt_secret_key": "Merchant Secret Key",
     "epusdt_token": "Token",
     "expires_at": "到期时间",
-    "feature_dependency_hint": "クラウド、DNS、フェイルオーバー、運用ツールはサーバーページ権限を自動的に含みます。",
+    "feature_dependency_hint": "Cloud providers, DNS, failover, and operations tools are granted independently; server management is visible only to platform admins.",
     "feature_group_clear": "このグループを解除",
     "feature_group_select_all": "このグループを選択",
     "feature_group_selected": "{{selected}}/{{total}} 選択済み",
@@ -1325,7 +1325,7 @@
         "assign_public_ip": "サブネット設定で許可されている場合はパブリック IPv4 を割り当てる",
         "associated_elastic_ips": "Attached EIPs",
         "attach_existing": "既存 IP を割り当て",
-        "auto_connect_toggle": "Bootstrap kelicloud agent auto-connect",
+        "auto_connect_toggle": "创建后自动接入平台",
         "auto_name": "Auto name",
         "az": "AZ",
         "background_auto_refresh": "Auto refreshes every 15 seconds while pending tasks exist.",
@@ -1603,7 +1603,7 @@
         "auth_ssh": "SSH Public Key",
         "auto_connect_group": "Auto-connect Group",
         "auto_connect_group_placeholder": "Optional. Leave empty to use the default group",
-        "auto_connect_toggle": "Bootstrap kelicloud agent auto-connect",
+        "auto_connect_toggle": "创建后自动接入平台",
         "auto_name": "自動名",
         "auto_resource_group": "自動リソースグループ",
         "check": "Check",
@@ -1615,7 +1615,7 @@
         "copy_client_id": "Client ID copied",
         "copy_client_secret": "Client secret copied",
         "create": "Create VM",
-        "create_description": "Create a Linux VM in the current active Azure location. kelicloud will automatically prepare the resource group network stack and bootstrap agent auto-connect.",
+        "create_description": "创建 Linux 虚拟机，并在创建完成后自动接入平台。",
         "create_location_hint": "Active location: {{location}}",
         "create_name_placeholder": "Leave empty to auto-generate a VM name",
         "create_option": "Create Option",
@@ -2273,7 +2273,12 @@
     "updated_successfully": "更新されました",
     "warning": "Warning",
     "weight": "重み",
-    "yes": "Yes"
+    "yes": "Yes",
+    "completed": "完了",
+    "exception": "異常",
+    "not_set": "未設定",
+    "processing": "処理中",
+    "result": "結果"
   },
   "copy": "コピー",
   "copy_success": "クリップボードにコピーされました",
@@ -2305,7 +2310,8 @@
       "noNodes": "少なくとも1つのノードを選択してください",
       "taskResultLoadFailed": "获取任务结果失败，请稍后重试。",
       "taskSubmitFailed": "执行命令提交失败",
-      "unexpectedTaskResultResponse": "意外的任务结果响应"
+      "unexpectedTaskResultResponse": "意外的任务结果响应",
+      "noTaskPermission": "現在のアカウントにはタスク実行権限がありません。"
     },
     "execute": "コマンドを実行",
     "executing": "実行中...",
@@ -2380,7 +2386,8 @@
       "created_at": "Created at",
       "nodes": "Nodes",
       "receipts": "Receipts",
-      "status": "Status"
+      "status": "Status",
+      "task_id": "タスク ID"
     },
     "target_nodes": "Target nodes",
     "task_id_label": "Task ID",
@@ -2392,7 +2399,9 @@
     "title": "リモート実行",
     "useSavedCommand": "Use",
     "view_results": "View results",
-    "waiting_for_result": "Waiting for task result..."
+    "waiting_for_result": "Waiting for task result...",
+    "script_editor_description": "実行ページから現在のコマンドを保存、またはスクリプトを追加できます。保存後も同じワークスペースで作業を続けます。",
+    "create_task": "タスクを作成"
   },
   "failover": {
     "action_type": {
@@ -2628,7 +2637,7 @@
       "rr": "Host / RR",
       "script": "Script",
       "script_attached": "Script attached",
-      "script_domain_required_hint": "Agent connection address is not configured yet. Set it in Settings -> Site, otherwise failover-created instances cannot auto-connect back to kelicloud.",
+      "script_domain_required_hint": "平台接入地址尚未配置，请联系管理员处理。",
       "script_missing": "Missing script #{{id}}",
       "script_missing_hint": "This script is no longer in the library, but it will stay in the saved execution order until you remove it.",
       "script_timeout": "Script timeout (s)",
@@ -2682,10 +2691,40 @@
       "vultr_backups_hint": "Enable Vultr backups for the replacement instance.",
       "vultr_ddos_hint": "Request Vultr DDoS protection when it is available for the plan and region.",
       "vultr_ipv6_hint": "Provision a dual-stack Vultr instance when the selected region supports IPv6.",
-      "wait_agent_timeout": "Wait agent timeout (s)",
+      "wait_agent_timeout": "接入等待时间 (秒)",
       "watch_node": "Watch node",
       "watch_node_placeholder": "Choose a node",
-      "zone_name": "Zone / domain"
+      "zone_name": "Zone / domain",
+      "azure_login_section": "ログインと初期化",
+      "azure_login_section_hint": "代替出口の root パスワード、任意の SSH キー、起動スクリプトを設定します。",
+      "configure_scripts": "スクリプトを設定",
+      "dns_summary_cleanup_note": "旧インスタンスのクリーンアップは DNS 切り替えと独立しており、DNS 成功後に実行されます。",
+      "dns_summary_panel_hint": "右側に対象レコード、同期モード、旧インスタンスのクリーンアップ方針を表示し、編集中も文脈を保ちます。",
+      "dns_summary_policy": "同期方針",
+      "dns_summary_scheduler_note": "DNS 更新は統一スケジューラに入り、DDNS とフェイルオーバーが同時に発生した時の API 負荷を抑えます。",
+      "dns_summary_stack_note": "デュアルスタックでは先に A レコードを更新し、新しい出口に IPv6 がある場合のみ AAAA を同期します。",
+      "dns_summary_title": "DNS 方針プレビュー",
+      "main_summary_hint": "右側には実行結果に影響する主要状態のみを残し、左側で具体的なフォームを編集します。",
+      "main_summary_nested_note": "監視、DNS、プラン、事前チェックを二次ダイアログに分け、メインフォームを長くしすぎないようにします。",
+      "main_summary_policy": "編集フロー",
+      "main_summary_save_note": "保存前に現在の設定で事前チェック署名を生成し、期限切れの場合は保存を止めます。",
+      "main_summary_task_note": "メインダイアログにはタスク情報、DNS 要約、プラン順序、事前チェック状態だけを残します。",
+      "main_summary_title": "タスク設定概要",
+      "monitoring_summary_cooldown_note": "クールダウンは実行後の保護間隔で、揺らぎによるインスタンス重複作成を防ぎます。",
+      "monitoring_summary_hint": "これらの値は切り替えの発火、再試行停止、プランのフォールバック方法を決めます。",
+      "monitoring_summary_policy": "実行時の意味",
+      "monitoring_summary_retry_note": "認証情報または出口作成に失敗した場合、再試行回数とプラン順に従ってフォールバックします。",
+      "monitoring_summary_threshold_note": "失敗しきい値は、何回連続で異常になるとフェイルオーバー判定へ進むかを決めます。",
+      "monitoring_summary_title": "監視方針プレビュー",
+      "plan_summary_auto_connect": "自動接続グループ",
+      "plan_summary_default_network": "代替出口はバックエンドポリシーにより外部到達可能に保たれ、通常編集ではネットワーク詳細を表示しません。",
+      "plan_summary_dns_after_success": "DNS はインスタンスまたはパブリック IP の準備完了後に切り替えられ、早すぎる切り替えを抑えます。",
+      "plan_summary_hint": "右側に現在プランの主要結果を固定表示し、左側で順序、認証情報、インスタンスパラメータを編集します。",
+      "plan_summary_order": "複数プランは左側の順序でフォールバックし、右側には現在プランの結果だけを表示します。",
+      "plan_summary_policy": "実行方針",
+      "plan_summary_title": "出口プランプレビュー",
+      "script_timeout_summary": "{{seconds}} 秒タイムアウト",
+      "scripts_compact_hint": "任意スクリプトは代替出口の検査通過後に順番に実行されます。スクリプト設定を開いて選択、並べ替え、タイムアウトを設定します。"
     },
     "empty_description": "Create your first task to watch CN connectivity, provision or rebind IPs, optionally run a clipboard script, and switch DNS only when needed.",
     "empty_title": "No failover tasks yet",
@@ -2881,7 +2920,9 @@
       "timeline": "Timeline",
       "timeline_hint": "Each step is persisted by the backend so you can see exactly where a run failed.",
       "title": "Execution details",
-      "trigger_snapshot": "Trigger snapshot"
+      "trigger_snapshot": "Trigger snapshot",
+      "finished": "終了時刻",
+      "public_description": "タスク状態、処理結果、最終更新時刻を確認します。"
     },
     "messages": {
       "created": "Failover task created",
@@ -2999,7 +3040,8 @@
       "status_not_shared": "未分享",
       "target_task": "任务",
       "title_label": "分享标题",
-      "title_placeholder": "默认使用任务名"
+      "title_placeholder": "默认使用任务名",
+      "available_outlets": "利用可能な待機出口"
     },
     "stats": {
       "active": "Active",
@@ -3083,7 +3125,8 @@
       "script_pending": "Not run yet",
       "script_status_label": "Script status",
       "uninitialized": "Not initialized",
-      "uninitialized_hint": "Save the task first, then run initialization once to create the first outlet."
+      "uninitialized_hint": "Save the task first, then run initialization once to create the first outlet.",
+      "state_normal": "正常稼働"
     },
     "trigger_reason": "触发原因",
     "validation": {
@@ -3101,7 +3144,7 @@
       "plan_provider_entry_required": "Plan {{index}} requires a provider entry",
       "plan_provider_required": "Plan {{index}} requires a cloud provider",
       "plan_required": "At least one failover plan is required",
-      "script_domain_required": "Agent connection address is required for failover auto-connect. Set it in Settings -> Site before saving or running this task.",
+      "script_domain_required": "平台接入地址尚未配置，请联系管理员完成基础配置后再保存或运行任务。",
       "task_name_required": "Task name is required",
       "watch_node_required": "Choose a watch node"
     },
@@ -3116,6 +3159,11 @@
       "more_plans": "more plans",
       "tasks": "Task list",
       "tasks_hint": "Scan by task, outlet, DNS, and recent execution status."
+    },
+    "public_result": {
+      "completed": "処理が完了しました。",
+      "needs_admin": "今回の処理は完了していません。管理者に連絡してください。",
+      "processing": "処理中です。しばらくしてから更新して最新状態を確認してください。"
     }
   },
   "failover_v2": {
@@ -3699,7 +3747,24 @@
       "task_detail": "Main task",
       "task_queue": "Task list",
       "task_queue_hint": "Check task health and recent execution first, then expand a task to see members."
-    }
+    },
+    "dns_lines_member_hint": "Cloudflare レコードでは Aliyun のルーティングラインを使用しません。",
+    "dns_target": "DNS ターゲット",
+    "member_summary_dns": "DNS ライン",
+    "member_summary_hint": "右側は主要な結果のみを表示し、左側で編集します。既定のネットワークと DNS 接続ポリシーはバックエンドで処理されます。",
+    "member_summary_policy": "既定ポリシー",
+    "member_summary_title": "出口設定プレビュー",
+    "service_summary_dns_note": "サービスは共有 DNS ターゲットのみを管理し、個別のラインはメンバー側で紐付けます。",
+    "service_summary_hint": "右側にサービス単位の DNS、スケジュール、スクリプトポリシーを固定表示し、左側で各項目を編集します。",
+    "service_summary_policy": "サービス方針",
+    "service_summary_scheduler_note": "間隔はサービス単位のヘルスチェック頻度を決めます。メンバー実行は各自の状態で判定されます。",
+    "service_summary_script_note": "サービススクリプトは代替出口の検査通過後に順番に実行されます。",
+    "service_summary_title": "サービス設定プレビュー",
+    "summary_existing_dns_detach": "トリガー時は選択した DNS ラインのみを切り離し、新しいクラウドインスタンスは作成しません。",
+    "summary_existing_state_safe": "現在の出口状態は紐付いたクライアントから読み取り、実行時フィールドで修正できます。",
+    "summary_provider_auto_network": "クラウドインスタンスは既定で外部到達可能で、必要な通信はバックエンドポリシーで許可されます。",
+    "summary_provider_dns_attach": "インスタンス作成後に DNS を接続し、早すぎる切り替えを防ぎます。",
+    "summary_provider_json_advanced": "使用頻度の低い項目は高度な JSON 編集にまとめられており、通常は触る必要がありません。"
   },
   "go_to_home": "ホームに戻る",
   "home_title": "kelicloud",
@@ -4143,7 +4208,10 @@
       "telegram_title": "Telegram 設定",
       "test_description": "テストメッセージを送信",
       "test_title": "テストメッセージを送信",
-      "title": "通知"
+      "title": "通知",
+      "telegram_only_description": "現在、通知送信チャネルは Telegram のみです。",
+      "test_requires_enabled": "先に通知送信チャネルを有効にしてください。",
+      "test_requires_telegram_chat_id": "個人の受信先に Telegram チャット ID を入力してください。"
     },
     "page_description": "サイト、ノードスクリプト、通知、システム設定を管理します。",
     "platform_admin_required_description": "ここではプラットフォーム全体で共有されるシステム設定を管理します。編集するにはプラットフォーム管理者アカウントに切り替えてください。",

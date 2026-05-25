@@ -20,7 +20,7 @@ function DetailCard({
   value: React.ReactNode;
 }) {
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white px-4 py-4 shadow-sm">
+    <div className="rounded-lg border border-slate-200 bg-white px-4 py-4 shadow-none">
       <div className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">
         {label}
       </div>
@@ -41,7 +41,7 @@ function Section({
   children: React.ReactNode;
 }) {
   return (
-    <section className="rounded-3xl border border-slate-200 bg-white px-5 py-5 shadow-sm">
+    <section className="rounded-lg border border-slate-200 bg-white px-5 py-5 shadow-none">
       <div>
         <div className="text-base font-semibold text-slate-900">{title}</div>
         {description ? (
@@ -326,7 +326,7 @@ export default function CloudSharePage() {
         </Section>
       ) : share ? (
         <>
-          <section className="rounded-[28px] border border-slate-200 bg-gradient-to-br from-white via-slate-50 to-sky-50 px-5 py-6 shadow-sm">
+          <section className="rounded-lg border border-slate-200 bg-white px-5 py-6 shadow-none">
             <div className="flex flex-wrap items-start justify-between gap-4">
               <div>
                 <div className="text-xs font-semibold uppercase tracking-[0.18em] text-sky-700">
@@ -374,7 +374,7 @@ export default function CloudSharePage() {
             <Section title={t("cloud.share.credentials", "Shared Credentials")}>
               <div className="flex flex-col gap-4">
                 {share.root_password ? (
-                  <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4">
+                  <div className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-4">
                     <div className="flex flex-wrap items-center justify-between gap-3">
                       <div className="text-sm font-medium text-slate-900">
                         <KeyRound className="mr-2 inline h-4 w-4" />
@@ -395,7 +395,7 @@ export default function CloudSharePage() {
                 ) : null}
 
                 {share.managed_ssh_key ? (
-                  <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4">
+                  <div className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-4">
                     <div className="text-sm font-medium text-slate-900">
                       {t("cloud.tokens.view_managed_key", "View Managed Key")}
                     </div>

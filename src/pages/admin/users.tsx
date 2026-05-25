@@ -146,7 +146,6 @@ type QuotaUsageState = {
 };
 
 const FEATURE_ORDER: AccountFeature[] = [
-  "clients",
   "records",
   "tasks",
   "notifications",
@@ -177,8 +176,6 @@ const LEGACY_FEATURE_ALIASES: Partial<Record<AccountFeature, AccountFeature[]>> 
   cloud_failover: ["cloud_failover_v1", "cloud_failover_v2"],
 };
 
-const SERVER_BOUND_FEATURES = FEATURE_ORDER.filter((feature) => feature !== "clients");
-
 const FEATURE_GROUPS: FeatureGroup[] = [
   {
     titleKey: "admin.users.group_standard",
@@ -186,7 +183,6 @@ const FEATURE_GROUPS: FeatureGroup[] = [
     descriptionKey: "admin.users.group_standard_description",
     defaultDescription: "Common day-to-day admin capabilities.",
     features: [
-      "clients",
       "records",
       "tasks",
       "notifications",
@@ -212,9 +208,7 @@ const FEATURE_GROUPS: FeatureGroup[] = [
   },
 ];
 
-const FEATURE_DEPENDENCIES = Object.fromEntries(
-  SERVER_BOUND_FEATURES.map((feature) => [feature, ["clients"]]),
-) as FeatureDependencyMap;
+const FEATURE_DEPENDENCIES = {} as FeatureDependencyMap;
 
 const PLAN_PRESETS: PlanPreset[] = [
   {
@@ -225,7 +219,7 @@ const PLAN_PRESETS: PlanPreset[] = [
     defaultDescription: "Monitoring, records, and audit visibility for a small private fleet.",
     planName: "Starter",
     serverQuota: "3",
-    features: ["clients", "records", "logs"],
+    features: ["records", "logs"],
   },
   {
     id: "ops",
@@ -236,7 +230,6 @@ const PLAN_PRESETS: PlanPreset[] = [
     planName: "Ops",
     serverQuota: "10",
     features: [
-      "clients",
       "records",
       "tasks",
       "notifications",
@@ -476,15 +469,7 @@ const applyFeatureSelection = (
     ? normalizeFeatures([...current, feature], availableFeatures)
     : current.filter((item) => item !== feature);
 
-  if (checked && feature !== "clients" && availableSet.has("clients")) {
-    next = normalizeFeatures([...next, "clients"], availableFeatures);
-  }
-
-  if (feature === "clients" && !checked) {
-    next = next.filter((item) => item === "clients" ? false : !SERVER_BOUND_FEATURES.includes(item));
-  }
-
-  return next;
+  return normalizeFeatures(next, Array.from(availableSet));
 };
 
 function FeatureAccessEditor({
@@ -512,7 +497,7 @@ function FeatureAccessEditor({
         <div className="text-xs text-slate-500 dark:text-slate-400">
           {t(
             "admin.users.allowed_features_hint_v2",
-            "普通用户默认只保留账户和套餐商店。勾选任一菜单功能时，会自动绑定服务器页面权限。",
+            "普通用户默认只保留账户和套餐商店。这里按菜单授权，服务器管理仅平台管理员可见。",
           )}
         </div>
       </div>
@@ -528,7 +513,7 @@ function FeatureAccessEditor({
           return (
             <div
               key={group.titleKey}
-              className="rounded-lg border border-slate-200 p-3 dark:border-slate-800"
+              className="border-t border-slate-200/80 py-3 first:border-t-0 dark:border-slate-800"
             >
               <div className="mb-3">
                 <div className="text-sm font-medium text-slate-900 dark:text-slate-100">
@@ -538,7 +523,7 @@ function FeatureAccessEditor({
                   {t(group.descriptionKey, group.defaultDescription)}
                 </div>
               </div>
-              <div className="grid gap-3 sm:grid-cols-2">
+              <div className="grid gap-x-4 sm:grid-cols-2">
                 {groupFeatures.map((feature) => {
                   const checked = selectedFeatures.includes(feature);
                   const dependencies = (FEATURE_DEPENDENCIES[feature] || []).filter((dependency) =>
@@ -552,7 +537,7 @@ function FeatureAccessEditor({
                   return (
                     <label
                       key={feature}
-                      className="flex items-start gap-2 rounded-lg border border-slate-200 px-3 py-2 text-sm dark:border-slate-800"
+                      className="flex items-start gap-2 border-b border-slate-200/80 py-2 text-sm last:border-b-0 dark:border-slate-800"
                     >
                       <Checkbox
                         checked={checked}
@@ -631,12 +616,12 @@ function PlanPresetSelector({
           )}
         </div>
       </div>
-      <div className="grid gap-2 md:grid-cols-3">
+      <div className="grid gap-x-4 border-y border-slate-200/80 dark:border-slate-800 md:grid-cols-3">
         {PLAN_PRESETS.map((preset) => (
           <button
             key={preset.id}
             type="button"
-            className="rounded-lg border border-slate-200 px-3 py-2 text-left transition hover:border-blue-300 hover:bg-blue-50/60 dark:border-slate-800 dark:hover:border-blue-800 dark:hover:bg-blue-950/30"
+            className="border-b border-slate-200/80 px-1 py-3 text-left transition last:border-b-0 hover:text-blue-700 dark:border-slate-800 dark:hover:text-blue-300 md:border-b-0 md:border-r md:last:border-r-0"
             onClick={() =>
               onApply(
                 preset.planName,
@@ -1302,7 +1287,7 @@ export function AdminUsersSection({
     >
       <AdminSurface>
         <Dialog.Root open={Boolean(policyUser)} onOpenChange={(open) => !open && closePolicyEditor()}>
-          <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-950/40">
+          <div className="overflow-hidden border-y border-slate-200 bg-white shadow-none dark:border-slate-800 dark:bg-slate-950/40">
             <AdminDataTableScroll>
               <AdminDataTable minWidth={620} className="[&_td]:px-2 [&_th]:px-2">
                 <thead>
@@ -1693,7 +1678,7 @@ export function AdminUsersSection({
                     />
                   </label>
                 </div>
-                <div className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs leading-5 text-blue-700 dark:border-blue-900/60 dark:bg-blue-950/30 dark:text-blue-200">
+                <div className="border-l-2 border-blue-300 bg-blue-50/70 px-3 py-2 text-xs leading-5 text-blue-700 dark:border-blue-800 dark:bg-blue-950/20 dark:text-blue-200">
                   {t("admin.users.password_optional_hint", "密码留空时只修改用户名；填写新密码后，该用户现有会话会失效。")}
                 </div>
                 </div>

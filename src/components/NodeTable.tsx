@@ -213,7 +213,7 @@ const NodeTable: React.FC<NodeTableProps> = ({ nodes, liveData }) => {
   });
 
   return (
-    <div className="node-table-container mx-4 overflow-hidden rounded-[28px] border border-border/60 bg-background/95 shadow-[0_20px_60px_-42px_rgba(15,23,42,0.42)]">
+    <div className="node-table-container mx-4 overflow-hidden rounded-lg border border-border/60 bg-background/95 shadow-none">
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/60 px-4 py-4 md:px-5">
         <div>
           <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-muted-foreground">

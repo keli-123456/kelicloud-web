@@ -39,10 +39,10 @@ const cloudLongTextClassName =
   "min-w-0 whitespace-pre-wrap break-words [overflow-wrap:anywhere]";
 
 const cloudPanelCardClassName =
-  "overflow-hidden rounded-xl border border-slate-200/80 bg-white shadow-[0_18px_45px_-34px_rgba(15,23,42,0.65)] dark:border-slate-800/90 dark:bg-slate-950";
+  "overflow-hidden rounded-lg border border-slate-200/80 bg-white shadow-none dark:border-slate-800/90 dark:bg-slate-950";
 
 const cloudPanelHeaderClassName =
-  "border-b border-slate-200/80 bg-slate-50 px-5 py-3.5 dark:border-slate-800 dark:bg-slate-900/45";
+  "border-b border-slate-200/80 bg-transparent px-5 py-3.5 dark:border-slate-800";
 
 const cloudPanelTitleClassName =
   "text-[15px] font-semibold text-slate-950 dark:text-slate-50";
@@ -51,10 +51,10 @@ const cloudPanelDescriptionClassName =
   "mt-1 text-sm leading-6 text-slate-500 dark:text-slate-400";
 
 const cloudPanelSectionClassName =
-  "rounded-xl border border-slate-200/80 bg-slate-50 px-4 py-3 dark:border-slate-800 dark:bg-slate-900/35";
+  "border-t border-slate-200/80 bg-transparent pt-4 dark:border-slate-800";
 
 const cloudPanelSubcardClassName =
-  "rounded-xl border border-slate-200/80 bg-white px-4 py-3 shadow-[0_14px_35px_-30px_rgba(15,23,42,0.7)] dark:border-slate-800/90 dark:bg-slate-950";
+  "border-l-2 border-slate-200/90 bg-transparent py-2 pl-3 shadow-none dark:border-slate-700";
 
 const cloudPanelFieldLabelClassName =
   "text-sm font-semibold text-foreground";
@@ -66,7 +66,7 @@ const cloudDetailSectionClassName =
   "border-t border-slate-200/80 pt-4 dark:border-slate-800";
 
 const cloudDetailListClassName =
-  "overflow-hidden rounded-xl border border-slate-200/80 bg-white shadow-[0_18px_45px_-34px_rgba(15,23,42,0.65)] dark:border-slate-800/90 dark:bg-slate-950";
+  "overflow-hidden border-y border-slate-200/80 bg-transparent shadow-none dark:border-slate-800";
 
 const cloudDetailListItemClassName =
   "border-t border-slate-200/80 px-4 py-3 first:border-t-0 dark:border-slate-800";
@@ -147,14 +147,14 @@ function CloudDetailItem({
   value,
   className,
   valueClassName,
-  variant = "card",
+  variant = "plain",
 }: CloudDetailItemProps) {
   return (
     <div
       className={cn(
         variant === "plain"
           ? "min-w-0 border-b border-slate-200/80 py-3 last:border-b-0 dark:border-slate-800"
-          : "min-w-0 rounded-xl border border-slate-200/80 bg-slate-50 px-4 py-3 dark:border-slate-800 dark:bg-slate-900/35",
+          : "min-w-0 rounded-lg border border-slate-200/80 bg-slate-50/70 px-4 py-3 shadow-none dark:border-slate-800 dark:bg-slate-900/25",
         className,
       )}
     >
@@ -197,7 +197,7 @@ function CloudCopyBlock({
   return (
     <div
       className={cn(
-        "min-w-0 rounded-xl border border-slate-200/80 bg-white px-4 py-3 shadow-[0_14px_35px_-30px_rgba(15,23,42,0.7)] dark:border-slate-800/90 dark:bg-slate-950",
+        "min-w-0 border-l-2 border-slate-200/90 bg-transparent py-2 pl-3 shadow-none dark:border-slate-700",
         className,
       )}
     >
@@ -313,7 +313,7 @@ function CloudReadonlyCodeBlock({
   return (
     <div
       className={cn(
-        "min-w-0 overflow-auto rounded-xl border border-slate-200/80 bg-white text-xs shadow-[0_14px_35px_-30px_rgba(15,23,42,0.7)] [scrollbar-gutter:stable] dark:border-slate-800/90 dark:bg-slate-950",
+        "min-w-0 overflow-auto rounded-lg border border-slate-200/80 bg-white text-xs shadow-none [scrollbar-gutter:stable] dark:border-slate-800/90 dark:bg-slate-950",
         minHeightClassName,
         maxHeightClassName,
       )}
@@ -360,7 +360,7 @@ function CloudCodeTextarea({
   return (
     <div
       className={cn(
-        "flex min-w-0 overflow-hidden rounded-xl border border-slate-200/80 bg-white text-xs shadow-[0_14px_35px_-30px_rgba(15,23,42,0.7)] focus-within:border-ring focus-within:ring-2 focus-within:ring-ring/30 dark:border-slate-800/90 dark:bg-slate-950",
+        "flex min-w-0 overflow-hidden rounded-md border border-slate-200/80 bg-white text-xs shadow-none focus-within:border-ring focus-within:ring-2 focus-within:ring-ring/30 dark:border-slate-800/90 dark:bg-slate-950",
         minHeightClassName,
         className,
       )}
@@ -488,7 +488,7 @@ function CloudImportFormSection({
         className,
       )}
     >
-      <div className="rounded-xl border border-slate-200/80 bg-slate-50 px-4 py-3 dark:border-slate-800 dark:bg-slate-900/35">
+      <div className="border-t border-slate-200/80 pt-4 dark:border-slate-800">
         <div className="grid min-w-0 gap-2 lg:grid-cols-[5rem_minmax(0,1fr)] lg:items-center">
           <label className={cn(cloudPanelFieldLabelClassName, "leading-9")}>
             {groupLabel}
@@ -544,11 +544,11 @@ function CloudSensitiveDialogContent({
         className,
       )}
     >
-      <div className="border-b border-slate-200/80 bg-slate-50 px-5 py-4 dark:border-slate-800 dark:bg-slate-900/45">
+      <div className="border-b border-slate-200/80 bg-transparent px-5 py-4 dark:border-slate-800">
         <div className="flex min-w-0 flex-col gap-3 pr-8 sm:flex-row sm:items-start sm:justify-between">
           <div className="flex min-w-0 items-start gap-3">
             {icon ? (
-              <span className="inline-flex size-10 shrink-0 items-center justify-center rounded-lg bg-blue-600 text-white shadow-sm shadow-blue-950/15">
+              <span className="inline-flex size-10 shrink-0 items-center justify-center rounded-lg bg-blue-600 text-white shadow-none">
                 {icon}
               </span>
             ) : null}
@@ -579,7 +579,7 @@ function CloudSensitiveDialogContent({
           {children}
         </div>
         {side ? (
-          <aside className="min-w-0 border-t border-slate-200/80 bg-slate-50 px-5 py-5 dark:border-slate-800 dark:bg-slate-900/35 lg:border-l lg:border-t-0">
+          <aside className="min-w-0 border-t border-slate-200/80 bg-transparent px-5 py-5 dark:border-slate-800 lg:border-l lg:border-t-0">
             {side}
           </aside>
         ) : null}
@@ -640,7 +640,7 @@ function CloudStatusNotice({
             : "border-border bg-muted/35 text-muted-foreground";
 
   return (
-    <div className={cn("rounded-lg border px-4 py-3 text-sm leading-6", toneClassName, cloudLongTextClassName)}>
+    <div className={cn("border-l-2 px-3 py-2 text-sm leading-6", toneClassName, cloudLongTextClassName)}>
       {children}
     </div>
   );

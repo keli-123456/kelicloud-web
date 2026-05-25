@@ -445,7 +445,7 @@ export default function CloudInstanceScriptDialog({
         </DialogHeader>
 
         <div className="space-y-4">
-          <div className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700 dark:border-slate-800 dark:bg-slate-900/50 dark:text-slate-300">
+          <div className="border-b border-slate-200/80 pb-3 text-sm text-slate-700 dark:border-slate-800 dark:text-slate-300">
             <div className={`font-medium text-slate-900 dark:text-slate-100 ${cloudLongTextClassName}`}>
               {target?.providerLabel || "-"} / {target?.instanceName || target?.instanceIdentifier || "-"}
             </div>
@@ -456,7 +456,7 @@ export default function CloudInstanceScriptDialog({
             ) : null}
           </div>
 
-          <div className="rounded-lg border border-slate-200 bg-white px-4 py-3 dark:border-slate-800 dark:bg-slate-950/60">
+          <div className="border-b border-slate-200/80 pb-4 dark:border-slate-800">
             <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div className="min-w-0">
                 <div className="text-sm font-medium text-slate-900 dark:text-slate-100">
@@ -481,11 +481,11 @@ export default function CloudInstanceScriptDialog({
             </div>
 
             {nodeError ? (
-              <div className={`mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-300 ${cloudLongTextClassName}`}>
+              <div className={`mt-3 border-l-2 border-amber-300 bg-amber-50/70 px-3 py-2 text-sm text-amber-800 dark:border-amber-800 dark:bg-amber-950/20 dark:text-amber-300 ${cloudLongTextClassName}`}>
                 {nodeError}
               </div>
             ) : matchedNode ? (
-              <div className="mt-3 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800 dark:border-emerald-900/60 dark:bg-emerald-950/30 dark:text-emerald-300">
+              <div className="mt-3 border-l-2 border-emerald-300 bg-emerald-50/70 px-3 py-2 text-sm text-emerald-800 dark:border-emerald-800 dark:bg-emerald-950/20 dark:text-emerald-300">
                 <div className={`font-medium ${cloudLongTextClassName}`}>
                   {matchedNode.name || matchedNode.uuid}
                 </div>
@@ -495,7 +495,7 @@ export default function CloudInstanceScriptDialog({
                 </div>
               </div>
             ) : (
-              <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-300">
+              <div className="mt-3 border-l-2 border-amber-300 bg-amber-50/70 px-3 py-2 text-sm text-amber-800 dark:border-amber-800 dark:bg-amber-950/20 dark:text-amber-300">
                 <div className="flex items-start gap-2">
                   <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
                   <span className={cloudLongTextClassName}>
@@ -510,7 +510,7 @@ export default function CloudInstanceScriptDialog({
           </div>
 
           {executionState ? (
-            <div className="rounded-lg border border-slate-200 bg-white px-4 py-3 dark:border-slate-800 dark:bg-slate-950/60">
+            <div className="border-b border-slate-200/80 pb-4 dark:border-slate-800">
               <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                 <div>
                   <div className="text-sm font-medium text-slate-900 dark:text-slate-100">
@@ -533,8 +533,8 @@ export default function CloudInstanceScriptDialog({
                 ) : null}
               </div>
 
-              <div className="mt-3 grid gap-3 md:grid-cols-2">
-                <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700 dark:border-slate-800 dark:bg-slate-900/50 dark:text-slate-300">
+              <div className="mt-3 grid gap-x-6 gap-y-3 border-y border-slate-200/80 py-3 md:grid-cols-2 dark:border-slate-800">
+                <div className="min-w-0 text-sm text-slate-700 dark:text-slate-300">
                   <div className="text-xs text-slate-500 dark:text-slate-400">
                     {t("cloud.script.exit_code", "Exit Code")}
                   </div>
@@ -542,7 +542,7 @@ export default function CloudInstanceScriptDialog({
                     {executionState.result?.exit_code ?? "-"}
                   </div>
                 </div>
-                <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700 dark:border-slate-800 dark:bg-slate-900/50 dark:text-slate-300">
+                <div className="min-w-0 text-sm text-slate-700 dark:text-slate-300">
                   <div className="text-xs text-slate-500 dark:text-slate-400">
                     {t("cloud.script.finished_at", "Finished At")}
                   </div>
@@ -588,7 +588,7 @@ export default function CloudInstanceScriptDialog({
             </div>
           ) : null}
 
-          <div className="rounded-lg border border-slate-200 bg-white px-4 py-3 dark:border-slate-800 dark:bg-slate-950/60">
+          <div className="space-y-3">
             <div className="mb-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div className="flex items-center gap-2 text-sm font-medium text-slate-900 dark:text-slate-100">
                 <Terminal className="h-4 w-4 text-slate-500 dark:text-slate-400" />
@@ -610,11 +610,11 @@ export default function CloudInstanceScriptDialog({
             </div>
 
             {error ? (
-              <div className={`rounded-lg border border-red-200 bg-red-50 px-3 py-3 text-sm text-red-700 dark:border-red-900/60 dark:bg-red-950/30 dark:text-red-300 ${cloudLongTextClassName}`}>
+              <div className={`border-l-2 border-red-300 bg-red-50/70 px-3 py-2 text-sm text-red-700 dark:border-red-800 dark:bg-red-950/20 dark:text-red-300 ${cloudLongTextClassName}`}>
                 {getReadableErrorMessage(error)}
               </div>
             ) : loading ? (
-              <div className="space-y-3 rounded-lg border border-dashed border-slate-200 px-3 py-3 dark:border-slate-800">
+              <div className="space-y-3 border-y border-dashed border-slate-200 px-1 py-3 dark:border-slate-800">
                 {Array.from({ length: 3 }).map((_, index) => (
                   <div key={index} className="space-y-2">
                     <Skeleton className="h-4 w-1/2" />
@@ -623,19 +623,19 @@ export default function CloudInstanceScriptDialog({
                 ))}
               </div>
             ) : orderedCommands.length === 0 ? (
-              <div className="rounded-lg border border-dashed border-slate-200 px-3 py-3 text-sm text-slate-500 dark:border-slate-800 dark:text-slate-400">
+              <div className="border-y border-dashed border-slate-200 px-1 py-3 text-sm text-slate-500 dark:border-slate-800 dark:text-slate-400">
                 {t("cloud.script.empty", "No saved scripts yet.")}
               </div>
             ) : filteredCommands.length === 0 ? (
-              <div className="rounded-lg border border-dashed border-slate-200 px-3 py-3 text-sm text-slate-500 dark:border-slate-800 dark:text-slate-400">
+              <div className="border-y border-dashed border-slate-200 px-1 py-3 text-sm text-slate-500 dark:border-slate-800 dark:text-slate-400">
                 {t("command_clipboard.search_empty", "No matching scripts")}
               </div>
             ) : (
-              <div className="space-y-3">
+              <div className="divide-y divide-slate-200/80 border-y border-slate-200/80 dark:divide-slate-800 dark:border-slate-800">
                 {filteredCommands.map((command) => (
                   <div
                     key={command.id}
-                    className="rounded-lg border border-slate-200 px-3 py-3 dark:border-slate-800 dark:bg-slate-950/40"
+                    className="px-1 py-3"
                   >
                     <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                       <div className="min-w-0">

@@ -183,7 +183,7 @@ export function LinodeTokenGroupDialog({
               )}
             </CloudStatusNotice>
             {existingTokenGroups.length ? (
-              <div className="rounded-xl border border-slate-200/80 bg-white px-4 py-3 shadow-sm shadow-slate-900/5 dark:border-slate-800 dark:bg-slate-950">
+              <div className="border-y border-slate-200/80 bg-transparent py-3 shadow-none dark:border-slate-800">
                 <div className="text-sm font-semibold text-foreground">
                   {t("cloud.tokens.existing_groups", "已有分组")}
                 </div>

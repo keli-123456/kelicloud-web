@@ -1,11 +1,11 @@
 const ADMIN_FORM_DIALOG_CLASS =
-  "flex max-h-[90vh] w-[calc(100vw-1.5rem)] max-w-5xl flex-col overflow-hidden rounded-xl border-slate-200/80 bg-white shadow-[0_30px_90px_-55px_rgba(15,23,42,0.9)] dark:border-slate-800 dark:bg-slate-950 sm:max-w-5xl";
+  "flex max-h-[90vh] w-[calc(100vw-1.5rem)] max-w-5xl flex-col overflow-hidden rounded-lg border-slate-200/80 bg-white shadow-[0_24px_70px_-50px_rgba(15,23,42,0.72)] dark:border-slate-800 dark:bg-slate-950 sm:max-w-5xl";
 
 const ADMIN_FORM_DIALOG_WIDE_CLASS =
-  "flex max-h-[92vh] w-[calc(100vw-1.5rem)] max-w-[96rem] flex-col overflow-hidden rounded-xl border-slate-200/80 bg-white shadow-[0_30px_90px_-55px_rgba(15,23,42,0.9)] dark:border-slate-800 dark:bg-slate-950 sm:max-w-[96rem]";
+  "flex max-h-[92vh] w-[calc(100vw-1.5rem)] max-w-[96rem] flex-col overflow-hidden rounded-lg border-slate-200/80 bg-white shadow-[0_24px_70px_-50px_rgba(15,23,42,0.72)] dark:border-slate-800 dark:bg-slate-950 sm:max-w-[96rem]";
 
 const ADMIN_FORM_DIALOG_CHROME_CLASS =
-  "gap-0 overflow-hidden rounded-xl border-slate-200/80 bg-white p-0 shadow-[0_30px_90px_-55px_rgba(15,23,42,0.9)] dark:border-slate-800 dark:bg-slate-950";
+  "gap-0 overflow-hidden rounded-lg border-slate-200/80 bg-white p-0 shadow-[0_24px_70px_-50px_rgba(15,23,42,0.72)] dark:border-slate-800 dark:bg-slate-950";
 
 const ADMIN_FORM_HEADER_CLASS =
   "shrink-0 border-b border-slate-200/80 bg-slate-50 px-5 py-4 dark:border-slate-800 dark:bg-slate-900/45";
@@ -38,7 +38,7 @@ const ADMIN_FORM_HELP_CLASS =
   "text-xs leading-5 text-slate-500 dark:text-slate-400";
 
 const ADMIN_FORM_CONTEXT_CARD_CLASS =
-  "rounded-xl border border-slate-200/80 bg-slate-50 px-4 py-3 text-sm shadow-sm shadow-slate-900/5 dark:border-slate-800 dark:bg-slate-900/35";
+  "border-l-2 border-slate-200/90 bg-transparent py-2 pl-3 text-sm dark:border-slate-700";
 
 const ADMIN_FORM_GRID_2_CLASS = "grid items-start gap-3 md:grid-cols-2";
 const ADMIN_FORM_GRID_3_CLASS = "grid items-start gap-3 md:grid-cols-3";
@@ -51,10 +51,10 @@ const ADMIN_FORM_SELECT_TRIGGER_CLASS =
   "min-w-0 w-full max-w-full overflow-hidden [&_[data-slot=select-value]]:min-w-0 [&_[data-slot=select-value]]:truncate";
 
 const ADMIN_FORM_LIST_PANEL_CLASS =
-  "overflow-hidden rounded-xl border border-slate-200/80 bg-white shadow-[0_18px_45px_-34px_rgba(15,23,42,0.65)] dark:border-slate-800/90 dark:bg-slate-950";
+  "overflow-hidden border-y border-slate-200/80 bg-transparent shadow-none dark:border-slate-800";
 
 const ADMIN_FORM_EMPTY_CLASS =
-  "rounded-xl border border-dashed border-slate-200/80 bg-slate-50 px-4 py-3 text-sm text-muted-foreground dark:border-slate-800 dark:bg-slate-900/35";
+  "border-y border-dashed border-slate-200/80 bg-transparent px-1 py-3 text-sm text-muted-foreground dark:border-slate-800";
 
 export {
   ADMIN_FORM_DIALOG_CLASS,

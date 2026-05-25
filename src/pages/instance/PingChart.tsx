@@ -461,7 +461,7 @@ const PingChart = ({ uuid }: { uuid: string }) => {
       ) : null}
 
       {latestValues.length > 0 ? (
-        <Card className="rounded-xl border-border/70 shadow-none">
+        <Card className="rounded-lg border-border/70 shadow-none">
           <CardHeader>
             <div className="flex items-start justify-between gap-4">
               <div className="min-w-0 space-y-1">
@@ -658,7 +658,7 @@ const PingChart = ({ uuid }: { uuid: string }) => {
         </Alert>
       ) : null}
       {!loading && !error ? (
-        <Card className="rounded-xl border-border/70 shadow-none">
+        <Card className="rounded-lg border-border/70 shadow-none">
           <CardHeader>
             <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
               <div className="min-w-0 space-y-1">

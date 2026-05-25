@@ -158,7 +158,7 @@ const Node = React.memo(({ basic, live, online }: NodeProps) => {
   return (
     <Card
       id={basic.uuid}
-      className="node-card group gap-0 rounded-[28px] border border-border/60 bg-background/94 px-4 py-4 shadow-[0_18px_50px_-38px_rgba(15,23,42,0.42)] transition-all duration-200 hover:-translate-y-0.5 hover:cursor-pointer hover:border-border hover:bg-background hover:shadow-[0_24px_60px_-38px_rgba(15,23,42,0.5)]"
+      className="node-card group gap-0 rounded-lg border border-border/60 bg-background/94 px-4 py-4 shadow-none transition-colors duration-200 hover:cursor-pointer hover:border-border hover:bg-background"
     >
       <div className="flex flex-col gap-4">
         <div className="flex items-start justify-between gap-4">

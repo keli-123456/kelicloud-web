@@ -9,7 +9,7 @@ const NotFound: React.FC = () => {
 
   return (
     <div className="flex min-h-screen items-center justify-center px-4 py-10">
-      <Card className="max-w-lg rounded-3xl border-border/70 bg-background/80 p-8 text-center shadow-xl backdrop-blur-xl">
+      <Card className="max-w-lg rounded-lg border-border/70 bg-background/80 p-8 text-center shadow-none">
         <div className="flex flex-col items-center justify-center gap-3">
           <div className="text-7xl font-bold">404</div>
           <div className="text-balance text-xl text-muted-foreground">

@@ -67,7 +67,7 @@ export function ActionSummaryCard({
       className={cn(
         variant === "inline"
           ? "space-y-3 border-t border-slate-200/70 pt-4 first:border-t-0 first:pt-0 dark:border-slate-800/70"
-          : "space-y-4 rounded-lg border px-4 py-4",
+          : "space-y-4 border-l-2 border-slate-200 py-2 pl-3 dark:border-slate-800",
         className,
       )}
     >
@@ -89,7 +89,7 @@ export function ActionSummaryCard({
       <DetailItemsList items={items} />
 
       {showEmptyState ? (
-        <div className="break-words rounded-lg border border-dashed px-4 py-3 text-sm text-muted-foreground">
+        <div className="break-words border-y border-dashed py-3 text-sm text-muted-foreground">
           {emptyLabel}
         </div>
       ) : null}
@@ -97,12 +97,12 @@ export function ActionSummaryCard({
       {statusMessage ? (
         <div
           className={cn(
-            "break-words rounded-lg px-4 py-3 text-sm",
+            "break-words border-l-2 px-3 py-2 text-sm",
             statusTone === "danger"
-              ? "border border-red-200 bg-red-50 text-red-700 dark:border-red-900/40 dark:bg-red-950/30 dark:text-red-200"
+              ? "border-red-300 bg-red-50/70 text-red-700 dark:border-red-800 dark:bg-red-950/20 dark:text-red-200"
               : statusTone === "warning"
-                ? "border border-amber-200 bg-amber-50 text-amber-900 dark:border-amber-900/40 dark:bg-amber-950/30 dark:text-amber-100"
-                : "border border-dashed text-muted-foreground",
+                ? "border-amber-300 bg-amber-50/70 text-amber-900 dark:border-amber-800 dark:bg-amber-950/20 dark:text-amber-100"
+                : "border-slate-200 text-muted-foreground dark:border-slate-800",
           )}
         >
           {statusMessage}

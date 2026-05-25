@@ -106,7 +106,7 @@ const EMPTY_FORM_VALUES: CommandFormValues = {
 const DEFAULT_PAGE_SIZE = 20;
 
 const scriptsPanelClass =
-  "overflow-hidden rounded-xl border border-slate-200/80 bg-white shadow-[0_18px_45px_-34px_rgba(15,23,42,0.65)] dark:border-slate-800/90 dark:bg-slate-950";
+  "overflow-hidden rounded-lg border border-slate-200/80 bg-white shadow-none dark:border-slate-800/90 dark:bg-slate-950";
 
 const CodeEditor = lazy(async () => {
   const module = await import("@/components/ui/code-editor");
@@ -508,7 +508,7 @@ export default function CommandLibraryManager({
         </div>
         <div className="grid gap-[14px] md:grid-cols-3">
           {Array.from({ length: 3 }).map((_, index) => (
-            <div key={index} className="min-h-[92px] rounded-xl border border-slate-200/80 bg-white p-[14px] shadow-sm shadow-slate-900/5 dark:border-slate-800 dark:bg-slate-950">
+            <div key={index} className="min-h-[92px] border-b border-slate-200/80 bg-transparent px-1 py-[14px] dark:border-slate-800">
               <div className="h-3 w-20 rounded bg-muted" />
               <div className="mt-3 h-7 w-14 rounded bg-muted" />
               <div className="mt-3 h-3 w-32 rounded bg-muted" />
@@ -541,7 +541,7 @@ export default function CommandLibraryManager({
         <div className="grid gap-[14px] xl:grid-cols-[minmax(0,1fr)_360px]">
           <section className={scriptsPanelClass}>
             <div className="flex min-h-[54px] flex-col gap-3 border-b border-border px-[14px] py-3 lg:flex-row lg:items-center lg:justify-between">
-              <div className="flex w-full rounded-lg border border-slate-200/80 bg-slate-50 p-1 shadow-sm shadow-slate-900/5 dark:border-slate-800 dark:bg-slate-900/35 sm:w-auto">
+              <div className="flex w-full gap-1 border-b border-slate-200/80 pb-1 dark:border-slate-800 sm:w-auto">
                 <ScriptToolbarTab active>{t("command_clipboard.open_library", { defaultValue: "脚本库" })}</ScriptToolbarTab>
                 <ScriptToolbarLink to="/admin/exec">{t("exec.history", { defaultValue: "执行记录" })}</ScriptToolbarLink>
                 <ScriptToolbarLink to="/admin/exec">{t("exec.result", { defaultValue: "结果" })}</ScriptToolbarLink>
@@ -752,7 +752,7 @@ export default function CommandLibraryManager({
                   <ScriptInfo label={t("command_clipboard.table.updated_at_short", { defaultValue: "更新" })} value={formatTimestamp(selectedCommand.updated_at)} className="col-span-2" />
                 </div>
 
-                <div className="overflow-hidden rounded-lg border border-slate-900 bg-slate-950 shadow-sm">
+                <div className="overflow-hidden rounded-lg border border-slate-900 bg-slate-950 shadow-none">
                   <div className="flex h-9 items-center justify-between border-b border-white/10 px-3">
                     <div className="flex items-center gap-2 text-[12px] font-semibold text-slate-300">
                       <FileCode2 size={13} />
@@ -1024,7 +1024,7 @@ function ScriptToolbarTab({
       className={cn(
         "h-7 flex-1 rounded px-3 text-[12px] font-semibold leading-none text-muted-foreground transition-colors sm:flex-none",
         active
-          ? "bg-background text-foreground shadow-sm"
+          ? "bg-background text-foreground"
           : "hover:bg-background/70 hover:text-foreground",
       )}
     >

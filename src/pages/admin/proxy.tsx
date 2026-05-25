@@ -370,7 +370,7 @@ export default function ProxySettings() {
       />
 
       {probeResult ? (
-        <div className="rounded-xl border border-slate-200/80 bg-slate-50 px-4 py-3 text-sm shadow-sm shadow-slate-900/5 dark:border-slate-800 dark:bg-slate-900/35">
+        <div className="border-t border-slate-200/80 pt-3 text-sm dark:border-slate-800">
           <div className="font-medium text-foreground">
             {t("settings.proxy.last_test_title")}
           </div>

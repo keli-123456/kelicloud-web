@@ -76,18 +76,18 @@ function PolicyButton({
       type="button"
       onClick={onClick}
       className={cn(
-        "flex min-w-0 flex-1 items-start gap-3 rounded-lg border px-4 py-3 text-left transition-colors",
+        "flex min-w-0 flex-1 items-start gap-3 border-l-2 px-3 py-2.5 text-left transition-colors",
         active
-          ? "border-blue-300 bg-blue-50 text-blue-950 shadow-sm shadow-blue-950/5 dark:border-blue-800/70 dark:bg-blue-950/30 dark:text-blue-50"
-          : "border-border bg-card text-foreground hover:bg-muted/60",
+          ? "border-blue-500 bg-blue-50/70 text-blue-950 shadow-none dark:border-blue-500 dark:bg-blue-950/20 dark:text-blue-50"
+          : "border-slate-200 bg-transparent text-foreground hover:bg-muted/40 dark:border-slate-800",
       )}
     >
       <span
         className={cn(
-          "mt-0.5 inline-flex size-8 shrink-0 items-center justify-center rounded-lg border",
+          "mt-0.5 inline-flex size-8 shrink-0 items-center justify-center rounded-md",
           active
-            ? "border-blue-200 bg-white text-blue-700 dark:border-blue-800 dark:bg-blue-950/70 dark:text-blue-300"
-            : "border-border bg-muted text-muted-foreground",
+            ? "bg-blue-100 text-blue-700 dark:bg-blue-950/70 dark:text-blue-300"
+            : "bg-muted text-muted-foreground",
         )}
       >
         {icon}
@@ -135,7 +135,7 @@ export default function FailoverV2ShareDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="gap-0 overflow-hidden p-0 sm:max-w-4xl">
-        <div className="border-b border-border bg-card px-5 py-4">
+        <div className="border-b border-border bg-transparent px-5 py-4">
           <DialogHeader className="space-y-2">
             <div className="flex min-w-0 flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
               <div className="min-w-0">
@@ -167,8 +167,8 @@ export default function FailoverV2ShareDialog({
             </div>
           ) : (
             <>
-              <div className="grid gap-3 sm:grid-cols-3">
-                <div className="rounded-xl border border-slate-200/80 bg-slate-50 px-4 py-3 dark:border-slate-800 dark:bg-slate-900/35">
+              <div className="grid gap-3 border-t border-slate-200/80 pt-4 dark:border-slate-800 sm:grid-cols-3">
+                <div className="border-b border-slate-200/80 px-1 py-2 dark:border-slate-800">
                   <div className="text-xs font-medium text-muted-foreground">
                     {t("failover_v2.share.target_task", { defaultValue: "任务" })}
                   </div>
@@ -176,7 +176,7 @@ export default function FailoverV2ShareDialog({
                     {service?.name || "-"}
                   </div>
                 </div>
-                <div className="rounded-xl border border-slate-200/80 bg-slate-50 px-4 py-3 dark:border-slate-800 dark:bg-slate-900/35">
+                <div className="border-b border-slate-200/80 px-1 py-2 dark:border-slate-800">
                   <div className="text-xs font-medium text-muted-foreground">
                     {t("failover_v2.share.member_scope", { defaultValue: "成员范围" })}
                   </div>
@@ -184,7 +184,7 @@ export default function FailoverV2ShareDialog({
                     {service ? `${service.enabled_member_count} / ${service.member_count}` : "-"}
                   </div>
                 </div>
-                <div className="rounded-xl border border-slate-200/80 bg-slate-50 px-4 py-3 dark:border-slate-800 dark:bg-slate-900/35">
+                <div className="border-b border-slate-200/80 px-1 py-2 dark:border-slate-800">
                   <div className="text-xs font-medium text-muted-foreground">
                     {t("failover_v2.share.access_count", { defaultValue: "访问次数" })}
                   </div>
@@ -195,7 +195,7 @@ export default function FailoverV2ShareDialog({
               </div>
 
               {hasLink ? (
-                <div className="rounded-lg border border-blue-200 bg-blue-50/70 p-4 dark:border-blue-900/60 dark:bg-blue-950/25">
+                <div className="border-l-2 border-blue-500 bg-blue-50/70 px-3 py-2.5 dark:border-blue-500 dark:bg-blue-950/20">
                   <div className="mb-2 flex items-center gap-2 text-sm font-semibold text-blue-950 dark:text-blue-100">
                     <Link2 className="size-4" />
                     {t("failover_v2.share.public_link", { defaultValue: "公开只读链接" })}
@@ -209,7 +209,7 @@ export default function FailoverV2ShareDialog({
                   </div>
                 </div>
               ) : (
-                <div className="rounded-lg border border-dashed border-border bg-muted/25 p-4 text-sm text-muted-foreground">
+                <div className="border-y border-dashed border-border bg-transparent py-3 text-sm text-muted-foreground">
                   {t("failover_v2.share.no_link", { defaultValue: "保存后会生成只读分享链接。" })}
                 </div>
               )}
@@ -285,7 +285,7 @@ export default function FailoverV2ShareDialog({
                     </div>
                   </div>
 
-                  <div className="rounded-xl border border-slate-200/80 bg-white p-4 text-sm shadow-sm shadow-slate-900/5 dark:border-slate-800 dark:bg-slate-950">
+                  <div className="border-t border-slate-200/80 pt-4 text-sm dark:border-slate-800">
                     <div className="font-semibold text-foreground">
                       {t("failover_v2.share.audit_info", { defaultValue: "分享状态" })}
                     </div>
@@ -310,7 +310,7 @@ export default function FailoverV2ShareDialog({
           )}
         </div>
 
-        <DialogFooter className="border-t border-border bg-muted/35 px-5 py-4">
+        <DialogFooter className="border-t border-border bg-transparent px-5 py-4">
           {share?.token ? (
             <Button
               type="button"

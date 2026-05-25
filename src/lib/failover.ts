@@ -135,8 +135,26 @@ export type SaveFailoverShareInput = {
   expires_at: string | null;
 };
 
-export type FailoverPublicTask = FailoverTask & {
-  recent_executions: FailoverExecutionSummary[];
+export type FailoverPublicExecutionSummary = {
+  status: string;
+  started_at: string;
+  finished_at: string | null;
+};
+
+export type FailoverPublicTask = {
+  name: string;
+  enabled: boolean;
+  current_address: string;
+  last_status: string;
+  last_triggered_at: string | null;
+  last_succeeded_at: string | null;
+  last_failed_at: string | null;
+  plan_count: number;
+  enabled_plan_count: number;
+  latest_execution: FailoverPublicExecutionSummary | null;
+  recent_executions: FailoverPublicExecutionSummary[];
+  created_at: string;
+  updated_at: string;
 };
 
 export type FailoverPublicShareData = {
@@ -621,12 +639,36 @@ function normalizeShareRecord(share: unknown): FailoverShareRecord {
 function normalizePublicTask(task: unknown): FailoverPublicTask {
   const raw = task && typeof task === "object" ? task as Record<string, unknown> : {};
   return {
-    ...normalizeTask(raw),
+    name: normalizeString(raw.name),
+    enabled: normalizeBoolean(raw.enabled),
+    current_address: normalizeString(raw.current_address),
+    last_status: normalizeString(raw.last_status),
+    last_triggered_at: normalizeNullableString(raw.last_triggered_at),
+    last_succeeded_at: normalizeNullableString(raw.last_succeeded_at),
+    last_failed_at: normalizeNullableString(raw.last_failed_at),
+    plan_count: normalizeNumber(raw.plan_count),
+    enabled_plan_count: normalizeNumber(raw.enabled_plan_count),
+    latest_execution: normalizePublicExecutionSummary(raw.latest_execution),
     recent_executions: Array.isArray(raw.recent_executions)
       ? raw.recent_executions
-        .map((item) => normalizeExecutionSummary(item))
-        .filter((item): item is FailoverExecutionSummary => Boolean(item))
+        .map((item) => normalizePublicExecutionSummary(item))
+        .filter((item): item is FailoverPublicExecutionSummary => Boolean(item))
       : [],
+    created_at: normalizeString(raw.created_at),
+    updated_at: normalizeString(raw.updated_at),
+  };
+}
+
+function normalizePublicExecutionSummary(execution: unknown): FailoverPublicExecutionSummary | null {
+  if (!execution || typeof execution !== "object") {
+    return null;
+  }
+
+  const raw = execution as Record<string, unknown>;
+  return {
+    status: normalizeString(raw.status),
+    started_at: normalizeString(raw.started_at),
+    finished_at: normalizeNullableString(raw.finished_at),
   };
 }
 

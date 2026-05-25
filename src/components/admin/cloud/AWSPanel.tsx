@@ -1060,7 +1060,7 @@ function AWSCredentialRail({
             <div className="flex min-h-0 flex-1 flex-col">
               <div className="min-h-0 flex-1 overflow-y-auto [scrollbar-gutter:stable]">
                 {credentialRows.length ? (
-                  <AdminDataTableScroll className="rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-950">
+                  <AdminDataTableScroll className="rounded-lg border border-slate-200 bg-white shadow-none dark:border-slate-800 dark:bg-slate-950">
                     <AdminDataTable minWidth={500} className="[&_td]:px-2 [&_th]:px-2">
                       <thead>
                         <AdminDataTableHeadRow>
@@ -1138,7 +1138,7 @@ function AWSCredentialRail({
                     </AdminDataTable>
                   </AdminDataTableScroll>
                 ) : (
-                  <div className="rounded-xl border border-dashed border-slate-200/80 bg-slate-50 px-4 py-8 text-center text-sm text-muted-foreground dark:border-slate-800 dark:bg-slate-900/35">
+                  <div className="border-y border-dashed border-slate-200/80 px-4 py-8 text-center text-sm text-muted-foreground dark:border-slate-800">
                     {t("cloud.providers.aws.credentials_empty", "还没有保存 AWS 凭证")}
                   </div>
                 )}
@@ -1225,7 +1225,7 @@ function AWSQuotaMeter({
   const percent = max > 0 ? Math.min(100, Math.round((value / max) * 100)) : 0;
 
   return (
-    <div className="rounded-xl border border-slate-200/80 bg-slate-50 px-3 py-2 dark:border-slate-800 dark:bg-slate-900/35">
+    <div className="border-t border-slate-200/80 pt-3 dark:border-slate-800">
       <div className="flex items-center justify-between gap-2 text-xs">
         <span className="font-semibold text-muted-foreground">{label}</span>
         <span className="font-medium text-foreground tabular-nums">{value}/{max || "-"}</span>

@@ -8,11 +8,16 @@ import { Badge } from "@/components/admin/admin-ui";
 import { Button } from "@/components/ui/button";
 import {
   getPublicFailoverV2Share,
-  type FailoverV2ExecutionSummary,
-  type FailoverV2Member,
+  type FailoverV2PublicExecutionSummary,
+  type FailoverV2PublicMember,
   type FailoverV2PublicShareData,
 } from "@/lib/failoverV2";
 import { getReadableErrorMessage } from "@/lib/apiErrorMessage";
+import {
+  getPublicFailoverResultText,
+  getPublicFailoverStatusLabel,
+  getPublicFailoverStatusTone,
+} from "@/lib/failoverPublicView";
 import { cn } from "@/lib/utils";
 
 function formatDateTime(value?: string | null) {
@@ -22,39 +27,12 @@ function formatDateTime(value?: string | null) {
   return date.toLocaleString();
 }
 
-function getStatusColor(status?: string | null) {
-  const normalized = String(status || "").trim().toLowerCase();
-  if (["healthy", "success", "active", "running"].includes(normalized)) return "green";
-  if (["queued", "pending", "waiting_agent", "provisioning", "attaching_dns", "detaching_dns"].includes(normalized)) return "blue";
-  if (["failed", "error", "manual_review"].includes(normalized)) return "red";
-  if (["disabled", "consumed", "expired"].includes(normalized)) return "amber";
-  return "gray";
+function getMemberAddress(member: FailoverV2PublicMember) {
+  return member.current_address || "-";
 }
 
-function getStatusLabel(status?: string | null, t?: ReturnType<typeof useTranslation>["t"]) {
-  const normalized = String(status || "").trim().toLowerCase();
-  if (!normalized || normalized === "unknown") {
-    return t ? t("common.unknown", { defaultValue: "未知" }) : "未知";
-  }
-  if (["healthy", "success", "active", "running"].includes(normalized)) return t ? t("common.normal", { defaultValue: "正常" }) : "正常";
-  if (["queued", "pending", "waiting_agent", "provisioning", "attaching_dns", "detaching_dns"].includes(normalized)) {
-    return t ? t("common.pending", { defaultValue: "进行中" }) : "进行中";
-  }
-  if (["failed", "error", "manual_review"].includes(normalized)) return t ? t("common.failed", { defaultValue: "失败" }) : "失败";
-  if (["disabled", "consumed", "expired"].includes(normalized)) return t ? t("common.disabled", { defaultValue: "停用" }) : "停用";
-  return status || "unknown";
-}
-
-function getMemberAddress(member: FailoverV2Member) {
-  return member.current_address || member.current_ipv4 || member.current_ipv6 || "-";
-}
-
-function getMemberLines(member: FailoverV2Member) {
-  return member.dns_lines?.length ? member.dns_lines.join(", ") : "-";
-}
-
-function getExecutionMemberName(members: FailoverV2Member[], execution: FailoverV2ExecutionSummary) {
-  return members.find((member) => member.id === execution.member_id)?.name || `#${execution.member_id}`;
+function getExecutionMemberName(execution: FailoverV2PublicExecutionSummary) {
+  return execution.member_name || "-";
 }
 
 function ReadOnlyTable({
@@ -65,7 +43,7 @@ function ReadOnlyTable({
   className?: string;
 }) {
   return (
-    <div className={cn("overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm", className)}>
+    <div className={cn("overflow-hidden rounded-lg border border-slate-200 bg-white shadow-none", className)}>
       <div className="overflow-x-auto">{children}</div>
     </div>
   );
@@ -124,7 +102,7 @@ export default function FailoverSharePage() {
   return (
     <main className="min-h-screen bg-slate-100 text-slate-950">
       <div className="mx-auto flex w-full max-w-7xl flex-col gap-4 px-4 py-6 sm:px-6 lg:px-8">
-        <header className="rounded-2xl border border-slate-200 bg-white px-5 py-5 shadow-sm">
+        <header className="rounded-lg border border-slate-200 bg-white px-5 py-5 shadow-none">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
             <div className="min-w-0">
               <div className="mb-3 flex flex-wrap items-center gap-2">
@@ -161,7 +139,7 @@ export default function FailoverSharePage() {
             </div>
           </div>
           {share?.note ? (
-            <div className="mt-4 whitespace-pre-wrap rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm leading-6 text-slate-700">
+            <div className="mt-4 whitespace-pre-wrap border-l-2 border-slate-200 py-2 pl-3 text-sm leading-6 text-slate-700">
               {share.note}
             </div>
           ) : null}
@@ -169,11 +147,11 @@ export default function FailoverSharePage() {
 
         {loading ? (
           <div className="space-y-3">
-            <div className="h-24 animate-pulse rounded-2xl bg-white" />
-            <div className="h-72 animate-pulse rounded-2xl bg-white" />
+            <div className="h-24 animate-pulse rounded-lg bg-white" />
+            <div className="h-72 animate-pulse rounded-lg bg-white" />
           </div>
         ) : error ? (
-          <section className="rounded-2xl border border-red-200 bg-white px-5 py-10 text-center shadow-sm">
+          <section className="rounded-lg border border-red-200 bg-white px-5 py-10 text-center shadow-none">
             <div className="text-lg font-semibold text-red-700">
               {t("common.error", { defaultValue: "错误" })}
             </div>
@@ -181,7 +159,7 @@ export default function FailoverSharePage() {
           </section>
         ) : service ? (
           <>
-            <section className="rounded-2xl border border-slate-200 bg-white px-5 py-4 shadow-sm">
+            <section className="rounded-lg border border-slate-200 bg-white px-5 py-4 shadow-none">
               <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
                 <div className="min-w-0">
                   <div className="flex flex-wrap items-center gap-2">
@@ -191,23 +169,18 @@ export default function FailoverSharePage() {
                         ? t("common.enabled", { defaultValue: "已启用" })
                         : t("common.disabled", { defaultValue: "停用" })}
                     </Badge>
-                    <Badge color={getStatusColor(service.last_status)}>
-                      {getStatusLabel(service.last_status, t)}
+                    <Badge color={getPublicFailoverStatusTone(service.last_status)}>
+                      {getPublicFailoverStatusLabel(t, service.last_status)}
                     </Badge>
                   </div>
                   <div className="mt-1 text-sm text-slate-500">
-                    {service.dns_provider || "-"} / {service.enabled_member_count} {t("common.enabled", { defaultValue: "已启用" })} / {service.member_count} {t("failover_v2.share.members", { defaultValue: "成员" })}
+                    {service.enabled_member_count} {t("common.enabled", { defaultValue: "已启用" })} / {service.member_count} {t("failover_v2.share.members", { defaultValue: "成员" })}
                   </div>
                 </div>
                 <div className="text-sm text-slate-500">
                   {t("failover_v2.share.last_checked_at", { defaultValue: "最近检查" })}: {formatDateTime(service.last_checked_at)}
                 </div>
               </div>
-              {service.last_message ? (
-                <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-                  {service.last_message}
-                </div>
-              ) : null}
             </section>
 
             <section className="space-y-3">
@@ -222,16 +195,14 @@ export default function FailoverSharePage() {
                   <thead className="bg-slate-50 text-xs uppercase text-slate-500">
                     <tr>
                       <th className="px-4 py-3 text-left font-semibold">{t("failover_v2.member", { defaultValue: "成员" })}</th>
-                      <th className="px-4 py-3 text-left font-semibold">{t("failover_v2.dns_lines", { defaultValue: "DNS 线路" })}</th>
                       <th className="px-4 py-3 text-left font-semibold">{t("failover_v2.workbench.current_outlet", { defaultValue: "当前出口" })}</th>
-                      <th className="px-4 py-3 text-left font-semibold">{t("cloud.provider", { defaultValue: "供应商" })}</th>
                       <th className="px-4 py-3 text-left font-semibold">{t("common.status", { defaultValue: "状态" })}</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-200">
                     {members.length === 0 ? (
                       <tr>
-                        <td className="px-4 py-8 text-center text-slate-500" colSpan={5}>
+                        <td className="px-4 py-8 text-center text-slate-500" colSpan={3}>
                           {t("failover_v2.no_members", { defaultValue: "当前还没有成员。" })}
                         </td>
                       </tr>
@@ -239,11 +210,8 @@ export default function FailoverSharePage() {
                       <tr key={member.id} className="align-top">
                         <td className="px-4 py-3">
                           <div className="font-semibold text-slate-950">{member.name || `#${member.id}`}</div>
-                          <div className="mt-1 text-xs text-slate-500">P{member.priority} / {member.mode}</div>
                         </td>
-                        <td className="max-w-xs px-4 py-3 text-slate-600">{getMemberLines(member)}</td>
                         <td className="px-4 py-3 font-mono text-xs text-slate-700">{getMemberAddress(member)}</td>
-                        <td className="px-4 py-3 text-slate-600">{member.provider || "-"}</td>
                         <td className="px-4 py-3">
                           <div className="flex flex-wrap gap-1.5">
                             <Badge color={member.enabled ? "green" : "gray"}>
@@ -251,11 +219,10 @@ export default function FailoverSharePage() {
                                 ? t("common.enabled", { defaultValue: "已启用" })
                                 : t("common.disabled", { defaultValue: "停用" })}
                             </Badge>
-                            <Badge color={getStatusColor(member.last_status)}>{getStatusLabel(member.last_status, t)}</Badge>
+                            <Badge color={getPublicFailoverStatusTone(member.last_status)}>
+                              {getPublicFailoverStatusLabel(t, member.last_status)}
+                            </Badge>
                           </div>
-                          {member.last_message ? (
-                            <div className="mt-2 max-w-md text-xs leading-5 text-slate-500">{member.last_message}</div>
-                          ) : null}
                         </td>
                       </tr>
                     ))}
@@ -275,39 +242,30 @@ export default function FailoverSharePage() {
                 <table className="min-w-full text-sm">
                   <thead className="bg-slate-50 text-xs uppercase text-slate-500">
                     <tr>
-                      <th className="px-4 py-3 text-left font-semibold">ID</th>
                       <th className="px-4 py-3 text-left font-semibold">{t("failover_v2.member", { defaultValue: "成员" })}</th>
                       <th className="px-4 py-3 text-left font-semibold">{t("common.status", { defaultValue: "状态" })}</th>
-                      <th className="px-4 py-3 text-left font-semibold">DNS</th>
-                      <th className="px-4 py-3 text-left font-semibold">{t("failover_v2.trigger_reason_label", { defaultValue: "触发原因" })}</th>
+                      <th className="px-4 py-3 text-left font-semibold">{t("common.result", { defaultValue: "结果" })}</th>
                       <th className="px-4 py-3 text-left font-semibold">{t("common.time", { defaultValue: "时间" })}</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-200">
                     {executions.length === 0 ? (
                       <tr>
-                        <td className="px-4 py-8 text-center text-slate-500" colSpan={6}>
+                        <td className="px-4 py-8 text-center text-slate-500" colSpan={4}>
                           {t("failover_v2.execution_empty", { defaultValue: "暂无执行记录" })}
                         </td>
                       </tr>
-                    ) : executions.map((execution) => (
-                      <tr key={execution.id} className="align-top">
-                        <td className="px-4 py-3 font-semibold text-slate-950">#{execution.id}</td>
-                        <td className="px-4 py-3 text-slate-600">{getExecutionMemberName(members, execution)}</td>
+                    ) : executions.map((execution, index) => (
+                      <tr key={`${execution.started_at}-${execution.member_name}-${index}`} className="align-top">
+                        <td className="px-4 py-3 text-slate-600">{getExecutionMemberName(execution)}</td>
                         <td className="px-4 py-3">
-                            <Badge color={getStatusColor(execution.status)}>{getStatusLabel(execution.status, t)}</Badge>
-                          {execution.error_message ? (
-                            <div className="mt-2 max-w-md text-xs leading-5 text-red-600">{execution.error_message}</div>
-                          ) : null}
+                          <Badge color={getPublicFailoverStatusTone(execution.status)}>
+                            {getPublicFailoverStatusLabel(t, execution.status)}
+                          </Badge>
                         </td>
-                        <td className="px-4 py-3">
-                          <div className="flex flex-wrap gap-1.5">
-                            <Badge color={getStatusColor(execution.detach_dns_status)}>{getStatusLabel(execution.detach_dns_status, t)}</Badge>
-                            <Badge color={getStatusColor(execution.attach_dns_status)}>{getStatusLabel(execution.attach_dns_status, t)}</Badge>
-                            <Badge color={getStatusColor(execution.cleanup_status)}>{getStatusLabel(execution.cleanup_status, t)}</Badge>
-                          </div>
+                        <td className="max-w-lg px-4 py-3 text-slate-600">
+                          {getPublicFailoverResultText(t, execution.status)}
                         </td>
-                        <td className="max-w-sm px-4 py-3 text-slate-600">{execution.trigger_reason || "-"}</td>
                         <td className="px-4 py-3 text-slate-500">
                           <div>{formatDateTime(execution.started_at)}</div>
                           <div className="mt-1 text-xs">{formatDateTime(execution.finished_at)}</div>

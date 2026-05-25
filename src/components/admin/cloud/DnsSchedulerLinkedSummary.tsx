@@ -179,7 +179,7 @@ export default function DnsSchedulerLinkedSummary({
   const lastRun = snapshot?.last_run;
 
   return (
-    <div className={cn("rounded-xl border border-slate-200/80 bg-white p-3 shadow-sm shadow-slate-900/5 dark:border-slate-800 dark:bg-slate-950/40", className)}>
+    <div className={cn("rounded-md border border-slate-200/80 bg-slate-50/70 px-3 py-3 dark:border-slate-800 dark:bg-slate-900/30", className)}>
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <div className="flex items-center gap-2 text-xs font-semibold text-foreground">

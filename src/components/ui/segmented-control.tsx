@@ -33,7 +33,7 @@ const sizeClasses: Record<SegmentedControlSize, string> = {
 
 const radiusClasses: Record<SegmentedControlRadius, string> = {
   md: "rounded-lg [&_[data-slot=toggle-group-item]]:rounded-md",
-  lg: "rounded-xl [&_[data-slot=toggle-group-item]]:rounded-lg",
+  lg: "rounded-lg [&_[data-slot=toggle-group-item]]:rounded-md",
   full: "rounded-full [&_[data-slot=toggle-group-item]]:rounded-full",
 };
 
@@ -84,7 +84,7 @@ function SegmentedControlItem({
   return (
     <ToggleGroupItem
       className={cn(
-        "border-0 bg-transparent font-medium text-muted-foreground shadow-none hover:bg-background/70 hover:text-foreground data-[state=on]:bg-background data-[state=on]:text-foreground data-[state=on]:shadow-sm",
+        "border-0 bg-transparent font-medium text-muted-foreground shadow-none hover:bg-background/70 hover:text-foreground data-[state=on]:bg-background data-[state=on]:text-foreground data-[state=on]:shadow-none",
         className,
       )}
       {...props}

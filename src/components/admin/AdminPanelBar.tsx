@@ -513,6 +513,8 @@ function AdminPanelBarContent({ content }: AdminPanelBarProps) {
     const targetUrl = new URL(target, "https://komari.local");
     const normalizedPath = normalizePath(targetUrl.pathname);
     return (
+      normalizedPath === "/admin" ||
+      normalizedPath === "/admin/client" ||
       normalizedPath === "/admin/settings" ||
       normalizedPath.startsWith("/admin/settings/") ||
       [
@@ -541,6 +543,9 @@ function AdminPanelBarContent({ content }: AdminPanelBarProps) {
           ]);
         }
       }
+      if (normalizedPath === "/admin" || normalizedPath === "/admin/client") {
+        return platformAdmin;
+      }
       if (
         normalizedPath === "/admin/failover-v2"
         || normalizedPath.startsWith("/admin/failover-v2/")
@@ -561,7 +566,7 @@ function AdminPanelBarContent({ content }: AdminPanelBarProps) {
       }
       return hasFeature(feature);
     },
-    [account, hasFeature],
+    [account, hasFeature, platformAdmin],
   );
 
   const combinedMenuItems = useMemo<ExtendedMenuItem[]>(
@@ -756,9 +761,9 @@ function AdminPanelBarContent({ content }: AdminPanelBarProps) {
   ) => (
     <span
       className={cn(
-        "flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border transition-colors",
+        "flex h-7 w-7 shrink-0 items-center justify-center rounded-md border transition-colors",
         active
-          ? "border-blue-600 bg-blue-600 text-white shadow-sm shadow-blue-950/15 dark:border-blue-500 dark:bg-blue-500 dark:text-white"
+          ? "border-blue-600 bg-blue-600 text-white shadow-none dark:border-blue-500 dark:bg-blue-500 dark:text-white"
           : "border-slate-200/75 bg-white text-slate-500 group-hover:border-slate-300 group-hover:text-slate-700 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-400 dark:group-hover:border-slate-700 dark:group-hover:text-slate-200",
       )}
     >
@@ -768,15 +773,15 @@ function AdminPanelBarContent({ content }: AdminPanelBarProps) {
 
   const navItemClass = (active = false, collapsed = false) =>
     cn(
-      "group relative flex min-h-10 items-center gap-2 rounded-xl border border-transparent px-2.5 text-sm font-medium leading-5 tracking-normal text-slate-600 transition-colors before:absolute before:left-1 before:top-1/2 before:h-5 before:w-1 before:-translate-y-1/2 before:rounded-full before:bg-blue-600 before:opacity-0 before:transition-opacity hover:bg-white hover:text-slate-950 hover:shadow-sm dark:text-slate-300 dark:before:bg-blue-400 dark:hover:bg-slate-900/80 dark:hover:text-white",
+      "group relative flex min-h-10 items-center gap-2 rounded-lg border border-transparent px-2.5 text-sm font-medium leading-5 tracking-normal text-slate-600 transition-colors before:absolute before:left-1 before:top-1/2 before:h-5 before:w-1 before:-translate-y-1/2 before:rounded-full before:bg-blue-600 before:opacity-0 before:transition-opacity hover:bg-white hover:text-slate-950 hover:shadow-none dark:text-slate-300 dark:before:bg-blue-400 dark:hover:bg-slate-900/80 dark:hover:text-white",
       collapsed && "md:justify-center md:px-2",
-      active && "border-slate-200/85 bg-white font-semibold text-slate-950 shadow-[0_14px_28px_-22px_rgba(37,99,235,0.85)] before:opacity-100 hover:bg-white hover:text-slate-950 dark:border-blue-900/50 dark:bg-blue-950/35 dark:text-white dark:hover:bg-blue-950/35 dark:hover:text-white",
+      active && "border-slate-200/85 bg-white font-semibold text-slate-950 shadow-none before:opacity-100 hover:bg-white hover:text-slate-950 dark:border-blue-900/50 dark:bg-blue-950/35 dark:text-white dark:hover:bg-blue-950/35 dark:hover:text-white",
     );
 
   const subNavItemClass = (active = false) =>
     cn(
       "group relative flex min-h-8 items-center gap-2 rounded-lg px-2 py-1 text-sm leading-5 tracking-normal text-slate-500 transition-colors before:absolute before:left-0 before:top-1/2 before:h-4 before:w-0.5 before:-translate-y-1/2 before:rounded-full before:bg-blue-600 before:opacity-0 before:transition-opacity hover:bg-white hover:text-slate-950 dark:text-slate-400 dark:before:bg-blue-400 dark:hover:bg-slate-900/80 dark:hover:text-white",
-      active && "bg-white font-medium text-slate-950 shadow-sm before:opacity-100 hover:bg-white hover:text-slate-950 dark:bg-blue-950/30 dark:text-white dark:hover:bg-blue-950/30 dark:hover:text-white",
+      active && "bg-white font-medium text-slate-950 shadow-none before:opacity-100 hover:bg-white hover:text-slate-950 dark:bg-blue-950/30 dark:text-white dark:hover:bg-blue-950/30 dark:hover:text-white",
     );
 
   const renderUpdateTrigger =
@@ -850,7 +855,7 @@ function AdminPanelBarContent({ content }: AdminPanelBarProps) {
 
       <aside
         className={cn(
-          "fixed inset-y-0 left-0 z-50 flex w-[224px] flex-col border-r border-slate-200/80 bg-slate-50/95 shadow-[12px_0_35px_-30px_rgba(15,23,42,0.75)] transition-transform duration-200 ease-out motion-reduce:transition-none dark:border-slate-800 dark:bg-slate-950 md:static md:inset-0 md:translate-x-0 md:transition-[width]",
+          "fixed inset-y-0 left-0 z-50 flex w-[224px] flex-col border-r border-slate-200/80 bg-slate-50/95 shadow-none transition-transform duration-200 ease-out motion-reduce:transition-none dark:border-slate-800 dark:bg-slate-950 md:static md:inset-0 md:translate-x-0 md:transition-[width]",
           mobileMenuOpen ? "translate-x-0" : "-translate-x-full",
           sidebarCollapsed && "md:w-16",
         )}
@@ -864,11 +869,11 @@ function AdminPanelBarContent({ content }: AdminPanelBarProps) {
           <Link
             to="/admin"
             className={cn(
-              "flex min-w-0 items-center gap-3 rounded-xl px-1 py-1 text-slate-950 transition-colors hover:bg-slate-100 dark:text-slate-50 dark:hover:bg-slate-900/70",
+              "flex min-w-0 items-center gap-3 rounded-lg px-1 py-1 text-slate-950 transition-colors hover:bg-slate-100 dark:text-slate-50 dark:hover:bg-slate-900/70",
               sidebarCollapsed && "md:w-full md:justify-center md:px-0",
             )}
           >
-            <span className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-slate-200 bg-white shadow-[0_12px_24px_-18px_rgba(15,23,42,0.45)] dark:border-slate-800 dark:bg-slate-900">
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-slate-200 bg-white shadow-none dark:border-slate-800 dark:bg-slate-900">
               <img
                 src={logoUrl}
                 alt={appName}
@@ -1105,7 +1110,7 @@ function AdminPanelBarContent({ content }: AdminPanelBarProps) {
       </aside>
 
       <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
-        <header className="flex h-16 shrink-0 items-center justify-between gap-4 border-b border-slate-200/80 bg-white/90 px-3 shadow-[0_10px_30px_-28px_rgba(15,23,42,0.75)] backdrop-blur dark:border-slate-800 dark:bg-slate-950/90 sm:px-5">
+        <header className="flex h-16 shrink-0 items-center justify-between gap-4 border-b border-slate-200/80 bg-white/90 px-3 shadow-none backdrop-blur dark:border-slate-800 dark:bg-slate-950/90 sm:px-5">
           <div className="flex min-w-0 items-center gap-3">
             <Button
               variant="ghost"
@@ -1141,7 +1146,7 @@ function AdminPanelBarContent({ content }: AdminPanelBarProps) {
             </div>
           </div>
 
-          <div className="flex shrink-0 items-center gap-1.5 rounded-xl border border-slate-200/80 bg-slate-50 px-1.5 py-1 shadow-sm shadow-slate-900/5 dark:border-slate-800 dark:bg-slate-950">
+          <div className="flex shrink-0 items-center gap-1.5 rounded-lg border border-slate-200/80 bg-slate-50 px-1.5 py-1 shadow-none dark:border-slate-800 dark:bg-slate-950">
             {account && !account.logged_in && (
               <LoginDialog
                 autoOpen

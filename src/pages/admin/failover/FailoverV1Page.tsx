@@ -8,6 +8,7 @@ import {
   Copy,
   Eye,
   LoaderCircle,
+  MoreHorizontal,
   PencilLine,
   Play,
   Plus,
@@ -21,6 +22,7 @@ import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
 import {
+  AdminEmptyState,
   AdminPageShell,
   AdminTableSkeleton,
 } from "@/components/admin/AdminPageShell";
@@ -53,13 +55,6 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import {
   Dialog,
   DialogContent,
   DialogDescription,
@@ -67,6 +62,12 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   Collapsible,
   CollapsibleContent,
@@ -109,6 +110,9 @@ import {
 } from "@/lib/failoverV2Presets";
 import { useSettings } from "@/lib/api";
 import { getReadableErrorMessage } from "@/lib/apiErrorMessage";
+import {
+  getPublicFailoverResultText,
+} from "@/lib/failoverPublicView";
 import {
   buildFailoverShareUrl,
   createFailoverTask,
@@ -298,15 +302,15 @@ function StickyEditorSummaryPanel({
 }) {
   return (
     <aside className="hidden min-w-0 xl:block">
-      <div className="sticky top-0 space-y-3 rounded-xl border border-slate-200/80 bg-slate-50/80 p-4 shadow-sm shadow-slate-900/5 dark:border-slate-800 dark:bg-slate-900/40">
+      <div className="sticky top-0 space-y-3 border-l border-slate-200/80 bg-transparent py-1 pl-4 dark:border-slate-800">
         <div className="space-y-1">
           <div className="text-sm font-semibold text-slate-900 dark:text-slate-50">{title}</div>
           <p className="text-xs leading-5 text-muted-foreground">{hint}</p>
         </div>
         {rows.length > 0 ? (
-          <div className="overflow-hidden rounded-lg border bg-background">
+          <div className="overflow-hidden border-y border-slate-200/80 dark:border-slate-800">
             {rows.map((row) => (
-              <div key={row.label} className="grid grid-cols-[96px_minmax(0,1fr)] gap-3 border-b px-3 py-2.5 text-sm last:border-b-0">
+              <div key={row.label} className="grid grid-cols-[96px_minmax(0,1fr)] gap-3 border-b border-slate-200/80 py-2.5 text-sm last:border-b-0 dark:border-slate-800">
                 <div className="text-xs font-medium text-muted-foreground">{row.label}</div>
                 <div className="min-w-0 break-words font-medium text-slate-900 dark:text-slate-50">{row.value}</div>
               </div>
@@ -331,7 +335,7 @@ function SummaryNoteList({
   }
 
   return (
-    <div className="rounded-lg border bg-background p-3">
+    <div className="border-t border-slate-200/80 pt-3 dark:border-slate-800">
       <div className="text-xs font-semibold uppercase tracking-normal text-muted-foreground">{title}</div>
       <div className="mt-2 space-y-2">
         {notes.map((note) => (
@@ -2489,7 +2493,7 @@ function describePlanAdvancedSettings(t: TFunction, plan: PlanFormState | null) 
   return [
     `${t("failover.editor.priority", { defaultValue: "Priority" })}: ${plan.priority || "-"}`,
     `${t("failover.editor.script_timeout", { defaultValue: "Script timeout (s)" })}: ${plan.script_timeout_sec || "-"}`,
-    `${t("failover.editor.wait_agent_timeout", { defaultValue: "Wait agent timeout (s)" })}: ${plan.wait_agent_timeout_sec || "-"}`,
+    `${t("failover.editor.wait_agent_timeout", { defaultValue: "接入等待时间 (秒)" })}: ${plan.wait_agent_timeout_sec || "-"}`,
   ].join(" · ");
 }
 
@@ -4859,7 +4863,7 @@ function JsonBlock({
       <div className="text-[11px] font-semibold uppercase tracking-normal text-muted-foreground">
         {title}
       </div>
-      <pre className="max-h-56 overflow-auto overscroll-contain rounded-lg border bg-muted/25 p-3 text-xs leading-6 text-slate-800 [scrollbar-gutter:stable] dark:text-slate-200">
+      <pre className="max-h-56 overflow-auto overscroll-contain rounded-md bg-muted/25 p-3 text-xs leading-6 text-slate-800 [scrollbar-gutter:stable] dark:text-slate-200">
         {prettyJson(value, "null")}
       </pre>
     </div>
@@ -4876,7 +4880,7 @@ function ExecutionSummaryCard({
   className,
 }: ExecutionSummaryCardData & { className?: string }) {
   return (
-    <div className={cn("space-y-3 rounded-lg border border-slate-200/80 px-4 py-4 dark:border-slate-800/80", className)}>
+    <div className={cn("space-y-3 border-l-2 border-slate-200 py-2 pl-3 dark:border-slate-800", className)}>
       <div className="space-y-1">
         <div className="text-sm font-medium text-slate-900 dark:text-slate-50">{title}</div>
         {description ? (
@@ -4886,7 +4890,7 @@ function ExecutionSummaryCard({
       {items.length > 0 ? (
         <DetailItemsList items={items} />
       ) : (
-        <div className="rounded-lg border border-dashed px-3 py-3 text-xs leading-5 text-muted-foreground">
+        <div className="border-y border-dashed py-3 text-xs leading-5 text-muted-foreground">
           {emptyLabel}
         </div>
       )}
@@ -4897,7 +4901,7 @@ function ExecutionSummaryCard({
           </div>
           <div className="space-y-1.5 text-xs text-muted-foreground">
             {detailLines.map((line) => (
-              <div key={line} className="break-all rounded-md border border-dashed border-slate-200/80 px-3 py-2 dark:border-slate-800/80">
+              <div key={line} className="break-all border-l-2 border-slate-200/80 py-1 pl-2 dark:border-slate-800/80">
                 {line}
               </div>
             ))}
@@ -4916,7 +4920,7 @@ function PreviewCheckCard({
   const { t } = useTranslation();
 
   return (
-    <div className="rounded-lg border border-slate-200/80 p-3 dark:border-slate-800/80">
+    <div className="border-b border-slate-200/80 py-3 dark:border-slate-800/80">
       <div className="flex flex-wrap items-start gap-2">
         <div className="min-w-0 flex-1">
           <div className="text-sm font-medium text-slate-900 dark:text-slate-50">
@@ -5003,7 +5007,7 @@ function TaskPreviewSection({
           </div>
         </div>
       ) : null}
-      <div className="space-y-4 rounded-lg border px-4 py-4">
+      <div className="space-y-4 border-y border-slate-200/80 py-4 dark:border-slate-800/80">
         {loading ? (
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <LoaderCircle className="size-4 animate-spin" />
@@ -5012,7 +5016,7 @@ function TaskPreviewSection({
         ) : null}
 
         {!loading && error ? (
-          <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-3 text-sm text-red-700 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-200">
+          <div className="border-l-2 border-red-300 bg-red-50/70 px-3 py-2 text-sm text-red-700 dark:border-red-800 dark:bg-red-950/20 dark:text-red-200">
             {error}
           </div>
         ) : null}
@@ -5061,7 +5065,7 @@ function TaskPreviewSection({
             </div>
 
             {statusMessage ? (
-              <div className="rounded-lg border border-dashed border-slate-200/80 px-3 py-3 text-xs leading-5 text-muted-foreground dark:border-slate-800/80">
+              <div className="border-y border-dashed border-slate-200/80 py-3 text-xs leading-5 text-muted-foreground dark:border-slate-800/80">
                 {statusMessage}
               </div>
             ) : null}
@@ -5093,7 +5097,7 @@ function TaskPreviewSection({
                   ].filter(Boolean).join(" · ");
 
                   return (
-                    <div key={`plan:${plan.index}:${plan.name}`} className="rounded-lg border border-slate-200/80 p-3 dark:border-slate-800/80">
+                    <div key={`plan:${plan.index}:${plan.name}`} className="border-t border-slate-200/80 pt-3 first:border-t-0 first:pt-0 dark:border-slate-800/80">
                       <div className="space-y-1">
                         <div className="text-sm font-medium text-slate-900 dark:text-slate-50">{title}</div>
                         {summary ? (
@@ -5129,7 +5133,7 @@ function ExecutionAttemptSection({
   }
 
   return (
-    <div className="space-y-2 rounded-lg border border-slate-200/80 px-4 py-4 dark:border-slate-800/80">
+    <div className="space-y-2 border-y border-slate-200/80 py-4 dark:border-slate-800/80">
       <div className="space-y-1">
         <div className="text-sm font-medium text-slate-900 dark:text-slate-50">
           {t("failover.execution.attempt_overview", { defaultValue: "Attempt details" })}
@@ -5195,7 +5199,7 @@ function ExecutionAttemptSection({
           ].filter((item): item is DetailItem => Boolean(item));
 
           return (
-            <div key={`${attempt.plan_id}:${index}`} className="rounded-lg border border-slate-200/80 p-3 dark:border-slate-800/80">
+            <div key={`${attempt.plan_id}:${index}`} className="border-t border-slate-200/80 py-3 first:border-t-0 first:pt-0 dark:border-slate-800/80">
               <div className="flex flex-wrap items-center gap-2">
                 <div className="min-w-0 flex-1 font-medium text-slate-900 dark:text-slate-50" title={planTitle}>
                   {planTitle}
@@ -5256,7 +5260,7 @@ function ExecutionAttemptSection({
                       ].filter((item): item is DetailItem => Boolean(item));
 
                       return (
-                        <div key={`${entryAttempt.entry_id}:${entryAttempt.attempt}:${entryIndex}`} className="rounded-md border border-dashed border-slate-200/80 p-3 dark:border-slate-800/80">
+                        <div key={`${entryAttempt.entry_id}:${entryAttempt.attempt}:${entryIndex}`} className="border-l-2 border-dashed border-slate-200/80 py-2 pl-3 dark:border-slate-800/80">
                           <div className="flex flex-wrap items-center gap-2">
                             <div className="min-w-0 flex-1 text-sm font-medium text-slate-900 dark:text-slate-50" title={entryTitle}>
                               {entryTitle}
@@ -5283,7 +5287,7 @@ function ExecutionAttemptSection({
 function ExecutionDetailSkeleton() {
   return (
     <div className="space-y-4">
-      <div className="grid gap-3 rounded-lg border border-slate-200/80 px-4 py-4 sm:grid-cols-2 xl:grid-cols-4 dark:border-slate-800/80">
+      <div className="grid gap-3 border-y border-slate-200/80 py-4 sm:grid-cols-2 xl:grid-cols-4 dark:border-slate-800/80">
         {Array.from({ length: 4 }).map((_, index) => (
           <div key={index} className="space-y-2">
             <div className="h-3 w-24 animate-pulse rounded bg-slate-200 dark:bg-slate-800" />
@@ -5296,7 +5300,7 @@ function ExecutionDetailSkeleton() {
         {Array.from({ length: 4 }).map((_, index) => (
           <div
             key={index}
-            className="space-y-3 rounded-lg border border-slate-200/80 px-4 py-4 dark:border-slate-800/80"
+            className="space-y-3 border-t border-slate-200/80 py-4 first:border-t-0 dark:border-slate-800/80"
           >
             <div className="flex items-center justify-between gap-3">
               <div className="h-4 w-32 animate-pulse rounded bg-slate-200 dark:bg-slate-800" />
@@ -5317,12 +5321,14 @@ function ExecutionDetailSkeleton() {
 function ExecutionDetailDialog({
   executionID,
   taskName,
+  detailedMode,
   open,
   onOpenChange,
   onExecutionUpdated,
 }: {
   executionID: number | null;
   taskName: string;
+  detailedMode: boolean;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onExecutionUpdated?: () => Promise<void>;
@@ -5500,7 +5506,9 @@ function ExecutionDetailDialog({
               {t("failover.execution.title", { defaultValue: "Execution details" })}
             </DialogTitle>
             <DialogDescription>
-              {taskName || t("failover.execution.description", { defaultValue: "Track failover progress, script results, and DNS changes." })}
+              {taskName || (detailedMode
+                ? t("failover.execution.description", { defaultValue: "Track failover progress, script results, and DNS changes." })
+                : t("failover.execution.public_description", { defaultValue: "查看任务状态、处理结果和最近更新时间。" }))}
             </DialogDescription>
           </DialogHeader>
 
@@ -5508,14 +5516,17 @@ function ExecutionDetailDialog({
             {loading && !execution ? <ExecutionDetailSkeleton /> : null}
 
             {!loading && error ? (
-              <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900/40 dark:bg-red-950/30 dark:text-red-200">
+              <div className="border-l-2 border-red-300 bg-red-50/70 px-3 py-2 text-sm text-red-700 dark:border-red-800 dark:bg-red-950/20 dark:text-red-200">
                 {error}
               </div>
             ) : null}
 
           {execution ? (
             <div className="space-y-4">
-              <div className="grid gap-3 rounded-lg border border-slate-200/80 px-4 py-4 sm:grid-cols-2 xl:grid-cols-4 dark:border-slate-800/80">
+              <div className={cn(
+                "grid gap-3 border-y border-slate-200/80 py-4 sm:grid-cols-2 dark:border-slate-800/80",
+                detailedMode ? "xl:grid-cols-4" : "xl:grid-cols-3",
+              )}>
                 <div className="min-w-0 space-y-1.5">
                   <div className="text-[11px] font-semibold uppercase tracking-normal text-muted-foreground">
                     {t("failover.execution.status", { defaultValue: "Execution status" })}
@@ -5523,72 +5534,97 @@ function ExecutionDetailDialog({
                   <Badge variant={getStatusVariant(execution.status, "execution")}>{getStatusLabel(t, execution.status)}</Badge>
                   <div className="text-xs text-muted-foreground">{formatDateTime(execution.started_at)}</div>
                 </div>
-                <div className="min-w-0 space-y-1.5">
-                  <div className="text-[11px] font-semibold uppercase tracking-normal text-muted-foreground">
-                    {t("failover.execution.script", { defaultValue: "Script" })}
-                  </div>
-                  <div className="flex flex-wrap items-center gap-2">
-                    <Badge variant={getStatusVariant(execution.script_status, "script")}>{getStatusLabel(t, execution.script_status)}</Badge>
-                    {executionScriptNames.length > 0 ? (
-                      <Badge variant="outline">
-                        {t("failover.task.script_count", {
-                          count: executionScriptNames.length,
-                          defaultValue: "{{count}} script(s)",
-                        })}
-                      </Badge>
-                    ) : null}
-                  </div>
-                  <div className="line-clamp-2 break-words text-xs leading-5 text-muted-foreground" title={execution.script_name_snapshot || undefined}>
-                    {executionScriptNames.length > 0
-                      ? executionScriptNames.join(" · ")
-                      : t("failover.execution.no_script", { defaultValue: "No script recorded" })}
-                  </div>
-                  {execution.script_exit_code !== null ? (
-                    <div className="text-xs text-muted-foreground">
-                      {t("failover.execution.exit_code", {
-                        defaultValue: "Exit code: {{code}}",
-                        code: execution.script_exit_code,
-                      })}
+                {detailedMode ? (
+                  <>
+                    <div className="min-w-0 space-y-1.5">
+                      <div className="text-[11px] font-semibold uppercase tracking-normal text-muted-foreground">
+                        {t("failover.execution.script", { defaultValue: "Script" })}
+                      </div>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <Badge variant={getStatusVariant(execution.script_status, "script")}>{getStatusLabel(t, execution.script_status)}</Badge>
+                        {executionScriptNames.length > 0 ? (
+                          <Badge variant="outline">
+                            {t("failover.task.script_count", {
+                              count: executionScriptNames.length,
+                              defaultValue: "{{count}} script(s)",
+                            })}
+                          </Badge>
+                        ) : null}
+                      </div>
+                      <div className="line-clamp-2 break-words text-xs leading-5 text-muted-foreground" title={execution.script_name_snapshot || undefined}>
+                        {executionScriptNames.length > 0
+                          ? executionScriptNames.join(" · ")
+                          : t("failover.execution.no_script", { defaultValue: "No script recorded" })}
+                      </div>
+                      {execution.script_exit_code !== null ? (
+                        <div className="text-xs text-muted-foreground">
+                          {t("failover.execution.exit_code", {
+                            defaultValue: "Exit code: {{code}}",
+                            code: execution.script_exit_code,
+                          })}
+                        </div>
+                      ) : null}
                     </div>
-                  ) : null}
-                </div>
-                <div className="min-w-0 space-y-1.5">
-                  <div className="text-[11px] font-semibold uppercase tracking-normal text-muted-foreground">
-                    {t("failover.execution.dns", { defaultValue: "DNS" })}
-                  </div>
-                  <Badge variant={getStatusVariant(execution.dns_status, "dns")}>{getStatusLabel(t, execution.dns_status)}</Badge>
-                  <div className="truncate text-xs text-muted-foreground" title={execution.dns_provider ? getDnsProviderLabel(t, execution.dns_provider) : undefined}>
-                    {execution.dns_provider ? getDnsProviderLabel(t, execution.dns_provider) : "-"}
-                  </div>
-                </div>
-                <div className="min-w-0 space-y-1.5">
-                  <div className="text-[11px] font-semibold uppercase tracking-normal text-muted-foreground">
-                    {t("failover.execution.cleanup", { defaultValue: "Cleanup" })}
-                  </div>
-                  <Badge variant={getStatusVariant(execution.cleanup_status, "cleanup")}>{getStatusLabel(t, execution.cleanup_status)}</Badge>
-                  <div className="text-xs text-muted-foreground">
-                    {execution.finished_at
-                      ? formatDateTime(execution.finished_at)
-                      : t("failover.execution.running", { defaultValue: "Still running" })}
-                  </div>
-                </div>
+                    <div className="min-w-0 space-y-1.5">
+                      <div className="text-[11px] font-semibold uppercase tracking-normal text-muted-foreground">
+                        {t("failover.execution.dns", { defaultValue: "DNS" })}
+                      </div>
+                      <Badge variant={getStatusVariant(execution.dns_status, "dns")}>{getStatusLabel(t, execution.dns_status)}</Badge>
+                      <div className="truncate text-xs text-muted-foreground" title={execution.dns_provider ? getDnsProviderLabel(t, execution.dns_provider) : undefined}>
+                        {execution.dns_provider ? getDnsProviderLabel(t, execution.dns_provider) : "-"}
+                      </div>
+                    </div>
+                    <div className="min-w-0 space-y-1.5">
+                      <div className="text-[11px] font-semibold uppercase tracking-normal text-muted-foreground">
+                        {t("failover.execution.cleanup", { defaultValue: "Cleanup" })}
+                      </div>
+                      <Badge variant={getStatusVariant(execution.cleanup_status, "cleanup")}>{getStatusLabel(t, execution.cleanup_status)}</Badge>
+                      <div className="text-xs text-muted-foreground">
+                        {execution.finished_at
+                          ? formatDateTime(execution.finished_at)
+                          : t("failover.execution.running", { defaultValue: "Still running" })}
+                      </div>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className="min-w-0 space-y-1.5">
+                      <div className="text-[11px] font-semibold uppercase tracking-normal text-muted-foreground">
+                        {t("failover.execution.finished", { defaultValue: "结束时间" })}
+                      </div>
+                      <div className="text-sm font-semibold text-slate-950 dark:text-slate-50">
+                        {execution.finished_at ? formatDateTime(execution.finished_at) : t("failover.execution.running", { defaultValue: "Still running" })}
+                      </div>
+                    </div>
+                    <div className="min-w-0 space-y-1.5">
+                      <div className="text-[11px] font-semibold uppercase tracking-normal text-muted-foreground">
+                        {t("common.result", { defaultValue: "结果" })}
+                      </div>
+                      <div className="text-sm font-semibold text-slate-950 dark:text-slate-50">
+                        {getPublicFailoverResultText(t, execution.status, execution.error_message)}
+                      </div>
+                    </div>
+                  </>
+                )}
               </div>
 
               {execution.error_message ? (
-                <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900/40 dark:bg-red-950/30 dark:text-red-200">
-                  {execution.error_message}
+                <div className="border-l-2 border-red-300 bg-red-50/70 px-3 py-2 text-sm text-red-700 dark:border-red-800 dark:bg-red-950/20 dark:text-red-200">
+                  {detailedMode
+                    ? execution.error_message
+                    : getPublicFailoverResultText(t, execution.status, execution.error_message)}
                 </div>
               ) : null}
 
-              {cleanupInfo && cleanupInfo.classification !== "not_requested" && cleanupInfo.tone !== "success" ? (
+              {detailedMode && cleanupInfo && cleanupInfo.classification !== "not_requested" && cleanupInfo.tone !== "success" ? (
                 <div
                   className={cn(
-                    "rounded-lg border px-4 py-3",
+                    "border-l-2 px-3 py-2",
                     cleanupInfo.tone === "destructive"
-                      ? "border-red-200 bg-red-50 text-red-700 dark:border-red-900/40 dark:bg-red-950/30 dark:text-red-200"
+                      ? "border-red-300 bg-red-50/70 text-red-700 dark:border-red-800 dark:bg-red-950/20 dark:text-red-200"
                       : cleanupInfo.tone === "warning"
-                        ? "border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-900/40 dark:bg-amber-950/30 dark:text-amber-200"
-                        : "border-slate-200 bg-slate-50 text-slate-700 dark:border-slate-800 dark:bg-slate-900/40 dark:text-slate-200",
+                        ? "border-amber-300 bg-amber-50/70 text-amber-800 dark:border-amber-800 dark:bg-amber-950/20 dark:text-amber-200"
+                        : "border-slate-300 bg-slate-50/60 text-slate-700 dark:border-slate-700 dark:bg-slate-900/30 dark:text-slate-200",
                   )}
                 >
                   <div className="text-sm font-medium">{cleanupInfo.title}</div>
@@ -5606,16 +5642,17 @@ function ExecutionDetailDialog({
                 </div>
               ) : null}
 
-              {dnsSummaryCard || oldInstanceSummaryCard ? (
+              {detailedMode && (dnsSummaryCard || oldInstanceSummaryCard) ? (
                 <div className={cn("grid gap-3", dnsSummaryCard && oldInstanceSummaryCard ? "xl:grid-cols-2" : "")}>
                   {dnsSummaryCard ? <ExecutionSummaryCard {...dnsSummaryCard} /> : null}
                   {oldInstanceSummaryCard ? <ExecutionSummaryCard {...oldInstanceSummaryCard} /> : null}
                 </div>
               ) : null}
 
-              <ExecutionAttemptSection execution={execution} />
+              {detailedMode ? <ExecutionAttemptSection execution={execution} /> : null}
 
-              <div className="space-y-2 rounded-lg border border-slate-200/80 px-4 py-4 dark:border-slate-800/80">
+              {detailedMode ? (
+              <div className="space-y-2 border-y border-slate-200/80 py-4 dark:border-slate-800/80">
                 <div className="space-y-1">
                   <div className="text-sm font-medium text-slate-900 dark:text-slate-50">
                     {t("failover.execution.timeline", { defaultValue: "Timeline" })}
@@ -5625,7 +5662,7 @@ function ExecutionDetailDialog({
                   </div>
                 </div>
                 {execution.steps.length === 0 ? (
-                  <div className="rounded-lg border border-dashed px-4 py-6 text-sm text-muted-foreground">
+                  <div className="border-y border-dashed border-slate-200/80 py-5 text-sm text-muted-foreground dark:border-slate-800/80">
                     {t("failover.execution.steps_empty", { defaultValue: "No step data is available yet." })}
                   </div>
                 ) : (
@@ -5658,9 +5695,10 @@ function ExecutionDetailDialog({
                   </div>
                 )}
               </div>
+              ) : null}
 
-              {execution.script_output ? (
-                <div className="space-y-2 rounded-lg border border-slate-200/80 px-4 py-4 dark:border-slate-800/80">
+              {detailedMode && execution.script_output ? (
+                <div className="space-y-2 border-y border-slate-200/80 py-4 dark:border-slate-800/80">
                   <div className="space-y-1">
                     <div className="text-sm font-medium text-slate-900 dark:text-slate-50">
                       {t("failover.execution.script_output", { defaultValue: "Script output" })}
@@ -5671,17 +5709,18 @@ function ExecutionDetailDialog({
                         : t("failover.execution.script_output_full", { defaultValue: "Captured task output from the target agent." })}
                     </div>
                   </div>
-                  <pre className="max-h-72 overflow-auto overscroll-contain rounded-lg border bg-muted/25 p-3 text-xs leading-6 [scrollbar-gutter:stable]">{execution.script_output}</pre>
+                  <pre className="max-h-72 overflow-auto overscroll-contain rounded-md bg-muted/25 p-3 text-xs leading-6 [scrollbar-gutter:stable]">{execution.script_output}</pre>
                 </div>
               ) : null}
 
+              {detailedMode ? (
               <Collapsible open={showRawData} onOpenChange={setShowRawData}>
-                <div className="rounded-lg border border-slate-200/80 dark:border-slate-800/80">
+                <div className="border-y border-slate-200/80 dark:border-slate-800/80">
                   <CollapsibleTrigger asChild>
                     <Button
                       type="button"
                       variant="ghost"
-                      className="flex h-auto w-full items-center justify-between rounded-lg px-4 py-3 text-left"
+                      className="flex h-auto w-full items-center justify-between rounded-md px-3 py-3 text-left"
                     >
                       <div className="space-y-1">
                         <div className="text-sm font-medium text-slate-900 dark:text-slate-50">
@@ -5714,18 +5753,19 @@ function ExecutionDetailDialog({
                   </CollapsibleContent>
                 </div>
               </Collapsible>
+              ) : null}
             </div>
           ) : null}
         </div>
 
-        {retryGuidance.length > 0 ? (
+        {detailedMode && retryGuidance.length > 0 ? (
           <div className="border-t px-5 py-3">
             <div className="space-y-2">
               <div className="text-[11px] font-semibold uppercase tracking-normal text-muted-foreground">
                 {t("failover.execution.retry_guidance_title", { defaultValue: "Retry guidance" })}
               </div>
               {retryGuidance.map((guidance) => (
-                <div key={guidance.key} className="rounded-lg border border-dashed border-slate-200/80 px-3 py-3 text-xs text-muted-foreground dark:border-slate-800/80">
+                <div key={guidance.key} className="border-l-2 border-dashed border-slate-200/80 py-2 pl-3 text-xs text-muted-foreground dark:border-slate-800/80">
                   <div className="font-medium text-slate-700 dark:text-slate-200">{guidance.label}</div>
                   <div className="mt-1.5 leading-5">
                     <span className="font-medium text-slate-600 dark:text-slate-300">
@@ -5746,13 +5786,13 @@ function ExecutionDetailDialog({
         ) : null}
 
         <DialogFooter className={cn("px-5 py-4", retryGuidance.length > 0 ? "" : "border-t")}>
-          {execution && isFailoverExecutionActive(execution.status) ? (
+          {detailedMode && execution && isFailoverExecutionActive(execution.status) ? (
             <Button type="button" variant="outline" onClick={() => void handleStopExecution()} disabled={stopping || loading}>
               {stopping ? <LoaderCircle className="size-4 animate-spin" /> : <Square className="size-4" />}
               {t("failover.actions.stop", { defaultValue: "Stop" })}
             </Button>
           ) : null}
-          {canRetryDNS ? (
+          {detailedMode && canRetryDNS ? (
             <Button
               type="button"
               variant="outline"
@@ -5763,7 +5803,7 @@ function ExecutionDetailDialog({
               {t("failover.actions.retry_dns", { defaultValue: "Retry DNS" })}
             </Button>
           ) : null}
-          {canRetryCleanup ? (
+          {detailedMode && canRetryCleanup ? (
             <Button
               type="button"
               variant="outline"
@@ -7273,7 +7313,7 @@ function TaskEditorDialog({
         throw new Error(
           t("failover.validation.script_domain_required", {
             defaultValue:
-              "Agent connection address is required for failover auto-connect. Set it in Settings -> Site before saving or running this task.",
+              "平台接入地址尚未配置，请联系管理员完成基础配置后再保存或运行任务。",
           }),
         );
       }
@@ -7394,7 +7434,7 @@ function TaskEditorDialog({
                           })}
                       </div>
                     </div>
-                    <div className="rounded-lg border border-dashed bg-muted/20 px-4 py-3">
+                    <div className="border-y border-dashed border-slate-200/80 py-3 dark:border-slate-800/80">
                       <div className="text-[11px] font-semibold uppercase tracking-normal text-muted-foreground">
                         {t("failover.editor.current_outlet", { defaultValue: "Current outlet" })}
                       </div>
@@ -7456,12 +7496,12 @@ function TaskEditorDialog({
                     <section className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_340px]">
                       <div className="min-w-0 space-y-3">
                       <Collapsible open={taskAdvancedOpen} onOpenChange={setTaskAdvancedOpen}>
-                        <div className="rounded-lg border">
+                        <div className="border-y border-slate-200/80 dark:border-slate-800/80">
                           <CollapsibleTrigger asChild>
                             <Button
                               type="button"
                               variant="ghost"
-                              className="flex min-w-0 h-auto w-full items-center justify-between rounded-lg px-4 py-3 text-left"
+                              className="flex min-w-0 h-auto w-full items-center justify-between rounded-md px-3 py-3 text-left"
                             >
                               <div className="min-w-0 flex-1 space-y-1">
                                 <div className="text-sm font-medium text-slate-900 dark:text-slate-50">
@@ -7481,7 +7521,7 @@ function TaskEditorDialog({
                               />
                             </Button>
                           </CollapsibleTrigger>
-                          <CollapsibleContent className="border-t px-4 py-4">
+                          <CollapsibleContent className="border-t px-3 py-4">
                             <div className="grid gap-4 lg:grid-cols-3">
                               <div className="space-y-2">
                                 <Label htmlFor="failover-threshold">{t("failover.editor.failure_threshold", { defaultValue: "Failure threshold" })}</Label>
@@ -7518,12 +7558,12 @@ function TaskEditorDialog({
                         </div>
                       </Collapsible>
                       <Collapsible open={taskRetryOpen} onOpenChange={setTaskRetryOpen}>
-                        <div className="rounded-lg border">
+                        <div className="border-y border-slate-200/80 dark:border-slate-800/80">
                           <CollapsibleTrigger asChild>
                             <Button
                               type="button"
                               variant="ghost"
-                              className="flex min-w-0 h-auto w-full items-center justify-between rounded-lg px-4 py-3 text-left"
+                              className="flex min-w-0 h-auto w-full items-center justify-between rounded-md px-3 py-3 text-left"
                             >
                               <div className="min-w-0 flex-1 space-y-1">
                                 <div className="text-sm font-medium text-slate-900 dark:text-slate-50">
@@ -7543,7 +7583,7 @@ function TaskEditorDialog({
                               />
                             </Button>
                           </CollapsibleTrigger>
-                          <CollapsibleContent className="border-t px-4 py-4">
+                          <CollapsibleContent className="border-t px-3 py-4">
                             <div className="grid gap-4 lg:grid-cols-2">
                               <div className="space-y-2">
                                 <Label htmlFor="failover-provision-retry-limit">
@@ -7638,7 +7678,7 @@ function TaskEditorDialog({
                   </div>
 
                   {!hasDnsEnabled && !hasAnyDnsCredential ? (
-                    <div className="rounded-lg border border-dashed bg-muted/20 px-4 py-3 text-sm text-muted-foreground">
+                    <div className="border-y border-dashed border-slate-200/80 py-3 text-sm text-muted-foreground dark:border-slate-800/80">
                       {t("failover.editor.no_dns_provider_configured", {
                         defaultValue: "No DNS credential is configured yet. Add one first if you want this task to update DNS records.",
                       })}
@@ -7646,7 +7686,7 @@ function TaskEditorDialog({
                   ) : hasDnsEnabled ? (
                     <DetailItemsList items={dnsSummaryItems} />
                   ) : (
-                    <div className="rounded-lg border border-dashed bg-muted/20 px-4 py-3 text-sm text-muted-foreground">
+                    <div className="border-y border-dashed border-slate-200/80 py-3 text-sm text-muted-foreground dark:border-slate-800/80">
                       {t("failover.editor.no_dns_hint", {
                         defaultValue: "This task will skip DNS switching and only manage cloud failover actions.",
                       })}
@@ -7654,7 +7694,7 @@ function TaskEditorDialog({
                   )}
 
                   {dnsCatalogError && hasDnsEnabled ? (
-                    <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-xs text-red-700 dark:border-red-900/40 dark:bg-red-950/30 dark:text-red-200">
+                    <div className="border-l-2 border-red-300 bg-red-50/70 px-3 py-2 text-xs text-red-700 dark:border-red-800 dark:bg-red-950/20 dark:text-red-200">
                       {dnsCatalogError}
                     </div>
                   ) : null}
@@ -7675,12 +7715,12 @@ function TaskEditorDialog({
                     <section className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_340px]">
                       <div className="min-w-0 space-y-3">
                       <Collapsible open={dnsCoreOpen} onOpenChange={setDnsCoreOpen}>
-                        <div className="rounded-lg border">
+                        <div className="border-y border-slate-200/80 dark:border-slate-800/80">
                           <CollapsibleTrigger asChild>
                             <Button
                               type="button"
                               variant="ghost"
-                              className="flex min-w-0 h-auto w-full items-center justify-between rounded-lg px-4 py-3 text-left"
+                              className="flex min-w-0 h-auto w-full items-center justify-between rounded-md px-3 py-3 text-left"
                             >
                               <div className="min-w-0 flex-1 space-y-1">
                                 <div className="text-sm font-medium text-slate-900 dark:text-slate-50">
@@ -7698,7 +7738,7 @@ function TaskEditorDialog({
                               />
                             </Button>
                           </CollapsibleTrigger>
-                          <CollapsibleContent className="border-t px-4 py-4">
+                          <CollapsibleContent className="border-t px-3 py-4">
                             <div className="space-y-4">
                               <div className="text-sm font-medium text-slate-900 dark:text-slate-50">
                                 {t("failover.editor.dns", { defaultValue: "DNS and cleanup" })}
@@ -7715,7 +7755,7 @@ function TaskEditorDialog({
                                   />
                                 </div>
                                 {!hasDnsEnabled && !hasAnyDnsCredential ? (
-                                  <div className="mt-3 rounded-lg border border-dashed px-3 py-2 text-xs text-muted-foreground">
+                                  <div className="mt-3 border-y border-dashed border-slate-200/80 py-2 text-xs text-muted-foreground dark:border-slate-800/80">
                                     {t("failover.editor.no_dns_provider_configured", {
                                       defaultValue: "No DNS credential is configured yet. Add one first if you want this task to update DNS records.",
                                     })}
@@ -7765,7 +7805,7 @@ function TaskEditorDialog({
                                       });
                                       if (!formState.dns_provider) {
                                         return (
-                                          <div className="rounded-lg border border-dashed px-4 py-3 text-sm text-muted-foreground">
+                                          <div className="border-y border-dashed border-slate-200/80 py-3 text-sm text-muted-foreground dark:border-slate-800/80">
                                             {t("failover.editor.dns_provider_required_hint", {
                                               defaultValue: "Choose a DNS provider first.",
                                             })}
@@ -7774,7 +7814,7 @@ function TaskEditorDialog({
                                       }
                                       if (options.length === 0) {
                                         return (
-                                          <div className="rounded-lg border border-dashed px-4 py-3 text-sm text-muted-foreground">
+                                          <div className="border-y border-dashed border-slate-200/80 py-3 text-sm text-muted-foreground dark:border-slate-800/80">
                                             {t("failover.editor.dns_entry_missing", {
                                               defaultValue: "No DNS credential is configured for this provider yet.",
                                             })}
@@ -7872,7 +7912,7 @@ function TaskEditorDialog({
                               ) : null}
 
                               {dnsCatalogError && hasDnsEnabled ? (
-                                <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-xs text-red-700 dark:border-red-900/40 dark:bg-red-950/30 dark:text-red-200">
+                                <div className="border-l-2 border-red-300 bg-red-50/70 px-3 py-2 text-xs text-red-700 dark:border-red-800 dark:bg-red-950/20 dark:text-red-200">
                                   {dnsCatalogError}
                                 </div>
                               ) : null}
@@ -8060,13 +8100,13 @@ function TaskEditorDialog({
                                   </div>
                                   <div className="space-y-2 lg:col-span-2">
                                     <Label>{t("failover.editor.line", { defaultValue: "Routing line" })}</Label>
-                                    <div className="grid gap-3 rounded-lg border border-dashed p-4 sm:grid-cols-2">
+                                    <div className="grid gap-3 border-y border-dashed border-slate-200/80 py-3 sm:grid-cols-2 dark:border-slate-800/80">
                                       {aliyunLineOptions.map((line) => {
                                         const checked = formState.dns_lines.includes(line.value);
                                         return (
                                           <label
                                             key={line.value}
-                                            className="flex items-center gap-3 rounded-lg border border-transparent px-2 py-1.5 text-sm hover:bg-muted/30"
+                                            className="flex items-center gap-3 px-2 py-1.5 text-sm hover:bg-muted/30"
                                           >
                                             <Checkbox
                                               checked={checked}
@@ -8098,12 +8138,12 @@ function TaskEditorDialog({
                         </div>
                       </Collapsible>
                       <Collapsible open={dnsAdvancedOpen} onOpenChange={setDnsAdvancedOpen}>
-                        <div className="rounded-lg border">
+                        <div className="border-y border-slate-200/80 dark:border-slate-800/80">
                           <CollapsibleTrigger asChild>
                             <Button
                               type="button"
                               variant="ghost"
-                              className="flex min-w-0 h-auto w-full items-center justify-between rounded-lg px-4 py-3 text-left"
+                              className="flex min-w-0 h-auto w-full items-center justify-between rounded-md px-3 py-3 text-left"
                             >
                               <div className="min-w-0 flex-1 space-y-1">
                                 <div className="text-sm font-medium text-slate-900 dark:text-slate-50">
@@ -8123,7 +8163,7 @@ function TaskEditorDialog({
                               />
                             </Button>
                           </CollapsibleTrigger>
-                          <CollapsibleContent className="border-t px-4 py-4">
+                          <CollapsibleContent className="border-t px-3 py-4">
                             <div className="space-y-4">
                               <div className="text-sm font-medium text-slate-900 dark:text-slate-50">
                                 {t("failover.editor.show_dns_advanced", {
@@ -8203,10 +8243,10 @@ function TaskEditorDialog({
                   </div>
 
                   {!settingsLoading && hasEnabledProvisionPlan && !configuredScriptDomain ? (
-                    <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-900/40 dark:bg-amber-950/30 dark:text-amber-100">
+                    <div className="border-l-2 border-amber-300 bg-amber-50/70 px-3 py-2 text-sm text-amber-900 dark:border-amber-800 dark:bg-amber-950/20 dark:text-amber-100">
                       {t("failover.editor.script_domain_required_hint", {
                         defaultValue:
-                          "Agent connection address is not configured yet. Set it in Settings -> Site, otherwise failover-created instances cannot auto-connect back to kelicloud.",
+                          "平台接入地址尚未配置，自动创建的服务器暂时无法完成接入，请联系管理员处理。",
                       })}
                     </div>
                   ) : null}
@@ -8236,7 +8276,7 @@ function TaskEditorDialog({
                           type="button"
                           onClick={() => openPlanDialogFor(plan.local_id)}
                           className={cn(
-                            "w-full rounded-lg border px-4 py-3 text-left transition-colors hover:bg-muted/20",
+                            "w-full border-l-2 px-3 py-3 text-left transition-colors hover:bg-muted/20",
                             selectedPlan?.local_id === plan.local_id
                               ? "border-primary/40 bg-primary/5"
                               : "border-border/70",
@@ -8313,12 +8353,12 @@ function TaskEditorDialog({
                       open={selectedPlanOrganizerOpen}
                       onOpenChange={(openState) => setSelectedPlanSectionOpen("organizer", openState)}
                     >
-                      <div className="rounded-lg border">
+                      <div className="border-y border-slate-200/80 dark:border-slate-800/80">
                         <CollapsibleTrigger asChild>
                           <Button
                             type="button"
                             variant="ghost"
-                            className="flex min-w-0 h-auto w-full items-center justify-between rounded-lg px-4 py-3 text-left"
+                            className="flex min-w-0 h-auto w-full items-center justify-between rounded-md px-3 py-3 text-left"
                           >
                             <div className="min-w-0 flex-1 space-y-1">
                               <div className="text-sm font-medium text-slate-900 dark:text-slate-50">
@@ -8336,7 +8376,7 @@ function TaskEditorDialog({
                             />
                           </Button>
                         </CollapsibleTrigger>
-                        <CollapsibleContent className="border-t px-4 py-4">
+                        <CollapsibleContent className="border-t px-3 py-4">
                           <div className="space-y-4">
                             <div className="text-sm font-medium text-slate-900 dark:text-slate-50">
                               {t("failover.editor.plans", { defaultValue: "Failover plans" })}
@@ -8437,12 +8477,12 @@ function TaskEditorDialog({
                       open={selectedPlanCoreOpen}
                       onOpenChange={(openState) => setSelectedPlanSectionOpen("core", openState)}
                     >
-                      <div className="rounded-lg border">
+                      <div className="border-y border-slate-200/80 dark:border-slate-800/80">
                         <CollapsibleTrigger asChild>
                           <Button
                             type="button"
                             variant="ghost"
-                            className="flex min-w-0 h-auto w-full items-center justify-between rounded-lg px-4 py-3 text-left"
+                            className="flex min-w-0 h-auto w-full items-center justify-between rounded-md px-3 py-3 text-left"
                           >
                             <div className="min-w-0 flex-1 space-y-1">
                               <div className="text-sm font-medium text-slate-900 dark:text-slate-50">
@@ -8460,13 +8500,13 @@ function TaskEditorDialog({
                             />
                           </Button>
                         </CollapsibleTrigger>
-                        <CollapsibleContent className="border-t px-4 py-4">
+                        <CollapsibleContent className="border-t px-3 py-4">
                           <div className="space-y-4">
                             {!settingsLoading && hasEnabledProvisionPlan && !configuredScriptDomain ? (
-                              <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-900/40 dark:bg-amber-950/30 dark:text-amber-100">
+                              <div className="border-l-2 border-amber-300 bg-amber-50/70 px-3 py-2 text-sm text-amber-900 dark:border-amber-800 dark:bg-amber-950/20 dark:text-amber-100">
                                 {t("failover.editor.script_domain_required_hint", {
                                   defaultValue:
-                                    "Agent connection address is not configured yet. Set it in Settings -> Site, otherwise failover-created instances cannot auto-connect back to kelicloud.",
+                                    "平台接入地址尚未配置，自动创建的服务器暂时无法完成接入，请联系管理员处理。",
                                 })}
                               </div>
                             ) : null}
@@ -8512,7 +8552,7 @@ function TaskEditorDialog({
                             const groups = getProviderEntryGroups(providerEntries, selectedPlan.provider);
                             if (!selectedPlan.provider) {
                               return (
-                                <div className="rounded-lg border border-dashed px-4 py-3 text-sm text-muted-foreground">
+                                <div className="border-y border-dashed border-slate-200/80 py-3 text-sm text-muted-foreground dark:border-slate-800/80">
                                   {t("failover.editor.plan_provider_required_hint", {
                                     defaultValue: "Choose a cloud provider first.",
                                   })}
@@ -8521,7 +8561,7 @@ function TaskEditorDialog({
                             }
                             if (groups.length === 0) {
                               return (
-                                <div className="rounded-lg border border-dashed px-4 py-3 text-sm text-muted-foreground">
+                                <div className="border-y border-dashed border-slate-200/80 py-3 text-sm text-muted-foreground dark:border-slate-800/80">
                                   {t("failover.editor.provider_entry_group_missing", {
                                     defaultValue: "No token groups have been assigned for this provider yet. You can still use all entries below.",
                                   })}
@@ -8579,7 +8619,7 @@ function TaskEditorDialog({
                             );
                             if (!selectedPlan.provider) {
                               return (
-                                <div className="rounded-lg border border-dashed px-4 py-3 text-sm text-muted-foreground">
+                                <div className="border-y border-dashed border-slate-200/80 py-3 text-sm text-muted-foreground dark:border-slate-800/80">
                                   {t("failover.editor.plan_provider_required_hint", {
                                     defaultValue: "Choose a cloud provider first.",
                                   })}
@@ -8588,7 +8628,7 @@ function TaskEditorDialog({
                             }
                             if (options.length === 0) {
                               return (
-                                <div className="rounded-lg border border-dashed px-4 py-3 text-sm text-muted-foreground">
+                                <div className="border-y border-dashed border-slate-200/80 py-3 text-sm text-muted-foreground dark:border-slate-800/80">
                                   {t("failover.editor.provider_entry_missing", {
                                     defaultValue: "No cloud credential entry matches this provider or group yet.",
                                   })}
@@ -8632,7 +8672,7 @@ function TaskEditorDialog({
                         </div>
                         <div className="space-y-2 lg:col-span-2">
 	                          <Label>{t("failover.editor.action_type", { defaultValue: "Action type" })}</Label>
-                          <div className="rounded-lg border border-dashed px-4 py-3 text-sm text-muted-foreground">
+                          <div className="border-y border-dashed border-slate-200/80 py-3 text-sm text-muted-foreground dark:border-slate-800/80">
                             {selectedPlan.provider === "aws"
                               ? t("failover.editor.aws_action_auto_hint", {
                                 defaultValue: "AWS automatically checks whether the selected credential already has the current outlet IP. If it does, kelicloud only replaces the public IP; otherwise it creates a new instance.",
@@ -8652,12 +8692,12 @@ function TaskEditorDialog({
                       open={selectedPlanConfigOpen}
                       onOpenChange={(openState) => setSelectedPlanSectionOpen("config", openState)}
                     >
-                      <div className="rounded-lg border">
+                      <div className="border-y border-slate-200/80 dark:border-slate-800/80">
                         <CollapsibleTrigger asChild>
                           <Button
                             type="button"
                             variant="ghost"
-                            className="flex min-w-0 h-auto w-full items-center justify-between rounded-lg px-4 py-3 text-left"
+                            className="flex min-w-0 h-auto w-full items-center justify-between rounded-md px-3 py-3 text-left"
                           >
                             <div className="min-w-0 flex-1 space-y-1">
                               <div className="text-sm font-medium text-slate-900 dark:text-slate-50">
@@ -8675,7 +8715,7 @@ function TaskEditorDialog({
                             />
                           </Button>
                         </CollapsibleTrigger>
-                        <CollapsibleContent className="border-t px-4 py-4">
+                        <CollapsibleContent className="border-t px-3 py-4">
                           <div className="space-y-4">
                             <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
                               <div className="text-sm font-medium text-slate-900 dark:text-slate-50">
@@ -8716,7 +8756,7 @@ function TaskEditorDialog({
                             </div>
 
                             {isAWSPlan ? (
-                        <div className="rounded-lg border border-dashed px-4 py-3 text-xs text-muted-foreground">
+                        <div className="border-y border-dashed border-slate-200/80 py-3 text-xs text-muted-foreground dark:border-slate-800/80">
                           {t("failover.editor.aws_static_presets_hint", {
                             defaultValue: "AWS failover uses the same built-in region, image, and instance-size presets as the AWS create-instance page. No catalog request is required for the basic form.",
                           })}
@@ -8724,7 +8764,7 @@ function TaskEditorDialog({
                       ) : null}
 
                             {isDigitalOceanProvisionPlan ? (
-                        <div className="rounded-lg border border-dashed px-4 py-3 text-xs text-muted-foreground">
+                        <div className="border-y border-dashed border-slate-200/80 py-3 text-xs text-muted-foreground dark:border-slate-800/80">
                           {t("failover.editor.digitalocean_common_options_hint", {
                             defaultValue: "Common DigitalOcean regions, sizes, and images are shown by default. Load the full DigitalOcean list only if you need uncommon options.",
                           })}
@@ -8732,7 +8772,7 @@ function TaskEditorDialog({
                       ) : null}
 
                             {isAzureProvisionPlan ? (
-                        <div className="rounded-lg border border-dashed px-4 py-3 text-xs text-muted-foreground">
+                        <div className="border-y border-dashed border-slate-200/80 py-3 text-xs text-muted-foreground dark:border-slate-800/80">
                           {t("failover.editor.azure_common_options_hint", {
                             defaultValue: "Azure shows a safe default region, VM size, and Linux image first. Load Azure options when you want account-specific locations and sizes.",
                           })}
@@ -8740,7 +8780,7 @@ function TaskEditorDialog({
                       ) : null}
 
                             {isLinodeProvisionPlan ? (
-                        <div className="rounded-lg border border-dashed px-4 py-3 text-xs text-muted-foreground">
+                        <div className="border-y border-dashed border-slate-200/80 py-3 text-xs text-muted-foreground dark:border-slate-800/80">
                           {t("failover.editor.linode_common_options_hint", {
                             defaultValue: "Common Linode regions, plans, and images are shown by default. Load the full Linode list only if you need account-specific or uncommon options.",
                           })}
@@ -8748,7 +8788,7 @@ function TaskEditorDialog({
                       ) : null}
 
                       {planCatalogLoading ? (
-                        <div className="rounded-lg border border-dashed px-4 py-3 text-sm text-muted-foreground">
+                        <div className="border-y border-dashed border-slate-200/80 py-3 text-sm text-muted-foreground dark:border-slate-800/80">
                           {planCatalogLoadMode === "regions"
                             ? t("failover.editor.loading_plan_regions", { defaultValue: "Loading available regions..." })
                             : t("failover.editor.loading_plan_catalog", { defaultValue: "Loading provider configuration options..." })}
@@ -8756,13 +8796,13 @@ function TaskEditorDialog({
                       ) : null}
 
                       {planCatalogError ? (
-                        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-xs text-red-700 dark:border-red-900/40 dark:bg-red-950/30 dark:text-red-200">
+                        <div className="border-l-2 border-red-300 bg-red-50/70 px-3 py-2 text-xs text-red-700 dark:border-red-800 dark:bg-red-950/20 dark:text-red-200">
                           {planCatalogError}
                         </div>
                       ) : null}
 
                       {!selectedPlan.provider ? (
-                        <div className="rounded-lg border border-dashed px-4 py-3 text-sm text-muted-foreground">
+                        <div className="border-y border-dashed border-slate-200/80 py-3 text-sm text-muted-foreground dark:border-slate-800/80">
                           {t("failover.editor.plan_provider_required_hint", {
                             defaultValue: "Choose a cloud provider first.",
                           })}
@@ -8993,18 +9033,18 @@ function TaskEditorDialog({
                           </div>
                           {selectedPlanService === "ec2" ? (
                             <>
-                              <div className="rounded-lg border border-dashed px-4 py-3 text-xs text-muted-foreground lg:col-span-2">
+                              <div className="border-y border-dashed border-slate-200/80 py-3 text-xs text-muted-foreground dark:border-slate-800/80 lg:col-span-2">
                                 {t("failover.editor.aws_rebind_by_ip_hint", {
                                   defaultValue: "kelicloud will first check whether this AWS credential already has an EC2 instance with the task's current IP. If it does, kelicloud only replaces that instance's public IP. If it does not, kelicloud creates a new EC2 instance with the configuration below.",
                                 })}
                               </div>
-                              <div className="rounded-lg border border-dashed px-4 py-3 text-xs text-muted-foreground lg:col-span-2">
+                              <div className="border-y border-dashed border-slate-200/80 py-3 text-xs text-muted-foreground dark:border-slate-800/80 lg:col-span-2">
                                 {t("failover.editor.aws_rebind_static_presets_hint", {
                                   defaultValue: "The replacement-instance form follows the AWS create-instance page: common regions, AMIs, and instance types are built in, and you can still type uncommon values manually below.",
                                 })}
                               </div>
                               {awsEc2ArchitectureMismatch ? (
-                                <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-xs text-amber-800 dark:border-amber-900/40 dark:bg-amber-950/30 dark:text-amber-200 lg:col-span-2">
+                                <div className="border-l-2 border-amber-300 bg-amber-50/70 px-3 py-2 text-xs text-amber-800 dark:border-amber-800 dark:bg-amber-950/20 dark:text-amber-200 lg:col-span-2">
                                   {t("failover.editor.aws_ec2_architecture_mismatch", {
                                     imageArch: selectedAWSEC2ImageArchitecture,
                                     instanceType: selectedAWSEC2InstanceType,
@@ -9111,12 +9151,12 @@ function TaskEditorDialog({
                             </>
                           ) : (
                             <>
-                              <div className="rounded-lg border border-dashed px-4 py-3 text-xs text-muted-foreground lg:col-span-2">
+                              <div className="border-y border-dashed border-slate-200/80 py-3 text-xs text-muted-foreground dark:border-slate-800/80 lg:col-span-2">
                                 {t("failover.editor.aws_rebind_by_ip_hint_lightsail", {
                                   defaultValue: "kelicloud will first check whether this AWS credential already has a Lightsail instance with the task's current IP. If it does, kelicloud only replaces that instance's public IP. If it does not, kelicloud creates a new Lightsail instance with the configuration below.",
                                 })}
                               </div>
-                              <div className="rounded-lg border border-dashed px-4 py-3 text-xs text-muted-foreground lg:col-span-2">
+                              <div className="border-y border-dashed border-slate-200/80 py-3 text-xs text-muted-foreground dark:border-slate-800/80 lg:col-span-2">
                                 {t("failover.editor.aws_lightsail_static_presets_hint", {
                                   defaultValue: "This replacement-instance form follows the AWS Lightsail create page: common blueprints and bundles are built in, and you can still type uncommon values manually below.",
                                 })}
@@ -9208,7 +9248,7 @@ function TaskEditorDialog({
                                 />
                               </div>
                               {awsLightsailPlatformMismatch ? (
-                                <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-xs text-amber-800 dark:border-amber-900/40 dark:bg-amber-950/30 dark:text-amber-200 lg:col-span-2">
+                                <div className="border-l-2 border-amber-300 bg-amber-50/70 px-3 py-2 text-xs text-amber-800 dark:border-amber-800 dark:bg-amber-950/20 dark:text-amber-200 lg:col-span-2">
                                   {t("failover.editor.aws_lightsail_platform_mismatch", {
                                     defaultValue: "The selected Lightsail blueprint and bundle look incompatible. Linux blueprints should use Linux bundles, and Windows blueprints should use Windows bundles.",
                                   })}
@@ -9435,7 +9475,7 @@ function TaskEditorDialog({
                                 </SelectContent>
                               </Select>
                             ) : (
-                              <div className="rounded-lg border border-dashed px-4 py-3 text-sm text-muted-foreground">
+                              <div className="border-y border-dashed border-slate-200/80 py-3 text-sm text-muted-foreground dark:border-slate-800/80">
                                 {t("failover.editor.load_plan_regions_first", {
                                   defaultValue: "Load regions first, then choose a region.",
                                 })}
@@ -9457,7 +9497,7 @@ function TaskEditorDialog({
                                 emptyLabel={t("failover.editor.size_search_empty", { defaultValue: "No matching size" })}
                               />
                             ) : (
-                              <div className="rounded-lg border border-dashed px-4 py-3 text-sm text-muted-foreground">
+                              <div className="border-y border-dashed border-slate-200/80 py-3 text-sm text-muted-foreground dark:border-slate-800/80">
                                 {t("failover.editor.load_plan_options_first", {
                                   defaultValue: "Choose a region first, then load provider options.",
                                 })}
@@ -9479,7 +9519,7 @@ function TaskEditorDialog({
                                 emptyLabel={t("failover.editor.image_search_empty", { defaultValue: "No matching image" })}
                               />
                             ) : (
-                              <div className="rounded-lg border border-dashed px-4 py-3 text-sm text-muted-foreground">
+                              <div className="border-y border-dashed border-slate-200/80 py-3 text-sm text-muted-foreground dark:border-slate-800/80">
                                 {t("failover.editor.load_plan_options_first", {
                                   defaultValue: "Choose a region first, then load provider options.",
                                 })}
@@ -9562,7 +9602,7 @@ function TaskEditorDialog({
                                 </SelectContent>
                               </Select>
                             ) : (
-                              <div className="rounded-lg border border-dashed px-4 py-3 text-sm text-muted-foreground">
+                              <div className="border-y border-dashed border-slate-200/80 py-3 text-sm text-muted-foreground dark:border-slate-800/80">
                                 {t("failover.editor.load_plan_regions_first", {
                                   defaultValue: "Load regions first, then choose a region.",
                                 })}
@@ -9584,7 +9624,7 @@ function TaskEditorDialog({
                                 emptyLabel={t("failover.editor.type_search_empty", { defaultValue: "No matching plan type" })}
                               />
                             ) : (
-                              <div className="rounded-lg border border-dashed px-4 py-3 text-sm text-muted-foreground">
+                              <div className="border-y border-dashed border-slate-200/80 py-3 text-sm text-muted-foreground dark:border-slate-800/80">
                                 {t("failover.editor.load_plan_options_first", {
                                   defaultValue: "Choose a region first, then load provider options.",
                                 })}
@@ -9606,7 +9646,7 @@ function TaskEditorDialog({
                                 emptyLabel={t("failover.editor.image_search_empty", { defaultValue: "No matching image" })}
                               />
                             ) : (
-                              <div className="rounded-lg border border-dashed px-4 py-3 text-sm text-muted-foreground">
+                              <div className="border-y border-dashed border-slate-200/80 py-3 text-sm text-muted-foreground dark:border-slate-800/80">
                                 {t("failover.editor.load_plan_options_first", {
                                   defaultValue: "Choose a region first, then load provider options.",
                                 })}
@@ -9668,7 +9708,7 @@ function TaskEditorDialog({
                                 </SelectContent>
                               </Select>
                             ) : (
-                              <div className="rounded-lg border border-dashed px-4 py-3 text-sm text-muted-foreground">
+                              <div className="border-y border-dashed border-slate-200/80 py-3 text-sm text-muted-foreground dark:border-slate-800/80">
                                 {t("failover.editor.load_plan_regions_first", {
                                   defaultValue: "Load regions first, then choose a region.",
                                 })}
@@ -9690,7 +9730,7 @@ function TaskEditorDialog({
                                 emptyLabel={t("failover.editor.plan_search_empty", { defaultValue: "No matching plan" })}
                               />
                             ) : (
-                              <div className="rounded-lg border border-dashed px-4 py-3 text-sm text-muted-foreground">
+                              <div className="border-y border-dashed border-slate-200/80 py-3 text-sm text-muted-foreground dark:border-slate-800/80">
                                 {t("failover.editor.load_plan_options_first", {
                                   defaultValue: "Choose a region first, then load provider options.",
                                 })}
@@ -9712,7 +9752,7 @@ function TaskEditorDialog({
                                 emptyLabel={t("failover.editor.image_search_empty", { defaultValue: "No matching image" })}
                               />
                             ) : (
-                              <div className="rounded-lg border border-dashed px-4 py-3 text-sm text-muted-foreground">
+                              <div className="border-y border-dashed border-slate-200/80 py-3 text-sm text-muted-foreground dark:border-slate-800/80">
                                 {t("failover.editor.load_plan_options_first", {
                                   defaultValue: "Choose a region first, then load provider options.",
                                 })}
@@ -9816,12 +9856,12 @@ function TaskEditorDialog({
                       open={selectedPlanOptionalOpen}
                       onOpenChange={(openState) => setSelectedPlanSectionOpen("optional", openState)}
                     >
-                      <div className="rounded-lg border">
+                      <div className="border-y border-slate-200/80 dark:border-slate-800/80">
                         <CollapsibleTrigger asChild>
                           <Button
                             type="button"
                             variant="ghost"
-                            className="flex min-w-0 h-auto w-full items-center justify-between rounded-lg px-4 py-3 text-left"
+                            className="flex min-w-0 h-auto w-full items-center justify-between rounded-md px-3 py-3 text-left"
                           >
                             <div className="min-w-0 flex-1 space-y-1">
                               <div className="text-sm font-medium text-slate-900 dark:text-slate-50">
@@ -9841,7 +9881,7 @@ function TaskEditorDialog({
                             />
                           </Button>
                         </CollapsibleTrigger>
-                        <CollapsibleContent className="border-t px-4 py-4">
+                        <CollapsibleContent className="border-t px-3 py-4">
                           <div className="space-y-4">
                             <div className="text-sm font-medium text-slate-900 dark:text-slate-50">
                               {t("failover.editor.show_plan_optional", {
@@ -9933,12 +9973,12 @@ function TaskEditorDialog({
                     </Collapsible>
 
                     <Collapsible open={selectedPlanAdvancedOpen} onOpenChange={setSelectedPlanAdvancedOpen}>
-                      <div className="rounded-lg border">
+                      <div className="border-y border-slate-200/80 dark:border-slate-800/80">
                         <CollapsibleTrigger asChild>
                           <Button
                             type="button"
                             variant="ghost"
-                            className="flex min-w-0 h-auto w-full items-center justify-between rounded-lg px-4 py-3 text-left"
+                            className="flex min-w-0 h-auto w-full items-center justify-between rounded-md px-3 py-3 text-left"
                           >
                             <div className="min-w-0 flex-1 space-y-1">
                               <div className="text-sm font-medium text-slate-900 dark:text-slate-50">
@@ -9958,7 +9998,7 @@ function TaskEditorDialog({
                             />
                           </Button>
                         </CollapsibleTrigger>
-                        <CollapsibleContent className="border-t px-4 py-4">
+                        <CollapsibleContent className="border-t px-3 py-4">
                           <div className="grid gap-4 lg:grid-cols-3">
                             <div className="space-y-2">
                               <Label>{t("failover.editor.priority", { defaultValue: "Priority" })}</Label>
@@ -9991,7 +10031,7 @@ function TaskEditorDialog({
                               />
                             </div>
                             <div className="space-y-2">
-                              <Label>{t("failover.editor.wait_agent_timeout", { defaultValue: "Wait agent timeout (s)" })}</Label>
+                              <Label>{t("failover.editor.wait_agent_timeout", { defaultValue: "接入等待时间 (秒)" })}</Label>
                               <Input
                                 type="number"
                                 min={1}
@@ -10008,7 +10048,7 @@ function TaskEditorDialog({
                       </div>
                       {selectedPlan ? (
                         <aside className="hidden min-w-0 xl:block">
-                          <div className="sticky top-0 space-y-3 rounded-xl border border-slate-200/80 bg-slate-50/80 p-4 shadow-sm shadow-slate-900/5 dark:border-slate-800 dark:bg-slate-900/40">
+                          <div className="sticky top-0 space-y-3 border-l border-slate-200/80 bg-transparent py-1 pl-4 dark:border-slate-800">
                             <div className="space-y-1">
                               <div className="text-sm font-semibold text-slate-900 dark:text-slate-50">
                                 {t("failover.editor.plan_summary_title", { defaultValue: "出口计划预览" })}
@@ -10019,15 +10059,15 @@ function TaskEditorDialog({
                                 })}
                               </p>
                             </div>
-                            <div className="overflow-hidden rounded-lg border bg-background">
+                            <div className="overflow-hidden border-y border-slate-200/80 dark:border-slate-800">
                               {selectedPlanDialogSummaryRows.map((row) => (
-                                <div key={row.label} className="grid grid-cols-[96px_minmax(0,1fr)] gap-3 border-b px-3 py-2.5 text-sm last:border-b-0">
+                                <div key={row.label} className="grid grid-cols-[96px_minmax(0,1fr)] gap-3 border-b border-slate-200/80 py-2.5 text-sm last:border-b-0 dark:border-slate-800">
                                   <div className="text-xs font-medium text-muted-foreground">{row.label}</div>
                                   <div className="min-w-0 break-words font-medium text-slate-900 dark:text-slate-50">{row.value}</div>
                                 </div>
                               ))}
                             </div>
-                            <div className="rounded-lg border bg-background p-3">
+                            <div className="border-t border-slate-200/80 pt-3 dark:border-slate-800">
                               <div className="text-xs font-semibold uppercase tracking-normal text-muted-foreground">
                                 {t("failover.editor.plan_summary_policy", { defaultValue: "执行策略" })}
                               </div>
@@ -10040,7 +10080,7 @@ function TaskEditorDialog({
                                 ))}
                               </div>
                             </div>
-                            <div className="rounded-lg border bg-background p-3">
+                            <div className="border-t border-slate-200/80 pt-3 dark:border-slate-800">
                               <div className="text-xs font-semibold uppercase tracking-normal text-muted-foreground">
                                 {t("failover.editor.plan_summary_auto_connect", { defaultValue: "自动接入分组" })}
                               </div>
@@ -10157,14 +10197,13 @@ function TaskEditorDialog({
 function FailoverPageContent() {
   const { t } = useTranslation();
   const [searchParams] = useSearchParams();
-  const { account, hasFeature, loading: accountLoading } = useAccount();
+  const { account, hasFeature, loading: accountLoading, platformAdmin } = useAccount();
   const [tasks, setTasks] = React.useState<FailoverTask[]>([]);
   const [nodes, setNodes] = React.useState<FailoverNodeOption[]>([]);
   const [scripts, setScripts] = React.useState<FailoverScriptOption[]>([]);
   const [providerEntries, setProviderEntries] = React.useState<ProviderEntriesMap>({});
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState("");
-  const [refreshing, setRefreshing] = React.useState(false);
   const [editorOpen, setEditorOpen] = React.useState(false);
   const [editorMode, setEditorMode] = React.useState<"create" | "edit">("create");
   const [editingTask, setEditingTask] = React.useState<FailoverTask | null>(null);
@@ -10196,8 +10235,6 @@ function FailoverPageContent() {
     const silent = options?.silent ?? false;
     if (!silent) {
       setLoading(true);
-    } else {
-      setRefreshing(true);
     }
     setError("");
 
@@ -10214,7 +10251,6 @@ function FailoverPageContent() {
       if (!silent) {
         setLoading(false);
       }
-      setRefreshing(false);
     }
   }, [t]);
 
@@ -10355,13 +10391,15 @@ function FailoverPageContent() {
     const latestStepMessage = latestStep ? getFailoverExecutionStepMessage(t, latestStep) : "";
     const taskRiskBadges = getFailoverTaskRiskBadges(t, latestExecution, latestCleanupInfo);
     const latestExecutionSummary = latestExecution
-      ? latestExecution.error_message
-        || (
-          latestCleanupInfo
-          && ["warning", "failed"].includes(String(latestExecution.cleanup_status || "").trim().toLowerCase())
-            ? latestCleanupInfo.title
-            : formatDateTime(latestExecution.started_at)
-        )
+      ? platformAdmin
+        ? latestExecution.error_message
+          || (
+            latestCleanupInfo
+            && ["warning", "failed"].includes(String(latestExecution.cleanup_status || "").trim().toLowerCase())
+              ? latestCleanupInfo.title
+              : formatDateTime(latestExecution.started_at)
+          )
+        : getPublicFailoverResultText(t, latestExecution.status, latestExecution.error_message)
       : t("failover.task.no_execution", { defaultValue: "No execution recorded yet." });
     const cooldownSummary = task.cooldown_remaining_seconds > 0
       ? formatDurationSeconds(task.cooldown_remaining_seconds, t)
@@ -10419,7 +10457,7 @@ function FailoverPageContent() {
       taskRiskBadges,
       cooldownSummary,
     };
-  }, [clockNow, t]);
+  }, [clockNow, platformAdmin, t]);
 
   const openCreateDialog = () => {
     setEditorMode("create");
@@ -10652,51 +10690,35 @@ function FailoverPageContent() {
           defaultValue:
             "监控线路连通性，按计划创建或切换云实例，并在需要时执行脚本和更新 DNS。",
         })}
-        actions={(
-          <>
-            <Button type="button" variant="outline" onClick={() => void Promise.all([refreshTasks({ silent: true }), refreshResources()])} disabled={refreshing || loading}>
-              <RefreshCw className={cn("size-4", refreshing ? "animate-spin" : "")} />
-              {t("common.refresh", { defaultValue: "Refresh" })}
-            </Button>
-            <Button type="button" onClick={openCreateDialog}>
-              <Plus className="size-4" />
-              {t("failover.create", { defaultValue: "New task" })}
-            </Button>
-          </>
-        )}
       >
         {loading ? <AdminTableSkeleton columns={6} rows={5} /> : null}
 
         {!loading && error ? (
-          <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900/40 dark:bg-red-950/30 dark:text-red-200">
+          <div className="border-l-2 border-red-300 bg-red-50/70 px-3 py-2 text-sm text-red-700 dark:border-red-800 dark:bg-red-950/20 dark:text-red-200">
             {error}
           </div>
         ) : null}
 
         {!loading && !error && tasks.length === 0 ? (
-          <Card>
-            <CardHeader>
-              <CardTitle>{t("failover.empty_title", { defaultValue: "No failover tasks yet" })}</CardTitle>
-              <CardDescription>
-                {t("failover.empty_description", {
-                  defaultValue:
-                    "Create your first task to watch CN connectivity, provision or rebind IPs, optionally run a clipboard script, and switch DNS only when needed.",
-                })}
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
+          <AdminEmptyState
+            title={t("failover.empty_title", { defaultValue: "No failover tasks yet" })}
+            description={t("failover.empty_description", {
+              defaultValue:
+                "Create your first task to watch CN connectivity, provision or rebind IPs, optionally run a clipboard script, and switch DNS only when needed.",
+            })}
+            actions={(
               <Button type="button" onClick={openCreateDialog}>
                 <Plus className="size-4" />
                 {t("failover.create", { defaultValue: "New task" })}
               </Button>
-            </CardContent>
-          </Card>
+            )}
+          />
         ) : null}
 
         {!loading && !error && tasks.length > 0 ? (
           <div className="grid min-w-0 gap-3 xl:grid-cols-[minmax(0,1fr)_390px]">
-            <Card className="min-w-0 overflow-hidden border-slate-200/80 bg-card py-0 shadow-sm shadow-slate-900/5 dark:border-slate-800/80">
-              <div className="flex min-h-[54px] flex-col gap-2 border-b border-border px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="min-w-0 overflow-hidden rounded-lg border border-slate-200/80 bg-white shadow-[0_18px_45px_-42px_rgba(15,23,42,0.75)] dark:border-slate-800/90 dark:bg-slate-950">
+              <div className="flex min-h-[54px] flex-col gap-2 border-b border-border bg-slate-50/70 px-4 py-3 dark:bg-slate-900/35 sm:flex-row sm:items-center sm:justify-between">
                 <div className="min-w-0">
                   <h2 className="text-sm font-semibold leading-5 text-foreground">
                     {t("failover.workspace.tasks", { defaultValue: "任务列表" })}
@@ -10705,17 +10727,20 @@ function FailoverPageContent() {
                     {t("failover.workspace.tasks_hint", { defaultValue: "按任务、出口、DNS 与最近执行状态快速扫描。" })}
                   </p>
                 </div>
-                <span className="shrink-0 font-mono text-[11px] text-muted-foreground">/api/admin/failover/tasks</span>
+                <Button type="button" size="sm" onClick={openCreateDialog} className="shrink-0">
+                  <Plus className="size-4" />
+                  {t("failover.create", { defaultValue: "New task" })}
+                </Button>
               </div>
 
               <div className="overflow-x-auto">
-                <table className="w-full min-w-[560px] text-left text-sm">
+                <table className="w-full min-w-[720px] text-left text-sm">
                   <thead>
                     <tr className="border-b border-border bg-muted/30 text-[12px] font-semibold text-muted-foreground">
                       <th className="px-3 py-2.5">{t("failover.workspace.col_task", { defaultValue: "任务" })}</th>
                       <th className="px-3 py-2.5">{t("failover.workspace.col_outlet", { defaultValue: "当前出口" })}</th>
                       <th className="px-3 py-2.5">{t("failover.workspace.col_execution", { defaultValue: "最近执行" })}</th>
-                      <th className="px-3 py-2.5 text-right">{t("common.actions", { defaultValue: "Actions" })}</th>
+                      <th className="w-[190px] px-3 py-2.5 text-right">{t("common.actions", { defaultValue: "Actions" })}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -10725,6 +10750,39 @@ function FailoverPageContent() {
                       const taskBusy = busyTaskID === task.id;
                       const taskRunning = runningTaskID === task.id;
                       const selected = selectedTask?.id === task.id;
+                      const visibleRiskBadges = platformAdmin
+                        ? view.taskRiskBadges.filter((badge) => badge.key !== "retry-available")
+                        : [];
+                      const primaryRiskBadge = visibleRiskBadges[0] || null;
+                      const hiddenRiskCount = Math.max(0, visibleRiskBadges.length - (primaryRiskBadge ? 1 : 0));
+                      const taskStateVariant: React.ComponentProps<typeof Badge>["variant"] = !task.enabled
+                        ? "outline"
+                        : task.has_active_execution
+                          ? "warning"
+                          : task.probe.stale
+                            ? "warning"
+                            : getStatusVariant(task.last_status || task.probe.status, "execution");
+                      const taskNormalLabel = t("failover.task.state_normal", { defaultValue: "运行正常" });
+                      const taskStateLabel = !task.enabled
+                        ? t("common.disabled", { defaultValue: "Disabled" })
+                        : task.has_active_execution
+                          ? t("failover.task.active_execution", { defaultValue: "Active execution" })
+                          : task.probe.stale
+                            ? view.staleRetrySummary || t("failover.probe.stale", { defaultValue: "Stale" })
+                            : taskNormalLabel;
+                      const dnsSummaryParts = [
+                        task.dns_provider ? getDnsTaskStatusLabel(t, view.dnsStatus) : null,
+                        view.dnsIPv6Badge ? "IPv6" : null,
+                      ].filter(Boolean);
+                      const cooldownReadyLabel = t("failover.cooldown.ready", { defaultValue: "Ready" });
+                      const timingSummary = [
+                        view.cooldownSummary !== cooldownReadyLabel
+                          ? `${t("failover.table.cooldown", { defaultValue: "Cooldown" })}: ${view.cooldownSummary}`
+                          : null,
+                        view.nextCycleSummary
+                          ? `${t("failover.table.next_cycle", { defaultValue: "Next cycle" })}: ${view.nextCycleSummary}`
+                          : null,
+                      ].filter(Boolean).join(" · ");
 
                       return (
                         <tr
@@ -10744,129 +10802,77 @@ function FailoverPageContent() {
                             task.has_active_execution && "bg-amber-50/60 dark:bg-amber-950/15",
                           )}
                         >
-                          <td className="max-w-[250px] px-3 py-2.5 align-top">
-                            <div className="min-w-0">
-                              <div className="truncate text-[13px] font-semibold leading-5 text-foreground" title={task.name}>
+                          <td className="max-w-[250px] px-3 py-2 align-middle">
+                            <div className="flex min-w-0 items-center gap-2 whitespace-nowrap">
+                              <div className="min-w-0 flex-1 truncate text-[13px] font-semibold leading-5 text-foreground" title={task.name}>
                                 {task.name}
                               </div>
-                              <div className="mt-1 flex flex-wrap gap-1.5">
-                                <Badge variant={task.enabled ? "success" : "outline"}>
-                                  {task.enabled
-                                    ? t("common.enabled", { defaultValue: "Enabled" })
-                                    : t("common.disabled", { defaultValue: "Disabled" })}
-                                </Badge>
-                                <Badge variant={getStatusVariant(task.last_status, "execution")}>
-                                  {getStatusLabel(t, task.last_status)}
-                                </Badge>
-                                {task.probe.stale ? (
-                                  <Badge variant="warning" title={task.last_message || undefined}>
-                                    {view.staleRetrySummary || t("failover.probe.stale", { defaultValue: "Stale" })}
-                                  </Badge>
-                                ) : (
-                                  <Badge variant={getStatusVariant(task.probe.status, "probe")}>
-                                    {getStatusLabel(t, task.probe.status)}
-                                  </Badge>
-                                )}
-                              </div>
+                              <Badge variant={taskStateVariant} title={task.last_message || undefined}>
+                                {taskStateLabel}
+                              </Badge>
                             </div>
                           </td>
-                          <td className="max-w-[260px] px-3 py-2.5 align-top">
-                            <div className="truncate text-[13px] leading-5 text-foreground" title={view.currentOutletLabel}>
-                              {view.currentOutletLabel}
-                            </div>
-                            <div className="truncate text-[11px] leading-4 text-muted-foreground" title={view.currentClientUUID || undefined}>
-                              {view.currentClientUUID || t("failover.task.uninitialized_hint", { defaultValue: "等待初始化" })}
-                            </div>
-                            {view.dnsTargetLabel ? (
-                              <div className="mt-1 truncate text-[12px] leading-5 text-foreground" title={view.dnsTargetLabel}>
-                                {view.dnsTargetLabel}
-                              </div>
-                            ) : (
-                              <div className="mt-1 text-[12px] leading-5 text-muted-foreground">
-                                {t("failover.task.no_dns", { defaultValue: "No DNS" })}
-                              </div>
-                            )}
-                            <div className="mt-1 flex flex-wrap gap-1">
-                              {task.dns_provider ? (
-                                <Badge variant={getStatusVariant(view.dnsStatus || "pending", "dns")}>
-                                  {getDnsTaskStatusLabel(t, view.dnsStatus)}
-                                </Badge>
+                          <td className="max-w-[330px] px-3 py-2 align-middle">
+                            <div className="flex min-w-0 items-center gap-2 whitespace-nowrap">
+                              <span className="shrink-0 text-[13px] font-semibold leading-5 text-foreground" title={view.currentOutletLabel}>
+                                {view.currentOutletLabel}
+                              </span>
+                              {platformAdmin ? (
+                                <span className="min-w-0 truncate text-[12px] leading-5 text-muted-foreground" title={view.dnsTargetLabel || undefined}>
+                                  {view.dnsTargetLabel || t("failover.task.no_dns", { defaultValue: "No DNS" })}
+                                </span>
                               ) : null}
-                              {view.dnsIPv6Badge ? (
-                                <Badge
-                                  variant={view.dnsIPv6Badge.variant}
-                                  className="px-1.5 py-0 text-[10px] font-semibold lowercase tracking-normal"
-                                  title={view.dnsIPv6Badge.title}
-                                  aria-label={view.dnsIPv6Badge.title}
-                                >
-                                  v6
+                              {platformAdmin && dnsSummaryParts.length > 0 ? (
+                                <Badge variant={getStatusVariant(view.dnsStatus || "pending", "dns")} className="shrink-0">
+                                  {dnsSummaryParts.join(" · ")}
                                 </Badge>
                               ) : null}
                             </div>
                           </td>
-                          <td className="max-w-[260px] px-3 py-2.5 align-top">
-                            <div className="flex flex-wrap items-center gap-1">
+                          <td className="max-w-[420px] px-3 py-2 align-middle">
+                            <div className="flex min-w-0 items-center gap-1.5 whitespace-nowrap">
                               {latestExecution ? (
-                                <Badge variant={getStatusVariant(latestExecution.status, "execution")}>
+                                <Badge variant={getStatusVariant(latestExecution.status, "execution")} className="shrink-0">
                                   {getStatusLabel(t, latestExecution.status)}
                                 </Badge>
                               ) : (
-                                <Badge variant="outline">
+                                <Badge variant="outline" className="shrink-0">
                                   {t("failover.task.no_execution_short", { defaultValue: "No execution" })}
                                 </Badge>
                               )}
-                              {view.taskRiskBadges.slice(0, 2).map((badge) => (
-                                <Badge key={badge.key} variant={badge.variant} title={badge.title || undefined}>
-                                  {badge.label}
+                              {primaryRiskBadge ? (
+                                <Badge variant={primaryRiskBadge.variant} className="shrink-0" title={primaryRiskBadge.title || undefined}>
+                                  {primaryRiskBadge.label}
                                 </Badge>
-                              ))}
-                              <Badge variant={getStatusVariant(
-                                view.scriptStatus || (view.hasConfiguredScript ? "pending" : "skipped"),
-                                "script",
-                              )}>
-                                {getTaskScriptStatusLabel(t, view.scriptStatus, view.hasConfiguredScript, Boolean(latestExecution))}
-                              </Badge>
-                            </div>
-                            <div
-                              className={cn(
-                                "mt-1 line-clamp-1 text-[12px] leading-5",
-                                latestExecution?.error_message ? "text-red-600 dark:text-red-300" : "text-muted-foreground",
-                              )}
-                              title={latestExecution?.error_message || view.latestExecutionSummary}
-                            >
-                              {view.latestExecutionSummary}
-                            </div>
-                            <div className="mt-1 text-[11px] leading-4 text-muted-foreground">
-                              {t("failover.table.cooldown", { defaultValue: "Cooldown" })}: {view.cooldownSummary}
-                              {view.nextCycleSummary ? (
-                                <span className="ml-2">
-                                  {t("failover.table.next_cycle", { defaultValue: "Next cycle" })}: {view.nextCycleSummary}
+                              ) : null}
+                              {hiddenRiskCount > 0 ? (
+                                <Badge variant="outline" className="shrink-0">
+                                  +{hiddenRiskCount}
+                                </Badge>
+                              ) : null}
+                              <span
+                                className={cn(
+                                  "min-w-[8rem] flex-1 truncate text-[12px] leading-5",
+                                  latestExecution?.error_message ? "text-red-600 dark:text-red-300" : "text-muted-foreground",
+                                )}
+                                title={latestExecution?.error_message || view.latestExecutionSummary}
+                              >
+                                {view.latestExecutionSummary}
+                              </span>
+                              {timingSummary ? (
+                                <span className="shrink-0 text-[11px] leading-4 text-muted-foreground" title={timingSummary}>
+                                  {timingSummary}
                                 </span>
                               ) : null}
                             </div>
                           </td>
-                          <td className="px-3 py-2.5 align-top">
+                          <td className="px-3 py-2 align-middle">
                             <div className="flex justify-end gap-1">
                               <Button
                                 type="button"
                                 size="sm"
                                 variant="ghost"
-                                className="h-8 w-8 rounded-md px-0"
-                                onClick={(event) => {
-                                  event.stopPropagation();
-                                  void openEditDialog(task);
-                                }}
-                                disabled={taskBusy || taskRunning}
-                                title={t("common.edit", { defaultValue: "Edit" })}
-                                aria-label={t("common.edit", { defaultValue: "Edit" })}
-                              >
-                                {taskBusy ? <LoaderCircle className="size-3.5 animate-spin" /> : <PencilLine className="size-3.5" />}
-                              </Button>
-                              <Button
-                                type="button"
-                                size="sm"
-                                variant="ghost"
-                                className="h-8 w-8 rounded-md px-0"
+                                className="h-8 rounded-md px-2 text-[12px]"
                                 onClick={(event) => {
                                   event.stopPropagation();
                                   void handleRunTask(task);
@@ -10880,13 +10886,18 @@ function FailoverPageContent() {
                                   : t("failover.actions.run", { defaultValue: "Run" })}
                               >
                                 {taskRunning ? <LoaderCircle className="size-3.5 animate-spin" /> : <Play className="size-3.5" />}
+                                <span className="hidden 2xl:inline">
+                                  {view.requiresInitialization
+                                    ? t("failover.actions.initialize", { defaultValue: "Initialize" })
+                                    : t("failover.actions.run", { defaultValue: "Run" })}
+                                </span>
                               </Button>
                               {latestExecution ? (
                                 <Button
                                   type="button"
                                   size="sm"
                                   variant="ghost"
-                                  className="h-8 w-8 rounded-md px-0"
+                                  className="h-8 rounded-md px-2 text-[12px]"
                                   onClick={(event) => {
                                     event.stopPropagation();
                                     openExecutionDialog(latestExecution.id, task.name);
@@ -10895,22 +10906,62 @@ function FailoverPageContent() {
                                   aria-label={t("failover.table.view_latest", { defaultValue: "View details" })}
                                 >
                                   <Eye className="size-3.5" />
+                                  <span className="hidden 2xl:inline">
+                                    {t("common.details", { defaultValue: "Details" })}
+                                  </span>
                                 </Button>
                               ) : null}
-                              <Button
-                                type="button"
-                                size="sm"
-                                variant="ghost"
-                                className="h-8 w-8 rounded-md px-0"
-                                onClick={(event) => {
-                                  event.stopPropagation();
-                                  openShareDialog(task);
-                                }}
-                                title={t("failover.share.short", { defaultValue: "分享" })}
-                                aria-label={t("failover.share.short", { defaultValue: "分享" })}
-                              >
-                                <Share2 className="size-3.5" />
-                              </Button>
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <Button
+                                    type="button"
+                                    size="sm"
+                                    variant="ghost"
+                                    className="h-8 w-8 rounded-md px-0"
+                                    onClick={(event) => event.stopPropagation()}
+                                    title={t("common.more_actions", { defaultValue: "More actions" })}
+                                    aria-label={t("common.more_actions", { defaultValue: "More actions" })}
+                                  >
+                                    <MoreHorizontal className="size-3.5" />
+                                  </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end" onClick={(event) => event.stopPropagation()}>
+                                  <DropdownMenuItem
+                                    onSelect={() => { void openEditDialog(task); }}
+                                    disabled={taskBusy || taskRunning}
+                                  >
+                                    <PencilLine className="size-4" />
+                                    {t("common.edit", { defaultValue: "Edit" })}
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem
+                                    onSelect={() => { void openDuplicateDialog(task); }}
+                                    disabled={taskBusy || taskRunning}
+                                  >
+                                    <Copy className="size-4" />
+                                    {t("copy", { defaultValue: "Copy" })}
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem onSelect={() => openShareDialog(task)}>
+                                    <Share2 className="size-4" />
+                                    {t("failover.share.short", { defaultValue: "分享" })}
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem
+                                    onSelect={() => { void handleToggleTask(task); }}
+                                    disabled={taskBusy || taskRunning}
+                                  >
+                                    {task.enabled
+                                      ? t("failover.actions.disable", { defaultValue: "Disable" })
+                                      : t("failover.actions.enable", { defaultValue: "Enable" })}
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem
+                                    variant="destructive"
+                                    onSelect={() => setDeleteTarget(task)}
+                                    disabled={taskBusy || taskRunning}
+                                  >
+                                    <Trash2 className="size-4" />
+                                    {t("common.delete", { defaultValue: "Delete" })}
+                                  </DropdownMenuItem>
+                                </DropdownMenuContent>
+                              </DropdownMenu>
                             </div>
                           </td>
                         </tr>
@@ -10932,10 +10983,10 @@ function FailoverPageContent() {
                 itemLabel={t("admin.pagination.tasks", { defaultValue: "tasks" })}
                 compact
               />
-            </Card>
+            </div>
 
-            <Card className="min-w-0 overflow-hidden border-slate-200/80 bg-card py-0 shadow-sm shadow-slate-900/5 dark:border-slate-800/80 xl:sticky xl:top-4 xl:self-start">
-              <div className="flex min-h-[54px] items-center justify-between gap-3 border-b border-border px-4 py-3">
+            <div className="min-w-0 overflow-hidden rounded-lg border border-slate-200/80 bg-white shadow-[0_18px_45px_-42px_rgba(15,23,42,0.75)] dark:border-slate-800/90 dark:bg-slate-950 xl:sticky xl:top-4 xl:self-start">
+              <div className="flex min-h-[54px] items-center justify-between gap-3 border-b border-border bg-slate-50/70 px-4 py-3 dark:bg-slate-900/35">
                 <div className="min-w-0">
                   <h2 className="text-sm font-semibold leading-5 text-foreground">
                     {t("failover.workspace.inspector", { defaultValue: "任务观察台" })}
@@ -10955,7 +11006,7 @@ function FailoverPageContent() {
 
                 return (
                   <div className="space-y-4 p-4">
-                    <div className="min-w-0 rounded-xl border border-slate-200/80 bg-slate-50 px-3 py-3 dark:border-slate-800 dark:bg-slate-900/35">
+                    <div className="min-w-0 rounded-md border border-slate-200/80 bg-slate-50/70 px-3 py-3 dark:border-slate-800 dark:bg-slate-900/35">
                       <div className="flex flex-wrap items-center gap-2">
                         <div className="min-w-0 flex-1 truncate text-[15px] font-semibold leading-6 text-foreground" title={selectedTask.name}>
                           {selectedTask.name}
@@ -10988,7 +11039,7 @@ function FailoverPageContent() {
                     </div>
 
                     <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-1 2xl:grid-cols-2">
-                      <div className="min-w-0 rounded-md border border-border px-3 py-2">
+                      <div className="min-w-0 rounded-md border border-slate-200/70 bg-white/80 px-3 py-2 dark:border-slate-800 dark:bg-slate-900/25">
                         <div className="text-[11px] font-semibold leading-4 text-muted-foreground">
                           {t("failover.task.outlet_ip_label", { defaultValue: "Outlet IP" })}
                         </div>
@@ -10996,7 +11047,8 @@ function FailoverPageContent() {
                           {view.currentOutletLabel}
                         </div>
                       </div>
-                      <div className="min-w-0 rounded-md border border-border px-3 py-2">
+                      {platformAdmin ? (
+                      <div className="min-w-0 rounded-md border border-slate-200/70 bg-white/80 px-3 py-2 dark:border-slate-800 dark:bg-slate-900/25">
                         <div className="text-[11px] font-semibold leading-4 text-muted-foreground">
                           {t("failover.task.dns_target_label", { defaultValue: "DNS target" })}
                         </div>
@@ -11004,7 +11056,8 @@ function FailoverPageContent() {
                           {view.dnsTargetLabel || t("failover.task.no_dns", { defaultValue: "No DNS" })}
                         </div>
                       </div>
-                      <div className="min-w-0 rounded-md border border-border px-3 py-2">
+                      ) : null}
+                      <div className="min-w-0 rounded-md border border-slate-200/70 bg-white/80 px-3 py-2 dark:border-slate-800 dark:bg-slate-900/25">
                         <div className="text-[11px] font-semibold leading-4 text-muted-foreground">
                           {t("failover.table.cooldown", { defaultValue: "Cooldown" })}
                         </div>
@@ -11012,7 +11065,8 @@ function FailoverPageContent() {
                           {view.cooldownSummary}
                         </div>
                       </div>
-                      <div className="min-w-0 rounded-md border border-border px-3 py-2">
+                      {platformAdmin ? (
+                      <div className="min-w-0 rounded-md border border-slate-200/70 bg-white/80 px-3 py-2 dark:border-slate-800 dark:bg-slate-900/25">
                         <div className="text-[11px] font-semibold leading-4 text-muted-foreground">
                           {t("failover.editor.section_plans", { defaultValue: "Failover plans" })}
                         </div>
@@ -11020,14 +11074,17 @@ function FailoverPageContent() {
                           {selectedTask.plans.length}
                         </div>
                       </div>
+                      ) : null}
                     </div>
 
-                    <DnsSchedulerLinkedSummary
-                      sourceType="failover_v1"
-                      sourceId={selectedTask.id}
-                    />
+                    {platformAdmin ? (
+                      <DnsSchedulerLinkedSummary
+                        sourceType="failover_v1"
+                        sourceId={selectedTask.id}
+                      />
+                    ) : null}
 
-                    <div className="rounded-lg border border-border">
+                    <div className="overflow-hidden rounded-md border border-slate-200/80 bg-slate-50/55 dark:border-slate-800 dark:bg-slate-900/25">
                       <div className="flex items-center justify-between gap-2 border-b border-border px-3 py-2">
                         <div className="text-[12px] font-semibold leading-5 text-foreground">
                           {t("failover.table.latest", { defaultValue: "Latest execution" })}
@@ -11048,8 +11105,8 @@ function FailoverPageContent() {
                         >
                           {view.latestExecutionSummary}
                         </div>
-                        {view.latestStepLabel ? (
-                          <div className="rounded-md border border-dashed px-3 py-2">
+                        {platformAdmin && view.latestStepLabel ? (
+                          <div className="border-y border-dashed border-slate-200/80 py-2 dark:border-slate-800/80">
                             <div className="text-[11px] font-semibold leading-4 text-muted-foreground">
                               {t("failover.execution.summary.last_step", { defaultValue: "Last step" })}
                             </div>
@@ -11063,6 +11120,7 @@ function FailoverPageContent() {
                             ) : null}
                           </div>
                         ) : null}
+                        {platformAdmin ? (
                         <div className="flex flex-wrap items-center gap-2 text-[12px] leading-5 text-muted-foreground">
                           <span className="font-medium text-foreground">
                             {t("failover.task.script_status_label", { defaultValue: "Script status" })}:
@@ -11080,6 +11138,7 @@ function FailoverPageContent() {
                             </span>
                           ) : null}
                         </div>
+                        ) : null}
                         {latestExecution ? (
                           <Button
                             type="button"
@@ -11095,7 +11154,7 @@ function FailoverPageContent() {
                       </div>
                     </div>
 
-                    {view.taskRiskBadges.length > 0 ? (
+                    {platformAdmin && view.taskRiskBadges.length > 0 ? (
                       <div className="flex flex-wrap gap-2">
                         {view.taskRiskBadges.map((badge) => (
                           <Badge key={badge.key} variant={badge.variant} title={badge.title || undefined}>
@@ -11105,13 +11164,14 @@ function FailoverPageContent() {
                       </div>
                     ) : null}
 
+                    {platformAdmin ? (
                     <div className="space-y-2">
                       <div className="text-[12px] font-semibold leading-5 text-foreground">
                         {t("failover.editor.section_plans", { defaultValue: "Failover plans" })}
                       </div>
                       <div className="space-y-2">
                         {selectedTask.plans.slice(0, 3).map((plan) => (
-                          <div key={plan.id} className="rounded-md border border-border px-3 py-2">
+                          <div key={plan.id} className="rounded-md border border-slate-200/70 bg-white/80 px-3 py-2 dark:border-slate-800 dark:bg-slate-900/25">
                             <div className="flex items-center justify-between gap-2">
                               <div className="min-w-0 truncate text-[13px] font-medium leading-5 text-foreground" title={plan.name}>
                                 {plan.name}
@@ -11134,6 +11194,7 @@ function FailoverPageContent() {
                         ) : null}
                       </div>
                     </div>
+                    ) : null}
 
                     <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-1 2xl:grid-cols-2">
                       <Button type="button" size="sm" variant="outline" onClick={() => void openEditDialog(selectedTask)} disabled={taskBusy || taskRunning}>
@@ -11185,7 +11246,7 @@ function FailoverPageContent() {
                   </div>
                 );
               })() : null}
-            </Card>
+            </div>
           </div>
         ) : null}
       </AdminPageShell>
@@ -11237,6 +11298,7 @@ function FailoverPageContent() {
       <ExecutionDetailDialog
         executionID={selectedExecutionID}
         taskName={selectedExecutionTaskName}
+        detailedMode={platformAdmin}
         open={selectedExecutionID !== null}
         onExecutionUpdated={() => refreshTasks({ silent: true })}
         onOpenChange={(nextOpen) => {

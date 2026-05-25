@@ -248,7 +248,7 @@ export function SelectOrInput<T extends Primitive = string>(
       {open && (
         <div
           className={cn(
-            "absolute left-0 right-0 z-50 mt-1 rounded-xl border border-slate-200/80 bg-popover text-popover-foreground shadow-[0_24px_70px_-45px_rgba(15,23,42,0.85)] dark:border-slate-800 dark:shadow-black/40",
+            "absolute left-0 right-0 z-50 mt-1 rounded-lg border border-slate-200/80 bg-popover text-popover-foreground shadow-[0_18px_50px_-38px_rgba(15,23,42,0.7)] dark:border-slate-800 dark:shadow-black/30",
             "h-[min(15rem,calc(100vh-6rem))] overflow-y-auto overscroll-contain [scrollbar-gutter:stable]",
             listClassName
           )}

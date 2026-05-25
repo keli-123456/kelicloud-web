@@ -184,7 +184,6 @@ type EpusdtPaymentConfig = {
 };
 
 const FEATURE_ORDER: AccountFeature[] = [
-  "clients",
   "records",
   "tasks",
   "ping",
@@ -201,10 +200,6 @@ const FEATURE_ORDER: AccountFeature[] = [
   "clipboard",
   "logs",
 ];
-
-const SERVER_BOUND_FEATURES = new Set<AccountFeature>(
-  FEATURE_ORDER.filter((feature) => feature !== "clients"),
-);
 
 const LEGACY_FEATURE_ALIASES: Partial<Record<AccountFeature, AccountFeature[]>> = {
   cloud: [
@@ -267,8 +262,8 @@ const BILLING_FEATURE_GROUPS: BillingFeatureGroupConfig[] = [
     key: "billing.feature_groups.standard",
     descriptionKey: "billing.feature_groups.standard_description",
     defaultValue: "基础菜单",
-    defaultDescription: "服务器、监控记录和通知，是大多数套餐的基础能力。",
-    features: ["clients", "records", "notifications"],
+    defaultDescription: "监控记录和通知，是大多数套餐的基础能力。",
+    features: ["records", "notifications"],
   },
   {
     id: "cloud",
@@ -305,7 +300,7 @@ const emptyPlanForm: PlanFormState = {
   currency: "CNY",
   durationDays: "30",
   serverQuota: "0",
-  allowedFeatures: ["clients", "records", "logs"],
+  allowedFeatures: ["records", "logs"],
   sortOrder: "10",
   active: true,
   public: true,
@@ -389,17 +384,7 @@ const normalizeFeatureList = (
 const normalizePlanFeaturesForSave = (
   features: AccountFeature[],
   availableFeatures: AccountFeature[],
-) => {
-  const normalized = normalizeFeatureList(features, availableFeatures);
-  if (
-    normalized.some((feature) => SERVER_BOUND_FEATURES.has(feature)) &&
-    availableFeatures.includes("clients") &&
-    !normalized.includes("clients")
-  ) {
-    return normalizeFeatureList(["clients", ...normalized], availableFeatures);
-  }
-  return normalized;
-};
+) => normalizeFeatureList(features, availableFeatures);
 
 const planToForm = (plan?: BillingPlan): PlanFormState => {
   if (!plan) return { ...emptyPlanForm, allowedFeatures: [...emptyPlanForm.allowedFeatures] };
@@ -472,6 +457,9 @@ const getFeatureOptionLabel = (
   featureOptions: FeatureOption[],
 ) => featureOptions.find((item) => item.value === feature)?.label || feature;
 
+const getVisiblePlanFeatures = (features?: AccountFeature[] | null) =>
+  (features || []).filter((feature) => feature !== "clients");
+
 const getBillingFeatureGroups = (
   t: TFunction,
   featureOptions: FeatureOption[],
@@ -535,7 +523,7 @@ export default function BillingPage() {
       ...FEATURE_ORDER.filter((feature) => source.includes(feature)),
       ...source.filter((feature) => !FEATURE_ORDER.includes(feature)),
     ];
-    return ordered.map((feature) => ({
+    return ordered.filter((feature) => feature !== "clients").map((feature) => ({
       value: feature,
       label: t(FEATURE_META[feature]?.key || `billing.features.${feature}`, {
         defaultValue: FEATURE_META[feature]?.defaultValue || feature,
@@ -945,7 +933,7 @@ export default function BillingPage() {
             {t("billing.mark_paid_title")}
           </Dialog.Title>
           <div className="space-y-4 pt-2">
-            <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm dark:border-slate-800 dark:bg-slate-900/40">
+            <div className="border-l-2 border-slate-200 py-2 pl-3 text-sm dark:border-slate-800">
               <div className="font-medium">{paidOrder?.order_no}</div>
               <div className="text-muted-foreground">
                 {paidOrder?.username || paidOrder?.user_uuid} · {paidOrder?.plan_name}
@@ -1000,7 +988,7 @@ function PolicySummary({
     : t("billing.no_expiry", { defaultValue: "长期有效" });
 
   return (
-    <AdminSurface className="rounded-xl border border-slate-200/80 bg-white px-4 py-3 shadow-[0_18px_45px_-34px_rgba(15,23,42,0.65)] dark:border-slate-800/90 dark:bg-slate-950">
+    <AdminSurface className="border-y border-slate-200/80 py-3 shadow-none dark:border-slate-800/90">
       <div className="flex min-w-0 flex-wrap items-center gap-x-6 gap-y-2 text-sm">
         <div className="flex min-w-0 items-center gap-2">
           <span className="text-muted-foreground">
@@ -1096,7 +1084,7 @@ function ShopPanel({
         featureOptions={featureOptions}
       />
       <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_24rem]">
-        <div className="overflow-hidden rounded-xl border border-slate-200/80 bg-white shadow-[0_18px_45px_-34px_rgba(15,23,42,0.65)] dark:border-slate-800/90 dark:bg-slate-950">
+        <div className="overflow-hidden border-y border-slate-200/80 bg-white shadow-none dark:border-slate-800/90 dark:bg-slate-950">
           {plans.map((plan) => {
             const selected = String(plan.id) === selectedPlanID;
             return (
@@ -1122,13 +1110,13 @@ function ShopPanel({
                     {plan.description || t("billing.no_description")}
                   </div>
                   <div className="mt-2 flex flex-wrap gap-1.5">
-                    {(plan.allowed_features || []).slice(0, 4).map((feature) => (
+                    {getVisiblePlanFeatures(plan.allowed_features).slice(0, 4).map((feature) => (
                       <Badge key={feature} color="gray" variant="soft">
                         {featureOptions.find((item) => item.value === feature)?.label || feature}
                       </Badge>
                     ))}
-                    {(plan.allowed_features || []).length > 4 ? (
-                      <Badge color="blue" variant="soft">+{(plan.allowed_features || []).length - 4}</Badge>
+                    {getVisiblePlanFeatures(plan.allowed_features).length > 4 ? (
+                      <Badge color="blue" variant="soft">+{getVisiblePlanFeatures(plan.allowed_features).length - 4}</Badge>
                     ) : null}
                   </div>
                 </div>
@@ -1145,7 +1133,7 @@ function ShopPanel({
           })}
         </div>
 
-        <AdminSurface className="self-start rounded-xl border border-slate-200/80 bg-white p-4 shadow-[0_18px_45px_-34px_rgba(15,23,42,0.65)] dark:border-slate-800/90 dark:bg-slate-950">
+        <AdminSurface className="self-start border-l border-slate-200/80 py-1 pl-4 shadow-none dark:border-slate-800/90">
           <div className="flex items-center gap-2 text-sm font-semibold">
             <CreditCard className="h-4 w-4" />
             {t("billing.checkout")}
@@ -1169,7 +1157,7 @@ function ShopPanel({
               </Select.Root>
             </Field>
             {selectedPayment ? (
-              <div className="rounded-lg border border-slate-200/80 bg-slate-50/70 p-3 text-sm dark:border-slate-800 dark:bg-slate-900/40">
+              <div className="border-l-2 border-slate-200/80 bg-slate-50/60 px-3 py-2 text-sm dark:border-slate-800 dark:bg-slate-900/25">
                 <div className="font-medium">{selectedPayment.name}</div>
                 {selectedPayment.instructions ? (
                   <p className="mt-2 whitespace-pre-wrap text-muted-foreground">
@@ -1236,7 +1224,7 @@ function PlansPanel({
 
   return (
     <div className="space-y-3">
-      <div className="flex justify-end rounded-xl border border-slate-200/80 bg-white p-3 shadow-[0_18px_45px_-34px_rgba(15,23,42,0.65)] dark:border-slate-800/90 dark:bg-slate-950">
+      <div className="flex justify-end border-b border-slate-200/80 pb-3 shadow-none dark:border-slate-800/90">
         <Button onClick={() => openPlanDialog()}>
           <Plus className="mr-2 h-4 w-4" />
           {t("billing.new_plan")}
@@ -1276,13 +1264,13 @@ function PlansPanel({
                     <AdminDataTableCell>{plan.server_quota > 0 ? plan.server_quota : t("billing.unlimited")}</AdminDataTableCell>
                     <AdminDataTableCell>
                       <div className="flex max-w-md flex-wrap gap-1">
-                        {(plan.allowed_features || []).slice(0, 4).map((feature) => (
+                        {getVisiblePlanFeatures(plan.allowed_features).slice(0, 4).map((feature) => (
                           <Badge key={feature} color="gray" variant="soft">
                             {featureOptions.find((item) => item.value === feature)?.label || feature}
                           </Badge>
                         ))}
-                        {(plan.allowed_features || []).length > 4 ? (
-                          <Badge color="blue" variant="soft">+{(plan.allowed_features || []).length - 4}</Badge>
+                        {getVisiblePlanFeatures(plan.allowed_features).length > 4 ? (
+                          <Badge color="blue" variant="soft">+{getVisiblePlanFeatures(plan.allowed_features).length - 4}</Badge>
                         ) : null}
                       </div>
                     </AdminDataTableCell>
@@ -1360,7 +1348,7 @@ function PaymentsPanel({
 
   return (
     <div className="space-y-3">
-      <div className="flex justify-end rounded-xl border border-slate-200/80 bg-white p-3 shadow-[0_18px_45px_-34px_rgba(15,23,42,0.65)] dark:border-slate-800/90 dark:bg-slate-950">
+      <div className="flex justify-end border-b border-slate-200/80 pb-3 shadow-none dark:border-slate-800/90">
         <Button onClick={() => openPaymentDialog()}>
           <Plus className="mr-2 h-4 w-4" />
           {t("billing.new_payment")}
@@ -1596,7 +1584,7 @@ function PendingPaymentNotice({
     (method?.type === "epusdt" ? "" : method?.payment_url || "");
 
   return (
-    <AdminSurface className="rounded-lg border border-amber-200/80 bg-amber-50/70 px-4 py-3 text-sm shadow-sm shadow-amber-950/5 dark:border-amber-900/60 dark:bg-amber-950/20">
+    <AdminSurface className="border-l-2 border-amber-300 bg-amber-50/70 px-3 py-2 text-sm shadow-none dark:border-amber-800 dark:bg-amber-950/20">
       <div className="flex min-w-0 flex-wrap items-center justify-between gap-2">
         <div className="min-w-0">
           <div className="font-semibold text-amber-950 dark:text-amber-100">
@@ -1616,7 +1604,7 @@ function PendingPaymentNotice({
         })}
       </p>
       {method?.instructions ? (
-        <p className="mt-2 whitespace-pre-wrap rounded-md border border-amber-200/70 bg-white/70 p-2 text-amber-950 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-100">
+        <p className="mt-2 whitespace-pre-wrap border-t border-amber-200/70 pt-2 text-amber-950 dark:border-amber-900/60 dark:text-amber-100">
           {method.instructions}
         </p>
       ) : null}
@@ -1683,14 +1671,8 @@ function PlanDialog({
       ...prev,
       allowedFeatures: normalizeFeatureList(
         checked
-          ? [
-              ...prev.allowedFeatures,
-              feature,
-              ...(SERVER_BOUND_FEATURES.has(feature) ? ["clients" as AccountFeature] : []),
-            ]
-          : feature === "clients"
-            ? prev.allowedFeatures.filter((item) => item === "clients" ? false : !SERVER_BOUND_FEATURES.has(item))
-            : prev.allowedFeatures.filter((item) => item !== feature),
+          ? [...prev.allowedFeatures, feature]
+          : prev.allowedFeatures.filter((item) => item !== feature),
         availableFeatureValues,
       ),
     }));
@@ -1698,23 +1680,12 @@ function PlanDialog({
 
   const toggleFeatureGroup = (group: BillingFeatureGroup, checked: boolean) => {
     const groupValues = group.features.map((feature) => feature.value);
-    const shouldBindServers = groupValues.some((feature) => SERVER_BOUND_FEATURES.has(feature));
 
     setForm((prev) => {
       const next = checked
-        ? [
-            ...prev.allowedFeatures,
-            ...groupValues,
-            ...(shouldBindServers ? ["clients" as AccountFeature] : []),
-          ]
+        ? [...prev.allowedFeatures, ...groupValues]
         : prev.allowedFeatures.filter((feature) => !groupValues.includes(feature));
-      const hasServerBoundFeature = next.some((feature) => SERVER_BOUND_FEATURES.has(feature));
-      const normalized = normalizeFeatureList(
-        hasServerBoundFeature && !next.includes("clients")
-          ? [...next, "clients" as AccountFeature]
-          : next,
-        availableFeatureValues,
-      );
+      const normalized = normalizeFeatureList(next, availableFeatureValues);
 
       return {
         ...prev,
@@ -1777,8 +1748,8 @@ function PlanDialog({
                 const allSelected = selectedCount === group.features.length;
 
                 return (
-                  <div key={group.id} className="overflow-hidden rounded-xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-950">
-                    <div className="flex flex-wrap items-start justify-between gap-3 border-b border-slate-200 px-3 py-3 dark:border-slate-800">
+                  <div key={group.id} className="border-t border-slate-200/80 pt-3 first:border-t-0 dark:border-slate-800">
+                    <div className="flex flex-wrap items-start justify-between gap-3">
                       <div className="min-w-0">
                         <div className="flex flex-wrap items-center gap-2">
                           <span className="text-sm font-medium">{group.label}</span>
@@ -1801,7 +1772,7 @@ function PlanDialog({
                         {allSelected ? t("billing.feature_group_clear") : t("billing.feature_group_select_all")}
                       </Button>
                     </div>
-                    <div className="grid gap-2 p-3 md:grid-cols-2">
+                    <div className="mt-3 grid gap-x-4 border-y border-slate-200/80 dark:border-slate-800 md:grid-cols-2">
                       {group.features.map((feature) => {
                         const selected = selectedFeatures.has(feature.value);
 
@@ -1809,10 +1780,10 @@ function PlanDialog({
                           <label
                             key={feature.value}
                             className={cn(
-                              "flex items-center gap-2 rounded-lg border px-3 py-2 text-sm transition-colors",
+                              "flex items-center gap-2 border-b border-slate-200/80 py-2 text-sm transition-colors last:border-b-0 dark:border-slate-800 md:px-1",
                               selected
-                                ? "border-blue-200 bg-blue-50 text-blue-950 dark:border-blue-900/60 dark:bg-blue-950/30 dark:text-blue-100"
-                                : "border-slate-200 bg-white text-slate-700 hover:border-slate-300 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-200 dark:hover:border-slate-700",
+                                ? "text-blue-700 dark:text-blue-300"
+                                : "text-slate-700 hover:text-slate-950 dark:text-slate-200 dark:hover:text-white",
                             )}
                           >
                             <Checkbox
@@ -1961,7 +1932,7 @@ function PaymentDialog({
               )}
             </div>
             {form.type === "epusdt" ? (
-              <p className="mt-3 rounded-lg border border-blue-200/80 bg-blue-50/80 px-3 py-2 text-sm leading-6 text-blue-900 dark:border-blue-900/60 dark:bg-blue-950/30 dark:text-blue-100">
+              <p className="mt-3 border-l-2 border-blue-300 bg-blue-50/70 px-3 py-2 text-sm leading-6 text-blue-900 dark:border-blue-800 dark:bg-blue-950/20 dark:text-blue-100">
                 {t("billing.epusdt_help", {
                   defaultValue: "用户下单后会自动创建 Epusdt 托管收银台订单；支付成功回调会自动验签并开通套餐。",
                 })}
@@ -2024,7 +1995,7 @@ function DataTableFrame({
   table: React.ReactNode;
 }) {
   return (
-    <div className="overflow-hidden rounded-lg border border-slate-200/80 bg-white shadow-none dark:border-slate-800/90 dark:bg-slate-950">
+    <div className="overflow-hidden border-y border-slate-200/80 bg-white shadow-none dark:border-slate-800/90 dark:bg-slate-950">
       {table}
       {pagination}
     </div>

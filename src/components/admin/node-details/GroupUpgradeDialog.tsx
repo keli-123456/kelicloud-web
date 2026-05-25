@@ -19,7 +19,7 @@ import type { Record as LiveRecord } from "@/types/LiveData";
 import { formatBytes } from "@/utils/unitHelper";
 
 const NODE_DIALOG_CONTENT_CLASS =
-  "max-h-[90vh] w-[min(96vw,760px)] overflow-y-auto overscroll-contain rounded-xl border border-slate-200/80 bg-white p-5 shadow-[0_30px_90px_-55px_rgba(15,23,42,0.9)] [scrollbar-gutter:stable] dark:border-slate-800 dark:bg-slate-950";
+  "max-h-[90vh] w-[min(96vw,760px)] overflow-y-auto overscroll-contain rounded-lg border border-slate-200/80 bg-white p-5 shadow-[0_24px_70px_-50px_rgba(15,23,42,0.72)] [scrollbar-gutter:stable] dark:border-slate-800 dark:bg-slate-950";
 const NODE_DIALOG_FOOTER_CLASS =
   "sticky bottom-0 -mx-5 -mb-5 mt-5 flex flex-col-reverse gap-2 border-t border-slate-200/80 bg-white/95 px-5 py-3 backdrop-blur dark:border-slate-800 dark:bg-slate-950/95 sm:flex-row sm:justify-end";
 
@@ -934,8 +934,8 @@ export default function GroupUpgradeDialog({
           })}
         </Dialog.Description>
 
-        <div className="mt-4 grid gap-3 sm:grid-cols-4">
-          <div className="rounded-xl border border-slate-200/80 bg-slate-50 px-3 py-3 dark:border-slate-800 dark:bg-slate-900/35">
+        <div className="mt-4 grid gap-3 border-t border-slate-200/80 pt-4 dark:border-slate-800 sm:grid-cols-4">
+          <div className="border-b border-slate-200/80 px-1 py-2 dark:border-slate-800">
             <div className="text-xs text-slate-500 dark:text-slate-400">
               {t("admin.nodeTable.upgradeOnlineNodes", "Online nodes")}
             </div>
@@ -943,7 +943,7 @@ export default function GroupUpgradeDialog({
               {onlineNodes.length}
             </div>
           </div>
-          <div className="rounded-xl border border-slate-200/80 bg-slate-50 px-3 py-3 dark:border-slate-800 dark:bg-slate-900/35">
+          <div className="border-b border-slate-200/80 px-1 py-2 dark:border-slate-800">
             <div className="text-xs text-slate-500 dark:text-slate-400">
               {t("admin.nodeTable.upgradeRunning", "Running")}
             </div>
@@ -951,7 +951,7 @@ export default function GroupUpgradeDialog({
               {summary.pending + summary.running}
             </div>
           </div>
-          <div className="rounded-lg border border-emerald-200/80 bg-emerald-50/92 px-3 py-3 shadow-sm dark:border-emerald-900/60 dark:bg-emerald-950/30">
+          <div className="border-b border-emerald-200/80 px-1 py-2 dark:border-emerald-900/60">
             <div className="text-xs text-emerald-700 dark:text-emerald-300">
               {t("admin.nodeTable.upgradeSuccessShort", "Succeeded")}
             </div>
@@ -959,7 +959,7 @@ export default function GroupUpgradeDialog({
               {summary.success}
             </div>
           </div>
-          <div className="rounded-lg border border-rose-200/80 bg-rose-50/92 px-3 py-3 shadow-sm dark:border-rose-900/60 dark:bg-rose-950/30">
+          <div className="border-b border-rose-200/80 px-1 py-2 dark:border-rose-900/60">
             <div className="text-xs text-rose-700 dark:text-rose-300">
               {t("admin.nodeTable.upgradeFailedShort", "Failed")}
             </div>
@@ -969,7 +969,7 @@ export default function GroupUpgradeDialog({
           </div>
         </div>
 
-        <div className="mt-4 overflow-hidden rounded-xl border border-slate-200/80 bg-slate-50 px-0 py-0 dark:border-slate-800 dark:bg-slate-900/35">
+        <div className="mt-4 overflow-hidden border-t border-slate-200/80 bg-transparent px-0 py-0 dark:border-slate-800">
           <div className="border-b border-slate-200/80 px-4 py-3 text-sm text-slate-600 dark:border-slate-800/80 dark:text-slate-300">
             {t("admin.nodeTable.upgradeStatusTitle", "Node execution status")}
           </div>
@@ -1008,7 +1008,7 @@ export default function GroupUpgradeDialog({
                   <div
                     key={node.uuid}
                     title={result?.output || buildNodeConfigTooltip({ node, live: liveByNode[node.uuid] })}
-                    className="flex flex-col gap-3 rounded-lg border border-slate-200/80 bg-white/76 px-3 py-3 shadow-sm dark:border-slate-800/80 dark:bg-slate-950/30 sm:flex-row sm:items-center sm:justify-between"
+                    className="flex flex-col gap-3 rounded-lg border border-slate-200/80 bg-white/76 px-3 py-3 shadow-none dark:border-slate-800/80 dark:bg-slate-950/30 sm:flex-row sm:items-center sm:justify-between"
                   >
                     <div className="min-w-0">
                       <div className="truncate text-sm font-medium text-slate-900 dark:text-slate-100">

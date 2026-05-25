@@ -74,7 +74,7 @@ export function AzureCreateDialog({
         title={t("cloud.providers.azure.create", "创建虚拟机")}
         description={t(
             "cloud.providers.azure.create_description",
-            "Create a Linux VM in the current active Azure location. kelicloud will automatically prepare the network stack and bootstrap agent auto-connect.",
+            "创建 Linux 虚拟机，并在创建完成后自动接入平台。",
           )}
         icon={<Server className="size-4" />}
         badge={<Badge color="blue">{t("cloud.providers.azure.name", "Azure")}</Badge>}
@@ -175,7 +175,7 @@ export function AzureCreateDialog({
                 setCreateForm((previous) => ({ ...previous, auto_connect: Boolean(checked) }))
               }
             />
-            {t("cloud.providers.azure.auto_connect_toggle", "Bootstrap kelicloud agent auto-connect")}
+            {t("cloud.providers.azure.auto_connect_toggle", "创建后自动接入平台")}
           </label>
 
           {createForm.auto_connect ? (
