@@ -70,7 +70,6 @@ import { useWarningDialog } from "@/components/ui/warning-dialog";
 import { SegmentedControl } from "@/components/ui/segmented-control";
 import {
   getAWSCredentials,
-  type AWSEC2Quota,
   type AWSCredentialRecord,
   type AWSCredentialPool,
 } from "@/lib/cloudAws";
@@ -556,7 +555,6 @@ export default function AWSPanel() {
           onShareLightsail={openLightsailShareDialog}
           onDeleteLightsail={handleDeleteLightsailInstance}
         />
-        <AWSQuotaStrip t={t} quota={activeQuota} activeRegion={activeRegion} />
       </div>
 
       <AWSCredentialImportDialog
@@ -1161,82 +1159,6 @@ function AWSCredentialRail({
         </div>
       </div>
     </section>
-  );
-}
-
-function AWSQuotaStrip({
-  t,
-  quota,
-  activeRegion,
-}: {
-  t: TFunction;
-  quota: AWSEC2Quota | null;
-  activeRegion: string;
-}) {
-  if (!quota) {
-    return null;
-  }
-
-  return (
-    <section className={cloudPanelCardClassName}>
-      <div className={cloudPanelHeaderClassName}>
-        <div className={cloudPanelTitleClassName}>
-          {t("cloud.providers.aws.quota_summary", "配额使用")}
-        </div>
-        <div className={cloudPanelDescriptionClassName}>
-          {activeRegion || quota.region || "-"}
-        </div>
-      </div>
-      <div className="grid gap-3 p-4 md:grid-cols-2 xl:grid-cols-4">
-        <AWSQuotaMeter
-          label={t("cloud.providers.aws.running_vcpu", "vCPU 运行中")}
-          value={quota.running_standard_vcpus}
-          max={quota.max_standard_vcpus}
-        />
-        <AWSQuotaMeter
-          label={t("cloud.providers.aws.running_instances", "运行实例")}
-          value={quota.running_instances}
-          max={quota.max_instances}
-        />
-        <AWSQuotaMeter
-          label={t("cloud.providers.aws.elastic_ips", "弹性 IP")}
-          value={quota.associated_elastic_ips}
-          max={quota.max_elastic_ips}
-        />
-        <AWSQuotaMeter
-          label={t("cloud.providers.aws.total_instances", "实例总数")}
-          value={quota.total_instances}
-          max={quota.max_instances}
-        />
-      </div>
-    </section>
-  );
-}
-
-function AWSQuotaMeter({
-  label,
-  value,
-  max,
-}: {
-  label: React.ReactNode;
-  value: number;
-  max: number;
-}) {
-  const percent = max > 0 ? Math.min(100, Math.round((value / max) * 100)) : 0;
-
-  return (
-    <div className="border-t border-slate-200/80 pt-3 dark:border-slate-800">
-      <div className="flex items-center justify-between gap-2 text-xs">
-        <span className="font-semibold text-muted-foreground">{label}</span>
-        <span className="font-medium text-foreground tabular-nums">{value}/{max || "-"}</span>
-      </div>
-      <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-slate-200 dark:bg-slate-800">
-        <div
-          className="h-full rounded-full bg-blue-600"
-          style={{ width: `${percent}%` }}
-        />
-      </div>
-    </div>
   );
 }
 

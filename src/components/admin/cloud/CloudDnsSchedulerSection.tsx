@@ -509,10 +509,10 @@ function SchedulerSourceOverview({
                 <div className="mt-2 text-xs leading-5 text-muted-foreground">
                   {t(`cloud.dns.scheduler.source_description.${source.key}`, {
                     defaultValue: source.key === "ddns"
-                      ? "Syncs records automatically when a node public IP changes."
+                      ? "节点公网 IP 变化时自动同步解析记录。"
                       : source.key === "failover_v1"
-                        ? "Writes the active V1 failover address back to DNS after switching."
-                        : "Queues V2 member changes through the unified scheduler.",
+                        ? "V1 切换成功后把当前出口地址写入 DNS。"
+                        : "V2 成员线路变化会进入统一 DNS 调度。",
                   })}
                 </div>
                 <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
@@ -791,7 +791,7 @@ function SchedulerTaskDetailPanel({
                 onClick={() => navigate(sourceTaskHref)}
               >
                 <ExternalLink className="h-3.5 w-3.5" />
-                {t("cloud.dns.scheduler.detail_open_source_task", { defaultValue: "Open source task" })}
+                {t("cloud.dns.scheduler.detail_open_source_task", { defaultValue: "打开来源任务" })}
               </Button>
             ) : null}
           </div>
