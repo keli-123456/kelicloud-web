@@ -1572,6 +1572,11 @@ const NodeDetailDrawer = ({
   const diskLabel = node.disk_total
     ? formatCompactByteUsage(live?.record.disk.used ?? 0, node.disk_total)
     : formatPercent(diskPercent);
+  const connectionsLabel = `${t("chart.tcp_connections", {
+    defaultValue: "TCP",
+  })}: ${live?.record.connections.tcp ?? 0} · ${t("chart.udp_connections", {
+    defaultValue: "UDP",
+  })}: ${live?.record.connections.udp ?? 0}`;
 
   return (
     <Drawer open={open} onOpenChange={onOpenChange} direction="right">
@@ -1644,6 +1649,11 @@ const NodeDetailDrawer = ({
               value={`↑ ${formatBytes(live?.record.network.totalUp ?? 0)} · ↓ ${formatBytes(
                 live?.record.network.totalDown ?? 0,
               )}`}
+              mono
+            />
+            <NodeDrawerInfoItem
+              label={t("chart.connections", { defaultValue: "连接数" })}
+              value={connectionsLabel}
               mono
             />
           </div>
