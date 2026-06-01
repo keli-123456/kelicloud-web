@@ -22,7 +22,11 @@ import {
 } from "lucide-react";
 
 import { Badge, Button } from "@/components/admin/admin-ui";
-import { AdminEmptyState, AdminTableSkeleton } from "@/components/admin/AdminPageShell";
+import {
+  AdminDataPanel,
+  AdminEmptyState,
+  AdminTableSkeleton,
+} from "@/components/admin/AdminPageShell";
 import { Input } from "@/components/ui/input";
 import {
   getDNSSchedulerSnapshot,
@@ -227,7 +231,7 @@ function SchedulerFlow() {
   ];
 
   return (
-    <div className="overflow-hidden rounded-lg border border-slate-200/80 bg-white shadow-none dark:border-slate-800/90 dark:bg-slate-950">
+    <AdminDataPanel bodyClassName="p-0">
       <div className="grid divide-y divide-border dark:divide-slate-800 md:grid-cols-4 md:divide-x md:divide-y-0">
         {steps.map((step, index) => (
           <div key={step} className="flex min-h-14 items-center gap-3 px-4 py-3">
@@ -240,7 +244,7 @@ function SchedulerFlow() {
           </div>
         ))}
       </div>
-    </div>
+    </AdminDataPanel>
   );
 }
 
@@ -262,7 +266,7 @@ function SchedulerToolbar({
   const execution = snapshot?.dns_execution;
 
   return (
-    <div className="flex min-w-0 flex-col gap-3 rounded-lg border border-slate-200/80 bg-white px-4 py-3 shadow-none dark:border-slate-800/90 dark:bg-slate-950 md:flex-row md:items-center md:justify-between">
+    <AdminDataPanel bodyClassName="flex min-w-0 flex-col gap-3 px-4 py-3 md:flex-row md:items-center md:justify-between">
       <div className="flex min-w-0 flex-wrap items-center gap-2">
         <Badge color={snapshot?.running ? "blue" : "gray"} className="gap-1">
           <Activity className="h-3.5 w-3.5" />
@@ -397,7 +401,7 @@ function SchedulerToolbar({
           {t("common.refresh", { defaultValue: "刷新" })}
         </Button>
       </div>
-    </div>
+    </AdminDataPanel>
   );
 }
 
@@ -460,18 +464,13 @@ function SchedulerSourceOverview({
 
   return (
     <div className="grid gap-4 xl:grid-cols-[minmax(0,1.25fr)_minmax(360px,0.75fr)]">
-      <section className="rounded-lg border border-slate-200/80 bg-white p-4 shadow-none dark:border-slate-800/90 dark:bg-slate-950">
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div className="min-w-0">
-            <div className="text-sm font-semibold text-slate-950 dark:text-slate-50">
-              {t("cloud.dns.scheduler.source_overview_title", { defaultValue: "来源分布" })}
-            </div>
-            <div className="mt-1 text-xs leading-5 text-muted-foreground">
-              {t("cloud.dns.scheduler.source_overview_hint", {
-                defaultValue: "DDNS、故障切换 V1 和 V2 会进入同一个 DNS 调度队列，再按目标合并。",
-              })}
-            </div>
-          </div>
+      <AdminDataPanel
+        title={t("cloud.dns.scheduler.source_overview_title", { defaultValue: "来源分布" })}
+        description={t("cloud.dns.scheduler.source_overview_hint", {
+          defaultValue: "DDNS、故障切换 V1 和 V2 会进入同一个 DNS 调度队列，再按目标合并。",
+        })}
+        bodyClassName="p-4"
+        actions={(
           <Button
             type="button"
             variant={sourceFilter === "all" ? "solid" : "outline"}
@@ -480,8 +479,9 @@ function SchedulerSourceOverview({
           >
             {t("cloud.dns.scheduler.source.all", { defaultValue: "全部" })}
           </Button>
-        </div>
-        <div className="mt-4 grid gap-3 md:grid-cols-3">
+        )}
+      >
+        <div className="grid gap-3 md:grid-cols-3">
           {sourceItems.map((source) => {
             const count = snapshot?.source_counts?.[source.key] || 0;
             const percentage = Math.min(100, Math.round((count / total) * 100));
@@ -507,13 +507,7 @@ function SchedulerSourceOverview({
                   </span>
                 </div>
                 <div className="mt-2 text-xs leading-5 text-muted-foreground">
-                  {t(`cloud.dns.scheduler.source_description.${source.key}`, {
-                    defaultValue: source.key === "ddns"
-                      ? "节点公网 IP 变化时自动同步解析记录。"
-                      : source.key === "failover_v1"
-                        ? "V1 切换成功后把当前出口地址写入 DNS。"
-                        : "V2 成员线路变化会进入统一 DNS 调度。",
-                  })}
+                  {t(`cloud.dns.scheduler.source_description.${source.key}`)}
                 </div>
                 <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
                   <div
@@ -534,18 +528,16 @@ function SchedulerSourceOverview({
             );
           })}
         </div>
-      </section>
+      </AdminDataPanel>
 
-      <section className="rounded-lg border border-slate-200/80 bg-white p-4 shadow-none dark:border-slate-800/90 dark:bg-slate-950">
-        <div className="text-sm font-semibold text-slate-950 dark:text-slate-50">
-          {t("cloud.dns.scheduler.api_pressure_title", { defaultValue: "API 压力" })}
-        </div>
-        <div className="mt-1 text-xs leading-5 text-muted-foreground">
-          {t("cloud.dns.scheduler.api_pressure_hint", {
-            defaultValue: "同凭证同记录会先合并；Cloudflare 尽量批量写入，阿里云按单条写入。",
-          })}
-        </div>
-        <div className="mt-4 grid grid-cols-2 gap-2">
+      <AdminDataPanel
+        title={t("cloud.dns.scheduler.api_pressure_title", { defaultValue: "API 压力" })}
+        description={t("cloud.dns.scheduler.api_pressure_hint", {
+          defaultValue: "同凭证同记录会先合并；Cloudflare 尽量批量写入，阿里云按单条写入。",
+        })}
+        bodyClassName="p-4"
+      >
+        <div className="grid grid-cols-2 gap-2">
           {executionItems.map((item) => (
             <div key={item.label} className="border-b border-border bg-transparent px-1 py-2 dark:border-slate-800">
               <div className="text-[11px] font-medium text-muted-foreground">{item.label}</div>
@@ -564,7 +556,7 @@ function SchedulerSourceOverview({
             </div>
           ))}
         </div>
-      </section>
+      </AdminDataPanel>
     </div>
   );
 }
@@ -1011,19 +1003,14 @@ export default function CloudDnsSchedulerSection() {
         </div>
       ) : null}
 
-      <div className="overflow-hidden rounded-lg border border-slate-200/80 bg-white shadow-none dark:border-slate-800/90 dark:bg-slate-950">
-        <div className="flex flex-col gap-3 border-b border-border px-4 py-3 dark:border-slate-800 md:flex-row md:items-center md:justify-between">
-          <div className="min-w-0">
-            <div className="text-sm font-semibold text-slate-950 dark:text-slate-50">
-              {t("cloud.dns.scheduler.queue_title", { defaultValue: "DNS 任务队列" })}
-            </div>
-            <div className="text-xs text-muted-foreground">
-              {t("cloud.dns.scheduler.queue_hint", {
-                defaultValue: "DDNS 与故障切换共用 DNS 执行入口；同凭证会串行，Cloudflare 写入会尽量批量提交。",
-              })}
-            </div>
-          </div>
-          <div className="flex w-full flex-col gap-2 md:w-auto md:flex-row md:items-center">
+      <AdminDataPanel
+        title={t("cloud.dns.scheduler.queue_title", { defaultValue: "DNS 任务队列" })}
+        description={t("cloud.dns.scheduler.queue_hint", {
+          defaultValue: "DDNS 与故障切换共用 DNS 执行入口；同凭证会串行，Cloudflare 写入会尽量批量提交。",
+        })}
+        bodyClassName="p-0"
+        actions={(
+          <div className="flex w-full flex-col gap-2 sm:w-auto md:flex-row md:items-center">
             <div className="flex overflow-x-auto gap-1 border-b border-border pb-1 dark:border-slate-800">
               {SOURCE_FILTERS.map((value) => (
                 <button
@@ -1054,7 +1041,8 @@ export default function CloudDnsSchedulerSection() {
               />
             </div>
           </div>
-        </div>
+        )}
+      >
 
         {pageItems.length ? (
           <div className="grid lg:grid-cols-[minmax(0,1fr)_380px]">
@@ -1218,7 +1206,7 @@ export default function CloudDnsSchedulerSection() {
             })}
           />
         )}
-      </div>
+      </AdminDataPanel>
     </div>
   );
 }

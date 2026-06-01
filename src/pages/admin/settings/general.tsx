@@ -6,13 +6,12 @@ import {
   useSettings,
 } from "@/lib/api";
 import {
-  ADMIN_PANEL_CLASS,
+  AdminSettingsPanel,
   AdminSettingsSkeleton,
 } from "@/components/admin/AdminPageShell";
 import {
   SettingCardButton,
   SettingCardCollapse,
-  SettingCardLabel,
   SettingCardSelect,
   SettingCardShortTextInput,
   SettingCardSwitch,
@@ -22,8 +21,6 @@ import { toast } from "sonner";
 import { useAccount } from "@/contexts/AccountContext";
 import { PlatformAdminNotice } from "@/components/admin/PlatformAdminNotice";
 import { formatApiErrorMessage } from "@/lib/apiErrorMessage";
-
-const settingsPanelClass = `${ADMIN_PANEL_CLASS} px-4 py-2`;
 
 export default function GeneralSettings() {
   const { t } = useTranslation();
@@ -49,7 +46,7 @@ export default function GeneralSettings() {
     <div className="grid gap-4">
       {platformAdmin ? (
         <>
-          <section className={settingsPanelClass}>
+          <AdminSettingsPanel>
             <SettingCardShortTextInput
               title={t("settings.site.script_domain")}
               description={t("settings.site.script_domain_description")}
@@ -73,12 +70,11 @@ export default function GeneralSettings() {
                 await systemState.refetch();
               }}
             />
-          </section>
-          <section className={settingsPanelClass}>
-            <SettingCardLabel>{t("settings.system_settings_title")}</SettingCardLabel>
-            <div className="-mt-1 px-0 pb-1 text-sm text-muted-foreground">
-              {t("settings.system_settings_description")}
-            </div>
+          </AdminSettingsPanel>
+          <AdminSettingsPanel
+            title={t("settings.system_settings_title")}
+            description={t("settings.system_settings_description")}
+          >
           <SettingCardSwitch
             title={t("settings.auth.allow_registration", "开放用户注册")}
             description={t(
@@ -221,7 +217,7 @@ export default function GeneralSettings() {
               </div>
             </div>
           </SettingCardCollapse>
-          </section>
+          </AdminSettingsPanel>
         </>
       ) : (
         <PlatformAdminNotice

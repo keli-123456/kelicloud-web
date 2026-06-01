@@ -3250,6 +3250,10 @@
       "the_saved_old_instance_now_matches_the_member_s_current_instance": "保存的旧实例已经与当前成员实例一致",
       "this_execution_did_not_require_old_instance_cleanup": "本次执行不需要旧实例清理"
     },
+    "actions": {
+      "disable_service": "停用任務",
+      "enable_service": "啟用任務"
+    },
     "active_execution_action_disabled": "服務存在活動執行時操作會被停用。",
     "active_execution_notice": "目前有執行正在執行，設定和破壞性操作已暫時鎖定。",
     "active_member_execution_action_disabled": "目前成員有執行正在進行，操作已暫時鎖定。",
@@ -3321,6 +3325,7 @@
       "addresses": "地址",
       "classification": "分类",
       "cleanup_label": "清理目标",
+      "dns": "DNS",
       "domain_name": "域名",
       "error": "错误",
       "instance_id": "实例 ID",
@@ -3611,6 +3616,7 @@
     "scheduler": {
       "description": "此全域開關控制 V2 是否基於 CN 連通性健康檢查自動觸發成員故障轉移。關閉時手動操作仍可使用。",
       "disabled": "已關閉",
+      "disabled_hint": "啟用後由調度器統一巡檢 V2 任務。",
       "enable_confirm_action": "執行預檢並啟用",
       "enable_confirm_description": "V2 會基於 CN 連通性檢查，自動為所有已啟用的 V2 服務觸發故障轉移。V1 衝突會被阻止，但全域啟用前建議先手動演練單個服務。",
       "enable_confirm_title": "啟用 V2 自動調度？",
@@ -3618,6 +3624,7 @@
       "enable_warning_confirm_title": "带警告啟用調度器？",
       "enable_with_warnings_action": "仍然啟用",
       "enabled": "已啟用",
+      "enabled_hint": "調度器正在統一巡檢 V2 任務。",
       "preflight_failed_title": "調度器預檢失敗",
       "preflight_no_enabled_services_label": "已啟用服務",
       "preflight_no_enabled_services_message": "沒有已啟用的 V2 服務會被調度。",

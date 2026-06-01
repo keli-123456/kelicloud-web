@@ -10,9 +10,8 @@ import {
   TextField,
 } from "@/components/admin/admin-ui";
 import {
-  ADMIN_PANEL_CLASS,
-  ADMIN_PANEL_HEADER_CLASS,
   AdminPageShell,
+  AdminSettingsPanel,
   AdminSideNav,
   AdminSideNavButton,
   AdminSplitLayout,
@@ -72,39 +71,25 @@ const Account = () => {
         )}
       >
         {activeSection === "account" ? (
-          <section className={ADMIN_PANEL_CLASS}>
-            <div className={ADMIN_PANEL_HEADER_CLASS}>
-              <div>
-                <h2 className="text-sm font-semibold tracking-wide text-slate-900 dark:text-slate-50">
-                  {t("account.profile_title", "个人资料")}
-                </h2>
-                <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-                  {t(
-                    "account.profile_description",
-                    "更新用户名和登录密码。密码修改成功后会跳转到首页。",
-                  )}
-                </p>
-              </div>
-            </div>
-            <div className="p-4">
-              <AccountProfileSection />
-            </div>
-          </section>
+          <AdminSettingsPanel
+            title={t("account.profile_title", "个人资料")}
+            description={t(
+              "account.profile_description",
+              "更新用户名和登录密码。密码修改成功后会跳转到首页。",
+            )}
+            bodyClassName="py-4"
+          >
+            <AccountProfileSection />
+          </AdminSettingsPanel>
         ) : (
           <section className="min-w-0">
-            <div className={ADMIN_PANEL_CLASS}>
-              <div className={ADMIN_PANEL_HEADER_CLASS}>
-                <div>
-                  <h2 className="text-sm font-semibold tracking-wide text-slate-900 dark:text-slate-50">
-                    {t("admin.users.title")}
-                  </h2>
-                  <p className="mt-1 max-w-2xl text-xs text-slate-500 dark:text-slate-400">
-                    {t("admin.users.description")}
-                  </p>
-                </div>
-              </div>
+            <AdminSettingsPanel
+              title={t("admin.users.title")}
+              description={t("admin.users.description")}
+              bodyClassName="p-0"
+            >
               <AdminUsersSection embedded />
-            </div>
+            </AdminSettingsPanel>
           </section>
         )}
       </AdminSplitLayout>

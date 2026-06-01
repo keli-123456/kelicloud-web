@@ -16,6 +16,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
+  AdminDataPanel,
   AdminEmptyState,
   AdminPageShell,
   AdminTableSkeleton,
@@ -2032,56 +2033,56 @@ const NodeGroupSection = ({
     isNodeConnectivityBlocked(liveByNode[node.uuid])
   ).length;
 
+  const groupSummary = (
+    <span className="flex min-w-0 flex-wrap items-center gap-2">
+      <Badge
+        variant="outline"
+        className="shrink-0 rounded-md px-2.5 py-1"
+      >
+        {t("admin.nodeTable.groupNodeCount", {
+          count: nodes.length,
+          defaultValue: "{{count}} 台服务器",
+        })}
+      </Badge>
+      <GroupSummaryPill
+        label={t("nodeCard.online", { defaultValue: "在线" })}
+        value={`${onlineCount}/${nodes.length}`}
+        tone="green"
+      />
+      <GroupSummaryPill
+        label={t("admin.nodeTable.blockedCount", { defaultValue: "阻断" })}
+        value={`${blockedCount}`}
+        tone="red"
+      />
+    </span>
+  );
+
   return (
-    <section className="min-w-0 border-t border-slate-200/80 pt-4 dark:border-slate-800/90">
-      <div className="flex flex-col gap-4 pb-3 xl:flex-row xl:items-center xl:justify-between">
-        <div className="min-w-0 flex-1 overflow-x-auto pb-1">
-          <div className="flex min-w-max items-center gap-2 pr-2 whitespace-nowrap">
-            <div className="shrink-0 text-base font-semibold tracking-normal text-foreground">
-              {groupName}
-            </div>
-            <Badge
-              variant="outline"
-              className="shrink-0 rounded-md px-2.5 py-1"
-            >
-              {t("admin.nodeTable.groupNodeCount", {
-                count: nodes.length,
-                defaultValue: "{{count}} 台服务器",
-              })}
-            </Badge>
-            <GroupSummaryPill
-              label={t("nodeCard.online", { defaultValue: "在线" })}
-              value={`${onlineCount}/${nodes.length}`}
-              tone="green"
-            />
-            <GroupSummaryPill
-              label={t("admin.nodeTable.blockedCount", { defaultValue: "阻断" })}
-              value={`${blockedCount}`}
-              tone="red"
-            />
-          </div>
+    <AdminDataPanel
+      title={groupName}
+      description={groupSummary}
+      bodyClassName="p-0"
+      actions={installActionsEnabled ? (
+        <div className="flex shrink-0 flex-wrap gap-2 xl:justify-end">
+          <GenerateCommandButton
+            nodes={nodes}
+            settings={settings}
+            toolbar
+            groupMode
+            presetGroupName={groupName}
+            toolbarLabel={t("admin.nodeTable.installCurrentGroupAgent", "为当前分组安装 Agent")}
+            disabled={false}
+          />
+          <GroupUpgradeButton
+            groupName={groupName}
+            nodes={nodes}
+            liveByNode={liveByNode}
+            settings={settings}
+          />
         </div>
-        {installActionsEnabled ? (
-          <div className="flex shrink-0 flex-wrap gap-2 xl:justify-end">
-            <GenerateCommandButton
-              nodes={nodes}
-              settings={settings}
-              toolbar
-              groupMode
-              presetGroupName={groupName}
-              toolbarLabel={t("admin.nodeTable.installCurrentGroupAgent", "为当前分组安装 Agent")}
-              disabled={false}
-            />
-            <GroupUpgradeButton
-              groupName={groupName}
-              nodes={nodes}
-              liveByNode={liveByNode}
-              settings={settings}
-            />
-          </div>
-        ) : null}
-      </div>
-      <div className="min-w-0 overflow-x-auto overscroll-x-contain rounded-lg border border-slate-200/80 bg-white [scrollbar-gutter:stable] dark:border-slate-800/90 dark:bg-slate-950">
+      ) : null}
+    >
+      <div className="min-w-0 overflow-x-auto overscroll-x-contain [scrollbar-gutter:stable]">
         <Table className="min-w-[1120px] table-auto">
           <NodeTableColumnProfile />
           <NodeTableColumns />
@@ -2096,7 +2097,7 @@ const NodeGroupSection = ({
           </TableBody>
         </Table>
       </div>
-    </section>
+    </AdminDataPanel>
   );
 };
 

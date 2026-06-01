@@ -13,12 +13,11 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import {
-  ADMIN_PANEL_CLASS,
+  AdminSettingsPanel,
   AdminSettingsSkeleton,
 } from "@/components/admin/AdminPageShell";
 import {
   SettingCardCollapse,
-  SettingCardLabel,
   SettingCardShortTextInput,
 } from "@/components/admin/SettingCard";
 import { useAccount } from "@/contexts/AccountContext";
@@ -30,8 +29,6 @@ import {
   getReadableErrorMessage,
 } from "@/lib/apiErrorMessage";
 import { ADMIN_FORM_DIALOG_CLASS } from "@/components/admin/AdminFormStyles";
-
-const settingsPanelClass = `${ADMIN_PANEL_CLASS} px-4 py-2`;
 
 export default function SiteSettings() {
   const { t } = useTranslation();
@@ -70,8 +67,7 @@ export default function SiteSettings() {
 
   return (
     <div className="grid gap-4">
-      <section className={settingsPanelClass}>
-        <SettingCardLabel>{t("settings.site.title")}</SettingCardLabel>
+      <AdminSettingsPanel title={t("settings.site.title")}>
         <SettingCardShortTextInput
           title={t("settings.site.name")}
           description={t("settings.site.name_description")}
@@ -96,12 +92,11 @@ export default function SiteSettings() {
             await updateSettingsWithToast({ site_subtitle: value }, t, "system");
           }}
         />
-      </section>
-      <section className={settingsPanelClass}>
-        <SettingCardLabel>{t("settings.platform_tools_title")}</SettingCardLabel>
-        <div className="-mt-1 px-0 pb-1 text-sm text-muted-foreground">
-          {t("settings.platform_tools_description")}
-        </div>
+      </AdminSettingsPanel>
+      <AdminSettingsPanel
+        title={t("settings.platform_tools_title")}
+        description={t("settings.platform_tools_description")}
+      >
         <SettingCardCollapse
           title={t("settings.custom.favicon", "Customize Logo and Favicon")}
           description={t(
@@ -239,7 +234,7 @@ export default function SiteSettings() {
             </div>
           </div>
         </SettingCardCollapse>
-      </section>
+      </AdminSettingsPanel>
     </div>
   );
 }

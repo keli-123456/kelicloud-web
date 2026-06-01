@@ -7,6 +7,7 @@ import { toast } from "sonner";
 
 import {
   AdminPageShell,
+  AdminDataPanel,
   AdminSurface,
   AdminTableSkeleton,
 } from "@/components/admin/AdminPageShell";
@@ -4529,7 +4530,7 @@ export default function FailoverV2Page() {
         contentClassName="gap-3"
       >
         {platformAdmin ? (
-          <div className="flex items-center justify-between gap-3 rounded-lg border border-slate-200/80 bg-white px-4 py-3 shadow-[0_18px_45px_-42px_rgba(15,23,42,0.75)] dark:border-slate-800/90 dark:bg-slate-950">
+          <AdminDataPanel bodyClassName="flex items-center justify-between gap-3 px-4 py-3">
             <div className="min-w-0">
               <div className="text-sm font-semibold text-slate-900 dark:text-slate-50">
                 {t("failover_v2.scheduler.title", { defaultValue: "Automatic Scheduler" })}
@@ -4554,7 +4555,7 @@ export default function FailoverV2Page() {
                 }}
               />
             </div>
-          </div>
+          </AdminDataPanel>
         ) : null}
 
         {error ? (
@@ -4589,19 +4590,14 @@ export default function FailoverV2Page() {
 
         {!loadingServices && services.length > 0 ? (
           <div className="grid min-w-0 gap-3 xl:grid-cols-[minmax(0,1fr)_390px]">
-            <div className="min-w-0 overflow-hidden rounded-lg border border-slate-200/80 bg-white shadow-[0_18px_45px_-42px_rgba(15,23,42,0.75)] dark:border-slate-800/90 dark:bg-slate-950">
-              <div className="flex min-h-[54px] flex-col gap-2 border-b border-slate-200 bg-slate-50/70 px-4 py-3 sm:flex-row sm:items-center sm:justify-between dark:border-slate-800 dark:bg-slate-900/35">
-                <div className="min-w-0">
-                  <h2 className="text-sm font-semibold text-slate-900 dark:text-slate-50">
-                    {t("failover_v2.workbench.task_queue", { defaultValue: "任务列表" })}
-                  </h2>
-                  <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-                    {platformAdmin
-                      ? t("failover_v2.workbench.task_queue_hint", { defaultValue: "先看任务健康和最近执行，点击任务展开子成员。" })
-                      : t("failover_v2.public.task_queue_hint", { defaultValue: "查看服务状态、成员地址和最近处理结果，点击任务展开成员。" })}
-                  </p>
-                </div>
-                <div className="flex shrink-0 items-center gap-2">
+            <AdminDataPanel
+              title={t("failover_v2.workbench.task_queue", { defaultValue: "任务列表" })}
+              description={platformAdmin
+                ? t("failover_v2.workbench.task_queue_hint", { defaultValue: "先看任务健康和最近执行，点击任务展开子成员。" })
+                : t("failover_v2.public.task_queue_hint", { defaultValue: "查看服务状态、成员地址和最近处理结果，点击任务展开成员。" })}
+              bodyClassName="p-0"
+              actions={(
+                <>
                   <span className="rounded-md bg-white px-2.5 py-1.5 text-xs text-slate-500 ring-1 ring-slate-200 dark:bg-slate-950/60 dark:text-slate-400 dark:ring-slate-800">
                     {services.length} {t("failover_v2.workbench.task_count_suffix", { defaultValue: "个任务" })}
                   </span>
@@ -4609,8 +4605,9 @@ export default function FailoverV2Page() {
                     <Plus className="size-4" />
                     {t("failover_v2.create_service", { defaultValue: "Create service" })}
                   </Button>
-                </div>
-              </div>
+                </>
+              )}
+            >
 
               <div className="overflow-x-auto">
               <div className="min-w-[880px] divide-y divide-slate-200/80 dark:divide-slate-800/80">
@@ -4807,8 +4804,8 @@ export default function FailoverV2Page() {
                       </div>
 
                       {expanded ? (
-                        <div className="border-t border-slate-200 bg-slate-50/35 px-3 py-3 dark:border-slate-800 dark:bg-slate-900/15">
-                          <div className="overflow-hidden rounded-md border border-slate-200/80 bg-white dark:border-slate-800 dark:bg-slate-950/70">
+                        <div className="border-t border-slate-200 bg-slate-50/45 dark:border-slate-800 dark:bg-slate-900/20">
+                          <div className="overflow-hidden">
                               <div className="border-b border-slate-200 bg-slate-50/70 px-3 py-2 dark:border-slate-800 dark:bg-slate-900/35">
                                 <div className="text-sm font-semibold text-slate-900 dark:text-slate-50">
                                   {t("failover_v2.workbench.member_list", { defaultValue: "子成员" })}
@@ -4942,9 +4939,13 @@ export default function FailoverV2Page() {
                 itemLabel={t("admin.pagination.tasks", { defaultValue: "tasks" })}
                 compact
               />
-            </div>
+            </AdminDataPanel>
 
-            <div className="min-w-0 overflow-hidden rounded-lg border border-slate-200/80 bg-white shadow-[0_18px_45px_-42px_rgba(15,23,42,0.75)] dark:border-slate-800/90 dark:bg-slate-950 xl:sticky xl:top-4 xl:self-start">
+            <AdminDataPanel
+              title={t("failover_v2.workbench.member_detail", { defaultValue: "子成员详情" })}
+              bodyClassName="p-0"
+              className="xl:sticky xl:top-4 xl:self-start"
+            >
                 {selectedMemberDetail ? (() => {
                   const { service, member } = selectedMemberDetail;
                   const memberBusy = isFailoverV2MemberBusy(service, member);
@@ -4979,7 +4980,7 @@ export default function FailoverV2Page() {
                         <div className="flex items-start justify-between gap-3">
                           <div className="min-w-0">
                             <div className="text-xs font-medium uppercase text-slate-500 dark:text-slate-400">
-                              {t("failover_v2.workbench.member_detail", { defaultValue: "子成员详情" })}
+                              {service.name}
                             </div>
                             <div className="mt-1 truncate text-sm font-semibold text-slate-900 dark:text-slate-50">
                               {getMemberDisplayTitle(member)}
@@ -4988,12 +4989,12 @@ export default function FailoverV2Page() {
                           {memberBusy ? <LoaderCircle className="mt-0.5 size-4 shrink-0 animate-spin text-sky-500" /> : null}
                         </div>
                         <div className="mt-2 truncate text-xs text-slate-500 dark:text-slate-400">
-                          {service.name}
+                          {formatMemberSubtitle(member) || service.name}
                         </div>
                       </div>
 
-                      <div className="space-y-3 p-4">
-                        <div className="rounded-md border border-slate-200/80 bg-slate-50/70 px-3 py-3 dark:border-slate-800 dark:bg-slate-900/35">
+                        <div className="divide-y divide-slate-200/80 dark:divide-slate-800">
+                        <div className="px-4 py-3">
                           <div className="flex items-start justify-between gap-3">
                             <div className="min-w-0">
                               <div className="text-[11px] font-medium uppercase text-slate-500 dark:text-slate-400">
@@ -5015,7 +5016,7 @@ export default function FailoverV2Page() {
                             <div>{t("failover_v2.summary.members", { defaultValue: "Members" })}: {service.enabled_member_count} / {service.member_count}</div>
                           </div>
                           {serviceLatestExecution ? (
-                            <div className="mt-3 rounded-md border border-slate-200/80 bg-white/80 px-3 py-2 dark:border-slate-800 dark:bg-slate-950/40">
+                            <div className="mt-3 border-t border-slate-200/80 pt-3 dark:border-slate-800">
                               <div className="flex flex-wrap items-center gap-2">
                                 {platformAdmin ? (
                                   <span className="text-sm font-semibold text-slate-900 dark:text-slate-50">
@@ -5063,7 +5064,7 @@ export default function FailoverV2Page() {
                           ) : null}
                         </div>
 
-                        <div className="flex flex-wrap gap-1.5">
+                        <div className="flex flex-wrap gap-1.5 px-4 py-3">
                           <Badge color={member.enabled ? "green" : "gray"}>
                             {member.enabled
                               ? t("common.enabled", { defaultValue: "Enabled" })
@@ -5084,7 +5085,7 @@ export default function FailoverV2Page() {
                           })() : null}
                         </div>
 
-                        <div className="rounded-md border border-slate-200/80 bg-slate-50/55 px-3 py-3 dark:border-slate-800 dark:bg-slate-900/25">
+                        <div className="px-4 py-3">
                           <div className="space-y-2 break-words text-xs text-slate-600 dark:text-slate-300">
                             {platformAdmin ? <div>{formatMemberSubtitle(member) || "-"}</div> : null}
                             <div>{t("failover_v2.detail_fields.ipv4", { defaultValue: "IPv4" })}: {memberIPv4Address || t("failover_v2.no_current_ip", { defaultValue: "No current IP" })}</div>
@@ -5103,7 +5104,7 @@ export default function FailoverV2Page() {
                           </div>
                         </div>
 
-                        <div className="grid grid-cols-2 gap-2">
+                        <div className="grid grid-cols-2 gap-2 px-4 py-3">
                           <Button
                             size="sm"
                             onClick={() => setFailoverTarget({ service, member })}
@@ -5140,7 +5141,7 @@ export default function FailoverV2Page() {
                     </div>
                   </div>
                 )}
-              </div>
+            </AdminDataPanel>
             </div>
         ) : null}
       </AdminPageShell>

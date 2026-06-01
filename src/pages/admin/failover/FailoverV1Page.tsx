@@ -22,6 +22,7 @@ import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
 import {
+  AdminDataPanel,
   AdminEmptyState,
   AdminPageShell,
   AdminTableSkeleton,
@@ -10743,23 +10744,19 @@ function FailoverPageContent() {
 
         {!loading && !error && tasks.length > 0 ? (
           <div className="grid min-w-0 gap-3 xl:grid-cols-[minmax(0,1fr)_390px]">
-            <div className="min-w-0 overflow-hidden rounded-lg border border-slate-200/80 bg-white shadow-[0_18px_45px_-42px_rgba(15,23,42,0.75)] dark:border-slate-800/90 dark:bg-slate-950">
-              <div className="flex min-h-[54px] flex-col gap-2 border-b border-border bg-slate-50/70 px-4 py-3 dark:bg-slate-900/35 sm:flex-row sm:items-center sm:justify-between">
-                <div className="min-w-0">
-                  <h2 className="text-sm font-semibold leading-5 text-foreground">
-                    {t("failover.workspace.tasks", { defaultValue: "任务列表" })}
-                  </h2>
-                  <p className="mt-1 text-xs leading-5 text-muted-foreground">
-                    {platformAdmin
-                      ? t("failover.workspace.tasks_hint", { defaultValue: "按任务、出口、DNS 与最近执行状态快速扫描。" })
-                      : t("failover.public.tasks_hint", { defaultValue: "查看服务、当前地址和最近处理状态。" })}
-                  </p>
-                </div>
+            <AdminDataPanel
+              title={t("failover.workspace.tasks", { defaultValue: "任务列表" })}
+              description={platformAdmin
+                ? t("failover.workspace.tasks_hint", { defaultValue: "按任务、出口、DNS 与最近执行状态快速扫描。" })
+                : t("failover.public.tasks_hint", { defaultValue: "查看服务、当前地址和最近处理状态。" })}
+              bodyClassName="p-0"
+              actions={(
                 <Button type="button" size="sm" onClick={openCreateDialog} className="shrink-0">
                   <Plus className="size-4" />
                   {t("failover.create", { defaultValue: "New task" })}
                 </Button>
-              </div>
+              )}
+            >
 
               <div className="overflow-x-auto">
                 <table className="w-full min-w-[720px] text-left text-sm">
@@ -11027,23 +11024,18 @@ function FailoverPageContent() {
                 itemLabel={t("admin.pagination.tasks", { defaultValue: "tasks" })}
                 compact
               />
-            </div>
+            </AdminDataPanel>
 
-            <div className="min-w-0 overflow-hidden rounded-lg border border-slate-200/80 bg-white shadow-[0_18px_45px_-42px_rgba(15,23,42,0.75)] dark:border-slate-800/90 dark:bg-slate-950 xl:sticky xl:top-4 xl:self-start">
-              <div className="flex min-h-[54px] items-center justify-between gap-3 border-b border-border bg-slate-50/70 px-4 py-3 dark:bg-slate-900/35">
-                <div className="min-w-0">
-                  <h2 className="text-sm font-semibold leading-5 text-foreground">
-                    {platformAdmin
-                      ? t("failover.workspace.inspector", { defaultValue: "任务观察台" })
-                      : t("failover.public.inspector", { defaultValue: "服务概览" })}
-                  </h2>
-                  <p className="mt-1 text-xs leading-5 text-muted-foreground">
-                    {platformAdmin
-                      ? t("failover.workspace.inspector_hint", { defaultValue: "选中任务后查看最近步骤、风险和操作。" })
-                      : t("failover.public.inspector_hint", { defaultValue: "选中服务后查看状态、当前地址和处理结果。" })}
-                  </p>
-                </div>
-              </div>
+            <AdminDataPanel
+              title={platformAdmin
+                ? t("failover.workspace.inspector", { defaultValue: "任务观察台" })
+                : t("failover.public.inspector", { defaultValue: "服务概览" })}
+              description={platformAdmin
+                ? t("failover.workspace.inspector_hint", { defaultValue: "选中任务后查看最近步骤、风险和操作。" })
+                : t("failover.public.inspector_hint", { defaultValue: "选中服务后查看状态、当前地址和处理结果。" })}
+              bodyClassName="p-0"
+              className="xl:sticky xl:top-4 xl:self-start"
+            >
 
               {selectedTask ? (() => {
                 const view = getTaskView(selectedTask);
@@ -11053,8 +11045,8 @@ function FailoverPageContent() {
                 const executionStopping = latestExecution ? stoppingExecutionID === latestExecution.id : false;
 
                 return (
-                  <div className="space-y-4 p-4">
-                    <div className="min-w-0 rounded-md border border-slate-200/80 bg-slate-50/70 px-3 py-3 dark:border-slate-800 dark:bg-slate-900/35">
+                  <div className="divide-y divide-slate-200/80 dark:divide-slate-800">
+                    <div className="min-w-0 px-4 py-3">
                       <div className="flex flex-wrap items-center gap-2">
                         <div className="min-w-0 flex-1 truncate text-[15px] font-semibold leading-6 text-foreground" title={selectedTask.name}>
                           {selectedTask.name}
@@ -11090,8 +11082,8 @@ function FailoverPageContent() {
                       </div>
                     </div>
 
-                    <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-1 2xl:grid-cols-2">
-                      <div className="min-w-0 rounded-md border border-slate-200/70 bg-white/80 px-3 py-2 dark:border-slate-800 dark:bg-slate-900/25">
+                    <div className="grid gap-3 px-4 py-3 sm:grid-cols-2 xl:grid-cols-1 2xl:grid-cols-2">
+                      <div className="min-w-0 border-l-2 border-slate-200/90 py-1 pl-3 dark:border-slate-700">
                         <div className="text-[11px] font-semibold leading-4 text-muted-foreground">
                           {platformAdmin
                             ? t("failover.task.outlet_ip_label", { defaultValue: "Outlet IP" })
@@ -11102,7 +11094,7 @@ function FailoverPageContent() {
                         </div>
                       </div>
                       {platformAdmin ? (
-                      <div className="min-w-0 rounded-md border border-slate-200/70 bg-white/80 px-3 py-2 dark:border-slate-800 dark:bg-slate-900/25">
+                      <div className="min-w-0 border-l-2 border-slate-200/90 py-1 pl-3 dark:border-slate-700">
                         <div className="text-[11px] font-semibold leading-4 text-muted-foreground">
                           {t("failover.task.dns_target_label", { defaultValue: "DNS target" })}
                         </div>
@@ -11111,7 +11103,7 @@ function FailoverPageContent() {
                         </div>
                       </div>
                       ) : null}
-                      <div className="min-w-0 rounded-md border border-slate-200/70 bg-white/80 px-3 py-2 dark:border-slate-800 dark:bg-slate-900/25">
+                      <div className="min-w-0 border-l-2 border-slate-200/90 py-1 pl-3 dark:border-slate-700">
                         <div className="text-[11px] font-semibold leading-4 text-muted-foreground">
                           {platformAdmin
                             ? t("failover.table.cooldown", { defaultValue: "Cooldown" })
@@ -11122,7 +11114,7 @@ function FailoverPageContent() {
                         </div>
                       </div>
                       {platformAdmin ? (
-                      <div className="min-w-0 rounded-md border border-slate-200/70 bg-white/80 px-3 py-2 dark:border-slate-800 dark:bg-slate-900/25">
+                      <div className="min-w-0 border-l-2 border-slate-200/90 py-1 pl-3 dark:border-slate-700">
                         <div className="text-[11px] font-semibold leading-4 text-muted-foreground">
                           {t("failover.editor.section_plans", { defaultValue: "Failover plans" })}
                         </div>
@@ -11134,14 +11126,16 @@ function FailoverPageContent() {
                     </div>
 
                     {platformAdmin ? (
-                      <DnsSchedulerLinkedSummary
-                        sourceType="failover_v1"
-                        sourceId={selectedTask.id}
-                      />
+                      <div className="px-4 py-3">
+                        <DnsSchedulerLinkedSummary
+                          sourceType="failover_v1"
+                          sourceId={selectedTask.id}
+                        />
+                      </div>
                     ) : null}
 
-                    <div className="overflow-hidden rounded-md border border-slate-200/80 bg-slate-50/55 dark:border-slate-800 dark:bg-slate-900/25">
-                      <div className="flex items-center justify-between gap-2 border-b border-border px-3 py-2">
+                    <div className="px-4 py-3">
+                      <div className="flex items-center justify-between gap-2 border-b border-slate-200/80 pb-2 dark:border-slate-800">
                         <div className="text-[12px] font-semibold leading-5 text-foreground">
                           {platformAdmin
                             ? t("failover.table.latest", { defaultValue: "Latest execution" })
@@ -11153,7 +11147,7 @@ function FailoverPageContent() {
                           </Badge>
                         ) : null}
                       </div>
-                      <div className="space-y-3 px-3 py-3">
+                      <div className="space-y-3 pt-3">
                         <div
                           className={cn(
                             "text-sm leading-5",
@@ -11213,7 +11207,7 @@ function FailoverPageContent() {
                     </div>
 
                     {platformAdmin && view.taskRiskBadges.length > 0 ? (
-                      <div className="flex flex-wrap gap-2">
+                      <div className="flex flex-wrap gap-2 px-4 py-3">
                         {view.taskRiskBadges.map((badge) => (
                           <Badge key={badge.key} variant={badge.variant} title={badge.title || undefined}>
                             {badge.label}
@@ -11223,13 +11217,13 @@ function FailoverPageContent() {
                     ) : null}
 
                     {platformAdmin ? (
-                    <div className="space-y-2">
+                    <div className="space-y-2 px-4 py-3">
                       <div className="text-[12px] font-semibold leading-5 text-foreground">
                         {t("failover.editor.section_plans", { defaultValue: "Failover plans" })}
                       </div>
                       <div className="space-y-2">
                         {selectedTask.plans.slice(0, 3).map((plan) => (
-                          <div key={plan.id} className="rounded-md border border-slate-200/70 bg-white/80 px-3 py-2 dark:border-slate-800 dark:bg-slate-900/25">
+                          <div key={plan.id} className="border-l-2 border-slate-200/90 py-1 pl-3 dark:border-slate-700">
                             <div className="flex items-center justify-between gap-2">
                               <div className="min-w-0 truncate text-[13px] font-medium leading-5 text-foreground" title={plan.name}>
                                 {plan.name}
@@ -11254,7 +11248,7 @@ function FailoverPageContent() {
                     </div>
                     ) : null}
 
-                    <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-1 2xl:grid-cols-2">
+                    <div className="grid gap-2 px-4 py-3 sm:grid-cols-2 xl:grid-cols-1 2xl:grid-cols-2">
                       <Button type="button" size="sm" variant="outline" onClick={() => void openEditDialog(selectedTask)} disabled={taskBusy || taskRunning}>
                         {taskBusy ? <LoaderCircle className="size-4 animate-spin" /> : <PencilLine className="size-4" />}
                         {t("common.edit", { defaultValue: "Edit" })}
@@ -11304,7 +11298,7 @@ function FailoverPageContent() {
                   </div>
                 );
               })() : null}
-            </div>
+            </AdminDataPanel>
           </div>
         ) : null}
       </AdminPageShell>

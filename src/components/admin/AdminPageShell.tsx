@@ -67,6 +67,98 @@ export function AdminPanelBody({
   );
 }
 
+export function AdminSettingsPanel({
+  title,
+  description,
+  children,
+  className,
+  bodyClassName,
+}: {
+  title?: ReactNode;
+  description?: ReactNode;
+  children: ReactNode;
+  className?: string;
+  bodyClassName?: string;
+}) {
+  const hasHeader = Boolean(title || description);
+
+  return (
+    <section className={cn(ADMIN_PANEL_CLASS, className)}>
+      {hasHeader ? (
+        <div className="border-b border-slate-200/80 bg-slate-50/70 px-5 py-3.5 dark:border-slate-800 dark:bg-slate-900/35">
+          {title ? (
+            <h2 className="text-[15px] font-semibold leading-5 text-slate-950 dark:text-slate-50">
+              {title}
+            </h2>
+          ) : null}
+          {description ? (
+            <p className="mt-1 max-w-3xl text-sm leading-5 text-slate-500 dark:text-slate-400">
+              {description}
+            </p>
+          ) : null}
+        </div>
+      ) : null}
+      <div className={cn("px-5 py-1", bodyClassName)}>
+        {children}
+      </div>
+    </section>
+  );
+}
+
+export function AdminDataPanel({
+  title,
+  description,
+  actions,
+  children,
+  className,
+  headerClassName,
+  bodyClassName,
+}: {
+  title?: ReactNode;
+  description?: ReactNode;
+  actions?: ReactNode;
+  children: ReactNode;
+  className?: string;
+  headerClassName?: string;
+  bodyClassName?: string;
+}) {
+  const hasHeader = Boolean(title || description || actions);
+
+  return (
+    <section className={cn(ADMIN_PANEL_CLASS, "overflow-hidden", className)}>
+      {hasHeader ? (
+        <div
+          className={cn(
+            "flex min-h-[54px] flex-col gap-2 border-b border-slate-200/80 bg-slate-50/70 px-4 py-3 dark:border-slate-800 dark:bg-slate-900/35 sm:flex-row sm:items-center sm:justify-between",
+            headerClassName,
+          )}
+        >
+          <div className="min-w-0">
+            {title ? (
+              <h2 className="text-sm font-semibold leading-5 text-slate-950 dark:text-slate-50">
+                {title}
+              </h2>
+            ) : null}
+            {description ? (
+              <p className="mt-1 text-xs leading-5 text-slate-500 dark:text-slate-400">
+                {description}
+              </p>
+            ) : null}
+          </div>
+          {actions ? (
+            <div className="flex shrink-0 flex-wrap items-center gap-2">
+              {actions}
+            </div>
+          ) : null}
+        </div>
+      ) : null}
+      <div className={cn("min-w-0", bodyClassName)}>
+        {children}
+      </div>
+    </section>
+  );
+}
+
 export function AdminPageShell({
   title,
   description,
@@ -203,11 +295,11 @@ export function AdminSplitLayout({
   return (
     <div
       className={cn(
-        "grid min-w-0 items-start gap-4 lg:grid-cols-[220px_minmax(0,1fr)]",
+        "grid min-w-0 items-start gap-5 lg:grid-cols-[232px_minmax(0,1fr)]",
         className,
       )}
     >
-      <aside className={cn("min-w-0 lg:sticky lg:top-4", sidebarClassName)}>
+      <aside className={cn("min-w-0 lg:sticky lg:top-5", sidebarClassName)}>
         {sidebar}
       </aside>
       <div className={cn("min-w-0", contentClassName)}>{children}</div>
@@ -228,7 +320,7 @@ export function AdminSideNav({
     <nav
       aria-label={ariaLabel}
       className={cn(
-        "flex min-w-0 gap-1 overflow-x-auto border-b border-slate-200/80 bg-transparent pb-2 shadow-none dark:border-slate-800/90 lg:flex-col lg:border-b-0 lg:border-r lg:pb-0 lg:pr-3 lg:overflow-visible",
+        "flex min-w-0 gap-1 overflow-x-auto rounded-lg border border-slate-200/80 bg-white p-2 shadow-none dark:border-slate-800/90 dark:bg-slate-950 lg:flex-col lg:overflow-visible",
         className,
       )}
     >

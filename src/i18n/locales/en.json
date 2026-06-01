@@ -3250,6 +3250,10 @@
       "the_saved_old_instance_now_matches_the_member_s_current_instance": "The saved old instance now matches the member's current instance",
       "this_execution_did_not_require_old_instance_cleanup": "This execution did not require old instance cleanup"
     },
+    "actions": {
+      "disable_service": "Disable service",
+      "enable_service": "Enable service"
+    },
     "active_execution_action_disabled": "Actions are disabled while this service has an active execution.",
     "active_execution_notice": "An execution is active. Configuration and destructive actions are temporarily locked.",
     "active_member_execution_action_disabled": "Actions are disabled while this member has an active execution.",
@@ -3321,6 +3325,7 @@
       "addresses": "Addresses",
       "classification": "Classification",
       "cleanup_label": "Cleanup target",
+      "dns": "DNS",
       "domain_name": "Domain",
       "error": "Error",
       "instance_id": "Instance ID",
@@ -3611,6 +3616,7 @@
     "scheduler": {
       "description": "This global switch controls whether V2 will automatically trigger member failover from CN connectivity health checks. Manual actions remain available even when it is off.",
       "disabled": "Disabled",
+      "disabled_hint": "Enable it to let the scheduler check V2 tasks in one place.",
       "enable_confirm_action": "Run preflight and enable",
       "enable_confirm_description": "V2 will automatically trigger failover for every enabled V2 service based on CN connectivity checks. V1 conflicts are blocked, but run one service manually first before enabling this globally.",
       "enable_confirm_title": "Enable V2 automatic scheduler?",
@@ -3618,6 +3624,7 @@
       "enable_warning_confirm_title": "Enable scheduler with warnings?",
       "enable_with_warnings_action": "Enable anyway",
       "enabled": "Enabled",
+      "enabled_hint": "The scheduler is checking V2 tasks in one place.",
       "preflight_failed_title": "Scheduler preflight failed",
       "preflight_no_enabled_services_label": "Enabled services",
       "preflight_no_enabled_services_message": "No enabled V2 services will be scheduled.",

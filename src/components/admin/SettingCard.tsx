@@ -79,17 +79,17 @@ export function SettingCard({
   return (
     <div
       className={cn(
-        "flex gap-3",
+        "flex min-w-0 gap-3",
         getDirectionClass(direction),
         bordless
           ? "border-0 bg-transparent p-0 shadow-none"
-          : "min-h-0 border-t border-slate-200/80 py-4 first:border-t-0 dark:border-slate-800/90",
+          : "min-h-0 border-t border-slate-200/80 py-3.5 first:border-t-0 dark:border-slate-800/90",
         className,
       )}
     >
       <div
         className={cn(
-          "flex w-full items-start justify-between gap-3",
+          "flex w-full min-w-0 flex-col gap-3 sm:flex-row sm:items-start sm:justify-between",
           onHeaderClick && "cursor-pointer",
         )}
         onClick={(event) => {
@@ -99,7 +99,7 @@ export function SettingCard({
           onHeaderClick?.();
         }}
       >
-        <div className="min-h-0 flex-1 space-y-1">
+        <div className="min-h-0 min-w-0 flex-1 space-y-1">
           <div className="text-[14px] font-semibold leading-5 tracking-normal text-slate-950 dark:text-slate-50">
             {title}
           </div>
@@ -117,7 +117,7 @@ export function SettingCard({
 }
 
 function Action({ children }: { children: React.ReactNode }) {
-  return <div data-setting-action="true" className="shrink-0">{children}</div>;
+  return <div data-setting-action="true" className="shrink-0 sm:pt-0.5">{children}</div>;
 }
 
 SettingCard.Action = Action;

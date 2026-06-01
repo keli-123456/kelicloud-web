@@ -3250,6 +3250,10 @@
       "the_saved_old_instance_now_matches_the_member_s_current_instance": "The saved old instance now matches the member's current instance",
       "this_execution_did_not_require_old_instance_cleanup": "This execution did not require old instance cleanup"
     },
+    "actions": {
+      "disable_service": "サービスを無効化",
+      "enable_service": "サービスを有効化"
+    },
     "active_execution_action_disabled": "このサービスで実行中の処理があるため、操作は無効です。",
     "active_execution_notice": "実行中の処理があります。設定変更と破壊的操作は一時的にロックされています。",
     "active_member_execution_action_disabled": "このメンバーで実行中の処理があるため、操作は一時的に無効です。",
@@ -3321,6 +3325,7 @@
       "addresses": "Addresses",
       "classification": "Classification",
       "cleanup_label": "Cleanup target",
+      "dns": "DNS",
       "domain_name": "Domain",
       "error": "Error",
       "instance_id": "Instance ID",
@@ -3616,6 +3621,7 @@
     "scheduler": {
       "description": "このグローバルスイッチは、CN 接続性ヘルスチェックから V2 がメンバーフェイルオーバーを自動実行するかどうかを制御します。オフでも手動操作は使用できます。",
       "disabled": "無効",
+      "disabled_hint": "有効にすると、スケジューラーが V2 タスクを一元的に巡回します。",
       "enable_confirm_action": "事前チェックして有効化",
       "enable_confirm_description": "V2 は CN 接続性チェックに基づき、有効なすべての V2 サービスでフェイルオーバーを自動実行します。V1 競合はブロックされますが、グローバル有効化前に 1 つのサービスで手動テストしてください。",
       "enable_confirm_title": "V2 自動スケジューラーを有効にしますか？",
@@ -3623,6 +3629,7 @@
       "enable_warning_confirm_title": "警告付きでスケジューラーを有効にしますか？",
       "enable_with_warnings_action": "それでも有効化",
       "enabled": "有効",
+      "enabled_hint": "スケジューラーが V2 タスクを一元的に巡回しています。",
       "preflight_failed_title": "スケジューラー事前チェック失敗",
       "preflight_no_enabled_services_label": "有効なサービス",
       "preflight_no_enabled_services_message": "スケジュール対象の有効な V2 サービスはありません。",

@@ -3250,6 +3250,10 @@
       "the_saved_old_instance_now_matches_the_member_s_current_instance": "The saved old instance now matches the member's current instance",
       "this_execution_did_not_require_old_instance_cleanup": "This execution did not require old instance cleanup"
     },
+    "actions": {
+      "disable_service": "Nonaktifkan layanan",
+      "enable_service": "Aktifkan layanan"
+    },
     "active_execution_action_disabled": "Aksi dinonaktifkan saat layanan ini memiliki eksekusi aktif.",
     "active_execution_notice": "Ada eksekusi aktif. Konfigurasi dan aksi destruktif dikunci sementara.",
     "active_member_execution_action_disabled": "Aksi dinonaktifkan saat member ini memiliki eksekusi aktif.",
@@ -3321,6 +3325,7 @@
       "addresses": "Addresses",
       "classification": "Classification",
       "cleanup_label": "Cleanup target",
+      "dns": "DNS",
       "domain_name": "Domain",
       "error": "Error",
       "instance_id": "Instance ID",
@@ -3616,6 +3621,7 @@
     "scheduler": {
       "description": "Switch global ini mengontrol apakah V2 otomatis memicu failover member dari health check konektivitas CN. Aksi manual tetap tersedia saat switch mati.",
       "disabled": "Nonaktif",
+      "disabled_hint": "Aktifkan agar penjadwal memeriksa tugas V2 secara terpadu.",
       "enable_confirm_action": "Jalankan preflight dan aktifkan",
       "enable_confirm_description": "V2 akan memicu failover otomatis untuk semua layanan V2 aktif berdasarkan pemeriksaan konektivitas CN. Konflik V1 diblokir, tetapi jalankan satu layanan secara manual sebelum mengaktifkan ini secara global.",
       "enable_confirm_title": "Aktifkan scheduler otomatis V2?",
@@ -3623,6 +3629,7 @@
       "enable_warning_confirm_title": "Aktifkan scheduler dengan peringatan?",
       "enable_with_warnings_action": "Tetap aktifkan",
       "enabled": "Aktif",
+      "enabled_hint": "Penjadwal sedang memeriksa tugas V2 secara terpadu.",
       "preflight_failed_title": "Preflight scheduler gagal",
       "preflight_no_enabled_services_label": "Layanan aktif",
       "preflight_no_enabled_services_message": "Tidak ada layanan V2 aktif yang akan dijadwalkan.",

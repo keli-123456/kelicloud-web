@@ -4,7 +4,7 @@ import { CalendarClock, GitBranch } from "lucide-react";
 import { toast } from "sonner";
 
 import {
-  ADMIN_PANEL_CLASS,
+  AdminSettingsPanel,
   AdminSettingsSkeleton,
 } from "@/components/admin/AdminPageShell";
 import {
@@ -21,7 +21,6 @@ import {
 } from "@/lib/apiErrorMessage";
 import { renderProviderInputs } from "@/utils/renderProviders";
 
-const notificationPanelClass = `${ADMIN_PANEL_CLASS} px-4 py-2`;
 const TELEGRAM_NOTIFICATION_METHOD = "telegram";
 const TELEGRAM_DEFAULT_ENDPOINT = "https://api.telegram.org/bot";
 
@@ -293,18 +292,16 @@ const Inner = () => {
 
   return (
     <div className="grid gap-4">
-      <section className={notificationPanelClass}>
-        <SettingCardLabel>
-          {t("notification.events.title", {
-            defaultValue: "通知范围",
-          })}
-        </SettingCardLabel>
-        <div className="-mt-1 pb-1 text-sm text-muted-foreground">
-          {t("notification.events.description", {
-            defaultValue:
-              "通知主要围绕用户套餐、故障切换和登录安全，不再维护独立的离线或资源告警规则。",
-          })}
-        </div>
+      <AdminSettingsPanel
+        title={t("notification.events.title", {
+          defaultValue: "通知范围",
+        })}
+        description={t("notification.events.description", {
+          defaultValue:
+            "通知主要围绕用户套餐、故障切换和登录安全，不再维护独立的离线或资源告警规则。",
+        })}
+        bodyClassName="py-2"
+      >
         <div className="divide-y divide-border/70">
           {eventScopes.map((item) => {
             const Icon = item.icon;
@@ -325,24 +322,18 @@ const Inner = () => {
             );
           })}
         </div>
-      </section>
+      </AdminSettingsPanel>
 
-      <section className={notificationPanelClass}>
-        <SettingCardLabel>
-          {t("settings.notification.target_binding_title")}
-        </SettingCardLabel>
-        <div className="-mt-1 pb-1 text-sm text-muted-foreground">
-          {t("settings.notification.target_binding_description")}
-        </div>
+      <AdminSettingsPanel
+        title={t("settings.notification.target_binding_title")}
+        description={t("settings.notification.target_binding_description")}
+      >
         {renderUserBinding()}
-      </section>
+      </AdminSettingsPanel>
 
       {platformAdmin ? (
         <>
-          <section className={notificationPanelClass}>
-            <SettingCardLabel>
-              {t("settings.notification.platform_sender_title")}
-            </SettingCardLabel>
+          <AdminSettingsPanel title={t("settings.notification.platform_sender_title")}>
             <SettingCardSwitch
               title={t("settings.notification.enable")}
               description={t("settings.notification.enable_description")}
@@ -442,10 +433,9 @@ const Inner = () => {
             >
               {t("settings.notification.test_title")}
             </SettingCardButton>
-          </section>
+          </AdminSettingsPanel>
 
-          <section className={notificationPanelClass}>
-            <SettingCardLabel>{t("admin.notification.expire_title")}</SettingCardLabel>
+          <AdminSettingsPanel title={t("admin.notification.expire_title")}>
             <div className="mb-2 grid gap-2 border-y border-slate-200/80 py-3 dark:border-slate-800 sm:grid-cols-2 xl:grid-cols-4">
               {expireStatusItems.map((item) => (
                 <div key={item.label} className="min-w-0">
@@ -515,7 +505,7 @@ const Inner = () => {
                 );
               }}
             />
-          </section>
+          </AdminSettingsPanel>
         </>
       ) : null}
     </div>

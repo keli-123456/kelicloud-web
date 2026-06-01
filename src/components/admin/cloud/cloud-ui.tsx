@@ -544,7 +544,7 @@ function CloudSensitiveDialogContent({
         className,
       )}
     >
-      <div className="border-b border-slate-200/80 bg-transparent px-5 py-4 dark:border-slate-800">
+      <div className="border-b border-slate-200/80 bg-slate-50/70 px-5 py-4 dark:border-slate-800 dark:bg-slate-900/35">
         <div className="flex min-w-0 flex-col gap-3 pr-8 sm:flex-row sm:items-start sm:justify-between">
           <div className="flex min-w-0 items-start gap-3">
             {icon ? (
@@ -572,14 +572,14 @@ function CloudSensitiveDialogContent({
       >
         <div
           className={cn(
-            "min-w-0 space-y-4 overflow-y-auto px-5 py-5 [scrollbar-gutter:stable]",
+            "min-w-0 space-y-5 overflow-y-auto px-5 py-5 [scrollbar-gutter:stable]",
             bodyClassName,
           )}
         >
           {children}
         </div>
         {side ? (
-          <aside className="min-w-0 border-t border-slate-200/80 bg-transparent px-5 py-5 dark:border-slate-800 lg:border-l lg:border-t-0">
+          <aside className="min-w-0 border-t border-slate-200/80 bg-slate-50/55 px-5 py-5 dark:border-slate-800 dark:bg-slate-900/25 lg:border-l lg:border-t-0">
             {side}
           </aside>
         ) : null}
@@ -608,7 +608,7 @@ function CloudSecretValueBlock({
       title={title}
       copyLabel={copyLabel}
       onCopy={onCopy}
-      className="border-slate-200/80 bg-white px-4 py-3 dark:border-slate-800 dark:bg-slate-950"
+      className="border-slate-200/90 bg-transparent py-2 pl-3 dark:border-slate-700"
       titleClassName="text-sm font-semibold text-foreground"
       contentClassName="mt-3"
     >

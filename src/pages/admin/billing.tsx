@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 
 import {
+  AdminDataPanel,
   AdminEmptyState,
   AdminPageShell,
   AdminSideNav,
@@ -1022,7 +1023,7 @@ function PolicySummary({
     : t("billing.no_expiry", { defaultValue: "长期有效" });
 
   return (
-    <AdminSurface className="border-y border-slate-200/80 py-3 shadow-none dark:border-slate-800/90">
+    <AdminDataPanel bodyClassName="px-4 py-3">
       <div className="flex min-w-0 flex-wrap items-center gap-x-6 gap-y-2 text-sm">
         <div className="flex min-w-0 items-center gap-2">
           <span className="text-muted-foreground">
@@ -1063,7 +1064,7 @@ function PolicySummary({
           {policy.plan_note}
         </div>
       ) : null}
-    </AdminSurface>
+    </AdminDataPanel>
   );
 }
 
@@ -1118,7 +1119,7 @@ function ShopPanel({
         featureOptions={featureOptions}
       />
       <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_24rem]">
-        <div className="overflow-hidden border-y border-slate-200/80 bg-white shadow-none dark:border-slate-800/90 dark:bg-slate-950">
+        <AdminDataPanel bodyClassName="p-0">
           {plans.map((plan) => {
             const selected = String(plan.id) === selectedPlanID;
             return (
@@ -1165,19 +1166,21 @@ function ShopPanel({
               </button>
             );
           })}
-        </div>
+        </AdminDataPanel>
 
-        <AdminSurface className="self-start border-l border-slate-200/80 py-1 pl-4 shadow-none dark:border-slate-800/90">
-          <div className="flex items-center gap-2 text-sm font-semibold">
-            <CreditCard className="h-4 w-4" />
-            {t("billing.checkout")}
-          </div>
-          <p className="mt-1 text-sm leading-6 text-muted-foreground">
-            {t("billing.checkout_hint", {
-              defaultValue: "创建订单并完成付款后，管理员确认收款即可自动开通对应权限。",
-            })}
-          </p>
-          <div className="mt-4 space-y-4">
+        <AdminDataPanel
+          title={(
+            <span className="inline-flex items-center gap-2">
+              <CreditCard className="h-4 w-4" />
+              {t("billing.checkout")}
+            </span>
+          )}
+          description={t("billing.checkout_hint", {
+            defaultValue: "创建订单并完成付款后，管理员确认收款即可自动开通对应权限。",
+          })}
+          bodyClassName="space-y-4 p-4"
+          className="self-start"
+        >
             <Field label={t("billing.payment_method")}>
               <Select.Root value={selectedPaymentID} onValueChange={setSelectedPaymentID}>
                 <Select.Trigger className={ADMIN_FORM_SELECT_TRIGGER_CLASS} placeholder={t("billing.select_payment")} />
@@ -1227,8 +1230,7 @@ function ShopPanel({
               <ReceiptText className="mr-2 h-4 w-4" />
               {t("billing.create_order")}
             </Button>
-          </div>
-        </AdminSurface>
+        </AdminDataPanel>
       </div>
     </div>
   );
