@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import type { TFunction } from "i18next";
 import {
   Eye,
@@ -27,6 +27,11 @@ import {
 } from "@/components/admin/AdminPagination";
 import { AdminEmptyState } from "@/components/admin/AdminPageShell";
 import { AdminRowActions } from "@/components/admin/AdminRowActions";
+import {
+  CloudBulkDeleteToolbar,
+  CloudBulkSelectCheckbox,
+  useCloudBulkSelection,
+} from "@/components/admin/cloud/CloudBulkActions";
 import type {
   AzureAccount,
   AzureCatalog,
@@ -81,6 +86,7 @@ type AzureInstancesSectionProps = {
   ) => MaybePromise<void>;
   onReplaceInstanceIP: (instance: AzureInstance) => MaybePromise<void>;
   onDeleteInstance: (instance: AzureInstance) => MaybePromise<void>;
+  onBatchDeleteInstances: (instances: AzureInstance[]) => MaybePromise<boolean>;
 };
 
 export function AzureInstancesSection({
@@ -101,6 +107,7 @@ export function AzureInstancesSection({
   onInstanceAction,
   onReplaceInstanceIP,
   onDeleteInstance,
+  onBatchDeleteInstances,
 }: AzureInstancesSectionProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("__all__");
@@ -132,6 +139,15 @@ export function AzureInstancesSection({
     resetKey: `${searchQuery.trim().toLowerCase()}:${statusFilter}`,
   });
   const paginatedInstances = instancePagination.pageItems;
+  const getSelectionKey = useCallback((instance: AzureInstance) => instance.instance_id, []);
+  const bulkSelection = useCloudBulkSelection(visibleInstances, getSelectionKey);
+  const batchDeleting = workingInstanceId === "__batch_delete__";
+  const handleBatchDelete = async () => {
+    const completed = await onBatchDeleteInstances(bulkSelection.selectedItems);
+    if (completed) {
+      bulkSelection.clearSelection();
+    }
+  };
 
   return (
     <section className={cloudPanelCardClassName}>
@@ -243,7 +259,16 @@ export function AzureInstancesSection({
                   </Select.Content>
                 </Select.Root>
               </div>
-              <Badge color="blue">{visibleInstances.length}</Badge>
+              <CloudBulkDeleteToolbar
+                t={t}
+                selectedCount={bulkSelection.selectedCount}
+                totalCount={visibleInstances.length}
+                deleting={batchDeleting}
+                onClear={bulkSelection.clearSelection}
+                onDelete={() => {
+                  void handleBatchDelete();
+                }}
+              />
             </div>
           </div>
           {visibleInstances.length === 0 ? (
@@ -259,6 +284,14 @@ export function AzureInstancesSection({
             <AdminDataTable minWidth={1040}>
               <thead>
                 <AdminDataTableHeadRow>
+                  <AdminDataTableHead className="w-10">
+                    <CloudBulkSelectCheckbox
+                      label={t("cloud.bulk.select_all", "选择全部实例")}
+                      checked={bulkSelection.allSelected ? true : bulkSelection.someSelected ? "indeterminate" : false}
+                      disabled={visibleInstances.length === 0 || resourceLoading || batchDeleting}
+                      onCheckedChange={bulkSelection.toggleAll}
+                    />
+                  </AdminDataTableHead>
                   <AdminDataTableHead>{t("cloud.table.name", "名称")}</AdminDataTableHead>
                   <AdminDataTableHead>{t("cloud.table.region", "地区")}</AdminDataTableHead>
                   <AdminDataTableHead>{t("cloud.table.status", "状态")}</AdminDataTableHead>
@@ -273,7 +306,18 @@ export function AzureInstancesSection({
               </thead>
               <tbody>
                 {paginatedInstances.map((instance) => (
-                  <AdminDataTableRow key={instance.instance_id}>
+                  <AdminDataTableRow key={instance.instance_id} selected={bulkSelection.isSelected(instance)}>
+                    <AdminDataTableCell className="w-10 align-top">
+                      <CloudBulkSelectCheckbox
+                        label={t("cloud.bulk.select_instance", {
+                          name: instance.name || instance.instance_id,
+                          defaultValue: `选择 ${instance.name || instance.instance_id}`,
+                        })}
+                        checked={bulkSelection.isSelected(instance)}
+                        disabled={batchDeleting}
+                        onCheckedChange={(checked) => bulkSelection.toggleItem(instance, checked)}
+                      />
+                    </AdminDataTableCell>
                     <AdminDataTableCell className="align-top">
                       <button
                         type="button"

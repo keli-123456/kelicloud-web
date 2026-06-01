@@ -39,6 +39,11 @@ import {
 } from "@/components/admin/AdminPagination";
 import { AdminRowActions } from "@/components/admin/AdminRowActions";
 import { CloudOnboardingPanel } from "@/components/admin/cloud/CloudOnboardingPanel";
+import {
+  CloudBulkDeleteToolbar,
+  CloudBulkSelectCheckbox,
+  useCloudBulkSelection,
+} from "@/components/admin/cloud/CloudBulkActions";
 import CloudInstanceScriptDialog, { type CloudInstanceScriptTarget } from "@/components/admin/cloud/CloudInstanceScriptDialog";
 import {
   Badge,
@@ -102,6 +107,10 @@ import { getReadableErrorMessage } from "@/lib/apiErrorMessage";
 import { getCloudStatusLabel } from "@/lib/cloudStatus";
 import { cn } from "@/lib/utils";
 import { buildStaticVultrCatalog } from "./cloudStaticCatalogs";
+import {
+  confirmCloudBulkDelete,
+  runCloudBulkDelete,
+} from "./cloudBulkDeleteUtils";
 
 type CreateFormState = Omit<CreateVultrInstanceInput, "os_id" | "tags"> & {
   os_id: string;
@@ -651,6 +660,33 @@ export default function VultrPanel() {
     }
   };
 
+  const handleBatchDeleteInstances = async (targetInstances: VultrInstance[]) => {
+    const confirmed = await confirmCloudBulkDelete({
+      t,
+      confirm,
+      names: targetInstances.map((instance) => instance.label || instance.hostname || instance.id),
+    });
+    if (!confirmed) return false;
+
+    setActionLoadingId("__batch_delete__");
+    try {
+      await runCloudBulkDelete({
+        t,
+        items: targetInstances,
+        getName: (instance) => instance.label || instance.hostname || instance.id,
+        deleteItem: (instance) => deleteVultrInstance(instance.id),
+        formatError: toErrorMessage,
+      });
+      if (selectedInstance && targetInstances.some((instance) => instance.id === selectedInstance.id)) {
+        setSelectedInstance(null);
+      }
+      await loadPanelData();
+      return true;
+    } finally {
+      setActionLoadingId("");
+    }
+  };
+
   const handleLoadDetail = async (instance: VultrInstance) => {
     setDetailLoadingId(instance.id);
     try {
@@ -797,6 +833,7 @@ export default function VultrPanel() {
         onInstanceAction={handleInstanceAction}
         onOpenScriptDialog={handleOpenScriptDialog}
         onDeleteInstance={handleDeleteInstance}
+        onBatchDeleteInstances={handleBatchDeleteInstances}
       />
 
       <VultrTokenImportDialog
@@ -890,6 +927,7 @@ type VultrInstancesSectionProps = {
   onInstanceAction: (instance: VultrInstance, type: string) => void;
   onOpenScriptDialog: (instance: VultrInstance) => void;
   onDeleteInstance: (instance: VultrInstance) => void;
+  onBatchDeleteInstances: (instances: VultrInstance[]) => Promise<boolean>;
 };
 
 type VultrInlineCreatePanelProps = {
@@ -1042,6 +1080,7 @@ function VultrInstancesSection({
   onInstanceAction,
   onOpenScriptDialog,
   onDeleteInstance,
+  onBatchDeleteInstances,
 }: VultrInstancesSectionProps) {
   const [search, setSearch] = React.useState("");
   const [statusFilter, setStatusFilter] = React.useState("all");
@@ -1071,6 +1110,15 @@ function VultrInstancesSection({
     resetKey: `${search.trim().toLowerCase()}:${statusFilter}`,
   });
   const paginatedInstances = instancePagination.pageItems;
+  const getSelectionKey = React.useCallback((instance: VultrInstance) => instance.id, []);
+  const bulkSelection = useCloudBulkSelection(filteredInstances, getSelectionKey);
+  const batchDeleting = actionLoadingId === "__batch_delete__";
+  const handleBatchDelete = async () => {
+    const completed = await onBatchDeleteInstances(bulkSelection.selectedItems);
+    if (completed) {
+      bulkSelection.clearSelection();
+    }
+  };
 
   return (
     <section className={cloudPanelCardClassName}>
@@ -1108,6 +1156,16 @@ function VultrInstancesSection({
                 <Select.Item value="pending">{t("cloud.status.pending", "待处理")}</Select.Item>
               </Select.Content>
             </Select.Root>
+            <CloudBulkDeleteToolbar
+              t={t}
+              selectedCount={bulkSelection.selectedCount}
+              totalCount={filteredInstances.length}
+              deleting={batchDeleting}
+              onClear={bulkSelection.clearSelection}
+              onDelete={() => {
+                void handleBatchDelete();
+              }}
+            />
           </div>
         </div>
       </div>
@@ -1117,6 +1175,14 @@ function VultrInstancesSection({
           <AdminDataTable minWidth={1040}>
             <thead>
               <AdminDataTableHeadRow>
+                <AdminDataTableHead className="w-10">
+                  <CloudBulkSelectCheckbox
+                    label={t("cloud.bulk.select_all", "选择全部实例")}
+                    checked={bulkSelection.allSelected ? true : bulkSelection.someSelected ? "indeterminate" : false}
+                    disabled={filteredInstances.length === 0 || panelLoading || batchDeleting}
+                    onCheckedChange={bulkSelection.toggleAll}
+                  />
+                </AdminDataTableHead>
                 <AdminDataTableHead>{t("cloud.table.instance", "实例")}</AdminDataTableHead>
                 <AdminDataTableHead>{t("cloud.table.status", "状态")}</AdminDataTableHead>
                 <AdminDataTableHead>{t("cloud.table.region", "地区")}</AdminDataTableHead>
@@ -1130,7 +1196,7 @@ function VultrInstancesSection({
             </thead>
             <tbody>
               {panelLoading ? (
-                <CloudTableSkeletonRows columns={7} rows={5} />
+                <CloudTableSkeletonRows columns={8} rows={5} />
               ) : filteredInstances.length ? (
                 paginatedInstances.map((instance) => {
                   const plan = plansByID.get(instance.plan);
@@ -1142,7 +1208,18 @@ function VultrInstancesSection({
                   const loadingDelete = actionLoadingId === `${instance.id}:delete`;
 
                   return (
-                    <AdminDataTableRow key={instance.id}>
+                    <AdminDataTableRow key={instance.id} selected={bulkSelection.isSelected(instance)}>
+                      <AdminDataTableCell className="w-10">
+                        <CloudBulkSelectCheckbox
+                          label={t("cloud.bulk.select_instance", {
+                            name: instance.label || instance.hostname || instance.id,
+                            defaultValue: `选择 ${instance.label || instance.hostname || instance.id}`,
+                          })}
+                          checked={bulkSelection.isSelected(instance)}
+                          disabled={batchDeleting}
+                          onCheckedChange={(checked) => bulkSelection.toggleItem(instance, checked)}
+                        />
+                      </AdminDataTableCell>
                       <AdminDataTableCell className="min-w-56">
                         <button
                           type="button"

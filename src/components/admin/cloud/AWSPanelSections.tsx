@@ -241,6 +241,7 @@ type AWSComputeSectionProps = {
   onRunEC2Script: (instance: AWSInstance) => void;
   onShareEC2: (instance: AWSInstance) => MaybePromise<void>;
   onDeleteEC2: (instance: AWSInstance) => MaybePromise<void>;
+  onBatchDeleteEC2: (instances: AWSInstance[]) => MaybePromise<boolean>;
   onLoadLightsailDetail: (instance: AWSLightsailInstance) => MaybePromise<void>;
   onViewLightsailPassword: (instance: AWSLightsailInstance) => MaybePromise<void>;
   onLightsailPowerAction: (instance: AWSLightsailInstance, action: "start" | "stop") => MaybePromise<void>;
@@ -249,6 +250,7 @@ type AWSComputeSectionProps = {
   onRunLightsailScript: (instance: AWSLightsailInstance) => void;
   onShareLightsail: (instance: AWSLightsailInstance) => MaybePromise<void>;
   onDeleteLightsail: (instance: AWSLightsailInstance) => MaybePromise<void>;
+  onBatchDeleteLightsail: (instances: AWSLightsailInstance[]) => MaybePromise<boolean>;
 };
 
 export function AWSComputeSection({
@@ -277,6 +279,7 @@ export function AWSComputeSection({
   onRunEC2Script,
   onShareEC2,
   onDeleteEC2,
+  onBatchDeleteEC2,
   onLoadLightsailDetail,
   onViewLightsailPassword,
   onLightsailPowerAction,
@@ -285,6 +288,7 @@ export function AWSComputeSection({
   onRunLightsailScript,
   onShareLightsail,
   onDeleteLightsail,
+  onBatchDeleteLightsail,
 }: AWSComputeSectionProps) {
   const [searchQuery, setSearchQuery] = React.useState("");
   const visibleEC2Instances = React.useMemo(() => {
@@ -426,6 +430,7 @@ export function AWSComputeSection({
               onRunScript={onRunEC2Script}
               onShare={onShareEC2}
               onDelete={onDeleteEC2}
+              onBatchDelete={onBatchDeleteEC2}
             />
           </Tabs.Content>
 
@@ -457,6 +462,7 @@ export function AWSComputeSection({
               onRunScript={onRunLightsailScript}
               onShare={onShareLightsail}
               onDelete={onDeleteLightsail}
+              onBatchDelete={onBatchDeleteLightsail}
             />
           </Tabs.Content>
         </div>

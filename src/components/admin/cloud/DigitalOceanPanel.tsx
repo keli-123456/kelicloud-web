@@ -327,6 +327,7 @@ export default function DigitalOceanPanel() {
     setDetailDroplet,
     handleDropletAction,
     handleDeleteDroplet,
+    handleBatchDeleteDroplets,
   } = useDigitalOceanDropletActions({
     t,
     confirm,
@@ -505,6 +506,7 @@ export default function DigitalOceanPanel() {
         onOpenScriptDialog={handleOpenScriptDialog}
         onOpenShareDialog={handleOpenShareDialog}
         onDeleteDroplet={handleDeleteDroplet}
+        onBatchDeleteDroplets={handleBatchDeleteDroplets}
       />
 
       <DigitalOceanTokenImportDialog

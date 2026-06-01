@@ -180,6 +180,8 @@ export default function AWSPanel() {
     handleQuickReplaceLightsailStaticIP,
     handleDeleteInstance,
     handleDeleteLightsailInstance,
+    handleBatchDeleteInstances,
+    handleBatchDeleteLightsailInstances,
   } = useAWSInstanceActions({
     t,
     confirm,
@@ -546,6 +548,7 @@ export default function AWSPanel() {
           onRunEC2Script={openEC2ScriptDialog}
           onShareEC2={openEC2ShareDialog}
           onDeleteEC2={handleDeleteInstance}
+          onBatchDeleteEC2={handleBatchDeleteInstances}
           onLoadLightsailDetail={loadLightsailDetail}
           onViewLightsailPassword={handleViewLightsailPassword}
           onLightsailPowerAction={handleLightsailInstanceAction}
@@ -554,6 +557,7 @@ export default function AWSPanel() {
           onRunLightsailScript={openLightsailScriptDialog}
           onShareLightsail={openLightsailShareDialog}
           onDeleteLightsail={handleDeleteLightsailInstance}
+          onBatchDeleteLightsail={handleBatchDeleteLightsailInstances}
         />
       </div>
 

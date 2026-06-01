@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import type { TFunction } from "i18next";
 import {
   KeyRound,
@@ -27,6 +27,11 @@ import {
   useClientPagination,
 } from "@/components/admin/AdminPagination";
 import { AdminRowActions } from "@/components/admin/AdminRowActions";
+import {
+  CloudBulkDeleteToolbar,
+  CloudBulkSelectCheckbox,
+  useCloudBulkSelection,
+} from "@/components/admin/cloud/CloudBulkActions";
 import type { LinodeInstance, LinodeTokenPool } from "@/lib/cloudLinode";
 import { getCloudStatusLabel } from "@/lib/cloudStatus";
 import {
@@ -74,6 +79,7 @@ type LinodeInstancesSectionProps = {
   onOpenScriptDialog: (instance: LinodeInstance) => void;
   onOpenShareDialog: (instance: LinodeInstance) => MaybePromise<void>;
   onDeleteInstance: (instance: LinodeInstance) => MaybePromise<void>;
+  onBatchDeleteInstances: (instances: LinodeInstance[]) => MaybePromise<boolean>;
 };
 
 export function LinodeInstancesSection({
@@ -92,6 +98,7 @@ export function LinodeInstancesSection({
   onOpenScriptDialog,
   onOpenShareDialog,
   onDeleteInstance,
+  onBatchDeleteInstances,
 }: LinodeInstancesSectionProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("__all__");
@@ -122,6 +129,14 @@ export function LinodeInstancesSection({
     resetKey: `${searchQuery.trim().toLowerCase()}:${statusFilter}`,
   });
   const paginatedInstances = instancePagination.pageItems;
+  const getSelectionKey = useCallback((instance: LinodeInstance) => String(instance.id), []);
+  const bulkSelection = useCloudBulkSelection(visibleInstances, getSelectionKey);
+  const handleBatchDelete = async () => {
+    const completed = await onBatchDeleteInstances(bulkSelection.selectedItems);
+    if (completed) {
+      bulkSelection.clearSelection();
+    }
+  };
   const emptyTitle = panelLoading
     ? t("cloud.loading", "正在加载云资源...")
     : error
@@ -184,7 +199,15 @@ export function LinodeInstancesSection({
               </Select.Content>
             </Select.Root>
           </div>
-          <Badge color="blue">{visibleInstances.length}</Badge>
+          <CloudBulkDeleteToolbar
+            t={t}
+            selectedCount={bulkSelection.selectedCount}
+            totalCount={visibleInstances.length}
+            onClear={bulkSelection.clearSelection}
+            onDelete={() => {
+              void handleBatchDelete();
+            }}
+          />
         </div>
       </div>
 
@@ -192,6 +215,14 @@ export function LinodeInstancesSection({
       <AdminDataTable minWidth={1120}>
         <thead>
           <AdminDataTableHeadRow>
+            <AdminDataTableHead className="w-10">
+              <CloudBulkSelectCheckbox
+                label={t("cloud.bulk.select_all", "选择全部实例")}
+                checked={bulkSelection.allSelected ? true : bulkSelection.someSelected ? "indeterminate" : false}
+                disabled={visibleInstances.length === 0 || panelLoading}
+                onCheckedChange={bulkSelection.toggleAll}
+              />
+            </AdminDataTableHead>
             <AdminDataTableHead>{t("cloud.table.name", "名称")}</AdminDataTableHead>
             <AdminDataTableHead>{t("cloud.table.status", "状态")}</AdminDataTableHead>
             <AdminDataTableHead>{t("cloud.table.region", "地区")}</AdminDataTableHead>
@@ -208,9 +239,9 @@ export function LinodeInstancesSection({
         </thead>
         <tbody>
           {panelLoading ? (
-            <CloudTableSkeletonRows columns={10} />
+            <CloudTableSkeletonRows columns={11} />
           ) : instances.length === 0 ? (
-            <AdminDataTableEmptyRow colSpan={10} className="p-4">
+            <AdminDataTableEmptyRow colSpan={11} className="p-4">
                 <AdminEmptyState
                   icon={<Server className="h-5 w-5" />}
                   title={emptyTitle}
@@ -219,7 +250,7 @@ export function LinodeInstancesSection({
                 />
             </AdminDataTableEmptyRow>
           ) : visibleInstances.length === 0 ? (
-            <AdminDataTableEmptyRow colSpan={10} className="p-4">
+            <AdminDataTableEmptyRow colSpan={11} className="p-4">
                 <AdminEmptyState
                   icon={<Search className="h-5 w-5" />}
                   title={t("cloud.no_matching_resources", "没有匹配的资源")}
@@ -231,7 +262,17 @@ export function LinodeInstancesSection({
             paginatedInstances.map((instance) => {
               const typeInfo = typePriceMap.get(instance.type);
               return (
-                <AdminDataTableRow key={instance.id}>
+                <AdminDataTableRow key={instance.id} selected={bulkSelection.isSelected(instance)}>
+                  <AdminDataTableCell className="w-10">
+                    <CloudBulkSelectCheckbox
+                      label={t("cloud.bulk.select_instance", {
+                        name: instance.label,
+                        defaultValue: `选择 ${instance.label}`,
+                      })}
+                      checked={bulkSelection.isSelected(instance)}
+                      onCheckedChange={(checked) => bulkSelection.toggleItem(instance, checked)}
+                    />
+                  </AdminDataTableCell>
                   <AdminDataTableCell className={cloudTablePrimaryTextClassName}>
                     <button
                       type="button"

@@ -13,6 +13,10 @@ import {
 } from "@/lib/cloudAws";
 import type { LightsailDetailActionFormState } from "./awsPanelState";
 import { toErrorMessage } from "./awsPanelUtils";
+import {
+  confirmCloudBulkDelete,
+  runCloudBulkDelete,
+} from "./cloudBulkDeleteUtils";
 
 type ConfirmDialog = (options: ConfirmDialogOptions) => Promise<boolean>;
 
@@ -180,6 +184,28 @@ export function useAWSLightsailInstanceActions({
     }
   };
 
+  const handleBatchDeleteLightsailInstances = async (instances: AWSLightsailInstance[]) => {
+    const confirmed = await confirmCloudBulkDelete({
+      t,
+      confirm,
+      names: instances.map((instance) => instance.name),
+    });
+    if (!confirmed) return false;
+
+    await runCloudBulkDelete({
+      t,
+      items: instances,
+      getName: (instance) => instance.name,
+      deleteItem: (instance) => deleteAWSLightsailInstance(instance.name),
+      formatError: toErrorMessage,
+    });
+    if (lightsailDetailInstance && instances.some((instance) => instance.name === lightsailDetailInstance.name)) {
+      closeLightsailDetail();
+    }
+    await loadPanelData();
+    return true;
+  };
+
   return {
     lightsailDetailInstance,
     lightsailDetailData,
@@ -197,5 +223,6 @@ export function useAWSLightsailInstanceActions({
     handleReplaceLightsailStaticIP,
     handleQuickReplaceLightsailStaticIP,
     handleDeleteLightsailInstance,
+    handleBatchDeleteLightsailInstances,
   };
 }

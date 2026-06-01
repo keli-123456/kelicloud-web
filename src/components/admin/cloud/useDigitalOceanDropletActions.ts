@@ -8,6 +8,10 @@ import {
   postDigitalOceanDropletAction,
   type DigitalOceanDroplet,
 } from "@/lib/cloud";
+import {
+  confirmCloudBulkDelete,
+  runCloudBulkDelete,
+} from "./cloudBulkDeleteUtils";
 import { toErrorMessage } from "./digitalOceanPanelUtils";
 
 type ConfirmDialog = (options: ConfirmDialogOptions) => Promise<boolean>;
@@ -55,10 +59,30 @@ export function useDigitalOceanDropletActions({
     }
   };
 
+  const handleBatchDeleteDroplets = async (droplets: DigitalOceanDroplet[]) => {
+    const confirmed = await confirmCloudBulkDelete({
+      t,
+      confirm,
+      names: droplets.map((droplet) => droplet.name || String(droplet.id)),
+    });
+    if (!confirmed) return false;
+
+    await runCloudBulkDelete({
+      t,
+      items: droplets,
+      getName: (droplet) => droplet.name || String(droplet.id),
+      deleteItem: (droplet) => deleteDigitalOceanDroplet(droplet.id),
+      formatError: toErrorMessage,
+    });
+    await loadPanelData();
+    return true;
+  };
+
   return {
     detailDroplet,
     setDetailDroplet,
     handleDropletAction,
     handleDeleteDroplet,
+    handleBatchDeleteDroplets,
   };
 }

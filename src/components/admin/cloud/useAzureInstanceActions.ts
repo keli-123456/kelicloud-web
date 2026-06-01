@@ -10,6 +10,10 @@ import {
   type AzureInstance,
   type AzureInstanceDetail,
 } from "@/lib/cloudAzure";
+import {
+  confirmCloudBulkDelete,
+  runCloudBulkDelete,
+} from "./cloudBulkDeleteUtils";
 import { toErrorMessage } from "./azurePanelUtils";
 
 type ConfirmDialog = (options: ConfirmDialogOptions) => Promise<boolean>;
@@ -120,6 +124,46 @@ export function useAzureInstanceActions({
     }
   };
 
+  const handleBatchDeleteInstances = async (instances: AzureInstance[]) => {
+    const confirmed = await confirmCloudBulkDelete({
+      t,
+      confirm,
+      names: instances.map((instance) => instance.name || instance.instance_id),
+    });
+    if (!confirmed) return false;
+
+    setWorkingInstanceId("__batch_delete__");
+    try {
+      let cleanupWarningCount = 0;
+      await runCloudBulkDelete({
+        t,
+        items: instances,
+        getName: (instance) => instance.name || instance.instance_id,
+        deleteItem: async (instance) => {
+          const result = await deleteAzureInstance(instance.instance_id);
+          cleanupWarningCount += result.cleanup_errors.length;
+        },
+        formatError: toErrorMessage,
+      });
+      if (cleanupWarningCount > 0) {
+        toast.warning(
+          t("cloud.providers.azure.delete_cleanup_warning", {
+            count: cleanupWarningCount,
+            defaultValue: `${cleanupWarningCount} associated Azure resource cleanup task(s) need manual review`,
+          }),
+        );
+      }
+      if (detailInstance && instances.some((instance) => instance.instance_id === detailInstance.instance_id)) {
+        setDetailInstance(null);
+        setDetailData(null);
+      }
+      await loadResources();
+      return true;
+    } finally {
+      setWorkingInstanceId(null);
+    }
+  };
+
   return {
     workingInstanceId,
     detailInstance,
@@ -131,5 +175,6 @@ export function useAzureInstanceActions({
     handleInstanceAction,
     handleReplaceInstanceIP,
     handleDeleteInstance,
+    handleBatchDeleteInstances,
   };
 }

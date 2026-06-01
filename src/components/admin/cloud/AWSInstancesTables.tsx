@@ -1,3 +1,4 @@
+import * as React from "react";
 import type { TFunction } from "i18next";
 import { Eye, Plus, Server } from "lucide-react";
 
@@ -16,6 +17,11 @@ import {
 } from "@/components/admin/AdminPagination";
 import { AdminEmptyState } from "@/components/admin/AdminPageShell";
 import { AWSInstanceRowActions } from "@/components/admin/cloud/AWSInstanceRowActions";
+import {
+  CloudBulkDeleteToolbar,
+  CloudBulkSelectCheckbox,
+  useCloudBulkSelection,
+} from "@/components/admin/cloud/CloudBulkActions";
 import {
   Badge,
   Button,
@@ -67,6 +73,7 @@ type AWSEC2InstancesTableProps = SharedInstancesTableProps & {
   onRunScript: (instance: AWSInstance) => void;
   onShare: (instance: AWSInstance) => MaybePromise<void>;
   onDelete: (instance: AWSInstance) => MaybePromise<void>;
+  onBatchDelete: (instances: AWSInstance[]) => MaybePromise<boolean>;
 };
 
 export function AWSEC2InstancesTable({
@@ -90,11 +97,24 @@ export function AWSEC2InstancesTable({
   onRunScript,
   onShare,
   onDelete,
+  onBatchDelete,
 }: AWSEC2InstancesTableProps) {
   const instancePagination = useClientPagination(instances, {
     initialPageSize: 10,
   });
   const visibleInstances = instancePagination.pageItems;
+  const selectableInstances = React.useMemo(
+    () => instances.filter((instance) => instance.state !== "terminated"),
+    [instances],
+  );
+  const getSelectionKey = React.useCallback((instance: AWSInstance) => instance.instance_id, []);
+  const bulkSelection = useCloudBulkSelection(selectableInstances, getSelectionKey);
+  const handleBatchDelete = async () => {
+    const completed = await onBatchDelete(bulkSelection.selectedItems);
+    if (completed) {
+      bulkSelection.clearSelection();
+    }
+  };
   const emptyTitle = panelLoading
     ? t("cloud.loading", "正在加载云资源...")
     : error
@@ -144,10 +164,32 @@ export function AWSEC2InstancesTable({
 
   return (
     <>
+    {bulkSelection.selectedCount > 0 ? (
+      <div className="border-b border-border bg-muted/20 px-4 py-2">
+        <CloudBulkDeleteToolbar
+          t={t}
+          selectedCount={bulkSelection.selectedCount}
+          totalCount={selectableInstances.length}
+          hideWhenEmpty
+          onClear={bulkSelection.clearSelection}
+          onDelete={() => {
+            void handleBatchDelete();
+          }}
+        />
+      </div>
+    ) : null}
     <AdminDataTableScroll>
-    <AdminDataTable minWidth={1180}>
+    <AdminDataTable minWidth={1220}>
       <thead>
         <AdminDataTableHeadRow>
+          <AdminDataTableHead className="w-10">
+            <CloudBulkSelectCheckbox
+              label={t("cloud.bulk.select_all", "选择全部实例")}
+              checked={bulkSelection.allSelected ? true : bulkSelection.someSelected ? "indeterminate" : false}
+              disabled={selectableInstances.length === 0 || panelLoading}
+              onCheckedChange={bulkSelection.toggleAll}
+            />
+          </AdminDataTableHead>
           <AdminDataTableHead>{t("cloud.table.name", "名称")}</AdminDataTableHead>
           <AdminDataTableHead>{t("cloud.table.status", "状态")}</AdminDataTableHead>
           <AdminDataTableHead>{t("cloud.providers.aws.az", "可用区")}</AdminDataTableHead>
@@ -164,9 +206,9 @@ export function AWSEC2InstancesTable({
       </thead>
       <tbody>
         {panelLoading ? (
-          <CloudTableSkeletonRows columns={10} />
+          <CloudTableSkeletonRows columns={11} />
         ) : instances.length === 0 ? (
-          <AdminDataTableEmptyRow colSpan={10} className="p-5">
+          <AdminDataTableEmptyRow colSpan={11} className="p-5">
               <AdminEmptyState
                 icon={<Server className="h-5 w-5" />}
                 title={emptyTitle}
@@ -177,7 +219,18 @@ export function AWSEC2InstancesTable({
           </AdminDataTableEmptyRow>
         ) : (
           visibleInstances.map((instance) => (
-            <AdminDataTableRow key={instance.instance_id}>
+            <AdminDataTableRow key={instance.instance_id} selected={bulkSelection.isSelected(instance)}>
+              <AdminDataTableCell className="w-10">
+                <CloudBulkSelectCheckbox
+                  label={t("cloud.bulk.select_instance", {
+                    name: instance.name || instance.instance_id,
+                    defaultValue: `选择 ${instance.name || instance.instance_id}`,
+                  })}
+                  checked={bulkSelection.isSelected(instance)}
+                  disabled={instance.state === "terminated"}
+                  onCheckedChange={(checked) => bulkSelection.toggleItem(instance, checked)}
+                />
+              </AdminDataTableCell>
               <AdminDataTableCell className={cloudTablePrimaryTextClassName}>
                 <button
                   type="button"
@@ -263,6 +316,7 @@ type AWSLightsailInstancesTableProps = SharedInstancesTableProps & {
   onRunScript: (instance: AWSLightsailInstance) => void;
   onShare: (instance: AWSLightsailInstance) => MaybePromise<void>;
   onDelete: (instance: AWSLightsailInstance) => MaybePromise<void>;
+  onBatchDelete: (instances: AWSLightsailInstance[]) => MaybePromise<boolean>;
 };
 
 export function AWSLightsailInstancesTable({
@@ -287,11 +341,20 @@ export function AWSLightsailInstancesTable({
   onRunScript,
   onShare,
   onDelete,
+  onBatchDelete,
 }: AWSLightsailInstancesTableProps) {
   const instancePagination = useClientPagination(instances, {
     initialPageSize: 10,
   });
   const visibleInstances = instancePagination.pageItems;
+  const getSelectionKey = React.useCallback((instance: AWSLightsailInstance) => instance.name, []);
+  const bulkSelection = useCloudBulkSelection(instances, getSelectionKey);
+  const handleBatchDelete = async () => {
+    const completed = await onBatchDelete(bulkSelection.selectedItems);
+    if (completed) {
+      bulkSelection.clearSelection();
+    }
+  };
   const emptyTitle = panelLoading
     ? t("cloud.loading", "正在加载云资源...")
     : lightsailError || error
@@ -341,10 +404,32 @@ export function AWSLightsailInstancesTable({
 
   return (
     <>
+    {bulkSelection.selectedCount > 0 ? (
+      <div className="border-b border-border bg-muted/20 px-4 py-2">
+        <CloudBulkDeleteToolbar
+          t={t}
+          selectedCount={bulkSelection.selectedCount}
+          totalCount={instances.length}
+          hideWhenEmpty
+          onClear={bulkSelection.clearSelection}
+          onDelete={() => {
+            void handleBatchDelete();
+          }}
+        />
+      </div>
+    ) : null}
     <AdminDataTableScroll>
-    <AdminDataTable minWidth={1120}>
+    <AdminDataTable minWidth={1160}>
       <thead>
         <AdminDataTableHeadRow>
+          <AdminDataTableHead className="w-10">
+            <CloudBulkSelectCheckbox
+              label={t("cloud.bulk.select_all", "选择全部实例")}
+              checked={bulkSelection.allSelected ? true : bulkSelection.someSelected ? "indeterminate" : false}
+              disabled={instances.length === 0 || panelLoading}
+              onCheckedChange={bulkSelection.toggleAll}
+            />
+          </AdminDataTableHead>
           <AdminDataTableHead>{t("cloud.table.name", "名称")}</AdminDataTableHead>
           <AdminDataTableHead>{t("cloud.table.status", "状态")}</AdminDataTableHead>
           <AdminDataTableHead>{t("cloud.providers.aws.az", "可用区")}</AdminDataTableHead>
@@ -361,9 +446,9 @@ export function AWSLightsailInstancesTable({
       </thead>
       <tbody>
         {panelLoading ? (
-          <CloudTableSkeletonRows columns={10} />
+          <CloudTableSkeletonRows columns={11} />
         ) : instances.length === 0 ? (
-          <AdminDataTableEmptyRow colSpan={10} className="p-5">
+          <AdminDataTableEmptyRow colSpan={11} className="p-5">
               <AdminEmptyState
                 icon={<Server className="h-5 w-5" />}
                 title={emptyTitle}
@@ -374,7 +459,17 @@ export function AWSLightsailInstancesTable({
           </AdminDataTableEmptyRow>
         ) : (
           visibleInstances.map((instance) => (
-            <AdminDataTableRow key={instance.name}>
+            <AdminDataTableRow key={instance.name} selected={bulkSelection.isSelected(instance)}>
+              <AdminDataTableCell className="w-10">
+                <CloudBulkSelectCheckbox
+                  label={t("cloud.bulk.select_instance", {
+                    name: instance.name,
+                    defaultValue: `选择 ${instance.name}`,
+                  })}
+                  checked={bulkSelection.isSelected(instance)}
+                  onCheckedChange={(checked) => bulkSelection.toggleItem(instance, checked)}
+                />
+              </AdminDataTableCell>
               <AdminDataTableCell className={cloudTablePrimaryTextClassName}>
                 <button
                   type="button"

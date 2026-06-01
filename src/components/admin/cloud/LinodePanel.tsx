@@ -218,6 +218,7 @@ export default function LinodePanel() {
     handleInstanceAction,
     handleDetailInstanceAction,
     handleDeleteInstance,
+    handleBatchDeleteInstances,
   } = useLinodeInstanceActions({
     t,
     confirm,
@@ -495,6 +496,7 @@ export default function LinodePanel() {
         onOpenScriptDialog={handleOpenScriptDialog}
         onOpenShareDialog={handleOpenShareDialog}
         onDeleteInstance={handleDeleteInstance}
+        onBatchDeleteInstances={handleBatchDeleteInstances}
       />
 
       <LinodeTokenImportDialog

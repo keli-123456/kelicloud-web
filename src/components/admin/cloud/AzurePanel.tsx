@@ -212,6 +212,7 @@ export default function AzurePanel() {
     handleInstanceAction,
     handleReplaceInstanceIP,
     handleDeleteInstance,
+    handleBatchDeleteInstances,
   } = useAzureInstanceActions({
     t,
     confirm,
@@ -395,6 +396,7 @@ export default function AzurePanel() {
           onInstanceAction={handleInstanceAction}
           onReplaceInstanceIP={handleReplaceInstanceIP}
           onDeleteInstance={handleDeleteInstance}
+          onBatchDeleteInstances={handleBatchDeleteInstances}
         />
       </AdminPageShell>
 

@@ -13,6 +13,10 @@ import {
   type LinodeInstanceDetail,
 } from "@/lib/cloudLinode";
 import {
+  confirmCloudBulkDelete,
+  runCloudBulkDelete,
+} from "./cloudBulkDeleteUtils";
+import {
   toErrorMessage,
   type CreatedPasswordState,
   type DetailActionPasswordState,
@@ -135,6 +139,25 @@ export function useLinodeInstanceActions({
     }
   }, [confirm, loadPanelData, t]);
 
+  const handleBatchDeleteInstances = React.useCallback(async (instances: LinodeInstance[]) => {
+    const confirmed = await confirmCloudBulkDelete({
+      t,
+      confirm,
+      names: instances.map((instance) => instance.label || String(instance.id)),
+    });
+    if (!confirmed) return false;
+
+    await runCloudBulkDelete({
+      t,
+      items: instances,
+      getName: (instance) => instance.label || String(instance.id),
+      deleteItem: (instance) => deleteLinodeInstance(instance.id),
+      formatError: toErrorMessage,
+    });
+    await loadPanelData();
+    return true;
+  }, [confirm, loadPanelData, t]);
+
   return {
     detailInstance,
     detailData,
@@ -156,5 +179,6 @@ export function useLinodeInstanceActions({
     handleInstanceAction,
     handleDetailInstanceAction,
     handleDeleteInstance,
+    handleBatchDeleteInstances,
   };
 }

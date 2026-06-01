@@ -1,4 +1,4 @@
-import { useMemo, useState, type ComponentProps } from "react";
+import { useCallback, useMemo, useState, type ComponentProps } from "react";
 import type { TFunction } from "i18next";
 import {
   KeyRound,
@@ -29,6 +29,11 @@ import {
 } from "@/components/admin/AdminPagination";
 import { AdminEmptyState } from "@/components/admin/AdminPageShell";
 import { AdminRowActions } from "@/components/admin/AdminRowActions";
+import {
+  CloudBulkDeleteToolbar,
+  CloudBulkSelectCheckbox,
+  useCloudBulkSelection,
+} from "@/components/admin/cloud/CloudBulkActions";
 import {
   Badge,
   CloudTableSkeletonRows,
@@ -69,6 +74,7 @@ type DigitalOceanDropletsSectionProps = {
   onOpenScriptDialog: (droplet: DigitalOceanDroplet) => void;
   onOpenShareDialog: (droplet: DigitalOceanDroplet) => MaybePromise<void>;
   onDeleteDroplet: (droplet: DigitalOceanDroplet) => MaybePromise<void>;
+  onBatchDeleteDroplets: (droplets: DigitalOceanDroplet[]) => MaybePromise<boolean>;
 };
 
 export function DigitalOceanDropletsSection({
@@ -92,6 +98,7 @@ export function DigitalOceanDropletsSection({
   onOpenScriptDialog,
   onOpenShareDialog,
   onDeleteDroplet,
+  onBatchDeleteDroplets,
 }: DigitalOceanDropletsSectionProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("__all__");
@@ -129,6 +136,14 @@ export function DigitalOceanDropletsSection({
     resetKey: `${searchQuery.trim().toLowerCase()}:${statusFilter}`,
   });
   const paginatedDroplets = dropletPagination.pageItems;
+  const getSelectionKey = useCallback((droplet: DigitalOceanDroplet) => String(droplet.id), []);
+  const bulkSelection = useCloudBulkSelection(visibleDroplets, getSelectionKey);
+  const handleBatchDelete = async () => {
+    const completed = await onBatchDeleteDroplets(bulkSelection.selectedItems);
+    if (completed) {
+      bulkSelection.clearSelection();
+    }
+  };
 
   return (
     <div className={`order-2 ${cloudPanelCardClassName}`}>
@@ -173,7 +188,15 @@ export function DigitalOceanDropletsSection({
               </Select.Content>
             </Select.Root>
           </div>
-          <Badge color="blue">{visibleDroplets.length}</Badge>
+          <CloudBulkDeleteToolbar
+            t={t}
+            selectedCount={bulkSelection.selectedCount}
+            totalCount={visibleDroplets.length}
+            onClear={bulkSelection.clearSelection}
+            onDelete={() => {
+              void handleBatchDelete();
+            }}
+          />
         </div>
       </div>
 
@@ -181,6 +204,14 @@ export function DigitalOceanDropletsSection({
         <AdminDataTable minWidth={1120}>
           <thead>
             <AdminDataTableHeadRow>
+              <AdminDataTableHead className="w-10">
+                <CloudBulkSelectCheckbox
+                  label={t("cloud.bulk.select_all", "选择全部实例")}
+                  checked={bulkSelection.allSelected ? true : bulkSelection.someSelected ? "indeterminate" : false}
+                  disabled={visibleDroplets.length === 0 || panelLoading}
+                  onCheckedChange={bulkSelection.toggleAll}
+                />
+              </AdminDataTableHead>
               <AdminDataTableHead>{t("cloud.table.name", "名称")}</AdminDataTableHead>
               <AdminDataTableHead>{t("cloud.table.status", "状态")}</AdminDataTableHead>
               <AdminDataTableHead>{t("cloud.table.region", "地区")}</AdminDataTableHead>
@@ -197,9 +228,9 @@ export function DigitalOceanDropletsSection({
           </thead>
           <tbody>
             {panelLoading ? (
-              <CloudTableSkeletonRows columns={10} />
+              <CloudTableSkeletonRows columns={11} />
             ) : droplets.length === 0 ? (
-              <AdminDataTableEmptyRow colSpan={10} className="p-4">
+              <AdminDataTableEmptyRow colSpan={11} className="p-4">
                 <AdminEmptyState
                   icon={<Server className="h-5 w-5" />}
                   title={
@@ -234,7 +265,7 @@ export function DigitalOceanDropletsSection({
               </AdminDataTableEmptyRow>
             ) : (
               visibleDroplets.length === 0 ? (
-                <AdminDataTableEmptyRow colSpan={10} className="p-4">
+                <AdminDataTableEmptyRow colSpan={11} className="p-4">
                   <AdminEmptyState
                     icon={<Search className="h-5 w-5" />}
                     title={t("cloud.no_matching_resources", "没有匹配的资源")}
@@ -243,7 +274,17 @@ export function DigitalOceanDropletsSection({
                   />
                 </AdminDataTableEmptyRow>
               ) : paginatedDroplets.map((droplet) => (
-                <AdminDataTableRow key={droplet.id}>
+                <AdminDataTableRow key={droplet.id} selected={bulkSelection.isSelected(droplet)}>
+                  <AdminDataTableCell className="w-10">
+                    <CloudBulkSelectCheckbox
+                      label={t("cloud.bulk.select_instance", {
+                        name: droplet.name,
+                        defaultValue: `选择 ${droplet.name}`,
+                      })}
+                      checked={bulkSelection.isSelected(droplet)}
+                      onCheckedChange={(checked) => bulkSelection.toggleItem(droplet, checked)}
+                    />
+                  </AdminDataTableCell>
                   <AdminDataTableCell className={cloudTablePrimaryTextClassName}>
                     <button
                       type="button"

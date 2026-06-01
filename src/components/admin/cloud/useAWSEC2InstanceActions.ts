@@ -14,6 +14,10 @@ import {
 import type { Ec2DetailActionFormState } from "./awsPanelState";
 import { formatTagMap } from "./awsPanelSummaries";
 import { toErrorMessage } from "./awsPanelUtils";
+import {
+  confirmCloudBulkDelete,
+  runCloudBulkDelete,
+} from "./cloudBulkDeleteUtils";
 
 type ConfirmDialog = (options: ConfirmDialogOptions) => Promise<boolean>;
 
@@ -201,6 +205,28 @@ export function useAWSEC2InstanceActions({
     }
   };
 
+  const handleBatchDeleteInstances = async (instances: AWSInstance[]) => {
+    const confirmed = await confirmCloudBulkDelete({
+      t,
+      confirm,
+      names: instances.map((instance) => instance.name || instance.instance_id),
+    });
+    if (!confirmed) return false;
+
+    await runCloudBulkDelete({
+      t,
+      items: instances,
+      getName: (instance) => instance.name || instance.instance_id,
+      deleteItem: (instance) => deleteAWSInstance(instance.instance_id),
+      formatError: toErrorMessage,
+    });
+    if (detailInstance && instances.some((instance) => instance.instance_id === detailInstance.instance_id)) {
+      closeEC2Detail();
+    }
+    await loadPanelData();
+    return true;
+  };
+
   return {
     detailInstance,
     detailData,
@@ -218,5 +244,6 @@ export function useAWSEC2InstanceActions({
     handleReplaceEc2Address,
     handleQuickReplaceEc2Address,
     handleDeleteInstance,
+    handleBatchDeleteInstances,
   };
 }
