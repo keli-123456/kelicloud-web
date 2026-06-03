@@ -17,9 +17,16 @@ import {
 } from "@/components/admin/admin-ui";
 import {
   ADMIN_FORM_BODY_CLASS,
+  ADMIN_FORM_CONTEXT_CARD_CLASS,
   ADMIN_FORM_DIALOG_CHROME_CLASS,
+  ADMIN_FORM_FIELD_CLASS,
+  ADMIN_FORM_FOOTER_CLASS,
+  ADMIN_FORM_GRID_2_CLASS,
   ADMIN_FORM_HEADER_CLASS,
   ADMIN_FORM_HEADER_INSET_CLASS,
+  ADMIN_FORM_HELP_CLASS,
+  ADMIN_FORM_LABEL_CLASS,
+  ADMIN_FORM_SECTION_CLASS,
 } from "@/components/admin/AdminFormStyles";
 import { getCloudProviderEntries, type CloudProviderCredentialEntry } from "@/lib/cloud";
 import { getReadableErrorMessage } from "@/lib/apiErrorMessage";
@@ -72,15 +79,16 @@ const DEFAULT_ALIYUN_FORM: AliyunFormState = {
 
 const NODE_DIALOG_CONTENT_CLASS =
   cn(
-    "flex max-h-[90vh] w-[calc(100vw-1.5rem)] max-w-[760px] flex-col overflow-hidden",
+    "flex max-h-[min(92vh,calc(100dvh-1.5rem))] w-[calc(100vw-1.5rem)] max-w-[820px] flex-col overflow-hidden",
     ADMIN_FORM_DIALOG_CHROME_CLASS,
   );
-const NODE_DIALOG_SECTION_CLASS =
-  "border-t border-slate-200/80 bg-transparent pt-4 dark:border-slate-800";
-const NODE_DIALOG_INFO_CLASS =
-  "flex items-center justify-between gap-3 border-l-2 border-slate-200/90 bg-transparent py-2 pl-3 dark:border-slate-700";
+const NODE_DIALOG_SECTION_CLASS = ADMIN_FORM_SECTION_CLASS;
+const NODE_DIALOG_INFO_CLASS = cn(
+  ADMIN_FORM_CONTEXT_CARD_CLASS,
+  "flex items-center justify-between gap-3",
+);
 const NODE_DIALOG_DANGER_CLASS =
-  "border-l-2 border-red-300 bg-transparent py-2 pl-3 text-sm text-red-700 dark:border-red-800 dark:text-red-200";
+  "rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-900/60 dark:bg-red-950/30 dark:text-red-200";
 
 function normalizeProvider(value: string): DDNSProvider {
   return value === "aliyun" ? "aliyun" : "cloudflare";
@@ -504,28 +512,28 @@ export function NodeDDNSDialog({
         </div>
 
         <div className={cn(ADMIN_FORM_BODY_CLASS, "space-y-4")}>
-          <div className={NODE_DIALOG_SECTION_CLASS}>
+          <div className={cn(NODE_DIALOG_SECTION_CLASS, "space-y-3")}>
             <div className="text-sm font-semibold">
               {t("admin.nodeTable.ddns.currentIPs", "Current node IPs")}
             </div>
-            <div className="mt-2 grid gap-2 text-sm sm:grid-cols-2">
-              <div>
+            <div className={cn(ADMIN_FORM_GRID_2_CLASS, "text-sm")}>
+              <div className={ADMIN_FORM_CONTEXT_CARD_CLASS}>
                 <span className="font-medium">IPv4: </span>
-                <span>{currentIPv4}</span>
+                <span className="font-mono text-[13px]">{currentIPv4}</span>
               </div>
-              <div>
+              <div className={ADMIN_FORM_CONTEXT_CARD_CLASS}>
                 <span className="font-medium">IPv6: </span>
-                <span>{currentIPv6}</span>
+                <span className="font-mono text-[13px]">{currentIPv6}</span>
               </div>
             </div>
           </div>
 
-          <Flex direction="column" gap="2">
-            <label className="text-sm font-semibold">
+          <Flex direction="column" gap="2" className={ADMIN_FORM_FIELD_CLASS}>
+            <label className={ADMIN_FORM_LABEL_CLASS}>
               {t("admin.nodeTable.ddns.enabled", "Enable DDNS")}
             </label>
             <div className={NODE_DIALOG_INFO_CLASS}>
-              <div className="text-sm text-muted-foreground">
+              <div className={ADMIN_FORM_HELP_CLASS}>
                 {t(
                   "admin.nodeTable.ddns.enabledHint",
                   "When enabled, the server checks this node once per minute and updates the DNS record after its public IP changes.",
@@ -535,9 +543,9 @@ export function NodeDDNSDialog({
             </div>
           </Flex>
 
-          <div className="grid gap-4 sm:grid-cols-2">
-            <Flex direction="column" gap="2">
-              <label className="text-sm font-semibold">
+          <div className={ADMIN_FORM_GRID_2_CLASS}>
+            <Flex direction="column" gap="2" className={ADMIN_FORM_FIELD_CLASS}>
+              <label className={ADMIN_FORM_LABEL_CLASS}>
                 {t("admin.nodeTable.ddns.provider", "DNS provider")}
               </label>
               <Select.Root value={provider} onValueChange={(value) => setProvider(normalizeProvider(value))}>
@@ -553,8 +561,8 @@ export function NodeDDNSDialog({
               </Select.Root>
             </Flex>
 
-            <Flex direction="column" gap="2">
-              <label className="text-sm font-semibold">
+            <Flex direction="column" gap="2" className={ADMIN_FORM_FIELD_CLASS}>
+              <label className={ADMIN_FORM_LABEL_CLASS}>
                 {t("admin.nodeTable.ddns.entry", "Credential entry")}
               </label>
               <Select.Root value={entryID} onValueChange={setEntryID}>
@@ -570,7 +578,7 @@ export function NodeDDNSDialog({
                 </Select.Content>
               </Select.Root>
               {selectedEntryMissing ? (
-                <div className="text-xs text-amber-600">
+                <div className="text-xs leading-5 text-amber-600">
                   {t(
                     "admin.nodeTable.ddns.entryMissing",
                     "No credential entries are available for this provider yet.",
@@ -580,8 +588,8 @@ export function NodeDDNSDialog({
             </Flex>
           </div>
 
-          <Flex direction="column" gap="2">
-            <label className="text-sm font-semibold">
+          <Flex direction="column" gap="2" className={ADMIN_FORM_FIELD_CLASS}>
+            <label className={ADMIN_FORM_LABEL_CLASS}>
               {t("admin.nodeTable.ddns.addressMode", "Address mode")}
             </label>
             <SegmentedControl.Root
@@ -602,9 +610,9 @@ export function NodeDDNSDialog({
             </div>
 
             {provider === "cloudflare" ? (
-              <div className="grid gap-4 sm:grid-cols-2">
-                <Flex direction="column" gap="2">
-                  <label className="text-sm font-semibold">
+              <div className={ADMIN_FORM_GRID_2_CLASS}>
+                <Flex direction="column" gap="2" className={ADMIN_FORM_FIELD_CLASS}>
+                  <label className={ADMIN_FORM_LABEL_CLASS}>
                     {t("admin.nodeTable.ddns.zoneName", "Zone / domain")}
                   </label>
                   {catalog?.zones.length ? (
@@ -639,8 +647,8 @@ export function NodeDDNSDialog({
                   )}
                 </Flex>
 
-                <Flex direction="column" gap="2">
-                  <label className="text-sm font-semibold">
+                <Flex direction="column" gap="2" className={ADMIN_FORM_FIELD_CLASS}>
+                  <label className={ADMIN_FORM_LABEL_CLASS}>
                     {t("admin.nodeTable.ddns.recordName", "Record name")}
                   </label>
                   <TextField.Root
@@ -655,8 +663,8 @@ export function NodeDDNSDialog({
                   />
                 </Flex>
 
-                <Flex direction="column" gap="2">
-                  <label className="text-sm font-semibold">
+                <Flex direction="column" gap="2" className={ADMIN_FORM_FIELD_CLASS}>
+                  <label className={ADMIN_FORM_LABEL_CLASS}>
                     {t("admin.nodeTable.ddns.ttl", "TTL")}
                   </label>
                   {catalog?.ttls.length ? (
@@ -688,12 +696,12 @@ export function NodeDDNSDialog({
                   )}
                 </Flex>
 
-                <Flex direction="column" gap="2">
-                  <label className="text-sm font-semibold">
+                <Flex direction="column" gap="2" className={ADMIN_FORM_FIELD_CLASS}>
+                  <label className={ADMIN_FORM_LABEL_CLASS}>
                     {t("admin.nodeTable.ddns.proxied", "Cloudflare proxy")}
                   </label>
                   <div className={NODE_DIALOG_INFO_CLASS}>
-                    <div className="text-sm text-muted-foreground">
+                    <div className={ADMIN_FORM_HELP_CLASS}>
                       {t(
                         "admin.nodeTable.ddns.proxiedHint",
                         "Turn this on only if this record should go through the Cloudflare proxy.",
@@ -712,9 +720,9 @@ export function NodeDDNSDialog({
                 </Flex>
               </div>
             ) : (
-              <div className="grid gap-4 sm:grid-cols-2">
-                <Flex direction="column" gap="2">
-                  <label className="text-sm font-semibold">
+              <div className={ADMIN_FORM_GRID_2_CLASS}>
+                <Flex direction="column" gap="2" className={ADMIN_FORM_FIELD_CLASS}>
+                  <label className={ADMIN_FORM_LABEL_CLASS}>
                     {t("admin.nodeTable.ddns.domainName", "Domain")}
                   </label>
                   {catalog?.domains.length ? (
@@ -749,8 +757,8 @@ export function NodeDDNSDialog({
                   )}
                 </Flex>
 
-                <Flex direction="column" gap="2">
-                  <label className="text-sm font-semibold">
+                <Flex direction="column" gap="2" className={ADMIN_FORM_FIELD_CLASS}>
+                  <label className={ADMIN_FORM_LABEL_CLASS}>
                     {t("admin.nodeTable.ddns.rr", "Host / RR")}
                   </label>
                   <TextField.Root
@@ -765,8 +773,8 @@ export function NodeDDNSDialog({
                   />
                 </Flex>
 
-                <Flex direction="column" gap="2">
-                  <label className="text-sm font-semibold">
+                <Flex direction="column" gap="2" className={ADMIN_FORM_FIELD_CLASS}>
+                  <label className={ADMIN_FORM_LABEL_CLASS}>
                     {t("admin.nodeTable.ddns.line", "Line")}
                   </label>
                   {catalog?.lines.length ? (
@@ -798,8 +806,8 @@ export function NodeDDNSDialog({
                   )}
                 </Flex>
 
-                <Flex direction="column" gap="2">
-                  <label className="text-sm font-semibold">
+                <Flex direction="column" gap="2" className={ADMIN_FORM_FIELD_CLASS}>
+                  <label className={ADMIN_FORM_LABEL_CLASS}>
                     {t("admin.nodeTable.ddns.ttl", "TTL")}
                   </label>
                   {catalog?.ttls.length ? (
@@ -835,7 +843,7 @@ export function NodeDDNSDialog({
           </div>
 
           {catalogError ? (
-            <div className="border-l-2 border-amber-300 bg-transparent py-2 pl-3 text-sm text-amber-700 dark:border-amber-800 dark:text-amber-300">
+            <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-700 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-300">
               {catalogError}
             </div>
           ) : null}
@@ -850,7 +858,7 @@ export function NodeDDNSDialog({
               </Badge>
             </div>
 
-            <div className="grid gap-2 text-sm sm:grid-cols-2">
+            <div className={cn(ADMIN_FORM_GRID_2_CLASS, "text-sm")}>
               <div>
                 <span className="font-medium">
                   {t("admin.nodeTable.ddns.lastIPv4", "Last IPv4")}:
@@ -897,63 +905,61 @@ export function NodeDDNSDialog({
             ) : null}
           </div>
 
-          <Flex justify="between" align="center" wrap="wrap" gap="2">
-            <div className="text-xs text-muted-foreground">
-              {loadingBinding || loadingEntries || loadingCatalog
-                ? t("admin.nodeTable.ddns.loading", "Loading DDNS data...")
-                : selectedEntryMissing
-                  ? t(
-                      "admin.nodeTable.ddns.providerSetupHint",
-                      "Add at least one DNS credential entry before enabling DDNS on this node.",
-                    )
-                  : t(
-                      "admin.nodeTable.ddns.schedulerHint",
-                      "The server checks enabled DDNS bindings once per minute.",
-                    )}
-            </div>
+        </div>
 
-            <Flex gap="2" justify="end" wrap="wrap">
-              {binding ? (
-                <Button
-                  color="red"
-                  variant="soft"
-                  disabled={removing}
-                  onClick={() => {
-                    void handleDelete();
-                  }}
-                >
-                  <Trash2 size={14} />
-                  {removing
-                    ? t("admin.nodeTable.ddns.removing", "Removing...")
-                    : t("admin.nodeTable.ddns.remove", "Remove")}
-                </Button>
-              ) : null}
+        <div className={ADMIN_FORM_FOOTER_CLASS}>
+          <div className="mr-auto text-xs leading-5 text-muted-foreground sm:max-w-[360px]">
+            {loadingBinding || loadingEntries || loadingCatalog
+              ? t("admin.nodeTable.ddns.loading", "Loading DDNS data...")
+              : selectedEntryMissing
+                ? t(
+                    "admin.nodeTable.ddns.providerSetupHint",
+                    "Add at least one DNS credential entry before enabling DDNS on this node.",
+                  )
+                : t(
+                    "admin.nodeTable.ddns.schedulerHint",
+                    "The server checks enabled DDNS bindings once per minute.",
+                  )}
+          </div>
+          {binding ? (
+            <Button
+              color="red"
+              variant="soft"
+              disabled={removing}
+              onClick={() => {
+                void handleDelete();
+              }}
+            >
+              <Trash2 size={14} />
+              {removing
+                ? t("admin.nodeTable.ddns.removing", "Removing...")
+                : t("admin.nodeTable.ddns.remove", "Remove")}
+            </Button>
+          ) : null}
 
-              <Button
-                variant="soft"
-                disabled={!binding || syncing}
-                onClick={() => {
-                  void handleSync();
-                }}
-              >
-                <RefreshCw size={14} className={syncing ? "animate-spin" : ""} />
-                {syncing
-                  ? t("admin.nodeTable.ddns.syncing", "Syncing...")
-                  : t("admin.nodeTable.ddns.syncNow", "Sync now")}
-              </Button>
+          <Button
+            variant="soft"
+            disabled={!binding || syncing}
+            onClick={() => {
+              void handleSync();
+            }}
+          >
+            <RefreshCw size={14} className={syncing ? "animate-spin" : ""} />
+            {syncing
+              ? t("admin.nodeTable.ddns.syncing", "Syncing...")
+              : t("admin.nodeTable.ddns.syncNow", "Sync now")}
+          </Button>
 
-              <Button
-                disabled={saving || selectedEntryMissing}
-                onClick={() => {
-                  void handleSave();
-                }}
-              >
-                {saving
-                  ? t("admin.nodeTable.ddns.saving", "保存中...")
-                  : t("admin.nodeTable.ddns.save", "Save DDNS")}
-              </Button>
-            </Flex>
-          </Flex>
+          <Button
+            disabled={saving || selectedEntryMissing}
+            onClick={() => {
+              void handleSave();
+            }}
+          >
+            {saving
+              ? t("admin.nodeTable.ddns.saving", "保存中...")
+              : t("admin.nodeTable.ddns.save", "Save DDNS")}
+          </Button>
         </div>
       </Dialog.Content>
     </Dialog.Root>

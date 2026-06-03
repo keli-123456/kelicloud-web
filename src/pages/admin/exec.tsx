@@ -10,6 +10,8 @@ import {
 } from "@/contexts/CommandClipboardContext";
 import { useTranslation } from "react-i18next";
 import {
+    ChevronDown,
+    ChevronUp,
     Play,
     Terminal,
     AlertCircle,
@@ -156,7 +158,7 @@ const getCommandEditorHeight = (lineCount: number) =>
     Math.min(260, Math.max(96, lineCount * 20 + 32));
 
 const execPanelClass =
-    "overflow-hidden rounded-lg border border-slate-200/80 bg-white shadow-none dark:border-slate-800/90 dark:bg-slate-950";
+    "admin-panel";
 
 type ExecStatusTone = "ok" | "warn" | "bad" | "info";
 
@@ -322,10 +324,10 @@ function ExecWorkspace() {
     useAdminPageTitle(
         canUseExec
             ? t("exec.title", { defaultValue: "远程执行" })
-            : t("command_clipboard.page_title", { defaultValue: "脚本库" }),
+            : t("command_clipboard.page_title", { defaultValue: "脚本" }),
         canUseExec
             ? t("exec.page_description", {
-                defaultValue: "选择目标节点，编写一次性命令或复用脚本库，并在同一工作台追踪执行结果。",
+                defaultValue: "选择目标节点，编写一次性命令或复用脚本，并在同一工作台追踪执行结果。",
             })
             : t("command_clipboard.page_description", {
                 defaultValue: "集中管理远程执行和云实例场景复用的脚本命令。",
@@ -372,6 +374,7 @@ const ExecContent = ({ canUseExec, canUseScripts }: { canUseExec: boolean; canUs
     const [editingScript, setEditingScript] = useState<CommandClipboard | null>(null);
     const [scriptFormValues, setScriptFormValues] = useState<ScriptFormValues>(EMPTY_SCRIPT_FORM_VALUES);
     const [scriptSubmitting, setScriptSubmitting] = useState(false);
+    const [previewExpanded, setPreviewExpanded] = useState(false);
 
     // Keep polling handles in refs.
     const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -489,7 +492,7 @@ const ExecContent = ({ canUseExec, canUseScripts }: { canUseExec: boolean; canUs
                     scriptFormValues.remark.trim(),
                     safeWeight,
                 );
-                toast.success(t("exec.savedCommandSaved", { defaultValue: "脚本已保存到脚本库" }));
+                toast.success(t("exec.savedCommandSaved", { defaultValue: "脚本已保存" }));
             }
 
             setScriptEditorOpen(false);
@@ -914,6 +917,7 @@ const ExecContent = ({ canUseExec, canUseScripts }: { canUseExec: boolean; canUs
             };
         })
         : [];
+    const previewResultSummary = terminalResultLines[0]?.text || t("exec.waiting_for_result", { defaultValue: "Waiting for task result..." });
     const currentTaskId = selectedResultTaskId || taskId;
     const resultSearch = normalizedLibrarySearch;
     const filteredCurrentResults = resultSearch
@@ -950,7 +954,7 @@ const ExecContent = ({ canUseExec, canUseScripts }: { canUseExec: boolean; canUs
                     </div>
                     <div className="hidden h-9 w-28 rounded-md bg-muted sm:block" />
                 </div>
-                <div className="grid gap-[14px] xl:grid-cols-[minmax(0,1fr)_360px]">
+                <div className="grid gap-[14px] xl:grid-cols-[minmax(0,1fr)_400px]">
                     <section className={execPanelClass}>
                         <AdminTableSkeleton columns={5} rows={5} className="p-4" />
                     </section>
@@ -977,7 +981,7 @@ const ExecContent = ({ canUseExec, canUseScripts }: { canUseExec: boolean; canUs
                     icon={<Terminal size={18} />}
                     title={t("exec.no_script_permission_title", { defaultValue: "暂无脚本权限" })}
                     description={t("exec.no_script_permission_description", {
-                        defaultValue: "当前账号没有脚本库权限，请联系管理员开通后再使用。",
+                        defaultValue: "当前账号没有脚本权限，请联系管理员开通后再使用。",
                     })}
                     className="min-h-56"
                 />
@@ -990,13 +994,13 @@ const ExecContent = ({ canUseExec, canUseScripts }: { canUseExec: boolean; canUs
         <div className="flex min-w-0 flex-col gap-[14px] p-3 sm:p-4 md:p-6">
             <div className={cn(
                 "grid items-start gap-[14px]",
-                canUseExec ? "xl:grid-cols-[minmax(0,1fr)_360px]" : "xl:grid-cols-1",
+                canUseExec ? "xl:grid-cols-[minmax(0,1fr)_400px]" : "xl:grid-cols-1",
             )}>
                 <section className={cn(execPanelClass, "xl:max-h-[calc(100dvh-11rem)] xl:overflow-hidden")}>
-                    <div className="flex min-h-[54px] flex-col gap-3 border-b border-border px-[14px] py-3 sm:flex-row sm:items-center sm:justify-between">
-                        <div className="flex w-full gap-1 border-b border-slate-200/80 pb-1 dark:border-slate-800 sm:w-auto">
+                    <div className="admin-panel-header flex min-h-[54px] flex-col gap-3 px-[14px] py-3 sm:flex-row sm:items-center sm:justify-between">
+                        <div className="flex w-full gap-1 border-b border-border pb-1 sm:w-auto">
                             <ExecToolbarTab active={activeTab === "library"} onClick={() => setActiveTab("library")}>
-                                {t("command_clipboard.open_library", { defaultValue: "脚本库" })}
+                                {t("exec.scripts", { defaultValue: "脚本" })}
                             </ExecToolbarTab>
                             {canUseExec && (
                                 <>
@@ -1036,7 +1040,7 @@ const ExecContent = ({ canUseExec, canUseScripts }: { canUseExec: boolean; canUs
                                                 ? t("exec.search_result", { defaultValue: "搜索节点 / 输出" })
                                                 : t("exec.search_library", { defaultValue: "搜索脚本 / 备注" })
                                     }
-                                    className="h-9 w-full rounded-md border border-input bg-background pl-9 pr-3 text-[12px] text-foreground outline-none placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring/35"
+                                    className="h-9 w-full rounded-md border border-input bg-[var(--surface)] pl-9 pr-3 text-[12px] text-foreground outline-none placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring/35"
                                 />
                             </div>
                             {activeTab === "history" && (
@@ -1100,7 +1104,7 @@ const ExecContent = ({ canUseExec, canUseScripts }: { canUseExec: boolean; canUs
                                             <AdminEmptyState
                                                 icon={<Terminal size={18} />}
                                                 title={t("exec.library_empty_title", { defaultValue: "暂无脚本" })}
-                                                description={t("exec.library_empty_description", { defaultValue: "脚本库为空。" })}
+                                                description={t("exec.library_empty_description", { defaultValue: "还没有保存脚本。" })}
                                                 actions={
                                                     <Button type="button" onClick={openCreateScriptDialog} size="sm">
                                                         <Plus size={14} />
@@ -1132,7 +1136,7 @@ const ExecContent = ({ canUseExec, canUseScripts }: { canUseExec: boolean; canUs
                                                         }),
                                                     )}
                                                 </button>
-                                                <span className="mt-1 inline-flex h-5 items-center rounded-full bg-slate-100 px-2 font-mono text-[11px] leading-5 text-slate-500 dark:bg-slate-900 dark:text-slate-400">
+                                                <span className="mt-1 inline-flex h-5 items-center rounded-full bg-[var(--surface-subtle)] px-2 font-mono text-[11px] leading-5 text-muted-foreground">
                                                     #{item.id} · {t("command_clipboard.table.weight", { defaultValue: "权重" })} {item.weight}
                                                 </span>
                                             </AdminDataTableCell>
@@ -1223,13 +1227,13 @@ const ExecContent = ({ canUseExec, canUseScripts }: { canUseExec: boolean; canUs
                                                 className="min-h-28 border-0 bg-muted/25 shadow-none"
                                             />
                                         </AdminDataTableEmptyRow>
-                                    ) : visibleRecentTasks.map((item) => {
+                                    ) : visibleRecentTasks.map((item, index) => {
                                         const completion = getTaskCompletion(item);
                                         const tone = getTaskTone(item);
                                         const selected = currentTaskId === item.task_id;
                                         return (
                                             <AdminDataTableRow
-                                                key={item.task_id}
+                                                key={`${item.task_id}-${index}`}
                                                 selected={selected}
                                                 interactive
                                                 onClick={() => {
@@ -1348,13 +1352,13 @@ const ExecContent = ({ canUseExec, canUseScripts }: { canUseExec: boolean; canUs
                                         className="min-h-28 border-0 bg-muted/25 shadow-none"
                                     />
                                 </div>
-                            ) : visibleCurrentResults.map((item) => {
+                            ) : visibleCurrentResults.map((item, index) => {
                                 const status = getTaskStatus(item);
                                 const output = item.result ? getDisplayOutput(item.result) : status.text;
                                 return (
                                     <button
                                         type="button"
-                                        key={item.client}
+                                        key={`${item.client}-${index}`}
                                         onClick={() => setActiveTab("result")}
                                         className="grid min-h-14 grid-cols-[minmax(0,1fr)_auto] items-center gap-3 border-b border-border px-[14px] py-2.5 text-left last:border-b-0 hover:bg-muted/25"
                                     >
@@ -1393,30 +1397,63 @@ const ExecContent = ({ canUseExec, canUseScripts }: { canUseExec: boolean; canUs
                     {canUseExec ? (
                     <div className="border-t border-border p-[14px]">
                         <div className="overflow-hidden rounded-lg border border-slate-900 bg-slate-950 shadow-none">
-                            <div className="flex h-9 items-center justify-between border-b border-white/10 px-3">
+                            <div className="flex h-9 items-center justify-between gap-3 border-b border-white/10 px-3">
                                 <div className="flex items-center gap-2 text-[12px] font-semibold text-slate-300">
                                     <Terminal size={13} />
                                     {t("exec.task_preview", { defaultValue: "Task preview" })}
                                 </div>
-                                <span className="font-mono text-[11px] text-slate-500">
-                                    {currentTaskId ? `${t("exec.task_label", { defaultValue: "Task" })} ${currentTaskId.slice(0, 8)}...` : "/api/admin/task/exec"}
-                                </span>
+                                <div className="flex min-w-0 items-center gap-2">
+                                    <span className="truncate font-mono text-[11px] text-slate-500">
+                                        {currentTaskId ? `${t("exec.task_label", { defaultValue: "Task" })} ${currentTaskId.slice(0, 8)}...` : "/api/admin/task/exec"}
+                                    </span>
+                                    <Button
+                                        type="button"
+                                        variant="ghost"
+                                        size="sm"
+                                        className="h-7 rounded-md px-2 text-[11px] text-slate-300 hover:bg-white/10 hover:text-white"
+                                        onClick={() => setPreviewExpanded((value) => !value)}
+                                    >
+                                        {previewExpanded ? <ChevronUp className="size-3.5" /> : <ChevronDown className="size-3.5" />}
+                                        {previewExpanded
+                                            ? t("common.collapse", { defaultValue: "收起" })
+                                            : t("common.expand", { defaultValue: "展开" })}
+                                    </Button>
+                                </div>
                             </div>
-                            <div className="min-h-[166px] overflow-auto px-4 py-3 font-mono text-[12px] leading-6 text-slate-300">
-                                <div><span className="text-emerald-300">$</span> {t("exec.task_id_label", { defaultValue: "Task ID" })}={currentTaskId ? `${currentTaskId.slice(0, 8)}...` : t("exec.pending", { defaultValue: "pending" })}</div>
-                                <div><span className="text-emerald-300">$</span> {t("exec.clients_label", { defaultValue: "Clients" })}={JSON.stringify(previewClientNames)}</div>
-                                <div><span className="text-emerald-300">$</span> {t("exec.command", { defaultValue: "Command" })}="{terminalCommand}"</div>
-                                <div className="h-4" />
-                                {terminalResultLines.length === 0 ? (
-                                    <div className="text-slate-500">{t("exec.waiting_for_result", { defaultValue: "Waiting for task result..." })}</div>
-                                ) : terminalResultLines.map((line) => (
-                                    <div key={`${line.node}-${line.text}`}>
-                                        <span className={line.tone === "bad" ? "text-red-300" : "text-emerald-300"}>
-                                            {line.node}
-                                        </span>{" "}
-                                        {line.text}
+                            <div className={cn(
+                                "overflow-auto px-4 py-3 font-mono text-[12px] leading-6 text-slate-300",
+                                previewExpanded ? "max-h-[240px]" : "max-h-[104px]",
+                            )}>
+                                {previewExpanded ? (
+                                    <>
+                                        <div><span className="text-emerald-300">$</span> {t("exec.task_id_label", { defaultValue: "Task ID" })}={currentTaskId ? `${currentTaskId.slice(0, 8)}...` : t("exec.pending", { defaultValue: "pending" })}</div>
+                                        <div><span className="text-emerald-300">$</span> {t("exec.clients_label", { defaultValue: "Clients" })}={JSON.stringify(previewClientNames)}</div>
+                                        <div><span className="text-emerald-300">$</span> {t("exec.command", { defaultValue: "Command" })}="{terminalCommand}"</div>
+                                        <div className="h-4" />
+                                        {terminalResultLines.length === 0 ? (
+                                            <div className="text-slate-500">{t("exec.waiting_for_result", { defaultValue: "Waiting for task result..." })}</div>
+                                        ) : terminalResultLines.map((line) => (
+                                            <div key={`${line.node}-${line.text}`}>
+                                                <span className={line.tone === "bad" ? "text-red-300" : "text-emerald-300"}>
+                                                    {line.node}
+                                                </span>{" "}
+                                                {line.text}
+                                            </div>
+                                        ))}
+                                    </>
+                                ) : (
+                                    <div className="space-y-1.5">
+                                        <div className="truncate">
+                                            <span className="text-emerald-300">$</span> {t("exec.command", { defaultValue: "Command" })}="{terminalCommand}"
+                                        </div>
+                                        <div className="truncate text-slate-500">
+                                            {t("exec.clients_label", { defaultValue: "Clients" })}: {previewClientNames.length}
+                                        </div>
+                                        <div className="truncate text-slate-400" title={previewResultSummary}>
+                                            {previewResultSummary}
+                                        </div>
                                     </div>
-                                ))}
+                                )}
                             </div>
                         </div>
                     </div>
@@ -1428,13 +1465,13 @@ const ExecContent = ({ canUseExec, canUseScripts }: { canUseExec: boolean; canUs
                     <ExecPanelHead title={t("exec.configuration", { defaultValue: "执行配置" })} meta="/api/admin/task/exec" />
                     <div className="flex flex-col gap-4 p-[14px]">
                         <ExecField label={t("exec.target_nodes", { defaultValue: "目标节点" })}>
-                            <div className="rounded-md border border-input bg-background p-2">
+                            <div className="rounded-md border border-input bg-[var(--surface-subtle)] p-2">
                                 <NodeSelector
                                     value={selectedNodes}
                                     onChange={setSelectedNodes}
                                     displayMode="ip"
                                     hiddenDescription
-                                    className="h-[238px]"
+                                    className="h-[226px]"
                                     scrollAreaClassName="flex-1 overflow-y-auto overscroll-contain [scrollbar-gutter:stable]"
                                 />
                             </div>
@@ -1455,7 +1492,7 @@ const ExecContent = ({ canUseExec, canUseScripts }: { canUseExec: boolean; canUs
                         </ExecField>
 
                         <ExecField label={t("exec.command_content", { defaultValue: "命令内容" })}>
-                            <div className="overflow-hidden rounded-md border border-input bg-background">
+                            <div className="overflow-hidden rounded-md border border-input bg-[var(--surface-subtle)]">
                                 <div className="flex h-8 items-center justify-between border-b border-border bg-muted/30 px-3">
                                     <div className="flex items-center gap-2 text-[12px] font-medium text-muted-foreground">
                                         <Terminal size={13} />
@@ -1469,7 +1506,7 @@ const ExecContent = ({ canUseExec, canUseScripts }: { canUseExec: boolean; canUs
                                     </span>
                                 </div>
                                 <div
-                                    className="flex bg-background"
+                                    className="flex bg-[var(--surface)]"
                                     style={{ height: commandEditorHeight }}
                                 >
                                     <div
@@ -1561,7 +1598,7 @@ const ExecContent = ({ canUseExec, canUseScripts }: { canUseExec: boolean; canUs
                     </div>
                 ) : (
                     <div className="flex flex-col">
-                        {results.map((result) => {
+                        {results.map((result, index) => {
                             const status = getTaskStatus(result);
                             const output = result.result ? getDisplayOutput(result.result) : "";
                             const outputLines = getCodeLines(output);
@@ -1577,7 +1614,7 @@ const ExecContent = ({ canUseExec, canUseScripts }: { canUseExec: boolean; canUs
 
                             return (
                                 <div
-                                    key={result.client}
+                                    key={`${result.client}-${index}`}
                                     className="border-b border-border p-[14px] last:border-b-0"
                                 >
                                     <div className="flex flex-col gap-3">

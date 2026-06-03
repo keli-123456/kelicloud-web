@@ -9,19 +9,29 @@ import {
   TextArea,
 } from "@/components/admin/admin-ui";
 import {
+  ADMIN_FORM_BODY_CLASS,
+  ADMIN_FORM_DIALOG_CHROME_CLASS,
+  ADMIN_FORM_FOOTER_CLASS,
+  ADMIN_FORM_HEADER_CLASS,
+  ADMIN_FORM_HEADER_INSET_CLASS,
+} from "@/components/admin/AdminFormStyles";
+import {
   useNodeDetails,
   type NodeDetail,
 } from "@/contexts/NodeDetailsContext";
 import type { SettingsResponse } from "@/lib/api";
 import { formatApiErrorMessage, getReadableErrorMessage } from "@/lib/apiErrorMessage";
 import { buildAgentInstallScriptURL } from "@/lib/installScriptSource";
+import { cn } from "@/lib/utils";
 import type { Record as LiveRecord } from "@/types/LiveData";
 import { formatBytes } from "@/utils/unitHelper";
 
 const NODE_DIALOG_CONTENT_CLASS =
-  "max-h-[90vh] w-[min(96vw,760px)] overflow-y-auto overscroll-contain rounded-lg border border-slate-200/80 bg-white p-5 shadow-[0_24px_70px_-50px_rgba(15,23,42,0.72)] [scrollbar-gutter:stable] dark:border-slate-800 dark:bg-slate-950";
-const NODE_DIALOG_FOOTER_CLASS =
-  "sticky bottom-0 -mx-5 -mb-5 mt-5 flex flex-col-reverse gap-2 border-t border-slate-200/80 bg-white/95 px-5 py-3 backdrop-blur dark:border-slate-800 dark:bg-slate-950/95 sm:flex-row sm:justify-end";
+  cn(
+    "flex max-h-[min(92vh,calc(100dvh-1.5rem))] w-[calc(100vw-1.5rem)] max-w-[760px] flex-col overflow-hidden",
+    ADMIN_FORM_DIALOG_CHROME_CLASS,
+  );
+const NODE_DIALOG_FOOTER_CLASS = ADMIN_FORM_FOOTER_CLASS;
 
 type NodeLiveSnapshot = {
   online: boolean;
@@ -921,20 +931,25 @@ export default function GroupUpgradeDialog({
   return (
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
       <Dialog.Content className={NODE_DIALOG_CONTENT_CLASS} maxWidth={760}>
-        <Dialog.Title>
-          {t("admin.nodeTable.upgradeDialogTitle", {
-            groupName,
-            defaultValue: "{{groupName}} · Upgrade agent",
-          })}
-        </Dialog.Title>
-        <Dialog.Description className="mt-2">
-          {t("admin.nodeTable.upgradeDialogDescription", {
-            defaultValue:
-              "Only online nodes in the current group will receive the upgrade script. The terminal entry remains available from the node row context menu.",
-          })}
-        </Dialog.Description>
+        <div className={ADMIN_FORM_HEADER_CLASS}>
+          <div className={ADMIN_FORM_HEADER_INSET_CLASS}>
+            <Dialog.Title>
+              {t("admin.nodeTable.upgradeDialogTitle", {
+                groupName,
+                defaultValue: "{{groupName}} · Upgrade agent",
+              })}
+            </Dialog.Title>
+            <Dialog.Description>
+              {t("admin.nodeTable.upgradeDialogDescription", {
+                defaultValue:
+                  "Only online nodes in the current group will receive the upgrade script. The terminal entry remains available from the node row context menu.",
+              })}
+            </Dialog.Description>
+          </div>
+        </div>
 
-        <div className="mt-4 grid gap-3 border-t border-slate-200/80 pt-4 dark:border-slate-800 sm:grid-cols-4">
+        <div className={ADMIN_FORM_BODY_CLASS}>
+        <div className="grid gap-3 sm:grid-cols-4">
           <div className="border-b border-slate-200/80 px-1 py-2 dark:border-slate-800">
             <div className="text-xs text-slate-500 dark:text-slate-400">
               {t("admin.nodeTable.upgradeOnlineNodes", "Online nodes")}
@@ -982,7 +997,7 @@ export default function GroupUpgradeDialog({
                 })}
               </div>
             ) : (
-              onlineNodes.map((node) => {
+              onlineNodes.map((node, index) => {
                 const result = resultState[node.uuid];
                 const statusLabel =
                   result?.status === "success"
@@ -1006,7 +1021,7 @@ export default function GroupUpgradeDialog({
 
                 return (
                   <div
-                    key={node.uuid}
+                    key={`${node.uuid}-${index}`}
                     title={result?.output || buildNodeConfigTooltip({ node, live: liveByNode[node.uuid] })}
                     className="flex flex-col gap-3 rounded-lg border border-slate-200/80 bg-white/76 px-3 py-3 shadow-none dark:border-slate-800/80 dark:bg-slate-950/30 sm:flex-row sm:items-center sm:justify-between"
                   >
@@ -1050,6 +1065,7 @@ export default function GroupUpgradeDialog({
             />
           </div>
         ) : null}
+        </div>
 
         <div className={NODE_DIALOG_FOOTER_CLASS}>
           <Dialog.Close>

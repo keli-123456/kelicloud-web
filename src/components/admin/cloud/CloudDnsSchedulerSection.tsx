@@ -221,33 +221,6 @@ function getSourceTaskHref(item: DNSSchedulerItem) {
   return "";
 }
 
-function SchedulerFlow() {
-  const { t } = useTranslation();
-  const steps = [
-    t("cloud.dns.scheduler.flow.scan", { defaultValue: "扫描 DDNS 和故障切换 DNS" }),
-    t("cloud.dns.scheduler.flow.merge", { defaultValue: "按用户/令牌/记录合并" }),
-    t("cloud.dns.scheduler.flow.diff", { defaultValue: "对比本地 IP 状态" }),
-    t("cloud.dns.scheduler.flow.apply", { defaultValue: "必要时请求 DNS API" }),
-  ];
-
-  return (
-    <AdminDataPanel bodyClassName="p-0">
-      <div className="grid divide-y divide-border dark:divide-slate-800 md:grid-cols-4 md:divide-x md:divide-y-0">
-        {steps.map((step, index) => (
-          <div key={step} className="flex min-h-14 items-center gap-3 px-4 py-3">
-            <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-blue-50 text-sm font-semibold text-blue-700 dark:bg-blue-950/40 dark:text-blue-200">
-              {index + 1}
-            </span>
-            <span className="min-w-0 text-sm font-medium leading-5 text-slate-800 dark:text-slate-100">
-              {step}
-            </span>
-          </div>
-        ))}
-      </div>
-    </AdminDataPanel>
-  );
-}
-
 function SchedulerToolbar({
   snapshot,
   refreshing,
@@ -280,27 +253,13 @@ function SchedulerToolbar({
             count: snapshot?.synced || 0,
           })}
         </Badge>
-        <Badge color="blue">
-          {t("cloud.dns.scheduler.pending_count", {
-            defaultValue: "待处理 {{count}}",
-            count: snapshot?.pending || 0,
-          })}
-        </Badge>
         <Badge color={snapshot?.failed ? "red" : "gray"}>
           {t("cloud.dns.scheduler.failed_count", {
             defaultValue: "异常 {{count}}",
             count: snapshot?.failed || 0,
           })}
         </Badge>
-        {snapshot?.deduped ? (
-          <Badge color="amber">
-            {t("cloud.dns.scheduler.deduped_count", {
-              defaultValue: "合并 {{count}}",
-              count: snapshot.deduped,
-            })}
-          </Badge>
-        ) : null}
-        <span className="mx-1 hidden h-4 w-px bg-border sm:inline-block" />
+        <span className="mx-1 hidden h-4 w-px bg-border md:inline-block" />
         <Badge color="blue">
           {t("cloud.dns.scheduler.source_ddns_count", {
             defaultValue: "DDNS {{count}}",
@@ -319,41 +278,17 @@ function SchedulerToolbar({
             count: snapshot?.source_counts?.failover_v2 || 0,
           })}
         </Badge>
-        <span className="mx-1 hidden h-4 w-px bg-border sm:inline-block" />
-        <Badge color={execution?.inflight ? "blue" : "gray"}>
-          {t("cloud.dns.scheduler.execution_inflight", {
-            defaultValue: "执行中 {{count}}",
-            count: execution?.inflight || 0,
-          })}
-        </Badge>
+        <span className="mx-1 hidden h-4 w-px bg-border md:inline-block" />
         <Badge color="gray">
           {t("cloud.dns.scheduler.execution_api_requests", {
             defaultValue: "API {{count}}",
             count: execution?.api_requests || 0,
           })}
         </Badge>
-        <Badge color="blue">
-          {t("cloud.dns.scheduler.execution_cf_batch", {
-            defaultValue: "CF 批量 {{count}}",
-            count: execution?.cloudflare_batch_writes || 0,
-          })}
-        </Badge>
-        <Badge color="amber">
-          {t("cloud.dns.scheduler.execution_aliyun_single", {
-            defaultValue: "阿里云单条 {{count}}",
-            count: execution?.aliyun_single_writes || 0,
-          })}
-        </Badge>
-        <Badge color="amber">
+        <Badge color={execution?.coalesced ? "amber" : "gray"}>
           {t("cloud.dns.scheduler.execution_coalesced", {
             defaultValue: "并发合并 {{count}}",
             count: execution?.coalesced || 0,
-          })}
-        </Badge>
-        <Badge color={snapshot?.dedupe_groups ? "amber" : "gray"}>
-          {t("cloud.dns.scheduler.dedupe_groups", {
-            defaultValue: "目标合并组 {{count}}",
-            count: snapshot?.dedupe_groups || 0,
           })}
         </Badge>
       </div>
@@ -415,7 +350,6 @@ function SchedulerSourceOverview({
   onSourceFilterChange: (value: SourceFilter) => void;
 }) {
   const { t } = useTranslation();
-  const total = Math.max(1, snapshot?.total || 0);
   const execution = snapshot?.dns_execution;
   const sourceItems: Array<{ key: Exclude<SourceFilter, "all">; tone: BadgeTone }> = [
     { key: "ddns", tone: "blue" },
@@ -463,14 +397,9 @@ function SchedulerSourceOverview({
   ];
 
   return (
-    <div className="grid gap-4 xl:grid-cols-[minmax(0,1.25fr)_minmax(360px,0.75fr)]">
-      <AdminDataPanel
-        title={t("cloud.dns.scheduler.source_overview_title", { defaultValue: "来源分布" })}
-        description={t("cloud.dns.scheduler.source_overview_hint", {
-          defaultValue: "DDNS、故障切换 V1 和 V2 会进入同一个 DNS 调度队列，再按目标合并。",
-        })}
-        bodyClassName="p-4"
-        actions={(
+    <AdminDataPanel bodyClassName="px-4 py-3">
+      <div className="flex min-w-0 flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
+        <div className="flex min-w-0 flex-wrap items-center gap-2">
           <Button
             type="button"
             variant={sourceFilter === "all" ? "solid" : "outline"}
@@ -478,13 +407,10 @@ function SchedulerSourceOverview({
             onClick={() => onSourceFilterChange("all")}
           >
             {t("cloud.dns.scheduler.source.all", { defaultValue: "全部" })}
+            <span className="ml-1 text-[11px] opacity-70">{snapshot?.total || 0}</span>
           </Button>
-        )}
-      >
-        <div className="grid gap-3 md:grid-cols-3">
           {sourceItems.map((source) => {
             const count = snapshot?.source_counts?.[source.key] || 0;
-            const percentage = Math.min(100, Math.round((count / total) * 100));
             const active = sourceFilter === source.key;
 
             return (
@@ -493,71 +419,35 @@ function SchedulerSourceOverview({
                 type="button"
                 data-testid={`dns-scheduler-source-${source.key}`}
                 className={cn(
-                  "min-w-0 border-b px-1 py-3 text-left transition hover:bg-blue-50/40 dark:hover:bg-blue-950/20",
+                  "inline-flex h-8 items-center gap-2 rounded-md border px-2.5 text-xs font-semibold transition",
                   active
-                    ? "border-blue-300 bg-blue-50 dark:border-blue-800 dark:bg-blue-950/25"
-                    : "border-border bg-transparent dark:border-slate-800",
+                    ? "border-blue-300 bg-blue-50 text-blue-800 dark:border-blue-800 dark:bg-blue-950/25 dark:text-blue-200"
+                    : "border-border bg-transparent text-muted-foreground hover:bg-[var(--surface-hover)]",
                 )}
                 onClick={() => onSourceFilterChange(source.key)}
               >
-                <div className="flex items-center justify-between gap-2">
-                  <Badge color={source.tone}>{sourceLabel(source.key, t)}</Badge>
-                  <span className="text-lg font-semibold tabular-nums text-slate-950 dark:text-slate-50">
-                    {count}
-                  </span>
-                </div>
-                <div className="mt-2 text-xs leading-5 text-muted-foreground">
-                  {t(`cloud.dns.scheduler.source_description.${source.key}`)}
-                </div>
-                <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
-                  <div
-                    className={cn(
-                      "h-full rounded-full",
-                      source.tone === "green" ? "bg-green-500" : source.tone === "amber" ? "bg-amber-500" : "bg-blue-500",
-                    )}
-                    style={{ width: `${percentage}%` }}
-                  />
-                </div>
-                <div className="mt-2 text-[11px] text-muted-foreground">
-                  {t("cloud.dns.scheduler.source_card_count", {
-                    defaultValue: "占队列 {{percent}}%",
-                    percent: percentage,
-                  })}
-                </div>
+                <Badge color={source.tone}>{sourceLabel(source.key, t)}</Badge>
+                <span className="tabular-nums">{count}</span>
               </button>
             );
           })}
         </div>
-      </AdminDataPanel>
-
-      <AdminDataPanel
-        title={t("cloud.dns.scheduler.api_pressure_title", { defaultValue: "API 压力" })}
-        description={t("cloud.dns.scheduler.api_pressure_hint", {
-          defaultValue: "同凭证同记录会先合并；Cloudflare 尽量批量写入，阿里云按单条写入。",
-        })}
-        bodyClassName="p-4"
-      >
-        <div className="grid grid-cols-2 gap-2">
+        <div className="flex min-w-0 flex-wrap items-center gap-x-4 gap-y-1.5 text-xs text-muted-foreground">
           {executionItems.map((item) => (
-            <div key={item.label} className="border-b border-border bg-transparent px-1 py-2 dark:border-slate-800">
-              <div className="text-[11px] font-medium text-muted-foreground">{item.label}</div>
-              <div className="mt-1 text-lg font-semibold tabular-nums text-slate-950 dark:text-slate-50">{item.value}</div>
-            </div>
+            <span key={item.label} className="inline-flex items-center gap-1.5">
+              <span>{item.label}</span>
+              <strong className="font-semibold tabular-nums text-foreground">{item.value}</strong>
+            </span>
           ))}
-        </div>
-        <div className="mt-3 grid gap-2">
           {providerWrites.map((item) => (
-            <div key={item.label} className="flex items-center justify-between gap-3 border-b border-border bg-transparent px-1 py-2 dark:border-slate-800">
-              <div className="min-w-0">
-                <div className="text-xs font-semibold text-slate-900 dark:text-slate-100">{item.label}</div>
-                <div className="mt-0.5 truncate text-[11px] text-muted-foreground">{item.detail}</div>
-              </div>
+            <span key={item.label} className="inline-flex items-center gap-1.5">
+              <span>{item.label}</span>
               <Badge color={item.tone}>{item.value}</Badge>
-            </div>
+            </span>
           ))}
         </div>
-      </AdminDataPanel>
-    </div>
+      </div>
+    </AdminDataPanel>
   );
 }
 
@@ -975,7 +865,6 @@ export default function CloudDnsSchedulerSection() {
   if (loading) {
     return (
       <div className="space-y-4">
-        <SchedulerFlow />
         <AdminTableSkeleton columns={6} rows={6} />
       </div>
     );
@@ -983,7 +872,6 @@ export default function CloudDnsSchedulerSection() {
 
   return (
     <div className="space-y-4">
-      <SchedulerFlow />
       <SchedulerToolbar
         snapshot={snapshot}
         refreshing={refreshing}

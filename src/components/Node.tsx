@@ -364,14 +364,14 @@ export const NodeGrid = ({ nodes, liveData }: NodeGridProps) => {
         gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))",
       }}
     >
-      {sortedNodes.map((node) => {
+      {sortedNodes.map((node, index) => {
         const isOnline = onlineNodes.includes(node.uuid);
         const nodeData =
           liveData && liveData.data ? liveData.data[node.uuid] : undefined;
 
         return (
           <Node
-            key={node.uuid}
+            key={`${node.uuid}-${index}`}
             basic={node}
             live={nodeData}
             online={isOnline}

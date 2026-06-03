@@ -6,12 +6,12 @@ import { useAdminPageTitle } from "@/contexts/AdminPageTitleContext";
 import { cn } from "@/lib/utils";
 
 export const ADMIN_PANEL_CLASS =
-  "overflow-hidden rounded-lg border border-slate-200/80 bg-white shadow-none dark:border-slate-800/90 dark:bg-slate-950";
+  "admin-panel";
 
 export const ADMIN_PANEL_HEADER_CLASS =
-  "flex min-w-0 flex-col gap-3 border-b border-slate-200/80 bg-slate-50 px-5 py-3.5 dark:border-slate-800 dark:bg-slate-900/45 md:flex-row md:items-center md:justify-between";
+  "admin-panel-header flex min-w-0 flex-col gap-2.5 px-5 py-3 md:flex-row md:items-center md:justify-between";
 
-export const ADMIN_PANEL_BODY_CLASS = "min-w-0 px-5 py-4";
+export const ADMIN_PANEL_BODY_CLASS = "min-w-0 px-5 py-3.5";
 
 export function AdminPanel({
   children,
@@ -85,14 +85,14 @@ export function AdminSettingsPanel({
   return (
     <section className={cn(ADMIN_PANEL_CLASS, className)}>
       {hasHeader ? (
-        <div className="border-b border-slate-200/80 bg-slate-50/70 px-5 py-3.5 dark:border-slate-800 dark:bg-slate-900/35">
+        <div className="admin-panel-header px-5 py-3.5">
           {title ? (
             <h2 className="text-[15px] font-semibold leading-5 text-slate-950 dark:text-slate-50">
               {title}
             </h2>
           ) : null}
           {description ? (
-            <p className="mt-1 max-w-3xl text-sm leading-5 text-slate-500 dark:text-slate-400">
+            <p className="mt-1 max-w-3xl text-[13px] leading-5 text-slate-500 dark:text-slate-400">
               {description}
             </p>
           ) : null}
@@ -129,7 +129,7 @@ export function AdminDataPanel({
       {hasHeader ? (
         <div
           className={cn(
-            "flex min-h-[54px] flex-col gap-2 border-b border-slate-200/80 bg-slate-50/70 px-4 py-3 dark:border-slate-800 dark:bg-slate-900/35 sm:flex-row sm:items-center sm:justify-between",
+            "admin-panel-header flex min-h-[50px] flex-col gap-2 px-4 py-2.5 sm:flex-row sm:items-center sm:justify-between",
             headerClassName,
           )}
         >
@@ -140,7 +140,7 @@ export function AdminDataPanel({
               </h2>
             ) : null}
             {description ? (
-              <p className="mt-1 text-xs leading-5 text-slate-500 dark:text-slate-400">
+              <p className="mt-0.5 text-xs leading-5 text-slate-500 dark:text-slate-400">
                 {description}
               </p>
             ) : null}
@@ -187,7 +187,7 @@ export function AdminPageShell({
   return (
     <section
       className={cn(
-        "flex min-w-0 flex-col gap-5 p-4 sm:p-5",
+        "flex min-w-0 flex-col gap-4 p-4 sm:p-5",
         className,
       )}
     >
@@ -203,7 +203,7 @@ export function AdminPageShell({
         </div>
       ) : null}
 
-      <div className={cn("flex min-w-0 flex-col gap-5", contentClassName)}>{children}</div>
+      <div className={cn("flex min-w-0 flex-col gap-4", contentClassName)}>{children}</div>
     </section>
   );
 }
@@ -234,7 +234,7 @@ export function AdminEmptyState({
   return (
     <div
       className={cn(
-        "flex min-h-32 min-w-0 flex-col items-center justify-center rounded-md border border-dashed border-slate-200/80 bg-slate-50/70 px-5 py-7 text-center shadow-none dark:border-slate-800/90 dark:bg-slate-900/25",
+        "flex min-h-28 min-w-0 flex-col items-center justify-center rounded-md border border-dashed border-border bg-[var(--surface-subtle)] px-5 py-6 text-center shadow-none",
         className,
       )}
     >
@@ -270,7 +270,7 @@ export function AdminSubnav({
   return (
     <div
       className={cn(
-        "flex flex-wrap gap-2 border-b border-slate-200/80 bg-transparent pb-2 shadow-none dark:border-slate-800/90",
+        "flex flex-wrap gap-2 border-b border-border bg-transparent pb-2 shadow-none",
         className,
       )}
     >
@@ -295,7 +295,7 @@ export function AdminSplitLayout({
   return (
     <div
       className={cn(
-        "grid min-w-0 items-start gap-5 lg:grid-cols-[232px_minmax(0,1fr)]",
+        "grid min-w-0 items-start gap-4 lg:grid-cols-[220px_minmax(0,1fr)]",
         className,
       )}
     >
@@ -320,7 +320,7 @@ export function AdminSideNav({
     <nav
       aria-label={ariaLabel}
       className={cn(
-        "flex min-w-0 gap-1 overflow-x-auto rounded-lg border border-slate-200/80 bg-white p-2 shadow-none dark:border-slate-800/90 dark:bg-slate-950 lg:flex-col lg:overflow-visible",
+        "admin-panel flex min-w-0 gap-1 overflow-x-auto p-1.5 lg:flex-col lg:overflow-visible",
         className,
       )}
     >
@@ -331,10 +331,10 @@ export function AdminSideNav({
 
 const sideNavItemClass = (active?: boolean) =>
   cn(
-    "group inline-flex min-h-10 min-w-[150px] items-center gap-2 rounded-lg px-3 py-2 text-left text-sm transition lg:min-w-0",
+    "group inline-flex min-h-10 min-w-[150px] items-center gap-2 rounded-md px-3 py-2 text-left text-sm transition lg:min-w-0",
     active
-      ? "bg-blue-600 text-white shadow-none dark:bg-blue-500"
-      : "text-slate-600 hover:bg-slate-100 hover:text-slate-950 dark:text-slate-300 dark:hover:bg-slate-900 dark:hover:text-white",
+      ? "bg-primary text-primary-foreground shadow-none"
+      : "text-muted-foreground hover:bg-[var(--surface-hover)] hover:text-foreground",
   );
 
 function AdminSideNavInner({
@@ -351,7 +351,7 @@ function AdminSideNavInner({
   return (
     <>
       {icon ? (
-        <span className={cn("shrink-0", active ? "text-white" : "text-slate-500 dark:text-slate-400")}>
+        <span className={cn("shrink-0", active ? "text-primary-foreground" : "text-muted-foreground")}>
           {icon}
         </span>
       ) : null}
@@ -361,7 +361,7 @@ function AdminSideNavInner({
           <span
             className={cn(
               "mt-0.5 hidden truncate text-xs leading-4 lg:block",
-              active ? "text-blue-50/80" : "text-slate-500 dark:text-slate-400",
+              active ? "text-primary-foreground/75" : "text-muted-foreground",
             )}
           >
             {description}
@@ -434,7 +434,7 @@ export function AdminCardGridSkeleton({
       role="status"
       aria-label="Loading content"
       className={cn(
-        "overflow-hidden rounded-lg border border-slate-200/80 bg-white shadow-none dark:border-slate-800/90 dark:bg-slate-950",
+        ADMIN_PANEL_CLASS,
         className,
       )}
     >
@@ -469,19 +469,19 @@ export function AdminTableSkeleton({
       role="status"
       aria-label="Loading table"
       className={cn(
-        "overflow-hidden rounded-lg border border-slate-200/80 bg-white shadow-none dark:border-slate-800/90 dark:bg-slate-950",
+        ADMIN_PANEL_CLASS,
         className,
       )}
     >
       <div
-        className="grid gap-3 border-b border-slate-200/80 bg-slate-50 px-4 py-3 dark:border-slate-800 dark:bg-slate-900/45"
+        className="admin-panel-header grid gap-3 px-4 py-3"
         style={{ gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` }}
       >
         {Array.from({ length: columns }).map((_, index) => (
           <Skeleton key={index} className="h-3.5 w-20 max-w-full" />
         ))}
       </div>
-      <div className="divide-y divide-slate-200/70 dark:divide-slate-800">
+      <div className="divide-y divide-border">
         {Array.from({ length: rows }).map((_, rowIndex) => (
           <div
             key={rowIndex}
@@ -516,7 +516,7 @@ export function AdminSettingsSkeleton({
       {Array.from({ length: sections }).map((_, index) => (
         <div
           key={index}
-          className="border-t border-slate-200/80 px-4 py-4 first:border-t-0 dark:border-slate-800/90"
+            className="border-t border-border px-4 py-4 first:border-t-0"
         >
           <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
             <div className="min-w-0 flex-1 space-y-2">

@@ -142,11 +142,11 @@ function SelectorInner<T>(props: SelectorProps<T>) {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {processed.map((it) => {
+            {processed.map((it, index) => {
               const id = getId(it);
               return (
                 <TableRow
-                  key={id}
+                  key={`${id}-${index}`}
                   onClick={() => {
                     handleCheck(id, !value.includes(id));
                   }}
@@ -165,9 +165,9 @@ function SelectorInner<T>(props: SelectorProps<T>) {
                 </TableRow>
               );
             })}
-            {orphanIds.map((id) => (
+            {orphanIds.map((id, index) => (
               <TableRow
-                key={id}
+                key={`${id}-orphan-${index}`}
                 onClick={() => {
                   handleCheck(id, !value.includes(id));
                 }}

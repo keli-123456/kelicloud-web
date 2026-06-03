@@ -36,8 +36,8 @@ function PublicMetric({
   tone?: "default" | "gray" | "green" | "amber" | "red" | "blue";
 }) {
   const toneClass = {
-    default: "border-slate-200 bg-slate-50 text-slate-900",
-    gray: "border-slate-200 bg-slate-50 text-slate-900",
+    default: "admin-inline-surface text-foreground",
+    gray: "admin-inline-surface text-foreground",
     green: "border-emerald-200 bg-emerald-50 text-emerald-950",
     amber: "border-amber-200 bg-amber-50 text-amber-950",
     red: "border-red-200 bg-red-50 text-red-950",
@@ -45,7 +45,7 @@ function PublicMetric({
   }[tone];
   return (
     <div className={cn("rounded-lg border px-4 py-3", toneClass)}>
-      <div className="text-xs font-medium text-slate-500">{label}</div>
+      <div className="text-xs font-medium text-muted-foreground">{label}</div>
       <div className="mt-1 break-all text-sm font-semibold">{value || "-"}</div>
     </div>
   );
@@ -105,9 +105,9 @@ export default function FailoverSharePage() {
   const latestExecution = service ? getLatestExecution(service) : null;
 
   return (
-    <main className="min-h-screen bg-slate-100 text-slate-950">
+    <main className="min-h-screen bg-background text-foreground">
       <div className="mx-auto flex w-full max-w-7xl flex-col gap-4 px-4 py-6 sm:px-6 lg:px-8">
-        <header className="rounded-lg border border-slate-200 bg-white px-5 py-5 shadow-none">
+        <header className="admin-panel px-5 py-5">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
             <div className="min-w-0">
               <div className="mb-3 flex flex-wrap items-center gap-2">
@@ -123,10 +123,10 @@ export default function FailoverSharePage() {
                   </Badge>
                 ) : null}
               </div>
-              <h1 className="truncate text-2xl font-semibold tracking-normal text-slate-950">
+              <h1 className="truncate text-2xl font-semibold tracking-normal text-foreground">
                 {share?.title || service?.name || t("failover_v2.share.public_title", { defaultValue: "故障切换任务状态" })}
               </h1>
-              <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-slate-500">
+              <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-muted-foreground">
                 <span>{t("failover_v2.share.generated_at", { defaultValue: "生成" })}: {formatDateTime(share?.generated_at)}</span>
                 <span>{t("failover_v2.share.expires_at", { defaultValue: "过期" })}: {formatDateTime(share?.expires_at)}</span>
               </div>
@@ -143,7 +143,7 @@ export default function FailoverSharePage() {
             </div>
           </div>
           {share?.note ? (
-            <div className="mt-4 whitespace-pre-wrap border-l-2 border-slate-200 py-2 pl-3 text-sm leading-6 text-slate-700">
+            <div className="mt-4 whitespace-pre-wrap border-l-2 border-border py-2 pl-3 text-sm leading-6 text-foreground">
               {share.note}
             </div>
           ) : null}
@@ -151,23 +151,23 @@ export default function FailoverSharePage() {
 
         {loading ? (
           <div className="space-y-3">
-            <div className="h-24 animate-pulse rounded-lg bg-white" />
-            <div className="h-72 animate-pulse rounded-lg bg-white" />
+            <div className="h-24 animate-pulse rounded-lg bg-[var(--surface)]" />
+            <div className="h-72 animate-pulse rounded-lg bg-[var(--surface)]" />
           </div>
         ) : error ? (
-          <section className="rounded-lg border border-red-200 bg-white px-5 py-10 text-center shadow-none">
+          <section className="admin-panel px-5 py-10 text-center">
             <div className="text-lg font-semibold text-red-700">
               {t("common.error", { defaultValue: "错误" })}
             </div>
-            <div className="mt-2 text-sm text-slate-600">{error}</div>
+            <div className="mt-2 text-sm text-muted-foreground">{error}</div>
           </section>
         ) : service ? (
           <>
-            <section className="rounded-lg border border-slate-200 bg-white px-5 py-5 shadow-none">
+            <section className="admin-panel px-5 py-5">
               <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
                 <div className="min-w-0">
                   <div className="flex flex-wrap items-center gap-2">
-                    <span className="truncate text-lg font-semibold text-slate-950">{service.name}</span>
+                    <span className="truncate text-lg font-semibold text-foreground">{service.name}</span>
                     <Badge color={service.enabled ? "green" : "gray"}>
                       {service.enabled
                         ? t("common.enabled", { defaultValue: "已启用" })
@@ -177,7 +177,7 @@ export default function FailoverSharePage() {
                       {getPublicFailoverStatusLabel(t, service.last_status)}
                     </Badge>
                   </div>
-                  <div className="mt-2 max-w-2xl text-sm leading-6 text-slate-500">
+                  <div className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">
                     {t("failover_v2.share.public_description", {
                       defaultValue: "此页面仅展示对外服务状态，详细处理流程仅管理员可见。",
                     })}
@@ -195,8 +195,10 @@ export default function FailoverSharePage() {
                   tone={getPublicFailoverStatusTone(service.last_status)}
                 />
                 <PublicMetric
-                  label={t("failover_v2.share.line_coverage", { defaultValue: "线路覆盖" })}
-                  value={`${service.enabled_member_count}/${service.member_count}`}
+                  label={t("failover_v2.share.protection_capacity", { defaultValue: "保障资源" })}
+                  value={service.enabled_member_count > 0 && service.member_count > 0
+                    ? t("failover_v2.share.capacity_ready", { defaultValue: "已准备" })
+                    : t("failover_v2.share.capacity_not_ready", { defaultValue: "未就绪" })}
                   tone={service.enabled_member_count > 0 ? "green" : "amber"}
                 />
                 <PublicMetric
@@ -210,13 +212,13 @@ export default function FailoverSharePage() {
               </div>
             </section>
 
-            <section className="rounded-lg border border-slate-200 bg-white px-5 py-5 shadow-none">
+            <section className="admin-panel px-5 py-5">
               <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
                 <div>
-                  <div className="text-base font-semibold text-slate-950">
+                  <div className="text-base font-semibold text-foreground">
                     {t("failover_v2.share.latest_result", { defaultValue: "最近处理" })}
                   </div>
-                  <div className="mt-1 text-sm leading-6 text-slate-600">
+                  <div className="mt-1 text-sm leading-6 text-muted-foreground">
                     {latestExecution
                       ? getPublicFailoverResultText(t, latestExecution.status)
                       : t("failover_v2.share.no_recent_result", { defaultValue: "暂无公开处理记录。" })}
@@ -227,7 +229,7 @@ export default function FailoverSharePage() {
                     <Badge color={getPublicFailoverStatusTone(latestExecution.status)}>
                       {getPublicFailoverStatusLabel(t, latestExecution.status)}
                     </Badge>
-                    <span className="text-sm text-slate-500">
+                    <span className="text-sm text-muted-foreground">
                       {formatDateTime(latestExecution.finished_at || latestExecution.started_at)}
                     </span>
                   </div>

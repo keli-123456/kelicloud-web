@@ -592,7 +592,7 @@ export default function CloudInstanceScriptDialog({
             <div className="mb-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div className="flex items-center gap-2 text-sm font-medium text-slate-900 dark:text-slate-100">
                 <Terminal className="h-4 w-4 text-slate-500 dark:text-slate-400" />
-                {t("exec.savedCommands", { defaultValue: "Command library" })}
+                {t("exec.savedCommands", { defaultValue: "Scripts" })}
               </div>
               <div className="relative w-full sm:max-w-xs">
                 <Search

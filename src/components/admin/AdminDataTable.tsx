@@ -21,7 +21,7 @@ function AdminDataTableScroll({
   return (
     <div
       className={cn(
-        "overflow-x-auto overscroll-x-contain [scrollbar-gutter:stable]",
+        "min-w-0 overflow-x-auto overscroll-x-contain [scrollbar-gutter:stable]",
         className,
       )}
       {...props}
@@ -53,7 +53,7 @@ function AdminDataTableHeadRow({
   return (
     <tr
       className={cn(
-        "border-b border-slate-200/80 bg-slate-50 text-[12px] font-semibold text-slate-500 dark:border-slate-800 dark:bg-slate-900/45 dark:text-slate-400",
+        "border-b border-border bg-[var(--surface-muted)] text-[12px] font-semibold text-muted-foreground",
         className,
       )}
       {...props}
@@ -74,7 +74,7 @@ function AdminDataTableRow({
     <tr
       data-selected={selected ? "true" : undefined}
       className={cn(
-        "border-b border-slate-200/70 transition-colors last:border-b-0 hover:bg-slate-50/80 data-[selected=true]:bg-blue-50/80 dark:border-slate-800/80 dark:hover:bg-slate-900/35 dark:data-[selected=true]:bg-blue-950/25",
+        "border-b border-border/70 transition-colors last:border-b-0 hover:bg-[var(--surface-hover)] data-[selected=true]:bg-[var(--surface-pressed)]",
         interactive && "cursor-pointer",
         className,
       )}
@@ -95,9 +95,9 @@ function AdminDataTableHead({
   return (
     <th
       className={cn(
-        "whitespace-nowrap px-3.5 py-2.5 align-middle",
+        "whitespace-nowrap px-3.5 py-2 align-middle",
         alignClasses[align],
-        sticky === "right" && "bg-slate-50/95 backdrop-blur supports-[backdrop-filter]:bg-slate-50/85 dark:bg-slate-900/95 dark:supports-[backdrop-filter]:bg-slate-900/85",
+        sticky === "right" && "bg-[var(--surface-muted)] backdrop-blur",
         sticky === "right" && stickyRightClass,
         className,
       )}
@@ -118,9 +118,9 @@ function AdminDataTableCell({
   return (
     <td
       className={cn(
-        "min-w-0 px-3.5 py-2.5 align-middle text-[12px] text-slate-700 dark:text-slate-200",
+        "min-w-0 px-3.5 py-2.5 align-middle text-[12px] leading-5 text-foreground",
         alignClasses[align],
-        sticky === "right" && "bg-white dark:bg-slate-950",
+        sticky === "right" && "bg-[var(--surface)]",
         sticky === "right" && stickyRightClass,
         className,
       )}

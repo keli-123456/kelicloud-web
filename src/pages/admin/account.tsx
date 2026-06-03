@@ -15,7 +15,6 @@ import {
   AdminSideNav,
   AdminSideNavButton,
   AdminSplitLayout,
-  AdminSurface,
   AdminTableSkeleton,
 } from "@/components/admin/AdminPageShell";
 import {
@@ -198,7 +197,7 @@ const AccountProfileSection = () => {
   return (
     <>
       <div className="grid gap-4">
-        <AdminSurface className="flex flex-col gap-6">
+        <div className="flex max-w-3xl flex-col gap-6">
           <form className="space-y-4" onSubmit={handleSubmitUsernameChange}>
             <div className={ADMIN_FORM_FIELD_CLASS}>
               <label
@@ -264,7 +263,7 @@ const AccountProfileSection = () => {
               </Button>
             </div>
           </form>
-        </AdminSurface>
+        </div>
       </div>
     </>
   );

@@ -7,10 +7,8 @@ import {
   CheckCircle2,
   Cpu,
   HardDrive,
-  Layers3,
   MemoryStick,
   RefreshCw,
-  ShieldCheck,
   Signal,
   WifiOff,
 } from "lucide-react";
@@ -23,7 +21,6 @@ import {
 import {
   getDefaultAdminPath,
   useAccount,
-  type AccountFeature,
 } from "@/contexts/AccountContext";
 import { useRPC2Call } from "@/contexts/RPC2Context";
 import {
@@ -166,7 +163,6 @@ function DashboardLoadingState() {
 function DashboardPageContent() {
   const { t } = useTranslation();
   const { call } = useRPC2Call();
-  const { hasFeature, platformAdmin } = useAccount();
   const { nodeDetail, isLoading, error, refresh } = useNodeDetails();
   useAdminPageTitle(
     t("admin.dashboard.homeTitle", { defaultValue: "后台首页" }),
@@ -387,58 +383,6 @@ function DashboardPageContent() {
       )
       .slice(0, 6);
   }, [defaultGroupLabel, liveByNode, liveLoaded, nodes]);
-  const anyCloudEnabled = [
-    "cloud_digitalocean",
-    "cloud_linode",
-    "cloud_vultr",
-    "cloud_azure",
-    "cloud_aws",
-    "cloud_dns",
-    "cloud_failover_v1",
-    "cloud_failover_v2",
-  ].some((feature) => hasFeature(feature as AccountFeature));
-  const featureModules = [
-    {
-      title: t("admin.nav.short.servers", { defaultValue: "服务器" }),
-      description: t("admin.dashboard.moduleClients", {
-        defaultValue: "节点与历史记录",
-      }),
-      enabled: hasFeature("clients") || hasFeature("records"),
-      tone: "ok" as const,
-      label: t("common.available", { defaultValue: "可用" }),
-    },
-    {
-      title: t("admin.nav.short.cloud", { defaultValue: "云厂商" }),
-      description: t("admin.dashboard.moduleCloud", {
-        defaultValue: "云实例与解析绑定",
-      }),
-      enabled: anyCloudEnabled,
-      tone: anyCloudEnabled ? ("ok" as const) : ("info" as const),
-      label: anyCloudEnabled
-        ? t("common.available", { defaultValue: "可用" })
-        : t("common.disabled", { defaultValue: "Disabled" }),
-    },
-    {
-      title: t("admin.nav.short.exec", { defaultValue: "脚本执行" }),
-      description: t("admin.dashboard.moduleExec", {
-        defaultValue: "远程终端与命令任务",
-      }),
-      enabled: hasFeature("tasks") || hasFeature("clipboard"),
-      tone: "warn" as const,
-      label: t("admin.dashboard.audit", { defaultValue: "需审计" }),
-    },
-    {
-      title: t("admin.nav.short.billing", { defaultValue: "套餐计费" }),
-      description: t("admin.dashboard.moduleBilling", {
-        defaultValue: "套餐、支付与订单",
-      }),
-      enabled: platformAdmin,
-      tone: "info" as const,
-      label: platformAdmin
-        ? t("admin.dashboard.platform", { defaultValue: "平台" })
-        : t("common.disabled", { defaultValue: "Disabled" }),
-    },
-  ];
   const healthTone: "ok" | "warn" | "bad" =
     offlineCount > 0 ? "bad" : abnormalCount > 0 ? "warn" : "ok";
   const healthTitle =
@@ -493,9 +437,8 @@ function DashboardPageContent() {
         </Alert>
       ) : null}
 
-      <div className="grid items-start gap-[14px] xl:grid-cols-[minmax(0,1.35fr)_minmax(340px,0.75fr)]">
-        <div className="grid min-w-0 content-start gap-[14px]">
-          <section className={cn(panelClass, "h-fit self-start")}>
+      <div className="grid items-stretch gap-[14px] lg:grid-cols-[minmax(0,1fr)_minmax(340px,0.68fr)]">
+        <section className={cn(panelClass, "flex min-h-[230px] flex-col")}>
           <DashboardPanelHead
             title={t("admin.dashboard.healthTitle", { defaultValue: "系统健康" })}
             meta={t("admin.dashboard.realtime", { defaultValue: "实时巡检" })}
@@ -511,7 +454,7 @@ function DashboardPageContent() {
               </Button>
             )}
           />
-          <div className="flex flex-col gap-4 p-4">
+          <div className="flex flex-1 flex-col gap-4 p-4">
             <div className="grid min-w-0 gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(260px,0.7fr)] lg:items-start">
               <div className="flex min-w-0 items-start gap-3">
                 <div
@@ -548,165 +491,144 @@ function DashboardPageContent() {
                 total={nodes.length}
               />
             </div>
-            <div className="grid min-w-0 grid-cols-2 gap-2.5 md:grid-cols-4">
-              <DashboardMetricPill
+            <div className="flex min-w-0 flex-wrap items-center gap-x-4 gap-y-2 border-t border-border pt-3">
+              <DashboardHealthCount
                 icon={<Signal className="h-4 w-4" />}
                 label={t("nodeCard.online", { defaultValue: "在线" })}
                 value={`${onlineCount}`}
                 tone="ok"
               />
-              <DashboardMetricPill
+              <DashboardHealthCount
                 icon={<WifiOff className="h-4 w-4" />}
                 label={t("nodeCard.offline", { defaultValue: "离线" })}
                 value={`${offlineCount}`}
                 tone={offlineCount > 0 ? "bad" : "ok"}
               />
-              <DashboardMetricPill
+              <DashboardHealthCount
                 icon={<AlertTriangle className="h-4 w-4" />}
                 label={t("admin.dashboard.abnormal", { defaultValue: "异常风险" })}
                 value={`${abnormalCount}`}
                 tone={abnormalCount > 0 ? "warn" : "ok"}
               />
-              <DashboardMetricPill
-                icon={<Layers3 className="h-4 w-4" />}
+              <DashboardHealthCount
+                icon={<Activity className="h-4 w-4" />}
                 label={t("admin.dashboard.groupsTitle", { defaultValue: "分组状态" })}
                 value={`${groupSummaries.length}`}
                 tone="info"
               />
             </div>
           </div>
-          </section>
+        </section>
 
-          <section className={panelClass}>
-            <DashboardPanelHead
-              title={t("admin.dashboard.capacityTitle", { defaultValue: "容量压力" })}
-              meta={t("admin.dashboard.capacityDescription", {
-                defaultValue: "按最高资源占用排序",
-              })}
-            />
-            {capacityItems.length > 0 ? (
-              <div className="flex flex-col">
-                {capacityItems.slice(0, 6).map(({ node, group, cpu, ram, disk, pressure, traffic, online }) => (
-                  <DashboardSignalRow
-                    key={node.uuid}
-                    title={node.name || node.uuid}
-                    description={`${group} · ${traffic}`}
-                    detail={(
-                      <div className="grid gap-1.5 pt-1">
-                        <DashboardUsageBar icon={<Cpu className="h-3.5 w-3.5" />} label="CPU" value={cpu} />
-                        <DashboardUsageBar icon={<MemoryStick className="h-3.5 w-3.5" />} label="RAM" value={ram} />
-                        <DashboardUsageBar icon={<HardDrive className="h-3.5 w-3.5" />} label="DISK" value={disk} />
-                      </div>
-                    )}
-                    status={(
-                      <DashboardStatus tone={!online ? "bad" : getUsageTone(pressure)}>
-                        {!online
-                          ? t("nodeCard.offline", { defaultValue: "离线" })
-                          : formatPercent(pressure)}
-                      </DashboardStatus>
-                    )}
-                  />
-                ))}
-              </div>
-            ) : (
-              <DashboardSignalRow
-                title={t("admin.nodeTable.noNodes", { defaultValue: "No nodes" })}
-                description={t("admin.nodeTable.noNodesDescription", {
-                  defaultValue: "完成服务器接入后，节点会自动出现在这里。",
-                })}
-                detail={t("admin.dashboard.noNodesForDashboard", {
-                  defaultValue: "接入服务器后，这里会显示在线状态和资源压力。",
-                })}
-                status={<DashboardStatus tone="info">0</DashboardStatus>}
-              />
-            )}
-          </section>
-        </div>
-
-        <div className="grid min-w-0 content-start gap-[14px]">
-          <section className={cn(panelClass, "h-fit self-start")}>
-            <DashboardPanelHead
-              title={t("admin.dashboard.attentionTitle", { defaultValue: "近期风险" })}
-              meta={t("admin.dashboard.nodeRisk", { defaultValue: "节点风险" })}
-            />
-            {riskNodes.length > 0 ? (
-              <div className="flex flex-col">
-                {riskNodes.slice(0, 5).map(({ node, reason, tone, group, cpu, ram, disk, usageLabel }) => (
-                  <DashboardSignalRow
-                    key={node.uuid}
-                    title={node.name || node.uuid}
-                    description={`${group} · ${usageLabel}`}
-                    detail={`CPU ${formatPercent(cpu)} · RAM ${formatPercent(ram)} · DISK ${formatPercent(disk)}`}
-                    status={<DashboardStatus tone={tone}>{reason}</DashboardStatus>}
-                  />
-                ))}
-              </div>
-            ) : (
-              <DashboardSignalRow
-                title={t("admin.dashboard.noRiskTitle", { defaultValue: "暂无明显风险" })}
-                description={t("admin.dashboard.noRiskDescription", {
-                  defaultValue: "当前没有离线、连通性异常或高资源占用的节点。",
-                })}
-                detail={t("admin.dashboard.healthy", { defaultValue: "运行正常" })}
-                status={<DashboardStatus tone="ok">{t("admin.dashboard.healthy", { defaultValue: "运行正常" })}</DashboardStatus>}
-              />
-            )}
-          </section>
-
-          <section className={panelClass}>
-            <DashboardPanelHead
-              title={t("admin.dashboard.groupsTitle", { defaultValue: "分组状态" })}
-              meta={t("admin.dashboard.groupsDescription", {
-                defaultValue: "按服务器分组查看容量和在线状态。",
-              })}
-            />
-            {groupSummaries.length > 0 ? (
-              <div className="flex flex-col">
-                {groupSummaries.slice(0, 6).map((group) => (
-                  <DashboardGroupRow
-                    key={group.name}
-                    name={group.name}
-                    total={group.total}
-                    online={group.online}
-                    risks={group.risks}
-                    pressure={group.averagePressure}
-                  />
-                ))}
-              </div>
-            ) : (
-              <DashboardSignalRow
-                title={t("admin.nodeTable.noNodes", { defaultValue: "No nodes" })}
-                description={t("admin.nodeTable.noNodesDescription", {
-                  defaultValue: "完成服务器接入后，节点会自动出现在这里。",
-                })}
-                detail={t("admin.dashboard.noNodesForDashboard", {
-                  defaultValue: "接入服务器后，这里会显示在线状态和资源压力。",
-                })}
-                status={<DashboardStatus tone="info">0</DashboardStatus>}
-              />
-            )}
-          </section>
-
-          <section className={panelClass}>
-            <DashboardPanelHead
-              title={t("admin.dashboard.modulesTitle", { defaultValue: "功能模块" })}
-              meta={t("admin.dashboard.permissionScope", {
-                defaultValue: "当前账号可用能力",
-              })}
-            />
-            <div className="grid gap-2.5 p-[14px] sm:grid-cols-2">
-              {featureModules.map((module) => (
-                <DashboardFeatureRow
-                  key={String(module.title)}
-                  title={module.title}
-                  description={module.description}
-                  enabled={module.enabled}
-                  status={<DashboardStatus tone={module.enabled ? module.tone : "info"}>{module.label}</DashboardStatus>}
+        <section className={cn(panelClass, "flex min-h-[230px] flex-col")}>
+          <DashboardPanelHead
+            title={t("admin.dashboard.attentionTitle", { defaultValue: "近期风险" })}
+            meta={t("admin.dashboard.nodeRisk", { defaultValue: "节点风险" })}
+          />
+          {riskNodes.length > 0 ? (
+            <div className="flex flex-1 flex-col">
+              {riskNodes.slice(0, 3).map(({ node, reason, tone, group, cpu, ram, disk, usageLabel }, index) => (
+                <DashboardSignalRow
+                  key={`${node.uuid}-risk-${index}`}
+                  title={node.name || node.uuid}
+                  description={`${group} · ${usageLabel}`}
+                  detail={`CPU ${formatPercent(cpu)} · RAM ${formatPercent(ram)} · DISK ${formatPercent(disk)}`}
+                  status={<DashboardStatus tone={tone}>{reason}</DashboardStatus>}
                 />
               ))}
             </div>
-          </section>
-        </div>
+          ) : (
+            <DashboardSignalRow
+              title={t("admin.dashboard.noRiskTitle", { defaultValue: "暂无明显风险" })}
+              description={t("admin.dashboard.noRiskDescription", {
+                defaultValue: "当前没有离线、连通性异常或高资源占用的节点。",
+              })}
+              detail={t("admin.dashboard.healthy", { defaultValue: "运行正常" })}
+              status={<DashboardStatus tone="ok">{t("admin.dashboard.healthy", { defaultValue: "运行正常" })}</DashboardStatus>}
+            />
+          )}
+        </section>
+      </div>
+
+      <div className="grid items-start gap-[14px] lg:grid-cols-[minmax(0,1.05fr)_minmax(360px,0.95fr)]">
+        <section className={panelClass}>
+          <DashboardPanelHead
+            title={t("admin.dashboard.capacityTitle", { defaultValue: "容量压力" })}
+            meta={t("admin.dashboard.capacityDescription", {
+              defaultValue: "按最高资源占用排序",
+            })}
+          />
+          {capacityItems.length > 0 ? (
+            <div className="flex flex-col">
+              {capacityItems.slice(0, 5).map(({ node, group, cpu, ram, disk, pressure, traffic, online }, index) => (
+                <DashboardSignalRow
+                  key={`${node.uuid}-capacity-${index}`}
+                  title={node.name || node.uuid}
+                  description={`${group} · ${traffic}`}
+                  detail={(
+                    <div className="grid gap-1.5 pt-1">
+                      <DashboardUsageBar icon={<Cpu className="h-3.5 w-3.5" />} label="CPU" value={cpu} />
+                      <DashboardUsageBar icon={<MemoryStick className="h-3.5 w-3.5" />} label="RAM" value={ram} />
+                      <DashboardUsageBar icon={<HardDrive className="h-3.5 w-3.5" />} label="DISK" value={disk} />
+                    </div>
+                  )}
+                  status={(
+                    <DashboardStatus tone={!online ? "bad" : getUsageTone(pressure)}>
+                      {!online
+                        ? t("nodeCard.offline", { defaultValue: "离线" })
+                        : formatPercent(pressure)}
+                    </DashboardStatus>
+                  )}
+                />
+              ))}
+            </div>
+          ) : (
+            <DashboardSignalRow
+              title={t("admin.nodeTable.noNodes", { defaultValue: "No nodes" })}
+              description={t("admin.nodeTable.noNodesDescription", {
+                defaultValue: "完成服务器接入后，节点会自动出现在这里。",
+              })}
+              detail={t("admin.dashboard.noNodesForDashboard", {
+                defaultValue: "接入服务器后，这里会显示在线状态和资源压力。",
+              })}
+              status={<DashboardStatus tone="info">0</DashboardStatus>}
+            />
+          )}
+        </section>
+
+        <section className={panelClass}>
+          <DashboardPanelHead
+            title={t("admin.dashboard.groupsTitle", { defaultValue: "分组状态" })}
+            meta={t("admin.dashboard.groupsDescription", {
+              defaultValue: "按服务器分组查看容量和在线状态。",
+            })}
+          />
+          {groupSummaries.length > 0 ? (
+            <div className="flex flex-col">
+              {groupSummaries.slice(0, 6).map((group) => (
+                <DashboardGroupRow
+                  key={group.name}
+                  name={group.name}
+                  total={group.total}
+                  online={group.online}
+                  risks={group.risks}
+                  pressure={group.averagePressure}
+                />
+              ))}
+            </div>
+          ) : (
+            <DashboardSignalRow
+              title={t("admin.nodeTable.noNodes", { defaultValue: "No nodes" })}
+              description={t("admin.nodeTable.noNodesDescription", {
+                defaultValue: "完成服务器接入后，节点会自动出现在这里。",
+              })}
+              detail={t("admin.dashboard.noNodesForDashboard", {
+                defaultValue: "接入服务器后，这里会显示在线状态和资源压力。",
+              })}
+              status={<DashboardStatus tone="info">0</DashboardStatus>}
+            />
+          )}
+        </section>
       </div>
     </div>
   );
@@ -763,7 +685,7 @@ function DashboardStatus({
   );
 }
 
-function DashboardMetricPill({
+function DashboardHealthCount({
   icon,
   label,
   value,
@@ -775,20 +697,24 @@ function DashboardMetricPill({
   tone: "ok" | "warn" | "bad" | "info";
 }) {
   const toneClass = {
-    ok: "border-emerald-200/80 bg-emerald-50/75 text-emerald-700 dark:border-emerald-900/50 dark:bg-emerald-950/20 dark:text-emerald-300",
-    warn: "border-amber-200/80 bg-amber-50/75 text-amber-700 dark:border-amber-900/50 dark:bg-amber-950/20 dark:text-amber-300",
-    bad: "border-red-200/80 bg-red-50/75 text-red-700 dark:border-red-900/50 dark:bg-red-950/20 dark:text-red-300",
-    info: "border-blue-200/80 bg-blue-50/75 text-blue-700 dark:border-blue-900/50 dark:bg-blue-950/20 dark:text-blue-300",
+    ok: "text-emerald-700 dark:text-emerald-300",
+    warn: "text-amber-700 dark:text-amber-300",
+    bad: "text-red-700 dark:text-red-300",
+    info: "text-blue-700 dark:text-blue-300",
   }[tone];
 
   return (
-    <div className={cn("min-w-0 rounded-lg border px-3 py-2.5", toneClass)}>
-      <div className="flex items-center gap-2 text-[12px] font-semibold leading-4">
+    <div className="flex min-w-[7rem] items-center gap-2">
+      <span className={cn("flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-[var(--surface-subtle)]", toneClass)}>
         {icon}
-        <span className="truncate">{label}</span>
-      </div>
-      <div className="mt-2 text-2xl font-semibold leading-7 tabular-nums text-foreground">
-        {value}
+      </span>
+      <div className="min-w-0">
+        <div className="text-[11px] font-medium leading-4 text-muted-foreground">
+          {label}
+        </div>
+        <div className="text-base font-semibold leading-5 tabular-nums text-foreground">
+          {value}
+        </div>
       </div>
     </div>
   );
@@ -965,44 +891,6 @@ function DashboardGroupRow({
             ? t("admin.dashboard.attention", { defaultValue: "关注" })
             : t("admin.dashboard.normal", { defaultValue: "正常" })}
       </DashboardStatus>
-    </div>
-  );
-}
-
-function DashboardFeatureRow({
-  title,
-  description,
-  enabled,
-  status,
-}: {
-  title: ReactNode;
-  description: ReactNode;
-  enabled: boolean;
-  status: ReactNode;
-}) {
-  return (
-    <div className="grid min-h-[76px] grid-cols-[32px_minmax(0,1fr)] gap-3 rounded-lg border border-border bg-background/65 p-3">
-      <div
-        className={cn(
-          "flex h-8 w-8 items-center justify-center rounded-md",
-          enabled
-            ? "bg-blue-50 text-blue-700 dark:bg-blue-950/25 dark:text-blue-300"
-            : "bg-muted text-muted-foreground",
-        )}
-      >
-        {enabled ? <ShieldCheck className="h-4 w-4" /> : <AlertTriangle className="h-4 w-4" />}
-      </div>
-      <div className="min-w-0">
-        <div className="flex items-center justify-between gap-2">
-          <strong className="truncate text-[13px] font-semibold leading-5 text-foreground">
-            {title}
-          </strong>
-          <div className="shrink-0">{status}</div>
-        </div>
-        <p className="mt-1 line-clamp-2 text-[12px] leading-5 text-muted-foreground">
-          {description}
-        </p>
-      </div>
     </div>
   );
 }

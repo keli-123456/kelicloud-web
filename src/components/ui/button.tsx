@@ -5,7 +5,7 @@ import { cva, type VariantProps } from "class-variance-authority"
 import { cn } from "@/lib/utils"
 
 const buttonVariants = cva(
-  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-semibold leading-5 tracking-normal transition-[background-color,color,border-color,box-shadow,transform] disabled:pointer-events-none disabled:opacity-50 active:translate-y-px motion-reduce:transition-none motion-reduce:active:translate-y-0 [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 shrink-0 [&_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/40 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive",
+  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-semibold leading-5 tracking-normal transition-[background-color,color,border-color,box-shadow,transform] disabled:pointer-events-none disabled:opacity-50 active:translate-y-px motion-reduce:transition-none motion-reduce:active:translate-y-0 [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 shrink-0 [&_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/35 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive",
   {
     variants: {
       variant: {
@@ -14,9 +14,9 @@ const buttonVariants = cva(
         destructive:
           "bg-destructive text-white shadow-none hover:bg-red-700 focus-visible:ring-destructive/20 dark:bg-red-600 dark:hover:bg-red-500 dark:focus-visible:ring-destructive/40",
         outline:
-          "border border-border bg-card shadow-none hover:bg-muted hover:text-foreground",
+          "border border-border bg-[var(--surface)] shadow-none hover:bg-[var(--surface-hover)] hover:text-foreground",
         secondary:
-          "border border-border bg-secondary text-secondary-foreground shadow-none hover:bg-muted dark:bg-slate-800 dark:text-slate-50 dark:hover:bg-slate-700",
+          "border border-border bg-[var(--surface-subtle)] text-secondary-foreground shadow-none hover:bg-[var(--surface-hover)]",
         ghost:
           "hover:bg-muted hover:text-foreground",
         link: "text-blue-700 underline-offset-4 hover:underline dark:text-blue-400",

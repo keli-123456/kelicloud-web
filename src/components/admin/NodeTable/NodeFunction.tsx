@@ -89,17 +89,17 @@ type InstallOptions = {
 type Platform = "linux" | "windows" | "macos";
 
 const NODE_DIALOG_CONTENT_CLASS =
-  "max-h-[90vh] w-[min(96vw,840px)] overflow-y-auto overscroll-contain rounded-lg border border-slate-200/80 bg-white p-5 shadow-[0_24px_70px_-50px_rgba(15,23,42,0.72)] [scrollbar-gutter:stable] dark:border-slate-800 dark:bg-slate-950";
+  "admin-dialog max-h-[90vh] w-[min(96vw,840px)] overflow-y-auto overscroll-contain p-5 [scrollbar-gutter:stable]";
 const NODE_DIALOG_COMPACT_CONTENT_CLASS =
-  "max-h-[90vh] w-[min(96vw,560px)] overflow-y-auto overscroll-contain rounded-lg border border-slate-200/80 bg-white p-5 shadow-[0_24px_70px_-50px_rgba(15,23,42,0.72)] [scrollbar-gutter:stable] dark:border-slate-800 dark:bg-slate-950";
+  "admin-dialog max-h-[90vh] w-[min(96vw,560px)] overflow-y-auto overscroll-contain p-5 [scrollbar-gutter:stable]";
 const NODE_DIALOG_SECTION_CLASS =
-  "space-y-4 border-t border-slate-200/80 bg-transparent pt-4 dark:border-slate-800";
+  "space-y-4 border-t border-border bg-transparent pt-4";
 const NODE_DIALOG_FOOTER_CLASS =
-  "sticky bottom-0 -mx-5 -mb-5 mt-5 flex flex-col-reverse gap-2 border-t border-slate-200/80 bg-white/95 px-5 py-3 backdrop-blur dark:border-slate-800 dark:bg-slate-950/95 sm:flex-row sm:justify-end";
+  "admin-panel-footer sticky bottom-0 -mx-5 -mb-5 mt-5 flex flex-col-reverse gap-2 px-5 py-3 backdrop-blur sm:flex-row sm:justify-end";
 const NODE_INPUT_CLASS =
-  "h-10 rounded-lg border border-slate-200/80 bg-white px-3 text-[14px] shadow-none hover:bg-white dark:border-slate-800 dark:bg-slate-950";
+  "h-10 rounded-md border border-input bg-[var(--surface)] px-3 text-[14px] shadow-none hover:bg-[var(--surface-hover)]";
 const NODE_TEXTAREA_CLASS =
-  "min-h-[120px] max-h-[320px] overflow-y-auto rounded-lg border border-slate-200/80 bg-white px-4 py-3 font-mono text-[13px] leading-6 whitespace-pre-wrap break-words shadow-none [overflow-wrap:anywhere] dark:border-slate-800 dark:bg-slate-950";
+  "min-h-[120px] max-h-[320px] overflow-y-auto rounded-md border border-input bg-[var(--surface)] px-4 py-3 font-mono text-[13px] leading-6 whitespace-pre-wrap break-words shadow-none [overflow-wrap:anywhere]";
 
 export function ActionsCell({ row }: { row: Row<z.infer<typeof schema>> }) {
   const refreshTable = React.useContext(DataTableRefreshContext);

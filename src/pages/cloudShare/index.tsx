@@ -20,11 +20,11 @@ function DetailCard({
   value: React.ReactNode;
 }) {
   return (
-    <div className="rounded-lg border border-slate-200 bg-white px-4 py-4 shadow-none">
-      <div className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">
+    <div className="admin-inline-surface px-4 py-3">
+      <div className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">
         {label}
       </div>
-      <div className="mt-2 break-all text-sm text-slate-900">
+      <div className="mt-2 break-all text-sm font-medium text-foreground">
         {value === undefined || value === null || value === "" ? "-" : value}
       </div>
     </div>
@@ -41,14 +41,14 @@ function Section({
   children: React.ReactNode;
 }) {
   return (
-    <section className="rounded-lg border border-slate-200 bg-white px-5 py-5 shadow-none">
-      <div>
-        <div className="text-base font-semibold text-slate-900">{title}</div>
+    <section className="admin-panel overflow-hidden">
+      <div className="admin-panel-header px-5 py-3.5">
+        <div className="text-base font-semibold text-foreground">{title}</div>
         {description ? (
-          <div className="mt-1 text-sm text-slate-500">{description}</div>
+          <div className="mt-1 text-sm text-muted-foreground">{description}</div>
         ) : null}
       </div>
-      <div className="mt-4">{children}</div>
+      <div className="px-5 py-4">{children}</div>
     </section>
   );
 }
@@ -237,7 +237,7 @@ export default function CloudSharePage() {
                   label={disk.label || `Disk ${disk.id}`}
                   value={`${disk.size} MB / ${disk.filesystem || "-"} / ${disk.status || "-"}`}
                 />
-              )) : <div className="text-sm text-slate-500">-</div>}
+              )) : <div className="text-sm text-muted-foreground">-</div>}
             </div>
           </Section>
           <Section title={t("cloud.providers.linode.configs", "Configs")}>
@@ -248,7 +248,7 @@ export default function CloudSharePage() {
                   label={config.label || `Config ${config.id}`}
                   value={`${config.kernel || "-"} / ${config.root_device || "-"} / ${config.run_level || "-"}`}
                 />
-              )) : <div className="text-sm text-slate-500">-</div>}
+              )) : <div className="text-sm text-muted-foreground">-</div>}
             </div>
           </Section>
         </>
@@ -267,7 +267,7 @@ export default function CloudSharePage() {
                   label={port.common_name || `${port.protocol}:${port.from_port}-${port.to_port}`}
                   value={`${port.access_type || "-"} / ${port.access_from || "-"} / ${formatList(port.cidrs || [])}`}
                 />
-              )) : <div className="text-sm text-slate-500">-</div>}
+              )) : <div className="text-sm text-muted-foreground">-</div>}
             </div>
           </Section>
           <Section title={t("cloud.providers.aws.snapshots", "Snapshots")}>
@@ -278,7 +278,7 @@ export default function CloudSharePage() {
                   label={snapshot.name}
                   value={`${snapshot.state || "-"} / ${snapshot.size_in_gb} GB / ${formatDateTime(snapshot.created_at)}`}
                 />
-              )) : <div className="text-sm text-slate-500">-</div>}
+              )) : <div className="text-sm text-muted-foreground">-</div>}
             </div>
           </Section>
         </>
@@ -296,7 +296,7 @@ export default function CloudSharePage() {
                 label={group.group_name || group.group_id}
                 value={group.description || group.group_id}
               />
-            )) : <div className="text-sm text-slate-500">-</div>}
+            )) : <div className="text-sm text-muted-foreground">-</div>}
           </div>
         </Section>
         <Section title={t("cloud.providers.aws.volumes", "Volumes")}>
@@ -307,7 +307,7 @@ export default function CloudSharePage() {
                 label={volume.volume_id}
                 value={`${volume.size_gib} GiB / ${volume.volume_type} / ${volume.device_name}`}
               />
-            )) : <div className="text-sm text-slate-500">-</div>}
+            )) : <div className="text-sm text-muted-foreground">-</div>}
           </div>
         </Section>
       </>
@@ -315,10 +315,11 @@ export default function CloudSharePage() {
   };
 
   return (
-    <div className="mx-auto flex w-full max-w-6xl flex-col gap-6 px-3 py-4 md:px-4 md:py-6">
+    <div className="min-h-screen bg-background px-3 py-4 md:px-4 md:py-6">
+      <div className="mx-auto flex w-full max-w-6xl flex-col gap-5">
       {loading ? (
         <Section title={t("cloud.share.loading_title", "Loading Share")}>
-          <div className="text-sm text-slate-500">{t("cloud.loading", "Loading cloud resources...")}</div>
+          <div className="text-sm text-muted-foreground">{t("cloud.loading", "Loading cloud resources...")}</div>
         </Section>
       ) : error ? (
         <Section title={t("cloud.share.unavailable", "Share Unavailable")}>
@@ -326,16 +327,16 @@ export default function CloudSharePage() {
         </Section>
       ) : share ? (
         <>
-          <section className="rounded-lg border border-slate-200 bg-white px-5 py-6 shadow-none">
-            <div className="flex flex-wrap items-start justify-between gap-4">
+          <section className="admin-panel overflow-hidden">
+            <div className="admin-panel-header flex flex-wrap items-start justify-between gap-4 px-5 py-4">
               <div>
-                <div className="text-xs font-semibold uppercase tracking-[0.18em] text-sky-700">
+                <div className="text-xs font-semibold uppercase tracking-[0.16em] text-primary">
                   {t("cloud.share.public_title", "Shared Cloud Instance")}
                 </div>
-                <h1 className="mt-2 text-2xl font-semibold text-slate-950">
+                <h1 className="mt-2 text-2xl font-semibold text-foreground">
                   {share.title || share.resource_name}
                 </h1>
-                <div className="mt-2 text-sm text-slate-600">
+                <div className="mt-2 text-sm text-muted-foreground">
                   {getProviderLabel(share, t)} / {share.resource_name}
                 </div>
               </div>
@@ -344,7 +345,7 @@ export default function CloudSharePage() {
                 {t("cloud.share.copy_link", "Copy Link")}
               </Button>
             </div>
-            <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            <div className="grid gap-3 px-5 py-4 sm:grid-cols-2 xl:grid-cols-4">
               <DetailCard label={t("cloud.share.provider", "Provider")} value={getProviderLabel(share, t)} />
               <DetailCard label={t("cloud.tokens.table.account", "Account")} value={share.credential_name || "-"} />
               <DetailCard label={t("cloud.table.region", "Region")} value={share.region || "-"} />
@@ -359,7 +360,7 @@ export default function CloudSharePage() {
 
           {share.note ? (
             <Section title={t("cloud.share.note", "Share Note")}>
-              <div className="whitespace-pre-wrap text-sm text-slate-700">{share.note}</div>
+              <div className="whitespace-pre-wrap text-sm text-foreground">{share.note}</div>
             </Section>
           ) : null}
 
@@ -374,9 +375,9 @@ export default function CloudSharePage() {
             <Section title={t("cloud.share.credentials", "Shared Credentials")}>
               <div className="flex flex-col gap-4">
                 {share.root_password ? (
-                  <div className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-4">
+                  <div className="admin-inline-surface px-4 py-4">
                     <div className="flex flex-wrap items-center justify-between gap-3">
-                      <div className="text-sm font-medium text-slate-900">
+                      <div className="text-sm font-medium text-foreground">
                         <KeyRound className="mr-2 inline h-4 w-4" />
                         {t("cloud.password.view", "View Password")}
                       </div>
@@ -395,8 +396,8 @@ export default function CloudSharePage() {
                 ) : null}
 
                 {share.managed_ssh_key ? (
-                  <div className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-4">
-                    <div className="text-sm font-medium text-slate-900">
+                  <div className="admin-inline-surface px-4 py-4">
+                    <div className="text-sm font-medium text-foreground">
                       {t("cloud.tokens.view_managed_key", "View Managed Key")}
                     </div>
                     <div className="mt-3 grid gap-3 sm:grid-cols-3">
@@ -406,12 +407,12 @@ export default function CloudSharePage() {
                     </div>
                     <div className="mt-4 grid gap-4 lg:grid-cols-2">
                       <div>
-                        <div className="mb-2 text-sm font-medium text-slate-800">{t("cloud.access.public_key", "Public Key")}</div>
+                        <div className="mb-2 text-sm font-medium text-foreground">{t("cloud.access.public_key", "Public Key")}</div>
                         <Textarea className="min-h-40 font-mono text-xs" readOnly value={share.managed_ssh_key.public_key} />
                         <FlexButton onClick={() => { void copyText(share.managed_ssh_key?.public_key || ""); }} label={t("common.copy", "Copy")} />
                       </div>
                       <div>
-                        <div className="mb-2 text-sm font-medium text-slate-800">{t("cloud.access.private_key", "Managed Private Key")}</div>
+                        <div className="mb-2 text-sm font-medium text-foreground">{t("cloud.access.private_key", "Managed Private Key")}</div>
                         <Textarea className="min-h-40 font-mono text-xs" readOnly value={share.managed_ssh_key.private_key} />
                         <FlexButton onClick={() => { void copyText(share.managed_ssh_key?.private_key || ""); }} label={t("common.copy", "Copy")} />
                       </div>
@@ -425,6 +426,7 @@ export default function CloudSharePage() {
           {renderProviderSections()}
         </>
       ) : null}
+      </div>
     </div>
   );
 }

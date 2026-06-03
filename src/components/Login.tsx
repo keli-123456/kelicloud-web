@@ -205,10 +205,10 @@ const LoginDialog = ({
     const turnstileReady =
       !turnstileRequired || (turnstileSiteKey !== "" && turnstileToken.trim() !== "");
     const simpleCardClassName =
-      "overflow-hidden rounded-lg border border-slate-200/80 bg-white shadow-none dark:border-slate-800 dark:bg-slate-950";
+      "admin-panel overflow-hidden";
     const simpleInputClassName =
-      "h-11 rounded-lg border-slate-200 bg-white px-3.5 text-sm text-slate-950 shadow-xs placeholder:text-slate-400 focus-visible:ring-2 focus-visible:ring-blue-100 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-50 dark:focus-visible:ring-blue-950/50";
-    const defaultInputClassName = "h-10 rounded-md bg-muted/45";
+      "h-10 rounded-md border-input bg-[var(--surface)] px-3 text-sm text-foreground shadow-none placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring/35";
+    const defaultInputClassName = "h-10 rounded-md bg-[var(--surface-subtle)] shadow-none";
 
     const hasBaseCredentials = username.trim() !== "" && password.trim() !== "";
     const isFormValid = isRegisterMode
@@ -472,11 +472,11 @@ const LoginDialog = ({
         return (
           <Card className={cn(simpleCardClassName, className)}>
             <CardContent className="px-6 py-6 sm:px-7 sm:py-7">
-              <div className="mx-auto h-12 w-12 rounded-lg bg-slate-100 dark:bg-slate-900" />
-              <div className="mx-auto mt-3 h-4 w-32 rounded bg-slate-100 dark:bg-slate-900" />
-              <div className="mt-7 h-11 rounded-lg bg-slate-100 dark:bg-slate-900" />
-              <div className="mt-3 h-11 rounded-lg bg-slate-100 dark:bg-slate-900" />
-              <div className="mt-4 h-10 rounded-lg bg-slate-200 dark:bg-slate-800" />
+              <div className="mx-auto h-11 w-11 rounded-md bg-[var(--surface-subtle)]" />
+              <div className="mx-auto mt-3 h-4 w-32 rounded bg-[var(--surface-subtle)]" />
+              <div className="mt-6 h-10 rounded-md bg-[var(--surface-subtle)]" />
+              <div className="mt-3 h-10 rounded-md bg-[var(--surface-subtle)]" />
+              <div className="mt-4 h-10 rounded-md bg-[var(--surface-pressed)]" />
             </CardContent>
           </Card>
         );
@@ -486,7 +486,7 @@ const LoginDialog = ({
           <Card className={cn("overflow-hidden", className)}>
             <CardHeader className="gap-3 border-b border-border px-5 py-5">
               <div className="flex items-center gap-3">
-                <span className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-slate-200 bg-white shadow-none dark:border-slate-800 dark:bg-slate-900">
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-md border border-border bg-[var(--surface)] shadow-none">
                   <img
                     src={logoUrl}
                     alt=""
@@ -522,7 +522,7 @@ const LoginDialog = ({
                 <span className="flex h-12 w-12 items-center justify-center rounded-lg border border-red-100 bg-red-50 text-red-700 dark:border-red-900/60 dark:bg-red-950/30 dark:text-red-200">
                   <AlertCircle className="h-5 w-5" />
                 </span>
-                <h1 className="mt-3 text-lg font-semibold text-slate-800 dark:text-slate-100">
+                <h1 className="mt-3 text-lg font-semibold text-foreground">
                   {t("login.title")}
                 </h1>
               </div>
@@ -615,7 +615,7 @@ const LoginDialog = ({
       >
         <div className={isSimpleInline ? "grid gap-3.5" : "grid gap-4"}>
           <label className="grid gap-2">
-            <div className={isSimpleInline ? "text-[13px] font-medium leading-5 text-slate-700 dark:text-slate-300" : "text-[12px] font-semibold leading-4 text-muted-foreground"}>
+            <div className={isSimpleInline ? "text-[13px] font-medium leading-5 text-foreground" : "text-[12px] font-semibold leading-4 text-muted-foreground"}>
               {isSimpleInline ? t("login.email", { defaultValue: "邮箱" }) : t("login.username")}
             </div>
             <Input
@@ -629,7 +629,7 @@ const LoginDialog = ({
             />
           </label>
           <label className="grid gap-2">
-            <div className={isSimpleInline ? "text-[13px] font-medium leading-5 text-slate-700 dark:text-slate-300" : "text-[12px] font-semibold leading-4 text-muted-foreground"}>
+            <div className={isSimpleInline ? "text-[13px] font-medium leading-5 text-foreground" : "text-[12px] font-semibold leading-4 text-muted-foreground"}>
               {t("login.password")}
             </div>
             <Input
@@ -643,7 +643,7 @@ const LoginDialog = ({
             />
           </label>
           <label hidden={!isRegisterMode} className="grid gap-2">
-            <div className={isSimpleInline ? "text-[13px] font-medium leading-5 text-slate-700 dark:text-slate-300" : "text-[12px] font-semibold leading-4 text-muted-foreground"}>
+            <div className={isSimpleInline ? "text-[13px] font-medium leading-5 text-foreground" : "text-[12px] font-semibold leading-4 text-muted-foreground"}>
               {t("login.confirm_password", { defaultValue: "确认密码" })}
             </div>
             <Input
@@ -659,10 +659,10 @@ const LoginDialog = ({
           {turnstileRequired ? (
             turnstileSiteKey ? (
               <div className="grid gap-2">
-                <div className={isSimpleInline ? "text-[13px] font-medium leading-5 text-slate-700 dark:text-slate-300" : "text-[12px] font-semibold leading-4 text-muted-foreground"}>
+                <div className={isSimpleInline ? "text-[13px] font-medium leading-5 text-foreground" : "text-[12px] font-semibold leading-4 text-muted-foreground"}>
                   {t("login.turnstile_label", { defaultValue: "人机验证" })}
                 </div>
-                <div className="min-h-[78px] overflow-hidden rounded-md border border-slate-200 bg-white px-3 py-2 dark:border-slate-800 dark:bg-slate-950">
+                <div className="min-h-[74px] overflow-hidden rounded-md border border-border bg-[var(--surface)] px-3 py-2">
                   <TurnstileWidget
                     key={`${authMode}-${turnstileResetKey}`}
                     siteKey={turnstileSiteKey}
@@ -688,7 +688,7 @@ const LoginDialog = ({
             )
           ) : null}
           <label hidden={!require2FA || isRegisterMode} className="grid gap-2">
-            <div className={isSimpleInline ? "text-[13px] font-medium leading-5 text-slate-700 dark:text-slate-300" : "text-[12px] font-semibold leading-4 text-muted-foreground"}>
+            <div className={isSimpleInline ? "text-[13px] font-medium leading-5 text-foreground" : "text-[12px] font-semibold leading-4 text-muted-foreground"}>
               {t("login.two_factor")}
             </div>
             <Input
@@ -713,7 +713,7 @@ const LoginDialog = ({
           type="submit"
           disabled={isLoading || !isFormValid}
           className={isSimpleInline
-            ? "h-10 w-full rounded-lg bg-blue-600 text-sm font-medium text-white shadow-xs shadow-blue-950/10 hover:bg-blue-700 dark:bg-blue-500 dark:text-white dark:hover:bg-blue-400"
+            ? "h-10 w-full rounded-md text-sm font-medium shadow-none"
             : "h-10 w-full"}
         >
           {isSimpleInline
@@ -734,11 +734,11 @@ const LoginDialog = ({
 
     const authModeSwitch = allowRegistration ? (
       <div className={isSimpleInline
-        ? "mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-slate-200/70 pt-4 text-sm leading-5 dark:border-slate-800"
+        ? "mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-border pt-4 text-sm leading-5"
         : "mt-1 flex flex-wrap items-center justify-between gap-2 text-sm"}
       >
         <div>
-          <span className="text-slate-500 dark:text-slate-400">
+          <span className="text-muted-foreground">
             {isRegisterMode
               ? t("login.has_account", { defaultValue: "已有账号？" })
               : t("login.no_account", { defaultValue: "还没有账号？" })}
@@ -746,7 +746,7 @@ const LoginDialog = ({
           <button
             type="button"
             className={isSimpleInline
-              ? "ml-2 font-medium text-blue-600 underline-offset-4 hover:underline dark:text-blue-400"
+              ? "ml-2 font-medium text-primary underline-offset-4 hover:underline"
               : "ml-2 font-medium text-primary underline-offset-4 hover:underline"}
             onClick={() => switchAuthMode(isRegisterMode ? "login" : "register")}
           >
@@ -757,7 +757,7 @@ const LoginDialog = ({
         </div>
         {!isRegisterMode ? (
           <span className={isSimpleInline
-            ? "font-medium text-slate-500 dark:text-slate-400"
+            ? "font-medium text-muted-foreground"
             : "font-medium text-muted-foreground"}
           >
             {t("login.forgot_password", { defaultValue: "忘记密码？" })}
@@ -769,27 +769,27 @@ const LoginDialog = ({
     if (isSimpleInline) {
       return (
         <Card className={cn(simpleCardClassName, className)}>
-          <CardContent className="px-6 py-6 sm:px-7 sm:py-7">
+          <CardContent className="px-5 py-5 sm:px-6 sm:py-6">
             <div className="flex flex-col items-center text-center">
-              <span className="flex h-12 w-12 items-center justify-center overflow-hidden rounded-lg border border-slate-200 bg-white shadow-none dark:border-slate-800 dark:bg-slate-900">
+              <span className="flex h-11 w-11 items-center justify-center overflow-hidden rounded-md border border-border bg-[var(--surface)] shadow-none">
                 <img
                   src={logoUrl}
                   alt=""
-                  className="h-8 w-8 object-contain"
+                  className="h-7 w-7 object-contain"
                   aria-hidden="true"
                 />
               </span>
-              <h1 className="mt-3 text-lg font-semibold leading-7 text-slate-900 dark:text-slate-100">
+              <h1 className="mt-3 text-[17px] font-semibold leading-6 text-foreground">
                 {siteName}
               </h1>
-              <p className="mt-1 text-sm leading-5 text-slate-500 dark:text-slate-400">
+              <p className="mt-1 text-sm leading-5 text-muted-foreground">
                 {isRegisterMode
                   ? t("login.create_account", { defaultValue: "注册账号" })
                   : t("login.subtitle", { defaultValue: "登录后直接进入管理后台" })}
               </p>
             </div>
 
-            <div className="mt-6">
+            <div className="mt-5">
               {loginFields}
             </div>
             {authModeSwitch}
@@ -804,7 +804,7 @@ const LoginDialog = ({
           <CardHeader className="gap-4 border-b border-border px-5 py-5">
             <div className="flex items-start justify-between gap-3">
               <div className="flex min-w-0 items-center gap-3">
-                <span className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-slate-200 bg-white shadow-none dark:border-slate-800 dark:bg-slate-900">
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-md border border-border bg-[var(--surface)] shadow-none">
                   <img
                     src={logoUrl}
                     alt=""
@@ -849,7 +849,7 @@ const LoginDialog = ({
         </DialogTrigger>
         <DialogContent className="sm:max-w-[440px]">
           <DialogHeader className="gap-3">
-            <div className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-lg border border-slate-200 bg-white shadow-none dark:border-slate-800 dark:bg-slate-900">
+            <div className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-md border border-border bg-[var(--surface)] shadow-none">
               <img
                 src={logoUrl}
                 alt=""

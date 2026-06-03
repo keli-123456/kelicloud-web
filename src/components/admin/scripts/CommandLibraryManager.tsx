@@ -106,7 +106,7 @@ const EMPTY_FORM_VALUES: CommandFormValues = {
 const DEFAULT_PAGE_SIZE = 20;
 
 const scriptsPanelClass =
-  "overflow-hidden rounded-lg border border-slate-200/80 bg-white shadow-none dark:border-slate-800/90 dark:bg-slate-950";
+  "admin-panel overflow-hidden";
 
 const CodeEditor = lazy(async () => {
   const module = await import("@/components/ui/code-editor");
@@ -255,7 +255,7 @@ export default function CommandLibraryManager({
   const unknownErrorText = t("common.unknown_error", "未知错误");
   const deferredSearchTerm = useDeferredValue(searchTerm.trim());
   const pageTitle = t("exec.savedCommands", {
-    defaultValue: "脚本库",
+    defaultValue: "脚本",
   });
 
   useAdminPageTitle(
@@ -426,7 +426,7 @@ export default function CommandLibraryManager({
         );
         toast.success(
           t("exec.savedCommandSaved", {
-            defaultValue: "脚本已保存到脚本库",
+            defaultValue: "脚本已保存",
           }),
         );
         if (page === 1) {
@@ -542,7 +542,7 @@ export default function CommandLibraryManager({
           <section className={scriptsPanelClass}>
             <div className="flex min-h-[54px] flex-col gap-3 border-b border-border px-[14px] py-3 lg:flex-row lg:items-center lg:justify-between">
               <div className="flex w-full gap-1 border-b border-slate-200/80 pb-1 dark:border-slate-800 sm:w-auto">
-                <ScriptToolbarTab active>{t("command_clipboard.open_library", { defaultValue: "脚本库" })}</ScriptToolbarTab>
+                <ScriptToolbarTab active>{t("command_clipboard.open_library", { defaultValue: "脚本" })}</ScriptToolbarTab>
                 <ScriptToolbarLink to="/admin/exec">{t("exec.history", { defaultValue: "执行记录" })}</ScriptToolbarLink>
                 <ScriptToolbarLink to="/admin/exec">{t("exec.result", { defaultValue: "结果" })}</ScriptToolbarLink>
               </div>
@@ -967,7 +967,7 @@ description={t("command_clipboard.select_description", { defaultValue: "从左�
             <AlertDialogDescription>
               {t("command_clipboard.delete_description", {
                 defaultValue:
-                  "删除后该脚本将从脚本库移除，不会影响已有执行记录。",
+                  "删除后该脚本将被移除，不会影响已有执行记录。",
               })}
             </AlertDialogDescription>
           </AlertDialogHeader>

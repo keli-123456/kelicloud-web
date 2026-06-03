@@ -11,7 +11,6 @@ import {
   Plus,
   QrCode,
   ReceiptText,
-  RefreshCw,
   XCircle,
 } from "lucide-react";
 
@@ -235,7 +234,7 @@ const FEATURE_META: Record<
   cloud_failover: { key: "billing.features.cloud_failover", defaultValue: "故障切换" },
   cloud_failover_v1: { key: "billing.features.cloud_failover_v1", defaultValue: "故障切换 V1" },
   cloud_failover_v2: { key: "billing.features.cloud_failover_v2", defaultValue: "故障切换 V2" },
-  clipboard: { key: "billing.features.clipboard", defaultValue: "脚本库" },
+  clipboard: { key: "billing.features.clipboard", defaultValue: "脚本" },
   logs: { key: "billing.features.logs", defaultValue: "日志" },
   cn_connectivity: { key: "billing.features.cn_connectivity", defaultValue: "国内连通性" },
 };
@@ -308,7 +307,7 @@ const BILLING_FEATURE_GROUPS: BillingFeatureGroupConfig[] = [
     key: "billing.feature_groups.operations",
     descriptionKey: "billing.feature_groups.operations_description",
     defaultValue: "运维工具",
-    defaultDescription: "脚本执行、脚本库、日志和连通性检测等日常运维入口。",
+    defaultDescription: "脚本执行、日志和连通性检测等日常运维入口。",
     features: ["tasks", "clipboard", "logs", "ping", "cn_connectivity"],
   },
 ];
@@ -834,12 +833,6 @@ export default function BillingPage() {
     <AdminPageShell
       className="w-full"
       title={t("billing.title")}
-      actions={
-        <Button variant="outline" size="sm" onClick={refreshAll} disabled={loadingCatalog || loadingAdmin}>
-          <RefreshCw className="mr-2 h-4 w-4" />
-          {t("common.refresh")}
-        </Button>
-      }
     >
       <Tabs.Root value={activeTab} onValueChange={setActiveTab} className="min-w-0">
         <AdminSplitLayout

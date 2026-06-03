@@ -172,7 +172,7 @@ export default function Sessions({ embedded = false }: { embedded?: boolean } = 
             </div>
             </div>
           ) : null}
-          <AdminTableSkeleton columns={7} rows={5} className="rounded-none border-0 shadow-none" />
+          <AdminTableSkeleton columns={5} rows={5} className="rounded-none border-0 shadow-none" />
         </AdminSurface>
       </AdminPageShell>
     );
@@ -232,30 +232,29 @@ export default function Sessions({ embedded = false }: { embedded?: boolean } = 
         ) : null}
 
         <AdminDataTableScroll>
-          <AdminDataTable minWidth={1040}>
+          <AdminDataTable minWidth={560}>
             <thead>
               <AdminDataTableHeadRow>
                 <AdminDataTableHead>{t("sessions.session_id")}</AdminDataTableHead>
                 <AdminDataTableHead>{t("sessions.user_agent_short", "UA")}</AdminDataTableHead>
                 <AdminDataTableHead>{t("sessions.ip")}</AdminDataTableHead>
-                <AdminDataTableHead>{t("sessions.latest_ip", "Latest IP")}</AdminDataTableHead>
-                <AdminDataTableHead>{t("sessions.expires_at")}</AdminDataTableHead>
                 <AdminDataTableHead>{t("sessions.last_login", "Last Seen")}</AdminDataTableHead>
-                <AdminDataTableHead align="right" sticky="right">{t("sessions.actions")}</AdminDataTableHead>
+                <AdminDataTableHead align="right">{t("sessions.actions")}</AdminDataTableHead>
               </AdminDataTableHeadRow>
             </thead>
             <tbody>
               {sessionPagination.pageItems.length === 0 ? (
-                <AdminDataTableEmptyRow colSpan={7} className="py-14 text-center text-sm text-slate-500 dark:text-slate-400">
+                <AdminDataTableEmptyRow colSpan={5} className="py-14 text-center text-sm text-slate-500 dark:text-slate-400">
                   {t("sessions.empty", "No session records are available right now.")}
                 </AdminDataTableEmptyRow>
               ) : null}
-              {sessionPagination.pageItems.map((session) => {
+              {sessionPagination.pageItems.map((session, index) => {
                 const isCurrent = session.session === sessions.current;
+                const rowKey = session.session || `${session.uuid || "session"}-${index}`;
 
                 return (
                   <AdminDataTableRow
-                    key={session.uuid}
+                    key={rowKey}
                   >
                     <AdminDataTableCell>
                       <Dialog.Root>
@@ -336,10 +335,6 @@ export default function Sessions({ embedded = false }: { embedded?: boolean } = 
                       {UserAgentHelper.format(session.user_agent)}
                     </AdminDataTableCell>
                     <AdminDataTableCell className="font-mono">{session.ip}</AdminDataTableCell>
-                    <AdminDataTableCell className="font-mono">{session.latest_ip}</AdminDataTableCell>
-                    <AdminDataTableCell>
-                      {new Date(session.expires).toLocaleString()}
-                    </AdminDataTableCell>
                     <AdminDataTableCell>
                       {new Date(session.latest_online).toLocaleString()} (
                       {formatDuration(
@@ -348,7 +343,7 @@ export default function Sessions({ embedded = false }: { embedded?: boolean } = 
                       )}
                       )
                     </AdminDataTableCell>
-                    <AdminDataTableCell align="right" sticky="right">
+                    <AdminDataTableCell align="right">
                       <AdminRowActions
                         actions={[
                           {

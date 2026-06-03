@@ -83,7 +83,7 @@ export function SettingCard({
         getDirectionClass(direction),
         bordless
           ? "border-0 bg-transparent p-0 shadow-none"
-          : "min-h-0 border-t border-slate-200/80 py-3.5 first:border-t-0 dark:border-slate-800/90",
+          : "min-h-0 border-t border-border py-3.5 first:border-t-0",
         className,
       )}
     >
@@ -100,11 +100,11 @@ export function SettingCard({
         }}
       >
         <div className="min-h-0 min-w-0 flex-1 space-y-1">
-          <div className="text-[14px] font-semibold leading-5 tracking-normal text-slate-950 dark:text-slate-50">
+          <div className="text-[14px] font-semibold leading-5 tracking-normal text-foreground">
             {title}
           </div>
           {description ? (
-            <div className="max-w-3xl text-sm leading-5 text-slate-500 dark:text-slate-400">
+            <div className="max-w-3xl text-sm leading-5 text-muted-foreground">
               {description}
             </div>
           ) : null}
@@ -368,7 +368,7 @@ export function SettingCardShortTextInput({
           <Input
             {...restProps}
             className={cn(
-                  "h-9 min-w-0 flex-1 rounded-md border-slate-200 bg-white text-sm shadow-xs dark:border-slate-800 dark:bg-slate-950",
+              "h-9 min-w-0 flex-1 rounded-md text-sm",
               className,
             )}
             value={value !== undefined ? value : internalValue}
@@ -459,7 +459,7 @@ export function SettingCardLongTextInput({
     <SettingCard title={title} description={description} bordless={bordless}>
       <div className="mt-1 flex w-full max-w-3xl flex-col items-start gap-2">
         <Textarea
-                className="min-h-28 w-full rounded-md border-slate-200 bg-white text-sm leading-6 shadow-xs dark:border-slate-800 dark:bg-slate-950"
+          className="min-h-28 w-full rounded-md text-sm leading-6"
           value={value}
           onChange={handleTextAreaChange}
           ref={textAreaRef}
@@ -551,7 +551,7 @@ export function SettingCardSelect({
           <SelectTrigger
             ref={triggerRef}
             size="sm"
-          className="min-w-48 rounded-md border-slate-200 bg-white text-sm shadow-xs dark:border-slate-800 dark:bg-slate-950"
+            className="min-w-48 rounded-md text-sm"
           >
             <SelectValue placeholder={resolvedLabel} />
           </SelectTrigger>
@@ -578,7 +578,7 @@ export function SettingCardLabel({
   children: React.ReactNode | null;
 }) {
   return (
-    <label className="mt-2 pt-1 text-[12px] font-semibold uppercase tracking-normal text-slate-500 first:mt-0 dark:text-slate-400">
+    <label className="mt-2 pt-1 text-[12px] font-semibold uppercase tracking-normal text-muted-foreground first:mt-0">
       {children}
     </label>
   );

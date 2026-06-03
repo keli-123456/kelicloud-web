@@ -15,9 +15,17 @@ import {
 } from "@/components/admin/admin-ui";
 import {
   ADMIN_FORM_BODY_CLASS,
+  ADMIN_FORM_CONTEXT_CARD_CLASS,
   ADMIN_FORM_DIALOG_CHROME_CLASS,
+  ADMIN_FORM_EMPTY_CLASS,
+  ADMIN_FORM_FIELD_CLASS,
+  ADMIN_FORM_GRID_2_CLASS,
   ADMIN_FORM_HEADER_CLASS,
   ADMIN_FORM_HEADER_INSET_CLASS,
+  ADMIN_FORM_HELP_CLASS,
+  ADMIN_FORM_LABEL_CLASS,
+  ADMIN_FORM_LIST_PANEL_CLASS,
+  ADMIN_FORM_SECTION_CLASS,
 } from "@/components/admin/AdminFormStyles";
 import { getReadableErrorMessage } from "@/lib/apiErrorMessage";
 import {
@@ -58,13 +66,11 @@ const DEFAULT_FORM: PortForwardFormState = {
 
 const NODE_DIALOG_CONTENT_CLASS =
   cn(
-    "flex max-h-[90vh] w-[calc(100vw-1.5rem)] max-w-[860px] flex-col overflow-hidden",
+    "flex max-h-[min(92vh,calc(100dvh-1.5rem))] w-[calc(100vw-1.5rem)] max-w-[960px] flex-col overflow-hidden",
     ADMIN_FORM_DIALOG_CHROME_CLASS,
   );
-const NODE_DIALOG_SECTION_CLASS =
-  "border-t border-slate-200/80 bg-transparent pt-4 dark:border-slate-800";
-const NODE_DIALOG_INFO_CLASS =
-  "border-l-2 border-slate-200/90 bg-transparent py-2 pl-3 dark:border-slate-700";
+const NODE_DIALOG_SECTION_CLASS = ADMIN_FORM_SECTION_CLASS;
+const NODE_DIALOG_INFO_CLASS = ADMIN_FORM_CONTEXT_CARD_CLASS;
 
 function buildFormFromRule(rule: ClientPortForwardRule): PortForwardFormState {
   return {
@@ -364,10 +370,10 @@ export function NodePortForwardDialog({
           </div>
         </div>
 
-        <div className={cn(ADMIN_FORM_BODY_CLASS, "grid gap-4 lg:grid-cols-[minmax(0,1fr)_320px]")}>
+        <div className={cn(ADMIN_FORM_BODY_CLASS, "grid gap-4 lg:grid-cols-[minmax(0,1fr)_360px]")}>
           <div className="space-y-4">
             <div className={NODE_DIALOG_INFO_CLASS}>
-              <div className="grid gap-3 text-sm sm:grid-cols-2">
+              <div className={cn(ADMIN_FORM_GRID_2_CLASS, "text-sm")}>
                 <div>
                   <div className="text-xs font-semibold uppercase text-muted-foreground">IPv4</div>
                   <div className="mt-1 font-mono text-[13px] text-foreground">{currentIPv4}</div>
@@ -377,7 +383,7 @@ export function NodePortForwardDialog({
                   <div className="mt-1 font-mono text-[13px] text-foreground">{currentIPv6}</div>
                 </div>
               </div>
-              <p className="mt-3 text-xs leading-5 text-muted-foreground">
+              <p className={cn("mt-3", ADMIN_FORM_HELP_CLASS)}>
                 {t(
                   "admin.nodeTable.portForward.nodeHint",
                   "应用时会重建该节点上由 kelicloud 管理的转发链；停用的规则不会下发。",
@@ -405,13 +411,13 @@ export function NodePortForwardDialog({
                 </Button>
               </div>
 
-              <div className="mt-3 max-h-[320px] overflow-y-auto pr-1">
+              <div className={cn(ADMIN_FORM_LIST_PANEL_CLASS, "mt-3 max-h-[320px] overflow-y-auto")}>
                 {loading ? (
-                  <div className="border-y border-dashed border-border px-3 py-8 text-center text-sm text-muted-foreground">
+                  <div className={cn(ADMIN_FORM_EMPTY_CLASS, "m-2")}>
                     {t("admin.nodeTable.portForward.loading", "正在加载端口中转规则...")}
                   </div>
                 ) : rules.length === 0 ? (
-                  <div className="border-y border-dashed border-border px-3 py-8 text-center text-sm text-muted-foreground">
+                  <div className={cn(ADMIN_FORM_EMPTY_CLASS, "m-2")}>
                     {t("admin.nodeTable.portForward.empty", "还没有端口中转规则")}
                   </div>
                 ) : (
@@ -420,10 +426,10 @@ export function NodePortForwardDialog({
                       key={rule.id}
                       type="button"
                       className={[
-                        "w-full border-b px-1 py-3 text-left transition-colors",
+                        "w-full border-b px-3 py-3 text-left transition-colors last:border-b-0",
                         rule.id === form.id
-                          ? "border-primary/45 bg-primary/5"
-                          : "border-border/70 bg-transparent hover:bg-muted/35",
+                          ? "border-primary/35 bg-primary/7"
+                          : "border-border/70 bg-transparent hover:bg-muted/45",
                       ].join(" ")}
                       onClick={() => setForm(buildFormFromRule(rule))}
                     >
@@ -439,7 +445,7 @@ export function NodePortForwardDialog({
                         </Badge>
                       </div>
                       {rule.last_error ? (
-                        <div className="mt-2 truncate border-l-2 border-red-300 py-1 pl-2 text-xs text-red-700 dark:border-red-800 dark:text-red-200">
+                        <div className="mt-2 rounded-md border border-red-200 bg-red-50 px-2 py-1 text-xs text-red-700 dark:border-red-900/60 dark:bg-red-950/30 dark:text-red-200">
                           {rule.last_error}
                         </div>
                       ) : null}
@@ -450,7 +456,7 @@ export function NodePortForwardDialog({
             </div>
           </div>
 
-          <div className={NODE_DIALOG_SECTION_CLASS}>
+          <div className={cn(NODE_DIALOG_SECTION_CLASS, "space-y-4 lg:border-l lg:pl-4 lg:pt-0")}>
             <div className="flex items-start justify-between gap-3">
               <div>
                 <div className="text-sm font-semibold">
@@ -458,7 +464,7 @@ export function NodePortForwardDialog({
                     ? t("admin.nodeTable.portForward.editRule", "编辑规则")
                     : t("admin.nodeTable.portForward.newRule", "新增规则")}
                 </div>
-                <div className="mt-1 text-xs text-muted-foreground">
+              <div className={cn("mt-1", ADMIN_FORM_HELP_CLASS)}>
                   {selectedRule
                     ? t("admin.nodeTable.portForward.lastApplied", {
                       defaultValue: `上次应用: ${formatDateTime(selectedRule.last_applied_at)}`,
@@ -473,14 +479,14 @@ export function NodePortForwardDialog({
             </div>
 
             {error ? (
-              <div className="border-l-2 border-red-300 py-2 pl-3 text-sm text-red-700 dark:border-red-800 dark:text-red-200">
+              <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-900/60 dark:bg-red-950/30 dark:text-red-200">
                 {error}
               </div>
             ) : null}
 
             <Flex direction="column" gap="4">
-              <Flex direction="column" gap="2">
-                <label className="text-sm font-semibold">
+              <Flex direction="column" gap="2" className={ADMIN_FORM_FIELD_CLASS}>
+                <label className={ADMIN_FORM_LABEL_CLASS}>
                   {t("admin.nodeTable.portForward.name", "名称")}
                 </label>
                 <TextField.Root
@@ -490,8 +496,8 @@ export function NodePortForwardDialog({
                 />
               </Flex>
 
-              <Flex direction="column" gap="2">
-                <label className="text-sm font-semibold">
+              <Flex direction="column" gap="2" className={ADMIN_FORM_FIELD_CLASS}>
+                <label className={ADMIN_FORM_LABEL_CLASS}>
                   {t("admin.nodeTable.portForward.protocol", "协议")}
                 </label>
                 <SegmentedControl.Root
@@ -504,8 +510,8 @@ export function NodePortForwardDialog({
               </Flex>
 
               <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-1">
-                <Flex direction="column" gap="2">
-                  <label className="text-sm font-semibold">
+                <Flex direction="column" gap="2" className={ADMIN_FORM_FIELD_CLASS}>
+                  <label className={ADMIN_FORM_LABEL_CLASS}>
                     {t("admin.nodeTable.portForward.listenPort", "监听端口")}
                   </label>
                   <TextField.Root
@@ -519,8 +525,8 @@ export function NodePortForwardDialog({
                   />
                 </Flex>
 
-                <Flex direction="column" gap="2">
-                  <label className="text-sm font-semibold">
+                <Flex direction="column" gap="2" className={ADMIN_FORM_FIELD_CLASS}>
+                  <label className={ADMIN_FORM_LABEL_CLASS}>
                     {t("admin.nodeTable.portForward.targetPort", "目标端口")}
                   </label>
                   <TextField.Root
@@ -535,8 +541,8 @@ export function NodePortForwardDialog({
                 </Flex>
               </div>
 
-              <Flex direction="column" gap="2">
-                <label className="text-sm font-semibold">
+              <Flex direction="column" gap="2" className={ADMIN_FORM_FIELD_CLASS}>
+                <label className={ADMIN_FORM_LABEL_CLASS}>
                   {t("admin.nodeTable.portForward.targetHost", "目标服务器")}
                 </label>
                 <TextField.Root
@@ -546,12 +552,12 @@ export function NodePortForwardDialog({
                 />
               </Flex>
 
-              <div className="flex items-center justify-between gap-3 border-l-2 border-slate-200/90 py-2 pl-3 dark:border-slate-700">
+              <div className={cn(ADMIN_FORM_CONTEXT_CARD_CLASS, "flex items-center justify-between gap-3")}>
                 <div>
                   <div className="text-sm font-semibold">
                     {t("admin.nodeTable.portForward.enabled", "启用规则")}
                   </div>
-                  <div className="mt-1 text-xs text-muted-foreground">
+                  <div className={cn("mt-1", ADMIN_FORM_HELP_CLASS)}>
                     {t("admin.nodeTable.portForward.enabledHint", "关闭后保存，应用时不会下发这条规则")}
                   </div>
                 </div>

@@ -138,7 +138,7 @@ function getProviderAccent(provider: string) {
       iconClassName:
         "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-300",
       cardClassName:
-        "border-amber-200/70 bg-gradient-to-br from-amber-50 via-white to-white dark:border-amber-900/50 dark:from-amber-950/20 dark:via-slate-950 dark:to-slate-950",
+        "admin-inline-surface",
     };
   }
 
@@ -148,16 +148,16 @@ function getProviderAccent(provider: string) {
       iconClassName:
         "border-sky-200 bg-sky-50 text-sky-700 dark:border-sky-900/60 dark:bg-sky-950/30 dark:text-sky-300",
       cardClassName:
-        "border-sky-200/70 bg-gradient-to-br from-sky-50 via-white to-white dark:border-sky-900/50 dark:from-sky-950/20 dark:via-slate-950 dark:to-slate-950",
+        "admin-inline-surface",
     };
   }
 
   return {
     icon: valueToMonogram(provider),
     iconClassName:
-      "border-slate-200 bg-slate-100 text-slate-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200",
+      "border-border bg-[var(--surface-subtle)] text-muted-foreground",
     cardClassName:
-      "border-slate-200 bg-slate-50 dark:border-slate-800 dark:bg-slate-950/50",
+      "admin-inline-surface",
   };
 }
 

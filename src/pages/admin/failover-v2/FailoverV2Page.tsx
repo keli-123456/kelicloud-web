@@ -4529,13 +4529,13 @@ export default function FailoverV2Page() {
         description={pageDescription}
         contentClassName="gap-3"
       >
-        {platformAdmin ? (
+        {platformAdmin && !loadingServices && services.length > 0 ? (
           <AdminDataPanel bodyClassName="flex items-center justify-between gap-3 px-4 py-3">
             <div className="min-w-0">
-              <div className="text-sm font-semibold text-slate-900 dark:text-slate-50">
+              <div className="text-sm font-semibold text-foreground">
                 {t("failover_v2.scheduler.title", { defaultValue: "Automatic Scheduler" })}
               </div>
-              <div className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+              <div className="mt-1 text-xs text-muted-foreground">
                 {schedulerEnabled
                   ? t("failover_v2.scheduler.enabled_hint", { defaultValue: "调度器正在统一巡检 V2 任务。" })
                   : t("failover_v2.scheduler.disabled_hint", { defaultValue: "启用后由调度器统一巡检 V2 任务。" })}
@@ -4566,26 +4566,32 @@ export default function FailoverV2Page() {
           </AdminSurface>
         ) : null}
 
+        {!error && loadingServices ? (
+          <AdminTableSkeleton columns={4} rows={4} />
+        ) : null}
+
         {!loadingServices && services.length === 0 ? (
-          <AdminSurface>
-            <div className="border-y border-dashed border-slate-300 bg-transparent py-6 dark:border-slate-700">
-              <div className="max-w-2xl space-y-3">
-                <h2 className="text-base font-semibold text-slate-900 dark:text-slate-50">
+          <AdminDataPanel bodyClassName="px-4 py-5">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div className="min-w-0">
+                <h2 className="text-sm font-semibold text-foreground">
                   {t("failover_v2.empty_title", { defaultValue: "No V2 services yet" })}
                 </h2>
-                <p className="text-sm leading-6 text-slate-500 dark:text-slate-400">
+                <p className="mt-1 text-xs leading-5 text-muted-foreground">
                   {t("failover_v2.empty_description", {
                     defaultValue:
                       "Create your first isolated V2 service. Each service will later manage multiple line-bound members without affecting V1.",
                   })}
                 </p>
-                <Button onClick={openCreateServiceDialog}>
+                </div>
+                {platformAdmin ? (
+                <Button onClick={openCreateServiceDialog} size="sm" className="shrink-0">
                   <Plus className="mr-2 size-4" />
                   {t("failover_v2.create_service", { defaultValue: "Create service" })}
                 </Button>
+                ) : null}
               </div>
-            </div>
-          </AdminSurface>
+          </AdminDataPanel>
         ) : null}
 
         {!loadingServices && services.length > 0 ? (
@@ -4598,7 +4604,7 @@ export default function FailoverV2Page() {
               bodyClassName="p-0"
               actions={(
                 <>
-                  <span className="rounded-md bg-white px-2.5 py-1.5 text-xs text-slate-500 ring-1 ring-slate-200 dark:bg-slate-950/60 dark:text-slate-400 dark:ring-slate-800">
+                  <span className="rounded-md border border-border bg-[var(--surface-subtle)] px-2.5 py-1.5 text-xs text-muted-foreground">
                     {services.length} {t("failover_v2.workbench.task_count_suffix", { defaultValue: "个任务" })}
                   </span>
                   <Button size="sm" onClick={openCreateServiceDialog}>
@@ -4610,7 +4616,13 @@ export default function FailoverV2Page() {
             >
 
               <div className="overflow-x-auto">
-              <div className="min-w-[880px] divide-y divide-slate-200/80 dark:divide-slate-800/80">
+              <div className="min-w-[780px] divide-y divide-border">
+                <div className="grid grid-cols-[minmax(145px,0.8fr)_minmax(190px,1fr)_minmax(220px,1fr)_128px] items-center gap-3 border-b border-border bg-[var(--surface-muted)] px-3 py-2 text-[12px] font-semibold text-muted-foreground">
+                  <div>{t("failover_v2.workbench.task_detail", { defaultValue: "任务" })}</div>
+                  <div>{t("failover_v2.summary.members", { defaultValue: "Members" })}</div>
+                  <div>{t("failover_v2.workbench.execution_state", { defaultValue: "执行状态" })}</div>
+                  <div className="text-right">{t("common.actions", { defaultValue: "Actions" })}</div>
+                </div>
                 {servicePagination.pageItems.map((service) => {
                   const expanded = expandedServiceID === service.id;
                   const serviceBusy = isFailoverV2ServiceBusy(service);
@@ -4652,12 +4664,12 @@ export default function FailoverV2Page() {
                   const toggleServiceExpanded = () => {
                     setExpandedServiceID(expanded ? null : service.id);
                   };
-                  const serviceMemberSummary = `${t("failover_v2.summary.members", { defaultValue: "Members" })}: ${service.enabled_member_count}/${service.member_count}`;
+                  const serviceMemberSummary = `${t("failover_v2.summary.members", { defaultValue: "Members" })} ${service.enabled_member_count}/${service.member_count}`;
                   const serviceDnsSummary = platformAdmin && service.dns_provider
                     ? `${t("failover_v2.detail_fields.dns", { defaultValue: "DNS" })}: ${formatProviderLabel(service.dns_provider)}`
                     : null;
                   const latestExecutionLabel = latestExecution
-                    ? `${platformAdmin ? `#${latestExecution.id} ` : ""}${localizeFailoverV2Status(t, latestExecution.status || "unknown")}`
+                    ? localizeFailoverV2Status(t, latestExecution.status || "unknown")
                     : t("failover_v2.execution_empty_short", { defaultValue: "暂无执行" });
                   const nextCheckSummary = `${t("failover_v2.summary.next_check", { defaultValue: "Next check" })}: ${formatServiceNextCheckCountdown(service)}`;
 
@@ -4666,8 +4678,8 @@ export default function FailoverV2Page() {
                       key={service.id}
                       className={cn(
                         "transition-colors",
-                        expanded && "bg-sky-50/60 dark:bg-sky-950/20",
-                        serviceBusy && "bg-amber-50/50 dark:bg-amber-950/15",
+                        expanded && "bg-[var(--surface-pressed)]",
+                        serviceBusy && "bg-amber-50/70 dark:bg-amber-950/20",
                       )}
                     >
                       <div
@@ -4680,11 +4692,11 @@ export default function FailoverV2Page() {
                             toggleServiceExpanded();
                           }
                         }}
-                        className="grid cursor-pointer grid-cols-[minmax(150px,0.9fr)_minmax(180px,1fr)_minmax(220px,1fr)_112px] items-center gap-3 px-3 py-2 transition-colors hover:bg-slate-50/80 dark:hover:bg-slate-900/40"
+                        className="grid cursor-pointer grid-cols-[minmax(145px,0.8fr)_minmax(190px,1fr)_minmax(220px,1fr)_128px] items-center gap-3 px-3 py-2.5 transition-colors hover:bg-[var(--surface-hover)]"
                       >
                         <div className="min-w-0">
                           <div className="flex min-w-0 items-center gap-2 whitespace-nowrap">
-                            <span className="min-w-0 truncate text-sm font-semibold text-slate-900 dark:text-slate-50" title={service.name}>
+                            <span className="min-w-0 truncate text-sm font-semibold text-foreground" title={service.name}>
                               {service.name}
                             </span>
                             {serviceBusy ? <LoaderCircle className="size-3.5 shrink-0 animate-spin text-sky-500" /> : null}
@@ -4695,8 +4707,8 @@ export default function FailoverV2Page() {
                           </div>
                         </div>
 
-                        <div className="flex min-w-0 items-center gap-2 whitespace-nowrap text-xs text-slate-500 dark:text-slate-400">
-                          <span className="shrink-0 font-medium text-slate-800 dark:text-slate-100">
+                        <div className="flex min-w-0 items-center gap-2 whitespace-nowrap text-xs text-muted-foreground">
+                          <span className="shrink-0 font-medium text-foreground">
                             {serviceMemberSummary}
                           </span>
                           {serviceDnsSummary ? (
@@ -4710,12 +4722,32 @@ export default function FailoverV2Page() {
                           <Badge color={latestExecution ? getStatusBadgeColor(latestExecution.status || "unknown") : "gray"}>
                             {latestExecutionLabel}
                           </Badge>
-                          <span className="min-w-0 truncate text-xs text-slate-500 dark:text-slate-400" title={nextCheckSummary}>
+                          <span className="min-w-0 truncate text-xs text-muted-foreground" title={nextCheckSummary}>
                             {nextCheckSummary}
                           </span>
                         </div>
 
                         <div className="flex items-center justify-end gap-1 whitespace-nowrap">
+                          {platformAdmin ? (
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="ghost"
+                              className="h-8 rounded-md px-2 text-[12px]"
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                openCreateMemberDialog(service);
+                              }}
+                              disabled={serviceBusy}
+                              title={t("failover_v2.add_member_short", { defaultValue: "成员" })}
+                              aria-label={t("failover_v2.add_member_short", { defaultValue: "成员" })}
+                            >
+                              <Plus className="size-3.5" />
+                              <span className="hidden 2xl:inline">
+                                {t("failover_v2.add_member_short", { defaultValue: "成员" })}
+                              </span>
+                            </Button>
+                          ) : null}
                           <Button
                             size="sm"
                             variant="ghost"
@@ -4748,13 +4780,6 @@ export default function FailoverV2Page() {
                               </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end" onClick={(event) => event.stopPropagation()}>
-                              <DropdownMenuItem
-                                onSelect={() => openCreateMemberDialog(service)}
-                                disabled={serviceBusy}
-                              >
-                                <Plus className="size-4" />
-                                {t("failover_v2.add_member_short", { defaultValue: "成员" })}
-                              </DropdownMenuItem>
                               <DropdownMenuItem
                                 onSelect={() => { void handleValidateExistingService(service); }}
                                 disabled={validatingServiceID === service.id}
@@ -4804,25 +4829,23 @@ export default function FailoverV2Page() {
                       </div>
 
                       {expanded ? (
-                        <div className="border-t border-slate-200 bg-slate-50/45 dark:border-slate-800 dark:bg-slate-900/20">
+                        <div className="border-t border-border bg-[var(--surface-subtle)]">
                           <div className="overflow-hidden">
-                              <div className="border-b border-slate-200 bg-slate-50/70 px-3 py-2 dark:border-slate-800 dark:bg-slate-900/35">
-                                <div className="text-sm font-semibold text-slate-900 dark:text-slate-50">
-                                  {t("failover_v2.workbench.member_list", { defaultValue: "子成员" })}
-                                </div>
-                                <div className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-                                  {t("failover_v2.workbench.member_list_hint", { defaultValue: "左侧看主要状态，右侧看详情。" })}
-                                </div>
+                              <div className="grid grid-cols-[minmax(210px,1fr)_minmax(150px,0.7fr)_minmax(170px,0.8fr)_70px] items-center gap-3 border-b border-border bg-[var(--surface-muted)] px-3 py-2 text-[12px] font-semibold text-muted-foreground">
+                                <div>{t("failover_v2.workbench.member_list", { defaultValue: "子成员" })}</div>
+                                <div>{t("failover_v2.detail_fields.addresses", { defaultValue: "地址" })}</div>
+                                <div>{t("failover_v2.workbench.execution_state", { defaultValue: "执行状态" })}</div>
+                                <div className="text-right">{t("common.status", { defaultValue: "Status" })}</div>
                               </div>
 
                               {service.members.length === 0 ? (
-                                <div className="px-3 py-5 text-sm text-slate-500 dark:text-slate-400">
+                                <div className="px-3 py-5 text-sm text-muted-foreground">
                                   {t("failover_v2.no_members", {
                                     defaultValue: "This service has no members yet.",
                                   })}
                                 </div>
                               ) : (
-                                <div className="divide-y divide-slate-200/80 overflow-y-auto dark:divide-slate-800/80 max-h-[480px]">
+                                <div className="max-h-[480px] divide-y divide-border overflow-y-auto">
                                   {service.members.map((member) => {
                                     const memberBusy = isFailoverV2MemberBusy(service, member);
                                     const memberActionsDisabled = memberBusy;
@@ -4852,23 +4875,20 @@ export default function FailoverV2Page() {
                                           }
                                         }}
                                         className={cn(
-                                          "grid cursor-pointer grid-cols-[minmax(220px,1fr)_minmax(150px,0.7fr)_minmax(170px,0.8fr)_auto] items-center gap-3 px-3 py-2 transition-colors hover:bg-slate-50/80 dark:hover:bg-slate-900/45",
-                                          memberSelected && "bg-sky-50/80 dark:bg-sky-950/25",
-                                          memberBusy && "bg-sky-50/60 dark:bg-sky-950/15",
+                                          "grid cursor-pointer grid-cols-[minmax(210px,1fr)_minmax(150px,0.7fr)_minmax(170px,0.8fr)_70px] items-center gap-3 px-3 py-2 transition-colors hover:bg-[var(--surface-hover)]",
+                                          memberSelected && "bg-[var(--surface-pressed)]",
+                                          memberBusy && "bg-[var(--surface-pressed)]",
                                         )}
                                       >
                                         <div className="min-w-0">
                                           <div className="flex min-w-0 items-center gap-2 whitespace-nowrap">
-                                            <span className="min-w-0 truncate text-sm font-semibold text-slate-900 dark:text-slate-50">
+                                            <span className="min-w-0 truncate text-sm font-semibold text-foreground">
                                               {getMemberDisplayTitle(member)}
                                             </span>
                                             <Badge color={member.enabled ? "green" : "gray"}>
                                               {member.enabled
                                                 ? t("common.enabled", { defaultValue: "Enabled" })
                                                 : t("common.disabled", { defaultValue: "Disabled" })}
-                                            </Badge>
-                                            <Badge color={normalizeMemberModeValue(member.mode) === "existing_client" ? "amber" : "blue"}>
-                                              {formatMemberModeLabel(t, member.mode)}
                                             </Badge>
                                             {probeBadge ? (
                                               <Badge color={getStatusBadgeColor(probeBadge.status)}>
@@ -4877,31 +4897,28 @@ export default function FailoverV2Page() {
                                             ) : null}
                                             {memberBusy ? <LoaderCircle className="size-3.5 animate-spin text-sky-500" /> : null}
                                           </div>
-                                          <div className="mt-1 truncate text-xs text-slate-500 dark:text-slate-400">
+                                          <div className="mt-1 truncate text-xs text-muted-foreground">
                                             {memberLineCodes.length > 0
-                                              ? formatMemberLinesSummary(t, memberLineCodes)
-                                              : formatMemberSubtitle(member) || "-"}
+                                              ? `${formatMemberLinesSummary(t, memberLineCodes)} · ${formatMemberModeLabel(t, member.mode)}`
+                                              : formatMemberSubtitle(member) || formatMemberModeLabel(t, member.mode)}
                                           </div>
                                         </div>
 
-                                        <div className="min-w-0 whitespace-nowrap text-xs text-slate-500 dark:text-slate-400">
-                                          <div className="truncate text-sm font-medium text-slate-800 dark:text-slate-100" title={memberPrimaryAddress}>
+                                        <div className="min-w-0 whitespace-nowrap text-xs text-muted-foreground">
+                                          <div className="truncate text-sm font-medium text-foreground" title={memberPrimaryAddress}>
                                             {memberPrimaryAddress}
                                           </div>
                                         </div>
 
-                                        <div className="min-w-0 whitespace-nowrap text-xs text-slate-500 dark:text-slate-400">
-                                          <div className="truncate text-sm font-medium text-slate-800 dark:text-slate-100" title={memberTaskStatus}>
+                                        <div className="min-w-0 whitespace-nowrap text-xs text-muted-foreground">
+                                          <div className="truncate text-sm font-medium text-foreground" title={memberTaskStatus}>
                                             {memberTaskStatus}
                                           </div>
                                         </div>
 
-                                        <div className="flex flex-wrap items-center justify-end gap-2">
-                                          <div className="flex items-center gap-2 border-l-2 border-slate-200 bg-transparent px-2.5 py-1 dark:border-slate-800">
-                                            <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400">
-                                              {t("failover_v2.quick_member_toggle_short", { defaultValue: "自动" })}
-                                            </span>
-                                            {togglingMemberKey === memberRowKey ? <LoaderCircle className="size-3.5 animate-spin text-slate-400" /> : null}
+                                        <div className="flex items-center justify-end">
+                                          <div className="flex items-center gap-1.5 border-l border-border pl-2">
+                                            {togglingMemberKey === memberRowKey ? <LoaderCircle className="size-3.5 animate-spin text-muted-foreground" /> : null}
                                             <Switch
                                               checked={member.enabled}
                                               disabled={memberActionsDisabled || togglingMemberKey === memberRowKey}
@@ -4976,31 +4993,31 @@ export default function FailoverV2Page() {
 
                   return (
                     <div>
-                      <div className="border-b border-slate-200 bg-slate-50/80 px-4 py-3 dark:border-slate-800 dark:bg-slate-900/35">
+                      <div className="admin-panel-header px-4 py-3">
                         <div className="flex items-start justify-between gap-3">
                           <div className="min-w-0">
-                            <div className="text-xs font-medium uppercase text-slate-500 dark:text-slate-400">
+                            <div className="text-xs font-medium uppercase text-muted-foreground">
                               {service.name}
                             </div>
-                            <div className="mt-1 truncate text-sm font-semibold text-slate-900 dark:text-slate-50">
+                            <div className="mt-1 truncate text-sm font-semibold text-foreground">
                               {getMemberDisplayTitle(member)}
                             </div>
                           </div>
                           {memberBusy ? <LoaderCircle className="mt-0.5 size-4 shrink-0 animate-spin text-sky-500" /> : null}
                         </div>
-                        <div className="mt-2 truncate text-xs text-slate-500 dark:text-slate-400">
+                        <div className="mt-2 truncate text-xs text-muted-foreground">
                           {formatMemberSubtitle(member) || service.name}
                         </div>
                       </div>
 
-                        <div className="divide-y divide-slate-200/80 dark:divide-slate-800">
+                        <div className="divide-y divide-border">
                         <div className="px-4 py-3">
                           <div className="flex items-start justify-between gap-3">
                             <div className="min-w-0">
-                              <div className="text-[11px] font-medium uppercase text-slate-500 dark:text-slate-400">
+                              <div className="text-[11px] font-medium uppercase text-muted-foreground">
                                 {t("failover_v2.workbench.task_detail", { defaultValue: "主任务" })}
                               </div>
-                              <div className="mt-1 truncate text-sm font-semibold text-slate-900 dark:text-slate-50">
+                              <div className="mt-1 truncate text-sm font-semibold text-foreground">
                                 {service.name}
                               </div>
                             </div>
@@ -5008,7 +5025,7 @@ export default function FailoverV2Page() {
                               {localizeFailoverV2Status(t, service.last_status || "unknown")}
                             </Badge>
                           </div>
-                          <div className="mt-2 space-y-1 text-xs text-slate-500 dark:text-slate-400">
+                          <div className="mt-2 space-y-1 text-xs text-muted-foreground">
                             {platformAdmin ? (
                               <div>{service.dns_provider ? formatProviderLabel(service.dns_provider) : "-"} / {service.dns_entry_id || "-"}</div>
                             ) : null}
@@ -5016,10 +5033,10 @@ export default function FailoverV2Page() {
                             <div>{t("failover_v2.summary.members", { defaultValue: "Members" })}: {service.enabled_member_count} / {service.member_count}</div>
                           </div>
                           {serviceLatestExecution ? (
-                            <div className="mt-3 border-t border-slate-200/80 pt-3 dark:border-slate-800">
+                            <div className="mt-3 border-t border-border pt-3">
                               <div className="flex flex-wrap items-center gap-2">
                                 {platformAdmin ? (
-                                  <span className="text-sm font-semibold text-slate-900 dark:text-slate-50">
+                                  <span className="text-sm font-semibold text-foreground">
                                     #{serviceLatestExecution.id}
                                   </span>
                                 ) : null}
@@ -5028,7 +5045,7 @@ export default function FailoverV2Page() {
                                 </Badge>
                                 {serviceActiveExecutionID === serviceLatestExecution.id ? <LoaderCircle className="size-3.5 animate-spin text-sky-500" /> : null}
                               </div>
-                              <div className="mt-1 truncate text-xs text-slate-500 dark:text-slate-400">
+                              <div className="mt-1 truncate text-xs text-muted-foreground">
                                 {findMemberLabel(service, serviceLatestExecution.member_id)}
                                 {platformAdmin ? ` / ${localizeFailoverV2TriggerReason(t, serviceLatestExecution.trigger_reason)}` : ""}
                               </div>
@@ -5086,7 +5103,7 @@ export default function FailoverV2Page() {
                         </div>
 
                         <div className="px-4 py-3">
-                          <div className="space-y-2 break-words text-xs text-slate-600 dark:text-slate-300">
+                          <div className="space-y-2 break-words text-xs text-muted-foreground">
                             {platformAdmin ? <div>{formatMemberSubtitle(member) || "-"}</div> : null}
                             <div>{t("failover_v2.detail_fields.ipv4", { defaultValue: "IPv4" })}: {memberIPv4Address || t("failover_v2.no_current_ip", { defaultValue: "No current IP" })}</div>
                             <div>{t("failover_v2.detail_fields.ipv6", { defaultValue: "IPv6" })}: {memberIPv6Address || t("failover_v2.no_current_ip", { defaultValue: "No current IP" })}</div>
@@ -5133,10 +5150,10 @@ export default function FailoverV2Page() {
                   );
                 })() : (
                   <div className="px-4 py-6">
-                    <div className="text-sm font-semibold text-slate-900 dark:text-slate-50">
+                    <div className="text-sm font-semibold text-foreground">
                       {t("failover_v2.workbench.member_detail", { defaultValue: "子成员详情" })}
                     </div>
-                    <div className="mt-2 text-sm leading-6 text-slate-500 dark:text-slate-400">
+                    <div className="mt-2 text-sm leading-6 text-muted-foreground">
                       {t("failover_v2.workbench.member_detail_empty", { defaultValue: "展开一个任务，然后选择子成员查看详情。" })}
                     </div>
                   </div>
@@ -6028,8 +6045,8 @@ export default function FailoverV2Page() {
                                 <SelectValue placeholder={t("failover_v2.watch_client_placeholder", { defaultValue: "Choose a client" })} />
                               </SelectTrigger>
                               <SelectContent>
-                                {currentNodeOptions.map((node) => (
-                                  <SelectItem key={node.uuid} value={node.uuid}>
+                                {currentNodeOptions.map((node, index) => (
+                                  <SelectItem key={`${node.uuid}-${index}`} value={node.uuid}>
                                     {formatNodeLabel(node)}
                                   </SelectItem>
                                 ))}

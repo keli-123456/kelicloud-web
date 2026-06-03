@@ -37,7 +37,7 @@ const CommandClipboardPanel = ({ ...props }: { [key: string]: any }) => {
         <div>
           {getReadableErrorMessage(
             error,
-            t("command_clipboard.fetch_failed", { defaultValue: "加载脚本库失败，请刷新后重试。" }),
+            t("command_clipboard.fetch_failed", { defaultValue: "加载脚本失败，请刷新后重试。" }),
           )}
         </div>
       );

@@ -20,15 +20,15 @@ import type { SettingsResponse } from "@/lib/api";
 import { buildAgentInstallScriptURL } from "@/lib/installScriptSource";
 
 const NODE_DIALOG_CONTENT_CLASS =
-  "max-h-[90vh] w-[min(96vw,1040px)] overflow-y-auto overscroll-contain rounded-lg border border-slate-200/80 bg-white p-5 shadow-[0_24px_70px_-50px_rgba(15,23,42,0.72)] [scrollbar-gutter:stable] dark:border-slate-800 dark:bg-slate-950";
+  "admin-dialog flex max-h-[min(92vh,calc(100dvh-1.5rem))] w-[min(96vw,1040px)] flex-col overflow-hidden p-0";
 const NODE_DIALOG_SECTION_CLASS =
-  "border-t border-slate-200/80 bg-transparent pt-4 dark:border-slate-800";
+  "border-t border-border/70 bg-transparent pt-4 first:border-t-0 first:pt-0";
 const NODE_DIALOG_HINT_CLASS =
   "text-sm leading-6 text-muted-foreground";
 const NODE_DIALOG_FOOTER_CLASS =
-  "-mx-5 -mb-5 mt-5 flex flex-col-reverse gap-2 border-t border-slate-200/80 bg-white/95 px-5 py-3 dark:border-slate-800 dark:bg-slate-950/95 sm:flex-row sm:justify-end";
+  "admin-panel-footer flex shrink-0 flex-col-reverse gap-2 px-5 py-3 sm:flex-row sm:items-center sm:justify-end";
 const NODE_INPUT_CLASS =
-  "h-10 rounded-lg border border-slate-200/80 bg-white px-3 text-[14px] shadow-none hover:bg-white dark:border-slate-800 dark:bg-slate-950";
+  "h-10 rounded-md border border-input bg-[var(--surface)] px-3 text-[14px] shadow-none hover:bg-[var(--surface-hover)]";
 
 type Platform = "linux" | "windows" | "macos";
 
@@ -198,7 +198,7 @@ const AdvancedToggleInputField = ({
   max,
   hint,
 }: AdvancedToggleInputFieldProps) => (
-  <div className="rounded-lg border border-slate-200/80 bg-white/60 px-3 py-2.5 dark:border-slate-700/70 dark:bg-slate-950/30">
+  <div className="border-b border-border/70 py-2.5 last:border-b-0">
     <div className="flex items-center justify-between gap-3">
       <label htmlFor={id} className="text-sm font-semibold text-slate-900 dark:text-slate-100">
         {label}
@@ -513,22 +513,27 @@ export default function GenerateCommandDialog({
   return (
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
       <Dialog.Content className={NODE_DIALOG_CONTENT_CLASS} maxWidth={1040}>
-        <Dialog.Title>
-          {groupMode
-            ? scopedGroupName
-              ? `${t("admin.nodeTable.installCommand", "Install command")} · ${scopedGroupName}`
-              : t("admin.nodeTable.groupInstallCommand", "Create group install command")
-            : useAutoDiscovery
-              ? `${t("admin.nodeTable.installCommand", "Install command")} · ${t("admin.nodeTable.autoEnroll", "Auto-enroll")}`
-              : t("admin.nodeTable.installCommand", "Install command")}
-        </Dialog.Title>
-        <Dialog.Description className="mt-2">
-          {t(
-            "admin.nodeTable.installDialogDescription",
-            "Platform selection and install parameters are remembered and reused next time.",
-          )}
-        </Dialog.Description>
-        <div className="mt-4 flex flex-col gap-4">
+        <div className="admin-panel-header shrink-0 px-5 py-4">
+          <div className="flex min-w-0 flex-col gap-1 pr-12">
+            <Dialog.Title>
+              {groupMode
+                ? scopedGroupName
+                  ? `${t("admin.nodeTable.installCommand", "Install command")} · ${scopedGroupName}`
+                  : t("admin.nodeTable.groupInstallCommand", "Create group install command")
+                : useAutoDiscovery
+                  ? `${t("admin.nodeTable.installCommand", "Install command")} · ${t("admin.nodeTable.autoEnroll", "Auto-enroll")}`
+                  : t("admin.nodeTable.installCommand", "Install command")}
+            </Dialog.Title>
+            <Dialog.Description>
+              {t(
+                "admin.nodeTable.installDialogDescription",
+                "Platform selection and install parameters are remembered and reused next time.",
+              )}
+            </Dialog.Description>
+          </div>
+        </div>
+        <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-contain px-5 py-4 [scrollbar-gutter:stable]">
+        <div className="flex flex-col gap-4">
           {useAutoDiscovery && !groupMode ? (
             <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/30 dark:text-emerald-300">
               {t(
@@ -603,7 +608,7 @@ export default function GenerateCommandDialog({
               )}
             </div>
           ) : null}
-          <div className="grid gap-4 xl:grid-cols-[minmax(0,0.9fr)_minmax(420px,1.1fr)]">
+          <div className="grid gap-5 xl:grid-cols-[minmax(0,0.86fr)_minmax(420px,1.14fr)]">
             <div className="flex flex-col gap-4">
               <div className={NODE_DIALOG_SECTION_CLASS}>
                 <label className="text-[14px] font-semibold text-slate-900 dark:text-slate-100">
@@ -625,7 +630,7 @@ export default function GenerateCommandDialog({
                 <label className="text-[14px] font-semibold text-slate-900 dark:text-slate-100">
                   {t("admin.nodeTable.installOptions", "Install options")}
                 </label>
-                <div className="mt-3 grid gap-3 text-slate-900 dark:text-slate-100 md:grid-cols-2">
+                <div className="mt-3 grid gap-x-4 gap-y-2 text-slate-900 dark:text-slate-100 md:grid-cols-2">
                   <Flex gap="2" align="center">
                     <Checkbox
                       checked={installOptions.disableWebSsh}
@@ -746,8 +751,8 @@ export default function GenerateCommandDialog({
                     })}
                   </Button>
                 </div>
-                <div className="mt-3 flex flex-col gap-3 text-slate-900 dark:text-slate-100">
-                  <Flex gap="2" align="center">
+                <div className="mt-3 overflow-hidden rounded-md border border-border bg-[var(--surface)] px-3 text-slate-900 dark:text-slate-100">
+                  <Flex gap="2" align="center" className="border-b border-border/70 py-2.5">
                     <Checkbox
                       checked={enableGhproxy}
                       onCheckedChange={(checked) => {
@@ -952,7 +957,7 @@ export default function GenerateCommandDialog({
                     "Copy this command and run it directly on the target server.",
                   )}
                 </p>
-                <div className="relative mt-3 overflow-hidden rounded-lg border border-slate-200 bg-slate-50/80 dark:border-slate-700 dark:bg-slate-950">
+                  <div className="relative mt-3 overflow-hidden rounded-md border border-border bg-[var(--surface-subtle)]">
                   <Button
                     type="button"
                     size="sm"
@@ -979,17 +984,18 @@ export default function GenerateCommandDialog({
               </div>
             </div>
           </div>
-          <div className={NODE_DIALOG_FOOTER_CLASS}>
-            <Dialog.Close>
-              <Button
-                type="button"
-                variant="outline"
-                className="w-full sm:w-auto"
-              >
-                {t("close", "Close")}
-              </Button>
-            </Dialog.Close>
-          </div>
+        </div>
+        </div>
+        <div className={NODE_DIALOG_FOOTER_CLASS}>
+          <Dialog.Close>
+            <Button
+              type="button"
+              variant="outline"
+              className="w-full sm:w-auto"
+            >
+              {t("close", "Close")}
+            </Button>
+          </Dialog.Close>
         </div>
       </Dialog.Content>
     </Dialog.Root>

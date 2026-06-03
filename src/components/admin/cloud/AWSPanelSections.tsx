@@ -4,7 +4,6 @@ import {
   CheckCircle2,
   Eye,
   MoreHorizontal,
-  Plus,
   Search,
   ShieldCheck,
   Trash2,
@@ -231,8 +230,6 @@ type AWSComputeSectionProps = {
   canCreate: boolean;
   onInstanceViewChange: (value: "ec2" | "lightsail") => void;
   onLoadResources: () => MaybePromise<void>;
-  onOpenEC2Create: () => MaybePromise<void>;
-  onOpenLightsailCreate: () => void;
   onLoadEC2Detail: (instance: AWSInstance) => MaybePromise<void>;
   onViewEC2Password: (instance: AWSInstance) => MaybePromise<void>;
   onEC2PowerAction: (instance: AWSInstance, action: "start" | "stop") => MaybePromise<void>;
@@ -269,8 +266,6 @@ export function AWSComputeSection({
   canCreate,
   onInstanceViewChange,
   onLoadResources,
-  onOpenEC2Create,
-  onOpenLightsailCreate,
   onLoadEC2Detail,
   onViewEC2Password,
   onEC2PowerAction,
@@ -356,36 +351,6 @@ export function AWSComputeSection({
                   <Eye className="mr-2 h-4 w-4" />
                   {t("cloud.view", "查看")}
                 </Button>
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button size="1" disabled={!canCreate}>
-                      <Plus className="mr-2 h-4 w-4" />
-                      {t("common.create", "创建")}
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="min-w-44">
-                    <DropdownMenuItem
-                      disabled={!canCreate}
-                      onSelect={() => {
-                        onInstanceViewChange("ec2");
-                        void onOpenEC2Create();
-                      }}
-                    >
-                      <Plus className="h-4 w-4" />
-                      {t("cloud.providers.aws.create", "启动 EC2")}
-                    </DropdownMenuItem>
-                    <DropdownMenuItem
-                      disabled={!canCreate}
-                      onSelect={() => {
-                        onInstanceViewChange("lightsail");
-                        onOpenLightsailCreate();
-                      }}
-                    >
-                      <Plus className="h-4 w-4" />
-                      {t("cloud.providers.aws.lightsail_create", "创建 Lightsail")}
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
               </Flex>
             </div>
           </div>
@@ -421,7 +386,6 @@ export function AWSComputeSection({
               passwordLoading={passwordLoading}
               canCreate={canCreate}
               onLoadResources={onLoadResources}
-              onOpenCreate={onOpenEC2Create}
               onLoadDetail={onLoadEC2Detail}
               onViewPassword={onViewEC2Password}
               onPowerAction={onEC2PowerAction}
@@ -453,7 +417,6 @@ export function AWSComputeSection({
               passwordLoading={passwordLoading}
               canCreate={canCreate}
               onLoadResources={onLoadResources}
-              onOpenCreate={onOpenLightsailCreate}
               onLoadDetail={onLoadLightsailDetail}
               onViewPassword={onViewLightsailPassword}
               onPowerAction={onLightsailPowerAction}

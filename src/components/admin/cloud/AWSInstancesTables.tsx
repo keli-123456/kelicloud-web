@@ -1,6 +1,6 @@
 import * as React from "react";
 import type { TFunction } from "i18next";
-import { Eye, Plus, Server } from "lucide-react";
+import { Eye, Server } from "lucide-react";
 
 import {
   AdminDataTable,
@@ -64,7 +64,6 @@ type SharedInstancesTableProps = {
 
 type AWSEC2InstancesTableProps = SharedInstancesTableProps & {
   instances: AWSInstance[];
-  onOpenCreate: () => MaybePromise<void>;
   onLoadDetail: (instance: AWSInstance) => MaybePromise<void>;
   onViewPassword: (instance: AWSInstance) => MaybePromise<void>;
   onPowerAction: (instance: AWSInstance, action: "start" | "stop") => MaybePromise<void>;
@@ -86,9 +85,7 @@ export function AWSEC2InstancesTable({
   resourcesLoaded,
   passwordStorageEnabled,
   passwordLoading,
-  canCreate,
   onLoadResources,
-  onOpenCreate,
   onLoadDetail,
   onViewPassword,
   onPowerAction,
@@ -149,16 +146,6 @@ export function AWSEC2InstancesTable({
       >
         <Eye className="mr-2 h-4 w-4" />
         {t("cloud.view", "查看")}
-      </Button>
-    ) : resourcesLoaded && canCreate ? (
-      <Button
-        size="1"
-        onClick={() => {
-          void onOpenCreate();
-        }}
-      >
-        <Plus className="mr-2 h-4 w-4" />
-        {t("cloud.providers.aws.create", "创建 EC2")}
       </Button>
     ) : null;
 
@@ -307,7 +294,6 @@ export function AWSEC2InstancesTable({
 type AWSLightsailInstancesTableProps = SharedInstancesTableProps & {
   instances: AWSLightsailInstance[];
   lightsailError: string;
-  onOpenCreate: () => MaybePromise<void>;
   onLoadDetail: (instance: AWSLightsailInstance) => MaybePromise<void>;
   onViewPassword: (instance: AWSLightsailInstance) => MaybePromise<void>;
   onPowerAction: (instance: AWSLightsailInstance, action: "start" | "stop") => MaybePromise<void>;
@@ -330,9 +316,7 @@ export function AWSLightsailInstancesTable({
   resourcesLoaded,
   passwordStorageEnabled,
   passwordLoading,
-  canCreate,
   onLoadResources,
-  onOpenCreate,
   onLoadDetail,
   onViewPassword,
   onPowerAction,
@@ -389,16 +373,6 @@ export function AWSLightsailInstancesTable({
       >
         <Eye className="mr-2 h-4 w-4" />
         {t("cloud.view", "查看")}
-      </Button>
-    ) : resourcesLoaded && canCreate ? (
-      <Button
-        size="1"
-        onClick={() => {
-          void onOpenCreate();
-        }}
-      >
-        <Plus className="mr-2 h-4 w-4" />
-        {t("cloud.providers.aws.lightsail_create", "创建 Lightsail")}
       </Button>
     ) : null;
 

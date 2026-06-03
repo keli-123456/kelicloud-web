@@ -367,6 +367,11 @@ function AdminPanelBarContent({ content }: AdminPanelBarProps) {
   const accountPlanTitle = `${accountPlanLabel} · ${accountStatusLabel} · ${accountExpiryLabel}`;
 
   useEffect(() => {
+    if (!account?.logged_in) {
+      setVersionInfo(null);
+      return;
+    }
+
     const fetchVersionInfo = async () => {
       try {
         const data = await call("common:getVersion");
@@ -375,15 +380,16 @@ function AdminPanelBarContent({ content }: AdminPanelBarProps) {
           version: data.version,
         });
       } catch (error) {
-        console.error("Failed to fetch version info:", error);
+        console.warn("Failed to fetch version info:", error);
       }
     };
 
     fetchVersionInfo();
-  }, [call]);
+  }, [account?.logged_in, call]);
 
   useEffect(() => {
     let ignore = false;
+    if (!account?.logged_in) return;
     const currentVersion = (publicInfo as any)?.version || versionInfo?.version;
     if (!currentVersion) return;
 
@@ -425,7 +431,7 @@ function AdminPanelBarContent({ content }: AdminPanelBarProps) {
     return () => {
       ignore = true;
     };
-  }, [publicInfo, versionInfo]);
+  }, [account?.logged_in, publicInfo, versionInfo]);
 
   useEffect(() => {
     setMobileMenuOpen(false);
@@ -768,8 +774,8 @@ function AdminPanelBarContent({ content }: AdminPanelBarProps) {
       className={cn(
         "flex h-7 w-7 shrink-0 items-center justify-center rounded-md border transition-colors",
         active
-          ? "border-blue-600 bg-blue-600 text-white shadow-none dark:border-blue-500 dark:bg-blue-500 dark:text-white"
-          : "border-slate-200/75 bg-white text-slate-500 group-hover:border-slate-300 group-hover:text-slate-700 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-400 dark:group-hover:border-slate-700 dark:group-hover:text-slate-200",
+          ? "border-primary bg-primary text-primary-foreground shadow-none"
+          : "border-border bg-[var(--surface)] text-muted-foreground group-hover:border-primary/30 group-hover:text-foreground",
       )}
     >
       {renderMenuIcon(icon, label, active, sizeClass)}
@@ -778,15 +784,15 @@ function AdminPanelBarContent({ content }: AdminPanelBarProps) {
 
   const navItemClass = (active = false, collapsed = false) =>
     cn(
-      "group relative flex min-h-10 items-center gap-2 rounded-lg border border-transparent px-2.5 text-sm font-medium leading-5 tracking-normal text-slate-600 transition-colors before:absolute before:left-1 before:top-1/2 before:h-5 before:w-1 before:-translate-y-1/2 before:rounded-full before:bg-blue-600 before:opacity-0 before:transition-opacity hover:bg-white hover:text-slate-950 hover:shadow-none dark:text-slate-300 dark:before:bg-blue-400 dark:hover:bg-slate-900/80 dark:hover:text-white",
+      "group relative flex min-h-10 items-center gap-2 rounded-md border border-transparent px-2.5 text-sm font-medium leading-5 tracking-normal text-muted-foreground transition-colors before:absolute before:left-1 before:top-1/2 before:h-5 before:w-1 before:-translate-y-1/2 before:rounded-full before:bg-primary before:opacity-0 before:transition-opacity hover:bg-[var(--surface-hover)] hover:text-foreground hover:shadow-none",
       collapsed && "md:justify-center md:px-2",
-      active && "border-slate-200/85 bg-white font-semibold text-slate-950 shadow-none before:opacity-100 hover:bg-white hover:text-slate-950 dark:border-blue-900/50 dark:bg-blue-950/35 dark:text-white dark:hover:bg-blue-950/35 dark:hover:text-white",
+      active && "border-border bg-[var(--surface)] font-semibold text-foreground shadow-none before:opacity-100 hover:bg-[var(--surface)] hover:text-foreground",
     );
 
   const subNavItemClass = (active = false) =>
     cn(
-      "group relative flex min-h-8 items-center gap-2 rounded-lg px-2 py-1 text-sm leading-5 tracking-normal text-slate-500 transition-colors before:absolute before:left-0 before:top-1/2 before:h-4 before:w-0.5 before:-translate-y-1/2 before:rounded-full before:bg-blue-600 before:opacity-0 before:transition-opacity hover:bg-white hover:text-slate-950 dark:text-slate-400 dark:before:bg-blue-400 dark:hover:bg-slate-900/80 dark:hover:text-white",
-      active && "bg-white font-medium text-slate-950 shadow-none before:opacity-100 hover:bg-white hover:text-slate-950 dark:bg-blue-950/30 dark:text-white dark:hover:bg-blue-950/30 dark:hover:text-white",
+      "group relative flex min-h-8 items-center gap-2 rounded-md px-2 py-1 text-sm leading-5 tracking-normal text-muted-foreground transition-colors before:absolute before:left-0 before:top-1/2 before:h-4 before:w-0.5 before:-translate-y-1/2 before:rounded-full before:bg-primary before:opacity-0 before:transition-opacity hover:bg-[var(--surface-hover)] hover:text-foreground",
+      active && "bg-[var(--surface)] font-medium text-foreground shadow-none before:opacity-100 hover:bg-[var(--surface)] hover:text-foreground",
     );
 
   const renderUpdateTrigger =
@@ -848,7 +854,7 @@ function AdminPanelBarContent({ content }: AdminPanelBarProps) {
     ) : null;
 
   return (
-    <div className="relative flex h-[100dvh] min-h-[100dvh] overflow-hidden bg-slate-100 text-slate-950 dark:bg-slate-950 dark:text-slate-50">
+    <div className="admin-app-shell relative flex h-[100dvh] min-h-[100dvh] overflow-hidden bg-background text-foreground">
       {mobileMenuOpen ? (
         <button
           type="button"
@@ -860,25 +866,25 @@ function AdminPanelBarContent({ content }: AdminPanelBarProps) {
 
       <aside
         className={cn(
-          "fixed inset-y-0 left-0 z-50 flex w-[224px] flex-col border-r border-slate-200/80 bg-slate-50/95 shadow-none transition-transform duration-200 ease-out motion-reduce:transition-none dark:border-slate-800 dark:bg-slate-950 md:static md:inset-0 md:translate-x-0 md:transition-[width]",
+          "fixed inset-y-0 left-0 z-50 flex w-[224px] flex-col border-r border-border bg-[var(--surface-muted)] shadow-none transition-transform duration-200 ease-out motion-reduce:transition-none md:static md:inset-0 md:translate-x-0 md:transition-[width]",
           mobileMenuOpen ? "translate-x-0" : "-translate-x-full",
           sidebarCollapsed && "md:w-16",
         )}
       >
         <div
           className={cn(
-            "flex h-16 shrink-0 items-center justify-between gap-3 border-b border-slate-200/80 bg-white/70 px-4 dark:border-slate-800 dark:bg-slate-950/60",
+            "flex h-16 shrink-0 items-center justify-between gap-3 border-b border-border bg-[var(--surface)] px-4",
             sidebarCollapsed && "md:px-2",
           )}
         >
           <Link
             to="/admin"
             className={cn(
-              "flex min-w-0 items-center gap-3 rounded-lg px-1 py-1 text-slate-950 transition-colors hover:bg-slate-100 dark:text-slate-50 dark:hover:bg-slate-900/70",
+              "flex min-w-0 items-center gap-3 rounded-md px-1 py-1 text-foreground transition-colors hover:bg-[var(--surface-hover)]",
               sidebarCollapsed && "md:w-full md:justify-center md:px-0",
             )}
           >
-            <span className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-slate-200 bg-white shadow-none dark:border-slate-800 dark:bg-slate-900">
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-md border border-border bg-[var(--surface)] shadow-none">
               <img
                 src={logoUrl}
                 alt={appName}
@@ -889,7 +895,7 @@ function AdminPanelBarContent({ content }: AdminPanelBarProps) {
               <span className="block truncate text-[15px] font-semibold leading-5 tracking-normal">
                 {appName}
               </span>
-              <span className="block truncate text-[12px] font-medium tracking-normal text-slate-400 dark:text-slate-500">
+              <span className="block truncate text-[12px] font-medium tracking-normal text-muted-foreground">
                 {t("admin.nav.console", { defaultValue: "Console" })}
               </span>
             </span>
@@ -917,14 +923,14 @@ function AdminPanelBarContent({ content }: AdminPanelBarProps) {
               <section key={group.key} className="min-w-0 space-y-1">
                 <div
                   className={cn(
-                    "px-2 text-[11px] font-bold leading-4 tracking-normal text-slate-400 dark:text-slate-500",
+                    "px-2 text-[11px] font-bold leading-4 tracking-normal text-muted-foreground",
                     sidebarCollapsed && "md:hidden",
                   )}
                 >
                   {t(group.labelKey, { defaultValue: group.defaultLabel })}
                 </div>
                 {sidebarCollapsed ? (
-                  <div className="mx-auto hidden h-px w-8 bg-slate-200 dark:bg-slate-800 md:block" />
+                  <div className="mx-auto hidden h-px w-8 bg-border md:block" />
                 ) : null}
                 <div className="space-y-1">
             {group.entries.map((entry) => {
@@ -1008,7 +1014,7 @@ function AdminPanelBarContent({ content }: AdminPanelBarProps) {
                             {renderMenuLeadingIcon(item.icon, label, active)}
                             <span className="min-w-0 flex-1 truncate text-left">{sidebarLabel}</span>
                           </span>
-                          <span className="flex h-4 w-4 shrink-0 items-center justify-center text-slate-400 dark:text-slate-500">
+                          <span className="flex h-4 w-4 shrink-0 items-center justify-center text-muted-foreground">
                             {isOpen ? (
                               <ChevronDown className="h-4 w-4" />
                             ) : (
@@ -1017,7 +1023,7 @@ function AdminPanelBarContent({ content }: AdminPanelBarProps) {
                           </span>
                         </Button>
                       </CollapsibleTrigger>
-                      <CollapsibleContent className="ml-4 space-y-0.5 border-l border-slate-200/70 pl-3 pt-1 dark:border-slate-800">
+                      <CollapsibleContent className="ml-4 space-y-0.5 border-l border-border pl-3 pt-1">
                         {item.children.map((child) => {
                           const childLabel = getMenuLabel(child);
                           const childSidebarLabel = getSidebarMenuLabel(child);
@@ -1076,16 +1082,16 @@ function AdminPanelBarContent({ content }: AdminPanelBarProps) {
 
         <div
           className={cn(
-            "hidden border-t border-slate-200/80 bg-white/70 p-2 dark:border-slate-800 dark:bg-slate-950/60 md:flex md:items-center md:gap-2",
+            "hidden border-t border-border bg-[var(--surface)] p-2 md:flex md:items-center md:gap-2",
             sidebarCollapsed && "md:justify-center",
           )}
         >
           <div className={cn("min-w-0 flex-1 px-2", sidebarCollapsed && "md:hidden")}>
-            <div className="truncate text-xs font-medium text-slate-500 dark:text-slate-400">
+            <div className="truncate text-xs font-medium text-muted-foreground">
               {versionInfo?.version ? `v${versionInfo.version}` : appName}
             </div>
             {versionInfo?.hash ? (
-              <div className="truncate text-xs text-slate-400 dark:text-slate-500">
+              <div className="truncate text-xs text-muted-foreground/75">
                 {versionInfo.hash}
               </div>
             ) : null}
@@ -1115,7 +1121,7 @@ function AdminPanelBarContent({ content }: AdminPanelBarProps) {
       </aside>
 
       <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
-        <header className="flex h-16 shrink-0 items-center justify-between gap-4 border-b border-slate-200/80 bg-white/90 px-3 shadow-none backdrop-blur dark:border-slate-800 dark:bg-slate-950/90 sm:px-5">
+        <header className="flex h-16 shrink-0 items-center justify-between gap-4 border-b border-border bg-[var(--surface)] px-3 shadow-none backdrop-blur sm:px-5">
           <div className="flex min-w-0 items-center gap-3">
             <Button
               variant="ghost"
@@ -1129,29 +1135,29 @@ function AdminPanelBarContent({ content }: AdminPanelBarProps) {
             <div className="min-w-0">
               <div className="flex min-w-0 items-center gap-2">
                 {currentSectionTitle ? (
-                  <span className="hidden min-w-0 items-center gap-2 text-sm text-slate-500 sm:flex dark:text-slate-400">
+                  <span className="hidden min-w-0 items-center gap-2 text-sm text-muted-foreground sm:flex">
                     <span className="truncate">{currentSectionTitle}</span>
                     <ChevronRight className="h-3.5 w-3.5 shrink-0" />
                   </span>
                 ) : null}
-                <div className="truncate text-lg font-semibold leading-6 tracking-normal text-slate-950 dark:text-slate-50 md:text-[19px]">
+                <div className="truncate text-lg font-semibold leading-6 tracking-normal text-foreground md:text-[19px]">
                   {currentPageTitle}
                 </div>
                 {renderUpdateTrigger}
               </div>
               {currentPageDescription ? (
-                <div className="mt-0.5 hidden max-w-[min(64vw,760px)] truncate text-xs leading-4 text-slate-500 dark:text-slate-400 lg:block">
+                <div className="mt-0.5 hidden max-w-[min(64vw,760px)] truncate text-xs leading-4 text-muted-foreground lg:block">
                   {currentPageDescription}
                 </div>
               ) : currentSectionTitle ? (
-                <div className="mt-0.5 truncate text-xs text-slate-500 dark:text-slate-400 sm:hidden">
+                <div className="mt-0.5 truncate text-xs text-muted-foreground sm:hidden">
                   {currentSectionTitle}
                 </div>
               ) : null}
             </div>
           </div>
 
-          <div className="flex shrink-0 items-center gap-1.5 rounded-lg border border-slate-200/80 bg-slate-50 px-1.5 py-1 shadow-none dark:border-slate-800 dark:bg-slate-950">
+          <div className="flex shrink-0 items-center gap-1.5 rounded-md border border-border bg-[var(--surface-subtle)] px-1.5 py-1 shadow-none">
             {account && !account.logged_in && (
               <LoginDialog
                 autoOpen
@@ -1162,7 +1168,7 @@ function AdminPanelBarContent({ content }: AdminPanelBarProps) {
             {account?.logged_in ? (
               <Link
                 to="/admin/billing"
-                className="hidden h-9 max-w-[260px] items-center gap-2 rounded-md px-2 text-sm transition-colors hover:bg-muted dark:hover:bg-slate-900/70 sm:flex"
+                className="hidden h-9 max-w-[260px] items-center gap-2 rounded-md px-2 text-sm transition-colors hover:bg-[var(--surface-hover)] sm:flex"
                 title={accountPlanTitle}
                 aria-label={accountPlanTitle}
               >
@@ -1197,7 +1203,7 @@ function AdminPanelBarContent({ content }: AdminPanelBarProps) {
           </div>
         </header>
 
-        <main className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-contain bg-slate-100 dark:bg-slate-950">
+        <main className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-contain bg-background">
           <div className="flex min-h-full w-full min-w-0 flex-col">
             {!ishttps && !httpsNoticeDismissed && (
               <div className="px-3 pt-1.5 sm:px-4">

@@ -36,13 +36,13 @@ type LegacyButtonVariant = "solid" | "soft" | "outline";
 type LegacyButtonSize = "1" | "2" | "3";
 
 const softToneClasses: Record<Tone, string> = {
-  gray: "border-border bg-muted/55 text-foreground hover:bg-accent",
-  red: "border-red-200 bg-red-50 text-red-700 hover:bg-red-100 dark:border-red-900/50 dark:bg-red-950/40 dark:text-red-200 dark:hover:bg-red-950/60",
+  gray: "border-border bg-[var(--surface-subtle)] text-foreground hover:bg-[var(--surface-hover)]",
+  red: "border-red-200 bg-red-50/80 text-red-700 hover:bg-red-100 dark:border-red-900/50 dark:bg-red-950/35 dark:text-red-200 dark:hover:bg-red-950/55",
   amber:
-    "border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100 dark:border-amber-900/50 dark:bg-amber-950/40 dark:text-amber-200 dark:hover:bg-amber-950/60",
+    "border-amber-200 bg-amber-50/80 text-amber-700 hover:bg-amber-100 dark:border-amber-900/50 dark:bg-amber-950/35 dark:text-amber-200 dark:hover:bg-amber-950/55",
   green:
-    "border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 dark:border-emerald-900/50 dark:bg-emerald-950/40 dark:text-emerald-200 dark:hover:bg-emerald-950/60",
-  blue: "border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100 dark:border-blue-900/50 dark:bg-blue-950/40 dark:text-blue-200 dark:hover:bg-blue-950/60",
+    "border-emerald-200 bg-emerald-50/80 text-emerald-700 hover:bg-emerald-100 dark:border-emerald-900/50 dark:bg-emerald-950/35 dark:text-emerald-200 dark:hover:bg-emerald-950/55",
+  blue: "border-blue-200 bg-blue-50/80 text-blue-700 hover:bg-blue-100 dark:border-blue-900/50 dark:bg-blue-950/35 dark:text-blue-200 dark:hover:bg-blue-950/55",
 };
 
 const solidToneClasses: Partial<Record<Tone, string>> = {

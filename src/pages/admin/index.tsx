@@ -2087,9 +2087,9 @@ const NodeGroupSection = ({
           <NodeTableColumnProfile />
           <NodeTableColumns />
           <TableBody>
-            {nodes.map((node) => (
+            {nodes.map((node, index) => (
               <SortableRow
-                key={node.uuid}
+                key={`${node.uuid}-${index}`}
                 node={node}
                 live={liveByNode[node.uuid]}
               />

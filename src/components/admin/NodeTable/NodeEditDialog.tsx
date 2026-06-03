@@ -11,19 +11,29 @@ import { toast } from "sonner";
 import {
   Button,
   Dialog,
-  Flex,
   IconButton,
   TextField,
 } from "@/components/admin/admin-ui";
+import {
+  ADMIN_FORM_BODY_CLASS,
+  ADMIN_FORM_DIALOG_CHROME_CLASS,
+  ADMIN_FORM_FIELD_CLASS,
+  ADMIN_FORM_FOOTER_CLASS,
+  ADMIN_FORM_HEADER_CLASS,
+  ADMIN_FORM_HEADER_INSET_CLASS,
+  ADMIN_FORM_HELP_CLASS,
+  ADMIN_FORM_LABEL_CLASS,
+  ADMIN_FORM_SECTION_CLASS,
+} from "@/components/admin/AdminFormStyles";
+import { cn } from "@/lib/utils";
 
 const NODE_DIALOG_CONTENT_CLASS =
-  "max-h-[90vh] w-[min(96vw,720px)] overflow-y-auto overscroll-contain rounded-lg border border-slate-200/80 bg-white p-5 shadow-[0_24px_70px_-50px_rgba(15,23,42,0.72)] [scrollbar-gutter:stable] dark:border-slate-800 dark:bg-slate-950";
-const NODE_DIALOG_SECTION_CLASS =
-  "space-y-4 border-t border-slate-200/80 bg-transparent pt-4 dark:border-slate-800";
-const NODE_DIALOG_FOOTER_CLASS =
-  "sticky bottom-0 -mx-5 -mb-5 mt-5 flex flex-col-reverse gap-2 border-t border-slate-200/80 bg-white/95 px-5 py-3 backdrop-blur dark:border-slate-800 dark:bg-slate-950/95 sm:flex-row sm:justify-end";
+  cn(
+    "flex max-h-[min(90vh,calc(100dvh-1.5rem))] w-[calc(100vw-1.5rem)] max-w-[720px] flex-col overflow-hidden",
+    ADMIN_FORM_DIALOG_CHROME_CLASS,
+  );
 const NODE_INPUT_CLASS =
-  "h-10 rounded-lg border border-slate-200/80 bg-white px-3 text-[14px] shadow-none hover:bg-white dark:border-slate-800 dark:bg-slate-950";
+  "h-10 rounded-md border border-input bg-[var(--surface)] px-3 text-[14px] shadow-none hover:bg-[var(--surface-hover)]";
 
 export function EditDialog({ item }: { item: z.infer<typeof schema> }) {
   const [form, setForm] = React.useState<ClientFormData & { weight: number }>({
@@ -71,22 +81,26 @@ export function EditDialog({ item }: { item: z.infer<typeof schema> }) {
         </IconButton>
       </Dialog.Trigger>
       <Dialog.Content className={NODE_DIALOG_CONTENT_CLASS}>
-        <Dialog.Title>{t("admin.nodeEdit.editInfo", "Edit information")}</Dialog.Title>
-        <Dialog.Description className="mt-2">
-          {t("admin.nodeEdit.editDescription", "调整节点身份和备注，在管理后台中的展示会同步更新。")}
-        </Dialog.Description>
-        <div className="mt-4 flex flex-col gap-4">
-          <div className={NODE_DIALOG_SECTION_CLASS}>
+        <div className={ADMIN_FORM_HEADER_CLASS}>
+          <div className={ADMIN_FORM_HEADER_INSET_CLASS}>
+            <Dialog.Title>{t("admin.nodeEdit.editInfo", "Edit information")}</Dialog.Title>
+            <Dialog.Description>
+              {t("admin.nodeEdit.editDescription", "调整节点身份和备注，在管理后台中的展示会同步更新。")}
+            </Dialog.Description>
+          </div>
+        </div>
+        <div className={cn(ADMIN_FORM_BODY_CLASS, "space-y-4")}>
+          <div className={cn(ADMIN_FORM_SECTION_CLASS, "space-y-4")}>
             <div>
               <div className="section-kicker">
                 {t("admin.nodeEdit.identity")}
               </div>
-              <p className="mt-1 text-sm text-muted-foreground">
+              <p className={cn("mt-1", ADMIN_FORM_HELP_CLASS)}>
                 {t("admin.nodeEdit.identityHint")}
               </p>
             </div>
-            <div>
-              <label className="mb-1 block text-sm font-medium text-muted-foreground">
+            <div className={ADMIN_FORM_FIELD_CLASS}>
+              <label className={ADMIN_FORM_LABEL_CLASS}>
               {t("admin.nodeEdit.name", "Name")}
               </label>
               <TextField.Root
@@ -97,8 +111,8 @@ export function EditDialog({ item }: { item: z.infer<typeof schema> }) {
                 className={NODE_INPUT_CLASS}
               />
             </div>
-            <div>
-              <label className="mb-1 block text-sm font-medium text-muted-foreground">
+            <div className={ADMIN_FORM_FIELD_CLASS}>
+              <label className={ADMIN_FORM_LABEL_CLASS}>
               {t("admin.nodeEdit.token", "Token")}
               </label>
               <TextField.Root
@@ -113,17 +127,17 @@ export function EditDialog({ item }: { item: z.infer<typeof schema> }) {
               />
             </div>
           </div>
-          <div className={NODE_DIALOG_SECTION_CLASS}>
+          <div className={cn(ADMIN_FORM_SECTION_CLASS, "space-y-4")}>
             <div>
               <div className="section-kicker">
                 {t("admin.nodeEdit.notes")}
               </div>
-              <p className="mt-1 text-sm text-muted-foreground">
+              <p className={cn("mt-1", ADMIN_FORM_HELP_CLASS)}>
                 {t("admin.nodeEdit.notesHint")}
               </p>
             </div>
-            <div>
-              <label className="mb-1 block text-sm font-medium text-muted-foreground">
+            <div className={ADMIN_FORM_FIELD_CLASS}>
+              <label className={ADMIN_FORM_LABEL_CLASS}>
               {t("admin.nodeEdit.remark", "Private Notes")}
               </label>
               <TextField.Root
@@ -139,8 +153,8 @@ export function EditDialog({ item }: { item: z.infer<typeof schema> }) {
                 className={NODE_INPUT_CLASS}
               />
             </div>
-            <div>
-              <label className="mb-1 block text-sm font-medium text-muted-foreground">
+            <div className={ADMIN_FORM_FIELD_CLASS}>
+              <label className={ADMIN_FORM_LABEL_CLASS}>
               {t("admin.nodeEdit.publicRemark", "Public Notes")}
               </label>
               <TextField.Root
@@ -158,7 +172,7 @@ export function EditDialog({ item }: { item: z.infer<typeof schema> }) {
             </div>
           </div>
         </div>
-        <Flex gap="2" align={"start"} className={NODE_DIALOG_FOOTER_CLASS}>
+        <div className={ADMIN_FORM_FOOTER_CLASS}>
           <Dialog.Close>
             <Button
               type="button"
@@ -189,7 +203,7 @@ export function EditDialog({ item }: { item: z.infer<typeof schema> }) {
               ? t("admin.nodeEdit.waiting", "Wait...")
               : t("admin.nodeEdit.save", "保存")}
           </Button>
-        </Flex>
+        </div>
       </Dialog.Content>
     </Dialog.Root>
   );

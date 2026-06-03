@@ -538,8 +538,6 @@ export default function AWSPanel() {
           canCreate={Boolean(activeCredential)}
           onInstanceViewChange={setInstanceView}
           onLoadResources={handleLoadResources}
-          onOpenEC2Create={handleOpenCreateDialog}
-          onOpenLightsailCreate={handleOpenLightsailCreateDialog}
           onLoadEC2Detail={loadInstanceDetail}
           onViewEC2Password={handleViewInstancePassword}
           onEC2PowerAction={handleInstanceAction}

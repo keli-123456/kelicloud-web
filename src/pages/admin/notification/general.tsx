@@ -9,7 +9,6 @@ import {
 } from "@/components/admin/AdminPageShell";
 import {
   SettingCardButton,
-  SettingCardLabel,
   SettingCardShortTextInput,
   SettingCardSwitch,
 } from "@/components/admin/SettingCard";
@@ -252,6 +251,7 @@ const Inner = () => {
           </p>
         ) : null}
         <SettingCardShortTextInput
+          bordless
           title={t("settings.notification.target_binding_telegram_chat_id")}
           description={t(
             "settings.notification.target_binding_telegram_chat_id_description",
@@ -293,74 +293,102 @@ const Inner = () => {
   return (
     <div className="grid gap-4">
       <AdminSettingsPanel
-        title={t("notification.events.title", {
-          defaultValue: "通知范围",
+        title={t("settings.notification.title", {
+          defaultValue: "通知设置",
         })}
         description={t("notification.events.description", {
           defaultValue:
             "通知主要围绕用户套餐、故障切换和登录安全，不再维护独立的离线或资源告警规则。",
         })}
-        bodyClassName="py-2"
+        bodyClassName="py-0"
       >
-        <div className="divide-y divide-border/70">
-          {eventScopes.map((item) => {
-            const Icon = item.icon;
-            return (
-              <div key={item.title} className="flex items-start gap-3 py-3">
-                <span className="mt-0.5 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
-                  <Icon className="h-4 w-4" />
-                </span>
-                <span className="min-w-0">
-                  <span className="block text-sm font-semibold text-foreground">
-                    {item.title}
-                  </span>
-                  <span className="mt-1 block text-sm leading-6 text-muted-foreground">
-                    {item.description}
-                  </span>
-                </span>
+        <div className="grid divide-y divide-border/70 lg:grid-cols-[minmax(0,1fr)_minmax(360px,0.82fr)] lg:divide-x lg:divide-y-0">
+          <div className="py-4 lg:pr-5">
+            <div className="mb-3">
+              <div className="text-sm font-semibold text-foreground">
+                {t("notification.events.title", {
+                  defaultValue: "通知范围",
+                })}
               </div>
-            );
-          })}
+              <div className="mt-1 text-sm leading-5 text-muted-foreground">
+                {t("settings.notification.scope_hint", {
+                  defaultValue: "平台只保留必要的业务通知，避免把内部流程暴露给普通用户。",
+                })}
+              </div>
+            </div>
+            <div className="divide-y divide-border/60">
+              {eventScopes.map((item) => {
+                const Icon = item.icon;
+                return (
+                  <div key={item.title} className="flex items-start gap-3 py-3 first:pt-0 last:pb-0">
+                    <span className="mt-0.5 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
+                      <Icon className="h-4 w-4" />
+                    </span>
+                    <span className="min-w-0">
+                      <span className="block text-sm font-semibold text-foreground">
+                        {item.title}
+                      </span>
+                      <span className="mt-1 block text-sm leading-6 text-muted-foreground">
+                        {item.description}
+                      </span>
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+          <div className="py-4 lg:pl-5">
+            <div className="mb-3">
+              <div className="text-sm font-semibold text-foreground">
+                {t("settings.notification.target_binding_title")}
+              </div>
+              <div className="mt-1 text-sm leading-5 text-muted-foreground">
+                {t("settings.notification.target_binding_description")}
+              </div>
+            </div>
+            {renderUserBinding()}
+          </div>
         </div>
       </AdminSettingsPanel>
 
-      <AdminSettingsPanel
-        title={t("settings.notification.target_binding_title")}
-        description={t("settings.notification.target_binding_description")}
-      >
-        {renderUserBinding()}
-      </AdminSettingsPanel>
-
       {platformAdmin ? (
-        <>
-          <AdminSettingsPanel title={t("settings.notification.platform_sender_title")}>
-            <SettingCardSwitch
-              title={t("settings.notification.enable")}
-              description={t("settings.notification.enable_description")}
-              defaultChecked={systemSettings.notification_enabled}
-              onChange={async (checked) => {
-                await updateSettingsWithToast(
-                  {
-                    notification_enabled: checked,
-                    notification_method: TELEGRAM_NOTIFICATION_METHOD,
-                  },
-                  t,
-                  "system",
-                );
-                await Promise.all([systemState.refetch(), userState.refetch()]);
-              }}
-            />
-            <div className="flex items-center justify-between gap-4 border-b border-border/70 py-3">
-              <div className="min-w-0">
-                <div className="text-sm font-medium text-foreground">
-                  {t("settings.notification.method")}
-                </div>
-                <div className="mt-1 text-sm text-muted-foreground">
-                  {t("settings.notification.telegram_only_description", {
-                    defaultValue: "当前仅保留 Telegram 作为通知发送通道。",
-                  })}
-                </div>
-              </div>
+        <AdminSettingsPanel
+          title={t("settings.notification.platform_sender_title")}
+          description={t("settings.notification.telegram_only_description", {
+            defaultValue: "当前仅保留 Telegram 作为通知发送通道。",
+          })}
+          bodyClassName="py-0"
+        >
+          <div className="grid divide-y divide-border/70 xl:grid-cols-[minmax(0,1fr)_minmax(360px,0.82fr)] xl:divide-x xl:divide-y-0">
+            <div className="py-4 xl:pr-5">
+              <SettingCardSwitch
+                bordless
+                title={t("settings.notification.enable")}
+                description={t("settings.notification.enable_description")}
+                defaultChecked={systemSettings.notification_enabled}
+                onChange={async (checked) => {
+                  await updateSettingsWithToast(
+                    {
+                      notification_enabled: checked,
+                      notification_method: TELEGRAM_NOTIFICATION_METHOD,
+                    },
+                    t,
+                    "system",
+                  );
+                  await Promise.all([systemState.refetch(), userState.refetch()]);
+                }}
+              />
+              <div className="mt-3 flex items-center justify-between gap-4 rounded-md border border-border bg-[var(--surface-subtle)] px-3 py-2.5">
+                <span className="min-w-0">
+                  <span className="block text-sm font-medium text-foreground">
+                    {t("settings.notification.method")}
+                  </span>
+                  <span className="mt-0.5 block text-sm text-muted-foreground">
+                    {t("settings.notification.telegram_only_description", {
+                      defaultValue: "当前仅保留 Telegram 作为通知发送通道。",
+                    })}
+                  </span>
+                </span>
               <span className="shrink-0 rounded-full border border-primary/20 bg-primary/10 px-3 py-1 text-sm font-semibold text-primary">
                 Telegram
               </span>
@@ -385,6 +413,7 @@ const Inner = () => {
               })
             )}
             <SettingCardButton
+              bordless
               title={t("settings.notification.test_title")}
               description={t("settings.notification.test_description")}
               onClick={async () => {
@@ -433,10 +462,20 @@ const Inner = () => {
             >
               {t("settings.notification.test_title")}
             </SettingCardButton>
-          </AdminSettingsPanel>
+            </div>
 
-          <AdminSettingsPanel title={t("admin.notification.expire_title")}>
-            <div className="mb-2 grid gap-2 border-y border-slate-200/80 py-3 dark:border-slate-800 sm:grid-cols-2 xl:grid-cols-4">
+            <div className="py-4 xl:pl-5">
+            <div className="mb-3">
+              <div className="text-sm font-semibold text-foreground">
+                {t("admin.notification.expire_title")}
+              </div>
+              <div className="mt-1 text-sm leading-5 text-muted-foreground">
+                {t("admin.notification.expire_description", {
+                  defaultValue: "套餐到期前提醒用户，减少过期后权限被停用造成的误会。",
+                })}
+              </div>
+            </div>
+            <div className="mb-2 grid gap-2 rounded-md border border-border bg-[var(--surface-subtle)] p-3 sm:grid-cols-2 xl:grid-cols-4">
               {expireStatusItems.map((item) => (
                 <div key={item.label} className="min-w-0">
                   <div className="text-xs font-medium text-muted-foreground">
@@ -457,6 +496,7 @@ const Inner = () => {
               ))}
             </div>
             <SettingCardSwitch
+              bordless
               defaultChecked={expireNotificationsEnabled}
               title={t("admin.notification.expire_enable")}
               description={t("admin.notification.expire_enable_description")}
@@ -470,6 +510,7 @@ const Inner = () => {
               }}
             />
             <SettingCardShortTextInput
+              bordless
               type="number"
               title={t("admin.notification.expire_time")}
               description={t("admin.notification.expire_time_description")}
@@ -492,8 +533,8 @@ const Inner = () => {
                 await systemState.refetch();
               }}
             />
-            <SettingCardLabel>{t("admin.notification.login")}</SettingCardLabel>
             <SettingCardSwitch
+              bordless
               title={t("admin.notification.login")}
               description={t("admin.notification.login_description")}
               defaultChecked={systemSettings.login_notification}
@@ -505,8 +546,9 @@ const Inner = () => {
                 );
               }}
             />
-          </AdminSettingsPanel>
-        </>
+            </div>
+          </div>
+        </AdminSettingsPanel>
       ) : null}
     </div>
   );

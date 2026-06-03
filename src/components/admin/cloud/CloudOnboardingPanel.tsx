@@ -7,7 +7,6 @@ import {
   Plus,
   RefreshCw,
   Server,
-  type LucideIcon,
 } from "lucide-react";
 
 import { Button } from "@/components/admin/cloud/cloud-ui";
@@ -41,15 +40,6 @@ type CloudOnboardingPanelProps = {
   onCreate?: () => MaybePromise<void>;
 };
 
-type CloudOnboardingStep = {
-  key: string;
-  done: boolean;
-  icon: LucideIcon;
-  title: ReactNode;
-  description: ReactNode;
-  action?: ReactNode;
-};
-
 export function CloudOnboardingPanel({
   t,
   providerName,
@@ -76,148 +66,113 @@ export function CloudOnboardingPanel({
   onLoadResources,
   onCreate,
 }: CloudOnboardingPanelProps) {
-  const steps: CloudOnboardingStep[] = [
-    {
-      key: "credential",
-      done: credentialDone,
-      icon: KeyRound,
-      title:
-        credentialTitle ||
-        t("cloud.onboarding.credential_title", "导入访问凭据"),
-      description:
-        credentialDescription ||
-        t("cloud.onboarding.credential_description", {
-          provider: providerName,
-          defaultValue: "先添加 {{provider}} 凭据，再选择当前用于操作的账户。",
-        }),
-      action: !credentialDone ? (
-        <Button size="1" onClick={onImportCredential}>
-          <KeyRound className="mr-2 h-4 w-4" />
-          {importLabel || t("cloud.credentials.import", "导入凭据")}
-        </Button>
-      ) : null,
-    },
-  ];
-
-  if (resourceStepEnabled) {
-    steps.push({
-      key: "resource",
-      done: resourcesLoaded,
-      icon: Eye,
-      title:
-        resourceTitle ||
-        t("cloud.onboarding.resource_title", "加载云资源"),
-      description:
-        resourceDescription ||
-        t("cloud.onboarding.resource_description", {
-          provider: providerName,
-          defaultValue: "按需拉取 {{provider}} 资源，避免页面一打开就触发大量云 API 请求。",
-        }),
-      action: canLoadResources && !resourcesLoaded && onLoadResources ? (
-        <Button
-          variant="outline"
-          size="1"
-          onClick={() => {
-            void onLoadResources();
-          }}
-          disabled={resourceLoading}
-        >
-          <Eye className="mr-2 h-4 w-4" />
-          {loadLabel || t("cloud.view", "View")}
-        </Button>
-      ) : null,
-    });
-  }
-
-  steps.push({
-    key: "create",
-    done: false,
-    icon: Server,
-    title:
-      createTitle ||
-      t("cloud.onboarding.create_title", "创建或管理实例"),
-    description:
-      createDescription ||
-      t("cloud.onboarding.create_description", {
+  const credentialStatus = credentialDone
+    ? t("cloud.onboarding.credential_status_ready", { defaultValue: "凭据：已选择" })
+    : t("cloud.onboarding.credential_status_waiting", {
         provider: providerName,
-        defaultValue: "资源加载后，可以创建实例，也可以直接在表格里执行生命周期操作。",
-      }),
-    action: canCreate && onCreate ? (
-      <Button
-        size="1"
-        onClick={() => {
-          void onCreate();
-        }}
-        disabled={createLoading}
-        aria-busy={createLoading}
-      >
-        {createLoading ? (
-          <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
-        ) : (
-          <Plus className="mr-2 h-4 w-4" />
-        )}
-        {createLabel || t("common.create", "Create")}
-      </Button>
-    ) : null,
-  });
+        defaultValue: "凭据：待导入 {{provider}}",
+      });
+  const resourceStatus = resourcesLoaded
+    ? t("cloud.onboarding.resource_status_loaded", { defaultValue: "资源：已加载" })
+    : t("cloud.onboarding.resource_status_lazy", { defaultValue: "资源：按需加载" });
+  const instanceStatus = contextReady
+    ? createTitle || t("cloud.onboarding.create_title", "创建或管理实例")
+    : t("cloud.onboarding.create_status_waiting", { defaultValue: "实例：等待凭据" });
 
   return (
-    <div className="rounded-lg border border-blue-200/70 bg-blue-50/45 p-4 shadow-none dark:border-blue-900/50 dark:bg-blue-950/15">
-      <div className="flex flex-col gap-1 md:flex-row md:items-start md:justify-between">
-        <div>
-          <div className="text-sm font-semibold text-blue-950 dark:text-blue-100">
+    <div className="admin-panel px-4 py-3">
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+        <div className="min-w-0 flex-1">
+          <div className="text-sm font-semibold text-foreground">
             {title ||
               t("cloud.onboarding.provider_title", {
                 provider: providerName,
-                defaultValue: "{{provider}} 接入流程",
+                defaultValue: "{{provider}} 资源管理",
               })}
           </div>
-          <div className="mt-1 text-sm leading-6 text-blue-800/80 dark:text-blue-200/75">
+          <div className="mt-1 max-w-4xl text-xs leading-5 text-muted-foreground">
             {description ||
               t("cloud.onboarding.provider_description", {
                 provider: providerName,
                 defaultValue:
-                  "按步骤完成凭据导入、资源加载和实例管理。凭据激活后，页面会从空状态进入真实资源管理。",
+                  "凭据激活后即可创建实例；云资源只在需要时加载，避免打开页面就请求云厂商 API。",
               })}
           </div>
+          <div className="mt-2 flex min-w-0 flex-wrap items-center gap-2 text-xs text-muted-foreground">
+            <span
+              className="inline-flex h-7 max-w-full items-center gap-1.5 rounded-md border border-border bg-[var(--surface-subtle)] px-2.5"
+              title={typeof credentialDescription === "string" ? credentialDescription : undefined}
+            >
+              <KeyRound className="h-3.5 w-3.5 shrink-0" />
+              <span className="truncate">{credentialStatus}</span>
+            </span>
+            {resourceStepEnabled ? (
+              <span
+                className="inline-flex h-7 max-w-full items-center gap-1.5 rounded-md border border-border bg-[var(--surface-subtle)] px-2.5"
+                title={typeof resourceTitle === "string"
+                  ? resourceTitle
+                  : typeof resourceDescription === "string"
+                    ? resourceDescription
+                    : undefined}
+              >
+                <Eye className="h-3.5 w-3.5 shrink-0" />
+                <span className="truncate">{resourceStatus}</span>
+              </span>
+            ) : null}
+            <span
+              className="inline-flex h-7 max-w-full items-center gap-1.5 rounded-md border border-border bg-[var(--surface-subtle)] px-2.5"
+              title={typeof createDescription === "string" ? createDescription : undefined}
+            >
+              <Server className="h-3.5 w-3.5 shrink-0" />
+              <span className="truncate">{instanceStatus}</span>
+            </span>
+          </div>
         </div>
-      </div>
-      <div className="mt-4 divide-y divide-blue-200/70 rounded-lg border border-blue-200/70 bg-white/70 dark:divide-blue-900/50 dark:border-blue-900/50 dark:bg-slate-950/35">
-        {steps.map((step, index) => {
-          const Icon = step.icon;
-          return (
-            <div key={step.key} className="min-w-0 p-3">
-              <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-                <div className="flex min-w-0 items-start gap-3">
-                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-blue-100 bg-blue-50 text-blue-700 dark:border-blue-900/60 dark:bg-blue-950/50 dark:text-blue-200">
-                    {step.done ? (
-                      <CheckCircle2 className="h-4 w-4" />
-                    ) : (
-                      <Icon className="h-4 w-4" />
-                    )}
-                  </div>
-                  <div className="min-w-0">
-                    <div className="text-xs font-medium text-slate-500 dark:text-slate-400">
-                      {t("cloud.onboarding.step", {
-                        count: index + 1,
-                        defaultValue: "步骤 {{count}}",
-                      })}
-                    </div>
-                    <div className="mt-0.5 text-sm font-semibold text-slate-950 dark:text-slate-50">
-                      {step.title}
-                    </div>
-                    <div className="mt-1 text-sm leading-5 text-slate-500 dark:text-slate-400">
-                      {step.description}
-                    </div>
-                  </div>
-                </div>
-                {step.action ? (
-                  <div className="shrink-0 md:pl-3">{step.action}</div>
-                ) : null}
-              </div>
-            </div>
-          );
-        })}
+        <div className="flex shrink-0 flex-wrap items-center gap-2">
+          {!credentialDone ? (
+            <Button size="1" onClick={onImportCredential}>
+              <KeyRound className="mr-2 h-4 w-4" />
+              {importLabel || t("cloud.credentials.import", "导入凭据")}
+            </Button>
+          ) : (
+            <span className="inline-flex h-8 items-center gap-1.5 rounded-md border border-emerald-200 bg-emerald-50 px-2.5 text-xs font-semibold text-emerald-700 dark:border-emerald-900/50 dark:bg-emerald-950/25 dark:text-emerald-300">
+              <CheckCircle2 className="h-3.5 w-3.5" />
+              {credentialTitle || t("cloud.onboarding.credential_ready", "凭据已就绪")}
+            </span>
+          )}
+          {resourceStepEnabled && canLoadResources && onLoadResources ? (
+            <Button
+              variant="outline"
+              size="1"
+              onClick={() => {
+                void onLoadResources();
+              }}
+              disabled={resourceLoading}
+            >
+              <Eye className="mr-2 h-4 w-4" />
+              {resourcesLoaded
+                ? t("common.refresh", { defaultValue: "刷新" })
+                : loadLabel || t("cloud.view", "View")}
+            </Button>
+          ) : null}
+          {canCreate && onCreate ? (
+            <Button
+              size="1"
+              onClick={() => {
+                void onCreate();
+              }}
+              disabled={createLoading}
+              aria-busy={createLoading}
+            >
+              {createLoading ? (
+                <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <Plus className="mr-2 h-4 w-4" />
+              )}
+              {createLabel || t("common.create", "Create")}
+            </Button>
+          ) : null}
+        </div>
       </div>
     </div>
   );

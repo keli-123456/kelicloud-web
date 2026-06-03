@@ -2,12 +2,12 @@ import LoginDialog from "@/components/Login";
 
 const Index = () => {
   return (
-    <div className="relative flex min-h-screen min-h-[100dvh] w-full items-center justify-center overflow-hidden bg-slate-50 px-4 py-6 dark:bg-slate-950">
+    <div className="relative flex min-h-screen min-h-[100dvh] w-full items-center justify-center overflow-hidden bg-background px-4 py-6">
       <div
         aria-hidden="true"
-        className="absolute inset-0 opacity-60 [background-image:radial-gradient(#d7dee8_1px,transparent_1px)] [background-size:28px_28px] dark:opacity-20 dark:[background-image:radial-gradient(rgba(148,163,184,0.42)_1px,transparent_1px)]"
+        className="absolute inset-0 bg-[linear-gradient(180deg,color-mix(in_srgb,var(--surface)_72%,transparent),transparent_52%)]"
       />
-      <div className="relative z-10 flex w-full max-w-[420px] items-center justify-center">
+      <div className="relative z-10 flex w-full max-w-[376px] items-center justify-center">
         <LoginDialog
           inline
           variant="simple"

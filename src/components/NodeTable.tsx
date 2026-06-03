@@ -340,7 +340,7 @@ const NodeTable: React.FC<NodeTableProps> = ({ nodes, liveData }) => {
         </TableHeader>
 
         <TableBody>
-          {sortedNodes.map((node) => {
+          {sortedNodes.map((node, index) => {
             const isOnline = onlineNodes.includes(node.uuid);
             const nodeData = getNodeData(node.uuid);
             const isExpanded = expandedRows.has(node.uuid);
@@ -353,7 +353,7 @@ const NodeTable: React.FC<NodeTableProps> = ({ nodes, liveData }) => {
               : 0;
 
             return (
-              <React.Fragment key={node.uuid}>
+              <React.Fragment key={`${node.uuid}-${index}`}>
                 <TableRow
                   className="table-row-hover cursor-pointer border-b border-border/50 transition-colors duration-200 hover:bg-muted/40"
                   onClick={() => toggleRowExpansion(node.uuid)}

@@ -77,8 +77,8 @@ export const ServerView = ({ pingTasks }: { pingTasks: PingTask[] }) => {
           </AdminDataTableHeadRow>
           </thead>
           <tbody>
-          {nodePagination.pageItems.map((n) => (
-            <ServerRow key={n.uuid} nodeUuid={n.uuid} nodeName={n.name} pingTasks={pingTasks} />
+          {nodePagination.pageItems.map((n, index) => (
+            <ServerRow key={`${n.uuid}-${index}`} nodeUuid={n.uuid} nodeName={n.name} pingTasks={pingTasks} />
           ))}
           </tbody>
         </AdminDataTable>

@@ -1308,7 +1308,7 @@ export function AdminUsersSection({
                       {t("admin.users.empty", "No users found")}
                     </div>
                   </AdminDataTableEmptyRow>
-                ) : visibleUsers.map((user) => {
+                ) : visibleUsers.map((user, index) => {
                   const isSelf = user.uuid === account?.uuid;
                   const role = normalizeRole(user.role);
                   const quota = Number(user.server_quota || 0);
@@ -1321,7 +1321,7 @@ export function AdminUsersSection({
                   );
 
                   return (
-                    <AdminDataTableRow key={user.uuid}>
+                    <AdminDataTableRow key={`${user.uuid}-${index}`}>
                       <AdminDataTableCell>
                         <div className="flex flex-col gap-1">
                           <span className="font-medium text-slate-900 dark:text-slate-100">

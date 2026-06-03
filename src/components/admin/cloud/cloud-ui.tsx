@@ -39,10 +39,10 @@ const cloudLongTextClassName =
   "min-w-0 whitespace-pre-wrap break-words [overflow-wrap:anywhere]";
 
 const cloudPanelCardClassName =
-  "overflow-hidden rounded-lg border border-slate-200/80 bg-white shadow-none dark:border-slate-800/90 dark:bg-slate-950";
+  "admin-panel";
 
 const cloudPanelHeaderClassName =
-  "border-b border-slate-200/80 bg-transparent px-5 py-3.5 dark:border-slate-800";
+  "admin-panel-header px-5 py-3.5";
 
 const cloudPanelTitleClassName =
   "text-[15px] font-semibold text-slate-950 dark:text-slate-50";
@@ -51,10 +51,10 @@ const cloudPanelDescriptionClassName =
   "mt-1 text-sm leading-6 text-slate-500 dark:text-slate-400";
 
 const cloudPanelSectionClassName =
-  "border-t border-slate-200/80 bg-transparent pt-4 dark:border-slate-800";
+  "border-t border-border bg-transparent pt-4";
 
 const cloudPanelSubcardClassName =
-  "border-l-2 border-slate-200/90 bg-transparent py-2 pl-3 shadow-none dark:border-slate-700";
+  "border-l-2 border-border bg-transparent py-2 pl-3 shadow-none";
 
 const cloudPanelFieldLabelClassName =
   "text-sm font-semibold text-foreground";
@@ -63,13 +63,13 @@ const cloudPanelBodyTextClassName =
   "text-sm leading-6 text-muted-foreground";
 
 const cloudDetailSectionClassName =
-  "border-t border-slate-200/80 pt-4 dark:border-slate-800";
+  "border-t border-border pt-4";
 
 const cloudDetailListClassName =
-  "overflow-hidden border-y border-slate-200/80 bg-transparent shadow-none dark:border-slate-800";
+  "overflow-hidden border-y border-border bg-transparent shadow-none";
 
 const cloudDetailListItemClassName =
-  "border-t border-slate-200/80 px-4 py-3 first:border-t-0 dark:border-slate-800";
+  "border-t border-border px-4 py-3 first:border-t-0";
 
 const cloudDetailLabelClassName =
   "text-xs font-semibold uppercase tracking-normal text-muted-foreground";
@@ -99,7 +99,7 @@ const cloudTableCodeTextClassName =
   "font-mono text-xs text-muted-foreground";
 
 const cloudTableEmptyStateClassName =
-  "min-h-36 border-slate-200/80 bg-slate-50 shadow-none dark:border-slate-800 dark:bg-slate-900/35";
+  "min-h-36 border-border bg-[var(--surface-subtle)] shadow-none";
 
 const getCloudCodeLines = (value: string) => {
   const lines = value.split(/\r?\n/);
@@ -110,7 +110,7 @@ const getCloudCodeLineNumberWidth = (lineCount: number) =>
   `calc(${Math.max(2, String(Math.max(1, lineCount)).length)}ch + 6px)`;
 
 const cloudCodeLineNumberClassName =
-  "shrink-0 overflow-hidden border-r border-slate-200/80 bg-slate-50 px-1 py-3 text-right font-mono text-[12px] leading-5 tabular-nums text-slate-400 select-none dark:border-slate-800 dark:bg-slate-900/45 dark:text-slate-500";
+  "shrink-0 overflow-hidden border-r border-border bg-[var(--surface-muted)] px-1 py-3 text-right font-mono text-[12px] leading-5 tabular-nums text-muted-foreground select-none";
 
 function CloudProviderHeader({
   title,
@@ -153,8 +153,8 @@ function CloudDetailItem({
     <div
       className={cn(
         variant === "plain"
-          ? "min-w-0 border-b border-slate-200/80 py-3 last:border-b-0 dark:border-slate-800"
-          : "min-w-0 rounded-lg border border-slate-200/80 bg-slate-50/70 px-4 py-3 shadow-none dark:border-slate-800 dark:bg-slate-900/25",
+          ? "min-w-0 border-b border-border py-3 last:border-b-0"
+          : "admin-inline-surface min-w-0 px-4 py-3",
         className,
       )}
     >
@@ -197,7 +197,7 @@ function CloudCopyBlock({
   return (
     <div
       className={cn(
-        "min-w-0 border-l-2 border-slate-200/90 bg-transparent py-2 pl-3 shadow-none dark:border-slate-700",
+        "min-w-0 border-l-2 border-border bg-transparent py-2 pl-3 shadow-none",
         className,
       )}
     >
@@ -313,7 +313,7 @@ function CloudReadonlyCodeBlock({
   return (
     <div
       className={cn(
-        "min-w-0 overflow-auto rounded-lg border border-slate-200/80 bg-white text-xs shadow-none [scrollbar-gutter:stable] dark:border-slate-800/90 dark:bg-slate-950",
+        "min-w-0 overflow-auto rounded-md border border-border bg-[var(--surface)] text-xs shadow-none [scrollbar-gutter:stable]",
         minHeightClassName,
         maxHeightClassName,
       )}
@@ -360,7 +360,7 @@ function CloudCodeTextarea({
   return (
     <div
       className={cn(
-        "flex min-w-0 overflow-hidden rounded-md border border-slate-200/80 bg-white text-xs shadow-none focus-within:border-ring focus-within:ring-2 focus-within:ring-ring/30 dark:border-slate-800/90 dark:bg-slate-950",
+        "flex min-w-0 overflow-hidden rounded-md border border-border bg-[var(--surface)] text-xs shadow-none focus-within:border-ring focus-within:ring-2 focus-within:ring-ring/30",
         minHeightClassName,
         className,
       )}
@@ -465,7 +465,7 @@ function CloudFormActions({
   return (
     <div
       className={cn(
-        "sticky bottom-0 z-10 -mx-5 -mb-5 mt-1 flex flex-col-reverse gap-2 border-t border-slate-200/80 bg-white/95 px-5 py-3 backdrop-blur dark:border-slate-800 dark:bg-slate-950/95 sm:flex-row sm:justify-end",
+        "admin-panel-footer sticky bottom-0 z-10 -mx-5 -mb-5 mt-1 flex flex-col-reverse gap-2 px-5 py-3 backdrop-blur sm:flex-row sm:justify-end",
         className,
       )}
       {...props}
@@ -488,7 +488,7 @@ function CloudImportFormSection({
         className,
       )}
     >
-      <div className="border-t border-slate-200/80 pt-4 dark:border-slate-800">
+      <div className="border-t border-border pt-4">
         <div className="grid min-w-0 gap-2 lg:grid-cols-[5rem_minmax(0,1fr)] lg:items-center">
           <label className={cn(cloudPanelFieldLabelClassName, "leading-9")}>
             {groupLabel}
@@ -544,7 +544,7 @@ function CloudSensitiveDialogContent({
         className,
       )}
     >
-      <div className="border-b border-slate-200/80 bg-slate-50/70 px-5 py-4 dark:border-slate-800 dark:bg-slate-900/35">
+      <div className="admin-panel-header px-5 py-4">
         <div className="flex min-w-0 flex-col gap-3 pr-8 sm:flex-row sm:items-start sm:justify-between">
           <div className="flex min-w-0 items-start gap-3">
             {icon ? (
@@ -579,7 +579,7 @@ function CloudSensitiveDialogContent({
           {children}
         </div>
         {side ? (
-          <aside className="min-w-0 border-t border-slate-200/80 bg-slate-50/55 px-5 py-5 dark:border-slate-800 dark:bg-slate-900/25 lg:border-l lg:border-t-0">
+          <aside className="min-w-0 border-t border-border bg-[var(--surface-subtle)] px-5 py-5 lg:border-l lg:border-t-0">
             {side}
           </aside>
         ) : null}
@@ -608,7 +608,7 @@ function CloudSecretValueBlock({
       title={title}
       copyLabel={copyLabel}
       onCopy={onCopy}
-      className="border-slate-200/90 bg-transparent py-2 pl-3 dark:border-slate-700"
+      className="border-border bg-transparent py-2 pl-3"
       titleClassName="text-sm font-semibold text-foreground"
       contentClassName="mt-3"
     >
