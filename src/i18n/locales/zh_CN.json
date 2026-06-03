@@ -3394,6 +3394,8 @@
     "dns_record_refs": "DNS 记录引用",
     "dns_record_type": "记录类型",
     "dns_rr": "主机记录 RR",
+    "dns_sync_now_failed": "DNS 对账失败",
+    "dns_sync_now_success": "DNS 对账完成：已同步 {{applied}} 个成员，跳过 {{skipped}} 个。",
     "dns_target": "DNS 目标",
     "dns_ttl": "TTL",
     "edit_member": "编辑 V2 成员",
@@ -3528,9 +3530,6 @@
     "pending_cleanup_retry_confirm_title": "重试此待清理项？",
     "pending_cleanup_retry_queued": "待清理项重试已排队",
     "pending_cleanup_short": "清理",
-    "sync_dns_now": "同步 DNS",
-    "dns_sync_now_failed": "DNS 对账失败",
-    "dns_sync_now_success": "DNS 对账完成：已同步 {{applied}} 个成员，跳过 {{skipped}} 个。",
     "phase": {
       "badge": "扩展提供商支持",
       "constraints": "当前 V2 MVP 限制：DNS 服务支持 Aliyun 和 Cloudflare，成员支持 DigitalOcean、Linode 和 AWS。",
@@ -3830,6 +3829,7 @@
     "summary_provider_auto_network": "云实例默认公网可达，并按后端策略放行必要网络。",
     "summary_provider_dns_attach": "实例创建成功后再挂载 DNS，避免提前切流。",
     "summary_provider_json_advanced": "不常用字段已收进 JSON 高级编辑，日常无需处理。",
+    "sync_dns_now": "同步 DNS",
     "sync_ipv6": "同步 IPv6",
     "sync_ipv6_hint": "当地址可用时，同时管理对应的 AAAA/A 记录。",
     "table": {
