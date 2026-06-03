@@ -21,7 +21,7 @@ import { useAdminPageTitle } from "@/contexts/AdminPageTitleContext";
 import { cn } from "@/lib/utils";
 
 const cloudDialogBaseClassName =
-  "flex max-h-[90vh] w-[calc(100vw-1.5rem)] flex-col overflow-y-auto overflow-x-hidden overscroll-contain [scrollbar-gutter:stable]";
+  "admin-form-scroll flex max-h-[90vh] w-[calc(100vw-1.5rem)] flex-col overflow-y-auto overflow-x-hidden overscroll-contain [scrollbar-gutter:stable]";
 
 const cloudDialogContentClassName =
   cn(
@@ -31,7 +31,7 @@ const cloudDialogContentClassName =
 
 const cloudDialogWideContentClassName =
   cn(
-    "flex max-h-[92vh] w-[calc(100vw-1.5rem)] flex-col overflow-y-auto overflow-x-hidden overscroll-contain [scrollbar-gutter:stable]",
+    "admin-form-scroll flex max-h-[92vh] w-[calc(100vw-1.5rem)] flex-col overflow-y-auto overflow-x-hidden overscroll-contain [scrollbar-gutter:stable]",
     "max-w-[96rem] sm:max-w-5xl",
   );
 
@@ -465,7 +465,7 @@ function CloudFormActions({
   return (
     <div
       className={cn(
-        "admin-panel-footer sticky bottom-0 z-10 -mx-5 -mb-5 mt-1 flex flex-col-reverse gap-2 px-5 py-3 backdrop-blur sm:flex-row sm:justify-end",
+        "admin-panel-footer admin-form-footer sticky bottom-0 z-10 -mx-5 -mb-5 mt-1 flex flex-col-reverse gap-2 px-5 py-3 backdrop-blur sm:flex-row sm:justify-end",
         className,
       )}
       {...props}
@@ -572,7 +572,7 @@ function CloudSensitiveDialogContent({
       >
         <div
           className={cn(
-            "min-w-0 space-y-5 overflow-y-auto px-5 py-5 [scrollbar-gutter:stable]",
+            "admin-form-scroll min-w-0 space-y-5 overflow-y-auto overscroll-contain px-5 py-5 [scrollbar-gutter:stable]",
             bodyClassName,
           )}
         >

@@ -14,13 +14,13 @@ const ADMIN_FORM_HEADER_INSET_CLASS =
   "flex min-w-0 flex-col gap-1 pr-12";
 
 const ADMIN_FORM_SCROLL_CLASS =
-  "min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-contain pr-1 [scrollbar-gutter:stable]";
+  "admin-form-scroll min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-contain pr-1 [scrollbar-gutter:stable]";
 
 const ADMIN_FORM_BODY_CLASS =
-  "min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-contain px-5 py-4 [scrollbar-gutter:stable]";
+  "admin-form-scroll min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-contain px-5 py-4 [scrollbar-gutter:stable]";
 
 const ADMIN_FORM_FOOTER_CLASS =
-  "admin-panel-footer flex shrink-0 flex-col-reverse gap-2 px-5 py-3 sm:flex-row sm:items-center sm:justify-end";
+  "admin-panel-footer admin-form-footer flex shrink-0 flex-col-reverse gap-2 px-5 py-3 sm:flex-row sm:items-center sm:justify-end";
 
 const ADMIN_FORM_SECTION_CLASS =
   "border-t border-border/70 pt-4 first:border-t-0 first:pt-0";

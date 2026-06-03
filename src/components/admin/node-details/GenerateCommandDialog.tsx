@@ -532,8 +532,8 @@ export default function GenerateCommandDialog({
             </Dialog.Description>
           </div>
         </div>
-        <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-contain px-5 py-4 [scrollbar-gutter:stable]">
-        <div className="flex flex-col gap-4">
+        <div className="admin-form-scroll min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-contain px-5 py-4 [scrollbar-gutter:stable]">
+        <div className="flex flex-col gap-4 pb-1">
           {useAutoDiscovery && !groupMode ? (
             <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/30 dark:text-emerald-300">
               {t(
