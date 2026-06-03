@@ -329,7 +329,7 @@ function DashboardPageContent() {
           };
         })
         .sort((left, right) => right.pressure - left.pressure)
-        .slice(0, 5),
+        .slice(0, 3),
     [defaultGroupLabel, liveByNode, nodes],
   );
   const groupSummaries = useMemo(() => {
@@ -560,7 +560,7 @@ function DashboardPageContent() {
           />
           {capacityItems.length > 0 ? (
             <div className="flex flex-col">
-              {capacityItems.slice(0, 5).map(({ node, group, cpu, ram, disk, pressure, traffic, online }, index) => (
+              {capacityItems.map(({ node, group, cpu, ram, disk, pressure, traffic, online }, index) => (
                 <DashboardSignalRow
                   key={`${node.uuid}-capacity-${index}`}
                   title={node.name || node.uuid}
