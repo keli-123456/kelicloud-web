@@ -27,6 +27,14 @@ import {
   AdminEmptyState,
   AdminTableSkeleton,
 } from "@/components/admin/AdminPageShell";
+import {
+  AdminDataTable,
+  AdminDataTableCell,
+  AdminDataTableHead,
+  AdminDataTableHeadRow,
+  AdminDataTableRow,
+  AdminDataTableScroll,
+} from "@/components/admin/AdminDataTable";
 import { Input } from "@/components/ui/input";
 import {
   getDNSSchedulerSnapshot,
@@ -935,43 +943,52 @@ export default function CloudDnsSchedulerSection() {
         {pageItems.length ? (
           <div className="grid lg:grid-cols-[minmax(0,1fr)_380px]">
             <div className="min-w-0">
-              <div className="overflow-x-auto">
-                <table className="min-w-[960px] text-sm">
-                <thead className="bg-slate-50/80 text-xs text-slate-500 dark:bg-slate-900/30 dark:text-slate-400">
-                  <tr>
-                    <th className="w-[16%] px-4 py-3 text-left font-medium">
+              <AdminDataTableScroll>
+                <AdminDataTable minWidth={820} className="table-fixed">
+                <colgroup>
+                  <col className="w-[15%]" />
+                  <col className="w-[18%]" />
+                  <col className="w-[28%]" />
+                  <col className="w-[19%]" />
+                  <col className="w-[12%]" />
+                  <col className="w-[8%]" />
+                </colgroup>
+                <thead>
+                  <AdminDataTableHeadRow>
+                    <AdminDataTableHead>
                       {t("cloud.dns.scheduler.table.source", { defaultValue: "来源" })}
-                    </th>
-                    <th className="w-[20%] px-4 py-3 text-left font-medium">
+                    </AdminDataTableHead>
+                    <AdminDataTableHead>
                       {t("cloud.dns.scheduler.table.node", { defaultValue: "节点" })}
-                    </th>
-                    <th className="w-[28%] px-4 py-3 text-left font-medium">
+                    </AdminDataTableHead>
+                    <AdminDataTableHead>
                       {t("cloud.dns.scheduler.table.record", { defaultValue: "DNS 目标" })}
-                    </th>
-                    <th className="w-[18%] px-4 py-3 text-left font-medium">
+                    </AdminDataTableHead>
+                    <AdminDataTableHead>
                       {t("cloud.dns.scheduler.table.current_ip", { defaultValue: "当前 IP" })}
-                    </th>
-                    <th className="w-[10%] px-4 py-3 text-left font-medium">
+                    </AdminDataTableHead>
+                    <AdminDataTableHead>
                       {t("cloud.dns.scheduler.table.synced_at", { defaultValue: "最近时间" })}
-                    </th>
-                    <th className="w-[8%] px-4 py-3 text-left font-medium">
+                    </AdminDataTableHead>
+                    <AdminDataTableHead>
                       {t("common.status", { defaultValue: "状态" })}
-                    </th>
-                  </tr>
+                    </AdminDataTableHead>
+                  </AdminDataTableHeadRow>
                 </thead>
-                <tbody className="divide-y divide-border dark:divide-slate-800">
+                <tbody>
                   {pageItems.map((item) => {
                     const itemKey = getSchedulerItemKey(item);
                     const selected = itemKey === selectedItemKey;
                     return (
-                    <tr
+                    <AdminDataTableRow
                       key={itemKey}
                       role="button"
                       aria-selected={selected}
                       tabIndex={0}
+                      selected={selected}
+                      interactive
                       className={cn(
-                        "cursor-pointer align-top transition-colors hover:bg-blue-50/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40 dark:hover:bg-blue-950/20",
-                        selected && "bg-blue-50/80 dark:bg-blue-950/30",
+                        "align-top focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40",
                       )}
                       onClick={() => setSelectedItemKey(itemKey)}
                       onKeyDown={(event) => {
@@ -981,28 +998,28 @@ export default function CloudDnsSchedulerSection() {
                         }
                       }}
                     >
-                      <td className="px-4 py-3">
+                      <AdminDataTableCell className="align-top">
                         <div className="flex min-w-0 flex-col gap-1.5">
                           <Badge color={sourceColor(item.source_type)} className="w-fit gap-1">
                             <ShieldCheck className="h-3.5 w-3.5" />
                             {sourceLabel(item.source_type, t)}
                           </Badge>
-                          <div className="max-w-[160px] truncate text-xs text-muted-foreground">
+                          <div className="truncate text-xs text-muted-foreground" title={item.source_name || item.source_id || "-"}>
                             {item.source_name || item.source_id || "-"}
                           </div>
                         </div>
-                      </td>
-                      <td className="px-4 py-3">
+                      </AdminDataTableCell>
+                      <AdminDataTableCell className="align-top">
                         <div className="min-w-0">
-                          <div className="truncate font-medium text-slate-950 dark:text-slate-50">
+                          <div className="truncate font-medium text-slate-950 dark:text-slate-50" title={item.client_name || item.client_uuid}>
                             {item.client_name || item.client_uuid}
                           </div>
-                          <div className="mt-1 truncate text-xs text-muted-foreground">
+                          <div className="mt-1 truncate text-xs text-muted-foreground" title={item.client_uuid}>
                             {item.client_uuid}
                           </div>
                         </div>
-                      </td>
-                      <td className="px-4 py-3">
+                      </AdminDataTableCell>
+                      <AdminDataTableCell className="align-top">
                         <div className="flex min-w-0 flex-col gap-1">
                           <div className="flex min-w-0 flex-wrap items-center gap-1.5">
                             <Badge color="gray">{providerLabel(item.provider, t)}</Badge>
@@ -1011,45 +1028,45 @@ export default function CloudDnsSchedulerSection() {
                               <Badge color="amber">{mergeGroupBadge(item, t)}</Badge>
                             ) : null}
                           </div>
-                          <div className="max-w-[340px] truncate font-mono text-xs text-slate-600 dark:text-slate-300">
+                          <div className="truncate font-mono text-xs text-slate-600 dark:text-slate-300" title={item.record_key || "-"}>
                             {item.record_key || "-"}
                           </div>
                         </div>
-                      </td>
-                      <td className="px-4 py-3">
-                        <div className="font-mono text-xs text-slate-700 dark:text-slate-200">
+                      </AdminDataTableCell>
+                      <AdminDataTableCell className="align-top">
+                        <div className="min-w-0 break-all font-mono text-xs text-slate-700 dark:text-slate-200">
                           {renderIPPair(item)}
                         </div>
-                        <div className="mt-1 truncate text-xs text-muted-foreground">
+                        <div className="mt-1 truncate text-xs text-muted-foreground" title={`${item.last_ipv4 || "-"} ${item.last_ipv6 || ""}`.trim()}>
                           {t("cloud.dns.scheduler.last_ip", {
                             defaultValue: "上次：{{ipv4}} {{ipv6}}",
                             ipv4: item.last_ipv4 || "-",
                             ipv6: item.last_ipv6 || "",
                           })}
                         </div>
-                      </td>
-                      <td className="px-4 py-3 text-xs text-slate-600 dark:text-slate-300">
+                      </AdminDataTableCell>
+                      <AdminDataTableCell className="align-top text-xs text-slate-600 dark:text-slate-300">
                         {formatDateTime(item.last_synced_at)}
-                      </td>
-                      <td className="px-4 py-3">
+                      </AdminDataTableCell>
+                      <AdminDataTableCell className="align-top">
                         <div className="flex min-w-0 flex-col gap-1.5">
                           <Badge color={statusColor(item.status)} className="w-fit gap-1">
                             {statusIcon(item.status)}
                             {statusLabel(item.status, t)}
                           </Badge>
                           {item.reason || item.last_error ? (
-                            <div className="max-w-[220px] truncate text-xs text-muted-foreground">
+                            <div className="truncate text-xs text-muted-foreground" title={item.reason || item.last_error || undefined}>
                               {item.reason || item.last_error}
                             </div>
                           ) : null}
                         </div>
-                      </td>
-                    </tr>
+                      </AdminDataTableCell>
+                    </AdminDataTableRow>
                     );
                   })}
                 </tbody>
-              </table>
-            </div>
+              </AdminDataTable>
+            </AdminDataTableScroll>
             <div className="flex flex-col gap-2 border-t border-border px-4 py-3 text-sm dark:border-slate-800 sm:flex-row sm:items-center sm:justify-between">
               <div className="text-xs text-muted-foreground">
                 {t("cloud.dns.scheduler.pagination", {

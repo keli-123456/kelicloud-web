@@ -383,6 +383,51 @@ const formatDays = (days?: number) => {
   return value > 0 ? `${value}d` : "∞";
 };
 
+type PaymentDisplaySource = Pick<PaymentMethod, "type" | "name" | "code">;
+
+const getPaymentTypeLabel = (t: TFunction, type?: string) => {
+  const normalized = String(type || "manual").trim().toLowerCase();
+  switch (normalized) {
+    case "alipay":
+      return t("billing.payment_type_alipay", { defaultValue: "支付宝" });
+    case "wechat":
+      return t("billing.payment_type_wechat", { defaultValue: "微信支付" });
+    case "stripe":
+      return t("billing.payment_type_stripe", { defaultValue: "Stripe" });
+    case "epusdt":
+      return t("billing.payment_type_epusdt", { defaultValue: "Epusdt" });
+    case "manual":
+      return t("billing.payment_type_manual", { defaultValue: "人工确认" });
+    default:
+      return type || t("billing.payment_method", { defaultValue: "支付方式" });
+  }
+};
+
+const getPaymentDisplayName = (
+  t: TFunction,
+  method?: Partial<PaymentDisplaySource> | null,
+) => {
+  if (!method) return t("billing.payment_method", { defaultValue: "支付方式" });
+
+  const typeLabel = getPaymentTypeLabel(t, method.type);
+  const rawName = String(method.name || "").trim();
+  const rawCode = String(method.code || "").trim();
+  const genericNames = new Set([
+    "",
+    "manual",
+    "manual payment",
+    "payment manual",
+    "\u624b\u52a8\u652f\u4ed8",
+    "\u4eba\u5de5\u786e\u8ba4",
+  ]);
+
+  if (String(method.type || "").trim().toLowerCase() === "manual" && genericNames.has(rawName.toLowerCase())) {
+    return typeLabel;
+  }
+
+  return rawName || rawCode || typeLabel;
+};
+
 const normalizeFeatureList = (
   features?: AccountFeature[] | null,
   availableFeatures?: AccountFeature[],
@@ -1104,6 +1149,12 @@ function ShopPanel({
     );
   }
 
+  const selectedPaymentLabel = selectedPayment ? getPaymentDisplayName(t, selectedPayment) : "";
+  const selectedPaymentTypeLabel = selectedPayment ? getPaymentTypeLabel(t, selectedPayment.type) : "";
+  const showSelectedPaymentType =
+    Boolean(selectedPaymentTypeLabel)
+    && selectedPaymentLabel.trim().toLowerCase() !== selectedPaymentTypeLabel.trim().toLowerCase();
+
   return (
     <div className="space-y-4">
       <PolicySummary
@@ -1180,7 +1231,7 @@ function ShopPanel({
                 <Select.Content>
                   {methods.map((method) => (
                     <Select.Item key={method.id} value={String(method.id)}>
-                      {method.name}
+                      {getPaymentDisplayName(t, method)}
                     </Select.Item>
                   ))}
                 </Select.Content>
@@ -1188,7 +1239,12 @@ function ShopPanel({
             </Field>
             {selectedPayment ? (
               <div className="border-l-2 border-slate-200/80 bg-slate-50/60 px-3 py-2 text-sm dark:border-slate-800 dark:bg-slate-900/25">
-                <div className="font-medium">{selectedPayment.name}</div>
+                <div className="font-medium">{selectedPaymentLabel}</div>
+                {showSelectedPaymentType ? (
+                  <div className="mt-1 text-xs text-muted-foreground">
+                    {selectedPaymentTypeLabel}
+                  </div>
+                ) : null}
                 {selectedPayment.instructions ? (
                   <p className="mt-2 whitespace-pre-wrap text-muted-foreground">
                     {selectedPayment.instructions}
@@ -1405,12 +1461,12 @@ function PaymentsPanel({
                   </AdminDataTableEmptyRow>
                 ) : null}
                 {methodPagination.pageItems.map((method) => (
-                  <AdminDataTableRow key={method.id}>
+                    <AdminDataTableRow key={method.id}>
                     <AdminDataTableCell>
-                      <div className="font-medium">{method.name}</div>
+                      <div className="font-medium">{getPaymentDisplayName(t, method)}</div>
                       <div className="text-xs text-muted-foreground">{method.code}</div>
                     </AdminDataTableCell>
-                    <AdminDataTableCell>{method.type}</AdminDataTableCell>
+                    <AdminDataTableCell>{getPaymentTypeLabel(t, method.type)}</AdminDataTableCell>
                     <AdminDataTableCell>
                       <div className="max-w-xl truncate text-sm text-muted-foreground">
                         {method.instructions || method.payment_url || method.qr_image_url || "-"}
@@ -1520,7 +1576,17 @@ function OrdersTable({
               </AdminDataTableHeadRow>
             </thead>
             <tbody>
-              {orderPagination.pageItems.map((order) => (
+              {orderPagination.pageItems.map((order) => {
+                const orderPaymentMethod = paymentMethods?.find((item) => item.id === order.payment_method_id);
+                const orderPaymentLabel = orderPaymentMethod
+                  ? getPaymentDisplayName(t, orderPaymentMethod)
+                  : getPaymentDisplayName(t, {
+                    type: order.payment_code,
+                    name: order.payment_name,
+                    code: order.payment_code,
+                  });
+
+                return (
                 <AdminDataTableRow key={order.id}>
                   <AdminDataTableCell>
                     <div className="font-mono text-xs">{order.order_no}</div>
@@ -1541,7 +1607,7 @@ function OrdersTable({
                     <div className="text-xs text-muted-foreground">{formatDays(order.duration_days)}</div>
                   </AdminDataTableCell>
                   <AdminDataTableCell>{formatMoney(order.amount_cents, order.currency)}</AdminDataTableCell>
-                  <AdminDataTableCell>{order.payment_name || order.payment_code || "-"}</AdminDataTableCell>
+                  <AdminDataTableCell>{orderPaymentLabel}</AdminDataTableCell>
                   <AdminDataTableCell>
                     <Badge color={statusTone(order.status)} variant="soft">
                       {t(`billing.status_${order.status}`, { defaultValue: order.status })}
@@ -1572,7 +1638,8 @@ function OrdersTable({
                     </AdminDataTableCell>
                   ) : null}
                 </AdminDataTableRow>
-              ))}
+                );
+              })}
             </tbody>
           </DataTable>
         }
@@ -1624,7 +1691,11 @@ function PendingPaymentNotice({
           </div>
         </div>
         <Badge color="amber" variant="soft">
-          {pendingOrder.payment_name || method?.name || t("billing.payment_method")}
+          {getPaymentDisplayName(t, method || {
+            type: pendingOrder.payment_code,
+            name: pendingOrder.payment_name,
+            code: pendingOrder.payment_code,
+          })}
         </Badge>
       </div>
       <p className="mt-2 leading-6 text-amber-900/80 dark:text-amber-100/75">
