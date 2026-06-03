@@ -2,16 +2,10 @@ import React from "react";
 import { useTranslation } from "react-i18next";
 import { Clock3, Copy, Link2, Share2, ShieldCheck, Trash2 } from "lucide-react";
 
+import { AdminDialogLayout } from "@/components/admin/AdminForm";
 import { Badge } from "@/components/admin/admin-ui";
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { Dialog } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -134,31 +128,50 @@ export default function FailoverV2ShareDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="gap-0 overflow-hidden p-0 sm:max-w-4xl">
-        <div className="border-b border-border bg-transparent px-5 py-4">
-          <DialogHeader className="space-y-2">
-            <div className="flex min-w-0 flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-              <div className="min-w-0">
-                <DialogTitle>{t("failover_v2.share.dialog_title", { defaultValue: "分享故障切换任务" })}</DialogTitle>
-                <DialogDescription className="mt-1">
-                  {t("failover_v2.share.dialog_description", {
-                    defaultValue: "生成一个只读公开链接，访问者只能查看任务状态、成员状态和最近执行记录。",
-                  })}
-                </DialogDescription>
-              </div>
-              {service ? (
-                <div className="flex shrink-0 flex-wrap items-center gap-2">
-                  <Badge color="blue" className="max-w-48 truncate">
-                    {service.name}
-                  </Badge>
-                  <Badge color={getShareStatusTone(status)}>{statusLabel}</Badge>
-                </div>
-              ) : null}
-            </div>
-          </DialogHeader>
-        </div>
-
-        <div className="max-h-[70vh] space-y-5 overflow-y-auto px-5 py-5">
+      <AdminDialogLayout
+        title={t("failover_v2.share.dialog_title", { defaultValue: "分享故障切换任务" })}
+        description={t("failover_v2.share.dialog_description", {
+          defaultValue: "生成一个只读公开链接，访问者只能查看任务状态、成员状态和最近执行记录。",
+        })}
+        badge={
+          service ? (
+            <>
+              <Badge color="blue" className="max-w-48 truncate">
+                {service.name}
+              </Badge>
+              <Badge color={getShareStatusTone(status)}>{statusLabel}</Badge>
+            </>
+          ) : null
+        }
+        wide
+        className="sm:max-w-4xl"
+        bodyClassName="space-y-5 py-5"
+        footer={
+          <>
+            {share?.token ? (
+              <Button
+                type="button"
+                variant="outline"
+                onClick={onDelete}
+                disabled={deleting || saving}
+                className="mr-auto"
+              >
+                {deleting ? <Clock3 className="size-4 animate-spin" /> : <Trash2 className="size-4" />}
+                {t("failover_v2.share.revoke", { defaultValue: "撤销分享" })}
+              </Button>
+            ) : null}
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+              {t("common.cancel", { defaultValue: "取消" })}
+            </Button>
+            <Button type="button" onClick={onSave} disabled={saving || loading}>
+              {saving ? <Clock3 className="size-4 animate-spin" /> : <Share2 className="size-4" />}
+              {share?.token
+                ? t("common.update", { defaultValue: "更新" })
+                : t("failover_v2.share.generate", { defaultValue: "生成链接" })}
+            </Button>
+          </>
+        }
+      >
           {loading ? (
             <div className="space-y-3">
               <div className="h-16 animate-pulse rounded-lg bg-muted" />
@@ -167,8 +180,8 @@ export default function FailoverV2ShareDialog({
             </div>
           ) : (
             <>
-              <div className="grid gap-3 border-t border-slate-200/80 pt-4 dark:border-slate-800 sm:grid-cols-3">
-                <div className="border-b border-slate-200/80 px-1 py-2 dark:border-slate-800">
+              <div className="grid gap-x-6 gap-y-3 border-b border-border pb-4 sm:grid-cols-3">
+                <div className="px-1 py-1">
                   <div className="text-xs font-medium text-muted-foreground">
                     {t("failover_v2.share.target_task", { defaultValue: "任务" })}
                   </div>
@@ -176,7 +189,7 @@ export default function FailoverV2ShareDialog({
                     {service?.name || "-"}
                   </div>
                 </div>
-                <div className="border-b border-slate-200/80 px-1 py-2 dark:border-slate-800">
+                <div className="px-1 py-1">
                   <div className="text-xs font-medium text-muted-foreground">
                     {t("failover_v2.share.member_scope", { defaultValue: "成员范围" })}
                   </div>
@@ -184,7 +197,7 @@ export default function FailoverV2ShareDialog({
                     {service ? `${service.enabled_member_count} / ${service.member_count}` : "-"}
                   </div>
                 </div>
-                <div className="border-b border-slate-200/80 px-1 py-2 dark:border-slate-800">
+                <div className="px-1 py-1">
                   <div className="text-xs font-medium text-muted-foreground">
                     {t("failover_v2.share.access_count", { defaultValue: "访问次数" })}
                   </div>
@@ -308,32 +321,7 @@ export default function FailoverV2ShareDialog({
               </div>
             </>
           )}
-        </div>
-
-        <DialogFooter className="border-t border-border bg-transparent px-5 py-4">
-          {share?.token ? (
-            <Button
-              type="button"
-              variant="outline"
-              onClick={onDelete}
-              disabled={deleting || saving}
-              className="mr-auto"
-            >
-              {deleting ? <Clock3 className="size-4 animate-spin" /> : <Trash2 className="size-4" />}
-              {t("failover_v2.share.revoke", { defaultValue: "撤销分享" })}
-            </Button>
-          ) : null}
-          <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-            {t("common.cancel", { defaultValue: "取消" })}
-          </Button>
-          <Button type="button" onClick={onSave} disabled={saving || loading}>
-            {saving ? <Clock3 className="size-4 animate-spin" /> : <Share2 className="size-4" />}
-            {share?.token
-              ? t("common.update", { defaultValue: "更新" })
-              : t("failover_v2.share.generate", { defaultValue: "生成链接" })}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
+      </AdminDialogLayout>
     </Dialog>
   );
 }

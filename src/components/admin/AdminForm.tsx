@@ -1,6 +1,14 @@
 import * as React from "react";
 
+import { Dialog } from "@/components/admin/admin-ui";
 import {
+  ADMIN_FORM_BODY_CLASS,
+  ADMIN_FORM_DIALOG_CHROME_CLASS,
+  ADMIN_FORM_DIALOG_CLASS,
+  ADMIN_FORM_DIALOG_WIDE_CLASS,
+  ADMIN_FORM_FOOTER_CLASS,
+  ADMIN_FORM_HEADER_CLASS,
+  ADMIN_FORM_HEADER_INSET_CLASS,
   ADMIN_FORM_SECTION_CLASS,
   ADMIN_FORM_SECTION_COMPACT_CLASS,
   ADMIN_FORM_TOGGLE_CLASS,
@@ -9,6 +17,110 @@ import { cn } from "@/lib/utils";
 
 function AdminFormRequiredMark() {
   return <span className="shrink-0 text-rose-500">*</span>;
+}
+
+type AdminDialogLayoutProps = {
+  title: React.ReactNode;
+  description?: React.ReactNode;
+  badge?: React.ReactNode;
+  icon?: React.ReactNode;
+  children: React.ReactNode;
+  footer?: React.ReactNode;
+  side?: React.ReactNode;
+  wide?: boolean;
+  maxWidth?: string | number;
+  className?: string;
+  headerClassName?: string;
+  titleClassName?: string;
+  descriptionClassName?: string;
+  bodyClassName?: string;
+  sideClassName?: string;
+  footerClassName?: string;
+};
+
+function AdminDialogLayout({
+  title,
+  description,
+  badge,
+  icon,
+  children,
+  footer,
+  side,
+  wide = false,
+  maxWidth,
+  className,
+  headerClassName,
+  titleClassName,
+  descriptionClassName,
+  bodyClassName,
+  sideClassName,
+  footerClassName,
+}: AdminDialogLayoutProps) {
+  return (
+    <Dialog.Content
+      maxWidth={maxWidth}
+      className={cn(
+        wide ? ADMIN_FORM_DIALOG_WIDE_CLASS : ADMIN_FORM_DIALOG_CLASS,
+        ADMIN_FORM_DIALOG_CHROME_CLASS,
+        className,
+      )}
+    >
+      <div className={cn(ADMIN_FORM_HEADER_CLASS, headerClassName)}>
+        <div className="flex min-w-0 flex-col gap-3 pr-10 sm:flex-row sm:items-start sm:justify-between">
+          <div className="flex min-w-0 items-start gap-3">
+            {icon ? (
+              <span className="inline-flex size-10 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground shadow-sm shadow-primary/15">
+                {icon}
+              </span>
+            ) : null}
+            <div className={cn(ADMIN_FORM_HEADER_INSET_CLASS, "pr-0")}>
+              <Dialog.Title className={cn("text-base font-semibold leading-6", titleClassName)}>
+                {title}
+              </Dialog.Title>
+              {description ? (
+                <Dialog.Description
+                  className={cn(
+                    "text-sm leading-6 text-muted-foreground",
+                    descriptionClassName,
+                  )}
+                >
+                  {description}
+                </Dialog.Description>
+              ) : null}
+            </div>
+          </div>
+          {badge ? <div className="flex shrink-0 flex-wrap items-center gap-2">{badge}</div> : null}
+        </div>
+      </div>
+
+      <div
+        className={cn(
+          "grid min-h-0 flex-1 overflow-hidden",
+          side ? "lg:grid-cols-[minmax(0,1fr)_320px]" : "",
+        )}
+      >
+        <div className={cn(ADMIN_FORM_BODY_CLASS, bodyClassName)}>
+          {children}
+        </div>
+        {side ? (
+          <aside
+            className={cn(
+              "min-w-0 overflow-y-auto border-t border-border bg-[var(--surface-subtle)] px-5 py-5 [scrollbar-gutter:stable] lg:border-l lg:border-t-0",
+              sideClassName,
+            )}
+          >
+            {side}
+          </aside>
+        ) : null}
+      </div>
+
+      {footer ? (
+        <div className={cn(ADMIN_FORM_FOOTER_CLASS, footerClassName)}>
+          {footer}
+        </div>
+      ) : null}
+    </Dialog.Content>
+  );
 }
 
 type AdminFormSectionProps = Omit<React.ComponentProps<"section">, "title"> & {
@@ -87,6 +199,7 @@ function AdminFormToggle({
 }
 
 export {
+  AdminDialogLayout,
   AdminFormRequiredMark,
   AdminFormSection,
   AdminFormToggle,

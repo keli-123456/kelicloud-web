@@ -12,6 +12,7 @@ import {
   TextArea,
   TextField,
 } from "@/components/admin/admin-ui";
+import { AdminDialogLayout } from "@/components/admin/AdminForm";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   TableCell,
@@ -537,54 +538,19 @@ function CloudSensitiveDialogContent({
   bodyClassName,
 }: CloudSensitiveDialogContentProps) {
   return (
-    <Dialog.Content
-      className={cn(
-        cloudDialogWideContentClassName,
-        "gap-0 overflow-hidden p-0 sm:max-w-4xl md:p-0",
-        className,
-      )}
+    <AdminDialogLayout
+      title={title}
+      description={description}
+      badge={badge}
+      icon={icon}
+      side={side}
+      wide
+      className={cn("sm:max-w-4xl", className)}
+      descriptionClassName={cloudLongTextClassName}
+      bodyClassName={cn("space-y-5 py-5", bodyClassName)}
     >
-      <div className="admin-panel-header px-5 py-4">
-        <div className="flex min-w-0 flex-col gap-3 pr-8 sm:flex-row sm:items-start sm:justify-between">
-          <div className="flex min-w-0 items-start gap-3">
-            {icon ? (
-              <span className="inline-flex size-10 shrink-0 items-center justify-center rounded-lg bg-blue-600 text-white shadow-none">
-                {icon}
-              </span>
-            ) : null}
-            <div className="min-w-0">
-              <Dialog.Title>{title}</Dialog.Title>
-              {description ? (
-                <Dialog.Description className={cn("mt-1", cloudLongTextClassName)}>
-                  {description}
-                </Dialog.Description>
-              ) : null}
-            </div>
-          </div>
-          {badge ? <div className="flex shrink-0 flex-wrap gap-2">{badge}</div> : null}
-        </div>
-      </div>
-      <div
-        className={cn(
-          "grid min-h-0 flex-1 gap-0 overflow-hidden",
-          side ? "lg:grid-cols-[minmax(0,1fr)_320px]" : "",
-        )}
-      >
-        <div
-          className={cn(
-            "admin-form-scroll min-w-0 space-y-5 overflow-y-auto overscroll-contain px-5 py-5 [scrollbar-gutter:stable]",
-            bodyClassName,
-          )}
-        >
-          {children}
-        </div>
-        {side ? (
-          <aside className="min-w-0 border-t border-border bg-[var(--surface-subtle)] px-5 py-5 lg:border-l lg:border-t-0">
-            {side}
-          </aside>
-        ) : null}
-      </div>
-    </Dialog.Content>
+      {children}
+    </AdminDialogLayout>
   );
 }
 

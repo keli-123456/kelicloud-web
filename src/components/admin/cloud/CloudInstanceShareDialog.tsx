@@ -11,23 +11,16 @@ import {
   Trash2,
 } from "lucide-react";
 
+import { AdminDialogLayout } from "@/components/admin/AdminForm";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { Dialog } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import {
   Badge,
   CloudDetailDialogSkeleton,
   CloudDetailItem,
-  cloudDialogWideContentClassName,
   cloudLongTextClassName,
 } from "@/components/admin/cloud/cloud-ui";
 import {
@@ -228,36 +221,54 @@ export default function CloudInstanceShareDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent
-        className={cn(
-          cloudDialogWideContentClassName,
-          "gap-0 overflow-hidden p-0 sm:max-w-5xl md:p-0",
+      <AdminDialogLayout
+        title={t("cloud.share.dialog_title", "Share Instance")}
+        description={t(
+          "cloud.share.dialog_description",
+          "Generate a read-only public link for one instance. You can choose whether to include the saved root password or managed SSH key.",
         )}
-      >
-        <div className="border-b border-border bg-transparent px-5 py-4">
-          <DialogHeader className="space-y-2">
-            <div className="flex min-w-0 flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-              <div className="min-w-0">
-                <DialogTitle>{t("cloud.share.dialog_title", "Share Instance")}</DialogTitle>
-                <DialogDescription className={cn("mt-1", cloudLongTextClassName)}>
-                  {t(
-                    "cloud.share.dialog_description",
-                    "Generate a read-only public link for one instance. You can choose whether to include the saved root password or managed SSH key.",
-                  )}
-                </DialogDescription>
-              </div>
-              {target ? (
-                <div className="flex shrink-0 flex-wrap items-center gap-2">
-                  <Badge color="blue" className="max-w-48 truncate">
-                    {target.providerLabel}
-                  </Badge>
-                  <Badge color={getShareStatusTone(shareStatus)}>{shareStatusLabel}</Badge>
-                </div>
+        descriptionClassName={cloudLongTextClassName}
+        badge={
+          target ? (
+            <>
+              <Badge color="blue" className="max-w-48 truncate">
+                {target.providerLabel}
+              </Badge>
+              <Badge color={getShareStatusTone(shareStatus)}>{shareStatusLabel}</Badge>
+            </>
+          ) : null
+        }
+        wide
+        className="sm:max-w-5xl"
+        bodyClassName="p-0"
+        footer={
+          target && !loading ? (
+            <>
+              {share?.token ? (
+                <Button
+                  variant="destructive"
+                  onClick={onDelete}
+                  disabled={deleting || saving}
+                  className="mr-auto"
+                >
+                  <Trash2 className="mr-2 h-4 w-4" />
+                  {deleting
+                    ? t("cloud.share.revoking", "Revoking...")
+                    : t("cloud.share.revoke", "Revoke Link")}
+                </Button>
               ) : null}
-            </div>
-          </DialogHeader>
-        </div>
-
+              <Button onClick={onSave} disabled={saving || deleting}>
+                <Share2 className="mr-2 h-4 w-4" />
+                {saving
+                  ? t("cloud.share.saving", "保存中...")
+                  : share?.token
+                    ? t("cloud.share.update", "Update Share")
+                    : t("cloud.share.create", "Create Share")}
+              </Button>
+            </>
+          ) : null
+        }
+      >
         {loading ? (
           <div className="px-5 py-5">
             <CloudDetailDialogSkeleton rows={8} />
@@ -480,32 +491,9 @@ export default function CloudInstanceShareDialog({
                 </div>
               </aside>
             </div>
-
-            <DialogFooter className="border-t border-border bg-transparent px-5 py-4">
-              {share?.token ? (
-                <Button
-                  variant="destructive"
-                  onClick={onDelete}
-                  disabled={deleting || saving}
-                >
-                  <Trash2 className="mr-2 h-4 w-4" />
-                  {deleting
-                    ? t("cloud.share.revoking", "Revoking...")
-                    : t("cloud.share.revoke", "Revoke Link")}
-                </Button>
-              ) : null}
-              <Button onClick={onSave} disabled={saving || deleting}>
-                <Share2 className="mr-2 h-4 w-4" />
-                {saving
-                  ? t("cloud.share.saving", "保存中...")
-                  : share?.token
-                    ? t("cloud.share.update", "Update Share")
-                    : t("cloud.share.create", "Create Share")}
-              </Button>
-            </DialogFooter>
           </>
         ) : null}
-      </DialogContent>
+      </AdminDialogLayout>
     </Dialog>
   );
 }

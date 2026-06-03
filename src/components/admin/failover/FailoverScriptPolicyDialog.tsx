@@ -2,17 +2,13 @@ import React from "react";
 import { ArrowDown, ArrowUp, ListChecks, Search, Settings2, Trash2 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
+import { AdminDialogLayout } from "@/components/admin/AdminForm";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
   DialogClose,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -143,12 +139,20 @@ export default function FailoverScriptPolicyDialog({
       </div>
 
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="sm:max-w-5xl">
-          <DialogHeader>
-            <DialogTitle>{title}</DialogTitle>
-            <DialogDescription>{description}</DialogDescription>
-          </DialogHeader>
-
+        <AdminDialogLayout
+          title={title}
+          description={description}
+          wide
+          className="sm:max-w-5xl"
+          bodyClassName="py-5"
+          footer={
+            <DialogClose asChild>
+              <Button type="button">
+                {t("common.done", { defaultValue: "Done" })}
+              </Button>
+            </DialogClose>
+          }
+        >
           <div className="grid min-h-0 gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(300px,0.82fr)]">
             <section className="min-w-0 border-y border-slate-200/80 dark:border-slate-800">
               <div className="flex flex-wrap items-center justify-between gap-2 border-b px-3 py-3">
@@ -315,15 +319,7 @@ export default function FailoverScriptPolicyDialog({
               </div>
             </section>
           </div>
-
-          <DialogFooter>
-            <DialogClose asChild>
-              <Button type="button">
-                {t("common.done", { defaultValue: "Done" })}
-              </Button>
-            </DialogClose>
-          </DialogFooter>
-        </DialogContent>
+        </AdminDialogLayout>
       </Dialog>
     </div>
   );

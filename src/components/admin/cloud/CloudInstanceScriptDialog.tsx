@@ -15,19 +15,13 @@ import { useTranslation } from "react-i18next";
 import { useCommandClipboard } from "@/contexts/CommandClipboardContext";
 import { type NodeDetail, useNodeDetails } from "@/contexts/NodeDetailsContext";
 import { formatApiErrorMessage, getReadableErrorMessage } from "@/lib/apiErrorMessage";
+import { AdminDialogLayout } from "@/components/admin/AdminForm";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { Dialog } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import {
   CloudReadonlyCodeBlock,
-  cloudDialogWideContentClassName,
   cloudLongTextClassName,
 } from "@/components/admin/cloud/cloud-ui";
 
@@ -430,20 +424,14 @@ export default function CloudInstanceScriptDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent
-        className={cloudDialogWideContentClassName}
+      <AdminDialogLayout
+        title={t("cloud.script.dialog_title", "Run Script")}
+        description={t("cloud.script.dialog_description", {
+          defaultValue: "Choose a saved script and execute it directly on the matched kelicloud node for this instance.",
+        })}
+        wide
+        bodyClassName="space-y-4 py-5"
       >
-        <DialogHeader>
-          <DialogTitle>
-            {t("cloud.script.dialog_title", "Run Script")}
-          </DialogTitle>
-          <DialogDescription>
-            {t("cloud.script.dialog_description", {
-              defaultValue: "Choose a saved script and execute it directly on the matched kelicloud node for this instance.",
-            })}
-          </DialogDescription>
-        </DialogHeader>
-
         <div className="space-y-4">
           <div className="border-b border-slate-200/80 pb-3 text-sm text-slate-700 dark:border-slate-800 dark:text-slate-300">
             <div className={`font-medium text-slate-900 dark:text-slate-100 ${cloudLongTextClassName}`}>
@@ -671,7 +659,7 @@ export default function CloudInstanceScriptDialog({
             )}
           </div>
         </div>
-      </DialogContent>
+      </AdminDialogLayout>
     </Dialog>
   );
 }
