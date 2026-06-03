@@ -95,7 +95,7 @@ const NODE_DIALOG_COMPACT_CONTENT_CLASS =
 const NODE_DIALOG_SECTION_CLASS =
   "space-y-4 border-t border-border bg-transparent pt-4";
 const NODE_DIALOG_FOOTER_CLASS =
-  "admin-panel-footer sticky bottom-0 -mx-5 -mb-5 mt-5 flex flex-col-reverse gap-2 px-5 py-3 backdrop-blur sm:flex-row sm:justify-end";
+  "mt-5 flex flex-col-reverse gap-2 border-t border-border pt-3 sm:flex-row sm:justify-end";
 const NODE_INPUT_CLASS =
   "h-10 rounded-md border border-input bg-[var(--surface)] px-3 text-[14px] shadow-none hover:bg-[var(--surface-hover)]";
 const NODE_TEXTAREA_CLASS =

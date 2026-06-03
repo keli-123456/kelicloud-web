@@ -20,13 +20,13 @@ import type { SettingsResponse } from "@/lib/api";
 import { buildAgentInstallScriptURL } from "@/lib/installScriptSource";
 
 const NODE_DIALOG_CONTENT_CLASS =
-  "admin-dialog flex max-h-[min(92vh,calc(100dvh-1.5rem))] w-[min(96vw,1040px)] flex-col overflow-hidden p-0";
+  "admin-dialog flex h-[min(92vh,calc(100dvh-1.5rem))] w-[min(96vw,1040px)] flex-col overflow-hidden p-0";
 const NODE_DIALOG_SECTION_CLASS =
   "border-t border-border/70 bg-transparent pt-4 first:border-t-0 first:pt-0";
 const NODE_DIALOG_HINT_CLASS =
   "text-sm leading-6 text-muted-foreground";
 const NODE_DIALOG_FOOTER_CLASS =
-  "admin-panel-footer flex shrink-0 flex-col-reverse gap-2 px-5 py-3 sm:flex-row sm:items-center sm:justify-end";
+  "admin-panel-footer flex shrink-0 flex-col-reverse gap-2 border-t border-border px-5 py-3 sm:flex-row sm:items-center sm:justify-end";
 const NODE_INPUT_CLASS =
   "h-10 rounded-md border border-input bg-[var(--surface)] px-3 text-[14px] shadow-none hover:bg-[var(--surface-hover)]";
 
@@ -533,7 +533,7 @@ export default function GenerateCommandDialog({
           </div>
         </div>
         <div className="admin-form-scroll min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-contain px-5 py-4 [scrollbar-gutter:stable]">
-        <div className="flex flex-col gap-4 pb-1">
+          <div className="flex flex-col gap-4 pb-4">
           {useAutoDiscovery && !groupMode ? (
             <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/30 dark:text-emerald-300">
               {t(
@@ -572,7 +572,7 @@ export default function GenerateCommandDialog({
                     <button
                       key={group}
                       type="button"
-                                  className={`rounded-full border px-3 py-1 text-sm font-medium transition-colors ${
+                      className={`rounded-full border px-3 py-1 text-sm font-medium transition-colors ${
                         normalizedGroupName === group
                           ? "border-sky-300 bg-sky-100 text-sky-700 dark:border-sky-800 dark:bg-sky-950/50 dark:text-sky-300"
                           : "border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:text-slate-900 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-300 dark:hover:border-slate-600 dark:hover:text-slate-100"
@@ -751,7 +751,7 @@ export default function GenerateCommandDialog({
                     })}
                   </Button>
                 </div>
-                <div className="mt-3 overflow-hidden rounded-md border border-border bg-[var(--surface)] px-3 text-slate-900 dark:text-slate-100">
+                <div className="mt-3 border-y border-border/70 px-1 text-slate-900 dark:text-slate-100">
                   <Flex gap="2" align="center" className="border-b border-border/70 py-2.5">
                     <Checkbox
                       checked={enableGhproxy}
@@ -957,7 +957,7 @@ export default function GenerateCommandDialog({
                     "Copy this command and run it directly on the target server.",
                   )}
                 </p>
-                  <div className="relative mt-3 overflow-hidden rounded-md border border-border bg-[var(--surface-subtle)]">
+                <div className="relative mt-3 overflow-hidden rounded-md border border-border bg-[var(--surface-subtle)]">
                   <Button
                     type="button"
                     size="sm"
@@ -984,7 +984,7 @@ export default function GenerateCommandDialog({
               </div>
             </div>
           </div>
-        </div>
+          </div>
         </div>
         <div className={NODE_DIALOG_FOOTER_CLASS}>
           <Dialog.Close>

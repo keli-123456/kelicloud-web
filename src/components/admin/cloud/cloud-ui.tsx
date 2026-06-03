@@ -466,7 +466,7 @@ function CloudFormActions({
   return (
     <div
       className={cn(
-        "admin-panel-footer admin-form-footer sticky bottom-0 z-10 -mx-5 -mb-5 mt-1 flex flex-col-reverse gap-2 px-5 py-3 backdrop-blur sm:flex-row sm:justify-end",
+        "mt-4 flex flex-col-reverse gap-2 border-t border-border pt-3 sm:flex-row sm:items-center sm:justify-end",
         className,
       )}
       {...props}
