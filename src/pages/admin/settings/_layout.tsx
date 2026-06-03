@@ -1,4 +1,4 @@
-import { Outlet, useLocation } from "react-router-dom";
+import { Navigate, Outlet, useLocation } from "react-router-dom";
 import { Globe2, SlidersHorizontal } from "lucide-react";
 
 import {
@@ -7,7 +7,7 @@ import {
   AdminSideNavLink,
   AdminSplitLayout,
 } from "@/components/admin/AdminPageShell";
-import { useAccount } from "@/contexts/AccountContext";
+import { getDefaultAdminPath, useAccount } from "@/contexts/AccountContext";
 import { useTranslation } from "react-i18next";
 
 const navItems = [
@@ -32,10 +32,14 @@ const navItems = [
 export default function SettingLayout() {
   const { t } = useTranslation();
   const location = useLocation();
-  const { platformAdmin } = useAccount();
+  const { account, loading, platformAdmin } = useAccount();
   const visibleItems = navItems.filter(
     (item) => platformAdmin || !item.platformOnly
   );
+
+  if (!loading && !platformAdmin) {
+    return <Navigate to={getDefaultAdminPath(account)} replace />;
+  }
 
   return (
     <AdminPageShell
