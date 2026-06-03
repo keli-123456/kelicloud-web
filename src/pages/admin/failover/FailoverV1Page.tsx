@@ -10743,7 +10743,7 @@ function FailoverPageContent() {
         ) : null}
 
         {!loading && !error && tasks.length > 0 ? (
-          <div className="grid min-w-0 gap-3 xl:grid-cols-[minmax(0,1fr)_390px]">
+          <div className="grid min-w-0 gap-3 xl:grid-cols-[minmax(0,1fr)_360px] 2xl:grid-cols-[minmax(0,1fr)_390px]">
             <AdminDataPanel
               title={t("failover.workspace.tasks", { defaultValue: "任务列表" })}
               description={platformAdmin
@@ -10761,10 +10761,10 @@ function FailoverPageContent() {
               <div className="overflow-hidden">
                 <table className="w-full table-fixed text-left text-sm">
                   <colgroup>
-                    <col className="w-[24%]" />
+                    <col className="w-[22%]" />
                     <col className="w-[30%]" />
-                    <col className="w-[34%]" />
-                    <col className="w-[88px]" />
+                    <col />
+                    <col className="w-[128px]" />
                   </colgroup>
                   <thead>
                     <tr className="border-b border-border bg-[var(--surface-muted)] text-[12px] font-semibold text-muted-foreground">
@@ -10779,7 +10779,7 @@ function FailoverPageContent() {
                           ? t("failover.workspace.col_execution", { defaultValue: "最近执行" })
                           : t("failover.public.col_execution", { defaultValue: "最近处理" })}
                       </th>
-                      <th className="w-[104px] px-2 py-2 text-right">{t("common.actions", { defaultValue: "Actions" })}</th>
+                      <th className="w-[128px] px-2 py-2 text-right">{t("common.actions", { defaultValue: "Actions" })}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -10860,8 +10860,8 @@ function FailoverPageContent() {
                             </div>
                           </td>
                           <td className="min-w-0 px-3 py-2 align-middle">
-                            <div className="flex min-w-0 items-center gap-2 whitespace-nowrap">
-                              <span className="max-w-[8.5rem] shrink-0 truncate text-[13px] font-semibold leading-5 text-foreground" title={view.currentOutletLabel}>
+                            <div className="flex min-w-0 flex-wrap items-center gap-1.5">
+                              <span className="max-w-[8.5rem] min-w-0 shrink truncate text-[13px] font-semibold leading-5 text-foreground" title={view.currentOutletLabel}>
                                 {view.currentOutletLabel}
                               </span>
                               {platformAdmin ? (
@@ -10877,29 +10877,32 @@ function FailoverPageContent() {
                             </div>
                           </td>
                           <td className="min-w-0 px-3 py-2 align-middle">
-                            <div className="flex min-w-0 items-center gap-1.5 whitespace-nowrap">
-                              {latestExecution ? (
-                                <Badge variant={getStatusVariant(latestExecution.status, "execution")} className="shrink-0">
-                                  {getStatusLabel(t, latestExecution.status)}
-                                </Badge>
-                              ) : (
-                                <Badge variant="outline" className="shrink-0">
-                                  {t("failover.task.no_execution_short", { defaultValue: "No execution" })}
-                                </Badge>
-                              )}
-                              {primaryRiskBadge ? (
-                                <Badge variant={primaryRiskBadge.variant} className="shrink-0" title={primaryRiskBadge.title || undefined}>
-                                  {primaryRiskBadge.label}
-                                </Badge>
-                              ) : null}
-                              {hiddenRiskCount > 0 ? (
-                                <Badge variant="outline" className="shrink-0">
-                                  +{hiddenRiskCount}
-                                </Badge>
-                              ) : null}
+                            <div className="flex min-w-0 flex-col gap-1">
+                              <div className="flex min-w-0 flex-wrap items-center gap-1.5">
+                                {latestExecution ? (
+                                  <Badge variant={getStatusVariant(latestExecution.status, "execution")} className="shrink-0">
+                                    {getStatusLabel(t, latestExecution.status)}
+                                  </Badge>
+                                ) : (
+                                  <Badge variant="outline" className="shrink-0">
+                                    {t("failover.task.no_execution_short", { defaultValue: "No execution" })}
+                                  </Badge>
+                                )}
+                                {primaryRiskBadge ? (
+                                  <Badge variant={primaryRiskBadge.variant} className="shrink-0" title={primaryRiskBadge.title || undefined}>
+                                    {primaryRiskBadge.label}
+                                  </Badge>
+                                ) : null}
+                                {hiddenRiskCount > 0 ? (
+                                  <Badge variant="outline" className="shrink-0">
+                                    +{hiddenRiskCount}
+                                  </Badge>
+                                ) : null}
+                              </div>
+                              <div className="flex min-w-0 items-center gap-2">
                                 <span
                                   className={cn(
-                                    "min-w-[4.5rem] flex-1 truncate text-[12px] leading-5",
+                                    "min-w-0 flex-1 truncate text-[12px] leading-5",
                                     latestExecution?.error_message ? "text-red-600 dark:text-red-300" : "text-muted-foreground",
                                   )}
                                   title={latestExecution?.error_message || view.latestExecutionSummary}
@@ -10907,19 +10910,20 @@ function FailoverPageContent() {
                                   {view.latestExecutionSummary}
                                 </span>
                                 {timingSummary ? (
-                                <span className="hidden shrink-0 text-[11px] leading-4 text-muted-foreground 2xl:inline" title={timingSummary}>
-                                  {timingSummary}
-                                </span>
-                              ) : null}
+                                  <span className="hidden shrink-0 text-[11px] leading-4 text-muted-foreground 2xl:inline" title={timingSummary}>
+                                    {timingSummary}
+                                  </span>
+                                ) : null}
+                              </div>
                             </div>
                           </td>
-                          <td className="px-2 py-2 align-middle">
-                            <div className="flex justify-end gap-1">
+                          <td className="w-[128px] px-2 py-2 align-middle">
+                            <div className="flex justify-end gap-1 whitespace-nowrap">
                               <Button
                                 type="button"
                                 size="sm"
                                 variant="ghost"
-                                className="h-8 rounded-md px-2 text-[12px]"
+                                className="h-8 w-8 rounded-md px-0 text-[12px] 2xl:w-auto 2xl:px-2"
                                 onClick={(event) => {
                                   event.stopPropagation();
                                   void handleRunTask(task);
@@ -10944,7 +10948,7 @@ function FailoverPageContent() {
                                   type="button"
                                   size="sm"
                                   variant="ghost"
-                                  className="h-8 rounded-md px-2 text-[12px]"
+                                  className="h-8 w-8 rounded-md px-0 text-[12px] 2xl:w-auto 2xl:px-2"
                                   onClick={(event) => {
                                     event.stopPropagation();
                                     openExecutionDialog(latestExecution.id, task.name);
