@@ -3528,6 +3528,9 @@
     "pending_cleanup_retry_confirm_title": "Retry cleanup tertunda ini?",
     "pending_cleanup_retry_queued": "Retry cleanup tertunda sudah masuk antrean",
     "pending_cleanup_short": "Cleanup",
+    "sync_dns_now": "Sinkronkan DNS",
+    "dns_sync_now_failed": "Rekonsiliasi DNS gagal",
+    "dns_sync_now_success": "Rekonsiliasi DNS selesai: {{applied}} member disinkronkan, {{skipped}} dilewati.",
     "phase": {
       "badge": "Dukungan provider diperluas",
       "constraints": "Batasan MVP V2 saat ini: layanan DNS Aliyun dan Cloudflare, dengan member DigitalOcean, Linode, dan AWS.",

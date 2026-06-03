@@ -3548,6 +3548,9 @@
     "pending_cleanup_retry_confirm_title": "Retry this pending cleanup?",
     "pending_cleanup_retry_queued": "Pending cleanup retry queued",
     "pending_cleanup_short": "Cleanup",
+    "sync_dns_now": "Sync DNS",
+    "dns_sync_now_failed": "DNS reconciliation failed",
+    "dns_sync_now_success": "DNS reconciliation finished: synced {{applied}} members and skipped {{skipped}}.",
     "phase": {
       "badge": "Expanded provider support",
       "constraints": "Current V2 MVP constraints: Aliyun and Cloudflare DNS services, with DigitalOcean, Linode, and AWS members.",

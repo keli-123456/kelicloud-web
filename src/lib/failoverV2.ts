@@ -267,6 +267,16 @@ export type FailoverV2Service = {
   updated_at: string;
 };
 
+export type FailoverV2DNSSyncSummary = {
+  applied: number;
+  skipped: number;
+};
+
+export type FailoverV2ServiceDNSSyncResult = {
+  sync: FailoverV2DNSSyncSummary;
+  service: FailoverV2Service;
+};
+
 export type FailoverV2ShareAccessPolicy = "public" | "single_use";
 
 export type FailoverV2ShareStatus = "not_shared" | "active" | "expired" | "consumed";
@@ -695,6 +705,14 @@ function normalizeService(service: unknown): FailoverV2Service {
   };
 }
 
+function normalizeDNSSyncSummary(sync: unknown): FailoverV2DNSSyncSummary {
+  const raw = sync && typeof sync === "object" ? sync as Record<string, unknown> : {};
+  return {
+    applied: normalizeNumber(raw.applied),
+    skipped: normalizeNumber(raw.skipped),
+  };
+}
+
 function normalizePublicMember(member: unknown): FailoverV2PublicMember {
   const raw = member && typeof member === "object" ? member as Record<string, unknown> : {};
   return {
@@ -1066,6 +1084,17 @@ export async function setFailoverV2ServiceEnabled(
     body: JSON.stringify({ enabled }),
   });
   return normalizeService(data);
+}
+
+export async function syncFailoverV2ServiceDNS(serviceID: number): Promise<FailoverV2ServiceDNSSyncResult> {
+  const data = await requestEnvelope<unknown>(`/api/admin/failover-v2/services/${serviceID}/sync-dns`, {
+    method: "POST",
+  });
+  const raw = data && typeof data === "object" ? data as Record<string, unknown> : {};
+  return {
+    sync: normalizeDNSSyncSummary(raw.sync),
+    service: normalizeService(raw.service),
+  };
 }
 
 export async function deleteFailoverV2Service(serviceID: number): Promise<void> {

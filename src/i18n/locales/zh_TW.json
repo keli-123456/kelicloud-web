@@ -3548,6 +3548,9 @@
     "pending_cleanup_retry_confirm_title": "重試此待清理項？",
     "pending_cleanup_retry_queued": "待清理項重試已排隊",
     "pending_cleanup_short": "清理",
+    "sync_dns_now": "同步 DNS",
+    "dns_sync_now_failed": "DNS 對帳失敗",
+    "dns_sync_now_success": "DNS 對帳完成：已同步 {{applied}} 個成員，跳過 {{skipped}} 個。",
     "phase": {
       "badge": "擴展提供者支援",
       "constraints": "目前 V2 MVP 限制：DNS 服務支援 Aliyun 和 Cloudflare，成員支援 DigitalOcean、Linode 和 AWS。",

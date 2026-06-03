@@ -3528,6 +3528,9 @@
     "pending_cleanup_retry_confirm_title": "この保留中のクリーンアップを再試行しますか？",
     "pending_cleanup_retry_queued": "保留中のクリーンアップ再試行をキューに入れました",
     "pending_cleanup_short": "Cleanup",
+    "sync_dns_now": "DNS 同期",
+    "dns_sync_now_failed": "DNS 照合に失敗しました",
+    "dns_sync_now_success": "DNS 照合が完了しました: {{applied}} 件のメンバーを同期し、{{skipped}} 件をスキップしました。",
     "phase": {
       "badge": "プロバイダー対応拡張",
       "constraints": "現在の V2 MVP 制約: DNS サービスは Aliyun と Cloudflare、メンバーは DigitalOcean、Linode、AWS に対応します。",

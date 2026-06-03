@@ -141,6 +141,7 @@ import {
   setFailoverV2MemberEnabled,
   setFailoverV2ServiceEnabled,
   stopFailoverV2Execution,
+  syncFailoverV2ServiceDNS,
   toFailoverV2ShareDateTimeLocalValue,
   updateFailoverV2Member,
   updateFailoverV2Service,
@@ -2754,6 +2755,7 @@ export default function FailoverV2Page() {
   const [validatingService, setValidatingService] = React.useState(false);
   const [validatingServiceID, setValidatingServiceID] = React.useState<number | null>(null);
   const [togglingServiceID, setTogglingServiceID] = React.useState<number | null>(null);
+  const [syncingServiceID, setSyncingServiceID] = React.useState<number | null>(null);
   const [shareDialogOpen, setShareDialogOpen] = React.useState(false);
   const [shareDialogService, setShareDialogService] = React.useState<FailoverV2Service | null>(null);
   const [shareRecord, setShareRecord] = React.useState<FailoverV2ShareRecord | null>(null);
@@ -3966,6 +3968,28 @@ export default function FailoverV2Page() {
     }
   }, [replaceServiceInState, t]);
 
+  const handleSyncServiceDNS = React.useCallback(async (service: FailoverV2Service) => {
+    try {
+      setSyncingServiceID(service.id);
+      const result = await syncFailoverV2ServiceDNS(service.id);
+      replaceServiceInState(result.service);
+      toast.success(t("failover_v2.dns_sync_now_success", {
+        defaultValue: "DNS 对账完成：已同步 {{applied}} 个成员，跳过 {{skipped}} 个。",
+        applied: result.sync.applied,
+        skipped: result.sync.skipped,
+      }));
+    } catch (syncError) {
+      const message = resolveFailoverV2ErrorMessage(
+        t,
+        syncError,
+        t("failover_v2.dns_sync_now_failed", { defaultValue: "DNS 对账失败" }),
+      );
+      toast.error(message);
+    } finally {
+      setSyncingServiceID(null);
+    }
+  }, [replaceServiceInState, t]);
+
   const handleToggleMemberEnabled = React.useCallback(async (
     service: FailoverV2Service,
     member: FailoverV2Member,
@@ -4795,6 +4819,15 @@ export default function FailoverV2Page() {
                                 <RefreshCw className="size-4" />
                                 {t("failover_v2.pending_cleanup_short", { defaultValue: "清理" })}
                               </DropdownMenuItem>
+                              {platformAdmin ? (
+                                <DropdownMenuItem
+                                  onSelect={() => { void handleSyncServiceDNS(service); }}
+                                  disabled={serviceBusy || syncingServiceID === service.id}
+                                >
+                                  <RefreshCw className={cn("size-4", syncingServiceID === service.id && "animate-spin")} />
+                                  {t("failover_v2.sync_dns_now", { defaultValue: "同步 DNS" })}
+                                </DropdownMenuItem>
+                              ) : null}
                               <DropdownMenuItem onSelect={() => openShareDialog(service)}>
                                 <Share2 className="size-4" />
                                 {t("failover_v2.share.short", { defaultValue: "分享" })}
