@@ -906,6 +906,8 @@ function AdminPanelBarContent({ content }: AdminPanelBarProps) {
               size="icon"
               className="md:hidden"
               onClick={() => setMobileMenuOpen(false)}
+              title={t("common.collapse_sidebar", "Collapse sidebar")}
+              aria-label={t("common.collapse_sidebar", "Collapse sidebar")}
             >
               <X className="h-5 w-5" />
             </Button>
@@ -1128,6 +1130,8 @@ function AdminPanelBarContent({ content }: AdminPanelBarProps) {
               size="icon"
               className="md:hidden"
               onClick={() => setMobileMenuOpen(true)}
+              title={t("common.open_menu", "Open navigation menu")}
+              aria-label={t("common.open_menu", "Open navigation menu")}
             >
               <Menu className="h-5 w-5" />
             </Button>
@@ -1191,15 +1195,21 @@ function AdminPanelBarContent({ content }: AdminPanelBarProps) {
             ) : null}
             <ThemeSwitch />
             <LanguageSwitch />
-            <Separator orientation="vertical" className="h-5" />
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-9 w-9"
-              onClick={logout}
-            >
-              <LogOut className="h-4 w-4" />
-            </Button>
+            {account?.logged_in ? (
+              <>
+                <Separator orientation="vertical" className="h-5" />
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-9 w-9"
+                  onClick={logout}
+                  title={t("common.logout", "Logout")}
+                  aria-label={t("common.logout", "Logout")}
+                >
+                  <LogOut className="h-4 w-4" />
+                </Button>
+              </>
+            ) : null}
           </div>
         </header>
 
@@ -1237,7 +1247,11 @@ function AdminPanelBarContent({ content }: AdminPanelBarProps) {
                     </div>
                   </div>
                   <div className="flex shrink-0 flex-wrap items-center gap-1.5">
-                    <Button size="sm" className="h-6 px-2 text-xs" onClick={handleEnableHttps}>
+                    <Button
+                      size="sm"
+                      className="h-10 px-3 text-xs sm:h-6 sm:px-2"
+                      onClick={handleEnableHttps}
+                    >
                       {t("admin.httpsNotice.configure", {
                         defaultValue: "去配置",
                       })}
@@ -1255,7 +1269,7 @@ function AdminPanelBarContent({ content }: AdminPanelBarProps) {
                     <Button
                       size="icon"
                       variant="ghost"
-                      className="h-6 w-6 text-amber-900 hover:bg-amber-100/70 dark:text-amber-100 dark:hover:bg-amber-900/40"
+                      className="h-10 w-10 text-amber-900 hover:bg-amber-100/70 dark:text-amber-100 dark:hover:bg-amber-900/40 sm:h-6 sm:w-6"
                       onClick={handleHttpsLater}
                       title={t("admin.httpsNotice.later", {
                         defaultValue: "稍后处理",

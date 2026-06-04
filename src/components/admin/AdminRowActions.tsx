@@ -47,7 +47,8 @@ function AdminRowActions({
           variant="ghost"
           size="icon"
           aria-label={resolvedLabel}
-          className={cn("h-8 w-8 rounded-md", className)}
+          title={resolvedLabel}
+          className={cn("h-10 w-10 rounded-md sm:h-8 sm:w-8", className)}
           onClick={(event) => event.stopPropagation()}
         >
           <MoreHorizontal className="h-4 w-4" />

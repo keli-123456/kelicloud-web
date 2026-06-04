@@ -490,7 +490,11 @@ export function NodeDDNSDialog({
         <Dialog.Trigger asChild>{trigger}</Dialog.Trigger>
       ) : (
         <Dialog.Trigger>
-          <IconButton variant="ghost" title={t("admin.nodeTable.ddns.title", "DDNS")}>
+          <IconButton
+            variant="ghost"
+            title={t("admin.nodeTable.ddns.title", "DDNS")}
+            aria-label={t("admin.nodeTable.ddns.title", "DDNS")}
+          >
             <Globe className="p-1" />
           </IconButton>
         </Dialog.Trigger>

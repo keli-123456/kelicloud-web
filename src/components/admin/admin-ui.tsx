@@ -179,7 +179,7 @@ function IconButton({
   return (
     <Button
       size={size === "1" ? "icon" : size || "icon"}
-      className={cn("h-8 w-8 p-0", className)}
+      className={cn("h-10 w-10 p-0 sm:h-8 sm:w-8", className)}
       {...props}
     />
   );

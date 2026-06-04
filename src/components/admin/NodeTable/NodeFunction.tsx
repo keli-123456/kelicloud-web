@@ -2,7 +2,7 @@ import * as React from "react";
 import { z } from "zod";
 import { schema } from "@/components/admin/NodeTable/schema/node";
 import { DataTableRefreshContext } from "@/components/admin/NodeTable/schema/DataTableRefreshContext";
-import { Terminal, Trash2, Copy, Download, DollarSign, Network } from "lucide-react";
+import { Terminal, Trash2, Copy, Download, DollarSign, Globe, Network } from "lucide-react";
 import { t } from "i18next";
 import type { Row } from "@tanstack/react-table";
 import { EditDialog } from "./NodeEditDialog";
@@ -18,6 +18,7 @@ import {
   TextArea,
   TextField,
 } from "@/components/admin/admin-ui";
+import { AdminRowActions } from "@/components/admin/AdminRowActions";
 import { toast } from "sonner";
 import { useSettings } from "@/lib/api";
 import { formatApiErrorMessage, getReadableErrorMessage } from "@/lib/apiErrorMessage";
@@ -116,6 +117,17 @@ export function ActionsCell({ row }: { row: Row<z.infer<typeof schema>> }) {
     dir: "",
     serviceName: "",
   });
+  const [ddnsOpen, setDdnsOpen] = React.useState(false);
+  const [portForwardOpen, setPortForwardOpen] = React.useState(false);
+  const [priceOpen, setPriceOpen] = React.useState(false);
+  const [deleteOpen, setDeleteOpen] = React.useState(false);
+  const installCommandLabel = t("admin.nodeTable.installCommand", "Install command");
+  const terminalLabel = t("admin.nodeTable.openTerminal", "Open terminal");
+  const ddnsLabel = t("admin.nodeTable.ddns.title", "DDNS");
+  const portForwardLabel = t("admin.nodeTable.portForward.title", "Port forwarding");
+  const priceLabel = t("admin.nodeTable.editNodePrice", "Edit price");
+  const deleteLabel = t("common.delete", "Delete");
+  const moreActionsLabel = t("common.more_actions", "More actions");
 
   const generateCommand = () => {
     const host = window.location.origin;
@@ -192,17 +204,20 @@ export function ActionsCell({ row }: { row: Row<z.infer<typeof schema>> }) {
   };
 
   return (
-    <div className="flex gap-3 justify-center">
+    <div className="flex items-center justify-end gap-1.5">
       <Dialog.Root>
         <Dialog.Trigger>
-          <IconButton variant="ghost">
-            <Download className="p-1" />
+          <IconButton
+            variant="ghost"
+            title={installCommandLabel}
+            aria-label={installCommandLabel}
+            onClick={(event) => event.stopPropagation()}
+          >
+            <Download className="h-4 w-4" />
           </IconButton>
         </Dialog.Trigger>
         <Dialog.Content className={NODE_DIALOG_CONTENT_CLASS}>
-          <Dialog.Title>
-            {t("admin.nodeTable.installCommand", "Install command")}
-          </Dialog.Title>
+          <Dialog.Title>{installCommandLabel}</Dialog.Title>
           <Dialog.Description className="mt-2">
             Generate a ready-to-run agent install command without leaving the node
             table workflow.
@@ -374,31 +389,68 @@ export function ActionsCell({ row }: { row: Row<z.infer<typeof schema>> }) {
           </div>
         </Dialog.Content>
       </Dialog.Root>
-      <a href={`/terminal?uuid=${row.original.uuid}`} target="_blank">
-        <IconButton variant="ghost">
-          <Terminal className="p-1" />
-        </IconButton>
-      </a>
-      {hasFeature("cloud_dns") ? <NodeDDNSDialog item={row.original} /> : null}
-      <NodePortForwardDialog
-        item={row.original}
-        trigger={(
-          <IconButton variant="ghost" title={t("admin.nodeTable.portForward.title", "端口中转")}>
-            <Network className="p-1" />
-          </IconButton>
-        )}
-      />
+      <Button
+        asChild
+        variant="ghost"
+        size="icon"
+        className="h-10 w-10 p-0 sm:h-8 sm:w-8"
+        title={terminalLabel}
+        aria-label={terminalLabel}
+      >
+        <a
+          href={`/terminal?uuid=${row.original.uuid}`}
+          target="_blank"
+          rel="noreferrer"
+          onClick={(event) => event.stopPropagation()}
+        >
+          <Terminal className="h-4 w-4" />
+        </a>
+      </Button>
       {/** Edit Button */}
       <EditDialog item={row.original} />
-      {/** Edit Money */}
-      <Dialog.Root> 
-        <Dialog.Trigger>
-          <IconButton variant="ghost">
-           <DollarSign className="p-1" />
-          </IconButton>
-        </Dialog.Trigger>
+      <AdminRowActions
+        label={moreActionsLabel}
+        contentClassName="min-w-44"
+        actions={[
+          {
+            label: ddnsLabel,
+            icon: <Globe className="h-4 w-4" />,
+            hidden: !hasFeature("cloud_dns"),
+            onSelect: () => setDdnsOpen(true),
+          },
+          {
+            label: portForwardLabel,
+            icon: <Network className="h-4 w-4" />,
+            onSelect: () => setPortForwardOpen(true),
+          },
+          {
+            label: priceLabel,
+            icon: <DollarSign className="h-4 w-4" />,
+            onSelect: () => setPriceOpen(true),
+          },
+          {
+            label: deleteLabel,
+            icon: <Trash2 className="h-4 w-4" />,
+            destructive: true,
+            onSelect: () => setDeleteOpen(true),
+          },
+        ]}
+      />
+      <NodeDDNSDialog
+        item={row.original}
+        trigger={null}
+        open={ddnsOpen}
+        onOpenChange={setDdnsOpen}
+      />
+      <NodePortForwardDialog
+        item={row.original}
+        trigger={null}
+        open={portForwardOpen}
+        onOpenChange={setPortForwardOpen}
+      />
+      <Dialog.Root open={priceOpen} onOpenChange={setPriceOpen}>
         <Dialog.Content className={NODE_DIALOG_COMPACT_CONTENT_CLASS}>
-          <Dialog.Title>{t("admin.nodeTable.editNodePrice")}</Dialog.Title>
+          <Dialog.Title>{priceLabel}</Dialog.Title>
           <Dialog.Description className="mt-2">
             This entry is still pending a proper pricing form and currently remains
             a placeholder surface.
@@ -415,13 +467,7 @@ export function ActionsCell({ row }: { row: Row<z.infer<typeof schema>> }) {
           </div>
         </Dialog.Content>
       </Dialog.Root>
-      {/** Delete Button */}
-      <Dialog.Root>
-        <Dialog.Trigger>
-          <IconButton variant="ghost" color="red" className="text-destructive">
-            <Trash2 className="p-1" />
-          </IconButton>
-        </Dialog.Trigger>
+      <Dialog.Root open={deleteOpen} onOpenChange={setDeleteOpen}>
         <Dialog.Content className={NODE_DIALOG_COMPACT_CONTENT_CLASS}>
           <Dialog.Title>{t("admin.nodeTable.confirmDelete")}</Dialog.Title>
           <Dialog.Description className="mt-2">
@@ -443,31 +489,31 @@ export function ActionsCell({ row }: { row: Row<z.infer<typeof schema>> }) {
                 {t("admin.nodeTable.cancel")}
               </Button>
             </Dialog.Close>
-            <Dialog.Trigger>
-              <Button
-                disabled={removing}
-                color="red"
-                className="w-full sm:w-auto"
-                onClick={async () => {
-                  setRemoving(true);
-                  try {
-                    await removeClient(row.original.uuid);
-                    toast.success(t("admin.nodeTable.deleteSuccess", "Node deleted"));
-                    if (refreshTable) refreshTable();
-                  } catch (error) {
-                    toast.error(
-                      getReadableErrorMessage(error)
-                    );
-                  } finally {
-                    setRemoving(false);
-                  }
-                }}
-              >
-                {removing
-                  ? t("admin.nodeTable.deleting")
-                  : t("admin.nodeTable.confirm")}
-              </Button>
-            </Dialog.Trigger>
+            <Button
+              type="button"
+              disabled={removing}
+              variant="destructive"
+              className="w-full sm:w-auto"
+              onClick={async () => {
+                setRemoving(true);
+                try {
+                  await removeClient(row.original.uuid);
+                  toast.success(t("admin.nodeTable.deleteSuccess", "Node deleted"));
+                  setDeleteOpen(false);
+                  if (refreshTable) refreshTable();
+                } catch (error) {
+                  toast.error(
+                    getReadableErrorMessage(error)
+                  );
+                } finally {
+                  setRemoving(false);
+                }
+              }}
+            >
+              {removing
+                ? t("admin.nodeTable.deleting")
+                : t("admin.nodeTable.confirm")}
+            </Button>
           </Flex>
         </Dialog.Content>
       </Dialog.Root>

@@ -47,6 +47,7 @@ export function EditDialog({ item }: { item: z.infer<typeof schema> }) {
   const [open, setOpen] = React.useState(false);
 
   const refreshTable = React.useContext(DataTableRefreshContext);
+  const editLabel = t("admin.nodeEdit.editInfo", "Edit information");
 
   function saveClientData(
     uuid: string,
@@ -76,14 +77,19 @@ export function EditDialog({ item }: { item: z.infer<typeof schema> }) {
   return (
     <Dialog.Root open={open} onOpenChange={setOpen}>
       <Dialog.Trigger>
-        <IconButton variant="ghost">
+        <IconButton
+          variant="ghost"
+          title={editLabel}
+          aria-label={editLabel}
+          onClick={(event) => event.stopPropagation()}
+        >
           <Pencil className="p-1" />
         </IconButton>
       </Dialog.Trigger>
       <Dialog.Content className={NODE_DIALOG_CONTENT_CLASS}>
         <div className={ADMIN_FORM_HEADER_CLASS}>
           <div className={ADMIN_FORM_HEADER_INSET_CLASS}>
-            <Dialog.Title>{t("admin.nodeEdit.editInfo", "Edit information")}</Dialog.Title>
+            <Dialog.Title>{editLabel}</Dialog.Title>
             <Dialog.Description>
               {t("admin.nodeEdit.editDescription", "调整节点身份和备注，在管理后台中的展示会同步更新。")}
             </Dialog.Description>

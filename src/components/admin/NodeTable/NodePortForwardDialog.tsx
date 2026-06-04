@@ -349,7 +349,11 @@ export function NodePortForwardDialog({
         <Dialog.Trigger asChild>{trigger}</Dialog.Trigger>
       ) : (
         <Dialog.Trigger>
-          <IconButton variant="ghost" title={t("admin.nodeTable.portForward.title", "端口中转")}>
+          <IconButton
+            variant="ghost"
+            title={t("admin.nodeTable.portForward.title", "Port forwarding")}
+            aria-label={t("admin.nodeTable.portForward.title", "Port forwarding")}
+          >
             <Network className="p-1" />
           </IconButton>
         </Dialog.Trigger>
