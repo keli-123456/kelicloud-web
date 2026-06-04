@@ -1,5 +1,5 @@
 import type { TFunction } from "i18next";
-import { CheckCircle2, Tags, Upload } from "lucide-react";
+import { CheckCircle2, Tags } from "lucide-react";
 
 import {
   Badge,
@@ -90,9 +90,9 @@ export function DigitalOceanTokenImportDialog({
           "cloud.tokens.import_dialog_description",
           "每行一个令牌。支持 name,token、name|token，或只填 token。",
         )}
-        icon={<Upload className="size-4" />}
         badge={<Badge color="blue">{t("cloud.providers.digitalocean.name", "DigitalOcean")}</Badge>}
-        maxWidth="52rem"
+        maxWidth="44rem"
+        bodyClassName="space-y-4 py-4"
         footer={(
           <>
             <Button variant="outline" onClick={() => onOpenChange(false)} disabled={saving}>
@@ -108,7 +108,13 @@ export function DigitalOceanTokenImportDialog({
         <CloudImportFormSection
           groupLabel={t("cloud.tokens.group", "分组")}
           groupControl={(
-            <div className="grid min-w-0 gap-2 sm:grid-cols-[minmax(0,1fr)_12rem] sm:items-center">
+            <div
+              className={
+                existingTokenGroups.length
+                  ? "grid min-w-0 gap-2 sm:grid-cols-[minmax(0,1fr)_12rem] sm:items-center"
+                  : "min-w-0"
+              }
+            >
               <TextField.Root
                 className="min-w-0"
                 value={tokenImportGroup}
@@ -139,7 +145,8 @@ export function DigitalOceanTokenImportDialog({
           editor={(
             <CloudCodeTextarea
               value={tokenImportText}
-              minHeightClassName="min-h-[clamp(220px,32vh,280px)]"
+              showLineNumbers={false}
+              minHeightClassName="min-h-[clamp(190px,26vh,230px)]"
               placeholder={t(
                 "cloud.tokens.import_placeholder",
                 "prod-account,dop_v1_xxx\nbackup-account|dop_v1_yyy\ndop_v1_zzz",

@@ -1754,9 +1754,9 @@ function VultrTokenImportDialog({
           "cloud.tokens.import_dialog_description",
           "每行一个令牌。支持 name,token、name|token，或只填 token。",
         )}
-        icon={<Upload className="size-4" />}
         badge={<Badge color="blue">{t("cloud.providers.vultr.title", "Vultr")}</Badge>}
-        maxWidth="52rem"
+        maxWidth="44rem"
+        bodyClassName="space-y-4 py-4"
         footer={(
           <>
             <Button variant="outline" onClick={() => onOpenChange(false)} disabled={saving}>
@@ -1772,7 +1772,13 @@ function VultrTokenImportDialog({
         <CloudImportFormSection
           groupLabel={t("cloud.tokens.group", "分组")}
           groupControl={(
-            <div className="grid min-w-0 gap-2 sm:grid-cols-[minmax(0,1fr)_12rem] sm:items-center">
+            <div
+              className={
+                existingTokenGroups.length
+                  ? "grid min-w-0 gap-2 sm:grid-cols-[minmax(0,1fr)_12rem] sm:items-center"
+                  : "min-w-0"
+              }
+            >
               <TextField.Root
                 className="min-w-0"
                 value={tokenImportGroup}
@@ -1803,7 +1809,8 @@ function VultrTokenImportDialog({
           editor={(
             <CloudCodeTextarea
               value={tokenImportText}
-              minHeightClassName="min-h-[clamp(220px,32vh,280px)]"
+              showLineNumbers={false}
+              minHeightClassName="min-h-[clamp(190px,26vh,230px)]"
               placeholder={t(
                 "cloud.providers.vultr.import_placeholder",
                 "prod-account,vultr_api_token_xxx\nbackup-account|vultr_api_token_yyy\nvultr_api_token_zzz",

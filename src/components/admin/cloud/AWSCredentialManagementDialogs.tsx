@@ -1,5 +1,5 @@
 import type { TFunction } from "i18next";
-import { CheckCircle2, ShieldCheck, Tags, Upload } from "lucide-react";
+import { CheckCircle2, ShieldCheck, Tags } from "lucide-react";
 
 import { AWSRegionSelect } from "@/components/admin/cloud/AWSRegionSelect";
 import {
@@ -49,9 +49,9 @@ export function AWSCredentialImportDialog({
           "cloud.providers.aws.import_dialog_description",
           "每行一个凭证。支持 accessKeyId,secretAccessKey、accessKeyId,secretAccessKey,region，或 name,accessKeyId,secretAccessKey[,region[,sessionToken]]。区域可选，只作为初始兜底。",
         )}
-        icon={<Upload className="size-4" />}
         badge={<Badge color="blue">{t("cloud.providers.aws.name", "AWS")}</Badge>}
-        maxWidth="52rem"
+        maxWidth="44rem"
+        bodyClassName="space-y-4 py-4"
         footer={(
           <>
             <Button variant="outline" onClick={() => onOpenChange(false)} disabled={saving}>
@@ -80,7 +80,8 @@ export function AWSCredentialImportDialog({
           editor={(
             <CloudCodeTextarea
               value={text}
-              minHeightClassName="min-h-[clamp(220px,32vh,280px)]"
+              showLineNumbers={false}
+              minHeightClassName="min-h-[clamp(190px,26vh,230px)]"
               placeholder={"AKIA...,secret...\nAKIA... secret...\nprod,AKIA...,secret...,ap-southeast-1\nbackup|AKIA...|secret...|ap-southeast-1|session-token"}
               onChange={(event) => onTextChange(event.target.value)}
             />

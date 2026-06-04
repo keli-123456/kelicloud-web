@@ -348,11 +348,13 @@ function CloudCodeTextarea({
   onChange,
   placeholder,
   minHeightClassName = "min-h-40",
+  showLineNumbers = true,
   className,
   ...props
 }: React.TextareaHTMLAttributes<HTMLTextAreaElement> & {
   value: string;
   minHeightClassName?: string;
+  showLineNumbers?: boolean;
 }) {
   const lineNumberRef = React.useRef<HTMLDivElement | null>(null);
   const lineCount = Math.max(1, getCloudCodeLines(value).length);
@@ -366,29 +368,36 @@ function CloudCodeTextarea({
         className,
       )}
     >
-      <div
-        ref={lineNumberRef}
-        className={cloudCodeLineNumberClassName}
-        style={{ width: lineNumberWidth }}
-      >
-        {Array.from({ length: lineCount }).map((_, index) => (
-          <div key={index} className="h-5">
-            {index + 1}
-          </div>
-        ))}
-      </div>
+      {showLineNumbers ? (
+        <div
+          ref={lineNumberRef}
+          className={cloudCodeLineNumberClassName}
+          style={{ width: lineNumberWidth }}
+        >
+          {Array.from({ length: lineCount }).map((_, index) => (
+            <div key={index} className="h-5">
+              {index + 1}
+            </div>
+          ))}
+        </div>
+      ) : null}
       <textarea
         {...props}
         value={value}
         onChange={onChange}
         placeholder={placeholder}
         onScroll={(event) => {
-          if (lineNumberRef.current) {
+          if (showLineNumbers && lineNumberRef.current) {
             lineNumberRef.current.scrollTop = event.currentTarget.scrollTop;
           }
           props.onScroll?.(event);
         }}
-        className="min-h-full flex-1 resize-y border-0 bg-transparent px-4 py-3 font-mono text-[12px] leading-5 text-foreground outline-none placeholder:text-muted-foreground focus-visible:ring-0 [overflow-wrap:anywhere] [scrollbar-gutter:stable]"
+        className={cn(
+          "min-h-full flex-1 resize-y border-0 bg-transparent font-mono text-foreground outline-none placeholder:text-muted-foreground focus-visible:ring-0 [overflow-wrap:anywhere] [scrollbar-gutter:stable]",
+          showLineNumbers
+            ? "px-4 py-3 text-[12px] leading-5"
+            : "px-3.5 py-3 text-[13px] leading-6",
+        )}
       />
     </div>
   );
@@ -485,12 +494,12 @@ function CloudImportFormSection({
   return (
     <section
       className={cn(
-        "min-w-0 space-y-4",
+        "min-w-0 space-y-3",
         className,
       )}
     >
-      <div className="min-w-0 space-y-2">
-        <label className={cloudPanelFieldLabelClassName}>
+      <div className="grid min-w-0 gap-2 sm:grid-cols-[4.5rem_minmax(0,1fr)] sm:items-center">
+        <label className={cn(cloudPanelFieldLabelClassName, "leading-9")}>
           {groupLabel}
         </label>
         <div className="min-w-0 overflow-hidden">
@@ -498,13 +507,15 @@ function CloudImportFormSection({
         </div>
       </div>
 
-      <div className="min-w-0 space-y-2">
-        <div className="flex min-w-0 items-center justify-between gap-3">
-          <div className={cloudPanelFieldLabelClassName}>
+      <div className="grid min-w-0 gap-2 sm:grid-cols-[4.5rem_minmax(0,1fr)]">
+        <div className="flex min-w-0 items-center justify-between gap-3 sm:items-start sm:pt-2.5">
+          <div className={cn(cloudPanelFieldLabelClassName, "whitespace-nowrap")}>
             {editorLabel}
           </div>
         </div>
-        {editor}
+        <div className="min-w-0">
+          {editor}
+        </div>
       </div>
 
       {footer ? (
