@@ -6860,20 +6860,10 @@ function TaskEditorDialog({
         || t("failover.preview.not_run", { defaultValue: "Not run yet" }),
     },
   ];
-  const mainTaskPolicyNotes = [
-    t("failover.editor.main_summary_task_note", { defaultValue: "主弹窗只保留任务身份、DNS 摘要、方案顺序和预检状态。" }),
-    t("failover.editor.main_summary_nested_note", { defaultValue: "监控、DNS、方案、预检都拆到二级弹窗，避免主表单变成细长列表。" }),
-    t("failover.editor.main_summary_save_note", { defaultValue: "保存前会按当前配置生成预检签名，预检过期时会阻止保存。" }),
-  ];
   const taskDialogSummaryRows: StickySummaryRow[] = taskMonitoringSummaryItems.map((item) => ({
     label: item.label,
     value: item.value,
   }));
-  const taskDialogPolicyNotes = [
-    t("failover.editor.monitoring_summary_threshold_note", { defaultValue: "失败阈值决定连续异常多少次后进入故障切换判断。" }),
-    t("failover.editor.monitoring_summary_cooldown_note", { defaultValue: "冷却时间是一次执行后的保护间隔，避免节点抖动时重复创建实例。" }),
-    t("failover.editor.monitoring_summary_retry_note", { defaultValue: "凭证或出口创建失败时，会按重试次数和方案顺序回退。" }),
-  ];
   const dnsDialogSummaryRows: StickySummaryRow[] = hasDnsEnabled
     ? dnsSummaryItems.map((item) => ({
       label: item.label,
@@ -7626,12 +7616,7 @@ function TaskEditorDialog({
                           defaultValue: "这些值决定什么时候触发切换、什么时候暂停重试，以及方案如何回退。",
                         })}
                         rows={taskDialogSummaryRows}
-                      >
-                        <SummaryNoteList
-                          title={t("failover.editor.monitoring_summary_policy", { defaultValue: "运行含义" })}
-                          notes={taskDialogPolicyNotes}
-                        />
-                      </StickyEditorSummaryPanel>
+                      />
                     </section>
                   </div>
                 </DialogContent>
@@ -10165,12 +10150,7 @@ function TaskEditorDialog({
                   defaultValue: "右侧只保留会影响执行结果的关键状态，左侧负责编辑具体表单。",
                 })}
                 rows={mainTaskSummaryRows}
-              >
-                <SummaryNoteList
-                  title={t("failover.editor.main_summary_policy", { defaultValue: "编辑节奏" })}
-                  notes={mainTaskPolicyNotes}
-                />
-              </StickyEditorSummaryPanel>
+              />
             </div>
           </div>
 

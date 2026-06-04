@@ -1206,10 +1206,10 @@ function AdminPanelBarContent({ content }: AdminPanelBarProps) {
         <main className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-contain bg-background">
           <div className="flex min-h-full w-full min-w-0 flex-col">
             {!ishttps && !httpsNoticeDismissed && (
-              <div className="px-3 pt-1.5 sm:px-4">
-                <div className="flex min-h-9 flex-col gap-2 rounded-md border border-amber-200/70 bg-amber-50/25 px-3 py-1.5 text-amber-950 shadow-none dark:border-amber-900/50 dark:bg-amber-950/15 dark:text-amber-100 md:flex-row md:items-center md:justify-between">
+              <div className="px-3 pt-1 sm:px-4">
+                <div className="flex min-h-8 flex-row items-center justify-between gap-2 rounded-md border border-amber-200/60 bg-amber-50/20 px-2.5 py-1 text-amber-950 shadow-none dark:border-amber-900/40 dark:bg-amber-950/10 dark:text-amber-100">
                   <div className="flex min-w-0 items-center gap-2.5">
-                    <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-md bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-200">
+                    <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-md bg-amber-100/70 text-amber-700 dark:bg-amber-900/30 dark:text-amber-200">
                       <svg
                         xmlns="http://www.w3.org/2000/svg"
                         width="14"
@@ -1223,12 +1223,12 @@ function AdminPanelBarContent({ content }: AdminPanelBarProps) {
                       </svg>
                     </span>
                     <div className="min-w-0 md:flex md:items-center md:gap-2">
-                      <div className="truncate text-sm font-medium leading-5">
+                      <div className="truncate text-xs font-medium leading-5 md:text-sm">
                         {t("admin.httpsNotice.title", {
                           defaultValue: "当前正在使用 HTTP，建议尽快启用 HTTPS",
                         })}
                       </div>
-                      <p className="hidden max-w-4xl truncate text-xs leading-5 text-amber-900/70 dark:text-amber-100/65 xl:block">
+                      <p className="hidden max-w-3xl truncate text-[11px] leading-5 text-amber-900/65 dark:text-amber-100/60 2xl:block">
                         {t("admin.httpsNotice.description", {
                           defaultValue:
                             "未加密连接可能暴露登录凭据和管理指令，生产环境建议切换到 HTTPS。",
@@ -1245,7 +1245,7 @@ function AdminPanelBarContent({ content }: AdminPanelBarProps) {
                     <Button
                       size="sm"
                       variant="ghost"
-                      className="h-6 px-2 text-xs text-amber-900 hover:bg-amber-100/70 dark:text-amber-100 dark:hover:bg-amber-900/40"
+                      className="hidden h-6 px-2 text-xs text-amber-900 hover:bg-amber-100/70 dark:text-amber-100 dark:hover:bg-amber-900/40 sm:inline-flex"
                       onClick={handleHttpsLearnMore}
                     >
                       {t("admin.httpsNotice.learnMore", {

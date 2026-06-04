@@ -4595,26 +4595,37 @@ export default function FailoverV2Page() {
         ) : null}
 
         {!loadingServices && services.length === 0 ? (
-          <AdminDataPanel bodyClassName="px-4 py-5">
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                <div className="min-w-0">
-                <h2 className="text-sm font-semibold text-foreground">
+          <AdminDataPanel bodyClassName="px-5 py-8">
+            <div className="mx-auto flex max-w-2xl flex-col items-center gap-4 text-center">
+              <div className="rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-xs font-medium text-blue-700 dark:border-blue-900/60 dark:bg-blue-950/20 dark:text-blue-200">
+                {t("failover_v2.empty_badge", { defaultValue: "V2 工作台" })}
+              </div>
+              <div className="space-y-2">
+                <h2 className="text-base font-semibold text-foreground">
                   {t("failover_v2.empty_title", { defaultValue: "No V2 services yet" })}
                 </h2>
-                <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                <p className="text-sm leading-6 text-muted-foreground">
                   {t("failover_v2.empty_description", {
                     defaultValue:
-                      "Create your first isolated V2 service. Each service will later manage multiple line-bound members without affecting V1.",
+                      "Create your first isolated V2 service. Each service can manage multiple members without affecting V1.",
                   })}
                 </p>
-                </div>
-                {platformAdmin ? (
+              </div>
+              <div className="flex flex-wrap justify-center gap-2 text-xs text-muted-foreground">
+                <span className="rounded-md border border-border bg-background px-2.5 py-1">
+                  {t("failover_v2.empty_tag_members", { defaultValue: "多成员" })}
+                </span>
+                <span className="rounded-md border border-border bg-background px-2.5 py-1">
+                  {t("failover_v2.empty_tag_dns", { defaultValue: "独立 DNS" })}
+                </span>
+              </div>
+              {platformAdmin ? (
                 <Button onClick={openCreateServiceDialog} size="sm" className="shrink-0">
                   <Plus className="mr-2 size-4" />
                   {t("failover_v2.create_service", { defaultValue: "Create service" })}
                 </Button>
-                ) : null}
-              </div>
+              ) : null}
+            </div>
           </AdminDataPanel>
         ) : null}
 
