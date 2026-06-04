@@ -50,8 +50,10 @@ export function AWSCredentialImportDialog({
           "每行一个凭证。支持 accessKeyId,secretAccessKey、accessKeyId,secretAccessKey,region，或 name,accessKeyId,secretAccessKey[,region[,sessionToken]]。区域可选，只作为初始兜底。",
         )}
         badge={<Badge color="blue">{t("cloud.providers.aws.name", "AWS")}</Badge>}
-        maxWidth="44rem"
-        bodyClassName="space-y-4 py-4"
+        maxWidth="40rem"
+        headerClassName="px-4 py-3 sm:px-4"
+        bodyClassName="space-y-3 px-4 py-3 sm:px-4 sm:py-3"
+        footerClassName="px-4 py-3 sm:px-4"
         footer={(
           <>
             <Button variant="outline" onClick={() => onOpenChange(false)} disabled={saving}>
@@ -81,7 +83,7 @@ export function AWSCredentialImportDialog({
             <CloudCodeTextarea
               value={text}
               showLineNumbers={false}
-              minHeightClassName="min-h-[clamp(190px,26vh,230px)]"
+              minHeightClassName="min-h-[clamp(170px,24vh,210px)]"
               placeholder={"AKIA...,secret...\nAKIA... secret...\nprod,AKIA...,secret...,ap-southeast-1\nbackup|AKIA...|secret...|ap-southeast-1|session-token"}
               onChange={(event) => onTextChange(event.target.value)}
             />

@@ -5,7 +5,7 @@ const ADMIN_FORM_DIALOG_WIDE_CLASS =
   "admin-dialog flex max-h-[min(92vh,calc(100dvh-1.5rem))] w-[calc(100vw-1rem)] max-w-[76rem] flex-col overflow-hidden sm:w-[calc(100vw-2rem)] sm:max-w-[76rem]";
 
 const ADMIN_FORM_DIALOG_CHROME_CLASS =
-  "admin-dialog gap-0 overflow-hidden p-0";
+  "admin-dialog gap-0 overflow-hidden p-0 sm:p-0";
 
 const ADMIN_FORM_HEADER_CLASS =
   "admin-panel-header shrink-0 px-4 py-3.5 sm:px-5";

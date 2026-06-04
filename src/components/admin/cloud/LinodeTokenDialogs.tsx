@@ -91,8 +91,10 @@ export function LinodeTokenImportDialog({
           "每行一个令牌。支持 name,token、name|token，或只填 token。",
         )}
         badge={<Badge color="blue">{t("cloud.providers.linode.name", "Linode")}</Badge>}
-        maxWidth="44rem"
-        bodyClassName="space-y-4 py-4"
+        maxWidth="40rem"
+        headerClassName="px-4 py-3 sm:px-4"
+        bodyClassName="space-y-3 px-4 py-3 sm:px-4 sm:py-3"
+        footerClassName="px-4 py-3 sm:px-4"
         footer={(
           <>
             <Button variant="outline" onClick={() => onOpenChange(false)} disabled={saving}>
@@ -146,7 +148,7 @@ export function LinodeTokenImportDialog({
             <CloudCodeTextarea
               value={tokenImportText}
               showLineNumbers={false}
-              minHeightClassName="min-h-[clamp(190px,26vh,230px)]"
+              minHeightClassName="min-h-[clamp(170px,24vh,210px)]"
               placeholder={t(
                 "cloud.tokens.import_placeholder",
                 "prod-account,dop_v1_xxx\nbackup-account|dop_v1_yyy\ndop_v1_zzz",

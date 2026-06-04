@@ -494,12 +494,12 @@ function CloudImportFormSection({
   return (
     <section
       className={cn(
-        "min-w-0 space-y-3",
+        "min-w-0 space-y-3.5",
         className,
       )}
     >
-      <div className="grid min-w-0 gap-2 sm:grid-cols-[4.5rem_minmax(0,1fr)] sm:items-center">
-        <label className={cn(cloudPanelFieldLabelClassName, "leading-9")}>
+      <div className="min-w-0 space-y-1.5">
+        <label className={cn(cloudPanelFieldLabelClassName, "text-[13px] leading-5")}>
           {groupLabel}
         </label>
         <div className="min-w-0 overflow-hidden">
@@ -507,9 +507,9 @@ function CloudImportFormSection({
         </div>
       </div>
 
-      <div className="grid min-w-0 gap-2 sm:grid-cols-[4.5rem_minmax(0,1fr)]">
-        <div className="flex min-w-0 items-center justify-between gap-3 sm:items-start sm:pt-2.5">
-          <div className={cn(cloudPanelFieldLabelClassName, "whitespace-nowrap")}>
+      <div className="min-w-0 space-y-1.5">
+        <div className="flex min-w-0 items-center justify-between gap-3">
+          <div className={cn(cloudPanelFieldLabelClassName, "text-[13px] leading-5")}>
             {editorLabel}
           </div>
         </div>
@@ -537,7 +537,9 @@ type CloudSensitiveDialogContentProps = {
   footer?: React.ReactNode;
   maxWidth?: string | number;
   className?: string;
+  headerClassName?: string;
   bodyClassName?: string;
+  footerClassName?: string;
 };
 
 function CloudSensitiveDialogContent({
@@ -550,7 +552,9 @@ function CloudSensitiveDialogContent({
   footer,
   maxWidth,
   className,
+  headerClassName,
   bodyClassName,
+  footerClassName,
 }: CloudSensitiveDialogContentProps) {
   return (
     <AdminDialogLayout
@@ -563,8 +567,10 @@ function CloudSensitiveDialogContent({
       maxWidth={maxWidth}
       wide
       className={className}
+      headerClassName={headerClassName}
       descriptionClassName={cloudLongTextClassName}
       bodyClassName={cn("space-y-5 py-5", bodyClassName)}
+      footerClassName={footerClassName}
     >
       {children}
     </AdminDialogLayout>

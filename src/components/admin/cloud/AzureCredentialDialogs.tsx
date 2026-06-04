@@ -113,8 +113,10 @@ export function AzureCredentialImportDialog({
           "每行一个凭证（CSV/竖线/Tab），或直接粘贴 JSON 对象/数组。支持 Azure CLI 服务主体 JSON；subscription_id 可选。",
         )}
         badge={<Badge color="blue">{t("cloud.providers.azure.name", "Azure")}</Badge>}
-        maxWidth="44rem"
-        bodyClassName="space-y-4 py-4"
+        maxWidth="40rem"
+        headerClassName="px-4 py-3 sm:px-4"
+        bodyClassName="space-y-3 px-4 py-3 sm:px-4 sm:py-3"
+        footerClassName="px-4 py-3 sm:px-4"
         footer={(
           <>
             <Button variant="outline" onClick={() => onOpenChange(false)} disabled={saving}>
@@ -142,7 +144,7 @@ export function AzureCredentialImportDialog({
           editor={(
             <CloudCodeTextarea
               showLineNumbers={false}
-              minHeightClassName="min-h-[clamp(190px,26vh,230px)]"
+              minHeightClassName="min-h-[clamp(170px,24vh,210px)]"
               value={importText}
               onChange={(event) => setImportText(event.target.value)}
               placeholder='{"appId":"...","displayName":"azure-cli-...","password":"...","tenant":"..."}'
