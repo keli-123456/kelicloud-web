@@ -10743,7 +10743,7 @@ function FailoverPageContent() {
             >
 
               <div className="admin-data-table-scroll overflow-x-auto overscroll-x-contain [scrollbar-gutter:stable]">
-                <table className="admin-data-table w-full table-fixed text-left text-sm">
+                <table className="admin-data-table min-w-[760px] w-full table-fixed text-left text-sm xl:min-w-0">
                   <colgroup>
                     <col className="w-[22%]" />
                     <col className="w-[30%]" />
@@ -10843,7 +10843,7 @@ function FailoverPageContent() {
                               </Badge>
                             </div>
                           </td>
-                          <td className="min-w-0 px-3 py-2 align-middle">
+                          <td className="min-w-0 overflow-hidden px-3 py-2 align-middle">
                             <div className="flex min-w-0 items-center gap-1.5 whitespace-nowrap">
                               <span className="max-w-[13rem] min-w-0 shrink truncate text-[13px] font-semibold leading-5 text-foreground" title={view.currentOutletLabel}>
                                 {view.currentOutletLabel}
@@ -10897,13 +10897,13 @@ function FailoverPageContent() {
                                 ) : null}
                             </div>
                           </td>
-                          <td className="w-[128px] px-2 py-2 align-middle">
+                          <td className="w-[128px] overflow-hidden px-2 py-2 align-middle">
                             <div className="flex justify-end gap-1 whitespace-nowrap">
                               <Button
                                 type="button"
                                 size="sm"
                                 variant="ghost"
-                                className="h-8 w-8 rounded-md px-0 text-[12px] 2xl:w-auto 2xl:px-2"
+                                className="h-8 w-8 rounded-md px-0 text-[12px]"
                                 onClick={(event) => {
                                   event.stopPropagation();
                                   void handleRunTask(task);
@@ -10917,18 +10917,13 @@ function FailoverPageContent() {
                                   : t("failover.actions.run", { defaultValue: "Run" })}
                               >
                                 {taskRunning ? <LoaderCircle className="size-3.5 animate-spin" /> : <Play className="size-3.5" />}
-                                <span className="hidden 2xl:inline">
-                                  {view.requiresInitialization
-                                    ? t("failover.actions.initialize", { defaultValue: "Initialize" })
-                                    : t("failover.actions.run", { defaultValue: "Run" })}
-                                </span>
                               </Button>
                               {latestExecution ? (
                                 <Button
                                   type="button"
                                   size="sm"
                                   variant="ghost"
-                                  className="h-8 w-8 rounded-md px-0 text-[12px] 2xl:w-auto 2xl:px-2"
+                                  className="h-8 w-8 rounded-md px-0 text-[12px]"
                                   onClick={(event) => {
                                     event.stopPropagation();
                                     openExecutionDialog(latestExecution.id, task.name);
@@ -10937,9 +10932,6 @@ function FailoverPageContent() {
                                   aria-label={t("failover.table.view_latest", { defaultValue: "View details" })}
                                 >
                                   <Eye className="size-3.5" />
-                                  <span className="hidden 2xl:inline">
-                                    {t("common.details", { defaultValue: "Details" })}
-                                  </span>
                                 </Button>
                               ) : null}
                               <DropdownMenu>
