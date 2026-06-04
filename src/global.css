@@ -448,9 +448,9 @@
   .admin-panel {
     overflow: hidden;
     border-radius: var(--radius);
-    border: 1px solid color-mix(in srgb, var(--border) 92%, var(--foreground) 6%);
+    border: 1px solid color-mix(in srgb, var(--border) 82%, var(--foreground) 14%);
     background-color: var(--surface);
-    background-image: linear-gradient(180deg, var(--surface) 0%, color-mix(in srgb, var(--surface) 92%, var(--surface-subtle)) 100%);
+    background-image: linear-gradient(180deg, color-mix(in srgb, var(--surface) 96%, var(--surface-muted)) 0%, var(--surface) 100%);
     box-shadow: var(--admin-panel-shadow);
   }
 
@@ -466,9 +466,99 @@
 
   .admin-inline-surface {
     border-radius: calc(var(--radius) - 1px);
-    border: 1px solid color-mix(in srgb, var(--border) 86%, transparent);
-    background: color-mix(in srgb, var(--surface-subtle) 82%, var(--surface));
+    border: 1px solid color-mix(in srgb, var(--border) 86%, var(--foreground) 4%);
+    background: color-mix(in srgb, var(--surface-subtle) 86%, var(--surface));
     box-shadow: none;
+  }
+
+  .admin-table-frame {
+    min-width: 0;
+    overflow: hidden;
+    border-radius: var(--radius);
+    border: 1px solid color-mix(in srgb, var(--border) 84%, var(--foreground) 8%);
+    background: var(--surface);
+  }
+
+  .admin-data-table-scroll {
+    background: var(--surface);
+    scrollbar-color: color-mix(in srgb, var(--muted-foreground) 34%, transparent) transparent;
+    scrollbar-width: thin;
+  }
+
+  .admin-data-table {
+    border-collapse: separate;
+    border-spacing: 0;
+    background: var(--surface);
+  }
+
+  .admin-data-table :is(th, td) {
+    border-bottom: 1px solid color-mix(in srgb, var(--border) 76%, transparent);
+  }
+
+  .admin-data-table tbody tr:last-child td {
+    border-bottom: 0;
+  }
+
+  .admin-grid-table {
+    min-width: 0;
+    background: var(--surface);
+  }
+
+  .admin-grid-head {
+    border-bottom: 1px solid var(--border);
+    background: var(--surface-muted);
+  }
+
+  .admin-grid-row {
+    border-bottom: 1px solid color-mix(in srgb, var(--border) 76%, transparent);
+    background: var(--surface);
+    transition: background-color 140ms ease;
+  }
+
+  .admin-grid-row:hover {
+    background: var(--surface-hover);
+  }
+
+  .admin-grid-row[data-selected="true"] {
+    background: var(--surface-pressed);
+  }
+
+  .admin-grid-row:last-child {
+    border-bottom: 0;
+  }
+
+  .admin-grid-row-nested {
+    background: color-mix(in srgb, var(--surface-subtle) 52%, var(--surface));
+  }
+
+  .admin-alert {
+    border-radius: calc(var(--radius) - 2px);
+    border: 1px solid var(--border);
+    padding: 0.55rem 0.75rem;
+    font-size: 0.8125rem;
+    line-height: 1.45;
+  }
+
+  .admin-alert-danger {
+    border-color: color-mix(in srgb, #ef4444 38%, var(--border));
+    background: color-mix(in srgb, #fee2e2 62%, var(--surface));
+    color: #b91c1c;
+  }
+
+  .admin-alert-warning {
+    border-color: color-mix(in srgb, #f59e0b 36%, var(--border));
+    background: color-mix(in srgb, #fef3c7 60%, var(--surface));
+    color: #92400e;
+  }
+
+  .dark .admin-alert-danger {
+    background: color-mix(in srgb, #450a0a 44%, var(--surface));
+    color: #fecaca;
+  }
+
+  .dark .admin-alert-warning {
+    background: color-mix(in srgb, #451a03 42%, var(--surface));
+    color: #fde68a;
   }
 
   .admin-app-shell :is(input, textarea, [data-slot="select-trigger"]) {

@@ -21,7 +21,7 @@ function AdminDataTableScroll({
   return (
     <div
       className={cn(
-        "min-w-0 overflow-x-auto overscroll-x-contain [scrollbar-gutter:stable]",
+        "admin-data-table-scroll min-w-0 overflow-x-auto overscroll-x-contain [scrollbar-gutter:stable]",
         className,
       )}
       {...props}
@@ -39,7 +39,7 @@ function AdminDataTable({
 }) {
   return (
     <table
-      className={cn("w-full border-collapse text-left text-sm [table-layout:auto]", className)}
+      className={cn("admin-data-table w-full text-left text-sm [table-layout:auto]", className)}
       style={{ minWidth, ...style }}
       {...props}
     />
@@ -53,7 +53,7 @@ function AdminDataTableHeadRow({
   return (
     <tr
       className={cn(
-        "border-b border-border bg-[var(--surface-muted)] text-[12px] font-semibold text-muted-foreground",
+        "bg-[var(--surface-muted)] text-[12px] font-semibold text-muted-foreground",
         className,
       )}
       {...props}
@@ -74,7 +74,7 @@ function AdminDataTableRow({
     <tr
       data-selected={selected ? "true" : undefined}
       className={cn(
-        "border-b border-border/70 transition-colors last:border-b-0 hover:bg-[var(--surface-hover)] data-[selected=true]:bg-[var(--surface-pressed)]",
+        "transition-colors hover:bg-[var(--surface-hover)] data-[selected=true]:bg-[var(--surface-pressed)]",
         interactive && "cursor-pointer",
         className,
       )}
@@ -95,7 +95,7 @@ function AdminDataTableHead({
   return (
     <th
       className={cn(
-        "whitespace-nowrap px-3.5 py-2 align-middle",
+        "h-9 whitespace-nowrap px-3.5 py-2 align-middle",
         alignClasses[align],
         sticky === "right" && "bg-[var(--surface-muted)] backdrop-blur",
         sticky === "right" && stickyRightClass,
@@ -118,7 +118,7 @@ function AdminDataTableCell({
   return (
     <td
       className={cn(
-        "min-w-0 px-3.5 py-2.5 align-middle text-[12px] leading-5 text-foreground",
+        "min-w-0 px-3.5 py-2.5 align-middle text-[13px] leading-5 text-foreground",
         alignClasses[align],
         sticky === "right" && "bg-[var(--surface)]",
         sticky === "right" && stickyRightClass,

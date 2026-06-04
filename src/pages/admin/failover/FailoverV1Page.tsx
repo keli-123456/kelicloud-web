@@ -5020,7 +5020,7 @@ function TaskPreviewSection({
         ) : null}
 
         {!loading && error ? (
-          <div className="border-l-2 border-red-300 bg-red-50/70 px-3 py-2 text-sm text-red-700 dark:border-red-800 dark:bg-red-950/20 dark:text-red-200">
+          <div className="admin-alert admin-alert-danger text-sm">
             {error}
           </div>
         ) : null}
@@ -10738,8 +10738,8 @@ function FailoverPageContent() {
               )}
             >
 
-              <div className="overflow-hidden">
-                <table className="w-full table-fixed text-left text-sm">
+              <div className="admin-data-table-scroll overflow-x-auto overscroll-x-contain [scrollbar-gutter:stable]">
+                <table className="admin-data-table w-full table-fixed text-left text-sm">
                   <colgroup>
                     <col className="w-[22%]" />
                     <col className="w-[30%]" />
@@ -10747,7 +10747,7 @@ function FailoverPageContent() {
                     <col className="w-[128px]" />
                   </colgroup>
                   <thead>
-                    <tr className="border-b border-border bg-[var(--surface-muted)] text-[12px] font-semibold text-muted-foreground">
+                    <tr className="bg-[var(--surface-muted)] text-[12px] font-semibold text-muted-foreground">
                       <th className="px-3 py-2">{t("failover.workspace.col_task", { defaultValue: "任务" })}</th>
                       <th className="px-3 py-2">
                         {platformAdmin
@@ -10824,7 +10824,7 @@ function FailoverPageContent() {
                             }
                           }}
                           className={cn(
-                            "cursor-pointer border-b border-border transition-colors last:border-b-0 hover:bg-[var(--surface-hover)]",
+                            "cursor-pointer transition-colors hover:bg-[var(--surface-hover)]",
                             selected && "bg-[var(--surface-pressed)]",
                             task.has_active_execution && "bg-amber-50/70 dark:bg-amber-950/20",
                           )}
@@ -10840,8 +10840,8 @@ function FailoverPageContent() {
                             </div>
                           </td>
                           <td className="min-w-0 px-3 py-2 align-middle">
-                            <div className="flex min-w-0 flex-wrap items-center gap-1.5">
-                              <span className="max-w-[8.5rem] min-w-0 shrink truncate text-[13px] font-semibold leading-5 text-foreground" title={view.currentOutletLabel}>
+                            <div className="flex min-w-0 items-center gap-1.5 whitespace-nowrap">
+                              <span className="max-w-[13rem] min-w-0 shrink truncate text-[13px] font-semibold leading-5 text-foreground" title={view.currentOutletLabel}>
                                 {view.currentOutletLabel}
                               </span>
                               {platformAdmin ? (
@@ -10857,8 +10857,7 @@ function FailoverPageContent() {
                             </div>
                           </td>
                           <td className="min-w-0 px-3 py-2 align-middle">
-                            <div className="flex min-w-0 flex-col gap-1">
-                              <div className="flex min-w-0 flex-wrap items-center gap-1.5">
+                            <div className="flex min-w-0 items-center gap-1.5 whitespace-nowrap">
                                 {latestExecution ? (
                                   <Badge variant={getStatusVariant(latestExecution.status, "execution")} className="shrink-0">
                                     {getStatusLabel(t, latestExecution.status)}
@@ -10878,8 +10877,6 @@ function FailoverPageContent() {
                                     +{hiddenRiskCount}
                                   </Badge>
                                 ) : null}
-                              </div>
-                              <div className="flex min-w-0 items-center gap-2">
                                 <span
                                   className={cn(
                                     "min-w-0 flex-1 truncate text-[12px] leading-5",
@@ -10894,7 +10891,6 @@ function FailoverPageContent() {
                                     {timingSummary}
                                   </span>
                                 ) : null}
-                              </div>
                             </div>
                           </td>
                           <td className="w-[128px] px-2 py-2 align-middle">
@@ -11073,7 +11069,7 @@ function FailoverPageContent() {
                     </div>
 
                     <div className="grid gap-3 px-4 py-3 sm:grid-cols-2 xl:grid-cols-1 2xl:grid-cols-2">
-                        <div className="min-w-0 border-l-2 border-border py-1 pl-3">
+                        <div className="admin-inline-surface min-w-0 px-3 py-2">
                         <div className="text-[11px] font-semibold leading-4 text-muted-foreground">
                           {platformAdmin
                             ? t("failover.task.outlet_ip_label", { defaultValue: "Outlet IP" })
@@ -11084,7 +11080,7 @@ function FailoverPageContent() {
                         </div>
                       </div>
                       {platformAdmin ? (
-                      <div className="min-w-0 border-l-2 border-border py-1 pl-3">
+                      <div className="admin-inline-surface min-w-0 px-3 py-2">
                         <div className="text-[11px] font-semibold leading-4 text-muted-foreground">
                           {t("failover.task.dns_target_label", { defaultValue: "DNS target" })}
                         </div>
@@ -11093,7 +11089,7 @@ function FailoverPageContent() {
                         </div>
                       </div>
                       ) : null}
-                      <div className="min-w-0 border-l-2 border-border py-1 pl-3">
+                      <div className="admin-inline-surface min-w-0 px-3 py-2">
                         <div className="text-[11px] font-semibold leading-4 text-muted-foreground">
                           {platformAdmin
                             ? t("failover.table.cooldown", { defaultValue: "Cooldown" })
@@ -11104,7 +11100,7 @@ function FailoverPageContent() {
                         </div>
                       </div>
                       {platformAdmin ? (
-                      <div className="min-w-0 border-l-2 border-border py-1 pl-3">
+                      <div className="admin-inline-surface min-w-0 px-3 py-2">
                         <div className="text-[11px] font-semibold leading-4 text-muted-foreground">
                           {t("failover.editor.section_plans", { defaultValue: "Failover plans" })}
                         </div>
@@ -11213,7 +11209,7 @@ function FailoverPageContent() {
                       </div>
                       <div className="space-y-2">
                         {selectedTask.plans.slice(0, 3).map((plan) => (
-                          <div key={plan.id} className="border-l-2 border-border py-1 pl-3">
+                          <div key={plan.id} className="admin-inline-surface px-3 py-2">
                             <div className="flex items-center justify-between gap-2">
                               <div className="min-w-0 truncate text-[13px] font-medium leading-5 text-foreground" title={plan.name}>
                                 {plan.name}

@@ -1886,10 +1886,10 @@ const NodeTableColumnProfile = () => (
 const NodeTableColumns = () => {
   const { t } = useTranslation();
   const stickyHeadClass =
-    "sticky top-0 z-20 bg-slate-100/95 text-slate-600 backdrop-blur supports-[backdrop-filter]:bg-slate-100/85 dark:bg-slate-900/95 dark:text-slate-300 dark:supports-[backdrop-filter]:bg-slate-900/85";
+    "sticky top-0 z-20 bg-[var(--surface-muted)] text-muted-foreground backdrop-blur";
 
   return (
-    <TableHeader className="bg-slate-100/60 dark:bg-slate-900/60">
+    <TableHeader className="bg-[var(--surface-muted)]">
       <TableRow>
         <TableHead className={`${stickyHeadClass} min-w-[240px] max-w-[380px]`}>
           {t("admin.nodeTable.columns.endpoint", { defaultValue: "公网IP" })}
@@ -2082,8 +2082,8 @@ const NodeGroupSection = ({
         </div>
       ) : null}
     >
-      <div className="min-w-0 overflow-x-auto overscroll-x-contain [scrollbar-gutter:stable]">
-        <Table className="min-w-[1120px] table-auto">
+      <div className="admin-data-table-scroll min-w-0 overflow-x-auto overscroll-x-contain [scrollbar-gutter:stable]">
+        <Table className="admin-data-table min-w-[1120px] table-auto">
           <NodeTableColumnProfile />
           <NodeTableColumns />
           <TableBody>
@@ -2185,7 +2185,7 @@ const NodeTable = ({
             onPageSizeChange={nodePagination.setPageSize}
             pageSizeOptions={[20, 50, 100]}
             itemLabel={t("admin.pagination.nodes", { defaultValue: "台设备" })}
-            className="rounded-lg border border-slate-200/80 bg-white shadow-none dark:border-slate-800/90 dark:bg-slate-950"
+            className="rounded-md border border-border bg-[var(--surface)] shadow-none"
           />
         </>
       )}

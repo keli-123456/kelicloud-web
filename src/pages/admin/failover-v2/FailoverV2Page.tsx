@@ -4584,7 +4584,7 @@ export default function FailoverV2Page() {
 
         {error ? (
           <AdminSurface>
-            <div className="border-l-2 border-red-300 bg-red-50/70 px-3 py-2 text-sm text-red-700 dark:border-red-800 dark:bg-red-950/20 dark:text-red-300">
+            <div className="admin-alert admin-alert-danger text-sm">
               {error}
             </div>
           </AdminSurface>
@@ -4650,9 +4650,9 @@ export default function FailoverV2Page() {
               )}
             >
 
-              <div className="overflow-x-auto">
-              <div className="min-w-[780px] divide-y divide-border">
-                <div className="grid grid-cols-[minmax(145px,0.8fr)_minmax(190px,1fr)_minmax(220px,1fr)_128px] items-center gap-3 border-b border-border bg-[var(--surface-muted)] px-3 py-2 text-[12px] font-semibold text-muted-foreground">
+              <div className="admin-data-table-scroll overflow-x-auto overscroll-x-contain [scrollbar-gutter:stable]">
+              <div className="admin-grid-table min-w-[820px]">
+                <div className="admin-grid-head grid grid-cols-[minmax(150px,0.72fr)_minmax(260px,1.25fr)_minmax(220px,1fr)_120px] items-center gap-3 px-3 py-2 text-[12px] font-semibold text-muted-foreground">
                   <div>{t("failover_v2.workbench.task_detail", { defaultValue: "任务" })}</div>
                   <div>{t("failover_v2.summary.members", { defaultValue: "Members" })}</div>
                   <div>{t("failover_v2.workbench.execution_state", { defaultValue: "执行状态" })}</div>
@@ -4711,9 +4711,9 @@ export default function FailoverV2Page() {
                   return (
                     <div
                       key={service.id}
+                      data-selected={expanded ? "true" : undefined}
                       className={cn(
-                        "transition-colors",
-                        expanded && "bg-[var(--surface-pressed)]",
+                        "admin-grid-row",
                         serviceBusy && "bg-amber-50/70 dark:bg-amber-950/20",
                       )}
                     >
@@ -4727,7 +4727,7 @@ export default function FailoverV2Page() {
                             toggleServiceExpanded();
                           }
                         }}
-                        className="grid cursor-pointer grid-cols-[minmax(145px,0.8fr)_minmax(190px,1fr)_minmax(220px,1fr)_128px] items-center gap-3 px-3 py-2.5 transition-colors hover:bg-[var(--surface-hover)]"
+                        className="grid cursor-pointer grid-cols-[minmax(150px,0.72fr)_minmax(260px,1.25fr)_minmax(220px,1fr)_120px] items-center gap-3 px-3 py-2.5"
                       >
                         <div className="min-w-0">
                           <div className="flex min-w-0 items-center gap-2 whitespace-nowrap">
@@ -4875,7 +4875,7 @@ export default function FailoverV2Page() {
                       {expanded ? (
                         <div className="border-t border-border bg-[var(--surface-subtle)]">
                           <div className="overflow-hidden">
-                              <div className="grid grid-cols-[minmax(210px,1fr)_minmax(150px,0.7fr)_minmax(170px,0.8fr)_70px] items-center gap-3 border-b border-border bg-[var(--surface-muted)] px-3 py-2 text-[12px] font-semibold text-muted-foreground">
+                              <div className="admin-grid-head grid grid-cols-[minmax(230px,1fr)_minmax(160px,0.7fr)_minmax(180px,0.85fr)_74px] items-center gap-3 px-3 py-2 text-[12px] font-semibold text-muted-foreground">
                                 <div>{t("failover_v2.workbench.member_list", { defaultValue: "子成员" })}</div>
                                 <div>{t("failover_v2.detail_fields.addresses", { defaultValue: "地址" })}</div>
                                 <div>{t("failover_v2.workbench.execution_state", { defaultValue: "执行状态" })}</div>
@@ -4918,9 +4918,9 @@ export default function FailoverV2Page() {
                                             setExpandedMemberKey(memberRowKey);
                                           }
                                         }}
+                                        data-selected={memberSelected ? "true" : undefined}
                                         className={cn(
-                                          "grid cursor-pointer grid-cols-[minmax(210px,1fr)_minmax(150px,0.7fr)_minmax(170px,0.8fr)_70px] items-center gap-3 px-3 py-2 transition-colors hover:bg-[var(--surface-hover)]",
-                                          memberSelected && "bg-[var(--surface-pressed)]",
+                                          "admin-grid-row admin-grid-row-nested grid cursor-pointer grid-cols-[minmax(230px,1fr)_minmax(160px,0.7fr)_minmax(180px,0.85fr)_74px] items-center gap-3 px-3 py-2",
                                           memberBusy && "bg-[var(--surface-pressed)]",
                                         )}
                                       >
@@ -5103,7 +5103,7 @@ export default function FailoverV2Page() {
                               </div>
                               ) : null}
                               {serviceLatestExecution.error_message ? (
-                                <div className="mt-2 border-l-2 border-red-300 bg-red-50/70 px-3 py-2 text-xs text-red-700 dark:border-red-800 dark:bg-red-950/20 dark:text-red-300">
+                                <div className="admin-alert admin-alert-danger mt-2 text-xs">
                                   {platformAdmin
                                     ? localizeFailoverV2RuntimeMessage(t, serviceLatestExecution.error_message)
                                     : getPublicFailoverResultText(t, serviceLatestExecution.status, serviceLatestExecution.error_message)}
@@ -5112,7 +5112,7 @@ export default function FailoverV2Page() {
                             </div>
                           ) : null}
                           {platformAdmin && service.last_message ? (
-                            <div className="mt-3 border-l-2 border-amber-300 bg-amber-50/70 px-3 py-2 text-xs text-amber-800 dark:border-amber-800 dark:bg-amber-950/20 dark:text-amber-200">
+                            <div className="admin-alert admin-alert-warning mt-3 text-xs">
                               {localizeFailoverV2RuntimeMessage(t, service.last_message)}
                             </div>
                           ) : null}
@@ -5539,7 +5539,7 @@ export default function FailoverV2Page() {
                     </div>
 
                     {serviceDNSCatalogError ? (
-                      <div className="border-l-2 border-red-300 bg-red-50/70 px-3 py-2 text-xs text-red-700 dark:border-red-800 dark:bg-red-950/20 dark:text-red-200">
+                      <div className="admin-alert admin-alert-danger text-xs">
                         {serviceDNSCatalogError}
                       </div>
                     ) : null}
@@ -7124,7 +7124,7 @@ export default function FailoverV2Page() {
             </div>
 
             {pendingCleanupError ? (
-              <div className="mb-4 border-l-2 border-red-300 bg-red-50/70 px-3 py-2 text-sm text-red-700 dark:border-red-800 dark:bg-red-950/20 dark:text-red-300">
+              <div className="admin-alert admin-alert-danger mb-4 text-sm">
                 {pendingCleanupError}
               </div>
             ) : null}
@@ -7204,7 +7204,7 @@ export default function FailoverV2Page() {
                     </div>
 
                     {cleanup.last_error ? (
-                      <div className="mt-4 border-l-2 border-red-300 bg-red-50/70 px-3 py-2 text-sm text-red-700 dark:border-red-800 dark:bg-red-950/20 dark:text-red-300">
+                      <div className="admin-alert admin-alert-danger mt-4 text-sm">
                         {cleanup.last_error}
                       </div>
                     ) : null}
@@ -7401,7 +7401,7 @@ export default function FailoverV2Page() {
 
             <main className="min-h-0 overflow-y-auto bg-slate-100/60 p-4 dark:bg-slate-950/20 sm:p-5">
               {executionError ? (
-                <div className="border-l-2 border-red-300 bg-red-50/70 px-3 py-2 text-sm text-red-700 dark:border-red-800 dark:bg-red-950/20 dark:text-red-300">
+                <div className="admin-alert admin-alert-danger text-sm">
                   {executionError}
                 </div>
               ) : null}
@@ -7535,7 +7535,7 @@ export default function FailoverV2Page() {
                     </div>
 
                     {selectedExecution.error_message ? (
-                      <div className="mt-4 border-l-2 border-red-300 bg-red-50/70 px-3 py-2 text-sm text-red-700 dark:border-red-800 dark:bg-red-950/20 dark:text-red-300">
+                      <div className="admin-alert admin-alert-danger mt-4 text-sm">
                         {platformAdmin
                           ? selectedExecution.error_message
                           : getPublicFailoverResultText(t, selectedExecution.status, selectedExecution.error_message)}

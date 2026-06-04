@@ -455,7 +455,7 @@ function DashboardPageContent() {
               </Button>
             )}
           />
-          <div className="flex flex-1 flex-col gap-4 p-4">
+          <div className="flex flex-1 flex-col justify-between gap-4 p-4">
             <div className="grid min-w-0 gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(260px,0.7fr)] lg:items-start">
               <div className="flex min-w-0 items-start gap-3">
                 <div

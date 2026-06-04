@@ -403,7 +403,7 @@ export function DataTable() {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2"></div>
           </div>
-          <div className="relative flex min-w-0 flex-col gap-4">
+          <div className="admin-table-frame relative flex min-w-0 flex-col">
             <DndContext
               collisionDetection={closestCenter}
               modifiers={[restrictToVerticalAxis]}
@@ -411,7 +411,6 @@ export function DataTable() {
               sensors={sensors}
               id={sortableId}
             >
-              <div className="overflow-hidden rounded-lg border border-slate-200/80 bg-white dark:border-slate-800 dark:bg-slate-950">
               <div className="overflow-x-auto overscroll-x-contain [scrollbar-gutter:stable]">
               <Table className="min-w-[860px] table-fixed">
                 <TableHeader className="bg-muted">
@@ -462,9 +461,8 @@ export function DataTable() {
                 </TableBody>
               </Table>
               </div>
-              </div>
             </DndContext>
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="admin-panel-footer flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
               <div className="text-muted-foreground flex-1 text-sm">
                 {t("admin.nodeTable.selectionSummary", {
                   selected: table.getFilteredSelectedRowModel().rows.length,

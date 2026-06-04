@@ -58,7 +58,7 @@ export function AdminPagination({
   return (
     <div
       className={cn(
-        "flex flex-col gap-3 border-t border-border bg-card/60 px-4 py-3 text-[12px] text-muted-foreground sm:flex-row sm:items-center sm:justify-between",
+        "admin-panel-footer flex flex-col gap-3 px-4 py-3 text-[12px] text-muted-foreground sm:flex-row sm:items-center sm:justify-between",
         compact && "px-3 py-2.5",
         className,
       )}
