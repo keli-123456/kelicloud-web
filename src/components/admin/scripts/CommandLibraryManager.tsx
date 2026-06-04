@@ -40,16 +40,11 @@ import { AdminPagination } from "@/components/admin/AdminPagination";
 import { AdminRowActions } from "@/components/admin/AdminRowActions";
 import { formatApiErrorMessage, getReadableErrorMessage } from "@/lib/apiErrorMessage";
 import {
-  ADMIN_FORM_BODY_CLASS,
-  ADMIN_FORM_DIALOG_CHROME_CLASS,
-  ADMIN_FORM_DIALOG_WIDE_CLASS,
   ADMIN_FORM_FIELD_CLASS,
-  ADMIN_FORM_FOOTER_CLASS,
-  ADMIN_FORM_HEADER_CLASS,
-  ADMIN_FORM_HEADER_INSET_CLASS,
   ADMIN_FORM_HELP_CLASS,
   ADMIN_FORM_LABEL_CLASS,
 } from "@/components/admin/AdminFormStyles";
+import { AdminDialogLayout } from "@/components/admin/AdminForm";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -65,9 +60,6 @@ import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogClose,
-  DialogContent,
-  DialogDescription,
-  DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import NumberPicker from "@/components/ui/number-picker";
@@ -827,35 +819,36 @@ description={t("command_clipboard.select_description", { defaultValue: "从左�
           }
         }}
       >
-        <DialogContent
-          className={cn(
-            ADMIN_FORM_DIALOG_WIDE_CLASS,
-            ADMIN_FORM_DIALOG_CHROME_CLASS,
-            "h-[min(92vh,920px)] sm:max-w-[calc(100vw-2rem)] lg:max-w-6xl xl:max-w-7xl",
-          )}
+        <AdminDialogLayout
+          title={
+            editingCommand
+              ? t("command_clipboard.editor.edit_title", {
+                  defaultValue: "编辑脚本",
+                })
+              : t("command_clipboard.editor.add_title", {
+                  defaultValue: "新增脚本",
+                })
+          }
+          description={t("command_clipboard.page_description", {
+            defaultValue:
+              "集中管理用于远程执行和云实例场景的脚本。",
+          })}
+          wide
+          maxWidth="64rem"
+          className="h-[min(90vh,860px)]"
+          bodyClassName="flex min-h-0 flex-col gap-4"
+          footer={
+            <>
+              <DialogClose asChild>
+                <Button variant="outline">{t("common.cancel")}</Button>
+              </DialogClose>
+              <Button type="submit" form="command-library-editor-form" disabled={submitting}>
+                {editingCommand ? t("common.update") : t("common.add")}
+              </Button>
+            </>
+          }
         >
-          <div className={ADMIN_FORM_HEADER_CLASS}>
-            <div className={ADMIN_FORM_HEADER_INSET_CLASS}>
-              <DialogTitle>
-                {editingCommand
-                ? t("command_clipboard.editor.edit_title", {
-                      defaultValue: "编辑脚本",
-                    })
-                  : t("command_clipboard.editor.add_title", {
-                      defaultValue: "新增脚本",
-                    })}
-              </DialogTitle>
-              <DialogDescription>
-                {t("command_clipboard.page_description", {
-                  defaultValue:
-                    "集中管理用于远程执行和云实例场景的脚本。",
-                })}
-              </DialogDescription>
-            </div>
-          </div>
-
-          <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col overflow-hidden">
-            <div className={cn(ADMIN_FORM_BODY_CLASS, "flex flex-col gap-4")}>
+          <form id="command-library-editor-form" onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col gap-4 overflow-hidden">
               <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_10rem]">
                 <div className={ADMIN_FORM_FIELD_CLASS}>
                   <label className={ADMIN_FORM_LABEL_CLASS}>
@@ -928,25 +921,15 @@ description={t("command_clipboard.select_description", { defaultValue: "从左�
                       defaultValue: "#!/usr/bin/env bash",
                     })}
                     className="min-h-0"
-                    height="clamp(460px, 64vh, 720px)"
-                    minHeight="clamp(420px, 58vh, 640px)"
+                    height="clamp(260px, 52vh, 720px)"
+                    minHeight="clamp(220px, 46vh, 640px)"
                     maxHeight="min(76vh, 760px)"
                     ariaLabel={t("common.content")}
                   />
                 </Suspense>
               </div>
-            </div>
-
-            <div className={ADMIN_FORM_FOOTER_CLASS}>
-              <DialogClose asChild>
-                <Button variant="outline">{t("common.cancel")}</Button>
-              </DialogClose>
-              <Button type="submit" disabled={submitting}>
-                {editingCommand ? t("common.update") : t("common.add")}
-              </Button>
-            </div>
           </form>
-        </DialogContent>
+        </AdminDialogLayout>
       </Dialog>
 
       <AlertDialog

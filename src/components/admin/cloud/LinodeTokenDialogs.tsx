@@ -93,6 +93,17 @@ export function LinodeTokenImportDialog({
         icon={<Upload className="size-4" />}
         badge={<Badge color="blue">{t("cloud.providers.linode.name", "Linode")}</Badge>}
         className="sm:max-w-[56rem]"
+        footer={(
+          <>
+            <Button variant="outline" onClick={() => onOpenChange(false)} disabled={saving}>
+              {t("common.cancel", "取消")}
+            </Button>
+            <Button onClick={() => { void onImport(); }} disabled={saving}>
+              <CheckCircle2 className="mr-2 h-4 w-4" />
+              {saving ? t("cloud.tokens.importing", "导入中...") : t("cloud.tokens.import", "导入令牌")}
+            </Button>
+          </>
+        )}
       >
         <CloudImportFormSection
           groupLabel={t("cloud.tokens.group", "分组")}
@@ -135,17 +146,6 @@ export function LinodeTokenImportDialog({
               )}
               onChange={(event) => setTokenImportText(event.target.value)}
             />
-          )}
-          footer={(
-            <>
-              <Button variant="outline" onClick={() => onOpenChange(false)} disabled={saving}>
-                {t("common.cancel", "取消")}
-              </Button>
-              <Button onClick={() => { void onImport(); }} disabled={saving}>
-                <CheckCircle2 className="mr-2 h-4 w-4" />
-                {saving ? t("cloud.tokens.importing", "导入中...") : t("cloud.tokens.import", "导入令牌")}
-              </Button>
-            </>
           )}
         />
       </CloudSensitiveDialogContent>

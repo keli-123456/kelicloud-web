@@ -115,6 +115,18 @@ export function AzureCredentialImportDialog({
         icon={<Upload className="size-4" />}
         badge={<Badge color="blue">{t("cloud.providers.azure.name", "Azure")}</Badge>}
         className="sm:max-w-[56rem]"
+        footer={(
+          <>
+            <Button variant="outline" onClick={() => onOpenChange(false)} disabled={saving}>
+              {t("common.cancel", "取消")}
+            </Button>
+            <Button onClick={() => { void onImport(); }} disabled={saving}>
+              {saving
+                ? t("cloud.providers.azure.importing", "导入中...")
+                : t("cloud.providers.azure.import", "导入凭证")}
+            </Button>
+          </>
+        )}
       >
         <CloudImportFormSection
           groupLabel={t("cloud.tokens.group", "分组")}
@@ -134,18 +146,6 @@ export function AzureCredentialImportDialog({
               onChange={(event) => setImportText(event.target.value)}
               placeholder='{"appId":"...","displayName":"azure-cli-...","password":"...","tenant":"..."}'
             />
-          )}
-          footer={(
-            <>
-              <Button variant="outline" onClick={() => onOpenChange(false)} disabled={saving}>
-                {t("common.cancel", "取消")}
-              </Button>
-              <Button onClick={() => { void onImport(); }} disabled={saving}>
-                {saving
-                  ? t("cloud.providers.azure.importing", "导入中...")
-                  : t("cloud.providers.azure.import", "导入凭证")}
-              </Button>
-            </>
           )}
         />
       </CloudSensitiveDialogContent>

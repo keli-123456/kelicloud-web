@@ -7,7 +7,6 @@ import {
   Badge,
   Button,
   Checkbox,
-  CloudFormActions,
   CloudFormField,
   CloudFormStack,
   CloudSensitiveDialogContent,
@@ -75,9 +74,35 @@ export function DigitalOceanCreateDialog({
         description={t(
             "cloud.create_description",
             "Select a region, size, and image to provision a new Droplet.",
-          )}
+        )}
         icon={<Server className="size-4" />}
         badge={<Badge color="blue">{t("cloud.providers.digitalocean.name", "DigitalOcean")}</Badge>}
+        footer={
+          <>
+            <Button
+              variant="outline"
+              onClick={() => onOpenChange(false)}
+              disabled={submitting}
+            >
+              {t("common.cancel", "取消")}
+            </Button>
+            <Button
+              onClick={() => {
+                void onCreate();
+              }}
+              disabled={
+                submitting ||
+                !form.region ||
+                !form.size ||
+                !form.image
+              }
+            >
+              {submitting
+                ? t("cloud.creating", "创建中...")
+                : t("cloud.create", "创建 Droplet")}
+            </Button>
+          </>
+        }
       >
 
         <CloudFormStack>
@@ -213,30 +238,6 @@ export function DigitalOceanCreateDialog({
             </div>
           </div>
 
-          <CloudFormActions>
-            <Button
-              variant="outline"
-              onClick={() => onOpenChange(false)}
-              disabled={submitting}
-            >
-              {t("common.cancel", "取消")}
-            </Button>
-            <Button
-              onClick={() => {
-                void onCreate();
-              }}
-              disabled={
-                submitting ||
-                !form.region ||
-                !form.size ||
-                !form.image
-              }
-            >
-              {submitting
-                ? t("cloud.creating", "创建中...")
-                : t("cloud.create", "创建 Droplet")}
-            </Button>
-          </CloudFormActions>
         </CloudFormStack>
       </CloudSensitiveDialogContent>
     </Dialog.Root>

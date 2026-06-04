@@ -399,7 +399,7 @@ type CloudImportFormSectionProps = {
   groupControl: React.ReactNode;
   editorLabel: React.ReactNode;
   editor: React.ReactNode;
-  footer: React.ReactNode;
+  footer?: React.ReactNode;
   className?: string;
 };
 
@@ -509,9 +509,11 @@ function CloudImportFormSection({
         {editor}
       </div>
 
-      <CloudFormActions className="mt-0">
-        {footer}
-      </CloudFormActions>
+      {footer ? (
+        <CloudFormActions className="mt-0">
+          {footer}
+        </CloudFormActions>
+      ) : null}
     </section>
   );
 }
@@ -523,6 +525,7 @@ type CloudSensitiveDialogContentProps = {
   icon?: React.ReactNode;
   children: React.ReactNode;
   side?: React.ReactNode;
+  footer?: React.ReactNode;
   className?: string;
   bodyClassName?: string;
 };
@@ -534,6 +537,7 @@ function CloudSensitiveDialogContent({
   icon,
   children,
   side,
+  footer,
   className,
   bodyClassName,
 }: CloudSensitiveDialogContentProps) {
@@ -544,6 +548,7 @@ function CloudSensitiveDialogContent({
       badge={badge}
       icon={icon}
       side={side}
+      footer={footer}
       wide
       className={className}
       descriptionClassName={cloudLongTextClassName}

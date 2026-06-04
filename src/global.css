@@ -668,6 +668,22 @@
     min-width: 5.75rem;
   }
 
+  @media (max-width: 639px) {
+    .admin-form-footer {
+      align-items: stretch;
+    }
+
+    .admin-form-footer :is(button, [role="button"]) {
+      width: 100%;
+      min-width: 0;
+      justify-content: center;
+    }
+
+    .admin-form-footer .mr-auto {
+      margin-right: 0;
+    }
+  }
+
   .admin-row-hover {
     background: var(--surface-hover);
   }

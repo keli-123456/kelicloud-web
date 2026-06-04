@@ -7,7 +7,6 @@ import {
   Badge,
   Button,
   Checkbox,
-  CloudFormActions,
   CloudFormField,
   CloudFormStack,
   CloudSensitiveDialogContent,
@@ -55,9 +54,31 @@ export function LinodeCreateDialog({
         description={t(
             "cloud.providers.linode.create_description",
             "Choose the region, plan, image, and root password mode for the new Linode instance.",
-          )}
+        )}
         icon={<Server className="size-4" />}
         badge={<Badge color="blue">{t("cloud.providers.linode.name", "Linode")}</Badge>}
+        footer={
+          <>
+            <Button variant="outline" onClick={() => onOpenChange(false)} disabled={submitting}>
+              {t("common.cancel", "取消")}
+            </Button>
+            <Button
+              onClick={() => {
+                void onCreate();
+              }}
+              disabled={
+                submitting ||
+                !form.region ||
+                !form.type ||
+                !form.image
+              }
+            >
+              {submitting
+                ? t("cloud.creating", "创建中...")
+                : t("cloud.providers.linode.create", "Create Instance")}
+            </Button>
+          </>
+        }
       >
 
         <CloudFormStack>
@@ -198,26 +219,6 @@ export function LinodeCreateDialog({
             </div>
           </div>
 
-          <CloudFormActions>
-            <Button variant="outline" onClick={() => onOpenChange(false)} disabled={submitting}>
-              {t("common.cancel", "取消")}
-            </Button>
-            <Button
-              onClick={() => {
-                void onCreate();
-              }}
-              disabled={
-                submitting ||
-                !form.region ||
-                !form.type ||
-                !form.image
-              }
-            >
-              {submitting
-                ? t("cloud.creating", "创建中...")
-                : t("cloud.providers.linode.create", "Create Instance")}
-            </Button>
-          </CloudFormActions>
         </CloudFormStack>
       </CloudSensitiveDialogContent>
     </Dialog.Root>

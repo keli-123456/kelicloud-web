@@ -47,28 +47,19 @@ import {
     useClientPagination,
 } from "@/components/admin/AdminPagination";
 import { AdminRowActions } from "@/components/admin/AdminRowActions";
+import { AdminDialogLayout } from "@/components/admin/AdminForm";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
     Dialog,
     DialogClose,
-    DialogContent,
-    DialogDescription,
-    DialogFooter,
-    DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { formatApiErrorMessage, getReadableErrorMessage } from "@/lib/apiErrorMessage";
 import { cn } from "@/lib/utils";
 import {
-    ADMIN_FORM_BODY_CLASS,
-    ADMIN_FORM_DIALOG_CHROME_CLASS,
-    ADMIN_FORM_DIALOG_WIDE_CLASS,
     ADMIN_FORM_FIELD_CLASS,
-    ADMIN_FORM_FOOTER_CLASS,
-    ADMIN_FORM_HEADER_CLASS,
-    ADMIN_FORM_HEADER_INSET_CLASS,
     ADMIN_FORM_HELP_CLASS,
     ADMIN_FORM_LABEL_CLASS,
 } from "@/components/admin/AdminFormStyles";
@@ -1744,30 +1735,41 @@ const ExecContent = ({ canUseExec, canUseScripts }: { canUseExec: boolean; canUs
                 }
             }}
         >
-            <DialogContent
-                className={cn(
-                    ADMIN_FORM_DIALOG_WIDE_CLASS,
-                    ADMIN_FORM_DIALOG_CHROME_CLASS,
-                    "h-[min(88vh,820px)] sm:max-w-[calc(100vw-2rem)] lg:max-w-[60rem]",
-                )}
+            <AdminDialogLayout
+                title={
+                    editingScript
+                        ? t("command_clipboard.editor.edit_title", { defaultValue: "编辑脚本" })
+                        : t("command_clipboard.editor.add_title", { defaultValue: "新增脚本" })
+                }
+                description={t("exec.script_editor_description", {
+                    defaultValue: "在执行页直接保存当前命令或新增脚本，保存后会留在当前工作台继续执行。",
+                })}
+                wide
+                maxWidth="60rem"
+                className="h-[min(88vh,820px)]"
+                bodyClassName="flex min-h-0 flex-col gap-4"
+                footer={
+                    <>
+                        <DialogClose asChild>
+                            <Button type="button" variant="outline">
+                                {t("common.cancel", { defaultValue: "取消" })}
+                            </Button>
+                        </DialogClose>
+                        <Button
+                            type="submit"
+                            form="exec-script-editor-form"
+                            disabled={scriptSubmitting || !scriptFormValues.text.trim()}
+                        >
+                            {scriptSubmitting
+                                ? t("common.saving", { defaultValue: "保存中..." })
+                                : editingScript
+                                    ? t("common.update", { defaultValue: "更新" })
+                                    : t("common.add", { defaultValue: "添加" })}
+                        </Button>
+                    </>
+                }
             >
-                <div className={ADMIN_FORM_HEADER_CLASS}>
-                    <div className={ADMIN_FORM_HEADER_INSET_CLASS}>
-                        <DialogTitle>
-                            {editingScript
-                                ? t("command_clipboard.editor.edit_title", { defaultValue: "编辑脚本" })
-                                : t("command_clipboard.editor.add_title", { defaultValue: "新增脚本" })}
-                        </DialogTitle>
-                        <DialogDescription>
-                            {t("exec.script_editor_description", {
-                                defaultValue: "在执行页直接保存当前命令或新增脚本，保存后会留在当前工作台继续执行。",
-                            })}
-                        </DialogDescription>
-                    </div>
-                </div>
-
-                <form onSubmit={handleScriptSubmit} className="flex min-h-0 flex-1 flex-col overflow-hidden">
-                    <div className={cn(ADMIN_FORM_BODY_CLASS, "flex min-h-0 flex-col gap-4")}>
+                <form id="exec-script-editor-form" onSubmit={handleScriptSubmit} className="flex min-h-0 flex-1 flex-col gap-4 overflow-hidden">
                         <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_8rem]">
                             <div className={ADMIN_FORM_FIELD_CLASS}>
                                 <label className={ADMIN_FORM_LABEL_CLASS}>
@@ -1824,27 +1826,11 @@ const ExecContent = ({ canUseExec, canUseScripts }: { canUseExec: boolean; canUs
                                 })}
                                 spellCheck={false}
                                 wrap="off"
-                                className="min-h-[360px] flex-1 resize-none overflow-auto rounded-md font-mono text-[12px] leading-5 whitespace-pre [scrollbar-gutter:stable] lg:min-h-[460px]"
+                                className="min-h-[220px] flex-1 resize-none overflow-auto rounded-md font-mono text-[12px] leading-5 whitespace-pre [scrollbar-gutter:stable] sm:min-h-[320px] lg:min-h-[460px]"
                             />
                         </div>
-                    </div>
-
-                    <DialogFooter className={ADMIN_FORM_FOOTER_CLASS}>
-                        <DialogClose asChild>
-                            <Button type="button" variant="outline">
-                                {t("common.cancel", { defaultValue: "取消" })}
-                            </Button>
-                        </DialogClose>
-                        <Button type="submit" disabled={scriptSubmitting || !scriptFormValues.text.trim()}>
-                            {scriptSubmitting
-                                ? t("common.saving", { defaultValue: "保存中..." })
-                                : editingScript
-                                    ? t("common.update", { defaultValue: "更新" })
-                                    : t("common.add", { defaultValue: "添加" })}
-                        </Button>
-                    </DialogFooter>
                 </form>
-            </DialogContent>
+            </AdminDialogLayout>
         </Dialog>
         </>
     );

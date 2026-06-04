@@ -14,7 +14,6 @@ import { CompactSummaryMetric } from "@/components/admin/cloud/AWSPanelDetailCom
 import {
   Badge,
   Button,
-  CloudFormActions,
   CloudSensitiveDialogContent,
   Dialog,
 } from "@/components/admin/cloud/cloud-ui";
@@ -89,6 +88,29 @@ export function AWSEC2CreateDialog({
         icon={<Server className="size-4" />}
         badge={<Badge color="blue">{t("cloud.providers.aws.ec2_label", "AWS EC2")}</Badge>}
         className="sm:max-w-5xl"
+        footer={
+          <>
+            <Button variant="outline" onClick={() => onOpenChange(false)} disabled={submitting}>
+              {t("common.cancel", "取消")}
+            </Button>
+            <Button
+              onClick={() => {
+                void onCreate();
+              }}
+              disabled={
+                submitting ||
+                !form.image_id ||
+                !form.instance_type ||
+                (form.root_password_mode === "custom" && !(form.root_password || "").trim()) ||
+                architectureMismatch
+              }
+            >
+              {submitting
+                ? t("cloud.creating", "创建中...")
+                : t("cloud.providers.aws.create", "Launch EC2")}
+            </Button>
+          </>
+        }
       >
 
         <div className="flex flex-col gap-4">
@@ -154,27 +176,6 @@ export function AWSEC2CreateDialog({
             summary={bootstrapSummary}
           />
 
-          <CloudFormActions>
-            <Button variant="outline" onClick={() => onOpenChange(false)} disabled={submitting}>
-              {t("common.cancel", "取消")}
-            </Button>
-            <Button
-              onClick={() => {
-                void onCreate();
-              }}
-              disabled={
-                submitting ||
-                !form.image_id ||
-                !form.instance_type ||
-                (form.root_password_mode === "custom" && !(form.root_password || "").trim()) ||
-                architectureMismatch
-              }
-            >
-              {submitting
-                ? t("cloud.creating", "创建中...")
-                : t("cloud.providers.aws.create", "Launch EC2")}
-            </Button>
-          </CloudFormActions>
         </div>
       </CloudSensitiveDialogContent>
     </Dialog.Root>
@@ -233,6 +234,30 @@ export function AWSLightsailCreateDialog({
         icon={<Server className="size-4" />}
         badge={<Badge color="blue">{t("cloud.providers.aws.lightsail_label", "AWS Lightsail")}</Badge>}
         className="sm:max-w-5xl"
+        footer={
+          <>
+            <Button variant="outline" onClick={() => onOpenChange(false)} disabled={submitting}>
+              {t("common.cancel", "取消")}
+            </Button>
+            <Button
+              onClick={() => {
+                void onCreate();
+              }}
+              disabled={
+                submitting ||
+                !form.availability_zone ||
+                !form.blueprint_id ||
+                !form.bundle_id ||
+                platformMismatch ||
+                (form.root_password_mode === "custom" && !(form.root_password || "").trim())
+              }
+            >
+              {submitting
+                ? t("cloud.creating", "创建中...")
+                : t("cloud.providers.aws.lightsail_create", "Create Lightsail")}
+            </Button>
+          </>
+        }
       >
 
         <div className="flex flex-col gap-4">
@@ -286,28 +311,6 @@ export function AWSLightsailCreateDialog({
             summary={bootstrapSummary}
           />
 
-          <CloudFormActions>
-            <Button variant="outline" onClick={() => onOpenChange(false)} disabled={submitting}>
-              {t("common.cancel", "取消")}
-            </Button>
-            <Button
-              onClick={() => {
-                void onCreate();
-              }}
-              disabled={
-                submitting ||
-                !form.availability_zone ||
-                !form.blueprint_id ||
-                !form.bundle_id ||
-                platformMismatch ||
-                (form.root_password_mode === "custom" && !(form.root_password || "").trim())
-              }
-            >
-              {submitting
-                ? t("cloud.creating", "创建中...")
-                : t("cloud.providers.aws.lightsail_create", "Create Lightsail")}
-            </Button>
-          </CloudFormActions>
         </div>
       </CloudSensitiveDialogContent>
     </Dialog.Root>

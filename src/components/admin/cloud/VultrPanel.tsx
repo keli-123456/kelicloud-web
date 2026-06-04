@@ -51,7 +51,6 @@ import {
   Checkbox,
   CloudCodeTextarea,
   CloudDetailItem,
-  CloudFormActions,
   CloudFormField,
   CloudFormGrid,
   CloudFormStack,
@@ -1758,6 +1757,17 @@ function VultrTokenImportDialog({
         icon={<Upload className="size-4" />}
         badge={<Badge color="blue">{t("cloud.providers.vultr.title", "Vultr")}</Badge>}
         className="sm:max-w-[56rem]"
+        footer={(
+          <>
+            <Button variant="outline" onClick={() => onOpenChange(false)} disabled={saving}>
+              {t("common.cancel", "取消")}
+            </Button>
+            <Button onClick={() => { void onImport(); }} disabled={saving}>
+              <CheckCircle2 className="mr-2 h-4 w-4" />
+              {saving ? t("cloud.tokens.importing", "导入中...") : t("cloud.tokens.import", "导入令牌")}
+            </Button>
+          </>
+        )}
       >
         <CloudImportFormSection
           groupLabel={t("cloud.tokens.group", "分组")}
@@ -1800,17 +1810,6 @@ function VultrTokenImportDialog({
               )}
               onChange={(event) => setTokenImportText(event.target.value)}
             />
-          )}
-          footer={(
-            <>
-              <Button variant="outline" onClick={() => onOpenChange(false)} disabled={saving}>
-                {t("common.cancel", "取消")}
-              </Button>
-              <Button onClick={() => { void onImport(); }} disabled={saving}>
-                <CheckCircle2 className="mr-2 h-4 w-4" />
-                {saving ? t("cloud.tokens.importing", "导入中...") : t("cloud.tokens.import", "导入令牌")}
-              </Button>
-            </>
           )}
         />
       </CloudSensitiveDialogContent>
@@ -1873,6 +1872,21 @@ function VultrCreateDialog({
         )}
         icon={<Server className="size-4" />}
         badge={<Badge color="blue">{t("cloud.providers.vultr.title", "Vultr")}</Badge>}
+        footer={
+          <>
+            <Button variant="outline" onClick={() => onOpenChange(false)} disabled={submitting}>
+              {t("common.cancel", "取消")}
+            </Button>
+            <Button onClick={() => { void onCreate(); }} disabled={submitting}>
+              {submitting ? (
+                <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <Plus className="mr-2 h-4 w-4" />
+              )}
+              {submitting ? t("cloud.creating", "正在创建...") : t("cloud.providers.vultr.create", "创建实例")}
+            </Button>
+          </>
+        }
         side={(
           <div className="space-y-4">
             <CloudStatusNotice tone="blue">
@@ -2061,19 +2075,6 @@ function VultrCreateDialog({
           />
         </CloudFormField>
 
-        <CloudFormActions>
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={submitting}>
-            {t("common.cancel", "取消")}
-          </Button>
-          <Button onClick={() => { void onCreate(); }} disabled={submitting}>
-            {submitting ? (
-              <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
-            ) : (
-              <Plus className="mr-2 h-4 w-4" />
-            )}
-            {submitting ? t("cloud.creating", "正在创建...") : t("cloud.providers.vultr.create", "创建实例")}
-          </Button>
-        </CloudFormActions>
         </CloudFormStack>
       </CloudSensitiveDialogContent>
     </Dialog.Root>

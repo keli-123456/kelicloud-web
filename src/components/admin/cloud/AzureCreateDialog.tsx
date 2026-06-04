@@ -12,7 +12,6 @@ import {
   Button,
   Checkbox,
   CloudCodeTextarea,
-  CloudFormActions,
   CloudFormField,
   CloudFormStack,
   CloudSensitiveDialogContent,
@@ -79,6 +78,27 @@ export function AzureCreateDialog({
         icon={<Server className="size-4" />}
         badge={<Badge color="blue">{t("cloud.providers.azure.name", "Azure")}</Badge>}
         className="sm:max-w-5xl"
+        footer={
+          <>
+            <Button variant="outline" onClick={() => onOpenChange(false)} disabled={submitting}>
+              {t("common.cancel", "取消")}
+            </Button>
+            <Button
+              onClick={() => {
+                void onCreate();
+              }}
+              disabled={
+                submitting
+                || !createForm.size
+                || !createForm.image_preset
+              }
+            >
+              {submitting
+                ? t("cloud.creating", "创建中...")
+                : t("cloud.providers.azure.create", "创建虚拟机")}
+            </Button>
+          </>
+        }
       >
 
         <CloudFormStack>
@@ -222,25 +242,6 @@ export function AzureCreateDialog({
             )}
           </label>
 
-          <CloudFormActions>
-            <Button variant="outline" onClick={() => onOpenChange(false)} disabled={submitting}>
-              {t("common.cancel", "取消")}
-            </Button>
-            <Button
-              onClick={() => {
-                void onCreate();
-              }}
-              disabled={
-                submitting
-                || !createForm.size
-                || !createForm.image_preset
-              }
-            >
-              {submitting
-                ? t("cloud.creating", "创建中...")
-                : t("cloud.providers.azure.create", "创建虚拟机")}
-            </Button>
-          </CloudFormActions>
         </CloudFormStack>
       </CloudSensitiveDialogContent>
     </Dialog.Root>
