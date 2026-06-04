@@ -1,11 +1,10 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback } from "react";
 import type { TFunction } from "i18next";
 import {
   KeyRound,
   Power,
   PowerOff,
   RotateCcw,
-  Search,
   Server,
   Share2,
   Terminal,
@@ -37,8 +36,6 @@ import { getCloudStatusLabel } from "@/lib/cloudStatus";
 import {
   Badge,
   CloudTableSkeletonRows,
-  Select,
-  TextField,
   cloudPanelCardClassName,
   cloudPanelDescriptionClassName,
   cloudPanelHeaderClassName,
@@ -100,37 +97,12 @@ export function LinodeInstancesSection({
   onDeleteInstance,
   onBatchDeleteInstances,
 }: LinodeInstancesSectionProps) {
-  const [searchQuery, setSearchQuery] = useState("");
-  const [statusFilter, setStatusFilter] = useState("__all__");
-  const statusOptions = useMemo(
-    () => Array.from(new Set(instances.map((instance) => instance.status).filter(Boolean))),
-    [instances],
-  );
-  const visibleInstances = useMemo(() => {
-    const query = searchQuery.trim().toLowerCase();
-    return instances.filter((instance) => {
-      const statusMatched = statusFilter === "__all__" || instance.status === statusFilter;
-      if (!statusMatched) return false;
-      if (!query) return true;
-      return [
-        instance.label,
-        String(instance.id),
-        instance.status,
-        instance.region,
-        instance.type,
-        instance.image,
-        instance.ipv4[0] || "",
-        instance.ipv6 || "",
-      ].some((value) => value.toLowerCase().includes(query));
-    });
-  }, [instances, searchQuery, statusFilter]);
-  const instancePagination = useClientPagination(visibleInstances, {
+  const instancePagination = useClientPagination(instances, {
     initialPageSize: 10,
-    resetKey: `${searchQuery.trim().toLowerCase()}:${statusFilter}`,
   });
   const paginatedInstances = instancePagination.pageItems;
   const getSelectionKey = useCallback((instance: LinodeInstance) => String(instance.id), []);
-  const bulkSelection = useCloudBulkSelection(visibleInstances, getSelectionKey);
+  const bulkSelection = useCloudBulkSelection(instances, getSelectionKey);
   const handleBatchDelete = async () => {
     const completed = await onBatchDeleteInstances(bulkSelection.selectedItems);
     if (completed) {
@@ -159,50 +131,22 @@ export function LinodeInstancesSection({
   return (
     <div className={`order-2 ${cloudPanelCardClassName}`}>
       <div className={cloudPanelHeaderClassName}>
-        <div>
-          <div className={cloudPanelTitleClassName}>
-            {t("cloud.providers.linode.instance_list", "实例列表")}
-          </div>
-          <div className={cloudPanelDescriptionClassName}>
-            {t(
-              "cloud.providers.linode.instance_list_description",
-              "Click an instance label to inspect details and use the current token to manage its power state.",
-            )}
-          </div>
-        </div>
-      </div>
-
-      <div className="flex min-w-0 flex-col gap-3 border-b border-border bg-muted/20 px-4 py-3 md:flex-row md:items-center md:justify-between">
-        <div className="min-w-0 flex-1 md:max-w-sm">
-          <TextField.Root
-            size="1"
-            value={searchQuery}
-            onChange={(event) => setSearchQuery(event.target.value)}
-            placeholder={t("cloud.search_resources", "搜索名称 / IP / 地区...")}
-          >
-            <TextField.Slot>
-              <Search className="h-4 w-4" />
-            </TextField.Slot>
-          </TextField.Root>
-        </div>
-        <div className="flex shrink-0 items-center gap-2">
-          <div className="w-40">
-            <Select.Root value={statusFilter} onValueChange={setStatusFilter}>
-              <Select.Trigger placeholder={t("cloud.table.status", "状态")} />
-              <Select.Content>
-                <Select.Item value="__all__">{t("cloud.all_statuses", "全部状态")}</Select.Item>
-                {statusOptions.map((status) => (
-                  <Select.Item key={status} value={status}>
-                    {getCloudStatusLabel(status, t)}
-                  </Select.Item>
-                ))}
-              </Select.Content>
-            </Select.Root>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <div className={cloudPanelTitleClassName}>
+              {t("cloud.providers.linode.instance_list", "实例列表")}
+            </div>
+            <div className={cloudPanelDescriptionClassName}>
+              {t(
+                "cloud.providers.linode.instance_list_description",
+                "Click an instance label to inspect details and use the current token to manage its power state.",
+              )}
+            </div>
           </div>
           <CloudBulkDeleteToolbar
             t={t}
             selectedCount={bulkSelection.selectedCount}
-            totalCount={visibleInstances.length}
+            totalCount={instances.length}
             onClear={bulkSelection.clearSelection}
             onDelete={() => {
               void handleBatchDelete();
@@ -216,12 +160,12 @@ export function LinodeInstancesSection({
         <thead>
           <AdminDataTableHeadRow>
             <AdminDataTableHead className="w-10">
-              <CloudBulkSelectCheckbox
-                label={t("cloud.bulk.select_all", "选择全部实例")}
-                checked={bulkSelection.allSelected ? true : bulkSelection.someSelected ? "indeterminate" : false}
-                disabled={visibleInstances.length === 0 || panelLoading}
-                onCheckedChange={bulkSelection.toggleAll}
-              />
+                <CloudBulkSelectCheckbox
+                  label={t("cloud.bulk.select_all", "选择全部实例")}
+                  checked={bulkSelection.allSelected ? true : bulkSelection.someSelected ? "indeterminate" : false}
+                  disabled={instances.length === 0 || panelLoading}
+                  onCheckedChange={bulkSelection.toggleAll}
+                />
             </AdminDataTableHead>
             <AdminDataTableHead>{t("cloud.table.name", "名称")}</AdminDataTableHead>
             <AdminDataTableHead>{t("cloud.table.status", "状态")}</AdminDataTableHead>
@@ -246,15 +190,6 @@ export function LinodeInstancesSection({
                   icon={<Server className="h-5 w-5" />}
                   title={emptyTitle}
                   description={emptyDescription}
-                  className={cloudTableEmptyStateClassName}
-                />
-            </AdminDataTableEmptyRow>
-          ) : visibleInstances.length === 0 ? (
-            <AdminDataTableEmptyRow colSpan={11} className="p-4">
-                <AdminEmptyState
-                  icon={<Search className="h-5 w-5" />}
-                  title={t("cloud.no_matching_resources", "没有匹配的资源")}
-                  description={t("cloud.no_matching_resources_description", "调整搜索关键词或状态筛选后再看。")}
                   className={cloudTableEmptyStateClassName}
                 />
             </AdminDataTableEmptyRow>

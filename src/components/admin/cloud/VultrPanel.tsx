@@ -11,7 +11,6 @@ import {
   Plus,
   RefreshCw,
   RotateCcw,
-  Search,
   Server,
   ShieldCheck,
   Square,
@@ -1080,36 +1079,12 @@ function VultrInstancesSection({
   onDeleteInstance,
   onBatchDeleteInstances,
 }: VultrInstancesSectionProps) {
-  const [search, setSearch] = React.useState("");
-  const [statusFilter, setStatusFilter] = React.useState("all");
-  const filteredInstances = React.useMemo(() => {
-    const query = search.trim().toLowerCase();
-    return instances.filter((instance) => {
-      const status = `${instance.status} ${instance.power_status}`.toLowerCase();
-      if (statusFilter !== "all" && !status.includes(statusFilter)) {
-        return false;
-      }
-      if (!query) return true;
-      const haystack = [
-        instance.id,
-        instance.label,
-        instance.hostname,
-        instance.region,
-        instance.plan,
-        instance.os,
-        instance.main_ip,
-        instance.v6_main_ip,
-      ].join(" ").toLowerCase();
-      return haystack.includes(query);
-    });
-  }, [instances, search, statusFilter]);
-  const instancePagination = useClientPagination(filteredInstances, {
+  const instancePagination = useClientPagination(instances, {
     initialPageSize: 10,
-    resetKey: `${search.trim().toLowerCase()}:${statusFilter}`,
   });
   const paginatedInstances = instancePagination.pageItems;
   const getSelectionKey = React.useCallback((instance: VultrInstance) => instance.id, []);
-  const bulkSelection = useCloudBulkSelection(filteredInstances, getSelectionKey);
+  const bulkSelection = useCloudBulkSelection(instances, getSelectionKey);
   const batchDeleting = actionLoadingId === "__batch_delete__";
   const handleBatchDelete = async () => {
     const completed = await onBatchDeleteInstances(bulkSelection.selectedItems);
@@ -1134,30 +1109,10 @@ function VultrInstancesSection({
             </div>
           </div>
           <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-center">
-            <TextField.Root
-              value={search}
-              onChange={(event) => setSearch(event.target.value)}
-              placeholder={t("cloud.search_instances", "搜索实例")}
-              className="h-9 sm:w-64"
-            >
-              <TextField.Slot>
-                <Search className="h-4 w-4" />
-              </TextField.Slot>
-            </TextField.Root>
-            <Select.Root value={statusFilter} onValueChange={setStatusFilter}>
-              <Select.Trigger className="h-9 sm:w-40" />
-              <Select.Content>
-                <Select.Item value="all">{t("common.all", "全部")}</Select.Item>
-                <Select.Item value="active">{t("cloud.status.active", "已激活")}</Select.Item>
-                <Select.Item value="running">{t("cloud.status.running", "运行中")}</Select.Item>
-                <Select.Item value="stopped">{t("cloud.status.stopped", "已停止")}</Select.Item>
-                <Select.Item value="pending">{t("cloud.status.pending", "待处理")}</Select.Item>
-              </Select.Content>
-            </Select.Root>
             <CloudBulkDeleteToolbar
               t={t}
               selectedCount={bulkSelection.selectedCount}
-              totalCount={filteredInstances.length}
+              totalCount={instances.length}
               deleting={batchDeleting}
               onClear={bulkSelection.clearSelection}
               onDelete={() => {
@@ -1177,7 +1132,7 @@ function VultrInstancesSection({
                   <CloudBulkSelectCheckbox
                     label={t("cloud.bulk.select_all", "选择全部实例")}
                     checked={bulkSelection.allSelected ? true : bulkSelection.someSelected ? "indeterminate" : false}
-                    disabled={filteredInstances.length === 0 || panelLoading || batchDeleting}
+                    disabled={instances.length === 0 || panelLoading || batchDeleting}
                     onCheckedChange={bulkSelection.toggleAll}
                   />
                 </AdminDataTableHead>
@@ -1195,7 +1150,7 @@ function VultrInstancesSection({
             <tbody>
               {panelLoading ? (
                 <CloudTableSkeletonRows columns={8} rows={5} />
-              ) : filteredInstances.length ? (
+              ) : instances.length ? (
                 paginatedInstances.map((instance) => {
                   const plan = plansByID.get(instance.plan);
                   const region = regionsByID.get(instance.region);
@@ -1343,7 +1298,7 @@ function VultrInstancesSection({
             </tbody>
           </AdminDataTable>
         </AdminDataTableScroll>
-        {filteredInstances.length > 0 ? (
+        {instances.length > 0 ? (
           <AdminPagination
             page={instancePagination.page}
             totalPages={instancePagination.totalPages}
@@ -1359,7 +1314,7 @@ function VultrInstancesSection({
           />
         ) : null}
 
-        {!panelLoading && filteredInstances.length === 0 ? (
+        {!panelLoading && instances.length === 0 ? (
           <div className="p-4">
             <div className={cn(cloudTableEmptyStateClassName, "rounded-lg px-4 py-8 text-center")}>
               <div className="text-sm font-semibold text-foreground">
@@ -1572,18 +1527,16 @@ function VultrTokensSection({
               <Server className="mr-2 h-4 w-4" />
               {t("cloud.providers.vultr.view_instances", "查看实例")}
             </Button>
+            <Button
+              variant="outline"
+              size="1"
+              disabled={tokenChecking || tokenRows.length === 0}
+              onClick={() => { void onCheckTokens(); }}
+            >
+              <RefreshCw className={cn("mr-2 h-4 w-4", tokenChecking && "animate-spin")} />
+              {t("cloud.tokens.check", "检查")}
+            </Button>
           </div>
-        </div>
-        <div className="mt-3 flex flex-wrap gap-2 border-t border-border pt-3">
-          <Button
-            variant="outline"
-            size="1"
-            disabled={tokenChecking || tokenRows.length === 0}
-            onClick={() => { void onCheckTokens(); }}
-          >
-            <RefreshCw className={cn("mr-2 h-4 w-4", tokenChecking && "animate-spin")} />
-            {t("cloud.tokens.check", "检查")}
-          </Button>
         </div>
       </div>
 
