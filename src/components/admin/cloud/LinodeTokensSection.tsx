@@ -249,7 +249,7 @@ export function LinodeTokensSection({
                     <AdminDataTableHead>{t("cloud.tokens.group", "分组")}</AdminDataTableHead>
                     <AdminDataTableHead>{t("cloud.providers.linode.balance", "余额")}</AdminDataTableHead>
                     <AdminDataTableHead>{t("cloud.tokens.table.status", "状态")}</AdminDataTableHead>
-                    <AdminDataTableHead align="right" sticky="right">
+                    <AdminDataTableHead align="right" sticky="right" className="w-[72px]">
                       {t("common.action", "操作")}
                     </AdminDataTableHead>
                   </AdminDataTableHeadRow>
@@ -304,42 +304,39 @@ export function LinodeTokensSection({
                           ) : null}
                         </div>
                       </AdminDataTableCell>
-                      <AdminDataTableCell align="right" sticky="right">
-                        <div className="flex justify-end gap-1.5">
-                          <Button
-                            variant="soft"
-                            size="1"
-                            color={token.is_active ? "blue" : undefined}
-                            disabled={token.is_active}
-                            onClick={() => {
-                              void onSelectToken(token);
-                            }}
-                          >
-                            <Server className="mr-1 h-3.5 w-3.5" />
-                            {token.is_active ? t("cloud.tokens.current", "当前") : t("cloud.tokens.use", "使用")}
-                          </Button>
-                          <AdminRowActions
-                            label={t("common.action", "操作")}
-                            actions={[
-                              {
-                                label: t("cloud.tokens.view_token", "查看令牌"),
-                                icon: <Eye className="h-4 w-4" />,
-                                disabled: tokenSecretLoading,
-                                onSelect: () => {
-                                  void onViewTokenSecret(token);
-                                },
+                      <AdminDataTableCell align="right" sticky="right" className="w-[72px]">
+                        <AdminRowActions
+                          label={t("common.action", "操作")}
+                          contentClassName="min-w-44"
+                          actions={[
+                            {
+                              label: token.is_active
+                                ? t("cloud.tokens.current", "当前")
+                                : t("cloud.tokens.use", "使用"),
+                              icon: <Server className="h-4 w-4" />,
+                              disabled: token.is_active,
+                              onSelect: () => {
+                                void onSelectToken(token);
                               },
-                              {
-                                label: t("cloud.tokens.delete", "删除"),
-                                icon: <Trash2 className="h-4 w-4" />,
-                                destructive: true,
-                                onSelect: () => {
-                                  void onDeleteToken(token);
-                                },
+                            },
+                            {
+                              label: t("cloud.tokens.view_token", "查看令牌"),
+                              icon: <Eye className="h-4 w-4" />,
+                              disabled: tokenSecretLoading,
+                              onSelect: () => {
+                                void onViewTokenSecret(token);
                               },
-                            ]}
-                          />
-                        </div>
+                            },
+                            {
+                              label: t("cloud.tokens.delete", "删除"),
+                              icon: <Trash2 className="h-4 w-4" />,
+                              destructive: true,
+                              onSelect: () => {
+                                void onDeleteToken(token);
+                              },
+                            },
+                          ]}
+                        />
                       </AdminDataTableCell>
                     </AdminDataTableRow>
                   ))}
