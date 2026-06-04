@@ -466,7 +466,7 @@ function CloudFormActions({
   return (
     <div
       className={cn(
-        "mt-4 flex flex-col-reverse gap-2 border-t border-border pt-3 sm:flex-row sm:items-center sm:justify-end",
+        "admin-form-footer mt-4 flex flex-col-reverse gap-2 border-t border-border pt-3 sm:flex-row sm:items-center sm:justify-end",
         className,
       )}
       {...props}
@@ -485,16 +485,16 @@ function CloudImportFormSection({
   return (
     <section
       className={cn(
-        "min-w-0 space-y-5",
+        "admin-form-section min-w-0 space-y-4 pl-3",
         className,
       )}
     >
-      <div className="border-t border-border pt-4">
-        <div className="grid min-w-0 gap-2 lg:grid-cols-[5rem_minmax(0,1fr)] lg:items-center">
+      <div>
+        <div className="grid min-w-0 gap-2 lg:grid-cols-[4.5rem_minmax(0,1fr)] lg:items-center">
           <label className={cn(cloudPanelFieldLabelClassName, "leading-9")}>
             {groupLabel}
           </label>
-          <div className="min-w-0">
+          <div className="min-w-0 overflow-hidden">
             {groupControl}
           </div>
         </div>
@@ -545,7 +545,7 @@ function CloudSensitiveDialogContent({
       icon={icon}
       side={side}
       wide
-      className={cn("sm:max-w-[56rem]", className)}
+      className={className}
       descriptionClassName={cloudLongTextClassName}
       bodyClassName={cn("space-y-5 py-5", bodyClassName)}
     >

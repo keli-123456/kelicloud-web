@@ -32,10 +32,13 @@ import {
   useClientPagination,
 } from "@/components/admin/AdminPagination";
 import {
+  ADMIN_FORM_BODY_CLASS,
+  ADMIN_FORM_DIALOG_CHROME_CLASS,
   ADMIN_FORM_DIALOG_CLASS,
   ADMIN_FORM_DIALOG_WIDE_CLASS,
   ADMIN_FORM_FIELD_CLASS as FORM_FIELD_CLASS,
-  ADMIN_FORM_SCROLL_CLASS,
+  ADMIN_FORM_FOOTER_CLASS,
+  ADMIN_FORM_HEADER_CLASS,
   ADMIN_FORM_SECTION_CLASS as FORM_SECTION_CLASS,
   ADMIN_FORM_TOGGLE_CLASS as FORM_TOGGLE_CLASS,
 } from "@/components/admin/AdminFormStyles";
@@ -5504,8 +5507,8 @@ function ExecutionDetailDialog({
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className={cn(ADMIN_FORM_DIALOG_CLASS, "max-w-4xl")}>
-          <DialogHeader>
+        <DialogContent className={cn(ADMIN_FORM_DIALOG_CLASS, ADMIN_FORM_DIALOG_CHROME_CLASS, "max-w-4xl")}>
+          <DialogHeader className={ADMIN_FORM_HEADER_CLASS}>
             <DialogTitle>
               {t("failover.execution.title", { defaultValue: "Execution details" })}
             </DialogTitle>
@@ -5516,7 +5519,7 @@ function ExecutionDetailDialog({
             </DialogDescription>
           </DialogHeader>
 
-          <div className={ADMIN_FORM_SCROLL_CLASS}>
+          <div className={ADMIN_FORM_BODY_CLASS}>
             {loading && !execution ? <ExecutionDetailSkeleton /> : null}
 
             {!loading && error ? (
@@ -5789,7 +5792,7 @@ function ExecutionDetailDialog({
           </div>
         ) : null}
 
-        <DialogFooter className={cn("px-5 py-4", retryGuidance.length > 0 ? "" : "border-t")}>
+        <DialogFooter className={ADMIN_FORM_FOOTER_CLASS}>
           {detailedMode && execution && isFailoverExecutionActive(execution.status) ? (
             <Button type="button" variant="outline" onClick={() => void handleStopExecution()} disabled={stopping || loading}>
               {stopping ? <LoaderCircle className="size-4 animate-spin" /> : <Square className="size-4" />}
@@ -7335,6 +7338,7 @@ function TaskEditorDialog({
       <DialogContent
         className={cn(
           ADMIN_FORM_DIALOG_WIDE_CLASS,
+          ADMIN_FORM_DIALOG_CHROME_CLASS,
           "h-[90vh] max-w-[1180px] sm:max-w-[1180px]",
           "[&_.grid>*]:min-w-0",
           "[&_button[data-slot=select-trigger]]:w-full",
@@ -7347,7 +7351,7 @@ function TaskEditorDialog({
           "[&_button[data-slot=select-trigger]_[data-slot=select-value]]:text-left",
         )}
       >
-        <DialogHeader>
+        <DialogHeader className={ADMIN_FORM_HEADER_CLASS}>
           <DialogTitle>
             {mode === "edit"
               ? t("failover.editor.edit_title", { defaultValue: "Edit failover task" })
@@ -7362,7 +7366,7 @@ function TaskEditorDialog({
         </DialogHeader>
 
         <form className="flex min-h-0 flex-1 flex-col overflow-hidden" onSubmit={handleSubmit}>
-          <div className={ADMIN_FORM_SCROLL_CLASS}>
+          <div className={ADMIN_FORM_BODY_CLASS}>
             <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_340px]">
               <div className="min-w-0 space-y-5">
                 <section className={FORM_SECTION_CLASS}>
@@ -7475,8 +7479,8 @@ function TaskEditorDialog({
               </section>
 
               <Dialog open={taskDialogOpen} onOpenChange={setTaskDialogOpen}>
-                <DialogContent className={cn(ADMIN_FORM_DIALOG_WIDE_CLASS, "h-[82vh] max-w-[1040px] sm:max-w-[1040px]")}>
-                  <DialogHeader>
+                <DialogContent className={cn(ADMIN_FORM_DIALOG_WIDE_CLASS, ADMIN_FORM_DIALOG_CHROME_CLASS, "h-[82vh] max-w-[980px] sm:max-w-[980px]")}>
+                  <DialogHeader className={ADMIN_FORM_HEADER_CLASS}>
                     <DialogTitle>
                       {t("failover.editor.show_task_advanced", {
                         defaultValue: "Advanced monitoring settings",
@@ -7488,7 +7492,7 @@ function TaskEditorDialog({
                       })}
                     </DialogDescription>
                   </DialogHeader>
-                  <div className={ADMIN_FORM_SCROLL_CLASS}>
+                  <div className={ADMIN_FORM_BODY_CLASS}>
                     <section className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_340px]">
                       <div className="min-w-0 space-y-3">
                       <Collapsible open={taskAdvancedOpen} onOpenChange={setTaskAdvancedOpen}>
@@ -7693,8 +7697,8 @@ function TaskEditorDialog({
               </section>
 
               <Dialog open={dnsDialogOpen} onOpenChange={setDnsDialogOpen}>
-                <DialogContent className={cn(ADMIN_FORM_DIALOG_WIDE_CLASS, "h-[88vh] max-w-[1080px] sm:max-w-[1080px]")}>
-                  <DialogHeader>
+                <DialogContent className={cn(ADMIN_FORM_DIALOG_WIDE_CLASS, ADMIN_FORM_DIALOG_CHROME_CLASS, "h-[88vh] max-w-[1020px] sm:max-w-[1020px]")}>
+                  <DialogHeader className={ADMIN_FORM_HEADER_CLASS}>
                     <DialogTitle>{t("failover.editor.dns", { defaultValue: "DNS and cleanup" })}</DialogTitle>
                     <DialogDescription>
                       {t("failover.editor.dns_dialog_description", {
@@ -7702,7 +7706,7 @@ function TaskEditorDialog({
                       })}
                     </DialogDescription>
                   </DialogHeader>
-                  <div className={ADMIN_FORM_SCROLL_CLASS}>
+                  <div className={ADMIN_FORM_BODY_CLASS}>
                     <section className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_340px]">
                       <div className="min-w-0 space-y-3">
                       <Collapsible open={dnsCoreOpen} onOpenChange={setDnsCoreOpen}>
@@ -8329,8 +8333,8 @@ function TaskEditorDialog({
               </section>
 
               <Dialog open={planDialogOpen} onOpenChange={setPlanDialogOpen}>
-                <DialogContent className={cn(ADMIN_FORM_DIALOG_WIDE_CLASS, "h-[88vh] max-w-[1080px] sm:max-w-[1080px]")}>
-                  <DialogHeader>
+                <DialogContent className={cn(ADMIN_FORM_DIALOG_WIDE_CLASS, ADMIN_FORM_DIALOG_CHROME_CLASS, "h-[88vh] max-w-[1020px] sm:max-w-[1020px]")}>
+                  <DialogHeader className={ADMIN_FORM_HEADER_CLASS}>
                     <DialogTitle>{t("failover.editor.plans", { defaultValue: "Failover plans" })}</DialogTitle>
                     <DialogDescription>
                       {t("failover.editor.plans_dialog_description", {
@@ -8338,7 +8342,7 @@ function TaskEditorDialog({
                       })}
                     </DialogDescription>
                   </DialogHeader>
-                  <div className={ADMIN_FORM_SCROLL_CLASS}>
+                  <div className={ADMIN_FORM_BODY_CLASS}>
                     <section className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_340px]">
                       <div className="min-w-0 space-y-3">
                       {selectedPlan ? (
@@ -10123,8 +10127,8 @@ function TaskEditorDialog({
               </section>
 
               <Dialog open={previewDialogOpen} onOpenChange={setPreviewDialogOpen}>
-                <DialogContent className={cn(ADMIN_FORM_DIALOG_CLASS, "h-[82vh] max-w-[56rem]")}>
-                  <DialogHeader>
+                <DialogContent className={cn(ADMIN_FORM_DIALOG_CLASS, ADMIN_FORM_DIALOG_CHROME_CLASS, "h-[82vh] max-w-[56rem]")}>
+                  <DialogHeader className={ADMIN_FORM_HEADER_CLASS}>
                     <DialogTitle>{t("failover.preview.title", { defaultValue: "Preview checks" })}</DialogTitle>
                     <DialogDescription>
                       {t("failover.preview.dialog_description", {
@@ -10132,7 +10136,7 @@ function TaskEditorDialog({
                       })}
                     </DialogDescription>
                   </DialogHeader>
-                  <div className={ADMIN_FORM_SCROLL_CLASS}>
+                  <div className={ADMIN_FORM_BODY_CLASS}>
                     <TaskPreviewSection
                       preview={previewResult}
                       loading={previewing}
@@ -10154,7 +10158,7 @@ function TaskEditorDialog({
             </div>
           </div>
 
-          <DialogFooter className="shrink-0 border-t border-slate-200/70 pt-4 sm:items-center sm:justify-between dark:border-slate-800/70">
+          <DialogFooter className={cn(ADMIN_FORM_FOOTER_CLASS, "sm:items-center sm:justify-between")}>
             <div className="min-w-0 flex-1 text-xs text-muted-foreground">
               <div
                 className={cn(

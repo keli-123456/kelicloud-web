@@ -1757,14 +1757,14 @@ function VultrTokenImportDialog({
         )}
         icon={<Upload className="size-4" />}
         badge={<Badge color="blue">{t("cloud.providers.vultr.title", "Vultr")}</Badge>}
-        className="sm:max-w-3xl"
+        className="sm:max-w-[56rem]"
       >
         <CloudImportFormSection
           groupLabel={t("cloud.tokens.group", "分组")}
           groupControl={(
-            <div className="flex min-w-0 flex-col gap-2 lg:flex-row lg:items-center">
+            <div className="grid min-w-0 gap-2 sm:grid-cols-[minmax(0,1fr)_12rem] sm:items-center">
               <TextField.Root
-                className="lg:max-w-xs"
+                className="min-w-0"
                 value={tokenImportGroup}
                 placeholder={t("cloud.tokens.group_placeholder", "可选令牌分组")}
                 onChange={(event) => setTokenImportGroup(event.target.value)}
@@ -1775,7 +1775,7 @@ function VultrTokenImportDialog({
                   onValueChange={setTokenImportGroup}
                 >
                   <Select.Trigger
-                    className="w-full lg:w-40"
+                    className="w-full"
                     placeholder={t("cloud.tokens.pick_existing_group", "选择已有分组")}
                   />
                   <Select.Content>

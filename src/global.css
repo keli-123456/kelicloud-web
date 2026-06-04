@@ -594,6 +594,35 @@
     box-shadow: var(--admin-dialog-shadow);
   }
 
+  .admin-dialog [data-slot="dialog-close"] {
+    background: color-mix(in srgb, var(--surface) 88%, var(--surface-muted));
+  }
+
+  .admin-form-section {
+    position: relative;
+    min-width: 0;
+  }
+
+  .admin-form-section::before {
+    content: "";
+    position: absolute;
+    top: 1rem;
+    bottom: 0.15rem;
+    left: 0;
+    width: 2px;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--primary) 24%, var(--border));
+    opacity: 0.72;
+  }
+
+  .admin-form-section:first-child::before {
+    top: 0.15rem;
+  }
+
+  .admin-form-section :is(label, [data-slot="label"]) {
+    min-width: 0;
+  }
+
   .admin-form-scroll {
     background:
       linear-gradient(var(--surface) 30%, transparent) center top,

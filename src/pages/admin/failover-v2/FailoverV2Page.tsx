@@ -28,13 +28,16 @@ import {
   initialAzureImagePreset,
 } from "@/components/admin/cloud/azurePanelUtils";
 import {
+  ADMIN_FORM_BODY_CLASS,
+  ADMIN_FORM_DIALOG_CHROME_CLASS,
   ADMIN_FORM_DIALOG_CLASS,
   ADMIN_FORM_DIALOG_WIDE_CLASS,
   ADMIN_FORM_FIELD_CLASS as FORM_FIELD_CLASS,
+  ADMIN_FORM_FOOTER_CLASS,
   ADMIN_FORM_GRID_2_CLASS as FORM_GRID_2_CLASS,
   ADMIN_FORM_GRID_3_CLASS as FORM_GRID_3_CLASS,
   ADMIN_FORM_GRID_4_CLASS as FORM_GRID_4_CLASS,
-  ADMIN_FORM_SCROLL_CLASS,
+  ADMIN_FORM_HEADER_CLASS,
   ADMIN_FORM_SECTION_COMPACT_CLASS as FORM_SECTION_CLASS,
   ADMIN_FORM_SELECT_TRIGGER_CLASS as FORM_SELECT_TRIGGER_CLASS,
   ADMIN_FORM_TOGGLE_CLASS as FORM_TOGGLE_CLASS,
@@ -5303,8 +5306,8 @@ export default function FailoverV2Page() {
       </Dialog>
 
       <Dialog open={serviceDialogOpen} onOpenChange={setServiceDialogOpen}>
-        <DialogContent className={cn(ADMIN_FORM_DIALOG_WIDE_CLASS, "h-[90vh] max-w-[1180px] sm:max-w-[1180px]")}>
-          <DialogHeader>
+        <DialogContent className={cn(ADMIN_FORM_DIALOG_WIDE_CLASS, ADMIN_FORM_DIALOG_CHROME_CLASS, "h-[90vh] max-w-[1180px] sm:max-w-[1180px]")}>
+          <DialogHeader className={ADMIN_FORM_HEADER_CLASS}>
             <DialogTitle>
               {editingService
                 ? t("failover_v2.edit_service", { defaultValue: "Edit V2 service" })
@@ -5317,7 +5320,7 @@ export default function FailoverV2Page() {
             </DialogDescription>
           </DialogHeader>
 
-          <div className={cn(ADMIN_FORM_SCROLL_CLASS, "px-1")}>
+          <div className={ADMIN_FORM_BODY_CLASS}>
             <div className="grid w-full gap-5 xl:grid-cols-[minmax(0,1fr)_340px]">
               <div className="min-w-0 space-y-3">
             <section className={FORM_SECTION_CLASS}>
@@ -5942,7 +5945,7 @@ export default function FailoverV2Page() {
             </div>
           </div>
 
-          <DialogFooter>
+          <DialogFooter className={ADMIN_FORM_FOOTER_CLASS}>
             <Button variant="outline" onClick={() => setServiceDialogOpen(false)} disabled={savingService}>
               {t("common.cancel", { defaultValue: "Cancel" })}
             </Button>
@@ -5970,8 +5973,8 @@ export default function FailoverV2Page() {
           setMemberDialogOpen(true);
         }}
       >
-        <DialogContent className={cn(ADMIN_FORM_DIALOG_WIDE_CLASS, "h-[90vh] max-w-[1180px] sm:max-w-[1180px]")}>
-          <DialogHeader>
+        <DialogContent className={cn(ADMIN_FORM_DIALOG_WIDE_CLASS, ADMIN_FORM_DIALOG_CHROME_CLASS, "h-[90vh] max-w-[1180px] sm:max-w-[1180px]")}>
+          <DialogHeader className={ADMIN_FORM_HEADER_CLASS}>
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div className="min-w-0 space-y-2">
                 <DialogTitle>
@@ -5990,7 +5993,7 @@ export default function FailoverV2Page() {
             </div>
           </DialogHeader>
 
-          <div className={cn(ADMIN_FORM_SCROLL_CLASS, "px-1")}>
+          <div className={ADMIN_FORM_BODY_CLASS}>
             <div className="grid w-full gap-5 xl:grid-cols-[minmax(0,1fr)_340px]">
               <div className="min-w-0 space-y-5">
                 <FlowSection
@@ -6938,7 +6941,7 @@ export default function FailoverV2Page() {
             </div>
           </div>
 
-          <div className="flex flex-col gap-3 border-t bg-background px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className={cn(ADMIN_FORM_FOOTER_CLASS, "sm:justify-between")}>
             <Button
               variant="ghost"
               size="sm"
@@ -7089,8 +7092,8 @@ export default function FailoverV2Page() {
           }
         }}
       >
-        <DialogContent className={ADMIN_FORM_DIALOG_CLASS}>
-          <DialogHeader>
+        <DialogContent className={cn(ADMIN_FORM_DIALOG_CLASS, ADMIN_FORM_DIALOG_CHROME_CLASS)}>
+          <DialogHeader className={ADMIN_FORM_HEADER_CLASS}>
             <DialogTitle>
               {t("failover_v2.pending_cleanup_history", { defaultValue: "Pending cleanup" })}
             </DialogTitle>
@@ -7105,7 +7108,7 @@ export default function FailoverV2Page() {
             </DialogDescription>
           </DialogHeader>
 
-          <div className="min-h-0 flex-1 overflow-y-auto pr-1">
+          <div className={ADMIN_FORM_BODY_CLASS}>
             <div className="mb-4 flex items-center justify-between gap-3">
               <div className="text-sm text-slate-500 dark:text-slate-400">
                 {t("failover_v2.pending_cleanup_hint", {
@@ -7287,7 +7290,7 @@ export default function FailoverV2Page() {
             </div>
           </div>
 
-          <DialogFooter>
+          <DialogFooter className={ADMIN_FORM_FOOTER_CLASS}>
             <Button
               variant="outline"
               onClick={() => setPendingCleanupDialogTarget(null)}
@@ -7311,8 +7314,8 @@ export default function FailoverV2Page() {
           }
         }}
       >
-        <DialogContent className={cn(ADMIN_FORM_DIALOG_WIDE_CLASS, "max-w-[1120px] gap-0 p-0 sm:max-w-[1120px]")}>
-          <DialogHeader className="shrink-0 border-b border-slate-200 px-6 py-5 pr-14 dark:border-slate-800">
+        <DialogContent className={cn(ADMIN_FORM_DIALOG_WIDE_CLASS, ADMIN_FORM_DIALOG_CHROME_CLASS, "max-w-[1120px] sm:max-w-[1120px]")}>
+          <DialogHeader className={ADMIN_FORM_HEADER_CLASS}>
             <DialogTitle>
               {t("failover_v2.execution_history", { defaultValue: "Executions" })}
             </DialogTitle>
@@ -7807,7 +7810,7 @@ export default function FailoverV2Page() {
             </main>
           </div>
 
-          <DialogFooter className="shrink-0 border-t border-slate-200 bg-background/95 px-6 py-4 backdrop-blur dark:border-slate-800">
+          <DialogFooter className={ADMIN_FORM_FOOTER_CLASS}>
             <Button
               variant="outline"
               onClick={() => setExecutionDialogTarget(null)}

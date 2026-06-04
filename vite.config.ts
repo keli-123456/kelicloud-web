@@ -145,6 +145,7 @@ export default defineConfig(({ mode }) => {
         "react/jsx-runtime",
         "react/jsx-dev-runtime",
         "use-sync-external-store/shim",
+        "lucide-react",
       ],
     },
     build: {

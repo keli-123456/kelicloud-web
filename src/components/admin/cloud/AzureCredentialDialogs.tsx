@@ -114,13 +114,13 @@ export function AzureCredentialImportDialog({
         )}
         icon={<Upload className="size-4" />}
         badge={<Badge color="blue">{t("cloud.providers.azure.name", "Azure")}</Badge>}
-        className="sm:max-w-3xl"
+        className="sm:max-w-[56rem]"
       >
         <CloudImportFormSection
           groupLabel={t("cloud.tokens.group", "分组")}
           groupControl={(
             <TextField.Root
-              className="sm:max-w-xs"
+              className="min-w-0"
               value={importGroup}
               placeholder={t("cloud.tokens.group_placeholder", "可选的凭证分组")}
               onChange={(event) => setImportGroup(event.target.value)}
