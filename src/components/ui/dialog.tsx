@@ -58,7 +58,7 @@ const DialogContent = React.forwardRef<
         ref={ref}
         data-slot="dialog-content"
         className={cn(
-          "admin-dialog fixed left-[50%] top-[50%] z-50 grid w-full min-w-0 max-w-[calc(100%-1.5rem)] max-h-[calc(100vh-1.5rem)] max-h-[calc(100dvh-1.5rem)] min-h-0 translate-x-[-50%] translate-y-[-50%] gap-4 overflow-y-auto overflow-x-hidden overscroll-contain p-5 duration-200 outline-none [scrollbar-gutter:stable] data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:slide-out-to-bottom-1 data-[state=closed]:zoom-out-95 data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:slide-in-from-bottom-1 data-[state=open]:zoom-in-95 sm:max-w-lg",
+          "admin-dialog fixed left-[50%] top-[50%] z-50 grid w-full min-w-0 max-w-[calc(100%-1rem)] max-h-[calc(100vh-1rem)] max-h-[calc(100dvh-1rem)] min-h-0 translate-x-[-50%] translate-y-[-50%] gap-3.5 overflow-y-auto overflow-x-hidden overscroll-contain p-4 duration-200 outline-none [scrollbar-gutter:stable] data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:slide-out-to-bottom-1 data-[state=closed]:zoom-out-95 data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:slide-in-from-bottom-1 data-[state=open]:zoom-in-95 sm:max-w-lg sm:p-5",
           className
         )}
         {...props}
@@ -67,9 +67,9 @@ const DialogContent = React.forwardRef<
         {showCloseButton && (
           <DialogPrimitive.Close
             data-slot="dialog-close"
-            className="absolute right-3.5 top-3.5 z-10 flex size-8 items-center justify-center rounded-md border border-transparent bg-transparent text-muted-foreground opacity-90 ring-offset-background transition-[background-color,color,border-color,opacity,box-shadow] hover:border-border hover:bg-[var(--surface-hover)] hover:text-foreground hover:opacity-100 focus:outline-hidden focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none data-[state=open]:bg-accent data-[state=open]:text-muted-foreground"
+            className="absolute right-3 top-3 z-10 flex size-8 items-center justify-center rounded-md border border-border bg-[var(--surface)] text-muted-foreground opacity-95 shadow-none ring-offset-background transition-[background-color,color,border-color,opacity,box-shadow] hover:bg-[var(--surface-hover)] hover:text-foreground hover:opacity-100 focus:outline-hidden focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none data-[state=open]:bg-accent data-[state=open]:text-muted-foreground sm:right-3.5 sm:top-3.5"
           >
-            <XIcon />
+            <XIcon className="size-4" />
             <span className="sr-only">Close</span>
           </DialogPrimitive.Close>
         )}
@@ -83,7 +83,7 @@ function DialogHeader({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div
       data-slot="dialog-header"
-      className={cn("flex flex-col gap-1.5 pr-10 text-center sm:text-left", className)}
+      className={cn("flex flex-col gap-1.5 pr-10 text-left", className)}
       {...props}
     />
   )
@@ -101,7 +101,7 @@ function DialogFooter({
     <div
       data-slot="dialog-footer"
       className={cn(
-        "flex flex-col-reverse gap-2 border-t border-border bg-[var(--surface-muted)] px-5 py-3 sm:flex-row sm:items-center sm:justify-end",
+        "flex flex-col-reverse gap-2 border-t border-border bg-[var(--surface-muted)] px-4 py-3 sm:flex-row sm:items-center sm:justify-end sm:px-5",
         className
       )}
       {...props}
@@ -123,7 +123,7 @@ function DialogTitle({
   return (
     <DialogPrimitive.Title
       data-slot="dialog-title"
-      className={cn("text-lg font-semibold leading-6 tracking-normal text-foreground", className)}
+      className={cn("text-base font-semibold leading-6 tracking-normal text-foreground", className)}
       {...props}
     />
   )

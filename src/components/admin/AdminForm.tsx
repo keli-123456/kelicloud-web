@@ -69,7 +69,7 @@ function AdminDialogLayout({
         <div className="flex min-w-0 flex-col gap-3 pr-10 sm:flex-row sm:items-start sm:justify-between">
           <div className="flex min-w-0 items-start gap-3">
             {icon ? (
-              <span className="inline-flex size-10 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground shadow-sm shadow-primary/15">
+              <span className="inline-flex size-9 shrink-0 items-center justify-center rounded-md bg-primary text-primary-foreground shadow-sm shadow-primary/15">
                 {icon}
               </span>
             ) : null}
@@ -96,7 +96,7 @@ function AdminDialogLayout({
       <div
         className={cn(
           "grid min-h-0 flex-1 overflow-hidden",
-          side ? "lg:grid-cols-[minmax(0,1fr)_320px]" : "",
+          side ? "lg:grid-cols-[minmax(0,1fr)_300px] xl:grid-cols-[minmax(0,1fr)_320px]" : "",
         )}
       >
         <div className={cn(ADMIN_FORM_BODY_CLASS, bodyClassName)}>
@@ -105,7 +105,7 @@ function AdminDialogLayout({
         {side ? (
           <aside
             className={cn(
-              "min-w-0 overflow-y-auto border-t border-border bg-[var(--surface-subtle)] px-5 py-5 [scrollbar-gutter:stable] lg:border-l lg:border-t-0",
+              "min-w-0 overflow-y-auto border-t border-border bg-[var(--surface-subtle)] px-4 py-4 [scrollbar-gutter:stable] lg:border-l lg:border-t-0 xl:px-5",
               sideClassName,
             )}
           >
@@ -149,9 +149,9 @@ function AdminFormSection({
       )}
       {...props}
     >
-      <div className={cn("mb-4 flex flex-wrap items-start justify-between gap-3", headerClassName)}>
+      <div className={cn("mb-3 flex flex-wrap items-start justify-between gap-3", headerClassName)}>
         <div className="min-w-0 space-y-1">
-          <h3 className="text-sm font-semibold text-foreground">
+          <h3 className="text-[13px] font-semibold leading-5 text-foreground">
             {title}
           </h3>
           {description ? (

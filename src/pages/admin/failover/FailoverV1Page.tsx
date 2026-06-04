@@ -7335,7 +7335,7 @@ function TaskEditorDialog({
       <DialogContent
         className={cn(
           ADMIN_FORM_DIALOG_WIDE_CLASS,
-          "h-[92vh] max-w-[1280px] sm:max-w-[1280px]",
+          "h-[90vh] max-w-[1180px] sm:max-w-[1180px]",
           "[&_.grid>*]:min-w-0",
           "[&_button[data-slot=select-trigger]]:w-full",
           "[&_button[data-slot=select-trigger]]:min-w-0",
@@ -7475,7 +7475,7 @@ function TaskEditorDialog({
               </section>
 
               <Dialog open={taskDialogOpen} onOpenChange={setTaskDialogOpen}>
-                <DialogContent className={cn(ADMIN_FORM_DIALOG_WIDE_CLASS, "h-[82vh] max-w-[1180px] sm:max-w-[1180px]")}>
+                <DialogContent className={cn(ADMIN_FORM_DIALOG_WIDE_CLASS, "h-[82vh] max-w-[1040px] sm:max-w-[1040px]")}>
                   <DialogHeader>
                     <DialogTitle>
                       {t("failover.editor.show_task_advanced", {
@@ -7693,7 +7693,7 @@ function TaskEditorDialog({
               </section>
 
               <Dialog open={dnsDialogOpen} onOpenChange={setDnsDialogOpen}>
-                <DialogContent className={cn(ADMIN_FORM_DIALOG_WIDE_CLASS, "h-[90vh] max-w-[1240px] sm:max-w-[1240px]")}>
+                <DialogContent className={cn(ADMIN_FORM_DIALOG_WIDE_CLASS, "h-[88vh] max-w-[1080px] sm:max-w-[1080px]")}>
                   <DialogHeader>
                     <DialogTitle>{t("failover.editor.dns", { defaultValue: "DNS and cleanup" })}</DialogTitle>
                     <DialogDescription>
@@ -8329,7 +8329,7 @@ function TaskEditorDialog({
               </section>
 
               <Dialog open={planDialogOpen} onOpenChange={setPlanDialogOpen}>
-                <DialogContent className={cn(ADMIN_FORM_DIALOG_WIDE_CLASS, "h-[92vh] max-w-[1180px] sm:max-w-[1180px]")}>
+                <DialogContent className={cn(ADMIN_FORM_DIALOG_WIDE_CLASS, "h-[88vh] max-w-[1080px] sm:max-w-[1080px]")}>
                   <DialogHeader>
                     <DialogTitle>{t("failover.editor.plans", { defaultValue: "Failover plans" })}</DialogTitle>
                     <DialogDescription>
@@ -10123,7 +10123,7 @@ function TaskEditorDialog({
               </section>
 
               <Dialog open={previewDialogOpen} onOpenChange={setPreviewDialogOpen}>
-                <DialogContent className={cn(ADMIN_FORM_DIALOG_CLASS, "h-[88vh] max-w-5xl")}>
+                <DialogContent className={cn(ADMIN_FORM_DIALOG_CLASS, "h-[82vh] max-w-[56rem]")}>
                   <DialogHeader>
                     <DialogTitle>{t("failover.preview.title", { defaultValue: "Preview checks" })}</DialogTitle>
                     <DialogDescription>

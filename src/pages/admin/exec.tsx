@@ -1748,7 +1748,7 @@ const ExecContent = ({ canUseExec, canUseScripts }: { canUseExec: boolean; canUs
                 className={cn(
                     ADMIN_FORM_DIALOG_WIDE_CLASS,
                     ADMIN_FORM_DIALOG_CHROME_CLASS,
-                    "h-[min(88vh,820px)] sm:max-w-[calc(100vw-2rem)] lg:max-w-5xl",
+                    "h-[min(88vh,820px)] sm:max-w-[calc(100vw-2rem)] lg:max-w-[60rem]",
                 )}
             >
                 <div className={ADMIN_FORM_HEADER_CLASS}>

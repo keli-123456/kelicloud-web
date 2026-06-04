@@ -20,13 +20,13 @@ import type { SettingsResponse } from "@/lib/api";
 import { buildAgentInstallScriptURL } from "@/lib/installScriptSource";
 
 const NODE_DIALOG_CONTENT_CLASS =
-  "admin-dialog flex h-[min(92vh,calc(100dvh-1.5rem))] w-[min(96vw,1040px)] flex-col overflow-hidden p-0";
+  "admin-dialog flex h-[min(90vh,calc(100dvh-1rem))] w-[min(calc(100vw-1rem),980px)] flex-col overflow-hidden p-0";
 const NODE_DIALOG_SECTION_CLASS =
-  "border-t border-border/70 bg-transparent pt-4 first:border-t-0 first:pt-0";
+  "border-t border-border/70 bg-transparent pt-3.5 first:border-t-0 first:pt-0";
 const NODE_DIALOG_HINT_CLASS =
   "text-sm leading-6 text-muted-foreground";
 const NODE_DIALOG_FOOTER_CLASS =
-  "admin-panel-footer flex shrink-0 flex-col-reverse gap-2 border-t border-border px-5 py-3 sm:flex-row sm:items-center sm:justify-end";
+  "admin-panel-footer flex shrink-0 flex-col-reverse gap-2 border-t border-border px-4 py-3 sm:flex-row sm:items-center sm:justify-end sm:px-5";
 const NODE_INPUT_CLASS =
   "h-10 rounded-md border border-input bg-[var(--surface)] px-3 text-[14px] shadow-none hover:bg-[var(--surface-hover)]";
 
@@ -512,7 +512,7 @@ export default function GenerateCommandDialog({
 
   return (
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
-      <Dialog.Content className={NODE_DIALOG_CONTENT_CLASS} maxWidth={1040}>
+      <Dialog.Content className={NODE_DIALOG_CONTENT_CLASS} maxWidth={980}>
         <div className="admin-panel-header shrink-0 px-5 py-4">
           <div className="flex min-w-0 flex-col gap-1 pr-12">
             <Dialog.Title>

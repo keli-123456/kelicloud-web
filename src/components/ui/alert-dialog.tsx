@@ -50,7 +50,7 @@ function AlertDialogContent({
       <AlertDialogPrimitive.Content
         data-slot="alert-dialog-content"
         className={cn(
-          "admin-dialog admin-form-scroll fixed top-[50%] left-[50%] z-50 grid w-full min-w-0 max-w-[calc(100%-1.5rem)] max-h-[calc(100vh-1.5rem)] max-h-[calc(100dvh-1.5rem)] min-h-0 translate-x-[-50%] translate-y-[-50%] gap-5 overflow-y-auto overflow-x-hidden overscroll-contain p-5 duration-200 outline-none [scrollbar-gutter:stable] data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:slide-out-to-bottom-1 data-[state=closed]:zoom-out-95 data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:slide-in-from-bottom-1 data-[state=open]:zoom-in-95 sm:max-w-xl md:p-6",
+          "admin-dialog admin-form-scroll fixed top-[50%] left-[50%] z-50 grid w-full min-w-0 max-w-[calc(100%-1rem)] max-h-[calc(100vh-1rem)] max-h-[calc(100dvh-1rem)] min-h-0 translate-x-[-50%] translate-y-[-50%] gap-4 overflow-y-auto overflow-x-hidden overscroll-contain p-4 duration-200 outline-none [scrollbar-gutter:stable] data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:slide-out-to-bottom-1 data-[state=closed]:zoom-out-95 data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:slide-in-from-bottom-1 data-[state=open]:zoom-in-95 sm:max-w-lg sm:p-5",
           className
         )}
         {...props}
@@ -66,7 +66,7 @@ function AlertDialogHeader({
   return (
     <div
       data-slot="alert-dialog-header"
-      className={cn("flex flex-col gap-2.5 text-center sm:text-left", className)}
+      className={cn("flex flex-col gap-1.5 text-left", className)}
       {...props}
     />
   )
@@ -92,7 +92,7 @@ function AlertDialogTitle({
   return (
     <AlertDialogPrimitive.Title
       data-slot="alert-dialog-title"
-      className={cn("text-xl font-semibold tracking-normal text-foreground", className)}
+      className={cn("text-base font-semibold leading-6 tracking-normal text-foreground", className)}
       {...props}
     />
   )

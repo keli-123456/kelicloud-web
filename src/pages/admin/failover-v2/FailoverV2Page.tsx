@@ -5303,7 +5303,7 @@ export default function FailoverV2Page() {
       </Dialog>
 
       <Dialog open={serviceDialogOpen} onOpenChange={setServiceDialogOpen}>
-        <DialogContent className={cn(ADMIN_FORM_DIALOG_WIDE_CLASS, "h-[92vh] max-w-[1280px] sm:max-w-[1280px]")}>
+        <DialogContent className={cn(ADMIN_FORM_DIALOG_WIDE_CLASS, "h-[90vh] max-w-[1180px] sm:max-w-[1180px]")}>
           <DialogHeader>
             <DialogTitle>
               {editingService
@@ -5970,7 +5970,7 @@ export default function FailoverV2Page() {
           setMemberDialogOpen(true);
         }}
       >
-        <DialogContent className={cn(ADMIN_FORM_DIALOG_WIDE_CLASS, "h-[92vh] max-w-[1280px] sm:max-w-[1280px]")}>
+        <DialogContent className={cn(ADMIN_FORM_DIALOG_WIDE_CLASS, "h-[90vh] max-w-[1180px] sm:max-w-[1180px]")}>
           <DialogHeader>
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div className="min-w-0 space-y-2">
@@ -7311,7 +7311,7 @@ export default function FailoverV2Page() {
           }
         }}
       >
-        <DialogContent className={cn(ADMIN_FORM_DIALOG_WIDE_CLASS, "max-w-[1320px] gap-0 p-0 sm:max-w-[1320px]")}>
+        <DialogContent className={cn(ADMIN_FORM_DIALOG_WIDE_CLASS, "max-w-[1120px] gap-0 p-0 sm:max-w-[1120px]")}>
           <DialogHeader className="shrink-0 border-b border-slate-200 px-6 py-5 pr-14 dark:border-slate-800">
             <DialogTitle>
               {t("failover_v2.execution_history", { defaultValue: "Executions" })}

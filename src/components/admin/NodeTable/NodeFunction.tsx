@@ -89,13 +89,13 @@ type InstallOptions = {
 type Platform = "linux" | "windows" | "macos";
 
 const NODE_DIALOG_CONTENT_CLASS =
-  "admin-dialog max-h-[90vh] w-[min(96vw,840px)] overflow-y-auto overscroll-contain p-5 [scrollbar-gutter:stable]";
+  "admin-dialog admin-form-scroll max-h-[90vh] w-[min(calc(100vw-1rem),760px)] overflow-y-auto overscroll-contain p-4 [scrollbar-gutter:stable] sm:p-5";
 const NODE_DIALOG_COMPACT_CONTENT_CLASS =
-  "admin-dialog max-h-[90vh] w-[min(96vw,560px)] overflow-y-auto overscroll-contain p-5 [scrollbar-gutter:stable]";
+  "admin-dialog admin-form-scroll max-h-[90vh] w-[min(calc(100vw-1rem),520px)] overflow-y-auto overscroll-contain p-4 [scrollbar-gutter:stable] sm:p-5";
 const NODE_DIALOG_SECTION_CLASS =
-  "space-y-4 border-t border-border bg-transparent pt-4";
+  "space-y-3 border-t border-border bg-transparent pt-3.5 first:border-t-0 first:pt-0";
 const NODE_DIALOG_FOOTER_CLASS =
-  "mt-5 flex flex-col-reverse gap-2 border-t border-border pt-3 sm:flex-row sm:justify-end";
+  "mt-4 flex flex-col-reverse gap-2 border-t border-border pt-3 sm:flex-row sm:justify-end";
 const NODE_INPUT_CLASS =
   "h-10 rounded-md border border-input bg-[var(--surface)] px-3 text-[14px] shadow-none hover:bg-[var(--surface-hover)]";
 const NODE_TEXTAREA_CLASS =

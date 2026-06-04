@@ -22,18 +22,18 @@ import { useAdminPageTitle } from "@/contexts/AdminPageTitleContext";
 import { cn } from "@/lib/utils";
 
 const cloudDialogBaseClassName =
-  "admin-form-scroll flex max-h-[90vh] w-[calc(100vw-1.5rem)] flex-col overflow-y-auto overflow-x-hidden overscroll-contain [scrollbar-gutter:stable]";
+  "admin-form-scroll flex max-h-[90vh] w-[calc(100vw-1rem)] flex-col overflow-y-auto overflow-x-hidden overscroll-contain [scrollbar-gutter:stable] sm:w-[calc(100vw-2rem)]";
 
 const cloudDialogContentClassName =
   cn(
     cloudDialogBaseClassName,
-    "max-w-5xl sm:max-w-3xl",
+    "max-w-[52rem] sm:max-w-[52rem]",
   );
 
 const cloudDialogWideContentClassName =
   cn(
-    "admin-form-scroll flex max-h-[92vh] w-[calc(100vw-1.5rem)] flex-col overflow-y-auto overflow-x-hidden overscroll-contain [scrollbar-gutter:stable]",
-    "max-w-[96rem] sm:max-w-5xl",
+    "admin-form-scroll flex max-h-[92vh] w-[calc(100vw-1rem)] flex-col overflow-y-auto overflow-x-hidden overscroll-contain [scrollbar-gutter:stable] sm:w-[calc(100vw-2rem)]",
+    "max-w-[72rem] sm:max-w-[72rem]",
   );
 
 const cloudLongTextClassName =
@@ -545,7 +545,7 @@ function CloudSensitiveDialogContent({
       icon={icon}
       side={side}
       wide
-      className={cn("sm:max-w-4xl", className)}
+      className={cn("sm:max-w-[56rem]", className)}
       descriptionClassName={cloudLongTextClassName}
       bodyClassName={cn("space-y-5 py-5", bodyClassName)}
     >
