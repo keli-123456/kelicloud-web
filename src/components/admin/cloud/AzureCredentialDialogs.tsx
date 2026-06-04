@@ -114,7 +114,7 @@ export function AzureCredentialImportDialog({
         )}
         icon={<Upload className="size-4" />}
         badge={<Badge color="blue">{t("cloud.providers.azure.name", "Azure")}</Badge>}
-        className="sm:max-w-[56rem]"
+        maxWidth="52rem"
         footer={(
           <>
             <Button variant="outline" onClick={() => onOpenChange(false)} disabled={saving}>
@@ -141,7 +141,7 @@ export function AzureCredentialImportDialog({
           editorLabel={t("cloud.providers.azure.credential_content", "凭证内容")}
           editor={(
             <CloudCodeTextarea
-              minHeightClassName="min-h-72"
+              minHeightClassName="min-h-[clamp(220px,32vh,280px)]"
               value={importText}
               onChange={(event) => setImportText(event.target.value)}
               placeholder='{"appId":"...","displayName":"azure-cli-...","password":"...","tenant":"..."}'

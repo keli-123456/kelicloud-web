@@ -92,7 +92,7 @@ export function LinodeTokenImportDialog({
         )}
         icon={<Upload className="size-4" />}
         badge={<Badge color="blue">{t("cloud.providers.linode.name", "Linode")}</Badge>}
-        className="sm:max-w-[56rem]"
+        maxWidth="52rem"
         footer={(
           <>
             <Button variant="outline" onClick={() => onOpenChange(false)} disabled={saving}>
@@ -139,7 +139,7 @@ export function LinodeTokenImportDialog({
           editor={(
             <CloudCodeTextarea
               value={tokenImportText}
-              minHeightClassName="min-h-72"
+              minHeightClassName="min-h-[clamp(220px,32vh,280px)]"
               placeholder={t(
                 "cloud.tokens.import_placeholder",
                 "prod-account,dop_v1_xxx\nbackup-account|dop_v1_yyy\ndop_v1_zzz",

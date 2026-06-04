@@ -485,18 +485,16 @@ function CloudImportFormSection({
   return (
     <section
       className={cn(
-        "admin-form-section min-w-0 space-y-4 pl-3",
+        "min-w-0 space-y-4",
         className,
       )}
     >
-      <div>
-        <div className="grid min-w-0 gap-2 lg:grid-cols-[4.5rem_minmax(0,1fr)] lg:items-center">
-          <label className={cn(cloudPanelFieldLabelClassName, "leading-9")}>
-            {groupLabel}
-          </label>
-          <div className="min-w-0 overflow-hidden">
-            {groupControl}
-          </div>
+      <div className="min-w-0 space-y-2">
+        <label className={cloudPanelFieldLabelClassName}>
+          {groupLabel}
+        </label>
+        <div className="min-w-0 overflow-hidden">
+          {groupControl}
         </div>
       </div>
 
@@ -526,6 +524,7 @@ type CloudSensitiveDialogContentProps = {
   children: React.ReactNode;
   side?: React.ReactNode;
   footer?: React.ReactNode;
+  maxWidth?: string | number;
   className?: string;
   bodyClassName?: string;
 };
@@ -538,6 +537,7 @@ function CloudSensitiveDialogContent({
   children,
   side,
   footer,
+  maxWidth,
   className,
   bodyClassName,
 }: CloudSensitiveDialogContentProps) {
@@ -549,6 +549,7 @@ function CloudSensitiveDialogContent({
       icon={icon}
       side={side}
       footer={footer}
+      maxWidth={maxWidth}
       wide
       className={className}
       descriptionClassName={cloudLongTextClassName}

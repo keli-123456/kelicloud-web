@@ -1756,7 +1756,7 @@ function VultrTokenImportDialog({
         )}
         icon={<Upload className="size-4" />}
         badge={<Badge color="blue">{t("cloud.providers.vultr.title", "Vultr")}</Badge>}
-        className="sm:max-w-[56rem]"
+        maxWidth="52rem"
         footer={(
           <>
             <Button variant="outline" onClick={() => onOpenChange(false)} disabled={saving}>
@@ -1803,7 +1803,7 @@ function VultrTokenImportDialog({
           editor={(
             <CloudCodeTextarea
               value={tokenImportText}
-              minHeightClassName="min-h-72"
+              minHeightClassName="min-h-[clamp(220px,32vh,280px)]"
               placeholder={t(
                 "cloud.providers.vultr.import_placeholder",
                 "prod-account,vultr_api_token_xxx\nbackup-account|vultr_api_token_yyy\nvultr_api_token_zzz",

@@ -51,7 +51,7 @@ export function AWSCredentialImportDialog({
         )}
         icon={<Upload className="size-4" />}
         badge={<Badge color="blue">{t("cloud.providers.aws.name", "AWS")}</Badge>}
-        className="sm:max-w-[56rem]"
+        maxWidth="52rem"
         footer={(
           <>
             <Button variant="outline" onClick={() => onOpenChange(false)} disabled={saving}>
@@ -80,7 +80,7 @@ export function AWSCredentialImportDialog({
           editor={(
             <CloudCodeTextarea
               value={text}
-              minHeightClassName="min-h-72"
+              minHeightClassName="min-h-[clamp(220px,32vh,280px)]"
               placeholder={"AKIA...,secret...\nAKIA... secret...\nprod,AKIA...,secret...,ap-southeast-1\nbackup|AKIA...|secret...|ap-southeast-1|session-token"}
               onChange={(event) => onTextChange(event.target.value)}
             />
