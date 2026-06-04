@@ -1,4 +1,4 @@
-import { Outlet, useLocation } from "react-router-dom";
+import { Navigate, Outlet, useLocation } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { Bell } from "lucide-react";
 
@@ -8,6 +8,7 @@ import {
   AdminSideNavLink,
   AdminSplitLayout,
 } from "@/components/admin/AdminPageShell";
+import { getDefaultAdminPath, useAccount } from "@/contexts/AccountContext";
 
 const navItems = [
   {
@@ -23,6 +24,15 @@ const navItems = [
 export default function NotificationLayout() {
   const { t } = useTranslation();
   const location = useLocation();
+  const { account, hasFeature, loading } = useAccount();
+
+  if (loading) {
+    return null;
+  }
+
+  if (!hasFeature("notifications")) {
+    return <Navigate to={getDefaultAdminPath(account)} replace />;
+  }
 
   return (
     <AdminPageShell
