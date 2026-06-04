@@ -4,7 +4,6 @@ import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import {
   CheckCircle2,
-  ChevronDown,
   Eye,
   PencilLine,
   Plus,
@@ -965,7 +964,6 @@ function AWSCredentialRail({
     initialPageSize: 5,
   });
   const visibleCredentialRows = credentialPagination.pageItems;
-  const [credentialPoolOpen, setCredentialPoolOpen] = React.useState(true);
   const contextLabel = activeCredential
     ? `${activeCredential.account_id || activeCredential.masked_access_key_id || activeCredentialName || "-"} · ${activeRegion || "-"}`
     : t(
@@ -1000,14 +998,6 @@ function AWSCredentialRail({
             <Button size="1" onClick={onImportCredentials}>
               <Plus className="mr-2 h-4 w-4" />
               {t("cloud.providers.aws.import", "导入凭证")}
-            </Button>
-            <Button
-              variant="outline"
-              size="1"
-              onClick={() => setCredentialPoolOpen((open) => !open)}
-            >
-              <ChevronDown className={`mr-2 h-4 w-4 transition-transform ${credentialPoolOpen ? "rotate-180" : ""}`} />
-              {credentialPoolOpen ? t("common.collapse", "收起") : t("cloud.tokens.manage", "管理")}
             </Button>
             <Button
               variant="outline"
@@ -1056,12 +1046,11 @@ function AWSCredentialRail({
         </div>
 
         <div className="flex min-h-0 flex-1 flex-col">
-          {credentialPoolOpen ? (
-            <div className="flex min-h-0 flex-1 flex-col">
-              <div className="min-h-0 flex-1 overflow-y-auto [scrollbar-gutter:stable]">
-                {credentialRows.length ? (
-                  <AdminDataTableScroll className="rounded-lg border border-slate-200 bg-white shadow-none dark:border-slate-800 dark:bg-slate-950">
-                    <AdminDataTable minWidth={500} className="[&_td]:px-2 [&_th]:px-2">
+          <div className="flex min-h-0 flex-1 flex-col">
+            <div className="min-h-0 flex-1 overflow-y-auto [scrollbar-gutter:stable]">
+              {credentialRows.length ? (
+                <AdminDataTableScroll className="rounded-lg border border-slate-200 bg-white shadow-none dark:border-slate-800 dark:bg-slate-950">
+                  <AdminDataTable minWidth={500} className="[&_td]:px-2 [&_th]:px-2">
                       <thead>
                         <AdminDataTableHeadRow>
                           <AdminDataTableHead>{t("cloud.tokens.table.name", "名称")}</AdminDataTableHead>
@@ -1135,29 +1124,28 @@ function AWSCredentialRail({
                           </AdminDataTableRow>
                         ))}
                       </tbody>
-                    </AdminDataTable>
-                  </AdminDataTableScroll>
-                ) : (
-                  <div className="border-y border-dashed border-slate-200/80 px-4 py-8 text-center text-sm text-muted-foreground dark:border-slate-800">
-                    {t("cloud.providers.aws.credentials_empty", "还没有保存 AWS 凭证")}
-                  </div>
-                )}
-              </div>
-              <AdminPagination
-                page={credentialPagination.page}
-                totalPages={credentialPagination.totalPages}
-                total={credentialPagination.total}
-                pageSize={credentialPagination.pageSize}
-                visibleStart={credentialPagination.visibleStart}
-                visibleEnd={credentialPagination.visibleEnd}
-                onPageChange={credentialPagination.setPage}
-                onPageSizeChange={credentialPagination.setPageSize}
-                pageSizeOptions={[5, 10, 20]}
-                itemLabel={t("admin.pagination.credentials", { defaultValue: "凭证" })}
-                compact
-              />
+                  </AdminDataTable>
+                </AdminDataTableScroll>
+              ) : (
+                <div className="border-y border-dashed border-slate-200/80 px-4 py-8 text-center text-sm text-muted-foreground dark:border-slate-800">
+                  {t("cloud.providers.aws.credentials_empty", "还没有保存 AWS 凭证")}
+                </div>
+              )}
             </div>
-          ) : null}
+            <AdminPagination
+              page={credentialPagination.page}
+              totalPages={credentialPagination.totalPages}
+              total={credentialPagination.total}
+              pageSize={credentialPagination.pageSize}
+              visibleStart={credentialPagination.visibleStart}
+              visibleEnd={credentialPagination.visibleEnd}
+              onPageChange={credentialPagination.setPage}
+              onPageSizeChange={credentialPagination.setPageSize}
+              pageSizeOptions={[5, 10, 20]}
+              itemLabel={t("admin.pagination.credentials", { defaultValue: "凭证" })}
+              compact
+            />
+          </div>
         </div>
       </div>
     </section>

@@ -3,7 +3,6 @@ import type { TFunction } from "i18next";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import {
-  ChevronDown,
   CheckCircle2,
   Eye,
   KeyRound,
@@ -1526,7 +1525,6 @@ function VultrTokensSection({
     initialPageSize: 5,
   });
   const visibleTokenRows = tokenPagination.pageItems;
-  const [poolOpen, setPoolOpen] = React.useState(true);
   const activeToken = tokenRows.find((token) => token.is_active) || null;
 
   return (
@@ -1574,33 +1572,21 @@ function VultrTokensSection({
               <Server className="mr-2 h-4 w-4" />
               {t("cloud.providers.vultr.view_instances", "查看实例")}
             </Button>
-            <Button
-              variant="outline"
-              size="1"
-              onClick={() => setPoolOpen((open) => !open)}
-            >
-              <ChevronDown className={cn("mr-2 h-4 w-4 transition-transform", poolOpen && "rotate-180")} />
-              {poolOpen ? t("common.collapse", "收起") : t("cloud.tokens.manage", "管理")}
-            </Button>
           </div>
         </div>
-        {poolOpen ? (
-          <div className="mt-3 flex flex-wrap gap-2 border-t border-border pt-3">
-            <Button
-              variant="outline"
-              size="1"
-              disabled={tokenChecking || tokenRows.length === 0}
-              onClick={() => { void onCheckTokens(); }}
-            >
-              <RefreshCw className={cn("mr-2 h-4 w-4", tokenChecking && "animate-spin")} />
-              {t("cloud.tokens.check", "检查")}
-            </Button>
-          </div>
-        ) : null}
+        <div className="mt-3 flex flex-wrap gap-2 border-t border-border pt-3">
+          <Button
+            variant="outline"
+            size="1"
+            disabled={tokenChecking || tokenRows.length === 0}
+            onClick={() => { void onCheckTokens(); }}
+          >
+            <RefreshCw className={cn("mr-2 h-4 w-4", tokenChecking && "animate-spin")} />
+            {t("cloud.tokens.check", "检查")}
+          </Button>
+        </div>
       </div>
 
-      {poolOpen ? (
-        <>
       <div className="min-h-0 flex-1 overflow-y-auto p-3 [scrollbar-gutter:stable]">
         {tokenRows.length ? (
           <AdminDataTableScroll className="rounded-lg border border-slate-200 bg-white shadow-none dark:border-slate-800 dark:bg-slate-950">
@@ -1715,8 +1701,6 @@ function VultrTokensSection({
         itemLabel={t("admin.pagination.credentials", { defaultValue: "credentials" })}
         compact
       />
-        </>
-      ) : null}
     </section>
   );
 }

@@ -1,7 +1,6 @@
-import { useState, type ComponentProps, type Dispatch, type SetStateAction } from "react";
+import { type ComponentProps, type Dispatch, type SetStateAction } from "react";
 import type { TFunction } from "i18next";
 import {
-  ChevronDown,
   CheckCircle2,
   Eye,
   KeyRound,
@@ -91,7 +90,6 @@ export function DigitalOceanTokensSection({
     initialPageSize: 5,
   });
   const visibleTokenRows = tokenPagination.pageItems;
-  const [poolOpen, setPoolOpen] = useState(true);
   const activeToken = tokenRows.find((token) => token.is_active) || null;
 
   return (
@@ -139,68 +137,56 @@ export function DigitalOceanTokensSection({
               <Server className="mr-2 h-4 w-4" />
               {t("cloud.tokens.view_droplets", "查看实例")}
             </Button>
-            <Button
-              variant="outline"
-              size="1"
-              onClick={() => setPoolOpen((open) => !open)}
-            >
-              <ChevronDown className={`mr-2 h-4 w-4 transition-transform ${poolOpen ? "rotate-180" : ""}`} />
-              {poolOpen ? t("common.collapse", "收起") : t("cloud.tokens.manage", "管理")}
-            </Button>
           </Flex>
         </div>
-        {poolOpen ? (
-          <Flex className="mt-3 border-t border-border pt-3" gap="2" wrap="wrap">
-            <label className="flex h-8 items-center gap-2 rounded-md border border-border bg-background px-2 text-xs font-medium text-muted-foreground">
-              <Checkbox
-                checked={allTokensSelected || (someTokensSelected && "indeterminate")}
-                onCheckedChange={(checked) => {
-                  setSelectedTokenIds(checked === true ? tokenRows.map((token) => token.id) : []);
-                }}
-                aria-label={t("cloud.tokens.select_all", "选择全部令牌")}
-              />
-              {t("cloud.tokens.select_all", "选择全部令牌")}
-            </label>
-            <Button
-              variant="outline"
-              size="1"
-              onClick={() => {
-                void onCheckTokens();
+        <Flex className="mt-3 border-t border-border pt-3" gap="2" wrap="wrap">
+          <label className="flex h-8 items-center gap-2 rounded-md border border-border bg-background px-2 text-xs font-medium text-muted-foreground">
+            <Checkbox
+              checked={allTokensSelected || (someTokensSelected && "indeterminate")}
+              onCheckedChange={(checked) => {
+                setSelectedTokenIds(checked === true ? tokenRows.map((token) => token.id) : []);
               }}
-              disabled={tokenChecking || tokenRows.length === 0}
-            >
-              <ShieldCheck className="mr-2 h-4 w-4" />
-              {t("cloud.tokens.check_all", "检查全部凭证")}
-            </Button>
-            <Button
-              variant="outline"
-              size="1"
-              onClick={() => onOpenTokenGroupEditor(selectedTokens)}
-              disabled={selectedTokens.length === 0}
-            >
-              {t("cloud.tokens.set_group", "设置分组")}
-            </Button>
-            <Button
-              variant="outline"
-              size="1"
-              color="red"
-              onClick={() => {
-                void onDeleteSelectedTokens();
-              }}
-              disabled={selectedTokens.length === 0}
-            >
-              <Trash2 className="mr-2 h-4 w-4" />
-              {t("cloud.tokens.delete_selected", {
-                count: selectedTokens.length,
-                defaultValue: "Delete selected",
-              })}
-            </Button>
-          </Flex>
-        ) : null}
+              aria-label={t("cloud.tokens.select_all", "选择全部令牌")}
+            />
+            {t("cloud.tokens.select_all", "选择全部令牌")}
+          </label>
+          <Button
+            variant="outline"
+            size="1"
+            onClick={() => {
+              void onCheckTokens();
+            }}
+            disabled={tokenChecking || tokenRows.length === 0}
+          >
+            <ShieldCheck className="mr-2 h-4 w-4" />
+            {t("cloud.tokens.check_all", "检查全部凭证")}
+          </Button>
+          <Button
+            variant="outline"
+            size="1"
+            onClick={() => onOpenTokenGroupEditor(selectedTokens)}
+            disabled={selectedTokens.length === 0}
+          >
+            {t("cloud.tokens.set_group", "设置分组")}
+          </Button>
+          <Button
+            variant="outline"
+            size="1"
+            color="red"
+            onClick={() => {
+              void onDeleteSelectedTokens();
+            }}
+            disabled={selectedTokens.length === 0}
+          >
+            <Trash2 className="mr-2 h-4 w-4" />
+            {t("cloud.tokens.delete_selected", {
+              count: selectedTokens.length,
+              defaultValue: "Delete selected",
+            })}
+          </Button>
+        </Flex>
       </div>
 
-      {poolOpen ? (
-        <>
       <div className="min-h-0 flex-1 overflow-y-auto p-3 [scrollbar-gutter:stable]">
         {tokenRows.length === 0 ? (
           <AdminEmptyState
@@ -336,8 +322,6 @@ export function DigitalOceanTokensSection({
         itemLabel={t("admin.pagination.credentials", { defaultValue: "credentials" })}
         compact
       />
-        </>
-      ) : null}
     </div>
   );
 }

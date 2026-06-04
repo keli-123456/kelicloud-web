@@ -4,7 +4,6 @@ import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import {
   CheckCircle2,
-  ChevronDown,
   Eye,
   PencilLine,
   Plus,
@@ -669,7 +668,6 @@ function AzureCredentialContextStrip({
     initialPageSize: 5,
   });
   const visibleCredentials = credentialPagination.pageItems;
-  const [poolOpen, setPoolOpen] = React.useState(true);
   const activeLocation =
     credentialPool?.active_location || activeCredential?.default_location || catalog?.active_location || "";
   const subscriptionLabel =
@@ -723,14 +721,6 @@ function AzureCredentialContextStrip({
             <Button
               variant="outline"
               size="1"
-              onClick={() => setPoolOpen((open) => !open)}
-            >
-              <ChevronDown className={`mr-2 h-4 w-4 transition-transform ${poolOpen ? "rotate-180" : ""}`} />
-              {poolOpen ? t("common.collapse", "收起") : t("cloud.tokens.manage", "管理")}
-            </Button>
-            <Button
-              variant="outline"
-              size="1"
               onClick={() => {
                 void onCheckCredentials();
               }}
@@ -743,13 +733,11 @@ function AzureCredentialContextStrip({
         </div>
       </div>
 
-      {poolOpen ? (
-        <>
-          <div className="min-h-0 flex-1 overflow-y-auto p-3 [scrollbar-gutter:stable]">
-            {visibleCredentials.length > 0 ? (
-              <div className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-none dark:border-slate-800 dark:bg-slate-950">
-                <AdminDataTableScroll>
-                  <AdminDataTable minWidth={500} className="[&_td]:px-2 [&_th]:px-2">
+      <div className="min-h-0 flex-1 overflow-y-auto p-3 [scrollbar-gutter:stable]">
+        {visibleCredentials.length > 0 ? (
+          <div className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-none dark:border-slate-800 dark:bg-slate-950">
+            <AdminDataTableScroll>
+              <AdminDataTable minWidth={500} className="[&_td]:px-2 [&_th]:px-2">
                   <thead>
                     <AdminDataTableHeadRow>
                       <AdminDataTableHead>{t("cloud.tokens.table.name", "名称")}</AdminDataTableHead>
@@ -820,32 +808,30 @@ function AzureCredentialContextStrip({
                       </AdminDataTableRow>
                     ))}
                   </tbody>
-                  </AdminDataTable>
-                </AdminDataTableScroll>
-              </div>
-            ) : (
-              <div className="border-y border-dashed border-slate-200/80 px-4 py-8 text-center dark:border-slate-800">
-                <p className={cloudPanelBodyTextClassName}>
-                {t("cloud.providers.azure.no_credentials", "尚未导入 Azure 服务主体凭据。")}
-                </p>
-              </div>
-            )}
+              </AdminDataTable>
+            </AdminDataTableScroll>
           </div>
-          <AdminPagination
-            page={credentialPagination.page}
-            totalPages={credentialPagination.totalPages}
-            total={credentialPagination.total}
-            pageSize={credentialPagination.pageSize}
-            visibleStart={credentialPagination.visibleStart}
-            visibleEnd={credentialPagination.visibleEnd}
-            onPageChange={credentialPagination.setPage}
-            onPageSizeChange={credentialPagination.setPageSize}
-            pageSizeOptions={[5, 10, 20]}
-            itemLabel={t("admin.pagination.credentials", { defaultValue: "credentials" })}
-            compact
-          />
-        </>
-      ) : null}
+        ) : (
+          <div className="border-y border-dashed border-slate-200/80 px-4 py-8 text-center dark:border-slate-800">
+            <p className={cloudPanelBodyTextClassName}>
+                {t("cloud.providers.azure.no_credentials", "尚未导入 Azure 服务主体凭据。")}
+            </p>
+          </div>
+        )}
+      </div>
+      <AdminPagination
+        page={credentialPagination.page}
+        totalPages={credentialPagination.totalPages}
+        total={credentialPagination.total}
+        pageSize={credentialPagination.pageSize}
+        visibleStart={credentialPagination.visibleStart}
+        visibleEnd={credentialPagination.visibleEnd}
+        onPageChange={credentialPagination.setPage}
+        onPageSizeChange={credentialPagination.setPageSize}
+        pageSizeOptions={[5, 10, 20]}
+        itemLabel={t("admin.pagination.credentials", { defaultValue: "credentials" })}
+        compact
+      />
     </section>
   );
 }
