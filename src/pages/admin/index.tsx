@@ -2083,7 +2083,7 @@ const NodeGroupSection = ({
       ) : null}
     >
       <div className="admin-data-table-scroll min-w-0 overflow-x-auto overscroll-x-contain [scrollbar-gutter:stable]">
-        <Table className="admin-data-table min-w-[1120px] table-auto">
+        <Table className="admin-data-table min-w-[1120px] table-fixed">
           <NodeTableColumnProfile />
           <NodeTableColumns />
           <TableBody>

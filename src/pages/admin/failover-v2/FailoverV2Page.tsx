@@ -4653,9 +4653,9 @@ export default function FailoverV2Page() {
               )}
             >
 
-              <div className="admin-data-table-scroll overflow-x-auto overscroll-x-contain [scrollbar-gutter:stable]">
-              <div className="admin-grid-table min-w-[820px]">
-                <div className="admin-grid-head grid grid-cols-[minmax(150px,0.72fr)_minmax(260px,1.25fr)_minmax(220px,1fr)_120px] items-center gap-3 px-3 py-2 text-[12px] font-semibold text-muted-foreground">
+              <div className="admin-data-table-scroll overflow-x-auto overscroll-x-contain [-webkit-overflow-scrolling:touch] [scrollbar-gutter:stable]">
+              <div className="admin-grid-table min-w-[760px]">
+                <div className="admin-grid-head grid grid-cols-[minmax(150px,0.72fr)_minmax(220px,1.08fr)_minmax(210px,1fr)_96px] items-center gap-3 px-3 py-2 text-[12px] font-semibold text-muted-foreground">
                   <div>{t("failover_v2.workbench.task_detail", { defaultValue: "任务" })}</div>
                   <div>{t("failover_v2.summary.members", { defaultValue: "Members" })}</div>
                   <div>{t("failover_v2.workbench.execution_state", { defaultValue: "执行状态" })}</div>
@@ -4730,7 +4730,7 @@ export default function FailoverV2Page() {
                             toggleServiceExpanded();
                           }
                         }}
-                        className="grid cursor-pointer grid-cols-[minmax(150px,0.72fr)_minmax(260px,1.25fr)_minmax(220px,1fr)_120px] items-center gap-3 px-3 py-2.5"
+                        className="grid min-w-0 cursor-pointer grid-cols-[minmax(150px,0.72fr)_minmax(220px,1.08fr)_minmax(210px,1fr)_96px] items-center gap-3 px-3 py-2.5"
                       >
                         <div className="min-w-0">
                           <div className="flex min-w-0 items-center gap-2 whitespace-nowrap">
@@ -4769,9 +4769,9 @@ export default function FailoverV2Page() {
                           {platformAdmin ? (
                             <Button
                               type="button"
-                              size="sm"
+                              size="icon"
                               variant="ghost"
-                              className="h-8 rounded-md px-2 text-[12px]"
+                              className="h-8 w-8 rounded-md"
                               onClick={(event) => {
                                 event.stopPropagation();
                                 openCreateMemberDialog(service);
@@ -4781,27 +4781,26 @@ export default function FailoverV2Page() {
                               aria-label={t("failover_v2.add_member_short", { defaultValue: "成员" })}
                             >
                               <Plus className="size-3.5" />
-                              <span className="hidden 2xl:inline">
-                                {t("failover_v2.add_member_short", { defaultValue: "成员" })}
-                              </span>
                             </Button>
                           ) : null}
                           <Button
-                            size="sm"
+                            type="button"
+                            size="icon"
                             variant="ghost"
-                            className="h-8 rounded-md px-2.5 text-[12px]"
+                            className="h-8 w-8 rounded-md"
                             aria-expanded={expanded}
+                            title={expanded
+                              ? t("failover_v2.workbench.collapse_task", { defaultValue: "收起" })
+                              : t("failover_v2.workbench.expand_task", { defaultValue: "展开" })}
+                            aria-label={expanded
+                              ? t("failover_v2.workbench.collapse_task", { defaultValue: "收起" })
+                              : t("failover_v2.workbench.expand_task", { defaultValue: "展开" })}
                             onClick={(event) => {
                               event.stopPropagation();
                               toggleServiceExpanded();
                             }}
                           >
                             {expanded ? <ChevronUp className="size-3.5" /> : <ChevronDown className="size-3.5" />}
-                            <span>
-                              {expanded
-                                ? t("failover_v2.workbench.collapse_task", { defaultValue: "收起" })
-                                : t("failover_v2.workbench.expand_task", { defaultValue: "展开" })}
-                            </span>
                           </Button>
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
@@ -4878,7 +4877,7 @@ export default function FailoverV2Page() {
                       {expanded ? (
                         <div className="border-t border-border bg-[var(--surface-subtle)]">
                           <div className="overflow-hidden">
-                              <div className="admin-grid-head grid grid-cols-[minmax(230px,1fr)_minmax(160px,0.7fr)_minmax(180px,0.85fr)_74px] items-center gap-3 px-3 py-2 text-[12px] font-semibold text-muted-foreground">
+                              <div className="admin-grid-head grid grid-cols-[minmax(220px,1fr)_minmax(170px,0.76fr)_minmax(170px,0.82fr)_68px] items-center gap-3 px-3 py-2 text-[12px] font-semibold text-muted-foreground">
                                 <div>{t("failover_v2.workbench.member_list", { defaultValue: "子成员" })}</div>
                                 <div>{t("failover_v2.detail_fields.addresses", { defaultValue: "地址" })}</div>
                                 <div>{t("failover_v2.workbench.execution_state", { defaultValue: "执行状态" })}</div>
@@ -4923,7 +4922,7 @@ export default function FailoverV2Page() {
                                         }}
                                         data-selected={memberSelected ? "true" : undefined}
                                         className={cn(
-                                          "admin-grid-row admin-grid-row-nested grid cursor-pointer grid-cols-[minmax(230px,1fr)_minmax(160px,0.7fr)_minmax(180px,0.85fr)_74px] items-center gap-3 px-3 py-2",
+                                          "admin-grid-row admin-grid-row-nested grid min-w-0 cursor-pointer grid-cols-[minmax(220px,1fr)_minmax(170px,0.76fr)_minmax(170px,0.82fr)_68px] items-center gap-3 px-3 py-2",
                                           memberBusy && "bg-[var(--surface-pressed)]",
                                         )}
                                       >

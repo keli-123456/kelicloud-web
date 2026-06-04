@@ -12,7 +12,7 @@ const alignClasses: Record<Align, string> = {
 };
 
 const stickyRightClass =
-  "sticky right-0 z-10 shadow-[-12px_0_18px_-18px_rgba(15,23,42,0.7)]";
+  "w-[76px] sm:sticky sm:right-0 sm:z-10 sm:shadow-[-12px_0_18px_-18px_rgba(15,23,42,0.7)]";
 
 function AdminDataTableScroll({
   className,
@@ -21,7 +21,7 @@ function AdminDataTableScroll({
   return (
     <div
       className={cn(
-        "admin-data-table-scroll min-w-0 overflow-x-auto overscroll-x-contain [scrollbar-gutter:stable]",
+        "admin-data-table-scroll min-w-0 overflow-x-auto overscroll-x-contain [-webkit-overflow-scrolling:touch] [scrollbar-gutter:stable]",
         className,
       )}
       {...props}
@@ -39,7 +39,7 @@ function AdminDataTable({
 }) {
   return (
     <table
-      className={cn("admin-data-table w-full text-left text-sm [table-layout:auto]", className)}
+      className={cn("admin-data-table w-full table-fixed text-left text-sm", className)}
       style={{ minWidth, ...style }}
       {...props}
     />
@@ -120,7 +120,7 @@ function AdminDataTableCell({
       className={cn(
         "min-w-0 px-3.5 py-2.5 align-middle text-[13px] leading-5 text-foreground",
         alignClasses[align],
-        sticky === "right" && "bg-[var(--surface)]",
+        sticky === "right" && "bg-[var(--surface)] whitespace-nowrap",
         sticky === "right" && stickyRightClass,
         className,
       )}

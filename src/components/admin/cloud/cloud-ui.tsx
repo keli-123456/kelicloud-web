@@ -85,7 +85,7 @@ const cloudTableScrollClassName =
   "min-w-0 overflow-auto overscroll-contain [scrollbar-gutter:stable]";
 
 const cloudTableNameButtonClassName =
-  "min-w-0 text-left font-semibold text-blue-700 transition-colors hover:text-blue-800 hover:underline dark:text-blue-400 dark:hover:text-blue-300";
+  "block min-w-0 max-w-full truncate text-left font-semibold text-blue-700 transition-colors hover:text-blue-800 hover:underline dark:text-blue-400 dark:hover:text-blue-300";
 
 const cloudTablePrimaryTextClassName =
   "font-semibold text-foreground";
