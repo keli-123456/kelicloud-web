@@ -29,6 +29,7 @@ import { toast } from "sonner";
 import NodeSelector from "@/components/NodeSelector";
 import {
     AdminEmptyState,
+    AdminPageShell,
     AdminSettingsSkeleton,
     AdminTableSkeleton,
 } from "@/components/admin/AdminPageShell";
@@ -946,15 +947,8 @@ const ExecContent = ({ canUseExec, canUseScripts }: { canUseExec: boolean; canUs
 
     if (isLoading) {
         return (
-            <div className="flex min-w-0 flex-col gap-[14px] p-3 sm:p-4 md:p-6">
-                <div className="flex items-start justify-between gap-5">
-                    <div className="min-w-0">
-                        <div className="h-7 w-44 rounded-md bg-muted" />
-                        <div className="mt-2 h-4 w-[min(560px,70vw)] rounded-md bg-muted" />
-                    </div>
-                    <div className="hidden h-9 w-28 rounded-md bg-muted sm:block" />
-                </div>
-                <div className="grid gap-[14px] xl:grid-cols-[minmax(0,1fr)_400px]">
+            <AdminPageShell registerHeader={false} contentClassName="gap-3">
+                <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_400px]">
                     <section className={execPanelClass}>
                         <AdminTableSkeleton columns={5} rows={5} className="p-4" />
                     </section>
@@ -962,21 +956,23 @@ const ExecContent = ({ canUseExec, canUseScripts }: { canUseExec: boolean; canUs
                         <AdminSettingsSkeleton sections={4} className="p-4" />
                     </section>
                 </div>
-            </div>
+            </AdminPageShell>
         );
     }
 
     if (error) {
         return (
-            <div className="m-3 rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive sm:m-4 md:m-6">
+            <AdminPageShell registerHeader={false} contentClassName="gap-3">
+            <div className="rounded-md border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive">
                 {error}
             </div>
+            </AdminPageShell>
         );
     }
 
     if (!canUseScripts) {
         return (
-            <div className="p-3 sm:p-4 md:p-6">
+            <AdminPageShell registerHeader={false} contentClassName="gap-3">
                 <AdminEmptyState
                     icon={<Terminal size={18} />}
                     title={t("exec.no_script_permission_title", { defaultValue: "暂无脚本权限" })}
@@ -985,15 +981,15 @@ const ExecContent = ({ canUseExec, canUseScripts }: { canUseExec: boolean; canUs
                     })}
                     className="min-h-56"
                 />
-            </div>
+            </AdminPageShell>
         );
     }
 
     return (
         <>
-        <div className="flex min-w-0 flex-col gap-[14px] p-3 sm:p-4 md:p-6">
+        <AdminPageShell registerHeader={false} contentClassName="gap-3">
             <div className={cn(
-                "grid items-start gap-[14px]",
+                "grid items-start gap-3",
                 canUseExec ? "xl:grid-cols-[minmax(0,1fr)_400px]" : "xl:grid-cols-1",
             )}>
                 <section className={cn(execPanelClass, "xl:max-h-[calc(100dvh-11rem)] xl:overflow-hidden")}>
@@ -1734,9 +1730,9 @@ const ExecContent = ({ canUseExec, canUseScripts }: { canUseExec: boolean; canUs
                         </Button>
                     </div>
                 )}
-            </section>
+                </section>
             )}
-        </div>
+        </AdminPageShell>
 
         <Dialog
             open={scriptEditorOpen}

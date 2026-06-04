@@ -26,6 +26,7 @@ import { useRPC2Call } from "@/contexts/RPC2Context";
 import {
   ADMIN_PANEL_CLASS,
   AdminEmptyState,
+  AdminPageShell,
   AdminTableSkeleton,
 } from "@/components/admin/AdminPageShell";
 import { useAdminPageTitle } from "@/contexts/AdminPageTitleContext";
@@ -154,9 +155,9 @@ function DashboardLoadingState() {
   );
 
   return (
-    <div className="flex min-w-0 flex-col gap-[14px] p-3 sm:p-4 md:p-6">
+    <AdminPageShell registerHeader={false} contentClassName="gap-3">
       <AdminTableSkeleton columns={5} rows={5} />
-    </div>
+    </AdminPageShell>
   );
 }
 
@@ -409,7 +410,7 @@ function DashboardPageContent() {
 
   if (error) {
     return (
-      <div className="flex min-w-0 flex-col gap-[14px] p-3 sm:p-4 md:p-6">
+      <AdminPageShell registerHeader={false} contentClassName="gap-3">
         <AdminEmptyState
           icon={<AlertTriangle className="h-5 w-5" />}
           title={t("common.error", { defaultValue: "错误" })}
@@ -420,12 +421,12 @@ function DashboardPageContent() {
             </Button>
           )}
         />
-      </div>
+      </AdminPageShell>
     );
   }
 
   return (
-    <div className="flex min-w-0 flex-col gap-[14px] p-3 sm:p-4 md:p-6">
+    <AdminPageShell registerHeader={false} contentClassName="gap-3">
       {liveError ? (
         <Alert variant="destructive">
           <AlertTitle>{t("common.error", { defaultValue: "错误" })}</AlertTitle>
@@ -437,7 +438,7 @@ function DashboardPageContent() {
         </Alert>
       ) : null}
 
-      <div className="grid items-stretch gap-[14px] lg:grid-cols-[minmax(0,1fr)_minmax(340px,0.68fr)]">
+      <div className="grid items-stretch gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(340px,0.68fr)]">
         <section className={cn(panelClass, "flex min-h-[230px] flex-col")}>
           <DashboardPanelHead
             title={t("admin.dashboard.healthTitle", { defaultValue: "系统健康" })}
@@ -550,7 +551,7 @@ function DashboardPageContent() {
         </section>
       </div>
 
-      <div className="grid items-start gap-[14px] lg:grid-cols-[minmax(0,1.05fr)_minmax(360px,0.95fr)]">
+      <div className="grid items-start gap-3 lg:grid-cols-[minmax(0,1.05fr)_minmax(360px,0.95fr)]">
         <section className={panelClass}>
           <DashboardPanelHead
             title={t("admin.dashboard.capacityTitle", { defaultValue: "容量压力" })}
@@ -630,7 +631,7 @@ function DashboardPageContent() {
           )}
         </section>
       </div>
-    </div>
+    </AdminPageShell>
   );
 }
 

@@ -129,24 +129,24 @@ export function AdminDataPanel({
       {hasHeader ? (
         <div
           className={cn(
-            "admin-panel-header flex min-h-[50px] flex-col gap-2 px-4 py-2.5 sm:flex-row sm:items-center sm:justify-between",
+            "admin-panel-header flex min-h-12 flex-col gap-2 px-4 py-2.5 sm:flex-row sm:items-center sm:justify-between",
             headerClassName,
           )}
         >
-          <div className="min-w-0">
+          <div className="min-w-0 flex-1">
             {title ? (
               <h2 className="text-sm font-semibold leading-5 text-slate-950 dark:text-slate-50">
                 {title}
               </h2>
             ) : null}
             {description ? (
-              <p className="mt-0.5 text-xs leading-5 text-slate-500 dark:text-slate-400">
+              <p className="mt-0.5 max-w-3xl truncate text-xs leading-5 text-slate-500 dark:text-slate-400">
                 {description}
               </p>
             ) : null}
           </div>
           {actions ? (
-            <div className="flex shrink-0 flex-wrap items-center gap-2">
+            <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
               {actions}
             </div>
           ) : null}
@@ -187,23 +187,23 @@ export function AdminPageShell({
   return (
     <section
       className={cn(
-        "flex min-w-0 flex-col gap-4 p-4 sm:p-5",
+        "flex min-w-0 flex-col gap-3 px-3 py-3 sm:px-4 sm:py-4 xl:px-5",
         className,
       )}
     >
       {hasActions ? (
-        <div className="flex min-w-0 flex-wrap items-center justify-end gap-2">
+        <div className="admin-page-toolbar flex min-w-0 flex-wrap items-center justify-end gap-2 rounded-md border border-border bg-[var(--surface)] px-3 py-2 shadow-none">
           {actions}
         </div>
       ) : null}
 
       {subnav ? (
-        <div className="min-w-0 overflow-x-auto">
+        <div className="min-w-0 overflow-x-auto rounded-md border border-border bg-[var(--surface)] px-2 py-2 shadow-none">
           <div className="min-w-max">{subnav}</div>
         </div>
       ) : null}
 
-      <div className={cn("flex min-w-0 flex-col gap-4", contentClassName)}>{children}</div>
+      <div className={cn("flex min-w-0 flex-col gap-3", contentClassName)}>{children}</div>
     </section>
   );
 }
