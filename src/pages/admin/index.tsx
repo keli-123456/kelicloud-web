@@ -1422,6 +1422,38 @@ const UptimeSummary = ({ live }: { live?: NodeLiveSnapshot }) => {
   );
 };
 
+const ConnectionsSummary = ({ live }: { live?: NodeLiveSnapshot }) => {
+  const { t } = useTranslation();
+  const tcpLabel = t("chart.tcp_connections", { defaultValue: "TCP" });
+  const udpLabel = t("chart.udp_connections", { defaultValue: "UDP" });
+  const tcpCount = live?.record.connections.tcp ?? 0;
+  const udpCount = live?.record.connections.udp ?? 0;
+
+  return (
+    <div
+      className="min-w-[88px] space-y-0.5 text-sm tabular-nums"
+      title={`${tcpLabel}: ${tcpCount}\n${udpLabel}: ${udpCount}`}
+    >
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-[11px] font-medium text-slate-400 dark:text-slate-500">
+          {tcpLabel}
+        </span>
+        <span className="font-mono text-[12px] font-medium text-slate-900 dark:text-slate-100">
+          {tcpCount}
+        </span>
+      </div>
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-[11px] font-medium text-slate-400 dark:text-slate-500">
+          {udpLabel}
+        </span>
+        <span className="font-mono text-[12px] text-slate-600 dark:text-slate-400">
+          {udpCount}
+        </span>
+      </div>
+    </div>
+  );
+};
+
 const CompactMetricCell = ({
   percent,
   valueLabel,
@@ -1728,7 +1760,17 @@ const SortableRow = ({
     <>
       <ContextMenu>
         <ContextMenuTrigger asChild>
-          <TableRow className="cursor-context-menu text-sm">
+          <TableRow
+            className="cursor-pointer text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+            tabIndex={0}
+            onClick={() => setDetailOpen(true)}
+            onKeyDown={(event) => {
+              if (event.key === "Enter" || event.key === " ") {
+                event.preventDefault();
+                setDetailOpen(true);
+              }
+            }}
+          >
             <TableCell className="min-w-[240px] max-w-[380px] whitespace-normal">
               <NodeEndpointSummary node={node} />
             </TableCell>
@@ -1783,23 +1825,8 @@ const SortableRow = ({
                 }
               />
             </TableCell>
-            <TableCell className="w-[56px] text-right">
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-8 w-8 rounded-md"
-                    onClick={() => setDetailOpen(true)}
-                    aria-label={t("common.details", { defaultValue: "查看详情" })}
-                  >
-                    <MoreHorizontal size={16} />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>
-                  {t("common.details", { defaultValue: "查看详情" })}
-                </TooltipContent>
-              </Tooltip>
+            <TableCell className="min-w-[92px] max-w-[128px]">
+              <ConnectionsSummary live={live} />
             </TableCell>
           </TableRow>
         </ContextMenuTrigger>
@@ -1874,7 +1901,7 @@ const NODE_TABLE_COLUMN_WIDTHS: React.CSSProperties[] = [
   { width: "clamp(112px, 10%, 180px)" },
   { width: "clamp(112px, 10%, 180px)" },
   { width: "clamp(112px, 10%, 180px)" },
-  { width: "76px" },
+  { width: "clamp(92px, 8%, 128px)" },
 ];
 
 const NodeTableColumnProfile = () => (
@@ -1920,8 +1947,8 @@ const NodeTableColumns = () => {
         <TableHead className={`${stickyHeadClass} min-w-[112px] max-w-[180px]`}>
           {t("admin.nodeTable.columns.storage", { defaultValue: "磁盘" })}
         </TableHead>
-        <TableHead className={`${stickyHeadClass} w-[76px] text-right`}>
-          {t("common.action", { defaultValue: "操作" })}
+        <TableHead className={`${stickyHeadClass} min-w-[92px] max-w-[128px]`}>
+          {t("chart.connections", { defaultValue: "连接数" })}
         </TableHead>
       </TableRow>
     </TableHeader>
