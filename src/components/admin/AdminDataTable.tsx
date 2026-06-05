@@ -39,7 +39,7 @@ function AdminDataTable({
 }) {
   return (
     <table
-      className={cn("admin-data-table w-full table-fixed text-left text-sm", className)}
+      className={cn("admin-data-table w-full table-fixed text-left text-[13px]", className)}
       style={{ minWidth, ...style }}
       {...props}
     />
@@ -95,7 +95,7 @@ function AdminDataTableHead({
   return (
     <th
       className={cn(
-        "h-9 whitespace-nowrap px-3.5 py-2 align-middle",
+        "h-8 whitespace-nowrap px-3 py-1.5 align-middle",
         alignClasses[align],
         sticky === "right" && "bg-[var(--surface-muted)] backdrop-blur",
         sticky === "right" && stickyRightClass,
@@ -118,7 +118,7 @@ function AdminDataTableCell({
   return (
     <td
       className={cn(
-        "min-w-0 px-3.5 py-2.5 align-middle text-[13px] leading-5 text-foreground",
+        "min-w-0 px-3 py-2 align-middle text-[13px] leading-5 text-foreground",
         alignClasses[align],
         sticky === "right" && "bg-[var(--surface)] whitespace-nowrap",
         sticky === "right" && stickyRightClass,

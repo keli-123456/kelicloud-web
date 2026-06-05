@@ -9,9 +9,9 @@ export const ADMIN_PANEL_CLASS =
   "admin-panel";
 
 export const ADMIN_PANEL_HEADER_CLASS =
-  "admin-panel-header flex min-w-0 flex-col gap-2.5 px-5 py-3 md:flex-row md:items-center md:justify-between";
+  "admin-panel-header flex min-w-0 flex-col gap-2 px-4 py-2.5 md:flex-row md:items-center md:justify-between";
 
-export const ADMIN_PANEL_BODY_CLASS = "min-w-0 px-5 py-3.5";
+export const ADMIN_PANEL_BODY_CLASS = "min-w-0 px-4 py-3";
 
 export function AdminPanel({
   children,
@@ -45,7 +45,7 @@ export function AdminPanelHeader({
           </div>
         ) : null}
         {description ? (
-          <div className="mt-1 max-w-3xl text-sm leading-5 text-slate-500 dark:text-slate-400">
+          <div className="mt-1 max-w-3xl text-[13px] leading-5 text-slate-500 dark:text-slate-400">
             {description}
           </div>
         ) : null}
@@ -85,7 +85,7 @@ export function AdminSettingsPanel({
   return (
     <section className={cn(ADMIN_PANEL_CLASS, className)}>
       {hasHeader ? (
-        <div className="admin-panel-header px-5 py-3.5">
+        <div className="admin-panel-header px-4 py-3">
           {title ? (
             <h2 className="text-[15px] font-semibold leading-5 text-slate-950 dark:text-slate-50">
               {title}
@@ -98,7 +98,7 @@ export function AdminSettingsPanel({
           ) : null}
         </div>
       ) : null}
-      <div className={cn("px-5 py-1", bodyClassName)}>
+      <div className={cn("px-4 py-1", bodyClassName)}>
         {children}
       </div>
     </section>
@@ -129,7 +129,7 @@ export function AdminDataPanel({
       {hasHeader ? (
         <div
           className={cn(
-            "admin-panel-header flex min-h-12 flex-col gap-2 px-4 py-2.5 sm:flex-row sm:items-center sm:justify-between",
+            "admin-panel-header flex min-h-11 flex-col gap-2 px-3.5 py-2 sm:flex-row sm:items-center sm:justify-between",
             headerClassName,
           )}
         >
@@ -187,23 +187,23 @@ export function AdminPageShell({
   return (
     <section
       className={cn(
-        "flex min-w-0 flex-col gap-3 px-3 py-3 sm:px-4 sm:py-4 xl:px-5",
+        "flex min-w-0 flex-col gap-2.5 px-3 py-2.5 sm:px-4 sm:py-3.5 xl:px-5",
         className,
       )}
     >
       {hasActions ? (
-        <div className="admin-page-toolbar flex min-w-0 flex-wrap items-center justify-end gap-2 rounded-md border border-border bg-[var(--surface)] px-3 py-2 shadow-none">
+        <div className="admin-page-toolbar flex min-w-0 flex-wrap items-center justify-end gap-2 rounded-md border border-border bg-[var(--surface)] px-2.5 py-1.5 shadow-none">
           {actions}
         </div>
       ) : null}
 
       {subnav ? (
-        <div className="min-w-0 overflow-x-auto rounded-md border border-border bg-[var(--surface)] px-2 py-2 shadow-none">
+        <div className="min-w-0 overflow-x-auto rounded-md border border-border bg-[var(--surface)] px-2 py-1.5 shadow-none">
           <div className="min-w-max">{subnav}</div>
         </div>
       ) : null}
 
-      <div className={cn("flex min-w-0 flex-col gap-3", contentClassName)}>{children}</div>
+      <div className={cn("flex min-w-0 flex-col gap-2.5", contentClassName)}>{children}</div>
     </section>
   );
 }

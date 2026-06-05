@@ -179,7 +179,7 @@ function IconButton({
   return (
     <Button
       size={size === "1" ? "icon" : size || "icon"}
-      className={cn("h-10 w-10 p-0 sm:h-8 sm:w-8", className)}
+      className={cn("h-9 w-9 p-0 sm:h-8 sm:w-8", className)}
       {...props}
     />
   );
@@ -359,9 +359,9 @@ const TextFieldRoot = React.forwardRef<
       ref={ref}
       className={cn(
         size === "1"
-          ? "h-8 text-sm"
+          ? "h-7 text-[13px]"
           : size === "3"
-            ? "h-11 text-base"
+            ? "h-10 text-sm"
             : "",
         leftSlot ? "pl-10" : "",
         rightSlot ? "pr-12" : "",
