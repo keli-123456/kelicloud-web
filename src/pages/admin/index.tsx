@@ -1332,12 +1332,14 @@ const NodeTooltipBody = ({
   secondary?: string;
 }) => (
   <div className="grid min-w-[180px] gap-1.5">
-    <div className="text-[11px] font-medium uppercase tracking-normal text-muted-foreground">
+    <div className="text-[11px] font-medium uppercase tracking-normal text-slate-300 dark:text-slate-600">
       {label}
     </div>
-    <div className="text-sm font-semibold text-foreground">{primary}</div>
+    <div className="text-sm font-semibold text-slate-50 dark:text-slate-950">
+      {primary}
+    </div>
     {secondary ? (
-      <div className="text-xs leading-relaxed text-muted-foreground">
+      <div className="text-xs leading-relaxed text-slate-300 dark:text-slate-600">
         {secondary}
       </div>
     ) : null}
@@ -1359,7 +1361,7 @@ const NodeInfoTooltip = ({
     <TooltipTrigger asChild>{children}</TooltipTrigger>
     <TooltipContent
       sideOffset={8}
-      className="rounded-lg border border-slate-200/80 bg-popover px-3 py-2 text-sm text-foreground shadow-[0_18px_50px_-38px_rgba(15,23,42,0.7)] dark:border-slate-800 dark:shadow-black/30"
+      className="rounded-lg border-slate-900/90 bg-slate-950 px-3 py-2 text-sm text-slate-50 shadow-[0_18px_50px_-38px_rgba(15,23,42,0.9)] dark:border-slate-100/90 dark:bg-slate-50 dark:text-slate-950 dark:shadow-black/30"
     >
       {content}
     </TooltipContent>
