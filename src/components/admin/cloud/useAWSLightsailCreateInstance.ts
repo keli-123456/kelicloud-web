@@ -10,6 +10,7 @@ import {
   DEFAULT_STATIC_LIGHTSAIL_BLUEPRINT_ID,
   DEFAULT_STATIC_LIGHTSAIL_BUNDLE_ID,
   getDefaultLightsailAvailabilityZone,
+  isLightsailAvailabilityZoneForRegion,
   type AWSRegionOption,
 } from "./awsPanelCatalog";
 import { getAWSLightsailCreateDerived } from "./awsPanelDerived";
@@ -150,7 +151,9 @@ export function useAWSLightsailCreateInstance({
     setLightsailCreateRegion(nextRegion);
     setLightsailCreateForm((previous) => ({
       ...previous,
-      availability_zone: previous.availability_zone || getDefaultLightsailAvailabilityZone(nextRegion),
+      availability_zone: isLightsailAvailabilityZoneForRegion(previous.availability_zone, nextRegion)
+        ? previous.availability_zone
+        : getDefaultLightsailAvailabilityZone(nextRegion),
       blueprint_id: previous.blueprint_id || DEFAULT_STATIC_LIGHTSAIL_BLUEPRINT_ID,
       bundle_id: previous.bundle_id || DEFAULT_STATIC_LIGHTSAIL_BUNDLE_ID,
       auto_connect: true,

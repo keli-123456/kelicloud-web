@@ -411,10 +411,23 @@ export function getStaticLightsailBundlePresetLabel(
   return `${preset.label} · ${formatStaticSummary(preset.summary)}`;
 }
 
-export function getDefaultLightsailAvailabilityZone(region: string) {
+const LIGHTSAIL_AVAILABILITY_ZONE_SUFFIXES = ["a", "b", "c"] as const;
+
+export function getLightsailAvailabilityZoneOptions(region: string) {
   const normalized = region.trim();
-  if (!normalized) return "";
-  return `${normalized}a`;
+  if (!normalized) return [];
+  return LIGHTSAIL_AVAILABILITY_ZONE_SUFFIXES.map((suffix) => `${normalized}${suffix}`);
+}
+
+export function getDefaultLightsailAvailabilityZone(region: string) {
+  return getLightsailAvailabilityZoneOptions(region)[0] || "";
+}
+
+export function isLightsailAvailabilityZoneForRegion(zone: string, region: string) {
+  const normalizedZone = zone.trim().toLowerCase();
+  const normalizedRegion = region.trim().toLowerCase();
+  if (!normalizedZone || !normalizedRegion) return false;
+  return getLightsailAvailabilityZoneOptions(normalizedRegion).includes(normalizedZone);
 }
 
 export function getDefaultLightsailBundleForPlatform(

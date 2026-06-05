@@ -38,6 +38,7 @@ type EC2CreateCoreSectionProps = EC2CreateSectionProps & {
   regionSearchEmpty: string;
   onRegionChange: (region: string) => void;
   singleColumn?: boolean;
+  plain?: boolean;
 };
 
 export function EC2CreateCoreSection({
@@ -51,14 +52,10 @@ export function EC2CreateCoreSection({
   regionSearchEmpty,
   onRegionChange,
   singleColumn = false,
+  plain = false,
 }: EC2CreateCoreSectionProps) {
-  return (
-    <CompactDetailSection
-      title={t("cloud.providers.aws.create_core", "Core")}
-      summary={summary || "-"}
-      defaultOpen
-      hideSummary
-    >
+  const content = (
+    <>
       <div className={cn("grid gap-4", !singleColumn && "sm:grid-cols-2")}>
         <div>
           <label className={cloudPanelFieldLabelClassName}>
@@ -119,6 +116,21 @@ export function EC2CreateCoreSection({
           </Select.Content>
         </Select.Root>
       </div>
+    </>
+  );
+
+  if (plain) {
+    return <div>{content}</div>;
+  }
+
+  return (
+    <CompactDetailSection
+      title={t("cloud.providers.aws.create_core", "Core")}
+      summary={summary || "-"}
+      defaultOpen
+      hideSummary
+    >
+      {content}
     </CompactDetailSection>
   );
 }

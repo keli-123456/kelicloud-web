@@ -10,8 +10,6 @@ import {
 } from "@/contexts/CommandClipboardContext";
 import { useTranslation } from "react-i18next";
 import {
-    ChevronDown,
-    ChevronUp,
     Play,
     Terminal,
     AlertCircle,
@@ -366,7 +364,6 @@ const ExecContent = ({ canUseExec, canUseScripts }: { canUseExec: boolean; canUs
     const [editingScript, setEditingScript] = useState<CommandClipboard | null>(null);
     const [scriptFormValues, setScriptFormValues] = useState<ScriptFormValues>(EMPTY_SCRIPT_FORM_VALUES);
     const [scriptSubmitting, setScriptSubmitting] = useState(false);
-    const [previewExpanded, setPreviewExpanded] = useState(false);
 
     // Keep polling handles in refs.
     const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -847,10 +844,6 @@ const ExecContent = ({ canUseExec, canUseScripts }: { canUseExec: boolean; canUs
         }
     };
 
-    const getSelectedNodeAddresses = () => selectedNodes
-        .map((uuid) => getNodeDisplayAddress(uuid))
-        .join(", ");
-
     const getTaskStatus = (result: TaskResult) => {
         if (result.finished_at === null) {
             return {
@@ -880,36 +873,6 @@ const ExecContent = ({ canUseExec, canUseScripts }: { canUseExec: boolean; canUs
         };
     };
 
-    const selectedNodeNames = selectedNodes.map((uuid) => getNodeDisplayName(uuid));
-    const nodeConfigText = selectedNodes.length
-        ? t("exec.selected_nodes_summary", {
-            count: selectedNodes.length,
-            names: selectedNodeNames.slice(0, 2).join(", "),
-            extra: selectedNodes.length > 2 ? ` +${selectedNodes.length - 2}` : "",
-            defaultValue: "{{count}} 台 · {{names}}{{extra}}",
-        })
-        : t("exec.select_nodes_placeholder", {
-            defaultValue: "按分组选择 · 请选择节点",
-        });
-    const nodePreviewNames = selectedNodeNames.length > 0
-        ? selectedNodeNames.slice(0, 2)
-        : nodeDetail.slice(0, 2).map((node) => node.name || node.uuid);
-    const terminalCommand = command.trim() || visibleCommands[0]?.text || "whoami";
-    const terminalResultLines = results.length > 0
-        ? results.slice(0, 3).map((result) => {
-            const status = getTaskStatus(result);
-            const firstLine =
-                getCodeLines(getDisplayOutput(result.result || ""))
-                    .find((line) => line.trim().length > 0)
-                    ?.trim() || status.text;
-            return {
-                node: getNodeDisplayName(result.client),
-                text: `exit ${result.exit_code ?? "..."} · ${firstLine}`,
-                tone: status.status === "success" ? "ok" as const : status.status === "failed" ? "bad" as const : "info" as const,
-            };
-        })
-        : [];
-    const previewResultSummary = terminalResultLines[0]?.text || t("exec.waiting_for_result", { defaultValue: "Waiting for task result..." });
     const currentTaskId = selectedResultTaskId || taskId;
     const resultSearch = normalizedLibrarySearch;
     const filteredCurrentResults = resultSearch
@@ -932,10 +895,6 @@ const ExecContent = ({ canUseExec, canUseScripts }: { canUseExec: boolean; canUs
     const selectedTaskSummary = currentTaskId
         ? recentTasks.find((item) => item.task_id === currentTaskId) ?? null
         : null;
-    const previewClientNames = selectedTaskSummary
-        ? getTaskClients(selectedTaskSummary).slice(0, 2).map((uuid) => getNodeDisplayName(uuid))
-        : nodePreviewNames;
-
     if (isLoading) {
         return (
             <AdminPageShell registerHeader={false} contentClassName="gap-3">
@@ -983,7 +942,7 @@ const ExecContent = ({ canUseExec, canUseScripts }: { canUseExec: boolean; canUs
                 "grid items-start gap-3",
                 canUseExec ? "xl:grid-cols-[minmax(0,1fr)_400px]" : "xl:grid-cols-1",
             )}>
-                <section className={cn(execPanelClass, "xl:max-h-[calc(100dvh-11rem)] xl:overflow-hidden")}>
+                <section className={cn(execPanelClass, "xl:max-h-[calc(100dvh-11rem)] xl:overflow-y-auto")}>
                     <div className="admin-panel-header flex min-h-[54px] flex-col gap-3 px-[14px] py-3 sm:flex-row sm:items-center sm:justify-between">
                         <div className="flex w-full gap-1 border-b border-border pb-1 sm:w-auto">
                             <ExecToolbarTab active={activeTab === "library"} onClick={() => setActiveTab("library")}>
@@ -1339,31 +1298,122 @@ const ExecContent = ({ canUseExec, canUseScripts }: { canUseExec: boolean; canUs
                                         className="min-h-28 border-0 bg-muted/25 shadow-none"
                                     />
                                 </div>
-                            ) : visibleCurrentResults.map((item, index) => {
-                                const status = getTaskStatus(item);
-                                const output = item.result ? getDisplayOutput(item.result) : status.text;
-                                return (
-                                    <button
-                                        type="button"
-                                        key={`${item.client}-${index}`}
-                                        onClick={() => setActiveTab("result")}
-                                        className="grid min-h-14 grid-cols-[minmax(0,1fr)_auto] items-center gap-3 border-b border-border px-[14px] py-2.5 text-left last:border-b-0 hover:bg-muted/25"
-                                    >
-                                        <div className="min-w-0">
-                                            <strong className="block truncate text-[13px] font-semibold leading-5 text-foreground">
-                                                {getNodeDisplayName(item.client)}
-                                            </strong>
-                                            <span className="block truncate font-mono text-[11px] leading-4 text-muted-foreground">
-                                                {output}
-                                            </span>
-                                        </div>
-                                        <Badge variant={status.variant} className="h-6 rounded-full px-2 text-[11px]">
-                                            {status.text}
-                                        </Badge>
-                                    </button>
-                                );
-                            })}
-                            {!resultLoading && !resultError ? (
+                            ) : (
+                                <div className="flex flex-col">
+                                    {visibleCurrentResults.map((result, index) => {
+                                        const status = getTaskStatus(result);
+                                        const output = result.result ? getDisplayOutput(result.result) : "";
+                                        const outputLines = getCodeLines(output);
+                                        const outputLineNumberColumnWidth = getLineNumberColumnWidth(outputLines.length);
+                                        const statusTone: ExecStatusTone =
+                                            status.status === "success"
+                                                ? "ok"
+                                                : status.status === "timeout"
+                                                    ? "warn"
+                                                    : status.status === "running"
+                                                        ? "info"
+                                                        : "bad";
+
+                                        return (
+                                            <div
+                                                key={`${result.client}-${index}`}
+                                                className="border-b border-border p-[14px] last:border-b-0"
+                                            >
+                                                <div className="flex flex-col gap-3">
+                                                    <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                                                        <div className="min-w-0">
+                                                            <p className="truncate text-[14px] font-semibold leading-5 text-foreground">
+                                                                {getNodeDisplayAddress(result.client)}
+                                                            </p>
+                                                            {shouldShowNodeName(result.client) && (
+                                                                <p className="truncate text-[12px] leading-5 text-muted-foreground">
+                                                                    {getNodeDisplayName(result.client)}
+                                                                </p>
+                                                            )}
+                                                        </div>
+
+                                                        <div className="flex shrink-0 flex-wrap items-center gap-2">
+                                                            <ExecStatus tone={statusTone}>
+                                                                {status.status === "running" ? (
+                                                                    <>
+                                                                        <span className="h-3 w-3 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                                                                        {status.text}
+                                                                    </>
+                                                                ) : status.status === "success" ? (
+                                                                    <>
+                                                                        <CheckCircle2 size={12} />
+                                                                        {status.text}
+                                                                    </>
+                                                                ) : status.status === "timeout" ? (
+                                                                    <>
+                                                                        <Clock size={12} />
+                                                                        {status.text}
+                                                                    </>
+                                                                ) : (
+                                                                    <>
+                                                                        <AlertCircle size={12} />
+                                                                        {status.text}
+                                                                    </>
+                                                                )}
+                                                            </ExecStatus>
+                                                            {result.exit_code !== null && (
+                                                                <Badge variant="secondary" className="h-6 rounded-full px-2 text-[11px]">
+                                                                    exit {result.exit_code}
+                                                                </Badge>
+                                                            )}
+                                                            {result.result && (
+                                                                <Button
+                                                                    variant="ghost"
+                                                                    size="icon"
+                                                                    onClick={() => copyOutput(output)}
+                                                                    className="h-8 w-8 rounded-md"
+                                                                >
+                                                                    <Copy size={14} />
+                                                                </Button>
+                                                            )}
+                                                        </div>
+                                                    </div>
+
+                                                    {result.result && (
+                                                        <div className="overflow-hidden rounded-lg border border-slate-900 bg-slate-950">
+                                                            <div className="flex h-9 items-center justify-between border-b border-white/10 px-3">
+                                                                <div className="flex min-w-0 items-center gap-2 text-[12px] font-semibold text-slate-300">
+                                                                    <Terminal size={13} />
+                                                                    <span className="truncate">
+                                                                        {t("exec.output_label", {
+                                                                            defaultValue: "输出",
+                                                                        })}
+                                                                    </span>
+                                                                </div>
+                                                                <span className="text-[11px] text-slate-500">{t("exec.stdout_label", { defaultValue: "stdout" })}</span>
+                                                            </div>
+                                                            <div className="max-h-[360px] overflow-auto overscroll-contain [scrollbar-gutter:stable]">
+                                                                <div
+                                                                    className="grid min-w-max"
+                                                                    style={{ gridTemplateColumns: `${outputLineNumberColumnWidth} minmax(0, 1fr)` }}
+                                                                >
+                                                                    <div
+                                                                        aria-hidden="true"
+                                                                        className="border-r border-white/10 bg-slate-950 py-2.5 text-right font-mono text-[12px] leading-5 tabular-nums text-slate-600 select-none"
+                                                                    >
+                                                                        {outputLines.map((_, lineIndex) => (
+                                                                            <div key={`${result.client}-${lineIndex}`} className="h-5 px-1 text-slate-600">
+                                                                                {lineIndex + 1}
+                                                                            </div>
+                                                                        ))}
+                                                                    </div>
+                                                                    <pre className="whitespace-pre px-3 py-2.5 font-mono text-[12px] leading-5 text-slate-200">{output}</pre>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            )}
+                            {!resultLoading && !resultError && visibleCurrentResults.length > 0 ? (
                                 <AdminPagination
                                     page={resultPagination.page}
                                     totalPages={resultPagination.totalPages}
@@ -1378,73 +1428,31 @@ const ExecContent = ({ canUseExec, canUseScripts }: { canUseExec: boolean; canUs
                                     compact
                                 />
                             ) : null}
+                            {polling && (
+                                <div className="flex flex-col gap-3 border-t border-border px-[14px] py-3 text-sm text-muted-foreground md:flex-row md:items-center md:justify-between">
+                                    <div className="flex items-center gap-2">
+                                        <div className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                                        <span className="text-sm">
+                                            {t("exec.polling_status", {
+                                                defaultValue: "正在获取最新执行状态...",
+                                            })}
+                                        </span>
+                                    </div>
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={clearPolling}
+                                        className="h-9 rounded-md text-sm"
+                                    >
+                                        {t("exec.stop_polling", {
+                                            defaultValue: "停止轮询",
+                                        })}
+                                    </Button>
+                                </div>
+                            )}
                         </div>
                     )}
 
-                    {canUseExec ? (
-                    <div className="border-t border-border p-[14px]">
-                        <div className="overflow-hidden rounded-lg border border-slate-900 bg-slate-950 shadow-none">
-                            <div className="flex h-9 items-center justify-between gap-3 border-b border-white/10 px-3">
-                                <div className="flex items-center gap-2 text-[12px] font-semibold text-slate-300">
-                                    <Terminal size={13} />
-                                    {t("exec.task_preview", { defaultValue: "Task preview" })}
-                                </div>
-                                <div className="flex min-w-0 items-center gap-2">
-                                    <span className="truncate font-mono text-[11px] text-slate-500">
-                                        {currentTaskId ? `${t("exec.task_label", { defaultValue: "Task" })} ${currentTaskId.slice(0, 8)}...` : "/api/admin/task/exec"}
-                                    </span>
-                                    <Button
-                                        type="button"
-                                        variant="ghost"
-                                        size="sm"
-                                        className="h-7 rounded-md px-2 text-[11px] text-slate-300 hover:bg-white/10 hover:text-white"
-                                        onClick={() => setPreviewExpanded((value) => !value)}
-                                    >
-                                        {previewExpanded ? <ChevronUp className="size-3.5" /> : <ChevronDown className="size-3.5" />}
-                                        {previewExpanded
-                                            ? t("common.collapse", { defaultValue: "收起" })
-                                            : t("common.expand", { defaultValue: "展开" })}
-                                    </Button>
-                                </div>
-                            </div>
-                            <div className={cn(
-                                "overflow-auto px-4 py-3 font-mono text-[12px] leading-6 text-slate-300",
-                                previewExpanded ? "max-h-[240px]" : "max-h-[104px]",
-                            )}>
-                                {previewExpanded ? (
-                                    <>
-                                        <div><span className="text-emerald-300">$</span> {t("exec.task_id_label", { defaultValue: "Task ID" })}={currentTaskId ? `${currentTaskId.slice(0, 8)}...` : t("exec.pending", { defaultValue: "pending" })}</div>
-                                        <div><span className="text-emerald-300">$</span> {t("exec.clients_label", { defaultValue: "Clients" })}={JSON.stringify(previewClientNames)}</div>
-                                        <div><span className="text-emerald-300">$</span> {t("exec.command", { defaultValue: "Command" })}="{terminalCommand}"</div>
-                                        <div className="h-4" />
-                                        {terminalResultLines.length === 0 ? (
-                                            <div className="text-slate-500">{t("exec.waiting_for_result", { defaultValue: "Waiting for task result..." })}</div>
-                                        ) : terminalResultLines.map((line) => (
-                                            <div key={`${line.node}-${line.text}`}>
-                                                <span className={line.tone === "bad" ? "text-red-300" : "text-emerald-300"}>
-                                                    {line.node}
-                                                </span>{" "}
-                                                {line.text}
-                                            </div>
-                                        ))}
-                                    </>
-                                ) : (
-                                    <div className="space-y-1.5">
-                                        <div className="truncate">
-                                            <span className="text-emerald-300">$</span> {t("exec.command", { defaultValue: "Command" })}="{terminalCommand}"
-                                        </div>
-                                        <div className="truncate text-slate-500">
-                                            {t("exec.clients_label", { defaultValue: "Clients" })}: {previewClientNames.length}
-                                        </div>
-                                        <div className="truncate text-slate-400" title={previewResultSummary}>
-                                            {previewResultSummary}
-                                        </div>
-                                    </div>
-                                )}
-                            </div>
-                        </div>
-                    </div>
-                    ) : null}
                 </section>
 
                 {canUseExec && (
@@ -1462,30 +1470,16 @@ const ExecContent = ({ canUseExec, canUseScripts }: { canUseExec: boolean; canUs
                                     scrollAreaClassName="flex-1 overflow-y-auto overscroll-contain [scrollbar-gutter:stable]"
                                 />
                             </div>
-                            <div className="mt-2 flex min-h-9 items-center rounded-md border border-input bg-muted/35 px-3 text-[12px] leading-5 text-foreground">
-                                <span className="truncate">{nodeConfigText}</span>
-                            </div>
-                            {selectedNodes.length > 0 && (
-                                <p className="mt-1 truncate text-[11px] leading-4 text-muted-foreground">
-                                    {getSelectedNodeAddresses()}
-                                </p>
-                            )}
-                        </ExecField>
-
-                        <ExecField label={t("exec.timeout_policy", { defaultValue: "超时策略" })}>
-                            <div className="flex min-h-9 items-center rounded-md border border-input bg-muted/35 px-3 text-[12px] leading-5 text-foreground">
-                                {t("exec.timeout_policy_description", { defaultValue: "后端创建 Task，前端轮询 60 秒" })}
-                            </div>
                         </ExecField>
 
                         <ExecField label={t("exec.command_content", { defaultValue: "命令内容" })}>
-                            <div className="overflow-hidden rounded-md border border-input bg-[var(--surface-subtle)]">
-                                <div className="flex h-8 items-center justify-between border-b border-border bg-muted/30 px-3">
-                                    <div className="flex items-center gap-2 text-[12px] font-medium text-muted-foreground">
+                            <div className="overflow-hidden rounded-md border border-slate-900 bg-slate-950">
+                                <div className="flex h-8 items-center justify-between border-b border-white/10 px-3">
+                                    <div className="flex items-center gap-2 text-[12px] font-medium text-slate-300">
                                         <Terminal size={13} />
                                         {t("exec.editor_shell", { defaultValue: "shell" })}
                                     </div>
-                                    <span className="text-[11px] text-muted-foreground">
+                                    <span className="text-[11px] text-slate-500">
                                         {t("exec.command_line_count", {
                                             defaultValue: "{{count}} 行",
                                             count: commandLineNumbers.length,
@@ -1493,13 +1487,13 @@ const ExecContent = ({ canUseExec, canUseScripts }: { canUseExec: boolean; canUs
                                     </span>
                                 </div>
                                 <div
-                                    className="flex bg-[var(--surface)]"
+                                    className="flex bg-slate-950"
                                     style={{ height: commandEditorHeight }}
                                 >
                                     <div
                                         ref={commandLineNumberRef}
                                         aria-hidden="true"
-                                        className="h-full shrink-0 overflow-hidden border-r border-border bg-muted/30 px-1 py-2.5 text-right font-mono text-[12px] leading-5 tabular-nums text-muted-foreground select-none"
+                                        className="h-full shrink-0 overflow-hidden border-r border-white/10 bg-slate-950 px-1 py-2.5 text-right font-mono text-[12px] leading-5 tabular-nums text-slate-600 select-none"
                                         style={{ width: commandLineNumberColumnWidth }}
                                     >
                                         {commandLineNumbers.map((lineNumber) => (
@@ -1516,7 +1510,7 @@ const ExecContent = ({ canUseExec, canUseScripts }: { canUseExec: boolean; canUs
                                         rows={6}
                                         wrap="off"
                                         spellCheck={false}
-                                        className="h-full min-h-full flex-1 resize-none overflow-auto rounded-none border-0 bg-background px-3 py-2.5 font-mono text-[12px] leading-5 text-foreground shadow-none outline-none whitespace-pre placeholder:text-muted-foreground focus-visible:ring-0 [field-sizing:fixed] [scrollbar-gutter:stable]"
+                                        className="h-full min-h-full flex-1 resize-none overflow-auto rounded-none border-0 bg-slate-950 px-3 py-2.5 font-mono text-[12px] leading-5 text-slate-200 shadow-none outline-none whitespace-pre placeholder:text-slate-500 focus-visible:ring-0 [field-sizing:fixed] [scrollbar-gutter:stable]"
                                     />
                                 </div>
                             </div>
@@ -1555,174 +1549,6 @@ const ExecContent = ({ canUseExec, canUseScripts }: { canUseExec: boolean; canUs
                 )}
             </div>
 
-            {canUseExec && (
-            <section className={cn(execPanelClass, "xl:max-h-[calc(100dvh-11rem)] xl:overflow-y-auto")}>
-                <ExecPanelHead
-                    title={t("exec.results", { defaultValue: "执行结果" })}
-                    meta={currentTaskId ? `${t("exec.task_label", { defaultValue: "任务" })} ${currentTaskId}` : t("exec.results", { defaultValue: "执行结果" })}
-                />
-
-                {resultLoading ? (
-                    <div className="p-[14px]">
-                        <AdminTableSkeleton columns={4} rows={3} />
-                    </div>
-                ) : resultError ? (
-                    <div className="px-[14px] py-5 text-sm text-destructive">
-                        {resultError}
-                    </div>
-                ) : results.length === 0 ? (
-                    <div className="p-[14px]">
-                        <AdminEmptyState
-                            icon={<Terminal size={18} />}
-                            title={t("exec.results_empty_title", {
-                                defaultValue: "暂无执行结果",
-                            })}
-                            description={t("exec.results_empty_description", {
-                                defaultValue: "选择节点并执行命令后，每台节点的输出会在这里汇总。",
-                            })}
-                            className="min-h-32 border-0 bg-muted/25 shadow-none"
-                        />
-                    </div>
-                ) : (
-                    <div className="flex flex-col">
-                        {results.map((result, index) => {
-                            const status = getTaskStatus(result);
-                            const output = result.result ? getDisplayOutput(result.result) : "";
-                            const outputLines = getCodeLines(output);
-                            const outputLineNumberColumnWidth = getLineNumberColumnWidth(outputLines.length);
-                            const statusTone: ExecStatusTone =
-                                status.status === "success"
-                                    ? "ok"
-                                    : status.status === "timeout"
-                                        ? "warn"
-                                        : status.status === "running"
-                                            ? "info"
-                                            : "bad";
-
-                            return (
-                                <div
-                                    key={`${result.client}-${index}`}
-                                    className="border-b border-border p-[14px] last:border-b-0"
-                                >
-                                    <div className="flex flex-col gap-3">
-                                        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                                            <div className="min-w-0">
-                                                <p className="truncate text-[14px] font-semibold leading-5 text-foreground">
-                                                    {getNodeDisplayAddress(result.client)}
-                                                </p>
-                                                {shouldShowNodeName(result.client) && (
-                                                    <p className="truncate text-[12px] leading-5 text-muted-foreground">
-                                                        {getNodeDisplayName(result.client)}
-                                                    </p>
-                                                )}
-                                            </div>
-
-                                            <div className="flex shrink-0 flex-wrap items-center gap-2">
-                                                <ExecStatus tone={statusTone}>
-                                                    {status.status === "running" ? (
-                                                        <>
-                                                            <span className="h-3 w-3 animate-spin rounded-full border-2 border-current border-t-transparent" />
-                                                            {status.text}
-                                                        </>
-                                                    ) : status.status === "success" ? (
-                                                        <>
-                                                            <CheckCircle2 size={12} />
-                                                            {status.text}
-                                                        </>
-                                                    ) : status.status === "timeout" ? (
-                                                        <>
-                                                            <Clock size={12} />
-                                                            {status.text}
-                                                        </>
-                                                    ) : (
-                                                        <>
-                                                            <AlertCircle size={12} />
-                                                            {status.text}
-                                                        </>
-                                                    )}
-                                                </ExecStatus>
-                                                {result.exit_code !== null && (
-                                                    <Badge variant="secondary" className="h-6 rounded-full px-2 text-[11px]">
-                                                        exit {result.exit_code}
-                                                    </Badge>
-                                                )}
-                                                {result.result && (
-                                                    <Button
-                                                        variant="ghost"
-                                                        size="icon"
-                                                        onClick={() => copyOutput(output)}
-                                                        className="h-8 w-8 rounded-md"
-                                                    >
-                                                        <Copy size={14} />
-                                                    </Button>
-                                                )}
-                                            </div>
-                                        </div>
-
-                                        {result.result && (
-                                            <div className="overflow-hidden rounded-lg border border-slate-900 bg-slate-950">
-                                                <div className="flex h-9 items-center justify-between border-b border-white/10 px-3">
-                                                    <div className="flex min-w-0 items-center gap-2 text-[12px] font-semibold text-slate-300">
-                                                        <Terminal size={13} />
-                                                        <span className="truncate">
-                                                            {t("exec.output_label", {
-                                                                defaultValue: "输出",
-                                                            })}
-                                                        </span>
-                                                    </div>
-                                                    <span className="text-[11px] text-slate-500">{t("exec.stdout_label", { defaultValue: "stdout" })}</span>
-                                                </div>
-                                                <div className="max-h-[360px] overflow-auto overscroll-contain [scrollbar-gutter:stable]">
-                                                    <div
-                                                        className="grid min-w-max"
-                                                        style={{ gridTemplateColumns: `${outputLineNumberColumnWidth} minmax(0, 1fr)` }}
-                                                    >
-                                                        <div
-                                                            aria-hidden="true"
-                                                            className="border-r border-white/10 bg-white/[0.03] py-2.5 text-right font-mono text-[12px] leading-5 tabular-nums text-slate-500 select-none"
-                                                        >
-                                                            {outputLines.map((_, index) => (
-                                                                <div key={`${result.client}-${index}`} className="h-5 px-1">
-                                                                    {index + 1}
-                                                                </div>
-                                                            ))}
-                                                        </div>
-                                                        <pre className="whitespace-pre px-3 py-2.5 font-mono text-[12px] leading-5 text-slate-200">{output}</pre>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        )}
-                                    </div>
-                                </div>
-                            );
-                        })}
-                    </div>
-                )}
-
-                {polling && (
-                    <div className="flex flex-col gap-3 border-t border-border px-[14px] py-3 text-sm text-muted-foreground md:flex-row md:items-center md:justify-between">
-                        <div className="flex items-center gap-2">
-                            <div className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
-                            <span className="text-sm">
-                                {t("exec.polling_status", {
-                                    defaultValue: "正在获取最新执行状态...",
-                                })}
-                            </span>
-                        </div>
-                        <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={clearPolling}
-                            className="h-9 rounded-md text-sm"
-                        >
-                            {t("exec.stop_polling", {
-                                defaultValue: "停止轮询",
-                            })}
-                        </Button>
-                    </div>
-                )}
-                </section>
-            )}
         </AdminPageShell>
 
         <Dialog

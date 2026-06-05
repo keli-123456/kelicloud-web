@@ -12,6 +12,7 @@ import {
   Select,
   TextField,
 } from "@/components/admin/cloud/cloud-ui";
+import { SegmentedControl } from "@/components/ui/segmented-control";
 import { WarningAlert } from "@/components/ui/warning-alert";
 import { cn } from "@/lib/utils";
 import {
@@ -19,6 +20,7 @@ import {
   STATIC_LIGHTSAIL_BUNDLE_PRESETS,
   getDefaultLightsailAvailabilityZone,
   getLightsailBundleForBlueprintSelection,
+  getLightsailAvailabilityZoneOptions,
   getStaticLightsailBlueprintPresetLabel,
   getStaticLightsailBundlePresetLabel,
   type AWSRegionOption,
@@ -44,6 +46,7 @@ type LightsailCreateCoreSectionProps = LightsailCreateSectionProps & {
   selectedBundlePreset: StaticLightsailBundlePreset | null;
   platformMismatch: boolean;
   singleColumn?: boolean;
+  plain?: boolean;
 };
 
 export function LightsailCreateCoreSection({
@@ -60,14 +63,16 @@ export function LightsailCreateCoreSection({
   selectedBundlePreset,
   platformMismatch,
   singleColumn = false,
+  plain = false,
 }: LightsailCreateCoreSectionProps) {
-  return (
-    <CompactDetailSection
-      title={t("cloud.providers.aws.create_core", "Core")}
-      summary={summary || "-"}
-      defaultOpen
-      hideSummary
-    >
+  const generatedAvailabilityZoneOptions = getLightsailAvailabilityZoneOptions(resolvedRegion);
+  const availabilityZoneOptions = form.availability_zone
+    && !generatedAvailabilityZoneOptions.includes(form.availability_zone)
+    ? [form.availability_zone, ...generatedAvailabilityZoneOptions]
+    : generatedAvailabilityZoneOptions;
+
+  const content = (
+    <>
       <div className={cn("grid gap-4", !singleColumn && "sm:grid-cols-2")}>
         <div>
           <label className={cloudPanelFieldLabelClassName}>
@@ -94,17 +99,26 @@ export function LightsailCreateCoreSection({
           <label className={cloudPanelFieldLabelClassName}>
             {t("cloud.providers.aws.az", "AZ")}
           </label>
-          <TextField.Root
-            value={form.availability_zone}
-            placeholder={t("cloud.providers.aws.lightsail_az_manual_placeholder", "Availability zone, for example us-east-1a")}
-            onChange={(event) =>
-              setForm((previous) => ({ ...previous, availability_zone: event.target.value }))
-            }
-          />
+          <SegmentedControl.Root
+            value={form.availability_zone || undefined}
+            onValueChange={(value) => setForm((previous) => ({ ...previous, availability_zone: value }))}
+            size="2"
+            className="grid w-full grid-cols-3"
+          >
+            {availabilityZoneOptions.map((zone) => (
+              <SegmentedControl.Item
+                key={zone}
+                value={zone}
+                className="min-w-0 px-2 font-mono text-[13px]"
+              >
+                {zone}
+              </SegmentedControl.Item>
+            ))}
+          </SegmentedControl.Root>
           <div className={`mt-2 text-xs ${cloudPanelBodyTextClassName}`}>
             {t("cloud.providers.aws.lightsail_static_rules_help", {
               az: getDefaultLightsailAvailabilityZone(resolvedRegion),
-              defaultValue: "Lightsail requires an availability zone such as us-east-1a. kelicloud defaults this field to {{az}}, but you can replace it manually if your account prefers another zone.",
+              defaultValue: "kelicloud selects {{az}} by default. You can switch to another availability zone in this region.",
             })}
           </div>
         </div>
@@ -170,6 +184,21 @@ export function LightsailCreateCoreSection({
           )}
         />
       ) : null}
+    </>
+  );
+
+  if (plain) {
+    return <div>{content}</div>;
+  }
+
+  return (
+    <CompactDetailSection
+      title={t("cloud.providers.aws.create_core", "Core")}
+      summary={summary || "-"}
+      defaultOpen
+      hideSummary
+    >
+      {content}
     </CompactDetailSection>
   );
 }

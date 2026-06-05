@@ -1097,17 +1097,17 @@ const StatusSummary = ({
       : null;
 
   return (
-    <div className="min-w-0 space-y-1">
+    <div className="flex min-w-0 flex-wrap items-center gap-1">
       <Badge
         variant={online ? "success" : "destructive"}
-        className="rounded-md px-1.5"
+        className="rounded-md px-1.5 py-0 text-[11px]"
       >
         {online ? t("nodeCard.online", "Online") : t("nodeCard.offline", "Offline")}
       </Badge>
       {cnBadge ? (
         <Badge
           variant={cnBadge.variant}
-          className="max-w-full overflow-hidden text-ellipsis rounded-md px-1.5"
+          className="max-w-full overflow-hidden text-ellipsis rounded-md px-1.5 py-0 text-[11px]"
           title={cnBadge.title}
         >
           {cnBadge.label}
@@ -1261,13 +1261,13 @@ const NodeEndpointSummary = ({ node }: { node: NodeDetail }) => {
         />
       }
     >
-      <div className="flex w-full min-w-[220px] max-w-[360px] items-start gap-2 text-sm text-slate-700 dark:text-slate-200">
-        <div className="pt-0.5">
+      <div className="flex w-full min-w-[220px] max-w-[360px] items-center gap-1.5 text-[13px] leading-5 text-slate-700 dark:text-slate-200">
+        <div className="flex h-5 items-center">
           <Flag flag={node.region} size="4" />
         </div>
-        <div className="min-w-0 flex-1 space-y-1">
-          <div className="flex items-center gap-1">
-            <span className="w-8 shrink-0 text-slate-400 dark:text-slate-500">IPv4</span>
+        <div className="min-w-0 flex-1 space-y-0.5">
+          <div className="flex h-5 items-center gap-0.5">
+            <span className="w-7 shrink-0 text-slate-400 dark:text-slate-500">IPv4</span>
             <span
               className="min-w-0 flex-1 truncate font-mono text-[12px]"
               title={ipv4Value}
@@ -1277,7 +1277,7 @@ const NodeEndpointSummary = ({ node }: { node: NodeDetail }) => {
             <Button
               variant="ghost"
               size="icon"
-              className="h-6 w-6 shrink-0 rounded-md"
+              className="h-5 w-5 shrink-0 rounded-md"
               aria-label={t("admin.nodeTable.copyIpv4", {
                 defaultValue: "复制 IPv4 地址",
               })}
@@ -1288,11 +1288,11 @@ const NodeEndpointSummary = ({ node }: { node: NodeDetail }) => {
                 void copyIp(ipv4Value);
               }}
             >
-              <Copy size={14} />
+              <Copy size={12} />
             </Button>
           </div>
-          <div className="flex items-center gap-1">
-            <span className="w-8 shrink-0 text-slate-400 dark:text-slate-500">IPv6</span>
+          <div className="flex h-5 items-center gap-0.5">
+            <span className="w-7 shrink-0 text-slate-400 dark:text-slate-500">IPv6</span>
             <span
               className="min-w-0 flex-1 truncate font-mono text-[12px]"
               title={ipv6Value}
@@ -1302,7 +1302,7 @@ const NodeEndpointSummary = ({ node }: { node: NodeDetail }) => {
             <Button
               variant="ghost"
               size="icon"
-              className="h-6 w-6 shrink-0 rounded-md"
+              className="h-5 w-5 shrink-0 rounded-md"
               aria-label={t("admin.nodeTable.copyIpv6", {
                 defaultValue: "复制 IPv6 地址",
               })}
@@ -1313,7 +1313,7 @@ const NodeEndpointSummary = ({ node }: { node: NodeDetail }) => {
                 void copyIp(ipv6Value);
               }}
             >
-              <Copy size={14} />
+              <Copy size={12} />
             </Button>
           </div>
         </div>
@@ -1374,15 +1374,15 @@ const RateSummary = ({ live }: { live?: NodeLiveSnapshot }) => {
   const downloadLabel = `↓ ${formatBytes(snapshot.network.down)}/s`;
 
   return (
-    <div className="w-full min-w-[88px] max-w-[150px] space-y-0.5 tabular-nums">
+    <div className="w-full min-w-[88px] max-w-[150px] space-y-0 tabular-nums">
       <div
-        className="block truncate text-sm font-medium text-slate-900 dark:text-slate-100"
+        className="block truncate text-[13px] font-medium leading-4 text-slate-900 dark:text-slate-100"
         title={uploadLabel}
       >
         {uploadLabel}
       </div>
       <div
-        className="block truncate text-sm text-slate-600 dark:text-slate-400"
+        className="block truncate text-[13px] leading-4 text-slate-600 dark:text-slate-400"
         title={downloadLabel}
       >
         {downloadLabel}
@@ -1397,15 +1397,15 @@ const TrafficSummary = ({ live }: { live?: NodeLiveSnapshot }) => {
   const downloadLabel = `↓ ${formatBytes(snapshot.network.totalDown)}`;
 
   return (
-    <div className="w-full min-w-[96px] max-w-[160px] space-y-0.5 tabular-nums">
+    <div className="w-full min-w-[96px] max-w-[160px] space-y-0 tabular-nums">
       <div
-        className="block truncate text-sm font-medium text-slate-900 dark:text-slate-100"
+        className="block truncate text-[13px] font-medium leading-4 text-slate-900 dark:text-slate-100"
         title={uploadLabel}
       >
         {uploadLabel}
       </div>
       <div
-        className="block truncate text-sm text-slate-600 dark:text-slate-400"
+        className="block truncate text-[13px] leading-4 text-slate-600 dark:text-slate-400"
         title={downloadLabel}
       >
         {downloadLabel}
@@ -1416,7 +1416,7 @@ const TrafficSummary = ({ live }: { live?: NodeLiveSnapshot }) => {
 
 const UptimeSummary = ({ live }: { live?: NodeLiveSnapshot }) => {
   return (
-    <div className="block w-full min-w-[68px] max-w-[96px] truncate tabular-nums text-sm text-slate-700 dark:text-slate-300">
+    <div className="block w-full min-w-[68px] max-w-[96px] truncate tabular-nums text-[13px] leading-4 text-slate-700 dark:text-slate-300">
       {formatUptimeLabel(live?.record.uptime)}
     </div>
   );
@@ -1431,24 +1431,20 @@ const ConnectionsSummary = ({ live }: { live?: NodeLiveSnapshot }) => {
 
   return (
     <div
-      className="min-w-[88px] space-y-0.5 text-sm tabular-nums"
+      className="w-full min-w-[88px] max-w-[128px] space-y-0 tabular-nums"
       title={`${tcpLabel}: ${tcpCount}\n${udpLabel}: ${udpCount}`}
     >
-      <div className="flex items-center justify-between gap-2">
-        <span className="text-[11px] font-medium text-slate-400 dark:text-slate-500">
-          {tcpLabel}
-        </span>
-        <span className="font-mono text-[12px] font-medium text-slate-900 dark:text-slate-100">
-          {tcpCount}
-        </span>
+      <div
+        className="block truncate text-[13px] font-medium leading-4 text-slate-900 dark:text-slate-100"
+        title={`${tcpLabel}: ${tcpCount}`}
+      >
+        {tcpLabel} <span className="font-mono">{tcpCount}</span>
       </div>
-      <div className="flex items-center justify-between gap-2">
-        <span className="text-[11px] font-medium text-slate-400 dark:text-slate-500">
-          {udpLabel}
-        </span>
-        <span className="font-mono text-[12px] text-slate-600 dark:text-slate-400">
-          {udpCount}
-        </span>
+      <div
+        className="block truncate text-[13px] leading-4 text-slate-600 dark:text-slate-400"
+        title={`${udpLabel}: ${udpCount}`}
+      >
+        {udpLabel} <span className="font-mono">{udpCount}</span>
       </div>
     </div>
   );
@@ -1486,7 +1482,7 @@ const CompactMetricCell = ({
   return (
     <NodeInfoTooltip content={tooltipContent}>
       <div className="w-full min-w-[108px] max-w-[180px] cursor-help">
-        <div className="mb-1 flex items-center justify-between gap-2 whitespace-nowrap leading-none">
+        <div className="mb-0.5 flex items-center justify-between gap-2 whitespace-nowrap leading-none">
           <span className="min-w-0 flex-1 overflow-hidden text-ellipsis font-mono tabular-nums text-[11px] text-slate-600 dark:text-slate-300">
             {valueLabel}
           </span>
@@ -1494,7 +1490,7 @@ const CompactMetricCell = ({
             {formatPercent(safePercent)}
           </span>
         </div>
-        <div className="relative h-2 overflow-hidden rounded-full border border-slate-200/80 bg-slate-100/90 dark:border-slate-800/80 dark:bg-slate-900/60">
+        <div className="relative h-1.5 overflow-hidden rounded-full border border-slate-200/80 bg-slate-100/90 dark:border-slate-800/80 dark:bg-slate-900/60">
           <div
             className={`h-full rounded-full transition-all duration-300 ${barClass}`}
             style={{ width: `${safePercent}%` }}
@@ -1783,6 +1779,9 @@ const SortableRow = ({
             <TableCell className="min-w-[96px] max-w-[150px]">
               <RateSummary live={live} />
             </TableCell>
+            <TableCell className="min-w-[92px] max-w-[128px]">
+              <ConnectionsSummary live={live} />
+            </TableCell>
             <TableCell className="min-w-[104px] max-w-[160px]">
               <TrafficSummary live={live} />
             </TableCell>
@@ -1824,9 +1823,6 @@ const SortableRow = ({
                   />
                 }
               />
-            </TableCell>
-            <TableCell className="min-w-[92px] max-w-[128px]">
-              <ConnectionsSummary live={live} />
             </TableCell>
           </TableRow>
         </ContextMenuTrigger>
@@ -1896,12 +1892,12 @@ const NODE_TABLE_COLUMN_WIDTHS: React.CSSProperties[] = [
   { width: "clamp(112px, 9%, 164px)" },
   { width: "76px" },
   { width: "clamp(96px, 9%, 150px)" },
+  { width: "clamp(92px, 8%, 128px)" },
   { width: "clamp(104px, 10%, 160px)" },
   { width: "80px" },
   { width: "clamp(112px, 10%, 180px)" },
   { width: "clamp(112px, 10%, 180px)" },
   { width: "clamp(112px, 10%, 180px)" },
-  { width: "clamp(92px, 8%, 128px)" },
 ];
 
 const NodeTableColumnProfile = () => (
@@ -1932,6 +1928,9 @@ const NodeTableColumns = () => {
         <TableHead className={`${stickyHeadClass} min-w-[96px] max-w-[150px]`}>
           {t("admin.nodeTable.columns.rate", { defaultValue: "速率" })}
         </TableHead>
+        <TableHead className={`${stickyHeadClass} min-w-[92px] max-w-[128px]`}>
+          {t("chart.connections", { defaultValue: "连接数" })}
+        </TableHead>
         <TableHead className={`${stickyHeadClass} min-w-[104px] max-w-[160px]`}>
           {t("admin.nodeTable.columns.traffic", { defaultValue: "流量" })}
         </TableHead>
@@ -1946,9 +1945,6 @@ const NodeTableColumns = () => {
         </TableHead>
         <TableHead className={`${stickyHeadClass} min-w-[112px] max-w-[180px]`}>
           {t("admin.nodeTable.columns.storage", { defaultValue: "磁盘" })}
-        </TableHead>
-        <TableHead className={`${stickyHeadClass} min-w-[92px] max-w-[128px]`}>
-          {t("chart.connections", { defaultValue: "连接数" })}
         </TableHead>
       </TableRow>
     </TableHeader>
@@ -2111,8 +2107,8 @@ const NodeGroupSection = ({
         </div>
       ) : null}
     >
-      <div className="admin-data-table-scroll min-w-0 overflow-x-auto overscroll-x-contain [scrollbar-gutter:stable]">
-        <Table className="admin-data-table min-w-[1120px] table-auto">
+      <div className="admin-data-table-scroll min-w-0 overflow-x-auto overflow-y-hidden overscroll-x-contain [scrollbar-gutter:auto]">
+        <Table className="admin-data-table min-w-[1120px] table-auto [&_[data-slot=table-cell]]:px-2.5 [&_[data-slot=table-cell]]:py-1.5 [&_[data-slot=table-head]]:h-8 [&_[data-slot=table-head]]:px-2.5">
           <NodeTableColumnProfile />
           <NodeTableColumns />
           <TableBody>

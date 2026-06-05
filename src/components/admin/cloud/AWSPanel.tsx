@@ -59,7 +59,6 @@ import {
   CloudProviderHeader,
   cloudLongTextClassName,
   cloudPanelCardClassName,
-  cloudPanelDescriptionClassName,
   cloudPanelFieldLabelClassName,
   cloudPanelHeaderClassName,
   cloudPanelTitleClassName,
@@ -837,6 +836,7 @@ function AWSInlineCreatePanel({
   const createLabel = isEC2
     ? t("cloud.providers.aws.create", "创建 EC2")
     : t("cloud.providers.aws.lightsail_create", "创建 Lightsail");
+  const createTitle = t("cloud.providers.aws.inline_create_title", "New instance");
   const disabled = isEC2
     ? submitting ||
       !activeCredential ||
@@ -855,40 +855,38 @@ function AWSInlineCreatePanel({
   return (
     <section className={`${cloudPanelCardClassName} flex h-full min-h-[520px] flex-col`}>
       <div className={cloudPanelHeaderClassName}>
-        <div className="flex min-w-0 flex-wrap items-center justify-between gap-3">
+        <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="min-w-0">
             <div className="flex items-center gap-2">
               <div className={cloudPanelTitleClassName}>
-                {createLabel}
+                {createTitle}
               </div>
               <Badge color={activeCredential ? "green" : "amber"}>
                 {activeCredential ? t("common.active", "已激活") : t("cloud.no_active", "未激活")}
               </Badge>
             </div>
-            <div className={cloudPanelDescriptionClassName}>
-              {t("cloud.providers.aws.inline_create_description", "当前可直接选择 EC2 或 Lightsail；核心字段默认展开，完整高级配置留在完整创建向导。")}
-            </div>
           </div>
-          <Button variant="outline" size="1" onClick={() => { void advancedHandler(); }} disabled={!activeCredential}>
-            {t("cloud.advanced_options", "高级")}
-          </Button>
+          <div className="flex w-full shrink-0 flex-wrap items-center gap-2 sm:w-auto">
+            <SegmentedControl.Root
+              value={service}
+              onValueChange={(value) => onServiceChange(value as AWSCreateService)}
+              size="1"
+              className="justify-start"
+            >
+              <SegmentedControl.Item value="ec2">
+                {t("cloud.providers.aws.ec2_short", "EC2")}
+              </SegmentedControl.Item>
+              <SegmentedControl.Item value="lightsail">
+                {t("cloud.providers.aws.lightsail_short", "Lightsail")}
+              </SegmentedControl.Item>
+            </SegmentedControl.Root>
+            <Button variant="outline" size="1" onClick={() => { void advancedHandler(); }} disabled={!activeCredential}>
+              {t("cloud.advanced_options", "高级")}
+            </Button>
+          </div>
         </div>
       </div>
       <div className="grid gap-4 p-4">
-        <SegmentedControl.Root
-          value={service}
-          onValueChange={(value) => onServiceChange(value as AWSCreateService)}
-          size="1"
-          className="w-full justify-start"
-        >
-          <SegmentedControl.Item value="ec2">
-            {t("cloud.providers.aws.ec2_short", "EC2")}
-          </SegmentedControl.Item>
-          <SegmentedControl.Item value="lightsail">
-            {t("cloud.providers.aws.lightsail_short", "Lightsail")}
-          </SegmentedControl.Item>
-        </SegmentedControl.Root>
-
         {isEC2 ? (
           <>
             <EC2CreateCoreSection
@@ -902,6 +900,7 @@ function AWSInlineCreatePanel({
               regionSearchEmpty={regionSearchEmpty}
               onRegionChange={onEc2RegionChange}
               singleColumn
+              plain
             />
             {ec2ArchitectureMismatch ? (
               <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-300">
@@ -924,6 +923,7 @@ function AWSInlineCreatePanel({
             selectedBundlePreset={lightsailBundlePreset}
             platformMismatch={lightsailPlatformMismatch}
             singleColumn
+            plain
           />
         )}
       </div>

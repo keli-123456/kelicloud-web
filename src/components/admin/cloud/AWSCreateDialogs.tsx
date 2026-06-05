@@ -265,7 +265,7 @@ export function AWSLightsailCreateDialog({
             tone="info"
             description={t(
               "cloud.providers.aws.lightsail_static_presets_help",
-              "This Lightsail dialog uses built-in static presets instead of loading the AWS catalog. The availability zone defaults to region + a, and blueprint and bundle are selected from common presets.",
+              "This Lightsail dialog uses built-in static presets. The availability zone is selected from the current region, and blueprint and bundle are selected from common presets.",
             )}
           />
           <section className="pt-0">

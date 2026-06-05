@@ -10,11 +10,11 @@ export const allowedColors = [
 
 export type Colors = typeof allowedColors[number];
 
-export const allowedAppearances = ["light", "dark", "system"] as const;
+export const allowedAppearances = ["light", "dark"] as const;
 export type Appearance = typeof allowedAppearances[number];
 
 export const THEME_DEFAULTS = {
-  appearance: "system" as Appearance,
+  appearance: "light" as Appearance,
   color: "blue" as Colors,
 } as const;
 

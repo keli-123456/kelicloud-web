@@ -6,6 +6,7 @@ import "./styles/vendor/radix-layout-tokens.css";
 import {
   ThemeContext,
   THEME_DEFAULTS,
+  allowedAppearances,
   type Appearance,
   type Colors,
 } from "./contexts/ThemeContext";
@@ -58,6 +59,9 @@ const App = () => {
     "color",
     THEME_DEFAULTS.color,
   );
+  const normalizedAppearance = (allowedAppearances as readonly string[]).includes(appearance)
+    ? appearance
+    : THEME_DEFAULTS.appearance;
 
   React.useEffect(() => {
     try {
@@ -77,8 +81,13 @@ const App = () => {
     }
   }, [setColor]);
 
-  // Use the system theme hook to resolve "system" to actual theme
-  const resolvedAppearance = useSystemTheme(appearance);
+  React.useEffect(() => {
+    if (normalizedAppearance !== appearance) {
+      setAppearance(normalizedAppearance);
+    }
+  }, [appearance, normalizedAppearance, setAppearance]);
+
+  const resolvedAppearance = useSystemTheme(normalizedAppearance);
 
   React.useEffect(() => {
     const root = document.documentElement;
@@ -88,12 +97,12 @@ const App = () => {
 
   const themeContextValue = useMemo(
     () => ({
-      appearance,
+      appearance: normalizedAppearance,
       setAppearance,
       color,
       setColor,
     }),
-    [appearance, setAppearance, color, setColor],
+    [normalizedAppearance, setAppearance, color, setColor],
   );
   const routing = useRoutes(routes);
   return (

@@ -480,7 +480,13 @@
   }
 
   .admin-data-table-scroll {
-    background: var(--surface);
+    overflow-y: hidden;
+    background:
+      linear-gradient(
+        to bottom,
+        var(--surface-muted) 0 var(--admin-data-table-head-height, 2.5rem),
+        var(--surface) var(--admin-data-table-head-height, 2.5rem)
+      );
     scrollbar-color: color-mix(in srgb, var(--muted-foreground) 34%, transparent) transparent;
     scrollbar-width: thin;
   }

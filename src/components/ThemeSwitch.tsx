@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/tooltip";
 import { ThemeContext } from "@/contexts/ThemeContext";
 import { useSystemTheme } from "@/hooks/useSystemTheme";
-import { Laptop2, MoonStar, SunMedium } from "lucide-react";
+import { MoonStar, SunMedium } from "lucide-react";
 import { useContext, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 
@@ -27,12 +27,11 @@ const ThemeSwitch = ({ icon }: ThemeSwitchProps = {}) => {
   const resolvedAppearance = useSystemTheme(appearance);
   const [t] = useTranslation();
 
-  const activeIcon =
-    appearance === "system" ? (
-      <Laptop2 size={16} />
-    ) : resolvedAppearance === "dark" ? (
+  const activeIcon = resolvedAppearance === "dark"
+    ? (
       <MoonStar size={16} />
-    ) : (
+    )
+    : (
       <SunMedium size={16} />
     );
 
@@ -68,12 +67,6 @@ const ThemeSwitch = ({ icon }: ThemeSwitchProps = {}) => {
           onSelect={() => setAppearance("dark")}
         >
           {t("theme.dark", "Dark")}
-        </DropdownMenuCheckboxItem>
-        <DropdownMenuCheckboxItem
-          checked={appearance === "system"}
-          onSelect={() => setAppearance("system")}
-        >
-          {t("theme.system", "System")}
         </DropdownMenuCheckboxItem>
       </DropdownMenuContent>
     </DropdownMenu>
