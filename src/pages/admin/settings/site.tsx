@@ -129,17 +129,17 @@ export default function SiteSettings() {
                     variant="outline"
                     className="border-orange-200 bg-orange-50 text-orange-700 hover:bg-orange-100 dark:border-orange-900 dark:bg-orange-950/40 dark:text-orange-300 dark:hover:bg-orange-950/60"
                   >
-                    {t("settings.custom.favicon_default", "Restore Default")}
+                    {t("settings.custom.favicon_default", "Restore default icons")}
                   </Button>
                 </DialogTrigger>
                 <DialogContent className={`${ADMIN_FORM_DIALOG_CLASS} sm:max-w-md`}>
                   <DialogTitle>
-                    {t("settings.custom.favicon_default", "Restore Default")}
+                    {t("settings.custom.favicon_default", "Restore default icons")}
                   </DialogTitle>
                   <DialogDescription>
                     {t(
                       "settings.custom.favicon_default_description",
-                      "This will restore the default favicon icon. Do you want to continue?",
+                      "This will replace the current logo and favicon with the built-in defaults.",
                     )}
                   </DialogDescription>
                   <DialogFooter className="border-t border-slate-200/70 pt-4 dark:border-slate-800/70">
@@ -179,7 +179,7 @@ export default function SiteSettings() {
                           }
                         }}
                       >
-                        {t("settings.custom.favicon_confirm", "Confirm")}
+                        {t("settings.custom.favicon_confirm", "Restore")}
                       </Button>
                     </DialogClose>
                   </DialogFooter>

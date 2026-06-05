@@ -8,19 +8,19 @@ const ADMIN_FORM_DIALOG_CHROME_CLASS =
   "admin-dialog gap-0 overflow-hidden p-0 sm:p-0";
 
 const ADMIN_FORM_HEADER_CLASS =
-  "admin-panel-header shrink-0 px-4 py-3";
+  "admin-panel-header shrink-0 px-4 pb-1.5 pt-4";
 
 const ADMIN_FORM_HEADER_INSET_CLASS =
   "flex min-w-0 flex-col gap-1 pr-10";
 
 const ADMIN_FORM_SCROLL_CLASS =
-  "admin-form-scroll min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-contain [scrollbar-gutter:stable]";
+  "admin-form-scroll min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-contain";
 
 const ADMIN_FORM_BODY_CLASS =
-  "admin-form-scroll min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-contain px-4 py-3.5 sm:px-5 sm:py-4 [scrollbar-gutter:stable]";
+  "admin-form-scroll min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-contain px-4 py-2";
 
 const ADMIN_FORM_FOOTER_CLASS =
-  "admin-panel-footer admin-form-footer flex shrink-0 flex-col-reverse gap-2 px-4 py-2.5 sm:flex-row sm:items-center sm:justify-end sm:px-5";
+  "admin-panel-footer admin-form-footer flex shrink-0 flex-col-reverse gap-2 px-4 pb-4 pt-1.5 sm:flex-row sm:items-center sm:justify-end";
 
 const ADMIN_FORM_SECTION_CLASS =
   "admin-form-section border-t border-border/70 pt-3.5 pl-3 first:border-t-0 first:pt-0";

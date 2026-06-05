@@ -35,7 +35,10 @@ import {
   cloudTableEmptyStateClassName,
   cloudTablePrimaryTextClassName,
   cloudTableSecondaryTextClassName,
-  Flex,
+  cloudTokenActionGroupClassName,
+  cloudTokenBatchActionGroupClassName,
+  cloudTokenSecondaryActionGroupClassName,
+  cloudTokenToolbarClassName,
 } from "@/components/admin/cloud/cloud-ui";
 import { cn } from "@/lib/utils";
 import {
@@ -133,89 +136,101 @@ export function LinodeTokensSection({
                 : t("cloud.tokens.no_active_hint", "需要管理凭证时，请先导入或选择令牌。")}
             </div>
           </div>
-          <Flex gap="2" wrap="wrap">
-            <Button size="1" onClick={onOpenTokenImport}>
-              <CheckCircle2 className="mr-2 h-4 w-4" />
-              {t("cloud.tokens.import", "导入令牌")}
-            </Button>
-            <Button
-              variant="outline"
-              size="1"
-              disabled={!activeToken}
-              onClick={() => {
-                if (!activeToken) return;
-                void onSelectToken(activeToken, { loadResources: true });
-              }}
-            >
-              <Server className="mr-2 h-4 w-4" />
-              {t("cloud.providers.linode.view_instances", "查看实例")}
-            </Button>
-            <label
-              className={cn(
-                "flex h-8 items-center gap-2 rounded-md border px-2 text-xs font-medium transition-colors",
-                hasSelectableTokens
-                  ? selectAllActive
-                    ? "cursor-pointer border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100 dark:border-blue-900/60 dark:bg-blue-950/35 dark:text-blue-300 dark:hover:bg-blue-950/50"
-                    : "cursor-pointer border-border bg-[var(--surface)] text-foreground hover:bg-muted/60"
-                  : "cursor-not-allowed border-border bg-muted/30 text-muted-foreground opacity-70",
-              )}
-            >
-              <Checkbox
-                checked={allTokensSelected || (someTokensSelected && "indeterminate")}
-                disabled={!hasSelectableTokens}
-                onCheckedChange={(checked) => {
-                  if (!hasSelectableTokens) return;
-                  setSelectedTokenIds(checked === true ? tokenRows.map((token) => token.id) : []);
-                }}
-                aria-label={t("cloud.tokens.select_all", "选择全部令牌")}
-              />
-              {t("cloud.tokens.select_all", "选择全部令牌")}
-            </label>
-            <Button
-              variant="outline"
-              size="1"
-              onClick={onOpenPromo}
-              disabled={promoDisabled}
-            >
-              {promoSubmitting
-                ? t("cloud.providers.linode.promo_redeeming", "兑换中...")
-                : t("cloud.providers.linode.redeem_promo", "兑换优惠码")}
-            </Button>
-            <Button
-              variant="outline"
-              size="1"
-              onClick={() => {
-                void onCheckTokens();
-              }}
-              disabled={tokenChecking || !tokenPool?.tokens.length}
-            >
-              <ShieldCheck className="mr-2 h-4 w-4" />
-              {t("cloud.tokens.check_all", "检查全部凭证")}
-            </Button>
-            <Button
-              variant="outline"
-              size="1"
-              onClick={() => onOpenTokenGroupEditor(selectedTokens)}
-              disabled={selectedTokens.length === 0}
-            >
-              {t("cloud.tokens.set_group", "设置分组")}
-            </Button>
-            <Button
-              variant="outline"
-              size="1"
-              color="red"
-              onClick={() => {
-                void onDeleteSelectedTokens();
-              }}
-              disabled={selectedTokens.length === 0}
-            >
-              <Trash2 className="mr-2 h-4 w-4" />
-              {t("cloud.tokens.delete_selected", {
-                count: selectedTokens.length,
-                defaultValue: "Delete selected",
-              })}
-            </Button>
-          </Flex>
+          <div className={cloudTokenToolbarClassName}>
+            <div className={cloudTokenActionGroupClassName}>
+              <Button size="1" onClick={onOpenTokenImport}>
+                <CheckCircle2 className="mr-2 h-4 w-4" />
+                {t("cloud.tokens.import", "导入令牌")}
+              </Button>
+              {hasSelectableTokens ? (
+                <Button
+                  variant="outline"
+                  size="1"
+                  disabled={!activeToken}
+                  onClick={() => {
+                    if (!activeToken) return;
+                    void onSelectToken(activeToken, { loadResources: true });
+                  }}
+                >
+                  <Server className="mr-2 h-4 w-4" />
+                  {t("cloud.providers.linode.view_instances", "查看实例")}
+                </Button>
+              ) : null}
+            </div>
+            {hasSelectableTokens ? (
+              <div className={cloudTokenSecondaryActionGroupClassName}>
+                <label
+                  className={cn(
+                    "flex h-8 items-center gap-2 rounded-md border px-2 text-xs font-medium transition-colors",
+                    selectAllActive
+                      ? "cursor-pointer border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100 dark:border-blue-900/60 dark:bg-blue-950/35 dark:text-blue-300 dark:hover:bg-blue-950/50"
+                      : "cursor-pointer border-border bg-[var(--surface)] text-foreground hover:bg-muted/60",
+                  )}
+                >
+                  <Checkbox
+                    checked={allTokensSelected || (someTokensSelected && "indeterminate")}
+                    onCheckedChange={(checked) => {
+                      setSelectedTokenIds(checked === true ? tokenRows.map((token) => token.id) : []);
+                    }}
+                    aria-label={t("cloud.tokens.select_all", "选择全部令牌")}
+                  />
+                  {t("cloud.tokens.select_all", "选择全部令牌")}
+                </label>
+                <Button
+                  variant="outline"
+                  size="1"
+                  onClick={onOpenPromo}
+                  disabled={promoDisabled}
+                >
+                  {promoSubmitting
+                    ? t("cloud.providers.linode.promo_redeeming", "兑换中...")
+                    : t("cloud.providers.linode.redeem_promo", "兑换优惠码")}
+                </Button>
+                <Button
+                  variant="outline"
+                  size="1"
+                  onClick={() => {
+                    void onCheckTokens();
+                  }}
+                  disabled={tokenChecking || !tokenPool?.tokens.length}
+                >
+                  <ShieldCheck className="mr-2 h-4 w-4" />
+                  {t("cloud.tokens.check_all", "检查全部凭证")}
+                </Button>
+              </div>
+            ) : null}
+            {selectedTokens.length > 0 ? (
+              <div className={cloudTokenBatchActionGroupClassName}>
+                <Badge color="blue">
+                  {t("cloud.tokens.selected_count", {
+                    count: selectedTokens.length,
+                    defaultValue: `${selectedTokens.length} tokens selected`,
+                  })}
+                </Badge>
+                <Button
+                  variant="outline"
+                  size="1"
+                  onClick={() => onOpenTokenGroupEditor(selectedTokens)}
+                >
+                  {t("cloud.tokens.set_group", "设置分组")}
+                </Button>
+                <Button
+                  variant="soft"
+                  size="1"
+                  color="red"
+                  onClick={() => {
+                    void onDeleteSelectedTokens();
+                  }}
+                >
+                  <Trash2 className="mr-2 h-4 w-4" />
+                  {t("cloud.tokens.delete_selected", {
+                    count: selectedTokens.length,
+                    defaultValue: "Delete selected",
+                  })}
+                </Button>
+              </div>
+            ) : null}
+          </div>
         </div>
       </div>
 
@@ -227,12 +242,6 @@ export function LinodeTokensSection({
             description={t(
               "cloud.providers.linode.tokens_empty_description",
               "Import a Linode personal access token to select an active account, check health, and load instances.",
-            )}
-            actions={(
-              <Button size="1" onClick={onOpenTokenImport}>
-                <KeyRound className="mr-2 h-4 w-4" />
-                {t("cloud.tokens.import", "导入令牌")}
-              </Button>
             )}
             className={cloudTableEmptyStateClassName}
           />

@@ -93,9 +93,9 @@ export function AWSRegionSelect({
       <PopoverContent
         align="start"
         sideOffset={6}
-        className="z-[60] flex max-h-[min(24rem,calc(100vh-2rem))] w-[var(--radix-popover-trigger-width)] min-w-[18rem] max-w-[calc(100vw-2rem)] flex-col overflow-hidden p-0"
+        className="z-[60] flex max-h-[min(20rem,calc(100vh-2rem))] w-[var(--radix-popover-trigger-width)] min-w-[18rem] max-w-[calc(100vw-2rem)] flex-col overflow-hidden rounded-md border border-border bg-popover p-0 shadow-lg"
       >
-        <div className="border-b p-2">
+        <div className="border-b border-border/70 bg-[var(--surface-subtle)] p-2.5">
           <TextField.Root
             autoFocus
             value={searchQuery}
@@ -103,7 +103,7 @@ export function AWSRegionSelect({
             placeholder={searchPlaceholder}
           />
         </div>
-        <div className="h-[min(18rem,calc(100vh-10rem))] min-h-0 overflow-y-auto overscroll-contain p-1 [scrollbar-gutter:stable]">
+        <div className="max-h-[min(14rem,calc(100vh-10rem))] min-h-0 overflow-y-auto overscroll-contain p-1.5 [scrollbar-gutter:stable]">
           {filteredOptions.length === 0 ? (
             <div className="px-3 py-6 text-sm text-muted-foreground">
               {emptyLabel}
@@ -118,8 +118,10 @@ export function AWSRegionSelect({
                 <button
                   key={option.name}
                   type="button"
-                  className={`flex w-full items-start gap-3 rounded-md px-3 py-2 text-left hover:bg-accent hover:text-accent-foreground ${
-                    isSelected ? "bg-accent/60 text-accent-foreground" : ""
+                  className={`flex w-full items-start gap-3 rounded-md px-3 py-2.5 text-left text-sm transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:bg-accent focus-visible:outline-none ${
+                    isSelected
+                      ? "bg-primary/10 text-foreground ring-1 ring-primary/20"
+                      : "text-foreground"
                   }`}
                   onClick={() => {
                     onValueChange(option.name);
@@ -132,7 +134,7 @@ export function AWSRegionSelect({
                       <div className="truncate text-xs text-muted-foreground">{detailLabel}</div>
                     ) : null}
                   </div>
-                  <Check className={`mt-0.5 h-4 w-4 shrink-0 ${isSelected ? "opacity-100" : "opacity-0"}`} />
+                  <Check className={`mt-0.5 h-4 w-4 shrink-0 text-primary ${isSelected ? "opacity-100" : "opacity-0"}`} />
                 </button>
               );
             })

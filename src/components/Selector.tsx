@@ -43,7 +43,7 @@ export interface SelectorProps<T> {
 function SelectorInner<T>(props: SelectorProps<T>) {
   const {
     className = "",
-    scrollAreaClassName = "max-h-[360px] overflow-y-auto overflow-x-hidden overscroll-contain [scrollbar-gutter:stable]",
+    scrollAreaClassName = "max-h-[360px] overflow-y-auto overflow-x-hidden overscroll-contain",
     hiddenDescription = false,
     value: externalValue,
     onChange,
@@ -110,9 +110,9 @@ function SelectorInner<T>(props: SelectorProps<T>) {
 
   return (
     <div className={`flex min-h-0 flex-col ${className}`}>
-      <div className="relative mb-2 shrink-0">
+      <div className="relative mb-2.5 shrink-0">
         <Input
-          className="pl-9"
+          className="h-9 rounded-md bg-[var(--surface)] pl-9 text-[13px]"
           placeholder={resolvedSearchPlaceholder}
           value={search}
           onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
@@ -124,12 +124,12 @@ function SelectorInner<T>(props: SelectorProps<T>) {
         </div>
       </div>
       <div
-        className={`selector min-h-0 rounded-md ${scrollAreaClassName}`}
+        className={`selector min-h-0 overflow-hidden rounded-md border border-border/80 bg-[var(--surface)] ${scrollAreaClassName}`}
       >
-        <Table>
-          <TableHeader className="sticky top-0 z-10 bg-background">
+        <Table className="text-[13px]">
+          <TableHeader className="sticky top-0 z-10 bg-[var(--surface-muted)]">
             <TableRow>
-              <TableHead>
+              <TableHead className="h-8 w-10 bg-transparent">
                 <Checkbox
                   checked={isIndeterminate ? "indeterminate" : allChecked}
                   onCheckedChange={(checked) => handleCheckAll(!!checked)}
@@ -138,22 +138,29 @@ function SelectorInner<T>(props: SelectorProps<T>) {
                   })}
                 />
               </TableHead>
-              <TableHead>{resolvedHeaderLabel}</TableHead>
+              <TableHead className="h-8 bg-transparent text-[12px]">{resolvedHeaderLabel}</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {processed.map((it, index) => {
               const id = getId(it);
+              const selected = value.includes(id);
               return (
                 <TableRow
                   key={`${id}-${index}`}
+                  data-state={selected ? "selected" : undefined}
+                  className={
+                    selected
+                      ? "border-l-2 border-l-primary border-primary/20 bg-primary/5 hover:bg-primary/10"
+                      : ""
+                  }
                   onClick={() => {
-                    handleCheck(id, !value.includes(id));
+                    handleCheck(id, !selected);
                   }}
                 >
                   <TableCell>
                     <Checkbox
-                      checked={value.includes(id)}
+                      checked={selected}
                       onCheckedChange={(checked) => handleCheck(id, !!checked)}
                       aria-label={t("selector.select_item", {
                         item: id,
@@ -168,8 +175,10 @@ function SelectorInner<T>(props: SelectorProps<T>) {
             {orphanIds.map((id, index) => (
               <TableRow
                 key={`${id}-orphan-${index}`}
+                data-state="selected"
+                className="border-l-2 border-l-primary border-primary/20 bg-primary/5 hover:bg-primary/10"
                 onClick={() => {
-                  handleCheck(id, !value.includes(id));
+                  handleCheck(id, false);
                 }}
               >
                 <TableCell>

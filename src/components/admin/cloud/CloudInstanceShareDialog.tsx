@@ -276,7 +276,7 @@ export default function CloudInstanceShareDialog({
         ) : target ? (
           <>
             <div className="grid min-h-0 flex-1 gap-0 overflow-hidden lg:grid-cols-[minmax(0,1fr)_360px]">
-              <div className="min-w-0 space-y-5 overflow-y-auto px-5 py-5 [scrollbar-gutter:stable]">
+              <div className="min-w-0 space-y-5 overflow-y-auto px-5 py-5">
                 <div className="border-b border-slate-200/80 pb-4 dark:border-slate-800">
                   <div className="flex min-w-0 items-start justify-between gap-4">
                     <div className="min-w-0">

@@ -36,7 +36,6 @@ import {
 import { AzureCreateDialog } from "@/components/admin/cloud/AzureCreateDialog";
 import { AzureInstanceDetailDialog } from "@/components/admin/cloud/AzureInstanceDetailDialog";
 import { AzureInstancesSection } from "@/components/admin/cloud/AzureInstancesSection";
-import { CloudOnboardingPanel } from "@/components/admin/cloud/CloudOnboardingPanel";
 import CloudInstanceScriptDialog, { type CloudInstanceScriptTarget } from "@/components/admin/cloud/CloudInstanceScriptDialog";
 import {
   Badge,
@@ -116,8 +115,6 @@ export default function AzurePanel() {
     () => getActiveCredential(credentialPool),
     [credentialPool],
   );
-  const credentialCount = credentialPool?.credentials.length || 0;
-  const showOnboardingPanel = credentialCount === 0;
   const effectiveCatalog = React.useMemo(() => {
     const activeLocation =
       account?.active_location
@@ -309,37 +306,6 @@ export default function AzurePanel() {
             tone="destructive"
             title={t("cloud.providers.azure.load_error_title", "加载 Azure 资源失败")}
             description={loadError}
-          />
-        ) : null}
-
-        {showOnboardingPanel ? (
-          <CloudOnboardingPanel
-            t={t}
-            providerName={t("cloud.providers.azure.title", "Azure")}
-            credentialDone={credentialCount > 0}
-            contextReady={Boolean(activeCredential)}
-            resourcesLoaded={Boolean(activeCredential)}
-            canLoadResources={false}
-            canCreate={Boolean(activeCredential)}
-            credentialTitle={t("cloud.providers.azure.onboarding_credential_title", "导入服务主体凭据")}
-            credentialDescription={t(
-              "cloud.providers.azure.onboarding_credential_description",
-              "添加 Azure 应用凭据后，选择当前订阅并设置默认区域。",
-            )}
-            resourceTitle={t("cloud.providers.azure.onboarding_context_title", "确认订阅与区域")}
-            resourceDescription={t(
-              "cloud.providers.azure.onboarding_context_description",
-              "当前订阅和区域会决定虚拟机列表、规格目录以及创建默认值。",
-            )}
-            createTitle={t("cloud.providers.azure.onboarding_create_title", "创建或管理虚拟机")}
-            createDescription={t(
-              "cloud.providers.azure.onboarding_create_description",
-              "订阅就绪后，可以创建 VM，也可以在表格里查看网络、磁盘和运行状态。",
-            )}
-            importLabel={t("cloud.providers.azure.import", "导入凭证")}
-            createLabel={t("cloud.providers.azure.create", "创建虚拟机")}
-            onImportCredential={() => setCredentialImportOpen(true)}
-            onCreate={() => setCreateOpen(true)}
           />
         ) : null}
 

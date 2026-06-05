@@ -6,7 +6,6 @@ import {
   AdminPageShell,
   AdminTableSkeleton,
 } from "@/components/admin/AdminPageShell";
-import { CloudOnboardingPanel } from "@/components/admin/cloud/CloudOnboardingPanel";
 import CloudInstanceShareDialog from "@/components/admin/cloud/CloudInstanceShareDialog";
 import CloudInstanceScriptDialog, { type CloudInstanceScriptTarget } from "@/components/admin/cloud/CloudInstanceScriptDialog";
 import { LinodeCreateDialog } from "@/components/admin/cloud/LinodeCreateDialog";
@@ -351,15 +350,6 @@ export default function LinodePanel() {
       groupHint: getDefaultAutoConnectGroup("linode", activeToken?.name || ""),
     });
   }, [activeToken?.name, t]);
-  const showOnboardingPanel = tokenRows.length === 0;
-
-  const handleLoadResources = async () => {
-    if (!activeToken) {
-      return;
-    }
-    await loadPanelData();
-  };
-
   if (initializing) {
     return (
       <AdminPageShell
@@ -405,39 +395,6 @@ export default function LinodePanel() {
             "cloud.password.storage_disabled_help",
             "Set KOMARI_CLOUD_SECRET_KEY on the server to save root passwords for later viewing in the instance list.",
           )}
-        />
-      ) : null}
-
-      {showOnboardingPanel ? (
-        <CloudOnboardingPanel
-          t={t}
-          providerName={t("cloud.providers.linode.title", "Linode")}
-          credentialDone={tokenRows.length > 0}
-          contextReady={Boolean(activeToken)}
-          resourcesLoaded={resourcesLoaded}
-          resourceLoading={panelLoading}
-          createLoading={createCatalogLoading}
-          canLoadResources={Boolean(activeToken)}
-          canCreate={Boolean(activeToken)}
-          credentialTitle={t("cloud.onboarding.token_title", "导入 API 令牌")}
-          credentialDescription={t(
-            "cloud.providers.linode.onboarding_token_description",
-            "先添加一个或多个 Linode 个人访问令牌，再选择当前用于操作的账户。",
-          )}
-          resourceDescription={t(
-            "cloud.providers.linode.onboarding_resource_description",
-            "按需拉取 Linode 实例和账号信息，切换令牌时页面会更快、更可控。",
-          )}
-          createTitle={t("cloud.providers.linode.onboarding_create_title", "创建或管理 Linode 实例")}
-          createLabel={t("cloud.providers.linode.create", "Create Instance")}
-          importLabel={t("cloud.tokens.import", "Import Tokens")}
-          onImportCredential={() => setTokenImportOpen(true)}
-          onLoadResources={() => {
-            void handleLoadResources();
-          }}
-          onCreate={() => {
-            void handleOpenCreateDialog();
-          }}
         />
       ) : null}
 

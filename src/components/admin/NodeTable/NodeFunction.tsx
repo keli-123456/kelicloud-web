@@ -90,9 +90,9 @@ type InstallOptions = {
 type Platform = "linux" | "windows" | "macos";
 
 const NODE_DIALOG_CONTENT_CLASS =
-  "admin-dialog admin-form-scroll max-h-[90vh] w-[min(calc(100vw-1rem),760px)] overflow-y-auto overscroll-contain p-4 [scrollbar-gutter:stable] sm:p-5";
+  "admin-dialog admin-form-scroll max-h-[90vh] w-[min(calc(100vw-1rem),760px)] overflow-y-auto overscroll-contain p-4 sm:p-5";
 const NODE_DIALOG_COMPACT_CONTENT_CLASS =
-  "admin-dialog admin-form-scroll max-h-[90vh] w-[min(calc(100vw-1rem),520px)] overflow-y-auto overscroll-contain p-4 [scrollbar-gutter:stable] sm:p-5";
+  "admin-dialog admin-form-scroll max-h-[90vh] w-[min(calc(100vw-1rem),520px)] overflow-y-auto overscroll-contain p-4 sm:p-5";
 const NODE_DIALOG_SECTION_CLASS =
   "space-y-3 border-t border-border bg-transparent pt-3.5 first:border-t-0 first:pt-0";
 const NODE_DIALOG_FOOTER_CLASS =

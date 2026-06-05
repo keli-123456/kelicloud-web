@@ -37,7 +37,7 @@ function DialogOverlay({
     <DialogPrimitive.Overlay
       data-slot="dialog-overlay"
       className={cn(
-        "fixed inset-0 z-50 bg-slate-950/40 backdrop-blur-[2px] backdrop-saturate-125 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:animate-in data-[state=open]:fade-in-0",
+        "fixed inset-0 z-50 bg-slate-950/35 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:animate-in data-[state=open]:fade-in-0",
         className
       )}
       {...props}
@@ -58,7 +58,7 @@ const DialogContent = React.forwardRef<
         ref={ref}
         data-slot="dialog-content"
         className={cn(
-          "admin-dialog fixed left-[50%] top-[50%] z-50 grid w-full min-w-0 max-w-[calc(100%-1rem)] max-h-[calc(100vh-1rem)] max-h-[calc(100dvh-1rem)] min-h-0 translate-x-[-50%] translate-y-[-50%] gap-3.5 overflow-y-auto overflow-x-hidden overscroll-contain p-4 duration-200 outline-none [scrollbar-gutter:stable] data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:slide-out-to-bottom-1 data-[state=closed]:zoom-out-95 data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:slide-in-from-bottom-1 data-[state=open]:zoom-in-95 sm:max-w-lg sm:p-5",
+          "admin-dialog fixed left-[50%] top-[50%] z-50 grid w-full min-w-0 max-w-[calc(100%-1rem)] max-h-[calc(100vh-1rem)] max-h-[calc(100dvh-1rem)] min-h-0 translate-x-[-50%] translate-y-[-50%] gap-3.5 overflow-y-auto overflow-x-hidden overscroll-contain p-4 duration-200 outline-none data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:slide-out-to-bottom-1 data-[state=closed]:zoom-out-95 data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:slide-in-from-bottom-1 data-[state=open]:zoom-in-95 sm:max-w-lg",
           className
         )}
         {...props}
@@ -67,7 +67,8 @@ const DialogContent = React.forwardRef<
         {showCloseButton && (
           <DialogPrimitive.Close
             data-slot="dialog-close"
-            className="absolute right-3 top-3 z-10 flex size-8 items-center justify-center rounded-md border border-border bg-[var(--surface)] text-muted-foreground opacity-95 shadow-none ring-offset-background transition-[background-color,color,border-color,opacity,box-shadow] hover:bg-[var(--surface-hover)] hover:text-foreground hover:opacity-100 focus:outline-hidden focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none data-[state=open]:bg-accent data-[state=open]:text-muted-foreground sm:right-3.5 sm:top-3.5"
+            data-dialog-icon-close
+            className="absolute right-3 top-3 z-10 flex size-8 items-center justify-center rounded-md border border-transparent bg-transparent text-muted-foreground opacity-95 shadow-none ring-offset-background transition-[background-color,color,opacity] hover:bg-[var(--surface-hover)] hover:text-foreground hover:opacity-100 focus:outline-hidden focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none data-[state=open]:bg-transparent data-[state=open]:text-muted-foreground sm:right-4 sm:top-4"
           >
             <XIcon className="size-4" />
             <span className="sr-only">Close</span>

@@ -95,7 +95,7 @@
   --surface-hover: #f8fbff;
   --surface-pressed: #eef4ff;
   --admin-panel-shadow: 0 1px 2px rgb(15 23 42 / 0.045), 0 18px 42px -36px rgb(15 23 42 / 0.78);
-  --admin-dialog-shadow: 0 1px 2px rgb(15 23 42 / 0.05), 0 30px 90px -54px rgb(15 23 42 / 0.84);
+  --admin-dialog-shadow: 0 18px 50px -34px rgb(15 23 42 / 0.68), 0 1px 2px rgb(15 23 42 / 0.05);
   --chart-1: #2f6fe4;
   --chart-2: #159f95;
   --chart-3: #7657d5;
@@ -149,7 +149,7 @@
   --surface-hover: oklch(0.278 0.007 264);
   --surface-pressed: oklch(0.302 0.008 264);
   --admin-panel-shadow: 0 20px 54px -46px rgb(0 0 0 / 0.9);
-  --admin-dialog-shadow: 0 30px 90px -56px rgb(0 0 0 / 0.92);
+  --admin-dialog-shadow: 0 24px 62px -42px rgb(0 0 0 / 0.9), 0 1px 2px rgb(0 0 0 / 0.28);
 }
 
 @layer base {
@@ -456,12 +456,12 @@
 
   .admin-panel-header {
     border-bottom: 1px solid var(--border);
-    background: linear-gradient(180deg, color-mix(in srgb, var(--surface-muted) 96%, var(--surface)) 0%, color-mix(in srgb, var(--surface-muted) 82%, var(--surface)) 100%);
+    background: var(--surface-muted);
   }
 
   .admin-panel-footer {
     border-top: 1px solid var(--border);
-    background: linear-gradient(180deg, color-mix(in srgb, var(--surface-muted) 86%, var(--surface)) 0%, var(--surface-muted) 100%);
+    background: var(--surface-muted);
   }
 
   .admin-inline-surface {
@@ -600,8 +600,43 @@
     box-shadow: var(--admin-dialog-shadow);
   }
 
-  .admin-dialog [data-slot="dialog-close"] {
-    background: color-mix(in srgb, var(--surface) 88%, var(--surface-muted));
+  .admin-dialog [data-dialog-icon-close] {
+    border-color: transparent;
+    background: transparent;
+    color: color-mix(in srgb, var(--muted-foreground) 92%, var(--foreground));
+    box-shadow: none;
+  }
+
+  .admin-dialog [data-dialog-icon-close]:hover {
+    border-color: transparent;
+    background: var(--surface-hover);
+    color: var(--foreground);
+  }
+
+  .admin-dialog [data-slot="dialog-title"],
+  .admin-dialog [data-slot="alert-dialog-title"] {
+    letter-spacing: 0;
+  }
+
+  .admin-dialog [data-slot="dialog-description"],
+  .admin-dialog [data-slot="alert-dialog-description"] {
+    color: color-mix(in srgb, var(--muted-foreground) 92%, var(--foreground));
+  }
+
+  .admin-dialog .admin-panel-header {
+    position: relative;
+    z-index: 1;
+    border-bottom: 0;
+    background: transparent;
+    box-shadow: none;
+  }
+
+  .admin-dialog .admin-panel-footer {
+    position: relative;
+    z-index: 1;
+    border-top: 0;
+    background: transparent;
+    box-shadow: none;
   }
 
   .admin-form-section {
@@ -630,14 +665,6 @@
   }
 
   .admin-form-scroll {
-    background:
-      linear-gradient(var(--surface) 30%, transparent) center top,
-      linear-gradient(transparent, var(--surface) 70%) center bottom,
-      radial-gradient(farthest-side at 50% 0, color-mix(in srgb, var(--foreground) 12%, transparent), transparent) center top,
-      radial-gradient(farthest-side at 50% 100%, color-mix(in srgb, var(--foreground) 10%, transparent), transparent) center bottom;
-    background-attachment: local, local, scroll, scroll;
-    background-repeat: no-repeat;
-    background-size: 100% 18px, 100% 18px, 100% 7px, 100% 7px;
     scrollbar-color: color-mix(in srgb, var(--muted-foreground) 34%, transparent) transparent;
     scrollbar-width: thin;
   }

@@ -2,12 +2,13 @@ import React from "react";
 import type { TFunction } from "i18next";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
+import { KeyRound } from "lucide-react";
 
 import {
+  AdminEmptyState,
   AdminPageShell,
   AdminTableSkeleton,
 } from "@/components/admin/AdminPageShell";
-import { CloudOnboardingPanel } from "@/components/admin/cloud/CloudOnboardingPanel";
 import CloudInstanceShareDialog from "@/components/admin/cloud/CloudInstanceShareDialog";
 import CloudInstanceScriptDialog, { type CloudInstanceScriptTarget } from "@/components/admin/cloud/CloudInstanceScriptDialog";
 import { DigitalOceanCreateDialog } from "@/components/admin/cloud/DigitalOceanCreateDialog";
@@ -347,15 +348,6 @@ export default function DigitalOceanPanel() {
   const regions = catalog?.regions ?? [];
   const sizes = catalog?.sizes ?? [];
   const images = catalog?.images ?? [];
-  const showOnboardingPanel = tokenRows.length === 0;
-
-  const handleLoadResources = async () => {
-    if (!activeToken) {
-      return;
-    }
-    await loadPanelData();
-  };
-
   if (initializing) {
     return (
       <AdminPageShell
@@ -408,39 +400,6 @@ export default function DigitalOceanPanel() {
         />
       ) : null}
 
-      {showOnboardingPanel ? (
-        <CloudOnboardingPanel
-          t={t}
-          providerName={t("cloud.providers.digitalocean.title", "DigitalOcean")}
-          credentialDone={tokenRows.length > 0}
-          contextReady={Boolean(activeToken)}
-          resourcesLoaded={resourcesLoaded}
-          resourceLoading={panelLoading}
-          createLoading={createCatalogLoading}
-          canLoadResources={Boolean(activeToken)}
-          canCreate={Boolean(activeToken)}
-          credentialTitle={t("cloud.onboarding.token_title", "导入 API 令牌")}
-          credentialDescription={t(
-            "cloud.onboarding.token_description",
-            "先添加一个或多个 DigitalOcean 令牌，再选择当前用于操作的账户。",
-          )}
-          resourceDescription={t(
-            "cloud.onboarding.resource_description",
-            "按需拉取 Droplet 资源，切换账户时页面会更快、更可控。",
-          )}
-          createTitle={t("cloud.onboarding.create_title", "创建或管理 Droplet")}
-          createLabel={t("cloud.create", "创建 Droplet")}
-          importLabel={t("cloud.tokens.import", "Import Tokens")}
-          onImportCredential={() => setTokenImportOpen(true)}
-          onLoadResources={() => {
-            void handleLoadResources();
-          }}
-          onCreate={() => {
-            void handleOpenCreateDialog();
-          }}
-        />
-      ) : null}
-
       <div className="grid min-w-0 items-stretch gap-4 xl:grid-cols-[minmax(340px,0.9fr)_minmax(380px,1.1fr)]">
         <DigitalOceanInlineCreatePanel
           t={t}
@@ -457,6 +416,7 @@ export default function DigitalOceanPanel() {
           getImageLabel={getImageLabel}
           onPrepare={prepareCreateForm}
           onOpenAdvanced={handleOpenCreateDialog}
+          onOpenTokenImport={() => setTokenImportOpen(true)}
           onCreate={handleCreateDroplet}
         />
 
@@ -654,6 +614,7 @@ type DigitalOceanInlineCreatePanelProps = {
   getImageLabel: (image: DigitalOceanImage) => string;
   onPrepare: () => Promise<DigitalOceanCatalog | null>;
   onOpenAdvanced: () => void | Promise<void>;
+  onOpenTokenImport: () => void;
   onCreate: () => void | Promise<void>;
 };
 
@@ -672,6 +633,7 @@ function DigitalOceanInlineCreatePanel({
   getImageLabel,
   onPrepare,
   onOpenAdvanced,
+  onOpenTokenImport,
   onCreate,
 }: DigitalOceanInlineCreatePanelProps) {
   React.useEffect(() => {
@@ -703,6 +665,23 @@ function DigitalOceanInlineCreatePanel({
           </Button>
         </div>
       </div>
+      {!activeToken ? (
+        <div className="flex flex-1 p-4">
+          <AdminEmptyState
+            icon={<KeyRound className="h-5 w-5" />}
+            title={t("cloud.no_active_token", "请选择一个当前操作令牌，再加载 DigitalOcean 资源")}
+            description={t("cloud.no_active_token_description", "请先在下方令牌池选择或导入令牌，然后再加载云资源。")}
+            actions={(
+              <Button size="1" onClick={onOpenTokenImport}>
+                <KeyRound className="mr-2 h-4 w-4" />
+                {t("cloud.tokens.import", "导入令牌")}
+              </Button>
+            )}
+            className="min-h-[320px] flex-1"
+          />
+        </div>
+      ) : (
+        <>
       <div className="grid gap-3 p-4">
         <div>
           <label className={cloudPanelFieldLabelClassName}>{t("cloud.form.region", "Region")}</label>
@@ -774,6 +753,8 @@ function DigitalOceanInlineCreatePanel({
           {submitting ? t("cloud.creating", "创建中...") : t("cloud.create", "创建 Droplet")}
         </Button>
       </div>
+        </>
+      )}
     </section>
   );
 }

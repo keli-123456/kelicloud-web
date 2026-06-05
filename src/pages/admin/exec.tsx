@@ -348,6 +348,7 @@ const ExecContent = ({ canUseExec, canUseScripts }: { canUseExec: boolean; canUs
     } = useCommandClipboard();
     const [command, setCommand] = useState("");
     const [selectedNodes, setSelectedNodes] = useState<string[]>([]);
+    const [nodeSelectorOpen, setNodeSelectorOpen] = useState(false);
     const [executing, setExecuting] = useState(false);
     const [results, setResults] = useState<TaskResult[]>([]);
     const [taskId, setTaskId] = useState<string | null>(null);
@@ -632,6 +633,20 @@ const ExecContent = ({ canUseExec, canUseScripts }: { canUseExec: boolean; canUs
         const name = getNodeDisplayName(uuid);
         return Boolean(name) && name !== address && name !== uuid;
     };
+    const selectedNodePreview = useMemo(
+        () => {
+            const nodeById = new Map(nodeDetail.map((node) => [node.uuid, node]));
+            return selectedNodes
+                .slice(0, 3)
+                .map((uuid) => {
+                    const node = nodeById.get(uuid);
+                    return node?.ipv4 || node?.ipv6 || node?.name || uuid;
+                })
+                .join(" · ");
+        },
+        [nodeDetail, selectedNodes],
+    );
+    const selectedNodeOverflowCount = Math.max(selectedNodes.length - 3, 0);
 
     // Poll task results.
     const pollTaskResult = async (taskId: string) => {
@@ -1460,15 +1475,39 @@ const ExecContent = ({ canUseExec, canUseScripts }: { canUseExec: boolean; canUs
                     <ExecPanelHead title={t("exec.configuration", { defaultValue: "执行配置" })} meta="/api/admin/task/exec" />
                     <div className="flex flex-col gap-4 p-[14px]">
                         <ExecField label={t("exec.target_nodes", { defaultValue: "目标节点" })}>
-                            <div className="rounded-md border border-input bg-[var(--surface-subtle)] p-2">
-                                <NodeSelector
-                                    value={selectedNodes}
-                                    onChange={setSelectedNodes}
-                                    displayMode="ip"
-                                    hiddenDescription
-                                    className="h-[226px]"
-                                    scrollAreaClassName="flex-1 overflow-y-auto overscroll-contain [scrollbar-gutter:stable]"
-                                />
+                            <div className="rounded-md border border-input bg-[var(--surface-subtle)] p-3">
+                                <div className="flex items-center justify-between gap-3">
+                                    <div className="min-w-0">
+                                        <div className="flex items-center gap-2 text-[13px] font-semibold leading-5 text-foreground">
+                                            <CheckCircle2 size={14} className={selectedNodes.length ? "text-emerald-600" : "text-muted-foreground"} />
+                                            {selectedNodes.length
+                                                ? t("exec.selected_nodes_count", {
+                                                    defaultValue: "已选 {{count}} 台",
+                                                    count: selectedNodes.length,
+                                                })
+                                                : t("exec.no_nodes_selected", {
+                                                    defaultValue: "未选择节点",
+                                                })}
+                                        </div>
+                                        <div className="mt-1 truncate text-[12px] leading-5 text-muted-foreground">
+                                            {selectedNodePreview
+                                                ? `${selectedNodePreview}${selectedNodeOverflowCount > 0 ? ` +${selectedNodeOverflowCount}` : ""}`
+                                                : t("exec.select_nodes_hint", {
+                                                    defaultValue: "打开选择器挑选执行目标。",
+                                                })}
+                                        </div>
+                                    </div>
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => setNodeSelectorOpen(true)}
+                                        className="h-8 shrink-0 rounded-md text-[12px]"
+                                    >
+                                        <Eye size={14} />
+                                        {t("exec.choose_nodes", { defaultValue: "选择节点" })}
+                                    </Button>
+                                </div>
                             </div>
                         </ExecField>
 
@@ -1510,7 +1549,7 @@ const ExecContent = ({ canUseExec, canUseScripts }: { canUseExec: boolean; canUs
                                         rows={6}
                                         wrap="off"
                                         spellCheck={false}
-                                        className="h-full min-h-full flex-1 resize-none overflow-auto rounded-none border-0 bg-slate-950 px-3 py-2.5 font-mono text-[12px] leading-5 text-slate-200 shadow-none outline-none whitespace-pre placeholder:text-slate-500 focus-visible:ring-0 [field-sizing:fixed] [scrollbar-gutter:stable]"
+                                        className="h-full min-h-full flex-1 resize-none overflow-auto rounded-none border-0 bg-slate-950 px-3 py-2.5 font-mono text-[12px] leading-5 text-slate-200 shadow-none outline-none whitespace-pre placeholder:text-slate-500 hover:bg-slate-950 focus:bg-slate-950 focus-visible:bg-slate-950 focus-visible:ring-0 [field-sizing:fixed] [scrollbar-gutter:stable]"
                                     />
                                 </div>
                             </div>
@@ -1550,6 +1589,62 @@ const ExecContent = ({ canUseExec, canUseScripts }: { canUseExec: boolean; canUs
             </div>
 
         </AdminPageShell>
+
+        <Dialog open={nodeSelectorOpen} onOpenChange={setNodeSelectorOpen}>
+            <AdminDialogLayout
+                title={t("exec.target_nodes", { defaultValue: "目标节点" })}
+                description={t("exec.target_nodes_dialog_description", {
+                    defaultValue: "选择本次远程执行要发送到的服务器。",
+                })}
+                maxWidth="46rem"
+                bodyClassName="min-h-0"
+                footerClassName="sm:justify-between"
+                footer={
+                    <>
+                        <div className="mr-auto flex min-w-0 items-center gap-2 text-[12px] leading-5 text-muted-foreground">
+                            <CheckCircle2
+                                size={14}
+                                className={selectedNodes.length ? "text-emerald-600" : "text-muted-foreground"}
+                            />
+                            <span className="truncate">
+                                {selectedNodes.length
+                                    ? t("exec.selected_nodes_count", {
+                                        defaultValue: "已选 {{count}} 台",
+                                        count: selectedNodes.length,
+                                    })
+                                    : t("exec.no_nodes_selected", {
+                                        defaultValue: "未选择节点",
+                                    })}
+                            </span>
+                        </div>
+                        <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() => setSelectedNodes([])}
+                            disabled={selectedNodes.length === 0}
+                        >
+                            {t("common.clear", { defaultValue: "清空" })}
+                        </Button>
+                        <DialogClose asChild>
+                            <Button type="button">
+                                {t("common.done", { defaultValue: "完成" })}
+                            </Button>
+                        </DialogClose>
+                    </>
+                }
+            >
+                <div className="min-h-0">
+                    <NodeSelector
+                        value={selectedNodes}
+                        onChange={setSelectedNodes}
+                        displayMode="ip"
+                        hiddenDescription
+                        className="h-[min(58vh,430px)]"
+                        scrollAreaClassName="flex-1 overflow-y-auto overscroll-contain"
+                    />
+                </div>
+            </AdminDialogLayout>
+        </Dialog>
 
         <Dialog
             open={scriptEditorOpen}

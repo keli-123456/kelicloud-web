@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 
 import {
+  AdminEmptyState,
   AdminPageShell,
   AdminTableSkeleton,
 } from "@/components/admin/AdminPageShell";
@@ -36,7 +37,6 @@ import {
   useClientPagination,
 } from "@/components/admin/AdminPagination";
 import { AdminRowActions } from "@/components/admin/AdminRowActions";
-import { CloudOnboardingPanel } from "@/components/admin/cloud/CloudOnboardingPanel";
 import {
   CloudBulkDeleteToolbar,
   CloudBulkSelectCheckbox,
@@ -57,7 +57,6 @@ import {
   CloudSecretValueBlock,
   CloudSensitiveDialogContent,
   CloudStatusNotice,
-  CloudTableSkeletonRows,
   Dialog,
   Select,
   TextField,
@@ -756,35 +755,6 @@ export default function VultrPanel() {
         />
       ) : null}
 
-      {tokenPool && tokenPool.tokens.length === 0 ? (
-        <CloudOnboardingPanel
-          t={t}
-          providerName={t("cloud.providers.vultr.title", "Vultr")}
-          credentialDone={false}
-          contextReady={false}
-          resourcesLoaded={resourcesLoaded}
-          resourceLoading={panelLoading}
-          createLoading={createCatalogLoading}
-          canLoadResources={Boolean(activeToken)}
-          canCreate={Boolean(activeToken)}
-          credentialTitle={t("cloud.onboarding.token_title", "导入 API 令牌")}
-          credentialDescription={t(
-            "cloud.providers.vultr.onboarding_token_description",
-            "Import one or more Vultr API tokens, then select the current account for operations.",
-          )}
-          resourceDescription={t(
-            "cloud.providers.vultr.onboarding_resource_description",
-            "Load Vultr instances and account data on demand so switching tokens stays fast.",
-          )}
-          createTitle={t("cloud.providers.vultr.onboarding_create_title", "创建或管理 Vultr 实例")}
-          createLabel={t("cloud.providers.vultr.create", "创建实例")}
-          importLabel={t("cloud.tokens.import", "导入令牌")}
-          onImportCredential={() => setTokenImportOpen(true)}
-          onLoadResources={() => { void loadPanelData(); }}
-          onCreate={() => { void handleOpenCreateDialog(); }}
-        />
-      ) : null}
-
       <div className="grid min-w-0 items-stretch gap-4 xl:grid-cols-[minmax(340px,0.9fr)_minmax(380px,1.1fr)]">
         <VultrInlineCreatePanel
           t={t}
@@ -796,6 +766,7 @@ export default function VultrPanel() {
           catalogLoading={createCatalogLoading}
           onPrepare={prepareCreateForm}
           onOpenAdvanced={handleOpenCreateDialog}
+          onOpenTokenImport={() => setTokenImportOpen(true)}
           onCreate={handleCreateInstance}
         />
 
@@ -937,6 +908,7 @@ type VultrInlineCreatePanelProps = {
   catalogLoading: boolean;
   onPrepare: () => Promise<VultrCatalog | null>;
   onOpenAdvanced: () => void | Promise<void>;
+  onOpenTokenImport: () => void;
   onCreate: () => void | Promise<void>;
 };
 
@@ -950,6 +922,7 @@ function VultrInlineCreatePanel({
   catalogLoading,
   onPrepare,
   onOpenAdvanced,
+  onOpenTokenImport,
   onCreate,
 }: VultrInlineCreatePanelProps) {
   React.useEffect(() => {
@@ -985,6 +958,26 @@ function VultrInlineCreatePanel({
           </Button>
         </div>
       </div>
+      {!activeToken ? (
+        <div className="flex flex-1 p-4">
+          <AdminEmptyState
+            icon={<Upload className="h-5 w-5" />}
+            title={t("cloud.tokens.no_active_token", "未配置当前令牌")}
+            description={t(
+              "cloud.providers.vultr.empty_instances_description",
+              "导入并选择令牌后，可以加载资源或创建新实例。",
+            )}
+            actions={(
+              <Button size="1" onClick={onOpenTokenImport}>
+                <Upload className="mr-2 h-4 w-4" />
+                {t("cloud.tokens.import", "导入令牌")}
+              </Button>
+            )}
+            className="min-h-[320px] flex-1"
+          />
+        </div>
+      ) : (
+        <>
       <div className="grid gap-3 p-4">
         <div>
           <label className={cloudPanelFieldLabelClassName}>{t("cloud.form.region", "地区")}</label>
@@ -1055,6 +1048,8 @@ function VultrInlineCreatePanel({
           {submitting ? t("cloud.creating", "正在创建...") : t("cloud.providers.vultr.create", "创建实例")}
         </Button>
       </div>
+        </>
+      )}
     </section>
   );
 }
@@ -1092,6 +1087,22 @@ function VultrInstancesSection({
       bulkSelection.clearSelection();
     }
   };
+  const hasInstances = instances.length > 0;
+  const emptyTitle = panelLoading
+    ? t("cloud.loading", "正在加载云资源...")
+    : error
+      ? t("cloud.load_failed", "无法加载云资源，请检查上方提示后重试。")
+      : resourcesLoaded
+        ? t("cloud.providers.vultr.empty_instances", "未找到 Vultr 实例")
+        : activeTokenConfigured
+          ? t("cloud.providers.vultr.load_instances_prompt", "加载清单查看实例")
+          : t("cloud.tokens.no_active_token", "未配置当前令牌");
+  const emptyDescription = panelLoading
+    ? t("cloud.loading_description", "供应商 API 可达时通常需要几秒。")
+    : error || t(
+      "cloud.providers.vultr.empty_instances_description",
+      "Import and select a token, then load resources or create a new instance.",
+    );
 
   return (
     <section className={cloudPanelCardClassName}>
@@ -1114,6 +1125,7 @@ function VultrInstancesSection({
               selectedCount={bulkSelection.selectedCount}
               totalCount={instances.length}
               deleting={batchDeleting}
+              hideWhenEmpty={!hasInstances}
               onClear={bulkSelection.clearSelection}
               onDelete={() => {
                 void handleBatchDelete();
@@ -1124,8 +1136,10 @@ function VultrInstancesSection({
       </div>
 
       <div className="p-0">
-        <AdminDataTableScroll>
-          <AdminDataTable minWidth={1040}>
+        {hasInstances ? (
+          <>
+            <AdminDataTableScroll>
+              <AdminDataTable minWidth={1040}>
             <thead>
               <AdminDataTableHeadRow>
                 <AdminDataTableHead className="w-10">
@@ -1148,10 +1162,7 @@ function VultrInstancesSection({
               </AdminDataTableHeadRow>
             </thead>
             <tbody>
-              {panelLoading ? (
-                <CloudTableSkeletonRows columns={8} rows={5} />
-              ) : instances.length ? (
-                paginatedInstances.map((instance) => {
+              {paginatedInstances.map((instance) => {
                   const plan = plansByID.get(instance.plan);
                   const region = regionsByID.get(instance.region);
                   const loadingDetail = detailLoadingId === instance.id;
@@ -1293,46 +1304,34 @@ function VultrInstancesSection({
                       </AdminDataTableCell>
                     </AdminDataTableRow>
                   );
-                })
-              ) : null}
+                })}
             </tbody>
-          </AdminDataTable>
-        </AdminDataTableScroll>
-        {instances.length > 0 ? (
-          <AdminPagination
-            page={instancePagination.page}
-            totalPages={instancePagination.totalPages}
-            total={instancePagination.total}
-            pageSize={instancePagination.pageSize}
-            visibleStart={instancePagination.visibleStart}
-            visibleEnd={instancePagination.visibleEnd}
-            onPageChange={instancePagination.setPage}
-            onPageSizeChange={instancePagination.setPageSize}
-            pageSizeOptions={[10, 20, 50]}
-            itemLabel={t("admin.pagination.instances", { defaultValue: "instances" })}
-            compact
-          />
-        ) : null}
-
-        {!panelLoading && instances.length === 0 ? (
+              </AdminDataTable>
+            </AdminDataTableScroll>
+            <AdminPagination
+              page={instancePagination.page}
+              totalPages={instancePagination.totalPages}
+              total={instancePagination.total}
+              pageSize={instancePagination.pageSize}
+              visibleStart={instancePagination.visibleStart}
+              visibleEnd={instancePagination.visibleEnd}
+              onPageChange={instancePagination.setPage}
+              onPageSizeChange={instancePagination.setPageSize}
+              pageSizeOptions={[10, 20, 50]}
+              itemLabel={t("admin.pagination.instances", { defaultValue: "instances" })}
+              compact
+            />
+          </>
+        ) : (
           <div className="p-4">
             <div className={cn(cloudTableEmptyStateClassName, "rounded-lg px-4 py-8 text-center")}>
-              <div className="text-sm font-semibold text-foreground">
-                {resourcesLoaded
-                  ? t("cloud.providers.vultr.empty_instances", "未找到 Vultr 实例")
-                  : activeTokenConfigured
-                    ? t("cloud.providers.vultr.load_instances_prompt", "加载清单查看实例")
-                    : t("cloud.tokens.no_active_token", "未配置当前令牌")}
-              </div>
+              <div className="text-sm font-semibold text-foreground">{emptyTitle}</div>
               <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                {error || t(
-                  "cloud.providers.vultr.empty_instances_description",
-                  "Import and select a token, then load resources or create a new instance.",
-                )}
+                {emptyDescription}
               </p>
             </div>
           </div>
-        ) : null}
+        )}
       </div>
     </section>
   );
@@ -1481,6 +1480,7 @@ function VultrTokensSection({
   });
   const visibleTokenRows = tokenPagination.pageItems;
   const activeToken = tokenRows.find((token) => token.is_active) || null;
+  const hasSelectableTokens = tokenRows.length > 0;
 
   return (
     <section className={`${cloudPanelCardClassName} flex h-full min-h-[520px] flex-col`}>
@@ -1515,27 +1515,31 @@ function VultrTokensSection({
               <Upload className="mr-2 h-4 w-4" />
               {t("cloud.tokens.import", "导入令牌")}
             </Button>
-            <Button
-              variant="outline"
-              size="1"
-              disabled={!activeToken}
-              onClick={() => {
-                if (!activeToken) return;
-                void onSelectToken(activeToken, { loadResources: true });
-              }}
-            >
-              <Server className="mr-2 h-4 w-4" />
-              {t("cloud.providers.vultr.view_instances", "查看实例")}
-            </Button>
-            <Button
-              variant="outline"
-              size="1"
-              disabled={tokenChecking || tokenRows.length === 0}
-              onClick={() => { void onCheckTokens(); }}
-            >
-              <RefreshCw className={cn("mr-2 h-4 w-4", tokenChecking && "animate-spin")} />
-              {t("cloud.tokens.check", "检查")}
-            </Button>
+            {hasSelectableTokens ? (
+              <>
+                <Button
+                  variant="outline"
+                  size="1"
+                  disabled={!activeToken}
+                  onClick={() => {
+                    if (!activeToken) return;
+                    void onSelectToken(activeToken, { loadResources: true });
+                  }}
+                >
+                  <Server className="mr-2 h-4 w-4" />
+                  {t("cloud.providers.vultr.view_instances", "查看实例")}
+                </Button>
+                <Button
+                  variant="outline"
+                  size="1"
+                  disabled={tokenChecking}
+                  onClick={() => { void onCheckTokens(); }}
+                >
+                  <RefreshCw className={cn("mr-2 h-4 w-4", tokenChecking && "animate-spin")} />
+                  {t("cloud.tokens.check", "检查")}
+                </Button>
+              </>
+            ) : null}
           </div>
         </div>
       </div>

@@ -22,7 +22,7 @@ import { useAdminPageTitle } from "@/contexts/AdminPageTitleContext";
 import { cn } from "@/lib/utils";
 
 const cloudDialogBaseClassName =
-  "admin-form-scroll flex max-h-[90vh] w-[calc(100vw-1rem)] flex-col overflow-y-auto overflow-x-hidden overscroll-contain [scrollbar-gutter:stable] sm:w-[calc(100vw-2rem)]";
+  "admin-form-scroll flex max-h-[90vh] w-[calc(100vw-1rem)] flex-col overflow-y-auto overflow-x-hidden overscroll-contain sm:w-[calc(100vw-2rem)]";
 
 const cloudDialogContentClassName =
   cn(
@@ -32,7 +32,7 @@ const cloudDialogContentClassName =
 
 const cloudDialogWideContentClassName =
   cn(
-    "admin-form-scroll flex max-h-[92vh] w-[calc(100vw-1rem)] flex-col overflow-y-auto overflow-x-hidden overscroll-contain [scrollbar-gutter:stable] sm:w-[calc(100vw-2rem)]",
+    "admin-form-scroll flex max-h-[92vh] w-[calc(100vw-1rem)] flex-col overflow-y-auto overflow-x-hidden overscroll-contain sm:w-[calc(100vw-2rem)]",
     "max-w-[72rem] sm:max-w-[72rem]",
   );
 
@@ -44,6 +44,18 @@ const cloudPanelCardClassName =
 
 const cloudPanelHeaderClassName =
   "admin-panel-header px-5 py-3.5";
+
+const cloudTokenToolbarClassName =
+  "flex min-w-0 flex-wrap items-center justify-end gap-2";
+
+const cloudTokenActionGroupClassName =
+  "flex min-w-0 flex-wrap items-center gap-2";
+
+const cloudTokenSecondaryActionGroupClassName =
+  "flex min-w-0 flex-wrap items-center gap-2 sm:border-l sm:border-border/70 sm:pl-2";
+
+const cloudTokenBatchActionGroupClassName =
+  "flex min-w-0 flex-wrap items-center gap-2 rounded-md border border-blue-200 bg-blue-50/70 px-2 py-1 dark:border-blue-900/60 dark:bg-blue-950/25";
 
 const cloudPanelTitleClassName =
   "text-[15px] font-semibold text-slate-950 dark:text-slate-50";
@@ -684,4 +696,8 @@ export {
   cloudTablePrimaryTextClassName,
   cloudTableScrollClassName,
   cloudTableSecondaryTextClassName,
+  cloudTokenActionGroupClassName,
+  cloudTokenBatchActionGroupClassName,
+  cloudTokenSecondaryActionGroupClassName,
+  cloudTokenToolbarClassName,
 };

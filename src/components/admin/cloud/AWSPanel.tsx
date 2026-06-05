@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 
 import {
+  AdminEmptyState,
   AdminPageShell,
   AdminTableSkeleton,
 } from "@/components/admin/AdminPageShell";
@@ -50,7 +51,6 @@ import {
   AWSComputeSection,
 } from "@/components/admin/cloud/AWSPanelSections";
 import { AWSRegionSelect } from "@/components/admin/cloud/AWSRegionSelect";
-import { CloudOnboardingPanel } from "@/components/admin/cloud/CloudOnboardingPanel";
 import CloudInstanceShareDialog from "@/components/admin/cloud/CloudInstanceShareDialog";
 import CloudInstanceScriptDialog from "@/components/admin/cloud/CloudInstanceScriptDialog";
 import {
@@ -369,8 +369,6 @@ export default function AWSPanel() {
     }
     await loadPanelData();
   };
-  const showOnboardingPanel = credentialRows.length === 0;
-
   if (initializing) {
     return (
       <AdminPageShell
@@ -428,39 +426,6 @@ export default function AWSPanel() {
         />
       ) : null}
 
-      {showOnboardingPanel ? (
-        <CloudOnboardingPanel
-          t={t}
-          providerName="AWS"
-          credentialDone={credentialRows.length > 0}
-          contextReady={activeContextReady}
-          resourcesLoaded={resourcesLoaded}
-          resourceLoading={panelLoading}
-          canLoadResources={activeContextReady}
-          canCreate={Boolean(activeCredential)}
-          credentialTitle={t("cloud.providers.aws.onboarding_credential_title", "导入访问密钥")}
-          credentialDescription={t(
-            "cloud.providers.aws.onboarding_credential_description",
-            "添加 AWS Access Key 后，选择当前凭据和默认区域。",
-          )}
-          resourceTitle={t("cloud.providers.aws.onboarding_resource_title", "选择区域并加载资源")}
-          resourceDescription={t(
-            "cloud.providers.aws.onboarding_resource_description",
-            "EC2 和 Lightsail 按区域管理，先确认区域再按需拉取云资源。",
-          )}
-          createTitle={t("cloud.providers.aws.onboarding_create_title", "创建或管理计算实例")}
-          createDescription={t(
-            "cloud.providers.aws.onboarding_create_description",
-            "资源加载后，可以启动 EC2 或 Lightsail，也可以在表格里处理电源、IP 和共享。",
-          )}
-          importLabel={t("cloud.providers.aws.import", "导入凭证")}
-          createLabel={t("cloud.providers.aws.create", "创建 EC2")}
-          onImportCredential={() => setCredentialImportOpen(true)}
-          onLoadResources={handleLoadResources}
-          onCreate={handleOpenCreateDialog}
-        />
-      ) : null}
-
       <div className="grid min-w-0 items-stretch gap-4 xl:grid-cols-[minmax(340px,0.9fr)_minmax(380px,1.1fr)]">
         <AWSInlineCreatePanel
           t={t}
@@ -489,6 +454,7 @@ export default function AWSPanel() {
           lightsailPlatformMismatch={lightsailPlatformMismatch}
           onLightsailRegionChange={handleLightsailDialogRegionChange}
           onOpenLightsailAdvanced={handleOpenLightsailCreateDialog}
+          onImportCredentials={() => setCredentialImportOpen(true)}
           onCreateLightsail={handleCreateLightsailInstance}
         />
         <AWSCredentialRail
@@ -797,6 +763,7 @@ type AWSInlineCreatePanelProps = {
   lightsailPlatformMismatch: boolean;
   onLightsailRegionChange: (region: string) => void;
   onOpenLightsailAdvanced: () => void | Promise<void>;
+  onImportCredentials: () => void;
   onCreateLightsail: () => void | Promise<void>;
 };
 
@@ -827,6 +794,7 @@ function AWSInlineCreatePanel({
   lightsailPlatformMismatch,
   onLightsailRegionChange,
   onOpenLightsailAdvanced,
+  onImportCredentials,
   onCreateLightsail,
 }: AWSInlineCreatePanelProps) {
   const isEC2 = service === "ec2";
@@ -866,6 +834,7 @@ function AWSInlineCreatePanel({
               </Badge>
             </div>
           </div>
+          {activeCredential ? (
           <div className="flex w-full shrink-0 flex-wrap items-center gap-2 sm:w-auto">
             <SegmentedControl.Root
               value={service}
@@ -884,8 +853,26 @@ function AWSInlineCreatePanel({
               {t("cloud.advanced_options", "高级")}
             </Button>
           </div>
+          ) : null}
         </div>
       </div>
+      {!activeCredential ? (
+        <div className="flex flex-1 p-4">
+          <AdminEmptyState
+            icon={<Plus className="h-5 w-5" />}
+            title={t("cloud.providers.aws.no_active_credential", "请先选择一个激活的 AWS 凭证")}
+            description={t("cloud.providers.aws.no_active_credential_description", "导入凭证并选择当前 AWS 账户后，才能加载计算资源。")}
+            actions={(
+              <Button size="1" onClick={onImportCredentials}>
+                <Plus className="mr-2 h-4 w-4" />
+                {t("cloud.providers.aws.import", "导入凭证")}
+              </Button>
+            )}
+            className="min-h-[320px] flex-1"
+          />
+        </div>
+      ) : (
+        <>
       <div className="grid gap-4 p-4">
         {isEC2 ? (
           <>
@@ -935,6 +922,8 @@ function AWSInlineCreatePanel({
           {submitting ? t("cloud.creating", "正在创建...") : createLabel}
         </Button>
       </div>
+        </>
+      )}
     </section>
   );
 }

@@ -20,7 +20,7 @@ import type { SettingsResponse } from "@/lib/api";
 import { buildAgentInstallScriptURL } from "@/lib/installScriptSource";
 
 const NODE_DIALOG_CONTENT_CLASS =
-  "admin-dialog flex h-[min(90vh,calc(100dvh-1rem))] w-[min(calc(100vw-1rem),980px)] flex-col overflow-hidden p-0";
+  "admin-dialog flex max-h-[min(88vh,calc(100dvh-1rem))] w-[min(calc(100vw-1rem),980px)] flex-col overflow-hidden p-0";
 const NODE_DIALOG_SECTION_CLASS =
   "border-t border-border/70 bg-transparent pt-3.5 first:border-t-0 first:pt-0";
 const NODE_DIALOG_HINT_CLASS =
@@ -532,7 +532,7 @@ export default function GenerateCommandDialog({
             </Dialog.Description>
           </div>
         </div>
-        <div className="admin-form-scroll min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-contain px-5 py-4 [scrollbar-gutter:stable]">
+        <div className="admin-form-scroll min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-contain px-5 py-4">
           <div className="flex flex-col gap-4 pb-4">
           {useAutoDiscovery && !groupMode ? (
             <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/30 dark:text-emerald-300">

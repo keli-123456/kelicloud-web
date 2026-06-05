@@ -5,7 +5,6 @@ import { Eye, Server } from "lucide-react";
 import {
   AdminDataTable,
   AdminDataTableCell,
-  AdminDataTableEmptyRow,
   AdminDataTableHead,
   AdminDataTableHeadRow,
   AdminDataTableRow,
@@ -25,7 +24,6 @@ import {
 import {
   Badge,
   Button,
-  CloudTableSkeletonRows,
   cloudTableEmptyStateClassName,
   cloudTableMutedTextClassName,
   cloudTableNameButtonClassName,
@@ -112,6 +110,7 @@ export function AWSEC2InstancesTable({
       bulkSelection.clearSelection();
     }
   };
+  const hasInstances = instances.length > 0;
   const emptyTitle = panelLoading
     ? t("cloud.loading", "正在加载云资源...")
     : error
@@ -165,6 +164,8 @@ export function AWSEC2InstancesTable({
         />
       </div>
     ) : null}
+    {hasInstances ? (
+      <>
     <AdminDataTableScroll>
     <AdminDataTable minWidth={1220}>
       <thead>
@@ -192,20 +193,7 @@ export function AWSEC2InstancesTable({
         </AdminDataTableHeadRow>
       </thead>
       <tbody>
-        {panelLoading ? (
-          <CloudTableSkeletonRows columns={11} />
-        ) : instances.length === 0 ? (
-          <AdminDataTableEmptyRow colSpan={11} className="p-5">
-              <AdminEmptyState
-                icon={<Server className="h-5 w-5" />}
-                title={emptyTitle}
-                description={emptyDescription}
-                actions={emptyActions}
-                className={cloudTableEmptyStateClassName}
-              />
-          </AdminDataTableEmptyRow>
-        ) : (
-          visibleInstances.map((instance) => (
+        {visibleInstances.map((instance) => (
             <AdminDataTableRow key={instance.instance_id} selected={bulkSelection.isSelected(instance)}>
               <AdminDataTableCell className="w-10">
                 <CloudBulkSelectCheckbox
@@ -269,8 +257,7 @@ export function AWSEC2InstancesTable({
                 />
               </AdminDataTableCell>
             </AdminDataTableRow>
-          ))
-        )}
+          ))}
       </tbody>
     </AdminDataTable>
     </AdminDataTableScroll>
@@ -287,6 +274,18 @@ export function AWSEC2InstancesTable({
       itemLabel={t("admin.pagination.instances", { defaultValue: "实例" })}
       compact
     />
+      </>
+    ) : (
+      <div className="p-4">
+        <AdminEmptyState
+          icon={<Server className="h-5 w-5" />}
+          title={emptyTitle}
+          description={emptyDescription}
+          actions={emptyActions}
+          className={cloudTableEmptyStateClassName}
+        />
+      </div>
+    )}
     </>
   );
 }
@@ -339,6 +338,7 @@ export function AWSLightsailInstancesTable({
       bulkSelection.clearSelection();
     }
   };
+  const hasInstances = instances.length > 0;
   const emptyTitle = panelLoading
     ? t("cloud.loading", "正在加载云资源...")
     : lightsailError || error
@@ -392,6 +392,8 @@ export function AWSLightsailInstancesTable({
         />
       </div>
     ) : null}
+    {hasInstances ? (
+      <>
     <AdminDataTableScroll>
     <AdminDataTable minWidth={1160}>
       <thead>
@@ -419,20 +421,7 @@ export function AWSLightsailInstancesTable({
         </AdminDataTableHeadRow>
       </thead>
       <tbody>
-        {panelLoading ? (
-          <CloudTableSkeletonRows columns={11} />
-        ) : instances.length === 0 ? (
-          <AdminDataTableEmptyRow colSpan={11} className="p-5">
-              <AdminEmptyState
-                icon={<Server className="h-5 w-5" />}
-                title={emptyTitle}
-                description={emptyDescription}
-                actions={emptyActions}
-                className={cloudTableEmptyStateClassName}
-              />
-          </AdminDataTableEmptyRow>
-        ) : (
-          visibleInstances.map((instance) => (
+        {visibleInstances.map((instance) => (
             <AdminDataTableRow key={instance.name} selected={bulkSelection.isSelected(instance)}>
               <AdminDataTableCell className="w-10">
                 <CloudBulkSelectCheckbox
@@ -491,8 +480,7 @@ export function AWSLightsailInstancesTable({
                 />
               </AdminDataTableCell>
             </AdminDataTableRow>
-          ))
-        )}
+          ))}
       </tbody>
     </AdminDataTable>
     </AdminDataTableScroll>
@@ -509,6 +497,18 @@ export function AWSLightsailInstancesTable({
       itemLabel={t("admin.pagination.instances", { defaultValue: "实例" })}
       compact
     />
+      </>
+    ) : (
+      <div className="p-4">
+        <AdminEmptyState
+          icon={<Server className="h-5 w-5" />}
+          title={emptyTitle}
+          description={emptyDescription}
+          actions={emptyActions}
+          className={cloudTableEmptyStateClassName}
+        />
+      </div>
+    )}
     </>
   );
 }

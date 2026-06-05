@@ -16,7 +16,6 @@ import { getCloudStatusLabel } from "@/lib/cloudStatus";
 import {
   AdminDataTable,
   AdminDataTableCell,
-  AdminDataTableEmptyRow,
   AdminDataTableHead,
   AdminDataTableHeadRow,
   AdminDataTableRow,
@@ -35,7 +34,6 @@ import {
 } from "@/components/admin/cloud/CloudBulkActions";
 import {
   Badge,
-  CloudTableSkeletonRows,
   cloudPanelCardClassName,
   cloudPanelDescriptionClassName,
   cloudPanelHeaderClassName,
@@ -109,6 +107,38 @@ export function DigitalOceanDropletsSection({
       bulkSelection.clearSelection();
     }
   };
+  const hasDroplets = droplets.length > 0;
+  const emptyTitle = panelLoading
+    ? t("cloud.loading", "正在加载云资源...")
+    : error
+      ? t("cloud.load_failed", "无法加载云资源，请检查上方提示后重试。")
+      : !hasActiveToken
+        ? t("cloud.no_active_token", "请选择一个激活令牌后再加载 DigitalOcean 资源")
+        : !resourcesLoaded
+          ? t("cloud.load_resources_prompt", "点击查看，按需加载云资源。")
+          : t("cloud.empty", "没有找到 Droplet");
+  const emptyDescription = !hasActiveToken
+    ? t(
+      "cloud.no_active_token_description",
+      "请先在下方令牌池选择或导入令牌，然后再加载云资源。",
+    )
+    : !resourcesLoaded
+      ? t(
+        "cloud.load_resources_prompt_description",
+        "资源采用按需加载，切换账户时状态会更清楚，也不会自动发起多余请求。",
+      )
+      : error
+        ? t("cloud.load_failed_description", "请先处理上方警告，再刷新或再次加载资源。")
+        : t(
+          "cloud.empty_description",
+          "当前账户还没有 Droplet。需要开机器时，可以点击创建 Droplet。",
+        );
+
+  const visibleEmptyDescription = panelLoading
+    ? t("cloud.loading_description", "Provider APIs usually respond within a few seconds.")
+    : error
+      ? t("cloud.load_failed_description", "Resolve the warning above, then refresh or load resources again.")
+      : emptyDescription;
 
   return (
     <div className={`order-2 ${cloudPanelCardClassName}`}>
@@ -129,6 +159,7 @@ export function DigitalOceanDropletsSection({
             t={t}
             selectedCount={bulkSelection.selectedCount}
             totalCount={droplets.length}
+            hideWhenEmpty={!hasDroplets}
             onClear={bulkSelection.clearSelection}
             onDelete={() => {
               void handleBatchDelete();
@@ -137,8 +168,10 @@ export function DigitalOceanDropletsSection({
         </div>
       </div>
 
-      <AdminDataTableScroll>
-        <AdminDataTable minWidth={1120}>
+      {hasDroplets ? (
+        <>
+          <AdminDataTableScroll>
+            <AdminDataTable minWidth={1120}>
           <thead>
             <AdminDataTableHeadRow>
               <AdminDataTableHead className="w-10">
@@ -164,44 +197,7 @@ export function DigitalOceanDropletsSection({
             </AdminDataTableHeadRow>
           </thead>
           <tbody>
-            {panelLoading ? (
-              <CloudTableSkeletonRows columns={11} />
-            ) : droplets.length === 0 ? (
-              <AdminDataTableEmptyRow colSpan={11} className="p-4">
-                <AdminEmptyState
-                  icon={<Server className="h-5 w-5" />}
-                  title={
-                    panelLoading
-                      ? t("cloud.loading", "正在加载云资源...")
-                      : error
-                        ? t("cloud.load_failed", "无法加载云资源，请检查上方提示后重试。")
-                        : !hasActiveToken
-                          ? t("cloud.no_active_token", "请选择一个激活令牌后再加载 DigitalOcean 资源")
-                          : !resourcesLoaded
-                            ? t("cloud.load_resources_prompt", "点击查看，按需加载云资源。")
-                            : t("cloud.empty", "没有找到 Droplet")
-                  }
-                  description={
-                    !hasActiveToken
-                      ? t(
-                        "cloud.no_active_token_description",
-                        "请先在下方令牌池选择或导入令牌，然后再加载云资源。",
-                      )
-                      : !resourcesLoaded
-                        ? t(
-                          "cloud.load_resources_prompt_description",
-                          "资源采用按需加载，切换账户时状态会更清楚，也不会自动发起多余请求。",
-                        )
-                        : t(
-                          "cloud.empty_description",
-                          "当前账户还没有 Droplet。需要开机器时，可以点击创建 Droplet。",
-                        )
-                  }
-                  className={cloudTableEmptyStateClassName}
-                />
-              </AdminDataTableEmptyRow>
-            ) : (
-              paginatedDroplets.map((droplet) => (
+            {paginatedDroplets.map((droplet) => (
                 <AdminDataTableRow key={droplet.id} selected={bulkSelection.isSelected(droplet)}>
                   <AdminDataTableCell className="w-10">
                     <CloudBulkSelectCheckbox
@@ -312,24 +308,34 @@ export function DigitalOceanDropletsSection({
                   />
                 </AdminDataTableCell>
               </AdminDataTableRow>
-            ))
-            )}
+            ))}
           </tbody>
         </AdminDataTable>
-      </AdminDataTableScroll>
-      <AdminPagination
-        page={dropletPagination.page}
-        totalPages={dropletPagination.totalPages}
-        total={dropletPagination.total}
-        pageSize={dropletPagination.pageSize}
-        visibleStart={dropletPagination.visibleStart}
-        visibleEnd={dropletPagination.visibleEnd}
-        onPageChange={dropletPagination.setPage}
-        onPageSizeChange={dropletPagination.setPageSize}
-        pageSizeOptions={[10, 20, 50]}
-        itemLabel={t("admin.pagination.instances", { defaultValue: "instances" })}
-        compact
-      />
+          </AdminDataTableScroll>
+          <AdminPagination
+            page={dropletPagination.page}
+            totalPages={dropletPagination.totalPages}
+            total={dropletPagination.total}
+            pageSize={dropletPagination.pageSize}
+            visibleStart={dropletPagination.visibleStart}
+            visibleEnd={dropletPagination.visibleEnd}
+            onPageChange={dropletPagination.setPage}
+            onPageSizeChange={dropletPagination.setPageSize}
+            pageSizeOptions={[10, 20, 50]}
+            itemLabel={t("admin.pagination.instances", { defaultValue: "instances" })}
+            compact
+          />
+        </>
+      ) : (
+        <div className="p-3">
+          <AdminEmptyState
+            icon={<Server className="h-5 w-5" />}
+            title={emptyTitle}
+            description={visibleEmptyDescription}
+            className={cloudTableEmptyStateClassName}
+          />
+        </div>
+      )}
     </div>
   );
 }

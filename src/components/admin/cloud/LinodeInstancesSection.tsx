@@ -14,7 +14,6 @@ import {
 import {
   AdminDataTable,
   AdminDataTableCell,
-  AdminDataTableEmptyRow,
   AdminDataTableHead,
   AdminDataTableHeadRow,
   AdminDataTableRow,
@@ -35,7 +34,6 @@ import type { LinodeInstance, LinodeTokenPool } from "@/lib/cloudLinode";
 import { getCloudStatusLabel } from "@/lib/cloudStatus";
 import {
   Badge,
-  CloudTableSkeletonRows,
   cloudPanelCardClassName,
   cloudPanelDescriptionClassName,
   cloudPanelHeaderClassName,
@@ -109,6 +107,7 @@ export function LinodeInstancesSection({
       bulkSelection.clearSelection();
     }
   };
+  const hasInstances = instances.length > 0;
   const emptyTitle = panelLoading
     ? t("cloud.loading", "正在加载云资源...")
     : error
@@ -147,6 +146,7 @@ export function LinodeInstancesSection({
             t={t}
             selectedCount={bulkSelection.selectedCount}
             totalCount={instances.length}
+            hideWhenEmpty={!hasInstances}
             onClear={bulkSelection.clearSelection}
             onDelete={() => {
               void handleBatchDelete();
@@ -155,8 +155,10 @@ export function LinodeInstancesSection({
         </div>
       </div>
 
-      <AdminDataTableScroll>
-      <AdminDataTable minWidth={1120}>
+      {hasInstances ? (
+        <>
+          <AdminDataTableScroll>
+            <AdminDataTable minWidth={1120}>
         <thead>
           <AdminDataTableHeadRow>
             <AdminDataTableHead className="w-10">
@@ -182,19 +184,7 @@ export function LinodeInstancesSection({
           </AdminDataTableHeadRow>
         </thead>
         <tbody>
-          {panelLoading ? (
-            <CloudTableSkeletonRows columns={11} />
-          ) : instances.length === 0 ? (
-            <AdminDataTableEmptyRow colSpan={11} className="p-4">
-                <AdminEmptyState
-                  icon={<Server className="h-5 w-5" />}
-                  title={emptyTitle}
-                  description={emptyDescription}
-                  className={cloudTableEmptyStateClassName}
-                />
-            </AdminDataTableEmptyRow>
-          ) : (
-            paginatedInstances.map((instance) => {
+          {paginatedInstances.map((instance) => {
               const typeInfo = typePriceMap.get(instance.type);
               return (
                 <AdminDataTableRow key={instance.id} selected={bulkSelection.isSelected(instance)}>
@@ -313,24 +303,34 @@ export function LinodeInstancesSection({
                   </AdminDataTableCell>
                 </AdminDataTableRow>
               );
-            })
-          )}
+            })}
         </tbody>
-      </AdminDataTable>
-      </AdminDataTableScroll>
-      <AdminPagination
-        page={instancePagination.page}
-        totalPages={instancePagination.totalPages}
-        total={instancePagination.total}
-        pageSize={instancePagination.pageSize}
-        visibleStart={instancePagination.visibleStart}
-        visibleEnd={instancePagination.visibleEnd}
-        onPageChange={instancePagination.setPage}
-        onPageSizeChange={instancePagination.setPageSize}
-        pageSizeOptions={[10, 20, 50]}
-        itemLabel={t("admin.pagination.instances", { defaultValue: "instances" })}
-        compact
-      />
+            </AdminDataTable>
+          </AdminDataTableScroll>
+          <AdminPagination
+            page={instancePagination.page}
+            totalPages={instancePagination.totalPages}
+            total={instancePagination.total}
+            pageSize={instancePagination.pageSize}
+            visibleStart={instancePagination.visibleStart}
+            visibleEnd={instancePagination.visibleEnd}
+            onPageChange={instancePagination.setPage}
+            onPageSizeChange={instancePagination.setPageSize}
+            pageSizeOptions={[10, 20, 50]}
+            itemLabel={t("admin.pagination.instances", { defaultValue: "instances" })}
+            compact
+          />
+        </>
+      ) : (
+        <div className="p-3">
+          <AdminEmptyState
+            icon={<Server className="h-5 w-5" />}
+            title={emptyTitle}
+            description={emptyDescription}
+            className={cloudTableEmptyStateClassName}
+          />
+        </div>
+      )}
     </div>
   );
 }
