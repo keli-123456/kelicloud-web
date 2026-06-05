@@ -36,6 +36,7 @@ import {
   cloudTableSecondaryTextClassName,
   Flex,
 } from "@/components/admin/cloud/cloud-ui";
+import { cn } from "@/lib/utils";
 type MaybePromise<T> = T | Promise<T>;
 type BadgeColor = ComponentProps<typeof Badge>["color"];
 
@@ -91,6 +92,8 @@ export function DigitalOceanTokensSection({
   });
   const visibleTokenRows = tokenPagination.pageItems;
   const activeToken = tokenRows.find((token) => token.is_active) || null;
+  const hasSelectableTokens = tokenRows.length > 0;
+  const selectAllActive = allTokensSelected || someTokensSelected;
 
   return (
     <div className={`order-1 flex h-full min-h-[520px] flex-col ${cloudPanelCardClassName}`}>
@@ -137,10 +140,21 @@ export function DigitalOceanTokensSection({
               <Server className="mr-2 h-4 w-4" />
               {t("cloud.tokens.view_droplets", "查看实例")}
             </Button>
-            <label className="flex h-8 items-center gap-2 rounded-md border border-border bg-background px-2 text-xs font-medium text-muted-foreground">
+            <label
+              className={cn(
+                "flex h-8 items-center gap-2 rounded-md border px-2 text-xs font-medium transition-colors",
+                hasSelectableTokens
+                  ? selectAllActive
+                    ? "cursor-pointer border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100 dark:border-blue-900/60 dark:bg-blue-950/35 dark:text-blue-300 dark:hover:bg-blue-950/50"
+                    : "cursor-pointer border-border bg-[var(--surface)] text-foreground hover:bg-muted/60"
+                  : "cursor-not-allowed border-border bg-muted/30 text-muted-foreground opacity-70",
+              )}
+            >
               <Checkbox
                 checked={allTokensSelected || (someTokensSelected && "indeterminate")}
+                disabled={!hasSelectableTokens}
                 onCheckedChange={(checked) => {
+                  if (!hasSelectableTokens) return;
                   setSelectedTokenIds(checked === true ? tokenRows.map((token) => token.id) : []);
                 }}
                 aria-label={t("cloud.tokens.select_all", "选择全部令牌")}

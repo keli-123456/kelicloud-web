@@ -1,13 +1,5 @@
 import { Button } from "@/components/ui/button";
 import {
-  DropdownMenu,
-  DropdownMenuCheckboxItem,
-  DropdownMenuContent,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
@@ -26,6 +18,14 @@ const ThemeSwitch = ({ icon }: ThemeSwitchProps = {}) => {
   const { appearance, setAppearance } = useContext(ThemeContext);
   const resolvedAppearance = useSystemTheme(appearance);
   const [t] = useTranslation();
+  const nextAppearance = resolvedAppearance === "dark" ? "light" : "dark";
+  const nextAppearanceLabel = nextAppearance === "dark"
+    ? t("theme.dark", "Dark")
+    : t("theme.light", "Light");
+  const toggleLabel = t("theme.toggle", {
+    mode: nextAppearanceLabel,
+    defaultValue: "切换到{{mode}}",
+  });
 
   const activeIcon = resolvedAppearance === "dark"
     ? (
@@ -36,40 +36,21 @@ const ThemeSwitch = ({ icon }: ThemeSwitchProps = {}) => {
     );
 
   return (
-    <DropdownMenu>
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <DropdownMenuTrigger asChild>
-            <Button
-              type="button"
-              variant="outline"
-              size="icon"
-              aria-label={t("theme.label", "Theme")}
-              className="rounded-full border-border/60 bg-background/70 shadow-none hover:bg-muted"
-            >
-              {icon ?? activeIcon}
-            </Button>
-          </DropdownMenuTrigger>
-        </TooltipTrigger>
-        <TooltipContent>{t("theme.label", "Theme")}</TooltipContent>
-      </Tooltip>
-      <DropdownMenuContent className="min-w-44">
-        <DropdownMenuLabel>{t("theme.label", "Theme")}</DropdownMenuLabel>
-        <DropdownMenuSeparator />
-        <DropdownMenuCheckboxItem
-          checked={appearance === "light"}
-          onSelect={() => setAppearance("light")}
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <Button
+          type="button"
+          variant="outline"
+          size="icon"
+          aria-label={toggleLabel}
+          className="rounded-full border-border/60 bg-background/70 shadow-none hover:bg-muted"
+          onClick={() => setAppearance(nextAppearance)}
         >
-          {t("theme.light", "Light")}
-        </DropdownMenuCheckboxItem>
-        <DropdownMenuCheckboxItem
-          checked={appearance === "dark"}
-          onSelect={() => setAppearance("dark")}
-        >
-          {t("theme.dark", "Dark")}
-        </DropdownMenuCheckboxItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
+          {icon ?? activeIcon}
+        </Button>
+      </TooltipTrigger>
+      <TooltipContent>{toggleLabel}</TooltipContent>
+    </Tooltip>
   );
 };
 

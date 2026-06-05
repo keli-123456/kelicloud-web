@@ -4515,6 +4515,7 @@
     "invalid_file_type": "無効なファイルタイプです。.zip形式のみサポート",
     "label": "テーマ",
     "light": "ライトテーマ",
+    "toggle": "{{mode}}に切り替え",
     "manage": "テーマ管理",
     "manage_with_name": "{{name}} テーマ管理",
     "name": "名前",

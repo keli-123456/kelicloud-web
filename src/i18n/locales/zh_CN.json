@@ -4515,6 +4515,7 @@
     "invalid_file_type": "无效的文件类型，仅支持 .zip 格式",
     "label": "主题",
     "light": "浅色",
+    "toggle": "切换到{{mode}}",
     "manage": "主题管理",
     "manage_with_name": "{{name}} 主题管理",
     "name": "名称",

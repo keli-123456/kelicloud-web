@@ -4515,6 +4515,7 @@
     "invalid_file_type": "Tipe file tidak valid, hanya file .zip yang didukung",
     "label": "Tema",
     "light": "Terang",
+    "toggle": "Beralih ke {{mode}}",
     "manage": "Manajemen Tema",
     "manage_with_name": "Manajemen Tema {{name}}",
     "name": "Nama",

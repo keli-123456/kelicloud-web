@@ -4517,6 +4517,7 @@
     "invalid_file_type": "Invalid file type, only .zip files are supported",
     "label": "Theme",
     "light": "Light",
+    "toggle": "Switch to {{mode}}",
     "manage": "Theme Management",
     "manage_with_name": "{{name}} Theme Management",
     "name": "Name",
