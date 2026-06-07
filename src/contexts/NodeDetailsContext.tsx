@@ -1,5 +1,4 @@
 import React from 'react';
-import { useAccount } from "@/contexts/AccountContext";
 import { formatApiErrorMessage, getReadableErrorMessage } from "@/lib/apiErrorMessage";
 import type { AdminNodeDto } from "@/types/nodeDtos";
 
@@ -24,16 +23,11 @@ export const NodeDetailsProvider: React.FC<NodeDetailsProviderProps> = ({
   enabled = true,
   listEndpoint,
 }) => {
-  const { platformAdmin } = useAccount();
   const [nodeDetail, setNodeDetail] = React.useState<NodeDetail[] | []>([]);
   const [isLoading, setIsLoading] = React.useState<boolean>(false);
   const [error, setError] = React.useState<string | null>(null);
   const nodeDetailRef = React.useRef<NodeDetail[]>([]);
-  const defaultListEndpoint = React.useMemo(
-    () => (platformAdmin ? "/api/admin/client/list?all=1" : "/api/admin/client/list"),
-    [platformAdmin],
-  );
-  const resolvedListEndpoint = listEndpoint || defaultListEndpoint;
+  const resolvedListEndpoint = listEndpoint || "/api/admin/client/list";
 
   React.useEffect(() => {
     nodeDetailRef.current = nodeDetail;

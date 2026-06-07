@@ -326,7 +326,7 @@ function ExecWorkspace() {
 
     return (
         <CommandClipboardProvider autoLoad={canUseScripts}>
-            <NodeDetailsProvider enabled={canUseExec}>
+            <NodeDetailsProvider enabled={canUseExec} listEndpoint="/api/admin/client/list">
                 <ExecContent canUseExec={canUseExec} canUseScripts={canUseScripts} />
             </NodeDetailsProvider>
         </CommandClipboardProvider>
