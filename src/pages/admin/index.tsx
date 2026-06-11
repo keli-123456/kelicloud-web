@@ -60,13 +60,6 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
-  Drawer,
-  DrawerContent,
-  DrawerDescription,
-  DrawerHeader,
-  DrawerTitle,
-} from "@/components/ui/drawer";
-import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
@@ -1505,222 +1498,6 @@ const openNodeTerminal = (uuid: string) => {
   window.open(`/terminal?uuid=${uuid}`, "_blank");
 };
 
-const NodeDrawerInfoItem = ({
-  label,
-  value,
-  mono = false,
-}: {
-  label: React.ReactNode;
-  value: React.ReactNode;
-  mono?: boolean;
-}) => (
-  <div className="min-w-0 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 dark:border-slate-800 dark:bg-slate-900/50">
-    <div className="text-[11px] font-medium uppercase tracking-normal text-slate-500 dark:text-slate-400">
-      {label}
-    </div>
-    <div
-      className={`mt-1 min-w-0 truncate text-sm text-slate-950 dark:text-slate-50 ${
-        mono ? "font-mono tabular-nums" : ""
-      }`}
-      title={typeof value === "string" ? value : undefined}
-    >
-      {value || "-"}
-    </div>
-  </div>
-);
-
-const NodeDrawerMetric = ({
-  label,
-  percent,
-  value,
-}: {
-  label: React.ReactNode;
-  percent: number;
-  value: React.ReactNode;
-}) => {
-  const safePercent = clampPercent(percent);
-  const toneClass =
-    safePercent >= RISK_DANGER_THRESHOLD
-      ? "bg-rose-500"
-      : safePercent >= RISK_WARNING_THRESHOLD
-        ? "bg-amber-500"
-        : "bg-blue-500";
-
-  return (
-    <div className="rounded-lg border border-slate-200 bg-white px-3 py-3 dark:border-slate-800 dark:bg-slate-950">
-      <div className="flex items-center justify-between gap-3 text-sm">
-        <span className="font-medium text-slate-700 dark:text-slate-200">{label}</span>
-        <span className="font-mono text-xs tabular-nums text-slate-500 dark:text-slate-400">
-          {value} · {formatPercent(safePercent)}
-        </span>
-      </div>
-      <div className="mt-2 h-2 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
-        <div
-          className={`h-full rounded-full transition-all duration-300 ${toneClass}`}
-          style={{ width: `${safePercent}%` }}
-        />
-      </div>
-    </div>
-  );
-};
-
-const NodeDetailDrawer = ({
-  open,
-  onOpenChange,
-  node,
-  live,
-  onOpenTerminal,
-  onOpenDDNS,
-  onOpenPortForward,
-  canManageDNS,
-}: {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  node: NodeDetail;
-  live?: NodeLiveSnapshot;
-  onOpenTerminal: () => void;
-  onOpenDDNS: () => void;
-  onOpenPortForward: () => void;
-  canManageDNS: boolean;
-}) => {
-  const { t } = useTranslation();
-  const online = isNodeOnline(live);
-  const cpuPercent = clampPercent(live?.record.cpu.usage ?? 0);
-  const cpuCoreCount = Number(node.cpu_cores || 0);
-  const usedCpuCores = cpuCoreCount
-    ? `${formatCoreCount(cpuCoreCount * cpuPercent / 100)} / ${formatCoreCount(cpuCoreCount)} ${t(
-      "admin.nodeTable.cpuCoresShort",
-      {
-        defaultValue: "核",
-      },
-    )}`
-    : formatPercent(cpuPercent);
-  const ramPercent = clampPercent(getNodeRamUsagePercent(node, live));
-  const ramLabel = node.mem_total
-    ? formatCompactByteUsage(live?.record.ram.used ?? 0, node.mem_total)
-    : formatPercent(ramPercent);
-  const diskPercent = clampPercent(getNodeDiskUsagePercent(node, live));
-  const diskLabel = node.disk_total
-    ? formatCompactByteUsage(live?.record.disk.used ?? 0, node.disk_total)
-    : formatPercent(diskPercent);
-  const connectionsLabel = `${t("chart.tcp_connections", {
-    defaultValue: "TCP",
-  })}: ${live?.record.connections.tcp ?? 0} · ${t("chart.udp_connections", {
-    defaultValue: "UDP",
-  })}: ${live?.record.connections.udp ?? 0}`;
-
-  return (
-    <Drawer open={open} onOpenChange={onOpenChange} direction="right">
-      <DrawerContent className="w-[min(92vw,460px)] sm:max-w-[460px]">
-        <DrawerHeader className="border-b border-slate-200 dark:border-slate-800">
-          <div className="flex items-start justify-between gap-3">
-            <div className="min-w-0">
-              <DrawerTitle className="truncate text-base">
-                {String(node.name || "").trim() || node.uuid}
-              </DrawerTitle>
-              <DrawerDescription className="mt-1 truncate">
-                {getNodeGroupLabel(node)} · {formatNodeIp(node.ipv4)}
-              </DrawerDescription>
-            </div>
-            <Badge
-              variant={online ? "success" : "destructive"}
-              className="shrink-0 rounded-md"
-            >
-              {online ? t("nodeCard.online", { defaultValue: "在线" }) : t("nodeCard.offline", { defaultValue: "离线" })}
-            </Badge>
-          </div>
-        </DrawerHeader>
-
-        <div className="flex flex-1 flex-col gap-4 p-4">
-          <div className="grid grid-cols-2 gap-3">
-            <NodeDrawerInfoItem
-              label={t("admin.nodeTable.columns.version", { defaultValue: "版本" })}
-              value={String(node.version || "").trim() || "-"}
-              mono
-            />
-            <NodeDrawerInfoItem
-              label={t("nodeCard.uptime", { defaultValue: "在线时长" })}
-              value={formatUptimeLabel(live?.record.uptime)}
-            />
-            <NodeDrawerInfoItem label="IPv4" value={formatNodeIp(node.ipv4)} mono />
-            <NodeDrawerInfoItem label="IPv6" value={formatNodeIp(node.ipv6)} mono />
-          </div>
-
-          <div className="rounded-lg border border-slate-200 bg-slate-50/80 p-3 dark:border-slate-800 dark:bg-slate-900/40">
-            <div className="mb-3 text-sm font-semibold text-slate-950 dark:text-slate-50">
-              {t("admin.nodeTable.drawerLiveMetrics", {
-                defaultValue: "实时指标",
-              })}
-            </div>
-            <div className="grid gap-3">
-              <NodeDrawerMetric label="CPU" percent={cpuPercent} value={usedCpuCores} />
-            <NodeDrawerMetric
-                label={t("nodeCard.ram", { defaultValue: "内存" })}
-                percent={ramPercent}
-                value={ramLabel}
-              />
-            <NodeDrawerMetric
-                label={t("nodeCard.disk", { defaultValue: "磁盘" })}
-                percent={diskPercent}
-                value={diskLabel}
-              />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            <NodeDrawerInfoItem
-              label={t("admin.nodeTable.columns.rate", { defaultValue: "速率" })}
-              value={`↑ ${formatBytes(live?.record.network.up ?? 0)}/s · ↓ ${formatBytes(
-                live?.record.network.down ?? 0,
-              )}/s`}
-              mono
-            />
-            <NodeDrawerInfoItem
-              label={t("admin.nodeTable.columns.traffic", { defaultValue: "流量" })}
-              value={`↑ ${formatBytes(live?.record.network.totalUp ?? 0)} · ↓ ${formatBytes(
-                live?.record.network.totalDown ?? 0,
-              )}`}
-              mono
-            />
-            <NodeDrawerInfoItem
-              label={t("chart.connections", { defaultValue: "连接数" })}
-              value={connectionsLabel}
-              mono
-            />
-          </div>
-
-          <div className="mt-auto flex flex-wrap items-center gap-2 border-t border-slate-200 pt-4 dark:border-slate-800">
-            <Button size="sm" className="rounded-md" onClick={onOpenTerminal}>
-              <Terminal className="h-4 w-4" />
-              {t("terminal.title", { defaultValue: "终端" })}
-            </Button>
-            {canManageDNS ? (
-              <Button
-                size="sm"
-                variant="outline"
-                className="rounded-md"
-                onClick={onOpenDDNS}
-              >
-                <Globe className="h-4 w-4" />
-                {t("admin.nodeTable.ddns.title", { defaultValue: "DDNS" })}
-              </Button>
-            ) : null}
-            <Button
-              size="sm"
-              variant="outline"
-              className="rounded-md"
-              onClick={onOpenPortForward}
-            >
-              <Network className="h-4 w-4" />
-              {t("admin.nodeTable.portForward.title", { defaultValue: "端口中转" })}
-            </Button>
-          </div>
-        </div>
-      </DrawerContent>
-    </Drawer>
-  );
-};
-
 const SortableRow = ({
   live,
   node,
@@ -1732,7 +1509,6 @@ const SortableRow = ({
   const { hasFeature } = useAccount();
   const [ddnsOpen, setDdnsOpen] = React.useState(false);
   const [portForwardOpen, setPortForwardOpen] = React.useState(false);
-  const [detailOpen, setDetailOpen] = React.useState(false);
   const cpuPercent = clampPercent(live?.record.cpu.usage ?? 0);
   const cpuCoreCount = Number(node.cpu_cores || 0);
   const usedCpuCores = cpuCoreCount
@@ -1757,15 +1533,7 @@ const SortableRow = ({
       <ContextMenu>
         <ContextMenuTrigger asChild>
           <TableRow
-            className="cursor-pointer text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
-            tabIndex={0}
-            onClick={() => setDetailOpen(true)}
-            onKeyDown={(event) => {
-              if (event.key === "Enter" || event.key === " ") {
-                event.preventDefault();
-                setDetailOpen(true);
-              }
-            }}
+            className="text-sm"
           >
             <TableCell className="min-w-[240px] max-w-[380px] whitespace-normal">
               <NodeEndpointSummary node={node} />
@@ -1873,16 +1641,6 @@ const SortableRow = ({
           />
         </React.Suspense>
       ) : null}
-      <NodeDetailDrawer
-        open={detailOpen}
-        onOpenChange={setDetailOpen}
-        node={node}
-        live={live}
-        canManageDNS={hasFeature("cloud_dns")}
-        onOpenTerminal={() => openNodeTerminal(node.uuid)}
-        onOpenDDNS={() => setDdnsOpen(true)}
-        onOpenPortForward={() => setPortForwardOpen(true)}
-      />
     </>
   );
 };
