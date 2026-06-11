@@ -368,7 +368,7 @@ export function NodePortForwardDialog({
             <Dialog.Description>
               {t(
                 "admin.nodeTable.portForward.description",
-                "使用当前服务器作为公网入口，通过 iptables 转发到另一台服务器的端口。",
+                "使用当前服务器作为公网入口，通过系统防火墙规则转发到另一台服务器的端口。",
               )}
             </Dialog.Description>
           </div>

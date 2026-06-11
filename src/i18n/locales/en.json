@@ -480,7 +480,7 @@
         "applyFailed": "应用端口中转规则失败",
         "applying": "应用中...",
         "applySuccess": "已下发端口中转任务 {{taskId}}",
-        "description": "使用当前服务器作为公网入口，通过 iptables 转发到另一台服务器的端口。",
+        "description": "使用当前服务器作为公网入口，通过系统防火墙规则转发到另一台服务器的端口。",
         "editRule": "编辑规则",
         "empty": "还没有端口中转规则",
         "enabled": "启用规则",
