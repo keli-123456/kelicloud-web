@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite --configLoader runner",
     "build": "tsc -b && vite build --configLoader runner",
+    "test": "node ./script/run-unit-tests.mjs",
     "i18n:audit": "node ./script/i18n-audit.mjs",
     "lint": "eslint .",
     "preview": "vite preview --configLoader runner",
