@@ -4,8 +4,6 @@ import { useTranslation } from "react-i18next";
 import {
   ChevronDown,
   ChevronRight,
-  ChevronsLeft,
-  ChevronsRight,
   CircleFadingArrowUp,
   LogOut,
   Menu,
@@ -322,13 +320,7 @@ function AdminPanelBarContent({ content }: AdminPanelBarProps) {
   const registeredPageHeader = useCurrentAdminPageHeader();
 
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
-    try {
-      return localStorage.getItem(SIDEBAR_COLLAPSED_STORAGE_KEY) === "1";
-    } catch {
-      return false;
-    }
-  });
+  const sidebarCollapsed = false;
   const [httpsNoticeDismissed, setHttpsNoticeDismissed] = useState(() => {
     try {
       return localStorage.getItem(HTTPS_NOTICE_DISMISSED_STORAGE_KEY) === "1";
@@ -437,16 +429,12 @@ function AdminPanelBarContent({ content }: AdminPanelBarProps) {
     setMobileMenuOpen(false);
   }, [location.pathname, location.search]);
 
-  const toggleSidebarCollapsed = useCallback(() => {
-    setSidebarCollapsed((prev) => {
-      const next = !prev;
-      try {
-        localStorage.setItem(SIDEBAR_COLLAPSED_STORAGE_KEY, next ? "1" : "0");
-      } catch {
-        // ignore persistence failures
-      }
-      return next;
-    });
+  useEffect(() => {
+    try {
+      localStorage.removeItem(SIDEBAR_COLLAPSED_STORAGE_KEY);
+    } catch {
+      // ignore persistence failures
+    }
   }, []);
 
   const getMenuLabel = (item: ExtendedMenuItem | MenuItem) => {
@@ -1082,13 +1070,8 @@ function AdminPanelBarContent({ content }: AdminPanelBarProps) {
           </div>
         </nav>
 
-        <div
-          className={cn(
-            "hidden border-t border-border bg-[var(--surface)] p-2 md:flex md:items-center md:gap-2",
-            sidebarCollapsed && "md:justify-center",
-          )}
-        >
-          <div className={cn("min-w-0 flex-1 px-2", sidebarCollapsed && "md:hidden")}>
+        <div className="hidden border-t border-border bg-[var(--surface)] p-2 md:flex md:items-center md:gap-2">
+          <div className="min-w-0 flex-1 px-2">
             <div className="truncate text-xs font-medium text-muted-foreground">
               {versionInfo?.version ? `v${versionInfo.version}` : appName}
             </div>
@@ -1098,27 +1081,6 @@ function AdminPanelBarContent({ content }: AdminPanelBarProps) {
               </div>
             ) : null}
           </div>
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            className="h-9 w-9 rounded-md"
-            onClick={toggleSidebarCollapsed}
-            title={t(
-              sidebarCollapsed ? "common.expand_sidebar" : "common.collapse_sidebar",
-              sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar",
-            )}
-            aria-label={t(
-              sidebarCollapsed ? "common.expand_sidebar" : "common.collapse_sidebar",
-              sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar",
-            )}
-          >
-            {sidebarCollapsed ? (
-              <ChevronsRight className="h-4 w-4" />
-            ) : (
-              <ChevronsLeft className="h-4 w-4" />
-            )}
-          </Button>
         </div>
       </aside>
 
