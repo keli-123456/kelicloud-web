@@ -69,7 +69,7 @@ const NodeSelectorDialog: React.FC<NodeSelectorDialogProps> = ({
             <DialogClose asChild>
               <Button variant="outline">{t("common.cancel")}</Button>
             </DialogClose>
-            <Button onClick={handleOk}>{t("common.done")}</Button>
+            <Button onClick={handleOk}>{t("common.confirm")}</Button>
           </div>
         </div>
       </DialogContent>

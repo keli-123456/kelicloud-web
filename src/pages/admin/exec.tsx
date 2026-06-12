@@ -1445,7 +1445,7 @@ const ExecContent = ({ canUseExec, canUseScripts }: { canUseExec: boolean; canUs
                         </Button>
                         <DialogClose asChild>
                             <Button type="button">
-                                {t("common.done", { defaultValue: "完成" })}
+                                {t("common.confirm", { defaultValue: "确认" })}
                             </Button>
                         </DialogClose>
                     </>
