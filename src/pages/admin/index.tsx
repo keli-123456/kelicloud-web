@@ -1292,7 +1292,7 @@ const NodeEndpointSummary = ({ node }: { node: NodeDetail }) => {
         />
       }
     >
-      <div className="flex w-full min-w-[200px] max-w-[340px] items-center gap-1.5 text-[13px] leading-[18px] text-slate-700 dark:text-slate-200">
+      <div className="flex w-full min-w-[240px] max-w-[380px] items-center gap-1.5 text-[13px] leading-[18px] text-slate-700 dark:text-slate-200">
         <div className="flex h-[18px] items-center">
           <Flag flag={node.region} size="4" />
         </div>
@@ -1580,28 +1580,28 @@ const SortableRow = ({
                 && "bg-amber-50/35 shadow-[inset_3px_0_0_rgba(245,158,11,0.85)] hover:bg-amber-50/55 dark:bg-amber-950/10 dark:hover:bg-amber-950/20",
             )}
           >
-            <TableCell className="min-w-[210px] max-w-[340px] whitespace-normal">
+            <TableCell className="min-w-[240px] max-w-[380px] whitespace-normal">
               <NodeEndpointSummary node={node} />
             </TableCell>
-            <TableCell className="min-w-[96px] max-w-[140px]">
+            <TableCell className="min-w-[112px] max-w-[164px]">
               <StatusSummary live={live} />
             </TableCell>
-            <TableCell className="w-[68px]">
+            <TableCell className="w-[76px]">
               <VersionSummary node={node} />
             </TableCell>
-            <TableCell className="min-w-[88px] max-w-[132px]">
+            <TableCell className="min-w-[96px] max-w-[150px]">
               <RateSummary live={live} />
             </TableCell>
-            <TableCell className="min-w-[78px] max-w-[118px]">
+            <TableCell className="min-w-[92px] max-w-[128px]">
               <ConnectionsSummary live={live} />
             </TableCell>
-            <TableCell className="min-w-[92px] max-w-[140px]">
+            <TableCell className="min-w-[104px] max-w-[160px]">
               <TrafficSummary live={live} />
             </TableCell>
-            <TableCell className="w-[72px]">
+            <TableCell className="w-[80px]">
               <UptimeSummary live={live} />
             </TableCell>
-            <TableCell className="min-w-[96px] max-w-[156px] py-1.5 pr-2 pl-1.5">
+            <TableCell className="min-w-[112px] max-w-[180px] py-1.5 pr-2 pl-1.5">
               <CompactMetricCell
                 percent={cpuPercent}
                 valueLabel={usedCpuCores}
@@ -1613,7 +1613,7 @@ const SortableRow = ({
                 }
               />
             </TableCell>
-            <TableCell className="min-w-[96px] max-w-[156px] py-1.5 pr-2 pl-1.5">
+            <TableCell className="min-w-[112px] max-w-[180px] py-1.5 pr-2 pl-1.5">
               <CompactMetricCell
                 percent={ramPercent}
                 valueLabel={ramLabel}
@@ -1625,7 +1625,7 @@ const SortableRow = ({
                 }
               />
             </TableCell>
-            <TableCell className="min-w-[96px] max-w-[156px] py-1.5 pr-2 pl-1.5">
+            <TableCell className="min-w-[112px] max-w-[180px] py-1.5 pr-2 pl-1.5">
               <CompactMetricCell
                 percent={diskPercent}
                 valueLabel={diskLabel}
@@ -1691,16 +1691,16 @@ const SortableRow = ({
 };
 
 const NODE_TABLE_COLUMN_WIDTHS: React.CSSProperties[] = [
-  { width: "clamp(210px, 23%, 340px)" },
-  { width: "clamp(96px, 8%, 140px)" },
-  { width: "68px" },
-  { width: "clamp(88px, 8%, 132px)" },
-  { width: "clamp(78px, 7%, 118px)" },
-  { width: "clamp(92px, 9%, 140px)" },
-  { width: "72px" },
-  { width: "clamp(96px, 9%, 156px)" },
-  { width: "clamp(96px, 9%, 156px)" },
-  { width: "clamp(96px, 9%, 156px)" },
+  { width: "clamp(240px, 24%, 380px)" },
+  { width: "clamp(112px, 9%, 164px)" },
+  { width: "76px" },
+  { width: "clamp(96px, 9%, 150px)" },
+  { width: "clamp(92px, 8%, 128px)" },
+  { width: "clamp(104px, 10%, 160px)" },
+  { width: "80px" },
+  { width: "clamp(112px, 10%, 180px)" },
+  { width: "clamp(112px, 10%, 180px)" },
+  { width: "clamp(112px, 10%, 180px)" },
 ];
 
 const NodeTableColumnProfile = () => (
@@ -1719,34 +1719,34 @@ const NodeTableColumns = () => {
   return (
     <TableHeader className="bg-[var(--surface-muted)]">
       <TableRow>
-        <TableHead className={`${stickyHeadClass} min-w-[210px] max-w-[340px]`}>
+        <TableHead className={`${stickyHeadClass} min-w-[240px] max-w-[380px]`}>
           {t("admin.nodeTable.columns.endpoint", { defaultValue: "公网IP" })}
         </TableHead>
-        <TableHead className={`${stickyHeadClass} min-w-[96px] max-w-[140px]`}>
+        <TableHead className={`${stickyHeadClass} min-w-[112px] max-w-[164px]`}>
           {t("admin.nodeTable.columns.status", { defaultValue: "状态" })}
         </TableHead>
-        <TableHead className={`${stickyHeadClass} w-[68px]`}>
+        <TableHead className={`${stickyHeadClass} w-[76px]`}>
           {t("admin.nodeTable.columns.version", { defaultValue: "版本" })}
         </TableHead>
-        <TableHead className={`${stickyHeadClass} min-w-[88px] max-w-[132px]`}>
+        <TableHead className={`${stickyHeadClass} min-w-[96px] max-w-[150px]`}>
           {t("admin.nodeTable.columns.rate", { defaultValue: "速率" })}
         </TableHead>
-        <TableHead className={`${stickyHeadClass} min-w-[78px] max-w-[118px]`}>
+        <TableHead className={`${stickyHeadClass} min-w-[92px] max-w-[128px]`}>
           {t("chart.connections", { defaultValue: "连接数" })}
         </TableHead>
-        <TableHead className={`${stickyHeadClass} min-w-[92px] max-w-[140px]`}>
+        <TableHead className={`${stickyHeadClass} min-w-[104px] max-w-[160px]`}>
           {t("admin.nodeTable.columns.traffic", { defaultValue: "流量" })}
         </TableHead>
-        <TableHead className={`${stickyHeadClass} w-[72px]`}>
+        <TableHead className={`${stickyHeadClass} w-[80px]`}>
           {t("admin.nodeTable.columns.uptime", { defaultValue: "在线时长" })}
         </TableHead>
-        <TableHead className={`${stickyHeadClass} min-w-[96px] max-w-[156px]`}>
+        <TableHead className={`${stickyHeadClass} min-w-[112px] max-w-[180px]`}>
           {t("admin.nodeTable.columns.cpu", { defaultValue: "CPU" })}
         </TableHead>
-        <TableHead className={`${stickyHeadClass} min-w-[96px] max-w-[156px]`}>
+        <TableHead className={`${stickyHeadClass} min-w-[112px] max-w-[180px]`}>
           {t("admin.nodeTable.columns.ram", { defaultValue: "内存" })}
         </TableHead>
-        <TableHead className={`${stickyHeadClass} min-w-[96px] max-w-[156px]`}>
+        <TableHead className={`${stickyHeadClass} min-w-[112px] max-w-[180px]`}>
           {t("admin.nodeTable.columns.storage", { defaultValue: "磁盘" })}
         </TableHead>
       </TableRow>
@@ -1911,7 +1911,7 @@ const NodeGroupSection = ({
       ) : null}
     >
       <div className="admin-data-table-scroll min-w-0 overflow-x-auto overflow-y-hidden overscroll-x-contain [scrollbar-gutter:auto]">
-        <Table className="admin-data-table min-w-[1000px] table-fixed [&_[data-slot=table-cell]]:px-2 [&_[data-slot=table-cell]]:py-1 [&_[data-slot=table-head]]:h-8 [&_[data-slot=table-head]]:px-2">
+        <Table className="admin-data-table min-w-[1120px] table-auto [&_[data-slot=table-cell]]:px-2 [&_[data-slot=table-cell]]:py-1 [&_[data-slot=table-head]]:h-8 [&_[data-slot=table-head]]:px-2">
           <NodeTableColumnProfile />
           <NodeTableColumns />
           <TableBody>
