@@ -959,7 +959,7 @@ function VultrInlineCreatePanel({
         </div>
       </div>
       {!activeToken ? (
-        <div className="flex flex-1 p-4">
+        <div className="p-4">
           <AdminEmptyState
             icon={<Upload className="h-5 w-5" />}
             title={t("cloud.tokens.no_active_token", "未配置当前令牌")}
@@ -973,7 +973,7 @@ function VultrInlineCreatePanel({
                 {t("cloud.tokens.import", "导入令牌")}
               </Button>
             )}
-            className="min-h-[320px] flex-1"
+            className="min-h-28 border-solid border-border/70 bg-transparent"
           />
         </div>
       ) : (

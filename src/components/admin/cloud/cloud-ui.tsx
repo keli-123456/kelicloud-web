@@ -112,7 +112,7 @@ const cloudTableCodeTextClassName =
   "font-mono text-xs text-muted-foreground";
 
 const cloudTableEmptyStateClassName =
-  "min-h-36 border-border bg-[var(--surface-subtle)] shadow-none";
+  "min-h-24 border-solid border-border/70 bg-transparent px-4 py-5 shadow-none";
 
 const getCloudCodeLines = (value: string) => {
   const lines = value.split(/\r?\n/);

@@ -857,7 +857,7 @@ function AWSInlineCreatePanel({
         </div>
       </div>
       {!activeCredential ? (
-        <div className="flex flex-1 p-4">
+        <div className="p-4">
           <AdminEmptyState
             icon={<Plus className="h-5 w-5" />}
             title={t("cloud.providers.aws.no_active_credential", "请先选择一个激活的 AWS 凭证")}
@@ -868,7 +868,7 @@ function AWSInlineCreatePanel({
                 {t("cloud.providers.aws.import", "导入凭证")}
               </Button>
             )}
-            className="min-h-[320px] flex-1"
+            className="min-h-28 border-solid border-border/70 bg-transparent"
           />
         </div>
       ) : (

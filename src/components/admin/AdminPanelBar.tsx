@@ -904,7 +904,7 @@ function AdminPanelBarContent({ content }: AdminPanelBarProps) {
 
         <nav
           className={cn(
-            "flex-1 overflow-y-auto px-3 py-3",
+            "admin-sidebar-scroll flex-1 overflow-y-auto px-3 py-3",
             sidebarCollapsed && "md:px-2",
           )}
         >

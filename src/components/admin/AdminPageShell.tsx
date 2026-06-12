@@ -234,25 +234,25 @@ export function AdminEmptyState({
   return (
     <div
       className={cn(
-        "flex min-h-28 min-w-0 flex-col items-center justify-center rounded-md border border-dashed border-border bg-[var(--surface-subtle)] px-5 py-6 text-center shadow-none",
+        "flex min-h-24 min-w-0 flex-col items-center justify-center rounded-md border border-dashed border-border/80 bg-[var(--surface-subtle)] px-4 py-5 text-center shadow-none",
         className,
       )}
     >
       {icon ? (
-        <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-md bg-slate-100 text-slate-500 dark:bg-slate-900 dark:text-slate-400">
+        <div className="mb-2.5 flex h-8 w-8 items-center justify-center rounded-md bg-slate-100 text-slate-500 dark:bg-slate-900 dark:text-slate-400">
           {icon}
         </div>
       ) : null}
-      <div className="text-[15px] font-semibold leading-5 text-slate-950 dark:text-slate-50">
+      <div className="text-sm font-semibold leading-5 text-slate-950 dark:text-slate-50">
         {title}
       </div>
       {description ? (
-        <div className="mt-1 max-w-xl text-sm leading-6 text-slate-500 dark:text-slate-400">
+        <div className="mt-1 max-w-xl text-[13px] leading-5 text-slate-500 dark:text-slate-400">
           {description}
         </div>
       ) : null}
       {actions ? (
-        <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
+        <div className="mt-3 flex flex-wrap items-center justify-center gap-2">
           {actions}
         </div>
       ) : null}
