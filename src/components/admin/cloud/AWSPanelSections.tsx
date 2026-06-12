@@ -299,11 +299,11 @@ export function AWSComputeSection({
                 </div>
               </div>
               <Flex gap="2" wrap="wrap" align="center">
-                <Tabs.List>
-                  <Tabs.Trigger value="ec2">
+                <Tabs.List style={{ height: 36 }}>
+                  <Tabs.Trigger value="ec2" className="leading-4" style={{ height: 29 }}>
                     {t("cloud.providers.aws.instance_list", "EC2 实例")} ({instances.length})
                   </Tabs.Trigger>
-                  <Tabs.Trigger value="lightsail">
+                  <Tabs.Trigger value="lightsail" className="leading-4" style={{ height: 29 }}>
                     {t("cloud.providers.aws.lightsail_instances", "Lightsail")} ({lightsailInstances.length})
                   </Tabs.Trigger>
                 </Tabs.List>
