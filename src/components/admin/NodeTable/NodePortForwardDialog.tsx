@@ -13,15 +13,12 @@ import {
   Switch,
   TextField,
 } from "@/components/admin/admin-ui";
+import { AdminDialogLayout } from "@/components/admin/AdminForm";
 import {
-  ADMIN_FORM_BODY_CLASS,
   ADMIN_FORM_CONTEXT_CARD_CLASS,
-  ADMIN_FORM_DIALOG_CHROME_CLASS,
   ADMIN_FORM_EMPTY_CLASS,
   ADMIN_FORM_FIELD_CLASS,
   ADMIN_FORM_GRID_2_CLASS,
-  ADMIN_FORM_HEADER_CLASS,
-  ADMIN_FORM_HEADER_INSET_CLASS,
   ADMIN_FORM_HELP_CLASS,
   ADMIN_FORM_LABEL_CLASS,
   ADMIN_FORM_LIST_PANEL_CLASS,
@@ -64,11 +61,6 @@ const DEFAULT_FORM: PortForwardFormState = {
   targetPort: "3389",
 };
 
-const NODE_DIALOG_CONTENT_CLASS =
-  cn(
-    "flex max-h-[min(92vh,calc(100dvh-1.5rem))] w-[calc(100vw-1.5rem)] max-w-[960px] flex-col overflow-hidden",
-    ADMIN_FORM_DIALOG_CHROME_CLASS,
-  );
 const NODE_DIALOG_SECTION_CLASS = ADMIN_FORM_SECTION_CLASS;
 const NODE_DIALOG_INFO_CLASS = ADMIN_FORM_CONTEXT_CARD_CLASS;
 
@@ -342,6 +334,185 @@ export function NodePortForwardDialog({
   const currentIPv4 = item.ipv4 || "-";
   const currentIPv6 = item.ipv6 || "-";
   const status = selectedRule?.status || (form.enabled ? "pending" : "disabled");
+  const statusHint = applying
+    ? t("admin.nodeTable.portForward.applyingHint", "正在下发规则，服务器会检查防火墙工具并应用转发。")
+    : selectedRule?.status === "error"
+      ? t("admin.nodeTable.portForward.errorHint", "上次应用失败，修正配置或服务器环境后重新应用。")
+      : selectedRule?.status === "applied"
+        ? t("admin.nodeTable.portForward.appliedHint", "服务器已收到并完成这条规则的应用任务。")
+        : hasUnsavedChanges
+          ? t("admin.nodeTable.portForward.unsaved", "保存后再应用到服务器")
+          : t("admin.nodeTable.portForward.pendingHint", "保存规则后，点击应用会下发到服务器。");
+
+  const editorPanel = (
+    <div className="space-y-4">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <div className="text-sm font-semibold">
+            {form.id
+              ? t("admin.nodeTable.portForward.editRule", "编辑规则")
+              : t("admin.nodeTable.portForward.newRule", "新增规则")}
+          </div>
+          <div className={cn("mt-1", ADMIN_FORM_HELP_CLASS)}>
+            {selectedRule
+              ? t("admin.nodeTable.portForward.lastApplied", {
+                defaultValue: `上次应用: ${formatDateTime(selectedRule.last_applied_at)}`,
+                time: formatDateTime(selectedRule.last_applied_at),
+              })
+              : t("admin.nodeTable.portForward.noRuleSelected", "选择规则或新增一条规则")}
+          </div>
+        </div>
+        <Badge color={getStatusColor(status)}>{getStatusLabel(status)}</Badge>
+      </div>
+
+      <div className={cn(ADMIN_FORM_CONTEXT_CARD_CLASS, "border-l-2", {
+        "border-l-red-400": selectedRule?.status === "error",
+        "border-l-emerald-400": selectedRule?.status === "applied",
+        "border-l-amber-400": applying || status === "pending",
+        "border-l-border": status === "disabled",
+      })}>
+        <div className="text-xs leading-5 text-muted-foreground">
+          {statusHint}
+        </div>
+      </div>
+
+      {error ? (
+        <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-900/60 dark:bg-red-950/30 dark:text-red-200">
+          {error}
+        </div>
+      ) : null}
+
+      <Flex direction="column" gap="4">
+        <Flex direction="column" gap="2" className={ADMIN_FORM_FIELD_CLASS}>
+          <label className={ADMIN_FORM_LABEL_CLASS}>
+            {t("admin.nodeTable.portForward.name", "名称")}
+          </label>
+          <TextField.Root
+            value={form.name}
+            placeholder="RDP"
+            onChange={(event) => updateForm({ name: event.target.value })}
+          />
+        </Flex>
+
+        <Flex direction="column" gap="2" className={ADMIN_FORM_FIELD_CLASS}>
+          <label className={ADMIN_FORM_LABEL_CLASS}>
+            {t("admin.nodeTable.portForward.protocol", "协议")}
+          </label>
+          <SegmentedControl.Root
+            value={form.protocol}
+            onValueChange={(value) => updateForm({ protocol: value === "udp" ? "udp" : "tcp" })}
+          >
+            <SegmentedControl.Item value="tcp">TCP</SegmentedControl.Item>
+            <SegmentedControl.Item value="udp">UDP</SegmentedControl.Item>
+          </SegmentedControl.Root>
+        </Flex>
+
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-1">
+          <Flex direction="column" gap="2" className={ADMIN_FORM_FIELD_CLASS}>
+            <label className={ADMIN_FORM_LABEL_CLASS}>
+              {t("admin.nodeTable.portForward.listenPort", "监听端口")}
+            </label>
+            <TextField.Root
+              value={form.listenPort}
+              type="number"
+              inputMode="numeric"
+              min={1}
+              max={65535}
+              placeholder="13389"
+              onChange={(event) => updateForm({ listenPort: event.target.value })}
+            />
+          </Flex>
+
+          <Flex direction="column" gap="2" className={ADMIN_FORM_FIELD_CLASS}>
+            <label className={ADMIN_FORM_LABEL_CLASS}>
+              {t("admin.nodeTable.portForward.targetPort", "目标端口")}
+            </label>
+            <TextField.Root
+              value={form.targetPort}
+              type="number"
+              inputMode="numeric"
+              min={1}
+              max={65535}
+              placeholder="3389"
+              onChange={(event) => updateForm({ targetPort: event.target.value })}
+            />
+          </Flex>
+        </div>
+
+        <Flex direction="column" gap="2" className={ADMIN_FORM_FIELD_CLASS}>
+          <label className={ADMIN_FORM_LABEL_CLASS}>
+            {t("admin.nodeTable.portForward.targetHost", "目标服务器")}
+          </label>
+          <TextField.Root
+            value={form.targetHost}
+            placeholder="192.0.2.10"
+            onChange={(event) => updateForm({ targetHost: event.target.value })}
+          />
+        </Flex>
+
+        <div className={cn(ADMIN_FORM_CONTEXT_CARD_CLASS, "flex items-center justify-between gap-3")}>
+          <div>
+            <div className="text-sm font-semibold">
+              {t("admin.nodeTable.portForward.enabled", "启用规则")}
+            </div>
+            <div className={cn("mt-1", ADMIN_FORM_HELP_CLASS)}>
+              {t("admin.nodeTable.portForward.enabledHint", "关闭后保存，应用时不会下发这条规则")}
+            </div>
+          </div>
+          <Switch checked={form.enabled} onCheckedChange={(checked) => updateForm({ enabled: checked })} />
+        </div>
+      </Flex>
+    </div>
+  );
+
+  const footer = (
+    <>
+      <Button
+        color="red"
+        variant="soft"
+        disabled={removing || saving || applying}
+        onClick={() => {
+          void handleRemove();
+        }}
+      >
+        <Trash2 className="h-4 w-4" />
+        {form.id ? t("common.delete", "删除") : t("common.reset", "重置")}
+      </Button>
+      <Button
+        variant="outline"
+        disabled={loading || applying}
+        onClick={() => {
+          void loadRules();
+        }}
+      >
+        <RefreshCw className="h-4 w-4" />
+        {t("common.refresh", "刷新")}
+      </Button>
+      <Button
+        disabled={saving || applying}
+        onClick={() => {
+          void handleSave();
+        }}
+      >
+        <Save className="h-4 w-4" />
+        {saving
+          ? t("admin.nodeTable.portForward.saving", "保存中...")
+          : t("common.save", "保存")}
+      </Button>
+      <Button
+        color="blue"
+        disabled={saving || applying}
+        onClick={() => {
+          void handleApply();
+        }}
+      >
+        <Network className="h-4 w-4" />
+        {applying
+          ? t("admin.nodeTable.portForward.applying", "应用中...")
+          : t("admin.nodeTable.portForward.apply", "应用到服务器")}
+      </Button>
+    </>
+  );
 
   return (
     <Dialog.Root open={open} onOpenChange={setOpen}>
@@ -358,266 +529,102 @@ export function NodePortForwardDialog({
           </IconButton>
         </Dialog.Trigger>
       )}
-      <Dialog.Content
-        maxWidth={820}
-        className={NODE_DIALOG_CONTENT_CLASS}
+      <AdminDialogLayout
+        wide
+        maxWidth={960}
+        title={t("admin.nodeTable.portForward.title", "端口中转")}
+        description={t(
+          "admin.nodeTable.portForward.description",
+          "使用当前服务器作为公网入口，通过系统防火墙规则转发到另一台服务器的端口。",
+        )}
+        badge={<Badge color={getStatusColor(status)}>{getStatusLabel(status)}</Badge>}
+        side={editorPanel}
+        sideClassName="space-y-4"
+        footer={footer}
       >
-        <div className={ADMIN_FORM_HEADER_CLASS}>
-          <div className={ADMIN_FORM_HEADER_INSET_CLASS}>
-            <Dialog.Title>{t("admin.nodeTable.portForward.title", "端口中转")}</Dialog.Title>
-            <Dialog.Description>
-              {t(
-                "admin.nodeTable.portForward.description",
-                "使用当前服务器作为公网入口，通过系统防火墙规则转发到另一台服务器的端口。",
-              )}
-            </Dialog.Description>
+        <div className={NODE_DIALOG_INFO_CLASS}>
+          <div className={cn(ADMIN_FORM_GRID_2_CLASS, "text-sm")}>
+            <div>
+              <div className="text-xs font-semibold uppercase text-muted-foreground">IPv4</div>
+              <div className="mt-1 font-mono text-[13px] text-foreground">{currentIPv4}</div>
+            </div>
+            <div>
+              <div className="text-xs font-semibold uppercase text-muted-foreground">IPv6</div>
+              <div className="mt-1 font-mono text-[13px] text-foreground">{currentIPv6}</div>
+            </div>
           </div>
+          <p className={cn("mt-3", ADMIN_FORM_HELP_CLASS)}>
+            {t(
+              "admin.nodeTable.portForward.nodeHint",
+              "应用时会重建该节点上由 kelicloud 管理的转发链；停用的规则不会下发。",
+            )}
+          </p>
         </div>
 
-        <div className={cn(ADMIN_FORM_BODY_CLASS, "grid gap-4 lg:grid-cols-[minmax(0,1fr)_360px]")}>
-          <div className="space-y-4">
-            <div className={NODE_DIALOG_INFO_CLASS}>
-              <div className={cn(ADMIN_FORM_GRID_2_CLASS, "text-sm")}>
-                <div>
-                  <div className="text-xs font-semibold uppercase text-muted-foreground">IPv4</div>
-                  <div className="mt-1 font-mono text-[13px] text-foreground">{currentIPv4}</div>
-                </div>
-                <div>
-                  <div className="text-xs font-semibold uppercase text-muted-foreground">IPv6</div>
-                  <div className="mt-1 font-mono text-[13px] text-foreground">{currentIPv6}</div>
-                </div>
+        <div className={NODE_DIALOG_SECTION_CLASS}>
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <div className="text-sm font-semibold">
+                {t("admin.nodeTable.portForward.ruleList", "转发规则")}
               </div>
-              <p className={cn("mt-3", ADMIN_FORM_HELP_CLASS)}>
-                {t(
-                  "admin.nodeTable.portForward.nodeHint",
-                  "应用时会重建该节点上由 kelicloud 管理的转发链；停用的规则不会下发。",
-                )}
-              </p>
-            </div>
-
-            <div className={NODE_DIALOG_SECTION_CLASS}>
-              <div className="flex items-center justify-between gap-3">
-                <div>
-                  <div className="text-sm font-semibold">
-                    {t("admin.nodeTable.portForward.ruleList", "转发规则")}
-                  </div>
-                  <div className="mt-1 text-xs text-muted-foreground">
-                    {t("admin.nodeTable.portForward.ruleSummary", {
-                      defaultValue: `${rules.length} 条规则，${enabledCount} 条启用`,
-                      count: rules.length,
-                      enabledCount,
-                    })}
-                  </div>
-                </div>
-                <Button size="sm" variant="outline" onClick={resetForm}>
-                  <Plus className="h-4 w-4" />
-                  {t("common.add", "新增")}
-                </Button>
-              </div>
-
-              <div className={cn(ADMIN_FORM_LIST_PANEL_CLASS, "mt-3 max-h-[320px] overflow-y-auto")}>
-                {loading ? (
-                  <div className={cn(ADMIN_FORM_EMPTY_CLASS, "m-2")}>
-                    {t("admin.nodeTable.portForward.loading", "正在加载端口中转规则...")}
-                  </div>
-                ) : rules.length === 0 ? (
-                  <div className={cn(ADMIN_FORM_EMPTY_CLASS, "m-2")}>
-                    {t("admin.nodeTable.portForward.empty", "还没有端口中转规则")}
-                  </div>
-                ) : (
-                  rules.map((rule) => (
-                    <button
-                      key={rule.id}
-                      type="button"
-                      className={[
-                        "w-full border-b px-3 py-3 text-left transition-colors last:border-b-0",
-                        rule.id === form.id
-                          ? "border-primary/35 bg-primary/7"
-                          : "border-border/70 bg-transparent hover:bg-muted/45",
-                      ].join(" ")}
-                      onClick={() => setForm(buildFormFromRule(rule))}
-                    >
-                      <div className="flex items-center justify-between gap-3">
-                        <div className="min-w-0">
-                          <div className="truncate text-sm font-semibold">{rule.name}</div>
-                          <div className="mt-1 truncate font-mono text-xs text-muted-foreground">
-                            {rule.protocol.toUpperCase()} :{rule.listen_port} → {rule.target_host}:{rule.target_port}
-                          </div>
-                        </div>
-                        <Badge color={getStatusColor(rule.status)}>
-                          {getStatusLabel(rule.status)}
-                        </Badge>
-                      </div>
-                      {rule.last_error ? (
-                        <div className="mt-2 rounded-md border border-red-200 bg-red-50 px-2 py-1 text-xs text-red-700 dark:border-red-900/60 dark:bg-red-950/30 dark:text-red-200">
-                          {rule.last_error}
-                        </div>
-                      ) : null}
-                    </button>
-                  ))
-                )}
+              <div className="mt-1 text-xs text-muted-foreground">
+                {t("admin.nodeTable.portForward.ruleSummary", {
+                  defaultValue: `${rules.length} 条规则，${enabledCount} 条启用`,
+                  count: rules.length,
+                  enabledCount,
+                })}
               </div>
             </div>
+            <Button size="sm" variant="outline" onClick={resetForm}>
+              <Plus className="h-4 w-4" />
+              {t("common.add", "新增")}
+            </Button>
           </div>
 
-          <div className={cn(NODE_DIALOG_SECTION_CLASS, "space-y-4 lg:border-l lg:pl-4 lg:pt-0")}>
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <div className="text-sm font-semibold">
-                  {form.id
-                    ? t("admin.nodeTable.portForward.editRule", "编辑规则")
-                    : t("admin.nodeTable.portForward.newRule", "新增规则")}
-                </div>
-              <div className={cn("mt-1", ADMIN_FORM_HELP_CLASS)}>
-                  {selectedRule
-                    ? t("admin.nodeTable.portForward.lastApplied", {
-                      defaultValue: `上次应用: ${formatDateTime(selectedRule.last_applied_at)}`,
-                      time: formatDateTime(selectedRule.last_applied_at),
-                    })
-                    : hasUnsavedChanges
-                      ? t("admin.nodeTable.portForward.unsaved", "保存后再应用到服务器")
-                      : t("admin.nodeTable.portForward.noRuleSelected", "选择规则或新增一条规则")}
-                </div>
+          <div className={cn(ADMIN_FORM_LIST_PANEL_CLASS, "mt-3 max-h-[360px] overflow-y-auto")}>
+            {loading ? (
+              <div className={cn(ADMIN_FORM_EMPTY_CLASS, "m-2")}>
+                {t("admin.nodeTable.portForward.loading", "正在加载端口中转规则...")}
               </div>
-              <Badge color={getStatusColor(status)}>{getStatusLabel(status)}</Badge>
-            </div>
-
-            {error ? (
-              <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-900/60 dark:bg-red-950/30 dark:text-red-200">
-                {error}
+            ) : rules.length === 0 ? (
+              <div className={cn(ADMIN_FORM_EMPTY_CLASS, "m-2")}>
+                {t("admin.nodeTable.portForward.empty", "还没有端口中转规则")}
               </div>
-            ) : null}
-
-            <Flex direction="column" gap="4">
-              <Flex direction="column" gap="2" className={ADMIN_FORM_FIELD_CLASS}>
-                <label className={ADMIN_FORM_LABEL_CLASS}>
-                  {t("admin.nodeTable.portForward.name", "名称")}
-                </label>
-                <TextField.Root
-                  value={form.name}
-                  placeholder="RDP"
-                  onChange={(event) => updateForm({ name: event.target.value })}
-                />
-              </Flex>
-
-              <Flex direction="column" gap="2" className={ADMIN_FORM_FIELD_CLASS}>
-                <label className={ADMIN_FORM_LABEL_CLASS}>
-                  {t("admin.nodeTable.portForward.protocol", "协议")}
-                </label>
-                <SegmentedControl.Root
-                  value={form.protocol}
-                  onValueChange={(value) => updateForm({ protocol: value === "udp" ? "udp" : "tcp" })}
+            ) : (
+              rules.map((rule) => (
+                <button
+                  key={rule.id}
+                  type="button"
+                  className={cn(
+                    "w-full border-b px-3 py-3 text-left transition-colors last:border-b-0",
+                    rule.id === form.id
+                      ? "border-primary/35 bg-primary/7"
+                      : "border-border/70 bg-transparent hover:bg-muted/45",
+                  )}
+                  onClick={() => setForm(buildFormFromRule(rule))}
                 >
-                  <SegmentedControl.Item value="tcp">TCP</SegmentedControl.Item>
-                  <SegmentedControl.Item value="udp">UDP</SegmentedControl.Item>
-                </SegmentedControl.Root>
-              </Flex>
-
-              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-1">
-                <Flex direction="column" gap="2" className={ADMIN_FORM_FIELD_CLASS}>
-                  <label className={ADMIN_FORM_LABEL_CLASS}>
-                    {t("admin.nodeTable.portForward.listenPort", "监听端口")}
-                  </label>
-                  <TextField.Root
-                    value={form.listenPort}
-                    type="number"
-                    inputMode="numeric"
-                    min={1}
-                    max={65535}
-                    placeholder="13389"
-                    onChange={(event) => updateForm({ listenPort: event.target.value })}
-                  />
-                </Flex>
-
-                <Flex direction="column" gap="2" className={ADMIN_FORM_FIELD_CLASS}>
-                  <label className={ADMIN_FORM_LABEL_CLASS}>
-                    {t("admin.nodeTable.portForward.targetPort", "目标端口")}
-                  </label>
-                  <TextField.Root
-                    value={form.targetPort}
-                    type="number"
-                    inputMode="numeric"
-                    min={1}
-                    max={65535}
-                    placeholder="3389"
-                    onChange={(event) => updateForm({ targetPort: event.target.value })}
-                  />
-                </Flex>
-              </div>
-
-              <Flex direction="column" gap="2" className={ADMIN_FORM_FIELD_CLASS}>
-                <label className={ADMIN_FORM_LABEL_CLASS}>
-                  {t("admin.nodeTable.portForward.targetHost", "目标服务器")}
-                </label>
-                <TextField.Root
-                  value={form.targetHost}
-                  placeholder="192.0.2.10"
-                  onChange={(event) => updateForm({ targetHost: event.target.value })}
-                />
-              </Flex>
-
-              <div className={cn(ADMIN_FORM_CONTEXT_CARD_CLASS, "flex items-center justify-between gap-3")}>
-                <div>
-                  <div className="text-sm font-semibold">
-                    {t("admin.nodeTable.portForward.enabled", "启用规则")}
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="truncate text-sm font-semibold">{rule.name}</div>
+                      <div className="mt-1 truncate font-mono text-xs text-muted-foreground">
+                        {rule.protocol.toUpperCase()} :{rule.listen_port} → {rule.target_host}:{rule.target_port}
+                      </div>
+                    </div>
+                    <Badge color={getStatusColor(rule.status)}>
+                      {getStatusLabel(rule.status)}
+                    </Badge>
                   </div>
-                  <div className={cn("mt-1", ADMIN_FORM_HELP_CLASS)}>
-                    {t("admin.nodeTable.portForward.enabledHint", "关闭后保存，应用时不会下发这条规则")}
-                  </div>
-                </div>
-                <Switch checked={form.enabled} onCheckedChange={(checked) => updateForm({ enabled: checked })} />
-              </div>
-            </Flex>
-
-            <div className="mt-2 flex flex-wrap justify-end gap-2">
-              <Button
-                color="red"
-                variant="soft"
-                disabled={removing || saving || applying}
-                onClick={() => {
-                  void handleRemove();
-                }}
-              >
-                <Trash2 className="h-4 w-4" />
-                {form.id ? t("common.delete", "删除") : t("common.reset", "重置")}
-              </Button>
-              <Button
-                variant="outline"
-                disabled={loading || applying}
-                onClick={() => {
-                  void loadRules();
-                }}
-              >
-                <RefreshCw className="h-4 w-4" />
-                {t("common.refresh", "刷新")}
-              </Button>
-              <Button
-                disabled={saving || applying}
-                onClick={() => {
-                  void handleSave();
-                }}
-              >
-                <Save className="h-4 w-4" />
-                {saving
-                  ? t("admin.nodeTable.portForward.saving", "保存中...")
-                  : t("common.save", "保存")}
-              </Button>
-              <Button
-                color="blue"
-                disabled={saving || applying}
-                onClick={() => {
-                  void handleApply();
-                }}
-              >
-                <Network className="h-4 w-4" />
-                {applying
-                  ? t("admin.nodeTable.portForward.applying", "应用中...")
-                  : t("admin.nodeTable.portForward.apply", "应用到服务器")}
-              </Button>
-            </div>
+                  {rule.last_error ? (
+                    <div className="mt-2 rounded-md border border-red-200 bg-red-50 px-2 py-1 text-xs text-red-700 dark:border-red-900/60 dark:bg-red-950/30 dark:text-red-200">
+                      {rule.last_error}
+                    </div>
+                  ) : null}
+                </button>
+              ))
+            )}
           </div>
         </div>
-      </Dialog.Content>
+      </AdminDialogLayout>
     </Dialog.Root>
   );
 }

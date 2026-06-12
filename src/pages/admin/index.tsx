@@ -89,6 +89,7 @@ import {
   formatCNConnectivityTargetsSummary,
   parseCNConnectivityTargets,
 } from "@/lib/cnConnectivityTargets";
+import { cn } from "@/lib/utils";
 import { Navigate } from "react-router-dom";
 const LazyNodeAccessSettingsDialog = React.lazy(
   () => import("@/components/admin/node-details/NodeAccessSettingsDialog"),
@@ -436,6 +437,43 @@ const isNodeAbnormal = (
     || clampPercent(getNodeRamUsagePercent(node, live)) >= RISK_DANGER_THRESHOLD
     || clampPercent(getNodeDiskUsagePercent(node, live)) >= RISK_DANGER_THRESHOLD;
   return offline || connectivityAbnormal || highUsage;
+};
+
+type NodeRowTone = "normal" | "warning" | "critical";
+
+const getNodeRowTone = (
+  node: NodeDetail,
+  live: NodeLiveSnapshot | undefined,
+): NodeRowTone => {
+  if (!live) {
+    return "normal";
+  }
+
+  const connectivityStatus = live.record.cn_connectivity?.status;
+  const cpuPercent = clampPercent(live.record.cpu.usage ?? 0);
+  const ramPercent = clampPercent(getNodeRamUsagePercent(node, live));
+  const diskPercent = clampPercent(getNodeDiskUsagePercent(node, live));
+
+  if (
+    !isNodeOnline(live)
+    || connectivityStatus === "blocked_suspected"
+    || cpuPercent >= RISK_DANGER_THRESHOLD
+    || ramPercent >= RISK_DANGER_THRESHOLD
+    || diskPercent >= RISK_DANGER_THRESHOLD
+  ) {
+    return "critical";
+  }
+
+  if (
+    connectivityStatus === "degraded"
+    || cpuPercent >= RISK_WARNING_THRESHOLD
+    || ramPercent >= RISK_WARNING_THRESHOLD
+    || diskPercent >= RISK_WARNING_THRESHOLD
+  ) {
+    return "warning";
+  }
+
+  return "normal";
 };
 
 const Layout = ({
@@ -1527,13 +1565,20 @@ const SortableRow = ({
   const diskLabel = node.disk_total
     ? formatCompactByteUsage(live?.record.disk.used ?? 0, node.disk_total)
     : formatPercent(diskPercent);
+  const rowTone = getNodeRowTone(node, live);
 
   return (
     <>
       <ContextMenu>
         <ContextMenuTrigger asChild>
           <TableRow
-            className="text-sm"
+            className={cn(
+              "text-sm",
+              rowTone === "critical"
+                && "bg-red-50/35 shadow-[inset_3px_0_0_rgba(239,68,68,0.85)] hover:bg-red-50/55 dark:bg-red-950/10 dark:hover:bg-red-950/20",
+              rowTone === "warning"
+                && "bg-amber-50/35 shadow-[inset_3px_0_0_rgba(245,158,11,0.85)] hover:bg-amber-50/55 dark:bg-amber-950/10 dark:hover:bg-amber-950/20",
+            )}
           >
             <TableCell className="min-w-[240px] max-w-[380px] whitespace-normal">
               <NodeEndpointSummary node={node} />
