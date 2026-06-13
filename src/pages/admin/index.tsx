@@ -34,6 +34,7 @@ import {
   Search,
   Server,
   Settings2,
+  ScrollText,
   Terminal,
   Trash2Icon,
 } from "lucide-react";
@@ -84,6 +85,7 @@ import {
   type ClientDDNSBinding,
 } from "@/lib/clientDDNS";
 import { useRPC2Call } from "@/contexts/RPC2Context";
+import { CommandClipboardProvider } from "@/contexts/CommandClipboardContext";
 import type { Record as LiveRecord } from "@/types/LiveData";
 import {
   formatCNConnectivityTargetsSummary,
@@ -117,6 +119,11 @@ const LazyNodeDDNSDialog = React.lazy(() =>
 const LazyNodePortForwardDialog = React.lazy(() =>
   import("@/components/admin/NodeTable/NodePortForwardDialog").then((module) => ({
     default: module.NodePortForwardDialog,
+  })),
+);
+const LazyNodeConditionScriptDialog = React.lazy(() =>
+  import("@/components/admin/NodeTable/NodeConditionScriptDialog").then((module) => ({
+    default: module.NodeConditionScriptDialog,
   })),
 );
 
@@ -159,6 +166,7 @@ const NodeDetailsPage = () => {
     }),
   );
   const canManageCNConnectivity = platformAdmin || hasFeature("cn_connectivity");
+  const canUseScripts = platformAdmin && hasFeature("tasks");
   const [toolbarSearchDraft, setToolbarSearchDraft] = useState("");
   const [toolbarSearchKeyword, setToolbarSearchKeyword] = useState("");
   const listEndpoint = "/api/admin/client/list";
@@ -183,14 +191,16 @@ const NodeDetailsPage = () => {
 
   return (
     <NodeDetailsProvider listEndpoint={listEndpoint}>
-      <Layout
-        platformAdmin={platformAdmin}
-        toolbarSearchDraft={toolbarSearchDraft}
-        toolbarSearchKeyword={toolbarSearchKeyword}
-        onToolbarSearchDraftChange={handleToolbarSearchDraftChange}
-        onToolbarSearch={handleToolbarSearch}
-        canManageCNConnectivity={canManageCNConnectivity}
-      />
+      <CommandClipboardProvider autoLoad={canUseScripts}>
+        <Layout
+          platformAdmin={platformAdmin}
+          toolbarSearchDraft={toolbarSearchDraft}
+          toolbarSearchKeyword={toolbarSearchKeyword}
+          onToolbarSearchDraftChange={handleToolbarSearchDraftChange}
+          onToolbarSearch={handleToolbarSearch}
+          canManageCNConnectivity={canManageCNConnectivity}
+        />
+      </CommandClipboardProvider>
     </NodeDetailsProvider>
   );
 };
@@ -1568,6 +1578,7 @@ const SortableRow = ({
   const { hasFeature } = useAccount();
   const [ddnsOpen, setDdnsOpen] = React.useState(false);
   const [portForwardOpen, setPortForwardOpen] = React.useState(false);
+  const [conditionScriptOpen, setConditionScriptOpen] = React.useState(false);
   const hasLiveSnapshot = Boolean(live);
   const cpuPercent = hasLiveSnapshot ? clampPercent(live?.record.cpu.usage ?? 0) : 0;
   const cpuCoreCount = Number(node.cpu_cores || 0);
@@ -1692,6 +1703,17 @@ const SortableRow = ({
             <Network className="h-4 w-4" />
             {t("admin.nodeTable.portForward.title", { defaultValue: "端口中转" })}
           </ContextMenuItem>
+          {hasFeature("tasks") ? (
+            <ContextMenuItem
+              onSelect={(event) => {
+                event.preventDefault();
+                setConditionScriptOpen(true);
+              }}
+            >
+              <ScrollText className="h-4 w-4" />
+              {t("admin.nodeTable.conditionScript.title", { defaultValue: "条件脚本" })}
+            </ContextMenuItem>
+          ) : null}
         </ContextMenuContent>
       </ContextMenu>
       {hasFeature("cloud_dns") && ddnsOpen ? (
@@ -1710,6 +1732,20 @@ const SortableRow = ({
             item={node}
             open={portForwardOpen}
             onOpenChange={setPortForwardOpen}
+            trigger={null}
+          />
+        </React.Suspense>
+      ) : null}
+      {conditionScriptOpen ? (
+        <React.Suspense fallback={null}>
+          <LazyNodeConditionScriptDialog
+            item={{
+              uuid: node.uuid,
+              name: node.name,
+              group: node.group,
+            }}
+            open={conditionScriptOpen}
+            onOpenChange={setConditionScriptOpen}
             trigger={null}
           />
         </React.Suspense>
