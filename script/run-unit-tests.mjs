@@ -92,6 +92,10 @@ test("node live helpers keep missing snapshots unknown instead of offline", () =
   assert.equal(nodeLiveHelpers.isNodeOffline(undefined, true), false);
 });
 
+test("node table defaults to 50 rows per page", () => {
+  assert.equal(nodeLiveHelpers.NODE_TABLE_DEFAULT_PAGE_SIZE, 50);
+});
+
 let passed = 0;
 for (const { name, fn } of tests) {
   try {

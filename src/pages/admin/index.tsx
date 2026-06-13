@@ -96,6 +96,7 @@ import {
   getNodeLiveCounts,
   isNodeOffline,
   isNodeOnline,
+  NODE_TABLE_DEFAULT_PAGE_SIZE,
   normalizeLiveSnapshot,
   type NodeLiveSnapshot,
 } from "./node-live.helpers";
@@ -1990,7 +1991,7 @@ const NodeTable = ({
   const { t } = useTranslation();
   const hasActiveFilters = nodes.length !== totalNodesCount;
   const nodePagination = useClientPagination(nodes, {
-    initialPageSize: 20,
+    initialPageSize: NODE_TABLE_DEFAULT_PAGE_SIZE,
     resetKey: paginationKey ?? "",
   });
   const groupedNodes = React.useMemo(() => {

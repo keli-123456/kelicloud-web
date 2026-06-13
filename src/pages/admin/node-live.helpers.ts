@@ -11,6 +11,8 @@ export type NodeLiveCounts = {
   unknown: number;
 };
 
+export const NODE_TABLE_DEFAULT_PAGE_SIZE = 50;
+
 export const createEmptyLiveRecord = (): LiveRecord => ({
   cpu: { usage: 0 },
   ram: { used: 0 },
