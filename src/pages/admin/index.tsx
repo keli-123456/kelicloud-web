@@ -91,6 +91,14 @@ import {
 } from "@/lib/cnConnectivityTargets";
 import { cn } from "@/lib/utils";
 import { Navigate } from "react-router-dom";
+import {
+  createEmptyLiveRecord,
+  getNodeLiveCounts,
+  isNodeOffline,
+  isNodeOnline,
+  normalizeLiveSnapshot,
+  type NodeLiveSnapshot,
+} from "./node-live.helpers";
 const LazyNodeAccessSettingsDialog = React.lazy(
   () => import("@/components/admin/node-details/NodeAccessSettingsDialog"),
 );
@@ -186,11 +194,6 @@ const NodeDetailsPage = () => {
   );
 };
 
-type NodeLiveSnapshot = {
-  online: boolean;
-  record: LiveRecord;
-};
-
 type ActionResponsePayload = {
   status?: string;
   message?: string;
@@ -211,21 +214,6 @@ const getDefaultGroupLabel = () =>
   translate("admin.nodeTable.defaultGroup", {
     defaultValue: "默认分组",
   });
-
-const createEmptyLiveRecord = (): LiveRecord => ({
-  cpu: { usage: 0 },
-  ram: { used: 0 },
-  swap: { used: 0 },
-  load: { load1: 0, load5: 0, load15: 0 },
-  disk: { used: 0 },
-  network: { up: 0, down: 0, totalUp: 0, totalDown: 0 },
-  connections: { tcp: 0, udp: 0 },
-  uptime: 0,
-  process: 0,
-  message: "",
-  cn_connectivity: undefined,
-  time: "",
-});
 
 const formatUptimeLabel = (secondsValue?: number) => {
   const seconds = Math.max(0, Math.floor(secondsValue ?? 0));
@@ -318,53 +306,6 @@ const buildDDNSDomainLabel = (binding: ClientDDNSBinding | null | undefined) => 
 
   return "";
 };
-
-const normalizeLiveSnapshot = (value: any): NodeLiveSnapshot => {
-  const fallback = createEmptyLiveRecord();
-
-  if (!value || typeof value !== "object") {
-    return { online: false, record: fallback };
-  }
-
-  return {
-    online: Boolean(value.online),
-    record: {
-      cpu: { usage: typeof value.cpu === "number" ? value.cpu : 0 },
-      ram: { used: value.ram ?? 0 },
-      swap: { used: value.swap ?? 0 },
-      load: {
-        load1: value.load ?? 0,
-        load5: value.load5 ?? 0,
-        load15: value.load15 ?? 0,
-      },
-      disk: { used: value.disk ?? 0 },
-      network: {
-        up: value.net_out ?? 0,
-        down: value.net_in ?? 0,
-        totalUp: value.net_total_out ?? value.net_total_up ?? 0,
-        totalDown: value.net_total_in ?? value.net_total_down ?? 0,
-      },
-      connections: {
-        tcp: value.connections ?? 0,
-        udp: value.connections_udp ?? 0,
-      },
-      gpu:
-        value.gpu !== undefined
-          ? { count: 0, average_usage: value.gpu, detailed_info: [] }
-          : undefined,
-      uptime: value.uptime ?? 0,
-      process: value.process ?? 0,
-      message: "",
-      cn_connectivity: value.cn_connectivity ?? undefined,
-      time: value.time ?? "",
-    },
-  };
-};
-
-const isNodeOnline = (live?: NodeLiveSnapshot) => Boolean(live?.online);
-
-const isNodeOffline = (live: NodeLiveSnapshot | undefined, liveLoaded: boolean) =>
-  liveLoaded && !isNodeOnline(live);
 
 const readActionResponse = async (response: Response) => {
   const raw = (await response.text().catch(() => "")).trim();
@@ -504,6 +445,7 @@ const Layout = ({
   );
   const [liveLoaded, setLiveLoaded] = useState(false);
   const [liveError, setLiveError] = useState<string | null>(null);
+  const liveByNodeRef = React.useRef<Record<string, NodeLiveSnapshot>>({});
   const realNodes = React.useMemo(
     () => (Array.isArray(nodeDetail) ? nodeDetail : []),
     [nodeDetail],
@@ -556,6 +498,10 @@ const Layout = ({
   }, [allNodes, normalizedToolbarSearchKeyword]);
 
   useEffect(() => {
+    liveByNodeRef.current = liveByNode;
+  }, [liveByNode]);
+
+  useEffect(() => {
     const interval = window.setInterval(() => {
       refresh({ silent: true });
     }, 5000);
@@ -570,11 +516,15 @@ const Layout = ({
 
     if (pollUUIDs.length === 0) {
       setLiveByNode({});
-      setLiveLoaded(true);
+      setLiveLoaded(false);
       setLiveError(null);
       return () => {
         stopped = true;
       };
+    }
+
+    if (!pollUUIDs.some((uuid) => liveByNodeRef.current[uuid])) {
+      setLiveLoaded(false);
     }
 
     const pollLiveData = async () => {
@@ -651,6 +601,7 @@ const Layout = ({
         nodes={visibleNodes}
         totalNodesCount={allNodes.length}
         liveByNode={liveByNode}
+        liveLoaded={liveLoaded}
         settings={settings}
         installActionsEnabled
         paginationKey={normalizedToolbarSearchKeyword}
@@ -739,6 +690,16 @@ const Header = ({
   const { confirm, dialog } = useWarningDialog();
   const [cleanupLoading, setCleanupLoading] = useState(false);
   const [groupCommandDialogOpen, setGroupCommandDialogOpen] = React.useState(false);
+  const globalLiveCounts = getNodeLiveCounts(
+    nodes.map((node) => node.uuid),
+    liveByNode,
+    liveLoaded,
+  );
+  const currentLiveCounts = getNodeLiveCounts(
+    visibleNodes.map((node) => node.uuid),
+    liveByNode,
+    liveLoaded,
+  );
   const offlineNodes = nodes.filter((node) =>
     isNodeOffline(liveByNode[node.uuid], liveLoaded)
   );
@@ -750,15 +711,15 @@ const Header = ({
     (sum, node) => sum + (liveByNode[node.uuid]?.record.network.down ?? 0),
     0
   );
-  const globalOnlineCount = nodes.filter((node) =>
-    isNodeOnline(liveByNode[node.uuid]),
-  ).length;
+  const globalOnlineCount = globalLiveCounts.online;
+  const globalOfflineCount = globalLiveCounts.offline;
+  const globalUnknownCount = globalLiveCounts.unknown;
   const globalAbnormalCount = nodes.filter((node) =>
     isNodeAbnormal(node, liveByNode[node.uuid], liveLoaded),
   ).length;
-  const currentOnlineCount = visibleNodes.filter((node) =>
-    isNodeOnline(liveByNode[node.uuid]),
-  ).length;
+  const currentOnlineCount = currentLiveCounts.online;
+  const currentOfflineCount = currentLiveCounts.offline;
+  const currentUnknownCount = currentLiveCounts.unknown;
   const currentAbnormalCount = visibleNodes.filter((node) =>
     isNodeAbnormal(node, liveByNode[node.uuid], liveLoaded),
   ).length;
@@ -940,7 +901,12 @@ const Header = ({
                   {t("admin.nodeTable.inlineOnlineAbnormal", {
                     online: currentOnlineCount,
                     abnormal: currentAbnormalCount,
-                    defaultValue: "在线 {{online}} · 异常 {{abnormal}}",
+                    offline: currentOfflineCount,
+                    unknown: currentUnknownCount,
+                    defaultValue:
+                      currentUnknownCount > 0
+                        ? "在线 {{online}} · 离线 {{offline}} · 同步中 {{unknown}} · 异常 {{abnormal}}"
+                        : "在线 {{online}} · 离线 {{offline}} · 异常 {{abnormal}}",
                   })}
                 </span>
                 <span className="text-muted-foreground/80">
@@ -948,8 +914,12 @@ const Header = ({
                   ·{" "}
                   {t("admin.nodeTable.inlineGlobalSummary", {
                     online: globalOnlineCount,
-                    offline: Math.max(nodes.length - globalOnlineCount, 0),
-                    defaultValue: "全局 在线 {{online}} · 离线 {{offline}}",
+                    offline: globalOfflineCount,
+                    unknown: globalUnknownCount,
+                    defaultValue:
+                      globalUnknownCount > 0
+                        ? "全局 在线 {{online}} · 离线 {{offline}} · 同步中 {{unknown}}"
+                        : "全局 在线 {{online}} · 离线 {{offline}}",
                   })}
                 </span>
               </div>
@@ -957,12 +927,15 @@ const Header = ({
               <div className="truncate">
                 {t("admin.nodeTable.inlineStats", {
                   online: globalOnlineCount,
-                  offline: Math.max(nodes.length - globalOnlineCount, 0),
+                  offline: globalOfflineCount,
+                  unknown: globalUnknownCount,
                   abnormal: globalAbnormalCount,
                   upload: `${formatBytes(totalUploadSpeed)}/s`,
                   download: `${formatBytes(totalDownloadSpeed)}/s`,
                   defaultValue:
-                    "在线 {{online}} · 离线 {{offline}} · 异常 {{abnormal}} · ↑{{upload}} · ↓{{download}}",
+                    globalUnknownCount > 0
+                      ? "在线 {{online}} · 离线 {{offline}} · 同步中 {{unknown}} · 异常 {{abnormal}} · ↑{{upload}} · ↓{{download}}"
+                      : "在线 {{online}} · 离线 {{offline}} · 异常 {{abnormal}} · ↑{{upload}} · ↓{{download}}",
                 })}
               </div>
             )}
@@ -1116,10 +1089,28 @@ const formatCoreCount = (value: number) => {
 
 const StatusSummary = ({
   live,
+  liveLoaded,
 }: {
   live?: NodeLiveSnapshot;
+  liveLoaded: boolean;
 }) => {
   const { t } = useTranslation();
+
+  if (!live) {
+    return (
+      <div className="flex min-w-0 flex-wrap items-center gap-1">
+        <Badge
+          variant="secondary"
+          className="rounded-md px-1.5 py-0 text-[11px]"
+        >
+          {liveLoaded
+            ? t("admin.nodeTable.statusUnknown", { defaultValue: "状态未知" })
+            : t("admin.nodeTable.statusSyncing", { defaultValue: "同步中" })}
+        </Badge>
+      </div>
+    );
+  }
+
   const online = isNodeOnline(live);
   const connectivity = live?.record.cn_connectivity;
   const cnBadge =
@@ -1400,6 +1391,14 @@ const NodeInfoTooltip = ({
 );
 
 const RateSummary = ({ live }: { live?: NodeLiveSnapshot }) => {
+  if (!live) {
+    return (
+      <div className="w-full min-w-[84px] max-w-[132px] text-[13px] leading-4 text-muted-foreground">
+        -
+      </div>
+    );
+  }
+
   const snapshot = live?.record || createEmptyLiveRecord();
   const uploadLabel = `↑ ${formatBytes(snapshot.network.up)}/s`;
   const downloadLabel = `↓ ${formatBytes(snapshot.network.down)}/s`;
@@ -1423,6 +1422,14 @@ const RateSummary = ({ live }: { live?: NodeLiveSnapshot }) => {
 };
 
 const TrafficSummary = ({ live }: { live?: NodeLiveSnapshot }) => {
+  if (!live) {
+    return (
+      <div className="w-full min-w-[92px] max-w-[140px] text-[13px] leading-4 text-muted-foreground">
+        -
+      </div>
+    );
+  }
+
   const snapshot = live?.record || createEmptyLiveRecord();
   const uploadLabel = `↑ ${formatBytes(snapshot.network.totalUp)}`;
   const downloadLabel = `↓ ${formatBytes(snapshot.network.totalDown)}`;
@@ -1446,15 +1453,26 @@ const TrafficSummary = ({ live }: { live?: NodeLiveSnapshot }) => {
 };
 
 const UptimeSummary = ({ live }: { live?: NodeLiveSnapshot }) => {
+  const { t } = useTranslation();
   return (
     <div className="block w-full min-w-[64px] max-w-[88px] truncate tabular-nums text-[13px] leading-4 text-slate-700 dark:text-slate-300">
-      {formatUptimeLabel(live?.record.uptime)}
+      {live
+        ? formatUptimeLabel(live.record.uptime)
+        : t("admin.nodeTable.statusSyncing", { defaultValue: "同步中" })}
     </div>
   );
 };
 
 const ConnectionsSummary = ({ live }: { live?: NodeLiveSnapshot }) => {
   const { t } = useTranslation();
+  if (!live) {
+    return (
+      <div className="w-full min-w-[78px] max-w-[118px] text-[13px] leading-4 text-muted-foreground">
+        -
+      </div>
+    );
+  }
+
   const tcpLabel = t("chart.tcp_connections", { defaultValue: "TCP" });
   const udpLabel = t("chart.udp_connections", { defaultValue: "UDP" });
   const tcpCount = live?.record.connections.tcp ?? 0;
@@ -1538,33 +1556,42 @@ const openNodeTerminal = (uuid: string) => {
 
 const SortableRow = ({
   live,
+  liveLoaded,
   node,
 }: {
   live?: NodeLiveSnapshot;
+  liveLoaded: boolean;
   node: NodeDetail;
 }) => {
   const { t } = useTranslation();
   const { hasFeature } = useAccount();
   const [ddnsOpen, setDdnsOpen] = React.useState(false);
   const [portForwardOpen, setPortForwardOpen] = React.useState(false);
-  const cpuPercent = clampPercent(live?.record.cpu.usage ?? 0);
+  const hasLiveSnapshot = Boolean(live);
+  const cpuPercent = hasLiveSnapshot ? clampPercent(live?.record.cpu.usage ?? 0) : 0;
   const cpuCoreCount = Number(node.cpu_cores || 0);
-  const usedCpuCores = cpuCoreCount
-    ? `${formatCoreCount(cpuCoreCount * cpuPercent / 100)} / ${formatCoreCount(cpuCoreCount)} ${t(
-      "admin.nodeTable.cpuCoresShort",
-      {
-        defaultValue: "核",
-      },
-    )}`
-    : formatPercent(cpuPercent);
-  const ramPercent = clampPercent(getNodeRamUsagePercent(node, live));
-  const ramLabel = node.mem_total
-    ? formatCompactByteUsage(live?.record.ram.used ?? 0, node.mem_total)
-    : formatPercent(ramPercent);
-  const diskPercent = clampPercent(getNodeDiskUsagePercent(node, live));
-  const diskLabel = node.disk_total
-    ? formatCompactByteUsage(live?.record.disk.used ?? 0, node.disk_total)
-    : formatPercent(diskPercent);
+  const usedCpuCores = hasLiveSnapshot
+    ? cpuCoreCount
+      ? `${formatCoreCount(cpuCoreCount * cpuPercent / 100)} / ${formatCoreCount(cpuCoreCount)} ${t(
+        "admin.nodeTable.cpuCoresShort",
+        {
+          defaultValue: "核",
+        },
+      )}`
+      : formatPercent(cpuPercent)
+    : "-";
+  const ramPercent = hasLiveSnapshot ? clampPercent(getNodeRamUsagePercent(node, live)) : 0;
+  const ramLabel = hasLiveSnapshot
+    ? node.mem_total
+      ? formatCompactByteUsage(live?.record.ram.used ?? 0, node.mem_total)
+      : formatPercent(ramPercent)
+    : "-";
+  const diskPercent = hasLiveSnapshot ? clampPercent(getNodeDiskUsagePercent(node, live)) : 0;
+  const diskLabel = hasLiveSnapshot
+    ? node.disk_total
+      ? formatCompactByteUsage(live?.record.disk.used ?? 0, node.disk_total)
+      : formatPercent(diskPercent)
+    : "-";
   const rowTone = getNodeRowTone(node, live);
 
   return (
@@ -1584,7 +1611,7 @@ const SortableRow = ({
               <NodeEndpointSummary node={node} />
             </TableCell>
             <TableCell className="min-w-[112px] max-w-[164px]">
-              <StatusSummary live={live} />
+              <StatusSummary live={live} liveLoaded={liveLoaded} />
             </TableCell>
             <TableCell className="w-[76px]">
               <VersionSummary node={node} />
@@ -1846,17 +1873,23 @@ const NodeGroupSection = ({
   groupName,
   nodes,
   liveByNode,
+  liveLoaded,
   settings,
   installActionsEnabled,
 }: {
   groupName: string;
   nodes: NodeDetail[];
   liveByNode: Record<string, NodeLiveSnapshot>;
+  liveLoaded: boolean;
   settings: SettingsResponse;
   installActionsEnabled: boolean;
 }) => {
   const { t } = useTranslation();
-  const onlineCount = nodes.filter((node) => liveByNode[node.uuid]?.online).length;
+  const liveCounts = getNodeLiveCounts(
+    nodes.map((node) => node.uuid),
+    liveByNode,
+    liveLoaded,
+  );
   const blockedCount = nodes.filter((node) =>
     isNodeConnectivityBlocked(liveByNode[node.uuid])
   ).length;
@@ -1874,9 +1907,16 @@ const NodeGroupSection = ({
       </Badge>
       <GroupSummaryPill
         label={t("nodeCard.online", { defaultValue: "在线" })}
-        value={`${onlineCount}/${nodes.length}`}
+        value={`${liveCounts.online}/${nodes.length}`}
         tone="green"
       />
+      {liveCounts.unknown > 0 ? (
+        <GroupSummaryPill
+          label={t("admin.nodeTable.statusSyncing", { defaultValue: "同步中" })}
+          value={`${liveCounts.unknown}`}
+          tone="blue"
+        />
+      ) : null}
       <GroupSummaryPill
         label={t("admin.nodeTable.blockedCount", { defaultValue: "阻断" })}
         value={`${blockedCount}`}
@@ -1920,6 +1960,7 @@ const NodeGroupSection = ({
                 key={`${node.uuid}-${index}`}
                 node={node}
                 live={liveByNode[node.uuid]}
+                liveLoaded={liveLoaded}
               />
             ))}
           </TableBody>
@@ -1933,6 +1974,7 @@ const NodeTable = ({
   nodes,
   totalNodesCount,
   liveByNode,
+  liveLoaded,
   settings,
   installActionsEnabled,
   paginationKey,
@@ -1940,6 +1982,7 @@ const NodeTable = ({
   nodes: NodeDetail[];
   totalNodesCount: number;
   liveByNode: Record<string, NodeLiveSnapshot>;
+  liveLoaded: boolean;
   settings: SettingsResponse;
   installActionsEnabled: boolean;
   paginationKey?: string;
@@ -1998,6 +2041,7 @@ const NodeTable = ({
               groupName={group.groupName}
               nodes={group.nodes}
               liveByNode={liveByNode}
+              liveLoaded={liveLoaded}
               settings={settings}
               installActionsEnabled={installActionsEnabled}
             />

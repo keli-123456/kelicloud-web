@@ -42,6 +42,7 @@ function test(name, fn) {
 }
 
 const execHelpers = loadTsModule("src/pages/admin/exec.helpers.ts");
+const nodeLiveHelpers = loadTsModule("src/pages/admin/node-live.helpers.ts");
 
 test("exec helpers normalize task summaries from API envelopes", () => {
   const tasks = execHelpers.extractTaskSummaries({
@@ -82,6 +83,13 @@ test("exec helpers derive readable script names", () => {
     execHelpers.getCommandTitle({ name: "", text: "\n uptime ", remark: "", weight: 0 }, "fallback"),
     "uptime",
   );
+});
+
+test("node live helpers keep missing snapshots unknown instead of offline", () => {
+  const counts = nodeLiveHelpers.getNodeLiveCounts(["node-a", "node-b"], {}, true);
+
+  assert.equal(JSON.stringify(counts), JSON.stringify({ online: 0, offline: 0, unknown: 2 }));
+  assert.equal(nodeLiveHelpers.isNodeOffline(undefined, true), false);
 });
 
 let passed = 0;
