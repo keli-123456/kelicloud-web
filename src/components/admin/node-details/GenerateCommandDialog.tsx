@@ -17,7 +17,11 @@ import {
 import Tips from "@/components/ui/tips";
 import type { NodeDetail } from "@/contexts/NodeDetailsContext";
 import type { SettingsResponse } from "@/lib/api";
-import { buildAgentInstallScriptURL } from "@/lib/installScriptSource";
+import {
+  buildAgentInstallScriptURL,
+  buildAgentInstallScriptURLForFlavor,
+  type AgentInstallFlavor,
+} from "@/lib/installScriptSource";
 
 const NODE_DIALOG_CONTENT_CLASS =
   "admin-dialog flex max-h-[min(88vh,calc(100dvh-1rem))] w-[min(calc(100vw-1rem),980px)] flex-col overflow-hidden p-0";
@@ -115,9 +119,12 @@ const getDefaultInstallDir = (platform: Platform) => {
     case "macos":
       return "/usr/local/kelicloud-agent";
     default:
-      return "/opt/kelicloud-agent";
+      return "/opt/kelicloud-agent-rs";
   }
 };
+
+const getAgentInstallFlavor = (platform: Platform): AgentInstallFlavor =>
+  platform === "linux" ? "rust" : "go";
 
 const loadGenerateCommandPreferences = (): GenerateCommandPreferences => {
   if (cachedGenerateCommandPreferences) {
@@ -365,6 +372,7 @@ export default function GenerateCommandDialog({
   const generateCommand = () => {
     if (groupMode && (!useAutoDiscovery || !normalizedGroupName)) return "";
     if (!useAutoDiscovery) return "";
+    const agentFlavor = getAgentInstallFlavor(selectedPlatform);
 
     const host = (() => {
       if (!settings.script_domain) {
@@ -385,7 +393,7 @@ export default function GenerateCommandDialog({
     if (installOptions.disableWebSsh) {
       args.push("--disable-web-ssh");
     }
-    if (installOptions.disableAutoUpdate) {
+    if (agentFlavor === "go" && installOptions.disableAutoUpdate) {
       args.push("--disable-auto-update");
     }
     if (installOptions.ignoreUnsafeCert) {
@@ -407,7 +415,7 @@ export default function GenerateCommandDialog({
       args.push("--install-dir");
       args.push(installOptions.dir);
     }
-    if (enableCustomServiceName && installOptions.serviceName) {
+    if (agentFlavor === "go" && enableCustomServiceName && installOptions.serviceName) {
       args.push("--install-service-name");
       args.push(installOptions.serviceName);
     }
@@ -434,10 +442,10 @@ export default function GenerateCommandDialog({
         ? installOptions.dir.trim()
         : getDefaultInstallDir(selectedPlatform);
     const scriptFile = selectedPlatform === "windows" ? "install.ps1" : "install.sh";
-    let scriptUrl = buildAgentInstallScriptURL(
-      settings.base_scripts_url,
-      scriptFile,
-    );
+    let scriptUrl =
+      agentFlavor === "rust"
+        ? buildAgentInstallScriptURLForFlavor(settings.base_scripts_url, "install.sh", "rust")
+        : buildAgentInstallScriptURL(settings.base_scripts_url, scriptFile);
 
     if (enableGhproxy && installOptions.ghproxy) {
       scriptUrl = scriptUrl.slice(8);
@@ -500,6 +508,7 @@ export default function GenerateCommandDialog({
   const copyDisabled = groupMode
     ? !useAutoDiscovery || !normalizedGroupName
     : !useAutoDiscovery;
+  const defaultInstallDir = getDefaultInstallDir(selectedPlatform);
 
   const copyToClipboard = async (text: string) => {
     try {
@@ -623,6 +632,14 @@ export default function GenerateCommandDialog({
                     <SegmentedControl.Item value="windows">Windows</SegmentedControl.Item>
                     <SegmentedControl.Item value="macos">macOS</SegmentedControl.Item>
                   </SegmentedControl.Root>
+                  {selectedPlatform === "linux" ? (
+                    <p className="mt-2 text-xs leading-5 text-slate-500 dark:text-slate-400">
+                      {t("admin.nodeTable.rustAgentLinuxHint", {
+                        defaultValue:
+                          "Linux commands use the Rust Agent. Windows and macOS keep using the legacy Agent.",
+                      })}
+                    </p>
+                  ) : null}
                 </div>
               </div>
 
@@ -799,8 +816,12 @@ export default function GenerateCommandDialog({
                     label={t("admin.nodeTable.install_dir", "Installation directory")}
                     enabled={enableCustomDir}
                     placeholder={t(
-                      "admin.nodeTable.install_dir_placeholder",
-                      "Installation directory, leave empty to use the default directory (/opt/kelicloud-agent)",
+                      "admin.nodeTable.install_dir_placeholder_platform",
+                      {
+                        defaultValue:
+                          "Installation directory, leave empty to use {{dir}}",
+                        dir: defaultInstallDir,
+                      },
                     )}
                     value={installOptions.dir}
                     onEnabledChange={(enabled) => {

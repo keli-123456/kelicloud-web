@@ -441,6 +441,7 @@
       "inlineStats": "Online {{online}} · Offline {{offline}} · Abnormal {{abnormal}} · ↑{{upload}} · ↓{{download}}",
       "install_dir": "Installation directory",
       "install_dir_placeholder": "Installation directory, leave empty to use the default directory (/opt/kelicloud-agent)",
+      "install_dir_placeholder_platform": "Installation directory, leave empty to use {{dir}}",
       "installAgent": "Install agent",
       "installCommand": "Install command",
       "installCommandForGroup": "Generate enroll command for a specific group",

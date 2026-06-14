@@ -441,6 +441,7 @@
       "inlineStats": "Daring {{online}} · Luring {{offline}} · Tidak normal {{abnormal}} · ↑{{upload}} · ↓{{download}}",
       "install_dir": "Direktori Instalasi",
       "install_dir_placeholder": "Direktori instalasi, biarkan kosong untuk menggunakan direktori default (/opt/kelicloud-agent)",
+      "install_dir_placeholder_platform": "Direktori instalasi, kosongkan untuk memakai {{dir}}",
       "installAgent": "Install agent",
       "installCommand": "Perintah Instalasi",
       "installCommandForGroup": "Generate enroll command for a specific group",

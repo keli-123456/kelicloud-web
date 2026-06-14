@@ -441,6 +441,7 @@
       "inlineStats": "上線 {{online}} · 離線 {{offline}} · 異常 {{abnormal}} · ↑{{upload}} · ↓{{download}}",
       "install_dir": "安裝目錄",
       "install_dir_placeholder": "安裝目錄，為空則使用默認目錄(/opt/kelicloud-agent)",
+      "install_dir_placeholder_platform": "安裝目錄，為空則使用 {{dir}}",
       "installAgent": "安装 Agent",
       "installCommand": "一鍵部署指令",
       "installCommandForGroup": "为指定分组生成接入命令",

@@ -441,6 +441,7 @@
       "inlineStats": "オンライン {{online}} · オフライン {{offline}} · 異常 {{abnormal}} · ↑{{upload}} · ↓{{download}}",
       "install_dir": "インストールディレクトリ",
       "install_dir_placeholder": "インストールディレクトリ、空の場合はデフォルトディレクトリ（/opt/kelicloud-agent）を使用",
+      "install_dir_placeholder_platform": "インストールディレクトリ。空の場合は {{dir}} を使用",
       "installAgent": "Install agent",
       "installCommand": "ワンクリックデプロイコマンド",
       "installCommandForGroup": "Generate enroll command for a specific group",
