@@ -95,6 +95,7 @@ import { cn } from "@/lib/utils";
 import { Navigate } from "react-router-dom";
 import {
   createEmptyLiveRecord,
+  getNodeLiveStatusKind,
   getNodeLiveCounts,
   isNodeOffline,
   isNodeOnline,
@@ -1106,23 +1107,25 @@ const StatusSummary = ({
   liveLoaded: boolean;
 }) => {
   const { t } = useTranslation();
+  const liveStatus = getNodeLiveStatusKind(live, liveLoaded);
 
   if (!live) {
+    const syncing = liveStatus === "syncing";
     return (
       <div className="flex min-w-0 flex-wrap items-center gap-1">
         <Badge
-          variant="secondary"
+          variant={syncing ? "secondary" : "destructive"}
           className="rounded-md px-1.5 py-0 text-[11px]"
         >
-          {liveLoaded
-            ? t("admin.nodeTable.statusUnknown", { defaultValue: "状态未知" })
-            : t("admin.nodeTable.statusSyncing", { defaultValue: "同步中" })}
+          {syncing
+            ? t("admin.nodeTable.statusSyncing", { defaultValue: "同步中" })
+            : t("nodeCard.offline", { defaultValue: "离线" })}
         </Badge>
       </div>
     );
   }
 
-  const online = isNodeOnline(live);
+  const online = liveStatus === "online";
   const connectivity = live?.record.cn_connectivity;
   const cnBadge =
     connectivity && connectivity.status

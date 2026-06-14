@@ -11,6 +11,8 @@ export type NodeLiveCounts = {
   unknown: number;
 };
 
+export type NodeLiveStatusKind = "syncing" | "online" | "offline";
+
 export const NODE_TABLE_DEFAULT_PAGE_SIZE = 50;
 
 export const createEmptyLiveRecord = (): LiveRecord => ({
@@ -75,7 +77,17 @@ export const isNodeOnline = (live?: NodeLiveSnapshot) => Boolean(live?.online);
 export const isNodeOffline = (
   live: NodeLiveSnapshot | undefined,
   liveLoaded: boolean,
-) => liveLoaded && Boolean(live) && !isNodeOnline(live);
+) => liveLoaded && !isNodeOnline(live);
+
+export const getNodeLiveStatusKind = (
+  live: NodeLiveSnapshot | undefined,
+  liveLoaded: boolean,
+): NodeLiveStatusKind => {
+  if (!liveLoaded && !live) {
+    return "syncing";
+  }
+  return isNodeOnline(live) ? "online" : "offline";
+};
 
 export const getNodeLiveCounts = (
   uuids: string[],

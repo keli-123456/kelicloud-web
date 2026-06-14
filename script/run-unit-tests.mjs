@@ -85,11 +85,20 @@ test("exec helpers derive readable script names", () => {
   );
 });
 
-test("node live helpers keep missing snapshots unknown instead of offline", () => {
-  const counts = nodeLiveHelpers.getNodeLiveCounts(["node-a", "node-b"], {}, true);
+test("node live helpers keep missing snapshots syncing before live data loads", () => {
+  const counts = nodeLiveHelpers.getNodeLiveCounts(["node-a", "node-b"], {}, false);
 
   assert.equal(JSON.stringify(counts), JSON.stringify({ online: 0, offline: 0, unknown: 2 }));
-  assert.equal(nodeLiveHelpers.isNodeOffline(undefined, true), false);
+  assert.equal(nodeLiveHelpers.isNodeOffline(undefined, false), false);
+  assert.equal(nodeLiveHelpers.getNodeLiveStatusKind(undefined, false), "syncing");
+});
+
+test("node live helpers treat missing snapshots as offline after live data loads", () => {
+  const counts = nodeLiveHelpers.getNodeLiveCounts(["node-a", "node-b"], {}, true);
+
+  assert.equal(JSON.stringify(counts), JSON.stringify({ online: 0, offline: 2, unknown: 0 }));
+  assert.equal(nodeLiveHelpers.isNodeOffline(undefined, true), true);
+  assert.equal(nodeLiveHelpers.getNodeLiveStatusKind(undefined, true), "offline");
 });
 
 test("node table defaults to 50 rows per page", () => {
