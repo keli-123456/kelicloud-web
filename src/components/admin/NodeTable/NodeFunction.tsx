@@ -22,7 +22,10 @@ import { AdminRowActions } from "@/components/admin/AdminRowActions";
 import { toast } from "sonner";
 import { useSettings } from "@/lib/api";
 import { formatApiErrorMessage, getReadableErrorMessage } from "@/lib/apiErrorMessage";
-import { buildAgentInstallScriptURL } from "@/lib/installScriptSource";
+import {
+  buildAgentInstallScriptURL,
+  buildAgentInstallScriptURLForFlavor,
+} from "@/lib/installScriptSource";
 import { useAccount } from "@/contexts/AccountContext";
 
 type ActionResponsePayload = {
@@ -133,37 +136,44 @@ export function ActionsCell({ row }: { row: Row<z.infer<typeof schema>> }) {
     const host = window.location.origin;
     const token = row.original.token;
     let args = ["-e", host, "-t", token];
+    const isLinuxRustAgent = selectedPlatform === "linux";
     // 根据安装选项生成参数
     if (installOptions.disableWebSsh) {
       args.push("--disable-web-ssh");
     }
-    if (installOptions.disableAutoUpdate) {
+    if (selectedPlatform !== "linux" && installOptions.disableAutoUpdate) {
       args.push("--disable-auto-update");
     }
     if (installOptions.ignoreUnsafeCert) {
       args.push("--ignore-unsafe-cert");
     }
     if (installOptions.ghproxy) {
-      if (!installOptions.ghproxy.startsWith("http")) {
-        installOptions.ghproxy = `http://${installOptions.ghproxy}`;
-      }
+      const ghproxy = installOptions.ghproxy.startsWith("http")
+        ? installOptions.ghproxy
+        : `http://${installOptions.ghproxy}`;
       args.push(`--install-ghproxy`);
-      args.push(installOptions.ghproxy);
+      args.push(ghproxy);
     }
     if (installOptions.dir) {
       args.push(`--install-dir`);
       args.push(installOptions.dir);
     }
-    if (installOptions.serviceName) {
+    if (selectedPlatform !== "linux" && installOptions.serviceName) {
       args.push(`--install-service-name`);
       args.push(installOptions.serviceName);
     }
 
     let finalCommand = "";
-    const installShUrl = buildAgentInstallScriptURL(
-      settings.base_scripts_url,
-      "install.sh"
-    );
+    const installShUrl = isLinuxRustAgent
+      ? buildAgentInstallScriptURLForFlavor(
+          settings.base_scripts_url,
+          "install.sh",
+          "rust"
+        )
+      : buildAgentInstallScriptURL(
+          settings.base_scripts_url,
+          "install.sh"
+        );
     const installPsUrl = buildAgentInstallScriptURL(
       settings.base_scripts_url,
       "install.ps1"
@@ -327,7 +337,9 @@ export function ActionsCell({ row }: { row: Row<z.infer<typeof schema>> }) {
                     className={NODE_INPUT_CLASS}
                     placeholder={t(
                       "admin.nodeTable.install_dir_placeholder",
-                      "安装目录，为空则使用默认目录(/opt/kelicloud-agent)"
+                      selectedPlatform === "linux"
+                        ? "安装目录，为空则使用默认目录(/opt/kelicloud-agent-rs)"
+                        : "安装目录，为空则使用默认目录(/opt/kelicloud-agent)"
                     )}
                     onChange={(e) =>
                       setInstallOptions((prev) => ({

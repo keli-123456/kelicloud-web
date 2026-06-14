@@ -129,6 +129,18 @@ test("install script source keeps go-compatible wrapper behavior", () => {
   );
 });
 
+test("legacy node action install command uses rust source for linux only", () => {
+  const source = fs.readFileSync(
+    path.resolve(root, "src/components/admin/NodeTable/NodeFunction.tsx"),
+    "utf8",
+  );
+
+  assert.match(source, /buildAgentInstallScriptURLForFlavor/);
+  assert.match(source, /buildAgentInstallScriptURLForFlavor\([^)]*"install\.sh"[^)]*"rust"[^)]*\)/s);
+  assert.match(source, /selectedPlatform !== "linux" && installOptions\.disableAutoUpdate/);
+  assert.match(source, /selectedPlatform !== "linux" && installOptions\.serviceName/);
+});
+
 let passed = 0;
 for (const { name, fn } of tests) {
   try {
