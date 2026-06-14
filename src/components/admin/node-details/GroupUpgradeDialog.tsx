@@ -21,7 +21,11 @@ import {
 } from "@/contexts/NodeDetailsContext";
 import type { SettingsResponse } from "@/lib/api";
 import { formatApiErrorMessage, getReadableErrorMessage } from "@/lib/apiErrorMessage";
-import { buildAgentInstallScriptURL } from "@/lib/installScriptSource";
+import {
+  buildAgentInstallScriptURL,
+  buildAgentInstallScriptURLForFlavor,
+  type AgentInstallFlavor,
+} from "@/lib/installScriptSource";
 import { cn } from "@/lib/utils";
 import type { Record as LiveRecord } from "@/types/LiveData";
 import { formatBytes } from "@/utils/unitHelper";
@@ -166,6 +170,14 @@ const detectNodePlatform = (node: NodeDetail): Platform => {
   return "linux";
 };
 
+const getNodeAgentInstallFlavor = (node: NodeDetail): AgentInstallFlavor =>
+  detectNodePlatform(node) === "linux" ? "rust" : "go";
+
+const getAgentReleaseRepo = (flavor: AgentInstallFlavor) =>
+  flavor === "rust"
+    ? "keli-123456/kelicloud-agent-rs"
+    : "keli-123456/kelicloud-agent";
+
 const normalizeAgentReleaseTag = (value?: string | null) => {
   const trimmed = String(value || "").trim();
   if (!trimmed) {
@@ -176,7 +188,10 @@ const normalizeAgentReleaseTag = (value?: string | null) => {
     : `v${trimmed}`;
 };
 
-const normalizeAgentReleaseArch = (value?: string | null) => {
+const normalizeAgentReleaseArch = (
+  value?: string | null,
+  flavor: AgentInstallFlavor = "go",
+) => {
   const arch = String(value || "").trim().toLowerCase();
   if (!arch) {
     return null;
@@ -205,18 +220,22 @@ const normalizeAgentReleaseArch = (value?: string | null) => {
     arch.startsWith("armv7") ||
     arch.startsWith("armv6")
   ) {
-    return "arm";
+    return flavor === "rust" ? "armv7" : "arm";
   }
   return null;
 };
 
 const buildAgentReleaseAssetNameCandidates = (node: NodeDetail) => {
-  const arch = normalizeAgentReleaseArch(node.arch);
+  const flavor = getNodeAgentInstallFlavor(node);
+  const arch = normalizeAgentReleaseArch(node.arch, flavor);
   if (!arch) {
     return [];
   }
 
   const platform = detectNodePlatform(node);
+  if (flavor === "rust") {
+    return [`kelicloud-agent-rs-linux-${arch}`];
+  }
   if (platform === "windows") {
     return [
       `kelicloud-agent-windows-${arch}.exe`,
@@ -235,67 +254,83 @@ const buildAgentReleaseAssetNameCandidates = (node: NodeDetail) => {
   ];
 };
 
-const resolveLatestAgentUpgradeVersion = async (nodes: NodeDetail[]) => {
-  const response = await fetch(
-    "https://api.github.com/repos/keli-123456/kelicloud-agent/releases/latest",
-    {
-      headers: {
-        Accept: "application/vnd.github+json",
+const resolveLatestAgentUpgradeVersions = async (nodes: NodeDetail[]) => {
+  const flavors = Array.from(new Set(nodes.map(getNodeAgentInstallFlavor)));
+  const result: Record<AgentInstallFlavor, string | undefined> = {
+    go: undefined,
+    rust: undefined,
+  };
+
+  await Promise.all(flavors.map(async (flavor) => {
+    const repo = getAgentReleaseRepo(flavor);
+    const flavorNodes = nodes.filter((node) => getNodeAgentInstallFlavor(node) === flavor);
+    const response = await fetch(
+      `https://api.github.com/repos/${repo}/releases/latest`,
+      {
+        headers: {
+          Accept: "application/vnd.github+json",
+        },
+        cache: "no-cache",
       },
-      cache: "no-cache",
-    },
-  );
+    );
 
-  if (!response.ok) {
-    throw new Error(
-      formatApiErrorMessage(
-        translate("admin.nodeTable.upgradeLatestReleaseFailed", {
-          status: response.status,
-          defaultValue: "Failed to load latest Agent release (GitHub HTTP {{status}})",
+    if (!response.ok) {
+      throw new Error(
+        formatApiErrorMessage(
+          translate("admin.nodeTable.upgradeLatestReleaseFailed", {
+            repo,
+            status: response.status,
+            defaultValue:
+              "Failed to load latest Agent release from {{repo}} (GitHub HTTP {{status}})",
+          }),
+          { status: response.status },
+        ),
+      );
+    }
+
+    const payload = (await response.json()) as GithubReleasePayload;
+    const releaseTag = normalizeAgentReleaseTag(payload.tag_name || payload.name);
+    if (!releaseTag) {
+      throw new Error(formatApiErrorMessage(
+        translate("admin.nodeTable.upgradeLatestReleaseTagUnavailable", {
+          repo,
+          defaultValue: "Latest Agent release tag is unavailable for {{repo}}",
         }),
-        { status: response.status },
-      ),
+      ));
+    }
+
+    const requiredAssetGroups = flavorNodes
+      .map((node) => buildAgentReleaseAssetNameCandidates(node))
+      .filter((candidates) => candidates.length > 0);
+    const requiredAssets = Array.from(
+      new Set(requiredAssetGroups.map((candidates) => candidates[0])),
     );
-  }
+    if (requiredAssets.length === 0) {
+      result[flavor] = releaseTag;
+      return;
+    }
 
-  const payload = (await response.json()) as GithubReleasePayload;
-  const releaseTag = normalizeAgentReleaseTag(payload.tag_name || payload.name);
-  if (!releaseTag) {
-    throw new Error(formatApiErrorMessage(
-      translate("admin.nodeTable.upgradeLatestReleaseTagUnavailable", {
-        defaultValue: "Latest Agent release tag is unavailable",
-      }),
-    ));
-  }
-
-  const requiredAssetGroups = nodes
-    .map((node) => buildAgentReleaseAssetNameCandidates(node))
-    .filter((candidates) => candidates.length > 0);
-  const requiredAssets = Array.from(
-    new Set(requiredAssetGroups.map((candidates) => candidates[0])),
-  );
-  if (requiredAssets.length === 0) {
-    return releaseTag;
-  }
-
-  const publishedAssets = new Set(
-    (payload.assets || [])
-      .map((asset) => String(asset?.name || "").trim())
-      .filter(Boolean),
-  );
-  const missingAssets = requiredAssetGroups
-    .filter((candidates) =>
-      !candidates.some((assetName) => publishedAssets.has(assetName)),
-    )
-    .map((candidates) => candidates[0]);
-  const uniqueMissingAssets = Array.from(new Set(missingAssets));
-  if (uniqueMissingAssets.length > 0) {
-    throw new Error(
-      formatApiErrorMessage(`Agent release ${releaseTag} is not fully published yet. Missing assets: ${uniqueMissingAssets.join(", ")}`),
+    const publishedAssets = new Set(
+      (payload.assets || [])
+        .map((asset) => String(asset?.name || "").trim())
+        .filter(Boolean),
     );
-  }
+    const missingAssets = requiredAssetGroups
+      .filter((candidates) =>
+        !candidates.some((assetName) => publishedAssets.has(assetName)),
+      )
+      .map((candidates) => candidates[0]);
+    const uniqueMissingAssets = Array.from(new Set(missingAssets));
+    if (uniqueMissingAssets.length > 0) {
+      throw new Error(
+        formatApiErrorMessage(`Agent release ${releaseTag} from ${repo} is not fully published yet. Missing assets: ${uniqueMissingAssets.join(", ")}`),
+      );
+    }
 
-  return releaseTag;
+    result[flavor] = releaseTag;
+  }));
+
+  return result;
 };
 
 const resolveScriptHost = (settings: SettingsResponse) => {
@@ -317,6 +352,7 @@ const buildAgentUpgradeCommand = (
   const host = resolveScriptHost(settings);
   const token = String(node.token || "").trim();
   const platform = detectNodePlatform(node);
+  const agentFlavor = getNodeAgentInstallFlavor(node);
   const pinnedVersion = normalizeAgentReleaseTag(installVersion);
   const targetVersionMessage = pinnedVersion
     ? ` Target version: ${pinnedVersion}.`
@@ -357,10 +393,10 @@ const buildAgentUpgradeCommand = (
     );
   }
 
-  const scriptUrl = buildAgentInstallScriptURL(
-    settings.base_scripts_url,
-    "install.sh",
-  );
+  const scriptUrl =
+    agentFlavor === "rust"
+      ? buildAgentInstallScriptURLForFlavor(settings.base_scripts_url, "install.sh", "rust")
+      : buildAgentInstallScriptURL(settings.base_scripts_url, "install.sh");
   const shellArgsList = ["-e", host, "-t", token];
   if (pinnedVersion) {
     shellArgsList.push("--install-version", pinnedVersion);
@@ -800,10 +836,14 @@ export default function GroupUpgradeDialog({
     updateResultState(initialState);
 
     try {
-      const installVersion = await resolveLatestAgentUpgradeVersion(onlineNodes);
+      const installVersions = await resolveLatestAgentUpgradeVersions(onlineNodes);
       const settled = await Promise.allSettled(
         onlineNodes.map(async (node) => {
-          const command = buildAgentUpgradeCommand(node, settings, installVersion);
+          const command = buildAgentUpgradeCommand(
+            node,
+            settings,
+            installVersions[getNodeAgentInstallFlavor(node)],
+          );
           if (!command) {
             throw new Error(
               t("admin.nodeTable.upgradeMissingToken", {
