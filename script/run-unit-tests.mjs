@@ -29,6 +29,7 @@ function loadTsModule(relativePath) {
     require,
     console,
     process,
+    URL,
     setTimeout,
     clearTimeout,
   }, { filename: absolutePath });
@@ -43,6 +44,7 @@ function test(name, fn) {
 
 const execHelpers = loadTsModule("src/pages/admin/exec.helpers.ts");
 const nodeLiveHelpers = loadTsModule("src/pages/admin/node-live.helpers.ts");
+const installScriptSource = loadTsModule("src/lib/installScriptSource.ts");
 
 test("exec helpers normalize task summaries from API envelopes", () => {
   const tasks = execHelpers.extractTaskSummaries({
@@ -103,6 +105,28 @@ test("node live helpers treat missing snapshots as offline after live data loads
 
 test("node table defaults to 50 rows per page", () => {
   assert.equal(nodeLiveHelpers.NODE_TABLE_DEFAULT_PAGE_SIZE, 50);
+});
+
+test("install script source uses rust default for linux agent flavor", () => {
+  assert.equal(
+    installScriptSource.buildAgentInstallScriptURLForFlavor(undefined, "install.sh", "rust"),
+    "https://raw.githubusercontent.com/keli-123456/kelicloud-agent-rs/refs/heads/main/install.sh",
+  );
+  assert.equal(
+    installScriptSource.buildAgentInstallScriptURLForFlavor("https://cdn.example.com/go-agent/", "install.sh", "rust"),
+    "https://raw.githubusercontent.com/keli-123456/kelicloud-agent-rs/refs/heads/main/install.sh",
+  );
+});
+
+test("install script source keeps go-compatible wrapper behavior", () => {
+  assert.equal(
+    installScriptSource.buildAgentInstallScriptURL(undefined, "install.sh"),
+    "https://raw.githubusercontent.com/keli-123456/kelicloud-agent/refs/heads/main/install.sh",
+  );
+  assert.equal(
+    installScriptSource.buildAgentInstallScriptURLForFlavor("https://github.com/example/agent/tree/dev/scripts", "install.ps1", "go"),
+    "https://raw.githubusercontent.com/example/agent/refs/heads/dev/scripts/install.ps1",
+  );
 });
 
 let passed = 0;

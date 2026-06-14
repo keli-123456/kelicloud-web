@@ -1,5 +1,9 @@
-const DEFAULT_AGENT_INSTALL_SCRIPT_BASE =
+export type AgentInstallFlavor = "go" | "rust";
+
+const GO_AGENT_INSTALL_SCRIPT_BASE =
   "https://raw.githubusercontent.com/keli-123456/kelicloud-agent/refs/heads/main";
+const RUST_AGENT_INSTALL_SCRIPT_BASE =
+  "https://raw.githubusercontent.com/keli-123456/kelicloud-agent-rs/refs/heads/main";
 
 function trimTrailingSlash(value: string) {
   return value.replace(/\/+$/, "");
@@ -56,7 +60,7 @@ function normalizeRawGitHubURLToBase(parsed: URL) {
 export function normalizeAgentInstallScriptBase(baseScriptsUrl?: string) {
   const raw = String(baseScriptsUrl || "").trim();
   if (!raw) {
-    return DEFAULT_AGENT_INSTALL_SCRIPT_BASE;
+    return GO_AGENT_INSTALL_SCRIPT_BASE;
   }
 
   let candidate = raw;
@@ -94,11 +98,35 @@ export function normalizeAgentInstallScriptBase(baseScriptsUrl?: string) {
   return trimTrailingSlash(candidate);
 }
 
+export function defaultAgentInstallScriptBase(flavor: AgentInstallFlavor) {
+  return flavor === "rust"
+    ? RUST_AGENT_INSTALL_SCRIPT_BASE
+    : GO_AGENT_INSTALL_SCRIPT_BASE;
+}
+
+export function normalizeAgentInstallScriptBaseForFlavor(
+  baseScriptsUrl: string | undefined,
+  flavor: AgentInstallFlavor
+) {
+  if (flavor === "rust") {
+    return defaultAgentInstallScriptBase("rust");
+  }
+  return normalizeAgentInstallScriptBase(baseScriptsUrl);
+}
+
+export function buildAgentInstallScriptURLForFlavor(
+  baseScriptsUrl: string | undefined,
+  scriptFile: string,
+  flavor: AgentInstallFlavor
+) {
+  const base = normalizeAgentInstallScriptBaseForFlavor(baseScriptsUrl, flavor);
+  const file = String(scriptFile || "install.sh").replace(/^\/+/, "");
+  return `${trimTrailingSlash(base)}/${file}`;
+}
+
 export function buildAgentInstallScriptURL(
   baseScriptsUrl: string | undefined,
   scriptFile: string
 ) {
-  const base = normalizeAgentInstallScriptBase(baseScriptsUrl);
-  const file = String(scriptFile || "install.sh").replace(/^\/+/, "");
-  return `${trimTrailingSlash(base)}/${file}`;
+  return buildAgentInstallScriptURLForFlavor(baseScriptsUrl, scriptFile, "go");
 }
