@@ -45,6 +45,7 @@ function test(name, fn) {
 const execHelpers = loadTsModule("src/pages/admin/exec.helpers.ts");
 const nodeLiveHelpers = loadTsModule("src/pages/admin/node-live.helpers.ts");
 const installScriptSource = loadTsModule("src/lib/installScriptSource.ts");
+const tunnelHelpers = loadTsModule("src/lib/tunnels.helpers.ts");
 
 test("exec helpers normalize task summaries from API envelopes", () => {
   const tasks = execHelpers.extractTaskSummaries({
@@ -127,6 +128,34 @@ test("install script source keeps go-compatible wrapper behavior", () => {
     installScriptSource.buildAgentInstallScriptURLForFlavor("https://github.com/example/agent/tree/dev/scripts", "install.ps1", "go"),
     "https://raw.githubusercontent.com/example/agent/refs/heads/dev/scripts/install.ps1",
   );
+});
+
+test("tunnel helpers normalize groups and tunnel rules", () => {
+  const payload = tunnelHelpers.normalizeTunnelRulesResponse({
+    groups: [{ name: " edge ", client_count: 2 }, { name: "", client_count: 9 }],
+    rules: [{
+      id: 7,
+      name: "RDP",
+      enabled: true,
+      protocol: "udp",
+      ingress_group: "edge",
+      listen_address: "",
+      listen_port: 10088,
+      egress_group: "rdp",
+      target_host: "127.0.0.1",
+      target_port: 3389,
+      max_concurrent_sessions: 0,
+      status: "",
+    }],
+  });
+
+  assert.equal(JSON.stringify(payload.groups), JSON.stringify([{ name: "edge", client_count: 2 }]));
+  assert.equal(payload.rules.length, 1);
+  assert.equal(payload.rules[0].protocol, "tcp");
+  assert.equal(payload.rules[0].listen_address, "0.0.0.0");
+  assert.equal(payload.rules[0].source_allowlist, "0.0.0.0/0");
+  assert.equal(payload.rules[0].max_concurrent_sessions, 32);
+  assert.equal(payload.rules[0].status, "ok");
 });
 
 test("legacy node action install command uses rust source for linux only", () => {
