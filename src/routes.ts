@@ -59,6 +59,12 @@ export const routes: RouteObject[] = [
         ),
       },
       {
+        path: "tunnels",
+        element: React.createElement(
+          lazy(() => import("./pages/admin/tunnels"))
+        ),
+      },
+      {
         path: "account",
         element: React.createElement(
           lazy(() => import("./pages/admin/account"))

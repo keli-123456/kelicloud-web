@@ -158,6 +158,19 @@ test("tunnel helpers normalize groups and tunnel rules", () => {
   assert.equal(payload.rules[0].status, "ok");
 });
 
+test("tunnel forwarding page is routed and visible in the admin menu", () => {
+  const routesSource = fs.readFileSync(path.resolve(root, "src/routes.ts"), "utf8");
+  const menuConfig = JSON.parse(fs.readFileSync(path.resolve(root, "src/config/menuConfig.json"), "utf8"));
+  const zhCN = JSON.parse(fs.readFileSync(path.resolve(root, "src/i18n/locales/zh_CN.json"), "utf8"));
+
+  assert.match(routesSource, /path:\s*"tunnels"/);
+  assert.match(routesSource, /pages\/admin\/tunnels/);
+
+  const menuItems = menuConfig.menu || [];
+  assert.ok(menuItems.some((item) => item.path === "/admin/tunnels" && item.labelKey === "tunnels.title"));
+  assert.equal(zhCN.tunnels.title, "隧道转发");
+});
+
 test("legacy node action install command uses rust source for linux only", () => {
   const source = fs.readFileSync(
     path.resolve(root, "src/components/admin/NodeTable/NodeFunction.tsx"),

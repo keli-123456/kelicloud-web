@@ -11,6 +11,11 @@
       "icon": "ServerCog"
     },
     {
+      "labelKey": "tunnels.title",
+      "path": "/admin/tunnels",
+      "icon": "Network"
+    },
+    {
       "labelKey": "cloud.title",
       "path": "/admin/cloud",
       "icon": "Cloud",
