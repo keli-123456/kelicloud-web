@@ -136,9 +136,77 @@ function groupOptions(groups: TunnelGroupSummary[], current: string) {
   const names = new Set(groups.map((group) => group.name));
   const options = [...groups];
   if (current && !names.has(current)) {
-    options.push({ name: current, client_count: 0 });
+    options.push({
+      name: current,
+      client_count: 0,
+      control_connected_count: 0,
+      data_ready_count: 0,
+      last_error: "",
+    });
   }
   return options;
+}
+
+function ReadinessPill({ ready, label }: { ready: boolean; label: string }) {
+  return (
+    <span
+      className={cn(
+        "inline-flex h-6 items-center rounded-md border px-2 text-xs font-medium",
+        ready
+          ? "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-300"
+          : "border-slate-200 bg-slate-50 text-slate-500 dark:border-slate-700 dark:bg-slate-900/50 dark:text-slate-400",
+      )}
+    >
+      {label}
+    </span>
+  );
+}
+
+function GroupReadinessStrip({
+  groups,
+  t,
+}: {
+  groups: TunnelGroupSummary[];
+  t: (key: string, options?: Record<string, unknown>) => string;
+}) {
+  if (groups.length === 0) {
+    return null;
+  }
+
+  return (
+    <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+      {groups.map((group) => (
+        <div
+          key={group.name}
+          className="rounded-md border border-slate-200 bg-white px-3 py-2 shadow-sm dark:border-slate-800 dark:bg-slate-950"
+        >
+          <div className="flex items-center justify-between gap-2">
+            <span className="min-w-0 truncate text-sm font-semibold text-slate-900 dark:text-slate-100">
+              {group.name}
+            </span>
+            <span className="shrink-0 text-xs text-slate-500">
+              {t("tunnels.group_clients", { count: group.client_count })}
+            </span>
+          </div>
+          <div className="mt-2 flex flex-wrap gap-1.5">
+            <ReadinessPill
+              ready={group.control_connected_count > 0}
+              label={t("tunnels.group_control_count", { count: group.control_connected_count })}
+            />
+            <ReadinessPill
+              ready={group.data_ready_count > 0}
+              label={t("tunnels.group_data_count", { count: group.data_ready_count })}
+            />
+          </div>
+          {group.last_error ? (
+            <div className="mt-1 truncate text-xs text-red-600 dark:text-red-300">
+              {group.last_error}
+            </div>
+          ) : null}
+        </div>
+      ))}
+    </div>
+  );
 }
 
 export default function TunnelForwardingPage() {
@@ -249,6 +317,8 @@ export default function TunnelForwardingPage() {
         </>
       )}
     >
+      <GroupReadinessStrip groups={groups} t={t} />
+
       <AdminPanel>
         <AdminPanelHeader
           title={t("tunnels.rules")}
@@ -256,7 +326,7 @@ export default function TunnelForwardingPage() {
         />
         <AdminPanelBody className="p-0">
           {loading ? (
-            <AdminTableSkeleton columns={8} rows={5} className="rounded-none border-0 shadow-none" />
+            <AdminTableSkeleton columns={9} rows={5} className="rounded-none border-0 shadow-none" />
           ) : rules.length === 0 ? (
             <div className="p-4">
               <AdminEmptyState
@@ -272,7 +342,7 @@ export default function TunnelForwardingPage() {
             </div>
           ) : (
             <AdminDataTableScroll>
-              <AdminDataTable minWidth={1120}>
+              <AdminDataTable minWidth={1240}>
                 <thead>
                   <AdminDataTableHeadRow>
                     <AdminDataTableHead className="w-[92px]">{t("common.status", { defaultValue: "状态" })}</AdminDataTableHead>
@@ -281,6 +351,7 @@ export default function TunnelForwardingPage() {
                     <AdminDataTableHead>{t("tunnels.listen")}</AdminDataTableHead>
                     <AdminDataTableHead>{t("tunnels.egress_group")}</AdminDataTableHead>
                     <AdminDataTableHead>{t("tunnels.target")}</AdminDataTableHead>
+                    <AdminDataTableHead>{t("tunnels.readiness")}</AdminDataTableHead>
                     <AdminDataTableHead className="w-[92px]">{t("tunnels.session_limit")}</AdminDataTableHead>
                     <AdminDataTableHead>{t("tunnels.last_error")}</AdminDataTableHead>
                     <AdminDataTableHead sticky="right" align="right" className="w-[112px]">
@@ -290,7 +361,7 @@ export default function TunnelForwardingPage() {
                 </thead>
                 <tbody>
                   {rules.length === 0 ? (
-                    <AdminDataTableEmptyRow colSpan={9}>
+                    <AdminDataTableEmptyRow colSpan={10}>
                       {t("tunnels.empty")}
                     </AdminDataTableEmptyRow>
                   ) : rules.map((rule) => (
@@ -317,6 +388,18 @@ export default function TunnelForwardingPage() {
                       </AdminDataTableCell>
                       <AdminDataTableCell className="font-mono">
                         {endpoint(rule.target_host, rule.target_port)}
+                      </AdminDataTableCell>
+                      <AdminDataTableCell>
+                        <div className="flex flex-wrap gap-1.5">
+                          <ReadinessPill
+                            ready={rule.ingress_ready}
+                            label={t("tunnels.ingress_ready_count", { count: rule.ingress_ready_count })}
+                          />
+                          <ReadinessPill
+                            ready={rule.egress_ready}
+                            label={t("tunnels.egress_ready_count", { count: rule.egress_ready_count })}
+                          />
+                        </div>
                       </AdminDataTableCell>
                       <AdminDataTableCell>
                         {rule.max_concurrent_sessions || 32}

@@ -3,6 +3,9 @@ export type TunnelProtocol = "tcp";
 export type TunnelGroupSummary = {
   name: string;
   client_count: number;
+  control_connected_count: number;
+  data_ready_count: number;
+  last_error: string;
 };
 
 export type TunnelRule = {
@@ -20,6 +23,10 @@ export type TunnelRule = {
   max_concurrent_sessions: number;
   remark: string;
   status: string;
+  ingress_ready: boolean;
+  egress_ready: boolean;
+  ingress_ready_count: number;
+  egress_ready_count: number;
   last_revision: number;
   last_error: string;
   created_at: string;
@@ -81,6 +88,9 @@ export function normalizeTunnelGroup(value: unknown): TunnelGroupSummary | null 
   return {
     name,
     client_count: normalizeNumber(raw.client_count),
+    control_connected_count: normalizeNumber(raw.control_connected_count),
+    data_ready_count: normalizeNumber(raw.data_ready_count),
+    last_error: normalizeString(raw.last_error),
   };
 }
 
@@ -105,6 +115,10 @@ export function normalizeTunnelRule(value: unknown): TunnelRule | null {
     max_concurrent_sessions: normalizePositiveNumber(raw.max_concurrent_sessions, 32),
     remark: normalizeString(raw.remark),
     status: normalizeString(raw.status).trim() || "ok",
+    ingress_ready: normalizeBoolean(raw.ingress_ready),
+    egress_ready: normalizeBoolean(raw.egress_ready),
+    ingress_ready_count: normalizeNumber(raw.ingress_ready_count),
+    egress_ready_count: normalizeNumber(raw.egress_ready_count),
     last_revision: normalizeNumber(raw.last_revision),
     last_error: normalizeString(raw.last_error),
     created_at: normalizeString(raw.created_at),

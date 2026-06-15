@@ -132,7 +132,16 @@ test("install script source keeps go-compatible wrapper behavior", () => {
 
 test("tunnel helpers normalize groups and tunnel rules", () => {
   const payload = tunnelHelpers.normalizeTunnelRulesResponse({
-    groups: [{ name: " edge ", client_count: 2 }, { name: "", client_count: 9 }],
+    groups: [
+      {
+        name: " edge ",
+        client_count: 2,
+        control_connected_count: 1,
+        data_ready_count: 1,
+        last_error: "",
+      },
+      { name: "", client_count: 9 },
+    ],
     rules: [{
       id: 7,
       name: "RDP",
@@ -146,20 +155,35 @@ test("tunnel helpers normalize groups and tunnel rules", () => {
       target_port: 3389,
       max_concurrent_sessions: 0,
       status: "",
+      ingress_ready: true,
+      egress_ready: false,
+      ingress_ready_count: 1,
+      egress_ready_count: 0,
     }],
   });
 
-  assert.equal(JSON.stringify(payload.groups), JSON.stringify([{ name: "edge", client_count: 2 }]));
+  assert.equal(JSON.stringify(payload.groups), JSON.stringify([{
+    name: "edge",
+    client_count: 2,
+    control_connected_count: 1,
+    data_ready_count: 1,
+    last_error: "",
+  }]));
   assert.equal(payload.rules.length, 1);
   assert.equal(payload.rules[0].protocol, "tcp");
   assert.equal(payload.rules[0].listen_address, "0.0.0.0");
   assert.equal(payload.rules[0].source_allowlist, "0.0.0.0/0");
   assert.equal(payload.rules[0].max_concurrent_sessions, 32);
   assert.equal(payload.rules[0].status, "ok");
+  assert.equal(payload.rules[0].ingress_ready, true);
+  assert.equal(payload.rules[0].egress_ready, false);
+  assert.equal(payload.rules[0].ingress_ready_count, 1);
+  assert.equal(payload.rules[0].egress_ready_count, 0);
 });
 
 test("tunnel forwarding page is routed and visible in the admin menu", () => {
   const routesSource = fs.readFileSync(path.resolve(root, "src/routes.ts"), "utf8");
+  const tunnelsPageSource = fs.readFileSync(path.resolve(root, "src/pages/admin/tunnels.tsx"), "utf8");
   const menuConfig = JSON.parse(fs.readFileSync(path.resolve(root, "src/config/menuConfig.json"), "utf8"));
   const zhCN = JSON.parse(fs.readFileSync(path.resolve(root, "src/i18n/locales/zh_CN.json"), "utf8"));
 
@@ -169,6 +193,10 @@ test("tunnel forwarding page is routed and visible in the admin menu", () => {
   const menuItems = menuConfig.menu || [];
   assert.ok(menuItems.some((item) => item.path === "/admin/tunnels" && item.labelKey === "tunnels.title"));
   assert.equal(zhCN.tunnels.title, "隧道转发");
+  assert.match(tunnelsPageSource, /GroupReadinessStrip/);
+  assert.match(tunnelsPageSource, /ingress_ready_count/);
+  assert.match(tunnelsPageSource, /egress_ready_count/);
+  assert.equal(zhCN.tunnels.readiness, "就绪");
 });
 
 test("legacy node action install command uses rust source for linux only", () => {
