@@ -161,6 +161,15 @@ test("tunnel helpers normalize groups and tunnel rules", () => {
       ingress_ready_count: 1,
       egress_ready_count: 0,
       active_sessions: 3,
+      diagnostics: [
+        {
+          client_uuid: "edge-a",
+          side: "ingress",
+          status: "listen_bind_failed",
+          error: "cannot bind listener 127.0.0.1:10088",
+        },
+        { client_uuid: "", status: "" },
+      ],
     }],
   });
 
@@ -182,6 +191,9 @@ test("tunnel helpers normalize groups and tunnel rules", () => {
   assert.equal(payload.rules[0].ingress_ready_count, 1);
   assert.equal(payload.rules[0].egress_ready_count, 0);
   assert.equal(payload.rules[0].active_sessions, 3);
+  assert.equal(payload.rules[0].diagnostics.length, 1);
+  assert.equal(payload.rules[0].diagnostics[0].side, "ingress");
+  assert.equal(payload.rules[0].diagnostics[0].status, "listen_bind_failed");
 });
 
 test("tunnel page helpers summarize overview and endpoints", () => {
@@ -220,6 +232,33 @@ test("tunnel page helpers summarize overview and endpoints", () => {
   assert.equal(tunnelPageHelpers.formatTunnelEndpoint("", 0), "-");
   assert.equal(tunnelPageHelpers.getTunnelStatusTone("ok"), "green");
   assert.equal(tunnelPageHelpers.getTunnelStatusTone("partial"), "amber");
+  const preview = tunnelPageHelpers.getTunnelDiagnosticPreview({
+    diagnostics: [
+      {
+        client_uuid: "edge-a",
+        side: "ingress",
+        status: "listen_bind_failed",
+        error: "cannot bind listener 127.0.0.1:10088",
+      },
+      {
+        client_uuid: "rdp-a",
+        side: "egress",
+        status: "invalid_target",
+        error: "target host and port are required",
+      },
+      {
+        client_uuid: "node-c",
+        side: "ingress",
+        status: "unsupported_os",
+        error: "tunnel forwarding is only supported on Linux",
+      },
+    ],
+    last_error: "",
+  });
+  assert.equal(JSON.stringify(preview.lines), JSON.stringify(["入口: 监听端口不可用", "出口: 目标地址无效"]));
+  assert.equal(preview.extraCount, 1);
+  assert.equal(tunnelPageHelpers.getTunnelDiagnosticLabel("unsupported_os"), "非 Linux Agent");
+  assert.equal(tunnelPageHelpers.getTunnelDiagnosticLabel("custom_status"), "custom_status");
 });
 
 test("tunnel forwarding page is routed and visible in the admin menu", () => {

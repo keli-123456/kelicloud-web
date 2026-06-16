@@ -1,4 +1,8 @@
-import type { TunnelGroupSummary, TunnelRule } from "../../lib/tunnels.helpers";
+import type {
+  TunnelGroupSummary,
+  TunnelRule,
+  TunnelRuleDiagnostic,
+} from "../../lib/tunnels.helpers";
 
 export type TunnelStatusTone = "gray" | "red" | "amber" | "green" | "blue";
 
@@ -37,6 +41,56 @@ export function formatTunnelEndpoint(host: string, port: number) {
       ? `[${cleanHost}]`
       : cleanHost;
   return `${displayHost}:${port}`;
+}
+
+export type TunnelDiagnosticPreview = {
+  lines: string[];
+  extraCount: number;
+};
+
+export function getTunnelDiagnosticLabel(status: string) {
+  switch (String(status || "").trim()) {
+    case "unsupported_os":
+      return "非 Linux Agent";
+    case "listen_bind_failed":
+      return "监听端口不可用";
+    case "invalid_target":
+      return "目标地址无效";
+    case "invalid_allowlist":
+      return "来源白名单无效";
+    default:
+      return String(status || "").trim() || "异常";
+  }
+}
+
+export function getTunnelDiagnosticSideLabel(side: string) {
+  switch (String(side || "").trim()) {
+    case "ingress":
+      return "入口";
+    case "egress":
+      return "出口";
+    default:
+      return "规则";
+  }
+}
+
+export function getTunnelDiagnosticPreview(
+  rule: Pick<TunnelRule, "diagnostics" | "last_error">,
+): TunnelDiagnosticPreview {
+  const diagnostics = Array.isArray(rule.diagnostics) ? rule.diagnostics : [];
+  if (diagnostics.length === 0) {
+    const fallback = String(rule.last_error || "").trim();
+    return { lines: fallback ? [fallback] : [], extraCount: 0 };
+  }
+
+  const lines = diagnostics.slice(0, 2).map((diagnostic: TunnelRuleDiagnostic) => {
+    const side = getTunnelDiagnosticSideLabel(diagnostic.side);
+    return `${side}: ${getTunnelDiagnosticLabel(diagnostic.status)}`;
+  });
+  return {
+    lines,
+    extraCount: Math.max(0, diagnostics.length - lines.length),
+  };
 }
 
 export function getTunnelOverviewMetrics(

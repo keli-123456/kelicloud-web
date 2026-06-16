@@ -59,6 +59,7 @@ import {
 import { cn } from "@/lib/utils";
 import {
   formatTunnelEndpoint,
+  getTunnelDiagnosticPreview,
   getTunnelOverviewMetrics,
   getTunnelStatusTone,
   type TunnelOverviewMetrics,
@@ -244,6 +245,26 @@ function ReadinessPill({ ready, label }: { ready: boolean; label: string }) {
     >
       {label}
     </span>
+  );
+}
+
+function TunnelDiagnosticsCell({ rule }: { rule: TunnelRule }) {
+  const preview = getTunnelDiagnosticPreview(rule);
+  if (preview.lines.length === 0) {
+    return <span className="text-muted-foreground">-</span>;
+  }
+
+  return (
+    <div className="grid max-w-[240px] gap-0.5 text-[12px] leading-4">
+      {preview.lines.map((line) => (
+        <div key={line} className="truncate text-muted-foreground">
+          {line}
+        </div>
+      ))}
+      {preview.extraCount > 0 ? (
+        <div className="text-muted-foreground">+{preview.extraCount}</div>
+      ) : null}
+    </div>
   );
 }
 
@@ -441,7 +462,7 @@ export default function TunnelForwardingPage() {
                     <AdminDataTableHead>{t("tunnels.listen")}</AdminDataTableHead>
                     <AdminDataTableHead>{t("tunnels.target")}</AdminDataTableHead>
                     <AdminDataTableHead className="w-[220px]">{t("tunnels.readiness")}</AdminDataTableHead>
-                    <AdminDataTableHead>{t("tunnels.last_error")}</AdminDataTableHead>
+                    <AdminDataTableHead className="w-[240px]">{t("tunnels.last_error")}</AdminDataTableHead>
                     <AdminDataTableHead sticky="right" align="right" className="w-[112px]">
                       {t("common.actions", { defaultValue: "操作" })}
                     </AdminDataTableHead>
@@ -501,8 +522,8 @@ export default function TunnelForwardingPage() {
                           </div>
                         </div>
                       </AdminDataTableCell>
-                      <AdminDataTableCell className="max-w-[220px] truncate text-muted-foreground">
-                        {rule.last_error || "-"}
+                      <AdminDataTableCell className="max-w-[240px]">
+                        <TunnelDiagnosticsCell rule={rule} />
                       </AdminDataTableCell>
                       <AdminDataTableCell sticky="right" align="right">
                         <div className="flex items-center justify-end gap-1.5">

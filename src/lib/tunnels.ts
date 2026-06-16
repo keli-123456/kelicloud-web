@@ -11,6 +11,7 @@ export type {
   TunnelGroupSummary,
   TunnelProtocol,
   TunnelRule,
+  TunnelRuleDiagnostic,
   TunnelRuleInput,
   TunnelRulesResponse,
 } from "./tunnels.helpers";

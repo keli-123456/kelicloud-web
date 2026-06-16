@@ -8,6 +8,13 @@ export type TunnelGroupSummary = {
   last_error: string;
 };
 
+export type TunnelRuleDiagnostic = {
+  client_uuid: string;
+  side: string;
+  status: string;
+  error: string;
+};
+
 export type TunnelRule = {
   id: number;
   name: string;
@@ -29,6 +36,7 @@ export type TunnelRule = {
   egress_ready_count: number;
   active_sessions: number;
   last_revision: number;
+  diagnostics: TunnelRuleDiagnostic[];
   last_error: string;
   created_at: string;
   updated_at: string;
@@ -95,6 +103,35 @@ export function normalizeTunnelGroup(value: unknown): TunnelGroupSummary | null 
   };
 }
 
+export function normalizeTunnelRuleDiagnostic(value: unknown): TunnelRuleDiagnostic | null {
+  if (!value || typeof value !== "object") {
+    return null;
+  }
+
+  const raw = value as Record<string, unknown>;
+  const status = normalizeString(raw.status).trim();
+  const error = normalizeString(raw.error).trim();
+  if (!status && !error) {
+    return null;
+  }
+  return {
+    client_uuid: normalizeString(raw.client_uuid).trim(),
+    side: normalizeString(raw.side).trim(),
+    status,
+    error,
+  };
+}
+
+export function normalizeTunnelRuleDiagnostics(value: unknown): TunnelRuleDiagnostic[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+  return value.flatMap((item) => {
+    const diagnostic = normalizeTunnelRuleDiagnostic(item);
+    return diagnostic ? [diagnostic] : [];
+  });
+}
+
 export function normalizeTunnelRule(value: unknown): TunnelRule | null {
   if (!value || typeof value !== "object") {
     return null;
@@ -122,6 +159,7 @@ export function normalizeTunnelRule(value: unknown): TunnelRule | null {
     egress_ready_count: normalizeNumber(raw.egress_ready_count),
     active_sessions: normalizeNumber(raw.active_sessions),
     last_revision: normalizeNumber(raw.last_revision),
+    diagnostics: normalizeTunnelRuleDiagnostics(raw.diagnostics),
     last_error: normalizeString(raw.last_error),
     created_at: normalizeString(raw.created_at),
     updated_at: normalizeString(raw.updated_at),
