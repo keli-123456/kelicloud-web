@@ -54,6 +54,12 @@ export function getTunnelDiagnosticLabel(status: string) {
       return "非 Linux Agent";
     case "listen_bind_failed":
       return "监听端口不可用";
+    case "listener_start_failed":
+      return "监听启动失败";
+    case "listener_stopped":
+      return "监听已停止";
+    case "listener_runtime_error":
+      return "监听运行异常";
     case "invalid_target":
       return "目标地址无效";
     case "invalid_allowlist":

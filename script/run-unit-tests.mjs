@@ -258,6 +258,21 @@ test("tunnel page helpers summarize overview and endpoints", () => {
   assert.equal(JSON.stringify(preview.lines), JSON.stringify(["入口: 监听端口不可用", "出口: 目标地址无效"]));
   assert.equal(preview.extraCount, 1);
   assert.equal(tunnelPageHelpers.getTunnelDiagnosticLabel("unsupported_os"), "非 Linux Agent");
+  assert.equal(tunnelPageHelpers.getTunnelDiagnosticLabel("listener_start_failed"), "监听启动失败");
+  assert.equal(tunnelPageHelpers.getTunnelDiagnosticLabel("listener_stopped"), "监听已停止");
+  assert.equal(tunnelPageHelpers.getTunnelDiagnosticLabel("listener_runtime_error"), "监听运行异常");
+  const runtimePreview = tunnelPageHelpers.getTunnelDiagnosticPreview({
+    diagnostics: [
+      {
+        client_uuid: "edge-a",
+        side: "ingress",
+        status: "listener_runtime_error",
+        error: "accept failed: socket closed",
+      },
+    ],
+    last_error: "",
+  });
+  assert.equal(JSON.stringify(runtimePreview.lines), JSON.stringify(["入口: 监听运行异常"]));
   assert.equal(tunnelPageHelpers.getTunnelDiagnosticLabel("custom_status"), "custom_status");
 });
 
