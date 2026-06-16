@@ -27,6 +27,7 @@ export type TunnelRule = {
   egress_ready: boolean;
   ingress_ready_count: number;
   egress_ready_count: number;
+  active_sessions: number;
   last_revision: number;
   last_error: string;
   created_at: string;
@@ -119,6 +120,7 @@ export function normalizeTunnelRule(value: unknown): TunnelRule | null {
     egress_ready: normalizeBoolean(raw.egress_ready),
     ingress_ready_count: normalizeNumber(raw.ingress_ready_count),
     egress_ready_count: normalizeNumber(raw.egress_ready_count),
+    active_sessions: normalizeNumber(raw.active_sessions),
     last_revision: normalizeNumber(raw.last_revision),
     last_error: normalizeString(raw.last_error),
     created_at: normalizeString(raw.created_at),

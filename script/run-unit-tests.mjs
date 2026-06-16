@@ -46,6 +46,7 @@ const execHelpers = loadTsModule("src/pages/admin/exec.helpers.ts");
 const nodeLiveHelpers = loadTsModule("src/pages/admin/node-live.helpers.ts");
 const installScriptSource = loadTsModule("src/lib/installScriptSource.ts");
 const tunnelHelpers = loadTsModule("src/lib/tunnels.helpers.ts");
+const tunnelPageHelpers = loadTsModule("src/pages/admin/tunnels.helpers.ts");
 
 test("exec helpers normalize task summaries from API envelopes", () => {
   const tasks = execHelpers.extractTaskSummaries({
@@ -159,6 +160,7 @@ test("tunnel helpers normalize groups and tunnel rules", () => {
       egress_ready: false,
       ingress_ready_count: 1,
       egress_ready_count: 0,
+      active_sessions: 3,
     }],
   });
 
@@ -179,6 +181,45 @@ test("tunnel helpers normalize groups and tunnel rules", () => {
   assert.equal(payload.rules[0].egress_ready, false);
   assert.equal(payload.rules[0].ingress_ready_count, 1);
   assert.equal(payload.rules[0].egress_ready_count, 0);
+  assert.equal(payload.rules[0].active_sessions, 3);
+});
+
+test("tunnel page helpers summarize overview and endpoints", () => {
+  const rules = [
+    {
+      id: 1,
+      enabled: true,
+      status: "ok",
+      ingress_ready: true,
+      egress_ready: true,
+      active_sessions: 2,
+    },
+    {
+      id: 2,
+      enabled: true,
+      status: "partial",
+      ingress_ready: true,
+      egress_ready: false,
+      active_sessions: 0,
+    },
+  ];
+  const groups = [
+    { name: "edge", client_count: 2, control_connected_count: 1, data_ready_count: 1, last_error: "" },
+    { name: "empty", client_count: 1, control_connected_count: 0, data_ready_count: 0, last_error: "" },
+  ];
+
+  assert.equal(JSON.stringify(tunnelPageHelpers.getTunnelOverviewMetrics(rules, groups)), JSON.stringify({
+    totalRules: 2,
+    healthyRules: 1,
+    activeSessions: 2,
+    totalGroups: 2,
+    readyGroups: 1,
+  }));
+  assert.equal(tunnelPageHelpers.formatTunnelEndpoint("127.0.0.1", 3389), "127.0.0.1:3389");
+  assert.equal(tunnelPageHelpers.formatTunnelEndpoint("2607:f358:1a:e::ab0:39b7", 3389), "[2607:f358:1a:e::ab0:39b7]:3389");
+  assert.equal(tunnelPageHelpers.formatTunnelEndpoint("", 0), "-");
+  assert.equal(tunnelPageHelpers.getTunnelStatusTone("ok"), "green");
+  assert.equal(tunnelPageHelpers.getTunnelStatusTone("partial"), "amber");
 });
 
 test("tunnel forwarding page is routed and visible in the admin menu", () => {
