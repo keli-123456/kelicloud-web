@@ -31,6 +31,52 @@ export function getTunnelStatusTone(status: string): TunnelStatusTone {
   return "red";
 }
 
+function getPrimaryTunnelDiagnostic(
+  diagnostics: TunnelRuleDiagnostic[],
+): TunnelRuleDiagnostic | null {
+  const priority = [
+    "listen_bind_failed",
+    "listener_start_failed",
+    "listener_runtime_error",
+    "listener_stopped",
+    "invalid_target",
+    "invalid_allowlist",
+    "unsupported_os",
+  ];
+  for (const status of priority) {
+    const diagnostic = diagnostics.find((item) => item.status === status);
+    if (diagnostic) {
+      return diagnostic;
+    }
+  }
+  return diagnostics[0] || null;
+}
+
+export function getTunnelStatusLabel(
+  rule: Pick<TunnelRule, "status" | "diagnostics" | "last_error">,
+  fallbackStatusLabel?: string,
+) {
+  const diagnostics = Array.isArray(rule.diagnostics) ? rule.diagnostics : [];
+  const primaryDiagnostic = getPrimaryTunnelDiagnostic(diagnostics);
+  if (primaryDiagnostic) {
+    return getTunnelDiagnosticLabel(primaryDiagnostic.status);
+  }
+
+  const status = String(rule.status || "").trim();
+  switch (status) {
+    case "listen_bind_failed":
+    case "listener_start_failed":
+    case "listener_runtime_error":
+    case "listener_stopped":
+    case "invalid_target":
+    case "invalid_allowlist":
+    case "unsupported_os":
+      return getTunnelDiagnosticLabel(status);
+    default:
+      return fallbackStatusLabel || status || "异常";
+  }
+}
+
 export function formatTunnelEndpoint(host: string, port: number) {
   const cleanHost = String(host || "").trim();
   if (!cleanHost || !port) {

@@ -61,6 +61,7 @@ import {
   formatTunnelEndpoint,
   getTunnelDiagnosticPreview,
   getTunnelOverviewMetrics,
+  getTunnelStatusLabel,
   getTunnelStatusTone,
   type TunnelOverviewMetrics,
   type TunnelStatusTone,
@@ -456,7 +457,7 @@ export default function TunnelForwardingPage() {
               <AdminDataTable minWidth={1040}>
                 <thead>
                   <AdminDataTableHeadRow>
-                    <AdminDataTableHead className="w-[92px]">{t("common.status", { defaultValue: "状态" })}</AdminDataTableHead>
+                    <AdminDataTableHead className="w-[132px]">{t("common.status", { defaultValue: "状态" })}</AdminDataTableHead>
                     <AdminDataTableHead className="w-[150px]">{t("common.name", { defaultValue: "名称" })}</AdminDataTableHead>
                     <AdminDataTableHead>{t("tunnels.route", { defaultValue: "路由" })}</AdminDataTableHead>
                     <AdminDataTableHead>{t("tunnels.listen")}</AdminDataTableHead>
@@ -476,8 +477,14 @@ export default function TunnelForwardingPage() {
                   ) : rules.map((rule) => (
                     <AdminDataTableRow key={rule.id}>
                       <AdminDataTableCell>
-                        <Badge color={getTunnelStatusTone(rule.status)}>
-                          {t(`tunnels.status.${rule.status}`, { defaultValue: rule.status })}
+                        <Badge
+                          color={getTunnelStatusTone(rule.status)}
+                          title={rule.last_error || rule.status}
+                        >
+                          {getTunnelStatusLabel(
+                            rule,
+                            t(`tunnels.status.${rule.status}`, { defaultValue: rule.status }),
+                          )}
                         </Badge>
                       </AdminDataTableCell>
                       <AdminDataTableCell className="font-medium">

@@ -232,6 +232,26 @@ test("tunnel page helpers summarize overview and endpoints", () => {
   assert.equal(tunnelPageHelpers.formatTunnelEndpoint("", 0), "-");
   assert.equal(tunnelPageHelpers.getTunnelStatusTone("ok"), "green");
   assert.equal(tunnelPageHelpers.getTunnelStatusTone("partial"), "amber");
+  assert.equal(tunnelPageHelpers.getTunnelStatusLabel({
+    status: "relay_unavailable",
+    diagnostics: [{
+      client_uuid: "edge-a",
+      side: "ingress",
+      status: "listen_bind_failed",
+      error: "cannot bind listener 0.0.0.0:10088",
+    }],
+    last_error: "",
+  }), "监听端口不可用");
+  assert.equal(tunnelPageHelpers.getTunnelStatusLabel({
+    status: "invalid_target",
+    diagnostics: [{
+      client_uuid: "rdp-a",
+      side: "egress",
+      status: "invalid_target",
+      error: "target host and port are required",
+    }],
+    last_error: "",
+  }), "目标地址无效");
   const preview = tunnelPageHelpers.getTunnelDiagnosticPreview({
     diagnostics: [
       {
