@@ -390,6 +390,9 @@ export default function GenerateCommandDialog({
       groupMode ? scopedAutoDiscoveryKey : autoDiscoveryKey,
     );
 
+    if (agentFlavor === "rust") {
+      args.push("--enable-tunnel-data");
+    }
     if (installOptions.disableWebSsh) {
       args.push("--disable-web-ssh");
     }

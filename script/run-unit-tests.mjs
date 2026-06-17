@@ -306,6 +306,25 @@ test("legacy node action install command uses rust source for linux only", () =>
   assert.match(source, /selectedPlatform !== "linux" && installOptions\.serviceName/);
 });
 
+test("linux rust install and upgrade commands enable tunnel data", () => {
+  const legacyInstallSource = fs.readFileSync(
+    path.resolve(root, "src/components/admin/NodeTable/NodeFunction.tsx"),
+    "utf8",
+  );
+  const commandDialogSource = fs.readFileSync(
+    path.resolve(root, "src/components/admin/node-details/GenerateCommandDialog.tsx"),
+    "utf8",
+  );
+  const groupUpgradeSource = fs.readFileSync(
+    path.resolve(root, "src/components/admin/node-details/GroupUpgradeDialog.tsx"),
+    "utf8",
+  );
+
+  assert.match(legacyInstallSource, /args\.push\("--enable-tunnel-data"\)/);
+  assert.match(commandDialogSource, /args\.push\("--enable-tunnel-data"\)/);
+  assert.match(groupUpgradeSource, /shellArgsList\.push\("--enable-tunnel-data"\)/);
+});
+
 let passed = 0;
 for (const { name, fn } of tests) {
   try {

@@ -137,6 +137,9 @@ export function ActionsCell({ row }: { row: Row<z.infer<typeof schema>> }) {
     const token = row.original.token;
     let args = ["-e", host, "-t", token];
     const isLinuxRustAgent = selectedPlatform === "linux";
+    if (isLinuxRustAgent) {
+      args.push("--enable-tunnel-data");
+    }
     // 根据安装选项生成参数
     if (installOptions.disableWebSsh) {
       args.push("--disable-web-ssh");

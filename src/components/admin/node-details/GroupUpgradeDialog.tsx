@@ -398,6 +398,9 @@ const buildAgentUpgradeCommand = (
       ? buildAgentInstallScriptURLForFlavor(settings.base_scripts_url, "install.sh", "rust")
       : buildAgentInstallScriptURL(settings.base_scripts_url, "install.sh");
   const shellArgsList = ["-e", host, "-t", token];
+  if (agentFlavor === "rust") {
+    shellArgsList.push("--enable-tunnel-data");
+  }
   if (pinnedVersion) {
     shellArgsList.push("--install-version", pinnedVersion);
   }
