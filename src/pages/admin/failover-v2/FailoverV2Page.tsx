@@ -7060,7 +7060,7 @@ export default function FailoverV2Page() {
             <AlertDialogDescription>
               {platformAdmin
                 ? t("failover_v2.failover_now_description", {
-                    defaultValue: "This will detach the selected member line from DNS, create a replacement instance with the configured member provider, wait for the new agent, validate outlet connectivity, run service scripts, and then attach the new IP back to this line. The old instance is kept for now.",
+                    defaultValue: "This will detach the selected member line from DNS, create a replacement instance with the configured member provider, wait for the new agent, validate outlet connectivity, run service scripts, and then attach the new IP back to this line. Old-instance cleanup follows the service cleanup policy after the replacement succeeds.",
                   })
                 : t("failover_v2.public.failover_now_description", {
                     defaultValue: "这会立即为所选成员发起恢复流程。处理完成后，线路会切换到新的可用地址。",
