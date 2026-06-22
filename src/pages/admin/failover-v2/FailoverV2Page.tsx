@@ -153,6 +153,10 @@ import {
   validateFailoverV2Service,
 } from "@/lib/failoverV2";
 import {
+  getFailoverV2MemberTaskStatusSource,
+  getFailoverV2ProbeAlertStatus,
+} from "./failoverV2Display.helpers";
+import {
   COMMON_AWS_REGIONS,
   COMMON_AZURE_LOCATIONS,
   COMMON_AZURE_SIZES,
@@ -856,8 +860,14 @@ function getStatusBadgeColor(status: string): "gray" | "green" | "amber" | "red"
     case "pending":
     case "warning":
     case "manual_review":
+    case "stale":
+    case "degraded":
       return "amber";
     case "failed":
+    case "failure":
+    case "error":
+    case "blocked":
+    case "blocked_suspected":
       return "red";
     default:
       return "gray";
@@ -1580,8 +1590,13 @@ function formatMemberScriptStatusSummary(t: TFunction, execution: FailoverV2Exec
   return localizeFailoverV2Status(t, inferMemberScriptStatus(execution));
 }
 
-function formatMemberTaskStatusSummary(t: TFunction, execution: FailoverV2ExecutionSummary | null) {
-  if (!execution) {
+function formatMemberTaskStatusSummary(t: TFunction, member: FailoverV2Member, execution: FailoverV2ExecutionSummary | null) {
+  const source = getFailoverV2MemberTaskStatusSource(member, execution);
+  if (source === "probe") {
+    const alertStatus = getFailoverV2ProbeAlertStatus(member) || "warning";
+    return `${t("failover_v2.table.probe", { defaultValue: "Probe" })}: ${localizeFailoverV2Status(t, alertStatus)}`;
+  }
+  if (source === "empty" || !execution) {
     return t("failover_v2.execution_empty", { defaultValue: "No executions recorded yet." });
   }
   const statusLabel = localizeFailoverV2Status(t, execution.status || "unknown");
@@ -4897,7 +4912,8 @@ export default function FailoverV2Page() {
                                     const memberActionsDisabled = memberBusy;
                                     const memberLineCodes = getMemberLineCodes(member);
                                     const latestMemberExecution = findLatestMemberExecutionSummary(service, member.id);
-                                    const memberTaskStatus = formatMemberTaskStatusSummary(t, latestMemberExecution);
+                                    const memberProbeAlertStatus = getFailoverV2ProbeAlertStatus(member);
+                                    const memberTaskStatus = formatMemberTaskStatusSummary(t, member, latestMemberExecution);
                                     const watchedNode = findNodeByWatchClientUUID(nodes, member.watch_client_uuid);
                                     const memberIPv4Address = resolveMemberAddressByFamily(member, latestMemberExecution, watchedNode, "ipv4");
                                     const memberIPv6Address = resolveMemberAddressByFamily(member, latestMemberExecution, watchedNode, "ipv6");
@@ -4924,6 +4940,7 @@ export default function FailoverV2Page() {
                                         className={cn(
                                           "admin-grid-row admin-grid-row-nested grid min-w-0 cursor-pointer grid-cols-[minmax(220px,1fr)_minmax(170px,0.76fr)_minmax(170px,0.82fr)_68px] items-center gap-3 px-3 py-2",
                                           memberBusy && "bg-[var(--surface-pressed)]",
+                                          memberProbeAlertStatus && !memberBusy && "bg-red-50/60 dark:bg-red-950/20",
                                         )}
                                       >
                                         <div className="min-w-0">
@@ -4957,7 +4974,13 @@ export default function FailoverV2Page() {
                                         </div>
 
                                         <div className="min-w-0 whitespace-nowrap text-xs text-muted-foreground">
-                                          <div className="truncate text-sm font-medium text-foreground" title={memberTaskStatus}>
+                                          <div
+                                            className={cn(
+                                              "truncate text-sm font-medium",
+                                              memberProbeAlertStatus ? "text-red-600 dark:text-red-300" : "text-foreground",
+                                            )}
+                                            title={memberTaskStatus}
+                                          >
                                             {memberTaskStatus}
                                           </div>
                                         </div>

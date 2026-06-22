@@ -47,6 +47,7 @@ const nodeLiveHelpers = loadTsModule("src/pages/admin/node-live.helpers.ts");
 const installScriptSource = loadTsModule("src/lib/installScriptSource.ts");
 const tunnelHelpers = loadTsModule("src/lib/tunnels.helpers.ts");
 const tunnelPageHelpers = loadTsModule("src/pages/admin/tunnels.helpers.ts");
+const failoverV2DisplayHelpers = loadTsModule("src/pages/admin/failover-v2/failoverV2Display.helpers.ts");
 
 test("exec helpers normalize task summaries from API envelopes", () => {
   const tasks = execHelpers.extractTaskSummaries({
@@ -294,6 +295,36 @@ test("tunnel page helpers summarize overview and endpoints", () => {
   });
   assert.equal(JSON.stringify(runtimePreview.lines), JSON.stringify(["入口: 监听运行异常"]));
   assert.equal(tunnelPageHelpers.getTunnelDiagnosticLabel("custom_status"), "custom_status");
+});
+
+test("failover v2 member status prioritizes blocked probe over last success", () => {
+  const member = {
+    failure_threshold: 2,
+    probe: {
+      status: "blocked_suspected",
+      consecutive_failures: 2,
+      stale: false,
+    },
+  };
+  const execution = { id: 82183, status: "success" };
+
+  assert.equal(failoverV2DisplayHelpers.getFailoverV2ProbeAlertStatus(member), "blocked_suspected");
+  assert.equal(failoverV2DisplayHelpers.getFailoverV2MemberTaskStatusSource(member, execution), "probe");
+});
+
+test("failover v2 member status keeps last execution when probe is ok", () => {
+  const member = {
+    failure_threshold: 2,
+    probe: {
+      status: "ok",
+      consecutive_failures: 0,
+      stale: false,
+    },
+  };
+  const execution = { id: 82182, status: "success" };
+
+  assert.equal(failoverV2DisplayHelpers.getFailoverV2ProbeAlertStatus(member), null);
+  assert.equal(failoverV2DisplayHelpers.getFailoverV2MemberTaskStatusSource(member, execution), "execution");
 });
 
 test("tunnel forwarding page is routed and visible in the admin menu", () => {
