@@ -417,6 +417,108 @@ test("chunk recovery claims only one reload per page and build", () => {
   assert.equal(chunkLoadRecovery.claimChunkLoadRecovery?.(error, "/admin/failover", "build-b", storage), true);
 });
 
+function createRecoveryTestContext(overrides = {}) {
+  const values = new Map();
+  const calls = [];
+  const storage = {
+    getItem: (key) => values.get(key) ?? null,
+    setItem: (key, value) => values.set(key, value),
+    removeItem: (key) => values.delete(key),
+  };
+
+  return {
+    calls,
+    dependencies: {
+      getHref: () => "/admin/failover",
+      getBuildId: () => "build-a",
+      getSessionStorage: () => storage,
+      updateServiceWorkers: async () => {
+        calls.push("worker-update");
+      },
+      deleteCaches: async () => {
+        calls.push("cache-delete");
+      },
+      waitForTimeout: () => new Promise(() => {}),
+      reload: () => {
+        calls.push("reload");
+      },
+      ...overrides,
+    },
+  };
+}
+
+test("chunk recovery deletes caches and reloads when a worker update stalls", async () => {
+  const context = createRecoveryTestContext({
+    updateServiceWorkers: () => new Promise(() => {}),
+    waitForTimeout: async () => {
+      context.calls.push("timeout");
+    },
+  });
+
+  const recovered = await chunkLoadRecovery.recoverChunkLoadFailure(
+    new Error("Failed to fetch dynamically imported module: /assets/chunk.js"),
+    context.dependencies,
+  );
+
+  assert.equal(recovered, true);
+  assert.ok(context.calls.includes("cache-delete"));
+  assert.ok(context.calls.indexOf("cache-delete") < context.calls.indexOf("reload"));
+  assert.equal(context.calls.at(-1), "reload");
+});
+
+test("chunk recovery reloads when browser cache operations fail", async () => {
+  const context = createRecoveryTestContext({
+    updateServiceWorkers: async () => {
+      context.calls.push("worker-update");
+      throw new Error("worker update failed");
+    },
+    deleteCaches: async () => {
+      context.calls.push("cache-delete");
+      throw new Error("cache delete failed");
+    },
+  });
+
+  const recovered = await chunkLoadRecovery.recoverChunkLoadFailure(
+    new Error("Importing a module script failed."),
+    context.dependencies,
+  );
+
+  assert.equal(recovered, true);
+  assert.equal(JSON.stringify(context.calls), JSON.stringify(["cache-delete", "worker-update", "reload"]));
+});
+
+test("chunk recovery keeps the manual error UI when session storage is blocked", async () => {
+  const context = createRecoveryTestContext({
+    getSessionStorage: () => {
+      throw new Error("storage blocked");
+    },
+  });
+
+  const recovered = await chunkLoadRecovery.recoverChunkLoadFailure(
+    new Error("Importing a module script failed."),
+    context.dependencies,
+  );
+
+  assert.equal(recovered, false);
+  assert.equal(JSON.stringify(context.calls), JSON.stringify([]));
+});
+
+test("healthy recovery cleanup tolerates blocked session storage", () => {
+  assert.doesNotThrow(() => {
+    chunkLoadRecovery.clearChunkLoadRecoveryMarkerFrom(() => {
+      throw new Error("storage blocked");
+    });
+  });
+});
+
+test("PWA generation excludes HTML and disables navigation fallback", () => {
+  const viteConfigSource = fs.readFileSync(path.resolve(root, "vite.config.ts"), "utf8");
+
+  assert.doesNotMatch(viteConfigSource, /globPatterns:\s*\[[^\]]*html/);
+  assert.match(viteConfigSource, /navigateFallback:\s*null/);
+  assert.doesNotMatch(viteConfigSource, /navigateFallbackDenylist/);
+});
+
 for (const { name, fn } of tests) {
   try {
     await fn();

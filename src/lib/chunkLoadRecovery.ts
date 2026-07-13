@@ -3,6 +3,16 @@ const RECOVERY_TIMEOUT_MS = 1_500;
 
 type StorageLike = Pick<Storage, "getItem" | "setItem" | "removeItem">;
 
+export interface ChunkLoadRecoveryDependencies {
+  getHref: () => string;
+  getBuildId: () => string;
+  getSessionStorage: () => StorageLike;
+  updateServiceWorkers: () => Promise<void>;
+  deleteCaches: () => Promise<void>;
+  waitForTimeout: () => Promise<void>;
+  reload: () => void;
+}
+
 const dynamicImportPatterns = [
   /failed to fetch dynamically imported module/i,
   /importing a module script failed/i,
@@ -47,36 +57,60 @@ export function clearChunkLoadRecoveryMarker(storage: StorageLike): void {
   }
 }
 
-async function refreshBrowserCaches(): Promise<void> {
-  const refresh = (async () => {
-    if ("serviceWorker" in navigator) {
-      const registrations = await navigator.serviceWorker.getRegistrations();
-      await Promise.allSettled(registrations.map((registration) => registration.update()));
-    }
-    if ("caches" in window) {
-      const keys = await caches.keys();
-      await Promise.allSettled(keys.map((key) => caches.delete(key)));
-    }
-  })();
-
-  await Promise.race([
-    refresh,
-    new Promise<void>((resolve) => window.setTimeout(resolve, RECOVERY_TIMEOUT_MS)),
-  ]);
+export function clearChunkLoadRecoveryMarkerFrom(getStorage: () => StorageLike): void {
+  try {
+    clearChunkLoadRecoveryMarker(getStorage());
+  } catch {
+    // Accessing sessionStorage itself can throw in restricted browser contexts.
+  }
 }
 
-export async function recoverChunkLoadFailure(error: unknown): Promise<boolean> {
-  const buildId =
-    document.querySelector<HTMLScriptElement>('script[type="module"][src]')?.src ?? __BUILD_TIME__;
-  if (!claimChunkLoadRecovery(error, window.location.href, buildId, window.sessionStorage)) {
+function defaultDependencies(): ChunkLoadRecoveryDependencies {
+  return {
+    getHref: () => window.location.href,
+    getBuildId: () =>
+      document.querySelector<HTMLScriptElement>('script[type="module"][src]')?.src ?? __BUILD_TIME__,
+    getSessionStorage: () => window.sessionStorage,
+    updateServiceWorkers: async () => {
+      if (!("serviceWorker" in navigator)) return;
+      const registrations = await navigator.serviceWorker.getRegistrations();
+      await Promise.allSettled(registrations.map((registration) => registration.update()));
+    },
+    deleteCaches: async () => {
+      if (!("caches" in window)) return;
+      const keys = await caches.keys();
+      await Promise.allSettled(keys.map((key) => caches.delete(key)));
+    },
+    waitForTimeout: () =>
+      new Promise<void>((resolve) => window.setTimeout(resolve, RECOVERY_TIMEOUT_MS)),
+    reload: () => window.location.reload(),
+  };
+}
+
+export async function recoverChunkLoadFailure(
+  error: unknown,
+  overrides: Partial<ChunkLoadRecoveryDependencies> = {},
+): Promise<boolean> {
+  const dependencies = { ...defaultDependencies(), ...overrides };
+  let claimed = false;
+  try {
+    claimed = claimChunkLoadRecovery(
+      error,
+      dependencies.getHref(),
+      dependencies.getBuildId(),
+      dependencies.getSessionStorage(),
+    );
+  } catch {
     return false;
   }
+  if (!claimed) return false;
 
-  try {
-    await refreshBrowserCaches();
-  } catch {
-    // The guarded reload is still useful if cache cleanup fails.
-  }
-  window.location.reload();
+  const cacheCleanup = Promise.resolve().then(dependencies.deleteCaches);
+  const workerUpdate = Promise.resolve().then(dependencies.updateServiceWorkers);
+  await Promise.race([
+    Promise.allSettled([cacheCleanup, workerUpdate]),
+    dependencies.waitForTimeout(),
+  ]);
+  dependencies.reload();
   return true;
 }
