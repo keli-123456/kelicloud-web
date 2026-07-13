@@ -425,7 +425,9 @@ Run against `https://tanzhen2.huhu.icu`:
 
 ```bash
 curl -fsSI https://tanzhen2.huhu.icu/sw.js
-curl -fsSI https://tanzhen2.huhu.icu/assets/chunk-FailoverV1Page-XTF21BC6.js
+v1_chunk="$(basename "$(find ../kelicloud-web/dist/assets -maxdepth 1 -name 'chunk-FailoverV1Page-*.js' -print -quit)")"
+test -n "${v1_chunk}"
+curl -fsSI "https://tanzhen2.huhu.icu/assets/${v1_chunk}"
 curl -sS -o /dev/null -w '%{http_code}\n' https://tanzhen2.huhu.icu/assets/missing-release-chunk.js
 curl -fsS https://tanzhen2.huhu.icu/api/version
 ```
