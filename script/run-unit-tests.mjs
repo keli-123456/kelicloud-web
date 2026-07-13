@@ -49,6 +49,12 @@ const tunnelHelpers = loadTsModule("src/lib/tunnels.helpers.ts");
 const tunnelPageHelpers = loadTsModule("src/pages/admin/tunnels.helpers.ts");
 const failoverV2DisplayHelpers = loadTsModule("src/pages/admin/failover-v2/failoverV2Display.helpers.ts");
 
+let chunkLoadRecovery = {};
+try {
+  chunkLoadRecovery = loadTsModule("src/lib/chunkLoadRecovery.ts");
+} catch {
+  // RED phase: assertions below fail until the helper exists.
+}
 test("exec helpers normalize task summaries from API envelopes", () => {
   const tasks = execHelpers.extractTaskSummaries({
     status: "success",
@@ -377,6 +383,40 @@ test("linux rust install and upgrade commands enable tunnel data", () => {
 });
 
 let passed = 0;
+test("chunk recovery recognizes browser dynamic import failures only", () => {
+  assert.equal(
+    chunkLoadRecovery.isDynamicImportFailure?.(
+      new Error("Failed to fetch dynamically imported module: https://example.test/chunk.js"),
+    ),
+    true,
+  );
+  assert.equal(
+    chunkLoadRecovery.isDynamicImportFailure?.("Importing a module script failed."),
+    true,
+  );
+  assert.equal(
+    chunkLoadRecovery.isDynamicImportFailure?.(new Error("error loading dynamically imported module")),
+    true,
+  );
+  assert.equal(chunkLoadRecovery.isDynamicImportFailure?.(new Error("render failed")), false);
+});
+
+test("chunk recovery claims only one reload per page and build", () => {
+  const values = new Map();
+  const storage = {
+    getItem: (key) => values.get(key) ?? null,
+    setItem: (key, value) => values.set(key, value),
+    removeItem: (key) => values.delete(key),
+  };
+  const error = new Error("Failed to fetch dynamically imported module: /assets/chunk.js");
+
+  assert.equal(chunkLoadRecovery.claimChunkLoadRecovery?.(error, "/admin/failover", "build-a", storage), true);
+  assert.equal(chunkLoadRecovery.claimChunkLoadRecovery?.(error, "/admin/failover", "build-a", storage), false);
+  assert.equal(chunkLoadRecovery.claimChunkLoadRecovery?.(error, "/admin/failover", "build-b", storage), true);
+  chunkLoadRecovery.clearChunkLoadRecoveryMarker?.(storage);
+  assert.equal(chunkLoadRecovery.claimChunkLoadRecovery?.(error, "/admin/failover", "build-b", storage), true);
+});
+
 for (const { name, fn } of tests) {
   try {
     await fn();

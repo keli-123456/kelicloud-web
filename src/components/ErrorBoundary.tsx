@@ -1,5 +1,6 @@
 import React from "react";
 import type { ErrorInfo, ReactNode } from "react";
+import { recoverChunkLoadFailure } from "../lib/chunkLoadRecovery";
 
 interface ErrorBoundaryProps {
   children: ReactNode;
@@ -25,6 +26,7 @@ class ErrorBoundary extends React.Component<
 
   componentDidCatch(error: Error, info: ErrorInfo) {
     console.error("Caught error in ErrorBoundary:", error, info);
+    void recoverChunkLoadFailure(error);
   }
 
   render() {

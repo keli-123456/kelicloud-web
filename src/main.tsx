@@ -27,6 +27,7 @@ import { TooltipProvider } from "./components/ui/tooltip";
 import { RPC2Provider } from "./contexts/RPC2Context";
 import { ThemeShell } from "./components/ui/theme-shell";
 import { initI18n } from "./i18n/config";
+import { clearChunkLoadRecoveryMarker } from "./lib/chunkLoadRecovery";
 
 const SW_RECOVERY_VERSION = "2026-05-commercial-user-policy-1";
 const THEME_DEFAULT_MIGRATION_VERSION = "2026-05-blue-accent-1";
@@ -49,6 +50,13 @@ const App = () => {
         // Ignore cleanup failures. The app can still continue without the recovery marker.
       }
     })();
+  }, []);
+
+  React.useEffect(() => {
+    const timer = window.setTimeout(() => {
+      clearChunkLoadRecoveryMarker(window.sessionStorage);
+    }, 30_000);
+    return () => window.clearTimeout(timer);
   }, []);
 
   const [appearance, setAppearance] = useLocalStorage<Appearance>(
