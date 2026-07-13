@@ -1,7 +1,9 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
+import os from "node:os";
 import { createRequire } from "node:module";
 import path from "node:path";
+import { spawnSync } from "node:child_process";
 import vm from "node:vm";
 import ts from "typescript";
 
@@ -529,6 +531,28 @@ test("production build verifies the generated service worker", () => {
   assert.match(verifierSource, /dist[\\/]sw\.js/);
   assert.match(verifierSource, /index\\\.html/);
   assert.match(verifierSource, /NavigationRoute/);
+});
+test("PWA verifier rejects Workbox index entries with quoted or bare URL keys", () => {
+  const tempDirectory = fs.mkdtempSync(path.join(os.tmpdir(), "kelicloud-pwa-"));
+  const serviceWorkerPath = path.join(tempDirectory, "sw.js");
+  const verifierPath = path.resolve(root, "script/verify-pwa-build.mjs");
+
+  try {
+    for (const source of [
+      'self.__WB_MANIFEST=[{url:"index.html",revision:"build"}]',
+      'self.__WB_MANIFEST=[{"url":"index.html","revision":"build"}]',
+    ]) {
+      fs.writeFileSync(serviceWorkerPath, source);
+      const result = spawnSync(process.execPath, [verifierPath, serviceWorkerPath], { encoding: "utf8" });
+      assert.notEqual(result.status, 0, source);
+    }
+
+    fs.writeFileSync(serviceWorkerPath, 'self.__WB_MANIFEST=[{url:"assets/chunk.js",revision:null}]');
+    const safeResult = spawnSync(process.execPath, [verifierPath, serviceWorkerPath], { encoding: "utf8" });
+    assert.equal(safeResult.status, 0, safeResult.stderr);
+  } finally {
+    fs.rmSync(tempDirectory, { recursive: true, force: true });
+  }
 });
 test("PWA generation excludes HTML and disables navigation fallback", () => {
   const viteConfigSource = fs.readFileSync(path.resolve(root, "vite.config.ts"), "utf8");
