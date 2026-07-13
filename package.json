@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite --configLoader runner",
-    "build": "tsc -b && vite build --configLoader runner",
+    "build": "tsc -b && vite build --configLoader runner && npm run verify:pwa",
+    "verify:pwa": "node ./script/verify-pwa-build.mjs",
     "test": "node ./script/run-unit-tests.mjs",
     "i18n:audit": "node ./script/i18n-audit.mjs",
     "lint": "eslint .",

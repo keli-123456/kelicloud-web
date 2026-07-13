@@ -32,6 +32,12 @@ import { clearChunkLoadRecoveryMarkerFrom } from "./lib/chunkLoadRecovery";
 const SW_RECOVERY_VERSION = "2026-05-commercial-user-policy-1";
 const THEME_DEFAULT_MIGRATION_VERSION = "2026-05-blue-accent-1";
 
+const ChunkLoadRecoveryMarkerReset = () => {
+  React.useEffect(() => {
+    clearChunkLoadRecoveryMarkerFrom(() => window.sessionStorage);
+  }, []);
+  return null;
+};
 const App = () => {
   React.useEffect(() => {
     if (!("serviceWorker" in navigator) || !("caches" in window)) return;
@@ -52,12 +58,6 @@ const App = () => {
     })();
   }, []);
 
-  React.useEffect(() => {
-    const timer = window.setTimeout(() => {
-      clearChunkLoadRecoveryMarkerFrom(() => window.sessionStorage);
-    }, 30_000);
-    return () => window.clearTimeout(timer);
-  }, []);
 
   const [appearance, setAppearance] = useLocalStorage<Appearance>(
     "appearance",
@@ -133,6 +133,7 @@ const App = () => {
                 <Toaster />
                 <OfflineIndicator />
                 {routing}
+                <ChunkLoadRecoveryMarkerReset />
                 <PWAInstallPrompt />
                 <PWAUpdatePrompt />
               </TooltipProvider>

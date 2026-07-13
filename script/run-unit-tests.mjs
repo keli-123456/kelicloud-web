@@ -511,6 +511,25 @@ test("healthy recovery cleanup tolerates blocked session storage", () => {
   });
 });
 
+test("chunk recovery marker resets only after suspended route content mounts", () => {
+  const mainSource = fs.readFileSync(path.resolve(root, "src/main.tsx"), "utf8");
+
+  assert.doesNotMatch(mainSource, /setTimeout[\s\S]{0,200}clearChunkLoadRecoveryMarker/);
+  const routingIndex = mainSource.indexOf("{routing}");
+  const resetIndex = mainSource.indexOf("<ChunkLoadRecoveryMarkerReset />");
+  assert.ok(routingIndex >= 0);
+  assert.ok(resetIndex > routingIndex);
+});
+
+test("production build verifies the generated service worker", () => {
+  const packageJson = JSON.parse(fs.readFileSync(path.resolve(root, "package.json"), "utf8"));
+  const verifierSource = fs.readFileSync(path.resolve(root, "script/verify-pwa-build.mjs"), "utf8");
+
+  assert.match(packageJson.scripts.build, /verify:pwa/);
+  assert.match(verifierSource, /dist[\\/]sw\.js/);
+  assert.match(verifierSource, /index\\\.html/);
+  assert.match(verifierSource, /NavigationRoute/);
+});
 test("PWA generation excludes HTML and disables navigation fallback", () => {
   const viteConfigSource = fs.readFileSync(path.resolve(root, "vite.config.ts"), "utf8");
 
