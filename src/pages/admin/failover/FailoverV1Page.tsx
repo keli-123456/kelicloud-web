@@ -10228,6 +10228,7 @@ function FailoverPageContent() {
   const [busyTaskID, setBusyTaskID] = React.useState<number | null>(null);
   const [stoppingExecutionID, setStoppingExecutionID] = React.useState<number | null>(null);
   const [clockNow, setClockNow] = React.useState(() => Date.now());
+  const refreshTasksRequestID = React.useRef(0);
   const allowedPlanProviders = React.useMemo(
     () => PLAN_PROVIDER_VALUES.filter((provider) => hasFeature(PLAN_PROVIDER_REQUIRED_FEATURES[provider])),
     [hasFeature],
@@ -10246,6 +10247,7 @@ function FailoverPageContent() {
 
   const refreshTasks = React.useCallback(async (options?: { silent?: boolean }) => {
     const silent = options?.silent ?? false;
+    const requestID = ++refreshTasksRequestID.current;
     if (!silent) {
       setLoading(true);
     }
@@ -10253,15 +10255,21 @@ function FailoverPageContent() {
 
     try {
       const list = await getFailoverTasks();
+      if (requestID !== refreshTasksRequestID.current) {
+        return;
+      }
       setTasks(list);
     } catch (nextError) {
+      if (requestID !== refreshTasksRequestID.current) {
+        return;
+      }
       setError(
         getReadableErrorMessage(nextError, t("failover.messages.load_tasks_failed", {
             defaultValue: "加载故障切换任务失败",
           })),
       );
     } finally {
-      if (!silent) {
+      if (requestID === refreshTasksRequestID.current) {
         setLoading(false);
       }
     }
@@ -10310,12 +10318,24 @@ function FailoverPageContent() {
       return;
     }
 
-    const timer = window.setInterval(() => {
+    let lastRefreshStartedAt = 0;
+    const refreshVisibleTasks = () => {
+      const now = Date.now();
+      if (document.visibilityState !== "visible" || now - lastRefreshStartedAt < 500) {
+        return;
+      }
+      lastRefreshStartedAt = now;
       void refreshTasks({ silent: true });
-    }, 15000);
+    };
+
+    const timer = window.setInterval(refreshVisibleTasks, 15000);
+    document.addEventListener("visibilitychange", refreshVisibleTasks);
+    window.addEventListener("focus", refreshVisibleTasks);
 
     return () => {
       window.clearInterval(timer);
+      document.removeEventListener("visibilitychange", refreshVisibleTasks);
+      window.removeEventListener("focus", refreshVisibleTasks);
     };
   }, [accountLoading, hasFeature, refreshTasks]);
 
