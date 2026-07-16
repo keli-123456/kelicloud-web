@@ -613,9 +613,13 @@ export async function checkDigitalOceanTokens(tokenIds?: string[]): Promise<Digi
   };
 }
 
-export async function deleteDigitalOceanToken(tokenId: string): Promise<DigitalOceanTokenPool> {
+export async function deleteDigitalOceanToken(
+  tokenId: string,
+  providerResourcesReclaimed = false,
+): Promise<DigitalOceanTokenPool> {
+  const reclaimQuery = providerResourcesReclaimed ? "?provider_resources_reclaimed=true" : "";
   const data = await requestCloud<Partial<DigitalOceanTokenPool>>(
-    `/api/admin/cloud/digitalocean/tokens/${tokenId}`,
+    `/api/admin/cloud/digitalocean/tokens/${tokenId}${reclaimQuery}`,
     {
       method: "DELETE",
     },

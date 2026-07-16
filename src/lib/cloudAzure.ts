@@ -482,8 +482,12 @@ export async function getAzureCredentialSecret(credentialId: string): Promise<Az
   return normalizeCredentialSecret(data);
 }
 
-export async function deleteAzureCredential(credentialId: string): Promise<AzureCredentialPool> {
-  const data = await requestCloud<Partial<AzureCredentialPool>>(`/api/admin/cloud/azure/credentials/${encodeURIComponent(credentialId)}`, {
+export async function deleteAzureCredential(
+  credentialId: string,
+  providerResourcesReclaimed = false,
+): Promise<AzureCredentialPool> {
+  const reclaimQuery = providerResourcesReclaimed ? "?provider_resources_reclaimed=true" : "";
+  const data = await requestCloud<Partial<AzureCredentialPool>>(`/api/admin/cloud/azure/credentials/${encodeURIComponent(credentialId)}${reclaimQuery}`, {
     method: "DELETE",
   });
   return normalizeCredentialPool(data);

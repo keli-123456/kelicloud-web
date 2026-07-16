@@ -33,17 +33,22 @@ export function useAzureCredentialDeletion({
   const handleDeleteCredential = async (credential: AzureCredentialRecord) => {
     const confirmed = await confirm({
       title: t("cloud.providers.azure.delete_credential", "Delete Credential"),
-      description: t("cloud.providers.azure.delete_credential_confirm", {
-        name: credential.name,
-        defaultValue: `Delete Azure credential "${credential.name}"?`,
-      }),
+      description: credential.last_status === "error"
+        ? t("cloud.tokens.delete_reclaimed_description", {
+            name: credential.name,
+            defaultValue: "Delete this unavailable credential only after confirming the cloud provider has reclaimed its old instances. Failover will switch to another available credential.",
+          })
+        : t("cloud.providers.azure.delete_credential_confirm", {
+            name: credential.name,
+            defaultValue: "Delete this Azure credential?",
+          }),
       confirmLabel: t("cloud.providers.azure.delete_credential", "Delete Credential"),
       tone: "destructive",
     });
     if (!confirmed) return;
 
     try {
-      const nextPool = await deleteAzureCredential(credential.id);
+      const nextPool = await deleteAzureCredential(credential.id, credential.last_status === "error");
       setCredentialPool(nextPool);
       toast.success(t("cloud.providers.azure.delete_credential_success", "Azure credential deleted"));
       if (hasActiveCredential(nextPool)) {

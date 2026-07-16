@@ -45,16 +45,21 @@ export function useDigitalOceanTokenDeletion({
   const handleDeleteToken = async (token: DigitalOceanTokenRecord) => {
     const confirmed = await confirm({
       title: t("cloud.tokens.delete", "Delete token"),
-      description: t("cloud.tokens.delete_confirm", {
-        name: token.name,
-        defaultValue: `Delete token "${token.name}"?`,
-      }),
+      description: token.last_status === "error"
+        ? t("cloud.tokens.delete_reclaimed_description", {
+            name: token.name,
+            defaultValue: "Delete this unavailable credential only after confirming the cloud provider has reclaimed its old instances. Failover will switch to another available credential.",
+          })
+        : t("cloud.tokens.delete_confirm", {
+            name: token.name,
+            defaultValue: "Delete this token?",
+          }),
       confirmLabel: t("cloud.tokens.delete", "Delete"),
     });
     if (!confirmed) return;
 
     try {
-      const nextPool = await deleteDigitalOceanToken(token.id);
+      const nextPool = await deleteDigitalOceanToken(token.id, token.last_status === "error");
       assertTokensDeleted(t, nextPool, [token.id]);
       await syncTokenPoolAfterDelete(nextPool, [token.id]);
       toast.success(t("cloud.tokens.delete_success", "Token deleted"));
@@ -73,10 +78,15 @@ export function useDigitalOceanTokenDeletion({
         count: selectedTokens.length,
         defaultValue: "Delete selected tokens",
       }),
-      description: t("cloud.tokens.delete_selected_confirm", {
-        count: selectedTokens.length,
-        defaultValue: `Delete ${selectedTokens.length} selected tokens?`,
-      }),
+      description: selectedTokens.some((token) => token.last_status === "error")
+        ? t("cloud.tokens.delete_selected_reclaimed_confirm", {
+            count: selectedTokens.length,
+            defaultValue: "Delete the selected credentials? Unavailable credentials will be retired only after you confirm their old cloud instances were reclaimed.",
+          })
+        : t("cloud.tokens.delete_selected_confirm", {
+            count: selectedTokens.length,
+            defaultValue: "Delete the selected tokens?",
+          }),
       confirmLabel: t("cloud.tokens.delete", "Delete"),
     });
     if (!confirmed) return;
@@ -88,7 +98,7 @@ export function useDigitalOceanTokenDeletion({
 
     for (const token of selectedTokens) {
       try {
-        const nextPool = await deleteDigitalOceanToken(token.id);
+        const nextPool = await deleteDigitalOceanToken(token.id, token.last_status === "error");
         assertTokensDeleted(t, nextPool, [token.id]);
         latestPool = nextPool;
         removedIds.push(token.id);

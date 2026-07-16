@@ -431,9 +431,13 @@ export async function checkVultrTokens(tokenIds?: string[]): Promise<VultrTokenP
   return normalizeTokenPool(data);
 }
 
-export async function deleteVultrToken(tokenId: string): Promise<VultrTokenPool> {
+export async function deleteVultrToken(
+  tokenId: string,
+  providerResourcesReclaimed = false,
+): Promise<VultrTokenPool> {
+  const reclaimQuery = providerResourcesReclaimed ? "?provider_resources_reclaimed=true" : "";
   const data = await requestCloud<Partial<VultrTokenPool>>(
-    `/api/admin/cloud/vultr/tokens/${tokenId}`,
+    `/api/admin/cloud/vultr/tokens/${tokenId}${reclaimQuery}`,
     { method: "DELETE" },
   );
   return normalizeTokenPool(data);

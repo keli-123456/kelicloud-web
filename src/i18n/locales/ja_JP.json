@@ -2051,6 +2051,8 @@
       "current": "現在",
       "delete": "削除",
       "delete_confirm": "トークン「{{name}}」を削除しますか？",
+      "delete_reclaimed_description": "認証情報「{{name}}」は利用できません。クラウド事業者が旧インスタンスを回収済みであることを確認した場合のみ削除してください。フェイルオーバーは別の利用可能な認証情報へ切り替わります。",
+      "delete_selected_reclaimed_confirm": "選択した {{count}} 件の認証情報を削除しますか？利用できない認証情報は、クラウド事業者が旧インスタンスを回収済みであることを確認した場合のみ廃止してください。",
       "delete_description": "Delete {{name}}? Saved instance passwords for this token will also be removed.",
       "delete_not_applied": "Delete request returned success, but the token still exists. Refresh and try again.",
       "delete_selected": "Delete selected",

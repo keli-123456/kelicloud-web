@@ -586,9 +586,13 @@ export async function checkLinodeTokens(tokenIds?: string[]): Promise<LinodeToke
   };
 }
 
-export async function deleteLinodeToken(tokenId: string): Promise<LinodeTokenPool> {
+export async function deleteLinodeToken(
+  tokenId: string,
+  providerResourcesReclaimed = false,
+): Promise<LinodeTokenPool> {
+  const reclaimQuery = providerResourcesReclaimed ? "?provider_resources_reclaimed=true" : "";
   const data = await requestCloud<Partial<LinodeTokenPool>>(
-    `/api/admin/cloud/linode/tokens/${tokenId}`,
+    `/api/admin/cloud/linode/tokens/${tokenId}${reclaimQuery}`,
     { method: "DELETE" },
   );
 

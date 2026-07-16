@@ -2051,6 +2051,8 @@
       "current": "目前",
       "delete": "刪除",
       "delete_confirm": "確定刪除令牌「{{name}}」？",
+      "delete_reclaimed_description": "憑證「{{name}}」已異常。僅在確認雲端廠商控制台中的舊實例已被回收後刪除；故障切換會自動改用其他可用憑證。",
+      "delete_selected_reclaimed_confirm": "確定刪除選中的 {{count}} 個憑證？其中的異常憑證僅應在確認雲端廠商已回收舊實例後退役，故障切換會自動改用其他可用憑證。",
       "delete_description": "刪除 {{name}}？该權杖儲存的實例密碼也会被移除。",
       "delete_not_applied": "删除请求虽然返回成功，但令牌仍然存在。请刷新后重试。",
       "delete_selected": "批量删除",

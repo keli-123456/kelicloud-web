@@ -513,17 +513,22 @@ export default function VultrPanel() {
   const handleDeleteToken = async (token: VultrTokenRecord) => {
     const confirmed = await confirm({
       title: t("cloud.tokens.delete_title", "是否删除该令牌？"),
-      description: t("cloud.tokens.delete_description", {
-        name: token.name,
-        defaultValue: "Delete {{name}}? Saved instance passwords for this token will also be removed.",
-      }),
+      description: token.last_status === "error"
+        ? t("cloud.tokens.delete_reclaimed_description", {
+            name: token.name,
+            defaultValue: "Delete this unavailable credential only after confirming the cloud provider has reclaimed its old instances. Failover will switch to another available credential.",
+          })
+        : t("cloud.tokens.delete_description", {
+            name: token.name,
+            defaultValue: "Delete this token? Saved instance passwords for this token will also be removed.",
+          }),
       confirmLabel: t("common.delete", "删除"),
       tone: "destructive",
     });
     if (!confirmed) return;
 
     try {
-      const nextPool = await deleteVultrToken(token.id);
+      const nextPool = await deleteVultrToken(token.id, token.last_status === "error");
       setTokenPool(nextPool);
       if (!hasActiveToken(nextPool) || !shouldPreserveLoadedResources(nextPool)) {
         clearResourceData();

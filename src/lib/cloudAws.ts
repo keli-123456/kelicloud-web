@@ -1073,9 +1073,11 @@ export async function checkAWSCredentials(
 
 export async function deleteAWSCredential(
   credentialId: string,
+  providerResourcesReclaimed = false,
 ): Promise<AWSCredentialPool> {
+  const reclaimQuery = providerResourcesReclaimed ? "?provider_resources_reclaimed=true" : "";
   const data = await requestCloud<Partial<AWSCredentialPool>>(
-    `/api/admin/cloud/aws/credentials/${credentialId}`,
+    `/api/admin/cloud/aws/credentials/${credentialId}${reclaimQuery}`,
     {
       method: "DELETE",
     },

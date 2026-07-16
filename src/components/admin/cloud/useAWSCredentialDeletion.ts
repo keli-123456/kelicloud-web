@@ -62,16 +62,21 @@ export function useAWSCredentialDeletion({
   const handleDeleteCredential = async (credential: AWSCredentialRecord) => {
     const confirmed = await confirm({
       title: t("cloud.tokens.delete", "Delete credential"),
-      description: t("cloud.tokens.delete_confirm", {
-        name: credential.name,
-        defaultValue: `Delete token "${credential.name}"?`,
-      }),
+      description: credential.last_status === "error"
+        ? t("cloud.tokens.delete_reclaimed_description", {
+            name: credential.name,
+            defaultValue: "Delete this unavailable credential only after confirming the cloud provider has reclaimed its old instances. Failover will switch to another available credential.",
+          })
+        : t("cloud.tokens.delete_confirm", {
+            name: credential.name,
+            defaultValue: "Delete this credential?",
+          }),
       confirmLabel: t("cloud.tokens.delete", "Delete"),
     });
     if (!confirmed) return;
 
     try {
-      const nextPool = await deleteAWSCredential(credential.id);
+      const nextPool = await deleteAWSCredential(credential.id, credential.last_status === "error");
       if (!nextPool.active_credential_id) {
         setRegionSelectionRequired(false);
       }
@@ -94,10 +99,15 @@ export function useAWSCredentialDeletion({
         count: selectedCredentials.length,
         defaultValue: "Delete selected tokens",
       }),
-      description: t("cloud.tokens.delete_selected_confirm", {
-        count: selectedCredentials.length,
-        defaultValue: `Delete ${selectedCredentials.length} selected tokens?`,
-      }),
+      description: selectedCredentials.some((credential) => credential.last_status === "error")
+        ? t("cloud.tokens.delete_selected_reclaimed_confirm", {
+            count: selectedCredentials.length,
+            defaultValue: "Delete the selected credentials? Unavailable credentials will be retired only after you confirm their old cloud instances were reclaimed.",
+          })
+        : t("cloud.tokens.delete_selected_confirm", {
+            count: selectedCredentials.length,
+            defaultValue: "Delete the selected credentials?",
+          }),
       confirmLabel: t("cloud.tokens.delete", "Delete"),
     });
     if (!confirmed) return;
@@ -109,7 +119,7 @@ export function useAWSCredentialDeletion({
 
     for (const credential of selectedCredentials) {
       try {
-        const nextPool = await deleteAWSCredential(credential.id);
+        const nextPool = await deleteAWSCredential(credential.id, credential.last_status === "error");
         assertCredentialsDeleted(t, nextPool, [credential.id]);
         latestPool = nextPool;
         removedIds.push(credential.id);
