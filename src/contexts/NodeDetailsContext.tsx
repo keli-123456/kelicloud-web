@@ -27,6 +27,8 @@ export const NodeDetailsProvider: React.FC<NodeDetailsProviderProps> = ({
   const [isLoading, setIsLoading] = React.useState<boolean>(false);
   const [error, setError] = React.useState<string | null>(null);
   const nodeDetailRef = React.useRef<NodeDetail[]>([]);
+  const inFlightRequestRef = React.useRef<Promise<void> | null>(null);
+  const requestControllerRef = React.useRef<AbortController | null>(null);
   const resolvedListEndpoint = listEndpoint || "/api/admin/client/list";
 
   React.useEffect(() => {
@@ -41,33 +43,77 @@ export const NodeDetailsProvider: React.FC<NodeDetailsProviderProps> = ({
       return;
     }
 
+    if (inFlightRequestRef.current) {
+      return inFlightRequestRef.current;
+    }
+
     const silent = options?.silent ?? false;
     const shouldShowLoading = !silent && nodeDetailRef.current.length === 0;
+    const shouldSurfaceError = !silent || nodeDetailRef.current.length === 0;
+    const controller = new AbortController();
+    requestControllerRef.current = controller;
 
     if (shouldShowLoading) {
       setIsLoading(true);
     }
-    setError(null);
-
-    try {
-      const response = await fetch(resolvedListEndpoint);
-      if (!response.ok) {
-        throw new Error(formatApiErrorMessage(`HTTP error! status: ${response.status}`, { status: response.status }));
-      }
-
-      const data = (await response.json()) as NodeDetail[];
-      setNodeDetail(data);
-    } catch (error) {
-      setError(getReadableErrorMessage(error));
-    } finally {
-      if (shouldShowLoading) {
-        setIsLoading(false);
-      }
+    if (shouldSurfaceError) {
+      setError(null);
     }
+
+    const request = (async () => {
+      let timedOut = false;
+      const timeoutID = window.setTimeout(() => {
+        timedOut = true;
+        controller.abort();
+      }, 15_000);
+
+      try {
+        const response = await fetch(resolvedListEndpoint, {
+          signal: controller.signal,
+        });
+        if (!response.ok) {
+          throw new Error(formatApiErrorMessage(`HTTP error! status: ${response.status}`, { status: response.status }));
+        }
+
+        const data = (await response.json()) as NodeDetail[];
+        if (requestControllerRef.current === controller && !controller.signal.aborted) {
+          setNodeDetail(data);
+          setError(null);
+        }
+      } catch (requestError) {
+        if (requestControllerRef.current !== controller) {
+          return;
+        }
+        if (shouldSurfaceError) {
+          if (timedOut) {
+            setError("请求超时，请稍后重试。");
+          } else if (!controller.signal.aborted) {
+            setError(getReadableErrorMessage(requestError));
+          }
+        }
+      } finally {
+        window.clearTimeout(timeoutID);
+        if (requestControllerRef.current === controller) {
+          if (shouldShowLoading) {
+            setIsLoading(false);
+          }
+          requestControllerRef.current = null;
+          inFlightRequestRef.current = null;
+        }
+      }
+    })();
+
+    inFlightRequestRef.current = request;
+    return request;
   }, [enabled, resolvedListEndpoint]);
 
   React.useEffect(() => {
     void refresh();
+    return () => {
+      requestControllerRef.current?.abort();
+      requestControllerRef.current = null;
+      inFlightRequestRef.current = null;
+    };
   }, [refresh]);
 
   const value = React.useMemo(

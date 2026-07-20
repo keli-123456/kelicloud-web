@@ -232,12 +232,14 @@ export class RPC2Client {
       id: options.notification ? undefined : this.generateRequestId(),
     };
 
+    const requestTimeout = options.timeout ?? this.options.requestTimeout;
+
     try {
       const response = await fetch(this.baseUrl, {
         method: "POST",
         headers: this.options.headers,
         body: JSON.stringify(request),
-        signal: options.timeout ? AbortSignal.timeout(options.timeout) : undefined,
+        signal: requestTimeout > 0 ? AbortSignal.timeout(requestTimeout) : undefined,
       });
 
       if (!response.ok) {

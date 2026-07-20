@@ -118,6 +118,23 @@ test("node table defaults to 50 rows per page", () => {
   assert.equal(nodeLiveHelpers.NODE_TABLE_DEFAULT_PAGE_SIZE, 50);
 });
 
+test("server page polling remains bounded during long sessions", () => {
+  const rpc2Source = fs.readFileSync(path.resolve(root, "src/lib/rpc2.ts"), "utf8");
+  const nodeDetailsSource = fs.readFileSync(
+    path.resolve(root, "src/contexts/NodeDetailsContext.tsx"),
+    "utf8",
+  );
+  const serverPageSource = fs.readFileSync(path.resolve(root, "src/pages/admin/index.tsx"), "utf8");
+
+  assert.match(rpc2Source, /options\.timeout \?\? this\.options\.requestTimeout/);
+  assert.match(nodeDetailsSource, /inFlightRequestRef/);
+  assert.match(nodeDetailsSource, /requestControllerRef\.current\?\.abort\(\)/);
+  assert.match(serverPageSource, /NODE_DETAILS_REFRESH_INTERVAL_MS = 30_000/);
+  assert.match(serverPageSource, /NODE_LIVE_REQUEST_TIMEOUT_MS = 10_000/);
+  assert.match(serverPageSource, /document\.visibilityState === "visible"/);
+  assert.match(serverPageSource, /liveScopeSignature/);
+});
+
 test("install script source uses rust default for linux agent flavor", () => {
   assert.equal(
     installScriptSource.buildAgentInstallScriptURLForFlavor(undefined, "install.sh", "rust"),

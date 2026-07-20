@@ -128,6 +128,10 @@ const LazyNodeConditionScriptDialog = React.lazy(() =>
   })),
 );
 
+const NODE_DETAILS_REFRESH_INTERVAL_MS = 30_000;
+const NODE_LIVE_REFRESH_INTERVAL_MS = 3_000;
+const NODE_LIVE_REQUEST_TIMEOUT_MS = 10_000;
+
 const AdminDashboardLoadingState = () => {
   const { t } = useTranslation();
 
@@ -488,8 +492,8 @@ const Layout = ({
     ),
     [realNodes],
   );
-  const liveScopeUUIDs = React.useMemo(
-    () => allNodes.map((node) => node.uuid),
+  const liveScopeSignature = React.useMemo(
+    () => allNodes.map((node) => node.uuid).join("\u0000"),
     [allNodes],
   );
   const normalizedToolbarSearchKeyword = toolbarSearchKeyword.trim().toLowerCase();
@@ -514,17 +518,27 @@ const Layout = ({
   }, [liveByNode]);
 
   useEffect(() => {
-    const interval = window.setInterval(() => {
-      refresh({ silent: true });
-    }, 5000);
-    return () => window.clearInterval(interval);
+    const refreshVisibleNodeList = () => {
+      if (document.visibilityState === "visible") {
+        void refresh({ silent: true });
+      }
+    };
+    const interval = window.setInterval(
+      refreshVisibleNodeList,
+      NODE_DETAILS_REFRESH_INTERVAL_MS,
+    );
+    document.addEventListener("visibilitychange", refreshVisibleNodeList);
+    return () => {
+      window.clearInterval(interval);
+      document.removeEventListener("visibilitychange", refreshVisibleNodeList);
+    };
   }, [refresh]);
 
   useEffect(() => {
     let timer: number | undefined;
     let stopped = false;
     let running = false;
-    const pollUUIDs = [...liveScopeUUIDs];
+    const pollUUIDs = liveScopeSignature ? liveScopeSignature.split("\u0000") : [];
 
     if (pollUUIDs.length === 0) {
       setLiveByNode({});
@@ -540,13 +554,13 @@ const Layout = ({
     }
 
     const pollLiveData = async () => {
-      if (running) return;
+      if (running || stopped || document.visibilityState !== "visible") return;
       running = true;
 
       try {
         const result: Record<string, any> = await call("common:getNodesLatestStatus", {
           uuids: pollUUIDs,
-        });
+        }, { timeout: NODE_LIVE_REQUEST_TIMEOUT_MS });
         if (stopped) return;
 
         const nextState: Record<string, NodeLiveSnapshot> = {};
@@ -557,25 +571,41 @@ const Layout = ({
         setLiveLoaded(true);
         setLiveError(null);
       } catch (pollError) {
+        if (stopped) return;
         console.error("Failed to fetch node live data:", pollError);
         setLiveError(formatApiErrorMessage("Failed to fetch node live data"));
       } finally {
         running = false;
-        if (!stopped) {
-          timer = window.setTimeout(pollLiveData, 3000);
+        if (!stopped && document.visibilityState === "visible") {
+          timer = window.setTimeout(pollLiveData, NODE_LIVE_REFRESH_INTERVAL_MS);
         }
       }
     };
 
-    pollLiveData();
+    const handleVisibilityChange = () => {
+      if (document.visibilityState !== "visible") {
+        if (timer) {
+          window.clearTimeout(timer);
+          timer = undefined;
+        }
+        return;
+      }
+      if (!running) {
+        void pollLiveData();
+      }
+    };
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    void pollLiveData();
 
     return () => {
       stopped = true;
       if (timer) {
         window.clearTimeout(timer);
       }
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
-  }, [call, liveScopeUUIDs]);
+  }, [call, liveScopeSignature]);
 
   if (isLoading) return <AdminDashboardLoadingState />;
   if (error) {
