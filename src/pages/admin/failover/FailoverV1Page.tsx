@@ -7523,6 +7523,37 @@ function TaskEditorDialog({
                         />
                       </div>
                     </div>
+                    <div className="grid gap-3 border-y border-slate-200/80 py-3 dark:border-slate-800/80 sm:grid-cols-[minmax(0,1fr)_12rem] sm:items-center">
+                      <div className="min-w-0 space-y-1">
+                        <Label>{t("failover_v2.candidate_count", { defaultValue: "Candidate instances" })}</Label>
+                        <p className="text-xs leading-5 text-muted-foreground">
+                          {t("failover_v2.candidate_count_hint", {
+                            defaultValue: "Keep the first healthy instance and automatically delete the other candidates.",
+                          })}
+                        </p>
+                      </div>
+                      <div
+                        className="grid h-10 w-full grid-cols-3 rounded-md border border-input bg-muted/30 p-1"
+                        role="radiogroup"
+                        aria-label={t("failover_v2.candidate_count", { defaultValue: "Candidate instances" })}
+                      >
+                        {["1", "2", "3"].map((value) => (
+                          <button
+                            key={value}
+                            type="button"
+                            role="radio"
+                            aria-checked={formState.candidate_count === value}
+                            className={cn(
+                              "rounded-sm text-sm font-medium text-muted-foreground transition-colors",
+                              formState.candidate_count === value && "bg-background text-foreground shadow-sm",
+                            )}
+                            onClick={() => updateTaskField("candidate_count", value)}
+                          >
+                            {value}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
                     <div className={FORM_FIELD_CLASS}>
                       <div className="flex items-center gap-2">
                         <Label>{t("failover.editor.current_client", { defaultValue: "Current client" })}</Label>
@@ -8344,37 +8375,6 @@ function TaskEditorDialog({
                   </p>
                 </div>
                 <div className="space-y-4">
-                  <div className="grid gap-3 border-y border-slate-200/80 py-3 dark:border-slate-800/80 sm:grid-cols-[minmax(0,1fr)_12rem] sm:items-center">
-                    <div className="min-w-0 space-y-1">
-                      <Label>{t("failover_v2.candidate_count", { defaultValue: "Candidate instances" })}</Label>
-                      <p className="text-xs leading-5 text-muted-foreground">
-                        {t("failover_v2.candidate_count_hint", {
-                          defaultValue: "Keep the first healthy instance and automatically delete the other candidates.",
-                        })}
-                      </p>
-                    </div>
-                    <div
-                      className="grid h-10 w-full grid-cols-3 rounded-md border border-input bg-muted/30 p-1"
-                      role="radiogroup"
-                      aria-label={t("failover_v2.candidate_count", { defaultValue: "Candidate instances" })}
-                    >
-                      {["1", "2", "3"].map((value) => (
-                        <button
-                          key={value}
-                          type="button"
-                          role="radio"
-                          aria-checked={formState.candidate_count === value}
-                          className={cn(
-                            "rounded-sm text-sm font-medium text-muted-foreground transition-colors",
-                            formState.candidate_count === value && "bg-background text-foreground shadow-sm",
-                          )}
-                          onClick={() => updateTaskField("candidate_count", value)}
-                        >
-                          {value}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
                   <div className="flex justify-end">
                     <Button type="button" variant="outline" size="sm" onClick={() => setPlanDialogOpen(true)} disabled={!selectedPlan}>
                       <PencilLine className="size-4" />
