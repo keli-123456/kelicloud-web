@@ -3221,6 +3221,7 @@
     "trigger_reason": "触发原因",
     "validation": {
       "aliyun_rr_invalid": "阿里云主机记录应类似 @、www 或 api。不要填写完整 URL，也不要包含无效分隔符。",
+      "candidate_auto_connect_required": "候选实例数大于 1 时，方案 {{index}} 必须配置 Agent 自动接入分组。",
       "current_client_required": "请选择当前客户端",
       "dns_domain_required": "阿里云域名不能为空",
       "dns_entry_required": "DNS 凭证条目不能为空",
@@ -3234,7 +3235,6 @@
       "plan_provider_entry_required": "方案 {{index}} 需要选择云凭证条目",
       "plan_provider_required": "方案 {{index}} 需要选择云厂商",
       "plan_required": "至少需要一个故障切换方案",
-      "candidate_auto_connect_required": "候选实例数大于 1 时，方案 {{index}} 必须配置 Agent 自动接入分组。",
       "script_domain_required": "故障切换自动接入需要先配置 Agent 连接地址，请到“设置 -> 站点”填写后再保存或执行这个任务",
       "task_name_required": "任务名称不能为空",
       "watch_node_required": "请选择监控节点"
