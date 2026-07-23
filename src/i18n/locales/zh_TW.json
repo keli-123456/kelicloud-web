@@ -3229,6 +3229,7 @@
       "plan_provider_entry_required": "方案 {{index}} 需要选择云凭证条目",
       "plan_provider_required": "方案 {{index}} 需要选择云厂商",
       "plan_required": "至少需要一个故障切换方案",
+      "candidate_auto_connect_required": "候選實例數大於 1 時，方案 {{index}} 必須配置 Agent 自動接入分組。",
       "script_domain_required": "故障切换自动接入需要先配置 Agent 连接地址，请到“设置 -> 站点”填写后再保存或执行这个任务",
       "task_name_required": "任务名称不能为空",
       "watch_node_required": "请选择监控节点"

@@ -3234,6 +3234,7 @@
       "plan_provider_entry_required": "Plan {{index}} requires a provider entry",
       "plan_provider_required": "Plan {{index}} requires a cloud provider",
       "plan_required": "At least one failover plan is required",
+      "candidate_auto_connect_required": "候補数が 1 を超える場合、プラン {{index}} に Agent の自動接続グループが必要です。",
       "script_domain_required": "平台接入地址尚未配置，请联系管理员完成基础配置后再保存或运行任务。",
       "task_name_required": "Task name is required",
       "watch_node_required": "Choose a watch node"

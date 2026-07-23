@@ -3229,6 +3229,7 @@
       "plan_provider_entry_required": "Plan {{index}} requires a provider entry",
       "plan_provider_required": "Plan {{index}} requires a cloud provider",
       "plan_required": "At least one failover plan is required",
+      "candidate_auto_connect_required": "Plan {{index}} needs an Agent auto-connect group when more than one candidate is selected.",
       "script_domain_required": "The platform connection address is required. Contact an administrator before saving or running this task.",
       "task_name_required": "Task name is required",
       "watch_node_required": "Choose a watch node"

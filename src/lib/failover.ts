@@ -81,6 +81,7 @@ export type FailoverTask = {
   cooldown_seconds: number;
   provision_retry_limit: number;
   provision_failure_fallback_limit: number;
+  candidate_count: number;
   dns_provider: string;
   dns_entry_id: string;
   dns_payload: unknown;
@@ -194,6 +195,23 @@ export type FailoverExecutionAvailableActions = {
   retry_cleanup: FailoverExecutionAvailableAction;
 };
 
+export type FailoverExecutionCandidate = {
+  id: number;
+  sequence: number;
+  provider: string;
+  provider_entry_id: string;
+  status: string;
+  client_uuid: string;
+  instance_ref: unknown;
+  addresses: unknown;
+  selected: boolean;
+  cleanup_status: string;
+  cleanup_result: unknown;
+  error_message: string;
+  created_at: string;
+  updated_at: string;
+};
+
 export type FailoverExecution = {
   id: number;
   task_id: number;
@@ -228,6 +246,7 @@ export type FailoverExecution = {
   started_at: string;
   finished_at: string | null;
   steps: FailoverExecutionStep[];
+  candidates: FailoverExecutionCandidate[];
   created_at: string;
   updated_at: string;
 };
@@ -266,6 +285,7 @@ export type FailoverTaskInput = {
   cooldown_seconds: number;
   provision_retry_limit: number;
   provision_failure_fallback_limit: number;
+  candidate_count: number;
   dns_provider: string;
   dns_entry_id: string;
   dns_payload: unknown;
@@ -589,6 +609,7 @@ function normalizeTask(task: unknown): FailoverTask {
     cooldown_seconds: normalizeNumber(raw.cooldown_seconds),
     provision_retry_limit: normalizeNumber(raw.provision_retry_limit),
     provision_failure_fallback_limit: normalizeNumber(raw.provision_failure_fallback_limit),
+    candidate_count: Math.min(3, Math.max(1, normalizeNumber(raw.candidate_count) || 1)),
     dns_provider: normalizeString(raw.dns_provider),
     dns_entry_id: normalizeString(raw.dns_entry_id),
     dns_payload: normalizeUnknown(raw.dns_payload),
@@ -792,9 +813,30 @@ function normalizePlanCatalog(value: unknown): FailoverPlanCatalog {
   };
 }
 
+function normalizeExecutionCandidate(candidate: unknown): FailoverExecutionCandidate {
+  const raw = candidate && typeof candidate === "object" ? candidate as Record<string, unknown> : {};
+  return {
+    id: normalizeNumber(raw.id),
+    sequence: normalizeNumber(raw.sequence),
+    provider: normalizeString(raw.provider),
+    provider_entry_id: normalizeString(raw.provider_entry_id),
+    status: normalizeString(raw.status),
+    client_uuid: normalizeString(raw.client_uuid),
+    instance_ref: normalizeUnknown(raw.instance_ref),
+    addresses: normalizeUnknown(raw.addresses),
+    selected: normalizeBoolean(raw.selected),
+    cleanup_status: normalizeString(raw.cleanup_status),
+    cleanup_result: normalizeUnknown(raw.cleanup_result),
+    error_message: normalizeString(raw.error_message),
+    created_at: normalizeString(raw.created_at),
+    updated_at: normalizeString(raw.updated_at),
+  };
+}
+
 function normalizeExecution(execution: unknown): FailoverExecution {
   const raw = execution && typeof execution === "object" ? execution as Record<string, unknown> : {};
   const steps = Array.isArray(raw.steps) ? raw.steps.map(normalizeExecutionStep) : [];
+  const candidates = Array.isArray(raw.candidates) ? raw.candidates.map(normalizeExecutionCandidate) : [];
   const scriptClipboardID = normalizeNullableNumber(raw.script_clipboard_id);
   const scriptClipboardIDs = normalizeNumberArray(raw.script_clipboard_ids);
   return {
@@ -835,6 +877,7 @@ function normalizeExecution(execution: unknown): FailoverExecution {
     started_at: normalizeString(raw.started_at),
     finished_at: normalizeNullableString(raw.finished_at),
     steps,
+    candidates,
     created_at: normalizeString(raw.created_at),
     updated_at: normalizeString(raw.updated_at),
   };

@@ -178,6 +178,7 @@ type TaskFormState = {
   cooldown_seconds: string;
   provision_retry_limit: string;
   provision_failure_fallback_limit: string;
+  candidate_count: string;
   dns_provider: string;
   dns_entry_id: string;
   dns_zone_name: string;
@@ -924,6 +925,25 @@ function getStatusLabel(t: TFunction, value: string) {
     defaultValue: humanizeStatus(value),
   });
 }
+function getCandidateStatusLabel(t: TFunction, value: string) {
+  const normalized = String(value || "").trim().toLowerCase();
+  if (!normalized) {
+    return t("failover_v2.status.unknown", { defaultValue: "Unknown" });
+  }
+  return t(`failover_v2.status.${normalized}`, {
+    defaultValue: humanizeStatus(value),
+  });
+}
+
+function getCandidateStatusVariant(value: string): React.ComponentProps<typeof Badge>["variant"] {
+  const normalized = String(value || "").trim().toLowerCase();
+  if (["healthy", "selected"].includes(normalized)) return "success";
+  if (normalized === "failed") return "destructive";
+  if (normalized === "cleanup_pending") return "warning";
+  if (normalized === "deleted") return "outline";
+  return "info";
+}
+
 
 function getFailoverExecutionStepLabel(t: TFunction, step: FailoverExecutionStep) {
   const stepKey = String(step.step_key || "").trim().toLowerCase();
@@ -2484,6 +2504,7 @@ function describeTaskMonitoringCoreSettings(t: TFunction, state: TaskFormState) 
 
 function describeTaskRetrySettings(t: TFunction, state: TaskFormState) {
   return [
+    `${t("failover_v2.candidate_count", { defaultValue: "Candidate instances" })}: ${state.candidate_count || "1"}`,
     `${t("failover.editor.provision_retry_limit", { defaultValue: "Blocked retry limit" })}: ${state.provision_retry_limit || "-"}`,
     `${t("failover.editor.provision_failure_fallback_limit", { defaultValue: "Plan fallback after provision failures" })}: ${state.provision_failure_fallback_limit || "-"}`,
   ].join(" · ");
@@ -4403,6 +4424,7 @@ function createEmptyTaskForm(providerEntries: ProviderEntriesMap): TaskFormState
     cooldown_seconds: "0",
     provision_retry_limit: "6",
     provision_failure_fallback_limit: "3",
+    candidate_count: "1",
     dns_provider: defaultProvider,
     dns_entry_id: defaultEntryID,
     ...dnsDefaults,
@@ -4470,6 +4492,7 @@ function taskToForm(task: FailoverTask, providerEntries: ProviderEntriesMap): Ta
     cooldown_seconds: String(task.cooldown_seconds),
     provision_retry_limit: String(task.provision_retry_limit || 6),
     provision_failure_fallback_limit: String(task.provision_failure_fallback_limit || 3),
+    candidate_count: String(Math.min(3, Math.max(1, task.candidate_count || 1))),
     dns_provider: task.dns_provider,
     dns_entry_id: normalizeProviderEntryID(task.dns_entry_id),
     ...dnsFields,
@@ -4805,6 +4828,19 @@ function buildTaskInput(formState: TaskFormState, t: TFunction): FailoverTaskInp
       wait_agent_timeout_sec: numberOrDefault(plan.wait_agent_timeout_sec, 600),
     };
   });
+  const candidateCount = Math.min(3, Math.max(1, numberOrDefault(formState.candidate_count, 1)));
+  const missingCandidateAgentPlanIndex = plans.findIndex((plan) => (
+    plan.enabled
+    && plan.action_type === "provision_instance"
+    && !plan.auto_connect_group.trim()
+  ));
+  if (candidateCount > 1 && missingCandidateAgentPlanIndex >= 0) {
+    throw new Error(t("failover.validation.candidate_auto_connect_required", {
+      defaultValue: "Plan {{index}} needs an Agent auto-connect group when more than one candidate is selected.",
+      index: missingCandidateAgentPlanIndex + 1,
+    }));
+  }
+
   const deleteStrategy = resolveTaskDeleteStrategy(formState.delete_strategy, formState.plans);
 
   const dnsPayload =
@@ -4838,6 +4874,7 @@ function buildTaskInput(formState: TaskFormState, t: TFunction): FailoverTaskInp
     cooldown_seconds: numberOrDefault(formState.cooldown_seconds, 0),
     provision_retry_limit: numberOrDefault(formState.provision_retry_limit, 6),
     provision_failure_fallback_limit: numberOrDefault(formState.provision_failure_fallback_limit, 3),
+    candidate_count: candidateCount,
     dns_provider: dnsProvider,
     dns_entry_id: dnsProvider ? normalizeProviderEntryID(formState.dns_entry_id.trim()) : "",
     dns_payload: dnsPayload,
@@ -5128,6 +5165,75 @@ function TaskPreviewSection({
   );
 }
 
+function ExecutionCandidateSection({
+  execution,
+  t,
+}: {
+  execution: FailoverExecution;
+  t: TFunction;
+}) {
+  if (execution.candidates.length === 0) {
+    return null;
+  }
+
+  return (
+    <div className="space-y-2 border-y border-slate-200/80 py-4 dark:border-slate-800/80">
+      <div className="space-y-1">
+        <div className="text-sm font-medium text-slate-900 dark:text-slate-50">
+          {t("failover_v2.execution_candidates", { defaultValue: "Replacement candidates" })}
+        </div>
+        <div className="text-xs text-muted-foreground">
+          {t("failover_v2.execution_candidates_hint", {
+            defaultValue: "Only the first candidate that passes health checks is kept.",
+          })}
+        </div>
+      </div>
+      <div className="border-y border-slate-200/80 dark:border-slate-800/80">
+        <div className="hidden grid-cols-[56px_minmax(120px,0.8fr)_minmax(180px,1.2fr)_minmax(120px,0.8fr)] gap-4 bg-slate-50/80 px-3 py-2 text-xs font-medium text-muted-foreground dark:bg-slate-900/60 sm:grid">
+          <span>#</span>
+          <span>{t("common.status", { defaultValue: "Status" })}</span>
+          <span>{t("failover_v2.candidate_address", { defaultValue: "Address" })}</span>
+          <span>{t("failover_v2.candidate_cleanup", { defaultValue: "Cleanup" })}</span>
+        </div>
+        {execution.candidates.map((candidate) => {
+          const ipv4 = getPrimaryExecutionIPv4(candidate.addresses);
+          const ipv6 = getPrimaryExecutionIPv6(candidate.addresses);
+          const address = [ipv4, ipv6].filter(Boolean).join(" / ") || "-";
+          const cleanupStatus = candidate.selected ? "" : (candidate.cleanup_status || "pending");
+          return (
+            <div
+              key={candidate.id}
+              className="grid gap-2 border-t border-slate-200/80 px-3 py-3 first:border-t-0 dark:border-slate-800/80 sm:grid-cols-[56px_minmax(120px,0.8fr)_minmax(180px,1.2fr)_minmax(120px,0.8fr)] sm:items-center sm:gap-4"
+            >
+              <div className="font-mono text-xs text-muted-foreground">{candidate.sequence}</div>
+              <div className="flex flex-wrap items-center gap-2">
+                <Badge variant={getCandidateStatusVariant(candidate.status)}>
+                  {getCandidateStatusLabel(t, candidate.status)}
+                </Badge>
+                {candidate.selected && candidate.status !== "selected" ? (
+                  <Badge variant="success">
+                    {t("failover_v2.candidate_selected", { defaultValue: "Selected" })}
+                  </Badge>
+                ) : null}
+              </div>
+              <div className="break-all font-mono text-xs text-slate-700 dark:text-slate-200" title={address}>
+                {address}
+              </div>
+              <div className="text-sm text-muted-foreground">
+                {cleanupStatus ? getCandidateStatusLabel(t, cleanupStatus) : "-"}
+              </div>
+              {candidate.error_message ? (
+                <div className="break-words text-xs text-red-600 dark:text-red-400 sm:col-span-4">
+                  {candidate.error_message}
+                </div>
+              ) : null}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
 function ExecutionAttemptSection({
   execution,
 }: {
@@ -5656,6 +5762,8 @@ function ExecutionDetailDialog({
                 </div>
               ) : null}
 
+              {detailedMode ? <ExecutionCandidateSection execution={execution} t={t} /> : null}
+
               {detailedMode ? <ExecutionAttemptSection execution={execution} /> : null}
 
               {detailedMode ? (
@@ -5748,6 +5856,7 @@ function ExecutionDetailDialog({
                   <CollapsibleContent className="border-t px-4 py-4">
                     <div className="grid gap-4 xl:grid-cols-2">
                       <JsonBlock title={t("failover.execution.steps_raw", { defaultValue: "Steps raw data" })} value={execution.steps} />
+                      <JsonBlock title={t("failover_v2.execution_candidates", { defaultValue: "Replacement candidates" })} value={execution.candidates} />
                       <JsonBlock title={t("failover.execution.trigger_snapshot", { defaultValue: "Trigger snapshot" })} value={execution.trigger_snapshot} />
                       <JsonBlock title={t("failover.execution.attempted_plans", { defaultValue: "Attempted plans" })} value={execution.attempted_plans} />
                       <JsonBlock title={t("failover.execution.old_instance", { defaultValue: "Old instance" })} value={execution.old_instance_ref} />
@@ -6526,11 +6635,16 @@ function TaskEditorDialog({
           t("failover.editor.provision_failure_fallback_limit", { defaultValue: "Plan fallback after provision failures" }),
           formState.provision_failure_fallback_limit,
         ),
+        buildDetailItem(
+          t("failover_v2.candidate_count", { defaultValue: "Candidate instances" }),
+          formState.candidate_count || "1",
+        ),
       ].filter((item): item is DetailItem => Boolean(item));
       return items;
     },
     [
       formState.cooldown_seconds,
+      formState.candidate_count,
       formState.failure_threshold,
       formState.provision_failure_fallback_limit,
       formState.provision_retry_limit,
@@ -7585,6 +7699,35 @@ function TaskEditorDialog({
                           </CollapsibleTrigger>
                           <CollapsibleContent className="border-t px-3 py-4">
                             <div className="grid gap-4 lg:grid-cols-2">
+                              <div className="space-y-2 lg:col-span-2">
+                                <Label>{t("failover_v2.candidate_count", { defaultValue: "Candidate instances" })}</Label>
+                                <div
+                                  className="grid h-10 max-w-sm grid-cols-3 rounded-md border border-input bg-muted/30 p-1"
+                                  role="radiogroup"
+                                  aria-label={t("failover_v2.candidate_count", { defaultValue: "Candidate instances" })}
+                                >
+                                  {["1", "2", "3"].map((value) => (
+                                    <button
+                                      key={value}
+                                      type="button"
+                                      role="radio"
+                                      aria-checked={formState.candidate_count === value}
+                                      className={cn(
+                                        "rounded-sm text-sm font-medium text-muted-foreground transition-colors",
+                                        formState.candidate_count === value && "bg-background text-foreground shadow-sm",
+                                      )}
+                                      onClick={() => updateTaskField("candidate_count", value)}
+                                    >
+                                      {value}
+                                    </button>
+                                  ))}
+                                </div>
+                                <p className="text-xs text-muted-foreground">
+                                  {t("failover_v2.candidate_count_hint", {
+                                    defaultValue: "Keep the first healthy instance and automatically delete the other candidates.",
+                                  })}
+                                </p>
+                              </div>
                               <div className="space-y-2">
                                 <Label htmlFor="failover-provision-retry-limit">
                                   {t("failover.editor.provision_retry_limit", { defaultValue: "Blocked retry limit" })}
