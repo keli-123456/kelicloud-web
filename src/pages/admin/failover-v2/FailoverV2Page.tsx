@@ -220,6 +220,7 @@ type MemberFormState = {
   provider_entry_id: string;
   provider_entry_group: string;
   plan_payload: string;
+  candidate_count: string;
   failure_threshold: string;
   stale_after_seconds: string;
   cooldown_seconds: string;
@@ -852,12 +853,20 @@ function getStatusBadgeColor(status: string): "gray" | "green" | "amber" | "red"
     case "healthy":
     case "success":
     case "succeeded":
+    case "selected":
+    case "deleted":
       return "green";
     case "running":
+    case "provisioning":
+    case "provisioned":
+    case "waiting_agent":
+    case "validating":
       return "blue";
     case "triggered":
     case "cooldown":
     case "pending":
+    case "deleting":
+    case "cleanup_pending":
     case "warning":
     case "manual_review":
     case "stale":
@@ -1967,6 +1976,7 @@ function createEmptyMemberForm(provider = FAILOVER_V2_MEMBER_PROVIDER): MemberFo
     provider_entry_id: FAILOVER_V2_AUTOMATIC_PROVIDER_ENTRY_ID,
     provider_entry_group: "",
     plan_payload: getDefaultMemberPlanPayload(normalizedProvider),
+    candidate_count: "1",
     failure_threshold: "2",
     stale_after_seconds: "300",
     cooldown_seconds: "1800",
@@ -1996,6 +2006,7 @@ function createMemberForm(member?: FailoverV2Member | null): MemberFormState {
       member.plan_payload,
       getDefaultMemberPlanPayload(member.provider || FAILOVER_V2_MEMBER_PROVIDER),
     ),
+    candidate_count: String(member.candidate_count || 1),
     failure_threshold: String(member.failure_threshold || 2),
     stale_after_seconds: String(member.stale_after_seconds || 300),
     cooldown_seconds: String(member.cooldown_seconds || 1800),
@@ -2100,6 +2111,7 @@ function buildMemberInput(t: TFunction, formState: MemberFormState): FailoverV2M
       null,
       t("failover_v2.current_instance_ref", { defaultValue: "Current instance ref" }),
     ),
+    candidate_count: mode === "provider_template" ? parseNumberField(t, formState.candidate_count, t("failover_v2.candidate_count", { defaultValue: "候选实例数" }), 1, { min: 1, max: 3 }) : 1,
     failure_threshold: parseNumberField(t, formState.failure_threshold, t("failover_v2.failure_threshold", { defaultValue: "Failure threshold" }), 2, { min: 1 }),
     stale_after_seconds: parseNumberField(t, formState.stale_after_seconds, t("failover_v2.stale_after", { defaultValue: "Stale after" }), 300, { min: 1 }),
     cooldown_seconds: parseNumberField(t, formState.cooldown_seconds, t("failover_v2.cooldown", { defaultValue: "Cooldown" }), 1800, { min: 0 }),
@@ -3412,6 +3424,10 @@ export default function FailoverV2Page() {
         : memberForm.provider_entry_id || t("common.not_set", { defaultValue: "Not set" }),
     });
 
+    rows.push({
+      label: t("failover_v2.candidate_count", { defaultValue: "候选实例数" }),
+      value: memberForm.candidate_count || "1",
+    });
     if (memberProvider === "aws") {
       rows.push({ label: t("failover_v2.aws_service", { defaultValue: "AWS service" }), value: awsPlanService.toUpperCase() });
       rows.push({ label: t("failover_v2.plan_region", { defaultValue: "Region" }), value: memberPlanRegion || DEFAULT_AWS_REGION });
@@ -6290,6 +6306,36 @@ export default function FailoverV2Page() {
                         </div>
 
                         <div className={FORM_FIELD_CLASS}>
+                          <Label>{t("failover_v2.candidate_count", { defaultValue: "候选实例数" })}</Label>
+                          <div
+                            className="grid h-10 grid-cols-3 rounded-md border border-input bg-muted/30 p-1"
+                            role="radiogroup"
+                            aria-label={t("failover_v2.candidate_count", { defaultValue: "候选实例数" })}
+                          >
+                            {["1", "2", "3"].map((value) => (
+                              <button
+                                key={value}
+                                type="button"
+                                role="radio"
+                                aria-checked={memberForm.candidate_count === value}
+                                className={cn(
+                                  "rounded-sm text-sm font-medium text-muted-foreground transition-colors",
+                                  memberForm.candidate_count === value && "bg-background text-foreground shadow-sm",
+                                )}
+                                onClick={() => setMemberForm((current) => ({ ...current, candidate_count: value }))}
+                              >
+                                {value}
+                              </button>
+                            ))}
+                          </div>
+                          <p className="text-xs text-muted-foreground">
+                            {t("failover_v2.candidate_count_hint", {
+                              defaultValue: "保留首台健康实例，其余候选自动删除。",
+                            })}
+                          </p>
+                        </div>
+
+                        <div className={FORM_FIELD_CLASS}>
                           <Label>{t("failover_v2.auto_connect_group", { defaultValue: "Auto-connect group" })}</Label>
                           <Input
                             value={getJsonStringValue(memberPlanPayload, "auto_connect_group")}
@@ -7570,6 +7616,61 @@ export default function FailoverV2Page() {
 
                   {platformAdmin ? (
                   <>
+                  {(selectedExecution.candidates || []).length > 0 ? (
+                    <ExecutionDetailSection
+                      title={t("failover_v2.execution_candidates", { defaultValue: "候选实例" })}
+                      description={t("failover_v2.execution_candidates_hint", {
+                        defaultValue: "仅保留首台通过健康检查的实例。",
+                      })}
+                    >
+                      <div className="border-y border-slate-200 dark:border-slate-800">
+                        <div className="hidden grid-cols-[72px_minmax(120px,0.8fr)_minmax(180px,1.2fr)_minmax(120px,0.8fr)] gap-4 bg-slate-50 px-4 py-2 text-xs font-medium text-slate-500 dark:bg-slate-900/60 dark:text-slate-400 sm:grid">
+                          <span>#</span>
+                          <span>{t("common.status", { defaultValue: "状态" })}</span>
+                          <span>{t("failover_v2.candidate_address", { defaultValue: "地址" })}</span>
+                          <span>{t("failover_v2.candidate_cleanup", { defaultValue: "清理" })}</span>
+                        </div>
+                        {(selectedExecution.candidates || []).map((candidate) => {
+                          const ipv4 = extractAddressFromUnknown(candidate.addresses, "ipv4");
+                          const ipv6 = extractAddressFromUnknown(candidate.addresses, "ipv6");
+                          const address = ipv4 || ipv6 || "-";
+                          const cleanupStatus = candidate.selected ? "-" : (candidate.cleanup_status || "pending");
+                          return (
+                            <div
+                              key={candidate.id}
+                              className="grid gap-2 border-t border-slate-200 px-4 py-3 first:border-t-0 dark:border-slate-800 sm:grid-cols-[72px_minmax(120px,0.8fr)_minmax(180px,1.2fr)_minmax(120px,0.8fr)] sm:items-center sm:gap-4"
+                            >
+                              <div className="font-mono text-xs text-slate-500 dark:text-slate-400">
+                                {candidate.sequence}
+                              </div>
+                              <div className="flex flex-wrap items-center gap-2">
+                                <Badge color={getStatusBadgeColor(candidate.status || "pending")}>
+                                  {localizeFailoverV2Status(t, candidate.status || "pending")}
+                                </Badge>
+                                {candidate.selected ? (
+                                  <Badge color="green">
+                                    {t("failover_v2.candidate_selected", { defaultValue: "已选中" })}
+                                  </Badge>
+                                ) : null}
+                              </div>
+                              <div className="break-all font-mono text-xs text-slate-700 dark:text-slate-200">
+                                {address}
+                              </div>
+                              <div className="text-sm text-slate-600 dark:text-slate-300">
+                                {cleanupStatus === "-" ? "-" : localizeFailoverV2Status(t, cleanupStatus)}
+                              </div>
+                              {candidate.error_message ? (
+                                <div className="text-xs text-red-600 dark:text-red-400 sm:col-span-4">
+                                  {candidate.error_message}
+                                </div>
+                              ) : null}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </ExecutionDetailSection>
+                  ) : null}
+
                   <ExecutionDetailSection
                     title={t("failover_v2.execution_steps", { defaultValue: "步骤状态" })}
                     description={t("failover_v2.execution_steps_hint", {

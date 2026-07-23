@@ -3781,7 +3781,13 @@
       "verifying_attach_dns": "Verifying DNS attach",
       "verifying_detach_dns": "Verifying DNS detach",
       "waiting_agent": "Waiting for agent",
-      "warning": "Needs review"
+      "warning": "Needs review",
+      "validating": "検証中",
+      "provisioned": "作成済み",
+      "deleting": "削除中",
+      "deleted": "削除済み",
+      "selected": "選択済み",
+      "cleanup_pending": "クリーンアップ待ち"
     },
     "step_detail_summary": "Key details",
     "step_key": "Step key",
@@ -3895,7 +3901,14 @@
       "task_detail": "Main task",
       "task_queue": "Task list",
       "task_queue_hint": "Check task health and recent execution first, then expand a task to see members."
-    }
+    },
+    "candidate_selected": "選択済み",
+    "candidate_count": "候補インスタンス数",
+    "candidate_count_hint": "最初に正常と判定されたインスタンスを残し、他の候補は自動的に削除します。",
+    "candidate_address": "アドレス",
+    "execution_candidates_hint": "ヘルスチェックに最初に合格した候補のみを残します。",
+    "candidate_cleanup": "クリーンアップ",
+    "execution_candidates": "置換候補"
   },
   "go_to_home": "ホームに戻る",
   "home_title": "kelicloud",

@@ -75,6 +75,7 @@ export type FailoverV2MemberInput = {
   provider_entry_id: string;
   provider_entry_group: string;
   plan_payload: unknown;
+  candidate_count: number;
   failure_threshold: number;
   stale_after_seconds: number;
   cooldown_seconds: number;
@@ -105,6 +106,7 @@ export type FailoverV2Member = {
   provider_entry_id: string;
   provider_entry_group: string;
   plan_payload: unknown;
+  candidate_count: number;
   failure_threshold: number;
   stale_after_seconds: number;
   cooldown_seconds: number;
@@ -214,6 +216,21 @@ export type FailoverV2PendingCleanup = {
   updated_at: string;
 };
 
+export type FailoverV2ExecutionCandidate = {
+  id: number;
+  sequence: number;
+  status: string;
+  client_uuid: string;
+  instance_ref: unknown;
+  addresses: unknown;
+  selected: boolean;
+  cleanup_status: string;
+  cleanup_result: unknown;
+  error_message: string;
+  created_at: string;
+  updated_at: string;
+};
+
 export type FailoverV2Execution = {
   id: number;
   service_id: number;
@@ -238,6 +255,7 @@ export type FailoverV2Execution = {
   started_at: string;
   finished_at: string | null;
   steps: FailoverV2ExecutionStep[];
+  candidates: FailoverV2ExecutionCandidate[];
   created_at: string;
   updated_at: string;
 };
@@ -470,6 +488,7 @@ function normalizeMember(member: unknown): FailoverV2Member {
     provider_entry_id: normalizeString(raw.provider_entry_id),
     provider_entry_group: normalizeString(raw.provider_entry_group),
     plan_payload: normalizeUnknown(raw.plan_payload),
+    candidate_count: Math.min(3, Math.max(1, normalizeNumber(raw.candidate_count) || 1)),
     failure_threshold: normalizeNumber(raw.failure_threshold),
     stale_after_seconds: normalizeNumber(raw.stale_after_seconds),
     cooldown_seconds: normalizeNumber(raw.cooldown_seconds),
@@ -571,6 +590,24 @@ function normalizeExecutionStep(step: unknown): FailoverV2ExecutionStep {
   };
 }
 
+function normalizeExecutionCandidate(candidate: unknown): FailoverV2ExecutionCandidate {
+  const raw = candidate && typeof candidate === "object" ? candidate as Record<string, unknown> : {};
+  return {
+    id: normalizeNumber(raw.id),
+    sequence: normalizeNumber(raw.sequence),
+    status: normalizeString(raw.status),
+    client_uuid: normalizeString(raw.client_uuid),
+    instance_ref: normalizeUnknown(raw.instance_ref),
+    addresses: normalizeUnknown(raw.addresses),
+    selected: normalizeBoolean(raw.selected),
+    cleanup_status: normalizeString(raw.cleanup_status),
+    cleanup_result: normalizeUnknown(raw.cleanup_result),
+    error_message: normalizeString(raw.error_message),
+    created_at: normalizeString(raw.created_at),
+    updated_at: normalizeString(raw.updated_at),
+  };
+}
+
 function normalizeExecutionAvailableAction(value: unknown): FailoverV2ExecutionAvailableAction {
   const raw = value && typeof value === "object" ? value as Record<string, unknown> : {};
   return {
@@ -647,6 +684,7 @@ function normalizeExecution(execution: unknown): FailoverV2Execution {
     started_at: normalizeString(raw.started_at),
     finished_at: normalizeNullableString(raw.finished_at),
     steps: Array.isArray(raw.steps) ? raw.steps.map(normalizeExecutionStep) : [],
+    candidates: Array.isArray(raw.candidates) ? raw.candidates.map(normalizeExecutionCandidate) : [],
     created_at: normalizeString(raw.created_at),
     updated_at: normalizeString(raw.updated_at),
   };

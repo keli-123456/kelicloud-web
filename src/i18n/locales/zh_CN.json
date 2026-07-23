@@ -3780,7 +3780,13 @@
       "verifying_attach_dns": "正在校验 DNS 挂载",
       "verifying_detach_dns": "正在校验 DNS 摘除",
       "waiting_agent": "等待 Agent",
-      "warning": "需关注"
+      "warning": "需关注",
+      "validating": "健康检查中",
+      "provisioned": "已创建",
+      "deleting": "删除中",
+      "deleted": "已删除",
+      "selected": "已选中",
+      "cleanup_pending": "等待清理"
     },
     "step_detail_summary": "关键信息",
     "step_key": "步骤键",
@@ -3895,7 +3901,14 @@
       "task_detail": "主任务",
       "task_queue": "任务列表",
       "task_queue_hint": "先看任务健康和最近执行，点击任务展开子成员。"
-    }
+    },
+    "candidate_selected": "已选中",
+    "candidate_count": "候选实例数",
+    "candidate_count_hint": "保留首台通过健康检查的实例，其余候选自动删除。",
+    "candidate_address": "地址",
+    "execution_candidates_hint": "仅保留首台通过健康检查的候选实例。",
+    "candidate_cleanup": "清理",
+    "execution_candidates": "替换候选"
   },
   "go_to_home": "回到主页",
   "home_title": "kelicloud",

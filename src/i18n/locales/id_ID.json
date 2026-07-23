@@ -3781,7 +3781,13 @@
       "verifying_attach_dns": "Verifying DNS attach",
       "verifying_detach_dns": "Verifying DNS detach",
       "waiting_agent": "Waiting for agent",
-      "warning": "Needs review"
+      "warning": "Needs review",
+      "validating": "Memvalidasi",
+      "provisioned": "Sudah dibuat",
+      "deleting": "Menghapus",
+      "deleted": "Dihapus",
+      "selected": "Dipilih",
+      "cleanup_pending": "Menunggu pembersihan"
     },
     "step_detail_summary": "Key details",
     "step_key": "Step key",
@@ -3895,7 +3901,14 @@
       "task_detail": "Main task",
       "task_queue": "Task list",
       "task_queue_hint": "Check task health and recent execution first, then expand a task to see members."
-    }
+    },
+    "candidate_selected": "Dipilih",
+    "candidate_count": "Jumlah instans kandidat",
+    "candidate_count_hint": "Simpan instans sehat pertama dan hapus kandidat lainnya secara otomatis.",
+    "candidate_address": "Alamat",
+    "execution_candidates_hint": "Hanya kandidat pertama yang lolos pemeriksaan kesehatan yang dipertahankan.",
+    "candidate_cleanup": "Pembersihan",
+    "execution_candidates": "Kandidat pengganti"
   },
   "go_to_home": "Kembali ke Beranda",
   "home_title": "Pemantau kelicloud",
