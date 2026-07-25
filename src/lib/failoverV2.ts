@@ -488,7 +488,7 @@ function normalizeMember(member: unknown): FailoverV2Member {
     provider_entry_id: normalizeString(raw.provider_entry_id),
     provider_entry_group: normalizeString(raw.provider_entry_group),
     plan_payload: normalizeUnknown(raw.plan_payload),
-    candidate_count: Math.min(3, Math.max(1, normalizeNumber(raw.candidate_count) || 1)),
+    candidate_count: Math.min(5, Math.max(1, normalizeNumber(raw.candidate_count) || 1)),
     failure_threshold: normalizeNumber(raw.failure_threshold),
     stale_after_seconds: normalizeNumber(raw.stale_after_seconds),
     cooldown_seconds: normalizeNumber(raw.cooldown_seconds),

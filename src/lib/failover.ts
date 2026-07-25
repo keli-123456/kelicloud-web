@@ -609,7 +609,7 @@ function normalizeTask(task: unknown): FailoverTask {
     cooldown_seconds: normalizeNumber(raw.cooldown_seconds),
     provision_retry_limit: normalizeNumber(raw.provision_retry_limit),
     provision_failure_fallback_limit: normalizeNumber(raw.provision_failure_fallback_limit),
-    candidate_count: Math.min(3, Math.max(1, normalizeNumber(raw.candidate_count) || 1)),
+    candidate_count: Math.min(5, Math.max(1, normalizeNumber(raw.candidate_count) || 1)),
     dns_provider: normalizeString(raw.dns_provider),
     dns_entry_id: normalizeString(raw.dns_entry_id),
     dns_payload: normalizeUnknown(raw.dns_payload),

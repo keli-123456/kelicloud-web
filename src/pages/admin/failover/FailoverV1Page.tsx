@@ -4492,7 +4492,7 @@ function taskToForm(task: FailoverTask, providerEntries: ProviderEntriesMap): Ta
     cooldown_seconds: String(task.cooldown_seconds),
     provision_retry_limit: String(task.provision_retry_limit || 6),
     provision_failure_fallback_limit: String(task.provision_failure_fallback_limit || 3),
-    candidate_count: String(Math.min(3, Math.max(1, task.candidate_count || 1))),
+    candidate_count: String(Math.min(5, Math.max(1, task.candidate_count || 1))),
     dns_provider: task.dns_provider,
     dns_entry_id: normalizeProviderEntryID(task.dns_entry_id),
     ...dnsFields,
@@ -4828,7 +4828,7 @@ function buildTaskInput(formState: TaskFormState, t: TFunction): FailoverTaskInp
       wait_agent_timeout_sec: numberOrDefault(plan.wait_agent_timeout_sec, 600),
     };
   });
-  const candidateCount = Math.min(3, Math.max(1, numberOrDefault(formState.candidate_count, 1)));
+  const candidateCount = Math.min(5, Math.max(1, numberOrDefault(formState.candidate_count, 1)));
   const missingCandidateAgentPlanIndex = plans.findIndex((plan) => (
     plan.enabled
     && plan.action_type === "provision_instance"
@@ -7533,11 +7533,11 @@ function TaskEditorDialog({
                         </p>
                       </div>
                       <div
-                        className="grid h-10 w-full grid-cols-3 rounded-md border border-input bg-muted/30 p-1"
+                        className="grid h-10 w-full grid-cols-5 rounded-md border border-input bg-muted/30 p-1"
                         role="radiogroup"
                         aria-label={t("failover_v2.candidate_count", { defaultValue: "Candidate instances" })}
                       >
-                        {["1", "2", "3"].map((value) => (
+                        {["1", "2", "3", "4", "5"].map((value) => (
                           <button
                             key={value}
                             type="button"
@@ -8911,11 +8911,11 @@ function TaskEditorDialog({
                                   </p>
                                 </div>
                                 <div
-                                  className="grid h-10 w-full grid-cols-3 rounded-md border border-input bg-muted/30 p-1"
+                                  className="grid h-10 w-full grid-cols-5 rounded-md border border-input bg-muted/30 p-1"
                                   role="radiogroup"
                                   aria-label={t("failover_v2.candidate_count", { defaultValue: "Candidate instances" })}
                                 >
-                                  {["1", "2", "3"].map((value) => (
+                                  {["1", "2", "3", "4", "5"].map((value) => (
                                     <button
                                       key={value}
                                       type="button"

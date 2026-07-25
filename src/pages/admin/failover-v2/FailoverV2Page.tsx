@@ -2111,7 +2111,7 @@ function buildMemberInput(t: TFunction, formState: MemberFormState): FailoverV2M
       null,
       t("failover_v2.current_instance_ref", { defaultValue: "Current instance ref" }),
     ),
-    candidate_count: mode === "provider_template" ? parseNumberField(t, formState.candidate_count, t("failover_v2.candidate_count", { defaultValue: "候选实例数" }), 1, { min: 1, max: 3 }) : 1,
+    candidate_count: mode === "provider_template" ? parseNumberField(t, formState.candidate_count, t("failover_v2.candidate_count", { defaultValue: "候选实例数" }), 1, { min: 1, max: 5 }) : 1,
     failure_threshold: parseNumberField(t, formState.failure_threshold, t("failover_v2.failure_threshold", { defaultValue: "Failure threshold" }), 2, { min: 1 }),
     stale_after_seconds: parseNumberField(t, formState.stale_after_seconds, t("failover_v2.stale_after", { defaultValue: "Stale after" }), 300, { min: 1 }),
     cooldown_seconds: parseNumberField(t, formState.cooldown_seconds, t("failover_v2.cooldown", { defaultValue: "Cooldown" }), 1800, { min: 0 }),
@@ -6308,11 +6308,11 @@ export default function FailoverV2Page() {
                         <div className={FORM_FIELD_CLASS}>
                           <Label>{t("failover_v2.candidate_count", { defaultValue: "候选实例数" })}</Label>
                           <div
-                            className="grid h-10 grid-cols-3 rounded-md border border-input bg-muted/30 p-1"
+                            className="grid h-10 grid-cols-5 rounded-md border border-input bg-muted/30 p-1"
                             role="radiogroup"
                             aria-label={t("failover_v2.candidate_count", { defaultValue: "候选实例数" })}
                           >
-                            {["1", "2", "3"].map((value) => (
+                            {["1", "2", "3", "4", "5"].map((value) => (
                               <button
                                 key={value}
                                 type="button"
