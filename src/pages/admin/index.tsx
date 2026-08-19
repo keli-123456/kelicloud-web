@@ -1328,11 +1328,11 @@ const NodeEndpointSummary = ({ node }: { node: NodeDetail }) => {
       }
     >
       <div className="flex w-full min-w-[240px] max-w-[380px] items-center gap-1.5 text-[13px] leading-[18px] text-slate-700 dark:text-slate-200">
-        <div className="flex h-[18px] items-center">
+        <div className="flex h-8 items-center sm:h-[18px]">
           <Flag flag={node.region} size="4" />
         </div>
         <div className="min-w-0 flex-1">
-          <div className="flex h-[18px] items-center gap-0.5">
+          <div className="flex h-8 items-center gap-0.5 sm:h-[18px]">
             <span className="w-7 shrink-0 text-slate-400 dark:text-slate-500">IPv4</span>
             <span
               className="min-w-0 flex-1 truncate font-mono text-[12px]"
@@ -1343,7 +1343,7 @@ const NodeEndpointSummary = ({ node }: { node: NodeDetail }) => {
             <Button
               variant="ghost"
               size="icon"
-              className="h-4 w-4 shrink-0 rounded-md"
+              className="h-8 w-8 shrink-0 rounded-md sm:h-4 sm:w-4"
               aria-label={t("admin.nodeTable.copyIpv4", {
                 defaultValue: "复制 IPv4 地址",
               })}
@@ -1357,7 +1357,7 @@ const NodeEndpointSummary = ({ node }: { node: NodeDetail }) => {
               <Copy size={11} />
             </Button>
           </div>
-          <div className="flex h-[18px] items-center gap-0.5">
+          <div className="flex h-8 items-center gap-0.5 sm:h-[18px]">
             <span className="w-7 shrink-0 text-slate-400 dark:text-slate-500">IPv6</span>
             <span
               className="min-w-0 flex-1 truncate font-mono text-[12px]"
@@ -1368,7 +1368,7 @@ const NodeEndpointSummary = ({ node }: { node: NodeDetail }) => {
             <Button
               variant="ghost"
               size="icon"
-              className="h-4 w-4 shrink-0 rounded-md"
+              className="h-8 w-8 shrink-0 rounded-md sm:h-4 sm:w-4"
               aria-label={t("admin.nodeTable.copyIpv6", {
                 defaultValue: "复制 IPv6 地址",
               })}

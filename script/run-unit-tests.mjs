@@ -352,6 +352,37 @@ test("failover v2 member status keeps last execution when probe is ok", () => {
   assert.equal(failoverV2DisplayHelpers.getFailoverV2MemberTaskStatusSource(member, execution), "execution");
 });
 
+test("admin workbenches keep audited density and selection safeguards", () => {
+  const failoverV1Source = fs.readFileSync(
+    path.resolve(root, "src/pages/admin/failover/FailoverV1Page.tsx"),
+    "utf8",
+  );
+  const failoverV2Source = fs.readFileSync(
+    path.resolve(root, "src/pages/admin/failover-v2/FailoverV2Page.tsx"),
+    "utf8",
+  );
+  const nodeTableSource = fs.readFileSync(
+    path.resolve(root, "src/components/admin/NodeTable.tsx"),
+    "utf8",
+  );
+  const serverPageSource = fs.readFileSync(
+    path.resolve(root, "src/pages/admin/index.tsx"),
+    "utf8",
+  );
+  const tunnelsSource = fs.readFileSync(
+    path.resolve(root, "src/pages/admin/tunnels.tsx"),
+    "utf8",
+  );
+
+  assert.doesNotMatch(failoverV1Source, /without crowding|keeping the main task dialog compact|右侧只保留/);
+  assert.match(failoverV1Source, /executionBadgeLabel/);
+  assert.match(failoverV2Source, /FAILOVER_V2_SELECTED_SERVICE_STORAGE_KEY/);
+  assert.match(failoverV2Source, /service_latest_execution/);
+  assert.match(nodeTableSource, /size-8 shrink-0 sm:size-5/);
+  assert.match(serverPageSource, /h-8 w-8 shrink-0 rounded-md sm:h-4 sm:w-4/);
+  assert.match(tunnelsSource, /const hasRules = metrics\.totalRules > 0/);
+});
+
 test("tunnel forwarding page is routed and visible in the admin menu", () => {
   const routesSource = fs.readFileSync(path.resolve(root, "src/routes.ts"), "utf8");
   const tunnelsPageSource = fs.readFileSync(path.resolve(root, "src/pages/admin/tunnels.tsx"), "utf8");

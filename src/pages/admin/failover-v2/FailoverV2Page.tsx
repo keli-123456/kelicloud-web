@@ -296,6 +296,8 @@ const FAILOVER_V2_AUTOMATIC_PROVIDER_ENTRY_ID = "active";
 const FAILOVER_V2_POLL_INTERVAL_MS = 5000;
 const FAILOVER_V2_SCHEDULER_STATUS_POLL_INTERVAL_MS = 15000;
 const FAILOVER_V2_COUNTDOWN_TICK_MS = 1000;
+const FAILOVER_V2_SELECTED_SERVICE_STORAGE_KEY = "kelicloud:failover-v2:selected-service";
+const FAILOVER_V2_SELECTED_MEMBER_STORAGE_KEY = "kelicloud:failover-v2:selected-member";
 const FAILOVER_V2_ACTIVE_EXECUTION_STATUSES = new Set([
   "running",
   "queued",
@@ -324,6 +326,32 @@ const FAILOVER_V2_TERMINAL_EXECUTION_STATUSES = new Set([
   "timeout",
 ]);
 const DNS_TTL_OPTIONS = [1, 60, 120, 300, 600, 900, 1800, 3600, 7200] as const;
+
+function readStoredFailoverV2ServiceID() {
+  try {
+    const value = Number(window.localStorage.getItem(FAILOVER_V2_SELECTED_SERVICE_STORAGE_KEY));
+    return Number.isInteger(value) && value > 0 ? value : null;
+  } catch {
+    return null;
+  }
+}
+
+function readStoredFailoverV2MemberKey() {
+  try {
+    const value = String(window.localStorage.getItem(FAILOVER_V2_SELECTED_MEMBER_STORAGE_KEY) || "").trim();
+    return /^\d+:\d+$/.test(value) ? value : null;
+  } catch {
+    return null;
+  }
+}
+
+function storeFailoverV2Selection(key: string, value: string | number) {
+  try {
+    window.localStorage.setItem(key, String(value));
+  } catch {
+    // Selection memory is optional when browser storage is unavailable.
+  }
+}
 
 function SelectTrigger({
   className,
@@ -2757,8 +2785,9 @@ export default function FailoverV2Page() {
   const serviceDNSPayloadRef = React.useRef<Record<string, unknown>>({});
 
   const [services, setServices] = React.useState<FailoverV2Service[]>([]);
-  const [expandedServiceID, setExpandedServiceID] = React.useState<number | null>(null);
-  const [expandedMemberKey, setExpandedMemberKey] = React.useState<string | null>(null);
+  const [expandedServiceID, setExpandedServiceID] = React.useState<number | null>(readStoredFailoverV2ServiceID);
+  const [expandedMemberKey, setExpandedMemberKey] = React.useState<string | null>(readStoredFailoverV2MemberKey);
+  const initialWorkbenchSelectionResolvedRef = React.useRef(false);
   const [nowTickMs, setNowTickMs] = React.useState(() => Date.now());
   const [loadingServices, setLoadingServices] = React.useState(true);
   const [error, setError] = React.useState("");
@@ -2972,13 +3001,43 @@ export default function FailoverV2Page() {
     [services],
   );
   React.useEffect(() => {
-    if (expandedServiceID !== null && !services.some((service) => service.id === expandedServiceID)) {
-      setExpandedServiceID(null);
+    if (
+      initialWorkbenchSelectionResolvedRef.current
+      && expandedServiceID !== null
+      && !services.some((service) => service.id === expandedServiceID)
+    ) {
+      setExpandedServiceID(services[0]?.id ?? null);
     }
   }, [expandedServiceID, services]);
   React.useEffect(() => {
-    setExpandedMemberKey(null);
+    if (expandedServiceID === null) {
+      setExpandedMemberKey(null);
+      return;
+    }
+
+    const expandedService = services.find((service) => service.id === expandedServiceID);
+    if (!expandedService) {
+      return;
+    }
+
+    setExpandedMemberKey((current) => {
+      if (current && expandedService.members.some((member) => `${expandedService.id}:${member.id}` === current)) {
+        return current;
+      }
+      const firstMember = expandedService.members[0];
+      return firstMember ? `${expandedService.id}:${firstMember.id}` : null;
+    });
+  }, [expandedServiceID, services]);
+  React.useEffect(() => {
+    if (expandedServiceID !== null) {
+      storeFailoverV2Selection(FAILOVER_V2_SELECTED_SERVICE_STORAGE_KEY, expandedServiceID);
+    }
   }, [expandedServiceID]);
+  React.useEffect(() => {
+    if (expandedMemberKey) {
+      storeFailoverV2Selection(FAILOVER_V2_SELECTED_MEMBER_STORAGE_KEY, expandedMemberKey);
+    }
+  }, [expandedMemberKey]);
   const selectedMemberDetail = React.useMemo(() => {
     for (const service of services) {
       const member = service.members.find((candidate) => `${service.id}:${candidate.id}` === expandedMemberKey);
@@ -3018,6 +3077,23 @@ export default function FailoverV2Page() {
     const parsed = Number(raw);
     return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
   }, [searchParams]);
+  React.useEffect(() => {
+    if (loadingServices || services.length === 0 || initialWorkbenchSelectionResolvedRef.current) {
+      return;
+    }
+
+    const requestedServiceID = focusedServiceID ?? expandedServiceID;
+    const requestedIndex = requestedServiceID === null
+      ? -1
+      : services.findIndex((service) => service.id === requestedServiceID);
+    const selectedIndex = requestedIndex >= 0 ? requestedIndex : 0;
+    const selectedService = services[selectedIndex];
+
+    initialWorkbenchSelectionResolvedRef.current = true;
+    setExpandedServiceID(selectedService.id);
+    setServicePage(Math.floor(selectedIndex / servicePageSize) + 1);
+  }, [expandedServiceID, focusedServiceID, loadingServices, servicePageSize, services, setServicePage]);
+
   React.useEffect(() => {
     if (!focusedServiceID || services.length === 0) {
       return;
@@ -5119,6 +5195,9 @@ export default function FailoverV2Page() {
                           </div>
                           {serviceLatestExecution ? (
                             <div className="mt-3 border-t border-border pt-3">
+                              <div className="mb-2 text-[11px] font-medium uppercase text-muted-foreground">
+                                {t("failover_v2.workbench.service_latest_execution", { defaultValue: "服务最近执行" })}
+                              </div>
                               <div className="flex flex-wrap items-center gap-2">
                                 {platformAdmin ? (
                                   <span className="text-sm font-semibold text-foreground">
@@ -5235,10 +5314,7 @@ export default function FailoverV2Page() {
                   );
                 })() : (
                   <div className="px-4 py-6">
-                    <div className="text-sm font-semibold text-foreground">
-                      {t("failover_v2.workbench.member_detail", { defaultValue: "子成员详情" })}
-                    </div>
-                    <div className="mt-2 text-sm leading-6 text-muted-foreground">
+                    <div className="text-sm leading-6 text-muted-foreground">
                       {t("failover_v2.workbench.member_detail_empty", { defaultValue: "展开一个任务，然后选择子成员查看详情。" })}
                     </div>
                   </div>

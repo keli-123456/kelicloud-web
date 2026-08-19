@@ -200,8 +200,10 @@ function TunnelOverviewBar({
   metrics: TunnelOverviewMetrics;
   t: (key: string, options?: Record<string, unknown>) => string;
 }) {
+  const hasRules = metrics.totalRules > 0;
+
   return (
-    <div className="grid min-w-0 gap-2 sm:grid-cols-2 xl:grid-cols-4">
+    <div className={cn("grid min-w-0 gap-2 sm:grid-cols-2", hasRules && "xl:grid-cols-4")}>
       <OverviewTile
         icon={<Network className="size-4" />}
         label={t("tunnels.overview_rules", { defaultValue: "规则" })}
@@ -209,13 +211,13 @@ function TunnelOverviewBar({
         detail={t("tunnels.overview_rules_detail", { count: metrics.healthyRules })}
         tone={metrics.totalRules === metrics.healthyRules && metrics.totalRules > 0 ? "green" : "amber"}
       />
-      <OverviewTile
+      {hasRules ? <OverviewTile
         icon={<Activity className="size-4" />}
         label={t("tunnels.overview_sessions", { defaultValue: "活跃连接" })}
         value={metrics.activeSessions}
         detail={t("tunnels.overview_sessions_detail", { defaultValue: "实时" })}
         tone={metrics.activeSessions > 0 ? "blue" : "gray"}
-      />
+      /> : null}
       <OverviewTile
         icon={<Server className="size-4" />}
         label={t("tunnels.overview_groups", { defaultValue: "分组" })}
@@ -223,13 +225,13 @@ function TunnelOverviewBar({
         detail={t("tunnels.overview_groups_detail", { count: metrics.readyGroups })}
         tone={metrics.readyGroups > 0 ? "green" : "gray"}
       />
-      <OverviewTile
+      {hasRules ? <OverviewTile
         icon={<CheckCircle2 className="size-4" />}
         label={t("tunnels.overview_ready", { defaultValue: "可用规则" })}
         value={metrics.healthyRules}
         detail={t("tunnels.overview_ready_detail", { count: metrics.totalRules })}
         tone={metrics.healthyRules > 0 ? "green" : "gray"}
-      />
+      /> : null}
     </div>
   );
 }

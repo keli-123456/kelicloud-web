@@ -301,16 +301,16 @@ function StickyEditorSummaryPanel({
   children,
 }: {
   title: string;
-  hint: string;
+  hint?: string;
   rows: StickySummaryRow[];
   children?: React.ReactNode;
 }) {
   return (
     <aside className="hidden min-w-0 xl:block">
       <div className="sticky top-0 space-y-3 border-l border-slate-200/80 bg-transparent py-1 pl-4 dark:border-slate-800">
-        <div className="space-y-1">
+        <div className={hint ? "space-y-1" : undefined}>
           <div className="text-sm font-semibold text-slate-900 dark:text-slate-50">{title}</div>
-          <p className="text-xs leading-5 text-muted-foreground">{hint}</p>
+          {hint ? <p className="text-xs leading-5 text-muted-foreground">{hint}</p> : null}
         </div>
         {rows.length > 0 ? (
           <div className="overflow-hidden border-y border-slate-200/80 dark:border-slate-800">
@@ -2661,7 +2661,7 @@ function describeDnsCoreSettings(
       : "",
   ].filter(Boolean).join(" · ")
     || t("failover.editor.dns_summary_hint", {
-      defaultValue: "Review the DNS target, sync mode, and old-instance cleanup here. Open the secondary dialog only when you need to change the details.",
+      defaultValue: "Review DNS switching and old-instance cleanup settings.",
     });
 }
 
@@ -6936,25 +6936,23 @@ function TaskEditorDialog({
   const selectedPlanDialogPolicyNotes = [
     t("failover.editor.plan_summary_default_network", { defaultValue: "出口创建默认按后端策略保持公网可达，普通编辑不再暴露网络细节。" }),
     t("failover.editor.plan_summary_dns_after_success", { defaultValue: "DNS 会在实例或公网 IP 准备完成后再切换，降低提前切流风险。" }),
-    t("failover.editor.plan_summary_order", { defaultValue: "多计划按左侧顺序回退，右侧只保留当前计划的关键结果。" }),
+    t("failover.editor.plan_summary_order", { defaultValue: "多计划按左侧顺序回退。" }),
   ];
   const mainTaskSummaryRows: StickySummaryRow[] = [
     {
       label: t("common.name", { defaultValue: "Name" }),
       value: formState.name.trim() || t("common.not_set", { defaultValue: "Not set" }),
     },
-    {
+    ...(!formState.enabled ? [{
       label: t("common.status", { defaultValue: "Status" }),
-      value: formState.enabled
-        ? t("common.enabled", { defaultValue: "Enabled" })
-        : t("common.disabled", { defaultValue: "Disabled" }),
-    },
-    {
+      value: t("common.disabled", { defaultValue: "Disabled" }),
+    }] : []),
+    ...(selectedCurrentClientNode || formState.current_client_uuid.trim() ? [{
       label: t("failover.editor.current_client", { defaultValue: "Current client" }),
       value: selectedCurrentClientNode
         ? getNodeLabel(selectedCurrentClientNode)
-        : formState.current_client_uuid.trim() || t("failover.editor.current_client_optional", { defaultValue: "Optional" }),
-    },
+        : formState.current_client_uuid.trim(),
+    }] : []),
     {
       label: t("failover.editor.dns", { defaultValue: "DNS and cleanup" }),
       value: hasDnsEnabled
@@ -7472,9 +7470,8 @@ function TaskEditorDialog({
               : t("failover.editor.create_title", { defaultValue: "Create failover task" })}
           </DialogTitle>
           <DialogDescription>
-            {t("failover.page_description", {
-              defaultValue:
-                "Create automatic failover tasks, monitor CN connectivity, run cloud repair plans by priority, optionally execute scripts, and switch DNS after the new outlet is ready.",
+            {t("failover.editor.dialog_description", {
+              defaultValue: "配置监控、替换方案、DNS 和执行脚本。",
             })}
           </DialogDescription>
         </DialogHeader>
@@ -7488,11 +7485,6 @@ function TaskEditorDialog({
                     <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-50">
                       {t("failover.editor.section_basic", { defaultValue: "Basic information" })}
                     </h3>
-                    <p className="text-xs leading-5 text-slate-500 dark:text-slate-400">
-                      {t("failover.editor.section_basic_hint", {
-                        defaultValue: "Name the task, decide whether it can run automatically, and optionally bind the current outlet.",
-                      })}
-                    </p>
                   </div>
                   <div className="space-y-4">
                     <div className="grid items-start gap-3 md:grid-cols-[minmax(0,1fr)_18rem]">
@@ -7613,9 +7605,6 @@ function TaskEditorDialog({
                     title={t("failover.editor.show_task_advanced", {
                       defaultValue: "Advanced monitoring settings",
                     })}
-                    hint={t("failover.editor.task_summary_hint", {
-                      defaultValue: "Keep the main dialog focused on task identity and current outlet. Open the secondary dialog when you need to tune thresholds or retry behavior.",
-                    })}
                     actionLabel={t("common.edit", { defaultValue: "Edit" })}
                     onAction={() => setTaskDialogOpen(true)}
                     items={taskMonitoringSummaryItems}
@@ -7633,7 +7622,7 @@ function TaskEditorDialog({
                     </DialogTitle>
                     <DialogDescription>
                       {t("failover.editor.task_dialog_description", {
-                        defaultValue: "Tune failure thresholds, stale-data windows, cooldown, and retry behavior without crowding the main task dialog.",
+                        defaultValue: "Set failure thresholds, stale-data windows, cooldown, and retry behavior.",
                       })}
                     </DialogDescription>
                   </DialogHeader>
@@ -7776,15 +7765,6 @@ function TaskEditorDialog({
                   <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-50">
                     {t("failover.editor.section_dns_target", { defaultValue: "DNS target" })}
                   </h3>
-                  <p className="text-xs leading-5 text-slate-500 dark:text-slate-400">
-                    {hasDnsEnabled
-                      ? t("failover.editor.dns_summary_hint", {
-                        defaultValue: "Review the DNS target, sync mode, and old-instance cleanup here. Open the secondary dialog only when you need to change the details.",
-                      })
-                      : t("failover.editor.no_dns_hint", {
-                        defaultValue: "This task will skip DNS switching and only manage cloud failover actions.",
-                      })}
-                  </p>
                 </div>
                 <div className="space-y-4">
                   <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
@@ -7847,7 +7827,7 @@ function TaskEditorDialog({
                     <DialogTitle>{t("failover.editor.dns", { defaultValue: "DNS and cleanup" })}</DialogTitle>
                     <DialogDescription>
                       {t("failover.editor.dns_dialog_description", {
-                        defaultValue: "Configure DNS provider credentials, target records, sync mode, and old-instance cleanup without leaving the task summary.",
+                        defaultValue: "Configure DNS credentials, target records, sync mode, and old-instance cleanup.",
                       })}
                     </DialogDescription>
                   </DialogHeader>
@@ -8368,11 +8348,6 @@ function TaskEditorDialog({
                   <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-50">
                     {t("failover.editor.section_plans", { defaultValue: "Failover plans" })}
                   </h3>
-                  <p className="text-xs leading-5 text-slate-500 dark:text-slate-400">
-                    {t("failover.editor.plans_summary_hint", {
-                      defaultValue: "Keep the main dialog focused on plan order and outcomes. Open the secondary dialog when you need to edit provider details, instance options, or scripts.",
-                    })}
-                  </p>
                 </div>
                 <div className="space-y-4">
                   <div className="flex justify-end">
@@ -8483,7 +8458,7 @@ function TaskEditorDialog({
                     <DialogTitle>{t("failover.editor.plans", { defaultValue: "Failover plans" })}</DialogTitle>
                     <DialogDescription>
                       {t("failover.editor.plans_dialog_description", {
-                        defaultValue: "Adjust plan order, provider settings, instance options, scripts, and runtime details while keeping the main task dialog compact.",
+                        defaultValue: "Adjust plan order, cloud settings, instance options, scripts, and runtime details.",
                       })}
                     </DialogDescription>
                   </DialogHeader>
@@ -10286,16 +10261,13 @@ function TaskEditorDialog({
               <section className={FORM_SECTION_CLASS}>
                 <ActionSummaryCard
                   title={t("failover.preview.title", { defaultValue: "Preview checks" })}
-                  hint={t("failover.preview.summary_hint", {
-                    defaultValue: "Keep the main dialog focused on preview status and save readiness. Open the secondary dialog only when you need to inspect check details.",
-                  })}
                   actionLabel={t("failover.preview.details_action", { defaultValue: "View details" })}
                   onAction={() => setPreviewDialogOpen(true)}
                   actionDisabled={!hasPreviewDetail}
                   actionIcon="view"
                   items={previewSummaryItems}
                   emptyLabel={t("failover.preview.summary_empty", {
-                    defaultValue: "Preview has not run yet. Use the Preview button below to validate the current task before saving.",
+                    defaultValue: "尚未执行预检。",
                   })}
                   showEmptyState={!hasPreviewDetail}
                   statusMessage={previewSummaryStatusMessage}
@@ -10310,7 +10282,7 @@ function TaskEditorDialog({
                     <DialogTitle>{t("failover.preview.title", { defaultValue: "Preview checks" })}</DialogTitle>
                     <DialogDescription>
                       {t("failover.preview.dialog_description", {
-                        defaultValue: "Inspect task-level and plan-level checks from the latest preview run without crowding the main task dialog.",
+                        defaultValue: "Review task and plan checks from the latest preview.",
                       })}
                     </DialogDescription>
                   </DialogHeader>
@@ -10328,9 +10300,6 @@ function TaskEditorDialog({
               </div>
               <StickyEditorSummaryPanel
                 title={t("failover.editor.main_summary_title", { defaultValue: "任务配置总览" })}
-                hint={t("failover.editor.main_summary_hint", {
-                  defaultValue: "右侧只保留会影响执行结果的关键状态，左侧负责编辑具体表单。",
-                })}
                 rows={mainTaskSummaryRows}
               />
             </div>
@@ -10983,7 +10952,10 @@ function FailoverPageContent() {
                           : task.probe.stale
                             ? "warning"
                             : getStatusVariant(task.last_status || task.probe.status, "execution");
-                      const taskNormalLabel = t("failover.task.state_normal", { defaultValue: "运行正常" });
+                      const normalizedTaskStatus = String(task.last_status || task.probe.status || "").trim().toLowerCase();
+                      const taskEnabledLabel = ["", "ok", "success", "healthy", "online"].includes(normalizedTaskStatus)
+                        ? t("common.enabled", { defaultValue: "Enabled" })
+                        : getStatusLabel(t, task.last_status || task.probe.status);
                       const taskStateLabel = !task.enabled
                         ? t("common.disabled", { defaultValue: "Disabled" })
                         : task.has_active_execution
@@ -10992,7 +10964,7 @@ function FailoverPageContent() {
                             ? platformAdmin
                               ? view.staleRetrySummary || t("failover.probe.stale", { defaultValue: "Stale" })
                               : t("failover.public.state_pending", { defaultValue: "状态待确认" })
-                            : taskNormalLabel;
+                            : taskEnabledLabel;
                       const dnsSummaryParts = [
                         task.dns_provider ? getDnsTaskStatusLabel(t, view.dnsStatus) : null,
                         view.dnsIPv6Badge ? "IPv6" : null,
@@ -11012,6 +10984,16 @@ function FailoverPageContent() {
                             }: ${view.nextCycleSummary}`
                           : null,
                       ].filter(Boolean).join(" · ");
+                      const executionStatusVariant = latestExecution
+                        ? getStatusVariant(latestExecution.status, "execution")
+                        : "outline";
+                      const executionBadgeVariant = primaryRiskBadge && executionStatusVariant === "success"
+                        ? primaryRiskBadge.variant
+                        : executionStatusVariant;
+                      const executionBadgeLabel = latestExecution
+                        ? [getStatusLabel(t, latestExecution.status), primaryRiskBadge?.label].filter(Boolean).join(" · ")
+                        : t("failover.task.no_execution_short", { defaultValue: "No execution" });
+                      const showExecutionSummary = Boolean(latestExecution?.error_message || !primaryRiskBadge);
 
                       return (
                         <tr
@@ -11060,26 +11042,15 @@ function FailoverPageContent() {
                           </td>
                           <td className="min-w-0 px-3 py-2 align-middle">
                             <div className="flex min-w-0 items-center gap-1.5 whitespace-nowrap">
-                                {latestExecution ? (
-                                  <Badge variant={getStatusVariant(latestExecution.status, "execution")} className="shrink-0">
-                                    {getStatusLabel(t, latestExecution.status)}
-                                  </Badge>
-                                ) : (
-                                  <Badge variant="outline" className="shrink-0">
-                                    {t("failover.task.no_execution_short", { defaultValue: "No execution" })}
-                                  </Badge>
-                                )}
-                                {primaryRiskBadge ? (
-                                  <Badge variant={primaryRiskBadge.variant} className="shrink-0" title={primaryRiskBadge.title || undefined}>
-                                    {primaryRiskBadge.label}
-                                  </Badge>
-                                ) : null}
+                                <Badge variant={executionBadgeVariant} className="shrink-0" title={primaryRiskBadge?.title || undefined}>
+                                  {executionBadgeLabel}
+                                </Badge>
                                 {hiddenRiskCount > 0 ? (
                                   <Badge variant="outline" className="shrink-0">
                                     +{hiddenRiskCount}
                                   </Badge>
                                 ) : null}
-                                <span
+                                {showExecutionSummary ? <span
                                   className={cn(
                                     "min-w-0 flex-1 truncate text-[12px] leading-5",
                                     latestExecution?.error_message ? "text-red-600 dark:text-red-300" : "text-muted-foreground",
@@ -11088,6 +11059,7 @@ function FailoverPageContent() {
                                 >
                                   {view.latestExecutionSummary}
                                 </span>
+                                : null}
                                 {timingSummary ? (
                                   <span className="hidden shrink-0 text-[11px] leading-4 text-muted-foreground 2xl:inline" title={timingSummary}>
                                     {timingSummary}

@@ -47,7 +47,7 @@ export function ActionSummaryCard({
   className,
 }: {
   title: string;
-  hint: string;
+  hint?: string;
   actionLabel: string;
   onAction: () => void;
   actionDisabled?: boolean;
@@ -76,9 +76,11 @@ export function ActionSummaryCard({
           <div className="break-words text-sm font-medium text-slate-900 dark:text-slate-50">
             {title}
           </div>
-          <div className="break-words text-xs text-muted-foreground">
-            {hint}
-          </div>
+          {hint ? (
+            <div className="break-words text-xs text-muted-foreground">
+              {hint}
+            </div>
+          ) : null}
         </div>
         <Button type="button" variant="outline" size={variant === "inline" ? "sm" : "default"} onClick={onAction} disabled={actionDisabled}>
           <ActionIcon className="size-4" />

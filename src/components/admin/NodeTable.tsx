@@ -135,7 +135,9 @@ const columns: ColumnDef<z.infer<typeof schema>>[] = [
               <span className="min-w-0 truncate font-mono text-xs">{ipv4}</span>
               <IconButton
                 variant="ghost"
-                className="size-5 shrink-0"
+                className="size-8 shrink-0 sm:size-5"
+                title={t("admin.nodeTable.copyIpv4")}
+                aria-label={t("admin.nodeTable.copyIpv4")}
                 onClick={() => {
                   navigator.clipboard.writeText(ipv4);
                   toast.success(t("copy_success"));
@@ -150,7 +152,9 @@ const columns: ColumnDef<z.infer<typeof schema>>[] = [
               <span className="min-w-0 truncate font-mono text-xs">{ipv6}</span>
               <IconButton
                 variant="ghost"
-                className="size-5 shrink-0"
+                className="size-8 shrink-0 sm:size-5"
+                title={t("admin.nodeTable.copyIpv6")}
+                aria-label={t("admin.nodeTable.copyIpv6")}
                 onClick={() => {
                   navigator.clipboard.writeText(ipv6);
                   toast.success(t("copy_success"));
