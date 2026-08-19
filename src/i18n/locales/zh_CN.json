@@ -2502,7 +2502,6 @@
       "zero": "0秒"
     },
     "editor": {
-      "dialog_description": "配置监控、替换方案、DNS 和执行脚本。",
       "action_type": "动作类型",
       "action_type_placeholder": "选择动作类型",
       "add_backup_plan": "新增备用方案",
@@ -2577,6 +2576,7 @@
       "delete_delay": "删除延迟（秒）",
       "delete_strategy": "旧实例处理策略",
       "description": "配置 kelicloud 在中国大陆连通性异常时的处理方式：选择监控节点、云方案、脚本和 DNS 更新目标。",
+      "dialog_description": "配置监控、替换方案、DNS 和执行脚本。",
       "digitalocean_common_options_hint": "默认展示常用的 DigitalOcean 区域、规格和镜像。只有需要非常用选项时，再加载完整的 DigitalOcean 列表。",
       "dns": "DNS 与清理策略",
       "dns_dialog_description": "配置 DNS 凭证、目标记录、同步方式和旧实例清理策略。",
@@ -3903,10 +3903,10 @@
       "execution_state": "执行状态",
       "expand_task": "展开",
       "member_detail": "子成员详情",
-      "service_latest_execution": "服务最近执行",
       "member_detail_empty": "展开一个任务，然后选择子成员查看详情。",
       "member_list": "子成员",
       "member_list_hint": "左侧看主要状态，右侧看详情。",
+      "service_latest_execution": "服务最近执行",
       "task_count_suffix": "个任务",
       "task_detail": "主任务",
       "task_queue": "任务列表",
