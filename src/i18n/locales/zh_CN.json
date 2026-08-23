@@ -2811,14 +2811,14 @@
         "instance_deleted_title": "旧实例已删除",
         "instance_missing_description": "系统确认旧实例已经不存在，无需继续清理。",
         "instance_missing_title": "旧实例已经不存在",
-        "script_failed_instance_retained_description": "新出口已通过健康检查。由于部署脚本失败，新旧实例均已保留，请检查脚本输出后再决定是否删除旧实例。",
-        "script_failed_instance_retained_title": "新实例已保留，脚本需要处理",
         "last_error": "最后错误：{{error}}",
         "provider_entry_missing_description": "系统已无法访问原云账号，因此无法确认旧实例是否仍存在或是否仍在计费，请登录原云账号手动检查。",
         "provider_entry_missing_title": "原云凭证已删除",
         "provider_entry_unhealthy_description": "系统检测到原云凭证已经不可用，因此无法确认旧实例状态，请登录原云账号手动检查。",
         "provider_entry_unhealthy_title": "原云凭证不可用",
-        "reason": "原因：{{reason}}"
+        "reason": "原因：{{reason}}",
+        "script_failed_instance_retained_description": "新出口已通过健康检查。由于部署脚本失败，新旧实例均已保留，请检查脚本输出后再决定是否删除旧实例。",
+        "script_failed_instance_retained_title": "新实例已保留，脚本需要处理"
       },
       "cleanup_result": "清理结果",
       "description": "跟踪故障切换进度、脚本结果和 DNS 变更。",
