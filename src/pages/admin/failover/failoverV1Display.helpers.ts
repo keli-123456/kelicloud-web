@@ -5,6 +5,8 @@ type ExecutionCandidateLike = {
 export type FailoverExecutionDisplayLike = {
   status?: string | null;
   script_status?: string | null;
+  script_exit_code?: number | null;
+  script_output?: string | null;
   dns_status?: string | null;
   dns_provider?: string | null;
   cleanup_status?: string | null;
@@ -16,6 +18,8 @@ export type FailoverExecutionDisplayLike = {
 
 const ANSI_ESCAPE_SEQUENCE_PATTERN = /\u001B\[[0-?]*[ -/]*[@-~]/g;
 const RETAINED_SCRIPT_FAILURE_SUFFIX = /;\s*healthy new instance retained because DNS switching is disabled\s*$/i;
+const GENERIC_SCRIPT_NOTICE_PATTERN = /^(?:important notice|重要提示)\s*[:：]?$/i;
+const GENERIC_SCRIPT_FAILURE_SUFFIX_PATTERN = /(?:^|:\s*)(?:important notice|重要提示)\s*[:：]?\s*$/i;
 
 function asRecord(value: unknown) {
   if (!value || typeof value !== "object" || Array.isArray(value)) {
@@ -58,10 +62,33 @@ export function isRetainedScriptWarningExecution(execution: FailoverExecutionDis
   );
 }
 
+export function getScriptOutputFailureExcerpt(value: unknown) {
+  const lines = stripTerminalControlSequences(value).split(/\r?\n/);
+  for (let index = lines.length - 1; index >= 0; index -= 1) {
+    const line = lines[index].trim();
+    if (
+      !line
+      || line === "... output truncated; final lines preserved ..."
+      || GENERIC_SCRIPT_NOTICE_PATTERN.test(line)
+    ) {
+      continue;
+    }
+    return line.length > 240 ? line.slice(0, 237) + "..." : line;
+  }
+  return "";
+}
+
 export function getRetainedScriptFailureMessage(execution: FailoverExecutionDisplayLike | null | undefined) {
   const cleanupError = asRecord(execution?.cleanup_result)?.error_message;
   const rawMessage = cleanupError || execution?.error_message || "";
-  return stripTerminalControlSequences(rawMessage).replace(RETAINED_SCRIPT_FAILURE_SUFFIX, "").trim();
+  const message = stripTerminalControlSequences(rawMessage).replace(RETAINED_SCRIPT_FAILURE_SUFFIX, "").trim();
+  const outputExcerpt = getScriptOutputFailureExcerpt(execution?.script_output);
+
+  if (outputExcerpt && (!message || GENERIC_SCRIPT_FAILURE_SUFFIX_PATTERN.test(message))) {
+    const exitCode = Number.isInteger(execution?.script_exit_code) ? execution?.script_exit_code : 1;
+    return "script exited with code " + exitCode + ": " + outputExcerpt;
+  }
+  return message || outputExcerpt;
 }
 
 export function shouldShowRetryDNSGuidance(execution: FailoverExecutionDisplayLike | null | undefined) {

@@ -332,12 +332,14 @@ test("failover v1 treats retained no-DNS script failures as warnings", () => {
     new_instance_ref: { provider: "linode", instance_id: 103361420 },
     candidates: [{ selected: true }],
     error_message: "script exited with code 1: \u001b[33mImportant notice\u001b[0m; healthy new instance retained because DNS switching is disabled",
+    script_exit_code: 1,
+    script_output: "\u001b[33m重要提示：\u001b[0m\n... output truncated; final lines preserved ...\nsysctl: cannot stat /proc/sys/net/ipv4/tcp_collapse_max_bytes: No such file or directory\n",
   };
 
   assert.equal(failoverV1DisplayHelpers.isRetainedScriptWarningExecution(execution), true);
   assert.equal(
     failoverV1DisplayHelpers.getRetainedScriptFailureMessage(execution),
-    "script exited with code 1: Important notice",
+    "script exited with code 1: sysctl: cannot stat /proc/sys/net/ipv4/tcp_collapse_max_bytes: No such file or directory",
   );
   assert.equal(failoverV1DisplayHelpers.shouldShowRetryDNSGuidance(execution), false);
 });
