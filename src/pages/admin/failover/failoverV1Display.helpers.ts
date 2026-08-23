@@ -7,6 +7,7 @@ export type FailoverExecutionDisplayLike = {
   script_status?: string | null;
   dns_status?: string | null;
   dns_provider?: string | null;
+  cleanup_status?: string | null;
   cleanup_result?: unknown;
   error_message?: string | null;
   new_instance_ref?: unknown;
@@ -69,4 +70,18 @@ export function shouldShowRetryDNSGuidance(execution: FailoverExecutionDisplayLi
   }
   const dnsStatus = normalized(execution.dns_status);
   return dnsStatus === "failed" || dnsStatus === "pending" || dnsStatus === "skipped";
+}
+
+export function shouldShowRetryCleanupGuidance(execution: FailoverExecutionDisplayLike | null | undefined) {
+  const cleanupStatus = normalized(execution?.cleanup_status);
+  const classification = normalized(asRecord(execution?.cleanup_result)?.classification);
+  if (classification === "script_failed_instance_retained") {
+    return false;
+  }
+  return (
+    cleanupStatus === "pending"
+    || cleanupStatus === "failed"
+    || cleanupStatus === "warning"
+    || ["provider_entry_missing", "provider_entry_unhealthy", "cleanup_status_unknown"].includes(classification)
+  );
 }

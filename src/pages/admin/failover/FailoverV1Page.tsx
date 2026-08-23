@@ -171,6 +171,7 @@ import type { TFunction } from "i18next";
 import {
   getRetainedScriptFailureMessage,
   isRetainedScriptWarningExecution,
+  shouldShowRetryCleanupGuidance,
   shouldShowRetryDNSGuidance,
   stripTerminalControlSequences,
 } from "./failoverV1Display.helpers";
@@ -1743,19 +1744,6 @@ function buildExecutionOldInstanceSummaryCard(
       defaultValue: "No saved old instance reference is available for this execution.",
     }),
   };
-}
-
-function shouldShowRetryCleanupGuidance(execution: FailoverExecution | null) {
-  const cleanupStatus = String(execution?.cleanup_status || "").trim().toLowerCase();
-  const classification = getStringValue(asRecord(execution?.cleanup_result)?.classification).toLowerCase();
-  return (
-    cleanupStatus === "pending"
-    || cleanupStatus === "failed"
-    || cleanupStatus === "warning"
-    || classification === "provider_entry_missing"
-    || classification === "provider_entry_unhealthy"
-    || classification === "cleanup_status_unknown"
-  );
 }
 
 function getRetryActionNextStep(

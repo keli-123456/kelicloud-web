@@ -355,6 +355,7 @@ test("failover v1 recognizes new retained-script cleanup classifications", () =>
 
   assert.equal(failoverV1DisplayHelpers.isRetainedScriptWarningExecution(execution), true);
   assert.equal(failoverV1DisplayHelpers.shouldShowRetryDNSGuidance(execution), false);
+  assert.equal(failoverV1DisplayHelpers.shouldShowRetryCleanupGuidance({ ...execution, cleanup_status: "warning" }), false);
   assert.equal(failoverV1DisplayHelpers.shouldShowRetryDNSGuidance({ dns_provider: "aliyun", dns_status: "failed" }), true);
 });
 
