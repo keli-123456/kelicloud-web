@@ -168,6 +168,12 @@ import {
   type SummaryStatusTone,
 } from "./EditorSummarySections";
 import type { TFunction } from "i18next";
+import {
+  getRetainedScriptFailureMessage,
+  isRetainedScriptWarningExecution,
+  shouldShowRetryDNSGuidance,
+  stripTerminalControlSequences,
+} from "./failoverV1Display.helpers";
 
 type TaskFormState = {
   name: string;
@@ -1009,6 +1015,10 @@ function getFailoverExecutionStepMessage(t: TFunction, step: FailoverExecutionSt
       });
     case "plan completed":
       return t("failover.execution.step_messages.plan_completed", { defaultValue: "Plan completed" });
+    case "plan completed with script warning":
+      return t("failover.execution.step_messages.plan_completed_with_script_warning", {
+        defaultValue: "Plan completed with a script warning",
+      });
     case "agent connected":
       return t("failover.execution.step_messages.agent_connected", { defaultValue: "Agent connected" });
     case "connectivity validation skipped because no target client is available":
@@ -1192,6 +1202,18 @@ function getCleanupResultInfo(
           defaultValue: "The old instance was deleted successfully.",
         }),
         tone: "success",
+        errorMessage,
+      };
+    case "script_failed_instance_retained":
+      return {
+        classification,
+        title: t("failover.execution.cleanup_messages.script_failed_instance_retained_title", {
+          defaultValue: "New instance retained; script needs attention",
+        }),
+        description: t("failover.execution.cleanup_messages.script_failed_instance_retained_description", {
+          defaultValue: "The new outlet passed its health check. Because the post-provision script failed, both the new and old instances were retained for manual review.",
+        }),
+        tone: "warning",
         errorMessage,
       };
     case "instance_missing":
@@ -1721,11 +1743,6 @@ function buildExecutionOldInstanceSummaryCard(
       defaultValue: "No saved old instance reference is available for this execution.",
     }),
   };
-}
-
-function shouldShowRetryDNSGuidance(execution: FailoverExecution | null) {
-  const dnsStatus = String(execution?.dns_status || "").trim().toLowerCase();
-  return dnsStatus === "failed" || dnsStatus === "pending" || dnsStatus === "skipped";
 }
 
 function shouldShowRetryCleanupGuidance(execution: FailoverExecution | null) {
@@ -3512,6 +3529,7 @@ function getStatusVariant(
   if (kind === "execution") {
     if (normalized === "success") return "success";
     if (normalized === "failed") return "destructive";
+    if (normalized === "warning") return "warning";
     if (normalized === "retry") return "info";
     if (isFailoverExecutionActive(normalized)) return "info";
     return "secondary";
@@ -5568,9 +5586,22 @@ function ExecutionDetailDialog({
     }
   };
 
+  const retainedScriptWarning = isRetainedScriptWarningExecution(execution);
+  const retainedScriptFailureMessage = getRetainedScriptFailureMessage(execution);
+  const executionDisplayStatus = retainedScriptWarning ? "warning" : execution?.status || "";
+  const executionErrorMessage = retainedScriptWarning
+    ? retainedScriptFailureMessage
+    : stripTerminalControlSequences(execution?.error_message);
+  const cleanupDisplayStatus = retainedScriptWarning ? "warning" : execution?.cleanup_status || "";
+  const cleanupDisplayResult = retainedScriptWarning
+    ? {
+      classification: "script_failed_instance_retained",
+      error_message: retainedScriptFailureMessage,
+    }
+    : execution?.cleanup_result;
   const executionScriptNames = splitScriptSnapshotNames(execution?.script_name_snapshot || "");
   const cleanupInfo = execution
-    ? getCleanupResultInfo(t, execution.cleanup_status, execution.cleanup_result)
+    ? getCleanupResultInfo(t, cleanupDisplayStatus, cleanupDisplayResult)
     : null;
   const retryDNSAvailability = getRetryExecutionDNSAvailability(execution);
   const retryCleanupAvailability = getRetryExecutionCleanupAvailability(execution);
@@ -5644,7 +5675,11 @@ function ExecutionDetailDialog({
                   <div className="text-[11px] font-semibold uppercase tracking-normal text-muted-foreground">
                     {t("failover.execution.status", { defaultValue: "Execution status" })}
                   </div>
-                  <Badge variant={getStatusVariant(execution.status, "execution")}>{getStatusLabel(t, execution.status)}</Badge>
+                  <Badge variant={getStatusVariant(executionDisplayStatus, "execution")}>
+                    {retainedScriptWarning
+                      ? t("failover.execution.partial_success", { defaultValue: "Completed with warning" })
+                      : getStatusLabel(t, execution.status)}
+                  </Badge>
                   <div className="text-xs text-muted-foreground">{formatDateTime(execution.started_at)}</div>
                 </div>
                 {detailedMode ? (
@@ -5691,7 +5726,7 @@ function ExecutionDetailDialog({
                       <div className="text-[11px] font-semibold uppercase tracking-normal text-muted-foreground">
                         {t("failover.execution.cleanup", { defaultValue: "Cleanup" })}
                       </div>
-                      <Badge variant={getStatusVariant(execution.cleanup_status, "cleanup")}>{getStatusLabel(t, execution.cleanup_status)}</Badge>
+                      <Badge variant={getStatusVariant(cleanupDisplayStatus, "cleanup")}>{getStatusLabel(t, cleanupDisplayStatus)}</Badge>
                       <div className="text-xs text-muted-foreground">
                         {execution.finished_at
                           ? formatDateTime(execution.finished_at)
@@ -5721,11 +5756,21 @@ function ExecutionDetailDialog({
                 )}
               </div>
 
-              {execution.error_message ? (
-                <div className="border-l-2 border-red-300 bg-red-50/70 px-3 py-2 text-sm text-red-700 dark:border-red-800 dark:bg-red-950/20 dark:text-red-200">
-                  {detailedMode
-                    ? execution.error_message
-                    : getPublicFailoverResultText(t, execution.status, execution.error_message)}
+              {executionErrorMessage ? (
+                <div className={cn(
+                  "border-l-2 px-3 py-2 text-sm",
+                  retainedScriptWarning
+                    ? "border-amber-300 bg-amber-50/70 text-amber-800 dark:border-amber-800 dark:bg-amber-950/20 dark:text-amber-200"
+                    : "border-red-300 bg-red-50/70 text-red-700 dark:border-red-800 dark:bg-red-950/20 dark:text-red-200",
+                )}>
+                  {detailedMode && retainedScriptWarning
+                    ? t("failover.execution.partial_success_banner", {
+                      defaultValue: "Instance replacement completed, but the post-provision script failed: {{error}}",
+                      error: executionErrorMessage,
+                    })
+                    : detailedMode
+                      ? executionErrorMessage
+                      : getPublicFailoverResultText(t, execution.status, executionErrorMessage)}
                 </div>
               ) : null}
 

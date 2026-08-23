@@ -50,6 +50,7 @@ const installScriptSource = loadTsModule("src/lib/installScriptSource.ts");
 const tunnelHelpers = loadTsModule("src/lib/tunnels.helpers.ts");
 const tunnelPageHelpers = loadTsModule("src/pages/admin/tunnels.helpers.ts");
 const failoverV2DisplayHelpers = loadTsModule("src/pages/admin/failover-v2/failoverV2Display.helpers.ts");
+const failoverV1DisplayHelpers = loadTsModule("src/pages/admin/failover/failoverV1Display.helpers.ts");
 
 let chunkLoadRecovery = {};
 try {
@@ -320,6 +321,41 @@ test("tunnel page helpers summarize overview and endpoints", () => {
   });
   assert.equal(JSON.stringify(runtimePreview.lines), JSON.stringify(["入口: 监听运行异常"]));
   assert.equal(tunnelPageHelpers.getTunnelDiagnosticLabel("custom_status"), "custom_status");
+});
+
+test("failover v1 treats retained no-DNS script failures as warnings", () => {
+  const execution = {
+    status: "failed",
+    script_status: "failed",
+    dns_status: "skipped",
+    dns_provider: "",
+    new_instance_ref: { provider: "linode", instance_id: 103361420 },
+    candidates: [{ selected: true }],
+    error_message: "script exited with code 1: \u001b[33mImportant notice\u001b[0m; healthy new instance retained because DNS switching is disabled",
+  };
+
+  assert.equal(failoverV1DisplayHelpers.isRetainedScriptWarningExecution(execution), true);
+  assert.equal(
+    failoverV1DisplayHelpers.getRetainedScriptFailureMessage(execution),
+    "script exited with code 1: Important notice",
+  );
+  assert.equal(failoverV1DisplayHelpers.shouldShowRetryDNSGuidance(execution), false);
+});
+
+test("failover v1 recognizes new retained-script cleanup classifications", () => {
+  const execution = {
+    status: "success",
+    script_status: "failed",
+    dns_status: "skipped",
+    cleanup_result: {
+      classification: "script_failed_instance_retained",
+      error_message: "script exited with code 1",
+    },
+  };
+
+  assert.equal(failoverV1DisplayHelpers.isRetainedScriptWarningExecution(execution), true);
+  assert.equal(failoverV1DisplayHelpers.shouldShowRetryDNSGuidance(execution), false);
+  assert.equal(failoverV1DisplayHelpers.shouldShowRetryDNSGuidance({ dns_provider: "aliyun", dns_status: "failed" }), true);
 });
 
 test("failover v2 member status prioritizes blocked probe over last success", () => {
