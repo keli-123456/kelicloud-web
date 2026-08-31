@@ -690,6 +690,7 @@ const COMMON_DIGITALOCEAN_IMAGES: FailoverCatalogOption[] = [
   { value: "centos-stream-9-x64", label: "CentOS Stream 9", hint: "" },
 ];
 const COMMON_LINODE_REGIONS: FailoverCatalogOption[] = [
+  { value: "us-lax", label: "Los Angeles", hint: "us" },
   { value: "us-east", label: "Newark", hint: "us" },
   { value: "us-central", label: "Dallas", hint: "us" },
   { value: "us-west", label: "Fremont", hint: "us" },
