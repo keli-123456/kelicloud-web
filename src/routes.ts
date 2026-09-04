@@ -4,9 +4,9 @@ import type { RouteObject } from "react-router-dom";
 import React from "react";
 import { Navigate } from "react-router-dom";
 
-import AdminLayout from "./pages/admin/_layout";
 
 const Index = lazy(() => import("./pages/Index"));
+const AdminLayout = lazy(() => import("./pages/admin/_layout"));
 const AdminDashboard = lazy(() => import("./pages/admin/dashboard"));
 const NotFound = lazy(() => import("./pages/404"));
 

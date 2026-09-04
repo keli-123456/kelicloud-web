@@ -51,6 +51,7 @@ const tunnelHelpers = loadTsModule("src/lib/tunnels.helpers.ts");
 const tunnelPageHelpers = loadTsModule("src/pages/admin/tunnels.helpers.ts");
 const failoverV2DisplayHelpers = loadTsModule("src/pages/admin/failover-v2/failoverV2Display.helpers.ts");
 const failoverV1DisplayHelpers = loadTsModule("src/pages/admin/failover/failoverV1Display.helpers.ts");
+const failoverIssueHelpers = loadTsModule("src/lib/failoverIssue.ts");
 
 let chunkLoadRecovery = {};
 try {
@@ -389,6 +390,79 @@ test("failover v2 member status keeps last execution when probe is ok", () => {
 
   assert.equal(failoverV2DisplayHelpers.getFailoverV2ProbeAlertStatus(member), null);
   assert.equal(failoverV2DisplayHelpers.getFailoverV2MemberTaskStatusSource(member, execution), "execution");
+});
+
+test("failover issue summaries classify compound replacement failures", () => {
+  const issue = failoverIssueHelpers.analyzeFailoverIssue(
+    "all replacement candidates failed: candidate 1: no provider entry is currently available: reserved by another running task; candidate 2: cooldown until later (context deadline exceeded); requested 5 candidates but provisioned 3 after 8 attempts; candidate 3 outlet: blocked_suspected; candidate 4 outlet: timed out waiting for a healthy cn_connectivity report",
+  );
+
+  assert.equal(issue.kind, "replacement_exhausted");
+  assert.equal(issue.candidateCount, 4);
+  assert.equal(issue.requestedCandidates, 5);
+  assert.equal(issue.provisionedCandidates, 3);
+  assert.ok(issue.providerIssueCount >= 2);
+  assert.ok(issue.healthIssueCount >= 2);
+  assert.ok(issue.timeoutCount >= 2);
+  assert.equal(
+    failoverIssueHelpers.getFailoverIssueCompactText(
+      (_key, options) => options?.defaultValue || "",
+      issue.rawMessage,
+    ),
+    "No usable replacement was found (3/5)",
+  );
+});
+
+test("failover issue summaries distinguish actionable failure stages", () => {
+  assert.equal(failoverIssueHelpers.analyzeFailoverIssue("failed to update DNS record").kind, "dns");
+  assert.equal(failoverIssueHelpers.analyzeFailoverIssue("script exited with code 1").kind, "script");
+  assert.equal(failoverIssueHelpers.analyzeFailoverIssue("old instance cleanup failed").kind, "cleanup");
+  assert.equal(failoverIssueHelpers.analyzeFailoverIssue("provider API context deadline exceeded").kind, "provider_timeout");
+  assert.equal(failoverIssueHelpers.analyzeFailoverIssue("timed out waiting for a healthy Agent report").kind, "agent_timeout");
+  assert.equal(failoverIssueHelpers.analyzeFailoverIssue("Vultr token group 11 has no healthy token").kind, "provider_unavailable");
+  assert.equal(
+    failoverIssueHelpers.areFailoverIssueMessagesEquivalent(
+      "member failed: no healthy token",
+      "Member failed: no healthy token ",
+    ),
+    true,
+  );
+});
+
+test("failover workbenches share progressive execution feedback", () => {
+  const v1Source = fs.readFileSync(path.resolve(root, "src/pages/admin/failover/FailoverV1Page.tsx"), "utf8");
+  const v2Source = fs.readFileSync(path.resolve(root, "src/pages/admin/failover-v2/FailoverV2Page.tsx"), "utf8");
+  const feedbackSource = fs.readFileSync(path.resolve(root, "src/components/admin/failover/FailoverExecutionFeedback.tsx"), "utf8");
+
+  assert.ok(v1Source.includes("<FailoverStageRail"));
+  assert.ok(v2Source.includes("<FailoverStageRail"));
+  assert.ok(v1Source.includes("<FailoverIssueSummary"));
+  assert.ok(v2Source.includes("<FailoverIssueSummary"));
+  assert.ok(feedbackSource.includes('<details className="group mt-2">'));
+  assert.ok(feedbackSource.includes("getFailoverIssueAction"));
+  assert.ok(!v1Source.includes('"h-[90vh] max-w-[1180px]'));
+  assert.ok(!v2Source.includes('"h-[90vh] max-w-[1180px]'));
+});
+
+test("mobile admin navigation traps and restores focus", () => {
+  const source = fs.readFileSync(path.resolve(root, "src/components/admin/AdminPanelBar.tsx"), "utf8");
+
+  assert.ok(source.includes("inert={isMobile && !mobileMenuOpen ? true : undefined}"));
+  assert.ok(source.includes("aria-hidden={isMobile && !mobileMenuOpen ? true : undefined}"));
+  assert.ok(source.includes('event.key === "Escape"'));
+  assert.ok(source.includes("mobileMenuTriggerRef"));
+  assert.ok(source.includes("aria-expanded={mobileMenuOpen}"));
+});
+
+test("admin layout and PWA cache keep route chunks on demand", () => {
+  const routesSource = fs.readFileSync(path.resolve(root, "src/routes.ts"), "utf8");
+  const viteConfigSource = fs.readFileSync(path.resolve(root, "vite.config.ts"), "utf8");
+
+  assert.ok(routesSource.includes('const AdminLayout = lazy(() => import("./pages/admin/_layout"))'));
+  assert.ok(!routesSource.includes("import AdminLayout from"));
+  assert.ok(viteConfigSource.includes('"assets/entry-*.js"'));
+  assert.ok(viteConfigSource.includes('"assets/index-*.css"'));
+  assert.ok(!viteConfigSource.includes('"**/*.{js,css,ico,png,svg}"'));
 });
 
 test("admin workbenches keep audited density and selection safeguards", () => {

@@ -239,7 +239,7 @@ const PingChart = ({ uuid }: { uuid: string }) => {
       }
     })();
     return () => controller.abort();
-  }, [call, hours, uuid]); // Depend on hours
+  }, [call, hours, t, uuid]); // Depend on hours
 
   const midData = useMemo(() => {
     // 与 Mini 保持一致：只使用合并抖动后的真实锚点，并截取到最后 hours 窗口范围。

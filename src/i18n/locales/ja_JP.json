@@ -187,7 +187,8 @@
         "sessions": "セッション",
         "settings": "システム設定",
         "users": "ユーザー"
-      }
+      },
+      "navigation": "管理ナビゲーション"
     },
     "nodeDetail": {
       "arch": "アーキテクチャ",
@@ -515,7 +516,11 @@
         "targetPort": "目标端口",
         "targetRequired": "请填写目标服务器地址",
         "title": "端口中转",
-        "unsaved": "保存后再应用到服务器"
+        "unsaved": "保存后再应用到服务器",
+        "appliedHint": "サーバーで転送ルールの適用が完了しました。",
+        "applyingHint": "ファイアウォールツールを確認して転送ルールを適用しています。",
+        "errorHint": "前回の適用に失敗しました。設定またはサーバー環境を修正してください。",
+        "pendingHint": "ルールを保存してからサーバーに適用してください。"
       },
       "price": "価格",
       "priceTips": "0は表示しない、-1は無料を示す",
@@ -575,7 +580,44 @@
       "userScopeHint": "Leave empty and search again to clear the user scope.",
       "userScopeLabel": "User scope",
       "userSearchNoMatch": "「{{query}}」に一致するユーザーが見つかりません。",
-      "userSearchPlaceholder": "ユーザーのノードを検索"
+      "userSearchPlaceholder": "ユーザーのノードを検索",
+      "conditionScript": {
+        "conditions": "トリガー条件",
+        "cooldownMinutes": "クールダウン（分）",
+        "currentState": "現在の状態",
+        "description": "このサーバーが遮断の疑い、または中国本土への接続低下と判定されたときにスクリプトを自動実行します。",
+        "emptyHistory": "トリガー履歴はありません",
+        "enableRule": "自動トリガーを有効化",
+        "enableRuleHelp": "ダイアログを閉じた後もバックエンドが接続状態を監視します。",
+        "failureCount": "連続異常",
+        "failureThreshold": "異常回数のしきい値",
+        "history": "最近のトリガー",
+        "invalidPositive": "{{label}} は 0 より大きい値にしてください",
+        "lastStatus": "最新の状態",
+        "lastTriggeredAt": "最終実行",
+        "loadFailed": "条件スクリプトを読み込めませんでした",
+        "refreshScripts": "スクリプト一覧を更新",
+        "removeFailed": "条件スクリプトを削除できませんでした",
+        "removeSuccess": "条件スクリプトを削除しました",
+        "runFailed": "条件スクリプトを実行できませんでした",
+        "runNow": "今すぐ実行",
+        "runSuccess": "スクリプトタスク {{taskId}} を送信しました",
+        "saveBeforeRun": "手動実行する前に条件スクリプトを保存してください",
+        "saveFailed": "条件スクリプトを保存できませんでした",
+        "saveSuccess": "条件スクリプトを保存しました",
+        "script": "実行するスクリプト",
+        "scriptHelp": "実行ページのスクリプトライブラリから、トリガー時点の最新内容を使用します。",
+        "selectCondition": "トリガー条件を 1 つ以上選択してください",
+        "selectScript": "有効化する前にスクリプトを選択してください",
+        "selectScriptPlaceholder": "スクリプトを選択",
+        "throttleHelp": "異常回数のしきい値に達すると実行され、クールダウン中は再実行されません。",
+        "title": "条件スクリプト",
+        "triggerFailed": "失敗",
+        "triggerSkipped": "スキップ",
+        "triggerSubmitted": "送信済み"
+      },
+      "rustAgentLinuxHint": "Linux は Rust Agent を使用します。Windows と macOS は従来の Agent を使用します。",
+      "statusSyncing": "同期中"
     },
     "notification": {
       "expire_enable": "プラン期限通知を有効化",
@@ -2329,7 +2371,8 @@
     "updated_successfully": "更新されました",
     "warning": "Warning",
     "weight": "重み",
-    "yes": "Yes"
+    "yes": "Yes",
+    "deleting": "削除中"
   },
   "copy": "コピー",
   "copy_success": "クリップボードにコピーされました",
@@ -2987,7 +3030,8 @@
       "timeline": "Timeline",
       "timeline_hint": "Each step is persisted by the backend so you can see exactly where a run failed.",
       "title": "Execution details",
-      "trigger_snapshot": "Trigger snapshot"
+      "trigger_snapshot": "Trigger snapshot",
+      "started": "開始時刻"
     },
     "messages": {
       "created": "Failover task created",
@@ -3256,6 +3300,66 @@
       "more_plans": "more plans",
       "tasks": "Task list",
       "tasks_hint": "Scan by task, outlet, DNS, and recent execution status."
+    },
+    "issue": {
+      "agent_timeout": {
+        "title": "Agent の起動待機がタイムアウトしました",
+        "summary": "インスタンスは作成されましたが、期限内に Agent が正常になりませんでした。",
+        "action": "起動スクリプト、Agent エンドポイント、ファイアウォール、ネットワークを確認してください。"
+      },
+      "candidate_health": {
+        "title": "新しいインスタンスがヘルスチェックに失敗しました",
+        "summary": "インスタンスは起動しましたが、接続状態が遮断または低下と判定されました。",
+        "action": "接続プローブを確認し、必要なら候補数を増やして再試行してください。"
+      },
+      "cleanup": {
+        "title": "旧インスタンスのクリーンアップに失敗しました",
+        "summary": "置き換えは完了しましたが、旧または余分なインスタンスが残っています。",
+        "action": "保存済みのクラウド参照を確認して、クリーンアップのみ再試行してください。"
+      },
+      "configuration": {
+        "title": "フェイルオーバー設定が不完全です",
+        "summary": "プロバイダー、DNS、スクリプト、または対象の必須設定が不足しています。",
+        "action": "タスク設定を開き、示された項目を修正して再実行してください。"
+      },
+      "dns": {
+        "title": "DNS 同期に失敗しました",
+        "summary": "置き換え先は準備できましたが、一部の DNS レコードを更新できませんでした。",
+        "action": "DNS 認証情報と対象レコードを確認し、DNS のみ再試行してください。"
+      },
+      "metric_candidates": "候補",
+      "metric_health": "ヘルス失敗",
+      "metric_provider": "認証情報の問題",
+      "metric_timeouts": "タイムアウト",
+      "next_action": "次の操作",
+      "provider_timeout": {
+        "title": "クラウド API がタイムアウトしました",
+        "summary": "クラウドプロバイダーが期限内に要求を完了しませんでした。",
+        "action": "API の到達性を確認し、クールダウン終了後に再試行してください。"
+      },
+      "provider_unavailable": {
+        "title": "利用可能なクラウド認証情報がありません",
+        "summary": "選択した認証情報は使用中、クールダウン中、無効、または割り当て不足です。",
+        "action": "トークンと割り当てを確認するか、正常な認証情報を追加してください。"
+      },
+      "replacement_exhausted": {
+        "title": "利用可能な置き換え先が見つかりません",
+        "summary": "候補を使い切りましたが、すべての確認に合格したインスタンスがありません。",
+        "progress": "{{requested}} 台を要求し {{provisioned}} 台を作成しましたが、すべての確認に合格した候補はありません。",
+        "action": "認証情報と候補の状態を確認して、実行を再試行してください。"
+      },
+      "script": {
+        "title": "デプロイスクリプトに失敗しました",
+        "summary": "新しいインスタンスは保持されましたが、デプロイスクリプトがエラーを返しました。",
+        "action": "スクリプト出力を確認し、失敗したコマンドを修正してください。"
+      },
+      "stage_progress": "実行状況",
+      "technical_details": "技術詳細",
+      "unknown": {
+        "title": "フェイルオーバー実行に失敗しました",
+        "summary": "必要なすべての段階が完了する前に実行が停止しました。",
+        "action": "技術詳細を開き、原因を修正して再試行してください。"
+      }
     }
   },
   "failover_v2": {

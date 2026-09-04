@@ -44,6 +44,10 @@ import {
 } from "@/components/admin/AdminFormStyles";
 import FailoverShareDialog from "@/components/admin/failover/FailoverShareDialog";
 import FailoverScriptPolicyDialog from "@/components/admin/failover/FailoverScriptPolicyDialog";
+import {
+  FailoverIssueSummary,
+  FailoverStageRail,
+} from "@/components/admin/failover/FailoverExecutionFeedback";
 import DnsSchedulerLinkedSummary from "@/components/admin/cloud/DnsSchedulerLinkedSummary";
 import {
   AlertDialog,
@@ -114,6 +118,7 @@ import {
 } from "@/lib/failoverV2Presets";
 import { useSettings } from "@/lib/api";
 import { getReadableErrorMessage } from "@/lib/apiErrorMessage";
+import { getFailoverIssueCompactText } from "@/lib/failoverIssue";
 import {
   getPublicFailoverResultText,
 } from "@/lib/failoverPublicView";
@@ -4911,7 +4916,7 @@ function JsonBlock({
 }) {
   return (
     <div className="min-w-0 space-y-1.5">
-      <div className="text-[11px] font-semibold uppercase tracking-normal text-muted-foreground">
+      <div className="text-xs font-semibold uppercase tracking-normal text-muted-foreground">
         {title}
       </div>
       <pre className="max-h-56 overflow-auto overscroll-contain rounded-md bg-muted/25 p-3 text-xs leading-6 text-slate-800 [scrollbar-gutter:stable] dark:text-slate-200">
@@ -4947,7 +4952,7 @@ function ExecutionSummaryCard({
       )}
       {detailLines.length > 0 ? (
         <div className="space-y-1.5">
-          <div className="text-[11px] font-semibold uppercase tracking-normal text-muted-foreground">
+          <div className="text-xs font-semibold uppercase tracking-normal text-muted-foreground">
             {detailLinesTitle}
           </div>
           <div className="space-y-1.5 text-xs text-muted-foreground">
@@ -5335,7 +5340,7 @@ function ExecutionAttemptSection({
 
               {entryAttempts.length > 0 ? (
                 <div className="mt-3 space-y-2">
-                  <div className="text-[11px] font-semibold uppercase tracking-normal text-muted-foreground">
+                  <div className="text-xs font-semibold uppercase tracking-normal text-muted-foreground">
                     {t("failover.execution.entry_attempts", { defaultValue: "Provider entry attempts" })}
                   </div>
                   <div className="space-y-2">
@@ -5656,12 +5661,9 @@ function ExecutionDetailDialog({
 
           {execution ? (
             <div className="space-y-4">
-              <div className={cn(
-                "grid gap-3 border-y border-slate-200/80 py-4 sm:grid-cols-2 dark:border-slate-800/80",
-                detailedMode ? "xl:grid-cols-4" : "xl:grid-cols-3",
-              )}>
+              <div className="grid gap-3 border-y border-slate-200/80 py-4 sm:grid-cols-3 dark:border-slate-800/80">
                 <div className="min-w-0 space-y-1.5">
-                  <div className="text-[11px] font-semibold uppercase tracking-normal text-muted-foreground">
+                  <div className="text-xs font-semibold text-muted-foreground">
                     {t("failover.execution.status", { defaultValue: "Execution status" })}
                   </div>
                   <Badge variant={getStatusVariant(executionDisplayStatus, "execution")}>
@@ -5669,54 +5671,22 @@ function ExecutionDetailDialog({
                       ? t("failover.execution.partial_success", { defaultValue: "Completed with warning" })
                       : getStatusLabel(t, execution.status)}
                   </Badge>
-                  <div className="text-xs text-muted-foreground">{formatDateTime(execution.started_at)}</div>
                 </div>
                 {detailedMode ? (
                   <>
                     <div className="min-w-0 space-y-1.5">
-                      <div className="text-[11px] font-semibold uppercase tracking-normal text-muted-foreground">
-                        {t("failover.execution.script", { defaultValue: "Script" })}
+                      <div className="text-xs font-semibold text-muted-foreground">
+                        {t("failover.execution.started", { defaultValue: "Start time" })}
                       </div>
-                      <div className="flex flex-wrap items-center gap-2">
-                        <Badge variant={getStatusVariant(execution.script_status, "script")}>{getStatusLabel(t, execution.script_status)}</Badge>
-                        {executionScriptNames.length > 0 ? (
-                          <Badge variant="outline">
-                            {t("failover.task.script_count", {
-                              count: executionScriptNames.length,
-                              defaultValue: "{{count}} script(s)",
-                            })}
-                          </Badge>
-                        ) : null}
-                      </div>
-                      <div className="line-clamp-2 break-words text-xs leading-5 text-muted-foreground" title={execution.script_name_snapshot || undefined}>
-                        {executionScriptNames.length > 0
-                          ? executionScriptNames.join(" · ")
-                          : t("failover.execution.no_script", { defaultValue: "No script recorded" })}
-                      </div>
-                      {execution.script_exit_code !== null ? (
-                        <div className="text-xs text-muted-foreground">
-                          {t("failover.execution.exit_code", {
-                            defaultValue: "Exit code: {{code}}",
-                            code: execution.script_exit_code,
-                          })}
-                        </div>
-                      ) : null}
-                    </div>
-                    <div className="min-w-0 space-y-1.5">
-                      <div className="text-[11px] font-semibold uppercase tracking-normal text-muted-foreground">
-                        {t("failover.execution.dns", { defaultValue: "DNS" })}
-                      </div>
-                      <Badge variant={getStatusVariant(execution.dns_status, "dns")}>{getStatusLabel(t, execution.dns_status)}</Badge>
-                      <div className="truncate text-xs text-muted-foreground" title={execution.dns_provider ? getDnsProviderLabel(t, execution.dns_provider) : undefined}>
-                        {execution.dns_provider ? getDnsProviderLabel(t, execution.dns_provider) : "-"}
+                      <div className="text-sm font-semibold text-foreground">
+                        {formatDateTime(execution.started_at)}
                       </div>
                     </div>
                     <div className="min-w-0 space-y-1.5">
-                      <div className="text-[11px] font-semibold uppercase tracking-normal text-muted-foreground">
-                        {t("failover.execution.cleanup", { defaultValue: "Cleanup" })}
+                      <div className="text-xs font-semibold text-muted-foreground">
+                        {t("failover.execution.finished", { defaultValue: "End time" })}
                       </div>
-                      <Badge variant={getStatusVariant(cleanupDisplayStatus, "cleanup")}>{getStatusLabel(t, cleanupDisplayStatus)}</Badge>
-                      <div className="text-xs text-muted-foreground">
+                      <div className="text-sm font-semibold text-foreground">
                         {execution.finished_at
                           ? formatDateTime(execution.finished_at)
                           : t("failover.execution.running", { defaultValue: "Still running" })}
@@ -5726,18 +5696,20 @@ function ExecutionDetailDialog({
                 ) : (
                   <>
                     <div className="min-w-0 space-y-1.5">
-                      <div className="text-[11px] font-semibold uppercase tracking-normal text-muted-foreground">
-                        {t("failover.execution.finished", { defaultValue: "结束时间" })}
+                      <div className="text-xs font-semibold text-muted-foreground">
+                        {t("failover.execution.finished", { defaultValue: "End time" })}
                       </div>
-                      <div className="text-sm font-semibold text-slate-950 dark:text-slate-50">
-                        {execution.finished_at ? formatDateTime(execution.finished_at) : t("failover.execution.running", { defaultValue: "Still running" })}
+                      <div className="text-sm font-semibold text-foreground">
+                        {execution.finished_at
+                          ? formatDateTime(execution.finished_at)
+                          : t("failover.execution.running", { defaultValue: "Still running" })}
                       </div>
                     </div>
                     <div className="min-w-0 space-y-1.5">
-                      <div className="text-[11px] font-semibold uppercase tracking-normal text-muted-foreground">
-                        {t("common.result", { defaultValue: "结果" })}
+                      <div className="text-xs font-semibold text-muted-foreground">
+                        {t("common.result", { defaultValue: "Result" })}
                       </div>
-                      <div className="text-sm font-semibold text-slate-950 dark:text-slate-50">
+                      <div className="text-sm font-semibold text-foreground">
                         {getPublicFailoverResultText(t, execution.status, execution.error_message)}
                       </div>
                     </div>
@@ -5745,22 +5717,44 @@ function ExecutionDetailDialog({
                 )}
               </div>
 
+              {detailedMode ? (
+                <FailoverStageRail
+                  stages={[
+                    {
+                      key: "script",
+                      label: t("failover.execution.script", { defaultValue: "Script" }),
+                      status: execution.script_status,
+                      statusLabel: getStatusLabel(t, execution.script_status),
+                      description: executionScriptNames.length > 0
+                        ? executionScriptNames.join(" · ")
+                        : t("failover.execution.no_script", { defaultValue: "No script recorded" }),
+                    },
+                    {
+                      key: "dns",
+                      label: t("failover.execution.dns", { defaultValue: "DNS" }),
+                      status: execution.dns_status,
+                      statusLabel: getStatusLabel(t, execution.dns_status),
+                      description: execution.dns_provider ? getDnsProviderLabel(t, execution.dns_provider) : "-",
+                    },
+                    {
+                      key: "cleanup",
+                      label: t("failover.execution.cleanup", { defaultValue: "Cleanup" }),
+                      status: cleanupDisplayStatus,
+                      statusLabel: getStatusLabel(t, cleanupDisplayStatus),
+                      description: cleanupInfo?.title,
+                    },
+                  ]}
+                />
+              ) : null}
+
               {executionErrorMessage ? (
-                <div className={cn(
-                  "border-l-2 px-3 py-2 text-sm",
-                  retainedScriptWarning
-                    ? "border-amber-300 bg-amber-50/70 text-amber-800 dark:border-amber-800 dark:bg-amber-950/20 dark:text-amber-200"
-                    : "border-red-300 bg-red-50/70 text-red-700 dark:border-red-800 dark:bg-red-950/20 dark:text-red-200",
-                )}>
-                  {detailedMode && retainedScriptWarning
-                    ? t("failover.execution.partial_success_banner", {
-                      defaultValue: "Instance replacement completed, but the post-provision script failed: {{error}}",
-                      error: executionErrorMessage,
-                    })
-                    : detailedMode
-                      ? executionErrorMessage
-                      : getPublicFailoverResultText(t, execution.status, executionErrorMessage)}
-                </div>
+                detailedMode ? (
+                  <FailoverIssueSummary message={executionErrorMessage} warning={retainedScriptWarning} />
+                ) : (
+                  <div className="border-l-2 border-red-300 bg-red-50/70 px-3 py-2 text-sm text-red-700 dark:border-red-800 dark:bg-red-950/20 dark:text-red-200">
+                    {getPublicFailoverResultText(t, execution.status, executionErrorMessage)}
+                  </div>
+                )
               ) : null}
 
               {detailedMode && cleanupInfo && cleanupInfo.classification !== "not_requested" && cleanupInfo.tone !== "success" ? (
@@ -5911,7 +5905,7 @@ function ExecutionDetailDialog({
         {detailedMode && retryGuidance.length > 0 ? (
           <div className="border-t px-5 py-3">
             <div className="space-y-2">
-              <div className="text-[11px] font-semibold uppercase tracking-normal text-muted-foreground">
+              <div className="text-xs font-semibold uppercase tracking-normal text-muted-foreground">
                 {t("failover.execution.retry_guidance_title", { defaultValue: "Retry guidance" })}
               </div>
               {retryGuidance.map((guidance) => (
@@ -7485,7 +7479,7 @@ function TaskEditorDialog({
         className={cn(
           ADMIN_FORM_DIALOG_WIDE_CLASS,
           ADMIN_FORM_DIALOG_CHROME_CLASS,
-          "h-[90vh] max-w-[1180px] sm:max-w-[1180px]",
+          "max-h-[calc(100dvh-1rem)] max-w-[1180px] sm:max-w-[1180px]",
           "[&_.grid>*]:min-w-0",
           "[&_button[data-slot=select-trigger]]:w-full",
           "[&_button[data-slot=select-trigger]]:min-w-0",
@@ -7583,7 +7577,7 @@ function TaskEditorDialog({
                     <div className={FORM_FIELD_CLASS}>
                       <div className="flex items-center gap-2">
                         <Label>{t("failover.editor.current_client", { defaultValue: "Current client" })}</Label>
-                        <span className="rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
+                        <span className="rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
                           {t("failover.editor.current_client_optional", { defaultValue: "可选" })}
                         </span>
                       </div>
@@ -7606,7 +7600,7 @@ function TaskEditorDialog({
                       </div>
                     </div>
                     <div className="border-y border-dashed border-slate-200/80 py-3 dark:border-slate-800/80">
-                      <div className="text-[11px] font-semibold uppercase tracking-normal text-muted-foreground">
+                      <div className="text-xs font-semibold uppercase tracking-normal text-muted-foreground">
                         {t("failover.editor.current_outlet", { defaultValue: "Current outlet" })}
                       </div>
                       {mode === "edit" && (task?.current_client_uuid || task?.current_address) ? (
@@ -10607,12 +10601,11 @@ function FailoverPageContent() {
     const latestExecutionSummary = latestExecution
       ? platformAdmin
         ? latestExecution.error_message
-          || (
-            latestCleanupInfo
+          ? getFailoverIssueCompactText(t, latestExecution.error_message)
+          : latestCleanupInfo
             && ["warning", "failed"].includes(String(latestExecution.cleanup_status || "").trim().toLowerCase())
-              ? latestCleanupInfo.title
-              : formatDateTime(latestExecution.started_at)
-          )
+            ? latestCleanupInfo.title
+            : formatDateTime(latestExecution.started_at)
         : getPublicFailoverResultText(t, latestExecution.status, latestExecution.error_message)
       : t("failover.task.no_execution", { defaultValue: "No execution recorded yet." });
     const cooldownSummary = task.cooldown_remaining_seconds > 0
@@ -11095,7 +11088,7 @@ function FailoverPageContent() {
                                 </span>
                                 : null}
                                 {timingSummary ? (
-                                  <span className="hidden shrink-0 text-[11px] leading-4 text-muted-foreground 2xl:inline" title={timingSummary}>
+                                  <span className="hidden shrink-0 text-xs leading-4 text-muted-foreground 2xl:inline" title={timingSummary}>
                                     {timingSummary}
                                   </span>
                                 ) : null}
@@ -11270,7 +11263,7 @@ function FailoverPageContent() {
 
                     <div className="grid gap-3 px-4 py-3 sm:grid-cols-2 xl:grid-cols-1 2xl:grid-cols-2">
                         <div className="admin-inline-surface min-w-0 px-3 py-2">
-                        <div className="text-[11px] font-semibold leading-4 text-muted-foreground">
+                        <div className="text-xs font-semibold leading-4 text-muted-foreground">
                           {platformAdmin
                             ? t("failover.task.outlet_ip_label", { defaultValue: "Outlet IP" })
                             : t("failover.public.outlet_ip_label", { defaultValue: "当前地址" })}
@@ -11281,7 +11274,7 @@ function FailoverPageContent() {
                       </div>
                       {platformAdmin ? (
                       <div className="admin-inline-surface min-w-0 px-3 py-2">
-                        <div className="text-[11px] font-semibold leading-4 text-muted-foreground">
+                        <div className="text-xs font-semibold leading-4 text-muted-foreground">
                           {t("failover.task.dns_target_label", { defaultValue: "DNS target" })}
                         </div>
                         <div className="mt-1 truncate text-[13px] leading-5 text-foreground" title={view.dnsTargetLabel || undefined}>
@@ -11290,7 +11283,7 @@ function FailoverPageContent() {
                       </div>
                       ) : null}
                       <div className="admin-inline-surface min-w-0 px-3 py-2">
-                        <div className="text-[11px] font-semibold leading-4 text-muted-foreground">
+                        <div className="text-xs font-semibold leading-4 text-muted-foreground">
                           {platformAdmin
                             ? t("failover.table.cooldown", { defaultValue: "Cooldown" })
                             : t("failover.public.protection_time", { defaultValue: "保护时间" })}
@@ -11301,7 +11294,7 @@ function FailoverPageContent() {
                       </div>
                       {platformAdmin ? (
                       <div className="admin-inline-surface min-w-0 px-3 py-2">
-                        <div className="text-[11px] font-semibold leading-4 text-muted-foreground">
+                        <div className="text-xs font-semibold leading-4 text-muted-foreground">
                           {t("failover.editor.section_plans", { defaultValue: "Failover plans" })}
                         </div>
                         <div className="mt-1 truncate text-[13px] leading-5 text-foreground">
@@ -11345,7 +11338,7 @@ function FailoverPageContent() {
                         </div>
                         {platformAdmin && view.latestStepLabel ? (
                           <div className="border-y border-dashed border-border py-2">
-                            <div className="text-[11px] font-semibold leading-4 text-muted-foreground">
+                            <div className="text-xs font-semibold leading-4 text-muted-foreground">
                               {t("failover.execution.summary.last_step", { defaultValue: "Last step" })}
                             </div>
                             <div className="mt-1 text-[13px] leading-5 text-foreground">
@@ -11418,7 +11411,7 @@ function FailoverPageContent() {
                                 #{plan.priority}
                               </Badge>
                             </div>
-                            <div className="mt-1 truncate text-[11px] leading-4 text-muted-foreground">
+                            <div className="mt-1 truncate text-xs leading-4 text-muted-foreground">
                               {[getPlanProviderLabel(t, plan.provider), plan.action_type, plan.provider_entry_group || plan.provider_entry_id]
                                 .filter(Boolean)
                                 .join(" · ")}

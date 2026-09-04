@@ -258,7 +258,7 @@ const LoadChart = ({ data = [] }: LoadChartProps) => {
         setError(err.message || t("chart.error", "加载失败"));
         setLoading(false);
       });
-  }, [avaliableView, hoursView, uuid]);
+  }, [avaliableView, hoursView, t, uuid]);
 
   // colors
   const colors = [

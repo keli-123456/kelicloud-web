@@ -187,7 +187,8 @@
         "sessions": "Sesi",
         "settings": "Pengaturan Sistem",
         "users": "User"
-      }
+      },
+      "navigation": "Navigasi admin"
     },
     "nodeDetail": {
       "arch": "Arsitektur",
@@ -515,7 +516,11 @@
         "targetPort": "目标端口",
         "targetRequired": "请填写目标服务器地址",
         "title": "端口中转",
-        "unsaved": "保存后再应用到服务器"
+        "unsaved": "保存后再应用到服务器",
+        "appliedHint": "Server telah menerima dan menerapkan aturan penerusan ini.",
+        "applyingHint": "Server memeriksa alat firewall dan menerapkan aturan.",
+        "errorHint": "Penerapan terakhir gagal. Perbaiki konfigurasi atau lingkungan server lalu coba lagi.",
+        "pendingHint": "Simpan aturan, lalu terapkan ke server."
       },
       "price": "Harga",
       "priceTips": "0 tidak ditampilkan, -1 berarti gratis",
@@ -575,7 +580,44 @@
       "userScopeHint": "Leave empty and search again to clear the user scope.",
       "userScopeLabel": "User scope",
       "userSearchNoMatch": "Tidak ada pengguna yang cocok dengan \"{{query}}\".",
-      "userSearchPlaceholder": "Cari node pengguna"
+      "userSearchPlaceholder": "Cari node pengguna",
+      "conditionScript": {
+        "conditions": "Kondisi pemicu",
+        "cooldownMinutes": "Jeda (menit)",
+        "currentState": "Status saat ini",
+        "description": "Jalankan skrip otomatis saat server diduga terblokir atau konektivitas Tiongkok daratan menurun.",
+        "emptyHistory": "Belum ada riwayat pemicu",
+        "enableRule": "Aktifkan pemicu otomatis",
+        "enableRuleHelp": "Backend tetap memantau konektivitas setelah dialog ditutup.",
+        "failureCount": "Kegagalan berturut-turut",
+        "failureThreshold": "Ambang kegagalan",
+        "history": "Pemicu terbaru",
+        "invalidPositive": "{{label}} harus lebih besar dari 0",
+        "lastStatus": "Status terbaru",
+        "lastTriggeredAt": "Terakhir dipicu",
+        "loadFailed": "Gagal memuat skrip bersyarat",
+        "refreshScripts": "Muat ulang pustaka skrip",
+        "removeFailed": "Gagal menghapus skrip bersyarat",
+        "removeSuccess": "Skrip bersyarat dihapus",
+        "runFailed": "Gagal menjalankan skrip bersyarat",
+        "runNow": "Jalankan sekarang",
+        "runSuccess": "Tugas skrip {{taskId}} dikirim",
+        "saveBeforeRun": "Simpan skrip bersyarat sebelum menjalankannya secara manual",
+        "saveFailed": "Gagal menyimpan skrip bersyarat",
+        "saveSuccess": "Skrip bersyarat disimpan",
+        "script": "Skrip yang dijalankan",
+        "scriptHelp": "Skrip berasal dari pustaka eksekusi. Konten terbaru digunakan saat aturan dipicu.",
+        "selectCondition": "Pilih setidaknya satu kondisi pemicu",
+        "selectScript": "Pilih skrip sebelum mengaktifkan aturan",
+        "selectScriptPlaceholder": "Pilih skrip",
+        "throttleHelp": "Aturan dipicu setelah ambang tercapai dan tidak dijalankan ulang selama jeda.",
+        "title": "Skrip bersyarat",
+        "triggerFailed": "Gagal",
+        "triggerSkipped": "Dilewati",
+        "triggerSubmitted": "Dikirim"
+      },
+      "rustAgentLinuxHint": "Linux menggunakan Rust Agent. Windows dan macOS tetap menggunakan Agent lama.",
+      "statusSyncing": "Menyinkronkan"
     },
     "notification": {
       "expire_enable": "Aktifkan pengingat kedaluwarsa paket",
@@ -2329,7 +2371,8 @@
     "updated_successfully": "Berhasil diperbarui",
     "warning": "Warning",
     "weight": "Bobot",
-    "yes": "Yes"
+    "yes": "Yes",
+    "deleting": "Menghapus"
   },
   "copy": "Salin",
   "copy_success": "Berhasil disalin!",
@@ -2987,7 +3030,8 @@
       "timeline": "Timeline",
       "timeline_hint": "Each step is persisted by the backend so you can see exactly where a run failed.",
       "title": "Execution details",
-      "trigger_snapshot": "Trigger snapshot"
+      "trigger_snapshot": "Trigger snapshot",
+      "started": "Waktu mulai"
     },
     "messages": {
       "created": "Failover task created",
@@ -3256,6 +3300,66 @@
       "more_plans": "more plans",
       "tasks": "Task list",
       "tasks_hint": "Scan by task, outlet, DNS, and recent execution status."
+    },
+    "issue": {
+      "agent_timeout": {
+        "title": "Waktu tunggu Agent habis",
+        "summary": "Instans dibuat, tetapi Agent belum sehat sebelum batas waktu.",
+        "action": "Periksa skrip bootstrap, endpoint Agent, firewall, dan jaringan instans."
+      },
+      "candidate_health": {
+        "title": "Instans baru gagal dalam pemeriksaan kesehatan",
+        "summary": "Instans menyala, tetapi konektivitasnya terblokir atau menurun.",
+        "action": "Tinjau probe konektivitas dan tambah jumlah kandidat bila perlu."
+      },
+      "cleanup": {
+        "title": "Pembersihan instans lama gagal",
+        "summary": "Penggantian selesai, tetapi instans lama atau kandidat berlebih masih perlu dibersihkan.",
+        "action": "Periksa referensi cloud tersimpan lalu ulangi langkah pembersihan."
+      },
+      "configuration": {
+        "title": "Konfigurasi failover belum lengkap",
+        "summary": "Pengaturan penyedia, DNS, skrip, atau target yang wajib tidak ada atau tidak valid.",
+        "action": "Buka konfigurasi tugas, lengkapi bidang yang ditandai, lalu coba lagi."
+      },
+      "dns": {
+        "title": "Sinkronisasi DNS gagal",
+        "summary": "Instans pengganti siap, tetapi satu atau beberapa catatan DNS belum diperbarui.",
+        "action": "Periksa kredensial dan target DNS, lalu ulangi hanya langkah DNS."
+      },
+      "metric_candidates": "Kandidat",
+      "metric_health": "Gagal sehat",
+      "metric_provider": "Masalah penyedia",
+      "metric_timeouts": "Waktu habis",
+      "next_action": "Tindakan berikutnya",
+      "provider_timeout": {
+        "title": "Permintaan penyedia cloud kehabisan waktu",
+        "summary": "Penyedia cloud tidak menyelesaikan permintaan dalam batas waktu.",
+        "action": "Pastikan API dapat dijangkau dan coba lagi setelah jeda kredensial berakhir."
+      },
+      "provider_unavailable": {
+        "title": "Tidak ada kredensial cloud yang tersedia",
+        "summary": "Kredensial sedang dipakai, dalam jeda, tidak valid, atau kehabisan kuota.",
+        "action": "Periksa token dan kuota, atau tambahkan kredensial sehat ke pool."
+      },
+      "replacement_exhausted": {
+        "title": "Pengganti yang dapat digunakan tidak ditemukan",
+        "summary": "Pool kandidat habis sebelum ada instans yang lolos semua pemeriksaan.",
+        "progress": "Meminta {{requested}} kandidat dan membuat {{provisioned}}, tetapi tidak ada yang lolos semua pemeriksaan.",
+        "action": "Periksa kredensial dan kesehatan kandidat, lalu ulangi eksekusi."
+      },
+      "script": {
+        "title": "Skrip setelah penyediaan gagal",
+        "summary": "Instans baru dipertahankan, tetapi skrip penerapan mengembalikan kesalahan.",
+        "action": "Periksa keluaran skrip dan perbaiki perintah yang gagal."
+      },
+      "stage_progress": "Progres eksekusi",
+      "technical_details": "Detail teknis",
+      "unknown": {
+        "title": "Eksekusi failover gagal",
+        "summary": "Eksekusi berhenti sebelum semua tahap wajib selesai.",
+        "action": "Buka detail teknis, atasi penyebabnya, lalu coba lagi."
+      }
     }
   },
   "failover_v2": {

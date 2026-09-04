@@ -338,12 +338,12 @@ export function ActionsCell({ row }: { row: Row<z.infer<typeof schema>> }) {
                   </label>
                   <TextField.Root
                     className={NODE_INPUT_CLASS}
-                    placeholder={t(
-                      "admin.nodeTable.install_dir_placeholder",
-                      selectedPlatform === "linux"
-                        ? "安装目录，为空则使用默认目录(/opt/kelicloud-agent-rs)"
-                        : "安装目录，为空则使用默认目录(/opt/kelicloud-agent)"
-                    )}
+                    placeholder={t("admin.nodeTable.install_dir_placeholder_platform", {
+                      defaultValue: "Leave empty to use the default directory ({{dir}})",
+                      dir: selectedPlatform === "linux"
+                        ? "/opt/kelicloud-agent-rs"
+                        : "/opt/kelicloud-agent",
+                    })}
                     onChange={(e) =>
                       setInstallOptions((prev) => ({
                         ...prev,

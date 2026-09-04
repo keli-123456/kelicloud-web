@@ -19,8 +19,8 @@ import { AWSInstanceRowActions } from "@/components/admin/cloud/AWSInstanceRowAc
 import {
   CloudBulkDeleteToolbar,
   CloudBulkSelectCheckbox,
-  useCloudBulkSelection,
 } from "@/components/admin/cloud/CloudBulkActions";
+import { useCloudBulkSelection } from "@/components/admin/cloud/useCloudBulkSelection";
 import {
   Badge,
   Button,

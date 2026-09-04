@@ -30,8 +30,8 @@ import { AdminRowActions } from "@/components/admin/AdminRowActions";
 import {
   CloudBulkDeleteToolbar,
   CloudBulkSelectCheckbox,
-  useCloudBulkSelection,
 } from "@/components/admin/cloud/CloudBulkActions";
+import { useCloudBulkSelection } from "@/components/admin/cloud/useCloudBulkSelection";
 import {
   Badge,
   cloudPanelCardClassName,

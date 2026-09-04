@@ -947,8 +947,8 @@ const Header = ({
                     unknown: currentUnknownCount,
                     defaultValue:
                       currentUnknownCount > 0
-                        ? "在线 {{online}} · 离线 {{offline}} · 同步中 {{unknown}} · 异常 {{abnormal}}"
-                        : "在线 {{online}} · 离线 {{offline}} · 异常 {{abnormal}}",
+                        ? "Online {{online}} · Offline {{offline}} · Syncing {{unknown}} · Abnormal {{abnormal}}"
+                        : "Online {{online}} · Offline {{offline}} · Abnormal {{abnormal}}",
                   })}
                 </span>
                 <span className="text-muted-foreground/80">
@@ -960,8 +960,8 @@ const Header = ({
                     unknown: globalUnknownCount,
                     defaultValue:
                       globalUnknownCount > 0
-                        ? "全局 在线 {{online}} · 离线 {{offline}} · 同步中 {{unknown}}"
-                        : "全局 在线 {{online}} · 离线 {{offline}}",
+                        ? "Global online {{online}} · Offline {{offline}} · Syncing {{unknown}}"
+                        : "Global online {{online}} · Offline {{offline}}",
                   })}
                 </span>
               </div>
@@ -976,8 +976,8 @@ const Header = ({
                   download: `${formatBytes(totalDownloadSpeed)}/s`,
                   defaultValue:
                     globalUnknownCount > 0
-                      ? "在线 {{online}} · 离线 {{offline}} · 同步中 {{unknown}} · 异常 {{abnormal}} · ↑{{upload}} · ↓{{download}}"
-                      : "在线 {{online}} · 离线 {{offline}} · 异常 {{abnormal}} · ↑{{upload}} · ↓{{download}}",
+                      ? "Online {{online}} · Offline {{offline}} · Syncing {{unknown}} · Abnormal {{abnormal}} · ↑{{upload}} · ↓{{download}}"
+                      : "Online {{online}} · Offline {{offline}} · Abnormal {{abnormal}} · ↑{{upload}} · ↓{{download}}",
                 })}
               </div>
             )}

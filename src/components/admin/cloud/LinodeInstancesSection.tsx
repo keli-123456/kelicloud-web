@@ -28,8 +28,8 @@ import { AdminRowActions } from "@/components/admin/AdminRowActions";
 import {
   CloudBulkDeleteToolbar,
   CloudBulkSelectCheckbox,
-  useCloudBulkSelection,
 } from "@/components/admin/cloud/CloudBulkActions";
+import { useCloudBulkSelection } from "@/components/admin/cloud/useCloudBulkSelection";
 import type { LinodeInstance, LinodeTokenPool } from "@/lib/cloudLinode";
 import { getCloudStatusLabel } from "@/lib/cloudStatus";
 import {

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import {
@@ -44,6 +44,7 @@ import { Separator } from "@/components/ui/separator";
 import { iconMap } from "@/utils/iconHelper";
 import { getLogoUrl } from "@/lib/logoUrl";
 import { cn } from "@/lib/utils";
+import { useIsMobile } from "@/hooks/use-mobile";
 import type { MenuItem } from "@/types/menu";
 import menuConfig from "@/config/menuConfig.json";
 
@@ -320,6 +321,10 @@ function AdminPanelBarContent({ content }: AdminPanelBarProps) {
   const registeredPageHeader = useCurrentAdminPageHeader();
 
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const isMobile = useIsMobile();
+  const mobileMenuTriggerRef = useRef<HTMLButtonElement>(null);
+  const mobileSidebarRef = useRef<HTMLElement>(null);
+  const mobileCloseButtonRef = useRef<HTMLButtonElement>(null);
   const sidebarCollapsed = false;
   const [httpsNoticeDismissed, setHttpsNoticeDismissed] = useState(() => {
     try {
@@ -428,6 +433,64 @@ function AdminPanelBarContent({ content }: AdminPanelBarProps) {
   useEffect(() => {
     setMobileMenuOpen(false);
   }, [location.pathname, location.search]);
+
+  useEffect(() => {
+    if (!isMobile || !mobileMenuOpen) {
+      return;
+    }
+
+    const previouslyFocused = document.activeElement instanceof HTMLElement
+      ? document.activeElement
+      : null;
+    const fallbackTrigger = mobileMenuTriggerRef.current;
+    const sidebar = mobileSidebarRef.current;
+    const focusableSelector = [
+      "a[href]",
+      "button:not([disabled])",
+      "input:not([disabled])",
+      "select:not([disabled])",
+      "textarea:not([disabled])",
+      '[tabindex]:not([tabindex="-1"])',
+    ].join(",");
+    const focusFirstControl = () => {
+      (mobileCloseButtonRef.current
+        || sidebar?.querySelector<HTMLElement>(focusableSelector))?.focus();
+    };
+    const focusTimer = window.setTimeout(focusFirstControl, 0);
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        setMobileMenuOpen(false);
+        return;
+      }
+      if (event.key !== "Tab" || !sidebar) {
+        return;
+      }
+      const controls = Array.from(sidebar.querySelectorAll<HTMLElement>(focusableSelector))
+        .filter((control) => !control.hasAttribute("disabled"));
+      if (controls.length === 0) {
+        event.preventDefault();
+        return;
+      }
+      const first = controls[0];
+      const last = controls[controls.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      window.clearTimeout(focusTimer);
+      document.removeEventListener("keydown", handleKeyDown);
+      (previouslyFocused || fallbackTrigger)?.focus();
+    };
+  }, [isMobile, mobileMenuOpen]);
 
   useEffect(() => {
     try {
@@ -853,6 +916,13 @@ function AdminPanelBarContent({ content }: AdminPanelBarProps) {
       ) : null}
 
       <aside
+        id="admin-mobile-navigation"
+        ref={mobileSidebarRef}
+        role={isMobile ? "dialog" : undefined}
+        aria-modal={isMobile && mobileMenuOpen ? true : undefined}
+        aria-hidden={isMobile && !mobileMenuOpen ? true : undefined}
+        aria-label={t("admin.nav.navigation", { defaultValue: "Admin navigation" })}
+        inert={isMobile && !mobileMenuOpen ? true : undefined}
         className={cn(
           "fixed inset-y-0 left-0 z-50 flex w-[224px] flex-col border-r border-border bg-[var(--surface-muted)] shadow-none transition-transform duration-200 ease-out motion-reduce:transition-none md:static md:inset-0 md:translate-x-0 md:transition-[width]",
           mobileMenuOpen ? "translate-x-0" : "-translate-x-full",
@@ -890,6 +960,7 @@ function AdminPanelBarContent({ content }: AdminPanelBarProps) {
           </Link>
           <div>
             <Button
+              ref={mobileCloseButtonRef}
               variant="ghost"
               size="icon"
               className="md:hidden"
@@ -913,7 +984,7 @@ function AdminPanelBarContent({ content }: AdminPanelBarProps) {
               <section key={group.key} className="min-w-0 space-y-1">
                 <div
                   className={cn(
-                    "px-2 text-[11px] font-bold leading-4 tracking-normal text-muted-foreground",
+                    "px-2 text-xs font-bold leading-4 tracking-normal text-muted-foreground",
                     sidebarCollapsed && "md:hidden",
                   )}
                 >
@@ -1088,9 +1159,12 @@ function AdminPanelBarContent({ content }: AdminPanelBarProps) {
         <header className="flex h-16 shrink-0 items-center justify-between gap-4 border-b border-border bg-[var(--surface)] px-3 shadow-none backdrop-blur sm:px-5">
           <div className="flex min-w-0 items-center gap-3">
             <Button
+              ref={mobileMenuTriggerRef}
               variant="ghost"
               size="icon"
               className="md:hidden"
+              aria-controls="admin-mobile-navigation"
+              aria-expanded={mobileMenuOpen}
               onClick={() => setMobileMenuOpen(true)}
               title={t("common.open_menu", "Open navigation menu")}
               aria-label={t("common.open_menu", "Open navigation menu")}

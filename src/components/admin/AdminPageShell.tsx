@@ -140,7 +140,7 @@ export function AdminDataPanel({
               </h2>
             ) : null}
             {description ? (
-              <p className="mt-0.5 max-w-3xl truncate text-xs leading-5 text-slate-500 dark:text-slate-400">
+              <p className="mt-0.5 max-w-3xl line-clamp-2 text-xs leading-5 text-slate-500 dark:text-slate-400 sm:line-clamp-1">
                 {description}
               </p>
             ) : null}

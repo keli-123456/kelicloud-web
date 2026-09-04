@@ -187,7 +187,8 @@
         "servers": "Servers",
         "settings": "System Settings",
         "users": "Users"
-      }
+      },
+      "navigation": "Admin navigation"
     },
     "nodeDetail": {
       "arch": "Architecture",
@@ -515,7 +516,11 @@
         "targetPort": "目标端口",
         "targetRequired": "请填写目标服务器地址",
         "title": "端口中转",
-        "unsaved": "保存后再应用到服务器"
+        "unsaved": "保存后再应用到服务器",
+        "appliedHint": "The server received and completed this forwarding rule.",
+        "applyingHint": "The server is checking firewall tools and applying the rule.",
+        "errorHint": "The last apply failed. Fix the configuration or server environment and try again.",
+        "pendingHint": "Save the rule, then apply it to the server."
       },
       "price": "Price",
       "priceTips": "0 is not displayed, -1 means free",
@@ -575,7 +580,44 @@
       "userScopeHint": "Leave empty and search again to clear the user scope.",
       "userScopeLabel": "User scope",
       "userSearchNoMatch": "No user matches \"{{query}}\".",
-      "userSearchPlaceholder": "Search a user's nodes"
+      "userSearchPlaceholder": "Search a user's nodes",
+      "conditionScript": {
+        "conditions": "Trigger conditions",
+        "cooldownMinutes": "Cooldown (minutes)",
+        "currentState": "Current state",
+        "description": "Run a script automatically when this server appears blocked or has degraded mainland connectivity.",
+        "emptyHistory": "No trigger history",
+        "enableRule": "Enable automatic trigger",
+        "enableRuleHelp": "The backend continues monitoring connectivity after this dialog is closed.",
+        "failureCount": "Consecutive failures",
+        "failureThreshold": "Failure threshold",
+        "history": "Recent triggers",
+        "invalidPositive": "{{label}} must be greater than 0",
+        "lastStatus": "Latest status",
+        "lastTriggeredAt": "Last triggered",
+        "loadFailed": "Failed to load the conditional script",
+        "refreshScripts": "Refresh script library",
+        "removeFailed": "Failed to delete the conditional script",
+        "removeSuccess": "Conditional script deleted",
+        "runFailed": "Failed to run the conditional script",
+        "runNow": "Run now",
+        "runSuccess": "Script task {{taskId}} submitted",
+        "saveBeforeRun": "Save the conditional script before running it manually",
+        "saveFailed": "Failed to save the conditional script",
+        "saveSuccess": "Conditional script saved",
+        "script": "Script to run",
+        "scriptHelp": "Scripts come from the execution library. The latest saved content is used when the rule triggers.",
+        "selectCondition": "Select at least one trigger condition",
+        "selectScript": "Select a script before enabling the rule",
+        "selectScriptPlaceholder": "Select a script",
+        "throttleHelp": "The rule triggers after the failure threshold is reached and will not run again during cooldown.",
+        "title": "Conditional script",
+        "triggerFailed": "Failed",
+        "triggerSkipped": "Skipped",
+        "triggerSubmitted": "Submitted"
+      },
+      "rustAgentLinuxHint": "Linux commands use the Rust Agent. Windows and macOS keep using the legacy Agent.",
+      "statusSyncing": "Syncing"
     },
     "notification": {
       "expire_enable": "Enable plan expiration reminders",
@@ -2329,7 +2371,8 @@
     "exception": "Exception",
     "not_set": "Not set",
     "processing": "Processing",
-    "result": "Result"
+    "result": "Result",
+    "deleting": "Deleting"
   },
   "copy": "Copy",
   "copy_success": "Copied!",
@@ -2987,7 +3030,8 @@
       "title": "Execution details",
       "trigger_snapshot": "Trigger snapshot",
       "finished": "Finished",
-      "public_description": "View task status, result, and latest update time."
+      "public_description": "View task status, result, and latest update time.",
+      "started": "Start time"
     },
     "messages": {
       "created": "Failover task created",
@@ -3256,6 +3300,66 @@
       "completed": "Processing completed.",
       "needs_admin": "This run did not complete. Contact an administrator.",
       "processing": "Processing. Refresh later for the latest status."
+    },
+    "issue": {
+      "agent_timeout": {
+        "title": "Timed out waiting for Agent",
+        "summary": "The instance was created, but Agent did not become healthy before the deadline.",
+        "action": "Check the bootstrap script, Agent endpoint, firewall, and instance network."
+      },
+      "candidate_health": {
+        "title": "The new instance failed its health check",
+        "summary": "The instance started, but its connectivity result was blocked or degraded.",
+        "action": "Review the connectivity probes and retry with more candidates if necessary."
+      },
+      "cleanup": {
+        "title": "Old instance cleanup failed",
+        "summary": "The replacement completed, but an old or extra cloud instance still needs cleanup.",
+        "action": "Verify the saved cloud reference, then retry the cleanup step."
+      },
+      "configuration": {
+        "title": "Failover configuration is incomplete",
+        "summary": "A required provider, DNS, script, or target setting is missing or invalid.",
+        "action": "Open the task configuration, complete the highlighted fields, and try again."
+      },
+      "dns": {
+        "title": "DNS synchronization failed",
+        "summary": "The replacement instance is ready, but one or more DNS records were not updated.",
+        "action": "Verify the DNS credential and record target, then retry only the DNS step."
+      },
+      "metric_candidates": "Candidates",
+      "metric_health": "Health failures",
+      "metric_provider": "Provider issues",
+      "metric_timeouts": "Timeouts",
+      "next_action": "Next action",
+      "provider_timeout": {
+        "title": "Cloud provider request timed out",
+        "summary": "The cloud provider did not finish the request within the allowed time.",
+        "action": "Confirm the provider API is reachable and retry after the credential cooldown ends."
+      },
+      "provider_unavailable": {
+        "title": "No cloud credential is currently available",
+        "summary": "The selected credentials are reserved, cooling down, invalid, or out of quota.",
+        "action": "Check token validity and quota, or add another credential to the selected pool."
+      },
+      "replacement_exhausted": {
+        "title": "No usable replacement was found",
+        "summary": "The replacement pool was exhausted before a candidate passed every check.",
+        "progress": "Requested {{requested}} candidates and created {{provisioned}}, but none passed every check.",
+        "action": "Check credential availability and candidate health, then retry the execution."
+      },
+      "script": {
+        "title": "Post-provision script failed",
+        "summary": "The new instance was retained, but its deployment script returned an error.",
+        "action": "Inspect the script output and fix the failing command before retrying."
+      },
+      "stage_progress": "Execution progress",
+      "technical_details": "Technical details",
+      "unknown": {
+        "title": "Failover execution failed",
+        "summary": "The execution stopped before all required stages completed.",
+        "action": "Open the technical details, resolve the reported cause, and retry."
+      }
     }
   },
   "failover_v2": {

@@ -24,6 +24,10 @@ import FailoverV2ShareDialog from "@/components/admin/failover-v2/FailoverV2Shar
 import FailoverScriptPolicyDialog from "@/components/admin/failover/FailoverScriptPolicyDialog";
 import DnsSchedulerLinkedSummary from "@/components/admin/cloud/DnsSchedulerLinkedSummary";
 import {
+  FailoverIssueSummary,
+  FailoverStageRail,
+} from "@/components/admin/failover/FailoverExecutionFeedback";
+import {
   azureImagePresets,
   initialAzureImagePreset,
 } from "@/components/admin/cloud/azurePanelUtils";
@@ -88,6 +92,7 @@ import { updateSettingsWithToast, useSettings } from "@/lib/api";
 import {
   getPublicFailoverResultText,
 } from "@/lib/failoverPublicView";
+import { areFailoverIssueMessagesEquivalent } from "@/lib/failoverIssue";
 import {
   getCloudProviderEntries,
   getDigitalOceanTokens,
@@ -5175,7 +5180,7 @@ export default function FailoverV2Page() {
                         <div className="px-4 py-3">
                           <div className="flex items-start justify-between gap-3">
                             <div className="min-w-0">
-                              <div className="text-[11px] font-medium uppercase text-muted-foreground">
+                              <div className="text-xs font-medium uppercase text-muted-foreground">
                                 {t("failover_v2.workbench.task_detail", { defaultValue: "主任务" })}
                               </div>
                               <div className="mt-1 truncate text-sm font-semibold text-foreground">
@@ -5195,7 +5200,7 @@ export default function FailoverV2Page() {
                           </div>
                           {serviceLatestExecution ? (
                             <div className="mt-3 border-t border-border pt-3">
-                              <div className="mb-2 text-[11px] font-medium uppercase text-muted-foreground">
+                              <div className="mb-2 text-xs font-medium uppercase text-muted-foreground">
                                 {t("failover_v2.workbench.service_latest_execution", { defaultValue: "服务最近执行" })}
                               </div>
                               <div className="flex flex-wrap items-center gap-2">
@@ -5223,18 +5228,33 @@ export default function FailoverV2Page() {
                               </div>
                               ) : null}
                               {serviceLatestExecution.error_message ? (
-                                <div className="admin-alert admin-alert-danger mt-2 text-xs">
-                                  {platformAdmin
-                                    ? localizeFailoverV2RuntimeMessage(t, serviceLatestExecution.error_message)
-                                    : getPublicFailoverResultText(t, serviceLatestExecution.status, serviceLatestExecution.error_message)}
-                                </div>
+                                platformAdmin ? (
+                                  <FailoverIssueSummary
+                                    message={serviceLatestExecution.error_message}
+                                    compact
+                                    className="mt-2"
+                                  />
+                                ) : (
+                                  <div className="admin-alert admin-alert-danger mt-2 text-xs">
+                                    {getPublicFailoverResultText(t, serviceLatestExecution.status, serviceLatestExecution.error_message)}
+                                  </div>
+                                )
                               ) : null}
                             </div>
                           ) : null}
-                          {platformAdmin && service.last_message ? (
-                            <div className="admin-alert admin-alert-warning mt-3 text-xs">
-                              {localizeFailoverV2RuntimeMessage(t, service.last_message)}
-                            </div>
+                          {platformAdmin
+                          && service.last_message
+                          && !areFailoverIssueMessagesEquivalent(
+                            service.last_message,
+                            serviceLatestExecution?.error_message,
+                          ) ? (
+                            String(service.last_status || "").toLowerCase() === "failed" ? (
+                              <FailoverIssueSummary message={service.last_message} compact warning className="mt-3" />
+                            ) : (
+                              <div className="admin-alert admin-alert-warning mt-3 text-xs">
+                                {localizeFailoverV2RuntimeMessage(t, service.last_message)}
+                              </div>
+                            )
                           ) : null}
                           {platformAdmin ? (
                             <DnsSchedulerLinkedSummary
@@ -5420,7 +5440,7 @@ export default function FailoverV2Page() {
       </Dialog>
 
       <Dialog open={serviceDialogOpen} onOpenChange={setServiceDialogOpen}>
-        <DialogContent className={cn(ADMIN_FORM_DIALOG_WIDE_CLASS, ADMIN_FORM_DIALOG_CHROME_CLASS, "h-[90vh] max-w-[1180px] sm:max-w-[1180px]")}>
+        <DialogContent className={cn(ADMIN_FORM_DIALOG_WIDE_CLASS, ADMIN_FORM_DIALOG_CHROME_CLASS, "max-h-[calc(100dvh-1rem)] max-w-[1180px] sm:max-w-[1180px]")}>
           <DialogHeader className={ADMIN_FORM_HEADER_CLASS}>
             <DialogTitle>
               {editingService
@@ -6087,7 +6107,7 @@ export default function FailoverV2Page() {
           setMemberDialogOpen(true);
         }}
       >
-        <DialogContent className={cn(ADMIN_FORM_DIALOG_WIDE_CLASS, ADMIN_FORM_DIALOG_CHROME_CLASS, "h-[90vh] max-w-[1180px] sm:max-w-[1180px]")}>
+        <DialogContent className={cn(ADMIN_FORM_DIALOG_WIDE_CLASS, ADMIN_FORM_DIALOG_CHROME_CLASS, "max-h-[calc(100dvh-1rem)] max-w-[1180px] sm:max-w-[1180px]")}>
           <DialogHeader className={ADMIN_FORM_HEADER_CLASS}>
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div className="min-w-0 space-y-2">
@@ -7657,36 +7677,42 @@ export default function FailoverV2Page() {
                           <div className="mb-3 text-xs font-medium text-slate-500 dark:text-slate-400">
                             {t("failover_v2.execution_stage_status", { defaultValue: "阶段状态" })}
                           </div>
-                          <div className="space-y-2">
-                            {[
-                              ["detach_dns", selectedExecution.detach_dns_status],
-                              ["attach_dns", selectedExecution.attach_dns_status],
-                              ["cleanup", selectedExecution.cleanup_status],
-                            ].map(([stage, status]) => (
-                              <div
-                                key={stage}
-                                className="flex items-center justify-between gap-3 border-b border-slate-200 py-2 last:border-b-0 dark:border-slate-800"
-                              >
-                                <span className="text-sm font-medium text-slate-700 dark:text-slate-200">
-                                  {localizeFailoverV2Stage(t, stage)}
-                                </span>
-                                <Badge color={getStatusBadgeColor(status || "pending")}>
-                                  {localizeFailoverV2Status(t, status || "pending")}
-                                </Badge>
-                              </div>
-                            ))}
-                          </div>
+                          <FailoverStageRail
+                            vertical
+                            stages={[
+                              {
+                                key: "detach_dns",
+                                label: localizeFailoverV2Stage(t, "detach_dns"),
+                                status: selectedExecution.detach_dns_status,
+                                statusLabel: localizeFailoverV2Status(t, selectedExecution.detach_dns_status || "pending"),
+                              },
+                              {
+                                key: "attach_dns",
+                                label: localizeFailoverV2Stage(t, "attach_dns"),
+                                status: selectedExecution.attach_dns_status,
+                                statusLabel: localizeFailoverV2Status(t, selectedExecution.attach_dns_status || "pending"),
+                              },
+                              {
+                                key: "cleanup",
+                                label: localizeFailoverV2Stage(t, "cleanup"),
+                                status: selectedExecution.cleanup_status,
+                                statusLabel: localizeFailoverV2Status(t, selectedExecution.cleanup_status || "pending"),
+                              },
+                            ]}
+                          />
                         </div>
                         ) : null}
                       </div>
                     </div>
 
                     {selectedExecution.error_message ? (
-                      <div className="admin-alert admin-alert-danger mt-4 text-sm">
-                        {platformAdmin
-                          ? selectedExecution.error_message
-                          : getPublicFailoverResultText(t, selectedExecution.status, selectedExecution.error_message)}
-                      </div>
+                      platformAdmin ? (
+                        <FailoverIssueSummary message={selectedExecution.error_message} className="mt-4" />
+                      ) : (
+                        <div className="admin-alert admin-alert-danger mt-4 text-sm">
+                          {getPublicFailoverResultText(t, selectedExecution.status, selectedExecution.error_message)}
+                        </div>
+                      )
                     ) : null}
                   </ExecutionDetailSection>
 
@@ -7736,9 +7762,11 @@ export default function FailoverV2Page() {
                                 {cleanupStatus === "-" ? "-" : localizeFailoverV2Status(t, cleanupStatus)}
                               </div>
                               {candidate.error_message ? (
-                                <div className="text-xs text-red-600 dark:text-red-400 sm:col-span-4">
-                                  {candidate.error_message}
-                                </div>
+                                <FailoverIssueSummary
+                                  message={candidate.error_message}
+                                  compact
+                                  className="sm:col-span-4"
+                                />
                               ) : null}
                             </div>
                           );

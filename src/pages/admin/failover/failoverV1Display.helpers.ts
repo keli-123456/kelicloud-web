@@ -16,7 +16,7 @@ export type FailoverExecutionDisplayLike = {
   candidates?: ExecutionCandidateLike[] | null;
 };
 
-const ANSI_ESCAPE_SEQUENCE_PATTERN = /\u001B\[[0-?]*[ -/]*[@-~]/g;
+const ANSI_ESCAPE_SEQUENCE_PATTERN = new RegExp(`${String.fromCharCode(27)}\\[[0-?]*[ -/]*[@-~]`, "g");
 const RETAINED_SCRIPT_FAILURE_SUFFIX = /;\s*healthy new instance retained because DNS switching is disabled\s*$/i;
 const GENERIC_SCRIPT_NOTICE_PATTERN = /^(?:important notice|重要提示)\s*[:：]?$/i;
 const GENERIC_SCRIPT_FAILURE_SUFFIX_PATTERN = /(?:^|:\s*)(?:important notice|重要提示)\s*[:：]?\s*$/i;

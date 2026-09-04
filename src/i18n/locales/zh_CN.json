@@ -187,7 +187,8 @@
         "sessions": "会话",
         "settings": "系统设置",
         "users": "用户"
-      }
+      },
+      "navigation": "管理导航"
     },
     "nodeDetail": {
       "arch": "架构",
@@ -515,7 +516,11 @@
         "targetPort": "目标端口",
         "targetRequired": "请填写目标服务器地址",
         "title": "端口中转",
-        "unsaved": "保存后再应用到服务器"
+        "unsaved": "保存后再应用到服务器",
+        "appliedHint": "服务器已收到并完成这条规则的应用任务。",
+        "applyingHint": "正在下发规则，服务器会检查防火墙工具并应用转发。",
+        "errorHint": "上次应用失败，修正配置或服务器环境后重新应用。",
+        "pendingHint": "保存规则后，点击应用会下发到服务器。"
       },
       "price": "价格",
       "priceTips": "0不显示，-1表示免费",
@@ -575,7 +580,44 @@
       "userScopeHint": "留空后点击搜索可恢复为全部用户范围。",
       "userScopeLabel": "用户范围",
       "userSearchNoMatch": "没有找到匹配“{{query}}”的用户。",
-      "userSearchPlaceholder": "搜索用户节点"
+      "userSearchPlaceholder": "搜索用户节点",
+      "conditionScript": {
+        "conditions": "触发条件",
+        "cooldownMinutes": "冷却时间（分钟）",
+        "currentState": "当前状态",
+        "description": "当这台服务器疑似被墙或国内连接异常时，自动执行指定脚本。",
+        "emptyHistory": "暂无触发记录",
+        "enableRule": "启用自动触发",
+        "enableRuleHelp": "关闭弹窗后，后端仍会继续监听这台服务器的连通性上报。",
+        "failureCount": "连续异常",
+        "failureThreshold": "连续异常次数",
+        "history": "最近触发",
+        "invalidPositive": "{{label}} 必须大于 0",
+        "lastStatus": "最近状态",
+        "lastTriggeredAt": "最近触发",
+        "loadFailed": "加载条件脚本失败",
+        "refreshScripts": "刷新脚本库",
+        "removeFailed": "删除条件脚本失败",
+        "removeSuccess": "条件脚本已删除",
+        "runFailed": "执行条件脚本失败",
+        "runNow": "立即执行",
+        "runSuccess": "已下发脚本任务 {{taskId}}",
+        "saveBeforeRun": "请先保存条件脚本，再手动执行",
+        "saveFailed": "保存条件脚本失败",
+        "saveSuccess": "条件脚本已保存",
+        "script": "执行脚本",
+        "scriptHelp": "脚本来自执行页面的脚本库；规则触发时会读取脚本库中的最新内容。",
+        "selectCondition": "至少选择一个触发条件",
+        "selectScript": "启用前请选择脚本",
+        "selectScriptPlaceholder": "选择脚本",
+        "throttleHelp": "达到连续异常次数后才会触发；冷却时间内不会重复下发脚本。",
+        "title": "条件脚本",
+        "triggerFailed": "失败",
+        "triggerSkipped": "已跳过",
+        "triggerSubmitted": "已提交"
+      },
+      "rustAgentLinuxHint": "Linux 使用 Rust Agent；Windows 和 macOS 继续使用旧版 Agent。",
+      "statusSyncing": "同步中"
     },
     "notification": {
       "expire_description": "套餐到期前提醒用户，减少过期后权限被停用造成的误会。",
@@ -2329,7 +2371,8 @@
     "updated_successfully": "成功更新",
     "warning": "警告",
     "weight": "权重",
-    "yes": "是"
+    "yes": "是",
+    "deleting": "删除中"
   },
   "copy": "复制",
   "copy_success": "已复制到剪贴板",
@@ -2987,7 +3030,8 @@
       "timeline": "时间线",
       "timeline_hint": "后端会持久化每个步骤，方便准确定位失败位置。",
       "title": "执行详情",
-      "trigger_snapshot": "触发快照"
+      "trigger_snapshot": "触发快照",
+      "started": "开始时间"
     },
     "messages": {
       "created": "故障切换任务已创建",
@@ -3256,6 +3300,66 @@
       "more_plans": "更多套餐",
       "tasks": "任务列表",
       "tasks_hint": "按任务、出口、DNS 与最近执行状态快速扫描。"
+    },
+    "issue": {
+      "agent_timeout": {
+        "title": "等待 Agent 上线超时",
+        "summary": "实例已经创建，但 Agent 没有在规定时间内恢复健康。",
+        "action": "检查启动脚本、Agent 接入域名、防火墙和实例网络。"
+      },
+      "candidate_health": {
+        "title": "新实例未通过健康检查",
+        "summary": "实例已经启动，但连通性结果为疑似被墙或国内异常。",
+        "action": "查看连通性探测结果；必要时增加候选数量后重试。"
+      },
+      "cleanup": {
+        "title": "旧实例清理失败",
+        "summary": "替换已经完成，但旧实例或多余候选仍需清理。",
+        "action": "核对保存的云实例引用，然后只重试清理步骤。"
+      },
+      "configuration": {
+        "title": "故障切换配置不完整",
+        "summary": "云凭证、DNS、脚本或目标配置中存在缺失或无效项。",
+        "action": "打开任务配置，补全提示的字段后重新执行。"
+      },
+      "dns": {
+        "title": "DNS 同步失败",
+        "summary": "替换实例已经就绪，但仍有 DNS 记录没有更新成功。",
+        "action": "检查 DNS 凭证和目标记录，然后只重试 DNS 步骤。"
+      },
+      "metric_candidates": "候选实例",
+      "metric_health": "健康失败",
+      "metric_provider": "凭证问题",
+      "metric_timeouts": "超时",
+      "next_action": "建议操作",
+      "provider_timeout": {
+        "title": "云厂商接口超时",
+        "summary": "云厂商没有在规定时间内完成请求。",
+        "action": "确认云厂商 API 可访问，等待凭证冷却结束后重试。"
+      },
+      "provider_unavailable": {
+        "title": "当前没有可用云凭证",
+        "summary": "所选凭证可能被占用、处于冷却、已失效或配额不足。",
+        "action": "检查令牌状态与配额，或向当前池中加入其他健康凭证。"
+      },
+      "replacement_exhausted": {
+        "title": "没有找到可用替换实例",
+        "summary": "候选池已经用尽，但没有实例通过全部检查。",
+        "progress": "计划检查 {{requested}} 台，已创建 {{provisioned}} 台，但没有候选通过全部检查。",
+        "action": "检查凭证可用性和候选健康状态，然后重试本次执行。"
+      },
+      "script": {
+        "title": "部署脚本执行失败",
+        "summary": "新实例已保留，但部署脚本返回了错误。",
+        "action": "展开脚本输出，修复失败命令后再重试。"
+      },
+      "stage_progress": "执行进度",
+      "technical_details": "技术详情",
+      "unknown": {
+        "title": "故障切换执行失败",
+        "summary": "执行在完成所有必要阶段前停止。",
+        "action": "展开技术详情，处理报错原因后重新执行。"
+      }
     }
   },
   "failover_v2": {

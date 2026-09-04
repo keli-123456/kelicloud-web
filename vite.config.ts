@@ -95,7 +95,7 @@ export default defineConfig(({ mode }) => {
           ],
         },
         workbox: {
-          globPatterns: ["**/*.{js,css,ico,png,svg}"],
+          globPatterns: ["assets/entry-*.js", "assets/index-*.css", "**/*.{ico,png,svg}"],
           navigateFallback: null,
           runtimeCaching: [
             {
