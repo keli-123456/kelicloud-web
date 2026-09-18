@@ -36,6 +36,7 @@ export function useLinodeCreateInstance({
 }: UseLinodeCreateInstanceOptions) {
   const [createOpen, setCreateOpen] = React.useState(false);
   const [createSubmitting, setCreateSubmitting] = React.useState(false);
+  const createBusy = React.useRef(false);
   const createCatalogLoading = false;
   const [createForm, setCreateForm] = React.useState<CreateFormState>(initialCreateForm);
 
@@ -50,6 +51,8 @@ export function useLinodeCreateInstance({
   }, [catalog]);
 
   const handleCreateInstance = async () => {
+    if (createBusy.current) return;
+    createBusy.current = true;
     setCreateSubmitting(true);
     try {
       const passwordMode = getCreateRootPasswordMode(createForm.root_password);
@@ -97,6 +100,7 @@ export function useLinodeCreateInstance({
       toast.error(toErrorMessage(createError));
     } finally {
       setCreateSubmitting(false);
+      createBusy.current = false;
     }
   };
 

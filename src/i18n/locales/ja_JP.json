@@ -1,4 +1,40 @@
 {
+  "release_recovery": {
+    "submit_unconfirmed": "送信結果を確認できません。再送信する前に実行履歴を確認してください。リモートタスクは実行中の可能性があります。",
+    "load_failed": "ページの一部を読み込めません。接続を確認するか、ページを再読み込みしてください。",
+    "draft_retained": "未保存の変更は保持されています。保存または破棄してから再読み込みしてください。",
+    "reload": "再読み込み"
+  },
+  "async_feedback": {
+    "awaiting_result": "結果待ち",
+    "stale": "更新に失敗しました。前回取得したデータを表示しています。",
+    "load_failed": "データを取得できませんでした",
+    "refresh": "再取得",
+    "new": "未保存",
+    "unsaved": "未保存の変更",
+    "saving": "保存中",
+    "applying": "送信中",
+    "submitted": "送信済み、サーバーの結果待ち",
+    "disabled_config": "設定では無効。適用が必要です",
+    "saved_pending": "保存済み、サーバーには未適用",
+    "delete_rule_confirm": "ルール「{{name}}」を削除しますか？設定削除後、サーバーへの適用が必要です。",
+    "task_submitted": "タスク {{id}} を送信しました",
+    "tunnel_saved": "ルールを保存しました。稼働状態はサーバーの報告に基づきます。"
+  },
+  "form_feedback": {
+    "required": "{{label}}を入力してください",
+    "saving": "保存中…",
+    "saved": "保存済み",
+    "unsaved": "未保存の変更",
+    "failed": "保存に失敗しました。再試行してください。",
+    "credentials": "認証情報を管理",
+    "credentials_new_tab": "認証情報を管理（新しいタブ）",
+    "refresh_credentials": "認証情報を更新",
+    "refresh_failed": "認証情報の更新に失敗しました。",
+    "no_credentials": "利用可能な認証情報がありません",
+    "expand": "展開",
+    "collapse": "折りたたむ"
+  },
   "about": {
     "ai": "kelicloud プロジェクトの開発プロセスは、人工知能ツールの支援を受けています。これらのツールは、コード生成、リファクタリング、デバッグなどのタスクを実行するために使用され、開発効率とコード品質を向上させます。AI によって生成されたすべてのコードと提案は、人間の開発者によってレビューおよび検証されています。",
     "description": "Review open-source licenses, legal statements, and the project README.",
@@ -1003,7 +1039,8 @@
     "creating": "作成中...",
     "credentials": {
       "check": "Check",
-      "import": "导入凭据"
+      "empty": "認証情報はまだありません",
+      "import": "認証情報をインポート"
     },
     "delete": "削除",
     "delete_confirm": "Droplet「{{name}}」を削除しますか？この操作は元に戻せません。",
@@ -1332,7 +1369,7 @@
     "load_failed": "Unable to load cloud resources. Check the warning above and try again.",
     "load_failed_description": "修复上方警告后，可以刷新页面或重新加载资源。",
     "load_resources_description": "云资源按需加载，可以避免多账户场景下页面一打开就发起大量请求。",
-    "load_resources_prompt": "Click View to load cloud resources on demand.",
+    "load_resources_prompt": "インスタンスは未読み込みです",
     "load_resources_prompt_description": "资源采用按需加载，切换账户时状态会更清楚，也不会自动发起多余请求。",
     "loading": "クラウドリソースを読み込み中...",
     "loading_description": "云厂商 API 可达时，通常几秒内即可完成加载。",
@@ -1832,7 +1869,7 @@
         "disks": "ディスク",
         "email": "Email",
         "instance_empty": "Linode インスタンスがありません",
-        "instance_empty_description": "Create a Linode instance or switch to a token that already owns resources.",
+        "instance_empty_description": "現在のトークンにインスタンスはありません。",
         "instance_id": "Linode ID",
         "instance_list": "インスタンス一覧",
         "instance_list_description": "インスタンス名をクリックして詳細を開き、現在のアクティブトークンで電源状態を管理します。",
@@ -1840,7 +1877,7 @@
         "last_successful": "最後に成功したバックアップ",
         "name": "Linode",
         "no_active_token": "Select an active Linode token first",
-        "no_active_token_description": "Import a token and set it as current before managing Linode instances.",
+        "no_active_token_description": "使用する Linode トークンを選択してください。",
         "onboarding_create_title": "创建或管理 Linode 实例",
         "onboarding_resource_description": "按需拉取 Linode 实例和账号信息，切换令牌时页面会更快、更可控。",
         "onboarding_token_description": "先添加一个或多个 Linode 个人访问令牌，再选择当前用于操作的账户。",
@@ -1871,7 +1908,7 @@
         "token_dialog_description": "完全な Linode トークンは、コピーまたは確認が必要なときだけ表示してください。",
         "tokens_description": "複数の Linode Personal Access Token を保存し、現在のトークンを選び、一括で有効性を確認します。",
         "tokens_empty": "保存済みの Linode トークンはありません",
-        "tokens_empty_description": "Import a Linode personal access token to select an active account, check health, and load instances.",
+        "tokens_empty_description": "Linode トークンはまだありません。",
         "tokens_empty_page": "本页暂无令牌",
         "tokens_empty_page_description": "可调整每页条数或返回上一页。",
         "username": "Username",
@@ -2379,7 +2416,22 @@
   "current_online": "現在オンライン",
   "current_time": "現在の時間",
   "delete": "削除",
+  "form_draft": {
+    "title": "未保存の変更を破棄しますか？",
+    "description": "離れると未保存の変更は失われます。",
+    "keep_editing": "編集を続ける",
+    "discard": "変更を破棄",
+    "wait_for_save": "保存中です。完了するまでお待ちください。",
+    "back_to_task": "タスクに戻る"
+  },
   "exec": {
+    "observation": {
+      "awaiting_receipt": "応答待ち",
+      "request_timeout": "結果の取得がタイムアウトしました。結果を更新してください。",
+      "refresh": "実行結果を更新",
+      "paused": "自動更新を一時停止しました。タスクの完了は未確認です。",
+      "fetch_failed": "実行結果を取得できません。タスクの状態は未確認です。"
+    },
     "allCompleted": "すべてのタスクが完了しました",
     "clients_label": "Clients",
     "command": "コマンドを実行",
@@ -3499,8 +3551,8 @@
     "dns_catalog_load": "DNS オプションを読み込む",
     "dns_catalog_loading": "DNS オプションを読み込み中",
     "dns_domain_name": "ドメイン名",
-    "dns_entry": "DNS エントリー",
-    "dns_entry_id_placeholder": "{{provider}} エントリー ID",
+    "dns_entry": "DNS 認証情報",
+    "dns_entry_id_placeholder": "{{provider}} 認証情報 ID",
     "dns_entry_placeholder": "{{provider}} エントリーを選択",
     "dns_existing_record": "既存の DNS レコード",
     "dns_existing_record_placeholder": "既存の DNS レコードを選択",

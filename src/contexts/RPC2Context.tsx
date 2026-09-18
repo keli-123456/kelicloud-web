@@ -37,6 +37,8 @@ export const RPC2Provider: React.FC<{ children: React.ReactNode }> = ({ children
 
   useEffect(() => {
     __rpc2_refcount++;
+    const resetSession = () => client.disconnect();
+    window.addEventListener("kelicloud:account-scope-change", resetSession);
     // 设置事件监听器
     client.setEventListeners({
       onConnect: () => {
@@ -62,6 +64,7 @@ export const RPC2Provider: React.FC<{ children: React.ReactNode }> = ({ children
 
     // 清理函数
     return () => {
+      window.removeEventListener("kelicloud:account-scope-change", resetSession);
       __rpc2_refcount = Math.max(0, __rpc2_refcount - 1);
       // 只有在最后一个 Provider 卸载时才断开连接
       if (__rpc2_refcount === 0) {

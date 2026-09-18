@@ -1,4 +1,10 @@
 import React from "react";
+import { RefreshNotice } from "@/components/admin/RefreshNotice";
+import { useRequestTracker } from "@/components/admin/useRequestTracker";
+import { FieldValidationError, FormValidationProvider, FormValidationSummary, ValidationField } from "@/components/admin/FormValidation";
+import { GuardedDialog, GuardedDialogClose } from "@/components/admin/GuardedDialog";
+import { CredentialActions } from "@/components/admin/CredentialActions";
+import { SettingCardCollapse } from "@/components/admin/SettingCard";
 import type { TFunction } from "i18next";
 import { Navigate, useSearchParams } from "react-router-dom";
 import { Check, ChevronDown, ChevronUp, LoaderCircle, MoreHorizontal, PencilLine, Play, Plus, RefreshCw, Share2, Trash2, X } from "lucide-react";
@@ -2097,17 +2103,44 @@ function parseJsonField(t: TFunction, rawValue: string, fallback: unknown, label
   }
 }
 
-function buildServiceInput(t: TFunction, formState: ServiceFormState): FailoverV2ServiceInput {
+function readFormField<T>(field: string, read: () => T): T {
+  try { return read(); }
+  catch (error) { throw new FieldValidationError(error instanceof Error ? error.message : String(error), field); }
+}
+
+function requireFormField(t: TFunction, value: unknown, field: string, label: string) {
+  if (!String(value ?? "").trim()) throw new FieldValidationError(t("form_feedback.required", { label }), field);
+}
+
+function buildServiceInput(t: TFunction, formState: ServiceFormState, entries: CloudProviderCredentialEntry[] = []): FailoverV2ServiceInput {
+  requireFormField(t, formState.name, "name", t("common.name"));
+  requireFormField(t, formState.dns_entry_id, "dns_entry_id", t("failover_v2.dns_entry"));
+  const dnsPayload = readFormField("dns_payload", () => parseJsonField(t, formState.dns_payload, {}, t("failover_v2.dns_payload")));
+  if (!dnsPayload || Array.isArray(dnsPayload) || typeof dnsPayload !== "object") {
+    throw new FieldValidationError(t("failover_v2.field_invalid_json", { label: t("failover_v2.dns_payload") }), "dns_payload");
+  }
+  const credential = entries.find((entry) => entry.id === formState.dns_entry_id);
+  if (credential) {
+    const defaults = credential.values ?? {};
+    if (formState.dns_provider === "cloudflare") {
+      const zoneName = String(dnsPayload.zone_name || "").trim() || defaults.zone_name;
+      requireFormField(t, zoneName || String(dnsPayload.zone_id || "").trim() || defaults.zone_id, "dns.zone_name", t("failover_v2.cloudflare_zone_name"));
+      if (!String(zoneName || "").trim()) requireFormField(t, dnsPayload.record_name, "dns.record_name", t("failover_v2.dns_record_name"));
+    } else {
+      requireFormField(t, String(dnsPayload.domain_name || "").trim() || defaults.domain_name, "dns.domain_name", t("failover_v2.dns_domain_name"));
+    }
+  }
+  readFormField("dns.ttl", () => parseNumberField(t, String(dnsPayload.ttl ?? "0"), "TTL", 0, { min: 1 }));
   return {
     name: String(formState.name || "").trim(),
     enabled: Boolean(formState.enabled),
     dns_provider: normalizeProviderKey(formState.dns_provider, FAILOVER_V2_DNS_PROVIDER),
     dns_entry_id: String(formState.dns_entry_id || "").trim(),
-    dns_payload: parseJsonField(t, formState.dns_payload, {}, t("failover_v2.dns_payload", { defaultValue: "DNS payload" })),
+    dns_payload: readFormField("dns_payload", () => parseJsonField(t, formState.dns_payload, {}, t("failover_v2.dns_payload", { defaultValue: "DNS payload" }))),
     script_clipboard_ids: Array.from(new Set(formState.script_clipboard_ids.filter((id) => Number.isFinite(id) && id > 0))),
-    script_timeout_sec: parseNumberField(t, formState.script_timeout_sec, t("failover_v2.script_timeout", { defaultValue: "Script timeout" }), 600, { min: 1 }),
-    wait_agent_timeout_sec: parseNumberField(t, formState.wait_agent_timeout_sec, t("failover_v2.service_ready_timeout", { defaultValue: "服务准备时间" }), 600, { min: 1 }),
-    check_interval_seconds: parseNumberField(t, formState.check_interval_seconds, t("failover_v2.check_interval", { defaultValue: "Check interval" }), 60, { min: 60 }),
+    script_timeout_sec: readFormField("script_timeout_sec", () => parseNumberField(t, formState.script_timeout_sec, t("failover_v2.script_timeout", { defaultValue: "Script timeout" }), 600, { min: 1 })),
+    wait_agent_timeout_sec: readFormField("wait_agent_timeout_sec", () => parseNumberField(t, formState.wait_agent_timeout_sec, t("failover_v2.service_ready_timeout", { defaultValue: "服务准备时间" }), 600, { min: 1 })),
+    check_interval_seconds: readFormField("check_interval_seconds", () => parseNumberField(t, formState.check_interval_seconds, t("failover_v2.check_interval", { defaultValue: "Check interval" }), 60, { min: 60 })),
     delete_strategy: FAILOVER_V2_DEFAULT_DELETE_STRATEGY,
     delete_delay_seconds: FAILOVER_V2_DEFAULT_DELETE_DELAY_SECONDS,
   };
@@ -2116,11 +2149,33 @@ function buildServiceInput(t: TFunction, formState: ServiceFormState): FailoverV
 function buildMemberInput(t: TFunction, formState: MemberFormState): FailoverV2MemberInput {
   const mode = normalizeMemberModeValue(formState.mode);
   const dnsLines = parseMemberDNSLines(formState.dns_lines);
+  requireFormField(t, dnsLines.join(","), "dns_lines", t("failover_v2.dns_lines"));
   const provider = normalizeProviderKey(formState.provider, FAILOVER_V2_MEMBER_PROVIDER);
+  if (mode === "provider_template") {
+    const payload = readFormField("plan_payload", () => parseJsonField(t, formState.plan_payload, {}, t("failover_v2.plan_payload")));
+    if (!payload || Array.isArray(payload) || typeof payload !== "object") {
+      throw new FieldValidationError(t("failover_v2.field_invalid_json", { label: t("failover_v2.plan_payload") }), "plan_payload");
+    }
+    requireFormField(t, payload.region || payload.location, "plan.region", t("failover_v2.plan_region"));
+    const fields = provider === "aws"
+      ? normalizeAWSPlanService(payload.service) === "lightsail"
+        ? ["availability_zone", "blueprint_id", "bundle_id"]
+        : ["image_id", "instance_type"]
+      : provider === "azure" ? ["size"]
+      : provider === "linode" ? ["type", "image"]
+      : provider === "vultr" ? ["plan", "os_id"] : ["size", "image"];
+    for (const field of fields) {
+      const label = field === "image" || field === "image_id" || field === "os_id" || field === "blueprint_id"
+        ? t("failover_v2.plan_image") : field === "availability_zone" ? t("failover.editor.availability_zone") : t("failover.editor.size");
+      requireFormField(t, payload[field], `plan.${field}`, label);
+    }
+  } else {
+    requireFormField(t, formState.watch_client_uuid, "watch_client_uuid", t("failover_v2.watch_client"));
+  }
   return {
     name: String(formState.name || "").trim(),
     enabled: Boolean(formState.enabled),
-    priority: parseNumberField(t, formState.priority, t("failover_v2.priority", { defaultValue: "Priority" }), 1, { min: 1 }),
+    priority: readFormField("priority", () => parseNumberField(t, formState.priority, t("failover_v2.priority", { defaultValue: "Priority" }), 1, { min: 1 })),
     mode,
     watch_client_uuid: String(formState.watch_client_uuid || "").trim(),
     dns_lines: dnsLines,
@@ -2128,26 +2183,26 @@ function buildMemberInput(t: TFunction, formState: MemberFormState): FailoverV2M
     provider: mode === "provider_template" ? provider : "",
     provider_entry_id: mode === "provider_template" ? normalizeProviderEntryID(formState.provider_entry_id || "") : "",
     provider_entry_group: mode === "provider_template" ? normalizeProviderEntryGroup(formState.provider_entry_group || "") : "",
-    plan_payload: mode === "provider_template"
+    plan_payload: readFormField("plan_payload", () => mode === "provider_template"
       ? parseJsonField(t, formState.plan_payload, {}, t("failover_v2.plan_payload", { defaultValue: "Plan payload" }))
-      : {},
-    dns_record_refs: parseJsonField(
+      : {}),
+    dns_record_refs: readFormField("dns_record_refs", () => parseJsonField(
       t,
       formState.dns_record_refs,
       {},
       t("failover_v2.dns_record_refs", { defaultValue: "DNS record refs" }),
-    ),
+    )),
     current_address: String(formState.current_address || "").trim(),
-    current_instance_ref: parseJsonField(
+    current_instance_ref: readFormField("current_instance_ref", () => parseJsonField(
       t,
       formState.current_instance_ref,
       null,
       t("failover_v2.current_instance_ref", { defaultValue: "Current instance ref" }),
-    ),
-    candidate_count: mode === "provider_template" ? parseNumberField(t, formState.candidate_count, t("failover_v2.candidate_count", { defaultValue: "候选实例数" }), 1, { min: 1, max: 5 }) : 1,
-    failure_threshold: parseNumberField(t, formState.failure_threshold, t("failover_v2.failure_threshold", { defaultValue: "Failure threshold" }), 2, { min: 1 }),
-    stale_after_seconds: parseNumberField(t, formState.stale_after_seconds, t("failover_v2.stale_after", { defaultValue: "Stale after" }), 300, { min: 1 }),
-    cooldown_seconds: parseNumberField(t, formState.cooldown_seconds, t("failover_v2.cooldown", { defaultValue: "Cooldown" }), 1800, { min: 0 }),
+    )),
+    candidate_count: readFormField("candidate_count", () => mode === "provider_template" ? parseNumberField(t, formState.candidate_count, t("failover_v2.candidate_count", { defaultValue: "候选实例数" }), 1, { min: 1, max: 5 }) : 1),
+    failure_threshold: readFormField("failure_threshold", () => parseNumberField(t, formState.failure_threshold, t("failover_v2.failure_threshold", { defaultValue: "Failure threshold" }), 2, { min: 1 })),
+    stale_after_seconds: readFormField("stale_after_seconds", () => parseNumberField(t, formState.stale_after_seconds, t("failover_v2.stale_after", { defaultValue: "Stale after" }), 300, { min: 1 })),
+    cooldown_seconds: readFormField("cooldown_seconds", () => parseNumberField(t, formState.cooldown_seconds, t("failover_v2.cooldown", { defaultValue: "Cooldown" }), 1800, { min: 0 })),
   };
 }
 
@@ -2784,7 +2839,7 @@ export default function FailoverV2Page() {
   const [searchParams] = useSearchParams();
   const { account, hasFeature, loading, platformAdmin } = useAccount();
   const systemState = useSettings("system", { enabled: platformAdmin });
-  const serviceLoadSeqRef = React.useRef(0);
+  const serviceRequests = useRequestTracker();
   const serviceDNSCatalogSeqRef = React.useRef(0);
   const memberDNSCatalogSeqRef = React.useRef(0);
   const serviceDNSPayloadRef = React.useRef<Record<string, unknown>>({});
@@ -2809,6 +2864,11 @@ export default function FailoverV2Page() {
   const [serviceDialogOpen, setServiceDialogOpen] = React.useState(false);
   const [editingService, setEditingService] = React.useState<FailoverV2Service | null>(null);
   const [serviceForm, setServiceForm] = React.useState<ServiceFormState>(createEmptyServiceForm());
+  const [initialServiceSignature, setInitialServiceSignature] = React.useState("");
+  const [serviceFormError, setServiceFormError] = React.useState<Error | null>(null);
+  const [servicePolicyOpen, setServicePolicyOpen] = React.useState(false);
+  React.useEffect(() => { setServiceFormError(null); }, [serviceForm, serviceDialogOpen]);
+  React.useEffect(() => { if (!serviceDialogOpen) setServicePolicyOpen(false); }, [serviceDialogOpen]);
   const [serviceDNSAdvancedOpen, setServiceDNSAdvancedOpen] = React.useState(false);
   const [serviceDNSCatalog, setServiceDNSCatalog] = React.useState<FailoverDnsCatalog | null>(null);
   const [serviceDNSCatalogLoading, setServiceDNSCatalogLoading] = React.useState(false);
@@ -2835,6 +2895,11 @@ export default function FailoverV2Page() {
   const [memberDialogService, setMemberDialogService] = React.useState<FailoverV2Service | null>(null);
   const [editingMember, setEditingMember] = React.useState<FailoverV2Member | null>(null);
   const [memberForm, setMemberForm] = React.useState<MemberFormState>(createEmptyMemberForm());
+  const [initialMemberSignature, setInitialMemberSignature] = React.useState("");
+  const [memberFormError, setMemberFormError] = React.useState<Error | null>(null);
+  const [memberPolicyOpen, setMemberPolicyOpen] = React.useState(false);
+  React.useEffect(() => { setMemberFormError(null); }, [memberForm, memberDialogOpen]);
+  React.useEffect(() => { if (!memberDialogOpen) setMemberPolicyOpen(false); }, [memberDialogOpen]);
   const [savingMember, setSavingMember] = React.useState(false);
   const [validatingMember, setValidatingMember] = React.useState(false);
   const [togglingMemberKey, setTogglingMemberKey] = React.useState("");
@@ -2857,6 +2922,16 @@ export default function FailoverV2Page() {
   const [selectedExecution, setSelectedExecution] = React.useState<FailoverV2Execution | null>(null);
   const [loadingExecutionDetail, setLoadingExecutionDetail] = React.useState(false);
   const [executionError, setExecutionError] = React.useState("");
+  const historyRequests = useRequestTracker();
+  const detailRequests = useRequestTracker();
+  const cleanupRequests = useRequestTracker();
+  const executionContext = React.useRef<number | null>(null);
+  const executionSelection = React.useRef(0);
+  const executionOpener = React.useRef<HTMLElement | null>(null);
+  const executionActionBusy = React.useRef(false);
+  const cleanupActionBusy = React.useRef(false);
+  const [cleanupActionError, setCleanupActionError] = React.useState("");
+  const [executionActionError, setExecutionActionError] = React.useState("");
   const pageTitle = platformAdmin
     ? t("cloud.failover_v2.title", { defaultValue: "故障切换 V2" })
     : t("failover_v2.public.title", { defaultValue: "线路保障 V2" });
@@ -2907,8 +2982,8 @@ export default function FailoverV2Page() {
 
   const loadServices = React.useCallback(async (options?: { silent?: boolean }) => {
     const silent = Boolean(options?.silent);
-    const requestSeq = serviceLoadSeqRef.current + 1;
-    serviceLoadSeqRef.current = requestSeq;
+    if (silent && serviceRequests.pending) return;
+    const ticket = serviceRequests.begin();
 
     if (!silent) {
       setLoadingServices(true);
@@ -2916,8 +2991,9 @@ export default function FailoverV2Page() {
     }
     try {
       const data = await getFailoverV2Services();
-      if (serviceLoadSeqRef.current === requestSeq) {
+      if (serviceRequests.isCurrent(ticket)) {
         setServices(Array.isArray(data) ? data : []);
+        setError("");
       }
     } catch (loadError) {
       const message = resolveFailoverV2ErrorMessage(
@@ -2927,15 +3003,16 @@ export default function FailoverV2Page() {
           defaultValue: "加载故障切换 V2 服务失败",
         }),
       );
-      if (!silent && serviceLoadSeqRef.current === requestSeq) {
+      if (serviceRequests.isCurrent(ticket)) {
         setError(message);
       }
     } finally {
-      if (!silent) {
+      if (serviceRequests.isCurrent(ticket)) {
         setLoadingServices(false);
       }
+      serviceRequests.finish(ticket);
     }
-  }, [t]);
+  }, [t, serviceRequests]);
 
   const loadCatalogs = React.useCallback(async () => {
     const results = await Promise.allSettled([
@@ -2989,7 +3066,7 @@ export default function FailoverV2Page() {
 
   React.useEffect(() => {
     const intervalID = window.setInterval(() => {
-      setNowTickMs(Date.now());
+      if (document.visibilityState === "visible") setNowTickMs(Date.now());
     }, FAILOVER_V2_COUNTDOWN_TICK_MS);
     return () => window.clearInterval(intervalID);
   }, []);
@@ -3161,7 +3238,7 @@ export default function FailoverV2Page() {
     }
 
     const intervalID = window.setInterval(() => {
-      void loadServices({ silent: true });
+      if (document.visibilityState === "visible") void loadServices({ silent: true });
     }, FAILOVER_V2_POLL_INTERVAL_MS);
     return () => window.clearInterval(intervalID);
   }, [hasBusyService, hasFeature, loadServices, loading]);
@@ -3178,7 +3255,7 @@ export default function FailoverV2Page() {
     }
 
     const intervalID = window.setInterval(() => {
-      void loadServices({ silent: true });
+      if (document.visibilityState === "visible") void loadServices({ silent: true });
     }, FAILOVER_V2_SCHEDULER_STATUS_POLL_INTERVAL_MS);
     return () => window.clearInterval(intervalID);
   }, [enabledServiceCount, hasBusyService, hasFeature, loadServices, loading, schedulerEnabled]);
@@ -3789,7 +3866,9 @@ export default function FailoverV2Page() {
 
   const openCreateServiceDialog = React.useCallback(() => {
     setEditingService(null);
-    setServiceForm(createEmptyServiceForm());
+    const form = createEmptyServiceForm();
+    setServiceForm(form);
+    setInitialServiceSignature(JSON.stringify(form));
     setServiceDNSAdvancedOpen(false);
     setServiceDNSCatalog(null);
     setServiceDNSCatalogError("");
@@ -3800,7 +3879,9 @@ export default function FailoverV2Page() {
 
   const openEditServiceDialog = React.useCallback((service: FailoverV2Service) => {
     setEditingService(service);
-    setServiceForm(createServiceForm(service));
+    const form = createServiceForm(service);
+    setServiceForm(form);
+    setInitialServiceSignature(JSON.stringify(form));
     setServiceDNSAdvancedOpen(false);
     setServiceDNSCatalog(null);
     setServiceDNSCatalogError("");
@@ -3843,7 +3924,9 @@ export default function FailoverV2Page() {
   const openCreateMemberDialog = React.useCallback((service: FailoverV2Service) => {
     setMemberDialogService(service);
     setEditingMember(null);
-    setMemberForm(createEmptyMemberForm(defaultMemberProvider));
+    const form = createEmptyMemberForm(defaultMemberProvider);
+    setMemberForm(form);
+    setInitialMemberSignature(JSON.stringify(form));
     setMemberPlanAdvancedOpen(false);
     setMemberStateAdvancedOpen(false);
     setMemberDNSCatalog(null);
@@ -3854,7 +3937,9 @@ export default function FailoverV2Page() {
   const openEditMemberDialog = React.useCallback((service: FailoverV2Service, member: FailoverV2Member) => {
     setMemberDialogService(service);
     setEditingMember(member);
-    setMemberForm(createMemberForm(member));
+    const form = createMemberForm(member);
+    setMemberForm(form);
+    setInitialMemberSignature(JSON.stringify(form));
     setMemberPlanAdvancedOpen(false);
     setMemberStateAdvancedOpen(false);
     setMemberDNSCatalog(null);
@@ -3905,9 +3990,29 @@ export default function FailoverV2Page() {
     setMemberStateAdvancedOpen(false);
   }, []);
 
+  const showServiceFormError = React.useCallback((error: unknown) => {
+    setServiceFormError(error instanceof Error ? error : new Error(resolveFailoverV2ErrorMessage(t, error, t("common.error"))));
+    if (error instanceof FieldValidationError) {
+      if (error.field === "dns_payload") setServiceDNSAdvancedOpen(true);
+      if (["script_timeout_sec", "wait_agent_timeout_sec", "check_interval_seconds"].includes(error.field)) setServicePolicyOpen(true);
+    }
+  }, [t]);
+  const showMemberFormError = React.useCallback((error: unknown) => {
+    setMemberFormError(error instanceof Error ? error : new Error(resolveFailoverV2ErrorMessage(t, error, t("common.error"))));
+    if (error instanceof FieldValidationError) {
+      if (error.field === "plan_payload") setMemberPlanAdvancedOpen(true);
+      if (["priority", "failure_threshold", "stale_after_seconds", "cooldown_seconds"].includes(error.field)) setMemberPolicyOpen(true);
+      if (["dns_record_refs", "current_instance_ref"].includes(error.field)) {
+        setMemberPolicyOpen(true);
+        setMemberStateAdvancedOpen(true);
+      }
+    }
+  }, [t]);
+
   const handleSaveService = React.useCallback(async () => {
+    setServiceFormError(null);
     try {
-      const input = buildServiceInput(t, serviceForm);
+      const input = buildServiceInput(t, serviceForm, currentDnsEntries);
       setSavingService(true);
       if (editingService) {
         await updateFailoverV2Service(editingService.id, input);
@@ -3919,18 +4024,20 @@ export default function FailoverV2Page() {
       setServiceDialogOpen(false);
       await loadServices();
     } catch (saveError) {
+      showServiceFormError(saveError);
       const message = resolveFailoverV2ErrorMessage(
         t,
         saveError,
         t("common.error", { defaultValue: "Error" }),
       );
-      toast.error(message);
+      if (!(saveError instanceof FieldValidationError)) toast.error(message);
     } finally {
       setSavingService(false);
     }
-  }, [editingService, loadServices, serviceForm, t]);
+  }, [currentDnsEntries, editingService, loadServices, serviceForm, showServiceFormError, t]);
 
   const handleSaveMember = React.useCallback(async () => {
+    setMemberFormError(null);
     if (!memberDialogService) {
       return;
     }
@@ -3948,16 +4055,17 @@ export default function FailoverV2Page() {
       closeMemberDialog();
       await loadServices();
     } catch (saveError) {
+      showMemberFormError(saveError);
       const message = resolveFailoverV2ErrorMessage(
         t,
         saveError,
         t("common.error", { defaultValue: "Error" }),
       );
-      toast.error(message);
+      if (!(saveError instanceof FieldValidationError)) toast.error(message);
     } finally {
       setSavingMember(false);
     }
-  }, [closeMemberDialog, editingMember, loadServices, memberDialogService, memberForm, t]);
+  }, [closeMemberDialog, editingMember, loadServices, memberDialogService, memberForm, showMemberFormError, t]);
 
   const showValidationResult = React.useCallback((title: string, result: FailoverV2ValidationResult) => {
     setValidationDialogTarget({ title, result });
@@ -3973,9 +4081,10 @@ export default function FailoverV2Page() {
   }, [t]);
 
   const handleValidateServiceForm = React.useCallback(async () => {
+    setServiceFormError(null);
     try {
       setValidatingService(true);
-      const input = buildServiceInput(t, serviceForm);
+      const input = buildServiceInput(t, serviceForm, currentDnsEntries);
       const result = await validateFailoverV2Service(input, editingService?.id ?? null);
       showValidationResult(
         editingService
@@ -3984,21 +4093,22 @@ export default function FailoverV2Page() {
         result,
       );
     } catch (validateError) {
+      showServiceFormError(validateError);
       const message = resolveFailoverV2ErrorMessage(
         t,
         validateError,
         t("common.error", { defaultValue: "Error" }),
       );
-      toast.error(message);
+      if (!(validateError instanceof FieldValidationError)) toast.error(message);
     } finally {
       setValidatingService(false);
     }
-  }, [editingService, serviceForm, showValidationResult, t]);
+  }, [currentDnsEntries, editingService, serviceForm, showServiceFormError, showValidationResult, t]);
 
   const handleValidateExistingService = React.useCallback(async (service: FailoverV2Service) => {
     try {
       setValidatingServiceID(service.id);
-      const input = buildServiceInput(t, createServiceForm(service));
+      const input = buildServiceInput(t, createServiceForm(service), dnsEntriesByProvider[service.dns_provider] || []);
       const result = await validateFailoverV2Service(input, service.id);
       showValidationResult(
         t("failover_v2.validation_existing_service_title", {
@@ -4017,9 +4127,10 @@ export default function FailoverV2Page() {
     } finally {
       setValidatingServiceID(null);
     }
-  }, [showValidationResult, t]);
+  }, [dnsEntriesByProvider, showValidationResult, t]);
 
   const handleValidateMemberForm = React.useCallback(async () => {
+    setMemberFormError(null);
     if (!memberDialogService) {
       return;
     }
@@ -4034,16 +4145,17 @@ export default function FailoverV2Page() {
         result,
       );
     } catch (validateError) {
+      showMemberFormError(validateError);
       const message = resolveFailoverV2ErrorMessage(
         t,
         validateError,
         t("common.error", { defaultValue: "Error" }),
       );
-      toast.error(message);
+      if (!(validateError instanceof FieldValidationError)) toast.error(message);
     } finally {
       setValidatingMember(false);
     }
-  }, [editingMember, memberDialogService, memberForm, showValidationResult, t]);
+  }, [editingMember, memberDialogService, memberForm, showMemberFormError, showValidationResult, t]);
 
   const replaceServiceInState = React.useCallback((nextService: FailoverV2Service) => {
     setServices((current) => current.map((service) => (service.id === nextService.id ? nextService : service)));
@@ -4183,10 +4295,10 @@ export default function FailoverV2Page() {
   }, [detachTarget, loadServices, t]);
 
   const handleConfirmFailover = React.useCallback(async () => {
-    if (!failoverTarget) {
+    if (!failoverTarget || executionActionBusy.current) {
       return;
     }
-
+    executionActionBusy.current = true;
     try {
       setRunningFailover(true);
       await runFailoverV2MemberNow(failoverTarget.service.id, failoverTarget.member.id);
@@ -4202,6 +4314,7 @@ export default function FailoverV2Page() {
       toast.error(message);
     } finally {
       setRunningFailover(false);
+      executionActionBusy.current = false;
     }
   }, [failoverTarget, loadServices, t]);
 
@@ -4295,15 +4408,21 @@ export default function FailoverV2Page() {
     options?: { silent?: boolean },
   ) => {
     const silent = Boolean(options?.silent);
+    if (executionContext.current !== serviceID) return;
+    const ticket = detailRequests.begin();
+    setSelectedExecutionID(executionID);
+    setSelectedExecution((current) => current?.id === executionID ? current : null);
     if (!silent) {
       setLoadingExecutionDetail(true);
     }
     try {
       const data = await getFailoverV2Execution(serviceID, executionID);
+      if (!detailRequests.isCurrent(ticket)) return;
       setSelectedExecution(data);
       setSelectedExecutionID(executionID);
       setExecutionError("");
     } catch (loadError) {
+      if (!detailRequests.isCurrent(ticket)) return;
       const message = resolveFailoverV2ErrorMessage(
         t,
         loadError,
@@ -4311,16 +4430,14 @@ export default function FailoverV2Page() {
           defaultValue: "加载执行详情失败",
         }),
       );
-      if (!silent) {
-        setExecutionError(message);
-        setSelectedExecution(null);
-      }
+      setExecutionError(message);
     } finally {
-      if (!silent) {
+      if (detailRequests.isCurrent(ticket)) {
         setLoadingExecutionDetail(false);
       }
+      detailRequests.finish(ticket);
     }
-  }, [t]);
+  }, [detailRequests, t]);
 
   const loadExecutionHistory = React.useCallback(async (
     service: FailoverV2Service,
@@ -4328,13 +4445,17 @@ export default function FailoverV2Page() {
     options?: { silent?: boolean },
   ) => {
     const silent = Boolean(options?.silent);
+    if (executionContext.current !== service.id || (silent && (historyRequests.pending || detailRequests.pending || executionActionBusy.current))) return;
+    const ticket = historyRequests.begin();
+    const selection = executionSelection.current;
     if (!silent) {
       setLoadingExecutions(true);
-      setExecutionError("");
     }
     try {
       const data = await getFailoverV2Executions(service.id, 30);
+      if (!historyRequests.isCurrent(ticket)) return;
       setExecutionSummaries(data);
+      if (selection !== executionSelection.current) return;
 
       const activeExecutionID = findActiveFailoverV2ExecutionID(data);
       const preferredExecution = preferredExecutionID
@@ -4358,10 +4479,14 @@ export default function FailoverV2Page() {
       if (nextExecutionID) {
         await loadExecutionDetail(service.id, nextExecutionID, options);
       } else {
+        detailRequests.invalidate();
+        setLoadingExecutionDetail(false);
+        setExecutionError("");
         setSelectedExecutionID(null);
         setSelectedExecution(null);
       }
     } catch (loadError) {
+      if (!historyRequests.isCurrent(ticket)) return;
       const message = resolveFailoverV2ErrorMessage(
         t,
         loadError,
@@ -4369,20 +4494,23 @@ export default function FailoverV2Page() {
           defaultValue: "加载执行历史失败",
         }),
       );
-      if (!silent) {
-        setExecutionError(message);
-        setExecutionSummaries([]);
-        setSelectedExecutionID(null);
-        setSelectedExecution(null);
-      }
+      setExecutionError(message);
     } finally {
-      if (!silent) {
+      if (historyRequests.isCurrent(ticket)) {
         setLoadingExecutions(false);
       }
+      historyRequests.finish(ticket);
     }
-  }, [loadExecutionDetail, t]);
+  }, [loadExecutionDetail, historyRequests, detailRequests, t]);
 
   const openExecutionDialog = React.useCallback((service: FailoverV2Service, preferredExecutionID?: number | null) => {
+    executionOpener.current = document.getElementById(`service-actions-${service.id}`);
+    executionContext.current = service.id;
+    ++executionSelection.current;
+    historyRequests.invalidate();
+    detailRequests.invalidate();
+    setLoadingExecutionDetail(false);
+    setExecutionActionError("");
     const nextPreferredID =
       findActiveFailoverV2ExecutionID(service.recent_executions) ??
       preferredExecutionID ??
@@ -4394,12 +4522,15 @@ export default function FailoverV2Page() {
     setSelectedExecution(null);
     setExecutionError("");
     void loadExecutionHistory(service, nextPreferredID);
-  }, [loadExecutionHistory]);
+  }, [loadExecutionHistory, historyRequests, detailRequests]);
 
   const handleSelectExecution = React.useCallback((executionID: number) => {
-    if (!executionDialogTarget) {
+    if (!executionDialogTarget || executionActionBusy.current) {
       return;
     }
+    ++executionSelection.current;
+    setExecutionError("");
+    setExecutionActionError("");
     void loadExecutionDetail(executionDialogTarget.service.id, executionID);
   }, [executionDialogTarget, loadExecutionDetail]);
 
@@ -4427,16 +4558,22 @@ export default function FailoverV2Page() {
     }
 
     const intervalID = window.setInterval(() => {
-      void loadExecutionHistory(executionDialogTarget.service, selectedExecutionID, { silent: true });
+      if (!document.hidden) void loadExecutionHistory(executionDialogTarget.service, selectedExecutionID, { silent: true });
     }, FAILOVER_V2_POLL_INTERVAL_MS);
     return () => window.clearInterval(intervalID);
   }, [executionDialogTarget, loadExecutionHistory, selectedExecutionActive, selectedExecutionID]);
 
   const handleConfirmExecutionAction = React.useCallback(async () => {
-    if (!executionActionTarget) {
+    if (!executionActionTarget || executionActionBusy.current) {
       return;
     }
 
+    executionActionBusy.current = true;
+    historyRequests.invalidate();
+    detailRequests.invalidate();
+    setLoadingExecutions(false);
+    setLoadingExecutionDetail(false);
+    setExecutionActionError("");
     try {
       let updated: FailoverV2Execution;
       if (executionActionTarget.action === "stop") {
@@ -4453,6 +4590,10 @@ export default function FailoverV2Page() {
         toast.success(t("failover_v2.retry_cleanup_success", { defaultValue: "Cleanup retry finished" }));
       }
 
+      if (executionContext.current === updated.service_id) {
+        setSelectedExecution(updated);
+        setSelectedExecutionID(updated.id);
+      }
       setExecutionActionTarget(null);
       await loadServices();
       if (executionDialogTarget) {
@@ -4467,29 +4608,35 @@ export default function FailoverV2Page() {
         actionError,
         t("common.error", { defaultValue: "Error" }),
       );
+      setExecutionActionError(message);
       toast.error(message);
       void loadServices({ silent: true });
       if (executionDialogTarget?.service.id === executionActionTarget.serviceID) {
         void loadExecutionHistory(
           executionDialogTarget.service,
           executionActionTarget.executionID,
-          { silent: true },
+          { silent: false },
         );
       }
     } finally {
+      executionActionBusy.current = false;
       setStoppingExecution(false);
       setRetryingAttachDNS(false);
       setRetryingCleanup(false);
     }
-  }, [executionActionTarget, executionDialogTarget, loadExecutionHistory, loadServices, t]);
+  }, [executionActionTarget, executionDialogTarget, loadExecutionHistory, loadServices, historyRequests, detailRequests, t]);
 
   const loadPendingCleanupHistory = React.useCallback(async (service: FailoverV2Service) => {
+    if (cleanupRequests.pending) return;
+    const ticket = cleanupRequests.begin();
     setLoadingPendingCleanups(true);
-    setPendingCleanupError("");
     try {
       const data = await getFailoverV2PendingCleanups(service.id, 50);
+      if (!cleanupRequests.isCurrent(ticket)) return;
       setPendingCleanups(data);
+      setPendingCleanupError("");
     } catch (loadError) {
+      if (!cleanupRequests.isCurrent(ticket)) return;
       const message = resolveFailoverV2ErrorMessage(
         t,
         loadError,
@@ -4498,18 +4645,19 @@ export default function FailoverV2Page() {
         }),
       );
       setPendingCleanupError(message);
-      setPendingCleanups([]);
     } finally {
-      setLoadingPendingCleanups(false);
+      if (cleanupRequests.isCurrent(ticket)) setLoadingPendingCleanups(false);
+      cleanupRequests.finish(ticket);
     }
-  }, [t]);
+  }, [cleanupRequests, t]);
 
   const openPendingCleanupDialog = React.useCallback((service: FailoverV2Service) => {
+    cleanupRequests.invalidate();
     setPendingCleanupDialogTarget({ service });
     setPendingCleanups([]);
     setPendingCleanupError("");
     void loadPendingCleanupHistory(service);
-  }, [loadPendingCleanupHistory]);
+  }, [loadPendingCleanupHistory, cleanupRequests]);
 
   const hasRunningPendingCleanup = React.useMemo(
     () => pendingCleanups.some((cleanup) => String(cleanup.status || "").trim().toLowerCase() === "running"),
@@ -4522,16 +4670,20 @@ export default function FailoverV2Page() {
     }
 
     const intervalID = window.setInterval(() => {
-      void loadPendingCleanupHistory(pendingCleanupDialogTarget.service);
+      if (!document.hidden && !cleanupActionBusy.current) void loadPendingCleanupHistory(pendingCleanupDialogTarget.service);
     }, FAILOVER_V2_POLL_INTERVAL_MS);
     return () => window.clearInterval(intervalID);
   }, [hasRunningPendingCleanup, loadPendingCleanupHistory, pendingCleanupDialogTarget]);
 
   const handleConfirmPendingCleanupAction = React.useCallback(async () => {
-    if (!pendingCleanupActionTarget) {
+    if (!pendingCleanupActionTarget || cleanupActionBusy.current) {
       return;
     }
 
+    cleanupActionBusy.current = true;
+    setCleanupActionError("");
+    cleanupRequests.invalidate();
+    setLoadingPendingCleanups(false);
     try {
       if (pendingCleanupActionTarget.action === "retry") {
         setRetryingPendingCleanup(true);
@@ -4558,13 +4710,15 @@ export default function FailoverV2Page() {
         actionError,
         t("common.error", { defaultValue: "Error" }),
       );
+      setCleanupActionError(message);
       toast.error(message);
     } finally {
+      cleanupActionBusy.current = false;
       setRetryingPendingCleanup(false);
       setResolvingPendingCleanup(false);
       setMarkingPendingCleanupReview(false);
     }
-  }, [loadPendingCleanupHistory, loadServices, pendingCleanupActionTarget, pendingCleanupDialogTarget, t]);
+  }, [loadPendingCleanupHistory, loadServices, pendingCleanupActionTarget, pendingCleanupDialogTarget, cleanupRequests, t]);
 
   const handleToggleScheduler = React.useCallback(async (checked: boolean) => {
     if (!platformAdmin) {
@@ -4921,6 +5075,7 @@ export default function FailoverV2Page() {
                                 size="sm"
                                 variant="ghost"
                                 className="h-8 w-8 rounded-md px-0"
+                                id={`service-actions-${service.id}`}
                                 onClick={(event) => event.stopPropagation()}
                                 title={t("common.more_actions", { defaultValue: "More actions" })}
                                 aria-label={t("common.more_actions", { defaultValue: "More actions" })}
@@ -5439,7 +5594,9 @@ export default function FailoverV2Page() {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={serviceDialogOpen} onOpenChange={setServiceDialogOpen}>
+      <FormValidationProvider value={serviceFormError}>
+      <GuardedDialog open={serviceDialogOpen} onOpenChange={setServiceDialogOpen}
+        dirty={JSON.stringify(serviceForm) !== initialServiceSignature} busy={savingService}>
         <DialogContent className={cn(ADMIN_FORM_DIALOG_WIDE_CLASS, ADMIN_FORM_DIALOG_CHROME_CLASS, "max-h-[calc(100dvh-1rem)] max-w-[1180px] sm:max-w-[1180px]")}>
           <DialogHeader className={ADMIN_FORM_HEADER_CLASS}>
             <DialogTitle>
@@ -5454,9 +5611,11 @@ export default function FailoverV2Page() {
             </DialogDescription>
           </DialogHeader>
 
+          <fieldset disabled={savingService} className="contents">
           <div className={ADMIN_FORM_BODY_CLASS}>
             <div className="grid w-full gap-5 xl:grid-cols-[minmax(0,1fr)_340px]">
               <div className="min-w-0 space-y-3">
+                <FormValidationSummary />
             <section className={FORM_SECTION_CLASS}>
               <div className="mb-4 flex flex-col gap-1">
                 <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-50">
@@ -5469,7 +5628,7 @@ export default function FailoverV2Page() {
                 </p>
               </div>
               <div className="grid items-start gap-3 md:grid-cols-[minmax(0,1fr)_18rem]">
-                <div className={FORM_FIELD_CLASS}>
+                <ValidationField field="name" className={FORM_FIELD_CLASS}>
                   <Label htmlFor="v2-service-name" className="flex items-center gap-1">
                     {t("common.name", { defaultValue: "Name" })}
                     <RequiredMark />
@@ -5480,7 +5639,7 @@ export default function FailoverV2Page() {
                     onChange={(event) => setServiceForm((current) => ({ ...current, name: event.target.value }))}
                     placeholder={t("failover_v2.service_name_placeholder", { defaultValue: "e.g. Hong Kong outlet pool" })}
                   />
-                </div>
+                </ValidationField>
                 <div className={FORM_TOGGLE_CLASS}>
                   <div>
                     <div className="text-sm font-medium text-slate-900 dark:text-slate-50">
@@ -5493,6 +5652,7 @@ export default function FailoverV2Page() {
                     </div>
                   </div>
                   <Switch
+                    aria-label={t("common.enabled")}
                     checked={serviceForm.enabled}
                     onCheckedChange={(checked) => setServiceForm((current) => ({ ...current, enabled: checked }))}
                   />
@@ -5513,12 +5673,12 @@ export default function FailoverV2Page() {
               </div>
               <div className={FORM_GRID_2_CLASS}>
                 <div className={FORM_FIELD_CLASS}>
-                  <Label className="flex items-center gap-1">
+                  <Label htmlFor="v2-dns-provider" className="flex items-center gap-1">
                     {t("failover_v2.dns_provider", { defaultValue: "DNS provider" })}
                     <RequiredMark />
                   </Label>
                   <Select value={serviceForm.dns_provider} onValueChange={handleServiceDNSProviderChange}>
-                    <SelectTrigger>
+                    <SelectTrigger id="v2-dns-provider">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -5530,8 +5690,8 @@ export default function FailoverV2Page() {
                     </SelectContent>
                   </Select>
                 </div>
-                <div className={FORM_FIELD_CLASS}>
-                  <Label className="flex items-center gap-1">
+                <ValidationField field="dns_entry_id" className={FORM_FIELD_CLASS}>
+                  <Label htmlFor="v2-dns-entry" className="flex items-center gap-1">
                     {t("failover_v2.dns_entry", { defaultValue: "DNS entry" })}
                     <RequiredMark />
                   </Label>
@@ -5543,7 +5703,7 @@ export default function FailoverV2Page() {
                         setServiceForm((current) => ({ ...current, dns_entry_id: value }));
                       }}
                     >
-                      <SelectTrigger>
+                      <SelectTrigger id="v2-dns-entry">
                         <SelectValue
                           placeholder={t("failover_v2.dns_entry_placeholder", {
                             defaultValue: `Choose a ${formatProviderLabel(serviceForm.dns_provider)} entry`,
@@ -5560,19 +5720,14 @@ export default function FailoverV2Page() {
                       </SelectContent>
                     </Select>
                   ) : (
-                    <Input
-                      value={serviceForm.dns_entry_id}
-                      onChange={(event) => {
-                        setServiceSelectedDNSRecordKey("");
-                        setServiceForm((current) => ({ ...current, dns_entry_id: event.target.value }));
-                      }}
-                      placeholder={t("failover_v2.dns_entry_id_placeholder", {
-                        defaultValue: `${formatProviderLabel(serviceForm.dns_provider)} entry id`,
-                        provider: formatProviderLabel(serviceForm.dns_provider),
-                      })}
-                    />
+                    <Input id="v2-dns-entry" disabled value={t("form_feedback.no_credentials")} />
                   )}
-                </div>
+                  <CredentialActions href="/admin/cloud-dns?tab=credentials" onRefresh={async () => {
+                    const provider = serviceForm.dns_provider;
+                    const entries = await getCloudProviderEntries(provider);
+                    setDnsEntriesByProvider((current) => ({ ...current, [provider]: entries }));
+                  }} />
+                </ValidationField>
               </div>
 
               <div className="mt-4 space-y-4">
@@ -5684,7 +5839,7 @@ export default function FailoverV2Page() {
 
                 {serviceDNSProvider === "cloudflare" ? (
                   <div className={FORM_GRID_2_CLASS}>
-                    <div className={FORM_FIELD_CLASS}>
+                    <ValidationField field="dns.zone_name" className={FORM_FIELD_CLASS}>
                       <Label>{t("failover_v2.cloudflare_zone_name", { defaultValue: "Zone name" })}</Label>
                       {serviceDNSZoneOptions.length > 0 ? (
                         <Select
@@ -5718,16 +5873,16 @@ export default function FailoverV2Page() {
                           placeholder="example.com"
                         />
                       )}
-                    </div>
-                    <div className={FORM_FIELD_CLASS}>
+                    </ValidationField>
+                    <ValidationField field="dns.zone_id" className={FORM_FIELD_CLASS}>
                       <Label>{t("failover_v2.cloudflare_zone_id", { defaultValue: "Zone ID" })}</Label>
                       <Input
                         value={getJsonStringValue(serviceDNSPayload, "zone_id")}
                         onChange={(event) => updateServiceDNSPayload({ zone_id: event.target.value })}
                         placeholder={t("failover_v2.cloudflare_zone_id_placeholder", { defaultValue: "填写 Zone 名称时可选" })}
                       />
-                    </div>
-                    <div className={`${FORM_FIELD_CLASS} md:col-span-2`}>
+                    </ValidationField>
+                    <ValidationField field="dns.record_name" className={`${FORM_FIELD_CLASS} md:col-span-2`}>
                       <Label className="flex items-center gap-1">
                         {t("failover_v2.dns_record_name", { defaultValue: "Record name" })}
                         <RequiredMark />
@@ -5737,11 +5892,11 @@ export default function FailoverV2Page() {
                         onChange={(event) => updateServiceDNSPayload({ record_name: event.target.value })}
                         placeholder="api.example.com"
                       />
-                    </div>
+                    </ValidationField>
                   </div>
                 ) : (
                   <div className={FORM_GRID_2_CLASS}>
-                    <div className={FORM_FIELD_CLASS}>
+                    <ValidationField field="dns.domain_name" className={FORM_FIELD_CLASS}>
                       <Label className="flex items-center gap-1">
                         {t("failover_v2.dns_domain_name", { defaultValue: "Domain name" })}
                         <RequiredMark />
@@ -5778,8 +5933,8 @@ export default function FailoverV2Page() {
                           placeholder="example.com"
                         />
                       )}
-                    </div>
-                    <div className={FORM_FIELD_CLASS}>
+                    </ValidationField>
+                    <ValidationField field="dns.rr" className={FORM_FIELD_CLASS}>
                       <Label className="flex items-center gap-1">
                         {t("failover_v2.dns_rr", { defaultValue: "RR" })}
                         <RequiredMark />
@@ -5792,7 +5947,7 @@ export default function FailoverV2Page() {
                         })}
                         placeholder="@"
                       />
-                    </div>
+                    </ValidationField>
                   </div>
                 )}
 
@@ -5839,7 +5994,7 @@ export default function FailoverV2Page() {
                       </SelectContent>
                     </Select>
                   </div>
-                  <div className={FORM_FIELD_CLASS}>
+                  <ValidationField field="dns.ttl" className={FORM_FIELD_CLASS}>
                     <Label>{t("failover_v2.dns_ttl", { defaultValue: "TTL" })}</Label>
                     <Select
                       value={getJsonNumberInputValue(serviceDNSPayload, "ttl", serviceDNSProvider === "cloudflare" ? 120 : 600)}
@@ -5858,7 +6013,7 @@ export default function FailoverV2Page() {
                         ))}
                       </SelectContent>
                     </Select>
-                  </div>
+                  </ValidationField>
                 </div>
 
                 <div className="grid gap-3 md:grid-cols-2">
@@ -5906,7 +6061,7 @@ export default function FailoverV2Page() {
                       : t("failover_v2.show_dns_json", { defaultValue: "Edit JSON" })}
                   </Button>
                   {serviceDNSAdvancedOpen ? (
-                    <div className="space-y-2 border-l border-slate-200 pl-3 dark:border-slate-800">
+                    <ValidationField field="dns_payload" className="space-y-2 border-l border-slate-200 pl-3 dark:border-slate-800">
                       <p className="text-xs text-slate-500 dark:text-slate-400">
                         {t("failover_v2.dns_payload_advanced_hint", {
                           defaultValue: "Advanced: edit the raw DNS payload only when importing or repairing unsupported fields.",
@@ -5917,33 +6072,22 @@ export default function FailoverV2Page() {
                         value={serviceForm.dns_payload}
                         onChange={(event) => setServiceForm((current) => ({ ...current, dns_payload: event.target.value }))}
                       />
-                    </div>
+                    </ValidationField>
                   ) : null}
                 </div>
               </div>
             </section>
 
-            <section className={FORM_SECTION_CLASS}>
-              <div className="mb-4 flex flex-col gap-1">
-                <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-50">
-                  {platformAdmin
+            <SettingCardCollapse open={servicePolicyOpen} onOpenChange={setServicePolicyOpen}
+              title={platformAdmin
                     ? t("failover_v2.service_section_policy", { defaultValue: "Execution policy" })
                     : t("failover_v2.public.service_section_policy", { defaultValue: "服务策略" })}
-                </h3>
-                <p className="text-xs text-slate-500 dark:text-slate-400">
-                  {platformAdmin
-                    ? t("failover_v2.service_section_policy_hint", {
-                        defaultValue: "Tune health-check and execution timeout settings for this service.",
-                      })
-                    : t("failover_v2.public.service_section_policy_hint", {
-                        defaultValue: "设置服务检查频率和处理超时时间。",
-                      })}
-                </p>
-              </div>
+            >
               <div className={FORM_GRID_4_CLASS}>
-                <div className={FORM_FIELD_CLASS}>
-                  <Label>{t("failover_v2.script_timeout", { defaultValue: "Script timeout" })}</Label>
+                <ValidationField field="script_timeout_sec" className={FORM_FIELD_CLASS}>
+                  <Label htmlFor="v2-script-timeout">{t("failover_v2.script_timeout", { defaultValue: "Script timeout" })}</Label>
                   <Input
+                    id="v2-script-timeout"
                     type="number"
                     min={1}
                     value={serviceForm.script_timeout_sec}
@@ -5952,14 +6096,15 @@ export default function FailoverV2Page() {
                   <p className="text-xs text-slate-500 dark:text-slate-400">
                     {t("failover_v2.timeout_seconds_hint", { defaultValue: "Unit: seconds." })}
                   </p>
-                </div>
-                <div className={FORM_FIELD_CLASS}>
-                  <Label>
+                </ValidationField>
+                <ValidationField field="wait_agent_timeout_sec" className={FORM_FIELD_CLASS}>
+                  <Label htmlFor="v2-agent-timeout">
                     {platformAdmin
                       ? t("failover_v2.wait_agent_timeout", { defaultValue: "接入等待时间" })
                       : t("failover_v2.public.ready_timeout", { defaultValue: "服务准备时间" })}
                   </Label>
                   <Input
+                    id="v2-agent-timeout"
                     type="number"
                     min={1}
                     value={serviceForm.wait_agent_timeout_sec}
@@ -5968,14 +6113,15 @@ export default function FailoverV2Page() {
                   <p className="text-xs text-slate-500 dark:text-slate-400">
                     {t("failover_v2.timeout_seconds_hint", { defaultValue: "Unit: seconds." })}
                   </p>
-                </div>
-                <div className={FORM_FIELD_CLASS}>
-                  <Label>
+                </ValidationField>
+                <ValidationField field="check_interval_seconds" className={FORM_FIELD_CLASS}>
+                  <Label htmlFor="v2-check-interval">
                     {platformAdmin
                       ? t("failover_v2.check_interval", { defaultValue: "Check interval" })
                       : t("failover_v2.public.check_interval", { defaultValue: "检查间隔" })}
                   </Label>
                   <Input
+                    id="v2-check-interval"
                     type="number"
                     min={60}
                     value={serviceForm.check_interval_seconds}
@@ -5990,9 +6136,9 @@ export default function FailoverV2Page() {
                           defaultValue: "控制服务状态检查频率，单位：秒。",
                         })}
                   </p>
-                </div>
+                </ValidationField>
               </div>
-            </section>
+            </SettingCardCollapse>
 
             <section className={FORM_SECTION_CLASS}>
               <FailoverScriptPolicyDialog
@@ -6079,10 +6225,13 @@ export default function FailoverV2Page() {
             </div>
           </div>
 
+          </fieldset>
           <DialogFooter className={ADMIN_FORM_FOOTER_CLASS}>
-            <Button variant="outline" onClick={() => setServiceDialogOpen(false)} disabled={savingService}>
+            <GuardedDialogClose asChild>
+            <Button variant="outline" disabled={savingService}>
               {t("common.cancel", { defaultValue: "Cancel" })}
             </Button>
+            </GuardedDialogClose>
             <Button variant="outline" onClick={() => void handleValidateServiceForm()} disabled={savingService || validatingService}>
               {validatingService ? <LoaderCircle className="mr-2 size-4 animate-spin" /> : null}
               {t("failover_v2.validate", { defaultValue: "Validate" })}
@@ -6095,10 +6244,14 @@ export default function FailoverV2Page() {
             </Button>
           </DialogFooter>
         </DialogContent>
-      </Dialog>
+      </GuardedDialog>
+      </FormValidationProvider>
 
-      <Dialog
+      <FormValidationProvider value={memberFormError}>
+      <GuardedDialog
         open={memberDialogOpen}
+        dirty={JSON.stringify(memberForm) !== initialMemberSignature}
+        busy={savingMember}
         onOpenChange={(open) => {
           if (!open) {
             closeMemberDialog();
@@ -6127,9 +6280,11 @@ export default function FailoverV2Page() {
             </div>
           </DialogHeader>
 
+          <fieldset disabled={savingMember} className="contents">
           <div className={ADMIN_FORM_BODY_CLASS}>
             <div className="grid w-full gap-5 xl:grid-cols-[minmax(0,1fr)_340px]">
               <div className="min-w-0 space-y-5">
+                <FormValidationSummary />
                 <FlowSection
                   title={t("failover_v2.member_section_basic", { defaultValue: "Member basics" })}
                   description={t("failover_v2.member_section_basic_hint", {
@@ -6137,7 +6292,7 @@ export default function FailoverV2Page() {
                   })}
                 >
                   <div className="flex flex-col gap-4">
-                    <div className={FORM_FIELD_CLASS}>
+                    <ValidationField field="name" className={FORM_FIELD_CLASS}>
                       <Label className="flex items-center gap-1">
                         {t("common.name", { defaultValue: "Name" })}
                         <RequiredMark />
@@ -6146,7 +6301,7 @@ export default function FailoverV2Page() {
                         value={memberForm.name}
                         onChange={(event) => setMemberForm((current) => ({ ...current, name: event.target.value }))}
                       />
-                    </div>
+                    </ValidationField>
                     <div className="flex items-start justify-between gap-4 border-b border-border/70 py-2">
                       <div className="min-w-0">
                         <div className="text-sm font-medium text-foreground">
@@ -6204,7 +6359,7 @@ export default function FailoverV2Page() {
                       })}
                     >
                       <div className="flex flex-col gap-4">
-                        <div className={FORM_FIELD_CLASS}>
+                        <ValidationField field="watch_client_uuid" className={FORM_FIELD_CLASS}>
                           <Label className="flex items-center gap-1">
                             {t("failover_v2.watch_client", { defaultValue: "Current client" })}
                             <RequiredMark />
@@ -6240,7 +6395,7 @@ export default function FailoverV2Page() {
                               placeholder={t("failover_v2.watch_client_placeholder", { defaultValue: "Choose a client" })}
                             />
                           )}
-                        </div>
+                        </ValidationField>
                       </div>
                     </FlowSection>
                   </TabsContent>
@@ -6335,8 +6490,8 @@ export default function FailoverV2Page() {
                           </div>
                         </div>
 
-                        <div className={FORM_FIELD_CLASS}>
-                          <Label className="flex items-center gap-1">
+                        <ValidationField field="provider_entry_id" className={FORM_FIELD_CLASS}>
+                          <Label htmlFor="v2-provider-entry" className="flex items-center gap-1">
                             {t("failover_v2.provider_entry", { defaultValue: "Provider credential" })}
                             <RequiredMark />
                           </Label>
@@ -6353,7 +6508,7 @@ export default function FailoverV2Page() {
                                 ));
                               }}
                             >
-                              <SelectTrigger>
+                              <SelectTrigger id="v2-provider-entry">
                                 <SelectValue
                                   placeholder={t("failover_v2.provider_entry_placeholder", {
                                     defaultValue: `Choose a ${formatProviderLabel(memberForm.provider)} credential`,
@@ -6373,33 +6528,14 @@ export default function FailoverV2Page() {
                               </SelectContent>
                             </Select>
                           ) : (
-                            <Input
-                              value={memberForm.provider_entry_id}
-                              onChange={(event) => {
-                                setMemberForm((current) => applySuggestedMemberAutoConnectGroup(
-                                  current,
-                                  providerEntriesByProvider,
-                                  {
-                                    provider_entry_id: normalizeProviderEntryID(event.target.value),
-                                  },
-                                ));
-                              }}
-                              placeholder={t("failover_v2.provider_entry_id_placeholder", {
-                                defaultValue: `${formatProviderLabel(memberForm.provider)} credential id`,
-                                provider: formatProviderLabel(memberForm.provider),
-                              })}
-                            />
+                            <Input id="v2-provider-entry" disabled value={t("form_feedback.no_credentials")} />
                           )}
-                          <p className="text-xs text-muted-foreground">
-                            {currentProviderEntries.length > 0
-                              ? t("failover_v2.provider_entry_hint", {
-                                defaultValue: "Choose which saved cloud credential this provider should use.",
-                              })
-                              : t("failover_v2.provider_entry_manual_hint", {
-                                defaultValue: "No saved credential list is available right now. Enter the credential ID manually.",
-                              })}
-                          </p>
-                        </div>
+                          <CredentialActions href={`/admin/cloud?provider=${encodeURIComponent(memberForm.provider)}`} onRefresh={async () => {
+                            const provider = memberForm.provider;
+                            const entries = await getFailoverV2ProviderEntries(provider);
+                            setProviderEntriesByProvider((current) => ({ ...current, [provider]: entries }));
+                          }} />
+                        </ValidationField>
 
                         <div className={FORM_FIELD_CLASS}>
                           <Label>{t("failover_v2.candidate_count", { defaultValue: "候选实例数" })}</Label>
@@ -6431,7 +6567,7 @@ export default function FailoverV2Page() {
                           </p>
                         </div>
 
-                        <div className={FORM_FIELD_CLASS}>
+                        <ValidationField field="plan.auto_connect_group" className={FORM_FIELD_CLASS}>
                           <Label>{t("failover_v2.auto_connect_group", { defaultValue: "Auto-connect group" })}</Label>
                           <Input
                             value={getJsonStringValue(memberPlanPayload, "auto_connect_group")}
@@ -6443,7 +6579,7 @@ export default function FailoverV2Page() {
                               defaultValue: "可选。留空时 V2 会自动生成目标分组。",
                             })}
                           </p>
-                        </div>
+                        </ValidationField>
                       </div>
                     </FlowSection>
 
@@ -6489,7 +6625,7 @@ export default function FailoverV2Page() {
               {memberProvider === "azure" ? (
                 <div className="space-y-4">
                   <div className={FORM_GRID_2_CLASS}>
-                    <div className={FORM_FIELD_CLASS}>
+                    <ValidationField field="plan.region" className={FORM_FIELD_CLASS}>
                       <Label className="flex items-center gap-1">
                         {t("failover_v2.plan_location", { defaultValue: "Location" })}
                         <RequiredMark />
@@ -6499,8 +6635,8 @@ export default function FailoverV2Page() {
                         onValueChange={(value) => updateMemberPlanPayload({ location: value, region: value })}
                         options={azureLocationOptions}
                       />
-                    </div>
-                    <div className={FORM_FIELD_CLASS}>
+                    </ValidationField>
+                    <ValidationField field="plan.size" className={FORM_FIELD_CLASS}>
                       <Label className="flex items-center gap-1">
                         {t("failover_v2.azure_size", { defaultValue: "Size" })}
                         <RequiredMark />
@@ -6510,16 +6646,16 @@ export default function FailoverV2Page() {
                         onValueChange={(value) => updateMemberPlanPayload({ size: value })}
                         options={azureSizeOptions}
                       />
-                    </div>
-                    <div className={FORM_FIELD_CLASS}>
+                    </ValidationField>
+                    <ValidationField field="plan.name" className={FORM_FIELD_CLASS}>
                       <Label>{t("failover_v2.plan_instance_name", { defaultValue: "Instance name" })}</Label>
                       <Input
                         value={getJsonStringValue(memberPlanPayload, "name")}
                         onChange={(event) => updateMemberPlanPayload({ name: event.target.value })}
                         placeholder={t("failover_v2.plan_instance_name_placeholder", { defaultValue: "可选，留空自动生成" })}
                       />
-                    </div>
-                    <div className={FORM_FIELD_CLASS}>
+                    </ValidationField>
+                    <ValidationField field="plan.image_preset" className={FORM_FIELD_CLASS}>
                       <Label className="flex items-center gap-1">
                         {t("failover_v2.plan_image", { defaultValue: "Image" })}
                         <RequiredMark />
@@ -6540,7 +6676,7 @@ export default function FailoverV2Page() {
                         }}
                         options={azureImagePresetOptions}
                       />
-                    </div>
+                    </ValidationField>
                   </div>
 
                   <div className={FORM_FIELD_CLASS}>
@@ -6561,7 +6697,7 @@ export default function FailoverV2Page() {
                   </div>
 
                   {azureRootPasswordMode === "custom" ? (
-                    <div className={FORM_FIELD_CLASS}>
+                    <ValidationField field="plan.root_password" className={FORM_FIELD_CLASS}>
                       <Label className="flex items-center gap-1">
                         {t("failover_v2.root_password", { defaultValue: "Root password" })}
                         <RequiredMark />
@@ -6571,11 +6707,11 @@ export default function FailoverV2Page() {
                         value={getJsonStringValue(memberPlanPayload, "root_password")}
                         onChange={(event) => updateMemberPlanPayload({ root_password: event.target.value })}
                       />
-                    </div>
+                    </ValidationField>
                   ) : null}
 
                   {azureRootPasswordMode === "none" ? (
-                    <div className={FORM_FIELD_CLASS}>
+                    <ValidationField field="plan.ssh_public_key" className={FORM_FIELD_CLASS}>
                       <Label className="flex items-center gap-1">
                         {t("cloud.providers.azure.ssh_public_key", { defaultValue: "SSH public key" })}
                         <RequiredMark />
@@ -6586,7 +6722,7 @@ export default function FailoverV2Page() {
                         onChange={(event) => updateMemberPlanPayload({ ssh_public_key: event.target.value })}
                         placeholder="ssh-ed25519 ..."
                       />
-                    </div>
+                    </ValidationField>
                   ) : null}
 
                 </div>
@@ -6630,7 +6766,7 @@ export default function FailoverV2Page() {
                         </SelectContent>
                       </Select>
                     </div>
-                    <div className={FORM_FIELD_CLASS}>
+                    <ValidationField field="plan.region" className={FORM_FIELD_CLASS}>
                       <Label className="flex items-center gap-1">
                         {t("failover_v2.plan_region", { defaultValue: "Region" })}
                         <RequiredMark />
@@ -6645,20 +6781,20 @@ export default function FailoverV2Page() {
                         })}
                         options={awsRegionOptions}
                       />
-                    </div>
-                    <div className={`${FORM_FIELD_CLASS} md:col-span-2`}>
+                    </ValidationField>
+                    <ValidationField field="plan.name" className={`${FORM_FIELD_CLASS} md:col-span-2`}>
                       <Label>{t("failover_v2.plan_instance_name", { defaultValue: "Instance name" })}</Label>
                       <Input
                         value={getJsonStringValue(memberPlanPayload, "name")}
                         onChange={(event) => updateMemberPlanPayload({ name: event.target.value })}
                         placeholder={t("failover_v2.plan_instance_name_placeholder", { defaultValue: "可选，留空自动生成" })}
                       />
-                    </div>
+                    </ValidationField>
                   </div>
 
                   {awsPlanService === "lightsail" ? (
                     <div className={FORM_GRID_2_CLASS}>
-                      <div className={FORM_FIELD_CLASS}>
+                      <ValidationField field="plan.availability_zone" className={FORM_FIELD_CLASS}>
                         <Label className="flex items-center gap-1">
                           {t("failover_v2.aws_availability_zone", { defaultValue: "Availability zone" })}
                           <RequiredMark />
@@ -6668,8 +6804,8 @@ export default function FailoverV2Page() {
                           onValueChange={(value) => updateMemberPlanPayload({ availability_zone: value })}
                           options={awsLightsailAvailabilityZoneOptions}
                         />
-                      </div>
-                      <div className={FORM_FIELD_CLASS}>
+                      </ValidationField>
+                      <ValidationField field="plan.blueprint_id" className={FORM_FIELD_CLASS}>
                         <Label className="flex items-center gap-1">
                           {t("failover_v2.aws_blueprint_id", { defaultValue: "Blueprint ID" })}
                           <RequiredMark />
@@ -6689,8 +6825,8 @@ export default function FailoverV2Page() {
                           }}
                           options={awsLightsailBlueprintOptions}
                         />
-                      </div>
-                      <div className={FORM_FIELD_CLASS}>
+                      </ValidationField>
+                      <ValidationField field="plan.bundle_id" className={FORM_FIELD_CLASS}>
                         <Label className="flex items-center gap-1">
                           {t("failover_v2.aws_bundle_id", { defaultValue: "Bundle ID" })}
                           <RequiredMark />
@@ -6700,11 +6836,11 @@ export default function FailoverV2Page() {
                           onValueChange={(value) => updateMemberPlanPayload({ bundle_id: value })}
                           options={awsLightsailBundleOptions}
                         />
-                      </div>
+                      </ValidationField>
                     </div>
                   ) : (
                     <div className={FORM_GRID_2_CLASS}>
-                      <div className={FORM_FIELD_CLASS}>
+                      <ValidationField field="plan.image_id" className={FORM_FIELD_CLASS}>
                         <Label className="flex items-center gap-1">
                           {t("failover_v2.aws_image_id", { defaultValue: "AMI image ID" })}
                           <RequiredMark />
@@ -6714,8 +6850,8 @@ export default function FailoverV2Page() {
                           onValueChange={(value) => updateMemberPlanPayload({ image_id: value })}
                           options={awsEC2ImageOptions}
                         />
-                      </div>
-                      <div className={FORM_FIELD_CLASS}>
+                      </ValidationField>
+                      <ValidationField field="plan.instance_type" className={FORM_FIELD_CLASS}>
                         <Label className="flex items-center gap-1">
                           {t("failover_v2.aws_instance_type", { defaultValue: "Instance type" })}
                           <RequiredMark />
@@ -6725,7 +6861,7 @@ export default function FailoverV2Page() {
                           onValueChange={(value) => updateMemberPlanPayload({ instance_type: value })}
                           options={awsEC2InstanceTypeOptions}
                         />
-                      </div>
+                      </ValidationField>
                     </div>
                   )}
 
@@ -6733,7 +6869,7 @@ export default function FailoverV2Page() {
               ) : (
                 <div className="space-y-4">
                   <div className={FORM_GRID_3_CLASS}>
-                    <div className={FORM_FIELD_CLASS}>
+                    <ValidationField field="plan.region" className={FORM_FIELD_CLASS}>
                       <Label className="flex items-center gap-1">
                         {t("failover_v2.plan_region", { defaultValue: "Region" })}
                         <RequiredMark />
@@ -6747,8 +6883,8 @@ export default function FailoverV2Page() {
                             ? vultrRegionOptions
                             : digitalOceanRegionOptions}
                       />
-                    </div>
-                    <div className={FORM_FIELD_CLASS}>
+                    </ValidationField>
+                    <ValidationField field={`plan.${memberProvider === "linode" ? "type" : memberProvider === "vultr" ? "plan" : "size"}`} className={FORM_FIELD_CLASS}>
                       <Label className="flex items-center gap-1">
                         {memberProvider === "linode"
                           ? t("failover_v2.linode_type", { defaultValue: "Type" })
@@ -6771,8 +6907,8 @@ export default function FailoverV2Page() {
                             ? vultrPlanOptions
                             : digitalOceanSizeOptions}
                       />
-                    </div>
-                    <div className={FORM_FIELD_CLASS}>
+                    </ValidationField>
+                    <ValidationField field={memberProvider === "vultr" ? "plan.os_id" : "plan.image"} className={FORM_FIELD_CLASS}>
                       <Label className="flex items-center gap-1">
                         {t("failover_v2.plan_image", { defaultValue: "Image" })}
                         <RequiredMark />
@@ -6790,7 +6926,7 @@ export default function FailoverV2Page() {
                             ? vultrImageOptions
                             : digitalOceanImageOptions}
                       />
-                    </div>
+                    </ValidationField>
                   </div>
 
                   {memberProvider === "digitalocean" ? (
@@ -6854,7 +6990,7 @@ export default function FailoverV2Page() {
                     : t("failover_v2.show_plan_json", { defaultValue: "Edit JSON" })}
                 </Button>
                 {memberPlanAdvancedOpen ? (
-                  <div className="grid gap-3 border-y border-slate-200/80 py-3 dark:border-slate-800/80">
+                  <ValidationField field="plan_payload" className="grid gap-3 border-y border-slate-200/80 py-3 dark:border-slate-800/80">
                     <p className="text-xs text-muted-foreground">
                       {t("failover_v2.plan_payload_advanced_hint", {
                         defaultValue: "Advanced: edit the raw plan payload only when importing or repairing unsupported fields.",
@@ -6865,7 +7001,7 @@ export default function FailoverV2Page() {
                       value={memberForm.plan_payload}
                       onChange={(event) => setMemberForm((current) => ({ ...current, plan_payload: event.target.value }))}
                     />
-                  </div>
+                  </ValidationField>
                 ) : null}
               </div>
                       </div>
@@ -6881,6 +7017,7 @@ export default function FailoverV2Page() {
                       memberServiceDNSDomainName || memberDialogService?.dns_entry_id || "-",
                     )}
                   >
+                    <ValidationField field="dns_lines">
                     <MemberDNSLinesEditor
                       t={t}
                       value={memberForm.dns_lines}
@@ -6897,56 +7034,58 @@ export default function FailoverV2Page() {
                       catalogError={memberDNSCatalogError}
                       hideLabel
                     />
+                    </ValidationField>
                   </FlowSection>
                 </Tabs>
 
                 <Separator />
 
-                <FlowSection
+                <SettingCardCollapse open={memberPolicyOpen} onOpenChange={setMemberPolicyOpen}
                   title={t("failover_v2.member_section_policy", { defaultValue: "Check policy" })}
-                  description={t("failover_v2.member_section_policy_hint", {
-                    defaultValue: "Tune member priority, failure threshold, stale window, and cooldown.",
-                  })}
                 >
                   <div className={FORM_GRID_4_CLASS}>
-                  <div className={FORM_FIELD_CLASS}>
-                    <Label>{t("failover_v2.priority", { defaultValue: "Priority" })}</Label>
+                  <ValidationField field="priority" className={FORM_FIELD_CLASS}>
+                    <Label htmlFor="v2-member-priority">{t("failover_v2.priority", { defaultValue: "Priority" })}</Label>
                     <Input
+                      id="v2-member-priority"
                       type="number"
                       min={1}
                       value={memberForm.priority}
                       onChange={(event) => setMemberForm((current) => ({ ...current, priority: event.target.value }))}
                     />
-                  </div>
-                  <div className={FORM_FIELD_CLASS}>
-                    <Label>{t("failover_v2.failure_threshold", { defaultValue: "Failure threshold" })}</Label>
+                  </ValidationField>
+                  <ValidationField field="failure_threshold" className={FORM_FIELD_CLASS}>
+                    <Label htmlFor="v2-member-threshold">{t("failover_v2.failure_threshold", { defaultValue: "Failure threshold" })}</Label>
                     <Input
+                      id="v2-member-threshold"
                       type="number"
                       min={1}
                       value={memberForm.failure_threshold}
                       onChange={(event) => setMemberForm((current) => ({ ...current, failure_threshold: event.target.value }))}
                     />
-                  </div>
-                  <div className={FORM_FIELD_CLASS}>
-                    <Label>{t("failover_v2.stale_after", { defaultValue: "Stale after" })}</Label>
+                  </ValidationField>
+                  <ValidationField field="stale_after_seconds" className={FORM_FIELD_CLASS}>
+                    <Label htmlFor="v2-member-stale">{t("failover_v2.stale_after", { defaultValue: "Stale after" })}</Label>
                     <Input
+                      id="v2-member-stale"
                       type="number"
                       min={1}
                       value={memberForm.stale_after_seconds}
                       onChange={(event) => setMemberForm((current) => ({ ...current, stale_after_seconds: event.target.value }))}
                     />
-                  </div>
-                  <div className={FORM_FIELD_CLASS}>
-                    <Label>{t("failover_v2.cooldown", { defaultValue: "Cooldown" })}</Label>
+                  </ValidationField>
+                  <ValidationField field="cooldown_seconds" className={FORM_FIELD_CLASS}>
+                    <Label htmlFor="v2-member-cooldown">{t("failover_v2.cooldown", { defaultValue: "Cooldown" })}</Label>
                     <Input
+                      id="v2-member-cooldown"
                       type="number"
                       min={0}
                       value={memberForm.cooldown_seconds}
                       onChange={(event) => setMemberForm((current) => ({ ...current, cooldown_seconds: event.target.value }))}
                     />
+                  </ValidationField>
                   </div>
-                  </div>
-                </FlowSection>
+                </SettingCardCollapse>
 
               {editingMember ? (
                 <>
@@ -6969,7 +7108,7 @@ export default function FailoverV2Page() {
                       </div>
                     )}
                   >
-                    <div className="grid gap-4">
+                    <ValidationField field="watch_client_uuid" className="grid gap-4">
                     <ReadonlyValueField
                       label={t("failover_v2.watch_client", { defaultValue: "Current client" })}
                       value={memberForm.watch_client_uuid}
@@ -7008,7 +7147,7 @@ export default function FailoverV2Page() {
                       description={formatRuntimeInstanceHint(t)}
                       multiline
                     />
-                    </div>
+                    </ValidationField>
                     {memberStateAdvancedOpen ? (
                       <div className="grid gap-4 border-y border-slate-200/80 py-3 dark:border-slate-800/80">
                         <p className="text-xs text-muted-foreground">
@@ -7016,7 +7155,7 @@ export default function FailoverV2Page() {
                             defaultValue: "DNS record refs and current instance refs are V2 recovery anchors. Leave them unchanged unless you are importing or repairing state.",
                           })}
                         </p>
-                        <div className={FORM_FIELD_CLASS}>
+                        <ValidationField field="dns_record_refs" className={FORM_FIELD_CLASS}>
                           <Label>{t("failover_v2.dns_record_refs", { defaultValue: "DNS record refs" })}</Label>
                           <Textarea
                             className="min-h-32 font-mono text-xs"
@@ -7024,7 +7163,7 @@ export default function FailoverV2Page() {
                             onChange={(event) => setMemberForm((current) => ({ ...current, dns_record_refs: event.target.value }))}
                           />
                           <p className="text-xs text-muted-foreground">{formatRuntimeDNSRefsHint(t)}</p>
-                        </div>
+                        </ValidationField>
                         <div className={FORM_FIELD_CLASS}>
                           <Label>{t("failover_v2.current_address", { defaultValue: "Current address" })}</Label>
                           <Input
@@ -7034,7 +7173,7 @@ export default function FailoverV2Page() {
                           />
                           <p className="text-xs text-muted-foreground">{formatRuntimeAddressHint(t)}</p>
                         </div>
-                        <div className={FORM_FIELD_CLASS}>
+                        <ValidationField field="current_instance_ref" className={FORM_FIELD_CLASS}>
                           <Label>{t("failover_v2.current_instance_ref", { defaultValue: "Current instance ref" })}</Label>
                           <Textarea
                             className="min-h-32 font-mono text-xs"
@@ -7043,7 +7182,7 @@ export default function FailoverV2Page() {
                             placeholder="null"
                           />
                           <p className="text-xs text-muted-foreground">{formatRuntimeInstanceHint(t)}</p>
-                        </div>
+                        </ValidationField>
                       </div>
                     ) : null}
                   </FlowSection>
@@ -7105,6 +7244,7 @@ export default function FailoverV2Page() {
             </div>
           </div>
 
+          </fieldset>
           <div className={cn(ADMIN_FORM_FOOTER_CLASS, "sm:justify-between")}>
             <Button
               variant="ghost"
@@ -7117,13 +7257,14 @@ export default function FailoverV2Page() {
               {t("failover_v2.validate", { defaultValue: "Validate" })}
             </Button>
             <div className="flex flex-col-reverse gap-2 sm:flex-row">
+            <GuardedDialogClose asChild>
             <Button
               variant="outline"
-              onClick={() => closeMemberDialog()}
               disabled={savingMember || validatingMember}
             >
               {t("common.cancel", { defaultValue: "Cancel" })}
             </Button>
+            </GuardedDialogClose>
               <Button onClick={() => void handleSaveMember()} disabled={savingMember || validatingMember}>
                 {savingMember ? <LoaderCircle className="mr-2 size-4 animate-spin" /> : null}
                 {editingMember
@@ -7133,8 +7274,9 @@ export default function FailoverV2Page() {
             </div>
           </div>
         </DialogContent>
-      </Dialog>
+      </GuardedDialog>
 
+      </FormValidationProvider>
       <AlertDialog open={Boolean(deleteTarget)} onOpenChange={(nextOpen) => {
         if (!nextOpen && !deleting) {
           setDeleteTarget(null);
@@ -7249,7 +7391,9 @@ export default function FailoverV2Page() {
       <Dialog
         open={Boolean(pendingCleanupDialogTarget)}
         onOpenChange={(nextOpen) => {
-          if (!nextOpen && !loadingPendingCleanups) {
+          if (!nextOpen && !cleanupActionBusy.current) {
+            cleanupRequests.invalidate();
+            setLoadingPendingCleanups(false);
             setPendingCleanupDialogTarget(null);
             setPendingCleanups([]);
             setPendingCleanupError("");
@@ -7290,11 +7434,7 @@ export default function FailoverV2Page() {
               </Button>
             </div>
 
-            {pendingCleanupError ? (
-              <div className="admin-alert admin-alert-danger mb-4 text-sm">
-                {pendingCleanupError}
-              </div>
-            ) : null}
+            <RefreshNotice error={pendingCleanupError} hasData={pendingCleanups.length > 0} refreshing={loadingPendingCleanups} onRetry={() => { if (pendingCleanupDialogTarget) void loadPendingCleanupHistory(pendingCleanupDialogTarget.service); }} />
 
             {loadingPendingCleanups && pendingCleanups.length === 0 ? (
               <div className="border-y border-dashed border-slate-300 py-6 text-sm text-slate-500 dark:border-slate-700 dark:text-slate-400">
@@ -7302,7 +7442,7 @@ export default function FailoverV2Page() {
               </div>
             ) : null}
 
-            {!loadingPendingCleanups && pendingCleanups.length === 0 ? (
+            {!loadingPendingCleanups && !pendingCleanupError && pendingCleanups.length === 0 ? (
               <div className="border-y border-dashed border-slate-300 py-6 text-sm text-slate-500 dark:border-slate-700 dark:text-slate-400">
                 {t("failover_v2.pending_cleanup_empty", { defaultValue: "No pending cleanup items recorded for this service." })}
               </div>
@@ -7469,7 +7609,13 @@ export default function FailoverV2Page() {
       <Dialog
         open={Boolean(executionDialogTarget)}
         onOpenChange={(nextOpen) => {
-          if (!nextOpen && !loadingExecutions && !loadingExecutionDetail) {
+          if (!nextOpen && !executionActionBusy.current) {
+            executionContext.current = null;
+            ++executionSelection.current;
+            historyRequests.invalidate();
+            detailRequests.invalidate();
+            setLoadingExecutions(false);
+            setLoadingExecutionDetail(false);
             setExecutionDialogTarget(null);
             setExecutionSummaries([]);
             setSelectedExecutionID(null);
@@ -7478,7 +7624,7 @@ export default function FailoverV2Page() {
           }
         }}
       >
-        <DialogContent className={cn(ADMIN_FORM_DIALOG_WIDE_CLASS, ADMIN_FORM_DIALOG_CHROME_CLASS, "max-w-[1120px] sm:max-w-[1120px]")}>
+        <DialogContent onCloseAutoFocus={(event) => { event.preventDefault(); if (executionOpener.current?.isConnected) executionOpener.current.focus(); }} className={cn(ADMIN_FORM_DIALOG_WIDE_CLASS, ADMIN_FORM_DIALOG_CHROME_CLASS, "max-w-[1120px] sm:max-w-[1120px]")}>
           <DialogHeader className={ADMIN_FORM_HEADER_CLASS}>
             <DialogTitle>
               {t("failover_v2.execution_history", { defaultValue: "Executions" })}
@@ -7509,7 +7655,7 @@ export default function FailoverV2Page() {
                   size="sm"
                   variant="outline"
                   onClick={() => executionDialogTarget && void loadExecutionHistory(executionDialogTarget.service, selectedExecutionID)}
-                  disabled={!executionDialogTarget || loadingExecutions}
+                  disabled={!executionDialogTarget || loadingExecutions || stoppingExecution || retryingAttachDNS || retryingCleanup}
                 >
                   {loadingExecutions ? <LoaderCircle className="size-4 animate-spin" /> : <RefreshCw className="size-4" />}
                   <span className="sr-only">{t("common.refresh", { defaultValue: "Refresh" })}</span>
@@ -7522,7 +7668,7 @@ export default function FailoverV2Page() {
                 </div>
               ) : null}
 
-              {!loadingExecutions && executionSummaries.length === 0 ? (
+              {!loadingExecutions && !executionError && executionSummaries.length === 0 ? (
                 <div className="border-y border-dashed border-slate-300 py-5 text-sm text-slate-500 dark:border-slate-700 dark:text-slate-400">
                   {t("failover_v2.execution_empty", { defaultValue: "No executions recorded yet." })}
                 </div>
@@ -7540,6 +7686,7 @@ export default function FailoverV2Page() {
                         : "border-slate-200 bg-white hover:border-slate-300 dark:border-slate-800 dark:bg-slate-950/40 dark:hover:border-slate-700",
                     )}
                     onClick={() => handleSelectExecution(execution.id)}
+                    disabled={stoppingExecution || retryingAttachDNS || retryingCleanup}
                   >
                     <div className="min-w-0 space-y-2">
                       <div className="flex min-w-0 items-start justify-between gap-2">
@@ -7567,13 +7714,10 @@ export default function FailoverV2Page() {
             </aside>
 
             <main className="min-h-0 overflow-y-auto bg-slate-100/60 p-4 dark:bg-slate-950/20 sm:p-5">
-              {executionError ? (
-                <div className="admin-alert admin-alert-danger text-sm">
-                  {executionError}
-                </div>
-              ) : null}
+              <RefreshNotice error={executionError} hasData={Boolean(selectedExecution)} refreshing={loadingExecutions || loadingExecutionDetail || stoppingExecution || retryingAttachDNS || retryingCleanup} onRetry={() => { if (executionDialogTarget) void loadExecutionHistory(executionDialogTarget.service, selectedExecutionID); }} />
+              {executionActionError ? <div role="alert" className="admin-alert admin-alert-danger text-sm">{executionActionError}</div> : null}
 
-              {loadingExecutionDetail ? (
+              {loadingExecutionDetail && !selectedExecution ? (
                 <div className="flex min-h-52 items-center justify-center text-sm text-slate-500 dark:text-slate-400">
                   <LoaderCircle className="mr-2 size-4 animate-spin" />
                   {t("failover_v2.execution_loading_detail", { defaultValue: "Loading execution details..." })}
@@ -7586,7 +7730,7 @@ export default function FailoverV2Page() {
                 </div>
               ) : null}
 
-              {!loadingExecutionDetail && selectedExecution && executionDialogTarget ? (
+              {selectedExecution && executionDialogTarget ? (
                 <div className="space-y-4">
                   <ExecutionDetailSection
                     title={t("failover_v2.execution_summary", { defaultValue: "执行摘要" })}
@@ -8040,8 +8184,13 @@ export default function FailoverV2Page() {
           <DialogFooter className={ADMIN_FORM_FOOTER_CLASS}>
             <Button
               variant="outline"
-              onClick={() => setExecutionDialogTarget(null)}
-              disabled={loadingExecutions || loadingExecutionDetail}
+              onClick={() => {
+                executionContext.current = null;
+                historyRequests.invalidate();
+                detailRequests.invalidate();
+                setExecutionDialogTarget(null);
+              }}
+              disabled={stoppingExecution || retryingAttachDNS || retryingCleanup}
             >
               {t("common.close", { defaultValue: "Close" })}
             </Button>
@@ -8074,7 +8223,7 @@ export default function FailoverV2Page() {
       <AlertDialog
         open={Boolean(pendingCleanupActionTarget)}
         onOpenChange={(nextOpen) => {
-          if (!nextOpen && !retryingPendingCleanup && !resolvingPendingCleanup && !markingPendingCleanupReview) {
+          if (!nextOpen && !cleanupActionBusy.current) {
             setPendingCleanupActionTarget(null);
           }
         }}
@@ -8102,12 +8251,13 @@ export default function FailoverV2Page() {
                 })}
             </AlertDialogDescription>
           </AlertDialogHeader>
+          {cleanupActionError ? <div role="alert" className="admin-alert admin-alert-danger text-sm">{cleanupActionError}</div> : null}
           <AlertDialogFooter>
             <AlertDialogCancel disabled={retryingPendingCleanup || resolvingPendingCleanup || markingPendingCleanupReview}>
               {t("common.cancel", { defaultValue: "Cancel" })}
             </AlertDialogCancel>
             <AlertDialogAction
-              onClick={() => void handleConfirmPendingCleanupAction()}
+              onClick={(event) => { event.preventDefault(); void handleConfirmPendingCleanupAction(); }}
               disabled={retryingPendingCleanup || resolvingPendingCleanup || markingPendingCleanupReview}
             >
               {retryingPendingCleanup || resolvingPendingCleanup || markingPendingCleanupReview ? (
@@ -8126,7 +8276,7 @@ export default function FailoverV2Page() {
       <AlertDialog
         open={Boolean(executionActionTarget)}
         onOpenChange={(nextOpen) => {
-          if (!nextOpen && !stoppingExecution && !retryingAttachDNS && !retryingCleanup) {
+          if (!nextOpen && !executionActionBusy.current) {
             setExecutionActionTarget(null);
           }
         }}
@@ -8154,11 +8304,12 @@ export default function FailoverV2Page() {
                 })}
             </AlertDialogDescription>
           </AlertDialogHeader>
+          {executionActionError ? <div role="alert" className="admin-alert admin-alert-danger text-sm">{executionActionError}</div> : null}
           <AlertDialogFooter>
             <AlertDialogCancel disabled={stoppingExecution || retryingAttachDNS || retryingCleanup}>
               {t("common.cancel", { defaultValue: "Cancel" })}
             </AlertDialogCancel>
-            <AlertDialogAction onClick={() => void handleConfirmExecutionAction()} disabled={stoppingExecution || retryingAttachDNS || retryingCleanup}>
+            <AlertDialogAction onClick={(event) => { event.preventDefault(); void handleConfirmExecutionAction(); }} disabled={stoppingExecution || retryingAttachDNS || retryingCleanup}>
               {stoppingExecution || retryingAttachDNS || retryingCleanup ? <LoaderCircle className="mr-2 size-4 animate-spin" /> : null}
               {executionActionTarget?.action === "stop"
                 ? t("failover_v2.stop_execution", { defaultValue: "Stop Execution" })

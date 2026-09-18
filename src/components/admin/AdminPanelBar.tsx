@@ -255,6 +255,7 @@ const getMenuGroupKey = (target: string): MenuGroup["key"] => {
     normalizedPath === "/admin/cloud" ||
     normalizedPath.startsWith("/admin/failover") ||
     normalizedPath === "/admin/dns" ||
+    normalizedPath === "/admin/tunnels" ||
     normalizedPath === "/admin/proxy"
   ) {
     return "infrastructure";

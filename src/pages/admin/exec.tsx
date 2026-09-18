@@ -46,6 +46,7 @@ import {
 } from "@/components/admin/AdminPagination";
 import { AdminRowActions } from "@/components/admin/AdminRowActions";
 import { AdminDialogLayout } from "@/components/admin/AdminForm";
+import { GuardedDialog } from "@/components/admin/GuardedDialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -63,6 +64,7 @@ import {
 } from "@/components/admin/AdminFormStyles";
 import {
     EMPTY_SCRIPT_FORM_VALUES,
+    areTaskResultsComplete,
     EXEC_TIMEOUT_SENTINEL,
     extractTaskResults,
     extractTaskSummaries,
@@ -86,7 +88,6 @@ import {
     type ScriptFormValues,
     type TaskListResponse,
     type TaskResult,
-    type TaskResultResponse,
     type TaskSummary,
 } from "./exec.helpers";
 
@@ -168,9 +169,14 @@ const ExecContent = ({ canUseExec, canUseScripts }: { canUseExec: boolean; canUs
     const [selectedNodes, setSelectedNodes] = useState<string[]>([]);
     const [nodeSelectorOpen, setNodeSelectorOpen] = useState(false);
     const [executing, setExecuting] = useState(false);
+    const submittingTaskRef = useRef(false);
+    const mountedRef = useRef(true);
+    const submitRequestRef = useRef<AbortController | null>(null);
+    const historyRequestRef = useRef<AbortController | null>(null);
     const [results, setResults] = useState<TaskResult[]>([]);
     const [taskId, setTaskId] = useState<string | null>(null);
     const [polling, setPolling] = useState(false);
+    const [pollingPaused, setPollingPaused] = useState(false);
     const [activeTab, setActiveTab] = useState<ExecLibraryTab>("library");
     const [librarySearch, setLibrarySearch] = useState("");
     const [recentTasks, setRecentTasks] = useState<TaskSummary[]>([]);
@@ -182,11 +188,16 @@ const ExecContent = ({ canUseExec, canUseScripts }: { canUseExec: boolean; canUs
     const [scriptEditorOpen, setScriptEditorOpen] = useState(false);
     const [editingScript, setEditingScript] = useState<CommandClipboard | null>(null);
     const [scriptFormValues, setScriptFormValues] = useState<ScriptFormValues>(EMPTY_SCRIPT_FORM_VALUES);
+    const [initialScriptSignature, setInitialScriptSignature] = useState("");
     const [scriptSubmitting, setScriptSubmitting] = useState(false);
 
     // Keep polling handles in refs.
     const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
     const pollingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+    const pollingGenerationRef = useRef(0);
+    const resultRequestRef = useRef<AbortController | null>(null);
+    const resultTaskRef = useRef("");
+    const taskClientsRef = useRef(new Map<string, string[]>());
     const commandLineNumberRef = useRef<HTMLDivElement | null>(null);
     const commandLineNumbers = getLineNumbers(command);
     const commandLineNumberColumnWidth = getLineNumberColumnWidth(commandLineNumbers.length);
@@ -199,8 +210,12 @@ const ExecContent = ({ canUseExec, canUseScripts }: { canUseExec: boolean; canUs
 
     // Stop any active polling timers.
     const clearPolling = () => {
+        pollingGenerationRef.current += 1;
+        resultRequestRef.current?.abort();
+        resultRequestRef.current = null;
+        setResultLoading(false);
         if (pollingIntervalRef.current) {
-            clearInterval(pollingIntervalRef.current);
+            clearTimeout(pollingIntervalRef.current);
             pollingIntervalRef.current = null;
         }
         if (pollingTimeoutRef.current) {
@@ -212,7 +227,11 @@ const ExecContent = ({ canUseExec, canUseScripts }: { canUseExec: boolean; canUs
 
     // Clean up on unmount.
     useEffect(() => {
+        mountedRef.current = true;
         return () => {
+            mountedRef.current = false;
+            submitRequestRef.current?.abort();
+            historyRequestRef.current?.abort();
             clearPolling();
         };
     }, []);
@@ -239,21 +258,26 @@ const ExecContent = ({ canUseExec, canUseScripts }: { canUseExec: boolean; canUs
     const openCreateScriptDialog = () => {
         setEditingScript(null);
         setScriptFormValues(EMPTY_SCRIPT_FORM_VALUES);
+        setInitialScriptSignature(JSON.stringify(EMPTY_SCRIPT_FORM_VALUES));
         setScriptEditorOpen(true);
     };
 
     const openSaveCurrentScriptDialog = () => {
         setEditingScript(null);
-        setScriptFormValues({
+        const form = {
             ...EMPTY_SCRIPT_FORM_VALUES,
             text: command,
-        });
+        };
+        setScriptFormValues(form);
+        setInitialScriptSignature(JSON.stringify(form));
         setScriptEditorOpen(true);
     };
 
     const openEditScriptDialog = (script: CommandClipboard) => {
         setEditingScript(script);
-        setScriptFormValues(toScriptFormValues(script));
+        const form = toScriptFormValues(script);
+        setScriptFormValues(form);
+        setInitialScriptSignature(JSON.stringify(form));
         setScriptEditorOpen(true);
     };
 
@@ -331,8 +355,13 @@ const ExecContent = ({ canUseExec, canUseScripts }: { canUseExec: boolean; canUs
             setTasksLoading(true);
         }
         setTasksError(null);
+        historyRequestRef.current?.abort();
+        const controller = new AbortController();
+        historyRequestRef.current = controller;
+        const timeout = setTimeout(() => controller.abort(), 15_000);
         try {
             const response = await fetch("/api/admin/task/all", {
+                signal: controller.signal,
                 credentials: "same-origin",
                 cache: "no-store",
                 headers: {
@@ -343,6 +372,8 @@ const ExecContent = ({ canUseExec, canUseScripts }: { canUseExec: boolean; canUs
                 },
             });
             const payload = await response.json().catch(() => ({})) as TaskListResponse | TaskSummary[];
+            if (!mountedRef.current || historyRequestRef.current !== controller) return;
+            if (controller.signal.aborted) throw new Error(t("exec.observation.request_timeout"));
             if (!response.ok) {
                 throw new Error(formatApiErrorMessage(!Array.isArray(payload) && payload.message
                     ? payload.message
@@ -350,6 +381,7 @@ const ExecContent = ({ canUseExec, canUseScripts }: { canUseExec: boolean; canUs
             }
             setRecentTasks(extractTaskSummaries(payload));
         } catch (err) {
+            if (!mountedRef.current || historyRequestRef.current !== controller) return;
             const message = getReadableErrorMessage(
                 err,
                 t("exec.errors.loadRecentTasksFailed", {
@@ -357,9 +389,10 @@ const ExecContent = ({ canUseExec, canUseScripts }: { canUseExec: boolean; canUs
                 }),
             );
             setTasksError(message);
-            setRecentTasks([]);
         } finally {
-            if (!silent) {
+            clearTimeout(timeout);
+            if (mountedRef.current && historyRequestRef.current === controller) {
+                historyRequestRef.current = null;
                 setTasksLoading(false);
             }
         }
@@ -466,73 +499,42 @@ const ExecContent = ({ canUseExec, canUseScripts }: { canUseExec: boolean; canUs
     );
     const selectedNodeOverflowCount = Math.max(selectedNodes.length - 3, 0);
 
-    // Poll task results.
-    const pollTaskResult = async (taskId: string) => {
-        try {
-            setSelectedResultTaskId(taskId);
-            setResultError(null);
-            const response = await fetch(`/api/admin/task/${taskId}/result`);
-            if (!response.ok) {
-                throw new Error(formatApiErrorMessage(`HTTP error! status: ${response.status}`, { status: response.status }));
-            }
-
-            const data: TaskResultResponse = await response.json();
-            const taskResults = extractTaskResults(data);
-
-            if (taskResults) {
-                setResults(taskResults);
-
-                // Stop polling once every result is finished.
-                const allCompleted = taskResults.every(result => result.finished_at !== null);
-                if (allCompleted) {
-                    clearPolling();
-                toast.success(t("exec.allCompleted", "所有任务已完成"));
-                }
-            }
-        } catch (err) {
-            console.error("获取任务结果失败:", err);
-            clearPolling();
-        }
-    };
-
-    // Start polling.
-    const startPolling = (taskId: string) => {
-        // Clear any previous polling cycle first.
+    const startPolling = (taskId: string, clients?: string[]) => {
+        if (!mountedRef.current) return;
         clearPolling();
-
+        if (clients) taskClientsRef.current.set(taskId, [...clients]);
+        const generation = pollingGenerationRef.current;
+        setPollingPaused(false);
         setPolling(true);
         setSelectedResultTaskId(taskId);
         setActiveTab("result");
-
-        // Run immediately once.
-        pollTaskResult(taskId);
-
-        // Continue polling on an interval.
-        pollingIntervalRef.current = setInterval(() => {
-            pollTaskResult(taskId);
-        }, 2000);
-
-        // Stop polling after 60 seconds and mark pending tasks as timed out.
+        const poll = async () => {
+            const taskResults = await loadTaskResults(taskId, { stopPolling: false });
+            if (generation !== pollingGenerationRef.current) return;
+            if (!taskResults) {
+                clearPolling();
+                return;
+            }
+            const expectedClients = taskClientsRef.current.get(taskId)
+                ?? getTaskClients(recentTasks.find((task) => task.task_id === taskId));
+            if (areTaskResultsComplete(taskResults, expectedClients)) {
+                clearPolling();
+                toast(t("exec.allCompleted", "所有任务已完成"));
+                return;
+            }
+            // Schedule after the response so slow requests never overlap.
+            pollingIntervalRef.current = setTimeout(() => void poll(), 2000);
+        };
+        void poll();
+        // This is a client-side observation limit, not a remote execution deadline.
         pollingTimeoutRef.current = setTimeout(() => {
-            // Mark unfinished tasks as timed out.
-            setResults(prevResults =>
-                prevResults.map(result =>
-                    result.finished_at === null
-                        ? {
-                            ...result,
-                            finished_at: new Date().toISOString(),
-                            exit_code: -1,
-                            result: EXEC_TIMEOUT_SENTINEL,
-                        }
-                        : result
-                )
-            );
             clearPolling();
-            toast.warning(t("exec.pollingTimeout", "执行任务超时"));
+            setPollingPaused(true);
         }, 60000);
     };
 
     const executeCommand = async (commandOverride?: string) => {
+        if (submittingTaskRef.current) return;
         if (!canUseExec) {
             toast.error(t("exec.errors.noTaskPermission", { defaultValue: "当前账号没有执行任务权限" }));
             return;
@@ -554,13 +556,19 @@ const ExecContent = ({ canUseExec, canUseScripts }: { canUseExec: boolean; canUs
         clearPolling();
 
         setExecuting(true);
+        submittingTaskRef.current = true;
         setResults([]);
         setTaskId(null);
         setSelectedResultTaskId(null);
         setResultError(null);
+        setPollingPaused(false);
 
+        const controller = new AbortController();
+        submitRequestRef.current = controller;
+        const submitTimeout = setTimeout(() => controller.abort(), 30_000);
         try {
             const response = await fetch("/api/admin/task/exec", {
+                signal: controller.signal,
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
@@ -577,18 +585,19 @@ const ExecContent = ({ canUseExec, canUseScripts }: { canUseExec: boolean; canUs
             }
 
             const data: ExecResponse = await response.json();
+            if (!mountedRef.current || controller.signal.aborted) return;
 
             if (data.success && data.task_id) {
                 setTaskId(data.task_id);
                 setSelectedResultTaskId(data.task_id);
                 toast.success(t("exec.taskStarted"));
-                startPolling(data.task_id);
+                startPolling(data.task_id, data.clients ?? selectedNodes);
                 void loadRecentTasks(true);
             } else if (data.status === "success" && data.data?.task_id) {
                 setTaskId(data.data.task_id);
                 setSelectedResultTaskId(data.data.task_id);
                 toast.success(t("exec.taskStarted"));
-                startPolling(data.data.task_id);
+                startPolling(data.data.task_id, selectedNodes);
                 void loadRecentTasks(true);
             } else {
                 throw new Error(
@@ -599,9 +608,19 @@ const ExecContent = ({ canUseExec, canUseScripts }: { canUseExec: boolean; canUs
             }
         } catch (err) {
             const errorMessage = getReadableErrorMessage(err, t("common.unknown_error"));
+            if (!mountedRef.current) return;
+            if (controller.signal.aborted) {
+                toast.error(t("release_recovery.submit_unconfirmed"));
+                setTasksError(t("release_recovery.submit_unconfirmed"));
+                setActiveTab("history");
+                return;
+            }
             toast.error(errorMessage);
         } finally {
-            setExecuting(false);
+            clearTimeout(submitTimeout);
+            if (submitRequestRef.current === controller) submitRequestRef.current = null;
+            submittingTaskRef.current = false;
+            if (mountedRef.current) setExecuting(false);
         }
     };
 
@@ -623,8 +642,14 @@ const ExecContent = ({ canUseExec, canUseScripts }: { canUseExec: boolean; canUs
 
         if (options.stopPolling !== false) {
             clearPolling();
+            setPollingPaused(false);
         }
-
+        resultRequestRef.current?.abort();
+        const controller = new AbortController();
+        resultRequestRef.current = controller;
+        const requestTimeout = setTimeout(() => controller.abort(), 15000);
+        if (resultTaskRef.current !== trimmedTaskId) setResults([]);
+        resultTaskRef.current = trimmedTaskId;
         setSelectedResultTaskId(trimmedTaskId);
         setTaskId(trimmedTaskId);
         setResultLoading(true);
@@ -635,6 +660,7 @@ const ExecContent = ({ canUseExec, canUseScripts }: { canUseExec: boolean; canUs
 
         try {
             const response = await fetch(`/api/admin/task/${encodeURIComponent(trimmedTaskId)}/result`, {
+                signal: controller.signal,
                 credentials: "same-origin",
                 cache: "no-store",
                 headers: {
@@ -645,10 +671,7 @@ const ExecContent = ({ canUseExec, canUseScripts }: { canUseExec: boolean; canUs
                 },
             });
             const payload = await response.json().catch(() => ({}));
-            if (response.status === 404) {
-                setResults([]);
-                return;
-            }
+            if (resultRequestRef.current !== controller) return null;
             if (!response.ok) {
                 const message = typeof payload?.message === "string"
                     ? payload.message
@@ -663,22 +686,38 @@ const ExecContent = ({ canUseExec, canUseScripts }: { canUseExec: boolean; canUs
                 })));
             }
             setResults(taskResults);
+            setPollingPaused(!areTaskResultsComplete(taskResults,
+                taskClientsRef.current.get(trimmedTaskId)
+                ?? getTaskClients(recentTasks.find((task) => task.task_id === trimmedTaskId))));
+            return taskResults;
         } catch (err) {
+            if (resultRequestRef.current !== controller) return null;
             const message = getReadableErrorMessage(
-                err,
+                controller.signal.aborted ? t("exec.observation.request_timeout") : err,
                 t("exec.errors.taskResultLoadFailed", {
                     defaultValue: "获取任务结果失败，请稍后重试。",
                 }),
             );
             setResultError(message);
-            setResults([]);
+            return null;
         } finally {
-            setResultLoading(false);
+            clearTimeout(requestTimeout);
+            if (resultRequestRef.current === controller) {
+                resultRequestRef.current = null;
+                setResultLoading(false);
+            }
         }
     };
 
     const getTaskStatus = (result: TaskResult) => {
-        if (result.finished_at === null) {
+        if (!result.finished_at) {
+            if (resultError || (!polling && pollingPaused)) {
+                return {
+                    status: "pending",
+                    variant: "warning" as const,
+                    text: t("exec.observation.awaiting_receipt"),
+                };
+            }
             return {
                 status: "running",
                 variant: "info" as const,
@@ -723,11 +762,15 @@ const ExecContent = ({ canUseExec, canUseScripts }: { canUseExec: boolean; canUs
         resetKey: `${currentTaskId || ""}:${resultSearch}`,
     });
     const visibleCurrentResults = resultPagination.pageItems;
-    const resultFinishedCount = results.filter((item) => item.finished_at !== null).length;
-    const resultFailedCount = results.filter((item) => item.exit_code !== null && item.exit_code !== 0).length;
+    const resultFinishedCount = results.filter((item) => Boolean(item.finished_at)).length;
+    const resultFailedCount = results.filter((item) =>
+        item.finished_at && typeof item.exit_code === "number" && item.exit_code !== 0).length;
     const selectedTaskSummary = currentTaskId
         ? recentTasks.find((item) => item.task_id === currentTaskId) ?? null
         : null;
+    const expectedResultCount = Math.max(results.length,
+        (currentTaskId ? taskClientsRef.current.get(currentTaskId)?.length : 0) || 0,
+        getTaskClients(selectedTaskSummary).length);
     if (isLoading) {
         return (
             <AdminPageShell registerHeader={false} contentClassName="gap-3">
@@ -775,7 +818,7 @@ const ExecContent = ({ canUseExec, canUseScripts }: { canUseExec: boolean; canUs
                 "grid items-start gap-3",
                 canUseExec ? "xl:grid-cols-[minmax(0,1fr)_400px]" : "xl:grid-cols-1",
             )}>
-                <section className={cn(execPanelClass, "xl:max-h-[calc(100dvh-11rem)] xl:overflow-y-auto")}>
+                <section className={cn(execPanelClass, "min-w-0 xl:order-1 xl:max-h-[calc(100dvh-11rem)] xl:overflow-y-auto", activeTab === "result" ? "order-1" : "order-2")}>
                     <div className="admin-panel-header flex min-h-[54px] flex-col gap-3 px-[14px] py-3 sm:flex-row sm:items-center sm:justify-between">
                         <div className="flex w-full gap-1 border-b border-border pb-1 sm:w-auto">
                             <ExecToolbarTab active={activeTab === "library"} onClick={() => setActiveTab("library")}>
@@ -831,6 +874,8 @@ const ExecContent = ({ canUseExec, canUseScripts }: { canUseExec: boolean; canUs
                                         void loadRecentTasks();
                                     }}
                                     disabled={tasksLoading}
+                                    aria-label={t("common.refresh")}
+                                    title={t("common.refresh")}
                                     className="h-9 w-9 rounded-md"
                                 >
                                     <RefreshCw size={14} className={tasksLoading ? "animate-spin" : undefined} />
@@ -842,11 +887,11 @@ const ExecContent = ({ canUseExec, canUseScripts }: { canUseExec: boolean; canUs
                                     variant="outline"
                                     size="icon"
                                     onClick={() => {
-                                        void loadTaskResults(currentTaskId, {
-                                            stopPolling: false,
-                                        });
+                                        startPolling(currentTaskId);
                                     }}
                                     disabled={resultLoading}
+                                    aria-label={t("exec.observation.refresh")}
+                                    title={t("exec.observation.refresh")}
                                     className="h-9 w-9 rounded-md"
                                 >
                                     <RefreshCw size={14} className={resultLoading ? "animate-spin" : undefined} />
@@ -858,8 +903,8 @@ const ExecContent = ({ canUseExec, canUseScripts }: { canUseExec: boolean; canUs
                     {activeTab === "library" && (
                         <>
                         <AdminDataTableScroll>
-                            <AdminDataTable minWidth={560} className="[&_td]:px-3 [&_th]:px-3">
-                                <thead>
+                            <AdminDataTable minWidth={visibleCommands.length ? 560 : 0} className="[&_td]:px-3 [&_th]:px-3">
+                                <thead className={visibleCommands.length ? undefined : "hidden"}>
                                     <AdminDataTableHeadRow>
                                         <AdminDataTableHead>{t("command_clipboard.table.script", { defaultValue: "脚本" })}</AdminDataTableHead>
                                         <AdminDataTableHead>{t("command_clipboard.table.remark", { defaultValue: "备注" })}</AdminDataTableHead>
@@ -975,8 +1020,8 @@ const ExecContent = ({ canUseExec, canUseScripts }: { canUseExec: boolean; canUs
                     {activeTab === "history" && (
                         <>
                         <AdminDataTableScroll>
-                            <AdminDataTable minWidth={640} className="[&_td]:px-3 [&_th]:px-3">
-                                <thead>
+                            <AdminDataTable minWidth={visibleRecentTasks.length ? 640 : 0} className="[&_td]:px-3 [&_th]:px-3">
+                                <thead className={visibleRecentTasks.length ? undefined : "hidden"}>
                                     <AdminDataTableHeadRow>
                     <AdminDataTableHead>{t("exec.table.task_id", { defaultValue: "任务 ID" })}</AdminDataTableHead>
                                         <AdminDataTableHead>{t("exec.table.nodes", { defaultValue: "节点" })}</AdminDataTableHead>
@@ -1097,7 +1142,7 @@ const ExecContent = ({ canUseExec, canUseScripts }: { canUseExec: boolean; canUs
                                     <ExecSummaryItem
                                         label={t("exec.summary.nodes", { defaultValue: "节点" })}
                                         value={t("exec.node_count", {
-                                            count: selectedTaskSummary ? getTaskClients(selectedTaskSummary).length : results.length,
+                                            count: expectedResultCount,
                                             defaultValue: "{{count}} 台",
                                         })}
                                     />
@@ -1105,20 +1150,29 @@ const ExecContent = ({ canUseExec, canUseScripts }: { canUseExec: boolean; canUs
                                         label={t("exec.summary.results", { defaultValue: "结果" })}
                                         value={t("exec.result_progress_summary", {
                                             finished: resultFinishedCount,
-                                            total: results.length || 0,
+                                            total: expectedResultCount,
                                             failed: resultFailedCount,
                                             defaultValue: "{{finished}}/{{total}} 完成 · {{failed}} 异常",
                                         })}
                                     />
                                 </div>
                             )}
-                            {resultLoading ? (
+                            {(resultError || (!polling && pollingPaused)) && currentTaskId && (
+                                <div role="status" className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-[14px] py-3">
+                                    <div className="min-w-0 flex-1 text-sm">
+                                        <p className={resultError ? "text-destructive" : "text-muted-foreground"}>
+                                            {resultError ? t("exec.observation.fetch_failed") : t("exec.observation.paused")}
+                                        </p>
+                                        {resultError && <p className="mt-1 break-words text-xs text-muted-foreground">{resultError}</p>}
+                                    </div>
+                                    <Button variant="outline" size="sm" disabled={resultLoading} onClick={() => startPolling(currentTaskId)}>
+                                        <RefreshCw size={14} />{t("exec.observation.refresh")}
+                                    </Button>
+                                </div>
+                            )}
+                            {resultLoading && results.length === 0 ? (
                                 <div className="p-[14px]">
                                     <AdminTableSkeleton columns={3} rows={3} />
-                                </div>
-                            ) : resultError ? (
-                                <div className="px-[14px] py-5 text-sm text-destructive">
-                                    {resultError}
                                 </div>
                             ) : visibleCurrentResults.length === 0 ? (
                                 <div className="p-[14px]">
@@ -1141,7 +1195,7 @@ const ExecContent = ({ canUseExec, canUseScripts }: { canUseExec: boolean; canUs
                                         const statusTone: ExecStatusTone =
                                             status.status === "success"
                                                 ? "ok"
-                                                : status.status === "timeout"
+                                                : status.status === "timeout" || status.status === "pending"
                                                     ? "warn"
                                                     : status.status === "running"
                                                         ? "info"
@@ -1177,7 +1231,7 @@ const ExecContent = ({ canUseExec, canUseScripts }: { canUseExec: boolean; canUs
                                                                         <CheckCircle2 size={12} />
                                                                         {status.text}
                                                                     </>
-                                                                ) : status.status === "timeout" ? (
+                                                                ) : status.status === "timeout" || status.status === "pending" ? (
                                                                     <>
                                                                         <Clock size={12} />
                                                                         {status.text}
@@ -1189,7 +1243,7 @@ const ExecContent = ({ canUseExec, canUseScripts }: { canUseExec: boolean; canUs
                                                                     </>
                                                                 )}
                                                             </ExecStatus>
-                                                            {result.exit_code !== null && (
+                                                            {result.finished_at && typeof result.exit_code === "number" && (
                                                                 <Badge variant="secondary" className="h-6 rounded-full px-2 text-[11px]">
                                                                     exit {result.exit_code}
                                                                 </Badge>
@@ -1274,7 +1328,7 @@ const ExecContent = ({ canUseExec, canUseScripts }: { canUseExec: boolean; canUs
                                     <Button
                                         variant="outline"
                                         size="sm"
-                                        onClick={clearPolling}
+                                        onClick={() => { clearPolling(); setPollingPaused(true); }}
                                         className="h-9 rounded-md text-sm"
                                     >
                                         {t("exec.stop_polling", {
@@ -1289,8 +1343,8 @@ const ExecContent = ({ canUseExec, canUseScripts }: { canUseExec: boolean; canUs
                 </section>
 
                 {canUseExec && (
-                <section className={execPanelClass}>
-                    <ExecPanelHead title={t("exec.configuration", { defaultValue: "执行配置" })} meta="/api/admin/task/exec" />
+                <section className={cn(execPanelClass, "min-w-0 xl:order-2", activeTab === "result" ? "order-2" : "order-1")}>
+                    <ExecPanelHead title={t("exec.configuration", { defaultValue: "执行配置" })} />
                     <div className="flex flex-col gap-4 p-[14px]">
                         <ExecField label={t("exec.target_nodes", { defaultValue: "目标节点" })}>
                             <div className="rounded-md border border-input bg-[var(--surface-subtle)] p-3">
@@ -1464,8 +1518,10 @@ const ExecContent = ({ canUseExec, canUseScripts }: { canUseExec: boolean; canUs
             </AdminDialogLayout>
         </Dialog>
 
-        <Dialog
+        <GuardedDialog
             open={scriptEditorOpen}
+            dirty={JSON.stringify(scriptFormValues) !== initialScriptSignature}
+            busy={scriptSubmitting}
             onOpenChange={(open) => {
                 setScriptEditorOpen(open);
                 if (!open) {
@@ -1490,7 +1546,7 @@ const ExecContent = ({ canUseExec, canUseScripts }: { canUseExec: boolean; canUs
                 footer={
                     <>
                         <DialogClose asChild>
-                            <Button type="button" variant="outline">
+                            <Button type="button" variant="outline" disabled={scriptSubmitting}>
                                 {t("common.cancel", { defaultValue: "取消" })}
                             </Button>
                         </DialogClose>
@@ -1570,26 +1626,21 @@ const ExecContent = ({ canUseExec, canUseScripts }: { canUseExec: boolean; canUs
                         </div>
                 </form>
             </AdminDialogLayout>
-        </Dialog>
+        </GuardedDialog>
         </>
     );
 };
 
 function ExecPanelHead({
     title,
-    meta,
 }: {
     title: ReactNode;
-    meta: ReactNode;
 }) {
     return (
         <div className="flex min-h-[52px] items-center justify-between gap-3 border-b border-border px-4">
             <strong className="text-sm font-semibold leading-5 text-foreground">
                 {title}
             </strong>
-            <span className="truncate text-[12px] leading-4 text-muted-foreground">
-                {meta}
-            </span>
         </div>
     );
 }

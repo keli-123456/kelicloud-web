@@ -100,7 +100,7 @@ export function AWSCredentialTable({
             <AdminDataTableHead>{t("cloud.providers.aws.ec2_quota", "EC2 配额")}</AdminDataTableHead>
             <AdminDataTableHead>{t("cloud.tokens.table.status", "状态")}</AdminDataTableHead>
             <AdminDataTableHead>{t("cloud.tokens.table.checked_at", "最近检测")}</AdminDataTableHead>
-            <AdminDataTableHead align="right" sticky="right">
+            <AdminDataTableHead align="right" sticky="right-mobile">
               {t("common.action", "操作")}
             </AdminDataTableHead>
           </AdminDataTableHeadRow>
@@ -168,7 +168,7 @@ export function AWSCredentialTable({
                   ) : null}
                 </AdminDataTableCell>
                 <AdminDataTableCell>{formatDateTime(credential.last_checked_at)}</AdminDataTableCell>
-                <AdminDataTableCell align="right" sticky="right">
+                <AdminDataTableCell align="right" sticky="right-mobile">
                   <AdminRowActions
                     contentClassName="min-w-44"
                     actions={[

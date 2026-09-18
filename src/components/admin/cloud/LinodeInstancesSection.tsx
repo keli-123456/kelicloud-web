@@ -35,7 +35,6 @@ import { getCloudStatusLabel } from "@/lib/cloudStatus";
 import {
   Badge,
   cloudPanelCardClassName,
-  cloudPanelDescriptionClassName,
   cloudPanelHeaderClassName,
   cloudPanelTitleClassName,
   cloudTableEmptyStateClassName,
@@ -124,7 +123,7 @@ export function LinodeInstancesSection({
       : !hasActiveToken(tokenPool)
         ? t("cloud.providers.linode.no_active_token_description", "管理 Linode 实例前请先导入令牌并设置为当前。")
         : !resourcesLoaded
-          ? t("cloud.load_resources_description", "云资源按需加载，可避免多账号场景下页面卡顿。")
+          ? undefined
           : t("cloud.providers.linode.instance_empty_description", "创建 Linode 实例，或切换到已有资源的令牌。");
 
   return (
@@ -134,12 +133,6 @@ export function LinodeInstancesSection({
           <div>
             <div className={cloudPanelTitleClassName}>
               {t("cloud.providers.linode.instance_list", "实例列表")}
-            </div>
-            <div className={cloudPanelDescriptionClassName}>
-              {t(
-                "cloud.providers.linode.instance_list_description",
-                "Click an instance label to inspect details and use the current token to manage its power state.",
-              )}
             </div>
           </div>
           <CloudBulkDeleteToolbar
@@ -178,7 +171,7 @@ export function LinodeInstancesSection({
             <AdminDataTableHead>{t("cloud.table.price", "月费")}</AdminDataTableHead>
             <AdminDataTableHead>{t("cloud.table.password", "登录密码")}</AdminDataTableHead>
             <AdminDataTableHead>{t("cloud.table.created_at", "创建时间")}</AdminDataTableHead>
-            <AdminDataTableHead align="right" sticky="right">
+            <AdminDataTableHead align="right" sticky="right-mobile">
               {t("common.action", "操作")}
             </AdminDataTableHead>
           </AdminDataTableHeadRow>
@@ -244,7 +237,7 @@ export function LinodeInstancesSection({
                     )}
                   </AdminDataTableCell>
                   <AdminDataTableCell>{formatDateTime(instance.created)}</AdminDataTableCell>
-                  <AdminDataTableCell align="right" sticky="right">
+                  <AdminDataTableCell align="right" sticky="right-mobile">
                     <AdminRowActions
                       contentClassName="min-w-44"
                       actions={[

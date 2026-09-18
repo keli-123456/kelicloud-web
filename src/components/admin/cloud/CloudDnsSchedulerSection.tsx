@@ -1,5 +1,7 @@
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useId, useMemo, useRef, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
+import { useRequestTracker } from "../useRequestTracker";
+import { RefreshNotice } from "../RefreshNotice";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
 import {
@@ -719,6 +721,9 @@ export default function CloudDnsSchedulerSection() {
   const focusedSource = parseSourceFilter(searchParams.get("source"));
   const focusedSourceId = String(searchParams.get("source_id") || "").trim();
   const [snapshot, setSnapshot] = useState<DNSSchedulerSnapshot | null>(null);
+  const requests = useRequestTracker();
+  const syncBusy = useRef(false);
+  const [syncError, setSyncError] = useState("");
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [syncing, setSyncing] = useState(false);
@@ -727,27 +732,33 @@ export default function CloudDnsSchedulerSection() {
   const [sourceFilter, setSourceFilter] = useState<SourceFilter>(() => focusedSource);
   const [page, setPage] = useState(1);
   const [selectedItemKey, setSelectedItemKey] = useState<string | null>(null);
+  const detailRef = useRef<HTMLDivElement>(null);
+  const detailId = useId();
 
   const loadSnapshot = useCallback(async (quiet = false) => {
+    if (requests.pending || syncBusy.current) return;
+    const ticket = requests.begin();
     if (!quiet) {
       setRefreshing(true);
     }
-    setError("");
     try {
       const data = await getDNSSchedulerSnapshot();
+      if (!requests.isCurrent(ticket)) return;
       setSnapshot(data);
+      setError("");
     } catch (err) {
+      if (!requests.isCurrent(ticket)) return;
       setError(err instanceof Error ? err.message : t("common.unknown_error", { defaultValue: "未知错误" }));
     } finally {
-      setLoading(false);
-      setRefreshing(false);
+      if (requests.isCurrent(ticket)) { setLoading(false); setRefreshing(false); }
+      requests.finish(ticket);
     }
-  }, [t]);
+  }, [requests, t]);
 
   useEffect(() => {
     loadSnapshot(true);
     const timer = window.setInterval(() => {
-      loadSnapshot(true);
+      if (!document.hidden) void loadSnapshot(true);
     }, 15_000);
     return () => window.clearInterval(timer);
   }, [loadSnapshot]);
@@ -844,11 +855,16 @@ export default function CloudDnsSchedulerSection() {
   }, [searchParams, setSearchParams]);
 
   const handleManualSync = useCallback(async () => {
+    if (syncBusy.current) return;
+    syncBusy.current = true;
+    requests.invalidate();
+    setRefreshing(false);
     setSyncing(true);
-    setError("");
+    setSyncError("");
     try {
       const result = await syncDNSSchedulerNow();
       setSnapshot(result.snapshot);
+      setError("");
       if (result.started) {
         toast.success(t("cloud.dns.scheduler.manual_sync_success", {
           defaultValue: "DNS 手动同步已完成",
@@ -862,13 +878,14 @@ export default function CloudDnsSchedulerSection() {
       const message = err instanceof Error
         ? err.message
         : t("cloud.dns.scheduler.manual_sync_failed", { defaultValue: "DNS 手动同步失败" });
-      setError(message);
+      setSyncError(message);
       toast.error(message);
     } finally {
+      syncBusy.current = false;
       setSyncing(false);
       setLoading(false);
     }
-  }, [t]);
+  }, [requests, t]);
 
   if (loading) {
     return (
@@ -893,11 +910,8 @@ export default function CloudDnsSchedulerSection() {
         onSourceFilterChange={handleSourceFilterChange}
       />
 
-      {error || snapshot?.load_error ? (
-        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-200">
-          {error || snapshot?.load_error}
-        </div>
-      ) : null}
+      <RefreshNotice error={error || snapshot?.load_error || ""} hasData={Boolean(snapshot)} refreshing={refreshing || syncing} onRetry={() => void loadSnapshot()} />
+      {syncError ? <div role="alert" className="admin-alert admin-alert-danger text-sm">{syncError}</div> : null}
 
       <AdminDataPanel
         title={t("cloud.dns.scheduler.queue_title", { defaultValue: "DNS 任务队列" })}
@@ -952,6 +966,7 @@ export default function CloudDnsSchedulerSection() {
                   <col className="w-[19%]" />
                   <col className="w-[12%]" />
                   <col className="w-[8%]" />
+                  <col className="w-[56px]" />
                 </colgroup>
                 <thead>
                   <AdminDataTableHeadRow>
@@ -973,6 +988,9 @@ export default function CloudDnsSchedulerSection() {
                     <AdminDataTableHead>
                       {t("common.status", { defaultValue: "状态" })}
                     </AdminDataTableHead>
+                    <AdminDataTableHead sticky="right-mobile" align="right" className="w-[56px]">
+                      {t("common.actions")}
+                    </AdminDataTableHead>
                   </AdminDataTableHeadRow>
                 </thead>
                 <tbody>
@@ -982,21 +1000,10 @@ export default function CloudDnsSchedulerSection() {
                     return (
                     <AdminDataTableRow
                       key={itemKey}
-                      role="button"
-                      aria-selected={selected}
-                      tabIndex={0}
                       selected={selected}
                       interactive
-                      className={cn(
-                        "align-top focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40",
-                      )}
+                      className="align-top"
                       onClick={() => setSelectedItemKey(itemKey)}
-                      onKeyDown={(event) => {
-                        if (event.key === "Enter" || event.key === " ") {
-                          event.preventDefault();
-                          setSelectedItemKey(itemKey);
-                        }
-                      }}
                     >
                       <AdminDataTableCell className="align-top">
                         <div className="flex min-w-0 flex-col gap-1.5">
@@ -1061,6 +1068,27 @@ export default function CloudDnsSchedulerSection() {
                           ) : null}
                         </div>
                       </AdminDataTableCell>
+                      <AdminDataTableCell sticky="right-mobile" align="right" className="w-[56px]">
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                            aria-label={`${t("cloud.dns.scheduler.detail_title")}: ${item.source_name || item.record_key}`}
+                          title={t("cloud.dns.scheduler.detail_title")}
+                          aria-controls={detailId}
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            setSelectedItemKey(itemKey);
+                            requestAnimationFrame(() => {
+                              detailRef.current?.focus({ preventScroll: true });
+                              if (window.matchMedia("(max-width: 1023px)").matches) {
+                                detailRef.current?.scrollIntoView({ block: "start" });
+                              }
+                            });
+                          }}
+                        >
+                          <Eye className="size-4" />
+                        </Button>
+                      </AdminDataTableCell>
                     </AdminDataTableRow>
                     );
                   })}
@@ -1101,9 +1129,18 @@ export default function CloudDnsSchedulerSection() {
               </div>
             </div>
             </div>
-            <SchedulerTaskDetailPanel item={selectedItem} />
+            <div
+              ref={detailRef}
+              id={detailId}
+              role="region"
+              aria-label={t("cloud.dns.scheduler.detail_title")}
+              tabIndex={-1}
+              className="min-w-0 scroll-mt-4 outline-none"
+            >
+              <SchedulerTaskDetailPanel item={selectedItem} />
+            </div>
           </div>
-        ) : (
+        ) : !snapshot && error ? null : (
           <AdminEmptyState
             title={t("cloud.dns.scheduler.empty_title", { defaultValue: "暂无 DNS 调度项" })}
             description={t("cloud.dns.scheduler.empty_description", {

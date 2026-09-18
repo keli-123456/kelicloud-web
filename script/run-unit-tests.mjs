@@ -10,7 +10,7 @@ import ts from "typescript";
 const root = process.cwd();
 const require = createRequire(import.meta.url);
 
-function loadTsModule(relativePath) {
+function loadTsModule(relativePath, globals = {}) {
   const absolutePath = path.resolve(root, relativePath);
   const source = fs.readFileSync(absolutePath, "utf8");
   const compiled = ts.transpileModule(source, {
@@ -34,11 +34,90 @@ function loadTsModule(relativePath) {
     URL,
     setTimeout,
     clearTimeout,
+    ...globals,
   }, { filename: absolutePath });
   return module.exports;
 }
 
 const tests = [];
+
+const { createRequestTracker } = loadTsModule("src/lib/requestTracker.ts");
+const { getPortForwardEditorStatus } = loadTsModule("src/lib/portForwardStatus.ts");
+const { getAccountScopeKey } = loadTsModule("src/lib/accountScope.ts");
+
+test("RPC session reset rejects pending requests and ignores old socket callbacks", async () => {
+  const sockets = [];
+  class Socket {
+    static OPEN = 1;
+    readyState = 0;
+    events = new Map();
+    constructor() { sockets.push(this); }
+    addEventListener(name, fn) { this.events.set(name, fn); }
+    removeEventListener(name) { this.events.delete(name); }
+    send(data) { this.sent = JSON.parse(data); }
+    close() { this.readyState = 3; this.onclose?.(); }
+    open() { this.readyState = 1; this.onopen?.(); this.events.get("open")?.(); }
+  }
+  const types = loadTsModule("src/types/rpc2.ts");
+  const { RPC2Client } = loadTsModule("src/lib/rpc2.ts", {
+    window: { location: { protocol: "http:", host: "localhost" } },
+    WebSocket: Socket, setInterval, clearInterval,
+    require: id => id.includes("types/rpc2") ? types : { formatApiErrorMessage: message => message },
+  });
+  const client = new RPC2Client("/api/rpc2", { autoConnect: false, enableHeartbeat: false });
+  const initial = client.connect(); sockets[0].open(); await initial;
+  const pending = client.callViaWebSocket("common:getNodesLatestStatus");
+  const rejected = assert.rejects(pending, /连接已断开/);
+  client.disconnect(); await rejected;
+  const fresh = client.connect(); sockets[1].open(); await fresh;
+  sockets[0].onclose();
+  sockets[0].onmessage({ data: JSON.stringify({ id: sockets[0].sent.id, result: { private: "old account" } }) });
+  assert.equal(client.state, "connected");
+  assert.equal(client.options.autoReconnect, true);
+  client.disconnect();
+});
+
+test("account scope resets for identity and access changes, not feature ordering or metadata", () => {
+  const account = { logged_in: true, uuid: "admin-a", username: "A", role: "admin", allowed_features: ["tasks", "clients"] };
+  assert.equal(getAccountScopeKey(account), getAccountScopeKey({ ...account, username: "Renamed", allowed_features: ["clients", "tasks"] }));
+  for (const change of [{ uuid: "admin-b" }, { role: "user" }, { allowed_features: ["clients"] }, { account_disabled: true }, { logged_in: false }]) {
+    assert.notEqual(getAccountScopeKey(account), getAccountScopeKey({ ...account, ...change }));
+  }
+});
+
+test("request tracker ignores late responses and preserves the newer pending request", () => {
+  const tracker = createRequestTracker();
+  const first = tracker.begin();
+  const second = tracker.begin();
+  assert.equal(tracker.isCurrent(first), false);
+  tracker.finish(first);
+  assert.equal(tracker.pending, true);
+  assert.equal(tracker.isCurrent(second), true);
+  tracker.finish(second);
+  assert.equal(tracker.pending, false);
+});
+
+test("context reset and unmount invalidate all in-flight reads", () => {
+  const tracker = createRequestTracker();
+  const previous = tracker.begin();
+  tracker.invalidate();
+  assert.equal(tracker.isCurrent(previous), false);
+  const current = tracker.begin();
+  tracker.finish(previous);
+  assert.equal(tracker.pending, true);
+  assert.equal(tracker.isCurrent(current), true);
+});
+
+test("port-forward draft and submission never inherit old applied status", () => {
+  const state = { dirty: false, saving: false, applying: false, rule: { status: "applied", last_task_id: "old" } };
+  assert.equal(getPortForwardEditorStatus(state), "applied");
+  assert.equal(getPortForwardEditorStatus({ ...state, dirty: true }), "unsaved");
+  assert.equal(getPortForwardEditorStatus({ ...state, dirty: true, saving: true }), "saving");
+  assert.equal(getPortForwardEditorStatus({ ...state, applying: true }), "applying");
+  assert.equal(getPortForwardEditorStatus({ ...state, rule: { status: "pending", last_task_id: "new" } }), "submitted");
+  assert.equal(getPortForwardEditorStatus({ ...state, rule: { status: "pending", last_task_id: "" } }), "pending");
+  assert.equal(getPortForwardEditorStatus({ ...state, rule: null }), "new");
+});
 
 function test(name, fn) {
   tests.push({ name, fn });
@@ -79,6 +158,27 @@ test("exec helpers normalize task summaries from API envelopes", () => {
   assert.equal(tasks.length, 1);
   assert.equal(JSON.stringify(execHelpers.getTaskCompletion(tasks[0])), JSON.stringify({ finished: 1, total: 1 }));
   assert.equal(execHelpers.getTaskTone(tasks[0]), "ok");
+});
+
+test("exec completion requires actual receipts from every expected node", () => {
+  const finished = { client: "a", finished_at: "2026-09-15T00:00:00Z", exit_code: 0 };
+  assert.equal(execHelpers.areTaskResultsComplete([]), false);
+  assert.equal(execHelpers.areTaskResultsComplete([finished], ["a", "b"]), false);
+  assert.equal(execHelpers.areTaskResultsComplete([finished, finished], ["a", "b"]), false);
+  assert.equal(execHelpers.areTaskResultsComplete([{ ...finished, finished_at: null }]), false);
+  assert.equal(execHelpers.areTaskResultsComplete([{ ...finished, finished_at: undefined }]), false);
+  assert.equal(execHelpers.areTaskResultsComplete([finished], ["a"]), true);
+  assert.equal(execHelpers.areTaskResultsComplete([finished, { ...finished, client: "b", exit_code: 1 }], ["a", "b"]), true);
+});
+
+test("exec polling never fabricates remote completion or resubmits commands on refresh", () => {
+  const source = fs.readFileSync(path.resolve(root, "src/pages/admin/exec.tsx"), "utf8");
+  assert.doesNotMatch(source, /finished_at:\s*new Date/);
+  assert.doesNotMatch(source, /result:\s*EXEC_TIMEOUT_SENTINEL/);
+  assert.match(source, /generation !== pollingGenerationRef.current/);
+  assert.match(source, /resultRequestRef.current !== controller/);
+  assert.match(source, /signal: controller.signal/);
+  assert.match(source, /setTimeout\(\(\) => void poll\(\), 2000\)/);
 });
 
 test("exec helpers keep editor metrics stable", () => {
@@ -444,6 +544,14 @@ test("failover workbenches share progressive execution feedback", () => {
   assert.ok(!v2Source.includes('"h-[90vh] max-w-[1180px]'));
 });
 
+test("v1 task editor preserves in-progress provider selection while task data polls", () => {
+  const source = fs.readFileSync(path.resolve(root, "src/pages/admin/failover/FailoverV1Page.tsx"), "utf8");
+
+  assert.match(source, /editorInitializationKeyRef/);
+  assert.match(source, /editorInitializationKeyRef\.current === initializationKey/);
+  assert.match(source, /editorInitializationKeyRef\.current = ""/);
+});
+
 test("mobile admin navigation traps and restores focus", () => {
   const source = fs.readFileSync(path.resolve(root, "src/components/admin/AdminPanelBar.tsx"), "utf8");
 
@@ -592,6 +700,7 @@ function createRecoveryTestContext(overrides = {}) {
   return {
     calls,
     dependencies: {
+      canReload: () => true,
       getHref: () => "/admin/failover",
       getBuildId: () => "build-a",
       getSessionStorage: () => storage,
@@ -674,14 +783,82 @@ test("healthy recovery cleanup tolerates blocked session storage", () => {
   });
 });
 
-test("chunk recovery marker resets only after suspended route content mounts", () => {
+test("chunk recovery marker survives nested lazy failures across reloads", () => {
   const mainSource = fs.readFileSync(path.resolve(root, "src/main.tsx"), "utf8");
+  assert.doesNotMatch(mainSource, /clearChunkLoadRecoveryMarker/);
+  assert.match(fs.readFileSync(path.resolve(root, "src/routes.ts"), "utf8"), /lazyWithRecovery as lazy/);
+});
 
-  assert.doesNotMatch(mainSource, /setTimeout[\s\S]{0,200}clearChunkLoadRecoveryMarker/);
-  const routingIndex = mainSource.indexOf("{routing}");
-  const resetIndex = mainSource.indexOf("<ChunkLoadRecoveryMarkerReset />");
-  assert.ok(routingIndex >= 0);
-  assert.ok(resetIndex > routingIndex);
+test("chunk recovery does not claim or reload a protected draft", async () => {
+  const context = createRecoveryTestContext({ canReload: () => false });
+  assert.equal(await chunkLoadRecovery.recoverChunkLoadFailure(new Error("Importing a module script failed."), context.dependencies), false);
+  assert.deepEqual(context.calls, []);
+  context.dependencies.canReload = () => true;
+  assert.equal(await chunkLoadRecovery.recoverChunkLoadFailure(new Error("Importing a module script failed."), context.dependencies), true);
+});
+
+test("chunk recovery rechecks draft protection after waiting for worker cleanup", async () => {
+  let allowed = true;
+  const context = createRecoveryTestContext({ canReload: () => allowed, deleteCaches: async () => { allowed = false; } });
+  assert.equal(await chunkLoadRecovery.recoverChunkLoadFailure(new Error("Importing a module script failed."), context.dependencies), false);
+  assert.ok(!context.calls.includes("reload"));
+});
+
+test("draft navigation uses one router blocker and keeps reload protection", () => {
+  const main = fs.readFileSync(path.resolve(root, "src/main.tsx"), "utf8");
+  const guard = fs.readFileSync(path.resolve(root, "src/components/admin/NavigationGuard.tsx"), "utf8");
+  const hook = fs.readFileSync(path.resolve(root, "src/components/admin/useNavigationGuard.ts"), "utf8");
+  assert.match(main, /createBrowserRouter/);
+  assert.match(main, /element: <ErrorBoundary><App/);
+  assert.match(guard, /useBlocker/);
+  assert.match(guard, /disabled=\{busy\}/);
+  assert.match(guard, /event.preventDefault\(\)/);
+  assert.match(hook, /beforeunload/);
+  assert.doesNotMatch(guard + hook, /localStorage|sessionStorage|pushState|replaceState/);
+});
+
+test("validation errors retain field and plan identity without localized-message parsing", () => {
+  const { FieldValidationError } = loadTsModule("src/components/admin/FormValidation.tsx");
+  const error = new FieldValidationError("Region is required", "plan.region", "plan-2");
+  assert.equal(error.message, "Region is required");
+  assert.equal(error.field, "plan.region");
+  assert.equal(error.planID, "plan-2");
+  assert.equal(error.name, "FieldValidationError");
+});
+
+test("v2 validation keeps credential DNS defaults and apex records compatible", () => {
+  const source = fs.readFileSync(path.resolve(root, "src/pages/admin/failover-v2/FailoverV2Page.tsx"), "utf8");
+  const ast = ts.createSourceFile("editor.tsx", source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
+  const functions = new Set(["buildServiceInput", "readFormField", "requireFormField", "parseJsonField", "parseNumberField", "normalizeProviderKey"]);
+  const constants = new Set(["FAILOVER_V2_DNS_PROVIDER", "FAILOVER_V2_DEFAULT_DELETE_STRATEGY", "FAILOVER_V2_DEFAULT_DELETE_DELAY_SECONDS"]);
+  const declarations = ast.statements.filter((node) => (
+    ts.isFunctionDeclaration(node) ? functions.has(node.name?.text) :
+    ts.isVariableStatement(node) && node.declarationList.declarations.some((item) => constants.has(item.name.getText(ast)))
+  )).map((node) => node.getText(ast)).join("\n");
+  const code = ts.transpileModule(declarations + "\nexports.buildServiceInput = buildServiceInput;", {
+    compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS },
+  }).outputText;
+  const context = { exports: {}, ...loadTsModule("src/components/admin/FormValidation.tsx") };
+  vm.runInNewContext(code, context);
+  const t = (key, options) => options?.label || key;
+  const form = { name: "service", dns_provider: "aliyun", dns_entry_id: "dns-1", dns_payload: '{"ttl":600}', script_clipboard_ids: [] };
+  const run = (input, values) => context.exports.buildServiceInput(t, input, [{ id: "dns-1", values }]);
+  assert.doesNotThrow(() => run(form, { domain_name: "example.test" }));
+  assert.throws(() => run(form, {}), (error) => error.field === "dns.domain_name");
+  assert.doesNotThrow(() => run({ ...form, dns_provider: "cloudflare" }, { zone_name: "example.test" }));
+  assert.throws(() => run({ ...form, dns_provider: "cloudflare" }, { zone_id: "zone-1" }), (error) => error.field === "dns.record_name");
+  assert.throws(() => run({ ...form, dns_payload: "[]" }, {}), (error) => error.field === "dns_payload");
+  assert.throws(() => run({ ...form, check_interval_seconds: "1" }, { domain_name: "example.test" }), (error) => error.field === "check_interval_seconds");
+});
+
+test("v1 plan editing stays inside its parent dialog and scripts expand inline", () => {
+  const v1 = fs.readFileSync(path.resolve(root, "src/pages/admin/failover/FailoverV1Page.tsx"), "utf8");
+  const scripts = fs.readFileSync(path.resolve(root, "src/components/admin/failover/FailoverScriptPolicyDialog.tsx"), "utf8");
+  assert.doesNotMatch(v1, /<Dialog open=\{planDialogOpen\}/);
+  assert.match(v1, /createPortal\(/);
+  assert.match(v1, /planReturnFocus/);
+  assert.doesNotMatch(scripts, /<Dialog|<AdminDialogLayout/);
+  assert.match(scripts, /hidden=\{!open\}/);
 });
 
 test("production build verifies the generated service worker", () => {

@@ -1,5 +1,6 @@
 import React from "react";
 import { formatApiErrorMessage, getReadableErrorMessage } from "@/lib/apiErrorMessage";
+import { getAccountScopeKey } from "@/lib/accountScope";
 
 export type AccountFeature =
   | "clients"
@@ -40,7 +41,9 @@ export type Account = {
 };
 
 export function isPlatformAdminAccount(account: Account | null) {
-  return (account?.role || "").toLowerCase() === "admin";
+  return Boolean(account?.logged_in && !account.account_disabled &&
+    (!account.access_status || account.access_status === "active") &&
+    (account.role || "").toLowerCase() === "admin");
 }
 
 const defaultGrantedAccountFeatures = new Set<AccountFeature>();
@@ -69,6 +72,8 @@ export function isAccountFeatureAllowed(
   account: Account | null,
   feature: AccountFeature,
 ) {
+  if (!account?.logged_in || account.account_disabled ||
+      (account.access_status && account.access_status !== "active")) return false;
   if (isPlatformAdminAccount(account)) {
     return true;
   }
@@ -163,6 +168,17 @@ export const AccountProvider: React.FC<{ children: React.ReactNode }> = ({
   const [account, setAccount] = React.useState<Account | null>(null);
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState<Error | null>(null);
+  const requestRef = React.useRef<AbortController | null>(null);
+  const pendingRef = React.useRef<Promise<Account | null> | null>(null);
+  const scopeRef = React.useRef("anonymous");
+  const acceptAccount = React.useCallback((next: Account) => {
+    const scope = getAccountScopeKey(next);
+    if (scopeRef.current !== scope) {
+      scopeRef.current = scope;
+      window.dispatchEvent(new Event("kelicloud:account-scope-change"));
+    }
+    setAccount((previous) => JSON.stringify(previous) === JSON.stringify(next) ? previous : next);
+  }, []);
   const platformAdmin = React.useMemo(
     () => isPlatformAdminAccount(account),
     [account],
@@ -172,15 +188,24 @@ export const AccountProvider: React.FC<{ children: React.ReactNode }> = ({
     [account],
   );
 
-  const refresh = React.useCallback(async () => {
-    setLoading(true);
+  const refresh = React.useCallback((): Promise<Account | null> => {
+    if (pendingRef.current) return pendingRef.current;
+    const controller = new AbortController();
+    requestRef.current = controller;
     setError(null);
+    const request = (async () => {
+    const timeout = window.setTimeout(() => controller.abort(), 15_000);
     try {
-      const response = await fetch("/api/me");
+      const response = await fetch("/api/me", { cache: "no-store", signal: controller.signal });
+      if (response.status === 401 || response.status === 403) {
+        if (requestRef.current === controller) acceptAccount({ logged_in: false, username: "" });
+        return null;
+      }
       if (!response.ok) {
         throw new Error(formatApiErrorMessage("Failed to fetch account data", { status: response.status }));
       }
       const data: Account = await response.json();
+      if (requestRef.current !== controller || controller.signal.aborted) return null;
       const nextAccount = {
         ...data,
         allowed_features: Array.isArray(data.allowed_features)
@@ -190,18 +215,42 @@ export const AccountProvider: React.FC<{ children: React.ReactNode }> = ({
           ? data.available_features
           : [],
       };
-      setAccount(nextAccount);
+      acceptAccount(nextAccount);
       return nextAccount;
     } catch (err) {
-      setError(new Error(getReadableErrorMessage(err)));
+      if (requestRef.current === controller) setError(new Error(getReadableErrorMessage(err)));
       return null;
     } finally {
-      setLoading(false);
+      window.clearTimeout(timeout);
+      if (requestRef.current === controller) {
+        setLoading(false);
+        requestRef.current = null;
+        pendingRef.current = null;
+      }
     }
-  }, []);
+    })();
+    pendingRef.current = request;
+    return request;
+  }, [acceptAccount]);
 
   React.useEffect(() => {
     void refresh();
+    const refreshVisibleAccount = () => {
+      if (document.visibilityState === "visible") void refresh();
+    };
+    const timer = window.setInterval(refreshVisibleAccount, 30_000);
+    window.addEventListener("focus", refreshVisibleAccount);
+    window.addEventListener("pageshow", refreshVisibleAccount);
+    document.addEventListener("visibilitychange", refreshVisibleAccount);
+    return () => {
+      window.clearInterval(timer);
+      window.removeEventListener("focus", refreshVisibleAccount);
+      window.removeEventListener("pageshow", refreshVisibleAccount);
+      document.removeEventListener("visibilitychange", refreshVisibleAccount);
+      requestRef.current?.abort();
+      requestRef.current = null;
+      pendingRef.current = null;
+    };
   }, [refresh]);
 
   const value = React.useMemo(
@@ -217,7 +266,9 @@ export const AccountProvider: React.FC<{ children: React.ReactNode }> = ({
   );
 
   return (
-    <AccountContext.Provider value={value}>{children}</AccountContext.Provider>
+    <AccountContext.Provider value={value}>
+      <React.Fragment key={getAccountScopeKey(account)}>{children}</React.Fragment>
+    </AccountContext.Provider>
   );
 };
 

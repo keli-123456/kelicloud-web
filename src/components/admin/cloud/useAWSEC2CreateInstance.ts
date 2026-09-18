@@ -54,6 +54,7 @@ export function useAWSEC2CreateInstance({
   const [createOpen, setCreateOpen] = React.useState(false);
   const [createRegion, setCreateRegion] = React.useState("");
   const [createSubmitting, setCreateSubmitting] = React.useState(false);
+  const createBusy = React.useRef(false);
   const [createForm, setCreateForm] = React.useState(initialCreateForm);
 
   const defaultCreateGroup = getDefaultAutoConnectGroup("aws", activeCredentialName);
@@ -94,6 +95,8 @@ export function useAWSEC2CreateInstance({
   };
 
   const handleCreateInstance = async () => {
+    if (createBusy.current) return;
+    createBusy.current = true;
     setCreateSubmitting(true);
     try {
       const submittedPasswordMode = createForm.root_password_mode || "none";
@@ -143,6 +146,7 @@ export function useAWSEC2CreateInstance({
       toast.error(toErrorMessage(createError));
     } finally {
       setCreateSubmitting(false);
+      createBusy.current = false;
     }
   };
 

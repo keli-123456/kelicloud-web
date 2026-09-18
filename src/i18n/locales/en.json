@@ -1,4 +1,40 @@
 {
+  "release_recovery": {
+    "submit_unconfirmed": "The submission result is not confirmed. Check execution history before submitting again; the remote task may still be running.",
+    "load_failed": "This part of the page could not load. Check the connection or reload the page.",
+    "draft_retained": "Unsaved changes are retained. Save or discard them before reloading.",
+    "reload": "Reload page"
+  },
+  "async_feedback": {
+    "awaiting_result": "Awaiting result",
+    "stale": "Refresh failed. Showing previously retrieved data.",
+    "load_failed": "Could not load data",
+    "refresh": "Fetch again",
+    "new": "Not saved",
+    "unsaved": "Unsaved changes",
+    "saving": "Saving",
+    "applying": "Submitting",
+    "submitted": "Submitted, awaiting server result",
+    "disabled_config": "Disabled in configuration; apply required",
+    "saved_pending": "Saved, not yet applied to the server",
+    "delete_rule_confirm": "Delete rule \"{{name}}\"? Apply to the server after deleting the configuration.",
+    "task_submitted": "Task {{id}} submitted",
+    "tunnel_saved": "Rule saved. Runtime status comes from the server."
+  },
+  "form_feedback": {
+    "required": "{{label}} is required",
+    "saving": "Saving...",
+    "saved": "Saved",
+    "unsaved": "Unsaved changes",
+    "failed": "Save failed. Try again.",
+    "credentials": "Manage credentials",
+    "credentials_new_tab": "Manage credentials (new tab)",
+    "refresh_credentials": "Refresh credentials",
+    "refresh_failed": "Could not refresh credentials. Try again.",
+    "no_credentials": "No credentials available",
+    "expand": "Expand",
+    "collapse": "Collapse"
+  },
   "about": {
     "ai": "The development process of the kelicloud project has been assisted by artificial intelligence tools. These tools are used for tasks such as code generation, refactoring, and debugging to improve development efficiency and code quality. All AI-generated code and suggestions have been reviewed and validated by human developers.",
     "description": "Review open-source licenses, legal statements, and the project README.",
@@ -1003,7 +1039,8 @@
     "creating": "Creating...",
     "credentials": {
       "check": "Check",
-      "import": "导入凭据"
+      "empty": "No credentials saved",
+      "import": "Import credentials"
     },
     "delete": "Delete",
     "delete_confirm": "Delete droplet \"{{name}}\"? This action cannot be undone.",
@@ -1332,7 +1369,7 @@
     "load_failed": "Unable to load cloud resources. Check the warning above and try again.",
     "load_failed_description": "修复上方警告后，可以刷新页面或重新加载资源。",
     "load_resources_description": "云资源按需加载，可以避免多账户场景下页面一打开就发起大量请求。",
-    "load_resources_prompt": "Click View to load cloud resources on demand.",
+    "load_resources_prompt": "Instances not loaded",
     "load_resources_prompt_description": "资源采用按需加载，切换账户时状态会更清楚，也不会自动发起多余请求。",
     "loading": "Loading cloud resources...",
     "loading_description": "云厂商 API 可达时，通常几秒内即可完成加载。",
@@ -1832,7 +1869,7 @@
         "disks": "Disks",
         "email": "Email",
         "instance_empty": "No Linode instances found",
-        "instance_empty_description": "Create a Linode instance or switch to a token that already owns resources.",
+        "instance_empty_description": "No instances under the current token.",
         "instance_id": "Linode ID",
         "instance_list": "Instance List",
         "instance_list_description": "Click an instance label to inspect details and manage its power state with the current active token.",
@@ -1840,7 +1877,7 @@
         "last_successful": "Last Successful",
         "name": "Linode",
         "no_active_token": "Select an active Linode token first",
-        "no_active_token_description": "Import a token and set it as current before managing Linode instances.",
+        "no_active_token_description": "Select an active Linode token.",
         "onboarding_create_title": "创建或管理 Linode 实例",
         "onboarding_resource_description": "按需拉取 Linode 实例和账号信息，切换令牌时页面会更快、更可控。",
         "onboarding_token_description": "先添加一个或多个 Linode 个人访问令牌，再选择当前用于操作的账户。",
@@ -1871,7 +1908,7 @@
         "token_dialog_description": "View the full Linode token only when you need to copy or verify it.",
         "tokens_description": "Save multiple Linode personal access tokens, choose the active one, and verify them in bulk.",
         "tokens_empty": "No Linode tokens saved yet",
-        "tokens_empty_description": "Import a Linode personal access token to select an active account, check health, and load instances.",
+        "tokens_empty_description": "No Linode tokens saved.",
         "tokens_empty_page": "本页暂无令牌",
         "tokens_empty_page_description": "可调整每页条数或返回上一页。",
         "username": "Username",
@@ -2379,7 +2416,22 @@
   "current_online": "Current Online",
   "current_time": "Current Time",
   "delete": "Delete",
+  "form_draft": {
+    "title": "Discard unsaved changes?",
+    "description": "Leaving will discard your unsaved changes.",
+    "keep_editing": "Keep editing",
+    "discard": "Discard changes",
+    "wait_for_save": "A save is still in progress. Please wait before leaving.",
+    "back_to_task": "Back to task"
+  },
   "exec": {
+    "observation": {
+      "awaiting_receipt": "Awaiting receipt",
+      "request_timeout": "The result request timed out. Refresh results to retry.",
+      "refresh": "Refresh results",
+      "paused": "Automatic updates paused. Task completion is not yet confirmed.",
+      "fetch_failed": "Results are temporarily unavailable. Task status is unconfirmed."
+    },
     "allCompleted": "All tasks executed successfully",
     "clients_label": "Clients",
     "command": "Execute command",
@@ -3499,8 +3551,8 @@
     "dns_catalog_load": "Load DNS options",
     "dns_catalog_loading": "Loading DNS options",
     "dns_domain_name": "Domain name",
-    "dns_entry": "DNS entry",
-    "dns_entry_id_placeholder": "{{provider}} entry id",
+    "dns_entry": "DNS credential",
+    "dns_entry_id_placeholder": "{{provider}} credential ID",
     "dns_entry_placeholder": "Choose a {{provider}} entry",
     "dns_existing_record": "Existing DNS record",
     "dns_existing_record_placeholder": "Choose an existing DNS record",

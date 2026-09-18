@@ -126,7 +126,7 @@ export function AzureCredentialsSection({
                   <AdminDataTableHead>{t("cloud.table.region", "地区")}</AdminDataTableHead>
                   <AdminDataTableHead>{t("cloud.table.status", "状态")}</AdminDataTableHead>
                   <AdminDataTableHead>{t("cloud.providers.azure.checked_at", "最后检查")}</AdminDataTableHead>
-                  <AdminDataTableHead align="right" sticky="right">{t("common.actions", "操作")}</AdminDataTableHead>
+                  <AdminDataTableHead align="right" sticky="right-mobile">{t("common.actions", "操作")}</AdminDataTableHead>
                 </AdminDataTableHeadRow>
               </thead>
               <tbody>
@@ -176,7 +176,7 @@ export function AzureCredentialsSection({
                         </div>
                       ) : null}
                     </AdminDataTableCell>
-                    <AdminDataTableCell className="align-top" align="right" sticky="right">
+                    <AdminDataTableCell className="align-top" align="right" sticky="right-mobile">
                       <AdminRowActions
                         label={t("common.action", "操作")}
                         actions={[

@@ -24,7 +24,7 @@ jobs:
         run: npm ci
 
       - name: Build project
-        run: npm run build
+        run: npm run release:ci
         
       - name: Archive build artifacts
         run: |

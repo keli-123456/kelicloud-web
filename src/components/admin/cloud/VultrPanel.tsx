@@ -1,4 +1,7 @@
 import React from "react";
+import { useRequestTracker } from "../useRequestTracker";
+import { RefreshNotice } from "../RefreshNotice";
+import { CloudCredentialGate } from "./CloudCredentialGate";
 import type { TFunction } from "i18next";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
@@ -61,7 +64,6 @@ import {
   Select,
   TextField,
   cloudPanelCardClassName,
-  cloudPanelDescriptionClassName,
   cloudPanelFieldLabelClassName,
   cloudPanelHeaderClassName,
   cloudPanelTitleClassName,
@@ -323,6 +325,7 @@ function selectDefaultOS(oses: VultrOS[]) {
 }
 
 export default function VultrPanel() {
+  const resourceRequests = useRequestTracker();
   const { t } = useTranslation();
   const { confirm, dialog } = useWarningDialog();
   const [tokenPool, setTokenPool] = React.useState<VultrTokenPool | null>(null);
@@ -349,6 +352,7 @@ export default function VultrPanel() {
   const [createOpen, setCreateOpen] = React.useState(false);
   const createCatalogLoading = false;
   const [createSubmitting, setCreateSubmitting] = React.useState(false);
+  const createBusy = React.useRef(false);
   const [createForm, setCreateForm] = React.useState<CreateFormState>(initialCreateForm);
 
   const activeToken = React.useMemo(() => getActiveToken(tokenPool), [tokenPool]);
@@ -376,11 +380,13 @@ export default function VultrPanel() {
   );
 
   const clearResourceData = React.useCallback(() => {
+    resourceRequests.invalidate();
+    setPanelLoading(false);
     setCatalog(buildStaticVultrCatalog());
     setInstances([]);
     setSelectedInstance(null);
     setResourcesLoaded(false);
-  }, []);
+  }, [resourceRequests]);
 
   const copyText = React.useCallback(
     async (text: string) => {
@@ -395,12 +401,14 @@ export default function VultrPanel() {
   );
 
   const loadPanelData = React.useCallback(async () => {
+    const ticket = resourceRequests.begin();
     setPanelLoading(true);
     try {
       const [, nextInstances] = await Promise.all([
         getVultrAccount(),
         listVultrInstances(),
       ]);
+      if (!resourceRequests.isCurrent(ticket)) return;
       setInstances(nextInstances);
       setResourcesLoaded(true);
       setError("");
@@ -411,11 +419,13 @@ export default function VultrPanel() {
         return null;
       });
     } catch (loadError) {
+      if (!resourceRequests.isCurrent(ticket)) return;
       setError(toErrorMessage(loadError));
     } finally {
-      setPanelLoading(false);
+      if (resourceRequests.isCurrent(ticket)) setPanelLoading(false);
+      resourceRequests.finish(ticket);
     }
-  }, []);
+  }, [resourceRequests]);
 
   React.useEffect(() => {
     let cancelled = false;
@@ -580,6 +590,7 @@ export default function VultrPanel() {
   };
 
   const handleCreateInstance = async () => {
+    if (createBusy.current) return;
     const osID = Number.parseInt(createForm.os_id, 10);
     if (!createForm.region || !createForm.plan || !Number.isFinite(osID) || osID <= 0) {
       toast.error(t("cloud.providers.vultr.create_required", "请先选择地区、套餐和操作系统。"));
@@ -587,6 +598,7 @@ export default function VultrPanel() {
     }
 
     setCreateSubmitting(true);
+    createBusy.current = true;
     try {
       const result = await createVultrInstance({
         label: createForm.label?.trim() || "",
@@ -621,6 +633,7 @@ export default function VultrPanel() {
       toast.error(toErrorMessage(createError));
     } finally {
       setCreateSubmitting(false);
+      createBusy.current = false;
     }
   };
 
@@ -747,10 +760,10 @@ export default function VultrPanel() {
       />
 
       {error ? (
-        <WarningAlert tone="warning" description={error} />
+        activeToken ? <RefreshNotice error={error} hasData={resourcesLoaded} refreshing={panelLoading} onRetry={() => void loadPanelData()} /> : <WarningAlert tone="warning" description={error} />
       ) : null}
 
-      {tokenPool && !passwordStorageEnabled ? (
+      {activeToken && !passwordStorageEnabled ? (
         <WarningAlert
           tone="info"
           description={t(
@@ -760,54 +773,57 @@ export default function VultrPanel() {
         />
       ) : null}
 
-      <div className="grid min-w-0 items-stretch gap-4 xl:grid-cols-[minmax(340px,0.9fr)_minmax(380px,1.1fr)]">
-        <VultrInlineCreatePanel
+      <CloudCredentialGate empty={tokenPool?.tokens.length === 0} onImport={() => setTokenImportOpen(true)}>
+        <div className="grid min-w-0 items-stretch gap-4 xl:grid-cols-[minmax(340px,0.9fr)_minmax(380px,1.1fr)]">
+          <VultrInlineCreatePanel
+            t={t}
+            activeToken={activeToken}
+            catalog={catalog}
+            form={createForm}
+            setForm={setCreateForm}
+            submitting={createSubmitting}
+            catalogLoading={createCatalogLoading}
+            onPrepare={prepareCreateForm}
+            onOpenAdvanced={handleOpenCreateDialog}
+            onOpenTokenImport={() => setTokenImportOpen(true)}
+            onCreate={handleCreateInstance}
+          />
+
+          <VultrTokensSection
+            t={t}
+            tokenPool={tokenPool}
+            tokenChecking={tokenChecking}
+            tokenSecretLoading={tokenSecretLoading}
+            onCheckTokens={handleCheckTokens}
+            onOpenTokenImport={() => setTokenImportOpen(true)}
+            onSelectToken={handleSelectToken}
+            onViewTokenSecret={handleViewTokenSecret}
+            onDeleteToken={handleDeleteToken}
+          />
+        </div>
+
+        <VultrInstancesSection
           t={t}
-          activeToken={activeToken}
-          catalog={catalog}
-          form={createForm}
-          setForm={setCreateForm}
-          submitting={createSubmitting}
-          catalogLoading={createCatalogLoading}
-          onPrepare={prepareCreateForm}
-          onOpenAdvanced={handleOpenCreateDialog}
-          onOpenTokenImport={() => setTokenImportOpen(true)}
-          onCreate={handleCreateInstance}
+          instances={instances}
+          panelLoading={panelLoading}
+          error={error}
+          hasActiveToken={hasActiveToken(tokenPool)}
+          resourcesLoaded={resourcesLoaded}
+          regionsByID={regionsByID}
+          plansByID={plansByID}
+          passwordStorageEnabled={passwordStorageEnabled}
+          passwordLoading={passwordLoading}
+          detailLoadingId={detailLoadingId}
+          actionLoadingId={actionLoadingId}
+          onLoadDetail={handleLoadDetail}
+          onViewPassword={handleViewPassword}
+          onInstanceAction={handleInstanceAction}
+          onOpenScriptDialog={handleOpenScriptDialog}
+          onDeleteInstance={handleDeleteInstance}
+          onBatchDeleteInstances={handleBatchDeleteInstances}
         />
 
-        <VultrTokensSection
-          t={t}
-          tokenPool={tokenPool}
-          tokenChecking={tokenChecking}
-          tokenSecretLoading={tokenSecretLoading}
-          onCheckTokens={handleCheckTokens}
-          onOpenTokenImport={() => setTokenImportOpen(true)}
-          onSelectToken={handleSelectToken}
-          onViewTokenSecret={handleViewTokenSecret}
-          onDeleteToken={handleDeleteToken}
-        />
-      </div>
-
-      <VultrInstancesSection
-        t={t}
-        instances={instances}
-        panelLoading={panelLoading}
-        error={error}
-        hasActiveToken={hasActiveToken(tokenPool)}
-        resourcesLoaded={resourcesLoaded}
-        regionsByID={regionsByID}
-        plansByID={plansByID}
-        passwordStorageEnabled={passwordStorageEnabled}
-        passwordLoading={passwordLoading}
-        detailLoadingId={detailLoadingId}
-        actionLoadingId={actionLoadingId}
-        onLoadDetail={handleLoadDetail}
-        onViewPassword={handleViewPassword}
-        onInstanceAction={handleInstanceAction}
-        onOpenScriptDialog={handleOpenScriptDialog}
-        onDeleteInstance={handleDeleteInstance}
-        onBatchDeleteInstances={handleBatchDeleteInstances}
-      />
+      </CloudCredentialGate>
 
       <VultrTokenImportDialog
         t={t}
@@ -942,7 +958,7 @@ function VultrInlineCreatePanel({
   );
 
   return (
-    <section className={`${cloudPanelCardClassName} flex h-full min-h-[520px] flex-col`}>
+    <section className={`${cloudPanelCardClassName} flex h-full flex-col xl:min-h-[520px]`}>
       <div className={cloudPanelHeaderClassName}>
         <div className="flex min-w-0 flex-wrap items-center justify-between gap-3">
           <div className="min-w-0">
@@ -953,9 +969,6 @@ function VultrInlineCreatePanel({
               <Badge color={activeToken ? "green" : "amber"}>
                 {activeToken ? t("cloud.tokens.active", "已激活") : t("cloud.no_active", "未激活")}
               </Badge>
-            </div>
-            <div className={cloudPanelDescriptionClassName}>
-              {t("cloud.create_inline_description", "核心字段保持展开；只有需要额外网络或启动配置时才使用高级选项。")}
             </div>
           </div>
           <Button variant="outline" size="1" onClick={() => { void onOpenAdvanced(); }} disabled={!activeToken}>
@@ -983,7 +996,7 @@ function VultrInlineCreatePanel({
         </div>
       ) : (
         <>
-      <div className="grid gap-3 p-4">
+      <div className="grid min-w-0 grid-cols-1 gap-3 p-4">
         <div>
           <label className={cloudPanelFieldLabelClassName}>{t("cloud.form.region", "地区")}</label>
           <Select.Root
@@ -1117,12 +1130,6 @@ function VultrInstancesSection({
             <div className={cloudPanelTitleClassName}>
               {t("cloud.providers.vultr.instances_title", "实例")}
             </div>
-            <div className={cloudPanelDescriptionClassName}>
-              {t(
-                "cloud.providers.vultr.instances_description",
-                "Click an instance name to inspect details and use the current token to manage its power state.",
-              )}
-            </div>
           </div>
           <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-center">
             <CloudBulkDeleteToolbar
@@ -1161,7 +1168,7 @@ function VultrInstancesSection({
                 <AdminDataTableHead>{t("cloud.table.size", "规格")}</AdminDataTableHead>
                 <AdminDataTableHead>{t("cloud.table.ip", "IP")}</AdminDataTableHead>
                 <AdminDataTableHead>{t("cloud.table.created_at", "创建时间")}</AdminDataTableHead>
-                <AdminDataTableHead align="right" sticky="right">
+                <AdminDataTableHead align="right" sticky="right-mobile">
                   {t("common.actions", "操作")}
                 </AdminDataTableHead>
               </AdminDataTableHeadRow>
@@ -1238,7 +1245,7 @@ function VultrInstancesSection({
                         </div>
                       </AdminDataTableCell>
                       <AdminDataTableCell>{formatDateTime(instance.date_created)}</AdminDataTableCell>
-                      <AdminDataTableCell align="right" sticky="right">
+                      <AdminDataTableCell align="right" sticky="right-mobile">
                         <AdminRowActions
                           contentClassName="min-w-44"
                           actions={[
@@ -1488,7 +1495,7 @@ function VultrTokensSection({
   const hasSelectableTokens = tokenRows.length > 0;
 
   return (
-    <section className={`${cloudPanelCardClassName} flex h-full min-h-[520px] flex-col`}>
+    <section className={`${cloudPanelCardClassName} flex h-full flex-col xl:min-h-[520px]`}>
       <div className={cloudPanelHeaderClassName}>
         <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="min-w-0">
@@ -1559,7 +1566,7 @@ function VultrTokensSection({
                   <AdminDataTableHead>{t("cloud.tokens.group", "分组")}</AdminDataTableHead>
                   <AdminDataTableHead>{t("cloud.providers.vultr.balance", "余额")}</AdminDataTableHead>
                   <AdminDataTableHead>{t("cloud.tokens.table.status", "状态")}</AdminDataTableHead>
-                  <AdminDataTableHead align="right" sticky="right">
+                  <AdminDataTableHead align="right" sticky="right-mobile">
                     {t("common.action", "操作")}
                   </AdminDataTableHead>
                 </AdminDataTableHeadRow>
@@ -1590,7 +1597,7 @@ function VultrTokensSection({
                         </Badge>
                       </div>
                     </AdminDataTableCell>
-                    <AdminDataTableCell align="right" sticky="right">
+                    <AdminDataTableCell align="right" sticky="right-mobile">
                       <AdminRowActions
                         contentClassName="min-w-44"
                         actions={[

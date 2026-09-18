@@ -12,10 +12,10 @@ import {
 } from "./contexts/ThemeContext";
 import { useLocalStorage } from "./hooks/useLocalStorage";
 import { useSystemTheme } from "./hooks/useSystemTheme";
-import { BrowserRouter } from "react-router-dom";
+import { createBrowserRouter, Outlet, RouterProvider } from "react-router-dom";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { Suspense } from "react";
-import { useRoutes } from "react-router-dom";
+import { NavigationGuardProvider } from "./components/admin/NavigationGuard";
 import { routes } from "./routes";
 import Loading from "./components/loading";
 import { PublicInfoProvider } from "./contexts/PublicInfoContext";
@@ -27,17 +27,10 @@ import { TooltipProvider } from "./components/ui/tooltip";
 import { RPC2Provider } from "./contexts/RPC2Context";
 import { ThemeShell } from "./components/ui/theme-shell";
 import { initI18n } from "./i18n/config";
-import { clearChunkLoadRecoveryMarkerFrom } from "./lib/chunkLoadRecovery";
 
-const SW_RECOVERY_VERSION = "2026-05-commercial-user-policy-1";
+const SW_RECOVERY_VERSION = "2026-09-account-cache-policy-2";
 const THEME_DEFAULT_MIGRATION_VERSION = "2026-05-blue-accent-1";
 
-const ChunkLoadRecoveryMarkerReset = () => {
-  React.useEffect(() => {
-    clearChunkLoadRecoveryMarkerFrom(() => window.sessionStorage);
-  }, []);
-  return null;
-};
 const App = () => {
   React.useEffect(() => {
     if (!("serviceWorker" in navigator) || !("caches" in window)) return;
@@ -112,7 +105,6 @@ const App = () => {
     }),
     [normalizedAppearance, setAppearance, color, setColor],
   );
-  const routing = useRoutes(routes);
   return (
     <Suspense fallback={<Loading />}>
       <ThemeContext.Provider value={themeContextValue}>
@@ -132,8 +124,7 @@ const App = () => {
               <TooltipProvider>
                 <Toaster />
                 <OfflineIndicator />
-                {routing}
-                <ChunkLoadRecoveryMarkerReset />
+                <NavigationGuardProvider><Outlet /></NavigationGuardProvider>
                 <PWAInstallPrompt />
                 <PWAUpdatePrompt />
               </TooltipProvider>
@@ -154,16 +145,21 @@ async function bootstrap() {
 
   const rootElement = document.getElementById("root")! as HTMLElement & {
     __komariRoot?: Root;
+    __komariRouter?: ReturnType<typeof createBrowserRouter>;
   };
   const root = rootElement.__komariRoot ?? createRoot(rootElement);
   rootElement.__komariRoot = root;
+  rootElement.__komariRouter?.dispose();
+  const router = createBrowserRouter([{
+    element: <ErrorBoundary><App /></ErrorBoundary>,
+    children: routes,
+  }]);
+  rootElement.__komariRouter = router;
 
   root.render(
     <ErrorBoundary>
       <StrictMode>
-        <BrowserRouter>
-          <App />
-        </BrowserRouter>
+        <RouterProvider router={router} />
       </StrictMode>
     </ErrorBoundary>,
   );

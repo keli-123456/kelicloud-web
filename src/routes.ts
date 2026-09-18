@@ -1,5 +1,5 @@
 // routes.js
-import { lazy } from "react";
+import { lazyWithRecovery as lazy } from "@/lib/lazyWithRecovery";
 import type { RouteObject } from "react-router-dom";
 import React from "react";
 import { Navigate } from "react-router-dom";

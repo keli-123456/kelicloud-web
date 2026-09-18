@@ -37,6 +37,7 @@ export function useDigitalOceanCreateDroplet({
 }: UseDigitalOceanCreateDropletOptions) {
   const [createOpen, setCreateOpen] = React.useState(false);
   const [createSubmitting, setCreateSubmitting] = React.useState(false);
+  const createBusy = React.useRef(false);
   const createCatalogLoading = false;
   const [createForm, setCreateForm] =
     React.useState<CreateDropletFormState>(initialCreateForm);
@@ -64,6 +65,8 @@ export function useDigitalOceanCreateDroplet({
   }, [catalog]);
 
   const handleCreateDroplet = async () => {
+    if (createBusy.current) return;
+    createBusy.current = true;
     setCreateSubmitting(true);
     try {
       const passwordMode = getCreateRootPasswordMode(createForm.root_password);
@@ -113,6 +116,7 @@ export function useDigitalOceanCreateDroplet({
       toast.error(toErrorMessage(createError));
     } finally {
       setCreateSubmitting(false);
+      createBusy.current = false;
     }
   };
 

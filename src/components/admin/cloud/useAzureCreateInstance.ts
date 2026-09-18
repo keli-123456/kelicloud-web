@@ -29,6 +29,7 @@ export function useAzureCreateInstance({
 }: UseAzureCreateInstanceOptions) {
   const [createOpen, setCreateOpen] = React.useState(false);
   const [createSubmitting, setCreateSubmitting] = React.useState(false);
+  const createBusy = React.useRef(false);
   const [createForm, setCreateForm] = React.useState<AzureCreateFormState>(() => ({ ...initialCreateForm }));
 
   React.useEffect(() => {
@@ -45,6 +46,8 @@ export function useAzureCreateInstance({
   }, [catalog]);
 
   const handleCreateInstance = async () => {
+    if (createBusy.current) return;
+    createBusy.current = true;
     setCreateSubmitting(true);
     try {
       const result = await createAzureInstance({
@@ -82,6 +85,7 @@ export function useAzureCreateInstance({
       toast.error(toErrorMessage(error));
     } finally {
       setCreateSubmitting(false);
+      createBusy.current = false;
     }
   };
 

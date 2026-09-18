@@ -896,6 +896,7 @@ async function requestEnvelope<T>(path: string, init?: RequestInit): Promise<T> 
   const timeoutID = setTimeout(() => controller.abort(), FAILOVER_REQUEST_TIMEOUT_MS);
 
   let response: Response;
+  let text: string;
   try {
     response = await fetch(requestUrl, {
       credentials: "same-origin",
@@ -910,6 +911,7 @@ async function requestEnvelope<T>(path: string, init?: RequestInit): Promise<T> 
       ...init,
       signal: controller.signal,
     });
+    text = await response.text();
   } catch (error) {
     if (error instanceof DOMException && error.name === "AbortError") {
       throw new FailoverApiError(`Request timed out while loading ${path}`, 408);
@@ -919,7 +921,6 @@ async function requestEnvelope<T>(path: string, init?: RequestInit): Promise<T> 
     clearTimeout(timeoutID);
   }
 
-  const text = await response.text();
   const contentType = response.headers.get("content-type") || "";
   const trimmed = text.trim();
   let payload: ApiEnvelope<T> | null = null;
@@ -959,6 +960,7 @@ async function requestRaw<T>(path: string): Promise<T> {
   const timeoutID = setTimeout(() => controller.abort(), FAILOVER_REQUEST_TIMEOUT_MS);
 
   let response: Response;
+  let text: string;
   try {
     response = await fetch(`${path}${path.includes("?") ? "&" : "?"}__ts=${Date.now()}`, {
       credentials: "same-origin",
@@ -971,6 +973,7 @@ async function requestRaw<T>(path: string): Promise<T> {
       },
       signal: controller.signal,
     });
+    text = await response.text();
   } catch (error) {
     if (error instanceof DOMException && error.name === "AbortError") {
       throw new FailoverApiError(`Request timed out while loading ${path}`, 408);
@@ -980,7 +983,6 @@ async function requestRaw<T>(path: string): Promise<T> {
     clearTimeout(timeoutID);
   }
 
-  const text = await response.text();
   if (!response.ok) {
     throw new FailoverApiError(text || `HTTP ${response.status}`, response.status);
   }

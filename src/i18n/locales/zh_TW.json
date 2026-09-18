@@ -1,4 +1,40 @@
 {
+  "release_recovery": {
+    "submit_unconfirmed": "提交結果尚未確認，請先檢查執行記錄再決定是否重試；遠端任務可能仍在執行。",
+    "load_failed": "部分頁面載入失敗，請檢查網路或更新頁面。",
+    "draft_retained": "未儲存的內容已保留，儲存或放棄修改後可更新頁面。",
+    "reload": "更新頁面"
+  },
+  "async_feedback": {
+    "awaiting_result": "等待回報",
+    "stale": "更新失敗，目前顯示上次取得的資料",
+    "load_failed": "資料取得失敗",
+    "refresh": "重新取得",
+    "new": "尚未儲存",
+    "unsaved": "未儲存修改",
+    "saving": "儲存中",
+    "applying": "正在下發",
+    "submitted": "已下發，等待伺服器回報",
+    "disabled_config": "設定已停用，仍需套用",
+    "saved_pending": "已儲存，尚未套用至伺服器",
+    "delete_rule_confirm": "刪除規則「{{name}}」？刪除設定後仍需套用至伺服器。",
+    "task_submitted": "任務 {{id}} 已下發",
+    "tunnel_saved": "規則已儲存，執行狀態以伺服器回報為準"
+  },
+  "form_feedback": {
+    "required": "請填寫{{label}}",
+    "saving": "儲存中…",
+    "saved": "已儲存",
+    "unsaved": "尚未儲存",
+    "failed": "儲存失敗，請重試",
+    "credentials": "管理憑證",
+    "credentials_new_tab": "管理憑證（新分頁）",
+    "refresh_credentials": "重新整理憑證",
+    "refresh_failed": "憑證重新整理失敗，請重試",
+    "no_credentials": "暫無可用憑證",
+    "expand": "展開",
+    "collapse": "收起"
+  },
   "about": {
     "ai": "kelicloud 專案的開發過程得到了人工智慧工具的輔助。這些工具被用於執行程式碼生成、重構和除錯等任務，以提高開發效率和程式碼品質。所有由 AI 生成的程式碼和建議都經過了人類開發者的審查與驗證。",
     "description": "查看开源许可、法律声明与项目说明文档。",
@@ -1003,7 +1039,8 @@
     "creating": "建立中...",
     "credentials": {
       "check": "檢查",
-      "import": "导入凭据"
+      "empty": "尚未新增憑證",
+      "import": "匯入憑證"
     },
     "delete": "刪除",
     "delete_confirm": "確定刪除 Droplet「{{name}}」？此操作無法復原。",
@@ -1332,7 +1369,7 @@
     "load_failed": "云资源加载失败，请先查看上方告警后再重试。",
     "load_failed_description": "修复上方警告后，可以刷新页面或重新加载资源。",
     "load_resources_description": "云资源按需加载，可以避免多账户场景下页面一打开就发起大量请求。",
-    "load_resources_prompt": "当前已选择凭证，点击“查看”后再按需加载云资源。",
+    "load_resources_prompt": "實例尚未載入",
     "load_resources_prompt_description": "资源采用按需加载，切换账户时状态会更清楚，也不会自动发起多余请求。",
     "loading": "正在載入雲端資源...",
     "loading_description": "云厂商 API 可达时，通常几秒内即可完成加载。",
@@ -1832,7 +1869,7 @@
         "disks": "磁碟",
         "email": "邮箱",
         "instance_empty": "目前沒有 Linode 實例",
-        "instance_empty_description": "Create a Linode instance or switch to a token that already owns resources.",
+        "instance_empty_description": "目前令牌下暫無實例。",
         "instance_id": "Linode ID",
         "instance_list": "實例列表",
         "instance_list_description": "點擊實例標籤查看詳情，並使用目前啟用令牌管理電源狀態。",
@@ -1840,7 +1877,7 @@
         "last_successful": "最近成功備份",
         "name": "Linode",
         "no_active_token": "请先选择一个激活的 Linode 令牌",
-        "no_active_token_description": "Import a token and set it as current before managing Linode instances.",
+        "no_active_token_description": "請先選擇目前使用的 Linode 令牌。",
         "onboarding_create_title": "创建或管理 Linode 实例",
         "onboarding_resource_description": "按需拉取 Linode 实例和账号信息，切换令牌时页面会更快、更可控。",
         "onboarding_token_description": "先添加一个或多个 Linode 个人访问令牌，再选择当前用于操作的账户。",
@@ -1871,7 +1908,7 @@
         "token_dialog_description": "只在你需要複製或核對時查看完整 Linode 令牌。",
         "tokens_description": "保存多個 Linode Personal Access Token，選擇目前操作令牌，並批量檢查令牌是否仍可用。",
         "tokens_empty": "目前還沒有保存任何 Linode 令牌",
-        "tokens_empty_description": "Import a Linode personal access token to select an active account, check health, and load instances.",
+        "tokens_empty_description": "尚未新增 Linode 令牌。",
         "tokens_empty_page": "本页暂无令牌",
         "tokens_empty_page_description": "可调整每页条数或返回上一页。",
         "username": "用户名",
@@ -2379,7 +2416,22 @@
   "current_online": "當前在線",
   "current_time": "當前時間",
   "delete": "刪除",
+  "form_draft": {
+    "title": "放棄未儲存的修改？",
+    "description": "離開後，本次未儲存的設定將遺失。",
+    "keep_editing": "繼續編輯",
+    "discard": "放棄修改",
+    "wait_for_save": "正在儲存，請等待完成後再離開。",
+    "back_to_task": "返回任務"
+  },
   "exec": {
+    "observation": {
+      "awaiting_receipt": "等待回執",
+      "request_timeout": "執行結果查詢逾時，請重新整理結果。",
+      "refresh": "重新整理執行結果",
+      "paused": "已暫停自動更新，尚未確認任務結束。",
+      "fetch_failed": "暫時無法取得執行結果，任務狀態未確認。"
+    },
     "allCompleted": "所有任務執行完成",
     "clients_label": "客户端",
     "command": "執行命令",
@@ -3499,8 +3551,8 @@
     "dns_catalog_load": "載入 DNS 選項",
     "dns_catalog_loading": "正在載入 DNS 選項",
     "dns_domain_name": "主網域",
-    "dns_entry": "DNS 設定項",
-    "dns_entry_id_placeholder": "{{provider}} 設定項 ID",
+    "dns_entry": "DNS 憑證",
+    "dns_entry_id_placeholder": "{{provider}} 憑證 ID",
     "dns_entry_placeholder": "選擇 {{provider}} 設定項",
     "dns_existing_record": "既有 DNS 記錄",
     "dns_existing_record_placeholder": "選擇既有 DNS 記錄",

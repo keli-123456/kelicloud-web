@@ -7,7 +7,6 @@ import {
     SettingCardButton,
 } from "@/components/admin/SettingCard";
 import type React from "react";
-import { toast } from "sonner";
 
 interface RenderProviderInputsProps {
     currentProvider: string;
@@ -131,10 +130,7 @@ export const renderProviderInputs = ({
 
             if (missingFields.length > 0) {
                 const fieldNames = missingFields.map((f: any) => translateField(f.name)).join(", ");
-                toast.error(
-                    t("settings.missing_required_fields", { fieldNames })
-                );
-                return;
+                throw new Error(t("settings.missing_required_fields", { fieldNames }));
             }
 
             // 转换数字类型字段
@@ -150,19 +146,16 @@ export const renderProviderInputs = ({
                 if (["int", "int64"].includes(f.type)) {
                     const numValue = value === "" ? 0 : Number(value);
                     if (isNaN(numValue)) {
-                        toast.error(t("settings.invalid_number", { field: translateField(f.name) }));
-                        throw new Error(`Invalid integer value for ${f.name}`);
+                        throw new Error(t("settings.invalid_number", { field: translateField(f.name) }));
                     }
                     if (!Number.isInteger(numValue)) {
-                        toast.error(t("settings.invalid_integer", { field: translateField(f.name) }));
-                        throw new Error(`Value must be an integer for ${f.name}`);
+                        throw new Error(t("settings.invalid_integer", { field: translateField(f.name) }));
                     }
                     processedValues[f.name] = numValue;
                 } else if (["float32", "float64"].includes(f.type)) {
                     const numValue = value === "" ? 0 : Number(value);
                     if (isNaN(numValue)) {
-                        toast.error(t("settings.invalid_number", { field: translateField(f.name) }));
-                        throw new Error(`Invalid float value for ${f.name}`);
+                        throw new Error(t("settings.invalid_number", { field: translateField(f.name) }));
                     }
                     processedValues[f.name] = numValue;
                 }
@@ -191,6 +184,7 @@ export const renderProviderInputs = ({
         if (f.type === "option" && f.options) {
             return (
                 <SettingCardSelect
+                    deferred
                     key={f.name}
                     bordless
                     title={fieldTitle}
@@ -208,6 +202,7 @@ export const renderProviderInputs = ({
         if (f.type === "bool") {
             return (
                 <SettingCardSwitch
+                    deferred
                     bordless
                     key={`${f.name}:${String(fieldValue)}`}
                     title={fieldTitle}

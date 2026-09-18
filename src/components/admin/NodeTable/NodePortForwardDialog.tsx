@@ -1,6 +1,10 @@
 import * as React from "react";
 import { Network, Plus, RefreshCw, Save, Trash2 } from "lucide-react";
 import { t } from "i18next";
+import { GuardedDialog } from "../GuardedDialog";
+import { RefreshNotice } from "../RefreshNotice";
+import { useRequestTracker } from "../useRequestTracker";
+import { getPortForwardEditorStatus } from "@/lib/portForwardStatus";
 import { toast } from "sonner";
 
 import {
@@ -113,10 +117,17 @@ function getStatusColor(status: string) {
 
 function getStatusLabel(status: string) {
   switch (status) {
+    case "new":
+    case "unsaved":
+    case "saving":
+    case "applying":
+      return t(`async_feedback.${status}`);
+    case "submitted":
+      return t("async_feedback.awaiting_result");
     case "applied":
       return t("admin.nodeTable.portForward.status.applied", "已应用");
     case "disabled":
-      return t("admin.nodeTable.portForward.status.disabled", "已停用");
+      return t("async_feedback.disabled_config");
     case "error":
       return t("admin.nodeTable.portForward.status.error", "异常");
     default:
@@ -143,6 +154,14 @@ export function NodePortForwardDialog({
   const [applying, setApplying] = React.useState(false);
   const [removing, setRemoving] = React.useState(false);
   const [error, setError] = React.useState("");
+  const [loadError, setLoadError] = React.useState("");
+  const [loaded, setLoaded] = React.useState(false);
+  const [submittedTask, setSubmittedTask] = React.useState("");
+  const [pendingApply, setPendingApply] = React.useState(false);
+  const requests = useRequestTracker();
+  const mutationBusy = React.useRef(false);
+  const busy = saving || applying || removing;
+  const initialized = React.useRef(false);
   const open = typeof controlledOpen === "boolean" ? controlledOpen : uncontrolledOpen;
   const setOpen = React.useCallback((nextOpen: boolean) => {
     if (typeof controlledOpen !== "boolean") {
@@ -184,35 +203,55 @@ export function NodePortForwardDialog({
   }, [form, selectedRule]);
 
   const loadRules = React.useCallback(async () => {
+    if (mutationBusy.current || requests.pending) return;
+    const ticket = requests.begin();
     setLoading(true);
-    setError("");
     try {
       const nextRules = await getClientPortForwardRules(item.uuid);
+      if (!requests.isCurrent(ticket)) return;
       setRules(nextRules);
-      setForm((current) => {
-        if (current.id && nextRules.some((rule) => rule.id === current.id)) {
-          return current;
-        }
-        return nextRules[0] ? buildFormFromRule(nextRules[0]) : DEFAULT_FORM;
-      });
+      setLoaded(true);
+      setLoadError("");
+      if (!initialized.current) {
+        initialized.current = true;
+        setForm(nextRules[0] ? buildFormFromRule(nextRules[0]) : DEFAULT_FORM);
+      }
     } catch (err) {
+      if (!requests.isCurrent(ticket)) return;
       const message = getReadableErrorMessage(
         err,
         t("admin.nodeTable.portForward.loadFailed", "加载端口中转规则失败"),
       );
-      setError(message);
-      toast.error(message);
+      setLoadError(message);
     } finally {
-      setLoading(false);
+      if (requests.isCurrent(ticket)) setLoading(false);
+      requests.finish(ticket);
     }
-  }, [item.uuid]);
+  }, [item.uuid, requests]);
 
   React.useEffect(() => {
     if (!open) {
       return;
     }
+    initialized.current = false;
+    setForm(DEFAULT_FORM);
+    setRules([]);
+    setLoaded(false);
+    setError("");
+    setLoadError("");
+    setSubmittedTask("");
+    setPendingApply(false);
     void loadRules();
-  }, [loadRules, open]);
+    return () => requests.invalidate();
+  }, [loadRules, open, requests]);
+
+  React.useEffect(() => {
+    if (!open || !rules.some((rule) => rule.status === "pending" && rule.last_task_id)) return;
+    const timer = window.setInterval(() => {
+      if (!document.hidden) void loadRules();
+    }, 3000);
+    return () => window.clearInterval(timer);
+  }, [loadRules, open, rules]);
 
   const resetForm = React.useCallback(() => {
     setForm(DEFAULT_FORM);
@@ -223,6 +262,7 @@ export function NodePortForwardDialog({
   }, []);
 
   const handleSave = async () => {
+    if (mutationBusy.current || !loaded) return;
     let listenPort: number;
     let targetPort: number;
     try {
@@ -239,6 +279,9 @@ export function NodePortForwardDialog({
       return;
     }
 
+    mutationBusy.current = true;
+    requests.invalidate();
+    setLoading(false);
     setSaving(true);
     setError("");
     try {
@@ -258,7 +301,8 @@ export function NodePortForwardDialog({
         return [...next].sort((left, right) => left.listen_port - right.listen_port || left.id - right.id);
       });
       setForm(buildFormFromRule(saved));
-      toast.success(t("admin.nodeTable.portForward.saveSuccess", "端口中转规则已保存"));
+      setPendingApply(true);
+      setSubmittedTask("");
     } catch (err) {
       const message = getReadableErrorMessage(
         err,
@@ -267,22 +311,30 @@ export function NodePortForwardDialog({
       setError(message);
       toast.error(message);
     } finally {
+      mutationBusy.current = false;
       setSaving(false);
     }
   };
 
   const handleRemove = async () => {
+    if (mutationBusy.current || !loaded) return;
     if (!form.id) {
       resetForm();
       return;
     }
 
+    if (!window.confirm(t("async_feedback.delete_rule_confirm", { name: form.name }))) return;
+    mutationBusy.current = true;
+    requests.invalidate();
+    setLoading(false);
     setRemoving(true);
     setError("");
     try {
       await deleteClientPortForwardRule(item.uuid, form.id);
       setRules((current) => current.filter((rule) => rule.id !== form.id));
       resetForm();
+      setPendingApply(true);
+      setSubmittedTask("");
       toast.success(t("admin.nodeTable.portForward.removeSuccess", "端口中转规则已删除"));
     } catch (err) {
       const message = getReadableErrorMessage(
@@ -292,21 +344,28 @@ export function NodePortForwardDialog({
       setError(message);
       toast.error(message);
     } finally {
+      mutationBusy.current = false;
       setRemoving(false);
     }
   };
 
   const handleApply = async () => {
+    if (mutationBusy.current || !loaded) return;
     if (hasUnsavedChanges) {
       toast.error(t("admin.nodeTable.portForward.saveBeforeApply", "请先保存当前规则，再应用到服务器"));
       return;
     }
 
+    mutationBusy.current = true;
+    requests.invalidate();
+    setLoading(false);
     setApplying(true);
     setError("");
     try {
       const result = await applyClientPortForwardRules(item.uuid);
       setRules(result.rules);
+      setSubmittedTask(result.task_id);
+      setPendingApply(false);
       if (form.id) {
         const currentRule = result.rules.find((rule) => rule.id === form.id);
         if (currentRule) {
@@ -327,14 +386,19 @@ export function NodePortForwardDialog({
       setError(message);
       toast.error(message);
     } finally {
+      mutationBusy.current = false;
       setApplying(false);
     }
   };
 
   const currentIPv4 = item.ipv4 || "-";
   const currentIPv6 = item.ipv6 || "-";
-  const status = selectedRule?.status || (form.enabled ? "pending" : "disabled");
-  const statusHint = applying
+  const status = getPortForwardEditorStatus({ dirty: hasUnsavedChanges, saving, applying, rule: selectedRule });
+  const statusHint = hasUnsavedChanges && !busy
+    ? t("admin.nodeTable.portForward.unsaved", "保存后再应用到服务器")
+    : status === "submitted"
+      ? t("async_feedback.submitted")
+      : applying
     ? t("admin.nodeTable.portForward.applyingHint", "正在下发规则，服务器会检查防火墙工具并应用转发。")
     : selectedRule?.status === "error"
       ? t("admin.nodeTable.portForward.errorHint", "上次应用失败，修正配置或服务器环境后重新应用。")
@@ -366,9 +430,9 @@ export function NodePortForwardDialog({
       </div>
 
       <div className={cn(ADMIN_FORM_CONTEXT_CARD_CLASS, "border-l-2", {
-        "border-l-red-400": selectedRule?.status === "error",
-        "border-l-emerald-400": selectedRule?.status === "applied",
-        "border-l-amber-400": applying || status === "pending",
+        "border-l-red-400": status === "error",
+        "border-l-emerald-400": status === "applied",
+        "border-l-amber-400": !["error", "applied", "disabled"].includes(status),
         "border-l-border": status === "disabled",
       })}>
         <div className="text-xs leading-5 text-muted-foreground">
@@ -382,7 +446,7 @@ export function NodePortForwardDialog({
         </div>
       ) : null}
 
-      <Flex direction="column" gap="4">
+      <fieldset disabled={busy || !loaded} className="grid min-w-0 gap-4 border-0 p-0">
         <Flex direction="column" gap="2" className={ADMIN_FORM_FIELD_CLASS}>
           <label className={ADMIN_FORM_LABEL_CLASS}>
             {t("admin.nodeTable.portForward.name", "名称")}
@@ -461,7 +525,7 @@ export function NodePortForwardDialog({
           </div>
           <Switch checked={form.enabled} onCheckedChange={(checked) => updateForm({ enabled: checked })} />
         </div>
-      </Flex>
+      </fieldset>
     </div>
   );
 
@@ -470,7 +534,7 @@ export function NodePortForwardDialog({
       <Button
         color="red"
         variant="soft"
-        disabled={removing || saving || applying}
+        disabled={busy || !loaded}
         onClick={() => {
           void handleRemove();
         }}
@@ -480,7 +544,7 @@ export function NodePortForwardDialog({
       </Button>
       <Button
         variant="outline"
-        disabled={loading || applying}
+        disabled={loading || busy}
         onClick={() => {
           void loadRules();
         }}
@@ -489,7 +553,7 @@ export function NodePortForwardDialog({
         {t("common.refresh", "刷新")}
       </Button>
       <Button
-        disabled={saving || applying}
+        disabled={busy || !loaded}
         onClick={() => {
           void handleSave();
         }}
@@ -501,7 +565,7 @@ export function NodePortForwardDialog({
       </Button>
       <Button
         color="blue"
-        disabled={saving || applying}
+        disabled={busy || !loaded || hasUnsavedChanges || rules.some((rule) => rule.status === "pending" && Boolean(rule.last_task_id))}
         onClick={() => {
           void handleApply();
         }}
@@ -515,7 +579,7 @@ export function NodePortForwardDialog({
   );
 
   return (
-    <Dialog.Root open={open} onOpenChange={setOpen}>
+    <GuardedDialog open={open} onOpenChange={setOpen} dirty={hasUnsavedChanges} busy={busy}>
       {trigger === null ? null : trigger ? (
         <Dialog.Trigger asChild>{trigger}</Dialog.Trigger>
       ) : (
@@ -542,6 +606,10 @@ export function NodePortForwardDialog({
         sideClassName="space-y-4"
         footer={footer}
       >
+        <RefreshNotice error={loadError} hasData={loaded} refreshing={loading} onRetry={() => void loadRules()} />
+        {pendingApply || submittedTask ? <div role="status" className="py-2 text-xs text-muted-foreground">
+          {pendingApply ? t("async_feedback.saved_pending") : t("async_feedback.task_submitted", { id: submittedTask })}
+        </div> : null}
         <div className={NODE_DIALOG_INFO_CLASS}>
           <div className={cn(ADMIN_FORM_GRID_2_CLASS, "text-sm")}>
             <div>
@@ -575,18 +643,20 @@ export function NodePortForwardDialog({
                 })}
               </div>
             </div>
-            <Button size="sm" variant="outline" onClick={resetForm}>
+            <Button size="sm" variant="outline" disabled={busy || !loaded} onClick={() => {
+              if (!hasUnsavedChanges || window.confirm(t("form_draft.description"))) resetForm();
+            }}>
               <Plus className="h-4 w-4" />
               {t("common.add", "新增")}
             </Button>
           </div>
 
           <div className={cn(ADMIN_FORM_LIST_PANEL_CLASS, "mt-3 max-h-[360px] overflow-y-auto")}>
-            {loading ? (
+            {loading && !loaded ? (
               <div className={cn(ADMIN_FORM_EMPTY_CLASS, "m-2")}>
                 {t("admin.nodeTable.portForward.loading", "正在加载端口中转规则...")}
               </div>
-            ) : rules.length === 0 ? (
+            ) : !loaded && loadError ? null : rules.length === 0 ? (
               <div className={cn(ADMIN_FORM_EMPTY_CLASS, "m-2")}>
                 {t("admin.nodeTable.portForward.empty", "还没有端口中转规则")}
               </div>
@@ -595,13 +665,16 @@ export function NodePortForwardDialog({
                 <button
                   key={rule.id}
                   type="button"
+                  disabled={busy}
                   className={cn(
                     "w-full border-b px-3 py-3 text-left transition-colors last:border-b-0",
                     rule.id === form.id
                       ? "border-primary/35 bg-primary/7"
                       : "border-border/70 bg-transparent hover:bg-muted/45",
                   )}
-                  onClick={() => setForm(buildFormFromRule(rule))}
+                  onClick={() => {
+                    if (!hasUnsavedChanges || window.confirm(t("form_draft.description"))) setForm(buildFormFromRule(rule));
+                  }}
                 >
                   <div className="flex items-center justify-between gap-3">
                     <div className="min-w-0">
@@ -611,7 +684,7 @@ export function NodePortForwardDialog({
                       </div>
                     </div>
                     <Badge color={getStatusColor(rule.status)}>
-                      {getStatusLabel(rule.status)}
+                      {getStatusLabel(getPortForwardEditorStatus({ dirty: false, saving: false, applying: false, rule }))}
                     </Badge>
                   </div>
                   {rule.last_error ? (
@@ -625,6 +698,6 @@ export function NodePortForwardDialog({
           </div>
         </div>
       </AdminDialogLayout>
-    </Dialog.Root>
+    </GuardedDialog>
   );
 }

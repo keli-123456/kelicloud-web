@@ -1,4 +1,6 @@
 import React from "react";
+import { RefreshNotice } from "../RefreshNotice";
+import { CloudCredentialGate } from "./CloudCredentialGate";
 import type { TFunction } from "i18next";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
@@ -393,8 +395,8 @@ export default function AWSPanel() {
         title="AWS"
       />
 
-      {error ? (
-        <WarningAlert tone="warning" description={error} />
+      {error || lightsailError ? (
+        activeCredential ? <RefreshNotice error={[error, lightsailError].filter(Boolean).join("; ")} hasData={resourcesLoaded} refreshing={panelLoading} onRetry={() => void loadPanelData()} /> : <WarningAlert tone="warning" description={error || lightsailError} />
       ) : null}
 
       {activeQuotaError ? (
@@ -426,102 +428,105 @@ export default function AWSPanel() {
         />
       ) : null}
 
-      <div className="grid min-w-0 items-stretch gap-4 xl:grid-cols-[minmax(340px,0.9fr)_minmax(380px,1.1fr)]">
-        <AWSInlineCreatePanel
-          t={t}
-          service={createService}
-          onServiceChange={setCreateService}
-          activeCredential={activeCredential}
-          regionOptions={regionOptions}
-          regionSearchPlaceholder={regionSearchPlaceholder}
-          regionSearchEmpty={regionSearchEmpty}
-          ec2Form={createForm}
-          setEc2Form={setCreateForm}
-          ec2Submitting={createSubmitting}
-          ec2ResolvedRegion={resolvedCreateRegion}
-          ec2Summary={ec2CoreSummary}
-          ec2ArchitectureMismatch={ec2ArchitectureMismatch}
-          onEc2RegionChange={handleCreateDialogRegionChange}
-          onOpenEc2Advanced={handleOpenCreateDialog}
-          onCreateEc2={handleCreateInstance}
-          lightsailForm={lightsailCreateForm}
-          setLightsailForm={setLightsailCreateForm}
-          lightsailSubmitting={lightsailCreateSubmitting}
-          lightsailResolvedRegion={resolvedLightsailCreateRegion}
-          lightsailSummary={lightsailCoreSummary}
-          lightsailBlueprintPreset={selectedLightsailBlueprintPreset}
-          lightsailBundlePreset={selectedLightsailBundlePreset}
-          lightsailPlatformMismatch={lightsailPlatformMismatch}
-          onLightsailRegionChange={handleLightsailDialogRegionChange}
-          onOpenLightsailAdvanced={handleOpenLightsailCreateDialog}
-          onImportCredentials={() => setCredentialImportOpen(true)}
-          onCreateLightsail={handleCreateLightsailInstance}
-        />
-        <AWSCredentialRail
-          t={t}
-          activeRegion={activeRegion}
-          regionOptions={regionOptions}
-          regionSearchPlaceholder={regionSearchPlaceholder}
-          regionSearchEmpty={regionSearchEmpty}
-          credentialRows={credentialRows}
-          activeCredential={activeCredential}
-          activeCredentialName={activeCredentialName}
-          activeContextReady={activeContextReady}
-          credentialChecking={credentialChecking}
-          credentialSecretLoading={credentialSecretLoading}
-          onRegionChange={handleRegionChange}
-          onCheckCurrentCredential={() => {
-            if (!activeCredential) {
-              return;
-            }
-            return handleCheckCredentials([activeCredential.id]);
-          }}
-          onCheckAllCredentials={openCredentialCheckDialog}
-          onImportCredentials={() => setCredentialImportOpen(true)}
-          onSelectCredential={handleSelectCredential}
-          onOpenGroupEditor={openCredentialGroupEditor}
-          onViewCredentialSecret={handleViewCredentialSecret}
-          onDeleteCredential={handleDeleteCredential}
-        />
-      </div>
+      <CloudCredentialGate empty={credentialPool?.credentials.length === 0} onImport={() => setCredentialImportOpen(true)}>
+        <div className="grid min-w-0 items-stretch gap-4 xl:grid-cols-[minmax(340px,0.9fr)_minmax(380px,1.1fr)]">
+          <AWSInlineCreatePanel
+            t={t}
+            service={createService}
+            onServiceChange={setCreateService}
+            activeCredential={activeCredential}
+            regionOptions={regionOptions}
+            regionSearchPlaceholder={regionSearchPlaceholder}
+            regionSearchEmpty={regionSearchEmpty}
+            ec2Form={createForm}
+            setEc2Form={setCreateForm}
+            ec2Submitting={createSubmitting}
+            ec2ResolvedRegion={resolvedCreateRegion}
+            ec2Summary={ec2CoreSummary}
+            ec2ArchitectureMismatch={ec2ArchitectureMismatch}
+            onEc2RegionChange={handleCreateDialogRegionChange}
+            onOpenEc2Advanced={handleOpenCreateDialog}
+            onCreateEc2={handleCreateInstance}
+            lightsailForm={lightsailCreateForm}
+            setLightsailForm={setLightsailCreateForm}
+            lightsailSubmitting={lightsailCreateSubmitting}
+            lightsailResolvedRegion={resolvedLightsailCreateRegion}
+            lightsailSummary={lightsailCoreSummary}
+            lightsailBlueprintPreset={selectedLightsailBlueprintPreset}
+            lightsailBundlePreset={selectedLightsailBundlePreset}
+            lightsailPlatformMismatch={lightsailPlatformMismatch}
+            onLightsailRegionChange={handleLightsailDialogRegionChange}
+            onOpenLightsailAdvanced={handleOpenLightsailCreateDialog}
+            onImportCredentials={() => setCredentialImportOpen(true)}
+            onCreateLightsail={handleCreateLightsailInstance}
+          />
+          <AWSCredentialRail
+            t={t}
+            activeRegion={activeRegion}
+            regionOptions={regionOptions}
+            regionSearchPlaceholder={regionSearchPlaceholder}
+            regionSearchEmpty={regionSearchEmpty}
+            credentialRows={credentialRows}
+            activeCredential={activeCredential}
+            activeCredentialName={activeCredentialName}
+            activeContextReady={activeContextReady}
+            credentialChecking={credentialChecking}
+            credentialSecretLoading={credentialSecretLoading}
+            onRegionChange={handleRegionChange}
+            onCheckCurrentCredential={() => {
+              if (!activeCredential) {
+                return;
+              }
+              return handleCheckCredentials([activeCredential.id]);
+            }}
+            onCheckAllCredentials={openCredentialCheckDialog}
+            onImportCredentials={() => setCredentialImportOpen(true)}
+            onSelectCredential={handleSelectCredential}
+            onOpenGroupEditor={openCredentialGroupEditor}
+            onViewCredentialSecret={handleViewCredentialSecret}
+            onDeleteCredential={handleDeleteCredential}
+          />
+        </div>
 
-      <div className="min-w-0 space-y-4">
-        <AWSComputeSection
-          t={t}
-          instanceView={instanceView}
-          instances={instances}
-          lightsailInstances={lightsailInstances}
-          panelLoading={panelLoading}
-          error={error}
-          lightsailError={lightsailError}
-          hasCredential={hasActiveCredential(credentialPool)}
-          activeContextReady={activeContextReady}
-          resourcesLoaded={resourcesLoaded}
-          passwordStorageEnabled={passwordStorageEnabled}
-          passwordLoading={passwordLoading}
-          canCreate={Boolean(activeCredential)}
-          onInstanceViewChange={setInstanceView}
-          onLoadResources={handleLoadResources}
-          onLoadEC2Detail={loadInstanceDetail}
-          onViewEC2Password={handleViewInstancePassword}
-          onEC2PowerAction={handleInstanceAction}
-          onEC2Reboot={(instance) => handleInstanceAction(instance, "reboot")}
-          onEC2ReplaceIP={handleQuickReplaceEc2Address}
-          onRunEC2Script={openEC2ScriptDialog}
-          onShareEC2={openEC2ShareDialog}
-          onDeleteEC2={handleDeleteInstance}
-          onBatchDeleteEC2={handleBatchDeleteInstances}
-          onLoadLightsailDetail={loadLightsailDetail}
-          onViewLightsailPassword={handleViewLightsailPassword}
-          onLightsailPowerAction={handleLightsailInstanceAction}
-          onLightsailReboot={(instance) => handleLightsailInstanceAction(instance, "reboot")}
-          onLightsailReplaceIP={handleQuickReplaceLightsailStaticIP}
-          onRunLightsailScript={openLightsailScriptDialog}
-          onShareLightsail={openLightsailShareDialog}
-          onDeleteLightsail={handleDeleteLightsailInstance}
-          onBatchDeleteLightsail={handleBatchDeleteLightsailInstances}
-        />
-      </div>
+        <div className="min-w-0 space-y-4">
+          <AWSComputeSection
+            t={t}
+            instanceView={instanceView}
+            instances={instances}
+            lightsailInstances={lightsailInstances}
+            panelLoading={panelLoading}
+            error={error}
+            lightsailError={lightsailError}
+            hasCredential={hasActiveCredential(credentialPool)}
+            activeContextReady={activeContextReady}
+            resourcesLoaded={resourcesLoaded}
+            passwordStorageEnabled={passwordStorageEnabled}
+            passwordLoading={passwordLoading}
+            canCreate={Boolean(activeCredential)}
+            onInstanceViewChange={setInstanceView}
+            onLoadResources={handleLoadResources}
+            onLoadEC2Detail={loadInstanceDetail}
+            onViewEC2Password={handleViewInstancePassword}
+            onEC2PowerAction={handleInstanceAction}
+            onEC2Reboot={(instance) => handleInstanceAction(instance, "reboot")}
+            onEC2ReplaceIP={handleQuickReplaceEc2Address}
+            onRunEC2Script={openEC2ScriptDialog}
+            onShareEC2={openEC2ShareDialog}
+            onDeleteEC2={handleDeleteInstance}
+            onBatchDeleteEC2={handleBatchDeleteInstances}
+            onLoadLightsailDetail={loadLightsailDetail}
+            onViewLightsailPassword={handleViewLightsailPassword}
+            onLightsailPowerAction={handleLightsailInstanceAction}
+            onLightsailReboot={(instance) => handleLightsailInstanceAction(instance, "reboot")}
+            onLightsailReplaceIP={handleQuickReplaceLightsailStaticIP}
+            onRunLightsailScript={openLightsailScriptDialog}
+            onShareLightsail={openLightsailShareDialog}
+            onDeleteLightsail={handleDeleteLightsailInstance}
+            onBatchDeleteLightsail={handleBatchDeleteLightsailInstances}
+          />
+        </div>
+
+      </CloudCredentialGate>
 
       <AWSCredentialImportDialog
         open={credentialImportOpen}
@@ -821,7 +826,7 @@ function AWSInlineCreatePanel({
       lightsailPlatformMismatch;
 
   return (
-    <section className={`${cloudPanelCardClassName} flex h-full min-h-[520px] flex-col`}>
+    <section className={`${cloudPanelCardClassName} flex h-full flex-col xl:min-h-[520px]`}>
       <div className={cloudPanelHeaderClassName}>
         <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="min-w-0">
@@ -873,7 +878,7 @@ function AWSInlineCreatePanel({
         </div>
       ) : (
         <>
-      <div className="grid gap-4 p-4">
+      <div className="grid min-w-0 grid-cols-1 gap-4 p-4">
         {isEC2 ? (
           <>
             <EC2CreateCoreSection
@@ -961,7 +966,7 @@ function AWSCredentialRail({
       );
 
   return (
-    <section className={`min-w-0 ${cloudPanelCardClassName} flex h-full min-h-[520px] flex-col`}>
+    <section className={`min-w-0 ${cloudPanelCardClassName} flex h-full flex-col xl:min-h-[520px]`}>
       <div className={cloudPanelHeaderClassName}>
         <div className="flex min-w-0 flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
           <div className="min-w-0">
@@ -1046,7 +1051,7 @@ function AWSCredentialRail({
                           <AdminDataTableHead>{t("cloud.tokens.group", "分组")}</AdminDataTableHead>
                           <AdminDataTableHead>{t("cloud.tokens.quota", "配额")}</AdminDataTableHead>
                           <AdminDataTableHead>{t("cloud.tokens.table.status", "状态")}</AdminDataTableHead>
-                          <AdminDataTableHead align="right" sticky="right">
+                          <AdminDataTableHead align="right" sticky="right-mobile">
                             {t("common.action", "操作")}
                           </AdminDataTableHead>
                         </AdminDataTableHeadRow>
@@ -1072,7 +1077,7 @@ function AWSCredentialRail({
                                   : getCloudStatusLabel(credential.last_status, t)}
                               </Badge>
                             </AdminDataTableCell>
-                            <AdminDataTableCell align="right" sticky="right">
+                            <AdminDataTableCell align="right" sticky="right-mobile">
                               <AdminRowActions
                                 contentClassName="min-w-44"
                                 actions={[

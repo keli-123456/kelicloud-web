@@ -1,7 +1,9 @@
 import React from "react";
+import { useRequestTracker } from "../useRequestTracker";
+import { RefreshNotice } from "../RefreshNotice";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
-import { AlertCircle, Clock3, ExternalLink, LoaderCircle, RefreshCw } from "lucide-react";
+import { Clock3, ExternalLink, LoaderCircle, RefreshCw } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -144,29 +146,34 @@ export default function DnsSchedulerLinkedSummary({
   const [loading, setLoading] = React.useState(true);
   const [refreshing, setRefreshing] = React.useState(false);
   const [error, setError] = React.useState("");
+  const requests = useRequestTracker();
 
   const loadSnapshot = React.useCallback(async (quiet = false) => {
+    if (requests.pending) return;
+    const ticket = requests.begin();
     if (!quiet) {
       setRefreshing(true);
     }
-    setError("");
     try {
       const data = await getDNSSchedulerSnapshot();
+      if (!requests.isCurrent(ticket)) return;
       setSnapshot(data);
+      setError("");
     } catch (loadError) {
+      if (!requests.isCurrent(ticket)) return;
       setError(loadError instanceof Error
         ? loadError.message
         : t("cloud.dns.scheduler.linked_load_failed", { defaultValue: "加载 DNS 调度状态失败" }));
     } finally {
-      setLoading(false);
-      setRefreshing(false);
+      if (requests.isCurrent(ticket)) { setLoading(false); setRefreshing(false); }
+      requests.finish(ticket);
     }
-  }, [t]);
+  }, [requests, t]);
 
   React.useEffect(() => {
     void loadSnapshot(true);
     const timer = window.setInterval(() => {
-      void loadSnapshot(true);
+      if (!document.hidden) void loadSnapshot(true);
     }, 30_000);
     return () => window.clearInterval(timer);
   }, [loadSnapshot, sourceId, sourceType]);
@@ -201,15 +208,11 @@ export default function DnsSchedulerLinkedSummary({
         </button>
       </div>
 
+      <RefreshNotice error={error} hasData={Boolean(snapshot)} refreshing={refreshing} onRetry={() => void loadSnapshot()} />
       {loading ? (
         <div className="mt-3 flex items-center gap-2 text-xs text-muted-foreground">
           <LoaderCircle className="h-3.5 w-3.5 animate-spin" />
           {t("loading", { defaultValue: "Loading..." })}
-        </div>
-      ) : error ? (
-        <div className="mt-3 flex gap-2 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700 dark:border-red-900/70 dark:bg-red-950/20 dark:text-red-200">
-          <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-          <span>{error}</span>
         </div>
       ) : item ? (
         <div className="mt-2 space-y-2">
@@ -276,7 +279,7 @@ export default function DnsSchedulerLinkedSummary({
             </div>
           ) : null}
         </div>
-      ) : (
+      ) : error ? null : (
         <div className="mt-3 rounded-md border border-dashed border-border px-3 py-2 text-xs leading-5 text-muted-foreground dark:border-slate-800">
           {t("cloud.dns.scheduler.linked_empty", {
             defaultValue: "这个任务当前没有进入 DNS 调度队列，通常是未配置 DNS 或任务不可用。",

@@ -1,4 +1,5 @@
 import React from "react";
+import { useRequestTracker } from "../useRequestTracker";
 
 import {
   getAWSAccount,
@@ -12,6 +13,8 @@ import {
 import { toErrorMessage } from "./awsPanelUtils";
 
 export function useAWSPanelResources() {
+  const requests = useRequestTracker();
+  const lightsailRequests = useRequestTracker();
   const [initializing, setInitializing] = React.useState(true);
   const [panelLoading, setPanelLoading] = React.useState(false);
   const [account, setAccount] = React.useState<AWSAccount | null>(null);
@@ -23,16 +26,23 @@ export function useAWSPanelResources() {
   const [resourcesLoaded, setResourcesLoaded] = React.useState(false);
 
   const loadLightsailData = React.useCallback(async () => {
+    const ticket = lightsailRequests.begin();
     try {
       const nextLightsailInstances = await listAWSLightsailInstances();
+      if (!lightsailRequests.isCurrent(ticket)) return;
       setLightsailInstances(nextLightsailInstances);
       setLightsailError("");
     } catch (lightsailLoadError) {
+      if (!lightsailRequests.isCurrent(ticket)) return;
       setLightsailError(toErrorMessage(lightsailLoadError));
+    } finally {
+      lightsailRequests.finish(ticket);
     }
-  }, []);
+  }, [lightsailRequests]);
 
   const loadPanelData = React.useCallback(async () => {
+    const ticket = requests.begin();
+    const lightsailTicket = lightsailRequests.begin();
     setPanelLoading(true);
     try {
       const [accountResult, instancesResult, lightsailResult] = await Promise.allSettled([
@@ -40,6 +50,7 @@ export function useAWSPanelResources() {
         listAWSInstances(),
         listAWSLightsailInstances(),
       ]);
+      if (!requests.isCurrent(ticket)) return;
 
       const errors: string[] = [];
       if (accountResult.status === "fulfilled") {
@@ -54,24 +65,29 @@ export function useAWSPanelResources() {
         errors.push(toErrorMessage(instancesResult.reason));
       }
 
-      if (lightsailResult.status === "fulfilled") {
+      if (lightsailRequests.isCurrent(lightsailTicket) && lightsailResult.status === "fulfilled") {
         setLightsailInstances(lightsailResult.value);
         setLightsailError("");
-      } else {
+      } else if (lightsailRequests.isCurrent(lightsailTicket) && lightsailResult.status === "rejected") {
         setLightsailError(toErrorMessage(lightsailResult.reason));
       }
 
       setError(errors.join("; "));
-      setResourcesLoaded(
+      setResourcesLoaded((previous) => previous ||
         accountResult.status === "fulfilled"
         || instancesResult.status === "fulfilled",
       );
     } finally {
-      setPanelLoading(false);
+      if (requests.isCurrent(ticket)) setPanelLoading(false);
+      requests.finish(ticket);
+      lightsailRequests.finish(lightsailTicket);
     }
-  }, []);
+  }, [requests, lightsailRequests]);
 
   const clearResourceData = React.useCallback(() => {
+    requests.invalidate();
+    lightsailRequests.invalidate();
+    setPanelLoading(false);
     setAccount(null);
     setCatalog(null);
     setInstances([]);
@@ -79,7 +95,7 @@ export function useAWSPanelResources() {
     setError("");
     setLightsailError("");
     setResourcesLoaded(false);
-  }, []);
+  }, [requests, lightsailRequests]);
 
   return {
     initializing,

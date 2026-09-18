@@ -46,11 +46,12 @@ export const LiveDataProvider: React.FC<{ children: React.ReactNode; uuid?: stri
     const intervalMs = 2000;
 
     const fetchLatest = async () => {
-      if (running) return; // 如果上次请求还在，跳过
+      if (running || stopped || document.visibilityState !== "visible") return;
       running = true;
       try {
         const params = uuid ? { uuids: [uuid] } : undefined;
         const result: Record<string, any> = await call("common:getNodesLatestStatus", params);
+        if (stopped) return;
         // 将返回转换为 LiveDataResponse 结构
         const online = Object.values(result)
           .filter((v: any) => v?.online)
@@ -99,6 +100,7 @@ export const LiveDataProvider: React.FC<{ children: React.ReactNode; uuid?: stri
         setShowCallout(true);
         notifyRefreshCallbacks(live);
       } catch (e) {
+        if (stopped) return;
         const message = e instanceof Error ? e.message : String(e);
         if (message.includes("401") || message.toLowerCase().includes("unauthorized")) {
           stopped = true;
@@ -108,17 +110,25 @@ export const LiveDataProvider: React.FC<{ children: React.ReactNode; uuid?: stri
         setShowCallout(false);
       } finally {
         running = false;
-        if (!stopped) {
+        if (!stopped && document.visibilityState === "visible") {
           timer = window.setTimeout(fetchLatest, intervalMs);
         }
       }
     };
 
-    fetchLatest();
+    setLiveData(null);
+    setShowCallout(false);
+    const onVisibilityChange = () => {
+      if (timer) window.clearTimeout(timer);
+      if (document.visibilityState === "visible") void fetchLatest();
+    };
+    document.addEventListener("visibilitychange", onVisibilityChange);
+    void fetchLatest();
 
     return () => {
       stopped = true;
       if (timer) window.clearTimeout(timer);
+      document.removeEventListener("visibilitychange", onVisibilityChange);
     };
   }, [call, notifyRefreshCallbacks, uuid]);
 

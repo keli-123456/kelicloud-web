@@ -1,4 +1,5 @@
 import React from "react";
+import { lazyWithRecovery } from "@/lib/lazyWithRecovery";
 import { Navigate, useSearchParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 
@@ -16,13 +17,13 @@ const providerPanels: Record<
   ProviderKey,
   React.LazyExoticComponent<React.ComponentType>
 > = {
-  digitalocean: React.lazy(
+  digitalocean: lazyWithRecovery(
     () => import("@/components/admin/cloud/DigitalOceanPanel"),
   ),
-  linode: React.lazy(() => import("@/components/admin/cloud/LinodePanel")),
-  vultr: React.lazy(() => import("@/components/admin/cloud/VultrPanel")),
-  azure: React.lazy(() => import("@/components/admin/cloud/AzurePanel")),
-  aws: React.lazy(() => import("@/components/admin/cloud/AWSPanel")),
+  linode: lazyWithRecovery(() => import("@/components/admin/cloud/LinodePanel")),
+  vultr: lazyWithRecovery(() => import("@/components/admin/cloud/VultrPanel")),
+  azure: lazyWithRecovery(() => import("@/components/admin/cloud/AzurePanel")),
+  aws: lazyWithRecovery(() => import("@/components/admin/cloud/AWSPanel")),
 };
 
 function CloudPageSkeleton({ provider }: { provider?: ProviderKey }) {

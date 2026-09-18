@@ -2,14 +2,9 @@ import React from "react";
 import { ArrowDown, ArrowUp, ListChecks, Search, Settings2, Trash2 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
-import { AdminDialogLayout } from "@/components/admin/AdminForm";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import {
-  Dialog,
-  DialogClose,
-} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import type { FailoverScriptOption } from "@/lib/failover";
@@ -80,6 +75,9 @@ export default function FailoverScriptPolicyDialog({
 }: FailoverScriptPolicyDialogProps) {
   const { t } = useTranslation();
   const [open, setOpen] = React.useState(false);
+  const contentID = React.useId();
+  const timeoutID = React.useId();
+  const triggerRef = React.useRef<HTMLButtonElement>(null);
   const selectedIDSet = React.useMemo(() => new Set(selectedScriptIDs), [selectedScriptIDs]);
   const scriptLookup = React.useMemo(
     () => new Map(scripts.map((script) => [String(script.id), script])),
@@ -132,27 +130,13 @@ export default function FailoverScriptPolicyDialog({
             {description}
           </p>
         </div>
-        <Button type="button" variant="outline" onClick={() => setOpen(true)} className="shrink-0">
+        <Button ref={triggerRef} type="button" variant="outline" onClick={() => setOpen(!open)} aria-expanded={open} aria-controls={contentID} className="shrink-0">
           <Settings2 className="size-4" />
           {t("failover.editor.configure_scripts", { defaultValue: "Configure scripts" })}
         </Button>
       </div>
 
-      <Dialog open={open} onOpenChange={setOpen}>
-        <AdminDialogLayout
-          title={title}
-          description={description}
-          wide
-          className="sm:max-w-5xl"
-          bodyClassName="py-5"
-          footer={
-            <DialogClose asChild>
-              <Button type="button">
-                {t("common.done", { defaultValue: "Done" })}
-              </Button>
-            </DialogClose>
-          }
-        >
+      <div id={contentID} hidden={!open} className="mt-3 space-y-3">
           <div className="grid min-h-0 gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(300px,0.82fr)]">
             <section className="min-w-0 border-y border-slate-200/80 dark:border-slate-800">
               <div className="flex flex-wrap items-center justify-between gap-2 border-b px-3 py-3">
@@ -172,10 +156,11 @@ export default function FailoverScriptPolicyDialog({
 
               {hasTimeout ? (
                 <div className="grid gap-2 border-b px-3 py-3 sm:grid-cols-[160px_minmax(0,1fr)] sm:items-center">
-                  <Label className="text-sm">
+                  <Label htmlFor={timeoutID} className="text-sm">
                     {t("failover.editor.script_timeout", { defaultValue: "Script timeout (s)" })}
                   </Label>
                   <Input
+                    id={timeoutID}
                     type="number"
                     min={1}
                     value={timeoutValue}
@@ -268,6 +253,7 @@ export default function FailoverScriptPolicyDialog({
                 <div className="relative">
                   <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
                   <Input
+                    aria-label={t("failover.editor.available_scripts", { defaultValue: "Available scripts" })}
                     value={searchQuery}
                     onChange={(event) => onSearchQueryChange(event.target.value)}
                     className="pl-9"
@@ -319,8 +305,13 @@ export default function FailoverScriptPolicyDialog({
               </div>
             </section>
           </div>
-        </AdminDialogLayout>
-      </Dialog>
+        <div className="flex justify-end">
+          <Button type="button" variant="outline" size="sm" onClick={() => {
+            setOpen(false);
+            triggerRef.current?.focus({ preventScroll: true });
+          }}>{t("common.done", { defaultValue: "Done" })}</Button>
+        </div>
+      </div>
     </div>
   );
 }

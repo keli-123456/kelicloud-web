@@ -4,6 +4,7 @@ const RECOVERY_TIMEOUT_MS = 1_500;
 type StorageLike = Pick<Storage, "getItem" | "setItem" | "removeItem">;
 
 export interface ChunkLoadRecoveryDependencies {
+  canReload: () => boolean;
   getHref: () => string;
   getBuildId: () => string;
   getSessionStorage: () => StorageLike;
@@ -67,6 +68,7 @@ export function clearChunkLoadRecoveryMarkerFrom(getStorage: () => StorageLike):
 
 function defaultDependencies(): ChunkLoadRecoveryDependencies {
   return {
+    canReload: () => navigator.onLine && canReloadPage(),
     getHref: () => window.location.href,
     getBuildId: () =>
       document.querySelector<HTMLScriptElement>('script[type="module"][src]')?.src ?? __BUILD_TIME__,
@@ -87,11 +89,16 @@ function defaultDependencies(): ChunkLoadRecoveryDependencies {
   };
 }
 
+export function canReloadPage(): boolean {
+  return window.dispatchEvent(new Event("kelicloud:before-reload", { cancelable: true }));
+}
+
 export async function recoverChunkLoadFailure(
   error: unknown,
   overrides: Partial<ChunkLoadRecoveryDependencies> = {},
 ): Promise<boolean> {
   const dependencies = { ...defaultDependencies(), ...overrides };
+  if (!dependencies.canReload()) return false;
   let claimed = false;
   try {
     claimed = claimChunkLoadRecovery(
@@ -111,6 +118,10 @@ export async function recoverChunkLoadFailure(
     Promise.allSettled([cacheCleanup, workerUpdate]),
     dependencies.waitForTimeout(),
   ]);
+  if (!dependencies.canReload()) {
+    clearChunkLoadRecoveryMarkerFrom(dependencies.getSessionStorage);
+    return false;
+  }
   dependencies.reload();
   return true;
 }

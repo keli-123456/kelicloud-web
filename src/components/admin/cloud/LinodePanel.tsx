@@ -1,4 +1,6 @@
 import React from "react";
+import { RefreshNotice } from "../RefreshNotice";
+import { CloudCredentialGate } from "./CloudCredentialGate";
 import type { TFunction } from "i18next";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
@@ -29,7 +31,6 @@ import {
   Select,
   TextField,
   cloudPanelCardClassName,
-  cloudPanelDescriptionClassName,
   cloudPanelFieldLabelClassName,
   cloudPanelHeaderClassName,
   cloudPanelTitleClassName,
@@ -375,7 +376,7 @@ export default function LinodePanel() {
       />
 
       {error ? (
-        <WarningAlert tone="warning" description={error} />
+        activeToken ? <RefreshNotice error={error} hasData={resourcesLoaded} refreshing={panelLoading} onRetry={() => void loadPanelData()} /> : <WarningAlert tone="warning" description={error} />
       ) : null}
 
       {account?.restricted ? (
@@ -388,7 +389,7 @@ export default function LinodePanel() {
         />
       ) : null}
 
-      {!passwordStorageEnabled ? (
+      {activeToken && !passwordStorageEnabled ? (
         <WarningAlert
           tone="info"
           description={t(
@@ -398,63 +399,66 @@ export default function LinodePanel() {
         />
       ) : null}
 
-      <div className="grid min-w-0 items-stretch gap-4 xl:grid-cols-[minmax(340px,0.9fr)_minmax(380px,1.1fr)]">
-        <LinodeInlineCreatePanel
-          t={t}
-          activeToken={activeToken}
-          catalog={catalog}
-          form={createForm}
-          setForm={setCreateForm}
-          submitting={createSubmitting}
-          catalogLoading={createCatalogLoading}
-          onPrepare={prepareCreateForm}
-          onOpenAdvanced={handleOpenCreateDialog}
-          onCreate={handleCreateInstance}
-        />
+      <CloudCredentialGate empty={tokenPool?.tokens.length === 0} onImport={() => setTokenImportOpen(true)}>
+        <div className="grid min-w-0 items-stretch gap-4 xl:grid-cols-[minmax(340px,0.9fr)_minmax(380px,1.1fr)]">
+          <LinodeInlineCreatePanel
+            t={t}
+            activeToken={activeToken}
+            catalog={catalog}
+            form={createForm}
+            setForm={setCreateForm}
+            submitting={createSubmitting}
+            catalogLoading={createCatalogLoading}
+            onPrepare={prepareCreateForm}
+            onOpenAdvanced={handleOpenCreateDialog}
+            onCreate={handleCreateInstance}
+          />
 
-        <LinodeTokensSection
+          <LinodeTokensSection
+            t={t}
+            tokenPool={tokenPool}
+            tokenRows={tokenRows}
+            selectedTokenIds={selectedTokenIds}
+            setSelectedTokenIds={setSelectedTokenIds}
+            selectedTokens={selectedTokens}
+            allTokensSelected={allTokensSelected}
+            someTokensSelected={someTokensSelected}
+            tokenChecking={tokenChecking}
+            tokenSecretLoading={tokenSecretLoading}
+            promoSubmitting={promoSubmitting}
+            promoDisabled={!activeToken || panelLoading || promoSubmitting || Boolean(account?.restricted)}
+            onOpenPromo={() => setPromoOpen(true)}
+            onCheckTokens={handleCheckTokens}
+            onOpenTokenGroupEditor={openTokenGroupEditor}
+            onDeleteSelectedTokens={handleDeleteSelectedTokens}
+            onOpenTokenImport={() => setTokenImportOpen(true)}
+            onToggleTokenSelection={toggleTokenSelection}
+            onSelectToken={handleSelectToken}
+            onViewTokenSecret={handleViewTokenSecret}
+            onDeleteToken={handleDeleteToken}
+          />
+        </div>
+
+        <LinodeInstancesSection
           t={t}
+          instances={instances}
+          panelLoading={panelLoading}
+          error={error}
           tokenPool={tokenPool}
-          tokenRows={tokenRows}
-          selectedTokenIds={selectedTokenIds}
-          setSelectedTokenIds={setSelectedTokenIds}
-          selectedTokens={selectedTokens}
-          allTokensSelected={allTokensSelected}
-          someTokensSelected={someTokensSelected}
-          tokenChecking={tokenChecking}
-          tokenSecretLoading={tokenSecretLoading}
-          promoSubmitting={promoSubmitting}
-          promoDisabled={!activeToken || panelLoading || promoSubmitting || Boolean(account?.restricted)}
-          onOpenPromo={() => setPromoOpen(true)}
-          onCheckTokens={handleCheckTokens}
-          onOpenTokenGroupEditor={openTokenGroupEditor}
-          onDeleteSelectedTokens={handleDeleteSelectedTokens}
-          onOpenTokenImport={() => setTokenImportOpen(true)}
-          onToggleTokenSelection={toggleTokenSelection}
-          onSelectToken={handleSelectToken}
-          onViewTokenSecret={handleViewTokenSecret}
-          onDeleteToken={handleDeleteToken}
+          resourcesLoaded={resourcesLoaded}
+          typePriceMap={typePriceMap}
+          passwordStorageEnabled={passwordStorageEnabled}
+          passwordLoading={passwordLoading}
+          onLoadInstanceDetail={loadInstanceDetail}
+          onViewPassword={handleViewPassword}
+          onInstanceAction={handleInstanceAction}
+          onOpenScriptDialog={handleOpenScriptDialog}
+          onOpenShareDialog={handleOpenShareDialog}
+          onDeleteInstance={handleDeleteInstance}
+          onBatchDeleteInstances={handleBatchDeleteInstances}
         />
-      </div>
 
-      <LinodeInstancesSection
-        t={t}
-        instances={instances}
-        panelLoading={panelLoading}
-        error={error}
-        tokenPool={tokenPool}
-        resourcesLoaded={resourcesLoaded}
-        typePriceMap={typePriceMap}
-        passwordStorageEnabled={passwordStorageEnabled}
-        passwordLoading={passwordLoading}
-        onLoadInstanceDetail={loadInstanceDetail}
-        onViewPassword={handleViewPassword}
-        onInstanceAction={handleInstanceAction}
-        onOpenScriptDialog={handleOpenScriptDialog}
-        onOpenShareDialog={handleOpenShareDialog}
-        onDeleteInstance={handleDeleteInstance}
-        onBatchDeleteInstances={handleBatchDeleteInstances}
-      />
+      </CloudCredentialGate>
 
       <LinodeTokenImportDialog
         t={t}
@@ -623,7 +627,7 @@ function LinodeInlineCreatePanel({
   const disabled = !activeToken || catalogLoading;
 
   return (
-    <section className={`${cloudPanelCardClassName} flex h-full min-h-[520px] flex-col`}>
+    <section className={`${cloudPanelCardClassName} flex h-full flex-col xl:min-h-[520px]`}>
       <div className={cloudPanelHeaderClassName}>
         <div className="flex min-w-0 flex-wrap items-center justify-between gap-3">
           <div className="min-w-0">
@@ -635,16 +639,13 @@ function LinodeInlineCreatePanel({
                 {activeToken ? t("cloud.tokens.active", "Active") : t("cloud.no_active", "No active")}
               </Badge>
             </div>
-            <div className={cloudPanelDescriptionClassName}>
-              {t("cloud.create_inline_description", "Core creation fields stay open here. Use advanced options only when you need extra network or bootstrap details.")}
-            </div>
           </div>
           <Button variant="outline" size="1" onClick={() => { void onOpenAdvanced(); }} disabled={!activeToken}>
             {t("cloud.advanced_options", "Advanced")}
           </Button>
         </div>
       </div>
-      <div className="grid gap-3 p-4">
+      <div className="grid min-w-0 grid-cols-1 gap-3 p-4">
         <div>
           <label className={cloudPanelFieldLabelClassName}>{t("cloud.form.region", "Region")}</label>
           <Select.Root

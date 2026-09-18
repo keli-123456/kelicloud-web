@@ -1,6 +1,5 @@
 import {
   Suspense,
-  lazy,
   useCallback,
   useDeferredValue,
   useEffect,
@@ -8,6 +7,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import { lazyWithRecovery as lazy } from "@/lib/lazyWithRecovery";
 import {
   Copy,
   FileCode2,

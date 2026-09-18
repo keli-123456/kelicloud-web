@@ -1,4 +1,5 @@
 import React from "react";
+import { useRequestTracker } from "../useRequestTracker";
 
 import {
   getAzureAccount,
@@ -35,13 +36,15 @@ async function loadAzureResourceSnapshot() {
   }
 
   return {
-    account: accountResult.status === "fulfilled" ? accountResult.value : null,
-    instances: instancesResult.status === "fulfilled" ? instancesResult.value : [],
+    account: accountResult.status === "fulfilled" ? accountResult.value : undefined,
+    instances: instancesResult.status === "fulfilled" ? instancesResult.value : undefined,
     error: errors.filter(Boolean).join("; "),
   };
 }
 
 export function useAzurePanelResources() {
+  const requests = useRequestTracker();
+  const poolRequests = useRequestTracker();
   const [loading, setLoading] = React.useState(true);
   const [resourceLoading, setResourceLoading] = React.useState(false);
   const [loadError, setLoadError] = React.useState("");
@@ -51,9 +54,11 @@ export function useAzurePanelResources() {
   const [instances, setInstances] = React.useState<AzureInstance[]>([]);
 
   const clearResourceData = React.useCallback(() => {
+    requests.invalidate();
+    setResourceLoading(false);
     setAccount(null);
     setInstances([]);
-  }, []);
+  }, [requests]);
 
   const loadResources = React.useCallback(async (credentialPoolOverride?: AzureCredentialPool | null) => {
     const nextCredentialPool = credentialPoolOverride ?? credentialPool;
@@ -62,35 +67,40 @@ export function useAzurePanelResources() {
       return;
     }
 
+    const ticket = requests.begin();
     setResourceLoading(true);
     try {
       const snapshot = await loadAzureResourceSnapshot();
-      setAccount(snapshot.account);
-      setInstances(snapshot.instances);
+      if (!requests.isCurrent(ticket)) return;
+      if (snapshot.account !== undefined) setAccount(snapshot.account);
+      if (snapshot.instances !== undefined) setInstances(snapshot.instances);
       setLoadError(snapshot.error);
     } catch (error) {
+      if (!requests.isCurrent(ticket)) return;
       setLoadError(toErrorMessage(error));
-      clearResourceData();
     } finally {
-      setResourceLoading(false);
+      if (requests.isCurrent(ticket)) setResourceLoading(false);
+      requests.finish(ticket);
     }
-  }, [clearResourceData, credentialPool]);
+  }, [clearResourceData, credentialPool, requests]);
 
   const loadAll = React.useCallback(async () => {
+    const ticket = poolRequests.begin();
     setLoading(true);
     try {
       const nextPool = await getAzureCredentials();
+      if (!poolRequests.isCurrent(ticket)) return;
       setCredentialPool(nextPool);
       setLoadError("");
       clearResourceData();
     } catch (error) {
+      if (!poolRequests.isCurrent(ticket)) return;
       setLoadError(toErrorMessage(error));
-      setCredentialPool(null);
-      clearResourceData();
     } finally {
-      setLoading(false);
+      if (poolRequests.isCurrent(ticket)) setLoading(false);
+      poolRequests.finish(ticket);
     }
-  }, [clearResourceData]);
+  }, [clearResourceData, poolRequests]);
 
   return {
     loading,

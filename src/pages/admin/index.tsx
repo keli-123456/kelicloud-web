@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { lazyWithRecovery } from "@/lib/lazyWithRecovery";
 import {
   NodeDetailsProvider,
   useNodeDetails,
@@ -103,26 +104,26 @@ import {
   normalizeLiveSnapshot,
   type NodeLiveSnapshot,
 } from "./node-live.helpers";
-const LazyNodeAccessSettingsDialog = React.lazy(
+const LazyNodeAccessSettingsDialog = lazyWithRecovery(
   () => import("@/components/admin/node-details/NodeAccessSettingsDialog"),
 );
-const LazyGenerateCommandDialog = React.lazy(
+const LazyGenerateCommandDialog = lazyWithRecovery(
   () => import("@/components/admin/node-details/GenerateCommandDialog"),
 );
-const LazyGroupUpgradeDialog = React.lazy(
+const LazyGroupUpgradeDialog = lazyWithRecovery(
   () => import("@/components/admin/node-details/GroupUpgradeDialog"),
 );
-const LazyNodeDDNSDialog = React.lazy(() =>
+const LazyNodeDDNSDialog = lazyWithRecovery(() =>
   import("@/components/admin/NodeTable/NodeDDNSDialog").then((module) => ({
     default: module.NodeDDNSDialog,
   })),
 );
-const LazyNodePortForwardDialog = React.lazy(() =>
+const LazyNodePortForwardDialog = lazyWithRecovery(() =>
   import("@/components/admin/NodeTable/NodePortForwardDialog").then((module) => ({
     default: module.NodePortForwardDialog,
   })),
 );
-const LazyNodeConditionScriptDialog = React.lazy(() =>
+const LazyNodeConditionScriptDialog = lazyWithRecovery(() =>
   import("@/components/admin/NodeTable/NodeConditionScriptDialog").then((module) => ({
     default: module.NodeConditionScriptDialog,
   })),

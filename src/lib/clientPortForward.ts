@@ -128,6 +128,7 @@ async function requestClientPortForward<T>(path: string, init?: RequestInit): Pr
   const timeoutID = setTimeout(() => controller.abort(), CLIENT_PORT_FORWARD_REQUEST_TIMEOUT_MS);
 
   let response: Response;
+  let text: string;
   try {
     response = await fetch(requestUrl, {
       credentials: "same-origin",
@@ -142,6 +143,7 @@ async function requestClientPortForward<T>(path: string, init?: RequestInit): Pr
       ...init,
       signal: controller.signal,
     });
+    text = await response.text();
   } catch (error) {
     if (error instanceof DOMException && error.name === "AbortError") {
       throw new ClientPortForwardApiError(`请求端口中转接口超时: ${path}`, 408);
@@ -151,7 +153,6 @@ async function requestClientPortForward<T>(path: string, init?: RequestInit): Pr
     clearTimeout(timeoutID);
   }
 
-  const text = await response.text();
   const trimmed = text.trim();
   let payload: ApiEnvelope<T> | null = null;
 

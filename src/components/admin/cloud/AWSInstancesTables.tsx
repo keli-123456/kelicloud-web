@@ -131,7 +131,7 @@ export function AWSEC2InstancesTable({
         : !activeContextReady
           ? t("cloud.providers.aws.select_region_to_load_description", "在凭证管理区选择区域；EC2 和 Lightsail 资源都会按区域筛选。")
           : !resourcesLoaded
-            ? t("cloud.load_resources_description", "云资源按需加载，可以避免多账户场景下页面一打开就发起大量请求。")
+            ? undefined
             : t("cloud.providers.aws.empty_description", "可以新建 EC2 实例，或切换到已有资源的账户和区域。");
   const emptyActions =
     activeContextReady && !resourcesLoaded ? (
@@ -187,7 +187,7 @@ export function AWSEC2InstancesTable({
           <AdminDataTableHead>{t("cloud.table.image", "镜像")}</AdminDataTableHead>
           <AdminDataTableHead>{t("cloud.table.password", "Root Password")}</AdminDataTableHead>
           <AdminDataTableHead>{t("cloud.table.created_at", "创建时间")}</AdminDataTableHead>
-          <AdminDataTableHead align="right" sticky="right">
+          <AdminDataTableHead align="right" sticky="right-mobile">
             {t("common.action", "操作")}
           </AdminDataTableHead>
         </AdminDataTableHeadRow>
@@ -236,7 +236,7 @@ export function AWSEC2InstancesTable({
                 />
               </AdminDataTableCell>
               <AdminDataTableCell>{formatDateTime(instance.launch_time)}</AdminDataTableCell>
-              <AdminDataTableCell align="right" sticky="right">
+              <AdminDataTableCell align="right" sticky="right-mobile">
                 <AWSInstanceRowActions
                   t={t}
                   state={instance.state}
@@ -359,7 +359,7 @@ export function AWSLightsailInstancesTable({
         : !activeContextReady
           ? t("cloud.providers.aws.select_region_to_load_description", "在凭证管理区选择区域；EC2 和 Lightsail 资源都会按区域筛选。")
           : !resourcesLoaded
-            ? t("cloud.load_resources_description", "云资源按需加载，可以避免多账户场景下页面一打开就发起大量请求。")
+            ? undefined
             : t("cloud.providers.aws.lightsail_empty_description", "可以新建 Lightsail 实例，或切换到已有资源的账户和区域。");
   const emptyActions =
     activeContextReady && !resourcesLoaded ? (
@@ -415,7 +415,7 @@ export function AWSLightsailInstancesTable({
           <AdminDataTableHead>{t("cloud.providers.aws.static_ip", "静态 IP")}</AdminDataTableHead>
           <AdminDataTableHead>{t("cloud.table.password", "Root Password")}</AdminDataTableHead>
           <AdminDataTableHead>{t("cloud.table.created_at", "创建时间")}</AdminDataTableHead>
-          <AdminDataTableHead align="right" sticky="right">
+          <AdminDataTableHead align="right" sticky="right-mobile">
             {t("common.action", "操作")}
           </AdminDataTableHead>
         </AdminDataTableHeadRow>
@@ -463,7 +463,7 @@ export function AWSLightsailInstancesTable({
                 />
               </AdminDataTableCell>
               <AdminDataTableCell>{formatDateTime(instance.created_at)}</AdminDataTableCell>
-              <AdminDataTableCell align="right" sticky="right">
+              <AdminDataTableCell align="right" sticky="right-mobile">
                 <AWSInstanceRowActions
                   t={t}
                   state={instance.state}

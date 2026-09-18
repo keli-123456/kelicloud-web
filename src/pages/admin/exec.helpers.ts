@@ -67,6 +67,12 @@ export const EMPTY_SCRIPT_FORM_VALUES: ScriptFormValues = {
 
 export const EXEC_TIMEOUT_SENTINEL = "__KOMARI_EXEC_TIMEOUT__";
 
+export function areTaskResultsComplete(results: TaskResult[], expectedClients: string[] = []) {
+    if (results.length === 0 || results.some((result) => !result.finished_at)) return false;
+    const finishedClients = new Set(results.map((result) => result.client));
+    return expectedClients.every((client) => finishedClients.has(client));
+}
+
 export type ExecStatusTone = "ok" | "warn" | "bad" | "info";
 
 export type ExecLibraryTab = "library" | "history" | "result";

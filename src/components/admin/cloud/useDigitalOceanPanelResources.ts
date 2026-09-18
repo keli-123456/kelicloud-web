@@ -1,4 +1,5 @@
 import React from "react";
+import { useRequestTracker } from "../useRequestTracker";
 
 import {
   getDigitalOceanAccount,
@@ -15,6 +16,7 @@ function toErrorMessage(error: unknown) {
 }
 
 export function useDigitalOceanPanelResources() {
+  const requests = useRequestTracker();
   const [initializing, setInitializing] = React.useState(true);
   const [panelLoading, setPanelLoading] = React.useState(false);
   const [account, setAccount] = React.useState<DigitalOceanAccount | null>(null);
@@ -24,33 +26,36 @@ export function useDigitalOceanPanelResources() {
   const [resourcesLoaded, setResourcesLoaded] = React.useState(false);
 
   const loadPanelData = React.useCallback(async () => {
+    const ticket = requests.begin();
     setPanelLoading(true);
     try {
       const [nextAccount, nextDroplets] = await Promise.all([
         getDigitalOceanAccount(),
         listDigitalOceanDroplets(),
       ]);
+      if (!requests.isCurrent(ticket)) return;
       setAccount(nextAccount);
       setDroplets(nextDroplets);
       setError("");
       setResourcesLoaded(true);
     } catch (panelError) {
-      setAccount(null);
-      setDroplets([]);
+      if (!requests.isCurrent(ticket)) return;
       setError(toErrorMessage(panelError));
-      setResourcesLoaded(false);
     } finally {
-      setPanelLoading(false);
+      if (requests.isCurrent(ticket)) setPanelLoading(false);
+      requests.finish(ticket);
     }
-  }, []);
+  }, [requests]);
 
   const clearResourceData = React.useCallback(() => {
+    requests.invalidate();
+    setPanelLoading(false);
     setAccount(null);
     setCatalog(buildStaticDigitalOceanCatalog());
     setDroplets([]);
     setError("");
     setResourcesLoaded(false);
-  }, []);
+  }, [requests]);
 
   return {
     initializing,

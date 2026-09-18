@@ -291,12 +291,6 @@ export function AWSComputeSection({
                 <div className={cloudPanelTitleClassName}>
                   {t("cloud.providers.aws.compute", "计算实例")}
                 </div>
-                <div className={cloudPanelDescriptionClassName}>
-                  {t(
-                    "cloud.providers.aws.instance_list_description",
-                    "实例列表按当前凭证和当前区域筛选，点击查看后才会加载云端资源。",
-                  )}
-                </div>
               </div>
               <Flex gap="2" wrap="wrap" align="center">
                 <Tabs.List style={{ height: 36 }}>

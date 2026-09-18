@@ -109,7 +109,7 @@ export function LinodeTokensSection({
   const selectAllActive = allTokensSelected || someTokensSelected;
 
   return (
-    <div className={`order-1 flex h-full min-h-[520px] flex-col ${cloudPanelCardClassName}`}>
+    <div className={`order-1 flex h-full flex-col xl:min-h-[520px] ${cloudPanelCardClassName}`}>
       <div className={cloudPanelHeaderClassName}>
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="min-w-0">
@@ -256,7 +256,7 @@ export function LinodeTokensSection({
                     <AdminDataTableHead>{t("cloud.tokens.group", "分组")}</AdminDataTableHead>
                     <AdminDataTableHead>{t("cloud.providers.linode.balance", "余额")}</AdminDataTableHead>
                     <AdminDataTableHead>{t("cloud.tokens.table.status", "状态")}</AdminDataTableHead>
-                    <AdminDataTableHead align="right" sticky="right" className="w-[72px]">
+                    <AdminDataTableHead align="right" sticky="right-mobile" className="w-[72px]">
                       {t("common.action", "操作")}
                     </AdminDataTableHead>
                   </AdminDataTableHeadRow>
@@ -311,7 +311,7 @@ export function LinodeTokensSection({
                           ) : null}
                         </div>
                       </AdminDataTableCell>
-                      <AdminDataTableCell align="right" sticky="right" className="w-[72px]">
+                      <AdminDataTableCell align="right" sticky="right-mobile" className="w-[72px]">
                         <AdminRowActions
                           label={t("common.action", "操作")}
                           contentClassName="min-w-44"

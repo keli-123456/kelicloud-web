@@ -43,7 +43,6 @@ import {
   CloudTableSkeletonRows,
   cloudLongTextClassName,
   cloudPanelCardClassName,
-  cloudPanelDescriptionClassName,
   cloudPanelHeaderClassName,
   cloudPanelTitleClassName,
   cloudTableEmptyStateClassName,
@@ -71,6 +70,7 @@ type AzureInstancesSectionProps = {
   instances: AzureInstance[];
   locationUpdating: boolean;
   resourceLoading: boolean;
+  loadError: string;
   passwordStorageEnabled: boolean;
   passwordLoading: boolean;
   workingInstanceId: string | null;
@@ -95,6 +95,7 @@ export function AzureInstancesSection({
   instances,
   locationUpdating,
   resourceLoading,
+  loadError,
   passwordStorageEnabled,
   passwordLoading,
   workingInstanceId,
@@ -128,12 +129,6 @@ export function AzureInstancesSection({
           <div>
             <div className={cloudPanelTitleClassName}>
               {t("cloud.providers.azure.instance_list", "虚拟机")}
-            </div>
-            <div className={cloudPanelDescriptionClassName}>
-              {t(
-                "cloud.providers.azure.instance_list_description",
-                "Click a VM name to inspect details, while power and script actions stay in the row.",
-              )}
             </div>
           </div>
           <Flex align="center" wrap="wrap" gap="2">
@@ -179,7 +174,7 @@ export function AzureInstancesSection({
             )}
             className={cloudTableEmptyStateClassName}
           />
-        ) : resourceLoading ? (
+        ) : resourceLoading && !instances.length ? (
           <AdminDataTableScroll>
             <AdminDataTable minWidth={1040}>
               <thead>
@@ -191,7 +186,7 @@ export function AzureInstancesSection({
                   <AdminDataTableHead>{t("cloud.table.ip", "公网 IP")}</AdminDataTableHead>
                   <AdminDataTableHead>{t("cloud.providers.azure.private_ip", "内网 IP")}</AdminDataTableHead>
                   <AdminDataTableHead>{t("cloud.table.password", "登录密码")}</AdminDataTableHead>
-                  <AdminDataTableHead align="right" sticky="right">
+                  <AdminDataTableHead align="right" sticky="right-mobile">
                     {t("common.actions", "操作")}
                   </AdminDataTableHead>
                 </AdminDataTableHeadRow>
@@ -201,7 +196,7 @@ export function AzureInstancesSection({
               </tbody>
             </AdminDataTable>
           </AdminDataTableScroll>
-        ) : !instances.length ? (
+        ) : !instances.length && loadError ? null : !instances.length ? (
           <AdminEmptyState
             icon={<Server className="h-5 w-5" />}
             title={t("cloud.providers.azure.instances_empty", "未找到 Azure 虚拟机")}
@@ -232,7 +227,7 @@ export function AzureInstancesSection({
                   <AdminDataTableHead>{t("cloud.table.ip", "公网 IP")}</AdminDataTableHead>
                   <AdminDataTableHead>{t("cloud.providers.azure.private_ip", "内网 IP")}</AdminDataTableHead>
                   <AdminDataTableHead>{t("cloud.table.password", "登录密码")}</AdminDataTableHead>
-                  <AdminDataTableHead align="right" sticky="right">
+                  <AdminDataTableHead align="right" sticky="right-mobile">
                     {t("common.actions", "操作")}
                   </AdminDataTableHead>
                 </AdminDataTableHeadRow>
@@ -296,7 +291,7 @@ export function AzureInstancesSection({
                         </span>
                       )}
                     </AdminDataTableCell>
-                    <AdminDataTableCell align="right" className="align-top" sticky="right">
+                    <AdminDataTableCell align="right" className="align-top" sticky="right-mobile">
                       <AdminRowActions
                         contentClassName="min-w-44"
                         actions={[

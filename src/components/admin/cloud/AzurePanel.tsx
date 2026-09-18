@@ -1,4 +1,6 @@
 import React from "react";
+import { RefreshNotice } from "../RefreshNotice";
+import { CloudCredentialGate } from "./CloudCredentialGate";
 import type { TFunction } from "i18next";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
@@ -52,7 +54,6 @@ import {
   cloudPanelTitleClassName,
 } from "@/components/admin/cloud/cloud-ui";
 import { AdminRowActions } from "@/components/admin/AdminRowActions";
-import { WarningAlert } from "@/components/ui/warning-alert";
 import { useWarningDialog } from "@/components/ui/warning-dialog";
 import {
   azureImagePresets,
@@ -302,67 +303,66 @@ export default function AzurePanel() {
         />
 
         {loadError ? (
-          <WarningAlert
-            tone="destructive"
-            title={t("cloud.providers.azure.load_error_title", "加载 Azure 资源失败")}
-            description={loadError}
-          />
+          <RefreshNotice error={loadError} hasData={instances.length > 0 || Boolean(account)} refreshing={resourceLoading || loading} onRetry={() => void (activeCredential ? loadResources() : loadAll())} />
         ) : null}
 
-        <div className="grid min-w-0 items-stretch gap-4 xl:grid-cols-[minmax(340px,0.9fr)_minmax(380px,1.1fr)]">
-          <AzureInlineCreatePanel
+        <CloudCredentialGate empty={credentialPool?.credentials.length === 0} onImport={() => setCredentialImportOpen(true)}>
+          <div className="grid min-w-0 items-stretch gap-4 xl:grid-cols-[minmax(340px,0.9fr)_minmax(380px,1.1fr)]">
+            <AzureInlineCreatePanel
+              t={t}
+              catalog={effectiveCatalog}
+              account={account}
+              activeCredential={activeCredential}
+              form={createForm}
+              setForm={setCreateForm}
+              submitting={createSubmitting}
+              locationUpdating={locationUpdating}
+              onOpenAdvanced={() => setCreateOpen(true)}
+              onSetLocation={handleSetLocation}
+              onCreate={handleCreateInstance}
+            />
+            <AzureCredentialContextStrip
+              t={t}
+              credentialPool={credentialPool}
+              catalog={effectiveCatalog}
+              activeCredential={activeCredential}
+              checkingCredentialsState={checkingCredentialsState}
+              resourceLoading={resourceLoading}
+              onImportCredentials={() => setCredentialImportOpen(true)}
+              onViewInstances={loadResources}
+              onCheckCredentials={handleCheckCredentials}
+              onSelectCredential={handleSelectCredential}
+              onOpenGroupEditor={openCredentialGroupEditor}
+              onViewCredential={handleViewCredential}
+              onDeleteCredential={handleDeleteCredential}
+            />
+          </div>
+
+          <AzureInstancesSection
+            loadError={loadError}
             t={t}
             catalog={effectiveCatalog}
             account={account}
             activeCredential={activeCredential}
-            form={createForm}
-            setForm={setCreateForm}
-            submitting={createSubmitting}
+            instances={instances}
             locationUpdating={locationUpdating}
-            onOpenAdvanced={() => setCreateOpen(true)}
-            onSetLocation={handleSetLocation}
-            onCreate={handleCreateInstance}
-          />
-          <AzureCredentialContextStrip
-            t={t}
-            credentialPool={credentialPool}
-            catalog={effectiveCatalog}
-            activeCredential={activeCredential}
-            checkingCredentialsState={checkingCredentialsState}
             resourceLoading={resourceLoading}
-            onImportCredentials={() => setCredentialImportOpen(true)}
-            onViewInstances={loadResources}
-            onCheckCredentials={handleCheckCredentials}
-            onSelectCredential={handleSelectCredential}
-            onOpenGroupEditor={openCredentialGroupEditor}
-            onViewCredential={handleViewCredential}
-            onDeleteCredential={handleDeleteCredential}
+            passwordStorageEnabled={passwordStorageEnabled}
+            passwordLoading={passwordLoading}
+            workingInstanceId={workingInstanceId}
+            onSetLocation={handleSetLocation}
+            onOpenDetail={handleOpenDetail}
+            onOpenScript={(instance) => {
+              if (!activeCredential) return;
+              setScriptTarget(buildScriptTarget(t, instance, activeCredential.name));
+            }}
+            onViewPassword={handleViewPassword}
+            onInstanceAction={handleInstanceAction}
+            onReplaceInstanceIP={handleReplaceInstanceIP}
+            onDeleteInstance={handleDeleteInstance}
+            onBatchDeleteInstances={handleBatchDeleteInstances}
           />
-        </div>
-
-        <AzureInstancesSection
-          t={t}
-          catalog={effectiveCatalog}
-          account={account}
-          activeCredential={activeCredential}
-          instances={instances}
-          locationUpdating={locationUpdating}
-          resourceLoading={resourceLoading}
-          passwordStorageEnabled={passwordStorageEnabled}
-          passwordLoading={passwordLoading}
-          workingInstanceId={workingInstanceId}
-          onSetLocation={handleSetLocation}
-          onOpenDetail={handleOpenDetail}
-          onOpenScript={(instance) => {
-            if (!activeCredential) return;
-            setScriptTarget(buildScriptTarget(t, instance, activeCredential.name));
-          }}
-          onViewPassword={handleViewPassword}
-          onInstanceAction={handleInstanceAction}
-          onReplaceInstanceIP={handleReplaceInstanceIP}
-          onDeleteInstance={handleDeleteInstance}
-          onBatchDeleteInstances={handleBatchDeleteInstances}
-        />
+        </CloudCredentialGate>
       </AdminPageShell>
 
       <AzureCreateDialog
@@ -504,7 +504,7 @@ function AzureInlineCreatePanel({
   const locationOptions = catalog?.locations ?? [];
 
   return (
-    <section className={`${cloudPanelCardClassName} flex h-full min-h-[520px] flex-col`}>
+    <section className={`${cloudPanelCardClassName} flex h-full flex-col xl:min-h-[520px]`}>
       <div className={cloudPanelHeaderClassName}>
         <div className="flex min-w-0 flex-wrap items-center justify-between gap-3">
           <div className="min-w-0">
@@ -528,7 +528,7 @@ function AzureInlineCreatePanel({
           </Button>
         </div>
       </div>
-      <div className="grid gap-3 p-4">
+      <div className="grid min-w-0 grid-cols-1 gap-3 p-4">
         <div>
           <label className={cloudPanelFieldLabelClassName}>{t("cloud.table.name", "名称")}</label>
           <TextField.Root
@@ -640,7 +640,7 @@ function AzureCredentialContextStrip({
     activeCredential?.subscription_display_name || activeCredential?.subscription_id || "-";
 
   return (
-    <section className={`${cloudPanelCardClassName} flex h-full min-h-[520px] flex-col`}>
+    <section className={`${cloudPanelCardClassName} flex h-full flex-col xl:min-h-[520px]`}>
       <div className={cloudPanelHeaderClassName}>
         <div className="flex min-w-0 flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
           <div className="min-w-0">
@@ -710,7 +710,7 @@ function AzureCredentialContextStrip({
                       <AdminDataTableHead>{t("cloud.tokens.group", "分组")}</AdminDataTableHead>
                       <AdminDataTableHead>{t("cloud.providers.azure.subscription_state", "Subscription state")}</AdminDataTableHead>
                       <AdminDataTableHead>{t("cloud.tokens.table.status", "状态")}</AdminDataTableHead>
-                      <AdminDataTableHead align="right" sticky="right">{t("common.action", "操作")}</AdminDataTableHead>
+                      <AdminDataTableHead align="right" sticky="right-mobile">{t("common.action", "操作")}</AdminDataTableHead>
                     </AdminDataTableHeadRow>
                   </thead>
                   <tbody>
@@ -736,7 +736,7 @@ function AzureCredentialContextStrip({
                               : getCloudStatusLabel(credential.last_status, t)}
                           </Badge>
                         </AdminDataTableCell>
-                        <AdminDataTableCell align="right" sticky="right">
+                        <AdminDataTableCell align="right" sticky="right-mobile">
                           <AdminRowActions
                             label={t("common.action", "操作")}
                             actions={[

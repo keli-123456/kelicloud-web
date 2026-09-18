@@ -165,7 +165,7 @@ export const CommandClipboardProvider: React.FC<{
       setLoading(false);
       return;
     }
-    void refresh();
+    void refresh().catch(() => {});
   }, [autoLoad, refresh]);
 
   const value = React.useMemo(

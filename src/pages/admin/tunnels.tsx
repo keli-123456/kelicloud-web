@@ -1,4 +1,7 @@
 import React from "react";
+import { GuardedDialog, GuardedDialogClose } from "@/components/admin/GuardedDialog";
+import { RefreshNotice } from "@/components/admin/RefreshNotice";
+import { useRequestTracker } from "@/components/admin/useRequestTracker";
 import {
   Activity,
   ArrowRight,
@@ -16,7 +19,6 @@ import { toast } from "sonner";
 import {
   AdminDataTable,
   AdminDataTableCell,
-  AdminDataTableEmptyRow,
   AdminDataTableHead,
   AdminDataTableHeadRow,
   AdminDataTableRow,
@@ -326,43 +328,69 @@ export default function TunnelForwardingPage() {
   const [groups, setGroups] = React.useState<TunnelGroupSummary[]>([]);
   const [dialogOpen, setDialogOpen] = React.useState(false);
   const [form, setForm] = React.useState<TunnelFormState>(EMPTY_FORM);
+  const [initialForm, setInitialForm] = React.useState(EMPTY_FORM);
+  const [loadError, setLoadError] = React.useState("");
+  const [saveError, setSaveError] = React.useState("");
+  const [actionError, setActionError] = React.useState("");
+  const [loaded, setLoaded] = React.useState(false);
+  const [deleting, setDeleting] = React.useState<number | null>(null);
+  const requests = useRequestTracker();
+  const mutationBusy = React.useRef(false);
+  const opener = React.useRef<HTMLElement | null>(null);
+  const busy = saving || deleting !== null;
+  const dirty = JSON.stringify(form) !== JSON.stringify(initialForm);
   const overview = React.useMemo(
     () => getTunnelOverviewMetrics(rules, groups),
     [rules, groups],
   );
 
   const load = React.useCallback(async () => {
+    if (mutationBusy.current || requests.pending) return;
+    const ticket = requests.begin();
     setLoading(true);
     try {
       const payload = await getTunnelRules();
+      if (!requests.isCurrent(ticket)) return;
       setRules(payload.rules);
       setGroups(payload.groups);
+      setLoaded(true);
+      setLoadError("");
     } catch (error) {
-      toast.error(getReadableErrorMessage(error, t("tunnels.load_failed")));
+      if (!requests.isCurrent(ticket)) return;
+      setLoadError(getReadableErrorMessage(error, t("tunnels.load_failed")));
     } finally {
-      setLoading(false);
+      if (requests.isCurrent(ticket)) setLoading(false);
+      requests.finish(ticket);
     }
-  }, [t]);
+  }, [requests, t]);
 
   React.useEffect(() => {
     void load();
   }, [load]);
 
   const openCreate = () => {
-    setForm({
+    opener.current = document.activeElement as HTMLElement | null;
+    const next = {
       ...EMPTY_FORM,
       ingress_group: groups[0]?.name || "",
       egress_group: groups[0]?.name || "",
-    });
+    };
+    setForm(next);
+    setInitialForm(next);
+    setSaveError("");
     setDialogOpen(true);
   };
 
   const openEdit = (rule: TunnelRule) => {
+    opener.current = document.activeElement as HTMLElement | null;
     setForm(ruleToForm(rule));
+    setInitialForm(ruleToForm(rule));
+    setSaveError("");
     setDialogOpen(true);
   };
 
   const handleSave = async () => {
+    if (mutationBusy.current) return;
     let input: TunnelRuleInput;
     try {
       input = buildRuleInput(form);
@@ -379,6 +407,10 @@ export default function TunnelForwardingPage() {
       return;
     }
 
+    mutationBusy.current = true;
+    requests.invalidate();
+    setLoading(false);
+    setSaveError("");
     setSaving(true);
     try {
       const saved = await saveTunnelRule(input);
@@ -389,25 +421,34 @@ export default function TunnelForwardingPage() {
           : [saved, ...current];
       });
       setDialogOpen(false);
-      toast.success(t("tunnels.save_success"));
-      void load();
+      toast.success(t("async_feedback.tunnel_saved"));
     } catch (error) {
-      toast.error(getReadableErrorMessage(error, t("tunnels.save_failed")));
+      setSaveError(getReadableErrorMessage(error, t("tunnels.save_failed")));
     } finally {
+      mutationBusy.current = false;
       setSaving(false);
     }
   };
 
   const handleDelete = async (rule: TunnelRule) => {
+    if (mutationBusy.current) return;
     if (!window.confirm(t("tunnels.delete_confirm", { name: rule.name }))) {
       return;
     }
+    mutationBusy.current = true;
+    requests.invalidate();
+    setLoading(false);
+    setDeleting(rule.id);
+    setActionError("");
     try {
       await deleteTunnelRule(rule.id);
       setRules((current) => current.filter((item) => item.id !== rule.id));
       toast.success(t("tunnels.delete_success"));
     } catch (error) {
-      toast.error(getReadableErrorMessage(error, t("tunnels.delete_failed")));
+      setActionError(getReadableErrorMessage(error, t("tunnels.delete_failed")));
+    } finally {
+      mutationBusy.current = false;
+      setDeleting(null);
     }
   };
 
@@ -419,17 +460,19 @@ export default function TunnelForwardingPage() {
       description={t("tunnels.description")}
       actions={(
         <>
-          <Button variant="outline" onClick={() => void load()} disabled={loading}>
+          <Button variant="outline" onClick={() => void load()} disabled={loading || busy}>
             <RefreshCw className="size-4" />
             {t("common.refresh", { defaultValue: "刷新" })}
           </Button>
-          <Button onClick={openCreate} disabled={!canCreate}>
+          <Button onClick={openCreate} disabled={!canCreate || busy}>
             <Plus className="size-4" />
             {t("tunnels.create")}
           </Button>
         </>
       )}
     >
+      <RefreshNotice error={loadError} hasData={loaded} refreshing={loading || busy} onRetry={() => void load()} />
+      {actionError ? <div role="alert" className="admin-alert admin-alert-danger text-sm">{actionError}</div> : null}
       <TunnelOverviewBar metrics={overview} t={t} />
       <GroupReadinessStrip groups={groups} t={t} />
 
@@ -439,9 +482,9 @@ export default function TunnelForwardingPage() {
           description={t("tunnels.rules_description")}
         />
         <AdminPanelBody className="p-0">
-          {loading ? (
+          {loading && !loaded ? (
             <AdminTableSkeleton columns={7} rows={5} className="rounded-none border-0 shadow-none" />
-          ) : rules.length === 0 ? (
+          ) : !loaded && loadError ? null : rules.length === 0 ? (
             <div className="p-4">
               <AdminEmptyState
                 title={canCreate ? t("tunnels.empty") : t("tunnels.no_groups")}
@@ -466,17 +509,13 @@ export default function TunnelForwardingPage() {
                     <AdminDataTableHead>{t("tunnels.target")}</AdminDataTableHead>
                     <AdminDataTableHead className="w-[220px]">{t("tunnels.readiness")}</AdminDataTableHead>
                     <AdminDataTableHead className="w-[240px]">{t("tunnels.last_error")}</AdminDataTableHead>
-                    <AdminDataTableHead sticky="right" align="right" className="w-[112px]">
+                    <AdminDataTableHead sticky="right-mobile" align="right" className="w-[112px]">
                       {t("common.actions", { defaultValue: "操作" })}
                     </AdminDataTableHead>
                   </AdminDataTableHeadRow>
                 </thead>
                 <tbody>
-                  {rules.length === 0 ? (
-                    <AdminDataTableEmptyRow colSpan={8}>
-                      {t("tunnels.empty")}
-                    </AdminDataTableEmptyRow>
-                  ) : rules.map((rule) => (
+                  {rules.map((rule) => (
                     <AdminDataTableRow key={rule.id}>
                       <AdminDataTableCell>
                         <Badge
@@ -534,12 +573,12 @@ export default function TunnelForwardingPage() {
                       <AdminDataTableCell className="max-w-[240px]">
                         <TunnelDiagnosticsCell rule={rule} />
                       </AdminDataTableCell>
-                      <AdminDataTableCell sticky="right" align="right">
+                      <AdminDataTableCell sticky="right-mobile" align="right">
                         <div className="flex items-center justify-end gap-1.5">
-                          <Button size="icon" variant="outline" aria-label={t("common.edit", { defaultValue: "编辑" })} onClick={() => openEdit(rule)}>
+                          <Button size="icon" variant="outline" disabled={busy} aria-label={t("common.edit", { defaultValue: "编辑" })} onClick={() => openEdit(rule)}>
                             <Edit3 className="size-4" />
                           </Button>
-                          <Button size="icon" variant="outline" color="red" aria-label={t("common.delete", { defaultValue: "删除" })} onClick={() => void handleDelete(rule)}>
+                          <Button size="icon" variant="outline" color="red" disabled={busy} aria-label={t("common.delete", { defaultValue: "删除" })} onClick={() => void handleDelete(rule)}>
                             <Trash2 className="size-4" />
                           </Button>
                         </div>
@@ -553,8 +592,9 @@ export default function TunnelForwardingPage() {
         </AdminPanelBody>
       </AdminPanel>
 
-      <Dialog.Root open={dialogOpen} onOpenChange={(open) => !saving && setDialogOpen(open)}>
+      <GuardedDialog open={dialogOpen} onOpenChange={setDialogOpen} dirty={dirty} busy={saving}>
         <Dialog.Content
+          onCloseAutoFocus={(event) => { event.preventDefault(); if (opener.current?.isConnected) opener.current.focus(); }}
           className={cn(ADMIN_FORM_DIALOG_CLASS, ADMIN_FORM_DIALOG_CHROME_CLASS)}
           maxWidth={720}
         >
@@ -564,7 +604,8 @@ export default function TunnelForwardingPage() {
               <Dialog.Description>{t("tunnels.form_description")}</Dialog.Description>
             </div>
           </div>
-          <div className={cn(ADMIN_FORM_BODY_CLASS, "grid gap-4")}>
+          <fieldset disabled={saving} className={cn(ADMIN_FORM_BODY_CLASS, "grid min-w-0 gap-4")}>
+            {saveError ? <div role="alert" className="admin-alert admin-alert-danger text-sm">{saveError}</div> : null}
             <section className={ADMIN_FORM_SECTION_CLASS}>
               <div className={ADMIN_FORM_GRID_2_CLASS}>
                 <div className={ADMIN_FORM_FIELD_CLASS}>
@@ -646,17 +687,17 @@ export default function TunnelForwardingPage() {
                 </div>
               </div>
             </section>
-          </div>
+          </fieldset>
           <div className={ADMIN_FORM_FOOTER_CLASS}>
-            <Button variant="outline" onClick={() => setDialogOpen(false)} disabled={saving}>
+            <GuardedDialogClose asChild><Button variant="outline" disabled={saving}>
               {t("common.cancel", { defaultValue: "取消" })}
-            </Button>
+            </Button></GuardedDialogClose>
             <Button onClick={() => void handleSave()} disabled={saving}>
               {saving ? t("common.saving", { defaultValue: "保存中..." }) : t("common.save", { defaultValue: "保存" })}
             </Button>
           </div>
         </Dialog.Content>
-      </Dialog.Root>
+      </GuardedDialog>
     </AdminPageShell>
   );
 }

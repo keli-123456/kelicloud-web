@@ -45,6 +45,7 @@ async function requestTunnel<T>(path: string, init?: RequestInit): Promise<T> {
   const timeoutID = setTimeout(() => controller.abort(), TUNNEL_REQUEST_TIMEOUT_MS);
 
   let response: Response;
+  let text: string;
   try {
     response = await fetch(requestUrl, {
       credentials: "same-origin",
@@ -59,6 +60,7 @@ async function requestTunnel<T>(path: string, init?: RequestInit): Promise<T> {
       ...init,
       signal: controller.signal,
     });
+    text = await response.text();
   } catch (error) {
     if (error instanceof DOMException && error.name === "AbortError") {
       throw new TunnelApiError(`请求隧道转发接口超时: ${path}`, 408);
@@ -68,7 +70,6 @@ async function requestTunnel<T>(path: string, init?: RequestInit): Promise<T> {
     clearTimeout(timeoutID);
   }
 
-  const text = await response.text();
   const trimmed = text.trim();
   let payload: ApiEnvelope<T> | null = null;
 

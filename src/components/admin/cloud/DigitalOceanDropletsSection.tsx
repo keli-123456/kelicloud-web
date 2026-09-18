@@ -35,7 +35,6 @@ import { useCloudBulkSelection } from "@/components/admin/cloud/useCloudBulkSele
 import {
   Badge,
   cloudPanelCardClassName,
-  cloudPanelDescriptionClassName,
   cloudPanelHeaderClassName,
   cloudPanelTitleClassName,
   cloudTableEmptyStateClassName,
@@ -123,10 +122,7 @@ export function DigitalOceanDropletsSection({
       "请先在下方令牌池选择或导入令牌，然后再加载云资源。",
     )
     : !resourcesLoaded
-      ? t(
-        "cloud.load_resources_prompt_description",
-        "资源采用按需加载，切换账户时状态会更清楚，也不会自动发起多余请求。",
-      )
+      ? undefined
       : error
         ? t("cloud.load_failed_description", "请先处理上方警告，再刷新或再次加载资源。")
         : t(
@@ -147,12 +143,6 @@ export function DigitalOceanDropletsSection({
           <div>
             <div className={cloudPanelTitleClassName}>
               {t("cloud.droplet_list", "实例列表")}
-            </div>
-            <div className={cloudPanelDescriptionClassName}>
-              {t(
-                "cloud.droplet_list_description",
-                "Click a Droplet name to view details, and use the current active token to perform lifecycle actions.",
-              )}
             </div>
           </div>
           <CloudBulkDeleteToolbar
@@ -191,7 +181,7 @@ export function DigitalOceanDropletsSection({
               <AdminDataTableHead>{t("cloud.table.price", "月费")}</AdminDataTableHead>
               <AdminDataTableHead>{t("cloud.table.password", "登录密码")}</AdminDataTableHead>
               <AdminDataTableHead>{t("cloud.table.created_at", "创建时间")}</AdminDataTableHead>
-              <AdminDataTableHead sticky="right" align="right" className="w-[72px]">
+              <AdminDataTableHead sticky="right-mobile" align="right" className="w-[72px]">
                 {t("common.action", "操作")}
               </AdminDataTableHead>
             </AdminDataTableHeadRow>
@@ -251,7 +241,7 @@ export function DigitalOceanDropletsSection({
                   )}
                 </AdminDataTableCell>
                 <AdminDataTableCell>{formatDateTime(droplet.created_at)}</AdminDataTableCell>
-                <AdminDataTableCell sticky="right" align="right">
+                <AdminDataTableCell sticky="right-mobile" align="right">
                   <AdminRowActions
                     actions={[
                       {

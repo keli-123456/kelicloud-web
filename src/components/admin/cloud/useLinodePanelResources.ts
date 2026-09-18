@@ -1,4 +1,5 @@
 import React from "react";
+import { useRequestTracker } from "../useRequestTracker";
 
 import {
   getLinodeAccount,
@@ -11,6 +12,7 @@ import { toErrorMessage } from "./linodePanelUtils";
 import { buildStaticLinodeCatalog } from "./cloudStaticCatalogs";
 
 export function useLinodePanelResources() {
+  const requests = useRequestTracker();
   const [initializing, setInitializing] = React.useState(true);
   const [panelLoading, setPanelLoading] = React.useState(false);
   const [account, setAccount] = React.useState<LinodeAccount | null>(null);
@@ -20,33 +22,36 @@ export function useLinodePanelResources() {
   const [resourcesLoaded, setResourcesLoaded] = React.useState(false);
 
   const loadPanelData = React.useCallback(async () => {
+    const ticket = requests.begin();
     setPanelLoading(true);
     try {
       const [nextAccount, nextInstances] = await Promise.all([
         getLinodeAccount(),
         listLinodeInstances(),
       ]);
+      if (!requests.isCurrent(ticket)) return;
       setAccount(nextAccount);
       setInstances(nextInstances);
       setError("");
       setResourcesLoaded(true);
     } catch (panelError) {
-      setAccount(null);
-      setInstances([]);
+      if (!requests.isCurrent(ticket)) return;
       setError(toErrorMessage(panelError));
-      setResourcesLoaded(false);
     } finally {
-      setPanelLoading(false);
+      if (requests.isCurrent(ticket)) setPanelLoading(false);
+      requests.finish(ticket);
     }
-  }, []);
+  }, [requests]);
 
   const clearResourceData = React.useCallback(() => {
+    requests.invalidate();
+    setPanelLoading(false);
     setAccount(null);
     setCatalog(buildStaticLinodeCatalog());
     setInstances([]);
     setError("");
     setResourcesLoaded(false);
-  }, []);
+  }, [requests]);
 
   return {
     initializing,

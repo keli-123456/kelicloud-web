@@ -1,44 +1,20 @@
-# AGENTS.md
+# Kelicloud Web
 
-## Frontend working rules
-- 优先最小改动，避免无关重构。
-- 不修改后端 API 协议。
-- 不引入新的大型第三方 UI 依赖。
-- 新增文案必须走现有 i18n 方案。
-- 修改前先定位页面、相关组件、状态管理和样式来源。
-- 修改后必须运行项目已有的 lint、typecheck、build、test。
-- 危险操作必须有确认与禁用态。
-- 批量操作必须明确作用范围。
-- 能复用现有 design token 和组件时，不要重新发明一套样式体系。
-# UI Rules
+## 范围
+- 仅适用于 `kelicloud-web`，不约束后端或 Agent 仓库。
+- 前端改动保持现有 API 兼容；只有任务确实需要时才同步调整协议和调用方。
+- 优先局部修改，不为小改动引入大型 UI 依赖或整套新样式。
 
-## Scope
-These rules apply to all frontend work in `komari-web`.
+## UI 约定
+- 优先复用 `src/components/ui/*`；缺少组件时按现有模式补充，不强制安装组件或调用外部 registry。
+- 需要共享的 Radix 封装放在 `src/components/ui/*`，页面专用逻辑留在所属模块。
+- 使用 `src/lib/utils.ts` 的 `cn`、现有 Tailwind token 和 CSS 变量。
+- 新增用户可见文案使用现有 i18n 方案。
+- 保持后台导航一致、列表状态紧凑；长错误放入提示或详情，不撑大表格行。
+- 危险操作保留确认和执行中禁用态，批量操作明确作用范围。
 
-## Component Source
-- Treat the local `shadcn`-style component system as the default UI layer.
-- Prefer components from `src/components/ui/*` before creating anything new.
-- When a component is missing, use the `shadcn` MCP server or registry workflow against `components.json` to search and install it first.
-- Do not paste random third-party UI snippets into feature pages.
-
-## Allowed Patterns
-- New pages and new features should import from `src/components/ui/*`.
-- If raw `@radix-ui/*` is needed, wrap it in `src/components/ui/*` before using it broadly.
-- Use `cn` from `src/lib/utils.ts` for class composition.
-- Use Tailwind tokens and CSS variables already defined by the project.
-
-## Legacy Boundary
-- `src/components/ui/compat.tsx` is a legacy bridge.
-- Do not expand `compat.tsx` for new UI unless the task is explicitly migrating an old page incrementally.
-- New UI work should prefer the dedicated component files such as `ui/button.tsx`, `ui/input.tsx`, `ui/textarea.tsx`, `ui/dropdown-menu.tsx`, `ui/badge.tsx`.
-
-## Visual Consistency
-- Keep desktop and mobile navigation patterns consistent across admin pages.
-- Prefer layout-level reuse over page-specific navigation hacks.
-- Avoid ad-hoc inline colors when an existing token or utility class can express the same state.
-- Keep status presentation compact: short badge text in the list, long vendor detail in tooltip, dialog, or details panel.
-
-## Review Standard
-- New UI should look like it belongs to the existing admin console.
-- If a change introduces a new reusable pattern, extract it into `src/components/ui/*` or a focused admin component instead of duplicating markup.
-- Before merging frontend UI changes, run `tsc --noEmit` and a production `vite build`.
+## 验证
+- 运行代码变更后执行 `npm run lint`、`npm test`、`npm run build`。
+- `build` 已包含 TypeScript 检查和 PWA 产物校验，不重复执行单独的类型检查或 Vite 构建。
+- 文案或翻译变更时补跑 `npm run i18n:audit`；纯文档或指令调整只检查内容、引用和差异。
+- UI 变更验证受影响的交互、桌面与移动端布局，以及浅色/深色状态。

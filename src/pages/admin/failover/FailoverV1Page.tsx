@@ -1,7 +1,14 @@
 import React from "react";
+import { RefreshNotice } from "@/components/admin/RefreshNotice";
+import { useRequestTracker } from "@/components/admin/useRequestTracker";
+import { createPortal } from "react-dom";
+import { FieldValidationError, FormValidationProvider, FormValidationSummary, ValidationField } from "@/components/admin/FormValidation";
+import { GuardedDialog, GuardedDialogClose } from "@/components/admin/GuardedDialog";
+import { CredentialActions } from "@/components/admin/CredentialActions";
 import { Navigate, useSearchParams } from "react-router-dom";
 import {
   ArrowDown,
+  ArrowLeft,
   ArrowUp,
   Check,
   ChevronDown,
@@ -337,32 +344,6 @@ function StickyEditorSummaryPanel({
         {children}
       </div>
     </aside>
-  );
-}
-
-function SummaryNoteList({
-  title,
-  notes,
-}: {
-  title: string;
-  notes: string[];
-}) {
-  if (notes.length === 0) {
-    return null;
-  }
-
-  return (
-    <div className="border-t border-slate-200/80 pt-3 dark:border-slate-800">
-      <div className="text-xs font-semibold uppercase tracking-normal text-muted-foreground">{title}</div>
-      <div className="mt-2 space-y-2">
-        {notes.map((note) => (
-          <div key={note} className="flex gap-2 text-xs leading-5 text-muted-foreground">
-            <Check className="mt-0.5 size-3.5 shrink-0 text-emerald-600" />
-            <span>{note}</span>
-          </div>
-        ))}
-      </div>
-    </div>
   );
 }
 
@@ -3245,15 +3226,16 @@ function requirePlanField(
   index: number,
   fieldLabel: string,
   value: unknown,
+  field: string,
 ) {
   const normalized = getStringValue(value);
   if (!normalized) {
-    throw new Error(
+    throw new FieldValidationError(
       t("failover.validation.plan_field_required", {
         defaultValue: "Plan {{index}} requires {{field}}",
         index: index + 1,
         field: fieldLabel,
-      }),
+      }), `plan.${["publisher", "offer", "sku"].includes(field) ? "image_preset" : field}`,
     );
   }
   return normalized;
@@ -3268,65 +3250,65 @@ function validatePlanPayload(
 ) {
   if (provider === "aws" && actionType === "provision_instance") {
     const service = normalizeAWSService(payload.service);
-    requirePlanField(t, index, t("failover.editor.region", { defaultValue: "Region" }), payload.region);
+    requirePlanField(t, index, t("failover.editor.region", { defaultValue: "Region" }), payload.region, "region");
     if (service === "ec2") {
-      requirePlanField(t, index, t("failover.editor.image", { defaultValue: "Image" }), payload.image_id);
-      requirePlanField(t, index, t("failover.editor.instance_type", { defaultValue: "Instance type" }), payload.instance_type);
+      requirePlanField(t, index, t("failover.editor.image", { defaultValue: "Image" }), payload.image_id, "image_id");
+      requirePlanField(t, index, t("failover.editor.instance_type", { defaultValue: "Instance type" }), payload.instance_type, "instance_type");
       return;
     }
-    requirePlanField(t, index, t("failover.editor.availability_zone", { defaultValue: "Availability zone" }), payload.availability_zone);
-    requirePlanField(t, index, t("failover.editor.blueprint", { defaultValue: "Blueprint" }), payload.blueprint_id);
-    requirePlanField(t, index, t("failover.editor.bundle", { defaultValue: "Bundle" }), payload.bundle_id);
+    requirePlanField(t, index, t("failover.editor.availability_zone", { defaultValue: "Availability zone" }), payload.availability_zone, "availability_zone");
+    requirePlanField(t, index, t("failover.editor.blueprint", { defaultValue: "Blueprint" }), payload.blueprint_id, "blueprint_id");
+    requirePlanField(t, index, t("failover.editor.bundle", { defaultValue: "Bundle" }), payload.bundle_id, "bundle_id");
     return;
   }
 
   if (provider === "aws" && actionType === "rebind_public_ip") {
-    requirePlanField(t, index, t("failover.editor.region", { defaultValue: "Region" }), payload.region);
+    requirePlanField(t, index, t("failover.editor.region", { defaultValue: "Region" }), payload.region, "region");
     const service = normalizeAWSService(payload.service);
     if (service === "ec2") {
-      requirePlanField(t, index, t("failover.editor.image", { defaultValue: "Image" }), payload.image_id);
-      requirePlanField(t, index, t("failover.editor.instance_type", { defaultValue: "Instance type" }), payload.instance_type);
+      requirePlanField(t, index, t("failover.editor.image", { defaultValue: "Image" }), payload.image_id, "image_id");
+      requirePlanField(t, index, t("failover.editor.instance_type", { defaultValue: "Instance type" }), payload.instance_type, "instance_type");
       return;
     }
-    requirePlanField(t, index, t("failover.editor.availability_zone", { defaultValue: "Availability zone" }), payload.availability_zone);
-    requirePlanField(t, index, t("failover.editor.blueprint", { defaultValue: "Blueprint" }), payload.blueprint_id);
-    requirePlanField(t, index, t("failover.editor.bundle", { defaultValue: "Bundle" }), payload.bundle_id);
+    requirePlanField(t, index, t("failover.editor.availability_zone", { defaultValue: "Availability zone" }), payload.availability_zone, "availability_zone");
+    requirePlanField(t, index, t("failover.editor.blueprint", { defaultValue: "Blueprint" }), payload.blueprint_id, "blueprint_id");
+    requirePlanField(t, index, t("failover.editor.bundle", { defaultValue: "Bundle" }), payload.bundle_id, "bundle_id");
     return;
   }
 
   if (provider === "azure" && actionType === "provision_instance") {
     const image = normalizeAzureImageReference(payload);
-    requirePlanField(t, index, t("failover.editor.region", { defaultValue: "Region" }), payload.region);
-    requirePlanField(t, index, t("failover.editor.size", { defaultValue: "Size" }), payload.size);
-    requirePlanField(t, index, t("cloud.providers.azure.image_publisher", { defaultValue: "Image publisher" }), image.publisher);
-    requirePlanField(t, index, t("cloud.providers.azure.image_offer", { defaultValue: "Image offer" }), image.offer);
-    requirePlanField(t, index, t("cloud.providers.azure.image_sku", { defaultValue: "Image SKU" }), image.sku);
+    requirePlanField(t, index, t("failover.editor.region", { defaultValue: "Region" }), payload.region, "region");
+    requirePlanField(t, index, t("failover.editor.size", { defaultValue: "Size" }), payload.size, "size");
+    requirePlanField(t, index, t("cloud.providers.azure.image_publisher", { defaultValue: "Image publisher" }), image.publisher, "publisher");
+    requirePlanField(t, index, t("cloud.providers.azure.image_offer", { defaultValue: "Image offer" }), image.offer, "offer");
+    requirePlanField(t, index, t("cloud.providers.azure.image_sku", { defaultValue: "Image SKU" }), image.sku, "sku");
     return;
   }
 
   if (provider === "digitalocean" && actionType === "provision_instance") {
-    requirePlanField(t, index, t("failover.editor.region", { defaultValue: "Region" }), payload.region);
-    requirePlanField(t, index, t("failover.editor.size", { defaultValue: "Size" }), payload.size);
-    requirePlanField(t, index, t("failover.editor.image", { defaultValue: "Image" }), payload.image);
+    requirePlanField(t, index, t("failover.editor.region", { defaultValue: "Region" }), payload.region, "region");
+    requirePlanField(t, index, t("failover.editor.size", { defaultValue: "Size" }), payload.size, "size");
+    requirePlanField(t, index, t("failover.editor.image", { defaultValue: "Image" }), payload.image, "image");
     return;
   }
 
   if (provider === "linode" && actionType === "provision_instance") {
-    requirePlanField(t, index, t("failover.editor.region", { defaultValue: "Region" }), payload.region);
-    requirePlanField(t, index, t("failover.editor.type", { defaultValue: "Plan type" }), payload.type);
-    requirePlanField(t, index, t("failover.editor.image", { defaultValue: "Image" }), payload.image);
+    requirePlanField(t, index, t("failover.editor.region", { defaultValue: "Region" }), payload.region, "region");
+    requirePlanField(t, index, t("failover.editor.type", { defaultValue: "Plan type" }), payload.type, "type");
+    requirePlanField(t, index, t("failover.editor.image", { defaultValue: "Image" }), payload.image, "image");
   }
 
   if (provider === "vultr" && actionType === "provision_instance") {
-    requirePlanField(t, index, t("failover.editor.region", { defaultValue: "Region" }), payload.region);
-    requirePlanField(t, index, t("failover.editor.plan", { defaultValue: "Plan" }), payload.plan);
+    requirePlanField(t, index, t("failover.editor.region", { defaultValue: "Region" }), payload.region, "region");
+    requirePlanField(t, index, t("failover.editor.plan", { defaultValue: "Plan" }), payload.plan, "plan");
     if (!Number.isFinite(Number(payload.os_id)) || Number(payload.os_id) <= 0) {
-      throw new Error(
+      throw new FieldValidationError(
         t("failover.validation.plan_field_required", {
           defaultValue: "Plan {{index}} requires {{field}}",
           index: index + 1,
           field: t("failover.editor.image", { defaultValue: "Image" }),
-        }),
+        }), "plan.os_id",
       );
     }
   }
@@ -4733,18 +4715,18 @@ function getPlanDisplayName(plan: PlanFormState, index: number, t: TFunction) {
 function buildTaskInput(formState: TaskFormState, t: TFunction): FailoverTaskInput {
   const taskName = formState.name.trim();
   if (!taskName) {
-    throw new Error(
+    throw new FieldValidationError(
       t("failover.validation.task_name_required", {
         defaultValue: "Task name is required",
-      }),
+      }), "name",
     );
   }
   const currentClientUUID = formState.current_client_uuid.trim();
   if (formState.plans.length === 0) {
-    throw new Error(
+    throw new FieldValidationError(
       t("failover.validation.plan_required", {
         defaultValue: "At least one failover plan is required",
-      }),
+      }), "plans",
     );
   }
 
@@ -4761,57 +4743,57 @@ function buildTaskInput(formState: TaskFormState, t: TFunction): FailoverTaskInp
   );
   const normalizedAliyunRR = normalizeAliyunRRInput(formState.dns_domain_name, formState.dns_rr);
   if (dnsProvider && dnsTTL <= 0) {
-    throw new Error(
+    throw new FieldValidationError(
       t("failover.validation.dns_ttl_invalid", {
         defaultValue: "TTL must be greater than 0",
-      }),
+      }), "dns_ttl",
     );
   }
   if (dnsProvider && !formState.dns_entry_id.trim()) {
-    throw new Error(
+    throw new FieldValidationError(
       t("failover.validation.dns_entry_required", {
         defaultValue: "DNS credential entry is required",
-      }),
+      }), "dns_entry_id",
     );
   }
   if (dnsProvider === "cloudflare" && !formState.dns_zone_name.trim()) {
-    throw new Error(
+    throw new FieldValidationError(
       t("failover.validation.dns_zone_required", {
         defaultValue: "Cloudflare zone or domain is required",
-      }),
+      }), "dns_zone_name",
     );
   }
   if (dnsProvider === "aliyun" && !formState.dns_domain_name.trim()) {
-    throw new Error(
+    throw new FieldValidationError(
       t("failover.validation.dns_domain_required", {
         defaultValue: "Aliyun domain is required",
-      }),
+      }), "dns_domain_name",
     );
   }
   if (dnsProvider === "aliyun" && (normalizedAliyunRR.includes("://") || /[/\\\s]/.test(normalizedAliyunRR) || normalizedAliyunRR.startsWith(".") || normalizedAliyunRR.endsWith(".") || normalizedAliyunRR.includes(".."))) {
-    throw new Error(
+    throw new FieldValidationError(
       t("failover.validation.aliyun_rr_invalid", {
         defaultValue: "Aliyun host record must be like @, www, or api. Do not enter a full URL or invalid separators.",
-      }),
+      }), "dns_rr",
     );
   }
 
   const plans: FailoverPlanInput[] = formState.plans.map((plan, index) => {
     const normalizedActionType = normalizePlanActionTypeForProvider(plan.provider, plan.action_type);
     if (!plan.provider.trim()) {
-      throw new Error(
+      throw new FieldValidationError(
         t("failover.validation.plan_provider_required", {
           defaultValue: "Plan {{index}} requires a cloud provider",
           index: index + 1,
-        }),
+        }), "plan.provider", plan.local_id,
       );
     }
     if (!normalizedActionType.trim()) {
-      throw new Error(
+      throw new FieldValidationError(
         t("failover.validation.plan_action_required", {
           defaultValue: "Plan {{index}} requires an action type",
           index: index + 1,
-        }),
+        }), "plan.action_type", plan.local_id,
       );
     }
     const planPayload = normalizePlanPayloadForSubmit(
@@ -4819,7 +4801,12 @@ function buildTaskInput(formState: TaskFormState, t: TFunction): FailoverTaskInp
       normalizedActionType,
       parsePlanPayloadObject(plan.payload),
     );
-    validatePlanPayload(t, index, plan.provider, normalizedActionType, planPayload);
+    try {
+      validatePlanPayload(t, index, plan.provider, normalizedActionType, planPayload);
+    } catch (error) {
+      if (error instanceof FieldValidationError) error.planID = plan.local_id;
+      throw error;
+    }
 
     const scriptClipboardIDs = normalizePlanScriptClipboardIDs(plan.script_clipboard_ids);
     return {
@@ -4847,10 +4834,10 @@ function buildTaskInput(formState: TaskFormState, t: TFunction): FailoverTaskInp
     && !plan.auto_connect_group.trim()
   ));
   if (candidateCount > 1 && missingCandidateAgentPlanIndex >= 0) {
-    throw new Error(t("failover.validation.candidate_auto_connect_required", {
+    throw new FieldValidationError(t("failover.validation.candidate_auto_connect_required", {
       defaultValue: "Plan {{index}} needs an Agent auto-connect group when more than one candidate is selected.",
       index: missingCandidateAgentPlanIndex + 1,
-    }));
+    }), "plan.auto_connect_group", formState.plans[missingCandidateAgentPlanIndex].local_id);
   }
 
   const deleteStrategy = resolveTaskDeleteStrategy(formState.delete_strategy, formState.plans);
@@ -5450,6 +5437,7 @@ function ExecutionDetailDialog({
   open,
   onOpenChange,
   onExecutionUpdated,
+  returnFocus,
 }: {
   executionID: number | null;
   taskName: string;
@@ -5457,6 +5445,7 @@ function ExecutionDetailDialog({
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onExecutionUpdated?: () => Promise<void>;
+  returnFocus: React.RefObject<HTMLElement | null>;
 }) {
   const { t } = useTranslation();
   const [execution, setExecution] = React.useState<FailoverExecution | null>(null);
@@ -5467,38 +5456,49 @@ function ExecutionDetailDialog({
   const [retryingDNS, setRetryingDNS] = React.useState(false);
   const [retryingCleanup, setRetryingCleanup] = React.useState(false);
   const [pendingRetryAction, setPendingRetryAction] = React.useState<"retry_dns" | "retry_cleanup" | null>(null);
+  const detailRequests = useRequestTracker();
+  const actionBusy = React.useRef(false);
+  const [actionError, setActionError] = React.useState("");
+  const detailBusy = stopping || retryingDNS || retryingCleanup;
 
   const loadExecution = React.useCallback(async (showLoading = true) => {
-    if (!executionID) {
+    if (!executionID || detailRequests.pending || actionBusy.current) {
       return;
     }
-
+    const ticket = detailRequests.begin();
     if (showLoading) {
       setLoading(true);
     }
-    setError("");
     try {
       const detail = await getFailoverExecution(executionID);
+      if (!detailRequests.isCurrent(ticket)) return;
       setExecution(detail);
+      setError("");
     } catch (nextError) {
+      if (!detailRequests.isCurrent(ticket)) return;
       setError(
         getReadableErrorMessage(nextError, t("failover.messages.load_execution_failed", {
             defaultValue: "加载执行详情失败",
           })),
       );
     } finally {
-      if (showLoading) {
+      if (detailRequests.isCurrent(ticket) && showLoading) {
         setLoading(false);
       }
+      detailRequests.finish(ticket);
     }
-  }, [executionID, t]);
+  }, [executionID, detailRequests, t]);
 
   React.useEffect(() => {
     if (!open || !executionID) {
       return;
     }
+    setExecution(null);
+    setError("");
+    setActionError("");
     void loadExecution();
-  }, [executionID, loadExecution, open]);
+    return () => detailRequests.invalidate();
+  }, [executionID, loadExecution, open, detailRequests]);
 
   React.useEffect(() => {
     if (!open || !execution || !isFailoverExecutionActive(execution.status)) {
@@ -5506,7 +5506,7 @@ function ExecutionDetailDialog({
     }
 
     const timer = window.setInterval(() => {
-      void loadExecution(false);
+      if (!document.hidden) void loadExecution(false);
     }, 3000);
 
     return () => {
@@ -5521,10 +5521,14 @@ function ExecutionDetailDialog({
   }, [open]);
 
   const handleStopExecution = async () => {
-    if (!executionID) {
+    if (!executionID || actionBusy.current) {
       return;
     }
 
+    actionBusy.current = true;
+    detailRequests.invalidate();
+    setLoading(false);
+    setActionError("");
     setStopping(true);
     try {
       const updated = await stopFailoverExecution(executionID);
@@ -5532,17 +5536,23 @@ function ExecutionDetailDialog({
       toast.success(t("failover.messages.stopped", { defaultValue: "Failover execution stopped" }));
       await onExecutionUpdated?.();
     } catch (nextError) {
+      setActionError(getReadableErrorMessage(nextError, t("common.unknown_error")));
       toast.error(getReadableErrorMessage(nextError, t("common.unknown_error")));
     } finally {
+      actionBusy.current = false;
       setStopping(false);
     }
   };
 
   const handleRetryDNS = async () => {
-    if (!executionID) {
+    if (!executionID || actionBusy.current) {
       return false;
     }
 
+    actionBusy.current = true;
+    detailRequests.invalidate();
+    setLoading(false);
+    setActionError("");
     setRetryingDNS(true);
     try {
       const updated = await retryFailoverExecutionDNS(executionID);
@@ -5551,19 +5561,25 @@ function ExecutionDetailDialog({
       await onExecutionUpdated?.();
       return true;
     } catch (nextError) {
+      setActionError(getReadableErrorMessage(nextError, t("common.unknown_error")));
       toast.error(getReadableErrorMessage(nextError, t("common.unknown_error")));
-      await loadExecution(false);
       return false;
     } finally {
+      actionBusy.current = false;
       setRetryingDNS(false);
+      void loadExecution(false);
     }
   };
 
   const handleRetryCleanup = async () => {
-    if (!executionID) {
+    if (!executionID || actionBusy.current) {
       return false;
     }
 
+    actionBusy.current = true;
+    detailRequests.invalidate();
+    setLoading(false);
+    setActionError("");
     setRetryingCleanup(true);
     try {
       const updated = await retryFailoverExecutionCleanup(executionID);
@@ -5572,11 +5588,13 @@ function ExecutionDetailDialog({
       await onExecutionUpdated?.();
       return true;
     } catch (nextError) {
+      setActionError(getReadableErrorMessage(nextError, t("common.unknown_error")));
       toast.error(getReadableErrorMessage(nextError, t("common.unknown_error")));
-      await loadExecution(false);
       return false;
     } finally {
+      actionBusy.current = false;
       setRetryingCleanup(false);
+      void loadExecution(false);
     }
   };
 
@@ -5637,8 +5655,8 @@ function ExecutionDetailDialog({
 
   return (
     <>
-      <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className={cn(ADMIN_FORM_DIALOG_CLASS, ADMIN_FORM_DIALOG_CHROME_CLASS, "max-w-4xl")}>
+      <Dialog open={open} onOpenChange={(next) => { if (!actionBusy.current) onOpenChange(next); }}>
+        <DialogContent onCloseAutoFocus={(event) => { event.preventDefault(); if (returnFocus.current?.isConnected) returnFocus.current.focus(); }} className={cn(ADMIN_FORM_DIALOG_CLASS, ADMIN_FORM_DIALOG_CHROME_CLASS, "max-w-4xl")}>
           <DialogHeader className={ADMIN_FORM_HEADER_CLASS}>
             <DialogTitle>
               {t("failover.execution.title", { defaultValue: "Execution details" })}
@@ -5653,11 +5671,8 @@ function ExecutionDetailDialog({
           <div className={ADMIN_FORM_BODY_CLASS}>
             {loading && !execution ? <ExecutionDetailSkeleton /> : null}
 
-            {!loading && error ? (
-              <div className="border-l-2 border-red-300 bg-red-50/70 px-3 py-2 text-sm text-red-700 dark:border-red-800 dark:bg-red-950/20 dark:text-red-200">
-                {error}
-              </div>
-            ) : null}
+            <RefreshNotice error={error} hasData={Boolean(execution)} refreshing={loading || detailBusy} onRetry={() => void loadExecution()} />
+            {actionError ? <div role="alert" className="admin-alert admin-alert-danger text-sm">{actionError}</div> : null}
 
           {execution ? (
             <div className="space-y-4">
@@ -5931,7 +5946,7 @@ function ExecutionDetailDialog({
 
         <DialogFooter className={ADMIN_FORM_FOOTER_CLASS}>
           {detailedMode && execution && isFailoverExecutionActive(execution.status) ? (
-            <Button type="button" variant="outline" onClick={() => void handleStopExecution()} disabled={stopping || loading}>
+            <Button type="button" variant="outline" onClick={() => void handleStopExecution()} disabled={detailBusy || loading}>
               {stopping ? <LoaderCircle className="size-4 animate-spin" /> : <Square className="size-4" />}
               {t("failover.actions.stop", { defaultValue: "Stop" })}
             </Button>
@@ -5941,7 +5956,7 @@ function ExecutionDetailDialog({
               type="button"
               variant="outline"
               onClick={() => setPendingRetryAction("retry_dns")}
-              disabled={retryingDNS || retryingCleanup || loading}
+              disabled={detailBusy || loading}
             >
               {retryingDNS ? <LoaderCircle className="size-4 animate-spin" /> : <RefreshCw className="size-4" />}
               {t("failover.actions.retry_dns", { defaultValue: "Retry DNS" })}
@@ -5952,15 +5967,15 @@ function ExecutionDetailDialog({
               type="button"
               variant="outline"
               onClick={() => setPendingRetryAction("retry_cleanup")}
-              disabled={retryingCleanup || retryingDNS || loading}
+              disabled={detailBusy || loading}
             >
               {retryingCleanup ? <LoaderCircle className="size-4 animate-spin" /> : <RefreshCw className="size-4" />}
               {t("failover.actions.retry_cleanup", { defaultValue: "Retry Cleanup" })}
             </Button>
           ) : null}
-          <Button type="button" variant="outline" onClick={() => void loadExecution()} disabled={!executionID || loading}>
+          <Button type="button" variant="outline" onClick={() => void loadExecution()} disabled={!executionID || loading || detailBusy}>
             <RefreshCw className={cn("size-4", loading ? "animate-spin" : "")} />
-            {t("common.refresh", { defaultValue: "Refresh" })}
+            {t("async_feedback.refresh")}
           </Button>
         </DialogFooter>
         </DialogContent>
@@ -6022,6 +6037,7 @@ function TaskEditorDialog({
   platformAdmin,
   onOpenChange,
   onSaved,
+  onRefreshCredentials,
 }: {
   open: boolean;
   mode: "create" | "edit";
@@ -6034,6 +6050,7 @@ function TaskEditorDialog({
   platformAdmin: boolean;
   onOpenChange: (open: boolean) => void;
   onSaved: () => Promise<void>;
+  onRefreshCredentials: (provider?: string) => Promise<void>;
 }) {
   const { t } = useTranslation();
   const {
@@ -6044,12 +6061,26 @@ function TaskEditorDialog({
   const copyLabel = t("copy", { defaultValue: "Copy" });
   const [submitting, setSubmitting] = React.useState(false);
   const [formState, setFormState] = React.useState<TaskFormState>(() => createEmptyTaskForm(providerEntries));
+  const [initialFormSignature, setInitialFormSignature] = React.useState("");
   const [taskDialogOpen, setTaskDialogOpen] = React.useState(false);
   const [previewDialogOpen, setPreviewDialogOpen] = React.useState(false);
   const [dnsDialogOpen, setDnsDialogOpen] = React.useState(false);
   const [dnsCoreOpen, setDnsCoreOpen] = React.useState(true);
   const [dnsAdvancedOpen, setDnsAdvancedOpen] = React.useState(false);
   const [planDialogOpen, setPlanDialogOpen] = React.useState(false);
+  const [planEditorHost, setPlanEditorHost] = React.useState<HTMLDivElement | null>(null);
+  const planReturnFocus = React.useRef<HTMLElement | null>(null);
+  const planBackButton = React.useRef<HTMLButtonElement>(null);
+  const [formError, setFormError] = React.useState<Error | null>(null);
+  React.useEffect(() => {
+    if (planDialogOpen) {
+      planReturnFocus.current = document.activeElement as HTMLElement;
+      planBackButton.current?.focus();
+    } else {
+      planReturnFocus.current?.focus({ preventScroll: true });
+    }
+  }, [planDialogOpen]);
+  React.useEffect(() => { setFormError(null); }, [open, formState]);
   const [taskAdvancedOpen, setTaskAdvancedOpen] = React.useState(true);
   const [taskRetryOpen, setTaskRetryOpen] = React.useState(false);
   const [selectedPlanID, setSelectedPlanID] = React.useState("");
@@ -6077,6 +6108,7 @@ function TaskEditorDialog({
   const lastEnabledDnsRef = React.useRef<{ provider: string; entryID: string } | null>(null);
   const dnsCatalogRequestRef = React.useRef(0);
   const planCatalogRequestRef = React.useRef(0);
+  const editorInitializationKeyRef = React.useRef("");
   const resetPlanCatalogState = React.useCallback((
     nextCatalog: FailoverPlanCatalog | null = null,
     nextMode: "regions" | "full" = "regions",
@@ -6095,6 +6127,7 @@ function TaskEditorDialog({
 
   React.useEffect(() => {
     if (!open) {
+      editorInitializationKeyRef.current = "";
       setTaskDialogOpen(false);
       setPreviewDialogOpen(false);
       setTaskAdvancedOpen(true);
@@ -6105,12 +6138,18 @@ function TaskEditorDialog({
       setPlanDialogOpen(false);
       return;
     }
+    const initializationKey = `${mode}:${task?.id || 0}:${templateTask?.id || 0}`;
+    if (editorInitializationKeyRef.current === initializationKey) {
+      return;
+    }
+    editorInitializationKeyRef.current = initializationKey;
     const nextFormState = mode === "edit" && task
       ? taskToForm(task, providerEntries)
       : templateTask
         ? taskToDuplicateForm(templateTask, providerEntries, copyLabel)
         : createEmptyTaskForm(providerEntries);
     setFormState(nextFormState);
+    setInitialFormSignature(JSON.stringify(nextFormState));
     setTaskDialogOpen(false);
     setPreviewDialogOpen(false);
     setTaskAdvancedOpen(true);
@@ -7003,30 +7042,6 @@ function TaskEditorDialog({
         || t("failover.preview.not_run", { defaultValue: "Not run yet" }),
     },
   ];
-  const taskDialogSummaryRows: StickySummaryRow[] = taskMonitoringSummaryItems.map((item) => ({
-    label: item.label,
-    value: item.value,
-  }));
-  const dnsDialogSummaryRows: StickySummaryRow[] = hasDnsEnabled
-    ? dnsSummaryItems.map((item) => ({
-      label: item.label,
-      value: item.value,
-    }))
-    : [
-      {
-        label: t("failover.editor.dns", { defaultValue: "DNS and cleanup" }),
-        value: t("failover.editor.no_dns", { defaultValue: "Do not switch DNS" }),
-      },
-      {
-        label: t("failover.editor.delete_strategy", { defaultValue: "Old instance strategy" }),
-        value: deleteStrategyLabel,
-      },
-    ];
-  const dnsDialogPolicyNotes = [
-    t("failover.editor.dns_summary_scheduler_note", { defaultValue: "DNS 更新会进入统一调度队列，减少 DDNS 和故障切换同时触发时的 API 压力。" }),
-    t("failover.editor.dns_summary_stack_note", { defaultValue: "双栈模式会优先更新 A 记录，只有新出口有 IPv6 时才同步 AAAA。" }),
-    t("failover.editor.dns_summary_cleanup_note", { defaultValue: "旧实例清理策略独立于 DNS 切换，DNS 成功后再进入清理步骤。" }),
-  ];
   const openPlanDialogFor = React.useCallback((localID: string) => {
     setSelectedPlanID(localID);
     setPlanDialogOpen(true);
@@ -7415,7 +7430,25 @@ function TaskEditorDialog({
     });
   };
 
+  const showFormError = (error: unknown) => {
+    setFormError(error instanceof Error ? error : new Error(getReadableErrorMessage(error, t("common.unknown_error"))));
+    if (!(error instanceof FieldValidationError)) return;
+    if (error.planID) {
+      setSelectedPlanID(error.planID);
+      setPlanSectionOpenState((current) => ({ ...current, [error.planID!]: { organizer: true, core: true, config: true, optional: true } }));
+      setPlanDialogOpen(true);
+    } else {
+      setPlanDialogOpen(false);
+      if (error.field.startsWith("dns_")) {
+        setDnsDialogOpen(true);
+        setDnsCoreOpen(true);
+        setDnsAdvancedOpen(true);
+      }
+    }
+  };
+
   const handlePreview = async () => {
+    setFormError(null);
     setPreviewing(true);
     setPreviewError("");
 
@@ -7429,7 +7462,8 @@ function TaskEditorDialog({
       setPreviewResult(null);
       setPreviewError(message);
       setPreviewPayloadSignature("");
-      toast.error(message);
+      showFormError(error);
+      if (!(error instanceof FieldValidationError)) toast.error(message);
     } finally {
       setPreviewing(false);
     }
@@ -7442,8 +7476,10 @@ function TaskEditorDialog({
       return;
     }
     setSubmitting(true);
+    setFormError(null);
 
     try {
+      const payload = buildTaskInput(formState, t);
       const settingsSnapshot = settingsLoading
         ? await refetchSettings()
         : userSettings;
@@ -7456,7 +7492,6 @@ function TaskEditorDialog({
           }),
         );
       }
-      const payload = buildTaskInput(formState, t);
       if (mode === "edit" && task) {
         await updateFailoverTask(task.id, payload);
         toast.success(t("failover.messages.updated", { defaultValue: "Failover task updated" }));
@@ -7467,14 +7502,17 @@ function TaskEditorDialog({
       await onSaved();
       onOpenChange(false);
     } catch (error) {
-      toast.error(getReadableErrorMessage(error, t("common.unknown_error")));
+      showFormError(error);
+      if (!(error instanceof FieldValidationError)) toast.error(getReadableErrorMessage(error, t("common.unknown_error")));
     } finally {
       setSubmitting(false);
     }
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <FormValidationProvider value={formError}>
+    <GuardedDialog open={open} onOpenChange={onOpenChange} busy={submitting}
+      dirty={Boolean(initialFormSignature) && JSON.stringify(formState) !== initialFormSignature}>
       <DialogContent
         className={cn(
           ADMIN_FORM_DIALOG_WIDE_CLASS,
@@ -7491,7 +7529,7 @@ function TaskEditorDialog({
           "[&_button[data-slot=select-trigger]_[data-slot=select-value]]:text-left",
         )}
       >
-        <DialogHeader className={ADMIN_FORM_HEADER_CLASS}>
+        <DialogHeader className={cn(ADMIN_FORM_HEADER_CLASS, planDialogOpen && "hidden")}>
           <DialogTitle>
             {mode === "edit"
               ? t("failover.editor.edit_title", { defaultValue: "Edit failover task" })
@@ -7504,8 +7542,11 @@ function TaskEditorDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <form className="flex min-h-0 flex-1 flex-col overflow-hidden" onSubmit={handleSubmit}>
+        <div ref={setPlanEditorHost} className={cn("min-h-0 flex-1 flex-col overflow-hidden", planDialogOpen ? "flex" : "hidden")} />
+        <form className={cn("min-h-0 flex-1 flex-col overflow-hidden", planDialogOpen ? "hidden" : "flex")} onSubmit={handleSubmit}>
+          <fieldset disabled={submitting} className="contents">
           <div className={ADMIN_FORM_BODY_CLASS}>
+            <FormValidationSummary />
             <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_340px]">
               <div className="min-w-0 space-y-5">
                 <section className={FORM_SECTION_CLASS}>
@@ -7516,7 +7557,7 @@ function TaskEditorDialog({
                   </div>
                   <div className="space-y-4">
                     <div className="grid items-start gap-3 md:grid-cols-[minmax(0,1fr)_18rem]">
-                      <div className={FORM_FIELD_CLASS}>
+                      <ValidationField field="name" className={FORM_FIELD_CLASS}>
                         <Label htmlFor="failover-name" className="flex items-center gap-1">
                           {t("common.name", { defaultValue: "Name" })}
                           <span className="shrink-0 text-rose-500">*</span>
@@ -7527,7 +7568,7 @@ function TaskEditorDialog({
                           onChange={(event) => updateTaskField("name", event.target.value)}
                           placeholder={t("failover.editor.name_placeholder", { defaultValue: "CN failover for production edge" })}
                         />
-                      </div>
+                      </ValidationField>
                       <div className={FORM_TOGGLE_CLASS}>
                         <div className="min-w-0">
                           <div className="text-sm font-medium text-slate-900 dark:text-slate-50">
@@ -7633,29 +7674,17 @@ function TaskEditorDialog({
                     title={t("failover.editor.show_task_advanced", {
                       defaultValue: "Advanced monitoring settings",
                     })}
-                    actionLabel={t("common.edit", { defaultValue: "Edit" })}
-                    onAction={() => setTaskDialogOpen(true)}
-                    items={taskMonitoringSummaryItems}
+                    actionLabel={t(taskDialogOpen ? "form_feedback.collapse" : "form_feedback.expand")}
+                    onAction={() => setTaskDialogOpen((current) => !current)}
+                    items={taskDialogOpen ? [] : taskMonitoringSummaryItems}
                     variant="inline"
                   />
               </section>
 
-              <Dialog open={taskDialogOpen} onOpenChange={setTaskDialogOpen}>
-                <DialogContent className={cn(ADMIN_FORM_DIALOG_WIDE_CLASS, ADMIN_FORM_DIALOG_CHROME_CLASS, "h-[82vh] max-w-[980px] sm:max-w-[980px]")}>
-                  <DialogHeader className={ADMIN_FORM_HEADER_CLASS}>
-                    <DialogTitle>
-                      {t("failover.editor.show_task_advanced", {
-                        defaultValue: "Advanced monitoring settings",
-                      })}
-                    </DialogTitle>
-                    <DialogDescription>
-                      {t("failover.editor.task_dialog_description", {
-                        defaultValue: "Set failure thresholds, stale-data windows, cooldown, and retry behavior.",
-                      })}
-                    </DialogDescription>
-                  </DialogHeader>
-                  <div className={ADMIN_FORM_BODY_CLASS}>
-                    <section className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_340px]">
+              <Collapsible open={taskDialogOpen} onOpenChange={setTaskDialogOpen}>
+                <CollapsibleContent className="min-w-0">
+                  <div className="py-3">
+                    <section>
                       <div className="min-w-0 space-y-3">
                       <Collapsible open={taskAdvancedOpen} onOpenChange={setTaskAdvancedOpen}>
                         <div className="border-y border-slate-200/80 dark:border-slate-800/80">
@@ -7776,17 +7805,10 @@ function TaskEditorDialog({
                         </div>
                       </Collapsible>
                       </div>
-                      <StickyEditorSummaryPanel
-                        title={t("failover.editor.monitoring_summary_title", { defaultValue: "监控策略预览" })}
-                        hint={t("failover.editor.monitoring_summary_hint", {
-                          defaultValue: "这些值决定什么时候触发切换、什么时候暂停重试，以及方案如何回退。",
-                        })}
-                        rows={taskDialogSummaryRows}
-                      />
                     </section>
                   </div>
-                </DialogContent>
-              </Dialog>
+                </CollapsibleContent>
+              </Collapsible>
 
               <section className={FORM_SECTION_CLASS}>
                 <div className="mb-4 flex flex-col gap-1">
@@ -7817,11 +7839,12 @@ function TaskEditorDialog({
                       type="button"
                       variant="outline"
                       size="sm"
-                      onClick={() => setDnsDialogOpen(true)}
-                      disabled={!hasDnsEnabled && !hasAnyDnsCredential}
+                      onClick={() => setDnsDialogOpen((current) => !current)}
+                      aria-expanded={dnsDialogOpen}
+                      aria-controls="failover-dns-fields"
                     >
-                      <PencilLine className="size-4" />
-                      {t("common.edit", { defaultValue: "Edit" })}
+                      <ChevronDown className={cn("size-4", dnsDialogOpen && "rotate-180")} />
+                      {t(dnsDialogOpen ? "form_feedback.collapse" : "form_feedback.expand")}
                     </Button>
                   </div>
 
@@ -7846,21 +7869,14 @@ function TaskEditorDialog({
                       {dnsCatalogError}
                     </div>
                   ) : null}
+                  <CredentialActions href="/admin/cloud-dns?tab=credentials" onRefresh={() => onRefreshCredentials(formState.dns_provider || undefined)} />
                 </div>
               </section>
 
-              <Dialog open={dnsDialogOpen} onOpenChange={setDnsDialogOpen}>
-                <DialogContent className={cn(ADMIN_FORM_DIALOG_WIDE_CLASS, ADMIN_FORM_DIALOG_CHROME_CLASS, "h-[88vh] max-w-[1020px] sm:max-w-[1020px]")}>
-                  <DialogHeader className={ADMIN_FORM_HEADER_CLASS}>
-                    <DialogTitle>{t("failover.editor.dns", { defaultValue: "DNS and cleanup" })}</DialogTitle>
-                    <DialogDescription>
-                      {t("failover.editor.dns_dialog_description", {
-                        defaultValue: "Configure DNS credentials, target records, sync mode, and old-instance cleanup.",
-                      })}
-                    </DialogDescription>
-                  </DialogHeader>
-                  <div className={ADMIN_FORM_BODY_CLASS}>
-                    <section className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_340px]">
+              <Collapsible open={dnsDialogOpen} onOpenChange={setDnsDialogOpen}>
+                <CollapsibleContent id="failover-dns-fields" className="min-w-0">
+                  <div className="py-3">
+                    <section>
                       <div className="min-w-0 space-y-3">
                       <Collapsible open={dnsCoreOpen} onOpenChange={setDnsCoreOpen}>
                         <div className="border-y border-slate-200/80 dark:border-slate-800/80">
@@ -7888,15 +7904,13 @@ function TaskEditorDialog({
                           </CollapsibleTrigger>
                           <CollapsibleContent className="border-t px-3 py-4">
                             <div className="space-y-4">
-                              <div className="text-sm font-medium text-slate-900 dark:text-slate-50">
-                                {t("failover.editor.dns", { defaultValue: "DNS and cleanup" })}
-                              </div>
                               <div className="rounded-lg bg-muted/20 px-4 py-3">
                                 <div className="flex items-center justify-between gap-4">
                                   <div className="text-sm font-medium text-slate-900 dark:text-slate-50">
                                     {t("failover.editor.dns_enabled", { defaultValue: "Enable DNS switching" })}
                                   </div>
                                   <Switch
+                                    aria-label={t("failover.editor.dns_enabled")}
                                     checked={hasDnsEnabled}
                                     onCheckedChange={(checked) => setDnsEnabled(Boolean(checked))}
                                     disabled={!hasDnsEnabled && !hasAnyDnsCredential}
@@ -7913,7 +7927,7 @@ function TaskEditorDialog({
                               {hasDnsEnabled ? (
                                 <div className="grid gap-4 lg:grid-cols-2">
                                   <div className="space-y-2">
-                                    <Label>{t("failover.editor.dns_provider", { defaultValue: "DNS provider" })}</Label>
+                                    <Label htmlFor="v1-dns-provider">{t("failover.editor.dns_provider", { defaultValue: "DNS provider" })}</Label>
                                     <Select
                                       value={formState.dns_provider || undefined}
                                       onValueChange={(value) => {
@@ -7932,7 +7946,7 @@ function TaskEditorDialog({
                                         setSelectedDnsRecordKey("");
                                       }}
                                     >
-                                      <SelectTrigger>
+                                      <SelectTrigger id="v1-dns-provider">
                                         <SelectValue placeholder={t("failover.editor.dns_provider_placeholder", { defaultValue: "Choose a DNS provider" })} />
                                       </SelectTrigger>
                                       <SelectContent>
@@ -7944,8 +7958,8 @@ function TaskEditorDialog({
                                       </SelectContent>
                                     </Select>
                                   </div>
-                                  <div className="space-y-2">
-                                    <Label>{t("failover.editor.dns_entry", { defaultValue: "DNS credential entry" })}</Label>
+                                  <ValidationField field="dns_entry_id" className="space-y-2">
+                                    <Label htmlFor="v1-dns-entry">{t("failover.editor.dns_entry", { defaultValue: "DNS credential entry" })}</Label>
                                     {(() => {
                                       const options = buildProviderEntryOptions({
                                         entries: providerEntries[formState.dns_provider] || [],
@@ -7983,7 +7997,7 @@ function TaskEditorDialog({
                                             setSelectedDnsRecordKey("");
                                           }}
                                         >
-                                          <SelectTrigger>
+                                          <SelectTrigger id="v1-dns-entry">
                                             <SelectValue placeholder={t("failover.editor.dns_entry_placeholder", { defaultValue: "Choose an entry" })} />
                                           </SelectTrigger>
                                           <SelectContent>
@@ -7996,7 +8010,7 @@ function TaskEditorDialog({
                                         </Select>
                                       );
                                     })()}
-                                  </div>
+                                  </ValidationField>
                                 </div>
                               ) : null}
 
@@ -8067,7 +8081,7 @@ function TaskEditorDialog({
 
                               {formState.dns_provider === "cloudflare" ? (
                                 <div className="grid gap-4 lg:grid-cols-2">
-                                  <div className="space-y-2">
+                                  <ValidationField field="dns_zone_name" className="space-y-2">
                                     <Label>{t("failover.editor.zone_name", { defaultValue: "Zone / domain" })}</Label>
                                     <Select
                                       value={formState.dns_zone_name || undefined}
@@ -8088,7 +8102,7 @@ function TaskEditorDialog({
                                         ))}
                                       </SelectContent>
                                     </Select>
-                                  </div>
+                                  </ValidationField>
                                   <div className="space-y-2">
                                     <Label htmlFor="failover-record-name">{t("failover.editor.record_name", { defaultValue: "Record name" })}</Label>
                                     <Input
@@ -8126,7 +8140,7 @@ function TaskEditorDialog({
                                       })}
                                     </div>
                                   </div>
-                                  <div className="space-y-2">
+                                  <ValidationField field="dns_ttl" className="space-y-2">
                                     <Label>{t("failover.editor.ttl", { defaultValue: "TTL" })}</Label>
                                     <Select
                                       value={formState.dns_ttl || undefined}
@@ -8143,7 +8157,7 @@ function TaskEditorDialog({
                                         ))}
                                       </SelectContent>
                                     </Select>
-                                  </div>
+                                  </ValidationField>
                                   <div className="rounded-lg bg-muted/20 px-4 py-3 lg:col-span-2">
                                     <div className="flex items-center justify-between gap-4">
                                       <div className="space-y-1">
@@ -8163,7 +8177,7 @@ function TaskEditorDialog({
                                 </div>
                               ) : formState.dns_provider === "aliyun" ? (
                                 <div className="grid gap-4 lg:grid-cols-2">
-                                  <div className="space-y-2">
+                                  <ValidationField field="dns_domain_name" className="space-y-2">
                                     <Label>{t("failover.editor.domain_name", { defaultValue: "Domain" })}</Label>
                                     <Select
                                       value={formState.dns_domain_name || undefined}
@@ -8184,8 +8198,8 @@ function TaskEditorDialog({
                                         ))}
                                       </SelectContent>
                                     </Select>
-                                  </div>
-                                  <div className="space-y-2">
+                                  </ValidationField>
+                                  <ValidationField field="dns_rr" className="space-y-2">
                                     <Label htmlFor="failover-rr">{t("failover.editor.rr", { defaultValue: "Host / RR" })}</Label>
                                     <Input
                                       id="failover-rr"
@@ -8199,7 +8213,7 @@ function TaskEditorDialog({
                                         defaultValue: "Use @ for the apex record. Enter only the host part such as www or api, not the full domain.",
                                       })}
                                     </div>
-                                  </div>
+                                  </ValidationField>
                                   <div className="space-y-2">
                                     <Label>{t("failover.editor.dns_sync_mode", { defaultValue: "DNS sync mode" })}</Label>
                                     <Select
@@ -8228,7 +8242,7 @@ function TaskEditorDialog({
                                       })}
                                     </div>
                                   </div>
-                                  <div className="space-y-2">
+                                  <ValidationField field="dns_ttl" className="space-y-2">
                                     <Label>{t("failover.editor.ttl", { defaultValue: "TTL" })}</Label>
                                     <Select
                                       value={formState.dns_ttl || undefined}
@@ -8245,7 +8259,7 @@ function TaskEditorDialog({
                                         ))}
                                       </SelectContent>
                                     </Select>
-                                  </div>
+                                  </ValidationField>
                                   <div className="space-y-2 lg:col-span-2">
                                     <Label>{t("failover.editor.line", { defaultValue: "Routing line" })}</Label>
                                     <div className="grid gap-3 border-y border-dashed border-slate-200/80 py-3 sm:grid-cols-2 dark:border-slate-800/80">
@@ -8354,22 +8368,10 @@ function TaskEditorDialog({
                         </div>
                       </Collapsible>
                       </div>
-                      <StickyEditorSummaryPanel
-                        title={t("failover.editor.dns_summary_title", { defaultValue: "DNS 策略预览" })}
-                        hint={t("failover.editor.dns_summary_panel_hint", {
-                          defaultValue: "右侧同步展示目标记录、同步模式和旧实例清理策略，避免改表单时失去上下文。",
-                        })}
-                        rows={dnsDialogSummaryRows}
-                      >
-                        <SummaryNoteList
-                          title={t("failover.editor.dns_summary_policy", { defaultValue: "同步策略" })}
-                          notes={dnsDialogPolicyNotes}
-                        />
-                      </StickyEditorSummaryPanel>
                     </section>
                   </div>
-                </DialogContent>
-              </Dialog>
+                </CollapsibleContent>
+              </Collapsible>
 
               <section className={FORM_SECTION_CLASS}>
                 <div className="mb-4 flex flex-col gap-1">
@@ -8480,17 +8482,16 @@ function TaskEditorDialog({
                 </div>
               </section>
 
-              <Dialog open={planDialogOpen} onOpenChange={setPlanDialogOpen}>
-                <DialogContent className={cn(ADMIN_FORM_DIALOG_WIDE_CLASS, ADMIN_FORM_DIALOG_CHROME_CLASS, "h-[88vh] max-w-[1020px] sm:max-w-[1020px]")}>
-                  <DialogHeader className={ADMIN_FORM_HEADER_CLASS}>
-                    <DialogTitle>{t("failover.editor.plans", { defaultValue: "Failover plans" })}</DialogTitle>
-                    <DialogDescription>
-                      {t("failover.editor.plans_dialog_description", {
-                        defaultValue: "Adjust plan order, cloud settings, instance options, scripts, and runtime details.",
-                      })}
-                    </DialogDescription>
-                  </DialogHeader>
+              {planEditorHost && createPortal(
+                <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+                  <div className={cn(ADMIN_FORM_HEADER_CLASS, "flex items-center gap-3 pr-8")}>
+                    <Button ref={planBackButton} type="button" variant="ghost" size="sm" onClick={() => setPlanDialogOpen(false)}>
+                      <ArrowLeft className="size-4" />{t("form_draft.back_to_task")}
+                    </Button>
+                    <h3 className="text-sm font-semibold">{t("failover.editor.plans", { defaultValue: "Failover plans" })}</h3>
+                  </div>
                   <div className={ADMIN_FORM_BODY_CLASS}>
+                    <FormValidationSummary />
                     <section className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_340px]">
                       <div className="min-w-0 space-y-3">
                       {selectedPlan ? (
@@ -8663,7 +8664,7 @@ function TaskEditorDialog({
                               {t("failover.editor.plan_core", { defaultValue: "Plan core fields" })}
                             </div>
                             <div className="grid gap-4 lg:grid-cols-2">
-	                          <div className="space-y-2">
+	                          <ValidationField field="plan.provider" className="space-y-2">
 	                          <Label>{t("cloud.title", { defaultValue: "Cloud" })}</Label>
 		                          <Select
 		                            value={selectedPlan.provider || undefined}
@@ -8694,9 +8695,9 @@ function TaskEditorDialog({
 		                              ))}
                             </SelectContent>
                           </Select>
-                        </div>
+                        </ValidationField>
                         <div className="space-y-2">
-                          <Label>{t("failover.editor.provider_entry_group", { defaultValue: "Token pool group" })}</Label>
+                          <Label htmlFor="v1-plan-group">{t("failover.editor.provider_entry_group", { defaultValue: "Token pool group" })}</Label>
                           {(() => {
                             const groups = getProviderEntryGroups(providerEntries, selectedPlan.provider);
                             if (!selectedPlan.provider) {
@@ -8733,7 +8734,7 @@ function TaskEditorDialog({
                                     resetPlanCatalogState();
                                   }}
                                 >
-                                  <SelectTrigger>
+                                  <SelectTrigger id="v1-plan-group">
                                     <SelectValue placeholder={t("failover.editor.provider_entry_group_placeholder", { defaultValue: "Choose a token group" })} />
                                   </SelectTrigger>
                                   <SelectContent>
@@ -8757,7 +8758,10 @@ function TaskEditorDialog({
                           })()}
                         </div>
                         <div className="space-y-2">
-                          <Label>{t("failover.editor.provider_entry", { defaultValue: "Specific credential entry (optional)" })}</Label>
+                          <Label htmlFor="v1-plan-entry">{t("failover.editor.provider_entry", { defaultValue: "Specific credential entry (optional)" })}</Label>
+                          {selectedPlan.provider ? (
+                            <CredentialActions href={`/admin/cloud?provider=${encodeURIComponent(selectedPlan.provider)}`} onRefresh={() => onRefreshCredentials(selectedPlan.provider)} />
+                          ) : null}
                           {(() => {
                             const options = buildPlanProviderEntryOptions(
                               t,
@@ -8799,7 +8803,7 @@ function TaskEditorDialog({
                                     resetPlanCatalogState();
                                   }}
                                 >
-                                  <SelectTrigger>
+                                  <SelectTrigger id="v1-plan-entry">
                                     <SelectValue placeholder={t("failover.editor.provider_entry_placeholder", { defaultValue: "Choose an entry" })} />
                                   </SelectTrigger>
                                   <SelectContent>
@@ -9018,7 +9022,7 @@ function TaskEditorDialog({
                               </SelectContent>
                             </Select>
                           </div>
-                          <div className="space-y-2">
+                          <ValidationField field="plan.region" className="space-y-2">
                             <Label>{t("failover.editor.region", { defaultValue: "Region" })}</Label>
                             <SearchableCatalogSelect
                               value={selectedPlanRegion || undefined}
@@ -9044,11 +9048,11 @@ function TaskEditorDialog({
                               emptyLabel={t("failover.editor.region_search_empty", { defaultValue: "No matching region" })}
                               formatOptionLabel={(option) => formatPlanRegionOptionLabel(t, "aws", option)}
                             />
-                          </div>
+                          </ValidationField>
 
                           {selectedPlanService === "ec2" ? (
                             <>
-                              <div className="space-y-2">
+                              <ValidationField field="plan.image_id" className="space-y-2">
                                 <Label>{t("failover.editor.image", { defaultValue: "Image" })}</Label>
                                 <SearchableCatalogSelect
                                   value={getStringValue(selectedPlanPayload.image_id) || undefined}
@@ -9061,8 +9065,8 @@ function TaskEditorDialog({
                                   searchPlaceholder={t("failover.editor.image_search_placeholder", { defaultValue: "Search images..." })}
                                   emptyLabel={t("failover.editor.image_search_empty", { defaultValue: "No matching image" })}
                                 />
-                              </div>
-                              <div className="space-y-2">
+                              </ValidationField>
+                              <ValidationField field="plan.instance_type" className="space-y-2">
                                 <Label>{t("failover.editor.instance_type", { defaultValue: "Instance type" })}</Label>
                                 <SearchableCatalogSelect
                                   value={getStringValue(selectedPlanPayload.instance_type) || undefined}
@@ -9075,11 +9079,11 @@ function TaskEditorDialog({
                                   searchPlaceholder={t("failover.editor.instance_type_search_placeholder", { defaultValue: "Search instance types..." })}
                                   emptyLabel={t("failover.editor.instance_type_search_empty", { defaultValue: "No matching instance type" })}
                                 />
-                              </div>
+                              </ValidationField>
                             </>
                           ) : (
                             <>
-                              <div className="space-y-2">
+                              <ValidationField field="plan.availability_zone" className="space-y-2">
                                 <Label>{t("failover.editor.availability_zone", { defaultValue: "Availability zone" })}</Label>
                                 {(planCatalog?.availability_zones || []).length > 0 ? (
                                   <Select
@@ -9110,8 +9114,8 @@ function TaskEditorDialog({
                                     placeholder="us-east-1a"
                                   />
                                 )}
-                              </div>
-                              <div className="space-y-2">
+                              </ValidationField>
+                              <ValidationField field="plan.blueprint_id" className="space-y-2">
                                 <Label>{t("failover.editor.blueprint", { defaultValue: "Blueprint" })}</Label>
                                 <SearchableCatalogSelect
                                   value={getStringValue(selectedPlanPayload.blueprint_id) || undefined}
@@ -9141,8 +9145,8 @@ function TaskEditorDialog({
                                   searchPlaceholder={t("failover.editor.blueprint_search_placeholder", { defaultValue: "Search blueprints..." })}
                                   emptyLabel={t("failover.editor.blueprint_search_empty", { defaultValue: "No matching blueprint" })}
                                 />
-                              </div>
-                              <div className="space-y-2">
+                              </ValidationField>
+                              <ValidationField field="plan.bundle_id" className="space-y-2">
                                 <Label>{t("failover.editor.bundle", { defaultValue: "Bundle" })}</Label>
                                 <SearchableCatalogSelect
                                   value={getStringValue(selectedPlanPayload.bundle_id) || undefined}
@@ -9155,7 +9159,7 @@ function TaskEditorDialog({
                                   searchPlaceholder={t("failover.editor.bundle_search_placeholder", { defaultValue: "Search bundles..." })}
                                   emptyLabel={t("failover.editor.bundle_search_empty", { defaultValue: "No matching bundle" })}
                                 />
-                              </div>
+                              </ValidationField>
                             </>
                           )}
                         </div>
@@ -9186,7 +9190,7 @@ function TaskEditorDialog({
                               </SelectContent>
                             </Select>
                           </div>
-                          <div className="space-y-2">
+                          <ValidationField field="plan.region" className="space-y-2">
                             <Label>{t("failover.editor.region", { defaultValue: "Region" })}</Label>
                             <SearchableCatalogSelect
                               value={selectedPlanRegion || undefined}
@@ -9212,7 +9216,7 @@ function TaskEditorDialog({
                               emptyLabel={t("failover.editor.region_search_empty", { defaultValue: "No matching region" })}
                               formatOptionLabel={(option) => getAWSRegionOptionLabel(option)}
                             />
-                          </div>
+                          </ValidationField>
                           {selectedPlanService === "ec2" ? (
                             <>
                               <div className="border-y border-dashed border-slate-200/80 py-3 text-xs text-muted-foreground dark:border-slate-800/80 lg:col-span-2">
@@ -9235,7 +9239,7 @@ function TaskEditorDialog({
                                   })}
                                 </div>
                               ) : null}
-                              <div className="space-y-2">
+<ValidationField field="plan.image_id" className="space-y-2">
                                 <Label>{t("failover.editor.image", { defaultValue: "Image" })}</Label>
                                 <SearchableCatalogSelect
                                   value={selectedAWSEC2ImageID || undefined}
@@ -9260,8 +9264,8 @@ function TaskEditorDialog({
                                   }))}
                                   placeholder={t("cloud.providers.aws.ami_manual_placeholder", { defaultValue: "Or enter an AMI ID manually" })}
                                 />
-                              </div>
-                              <div className="space-y-2">
+                              </ValidationField>
+<ValidationField field="plan.instance_type" className="space-y-2">
                                 <Label>{t("failover.editor.instance_type", { defaultValue: "Instance type" })}</Label>
                                 <SearchableCatalogSelect
                                   value={selectedAWSEC2InstanceType || undefined}
@@ -9286,7 +9290,7 @@ function TaskEditorDialog({
                                 }))}
                                 placeholder={t("cloud.providers.aws.instance_type_manual_placeholder", { defaultValue: "Or enter an instance type manually" })}
                               />
-                            </div>
+                            </ValidationField>
                             <div className="space-y-2">
                                 <Label>{t("cloud.form.name", { defaultValue: "Name" })}</Label>
                                 <Input
@@ -9343,7 +9347,7 @@ function TaskEditorDialog({
                                   defaultValue: "This replacement-instance form follows the AWS Lightsail create page: common blueprints and bundles are built in, and you can still type uncommon values manually below.",
                                 })}
                               </div>
-                              <div className="space-y-2">
+                              <ValidationField field="plan.availability_zone" className="space-y-2">
                                 <Label>{t("failover.editor.availability_zone", { defaultValue: "Availability zone" })}</Label>
                                 <Input
                                   value={getStringValue(selectedPlanPayload.availability_zone)}
@@ -9359,8 +9363,8 @@ function TaskEditorDialog({
                                     defaultValue: "Lightsail requires a concrete availability zone. kelicloud usually starts with {{az}} when you pick a region, but you can replace it manually if the account prefers another zone.",
                                   })}
                                 </div>
-                              </div>
-                              <div className="space-y-2">
+                              </ValidationField>
+<ValidationField field="plan.blueprint_id" className="space-y-2">
                                 <Label>{t("failover.editor.blueprint", { defaultValue: "Blueprint" })}</Label>
                                 <SearchableCatalogSelect
                                   value={selectedLightsailBlueprintID || undefined}
@@ -9402,8 +9406,8 @@ function TaskEditorDialog({
                                   }))}
                                   placeholder={t("cloud.providers.aws.lightsail_blueprint_manual_placeholder", { defaultValue: "Or enter a blueprint ID manually" })}
                                 />
-                              </div>
-                              <div className="space-y-2">
+                              </ValidationField>
+<ValidationField field="plan.bundle_id" className="space-y-2">
                                 <Label>{t("failover.editor.bundle", { defaultValue: "Bundle" })}</Label>
                                 <SearchableCatalogSelect
                                   value={selectedLightsailBundleID || undefined}
@@ -9428,7 +9432,7 @@ function TaskEditorDialog({
                                   }))}
                                   placeholder={t("cloud.providers.aws.lightsail_bundle_manual_placeholder", { defaultValue: "Or enter a bundle ID manually" })}
                                 />
-                              </div>
+                              </ValidationField>
                               {awsLightsailPlatformMismatch ? (
                                 <div className="border-l-2 border-amber-300 bg-amber-50/70 px-3 py-2 text-xs text-amber-800 dark:border-amber-800 dark:bg-amber-950/20 dark:text-amber-200 lg:col-span-2">
                                   {t("failover.editor.aws_lightsail_platform_mismatch", {
@@ -9493,7 +9497,7 @@ function TaskEditorDialog({
                               </div>
                             </div>
                             <div className="grid gap-4 lg:grid-cols-2">
-                              <div className="space-y-2">
+                              <ValidationField field="plan.region" className="space-y-2">
                                 <Label>{t("failover.editor.region", { defaultValue: "Region" })}</Label>
                                 <SearchableCatalogSelect
                                   value={getStringValue(selectedPlanPayload.region) || DEFAULT_AZURE_REGION}
@@ -9517,8 +9521,8 @@ function TaskEditorDialog({
                                   emptyLabel={t("failover.editor.region_search_empty", { defaultValue: "No matching region" })}
                                   formatOptionLabel={(option) => formatPlanRegionOptionLabel(t, selectedPlan.provider, option)}
                                 />
-                              </div>
-                              <div className="space-y-2">
+                              </ValidationField>
+                              <ValidationField field="plan.size" className="space-y-2">
                                 <Label>{t("failover.editor.size", { defaultValue: "Size" })}</Label>
                                 <SearchableCatalogSelect
                                   value={getStringValue(selectedPlanPayload.size) || DEFAULT_AZURE_SIZE}
@@ -9531,8 +9535,8 @@ function TaskEditorDialog({
                                   searchPlaceholder={t("failover.editor.size_search_placeholder", { defaultValue: "Search sizes..." })}
                                   emptyLabel={t("failover.editor.size_search_empty", { defaultValue: "No matching size" })}
                                 />
-                              </div>
-                              <div className="space-y-2 lg:col-span-2">
+                              </ValidationField>
+<ValidationField field="plan.image_preset" className="space-y-2 lg:col-span-2">
                                 <Label>{t("failover.editor.image", { defaultValue: "Image" })}</Label>
                                 <SearchableCatalogSelect
                                   value={selectedAzureImagePresetID}
@@ -9549,7 +9553,7 @@ function TaskEditorDialog({
                                   searchPlaceholder={t("failover.editor.image_search_placeholder", { defaultValue: "Search images..." })}
                                   emptyLabel={t("failover.editor.image_search_empty", { defaultValue: "No matching image" })}
                                 />
-                              </div>
+                              </ValidationField>
                             </div>
                           </div>
 
@@ -9626,7 +9630,7 @@ function TaskEditorDialog({
 
                       {selectedPlan.provider === "digitalocean" && selectedPlan.action_type === "provision_instance" ? (
                         <div className="grid gap-4 lg:grid-cols-2">
-                          <div className="space-y-2">
+                          <ValidationField field="plan.region" className="space-y-2">
                             <Label>{t("failover.editor.region", { defaultValue: "Region" })}</Label>
                             {digitalOceanRegionOptions.length > 0 ? (
                               <Select
@@ -9663,8 +9667,8 @@ function TaskEditorDialog({
                                 })}
                               </div>
                             )}
-                          </div>
-                          <div className="space-y-2">
+                          </ValidationField>
+                          <ValidationField field="plan.size" className="space-y-2">
                             <Label>{t("failover.editor.size", { defaultValue: "Size" })}</Label>
                             {digitalOceanSizeOptions.length > 0 ? (
                               <SearchableCatalogSelect
@@ -9685,8 +9689,8 @@ function TaskEditorDialog({
                                 })}
                               </div>
                             )}
-                          </div>
-                          <div className="space-y-2">
+                          </ValidationField>
+                          <ValidationField field="plan.image" className="space-y-2">
                             <Label>{t("failover.editor.image", { defaultValue: "Image" })}</Label>
                             {digitalOceanImageOptions.length > 0 ? (
                               <SearchableCatalogSelect
@@ -9707,7 +9711,7 @@ function TaskEditorDialog({
                                 })}
                               </div>
                             )}
-                          </div>
+                          </ValidationField>
                           <div className="space-y-2">
                             <Label>{t("cloud.form.root_password", { defaultValue: "Root password" })}</Label>
                             <Input
@@ -9753,7 +9757,7 @@ function TaskEditorDialog({
 
                       {selectedPlan.provider === "linode" && selectedPlan.action_type === "provision_instance" ? (
                         <div className="grid gap-4 lg:grid-cols-2">
-                          <div className="space-y-2">
+                          <ValidationField field="plan.region" className="space-y-2">
                             <Label>{t("failover.editor.region", { defaultValue: "Region" })}</Label>
                             {linodeRegionOptions.length > 0 ? (
                               <Select
@@ -9790,8 +9794,8 @@ function TaskEditorDialog({
                                 })}
                               </div>
                             )}
-                          </div>
-                          <div className="space-y-2">
+                          </ValidationField>
+                          <ValidationField field="plan.type" className="space-y-2">
                             <Label>{t("failover.editor.type", { defaultValue: "Plan type" })}</Label>
                             {linodeTypeOptions.length > 0 ? (
                               <SearchableCatalogSelect
@@ -9812,8 +9816,8 @@ function TaskEditorDialog({
                                 })}
                               </div>
                             )}
-                          </div>
-                          <div className="space-y-2">
+                          </ValidationField>
+                          <ValidationField field="plan.image" className="space-y-2">
                             <Label>{t("failover.editor.image", { defaultValue: "Image" })}</Label>
                             {linodeImageOptions.length > 0 ? (
                               <SearchableCatalogSelect
@@ -9834,7 +9838,7 @@ function TaskEditorDialog({
                                 })}
                               </div>
                             )}
-                          </div>
+                          </ValidationField>
                           <div className="space-y-2">
                             <Label>{t("cloud.form.root_password", { defaultValue: "Root password" })}</Label>
                             <Input
@@ -9859,7 +9863,7 @@ function TaskEditorDialog({
 
                       {selectedPlan.provider === "vultr" && selectedPlan.action_type === "provision_instance" ? (
                         <div className="grid gap-4 lg:grid-cols-2">
-                          <div className="space-y-2">
+                          <ValidationField field="plan.region" className="space-y-2">
                             <Label>{t("failover.editor.region", { defaultValue: "Region" })}</Label>
                             {vultrRegionOptions.length > 0 ? (
                               <Select
@@ -9896,8 +9900,8 @@ function TaskEditorDialog({
                                 })}
                               </div>
                             )}
-                          </div>
-                          <div className="space-y-2">
+                          </ValidationField>
+                          <ValidationField field="plan.plan" className="space-y-2">
                             <Label>{t("failover.editor.plan", { defaultValue: "Plan" })}</Label>
                             {vultrPlanOptions.length > 0 ? (
                               <SearchableCatalogSelect
@@ -9918,8 +9922,8 @@ function TaskEditorDialog({
                                 })}
                               </div>
                             )}
-                          </div>
-                          <div className="space-y-2">
+                          </ValidationField>
+<ValidationField field="plan.os_id" className="space-y-2">
                             <Label>{t("failover.editor.image", { defaultValue: "Image" })}</Label>
                             {vultrImageOptions.length > 0 ? (
                               <SearchableCatalogSelect
@@ -9940,7 +9944,7 @@ function TaskEditorDialog({
                                 })}
                               </div>
                             )}
-                          </div>
+                          </ValidationField>
                           <div className="space-y-2">
                             <Label>{t("cloud.form.root_password", { defaultValue: "Root password" })}</Label>
                             <Input
@@ -10082,7 +10086,7 @@ function TaskEditorDialog({
                           />
                         </div>
                         {platformAdmin ? (
-                        <div className="space-y-2">
+                        <ValidationField field="plan.auto_connect_group" className="space-y-2">
                           <Label>{t("failover.editor.auto_connect_group", { defaultValue: "Auto-connect group" })}</Label>
                           <div className="rounded-lg bg-muted/20 px-4 py-3">
                             <div className="flex items-center justify-between gap-4">
@@ -10124,7 +10128,7 @@ function TaskEditorDialog({
                               defaultValue: "Keep the recommended value unless this plan should register servers into a different group or disable auto-connect entirely.",
                             })}
                           </div>
-                        </div>
+                        </ValidationField>
                         ) : null}
                         <FailoverScriptPolicyDialog
                           className="lg:col-span-2"
@@ -10283,8 +10287,10 @@ function TaskEditorDialog({
                       ) : null}
                     </section>
                   </div>
-                </DialogContent>
-              </Dialog>
+                  <div className={ADMIN_FORM_FOOTER_CLASS}>
+                    <Button type="button" onClick={() => setPlanDialogOpen(false)}>{t("common.done", { defaultValue: "Done" })}</Button>
+                  </div>
+                </div>, planEditorHost)}
 
               <section className={FORM_SECTION_CLASS}>
                 <ActionSummaryCard
@@ -10350,9 +10356,11 @@ function TaskEditorDialog({
               </div>
             </div>
             <div className="flex flex-wrap gap-2 sm:justify-end">
-              <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={submitting}>
+              <GuardedDialogClose asChild>
+              <Button type="button" variant="outline" disabled={submitting}>
                 {t("common.cancel", { defaultValue: "Cancel" })}
               </Button>
+              </GuardedDialogClose>
               <Button type="button" variant="outline" onClick={() => void handlePreview()} disabled={submitting || previewing}>
                 {previewing ? <LoaderCircle className="size-4 animate-spin" /> : <Eye className="size-4" />}
                 {t("failover.preview.action", { defaultValue: "Preview" })}
@@ -10365,9 +10373,11 @@ function TaskEditorDialog({
               </Button>
             </div>
           </DialogFooter>
+          </fieldset>
         </form>
       </DialogContent>
-    </Dialog>
+    </GuardedDialog>
+    </FormValidationProvider>
   );
 }
 
@@ -10400,10 +10410,12 @@ function FailoverPageContent() {
   const [selectedExecutionID, setSelectedExecutionID] = React.useState<number | null>(null);
   const [selectedExecutionTaskName, setSelectedExecutionTaskName] = React.useState("");
   const [runningTaskID, setRunningTaskID] = React.useState<number | null>(null);
+  const runningTaskRef = React.useRef(new Set<number>());
+  const executionOpener = React.useRef<HTMLElement | null>(null);
   const [busyTaskID, setBusyTaskID] = React.useState<number | null>(null);
   const [stoppingExecutionID, setStoppingExecutionID] = React.useState<number | null>(null);
   const [clockNow, setClockNow] = React.useState(() => Date.now());
-  const refreshTasksRequestID = React.useRef(0);
+  const refreshTasksRequests = useRequestTracker();
   const allowedPlanProviders = React.useMemo(
     () => PLAN_PROVIDER_VALUES.filter((provider) => hasFeature(PLAN_PROVIDER_REQUIRED_FEATURES[provider])),
     [hasFeature],
@@ -10422,20 +10434,21 @@ function FailoverPageContent() {
 
   const refreshTasks = React.useCallback(async (options?: { silent?: boolean }) => {
     const silent = options?.silent ?? false;
-    const requestID = ++refreshTasksRequestID.current;
+    if (silent && refreshTasksRequests.pending) return;
+    const requestID = refreshTasksRequests.begin();
     if (!silent) {
       setLoading(true);
     }
-    setError("");
 
     try {
       const list = await getFailoverTasks();
-      if (requestID !== refreshTasksRequestID.current) {
+      if (!refreshTasksRequests.isCurrent(requestID)) {
         return;
       }
       setTasks(list);
+      setError("");
     } catch (nextError) {
-      if (requestID !== refreshTasksRequestID.current) {
+      if (!refreshTasksRequests.isCurrent(requestID)) {
         return;
       }
       setError(
@@ -10444,11 +10457,12 @@ function FailoverPageContent() {
           })),
       );
     } finally {
-      if (requestID === refreshTasksRequestID.current) {
+      if (refreshTasksRequests.isCurrent(requestID)) {
         setLoading(false);
       }
+      refreshTasksRequests.finish(requestID);
     }
-  }, [t]);
+  }, [t, refreshTasksRequests]);
 
   const refreshResources = React.useCallback(async () => {
     const providerKeys = FAILOVER_PROVIDER_KEYS.filter((provider) => {
@@ -10485,7 +10499,9 @@ function FailoverPageContent() {
       return;
     }
 
-    void Promise.all([refreshTasks(), refreshResources()]);
+    void Promise.all([refreshTasks(), refreshResources()]).catch((error) => {
+      setError(getReadableErrorMessage(error));
+    });
   }, [accountLoading, hasFeature, refreshResources, refreshTasks]);
 
   React.useEffect(() => {
@@ -10516,7 +10532,7 @@ function FailoverPageContent() {
 
   React.useEffect(() => {
     const timer = window.setInterval(() => {
-      setClockNow(Date.now());
+      if (document.visibilityState === "visible") setClockNow(Date.now());
     }, 1000);
 
     return () => {
@@ -10800,11 +10816,14 @@ function FailoverPageContent() {
   }, [shareDialogTask, t]);
 
   const openExecutionDialog = (executionID: number, taskName: string) => {
+    executionOpener.current = document.activeElement as HTMLElement | null;
     setSelectedExecutionID(executionID);
     setSelectedExecutionTaskName(taskName);
   };
 
   const handleRunTask = async (task: FailoverTask) => {
+    if (runningTaskRef.current.has(task.id)) return;
+    runningTaskRef.current.add(task.id);
     setRunningTaskID(task.id);
     try {
       const execution = await runFailoverTask(task.id);
@@ -10815,6 +10834,7 @@ function FailoverPageContent() {
       toast.error(getReadableErrorMessage(nextError, t("common.unknown_error")));
     } finally {
       setRunningTaskID(null);
+      runningTaskRef.current.delete(task.id);
     }
   };
 
@@ -11483,6 +11503,11 @@ function FailoverPageContent() {
       </AdminPageShell>
 
       <TaskEditorDialog
+        onRefreshCredentials={async (provider) => {
+          const providers = provider ? [provider] : ["cloudflare", "aliyun"];
+          const results = await Promise.all(providers.map(async (key) => [key, await getFailoverProviderEntries(key)] as const));
+          setProviderEntries((current) => ({ ...current, ...Object.fromEntries(results) }));
+        }}
         open={editorOpen}
         mode={editorMode}
         task={editingTask}
@@ -11528,6 +11553,7 @@ function FailoverPageContent() {
       />
 
       <ExecutionDetailDialog
+        returnFocus={executionOpener}
         executionID={selectedExecutionID}
         taskName={selectedExecutionTaskName}
         detailedMode={platformAdmin}

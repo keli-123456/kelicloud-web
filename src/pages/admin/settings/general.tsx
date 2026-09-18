@@ -2,7 +2,7 @@ import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
-  updateSettingsWithToast,
+  updateSettings,
   useSettings,
 } from "@/lib/api";
 import {
@@ -53,8 +53,7 @@ export default function GeneralSettings() {
               placeholder={window.location.origin}
               defaultValue={systemSettings.script_domain || ""}
               OnSave={async (value) => {
-                await updateSettingsWithToast({ script_domain: value }, t, "system");
-                await systemState.refetch();
+                await updateSettings({ script_domain: value }, "system");
               }}
             />
             <SettingCardShortTextInput
@@ -66,8 +65,7 @@ export default function GeneralSettings() {
               placeholder="https://github.com/your-name/kelicloud-agent"
               defaultValue={systemSettings.base_scripts_url || ""}
               OnSave={async (value) => {
-                await updateSettingsWithToast({ base_scripts_url: value }, t, "system");
-                await systemState.refetch();
+                await updateSettings({ base_scripts_url: value }, "system");
               }}
             />
           </AdminSettingsPanel>
@@ -83,7 +81,7 @@ export default function GeneralSettings() {
             )}
             defaultChecked={systemSettings.allow_registration !== false}
             onChange={async (checked) => {
-              await updateSettingsWithToast({ allow_registration: checked }, t, "system");
+              await updateSettings({ allow_registration: checked }, "system");
             }}
           />
           <SettingCardSwitch
@@ -94,7 +92,7 @@ export default function GeneralSettings() {
             )}
             defaultChecked={systemSettings.turnstile_enabled === true}
             onChange={async (checked) => {
-              await updateSettingsWithToast({ turnstile_enabled: checked }, t, "system");
+              await updateSettings({ turnstile_enabled: checked }, "system");
             }}
           />
           <SettingCardShortTextInput
@@ -106,7 +104,7 @@ export default function GeneralSettings() {
             defaultValue={systemSettings.turnstile_site_key || ""}
             placeholder="0x4AAAA..."
             OnSave={async (value) => {
-              await updateSettingsWithToast({ turnstile_site_key: value }, t, "system");
+              await updateSettings({ turnstile_site_key: value }, "system");
             }}
           />
           <SettingCardShortTextInput
@@ -119,7 +117,7 @@ export default function GeneralSettings() {
             placeholder="0x4AAAA..."
             type="password"
             OnSave={async (value) => {
-              await updateSettingsWithToast({ turnstile_secret_key: value }, t, "system");
+              await updateSettings({ turnstile_secret_key: value }, "system");
             }}
           />
           <SettingCardSwitch
@@ -127,7 +125,7 @@ export default function GeneralSettings() {
             description={t("settings.site.cros_description")}
             defaultChecked={systemSettings.allow_cors}
             onChange={async (checked) => {
-              await updateSettingsWithToast({ allow_cors: checked }, t, "system");
+              await updateSettings({ allow_cors: checked }, "system");
             }}
           />
           <label className="pt-1 text-[12px] font-semibold uppercase tracking-normal text-slate-500">
@@ -138,7 +136,7 @@ export default function GeneralSettings() {
             description={t("settings.geoip.enable_description")}
             defaultChecked={systemSettings.geo_ip_enabled}
             onChange={async (checked) => {
-              await updateSettingsWithToast({ geo_ip_enabled: checked }, t, "system");
+              await updateSettings({ geo_ip_enabled: checked }, "system");
             }}
           />
           <SettingCardSelect
@@ -153,7 +151,7 @@ export default function GeneralSettings() {
               { value: "ipinfo", label: "ipinfo.io" },
             ]}
             OnSave={async (value) => {
-              await updateSettingsWithToast({ geo_ip_provider: value }, t, "system");
+              await updateSettings({ geo_ip_provider: value }, "system");
             }}
           />
           <SettingCardButton
@@ -183,6 +181,7 @@ export default function GeneralSettings() {
           >
             <div className="flex w-full flex-col gap-2">
               <Input
+                aria-label={t("settings.geoip.test_title")}
                 value={geoIpQuery}
                 onChange={(event) => setGeoIpQuery(event.target.value)}
                 placeholder={t("settings.geoip.test_placeholder")}

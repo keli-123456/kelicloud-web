@@ -307,6 +307,7 @@ export default function ProxySettings() {
         </SettingCard>
 
       <SettingCardSelect
+        deferred
         title={t("settings.proxy.protocol")}
         description={t("settings.proxy.protocol_description")}
         value={form.outbound_proxy_protocol}

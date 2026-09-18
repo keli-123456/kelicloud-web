@@ -56,7 +56,7 @@ export function EC2CreateCoreSection({
 }: EC2CreateCoreSectionProps) {
   const content = (
     <>
-      <div className={cn("grid gap-4", !singleColumn && "sm:grid-cols-2")}>
+      <div className={cn("grid min-w-0 grid-cols-1 gap-4", !singleColumn && "sm:grid-cols-2")}>
         <div>
           <label className={cloudPanelFieldLabelClassName}>
             {t("cloud.providers.aws.region", "Region")}
@@ -71,12 +71,6 @@ export function EC2CreateCoreSection({
               void onRegionChange(value);
             }}
           />
-          <div className={`mt-2 text-xs ${cloudPanelBodyTextClassName}`}>
-            {t(
-              "cloud.providers.aws.ec2_create_region_hint",
-              "Switching region only updates this dialog. Built-in presets stay available without loading AWS catalog data.",
-            )}
-          </div>
         </div>
         <div>
           <label className={cloudPanelFieldLabelClassName}>

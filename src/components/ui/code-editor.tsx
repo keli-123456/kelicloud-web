@@ -1,10 +1,11 @@
 import * as React from "react";
+import { lazyWithRecovery } from "@/lib/lazyWithRecovery";
 
 import { Skeleton } from "@/components/ui/skeleton";
 
 import type { CodeEditorProps } from "./code-editor-core";
 
-const CodeEditorCore = React.lazy(async () => {
+const CodeEditorCore = lazyWithRecovery(async () => {
   const module = await import("./code-editor-core");
   return { default: module.CodeEditor };
 });

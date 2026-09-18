@@ -3,7 +3,7 @@ import * as React from "react";
 import { cn } from "@/lib/utils";
 
 type Align = "left" | "center" | "right";
-type Sticky = "right";
+type Sticky = "right" | "right-mobile";
 
 const alignClasses: Record<Align, string> = {
   left: "text-left",
@@ -13,6 +13,8 @@ const alignClasses: Record<Align, string> = {
 
 const stickyRightClass =
   "w-[76px] sm:sticky sm:right-0 sm:z-10 sm:shadow-[-12px_0_18px_-18px_rgba(15,23,42,0.7)]";
+const stickyRightMobileClass =
+  "w-[76px] sticky right-0 z-10 shadow-[-12px_0_18px_-18px_rgba(15,23,42,0.7)]";
 
 function AdminDataTableScroll({
   className,
@@ -97,8 +99,9 @@ function AdminDataTableHead({
       className={cn(
         "h-8 whitespace-nowrap px-2.5 py-1 align-middle",
         alignClasses[align],
-        sticky === "right" && "bg-[var(--surface-muted)] backdrop-blur",
+        sticky && "bg-[var(--surface-muted)] backdrop-blur",
         sticky === "right" && stickyRightClass,
+        sticky === "right-mobile" && stickyRightMobileClass,
         className,
       )}
       {...props}
@@ -120,8 +123,9 @@ function AdminDataTableCell({
       className={cn(
         "min-w-0 px-2.5 py-1.5 align-middle text-[13px] leading-[18px] text-foreground",
         alignClasses[align],
-        sticky === "right" && "bg-[var(--surface)] whitespace-nowrap",
+        sticky && "bg-[var(--surface)] whitespace-nowrap",
         sticky === "right" && stickyRightClass,
+        sticky === "right-mobile" && stickyRightMobileClass,
         className,
       )}
       {...props}

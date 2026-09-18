@@ -4,6 +4,9 @@ import { Textarea } from "@/components/ui/textarea";
 import React from "react";
 import { useTranslation } from "react-i18next";
 import { SettingCardCollapse } from "./SettingCard";
+import { SettingSaveFeedback } from "./SettingSaveFeedback";
+import { useSettingSave } from "./useSettingSave";
+import { useNavigationGuard } from "./useNavigationGuard";
 
 interface InputItem {
   tag: string;
@@ -15,7 +18,7 @@ interface InputItem {
   number?: boolean;
 }
 
-type OnSaveHandler = (values: Record<string, string>) => Promise<any> | any;
+type OnSaveHandler = (values: Record<string, string>) => unknown | Promise<unknown>;
 
 export function SettingCardMultiInputCollapse({
   title = "",
@@ -37,39 +40,44 @@ export function SettingCardMultiInputCollapse({
   onChange?: (values: Record<string, string>) => void;
 }) {
   const { t } = useTranslation();
+  const id = React.useId();
+  const feedbackId = `${id}-feedback`;
+  const save = useSettingSave();
+  const defaults = JSON.stringify(Object.fromEntries(items.map((item) => [item.tag, item.defaultValue || ""])));
   const [values, setValues] = React.useState<Record<string, string>>(() =>
     items.reduce((acc, item) => {
       acc[item.tag] = item.defaultValue || "";
       return acc;
     }, {} as Record<string, string>),
   );
-  const [saving, setSaving] = React.useState(false);
-  const savingState = isSaving !== undefined ? isSaving : saving;
+  const [baseline, setBaseline] = React.useState(values);
+  const previousDefaults = React.useRef(defaults);
+  const savingState = Boolean(isSaving) || save.status === "saving";
+  const dirty = JSON.stringify(values) !== JSON.stringify(baseline);
+  useNavigationGuard(dirty, savingState);
 
   React.useEffect(() => {
-    setValues(
-      items.reduce((acc, item) => {
-        acc[item.tag] = item.defaultValue || "";
-        return acc;
-      }, {} as Record<string, string>),
-    );
-  }, [items]);
+    if (savingState || defaults === previousDefaults.current) return;
+    previousDefaults.current = defaults;
+    const next = JSON.parse(defaults) as Record<string, string>;
+    setValues((current) => Object.fromEntries(Object.entries(next).map(([tag, value]) => [
+      tag, current[tag] !== undefined && current[tag] !== baseline[tag] ? current[tag] : value,
+    ])));
+    setBaseline(next);
+  }, [defaults, savingState, baseline]);
 
   const handleChange = (tag: string, value: string) => {
-    setValues((prev) => {
-      const nextValues = { ...prev, [tag]: value };
-      onChange?.(nextValues);
-      return nextValues;
-    });
+    if (savingState || save.pending.current) return;
+    const nextValues = { ...values, [tag]: value };
+    setValues(nextValues);
+    save.reset();
+    onChange?.(nextValues);
   };
 
   const handleSave = async () => {
-    if (isSaving === undefined) setSaving(true);
-    try {
-      await onSave(values);
-    } finally {
-      if (isSaving === undefined) setSaving(false);
-    }
+    if (savingState || save.pending.current) return;
+    const snapshot = { ...values };
+    if (await save.run(() => onSave(snapshot))) setBaseline(snapshot);
   };
 
   return (
@@ -88,31 +96,35 @@ export function SettingCardMultiInputCollapse({
         return null;
       })}
 
-      <div className="flex w-full flex-col gap-2">
+      <div className="flex w-full flex-col gap-3" aria-busy={savingState}>
         {items.map((item) => (
-          <React.Fragment key={item.tag}>
-        <label className="text-sm font-medium text-foreground">
+          <div key={item.tag} className="space-y-1.5">
+            <label htmlFor={`${id}-${item.tag}`} className="text-sm font-medium text-foreground">
               {item.label}
             </label>
             {item.type === "long" ? (
               <Textarea
-                    className="w-full text-sm leading-6"
-                value={values[item.tag]}
+                id={`${id}-${item.tag}`}
+                aria-describedby={feedbackId}
+                className="w-full text-sm leading-6"
+                value={values[item.tag] ?? ""}
                 placeholder={item.placeholder}
-                disabled={item.disabled}
+                disabled={item.disabled || savingState}
                 onChange={(event) => handleChange(item.tag, event.target.value)}
               />
             ) : (
               <Input
-                    className="h-8 w-full text-sm"
-                value={values[item.tag]}
+                id={`${id}-${item.tag}`}
+                aria-describedby={feedbackId}
+                className="h-8 w-full text-sm"
+                value={values[item.tag] ?? ""}
                 placeholder={item.placeholder}
-                disabled={item.disabled}
+                disabled={item.disabled || savingState}
                 type={item.number ? "number" : "text"}
                 onChange={(event) => handleChange(item.tag, event.target.value)}
               />
             )}
-          </React.Fragment>
+          </div>
         ))}
 
         {React.Children.map(children, (child) => {
@@ -127,13 +139,15 @@ export function SettingCardMultiInputCollapse({
 
         <div>
           <Button
+            type="button"
             size="sm"
-              className="mt-1 rounded-md text-sm"
+            className="mt-1 rounded-md text-sm"
             onClick={handleSave}
             disabled={savingState}
           >
             {t("save")}
           </Button>
+          <SettingSaveFeedback id={feedbackId} state={save} dirty={dirty} busy={savingState} />
         </div>
       </div>
     </SettingCardCollapse>

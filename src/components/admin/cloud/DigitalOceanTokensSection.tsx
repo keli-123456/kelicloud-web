@@ -99,7 +99,7 @@ export function DigitalOceanTokensSection({
   const selectAllActive = allTokensSelected || someTokensSelected;
 
   return (
-    <div className={`order-1 flex h-full min-h-[520px] flex-col ${cloudPanelCardClassName}`}>
+    <div className={`order-1 flex h-full flex-col xl:min-h-[520px] ${cloudPanelCardClassName}`}>
       <div className={cloudPanelHeaderClassName}>
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="min-w-0">
@@ -235,7 +235,7 @@ export function DigitalOceanTokensSection({
                   <AdminDataTableHead>{t("cloud.tokens.group", "分组")}</AdminDataTableHead>
                   <AdminDataTableHead>{t("cloud.tokens.quota", "配额")}</AdminDataTableHead>
                   <AdminDataTableHead>{t("cloud.tokens.table.status", "状态")}</AdminDataTableHead>
-                  <AdminDataTableHead sticky="right" align="right" className="w-[72px]">
+                  <AdminDataTableHead sticky="right-mobile" align="right" className="w-[72px]">
                     {t("common.action", "操作")}
                   </AdminDataTableHead>
                 </AdminDataTableHeadRow>
@@ -283,7 +283,7 @@ export function DigitalOceanTokensSection({
                         </Badge>
                       </div>
                     </AdminDataTableCell>
-                    <AdminDataTableCell sticky="right" align="right">
+                    <AdminDataTableCell sticky="right-mobile" align="right">
                       <AdminRowActions
                         actions={[
                           {

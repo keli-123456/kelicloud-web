@@ -34,6 +34,8 @@ export class RPC2Client {
   private eventListeners: RPC2EventListeners = {};
   private readonly wsEnabled: boolean;
   private readonly wsUrl?: string;
+  private readonly configuredAutoReconnect: boolean;
+  private connectionGeneration = 0;
  
   private readonly baseUrl: string;
   private readonly options: ResolvedRPC2ConnectionOptions;
@@ -59,6 +61,7 @@ export class RPC2Client {
     };
     this.wsEnabled = Boolean(this.options.wsEnabled);
     this.wsUrl = this.options.wsUrl || undefined;
+    this.configuredAutoReconnect = this.options.autoReconnect;
 
     // 自动建立连接
     if (this.options.autoConnect) {
@@ -95,6 +98,8 @@ export class RPC2Client {
 
     this.setConnectionState(RPC2ConnectionState.CONNECTING);
 
+    const generation = ++this.connectionGeneration;
+    this.options.autoReconnect = this.configuredAutoReconnect;
     try {
       const wsUrl = this.getWebSocketUrl();
       const ws = new WebSocket(wsUrl);
@@ -126,8 +131,10 @@ export class RPC2Client {
         ws.addEventListener("error", handleError, { once: true });
       });
     } catch (error) {
-      this.setConnectionState(RPC2ConnectionState.ERROR);
-      this.eventListeners.onError?.(error as Error);
+      if (generation === this.connectionGeneration) {
+        this.setConnectionState(RPC2ConnectionState.ERROR);
+        this.eventListeners.onError?.(error as Error);
+      }
       throw error;
     }
   }
@@ -155,6 +162,7 @@ export class RPC2Client {
    * 断开 WebSocket 连接
    */
   disconnect(): void {
+    ++this.connectionGeneration;
     this.options.autoReconnect = false;
     if (this.reconnectTimeout) {
       clearTimeout(this.reconnectTimeout);
@@ -168,12 +176,14 @@ export class RPC2Client {
     }
 
     if (this.ws) {
-      this.ws.close();
+      const previous = this.ws;
       this.ws = null;
+      previous.close();
     }
 
     this.setConnectionState(RPC2ConnectionState.DISCONNECTED);
     this.clearPendingRequests(new Error("连接已断开"));
+    this.eventListeners.onDisconnect?.();
   }
 
   /**
@@ -350,8 +360,10 @@ export class RPC2Client {
 
   private setupWebSocketHandlers(): void {
     if (!this.ws) return;
+    const socket = this.ws;
 
     this.ws.onopen = () => {
+      if (this.ws !== socket) return;
       this.setConnectionState(RPC2ConnectionState.CONNECTED);
       this.reconnectAttempts = 0;
       this.startHeartbeat(); // 启动心跳包
@@ -359,6 +371,7 @@ export class RPC2Client {
     };
 
     this.ws.onmessage = (event) => {
+      if (this.ws !== socket) return;
       try {
         const data = JSON.parse(event.data);
         this.handleMessage(data);
@@ -369,6 +382,7 @@ export class RPC2Client {
     };
 
     this.ws.onclose = () => {
+      if (this.ws !== socket) return;
       this.setConnectionState(RPC2ConnectionState.DISCONNECTED);
       this.stopHeartbeat(); // 停止心跳包
       this.eventListeners.onDisconnect?.();
@@ -380,6 +394,7 @@ export class RPC2Client {
     };
 
     this.ws.onerror = (error) => {
+      if (this.ws !== socket) return;
       console.error("WebSocket 错误:", error);
       this.eventListeners.onError?.(new Error("WebSocket 连接错误"));
     };

@@ -55,6 +55,7 @@ export function useAWSLightsailCreateInstance({
   const [lightsailCreateOpen, setLightsailCreateOpen] = React.useState(false);
   const [lightsailCreateRegion, setLightsailCreateRegion] = React.useState("");
   const [lightsailCreateSubmitting, setLightsailCreateSubmitting] = React.useState(false);
+  const createBusy = React.useRef(false);
   const [lightsailCreateForm, setLightsailCreateForm] = React.useState(initialLightsailCreateForm);
 
   const defaultCreateGroup = getDefaultAutoConnectGroup("aws", activeCredentialName);
@@ -98,6 +99,8 @@ export function useAWSLightsailCreateInstance({
   };
 
   const handleCreateLightsailInstance = async () => {
+    if (createBusy.current) return;
+    createBusy.current = true;
     setLightsailCreateSubmitting(true);
     try {
       const submittedPasswordMode = lightsailCreateForm.root_password_mode || "none";
@@ -140,6 +143,7 @@ export function useAWSLightsailCreateInstance({
       toast.error(toErrorMessage(createError));
     } finally {
       setLightsailCreateSubmitting(false);
+      createBusy.current = false;
     }
   };
 

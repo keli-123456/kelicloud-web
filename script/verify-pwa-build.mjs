@@ -10,6 +10,7 @@ const source = fs.readFileSync(serviceWorkerPath, "utf8");
 const forbidden = [
   ["precache entry HTML", /["']?url["']?\s*:\s*["'](?:\.?\/)?index\.html["']/],
   ["navigation fallback", /NavigationRoute|createHandlerBoundToURL/],
+  ["API response cache", /api-cache|NetworkFirst|StaleWhileRevalidate/],
 ];
 
 for (const [label, pattern] of forbidden) {
@@ -18,4 +19,4 @@ for (const [label, pattern] of forbidden) {
   }
 }
 
-console.log("PWA build verified: entry HTML and navigation fallback are not cached.");
+console.log("PWA build verified: entry HTML, navigation fallback and API responses are not cached.");

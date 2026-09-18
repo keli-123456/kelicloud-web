@@ -1,4 +1,6 @@
 import React from "react";
+import { RefreshNotice } from "../RefreshNotice";
+import { CloudCredentialGate } from "./CloudCredentialGate";
 import type { TFunction } from "i18next";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
@@ -32,7 +34,6 @@ import {
   Select,
   TextField,
   cloudPanelCardClassName,
-  cloudPanelDescriptionClassName,
   cloudPanelFieldLabelClassName,
   cloudPanelHeaderClassName,
   cloudPanelTitleClassName,
@@ -373,7 +374,7 @@ export default function DigitalOceanPanel() {
         title={t("cloud.providers.digitalocean.title", "DigitalOcean")}
       />
       {error ? (
-        <WarningAlert tone="warning" description={error} />
+        activeToken ? <RefreshNotice error={error} hasData={resourcesLoaded} refreshing={panelLoading} onRetry={() => void loadPanelData()} /> : <WarningAlert tone="warning" description={error} />
       ) : null}
 
       {accountStatusSummary ? (
@@ -390,7 +391,7 @@ export default function DigitalOceanPanel() {
         />
       ) : null}
 
-      {tokenPool && !passwordStorageEnabled ? (
+      {activeToken && !passwordStorageEnabled ? (
         <WarningAlert
           tone="info"
           description={t(
@@ -400,74 +401,77 @@ export default function DigitalOceanPanel() {
         />
       ) : null}
 
-      <div className="grid min-w-0 items-stretch gap-4 xl:grid-cols-[minmax(340px,0.9fr)_minmax(380px,1.1fr)]">
-        <DigitalOceanInlineCreatePanel
+      <CloudCredentialGate empty={tokenPool?.tokens.length === 0} onImport={() => setTokenImportOpen(true)}>
+        <div className="grid min-w-0 items-stretch gap-4 xl:grid-cols-[minmax(340px,0.9fr)_minmax(380px,1.1fr)]">
+          <DigitalOceanInlineCreatePanel
+            t={t}
+            activeToken={activeToken}
+            regions={regions}
+            sizes={sizes}
+            images={images}
+            form={createForm}
+            setForm={setCreateForm}
+            submitting={createSubmitting}
+            catalogLoading={createCatalogLoading}
+            getRegionOptionLabel={getRegionOptionLabel}
+            getImageValue={getImageValue}
+            getImageLabel={getImageLabel}
+            onPrepare={prepareCreateForm}
+            onOpenAdvanced={handleOpenCreateDialog}
+            onOpenTokenImport={() => setTokenImportOpen(true)}
+            onCreate={handleCreateDroplet}
+          />
+
+          <DigitalOceanTokensSection
+            t={t}
+            tokenRows={tokenRows}
+            selectedTokenIds={selectedTokenIds}
+            setSelectedTokenIds={setSelectedTokenIds}
+            selectedTokens={selectedTokens}
+            allTokensSelected={allTokensSelected}
+            someTokensSelected={someTokensSelected}
+            tokenChecking={tokenChecking}
+            tokenSecretLoading={tokenSecretLoading}
+            managedKeyLoading={managedKeyLoading}
+            getTokenStatusColor={getTokenStatusColor}
+            onCheckTokens={handleCheckTokens}
+            onOpenTokenGroupEditor={openTokenGroupEditor}
+            onDeleteSelectedTokens={handleDeleteSelectedTokens}
+            onOpenTokenImport={() => setTokenImportOpen(true)}
+            onToggleTokenSelection={toggleTokenSelection}
+            onSelectToken={handleSelectToken}
+            onOpenDropletsForToken={handleOpenDropletsForToken}
+            onViewTokenSecret={handleViewTokenSecret}
+            onViewManagedKey={handleViewManagedKey}
+            onDeleteToken={handleDeleteToken}
+          />
+        </div>
+
+        <DigitalOceanDropletsSection
           t={t}
-          activeToken={activeToken}
-          regions={regions}
-          sizes={sizes}
-          images={images}
-          form={createForm}
-          setForm={setCreateForm}
-          submitting={createSubmitting}
-          catalogLoading={createCatalogLoading}
+          droplets={droplets}
+          panelLoading={panelLoading}
+          error={error}
+          hasActiveToken={hasActiveToken(tokenPool)}
+          resourcesLoaded={resourcesLoaded}
+          passwordStorageEnabled={passwordStorageEnabled}
+          dropletPasswordLoading={dropletPasswordLoading}
+          getDropletStatusColor={getDropletStatusColor}
           getRegionOptionLabel={getRegionOptionLabel}
-          getImageValue={getImageValue}
+          getDropletPrimaryIp={getDropletPrimaryIp}
           getImageLabel={getImageLabel}
-          onPrepare={prepareCreateForm}
-          onOpenAdvanced={handleOpenCreateDialog}
-          onOpenTokenImport={() => setTokenImportOpen(true)}
-          onCreate={handleCreateDroplet}
+          formatMonthlyPrice={formatMonthlyPrice}
+          formatDateTime={formatDateTime}
+          onOpenDetail={setDetailDroplet}
+          onViewPassword={handleViewDropletPassword}
+          onDropletAction={handleDropletAction}
+          onOpenScriptDialog={handleOpenScriptDialog}
+          onOpenShareDialog={handleOpenShareDialog}
+          onDeleteDroplet={handleDeleteDroplet}
+          onBatchDeleteDroplets={handleBatchDeleteDroplets}
         />
 
-        <DigitalOceanTokensSection
-          t={t}
-          tokenRows={tokenRows}
-          selectedTokenIds={selectedTokenIds}
-          setSelectedTokenIds={setSelectedTokenIds}
-          selectedTokens={selectedTokens}
-          allTokensSelected={allTokensSelected}
-          someTokensSelected={someTokensSelected}
-          tokenChecking={tokenChecking}
-          tokenSecretLoading={tokenSecretLoading}
-          managedKeyLoading={managedKeyLoading}
-          getTokenStatusColor={getTokenStatusColor}
-          onCheckTokens={handleCheckTokens}
-          onOpenTokenGroupEditor={openTokenGroupEditor}
-          onDeleteSelectedTokens={handleDeleteSelectedTokens}
-          onOpenTokenImport={() => setTokenImportOpen(true)}
-          onToggleTokenSelection={toggleTokenSelection}
-          onSelectToken={handleSelectToken}
-          onOpenDropletsForToken={handleOpenDropletsForToken}
-          onViewTokenSecret={handleViewTokenSecret}
-          onViewManagedKey={handleViewManagedKey}
-          onDeleteToken={handleDeleteToken}
-        />
-      </div>
-
-      <DigitalOceanDropletsSection
-        t={t}
-        droplets={droplets}
-        panelLoading={panelLoading}
-        error={error}
-        hasActiveToken={hasActiveToken(tokenPool)}
-        resourcesLoaded={resourcesLoaded}
-        passwordStorageEnabled={passwordStorageEnabled}
-        dropletPasswordLoading={dropletPasswordLoading}
-        getDropletStatusColor={getDropletStatusColor}
-        getRegionOptionLabel={getRegionOptionLabel}
-        getDropletPrimaryIp={getDropletPrimaryIp}
-        getImageLabel={getImageLabel}
-        formatMonthlyPrice={formatMonthlyPrice}
-        formatDateTime={formatDateTime}
-        onOpenDetail={setDetailDroplet}
-        onViewPassword={handleViewDropletPassword}
-        onDropletAction={handleDropletAction}
-        onOpenScriptDialog={handleOpenScriptDialog}
-        onOpenShareDialog={handleOpenShareDialog}
-        onDeleteDroplet={handleDeleteDroplet}
-        onBatchDeleteDroplets={handleBatchDeleteDroplets}
-      />
+      </CloudCredentialGate>
 
       <DigitalOceanTokenImportDialog
         t={t}
@@ -644,7 +648,7 @@ function DigitalOceanInlineCreatePanel({
   const disabled = !activeToken || catalogLoading;
 
   return (
-    <section className={`${cloudPanelCardClassName} flex h-full min-h-[520px] flex-col`}>
+    <section className={`${cloudPanelCardClassName} flex h-full flex-col xl:min-h-[520px]`}>
       <div className={cloudPanelHeaderClassName}>
         <div className="flex min-w-0 flex-wrap items-center justify-between gap-3">
           <div className="min-w-0">
@@ -655,9 +659,6 @@ function DigitalOceanInlineCreatePanel({
               <Badge color={activeToken ? "green" : "amber"}>
                 {activeToken ? t("cloud.tokens.active", "Active") : t("cloud.no_active", "No active")}
               </Badge>
-            </div>
-            <div className={cloudPanelDescriptionClassName}>
-              {t("cloud.create_inline_description", "Core creation fields stay open here. Use advanced options only when you need extra network or bootstrap details.")}
             </div>
           </div>
           <Button variant="outline" size="1" onClick={() => { void onOpenAdvanced(); }} disabled={!activeToken}>
@@ -682,7 +683,7 @@ function DigitalOceanInlineCreatePanel({
         </div>
       ) : (
         <>
-      <div className="grid gap-3 p-4">
+      <div className="grid min-w-0 grid-cols-1 gap-3 p-4">
         <div>
           <label className={cloudPanelFieldLabelClassName}>{t("cloud.form.region", "Region")}</label>
           <Select.Root

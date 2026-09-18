@@ -20,6 +20,9 @@ import { AnimatePresence, motion } from "framer-motion";
 import { ChevronDownIcon } from "lucide-react";
 import React from "react";
 import { useTranslation } from "react-i18next";
+import { SettingSaveFeedback } from "./SettingSaveFeedback";
+import { useSettingSave } from "./useSettingSave";
+import { useNavigationGuard } from "./useNavigationGuard";
 
 type LegacyButtonVariant = "solid" | "soft" | "outline" | "ghost";
 
@@ -31,6 +34,7 @@ interface SettingCardProps {
   bordless?: boolean;
   direction?: "row" | "column" | "row-reverse" | "column-reverse";
   onHeaderClick?: () => void;
+  controlId?: string;
 }
 
 function getDirectionClass(direction: SettingCardProps["direction"]) {
@@ -67,6 +71,7 @@ export function SettingCard({
   direction = "column",
   bordless = false,
   onHeaderClick,
+  controlId,
 }: SettingCardProps) {
   const actionChild = React.Children.toArray(children).find(
     (child) => React.isValidElement(child) && child.type === Action,
@@ -75,6 +80,7 @@ export function SettingCard({
   const otherChildren = React.Children.toArray(children).filter(
     (child) => !(React.isValidElement(child) && child.type === Action),
   );
+  const Title = controlId ? "label" : "div";
 
   return (
     <div
@@ -100,9 +106,9 @@ export function SettingCard({
         }}
       >
         <div className="min-h-0 min-w-0 flex-1 space-y-1">
-          <div className="text-[14px] font-semibold leading-5 tracking-normal text-foreground">
+          <Title htmlFor={controlId} className="block text-[14px] font-semibold leading-5 tracking-normal text-foreground">
             {title}
-          </div>
+          </Title>
           {description ? (
             <div className="max-w-3xl text-sm leading-5 text-muted-foreground">
               {description}
@@ -127,53 +133,50 @@ export function SettingCardSwitch({
   autoDisabled = true,
   defaultChecked,
   onChange,
+  deferred = false,
   ...props
 }: SettingCardProps & {
   label?: string;
   autoDisabled?: boolean;
   defaultChecked?: boolean;
+  deferred?: boolean;
   onChange?: (checked: boolean, switchElement: HTMLButtonElement) => void;
 }) {
   const switchRef = React.useRef<HTMLButtonElement>(null);
-  const [disabled, setDisabled] = React.useState(false);
+  const controlId = React.useId();
+  const feedbackId = React.useId();
+  const save = useSettingSave();
   const [checked, setChecked] = React.useState(defaultChecked || false);
 
-  const handleChange = (nextChecked: boolean) => {
-    if (autoDisabled) setDisabled(true);
+  React.useEffect(() => {
+    if (!save.pending.current) setChecked(defaultChecked || false);
+  }, [defaultChecked, save.pending]);
+
+  const handleChange = async (nextChecked: boolean) => {
+    if (save.pending.current || !switchRef.current) return;
+    const element = switchRef.current;
     const previousValue = checked;
     setChecked(nextChecked);
-    const result: unknown =
-      onChange && switchRef.current
-        ? onChange(nextChecked, switchRef.current)
-        : undefined;
-
-    if (autoDisabled && result && typeof (result as Promise<unknown>).then === "function") {
-      (result as Promise<unknown>)
-        .catch(() => {
-          setChecked(previousValue);
-        })
-        .finally(() => {
-          setDisabled(false);
-        });
-      return;
-    }
-
-    if (autoDisabled) setDisabled(false);
+    const ok = await save.run(() => onChange?.(nextChecked, element));
+    if (!ok) setChecked(previousValue);
   };
 
   return (
-    <SettingCard {...props} direction="column">
+    <SettingCard {...props} controlId={controlId} direction="column">
       <SettingCard.Action>
         <div className="flex items-center gap-2">
-          <label className="text-sm text-muted-foreground">{label}</label>
+          <label htmlFor={controlId} className="text-sm text-muted-foreground">{label}</label>
           <Switch
+            id={controlId}
+            aria-describedby={feedbackId}
             ref={switchRef}
             checked={checked}
             onCheckedChange={handleChange}
-            disabled={disabled}
+            disabled={autoDisabled && save.status === "saving"}
           />
         </div>
       </SettingCard.Action>
+      <SettingSaveFeedback id={feedbackId} state={save} showSuccess={!deferred} />
     </SettingCard>
   );
 }
@@ -192,18 +195,11 @@ export function SettingCardButton({
   onClick?: (buttonElement: HTMLButtonElement) => void;
   autoDisabled?: boolean;
 }) {
-  const [disabled, setDisabled] = React.useState(false);
+  const save = useSettingSave();
 
   const handleClick = (event: React.MouseEvent<HTMLButtonElement>) => {
-    if (autoDisabled) setDisabled(true);
-    const result: unknown = onClick ? onClick(event.currentTarget) : undefined;
-
-    if (autoDisabled && result && typeof (result as Promise<unknown>).then === "function") {
-      (result as Promise<unknown>).finally(() => setDisabled(false));
-      return;
-    }
-
-    if (autoDisabled) setDisabled(false);
+    const element = event.currentTarget;
+    void save.run(() => onClick?.(element));
   };
 
   return (
@@ -214,7 +210,7 @@ export function SettingCardButton({
           <Button
             onClick={handleClick}
             variant={mapButtonVariant(variant)}
-            disabled={disabled}
+            disabled={autoDisabled && save.status === "saving"}
             size="sm"
             className="rounded-md text-sm"
           >
@@ -222,6 +218,7 @@ export function SettingCardButton({
           </Button>
         </div>
       </SettingCard.Action>
+      <SettingSaveFeedback state={save} showSuccess={false} />
     </SettingCard>
   );
 }
@@ -240,18 +237,11 @@ export function SettingCardIconButton({
   onClick?: (buttonElement: HTMLButtonElement) => void;
   autoDisabled?: boolean;
 }) {
-  const [disabled, setDisabled] = React.useState(false);
+  const save = useSettingSave();
 
   const handleClick = (event: React.MouseEvent<HTMLButtonElement>) => {
-    if (autoDisabled) setDisabled(true);
-    const result: unknown = onClick ? onClick(event.currentTarget) : undefined;
-
-    if (autoDisabled && result && typeof (result as Promise<unknown>).then === "function") {
-      (result as Promise<unknown>).finally(() => setDisabled(false));
-      return;
-    }
-
-    if (autoDisabled) setDisabled(false);
+    const element = event.currentTarget;
+    void save.run(() => onClick?.(element));
   };
 
   return (
@@ -262,7 +252,8 @@ export function SettingCardIconButton({
           <Button
             onClick={handleClick}
             variant={mapButtonVariant(variant)}
-            disabled={disabled}
+            disabled={autoDisabled && save.status === "saving"}
+            aria-label={label || (typeof props.title === "string" ? props.title : undefined)}
             size="icon"
             className="size-8 rounded-md"
           >
@@ -270,6 +261,7 @@ export function SettingCardIconButton({
           </Button>
         </div>
       </SettingCard.Action>
+      <SettingSaveFeedback state={save} showSuccess={false} />
     </SettingCard>
   );
 }
@@ -311,12 +303,18 @@ export function SettingCardShortTextInput({
   ...restProps
 }: SettingCardShortTextInputProps) {
   const { t } = useTranslation();
-  const [internalDisabled, setInternalDisabled] = React.useState(false);
-  const savingState = isSaving !== undefined ? isSaving : internalDisabled;
+  const save = useSettingSave();
+  const generatedId = React.useId();
+  const controlId = restProps.id || generatedId;
+  const feedbackId = React.useId();
+  const savingState = Boolean(isSaving || (autoDisabled && save.status === "saving"));
   const [internalValue, setInternalValue] = React.useState(
     value?.toString() ?? defaultValue?.toString() ?? "",
   );
   const currentValue = value !== undefined ? value : internalValue;
+  const [savedValue, setSavedValue] = React.useState(currentValue.toString());
+  useNavigationGuard(showSaveButton && currentValue.toString() !== savedValue, showSaveButton && (Boolean(isSaving) || save.status === "saving"));
+  const previousDefault = React.useRef(defaultValue?.toString() ?? "");
   const inputRef = React.useRef<HTMLInputElement>(null);
   const buttonRef = React.useRef<HTMLButtonElement>(null);
   const resolvedLabel = label ?? t("save");
@@ -327,25 +325,28 @@ export function SettingCardShortTextInput({
     }
   }, [value]);
 
-  const handleSave = () => {
-    if (isSaving === undefined && autoDisabled) setInternalDisabled(true);
-    const valueToSave = currentValue?.toString() || "";
-    const result: unknown =
-      inputRef.current && buttonRef.current
-        ? OnSave(valueToSave, inputRef.current, buttonRef.current)
-        : undefined;
-
-    if (autoDisabled && result && typeof (result as Promise<unknown>).then === "function") {
-      (result as Promise<unknown>).finally(() => {
-        if (isSaving === undefined) setInternalDisabled(false);
-      });
-      return;
+  React.useEffect(() => {
+    const nextDefault = defaultValue?.toString() ?? "";
+    const oldDefault = previousDefault.current;
+    previousDefault.current = nextDefault;
+    if (value === undefined && !save.pending.current && oldDefault !== nextDefault) {
+      setInternalValue((current) => current === oldDefault ? nextDefault : current);
+      setSavedValue(nextDefault);
     }
+  }, [defaultValue, value, save.pending]);
 
-    if (isSaving === undefined && autoDisabled) setInternalDisabled(false);
+  const handleSave = async () => {
+    if (!showSaveButton || savingState || save.pending.current || !inputRef.current || !buttonRef.current) return;
+    if (!inputRef.current.reportValidity()) return;
+    const input = inputRef.current;
+    const button = buttonRef.current;
+    const valueToSave = currentValue.toString();
+    const ok = await save.run(() => OnSave(valueToSave, input, button));
+    if (ok) setSavedValue(valueToSave);
   };
 
   const handleInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    save.reset();
     const nextValue = event.target.value;
     if (value === undefined) {
       setInternalValue(nextValue);
@@ -354,19 +355,22 @@ export function SettingCardShortTextInput({
   };
 
   const handleKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
-    if (event.key === "Enter") {
+    onKeyDown?.(event);
+    if (event.key === "Enter" && showSaveButton && !event.defaultPrevented && !event.nativeEvent.isComposing) {
       event.preventDefault();
       handleSave();
     }
-    onKeyDown?.(event);
   };
 
   return (
-    <SettingCard title={title} description={description} bordless={bordless}>
+    <SettingCard title={title} description={description} bordless={bordless} controlId={controlId}>
       <div className="mt-1 flex w-full flex-col items-start gap-2">
         <div className="flex w-full max-w-3xl flex-col gap-2 sm:flex-row sm:items-center">
           <Input
             {...restProps}
+            id={controlId}
+            aria-invalid={save.status === "error" || restProps["aria-invalid"]}
+            aria-describedby={[restProps["aria-describedby"], showSaveButton ? feedbackId : ""].filter(Boolean).join(" ") || undefined}
             className={cn(
               "h-9 min-w-0 flex-1 rounded-md text-sm",
               className,
@@ -378,16 +382,18 @@ export function SettingCardShortTextInput({
             ref={inputRef}
           />
           <Button
+            type="button"
             ref={buttonRef}
             onClick={handleSave}
             hidden={!showSaveButton}
-            disabled={savingState}
+            disabled={restProps.disabled || savingState}
             size="sm"
                 className="h-9 shrink-0 rounded-md px-3 text-sm"
           >
             {resolvedLabel}
           </Button>
         </div>
+        {showSaveButton ? <SettingSaveFeedback id={feedbackId} state={save} busy={Boolean(isSaving)} dirty={currentValue.toString() !== savedValue} /> : null}
         {children ? <div className="flex flex-wrap items-center gap-2">{children}</div> : null}
       </div>
     </SettingCard>
@@ -422,43 +428,49 @@ export function SettingCardLongTextInput({
   showSaveButton?: boolean;
 }) {
   const { t } = useTranslation();
-  const [disabled, setDisabled] = React.useState(false);
-  const savingState = isSaving !== undefined ? isSaving : disabled;
+  const save = useSettingSave();
+  const controlId = React.useId();
+  const feedbackId = React.useId();
+  const savingState = Boolean(isSaving || (autoDisabled && save.status === "saving"));
   const [value, setValue] = React.useState(defaultValue);
+  const [savedValue, setSavedValue] = React.useState(defaultValue);
+  useNavigationGuard(showSaveButton && value !== savedValue, showSaveButton && (Boolean(isSaving) || save.status === "saving"));
+  const previousDefault = React.useRef(defaultValue);
   const textAreaRef = React.useRef<HTMLTextAreaElement>(null);
   const buttonRef = React.useRef<HTMLButtonElement>(null);
   const resolvedLabel = label ?? t("save");
 
   React.useEffect(() => {
-    setValue(defaultValue);
-  }, [defaultValue]);
-
-  const handleSave = () => {
-    if (isSaving === undefined && autoDisabled) setDisabled(true);
-    const result: unknown =
-      textAreaRef.current && buttonRef.current
-        ? OnSave(value, textAreaRef.current, buttonRef.current)
-        : undefined;
-
-    if (autoDisabled && result && typeof (result as Promise<unknown>).then === "function") {
-      (result as Promise<unknown>).finally(() => {
-        if (isSaving === undefined) setDisabled(false);
-      });
-      return;
+    const oldDefault = previousDefault.current;
+    previousDefault.current = defaultValue;
+    if (!save.pending.current) {
+      setValue((current) => !showSaveButton || current === oldDefault ? defaultValue : current);
+      setSavedValue(defaultValue);
     }
+  }, [defaultValue, showSaveButton, save.pending]);
 
-    if (isSaving === undefined && autoDisabled) setDisabled(false);
+  const handleSave = async () => {
+    if (!showSaveButton || savingState || save.pending.current || !textAreaRef.current || !buttonRef.current) return;
+    const input = textAreaRef.current;
+    const button = buttonRef.current;
+    const ok = await save.run(() => OnSave(value, input, button));
+    if (ok) setSavedValue(value);
   };
 
   const handleTextAreaChange = (event: React.ChangeEvent<HTMLTextAreaElement>) => {
+    save.reset();
     setValue(event.target.value);
     onChange?.(event);
   };
 
   return (
-    <SettingCard title={title} description={description} bordless={bordless}>
+    <SettingCard title={title} description={description} bordless={bordless} controlId={controlId}>
       <div className="mt-1 flex w-full max-w-3xl flex-col items-start gap-2">
         <Textarea
+          id={controlId}
+          aria-invalid={save.status === "error"}
+          aria-describedby={showSaveButton ? feedbackId : undefined}
+          disabled={savingState}
           className="min-h-28 w-full rounded-md text-sm leading-6"
           value={value}
           onChange={handleTextAreaChange}
@@ -474,6 +486,7 @@ export function SettingCardLongTextInput({
         >
           {resolvedLabel}
         </Button>
+        {showSaveButton ? <SettingSaveFeedback id={feedbackId} state={save} busy={Boolean(isSaving)} dirty={value !== savedValue} /> : null}
       </div>
     </SettingCard>
   );
@@ -490,6 +503,7 @@ export function SettingCardSelect({
   autoDisabled = true,
   isSaving,
   bordless = false,
+  deferred = false,
 }: {
   title?: string;
   description?: string;
@@ -501,10 +515,13 @@ export function SettingCardSelect({
   autoDisabled?: boolean;
   isSaving?: boolean;
   bordless?: boolean;
+  deferred?: boolean;
 }) {
   const { t } = useTranslation();
-  const [disabled, setDisabled] = React.useState(false);
-  const savingState = isSaving !== undefined ? isSaving : disabled;
+  const save = useSettingSave();
+  const controlId = React.useId();
+  const feedbackId = React.useId();
+  const savingState = Boolean(isSaving || (autoDisabled && save.status === "saving"));
   const [selectedValue, setSelectedValue] = React.useState(
     value !== undefined ? value : defaultValue,
   );
@@ -512,36 +529,22 @@ export function SettingCardSelect({
   const resolvedLabel = label ?? t("select");
 
   React.useEffect(() => {
-    if (value !== undefined) {
-      setSelectedValue(value);
+    if (value !== undefined || !save.pending.current) {
+      setSelectedValue(value ?? defaultValue);
     }
-  }, [value]);
+  }, [value, defaultValue, save.pending]);
 
-  const handleSave = (nextValue: string) => {
-    if (isSaving === undefined && autoDisabled) setDisabled(true);
+  const handleSave = async (nextValue: string) => {
+    if (savingState || save.pending.current || !triggerRef.current) return;
+    const element = triggerRef.current;
     const previousValue = selectedValue;
     setSelectedValue(nextValue);
-
-    const result: unknown = triggerRef.current
-      ? OnSave(nextValue, triggerRef.current)
-      : undefined;
-
-    if (autoDisabled && result && typeof (result as Promise<unknown>).then === "function") {
-      (result as Promise<unknown>)
-        .catch(() => {
-          setSelectedValue(previousValue);
-        })
-        .finally(() => {
-          if (isSaving === undefined) setDisabled(false);
-        });
-      return;
-    }
-
-    if (isSaving === undefined && autoDisabled) setDisabled(false);
+    const ok = await save.run(() => OnSave(nextValue, element));
+    if (!ok) setSelectedValue(previousValue);
   };
 
   return (
-    <SettingCard title={title} description={description} bordless={bordless}>
+    <SettingCard title={title} description={description} bordless={bordless} controlId={controlId}>
       <SettingCard.Action>
         <Select
           value={selectedValue || undefined}
@@ -549,6 +552,9 @@ export function SettingCardSelect({
           disabled={savingState}
         >
           <SelectTrigger
+            id={controlId}
+            aria-describedby={feedbackId}
+            aria-invalid={save.status === "error"}
             ref={triggerRef}
             size="sm"
             className="min-w-48 rounded-md text-sm"
@@ -568,6 +574,7 @@ export function SettingCardSelect({
           </SelectContent>
         </Select>
       </SettingCard.Action>
+      <SettingSaveFeedback id={feedbackId} state={save} showSuccess={!deferred} busy={Boolean(isSaving)} />
     </SettingCard>
   );
 }
@@ -590,21 +597,31 @@ export function SettingCardCollapse({
   defaultOpen = false,
   children,
   bordless = false,
+  open: controlledOpen,
+  onOpenChange,
 }: {
   title?: string;
   description?: string;
   children?: React.ReactNode;
   defaultOpen?: boolean;
   bordless?: boolean;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
 }) {
-  const [open, setOpen] = React.useState(defaultOpen);
+  const [internalOpen, setInternalOpen] = React.useState(defaultOpen);
+  const open = controlledOpen ?? internalOpen;
+  const setOpen = (next: boolean) => {
+    if (controlledOpen === undefined) setInternalOpen(next);
+    onOpenChange?.(next);
+  };
+  const contentId = React.useId();
 
   return (
     <Collapsible open={open} onOpenChange={setOpen}>
       <SettingCard
         title={title}
         description={description}
-        onHeaderClick={() => setOpen((current) => !current)}
+        onHeaderClick={() => setOpen(!open)}
         bordless={bordless}
       >
         <SettingCard.Action>
@@ -613,7 +630,8 @@ export function SettingCardCollapse({
               variant="ghost"
               size="icon"
               aria-expanded={open}
-              aria-controls="collapsible-content"
+              aria-controls={contentId}
+              aria-label={title}
               className="size-8 rounded-lg"
             >
               <motion.div
@@ -631,7 +649,7 @@ export function SettingCardCollapse({
             <CollapsibleContent forceMount asChild>
               <motion.div
                 className="w-full overflow-hidden pt-2"
-                id="collapsible-content"
+                id={contentId}
                 initial={{ height: 0, opacity: 0, y: -10 }}
                 animate={{ height: "auto", opacity: 1, y: 0 }}
                 exit={{ height: 0, opacity: 0, y: -10 }}

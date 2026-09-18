@@ -1,4 +1,5 @@
-import { Suspense, lazy } from "react";
+import { Suspense } from "react";
+import { lazyWithRecovery as lazy } from "@/lib/lazyWithRecovery";
 
 import {
   AdminPageShell,

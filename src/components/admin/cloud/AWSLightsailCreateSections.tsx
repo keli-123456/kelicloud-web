@@ -73,7 +73,7 @@ export function LightsailCreateCoreSection({
 
   const content = (
     <>
-      <div className={cn("grid gap-4", !singleColumn && "sm:grid-cols-2")}>
+      <div className={cn("grid min-w-0 grid-cols-1 gap-4", !singleColumn && "sm:grid-cols-2")}>
         <div>
           <label className={cloudPanelFieldLabelClassName}>
             {t("cloud.providers.aws.region", "Region")}
@@ -88,12 +88,6 @@ export function LightsailCreateCoreSection({
               void onRegionChange(value);
             }}
           />
-          <div className={`mt-2 text-xs ${cloudPanelBodyTextClassName}`}>
-            {t(
-              "cloud.providers.aws.lightsail_create_region_hint",
-              "Switching region only updates this dialog. The default availability zone is regenerated as region + a, and the built-in presets stay available without loading any catalog.",
-            )}
-          </div>
         </div>
         <div>
           <label className={cloudPanelFieldLabelClassName}>
@@ -124,7 +118,7 @@ export function LightsailCreateCoreSection({
         </div>
       </div>
 
-      <div className={cn("mt-4 grid gap-4", !singleColumn && "sm:grid-cols-2")}>
+      <div className={cn("mt-4 grid min-w-0 grid-cols-1 gap-4", !singleColumn && "sm:grid-cols-2")}>
         <div>
           <label className={cloudPanelFieldLabelClassName}>
             {t("cloud.form.image", "Image")}

@@ -1,4 +1,40 @@
 {
+  "release_recovery": {
+    "submit_unconfirmed": "Hasil pengiriman belum dikonfirmasi. Periksa riwayat eksekusi sebelum mengirim ulang; tugas jarak jauh mungkin masih berjalan.",
+    "load_failed": "Bagian halaman ini gagal dimuat. Periksa koneksi atau muat ulang halaman.",
+    "draft_retained": "Perubahan belum disimpan tetap dipertahankan. Simpan atau buang sebelum memuat ulang.",
+    "reload": "Muat ulang halaman"
+  },
+  "async_feedback": {
+    "awaiting_result": "Menunggu hasil",
+    "stale": "Pembaruan gagal. Menampilkan data yang terakhir diambil.",
+    "load_failed": "Data tidak dapat dimuat",
+    "refresh": "Ambil ulang",
+    "new": "Belum disimpan",
+    "unsaved": "Perubahan belum disimpan",
+    "saving": "Menyimpan",
+    "applying": "Mengirim",
+    "submitted": "Terkirim, menunggu hasil server",
+    "disabled_config": "Dinonaktifkan di konfigurasi; perlu diterapkan",
+    "saved_pending": "Tersimpan, belum diterapkan ke server",
+    "delete_rule_confirm": "Hapus aturan \"{{name}}\"? Terapkan ke server setelah menghapus konfigurasi.",
+    "task_submitted": "Tugas {{id}} terkirim",
+    "tunnel_saved": "Aturan tersimpan. Status berjalan berasal dari server."
+  },
+  "form_feedback": {
+    "required": "{{label}} wajib diisi",
+    "saving": "Menyimpan...",
+    "saved": "Tersimpan",
+    "unsaved": "Perubahan belum disimpan",
+    "failed": "Gagal menyimpan. Coba lagi.",
+    "credentials": "Kelola kredensial",
+    "credentials_new_tab": "Kelola kredensial (tab baru)",
+    "refresh_credentials": "Muat ulang kredensial",
+    "refresh_failed": "Gagal memuat kredensial. Coba lagi.",
+    "no_credentials": "Tidak ada kredensial tersedia",
+    "expand": "Perluas",
+    "collapse": "Ciutkan"
+  },
   "about": {
     "ai": "Proses pengembangan proyek kelicloud didukung oleh alat kecerdasan buatan. Alat-alat ini digunakan untuk menjalankan tugas seperti pembuatan kode, refactoring, dan debugging, untuk meningkatkan efisiensi pengembangan dan kualitas kode. Semua kode dan saran yang dihasilkan oleh AI telah diperiksa dan divalidasi oleh pengembang manusia.",
     "description": "Review open-source licenses, legal statements, and the project README.",
@@ -1003,7 +1039,8 @@
     "creating": "Sedang membuat...",
     "credentials": {
       "check": "Check",
-      "import": "导入凭据"
+      "empty": "Belum ada kredensial tersimpan",
+      "import": "Impor kredensial"
     },
     "delete": "Hapus",
     "delete_confirm": "Hapus Droplet \"{{name}}\"? Tindakan ini tidak dapat dibatalkan.",
@@ -1332,7 +1369,7 @@
     "load_failed": "Unable to load cloud resources. Check the warning above and try again.",
     "load_failed_description": "修复上方警告后，可以刷新页面或重新加载资源。",
     "load_resources_description": "云资源按需加载，可以避免多账户场景下页面一打开就发起大量请求。",
-    "load_resources_prompt": "Click View to load cloud resources on demand.",
+    "load_resources_prompt": "Instance belum dimuat",
     "load_resources_prompt_description": "资源采用按需加载，切换账户时状态会更清楚，也不会自动发起多余请求。",
     "loading": "Memuat sumber daya cloud...",
     "loading_description": "云厂商 API 可达时，通常几秒内即可完成加载。",
@@ -1832,7 +1869,7 @@
         "disks": "Disk",
         "email": "Email",
         "instance_empty": "Belum ada instance Linode",
-        "instance_empty_description": "Create a Linode instance or switch to a token that already owns resources.",
+        "instance_empty_description": "Tidak ada instance untuk token saat ini.",
         "instance_id": "ID Linode",
         "instance_list": "Daftar instance",
         "instance_list_description": "Klik label instance untuk melihat detail dan mengelola status daya dengan token aktif saat ini.",
@@ -1840,7 +1877,7 @@
         "last_successful": "Terakhir berhasil",
         "name": "Linode",
         "no_active_token": "Select an active Linode token first",
-        "no_active_token_description": "Import a token and set it as current before managing Linode instances.",
+        "no_active_token_description": "Pilih token Linode yang aktif.",
         "onboarding_create_title": "创建或管理 Linode 实例",
         "onboarding_resource_description": "按需拉取 Linode 实例和账号信息，切换令牌时页面会更快、更可控。",
         "onboarding_token_description": "先添加一个或多个 Linode 个人访问令牌，再选择当前用于操作的账户。",
@@ -1871,7 +1908,7 @@
         "token_dialog_description": "Lihat token Linode lengkap hanya saat Anda perlu menyalin atau memverifikasinya.",
         "tokens_description": "Simpan beberapa token personal access Linode, pilih yang aktif, dan verifikasi massal semuanya.",
         "tokens_empty": "Belum ada token Linode yang disimpan",
-        "tokens_empty_description": "Import a Linode personal access token to select an active account, check health, and load instances.",
+        "tokens_empty_description": "Belum ada token Linode tersimpan.",
         "tokens_empty_page": "本页暂无令牌",
         "tokens_empty_page_description": "可调整每页条数或返回上一页。",
         "username": "Username",
@@ -2379,7 +2416,22 @@
   "current_online": "Sedang online",
   "current_time": "Waktu saat ini",
   "delete": "Hapus",
+  "form_draft": {
+    "title": "Buang perubahan yang belum disimpan?",
+    "description": "Perubahan yang belum disimpan akan hilang saat Anda keluar.",
+    "keep_editing": "Lanjutkan mengedit",
+    "discard": "Buang perubahan",
+    "wait_for_save": "Penyimpanan sedang berlangsung. Tunggu hingga selesai sebelum keluar.",
+    "back_to_task": "Kembali ke tugas"
+  },
   "exec": {
+    "observation": {
+      "awaiting_receipt": "Menunggu hasil",
+      "request_timeout": "Permintaan hasil kehabisan waktu. Perbarui hasil untuk mencoba lagi.",
+      "refresh": "Perbarui hasil",
+      "paused": "Pembaruan otomatis dijeda. Penyelesaian tugas belum dikonfirmasi.",
+      "fetch_failed": "Hasil sementara tidak tersedia. Status tugas belum dikonfirmasi."
+    },
     "allCompleted": "Semua tugas telah selesai dieksekusi",
     "clients_label": "Clients",
     "command": "Perintah",
@@ -3499,8 +3551,8 @@
     "dns_catalog_load": "Muat opsi DNS",
     "dns_catalog_loading": "Memuat opsi DNS",
     "dns_domain_name": "Nama domain",
-    "dns_entry": "Entri DNS",
-    "dns_entry_id_placeholder": "ID entri {{provider}}",
+    "dns_entry": "Kredensial DNS",
+    "dns_entry_id_placeholder": "ID kredensial {{provider}}",
     "dns_entry_placeholder": "Pilih entri {{provider}}",
     "dns_existing_record": "Record DNS yang ada",
     "dns_existing_record_placeholder": "Pilih record DNS yang ada",
