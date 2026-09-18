@@ -1,40 +1,4 @@
 {
-  "release_recovery": {
-    "submit_unconfirmed": "提交结果尚未确认，请先检查执行记录再决定是否重试；远端任务可能仍在运行。",
-    "load_failed": "部分页面加载失败，请检查网络或更新页面。",
-    "draft_retained": "未保存的内容已保留，保存或放弃修改后可更新页面。",
-    "reload": "更新页面"
-  },
-  "async_feedback": {
-    "awaiting_result": "等待回执",
-    "stale": "更新失败，当前显示上次获取的数据",
-    "load_failed": "数据获取失败",
-    "refresh": "重新获取",
-    "new": "尚未保存",
-    "unsaved": "未保存修改",
-    "saving": "保存中",
-    "applying": "正在下发",
-    "submitted": "已下发，等待服务器回执",
-    "disabled_config": "配置已停用，仍需应用",
-    "saved_pending": "已保存，尚未应用到服务器",
-    "delete_rule_confirm": "删除规则「{{name}}」？删除配置后仍需应用到服务器。",
-    "task_submitted": "任务 {{id}} 已下发",
-    "tunnel_saved": "规则已保存，运行状态以服务器回报为准"
-  },
-  "form_feedback": {
-    "required": "请填写{{label}}",
-    "saving": "保存中…",
-    "saved": "已保存",
-    "unsaved": "未保存",
-    "failed": "保存失败，请重试",
-    "credentials": "管理凭证",
-    "credentials_new_tab": "管理凭证（新标签页）",
-    "refresh_credentials": "刷新凭证",
-    "refresh_failed": "凭证刷新失败，请重试",
-    "no_credentials": "暂无可用凭证",
-    "expand": "展开",
-    "collapse": "收起"
-  },
   "about": {
     "ai": "kelicloud 项目的开发过程得到了人工智能工具的辅助。这些工具被用于执行代码生成、重构和调试等任务，以提高开发效率和代码质量。所有由 AI 生成的代码和建议都经过了人类开发者的审查与验证。",
     "description": "查看开源许可、法律声明与项目说明文档。",
@@ -779,6 +743,22 @@
       "update_failed": "更新用户失败",
       "username_min_length": "用户名至少需要 3 个字符"
     }
+  },
+  "async_feedback": {
+    "applying": "正在下发",
+    "awaiting_result": "等待回执",
+    "delete_rule_confirm": "删除规则「{{name}}」？删除配置后仍需应用到服务器。",
+    "disabled_config": "配置已停用，仍需应用",
+    "load_failed": "数据获取失败",
+    "new": "尚未保存",
+    "refresh": "重新获取",
+    "saved_pending": "已保存，尚未应用到服务器",
+    "saving": "保存中",
+    "stale": "更新失败，当前显示上次获取的数据",
+    "submitted": "已下发，等待服务器回执",
+    "task_submitted": "任务 {{id}} 已下发",
+    "tunnel_saved": "规则已保存，运行状态以服务器回报为准",
+    "unsaved": "未保存修改"
   },
   "billing": {
     "access_status_active": "正常",
@@ -2416,22 +2396,7 @@
   "current_online": "当前在线",
   "current_time": "当前时间",
   "delete": "删除",
-  "form_draft": {
-    "title": "放弃未保存的修改？",
-    "description": "离开后，本次未保存的配置将丢失。",
-    "keep_editing": "继续编辑",
-    "discard": "放弃修改",
-    "wait_for_save": "正在保存，请等待完成后再离开。",
-    "back_to_task": "返回任务"
-  },
   "exec": {
-    "observation": {
-      "awaiting_receipt": "等待回执",
-      "request_timeout": "执行结果查询超时，请刷新结果重试。",
-      "refresh": "刷新执行结果",
-      "paused": "已暂停自动更新，尚未确认任务结束。",
-      "fetch_failed": "暂时无法获取执行结果，任务状态未确认。"
-    },
     "allCompleted": "所有任务执行完成",
     "choose_nodes": "选择节点",
     "clients_label": "客户端",
@@ -2474,6 +2439,13 @@
     "no_script_permission_description": "当前账号没有脚本权限，请联系管理员开通后再使用。",
     "no_script_permission_title": "暂无脚本权限",
     "node_count": "{{count}} 台",
+    "observation": {
+      "awaiting_receipt": "等待回执",
+      "fetch_failed": "暂时无法获取执行结果，任务状态未确认。",
+      "paused": "已暂停自动更新，尚未确认任务结束。",
+      "refresh": "刷新执行结果",
+      "request_timeout": "执行结果查询超时，请刷新结果重试。"
+    },
     "output_label": "输出",
     "page_description": "选择目标节点，编写一次性命令或复用脚本，并在同一工作台追踪执行结果。",
     "page_title": "批量命令执行",
@@ -4074,6 +4046,28 @@
       "task_queue_hint": "先看任务健康和最近执行，点击任务展开子成员。"
     }
   },
+  "form_draft": {
+    "back_to_task": "返回任务",
+    "description": "离开后，本次未保存的配置将丢失。",
+    "discard": "放弃修改",
+    "keep_editing": "继续编辑",
+    "title": "放弃未保存的修改？",
+    "wait_for_save": "正在保存，请等待完成后再离开。"
+  },
+  "form_feedback": {
+    "collapse": "收起",
+    "credentials": "管理凭证",
+    "credentials_new_tab": "管理凭证（新标签页）",
+    "expand": "展开",
+    "failed": "保存失败，请重试",
+    "no_credentials": "暂无可用凭证",
+    "refresh_credentials": "刷新凭证",
+    "refresh_failed": "凭证刷新失败，请重试",
+    "required": "请填写{{label}}",
+    "saved": "已保存",
+    "saving": "保存中…",
+    "unsaved": "未保存"
+  },
   "go_to_home": "回到主页",
   "home_title": "kelicloud",
   "instance": {
@@ -4304,6 +4298,12 @@
     "yes": "是的"
   },
   "region_overview": "点亮地区",
+  "release_recovery": {
+    "draft_retained": "未保存的内容已保留，保存或放弃修改后可更新页面。",
+    "load_failed": "部分页面加载失败，请检查网络或更新页面。",
+    "reload": "更新页面",
+    "submit_unconfirmed": "提交结果尚未确认，请先检查执行记录再决定是否重试；远端任务可能仍在运行。"
+  },
   "save": "保存",
   "scripts": {
     "empty": "还没有已保存的脚本。"
