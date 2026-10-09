@@ -3,6 +3,7 @@ import { RefreshNotice } from "@/components/admin/RefreshNotice";
 import { useRequestTracker } from "@/components/admin/useRequestTracker";
 import { createPortal } from "react-dom";
 import { FieldValidationError, FormValidationProvider, FormValidationSummary, ValidationField } from "@/components/admin/FormValidation";
+import { digitalOceanPlanIssue, digitalOceanPlanOptions } from "@/lib/digitalOceanCatalog";
 import { GuardedDialog, GuardedDialogClose } from "@/components/admin/GuardedDialog";
 import { CredentialActions } from "@/components/admin/CredentialActions";
 import { Navigate, useSearchParams } from "react-router-dom";
@@ -280,6 +281,7 @@ type AWSPlanTag = {
 
 type SearchableCatalogSelectProps = {
   value?: string;
+  disabled?: boolean;
   options: FailoverCatalogOption[];
   placeholder: string;
   searchPlaceholder: string;
@@ -349,6 +351,7 @@ function StickyEditorSummaryPanel({
 
 function SearchableCatalogSelect({
   value,
+  disabled = false,
   options,
   placeholder,
   searchPlaceholder,
@@ -398,6 +401,7 @@ function SearchableCatalogSelect({
           type="button"
           variant="outline"
           role="combobox"
+          disabled={disabled}
           aria-expanded={open}
           className="w-full min-w-0 justify-between font-normal"
         >
@@ -645,36 +649,12 @@ const DEFAULT_AWS_FAILOVER_EC2_INSTANCE_TYPE = STATIC_EC2_INSTANCE_TYPE_PRESETS[
 const DEFAULT_AWS_FAILOVER_EC2_IMAGE_ID = STATIC_EC2_IMAGE_PRESETS[0]?.value || "resolve:ssm:/aws/service/canonical/ubuntu/server/24.04/stable/current/amd64/hvm/ebs-gp3/ami-id";
 const DEFAULT_AWS_FAILOVER_LIGHTSAIL_BLUEPRINT_ID = STATIC_LIGHTSAIL_BLUEPRINT_PRESETS[0]?.value || "ubuntu_24_04";
 const DEFAULT_AWS_FAILOVER_LIGHTSAIL_BUNDLE_ID = STATIC_LIGHTSAIL_BUNDLE_PRESETS.find((preset) => preset.platform === "linux")?.value || "nano_3_0";
-const DEFAULT_DIGITALOCEAN_IMAGE = "ubuntu-24-04-x64";
 const DEFAULT_LINODE_IMAGE = "linode/ubuntu24.04";
 const DEFAULT_VULTR_IMAGE = "2284";
 const DEFAULT_AZURE_REGION = "eastus";
 const DEFAULT_AZURE_SIZE = "Standard_B1s";
 const DEFAULT_AZURE_ADMIN_USERNAME = "azureuser";
 const AUTOMATIC_PROVIDER_ENTRY_ID = "active";
-const COMMON_DIGITALOCEAN_REGIONS: FailoverCatalogOption[] = [
-  { value: "nyc3", label: "New York 3", hint: "" },
-  { value: "sfo3", label: "San Francisco 3", hint: "" },
-  { value: "tor1", label: "Toronto 1", hint: "" },
-  { value: "lon1", label: "London 1", hint: "" },
-  { value: "fra1", label: "Frankfurt 1", hint: "" },
-  { value: "ams3", label: "Amsterdam 3", hint: "" },
-  { value: "sgp1", label: "Singapore 1", hint: "" },
-  { value: "blr1", label: "Bangalore 1", hint: "" },
-];
-const COMMON_DIGITALOCEAN_SIZES: FailoverCatalogOption[] = [
-  { value: "s-1vcpu-1gb", label: "Basic 1 GB", hint: "1 vCPU · 1 GB" },
-  { value: "s-1vcpu-2gb", label: "Basic 2 GB", hint: "1 vCPU · 2 GB" },
-  { value: "s-2vcpu-2gb", label: "Basic 2 vCPU", hint: "2 vCPU · 2 GB" },
-  { value: "s-2vcpu-4gb", label: "Basic 4 GB", hint: "2 vCPU · 4 GB" },
-  { value: "s-4vcpu-8gb", label: "Basic 8 GB", hint: "4 vCPU · 8 GB" },
-];
-const COMMON_DIGITALOCEAN_IMAGES: FailoverCatalogOption[] = [
-  { value: "ubuntu-24-04-x64", label: "Ubuntu 24.04 LTS", hint: "" },
-  { value: "ubuntu-22-04-x64", label: "Ubuntu 22.04 LTS", hint: "" },
-  { value: "debian-12-x64", label: "Debian 12", hint: "" },
-  { value: "centos-stream-9-x64", label: "CentOS Stream 9", hint: "" },
-];
 const COMMON_LINODE_REGIONS: FailoverCatalogOption[] = [
   { value: "us-lax", label: "Los Angeles", hint: "us" },
   { value: "us-east", label: "Newark", hint: "us" },
@@ -2990,7 +2970,7 @@ function defaultPlanPayload(provider: string, actionType: string) {
     return {
       region: "",
       size: "",
-      image: DEFAULT_DIGITALOCEAN_IMAGE,
+      image: "",
       ipv6: false,
       root_password_mode: "random",
       root_password: "",
@@ -3101,32 +3081,6 @@ function mergeCatalogOptions(
   }
 
   return merged;
-}
-
-function buildCommonDigitalOceanPlanCatalog(region = "") {
-  return {
-    ...createEmptyPlanCatalog("digitalocean", "provision_instance", "", region, COMMON_DIGITALOCEAN_REGIONS),
-    sizes: COMMON_DIGITALOCEAN_SIZES,
-    images: COMMON_DIGITALOCEAN_IMAGES,
-  } satisfies FailoverPlanCatalog;
-}
-
-function mergeDigitalOceanPlanCatalogWithCommon(
-  catalog: FailoverPlanCatalog | null,
-  region = "",
-) {
-  const commonCatalog = buildCommonDigitalOceanPlanCatalog(region);
-  if (!catalog || catalog.provider !== "digitalocean") {
-    return commonCatalog;
-  }
-
-  return {
-    ...catalog,
-    region: catalog.region || region,
-    regions: mergeCatalogOptions(commonCatalog.regions, catalog.regions),
-    sizes: mergeCatalogOptions(commonCatalog.sizes, catalog.sizes),
-    images: mergeCatalogOptions(commonCatalog.images, catalog.images),
-  } satisfies FailoverPlanCatalog;
 }
 
 function buildCommonLinodePlanCatalog(region = "") {
@@ -3413,7 +3367,7 @@ function normalizePlanPayloadForSubmit(
 
   if (provider === "digitalocean" && actionType === "provision_instance") {
     const rootPassword = getStringValue(nextPayload.root_password);
-    nextPayload.image = getStringValue(nextPayload.image) || DEFAULT_DIGITALOCEAN_IMAGE;
+    nextPayload.image = getStringValue(nextPayload.image);
     nextPayload.root_password = rootPassword;
     nextPayload.root_password_mode = rootPassword ? "custom" : "random";
     nextPayload.ipv6 = getBooleanValue(nextPayload.ipv6, false);
@@ -6388,7 +6342,7 @@ function TaskEditorDialog({
   const digitalOceanPlanCatalog = React.useMemo(
     () => (
       isDigitalOceanProvisionPlan
-        ? mergeDigitalOceanPlanCatalogWithCommon(planCatalog, selectedPlanRegion)
+        ? digitalOceanPlanOptions(planCatalog, selectedPlanRegion)
         : null
     ),
     [isDigitalOceanProvisionPlan, planCatalog, selectedPlanRegion],
@@ -6421,16 +6375,16 @@ function TaskEditorDialog({
     [isVultrProvisionPlan, planCatalog, selectedPlanRegion],
   );
   const digitalOceanRegionOptions = React.useMemo(
-    () => appendCatalogOptionIfMissing(digitalOceanPlanCatalog?.regions || [], selectedPlanRegion),
-    [digitalOceanPlanCatalog, selectedPlanRegion],
+    () => digitalOceanPlanCatalog?.regions || [],
+    [digitalOceanPlanCatalog],
   );
   const digitalOceanSizeOptions = React.useMemo(
-    () => appendCatalogOptionIfMissing(digitalOceanPlanCatalog?.sizes || [], selectedPlanSize),
-    [digitalOceanPlanCatalog, selectedPlanSize],
+    () => digitalOceanPlanCatalog?.sizes || [],
+    [digitalOceanPlanCatalog],
   );
   const digitalOceanImageOptions = React.useMemo(
-    () => appendCatalogOptionIfMissing(digitalOceanPlanCatalog?.images || [], selectedPlanImage),
-    [digitalOceanPlanCatalog, selectedPlanImage],
+    () => digitalOceanPlanCatalog?.images || [],
+    [digitalOceanPlanCatalog],
   );
   const azureRegionOptions = React.useMemo(
     () => appendCatalogOptionIfMissing(azurePlanCatalog?.regions || [], selectedPlanRegion || DEFAULT_AZURE_REGION),
@@ -6479,9 +6433,9 @@ function TaskEditorDialog({
     selectedPlan?.provider.trim()
     && (selectedPlan.provider_entry_id.trim() || selectedPlan.provider_entry_group.trim()),
   );
-  const usesCommonPlanCatalogDefaults = isAzureProvisionPlan || isDigitalOceanProvisionPlan || isLinodeProvisionPlan || isVultrProvisionPlan;
+  const usesCommonPlanCatalogDefaults = isAzureProvisionPlan || isLinodeProvisionPlan || isVultrProvisionPlan;
   const showPlanCatalogLoadActions = !isAWSPlan;
-  const canLoadPlanDetails = canLoadPlanCatalog && (usesCommonPlanCatalogDefaults || Boolean(selectedPlanRegion.trim()));
+  const canLoadPlanDetails = canLoadPlanCatalog && (isDigitalOceanProvisionPlan || usesCommonPlanCatalogDefaults || Boolean(selectedPlanRegion.trim()));
   const suggestedAutoConnectGroup = React.useMemo(
     () => (
       selectedPlan
@@ -7372,6 +7326,17 @@ function TaskEditorDialog({
     resetPlanCatalogState();
   }, [open, resetPlanCatalogState, selectedPlan?.local_id]);
 
+  const refreshPlanCatalogRef = React.useRef(refreshPlanCatalog);
+  React.useEffect(() => {
+    refreshPlanCatalogRef.current = refreshPlanCatalog;
+  }, [refreshPlanCatalog]);
+  React.useEffect(() => {
+    if (!open || !planDialogOpen || !isDigitalOceanProvisionPlan || !canLoadPlanCatalog) return;
+    void refreshPlanCatalogRef.current({ mode: "full" });
+    return () => { planCatalogRequestRef.current += 1; };
+  }, [open, planDialogOpen, isDigitalOceanProvisionPlan, canLoadPlanCatalog,
+    selectedPlan?.local_id, selectedPlan?.provider_entry_id, selectedPlan?.provider_entry_group, selectedPlanRegion]);
+
   const addPlan = () => {
     const nextPlan = {
       ...createEmptyPlanForm(providerEntries),
@@ -7447,6 +7412,35 @@ function TaskEditorDialog({
     }
   };
 
+  const validateDigitalOceanPlans = async () => {
+    for (const plan of formState.plans) {
+      if (!plan.enabled || plan.provider !== "digitalocean" || plan.action_type !== "provision_instance") continue;
+      const config = parsePlanPayloadObject(plan.payload);
+      const region = getStringValue(config.region);
+      let catalog: FailoverPlanCatalog;
+      try {
+        catalog = await getFailoverPlanCatalog({
+          provider: plan.provider,
+          entry_id: normalizePlanProviderEntryID(plan.provider, plan.provider_entry_id),
+          entry_group: plan.provider_entry_group.trim(),
+          action_type: plan.action_type,
+          region,
+          mode: "full",
+        });
+      } catch (error) {
+        throw new FieldValidationError(getReadableErrorMessage(error, t("common.unknown_error")), "plan.region", plan.local_id);
+      }
+      const issue = digitalOceanPlanIssue(catalog, region, getStringValue(config.size), getStringValue(config.image));
+      if (issue) {
+        const value = getStringValue(config[issue]);
+        throw new FieldValidationError(
+          t(`failover.validation.digitalocean_${issue}_unavailable`, { value, region }),
+          `plan.${issue}`, plan.local_id,
+        );
+      }
+    }
+  };
+
   const handlePreview = async () => {
     setFormError(null);
     setPreviewing(true);
@@ -7454,6 +7448,7 @@ function TaskEditorDialog({
 
     try {
       const payload = buildTaskInput(formState, t);
+      await validateDigitalOceanPlans();
       const preview = await previewFailoverTask(payload);
       setPreviewResult(preview);
       setPreviewPayloadSignature(JSON.stringify(payload));
@@ -7480,6 +7475,7 @@ function TaskEditorDialog({
 
     try {
       const payload = buildTaskInput(formState, t);
+      await validateDigitalOceanPlans();
       const settingsSnapshot = settingsLoading
         ? await refetchSettings()
         : userSettings;
@@ -8875,7 +8871,7 @@ function TaskEditorDialog({
                                 {t("failover.editor.plan_config", { defaultValue: "Instance configuration" })}
                               </div>
                               <div className="flex flex-wrap gap-2">
-                          {showPlanCatalogLoadActions && !usesCommonPlanCatalogDefaults ? (
+                          {showPlanCatalogLoadActions && !usesCommonPlanCatalogDefaults && !isDigitalOceanProvisionPlan ? (
                             <Button
                               type="button"
                               variant="outline"
@@ -8897,7 +8893,7 @@ function TaskEditorDialog({
                             >
                               {planCatalogLoading && planCatalogLoadMode === "full" ? <LoaderCircle className="mr-2 size-4 animate-spin" /> : <RefreshCw className="mr-2 size-4" />}
                               {isDigitalOceanProvisionPlan
-                                ? t("failover.editor.load_plan_options_full_digitalocean", { defaultValue: "Load full DigitalOcean list" })
+                                ? t("failover.editor.refresh_digitalocean_options")
                                 : isAzureProvisionPlan
                                   ? t("failover.editor.load_plan_options_full_azure", { defaultValue: "Load Azure regions and sizes" })
                                   : isLinodeProvisionPlan
@@ -8945,14 +8941,6 @@ function TaskEditorDialog({
                         <div className="border-y border-dashed border-slate-200/80 py-3 text-xs text-muted-foreground dark:border-slate-800/80">
                           {t("failover.editor.aws_static_presets_hint", {
                             defaultValue: "AWS failover uses the same built-in region, image, and instance-size presets as the AWS create-instance page. No catalog request is required for the basic form.",
-                          })}
-                        </div>
-                      ) : null}
-
-                            {isDigitalOceanProvisionPlan ? (
-                        <div className="border-y border-dashed border-slate-200/80 py-3 text-xs text-muted-foreground dark:border-slate-800/80">
-                          {t("failover.editor.digitalocean_common_options_hint", {
-                            defaultValue: "Common DigitalOcean regions, sizes, and images are shown by default. Load the full DigitalOcean list only if you need uncommon options.",
                           })}
                         </div>
                       ) : null}
@@ -9630,6 +9618,17 @@ function TaskEditorDialog({
 
                       {selectedPlan.provider === "digitalocean" && selectedPlan.action_type === "provision_instance" ? (
                         <div className="grid gap-4 lg:grid-cols-2">
+                          {planCatalog?.provider === "digitalocean" && planCatalog.region === selectedPlanRegion && !planCatalogLoading && !planCatalogError
+                            ? (["region", "size", "image"] as const).map((field) => {
+                              if (field !== "region" && !selectedPlanRegion) return null;
+                              const value = getStringValue(selectedPlanPayload[field]);
+                              const options = field === "region" ? digitalOceanRegionOptions : field === "size" ? digitalOceanSizeOptions : digitalOceanImageOptions;
+                              return value && !options.some((option) => option.value === value) ? (
+                                <p key={field} role="alert" className="text-xs text-destructive lg:col-span-2">
+                                  {t(`failover.validation.digitalocean_${field}_unavailable`, { value, region: selectedPlanRegion })}
+                                </p>
+                              ) : null;
+                            }) : null}
                           <ValidationField field="plan.region" className="space-y-2">
                             <Label>{t("failover.editor.region", { defaultValue: "Region" })}</Label>
                             {digitalOceanRegionOptions.length > 0 ? (
@@ -9639,6 +9638,8 @@ function TaskEditorDialog({
                                   updateSelectedPlanPayload((current) => ({
                                     ...current,
                                     region: value,
+                                    size: "",
+                                    image: "",
                                   }));
                                   resetPlanCatalogState(keepPlanCatalogRegions(
                                     planCatalog,
@@ -9662,9 +9663,7 @@ function TaskEditorDialog({
                               </Select>
                             ) : (
                               <div className="border-y border-dashed border-slate-200/80 py-3 text-sm text-muted-foreground dark:border-slate-800/80">
-                                {t("failover.editor.load_plan_regions_first", {
-                                  defaultValue: "Load regions first, then choose a region.",
-                                })}
+                                {planCatalogLoading ? t("common.loading") : t("failover.editor.digitalocean_no_regions")}
                               </div>
                             )}
                           </ValidationField>
@@ -9672,6 +9671,7 @@ function TaskEditorDialog({
                             <Label>{t("failover.editor.size", { defaultValue: "Size" })}</Label>
                             {digitalOceanSizeOptions.length > 0 ? (
                               <SearchableCatalogSelect
+                                disabled={planCatalogLoading}
                                 value={getStringValue(selectedPlanPayload.size) || undefined}
                                 options={digitalOceanSizeOptions}
                                 onValueChange={(value) => updateSelectedPlanPayload((current) => ({
@@ -9684,9 +9684,9 @@ function TaskEditorDialog({
                               />
                             ) : (
                               <div className="border-y border-dashed border-slate-200/80 py-3 text-sm text-muted-foreground dark:border-slate-800/80">
-                                {t("failover.editor.load_plan_options_first", {
-                                  defaultValue: "Choose a region first, then load provider options.",
-                                })}
+                                {selectedPlanRegion && planCatalog && !planCatalogLoading
+                                  ? t("failover.editor.digitalocean_no_sizes")
+                                  : planCatalogLoading ? t("common.loading") : t("failover.editor.digitalocean_choose_region")}
                               </div>
                             )}
                           </ValidationField>
@@ -9694,6 +9694,7 @@ function TaskEditorDialog({
                             <Label>{t("failover.editor.image", { defaultValue: "Image" })}</Label>
                             {digitalOceanImageOptions.length > 0 ? (
                               <SearchableCatalogSelect
+                                disabled={planCatalogLoading}
                                 value={getStringValue(selectedPlanPayload.image) || undefined}
                                 options={digitalOceanImageOptions}
                                 onValueChange={(value) => updateSelectedPlanPayload((current) => ({
@@ -9706,9 +9707,9 @@ function TaskEditorDialog({
                               />
                             ) : (
                               <div className="border-y border-dashed border-slate-200/80 py-3 text-sm text-muted-foreground dark:border-slate-800/80">
-                                {t("failover.editor.load_plan_options_first", {
-                                  defaultValue: "Choose a region first, then load provider options.",
-                                })}
+                                {selectedPlanRegion && planCatalog && !planCatalogLoading
+                                  ? t("failover.editor.digitalocean_no_images")
+                                  : planCatalogLoading ? t("common.loading") : t("failover.editor.digitalocean_choose_region")}
                               </div>
                             )}
                           </ValidationField>

@@ -41,6 +41,25 @@ function loadTsModule(relativePath, globals = {}) {
 
 const tests = [];
 
+const { digitalOceanPlanOptions, digitalOceanPlanIssue } = loadTsModule("src/lib/digitalOceanCatalog.ts");
+test("DigitalOcean options are bound to the selected region with no static fallback", () => {
+  const option = value => ({ value, label: value, hint: "" });
+  const catalog = { provider: "digitalocean", region: "sgp1", regions: [option("sgp1"), option("sfo3")], sizes: [option("sg-size")], images: [option("sg-image")] };
+  assert.equal(digitalOceanPlanOptions(catalog, "sgp1").sizes[0].value, "sg-size");
+  for (const region of ["sfo3", "", "sfo2"]) {
+    assert.equal(digitalOceanPlanOptions(catalog, region).sizes.length, 0);
+    assert.equal(digitalOceanPlanOptions(catalog, region).images.length, 0);
+  }
+  assert.equal(digitalOceanPlanOptions(null, "sgp1").regions.length, 0);
+  assert.equal(digitalOceanPlanOptions({ ...catalog, provider: "linode" }, "sgp1").regions.length, 0);
+  assert.equal(digitalOceanPlanOptions({ ...catalog, sizes: [] }, "sgp1").sizes.length, 0);
+  assert.equal(digitalOceanPlanIssue(catalog, "sfo2", "sg-size", "sg-image"), "region");
+  assert.equal(digitalOceanPlanIssue(catalog, "sfo3", "sg-size", "sg-image"), "size");
+  assert.equal(digitalOceanPlanIssue(catalog, "sgp1", "old-size", "sg-image"), "size");
+  assert.equal(digitalOceanPlanIssue(catalog, "sgp1", "sg-size", "old-image"), "image");
+  assert.equal(digitalOceanPlanIssue(catalog, "sgp1", "sg-size", "sg-image"), null);
+});
+
 const { createRequestTracker } = loadTsModule("src/lib/requestTracker.ts");
 const { getPortForwardEditorStatus } = loadTsModule("src/lib/portForwardStatus.ts");
 const { getAccountScopeKey } = loadTsModule("src/lib/accountScope.ts");
