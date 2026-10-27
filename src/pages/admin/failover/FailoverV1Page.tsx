@@ -4436,7 +4436,7 @@ function taskToForm(task: FailoverTask, providerEntries: ProviderEntriesMap): Ta
     enabled: task.enabled,
     current_client_uuid: task.current_client_uuid || task.watch_client_uuid || "",
     failure_threshold: String(task.failure_threshold || 2),
-    stale_after_seconds: String(task.stale_after_seconds || 300),
+    stale_after_seconds: String(Math.max(60, task.stale_after_seconds || 300)),
     cooldown_seconds: String(task.cooldown_seconds),
     provision_retry_limit: String(task.provision_retry_limit || 6),
     provision_failure_fallback_limit: String(task.provision_failure_fallback_limit || 3),
@@ -4823,7 +4823,7 @@ function buildTaskInput(formState: TaskFormState, t: TFunction): FailoverTaskInp
     enabled: formState.enabled,
     current_client_uuid: currentClientUUID,
     failure_threshold: numberOrDefault(formState.failure_threshold, 2),
-    stale_after_seconds: numberOrDefault(formState.stale_after_seconds, 300),
+    stale_after_seconds: Math.max(60, numberOrDefault(formState.stale_after_seconds, 300)),
     cooldown_seconds: numberOrDefault(formState.cooldown_seconds, 0),
     provision_retry_limit: numberOrDefault(formState.provision_retry_limit, 6),
     provision_failure_fallback_limit: numberOrDefault(formState.provision_failure_fallback_limit, 3),
@@ -7725,9 +7725,10 @@ function TaskEditorDialog({
                                 <Input
                                   id="failover-stale"
                                   type="number"
-                                  min={1}
+                                  min={60}
                                   value={formState.stale_after_seconds}
                                   onChange={(event) => updateTaskField("stale_after_seconds", event.target.value)}
+                                  onBlur={(event) => updateTaskField("stale_after_seconds", String(Math.max(60, numberOrDefault(event.target.value, 300))))}
                                 />
                               </div>
                               <div className="space-y-2">

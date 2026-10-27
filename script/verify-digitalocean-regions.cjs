@@ -100,6 +100,28 @@ const server = http.createServer((req, res) => {
           await page.getByRole("button", { name: zh.failover.create, exact: true }).click();
           const dialog = page.getByRole("dialog");
           await dialog.locator("#failover-name").fill("Regional regression");
+          const monitoring = dialog.getByText(zh.failover.editor.show_task_advanced, { exact: true }).locator("..").locator("..");
+          await monitoring.getByRole("button", { name: zh.form_feedback.expand, exact: true }).click();
+          const stale = dialog.locator("#failover-stale");
+          if (!await stale.isVisible()) {
+            await dialog.getByRole("button", { name: new RegExp(zh.failover.editor.monitoring_core) }).click();
+          }
+          await visible(stale);
+          assert.equal(await stale.getAttribute("min"), "60");
+          assert.equal(await stale.inputValue(), "300");
+          await stale.fill("10");
+          await stale.press("Tab");
+          assert.equal(await stale.inputValue(), "60");
+          await stale.fill("600");
+          await stale.press("Tab");
+          assert.equal(await stale.inputValue(), "600");
+          await stale.fill("");
+          await stale.press("Tab");
+          assert.equal(await stale.inputValue(), "300");
+          await stale.fill("10");
+          await stale.press("Tab");
+          await shot("stale-window-" + mode);
+          await monitoring.getByRole("button", { name: zh.form_feedback.collapse, exact: true }).click();
           await dialog.getByRole("button", { name: zh.common.edit, exact: true }).first().click();
           const field = key => dialog.locator(`[data-validation-field="plan.${key}"]`);
           await field("provider").getByRole("combobox").click();
@@ -143,6 +165,7 @@ const server = http.createServer((req, res) => {
           assert.equal(captured.plans[0].payload.region, "sgp1");
           assert.equal(captured.plans[0].payload.size, "sgp1-size");
           assert.equal(captured.plans[0].payload.image, "sgp1-image");
+          assert.equal(captured.stale_after_seconds, 60, "Unsafe stale window must not reach the save endpoint");
           captured = null;
           emptySizes = true;
           await dialog.getByRole("button", { name: zh.common.create, exact: true }).click();

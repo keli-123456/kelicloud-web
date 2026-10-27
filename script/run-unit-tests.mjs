@@ -571,6 +571,14 @@ test("v1 task editor preserves in-progress provider selection while task data po
   assert.match(source, /editorInitializationKeyRef\.current = ""/);
 });
 
+test("v1 stale window has the same safety floor in editing and submission", () => {
+  const source = fs.readFileSync(path.resolve(root, "src/pages/admin/failover/FailoverV1Page.tsx"), "utf8");
+  assert.match(source, /id="failover-stale"\s+type="number"\s+min=\{60\}/);
+  assert.ok(source.includes("stale_after_seconds: String(Math.max(60, task.stale_after_seconds || 300))"));
+  assert.ok(source.includes("stale_after_seconds: Math.max(60, numberOrDefault(formState.stale_after_seconds, 300))"));
+  assert.match(source, /onBlur=\{\(event\) => updateTaskField\("stale_after_seconds", String\(Math\.max\(60,/);
+});
+
 test("mobile admin navigation traps and restores focus", () => {
   const source = fs.readFileSync(path.resolve(root, "src/components/admin/AdminPanelBar.tsx"), "utf8");
 
