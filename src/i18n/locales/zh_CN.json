@@ -300,6 +300,7 @@
         "lastStatus": "最近状态",
         "lastTriggeredAt": "最近触发",
         "loadFailed": "加载条件脚本失败",
+        "manualTrigger": "手动执行",
         "refreshScripts": "刷新脚本库",
         "removeFailed": "删除条件脚本失败",
         "removeSuccess": "条件脚本已删除",

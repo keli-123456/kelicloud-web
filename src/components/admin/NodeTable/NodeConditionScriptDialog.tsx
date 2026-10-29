@@ -1,5 +1,5 @@
 import * as React from "react";
-import { Activity, Clock3, Play, RefreshCw, Save, ScrollText, Trash2 } from "lucide-react";
+import { Activity, ChevronLeft, ChevronRight, Clock3, Play, RefreshCw, Save, ScrollText, Trash2 } from "lucide-react";
 import { t } from "i18next";
 import { toast } from "sonner";
 
@@ -13,6 +13,7 @@ import {
   TextField,
 } from "@/components/admin/admin-ui";
 import { AdminDialogLayout } from "@/components/admin/AdminForm";
+import { useClientPagination } from "@/components/admin/AdminPaginationUtils";
 import {
   ADMIN_FORM_CONTEXT_CARD_CLASS,
   ADMIN_FORM_EMPTY_CLASS,
@@ -159,8 +160,14 @@ export function NodeConditionScriptDialog({
   const [running, setRunning] = React.useState(false);
   const [removing, setRemoving] = React.useState(false);
   const [error, setError] = React.useState("");
+  const requestId = React.useRef(0);
+  const invalidateRequests = React.useCallback(() => { requestId.current++; }, []);
   const { commands, loading: commandsLoading, error: commandsError, refresh: refreshCommands } = useCommandClipboard();
   const open = typeof controlledOpen === "boolean" ? controlledOpen : uncontrolledOpen;
+  const history = useClientPagination(triggers, {
+    initialPageSize: 5,
+    resetKey: `${item.uuid}:${open}`,
+  });
   const setOpen = React.useCallback((nextOpen: boolean) => {
     if (typeof controlledOpen !== "boolean") {
       setUncontrolledOpen(nextOpen);
@@ -177,26 +184,29 @@ export function NodeConditionScriptDialog({
     [form.commandId, orderedCommands],
   );
 
-  const loadData = React.useCallback(async () => {
+  const loadData = React.useCallback(async (resetForm = false, notify = false) => {
+    const currentRequest = ++requestId.current;
     setLoading(true);
-    setError("");
     try {
       const [nextRule, nextTriggers] = await Promise.all([
         getClientConditionScriptRule(item.uuid),
         listClientConditionScriptTriggers(item.uuid),
       ]);
+      if (currentRequest !== requestId.current) return;
       setRule(nextRule);
-      setForm(buildForm(nextRule));
+      if (resetForm) setForm(buildForm(nextRule));
       setTriggers(nextTriggers);
+      setError("");
     } catch (err) {
+      if (currentRequest !== requestId.current) return;
       const message = getReadableErrorMessage(
         err,
         t("admin.nodeTable.conditionScript.loadFailed", "加载条件脚本失败"),
       );
       setError(message);
-      toast.error(message);
+      if (notify) toast.error(message);
     } finally {
-      setLoading(false);
+      if (currentRequest === requestId.current) setLoading(false);
     }
   }, [item.uuid]);
 
@@ -204,8 +214,20 @@ export function NodeConditionScriptDialog({
     if (!open) {
       return;
     }
-    void loadData();
-  }, [loadData, open]);
+    setRule(null);
+    setTriggers([]);
+    setForm(DEFAULT_FORM);
+    void loadData(true, true);
+    return invalidateRequests;
+  }, [invalidateRequests, loadData, open]);
+
+  React.useEffect(() => {
+    if (!open || loading || saving || running || removing) return;
+    const timer = window.setInterval(() => {
+      if (document.visibilityState === "visible") void loadData();
+    }, 15_000);
+    return () => window.clearInterval(timer);
+  }, [loadData, loading, open, removing, running, saving]);
 
   const updateForm = React.useCallback((patch: Partial<FormState>) => {
     setForm((current) => ({ ...current, ...patch }));
@@ -264,7 +286,7 @@ export function NodeConditionScriptDialog({
       setRule(saved);
       setForm(buildForm(saved));
       toast.success(t("admin.nodeTable.conditionScript.saveSuccess", "条件脚本已保存"));
-      void listClientConditionScriptTriggers(item.uuid).then(setTriggers).catch(() => undefined);
+      void loadData();
     } catch (err) {
       const message = getReadableErrorMessage(
         err,
@@ -308,9 +330,7 @@ export function NodeConditionScriptDialog({
     try {
       const result = await runClientConditionScriptNow(item.uuid);
       setRule(result.rule);
-      setForm(buildForm(result.rule));
-      const nextTriggers = await listClientConditionScriptTriggers(item.uuid);
-      setTriggers(nextTriggers);
+      await loadData();
       toast.success(
         t("admin.nodeTable.conditionScript.runSuccess", {
           defaultValue: `已下发脚本任务 ${result.task_id}`,
@@ -341,7 +361,7 @@ export function NodeConditionScriptDialog({
         bodyClassName="space-y-4 py-5"
       >
         <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(280px,360px)]">
-          <div className="space-y-4">
+          <div className="min-w-0 space-y-4">
             <div className={NODE_DIALOG_INFO_CLASS}>
               <div className="flex min-w-0 items-start justify-between gap-3">
                 <div className="min-w-0">
@@ -501,8 +521,8 @@ export function NodeConditionScriptDialog({
             </div>
           </div>
 
-          <div className="space-y-4">
-            <div className={NODE_DIALOG_SECTION_CLASS}>
+          <div className="min-w-0 space-y-4">
+            <div className={NODE_DIALOG_SECTION_CLASS} data-condition-state>
               <div className="mb-3 flex items-center gap-2 text-sm font-medium text-foreground">
                 <Activity className="h-4 w-4 text-muted-foreground" />
                 {t("admin.nodeTable.conditionScript.currentState", "当前状态")}
@@ -551,12 +571,10 @@ export function NodeConditionScriptDialog({
                 <Button
                   variant="ghost"
                   size="sm"
-                  onClick={() => {
-                    void listClientConditionScriptTriggers(item.uuid).then(setTriggers).catch((err) => {
-                      toast.error(getReadableErrorMessage(err));
-                    });
-                  }}
-                  disabled={loading}
+                  onClick={() => { void loadData(false, true); }}
+                  disabled={loading || saving || running || removing}
+                  aria-label={t("common.refresh", "刷新")}
+                  title={t("common.refresh", "刷新")}
                 >
                   <RefreshCw className={cn("h-3.5 w-3.5", loading && "animate-spin")} />
                 </Button>
@@ -567,31 +585,53 @@ export function NodeConditionScriptDialog({
                 </div>
               ) : (
                 <div className={ADMIN_FORM_LIST_PANEL_CLASS}>
-                  {triggers.map((record) => (
-                    <div key={record.id} className="border-b border-border px-3 py-3 last:border-b-0">
-                      <div className="flex items-start justify-between gap-3">
+                  {history.pageItems.map((record) => (
+                    <div key={record.id} data-condition-trigger={record.id} className="border-b border-border px-3 py-2.5 last:border-b-0">
+                      <div className="flex items-start justify-between gap-2">
                         <div className="min-w-0">
-                          <div className="flex items-center gap-2 text-sm font-medium text-foreground">
-                            <Clock3 className="h-3.5 w-3.5 text-muted-foreground" />
+                          <div className="flex items-center gap-1.5 text-xs font-medium text-foreground">
+                            <Clock3 className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
                             {formatDateTime(record.created_at)}
-                          </div>
-                          <div className="mt-1 truncate text-xs text-muted-foreground">
-                            {record.reason || getConnectivityLabel(record.connectivity_status)}
                           </div>
                         </div>
                         <Badge color={getTriggerStatusTone(record.status)}>
                           {getTriggerStatusLabel(record.status)}
                         </Badge>
                       </div>
-                      <div className="mt-2 grid gap-1 text-xs text-muted-foreground">
-                        <div>{getConnectivityLabel(record.connectivity_status)} / {record.failure_count}</div>
-                        {record.task_id ? <div className="truncate">Task: {record.task_id}</div> : null}
-                        {record.error_message ? <div className="text-red-600 dark:text-red-300">{record.error_message}</div> : null}
+                      <div className="mt-1.5 text-xs text-muted-foreground">
+                        {record.reason.trim().toLowerCase() === "manual run"
+                          ? t("admin.nodeTable.conditionScript.manualTrigger", "手动执行")
+                          : `${getConnectivityLabel(record.connectivity_status)} / ${record.failure_count}`}
                       </div>
+                      <details className="mt-1.5 text-xs text-muted-foreground">
+                        <summary className="w-fit cursor-pointer rounded-sm focus-visible:outline-2 focus-visible:outline-ring">
+                          {t("common.details", "详情")}
+                        </summary>
+                        <div className="mt-2 space-y-1 break-words [overflow-wrap:anywhere]">
+                          {record.reason ? <div>{record.reason}</div> : null}
+                          {record.task_id ? <div>Task: {record.task_id}</div> : null}
+                          {record.error_message ? <div className="text-red-600 dark:text-red-300">{record.error_message}</div> : null}
+                        </div>
+                      </details>
+                      {record.error_message ? <div title={record.error_message} className="mt-1 truncate text-xs text-red-600 dark:text-red-300">{record.error_message}</div> : null}
                     </div>
                   ))}
                 </div>
               )}
+              {history.totalPages > 1 ? (
+                <nav aria-label={t("admin.nodeTable.conditionScript.history", "最近触发")} className="mt-3 flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
+                  <span>{t("admin.pagination.summary", { start: history.visibleStart, end: history.visibleEnd, total: history.total, item: t("admin.pagination.items", "条") })}</span>
+                  <div className="flex shrink-0 items-center gap-1">
+                    <Button variant="ghost" size="sm" className="h-8 w-8 p-0" disabled={history.page === 1} onClick={() => history.setPage(history.page - 1)} aria-label={t("admin.pagination.previous", "上一页")} title={t("admin.pagination.previous", "上一页")}>
+                      <ChevronLeft className="h-4 w-4" />
+                    </Button>
+                    <span className="min-w-9 text-center tabular-nums">{history.page}/{history.totalPages}</span>
+                    <Button variant="ghost" size="sm" className="h-8 w-8 p-0" disabled={history.page === history.totalPages} onClick={() => history.setPage(history.page + 1)} aria-label={t("admin.pagination.next", "下一页")} title={t("admin.pagination.next", "下一页")}>
+                      <ChevronRight className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </nav>
+              ) : null}
             </div>
           </div>
         </div>

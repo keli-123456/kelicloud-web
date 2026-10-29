@@ -632,6 +632,7 @@
         "lastStatus": "Latest status",
         "lastTriggeredAt": "Last triggered",
         "loadFailed": "Failed to load the conditional script",
+        "manualTrigger": "Manual run",
         "refreshScripts": "Refresh script library",
         "removeFailed": "Failed to delete the conditional script",
         "removeSuccess": "Conditional script deleted",

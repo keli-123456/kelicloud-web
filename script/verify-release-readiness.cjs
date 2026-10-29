@@ -13,6 +13,7 @@ let account = 'a', role = 'admin', features = [], sessionStatus = 200;
 let holdPattern, failPattern, chunkMode = '', chunkFailures = 0, htmlLoads = 0;
 let base, browser, context, page;
 let allowExec = false;
+let conditionStatus = 'ok', conditionHistoryCount = 20, conditionReads = 0;
 const env = data => ({ status: 'success', data });
 const nodes = owner => Array.from({ length: 100 }, (_, i) => ({
   uuid: `${owner}-node-${i}`, name: `${owner.toUpperCase()}-NODE-${i}`, ipv4: `192.0.2.${i+1}`,
@@ -26,6 +27,17 @@ function fixture(p, request, owner = account) {
   if (p === '/api/public') return env({ sitename: 'kelicloud', private_site: false });
   if (p.includes('/settings')) return env({ eula_accepted: true, failover_v2_scheduler_enabled: true });
   if (p === '/api/admin/client/list') return nodes(owner);
+  if (/\/client\/[^/]+\/condition-script$/.test(p)) {
+    conditionReads++;
+    return env({ id: 1, client_uuid: owner+'-node-0', enabled: true, command_id: 1,
+      trigger_statuses: ['blocked_suspected','degraded'], failure_threshold: 2, cooldown_seconds: 600,
+      last_status: conditionStatus, consecutive_failures: conditionStatus === 'ok' ? 0 : 3 });
+  }
+  if (p.endsWith('/condition-script/triggers')) return env(Array.from({length:conditionHistoryCount},(_,i)=>({
+    id:conditionHistoryCount-i, status:'submitted', connectivity_status:'blocked_suspected', failure_count:2,
+    reason:i===0?'manual run':'cn_connectivity blocked_suspected (2 failures)',
+    task_id:'condition-task-'+(conditionHistoryCount-i), created_at:'2026-10-29T00:00:00Z',
+  })));
   if (p === '/api/rpc2') {
     const q = request.postDataJSON();
     const reply = item => ({ jsonrpc: '2.0', id: item.id, result: item.method === 'common:getNodesLatestStatus'
@@ -256,6 +268,58 @@ const memory = async () => {
       assert.equal(htmlLoads-n,2);assert.equal(chunkFailures,2);chunkMode='';
       await page.screenshot({path:path.join(out,'permanent-chunk-error.png')});
     });
+    for (const theme of ['light','dark']) {
+      for (const width of [1440,390]) {
+        await check('Condition history and live state at '+width+'-'+theme,async()=>{
+          conditionStatus='ok'; conditionHistoryCount=20;
+          await go('/admin/client');
+          await page.setViewportSize({width,height:width===390?844:1000});
+          await page.evaluate(value=>localStorage.setItem('appearance',JSON.stringify(value)),theme);
+          await page.reload({waitUntil:'networkidle'});
+          await page.clock.install();
+          await page.locator('tr').filter({hasText:'192.0.2.1'}).first().click({button:'right'});
+          await page.getByRole('menuitem',{name:zh.admin.nodeTable.conditionScript.title,exact:true}).click();
+          const dialog=page.getByRole('dialog'), records=dialog.locator('[data-condition-trigger]');
+          const pager=dialog.getByRole('navigation',{name:zh.admin.nodeTable.conditionScript.history});
+          const refresh=dialog.getByRole('button',{name:zh.common.refresh,exact:true});
+          await until(async()=>await records.count()===5);
+          assert.equal(await records.first().getAttribute('data-condition-trigger'),'20');
+          await visible(records.first().getByText(zh.admin.nodeTable.conditionScript.manualTrigger,{exact:true}));
+          assert.ok(await pager.getByRole('button',{name:zh.admin.pagination.previous}).isDisabled());
+          await pager.getByRole('button',{name:zh.admin.pagination.next}).click();
+          assert.equal(await records.first().getAttribute('data-condition-trigger'),'15');
+          assert.equal(await records.first().getByText('Task: condition-task-15',{exact:true}).isVisible(),false);
+          await records.first().locator('summary').click();
+          await visible(records.first().getByText('Task: condition-task-15',{exact:true}));
+          await records.first().locator('summary').click();
+          const threshold=dialog.getByRole('spinbutton').first();
+          await threshold.fill('9');
+          conditionStatus='blocked_suspected'; await refresh.click();
+          await visible(dialog.locator('[data-condition-state]').getByText(zh.admin.nodeTable.cnConnectivityBlocked,{exact:true}));
+          assert.equal(await threshold.inputValue(),'9');
+          assert.equal(await records.first().getAttribute('data-condition-trigger'),'15');
+          conditionStatus='degraded';
+          await until(async()=>await refresh.isEnabled());
+          await page.clock.fastForward(16000);
+          await visible(dialog.locator('[data-condition-state]').getByText(zh.admin.nodeTable.cnConnectivityDegraded,{exact:true}));
+          assert.equal(await threshold.inputValue(),'9');
+          assert.ok(await dialog.evaluate(el=>el.scrollWidth<=el.clientWidth+1));
+          assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));
+          await dialog.locator('[data-condition-state]').scrollIntoViewIfNeeded();
+          await page.screenshot({path:path.join(out,'condition-script-'+width+'-'+theme+'.png')});
+          conditionHistoryCount=2; await refresh.click();
+          await until(async()=>await records.count()===2);
+          assert.equal(await pager.count(),0);
+          conditionHistoryCount=0; await refresh.click();
+          await visible(dialog.getByText(zh.admin.nodeTable.conditionScript.emptyHistory,{exact:true}));
+          await page.keyboard.press('Escape');
+          await until(async()=>await page.getByRole('dialog').count()===0);
+          const reads=conditionReads;
+          await page.clock.fastForward(30000);
+          assert.equal(conditionReads,reads,'Closed condition dialog kept polling');
+        });
+      }
+    }
     const realtime = [];
     const realDuration = Number(process.env.READINESS_REAL_MS || 0);
     if(realDuration>0){

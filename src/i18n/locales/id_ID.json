@@ -632,6 +632,7 @@
         "lastStatus": "Status terbaru",
         "lastTriggeredAt": "Terakhir dipicu",
         "loadFailed": "Gagal memuat skrip bersyarat",
+        "manualTrigger": "Eksekusi manual",
         "refreshScripts": "Muat ulang pustaka skrip",
         "removeFailed": "Gagal menghapus skrip bersyarat",
         "removeSuccess": "Skrip bersyarat dihapus",

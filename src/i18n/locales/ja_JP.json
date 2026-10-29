@@ -632,6 +632,7 @@
         "lastStatus": "最新の状態",
         "lastTriggeredAt": "最終実行",
         "loadFailed": "条件スクリプトを読み込めませんでした",
+        "manualTrigger": "手動実行",
         "refreshScripts": "スクリプト一覧を更新",
         "removeFailed": "条件スクリプトを削除できませんでした",
         "removeSuccess": "条件スクリプトを削除しました",

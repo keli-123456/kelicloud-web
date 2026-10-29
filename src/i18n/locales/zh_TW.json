@@ -632,6 +632,7 @@
         "lastStatus": "最近狀態",
         "lastTriggeredAt": "最近觸發",
         "loadFailed": "載入條件指令碼失敗",
+        "manualTrigger": "手動執行",
         "refreshScripts": "重新整理指令碼庫",
         "removeFailed": "刪除條件指令碼失敗",
         "removeSuccess": "條件指令碼已刪除",
