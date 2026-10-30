@@ -8,7 +8,7 @@
     "build": "tsc -b && vite build --configLoader runner && npm run verify:pwa && node script/build-info.mjs",
     "release:check": "npm run lint && npm test && npm run i18n:audit && npm run build && npm run release:browser",
     "release:ci": "playwright install --with-deps chromium && npm run release:check",
-    "release:browser": "node script/verify-release-readiness.cjs && node script/verify-pwa-readiness.cjs && node script/verify-digitalocean-regions.cjs",
+    "release:browser": "node script/verify-release-readiness.cjs && node script/verify-pwa-readiness.cjs && node script/verify-digitalocean-regions.cjs && node script/verify-v1-credentials.cjs",
     "verify:pwa": "node ./script/verify-pwa-build.mjs",
     "test": "node ./script/run-unit-tests.mjs",
     "i18n:audit": "node ./script/i18n-audit.mjs",

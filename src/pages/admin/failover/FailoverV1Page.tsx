@@ -3623,11 +3623,11 @@ function buildPlanProviderEntryOptions(
     currentValue,
     activeLabel: activeEntry
       ? t("failover.editor.provider_entry_active_named", {
-        defaultValue: "Use active entry ({{name}})",
+        defaultValue: "Automatic (prefer {{name}})",
         name: activeEntry.name || activeEntry.id,
       })
       : t("failover.editor.provider_entry_active", {
-        defaultValue: "Use active entry",
+        defaultValue: "Automatic (selected pool)",
       }),
   });
 }
@@ -8755,7 +8755,7 @@ function TaskEditorDialog({
                           })()}
                         </div>
                         <div className="space-y-2">
-                          <Label htmlFor="v1-plan-entry">{t("failover.editor.provider_entry", { defaultValue: "Specific credential entry (optional)" })}</Label>
+                          <Label htmlFor="v1-plan-entry">{t("failover.editor.provider_entry", { defaultValue: "Preferred credential (optional)" })}</Label>
                           {selectedPlan.provider ? (
                             <CredentialActions href={`/admin/cloud?provider=${encodeURIComponent(selectedPlan.provider)}`} onRefresh={() => onRefreshCredentials(selectedPlan.provider)} />
                           ) : null}
@@ -8813,7 +8813,7 @@ function TaskEditorDialog({
                                 </Select>
                                 <div className="text-xs text-muted-foreground">
                                   {t("failover.editor.provider_entry_hint", {
-                                    defaultValue: "Leave this on the active entry to follow the group dynamically, or pin a specific token inside the group.",
+                                    defaultValue: "The selected credential is tried first. If unavailable, other credentials in the selected pool are tried.",
                                   })}
                                 </div>
                               </div>
